@@ -6,7 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// A changed bill can keep producing after its original order fails inspection.
+// A changed bill can keep producing after its original order fails inspection
+// (the herd feed reserve is still short).
 // This only hands off to watchFeed's bounded NeedRecovered wait and verifyFeed's
 // native reachable-stock check; it does not credit production or complete a plan.
 func feedBillNeedsRecovery(need policy.GoalID, state store.PlanState) bool {

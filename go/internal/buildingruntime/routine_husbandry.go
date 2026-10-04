@@ -90,7 +90,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	// The tame fallback is gated on the same feed review
 	// RoutineAnimalFeedPlanner plans from, so a herd already short of feed
 	// never takes on another mouth.
-	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.AnimalUpkeep)
+	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.FoodReserveDays)
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}

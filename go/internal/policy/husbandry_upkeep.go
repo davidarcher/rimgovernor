@@ -273,8 +273,8 @@ func herdTameLess(role HerdRole, a, b UpkeepAnimal) bool {
 }
 
 // HerdFeedShort is the feed gate SelectHusbandryMethod's tame fallback
-// reads from MaintainAnimalFeed's own review: known true while any player
-// animal is below its feed threshold, unknown while the feed forecast is.
+// reads from MaintainAnimalFeed's own review: known true while any race group
+// has a feed reserve deficit, unknown while the feed forecast is.
 func HerdFeedShort(review AnimalUpkeepReview) domain.Fact[bool] {
 	targets, known := review.Feed.Value()
 	if !known {

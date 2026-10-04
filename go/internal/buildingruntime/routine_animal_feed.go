@@ -13,7 +13,8 @@ import (
 )
 
 // RoutineAnimalFeedPlanner proposes MaintainAnimalFeed's resource
-// acquisition method: policy.ReviewAnimalUpkeep's Feed deficit (the same
+// acquisition method: the short race group of policy.ReviewAnimalUpkeep's feed
+// reserve review (#1642; the same
 // generic animal/food census MaintainHerd and MaintainAnimalContainment
 // already read) feeds policy.SelectAnimalFeedMethod's resource/quantity
 // selection into the exact
@@ -103,15 +104,15 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	if !foodPlanSupport(read.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
 		return RoutineResourceResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
 	}
-	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.AnimalUpkeep)
+	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.FoodReserveDays)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	targets, known := reviewed.Feed.Value()
+	groups, known := reviewed.Feed.Value()
 	if !known {
-		return RoutineResourceResult{Verdict: fieldUnavailable("animal_feed_targets")}, nil
+		return RoutineResourceResult{Verdict: fieldUnavailable("animal_feed_reserve")}, nil
 	}
-	if len(targets) == 0 {
+	if len(groups) == 0 {
 		return RoutineResourceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	supply, known := upkeep.Food.Value()
@@ -139,8 +140,8 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	for _, row := range rows {
 		have[row.Resource] = row.Count
 	}
-	snap.NoteAnimalFeed(call, snap.AnimalFeedCall{Targets: targets, Stocks: supply.Stocks, Have: have, Races: upkeep.AnimalRaces})
-	choice, err := policy.SelectAnimalFeedMethod(targets, supply.Stocks, have, upkeep.AnimalRaces)
+	snap.NoteAnimalFeed(call, snap.AnimalFeedCall{Group: groups[0], Stocks: supply.Stocks, Have: have, Races: upkeep.AnimalRaces})
+	choice, err := policy.SelectAnimalFeedMethod(groups[0], supply.Stocks, have, upkeep.AnimalRaces)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

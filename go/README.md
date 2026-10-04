@@ -740,7 +740,8 @@ every colonist is observed sleeping in an owned bed) and `cold`
 (sleeping room below the cold floor gets a heat source). Run them through
 `acceptance run upkeep/<scenario>... -root <bridge root> -rimgovernor <service exe>
 -output <fresh dir>` from `go/`.
-Animal upkeep reviews retain containment risk and per-animal feed thresholds.
+Animal upkeep reviews retain containment risk and keep a per-race-group herd feed
+reserve (5 days of the group's nutrition, #1642).
 Feed shares the observed diet/rot forecast with human consumers. Missing censuses
 remain unknown; a complete empty census clears animal needs. Release and slaughter
 directions suppress animal targets. The policy accepts player-directed herd

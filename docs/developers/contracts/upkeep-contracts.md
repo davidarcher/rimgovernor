@@ -563,11 +563,17 @@ cleanliness upkeep leaves the vet room alone), that a spot in a bedroom does
 not change its `Bedroom` role, and that a room is roofed the way every other
 shelled room is.
 
-`MaintainAnimalFeed` starts below two days of observed reachable feed per animal
-and recovers at four days, with configurable ordered thresholds. Each animal has
-its own latch; missing census, demand or access evidence cannot clear it. The
-combined forecast shares stock with every eligible eater, respects allowed areas
-and current rot deadlines, and credits neither pasture nor future production.
+`MaintainAnimalFeed` keeps a standing herd feed reserve (#1642), like the human
+food reserve: per race group the target is `FoodReserveDays` (5) times the group's
+nutrition per day, the stock is the unheld edible stock every animal of the group
+can eat, and a group below target is a deficit sized by the missing nutrition
+(`policy.ReviewAnimalFeedReserve`). There is no per-animal trigger, hysteresis
+or latch: the reserve is topped up whenever it is short, and eating it down
+reopens the goal. Stock several races can eat (hay, raw meat) counts toward each
+of them. Missing census, demand or access evidence leaves the review unknown and
+cannot clear it. The forecast supplies nutrition per day, and credits neither
+pasture nor future production. `HerdFeedShort`, which gates taming, is true
+while any group has a deficit.
 Explicit player herd targets retain feed ownership, including cancelled targets;
 starting-animal upkeep does not replace those choices.
 

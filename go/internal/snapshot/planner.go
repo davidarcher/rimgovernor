@@ -143,10 +143,10 @@ type ChunkDumpCall struct {
 
 // AnimalFeedCall is one policy.SelectAnimalFeedMethod call's inputs.
 type AnimalFeedCall struct {
-	Targets []policy.AnimalFeedTarget
-	Stocks  []policy.FoodStock
-	Have    map[policy.Resource]int64
-	Races   policy.AnimalRaceCatalog
+	Group  policy.AnimalFeedGroup
+	Stocks []policy.FoodStock
+	Have   map[policy.Resource]int64
+	Races  policy.AnimalRaceCatalog
 }
 
 // NoteChunkDump records a chunk dump selection's inputs.

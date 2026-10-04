@@ -192,7 +192,7 @@ func TestSelectHusbandryMethodTameWaitsForFeed(t *testing.T) {
 	if v, known := HerdFeedShort(feedReviewWith(nil)).Value(); !known || v {
 		t.Fatal("an empty feed target list opens the gate")
 	}
-	if v, known := HerdFeedShort(feedReviewWith([]AnimalFeedTarget{{ID: "muffalo-1"}})).Value(); !known || !v {
+	if v, known := HerdFeedShort(feedReviewWith([]AnimalFeedGroup{{Definition: "Muffalo"}})).Value(); !known || !v {
 		t.Fatal("a feed target closes the gate")
 	}
 	if _, known := HerdFeedShort(AnimalUpkeepReview{}).Value(); known {
@@ -200,9 +200,9 @@ func TestSelectHusbandryMethodTameWaitsForFeed(t *testing.T) {
 	}
 }
 
-func feedReviewWith(targets []AnimalFeedTarget) AnimalUpkeepReview {
+func feedReviewWith(targets []AnimalFeedGroup) AnimalUpkeepReview {
 	if targets == nil {
-		targets = []AnimalFeedTarget{}
+		targets = []AnimalFeedGroup{}
 	}
 	return AnimalUpkeepReview{Feed: domain.Known(targets)}
 }

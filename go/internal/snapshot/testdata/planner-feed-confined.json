@@ -1,6 +1,54 @@
 {
  "AnimalFeed": [
   {
+   "Group": {
+    "Animals": [
+     "Thing_Husky44693"
+    ],
+    "DeficitNutrition": 3.200000047683716,
+    "Definition": "Husky",
+    "ReachableBenches": [
+     "Thing_ButcherSpot44691"
+    ],
+    "ReachableStorage": [
+     []
+    ],
+    "StorageCandidates": [
+     {
+      "X": 106,
+      "Z": 124
+     },
+     {
+      "X": 106,
+      "Z": 125
+     },
+     {
+      "X": 107,
+      "Z": 124
+     },
+     {
+      "X": 106,
+      "Z": 123
+     },
+     {
+      "X": 106,
+      "Z": 126
+     },
+     {
+      "X": 107,
+      "Z": 125
+     },
+     {
+      "X": 105,
+      "Z": 125
+     },
+     {
+      "X": 108,
+      "Z": 124
+     }
+    ],
+    "TargetNutrition": 3.200000047683716
+   },
    "Have": {
     "ChunkSandstone": 923,
     "ChunkSlate": 801,
@@ -763,52 +811,6 @@
      "TemperatureC": {
       "v": 3.5625
      }
-    }
-   ],
-   "Targets": [
-    {
-     "Definition": "Husky",
-     "ID": "Thing_Husky44693",
-     "Nutrition": 3.200000047683716,
-     "ReachableBenches": [
-      "Thing_ButcherSpot44691"
-     ],
-     "ReachableStorage": [],
-     "StorageCandidates": [
-      {
-       "X": 106,
-       "Z": 124
-      },
-      {
-       "X": 106,
-       "Z": 125
-      },
-      {
-       "X": 107,
-       "Z": 124
-      },
-      {
-       "X": 106,
-       "Z": 123
-      },
-      {
-       "X": 106,
-       "Z": 126
-      },
-      {
-       "X": 107,
-       "Z": 125
-      },
-      {
-       "X": 105,
-       "Z": 125
-      },
-      {
-       "X": 108,
-       "Z": 124
-      }
-     ],
-     "TargetDays": 4
     }
    ]
   }

@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -17,7 +16,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	set := func(n float64, contained bool) {
 		r.Facts.AnimalUpkeep = policy.AnimalUpkeepObservation{
 			Animals: domain.Known([]policy.UpkeepAnimal{{ID: "animal", Definition: "Muffalo", RequiresPen: domain.Known(true), Contained: domain.Known(contained), Release: domain.Known(false), Slaughter: domain.Known(false)}}),
-			Food:    domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "animal", NutritionPerDay: domain.Known(1.0)}}, Stocks: []policy.FoodStock{{ID: "hay", Holder: domain.Known(policy.PawnID("")), Nutrition: domain.Known(n), Eaters: []policy.PawnID{"animal"}, Perishable: domain.Known(false)}}}),
+			Food:    domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "animal", NutritionPerDay: domain.Known(1.0)}}, Stocks: []policy.FoodStock{{ID: "hay", DefName: "Hay", Holder: domain.Known(policy.PawnID("")), Count: domain.Known(int64(10)), Nutrition: domain.Known(n), Eaters: []policy.PawnID{"animal"}, Perishable: domain.Known(false)}}}),
 		}
 	}
 	set(1, false)
@@ -29,8 +28,10 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	}
 	r.Facts.AnimalUpkeep = policy.AnimalUpkeepObservation{}
 	out = reviewRoutine(t, s, &r)
-	for _, id := range []policy.GoalID{policy.MaintainAnimalContainment, policy.MaintainAnimalFeed} {
-		if g := routineGoal(t, out, id); g.Goal.Need != domain.NeedUnknown || g.Goal.Priority != 3 {
+	// Containment keeps its latch across an unknown census; the feed reserve
+	// has none, so an unread herd ranks as any other unknown optional need.
+	for id, priority := range map[policy.GoalID]int{policy.MaintainAnimalContainment: 3, policy.MaintainAnimalFeed: 4} {
+		if g := routineGoal(t, out, id); g.Goal.Need != domain.NeedUnknown || g.Goal.Priority != priority {
 			t.Fatal(g)
 		}
 	}
@@ -42,7 +43,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	s = open(t, path)
 	defer s.Close()
 	retained, err := s.LoadRoutineReview(context.Background())
-	if err != nil || retained.Enabled || !retained.Latches.Animals.Containment || len(retained.Latches.Animals.Feed) != 1 {
+	if err != nil || retained.Enabled || !retained.Latches.Animals.Containment {
 		t.Fatal(retained, err)
 	}
 	r.Enabled = true
@@ -58,7 +59,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	r.Facts.UpkeepIssued = map[policy.GoalID]bool{policy.MaintainAnimalFeed: true}
 	out = reviewRoutine(t, s, &r)
 	recovered := routineGoal(t, out, policy.MaintainAnimalFeed)
-	if recovered.Goal.Need != domain.NeedRecovered || len(out.Review.Latches.Animals.Feed) != 0 {
+	if recovered.Goal.Need != domain.NeedRecovered {
 		t.Fatal(recovered)
 	}
 	set(1, false)
@@ -66,33 +67,10 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedDeficit || g.Goal.Epoch <= recovered.Goal.Epoch {
 		t.Fatal(g)
 	}
-	set(4, true)
+	set(6, true)
 	r.Current.Load = "replacement"
 	out = reviewRoutine(t, s, &r)
 	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedRecovered {
 		t.Fatal(g)
-	}
-}
-
-func TestDisabledRoutineRejectsInvalidAnimalHistory(t *testing.T) {
-	t.Parallel()
-	s := open(t, memoryPath(t))
-	defer s.Close()
-	r := routineRequest()
-	reviewRoutine(t, s, &r)
-	r.Enabled = false
-	out := reviewRoutine(t, s, &r)
-	for _, ids := range [][]policy.PawnID{{""}, {"animal", "animal"}} {
-		out.Review.Latches.Animals.Feed = ids
-		data, err := json.Marshal(out.Review)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
-			t.Fatal(err)
-		}
-		if _, err = s.LoadRoutineReview(context.Background()); err == nil {
-			t.Fatal("invalid disabled animal history accepted", ids)
-		}
 	}
 }

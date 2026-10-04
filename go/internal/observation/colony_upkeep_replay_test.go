@@ -34,8 +34,9 @@ func TestNativeUpkeepReplay(t *testing.T) {
 			Uses    []policy.SleepingUse
 		}
 		Animals *struct {
-			Containment       []policy.PawnID
-			Initial, Retained []policy.AnimalFeedTarget
+			Containment []policy.PawnID
+			// Feed are the race groups whose herd feed reserve is short.
+			Feed []policy.AnimalFeedGroup
 		}
 		Medical map[string]struct {
 			Known, Active                     bool
@@ -85,25 +86,16 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		if !known || len(animals) < 3 {
 			t.Fatal("native animal fixture missing", animals)
 		}
-		previous := policy.AnimalUpkeepHistory{}
-		for _, a := range animals {
-			previous.Feed = append(previous.Feed, a.ID)
+		got, err := policy.ReviewAnimalUpkeep(projection.Facts.AnimalUpkeep, policy.AnimalUpkeepHistory{}, policy.DefaultFoodReserveDays)
+		containment, ck := got.Containment.Value()
+		feed, fk := got.Feed.Value()
+		if err != nil || !ck || !fk || !reflect.DeepEqual(containment, fixture.Animals.Containment) || len(feed) != len(fixture.Animals.Feed) {
+			t.Fatal(got, fixture.Animals.Feed, err)
 		}
-		for _, phase := range []struct {
-			previous policy.AnimalUpkeepHistory
-			want     []policy.AnimalFeedTarget
-		}{{policy.AnimalUpkeepHistory{}, fixture.Animals.Initial}, {previous, fixture.Animals.Retained}} {
-			got, err := policy.ReviewAnimalUpkeep(projection.Facts.AnimalUpkeep, phase.previous, policy.DefaultAnimalUpkeepPolicy())
-			containment, ck := got.Containment.Value()
-			feed, fk := got.Feed.Value()
-			if err != nil || !ck || !fk || !reflect.DeepEqual(containment, fixture.Animals.Containment) || len(feed) != len(phase.want) {
-				t.Fatal(got, phase.want, err)
-			}
-			for i, row := range feed {
-				want := phase.want[i]
-				if row.ID != want.ID || math.Abs(row.RunwayDays-want.RunwayDays) > 1e-6 || math.Abs(row.Nutrition-want.Nutrition) > 1e-6 || row.TargetDays != want.TargetDays {
-					t.Fatal(row, want)
-				}
+		for i, row := range feed {
+			want := fixture.Animals.Feed[i]
+			if row.Definition != want.Definition || !reflect.DeepEqual(row.Animals, want.Animals) || math.Abs(row.DeficitNutrition-want.DeficitNutrition) > 1e-6 {
+				t.Fatal(row, want)
 			}
 		}
 	}
@@ -165,7 +157,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		if len(fixture.Animals.Containment) > 0 {
 			animalNeeds[policy.MaintainAnimalContainment] = domain.NeedDeficit
 		}
-		if len(fixture.Animals.Initial) > 0 {
+		if len(fixture.Animals.Feed) > 0 {
 			animalNeeds[policy.MaintainAnimalFeed] = domain.NeedDeficit
 		}
 	}

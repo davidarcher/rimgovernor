@@ -34,7 +34,8 @@ import (
 //	kitchen  -- test/cleanliness_prepare (filthy): blood in an enclosed
 //	            kitchen, every colonist's Cleaning at 0, so only
 //	            MaintainCleanFacilities' forced orders clean it.
-//	feed     -- test/feed_setup: a hungry confined pet, MaintainAnimalFeed.
+//	feed     -- test/feed_setup: a confined pet and an empty herd feed reserve,
+//	            MaintainAnimalFeed (the pet eating the stock down reopens it).
 //	            After the kitchen so its enclosed butchery bench stands as
 //	            a lower-id decoy the kibble bill must not land on (#237).
 //	medicine -- test/medicine_setup: no medicine, MaintainMedicalReserves.

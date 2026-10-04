@@ -100,58 +100,26 @@ type AnimalUpkeepObservation struct {
 	Food          domain.Fact[FoodSupply]
 	DirectedHerds []Resource
 }
-type AnimalUpkeepPolicy struct{ FeedMinimumDays, FeedTargetDays float64 }
 
-// DefaultAnimalUpkeepPolicy keeps a standing herd reserve of DefaultFoodReserveDays
-// (the same 5 days as the colony food reserve): feed is topped up to it once
-// the runway falls under four days.
-func DefaultAnimalUpkeepPolicy() AnimalUpkeepPolicy {
-	return AnimalUpkeepPolicy{FeedMinimumDays: 4, FeedTargetDays: DefaultFoodReserveDays}
-}
-
+// AnimalUpkeepHistory is the containment latch MaintainAnimalContainment
+// stays active on until its review next finds no uncontained animal.
 type AnimalUpkeepHistory struct {
 	Containment bool
-	Feed        []PawnID
 }
 
-func (h AnimalUpkeepHistory) Validate() error {
-	seen := map[PawnID]bool{}
-	for _, id := range h.Feed {
-		if !foodID(string(id)) || seen[id] {
-			return errors.New("invalid animal feed history")
-		}
-		seen[id] = true
-	}
-	return nil
-}
-
-type AnimalFeedTarget struct {
-	ID                                PawnID
-	Definition                        Resource
-	RunwayDays, Nutrition, TargetDays float64
-	ReachableBenches                  []string
-	ReachableStorage                  []AnimalFeedStorage
-	StorageCandidates                 []domain.Cell
-}
 type AnimalUpkeepReview struct {
 	History     AnimalUpkeepHistory
 	Containment domain.Fact[[]PawnID]
-	Feed        domain.Fact[[]AnimalFeedTarget]
+	// Feed is the race groups whose herd feed reserve is short (#1642); empty
+	// when every reserve is met, unknown while the herd or its food is.
+	Feed domain.Fact[[]AnimalFeedGroup]
 }
 
-func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory, p AnimalUpkeepPolicy) (AnimalUpkeepReview, error) {
-	r := AnimalUpkeepReview{History: AnimalUpkeepHistory{Containment: previous.Containment, Feed: append([]PawnID{}, previous.Feed...)}}
+// ReviewAnimalUpkeep reviews containment and, per race group, the standing
+// herd feed reserve of reserveDays days (RoutinePolicy.FoodReserveDays).
+func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory, reserveDays float64) (AnimalUpkeepReview, error) {
+	r := AnimalUpkeepReview{History: previous}
 	invalid := errors.New("invalid animal upkeep facts or history")
-	if !foodNumber(p.FeedMinimumDays) || !foodNumber(p.FeedTargetDays) || p.FeedTargetDays <= p.FeedMinimumDays {
-		return r, invalid
-	}
-	if err := previous.Validate(); err != nil {
-		return r, err
-	}
-	active := map[PawnID]bool{}
-	for _, id := range previous.Feed {
-		active[id] = true
-	}
 	directed := map[Resource]bool{}
 	for _, race := range v.DirectedHerds {
 		if !validResource(race) || directed[race] {
@@ -165,11 +133,7 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	}
 	seen := map[PawnID]bool{}
 	containment := []PawnID{}
-	eligible := []PawnID{}
-	definitions := map[PawnID]Resource{}
-	benches := map[PawnID][]string{}
-	storage := map[PawnID][]AnimalFeedStorage{}
-	candidates := map[PawnID][]domain.Cell{}
+	eligible := []UpkeepAnimal{}
 	containmentKnown, feedKnown := true, true
 	for _, animal := range animals {
 		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) || !validAnimalFeedStorage(animal.ReachableStorage, animal.StorageCandidates) {
@@ -181,10 +145,6 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 			}
 		}
 		seen[animal.ID] = true
-		definitions[animal.ID] = animal.Definition
-		benches[animal.ID] = animal.ReachableBenches
-		storage[animal.ID] = animal.ReachableStorage
-		candidates[animal.ID] = animal.StorageCandidates
 		pen, pk := animal.RequiresPen.Value()
 		contained, ck := animal.Contained.Value()
 		release, rk := animal.Release.Value()
@@ -197,7 +157,7 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 		if !rk || !sk {
 			feedKnown = false
 		} else if !release && !slaughter && !directed[animal.Definition] {
-			eligible = append(eligible, animal.ID)
+			eligible = append(eligible, animal)
 		}
 	}
 	if containmentKnown {
@@ -208,62 +168,11 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	if !feedKnown {
 		return r, nil
 	}
-	if len(eligible) == 0 {
-		r.Feed = domain.Known([]AnimalFeedTarget{})
-		r.History.Feed = []PawnID{}
-		return r, nil
+	feed, err := ReviewAnimalFeedReserve(v, eligible, reserveDays)
+	if err != nil {
+		return r, err
 	}
-	supply, known := v.Food.Value()
-	if !known {
-		return r, nil
-	}
-	forecast, reviewed := v.Forecast.Value()
-	if !reviewed {
-		var err error
-		forecast, err = ForecastFood(supply, eligible)
-		if err != nil {
-			return r, nil
-		}
-	}
-	// A pet the colony forecast reports short (#708) is held to the target,
-	// like an active feed goal: the colony runway no longer carries its need.
-	short := map[PawnID]bool{}
-	for _, row := range forecast.PetShortfalls {
-		short[row.ID] = true
-	}
-	rows := map[PawnID]ConsumerFoodForecast{}
-	for _, row := range forecast.Consumers {
-		rows[row.ID] = row
-	}
-	targets := []AnimalFeedTarget{}
-	next := []PawnID{}
-	for _, id := range eligible {
-		row, exists := rows[id]
-		if !exists {
-			return r, nil
-		}
-		threshold := p.FeedMinimumDays
-		if active[id] || short[id] {
-			threshold = p.FeedTargetDays
-		}
-		if row.RunwayDays < threshold {
-			missing := max(0, p.FeedTargetDays*row.NutritionPerDay-row.UsableNutrition)
-			if !foodNumber(missing) {
-				return r, invalid
-			}
-			targets = append(targets, AnimalFeedTarget{id, definitions[id], row.RunwayDays, missing, p.FeedTargetDays, benches[id], storage[id], candidates[id]})
-			next = append(next, id)
-		}
-	}
-	sort.Slice(targets, func(i, j int) bool {
-		if targets[i].RunwayDays != targets[j].RunwayDays {
-			return targets[i].RunwayDays < targets[j].RunwayDays
-		}
-		return targets[i].ID < targets[j].ID
-	})
-	sort.Slice(next, func(i, j int) bool { return next[i] < next[j] })
-	r.Feed = domain.Known(targets)
-	r.History.Feed = next
+	r.Feed = feed
 	return r, nil
 }
 

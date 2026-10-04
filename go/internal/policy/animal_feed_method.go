@@ -8,6 +8,133 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// AnimalFeedGroup is one race's standing herd feed reserve (#1642): the
+// nutrition the group's animals eat in the reserve window against the unheld
+// edible stock every one of them can eat. Only groups below target are
+// reported.
+type AnimalFeedGroup struct {
+	Definition Resource
+	// Animals are the group's feedable animals (sorted).
+	Animals                                           []PawnID
+	TargetNutrition, StockNutrition, DeficitNutrition float64
+	// ReachableBenches names the work tables every animal of the group can
+	// reach inside its allowed area (sorted): the only benches a production
+	// bill may land on, since a bill drops its product where it is made and a
+	// confined animal cannot walk to a bench elsewhere.
+	ReachableBenches []string
+	// ReachableStorage is each animal's reachable stockpile zones.
+	ReachableStorage [][]AnimalFeedStorage
+	// StorageCandidates is the connected footprint, shared by the whole
+	// group, on which a feed-only stockpile zone would make delivery possible.
+	StorageCandidates []domain.Cell
+}
+
+// ReviewAnimalFeedReserve keeps the herd fed like the human food reserve
+// (ReviewFoodReserve): per race group the target is reserveDays x the group
+// NutritionPerDay, the stock is the unheld edible stock every animal of the
+// group can eat, and the deficit is the nutrition left to produce. Stock
+// several races can eat counts toward each of them (accepted). The review is
+// unknown while the food census or the forecast is.
+func ReviewAnimalFeedReserve(v AnimalUpkeepObservation, eligible []UpkeepAnimal, reserveDays float64) (domain.Fact[[]AnimalFeedGroup], error) {
+	if !foodNumber(reserveDays) || reserveDays < 0 {
+		return domain.Unknown[[]AnimalFeedGroup](), errors.New("invalid animal feed reserve days")
+	}
+	if len(eligible) == 0 {
+		return domain.Known([]AnimalFeedGroup{}), nil
+	}
+	supply, known := v.Food.Value()
+	if !known {
+		return domain.Unknown[[]AnimalFeedGroup](), nil
+	}
+	forecast, reviewed := v.Forecast.Value()
+	if !reviewed {
+		ids := make([]PawnID, len(eligible))
+		for i, animal := range eligible {
+			ids[i] = animal.ID
+		}
+		var err error
+		if forecast, err = ForecastFood(supply, ids); err != nil {
+			return domain.Unknown[[]AnimalFeedGroup](), nil
+		}
+	}
+	perDay := map[PawnID]float64{}
+	for _, row := range forecast.Consumers {
+		perDay[row.ID] = row.NutritionPerDay
+	}
+	byRace := map[Resource]*AnimalFeedGroup{}
+	for _, animal := range eligible {
+		need, exists := perDay[animal.ID]
+		if !exists {
+			return domain.Unknown[[]AnimalFeedGroup](), nil
+		}
+		if !foodNumber(need) {
+			return domain.Unknown[[]AnimalFeedGroup](), errors.New("invalid animal nutrition per day")
+		}
+		g := byRace[animal.Definition]
+		if g == nil {
+			g = &AnimalFeedGroup{Definition: animal.Definition, ReachableBenches: append([]string{}, animal.ReachableBenches...), StorageCandidates: append([]domain.Cell{}, animal.StorageCandidates...)}
+			byRace[animal.Definition] = g
+		} else {
+			g.ReachableBenches = intersectIDs(g.ReachableBenches, animal.ReachableBenches)
+			g.StorageCandidates = intersectCells(g.StorageCandidates, animal.StorageCandidates)
+		}
+		g.Animals = append(g.Animals, animal.ID)
+		g.ReachableStorage = append(g.ReachableStorage, animal.ReachableStorage)
+		g.TargetNutrition += reserveDays * need
+	}
+	groups := []AnimalFeedGroup{}
+	for _, g := range byRace {
+		sort.Slice(g.Animals, func(i, j int) bool { return g.Animals[i] < g.Animals[j] })
+		sort.Strings(g.ReachableBenches)
+		for _, stock := range supply.Stocks {
+			if !groupEats(stock, g.Animals) {
+				continue
+			}
+			nutrition, _ := stock.Nutrition.Value()
+			g.StockNutrition += nutrition
+		}
+		if !foodNumber(g.TargetNutrition) || !foodNumber(g.StockNutrition) {
+			return domain.Unknown[[]AnimalFeedGroup](), errors.New("invalid animal feed reserve nutrition")
+		}
+		g.DeficitNutrition = max(0, g.TargetNutrition-g.StockNutrition)
+		if g.DeficitNutrition > 0 {
+			g.StorageCandidates = connectedCells(g.StorageCandidates)
+			groups = append(groups, *g)
+		}
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].DeficitNutrition != groups[j].DeficitNutrition {
+			return groups[i].DeficitNutrition > groups[j].DeficitNutrition
+		}
+		return groups[i].Definition < groups[j].Definition
+	})
+	return domain.Known(groups), nil
+}
+
+// groupEats reports unheld stock with positive known count and nutrition
+// that every one of the animals can eat.
+func groupEats(s FoodStock, animals []PawnID) bool {
+	holder, hk := s.Holder.Value()
+	if !hk || holder != "" || s.DefName == "" || !validResource(s.DefName) {
+		return false
+	}
+	count, ck := s.Count.Value()
+	nutrition, nk := s.Nutrition.Value()
+	if !ck || count <= 0 || !nk || !foodNumber(nutrition) || nutrition <= 0 {
+		return false
+	}
+	eaters := map[PawnID]bool{}
+	for _, e := range s.Eaters {
+		eaters[e] = true
+	}
+	for _, id := range animals {
+		if !eaters[id] {
+			return false
+		}
+	}
+	return true
+}
+
 // AnimalFeedReason names MaintainAnimalFeed's resource-selection outcome.
 type AnimalFeedReason string
 
@@ -15,7 +142,7 @@ const (
 	AnimalFeedNoDeficit    AnimalFeedReason = "no_animal_feed_deficit"
 	AnimalFeedExceedsBound AnimalFeedReason = "feed_requirement_exceeds_bounded_stock_planning_limit"
 	AnimalFeedSelected     AnimalFeedReason = "feed_resource_selected"
-	// AnimalFeedNoFeed: no stock covers the herd and no recipe produces
+	// AnimalFeedNoFeed: no stock covers the group and no recipe produces
 	// anything its race can eat.
 	AnimalFeedNoFeed AnimalFeedReason = "no_feed"
 )
@@ -23,80 +150,38 @@ const (
 // AnimalFeedMethod is MaintainAnimalFeed's resource + absolute stock-floor
 // selection: the same (resource, target) shape SelectResourceTarget produces
 // for MaintainResource, fundable through the identical
-// SelectResourceMethod/SelectResourceSources acquisition primitives -- see
-// docs/BACKLOG.md 05.6.
+// SelectResourceMethod/SelectResourceSources acquisition primitives.
 type AnimalFeedMethod struct {
 	Reason   AnimalFeedReason
 	Resource Resource
-	// Produced reports Resource is made on a bench (no stock covers the herd).
+	// Produced reports Resource is made on a bench (no stock covers the group).
 	Produced bool
 	Target   int64
-	// Benches names the work tables every covered animal can reach inside
-	// its allowed area (sorted): the only benches a production bill may
-	// land on, since a bill drops its product where it is made and a
-	// confined animal cannot walk to a bench elsewhere. Empty when no
-	// bench is shared by the covered animals.
+	// Benches names the work tables every animal of the group can reach
+	// (the group ReachableBenches); empty when none is shared.
 	Benches []string
 	// Delivered reports a stockpile zone accepting Resource that every
-	// covered animal can reach: feed produced on any bench is hauled where
-	// they eat it, so the bill need not sit inside their area.
+	// animal of the group can reach: feed produced on any bench is hauled
+	// where they eat it, so the bill need not sit inside their area.
 	Delivered bool
-	// StorageCells is the connected footprint, shared by every covered
-	// animal, on which a Resource-only stockpile zone would make delivery
-	// possible when neither a reachable bench nor a delivering zone exists;
-	// empty when the covered animals share no free cell.
+	// StorageCells is the connected footprint, shared by the group, on which
+	// a Resource-only stockpile zone would make delivery possible when
+	// neither a reachable bench nor a delivering zone exists.
 	StorageCells []domain.Cell
 }
 
 const maxAnimalFeedTarget = 10000
 
-// SelectAnimalFeedMethod picks the feed stock for a deficit herd: among the
-// worst-affected deficit race's animals (AnimalFeedTarget is already sorted
-// worst-runway-first by ReviewAnimalUpkeep), pick the shared (unheld),
-// edible feed stock every one of them can eat, lowest (defName, id) first,
-// and require enough stock to cover their combined missing nutrition.
-// The selection is recomputed fresh every tick from the current deficit and
-// stock census -- idempotent, content-addressed dispatch like every other
-// RoutineXPlanner. Only the animals presently below
-// threshold are covered, since AnimalFeedTarget carries only deficit rows.
-// When no shared stock covers them at all, the method is producing the
-// race's lowest-nutrition producible feed item (the cheapest grade) sized by
-// the same missing nutrition; with none, the reason is AnimalFeedNoFeed.
-func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64, races AnimalRaceCatalog) (AnimalFeedMethod, error) {
-	if len(targets) == 0 {
-		return AnimalFeedMethod{Reason: AnimalFeedNoDeficit}, nil
+// SelectAnimalFeedMethod picks the feed that tops one short group reserve
+// up: the lowest (defName, id) shared stock the whole group can eat, sized
+// by the group deficit nutrition. With no such stock the method produces
+// the race lowest-nutrition producible feed item (the cheapest grade); with
+// none, the reason is AnimalFeedNoFeed.
+func SelectAnimalFeedMethod(group AnimalFeedGroup, stocks []FoodStock, have map[Resource]int64, races AnimalRaceCatalog) (AnimalFeedMethod, error) {
+	if !validResource(group.Definition) || len(group.Animals) == 0 || !foodNumber(group.DeficitNutrition) {
+		return AnimalFeedMethod{}, errors.New("invalid animal feed group")
 	}
-	race := targets[0].Definition
-	group := map[PawnID]bool{}
-	var missing float64
-	var benches []string
-	var cells []domain.Cell
-	var storage [][]AnimalFeedStorage
-	first := true
-	for _, t := range targets {
-		if !foodID(string(t.ID)) || !validResource(t.Definition) || !foodNumber(t.Nutrition) || !validAnimalFeedStorage(t.ReachableStorage, t.StorageCandidates) {
-			return AnimalFeedMethod{}, errors.New("invalid animal feed target")
-		}
-		for _, bench := range t.ReachableBenches {
-			if !foodID(bench) {
-				return AnimalFeedMethod{}, errors.New("invalid animal feed target")
-			}
-		}
-		if t.Definition != race {
-			continue
-		}
-		group[t.ID] = true
-		missing += t.Nutrition
-		storage = append(storage, t.ReachableStorage)
-		if first {
-			benches, cells, first = append([]string{}, t.ReachableBenches...), append([]domain.Cell{}, t.StorageCandidates...), false
-		} else {
-			benches = intersectIDs(benches, t.ReachableBenches)
-			cells = intersectCells(cells, t.StorageCandidates)
-		}
-	}
-	sort.Strings(benches)
-	if !foodNumber(missing) || missing <= 0 {
+	if group.DeficitNutrition <= 0 {
 		return AnimalFeedMethod{Reason: AnimalFeedNoDeficit}, nil
 	}
 	var bestResource Resource
@@ -104,29 +189,11 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	var bestNutritionPerItem float64
 	found := false
 	for _, s := range stocks {
-		holder, hk := s.Holder.Value()
-		if !hk || holder != "" || s.DefName == "" || !validResource(s.DefName) {
+		if !groupEats(s, group.Animals) {
 			continue
 		}
-		count, ck := s.Count.Value()
-		nutrition, nk := s.Nutrition.Value()
-		if !ck || count <= 0 || !nk || !foodNumber(nutrition) || nutrition <= 0 {
-			continue
-		}
-		eaters := map[PawnID]bool{}
-		for _, e := range s.Eaters {
-			eaters[e] = true
-		}
-		covers := true
-		for id := range group {
-			if !eaters[id] {
-				covers = false
-				break
-			}
-		}
-		if !covers {
-			continue
-		}
+		count, _ := s.Count.Value()
+		nutrition, _ := s.Nutrition.Value()
 		if !found || s.DefName < bestResource || (s.DefName == bestResource && s.ID < bestID) {
 			bestResource, bestID, bestNutritionPerItem, found = s.DefName, s.ID, nutrition/float64(count), true
 		}
@@ -134,10 +201,10 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	produced := false
 	if !found {
 		// Nothing the animals can reach: produce the cheapest feed item a
-		// recipe makes that the race can eat. The bench's output lands where
+		// recipe makes that the race can eat. The bench output lands where
 		// it is made, so a confined animal is fed by a bench inside its area
 		// rather than by stock it cannot walk to.
-		catalog, known := races.Race(race)
+		catalog, known := races.Race(group.Definition)
 		if !known {
 			return AnimalFeedMethod{}, errors.New("animal race missing from catalog")
 		}
@@ -153,7 +220,7 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 			return AnimalFeedMethod{Reason: AnimalFeedNoFeed}, nil
 		}
 	}
-	items := math.Ceil(missing / bestNutritionPerItem)
+	items := math.Ceil(group.DeficitNutrition / bestNutritionPerItem)
 	if !foodNumber(items) {
 		return AnimalFeedMethod{}, errors.New("invalid animal feed item count")
 	}
@@ -161,7 +228,7 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	if target <= 0 || target > maxAnimalFeedTarget {
 		return AnimalFeedMethod{Reason: AnimalFeedExceedsBound}, nil
 	}
-	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Produced: produced, Target: target, Benches: benches, Delivered: storageDelivers(storage, bestResource), StorageCells: connectedCells(cells)}, nil
+	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Produced: produced, Target: target, Benches: group.ReachableBenches, Delivered: storageDelivers(group.ReachableStorage, bestResource), StorageCells: group.StorageCandidates}, nil
 }
 
 // validAnimalFeedStorage bounds and checks one animal's reachable storage

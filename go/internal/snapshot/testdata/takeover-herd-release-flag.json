@@ -34006,10 +34006,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "AnimalUpkeep": {
-   "FeedMinimumDays": 2,
-   "FeedTargetDays": 4
-  },
   "Cleanliness": {
    "EnterC": -1,
    "ExitC": -0.25,
@@ -34866,9 +34862,6 @@
    }
   ],
   "Latches": {
-   "Animals": {
-    "Feed": []
-   },
    "Cold": true,
    "Comfort": "basic",
    "Food": true,
