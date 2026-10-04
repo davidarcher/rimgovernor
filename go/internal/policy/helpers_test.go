@@ -147,32 +147,6 @@ func HorseshoesLane(f InteriorFrame) Rectangle {
 	return Rectangle{X: CentreStart(f.Width, 1) - 1, Z: f.Depth - f.Dining.Lane, Width: 3, Height: f.Dining.Lane - 1}
 }
 
-// TurbineWindCells mirrors WindTurbineUtility.CalculateWindCells for a
-// 7x2 turbine: 7 wide, 10 rows in front and 6 behind.
-func TurbineWindCells(center domain.Cell, rot domain.Rotation) []domain.Cell {
-	off, front, back := int32(0), int32(9), int32(5)
-	if rot != domain.North && rot != domain.East {
-		off, front, back = -1, 5, 9
-	}
-	var a, b Rectangle // X, Z, Width, Height as min/extent
-	if rot == domain.East || rot == domain.West {
-		a = Rectangle{X: center.X + 2 + off, Z: center.Z - 3, Width: front + 1, Height: 7}
-		b = Rectangle{X: center.X - 1 - back + off, Z: center.Z - 3, Width: back + 1, Height: 7}
-	} else {
-		a = Rectangle{X: center.X - 3, Z: center.Z + 2 + off, Width: 7, Height: front + 1}
-		b = Rectangle{X: center.X - 3, Z: center.Z - 1 - back + off, Width: 7, Height: back + 1}
-	}
-	var out []domain.Cell
-	for _, r := range []Rectangle{a, b} {
-		for z := r.Z; z < r.Z+r.Height; z++ {
-			for x := r.X; x < r.X+r.Width; x++ {
-				out = append(out, domain.Cell{X: x, Z: z})
-			}
-		}
-	}
-	return out
-}
-
 // MoodUnownedThought reports whether the thought is removable environment
 // pressure no goal owns.
 func MoodUnownedThought(def string) bool { return moodUnownedThoughts[def] }

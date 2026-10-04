@@ -3,6 +3,7 @@ package policy
 import (
 	"log/slog"
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -633,26 +634,58 @@ func (u *utilityGrid) exhaust(r LayoutRoom) (Rectangle, bool) {
 	return Rectangle{}, false
 }
 
-// TurbineCatchZone is the lane cells of the turbine pair whose turbine
-// stands on area: the wind its blades catch. Nil for a site that is not a
-// turbine (a solar plot) or has no lanes.
+// TurbineCatchZone is the cells the turbine standing on area must keep
+// clear: its own wind path, not the pair's whole lane area. Nil for a site
+// that is not a turbine (a solar plot).
 func TurbineCatchZone(plan LayoutPlan, area Rectangle) []domain.Cell {
-	pair := int32(0)
-	for _, r := range plan.Reservations {
-		if r.Kind == ReserveTurbine && r.Area == area {
-			pair = r.Pair
+	for _, site := range PlannedPowerSites(plan, WindTurbineDefinition) {
+		if site.Area == area {
+			return TurbineWindCells(site.Cell, site.Rotation)
 		}
 	}
-	if pair == 0 {
-		return nil
+	return nil
+}
+
+// TurbineWindCells is CompPowerPlantWind's wind path for a turbine centred on
+// centre (WindTurbineUtility.CalculateWindCells, read with ilspycmd): 7 wide,
+// 10 rows in front starting two out and 6 behind. A roof of any kind, or a
+// wind-blocking thing, on a cell cuts the output by 20 percent; the
+// turbine's size does not enter.
+func TurbineWindCells(center domain.Cell, rot domain.Rotation) []domain.Cell {
+	off, front, back := int32(0), int32(9), int32(5)
+	if rot != domain.North && rot != domain.East {
+		off, front, back = -1, 5, 9
+	}
+	var a, b Rectangle // X, Z, Width, Height as min/extent
+	if rot == domain.East || rot == domain.West {
+		a = Rectangle{X: center.X + 2 + off, Z: center.Z - 3, Width: front + 1, Height: 7}
+		b = Rectangle{X: center.X - 1 - back + off, Z: center.Z - 3, Width: back + 1, Height: 7}
+	} else {
+		a = Rectangle{X: center.X - 3, Z: center.Z + 2 + off, Width: 7, Height: front + 1}
+		b = Rectangle{X: center.X - 3, Z: center.Z - 1 - back + off, Width: 7, Height: back + 1}
 	}
 	var out []domain.Cell
-	for _, r := range plan.Reservations {
-		if r.Kind == ReserveTurbineLane && r.Pair == pair {
-			out = append(out, RectangleCells(r.Area)...)
+	for _, r := range []Rectangle{a, b} {
+		for z := r.Z; z < r.Z+r.Height; z++ {
+			for x := r.X; x < r.X+r.Width; x++ {
+				out = append(out, domain.Cell{X: x, Z: z})
+			}
 		}
 	}
 	return out
+}
+
+// WindCellsToClear counts the zone cells the rock step digs or unroofs: the
+// blocked cells the over-rock preview may report. A blocker the step does
+// not clear (a tree, a wall) pushes the native count past it.
+func WindCellsToClear(step RockStepResult, zone []domain.Cell) int32 {
+	n := int32(0)
+	for _, c := range zone {
+		if slices.Contains(step.Dig, c) || slices.Contains(step.Unroof, c) {
+			n++
+		}
+	}
+	return n
 }
 
 // inset reports r clear of siteInset around the map edge.

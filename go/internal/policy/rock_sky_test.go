@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -60,17 +61,73 @@ func TestUtilityGridSkyRock(t *testing.T) {
 	}
 }
 
-func TestTurbineCatchZoneIsThePairsLanes(t *testing.T) {
+// A turbine's catch zone is its own 7x16 wind path, inside the pair's lanes;
+// the other turbine's back zone is not in it (#1871).
+func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
 	p := PlanUtilities(PlanCore(utilityTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1})
 	sites := PlannedPowerSites(p, WindTurbineDefinition)
 	if len(sites) != 2 {
 		t.Fatal(sites)
 	}
-	if lanes := TurbineCatchZone(p, sites[0].Area); len(lanes) != 7*22 {
-		t.Fatal(len(lanes))
+	var lanes []domain.Cell
+	for _, r := range p.Reservations {
+		if r.Kind == ReserveTurbineLane {
+			lanes = append(lanes, RectangleCells(r.Area)...)
+		}
+	}
+	zones := make([][]domain.Cell, len(sites))
+	for i, site := range sites {
+		zones[i] = TurbineCatchZone(p, site.Area)
+		if len(zones[i]) != 7*16 {
+			t.Fatal(i, len(zones[i]))
+		}
+		for _, c := range zones[i] {
+			if !slices.Contains(lanes, c) {
+				t.Fatal("wind cell outside the lanes", i, c)
+			}
+		}
+	}
+	shared := 0
+	for _, c := range zones[0] {
+		if slices.Contains(zones[1], c) {
+			shared++
+		}
+	}
+	if shared != 7*10 || len(lanes) != 7*22 {
+		t.Fatal("zones share", shared, "lanes", len(lanes))
 	}
 	if TurbineCatchZone(p, Rectangle{}) != nil {
 		t.Fatal("lanes for a non-turbine area")
+	}
+}
+
+// Only the zone cells the step digs or unroofs are allowed blocked: an open
+// cell under a blocker the step does not touch is not.
+func TestWindCellsToClearCountsOnlyClearedCells(t *testing.T) {
+	zone := TurbineWindCells(domain.Cell{X: 10, Z: 10}, domain.North)
+	var sites []SiteCell
+	for _, c := range zone {
+		sites = append(sites, openSite(c.X, c.Z))
+	}
+	sites[0] = thinRock(zone[0].X, zone[0].Z)
+	sites[1] = thinOpen(zone[1].X, zone[1].Z)
+	sites[2] = rockSite(zone[2].X, zone[2].Z) // thick: unfit, never cleared
+	var planned []RoleCell
+	for _, c := range zone {
+		planned = append(planned, RoleCell{Cell: c, Role: RockNeedsSky})
+	}
+	step, err := RockStepRoofs(planned, sites, testRoofs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Cell 0 is dug and unroofed, cell 1 only unroofed: two blocked cells are
+	// allowed; the thick rock at cell 2 is unfit, not cleared, and the open
+	// rest blocks nothing.
+	if n := WindCellsToClear(step, zone); n != 2 {
+		t.Fatal("allowance", n, step)
+	}
+	if n := WindCellsToClear(RockStepResult{}, zone); n != 0 {
+		t.Fatal("a clear zone allows no blocked cell", n)
 	}
 }
 

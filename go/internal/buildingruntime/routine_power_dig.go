@@ -67,7 +67,10 @@ func (r *RoutineBuildingPlanner) digGeothermal(call, epoch context.Context, s ex
 // natural rock (#1758), ahead of the generator. The layout takes rock only
 // where no cell is under thick roof; a turbine's lanes (its catch zone) are
 // cleared with it. If any planned site is already clear the ordinary site
-// preview places that one and nothing is dug. Otherwise the first untaken
+// preview places that one and nothing is dug. A turbine clears only its own
+// wind path (policy.TurbineWindCells), and the over-rock preview may report
+// no more blocked cells than the step digs or unroofs there; once the work
+// is done the ordinary preview must report none. Otherwise the first untaken
 // site is handed to the shared rock step as one plan: dig, remove the
 // roof, build, the generator previewed over rock on exactly the planned
 // footprint. Not handled when no planned site needs the work.
@@ -96,13 +99,15 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 	}
 	var pick *policy.PlannedPowerSite
 	var pickCells []policy.RoleCell
+	var pickWind int32
 	for _, site := range policy.PlannedPowerSites(plan, r.definition) {
 		footprint := policy.RectangleCells(site.Area)
 		cells := make([]policy.RoleCell, 0, len(footprint))
 		for _, c := range footprint {
 			cells = append(cells, policy.RoleCell{Cell: c, Role: policy.RockNeedsSky})
 		}
-		for _, lane := range policy.TurbineCatchZone(plan, site.Area) {
+		zone := policy.TurbineCatchZone(plan, site.Area)
+		for _, lane := range zone {
 			cells = append(cells, policy.RoleCell{Cell: lane, Role: policy.RockNeedsSky})
 		}
 		step, err := policy.RockStepRoofs(cells, s.facts.Cells, roofs)
@@ -123,7 +128,7 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 		}
 		if pick == nil && len(step.Unfit) == 0 {
 			site := site
-			pick, pickCells = &site, cells
+			pick, pickCells, pickWind = &site, cells, policy.WindCellsToClear(step, zone)
 		}
 	}
 	if pick == nil {
@@ -146,7 +151,7 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 		return RoutineBuildingResult{Verdict: rockNotDug(r.definition, "no_open_cell_beside_site")}, true, nil
 	}
 	sky := *r
-	sky.exactFootprint, sky.windAllowance = footprint, int32(len(pickCells)-len(footprint))
+	sky.exactFootprint, sky.windAllowance = footprint, pickWind
 	return sky.admitRockStep(call, epoch, s, pickCells, access, skyMethod(r.definition, pick.Area), []domain.Building{building}, check)
 }
 
