@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -70,57 +71,59 @@ func (n *paceNative) log() []paceRequest {
 // no full-speed request is issued until a wave completes again; fresh
 // waves then climb back, doubling, to a release.
 func TestPaceBackoffLowersBeforeHorizonAndNeverReleasesWhileStale(t *testing.T) {
-	const horizon domain.Tick = 3000
-	native := &paceNative{at: time.Now()}
-	backoff := newPaceBackoff(horizon, time.Now, native.change)
-	ctx := context.Background()
+	synctest.Test(t, func(t *testing.T) {
+		const horizon domain.Tick = 3000
+		native := &paceNative{at: time.Now()}
+		backoff := newPaceBackoff(horizon, time.Now, native.change)
+		ctx := context.Background()
 
-	evidenceTick, readAt := native.read()
-	done := backoff.Watch(ctx, readAt)
-	// The wave hangs well past the horizon at full speed (333 ms).
-	deadline := time.Now().Add(10 * time.Second)
-	for len(native.log()) == 0 && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond)
-	}
-	requests := native.log()
-	if len(requests) != 1 || requests[0].ceiling != PaceFloorTicksPerSecond {
-		t.Fatalf("stale wave requests %+v, want one floor ceiling", requests)
-	}
-	if age := requests[0].tick - evidenceTick; age >= int64(horizon) {
-		t.Fatalf("backoff landed %d ticks after the evidence, past the %d-tick horizon", age, horizon)
-	}
-	// Still stale: a release is refused outright.
-	backoff.set(ctx, 0, "test")
-	if got := native.log(); len(got) != 1 {
-		t.Fatalf("release issued while stale: %+v", got)
-	}
-	time.Sleep(50 * time.Millisecond)
-	done(time.Since(readAt), true)
-	if backoff.stale {
-		t.Fatal("a completed wave left the evidence stale")
-	}
-
-	// Fast waves (evidence 5 ms old) earn full speed back one doubling at
-	// a time, then a release.
-	for range 12 {
-		_, readAt := native.read()
-		finish := backoff.Watch(ctx, readAt)
-		backoff.changedAt = time.Time{} // step past the hysteresis interval
-		finish(5*time.Millisecond, true)
-	}
-	requests = native.log()
-	last := requests[len(requests)-1]
-	if last.ceiling != PaceReleaseTicksPerSecond || backoff.Ceiling() != 0 {
-		t.Fatalf("fresh waves did not release: %+v", requests)
-	}
-	for i := 2; i < len(requests)-1; i++ {
-		if requests[i].ceiling > 2*requests[i-1].ceiling {
-			t.Fatalf("ceiling jumped more than doubling: %+v", requests)
+		evidenceTick, readAt := native.read()
+		done := backoff.Watch(ctx, readAt)
+		// The wave hangs well past the horizon at full speed (333 ms).
+		deadline := time.Now().Add(10 * time.Second)
+		for len(native.log()) == 0 && time.Now().Before(deadline) {
+			time.Sleep(5 * time.Millisecond)
 		}
-	}
-	if backoff.released != 1 {
-		t.Fatalf("released %d times, want 1", backoff.released)
-	}
+		requests := native.log()
+		if len(requests) != 1 || requests[0].ceiling != PaceFloorTicksPerSecond {
+			t.Fatalf("stale wave requests %+v, want one floor ceiling", requests)
+		}
+		if age := requests[0].tick - evidenceTick; age >= int64(horizon) {
+			t.Fatalf("backoff landed %d ticks after the evidence, past the %d-tick horizon", age, horizon)
+		}
+		// Still stale: a release is refused outright.
+		backoff.set(ctx, 0, "test")
+		if got := native.log(); len(got) != 1 {
+			t.Fatalf("release issued while stale: %+v", got)
+		}
+		time.Sleep(50 * time.Millisecond)
+		done(time.Since(readAt), true)
+		if backoff.stale {
+			t.Fatal("a completed wave left the evidence stale")
+		}
+
+		// Fast waves (evidence 5 ms old) earn full speed back one doubling at
+		// a time, then a release.
+		for range 12 {
+			_, readAt := native.read()
+			finish := backoff.Watch(ctx, readAt)
+			backoff.changedAt = time.Time{} // step past the hysteresis interval
+			finish(5*time.Millisecond, true)
+		}
+		requests = native.log()
+		last := requests[len(requests)-1]
+		if last.ceiling != PaceReleaseTicksPerSecond || backoff.Ceiling() != 0 {
+			t.Fatalf("fresh waves did not release: %+v", requests)
+		}
+		for i := 2; i < len(requests)-1; i++ {
+			if requests[i].ceiling > 2*requests[i-1].ceiling {
+				t.Fatalf("ceiling jumped more than doubling: %+v", requests)
+			}
+		}
+		if backoff.released != 1 {
+			t.Fatalf("released %d times, want 1", backoff.released)
+		}
+	})
 }
 
 // A wave slower than the margin allows at full speed lowers the ceiling to
@@ -144,22 +147,24 @@ func TestPaceBackoffLowersToTheRateAWaveFits(t *testing.T) {
 // spans less than the default horizon, so its watch never drops the
 // ceiling to Normal.
 func TestPaceBackoffOrdinaryWaveDoesNotCollapseToFloor(t *testing.T) {
-	native := &paceNative{at: time.Now()}
-	backoff := newPaceBackoff(0, time.Now, native.change)
-	backoff.fresh(context.Background(), 2*time.Second)
-	want := uint32(float64(DefaultPaceHorizonTicks) * paceMargin / 2)
-	if got := backoff.Ceiling(); got != want {
-		t.Fatalf("ceiling %d, want %d", got, want)
-	}
-	_, readAt := native.read()
-	done := backoff.Watch(context.Background(), readAt)
-	time.Sleep(100 * time.Millisecond)
-	done(2*time.Second, true)
-	for _, r := range native.log() {
-		if r.ceiling == PaceFloorTicksPerSecond {
-			t.Fatalf("ordinary wave parked the window at Normal: %+v", native.log())
+	synctest.Test(t, func(t *testing.T) {
+		native := &paceNative{at: time.Now()}
+		backoff := newPaceBackoff(0, time.Now, native.change)
+		backoff.fresh(context.Background(), 2*time.Second)
+		want := uint32(float64(DefaultPaceHorizonTicks) * paceMargin / 2)
+		if got := backoff.Ceiling(); got != want {
+			t.Fatalf("ceiling %d, want %d", got, want)
 		}
-	}
+		_, readAt := native.read()
+		done := backoff.Watch(context.Background(), readAt)
+		time.Sleep(100 * time.Millisecond)
+		done(2*time.Second, true)
+		for _, r := range native.log() {
+			if r.ceiling == PaceFloorTicksPerSecond {
+				t.Fatalf("ordinary wave parked the window at Normal: %+v", native.log())
+			}
+		}
+	})
 }
 
 // Hysteresis: a fresh target under 25% away keeps the ceiling, and a real

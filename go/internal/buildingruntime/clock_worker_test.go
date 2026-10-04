@@ -167,17 +167,19 @@ func TestClockWorkerStopJoinsBeforeRetryableCleanup(t *testing.T) {
 }
 func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
 	t.Parallel()
-	w := clockLoopFixture(t)
-	var steps atomic.Int32
-	w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
-		steps.Add(1)
-		return ClockSchedulerResult{}, nil
-	}
-	w.start()
-	time.Sleep(120 * time.Millisecond)
-	if n := steps.Load(); n < 3 || n > 7 {
-		t.Fatal("unchanged decision failed bounded backoff", n)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		w := clockLoopFixture(t)
+		var steps atomic.Int32
+		w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
+			steps.Add(1)
+			return ClockSchedulerResult{}, nil
+		}
+		w.start()
+		time.Sleep(120 * time.Millisecond)
+		if n := steps.Load(); n < 3 || n > 7 {
+			t.Fatal("unchanged decision failed bounded backoff", n)
+		}
+	})
 }
 
 // A step that cleaned or reconciled an epoch is followed by the next step at
