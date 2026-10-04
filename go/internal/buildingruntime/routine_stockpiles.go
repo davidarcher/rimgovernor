@@ -139,6 +139,9 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 		}
 	}
 	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists, Anchor: planCore(*projection), Rooms: domain.Unknown[[]policy.Room]()}
+	if plan, known := projection.LayoutPlan.Value(); known {
+		request.Planned = policy.PlannedRoomGround(plan)
+	}
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
@@ -166,7 +169,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	storage.Gear = gear
 	storage.Zones = request.Zones
 	if rooms, ok := request.Rooms.Value(); ok {
-		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor, Incinerator: standingIncinerator(*projection)}
+		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor, Incinerator: standingIncinerator(*projection), Planned: request.Planned}
 	}
 	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)

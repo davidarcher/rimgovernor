@@ -105,6 +105,12 @@ func GroundRects(ground []Rectangle) []domain.GroundRect {
 	return out
 }
 
+// standInBed is a shelter sleeping spot: the colony's only bed until the room
+// stands, so planned-ground clearance leaves it. Clearing it first left the
+// pawns sleeping outside (shelter unmet, the comfort planners held) while the
+// room was still being dug.
+func standInBed(row ClearanceTarget) bool { return row.DefName == "SleepingSpot" }
+
 // PlannedGroundStep picks the first room, in plan order, with ground work
 // left and its earliest phase. Rows are the census's player rows on the
 // ground (SplitGroundRows); a building the plan holds (groundPlanned) is no
@@ -124,7 +130,7 @@ func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 	for _, g := range ground {
 		var furniture, swaps, walls []ClearanceTarget
 		for _, row := range ordered {
-			if claimed[row.EntityID] || !row.Player || !overlaps(row, g) || groundPlanned(row, g) && !ringDoorSwap(row, g, doors) {
+			if claimed[row.EntityID] || !row.Player || standInBed(row) || !overlaps(row, g) || groundPlanned(row, g) && !ringDoorSwap(row, g, doors) {
 				continue
 			}
 			claimed[row.EntityID] = true
@@ -164,7 +170,7 @@ func PlannedGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 	var out []string
 	for _, row := range rows {
 		for _, g := range ground {
-			if row.Player && overlaps(row, g) && (!groundPlanned(row, g) || ringDoorSwap(row, g, doors)) {
+			if row.Player && !standInBed(row) && overlaps(row, g) && (!groundPlanned(row, g) || ringDoorSwap(row, g, doors)) {
 				out = append(out, row.EntityID)
 				break
 			}

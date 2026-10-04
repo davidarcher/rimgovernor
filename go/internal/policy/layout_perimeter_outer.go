@@ -32,7 +32,12 @@ const (
 // outerEnclosed are the reservation kinds the outer ring walls in whole: the
 // animal yards (a new yard kind, such as the barn, registers here) and the
 // geothermal enclosures.
-var outerEnclosed = map[ReservationKind]bool{ReservePen: true, ReserveBarn: true, ReserveVetRoom: true, ReserveGeothermal: true}
+var outerEnclosed = map[ReservationKind]bool{ReserveGeothermal: true}
+
+// innerEnclosed are the reservations the core ring walls in with the rooms:
+// the animal yards and the turbine pairs with their lanes stand beside the
+// core, inside its wall, not out in the fields.
+var innerEnclosed = map[ReservationKind]bool{ReservePen: true, ReserveBarn: true, ReserveVetRoom: true, ReserveTurbine: true, ReserveTurbineLane: true}
 
 // planOuterRing returns the outer ring's reservations: walls and gates around
 // the units within twice perimeterFieldReach of the core ring (the chain limit, so a
@@ -89,8 +94,7 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReserveTurbine, ReserveTurbineLane:
-			// A turbine pair and its lanes stand whole inside the ring (#1597).
-			pairs[r.Pair] = append(pairs[r.Pair], rectCells(r.Area)...)
+			// The core ring walls a turbine pair in; none stands outside.
 		default:
 			if outerEnclosed[r.Kind] {
 				take(rectCells(r.Area))
@@ -245,7 +249,7 @@ func pitchGates(gates, stepGates []Rectangle) []Rectangle {
 }
 
 // coreBox is the core ring's box: the rooms with their walls and the
-// hallways.
+// hallways, grown over the pen, barn, vet room and turbine pairs beside them.
 func coreBox(plan LayoutPlan) Rectangle {
 	var core Rectangle
 	for _, r := range plan.AllRooms() {
@@ -253,6 +257,11 @@ func coreBox(plan LayoutPlan) Rectangle {
 	}
 	for _, sg := range plan.Hallways() {
 		core = unionRect(core, pad(rectOf(sg.From, sg.To), SpineWidth/2))
+	}
+	for _, r := range plan.Reservations {
+		if innerEnclosed[r.Kind] {
+			core = unionRect(core, pad(r.Area, 1))
+		}
 	}
 	return core
 }

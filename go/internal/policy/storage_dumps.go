@@ -22,6 +22,9 @@ type DumpStore struct {
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand (#1814); nil before.
 	Incinerator *LayoutRoom
+	// Planned is the layout plan's room ground (PlannedRoomGround): a dump
+	// never takes it, standing room or not.
+	Planned []domain.Cell
 }
 
 // DumpNeeds counts the things waiting for each dump (#724): poor stored
@@ -90,7 +93,7 @@ func (r StorageRequest) dumpSites(shelved bool) []StockpileSite {
 		return nil
 	}
 	var room []domain.Cell
-	blocked := outdoorDumpBlocked(d.Rooms, r.Protected)
+	blocked := outdoorDumpBlocked(d.Rooms, dumpProtected(r.Protected, d.Planned))
 	not := func(v bool) bool { return !v }
 	for _, c := range r.Cells {
 		if !blocked[c.Cell] && positive(c.Walkable) && positive(measured(c.Indoors, not)) && positive(measured(c.Roofed, not)) {
@@ -103,7 +106,7 @@ func (r StorageRequest) dumpSites(shelved bool) []StockpileSite {
 		if p, ok := byAnchor[at]; ok {
 			return p
 		}
-		p, err := OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: at, Cells: r.Cells, Rooms: d.Rooms, Protected: r.Protected, Width: 2, Height: 2})
+		p, err := OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: at, Cells: r.Cells, Rooms: d.Rooms, Protected: dumpProtected(r.Protected, d.Planned), Width: 2, Height: 2})
 		if err != nil {
 			p = nil
 		}

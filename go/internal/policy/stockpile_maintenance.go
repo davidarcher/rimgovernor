@@ -132,6 +132,9 @@ type StockpileRequest struct {
 	Cells     []SiteCell
 	Bounds    Bounds
 	Protected []domain.Cell
+	// Planned is the layout plan's room ground (PlannedRoomGround); the
+	// outdoor dumps keep off it.
+	Planned []domain.Cell
 	// Colonists sizes the haul budget; unknown holds every edit.
 	Colonists domain.Fact[int64]
 	// Rooms sites the opening corpse dump clear of living rooms.

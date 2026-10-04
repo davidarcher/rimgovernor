@@ -111,6 +111,37 @@ func OutdoorDumpSites(r OutdoorDumpRequest) ([]Rectangle, error) {
 	return out, nil
 }
 
+// dumpProtected is protected plus the planned room ground.
+func dumpProtected(protected, planned []domain.Cell) []domain.Cell {
+	if len(planned) == 0 {
+		return protected
+	}
+	return append(append(make([]domain.Cell, 0, len(protected)+len(planned)), protected...), planned...)
+}
+
+// PlannedRoomGround is the ground the plan's rooms and hallways will take,
+// rooms with their walls and a cell of yard: outdoor dumps stay off it, or a
+// corpse stockpile lands in a room not built yet.
+func PlannedRoomGround(p LayoutPlan) []domain.Cell {
+	seen := map[domain.Cell]bool{}
+	var out []domain.Cell
+	add := func(r Rectangle) {
+		for _, c := range rectCells(r) {
+			if !seen[c] {
+				seen[c] = true
+				out = append(out, c)
+			}
+		}
+	}
+	for _, r := range p.AllRooms() {
+		add(pad(r.Interior, 2))
+	}
+	for _, s := range p.Hallways() {
+		add(pad(rectOf(s.From, s.To), SpineWidth/2))
+	}
+	return out
+}
+
 // outdoorDumpBlocked is every cell protected or within outdoorDumpClearance
 // of a living room.
 func outdoorDumpBlocked(rooms []Room, protected []domain.Cell) map[domain.Cell]bool {

@@ -60,7 +60,7 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 	}
 	if !dump {
 		rooms, _ := r.Rooms.Value()
-		sites, err := OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: r.Anchor, Cells: r.Cells, Rooms: rooms, Protected: r.Protected, Width: openingDumpSide, Height: openingDumpSide, MinDistance: openingDumpDistance})
+		sites, err := OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: r.Anchor, Cells: r.Cells, Rooms: rooms, Protected: dumpProtected(r.Protected, r.Planned), Width: openingDumpSide, Height: openingDumpSide, MinDistance: openingDumpDistance})
 		if err == nil {
 			for _, site := range sites {
 				if openFree(open, site) {

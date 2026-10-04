@@ -53,8 +53,7 @@ var coolingRoles = []ModuleRole{ModuleFreezer, ModuleTomb, ModuleMorgue, ModuleM
 // penCellsPerAnimal sizes the animal pen: cells per penned animal (#1593).
 const penCellsPerAnimal = 10
 
-// ReservePen is the animal pen, sited beside the planned fields inside the
-// future outer ring.
+// ReservePen is the animal pen, sited beside the core inside its ring.
 const ReservePen ReservationKind = "pen"
 
 // UtilityWants is what PlanUtilities reserves: turbine pairs, solar plots,
@@ -158,11 +157,11 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	}
 	for i := 0; i < want.TurbinePairs; i++ {
 		// A pair stands north-south or, turned, east-west: whichever lies
-		// nearer the farmland, where its lanes double as fields.
-		fx, fz := u.fieldCentre()
-		site, cost, ok := u.siteCost(turbineWidth, turbinePairSpan, skyRock, true, fx, fz, 0)
+		// nearer the core, where its lanes double as fields.
+		fx, fz := u.cx, u.cz
+		site, cost, ok := u.siteCost(turbineWidth, turbinePairSpan, skyRock, false, fx, fz, 0)
 		turned := false
-		if t, tcost, tok := u.siteCost(turbinePairSpan, turbineWidth, skyRock, true, fx, fz, 0); tok && (!ok || tcost < cost) {
+		if t, tcost, tok := u.siteCost(turbinePairSpan, turbineWidth, skyRock, false, fx, fz, 0); tok && (!ok || tcost < cost) {
 			site, turned, ok = t, true, true
 		}
 		if !ok {

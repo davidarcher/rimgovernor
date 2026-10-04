@@ -103,3 +103,33 @@ func TestSplitGroundRows(t *testing.T) {
 		t.Fatalf("split = %v / %v", others, player)
 	}
 }
+
+// A shelter sleeping spot on planned ground is the colony's only bed until
+// the room stands: ground clearance leaves it.
+func TestPlannedGroundStepLeavesTheStandInBed(t *testing.T) {
+	plan, rooms := groundFixture()
+	ground := PlannedGround(plan, rooms)
+	spot := playerRow("spot", "SleepingSpot", "other", domain.Cell{X: 10, Z: 10}, domain.Cell{X: 10, Z: 11}, false)
+	if step, ok := PlannedGroundStep([]ClearanceTarget{spot}, nil, ground, PlannedDoors(plan), rooms); ok {
+		t.Fatalf("cleared the stand-in bed: %+v", step)
+	}
+	if work := PlannedGroundWork([]ClearanceTarget{spot}, nil, ground, PlannedDoors(plan)); len(work) != 0 {
+		t.Fatal(work)
+	}
+}
+
+// An outdoor dump keeps off the plan's room ground even before the room
+// stands.
+func TestDumpProtectedAddsPlannedGround(t *testing.T) {
+	plan, _ := groundFixture()
+	ground := PlannedRoomGround(plan)
+	if len(ground) == 0 {
+		t.Fatal("no planned ground")
+	}
+	room := plan.AllRooms()[0].Interior
+	cell := domain.Cell{X: room.X, Z: room.Z}
+	blocked := outdoorDumpBlocked(nil, dumpProtected(nil, ground))
+	if !blocked[cell] {
+		t.Fatal("dump may take planned room ground", cell)
+	}
+}

@@ -95,13 +95,13 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 			barn, hasBarn = r.Area, true
 		}
 	}
-	cx, cz := u.fieldCentre()
+	cx, cz := u.cx, u.cz
 	if hasPen {
 		cx, cz = pen.X+pen.Width/2, pen.Z+pen.Height/2
 	}
 	if short := animals*penCellsPerAnimal - held; short > 0 {
 		w, h := penSide((short + penCellsPerAnimal - 1) / penCellsPerAnimal)
-		site, ok := u.site(w, h, false, true, cx, cz)
+		site, ok := u.site(w, h, false, false, cx, cz)
 		if !ok {
 			slog.Warn("layout: no room for the animal pen", "animals", animals, "width", w, "height", h)
 			return
@@ -119,7 +119,7 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 			beds = max(beds, herdBarnMinBeds)
 		}
 		w, h := walledSide(herdSide(beds))
-		site, ok := u.site(w, h, false, true, cx, cz)
+		site, ok := u.site(w, h, false, false, cx, cz)
 		if !ok {
 			slog.Warn("layout: no room for the barn", "animals", animals, "width", w, "height", h)
 			return
@@ -134,7 +134,7 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 	}
 	if short := VetBeds(animals) - plan.herdCapacity(ModuleVetRoom); short > 0 {
 		w, h := walledSide(herdSide(short))
-		if site, ok := u.site(w, h, false, true, cx, cz); ok {
+		if site, ok := u.site(w, h, false, false, cx, cz); ok {
 			u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: site})
 		} else {
 			slog.Warn("layout: no room for the vet room", "animals", animals, "width", w, "height", h)

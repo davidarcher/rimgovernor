@@ -20,7 +20,7 @@ func outerPlan(t *testing.T, width int32) (p LayoutPlan, units map[domain.Cell]b
 	for _, sg := range plan.Hallways() {
 		core = unionRect(core, pad(rectOf(sg.From, sg.To), SpineWidth/2))
 	}
-	// The patch lies north of the core, the pen and the enclosure south.
+	// The patch lies north of the core, the geothermal enclosure south.
 	end := core.Z - perimeterGap - perimeterThick - 12
 	x0 := core.X + core.Width/2 - width/2
 	units = map[domain.Cell]bool{}
@@ -33,10 +33,9 @@ func outerPlan(t *testing.T, width int32) (p LayoutPlan, units map[domain.Cell]b
 	}
 	plan.Zones = append(plan.Zones, zone)
 	south := core.Z + core.Height + perimeterGap + perimeterThick + 12
-	pen := Rectangle{X: core.X, Z: south, Width: 12, Height: 10}
 	geo := Rectangle{X: core.X + 30, Z: south, Width: 6, Height: 6}
-	plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReservePen, Area: pen}, LayoutReservation{Kind: ReserveGeothermal, Area: geo})
-	for _, r := range []Rectangle{pen, geo} {
+	plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveGeothermal, Area: geo})
+	for _, r := range []Rectangle{geo} {
 		for _, c := range rectCells(r) {
 			units[c] = true
 		}
@@ -73,7 +72,7 @@ func outerReach(walls map[domain.Cell]bool) map[domain.Cell]bool {
 	return seen
 }
 
-func TestOuterRingEnclosesPatchPenAndGeothermal(t *testing.T) {
+func TestOuterRingEnclosesPatchAndGeothermal(t *testing.T) {
 	p, units := outerPlan(t, 40)
 	walls, gates := reservedCells(p, ReserveOuterWall), reserved(p, ReserveOuterGate)
 	if len(walls) == 0 || len(gates) == 0 {
@@ -112,17 +111,17 @@ func TestOuterRingEnclosesPatchPenAndGeothermal(t *testing.T) {
 	}
 }
 
-// A patch past the size cap is a valley floor, left outside; the pen and
-// the geothermal enclosure beside it are still walled.
+// A patch past the size cap is a valley floor, left outside; the geothermal
+// enclosure beside it is still walled.
 func TestOuterRingSkipsHugePatch(t *testing.T) {
 	p, units := outerPlan(t, 126)
 	walls := reservedCells(p, ReserveOuterWall)
 	if len(walls) == 0 {
-		t.Fatal("no outer ring for the pen")
+		t.Fatal("no outer ring for the geothermal enclosure")
 	}
 	seen := outerReach(walls)
 	for _, r := range p.Reservations {
-		if r.Kind == ReservePen || r.Kind == ReserveGeothermal {
+		if r.Kind == ReserveGeothermal {
 			for _, c := range rectCells(r.Area) {
 				if seen[c] {
 					t.Fatal(r.Kind, "left outside", c)
@@ -148,26 +147,22 @@ func TestOuterRingNeedsUnits(t *testing.T) {
 	}
 }
 
-// A derived plan on open fertile ground reserves a turbine pair; the outer
+// A derived plan on open fertile ground reserves a turbine pair; the core
 // ring encloses the pair and its lanes whole, and none of them lies on the
-// core ring or across the killbox and its approaches (#1597).
-func TestOuterRingEnclosesTurbinePair(t *testing.T) {
+// ring or across the killbox and its approaches.
+func TestCoreRingEnclosesTurbinePair(t *testing.T) {
 	for _, pawns := range []int{3, 6, 10} {
-		t.Run(strconv.Itoa(pawns), func(t *testing.T) { turbinePairInsideOuterRing(t, pawns) })
+		t.Run(strconv.Itoa(pawns), func(t *testing.T) { turbinePairInsideCoreRing(t, pawns) })
 	}
 }
 
-func turbinePairInsideOuterRing(t *testing.T, pawns int) {
+func turbinePairInsideCoreRing(t *testing.T, pawns int) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	plan, ok := DeriveLayoutPlan(s, pawns, BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
-	walls := reservedCells(plan, ReserveOuterWall)
-	if len(walls) == 0 {
-		t.Fatal("no outer ring")
-	}
-	seen := outerReach(walls)
+	ring := coreRingBox(t, plan)
 	core := map[domain.Cell]bool{}
 	for _, k := range []ReservationKind{ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap, ReserveGate, ReserveKillbox, ReserveKillboxApproach} {
 		for c := range reservedCells(plan, k) {
@@ -181,8 +176,8 @@ func turbinePairInsideOuterRing(t *testing.T, pawns int) {
 		}
 		n++
 		for _, c := range rectCells(r.Area) {
-			if seen[c] {
-				t.Fatal(r.Kind, "outside the outer ring at", c)
+			if !contains(ring, c) {
+				t.Fatal(r.Kind, "outside the core ring at", c)
 			}
 			if core[c] {
 				t.Fatal(r.Kind, "on the core ring or killbox at", c)
@@ -194,31 +189,42 @@ func turbinePairInsideOuterRing(t *testing.T, pawns int) {
 	}
 }
 
-// The barn and vet room stand inside the outer ring with the pen (#1633).
-func TestOuterRingEnclosesBarnAndVetRoom(t *testing.T) {
+// The pen, barn and vet room stand inside the core ring.
+func TestCoreRingEnclosesPenBarnAndVetRoom(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
-	walls := reservedCells(plan, ReserveOuterWall)
-	if len(walls) == 0 {
-		t.Fatal("no outer ring")
-	}
-	seen := outerReach(walls)
+	ring := coreRingBox(t, plan)
 	n := 0
 	for _, r := range plan.Reservations {
-		if r.Kind != ReserveBarn && r.Kind != ReserveVetRoom {
+		if r.Kind != ReservePen && r.Kind != ReserveBarn && r.Kind != ReserveVetRoom {
 			continue
 		}
 		n++
 		for _, c := range rectCells(r.Area) {
-			if seen[c] {
-				t.Fatal(r.Kind, "outside the outer ring at", c)
+			if !contains(ring, c) {
+				t.Fatal(r.Kind, "outside the core ring at", c)
 			}
 		}
 	}
-	if n != 2 {
-		t.Fatal("barn and vet room reservations", n)
+	if n < 3 {
+		t.Fatal("pen, barn and vet room reservations", n)
 	}
+}
+
+// coreRingBox is the box the plan's core ring (wall and gate cells) spans.
+func coreRingBox(t *testing.T, plan LayoutPlan) Rectangle {
+	t.Helper()
+	var box Rectangle
+	for _, k := range []ReservationKind{ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap} {
+		for c := range reservedCells(plan, k) {
+			box = unionRect(box, Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})
+		}
+	}
+	if box.Width == 0 {
+		t.Fatal("no core ring")
+	}
+	return box
 }
