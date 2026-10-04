@@ -73,8 +73,8 @@ func TestSpectatorNowPanel(t *testing.T) {
 	if now.Stage == nil || now.Stage.Stage != "Reserves" || now.Stage.Blocker != "wood" {
 		t.Fatalf("stage: %s", body)
 	}
-	if len(now.Goals) != 1 || now.Goals[0].Goal != "MaintainFoodStorage" || now.Goals[0].Blocked != "no_worker" {
-		t.Fatalf("goals: %s", body)
+	if len(now.Concerns) != 1 || now.Concerns[0].Concern != "MaintainFoodStorage" || now.Concerns[0].Blocked != "no_worker" {
+		t.Fatalf("concerns: %s", body)
 	}
 	if now.Pacing.Reason != spectator.ReasonStopped || now.Pacing.Detail != "STOP_REASON_COLONIST_HEALTH" || now.Pacing.WindowTicks != 2500 {
 		t.Fatalf("pacing: %s", body)
@@ -100,7 +100,7 @@ func TestSpectatorNowWithoutARecorder(t *testing.T) {
 	if err := json.Unmarshal(body, &now); err != nil {
 		t.Fatal(err, string(body))
 	}
-	if status != 200 || now.Stage == nil || len(now.Goals) != 1 {
+	if status != 200 || now.Stage == nil || len(now.Concerns) != 1 {
 		t.Fatalf("%d %s", status, body)
 	}
 	if now.LastStop != nil || now.Pacing.Reason != spectator.ReasonUnknown || now.Pacing.EffectiveTPS != 0 {

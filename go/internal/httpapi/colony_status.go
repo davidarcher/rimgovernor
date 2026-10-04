@@ -12,7 +12,7 @@ import (
 // ColonyStatus is the read-only live colony census this route fronts
 // (buildingruntime.ColonyStatus): the food stock and runway the routine
 // reviewer judges from plus every living home colonist's state, so a
-// sustained run's harness can sample the colony beside the goal it watches
+// sustained run's harness can sample the colony beside the concern it watches
 // (issue #261). It never accepts a request body.
 type ColonyStatus interface {
 	Read(context.Context) (buildingruntime.ColonyStatusReport, error)

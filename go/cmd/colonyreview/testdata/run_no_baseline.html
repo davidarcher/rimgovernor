@@ -48,14 +48,14 @@ table.runs img{width:72px;height:72px;object-fit:cover;border-radius:4px}
 <svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
 <span class="muted"> – </span></div><div class="chart"><span class="muted">Wealth</span> <b></b>
 <svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
-<span class="muted"> – </span></div><div class="chart"><span class="muted">Goals in deficit</span> <b></b>
+<span class="muted"> – </span></div><div class="chart"><span class="muted">Concerns in deficit</span> <b></b>
 <svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
 <span class="muted"> – </span></div></div>
 <h2>Storage</h2><p class="muted">No stockpile review filed.</p>
 <h2>Flags</h2><p class="muted">None.</p>
 <h2>Whole map, daily</h2><div class="days"></div>
 <h2>Hour by hour</h2>
-<label class="filter"><input type="checkbox" id="only"> Only hours with flags or goal changes</label>
+<label class="filter"><input type="checkbox" id="only"> Only hours with flags or concern changes</label>
 <div class="hours" id="hours"></div>
 <script>
 document.getElementById('only').addEventListener('change',e=>{for(const s of document.querySelectorAll('#hours .hour'))s.style.display=e.target.checked&&s.dataset.flags==='00'?'none':''})

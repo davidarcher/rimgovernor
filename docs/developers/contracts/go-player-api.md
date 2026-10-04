@@ -116,3 +116,21 @@ draft toggle. The UI has no draft, undraft or native-token input.
 
 Draft and undraft through the draft intent are Go native acceptance in
 `draft/intent`.
+
+## Concern JSON names (epic #1964, #1977)
+
+The read routes name the watched kind a `concern` (a Concern id string such
+as `EnsureFoodSupply`; the id strings did not change). The old `goal` and
+`goals` keys are gone, with no compatibility alias.
+
+| Route | Field | Was |
+| --- | --- | --- |
+| `GET /api/routines` | `progress[].concern` | `progress[].goal` |
+| `GET /api/routines` | `noOps[].concern` | `noOps[].goal` |
+| `GET /api/routines` | `development.rows[].concern` (the development rows) | `...goal` |
+| `GET /api/spectator/now` | `concerns[]` (array) | `goals[]` |
+| `GET /api/spectator/now` | `concerns[].concern` | `goals[].goal` |
+
+Every other field of those shapes (`method`, `expected`, `lastProgress`,
+`nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) is unchanged.
+Persisted store names (`Need`, `Epoch`, `Goal` tags) stay until #1976.

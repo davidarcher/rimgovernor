@@ -275,7 +275,7 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | done (#1973); stored strings unknown / deficit / recovered and the `Need` JSON key stay until #1976 |
 | `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); the table is renamed in place, then split per owner. | done #1974 (`domain.Method`, field `Owner`); table rename pending #1976, split #1980 |
 | player goals (`GoalSource`, `GoalKind`, `CreateGoal`, `CancelPlayerGoal`, `PlayerGoals`, `/goals`) | deleted | Play is autonomous (#719). | done (#1967) |
-| `Goal*` types in `httpapi`, `interpreter`, `spectator`, `colonyreview`, dashboard, native panel, player docs | the new words | Player-visible surfaces take the same words. | pending #1977, #1978 |
+| `Goal*` types in `httpapi`, `interpreter`, `spectator`, `colonyreview`, dashboard, native panel, player docs | the new words | Player-visible surfaces take the same words. | Go JSON shapes done (#1977: `concern`, `concerns`); native panel and player docs pending #1978 |
 
 Unchanged: Plan, Method id, Priority, the Concern id strings and the log
 format (#295; only message words change). No GABP wire field changes.

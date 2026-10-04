@@ -13,7 +13,7 @@ import (
 
 // The report reads what the run already records: result.json's timeline
 // (sustainedfood.Watch: the colony census from /api/player/colony and each
-// sampled goal's state, every in-game hour) and the recorder's screenshots
+// sampled concern's state, every in-game hour) and the recorder's screenshots
 // under review/ (colony-<tick>.jpg, map-<tick>.jpg).
 
 // Pawn is one census pawn.
@@ -48,8 +48,8 @@ type Census struct {
 	Pawns             []Pawn      `json:"pawns"`
 }
 
-// Goal is one sampled goal's state.
-type Goal struct {
+// Concern is one sampled concern's state.
+type Concern struct {
 	ID     string
 	Need   string
 	Status string
@@ -61,8 +61,8 @@ type Row struct {
 	Day, Hour  int
 	Label      string
 	Census     Census
-	Goals      []Goal
-	Changes    []string // goal need transitions since the previous row
+	Concerns   []Concern
+	Changes    []string // concern need transitions since the previous row
 	Sampled    string   // label of the timeline sample shown, when not this hour's
 	ColonyShot string
 	MapShot    string
@@ -145,7 +145,7 @@ func Load(dir string) ([]Row, result, error) {
 			}
 			if strings.HasPrefix(key, "Ensure") || strings.HasPrefix(key, "Maintain") {
 				if json.Unmarshal(raw, &g) == nil && g.Need != "" {
-					r.Goals = append(r.Goals, Goal{key, g.Need, g.Status})
+					r.Concerns = append(r.Concerns, Concern{key, g.Need, g.Status})
 				}
 			}
 		}
@@ -153,9 +153,9 @@ func Load(dir string) ([]Row, result, error) {
 		json.Unmarshal(sample["need"], &need)
 		json.Unmarshal(sample["status"], &status)
 		if need != "" {
-			r.Goals = append(r.Goals, Goal{"EnsureFoodSupply", need, status})
+			r.Concerns = append(r.Concerns, Concern{"EnsureFoodSupply", need, status})
 		}
-		sort.Slice(r.Goals, func(i, j int) bool { return r.Goals[i].ID < r.Goals[j].ID })
+		sort.Slice(r.Concerns, func(i, j int) bool { return r.Concerns[i].ID < r.Concerns[j].ID })
 		rows = append(rows, r)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Tick < rows[j].Tick })
@@ -190,7 +190,7 @@ func Load(dir string) ([]Row, result, error) {
 	return rows, res, nil
 }
 
-// Derive fills each row's goal changes and flags and returns the summary.
+// Derive fills each row's concern changes and flags and returns the summary.
 func Derive(rows []Row, meta map[string]string) Summary {
 	s := Summary{Meta: meta, Hours: len(rows), MinMood: 1, MinFoodDays: -1}
 	for i := range rows {
@@ -199,10 +199,10 @@ func Derive(rows []Row, meta map[string]string) Summary {
 		if i > 0 {
 			prev = &rows[i-1]
 			before := map[string]string{}
-			for _, g := range prev.Goals {
+			for _, g := range prev.Concerns {
 				before[g.ID] = g.Need
 			}
-			for _, g := range r.Goals {
+			for _, g := range r.Concerns {
 				if b, ok := before[g.ID]; ok && b != g.Need {
 					r.Changes = append(r.Changes, fmt.Sprintf("%s %s → %s", g.ID, b, g.Need))
 				}

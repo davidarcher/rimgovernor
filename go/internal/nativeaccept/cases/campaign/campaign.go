@@ -59,7 +59,7 @@ func footholdWindow() uint64 {
 
 // serveSpec is the campaign's serve process: every routine family (nil
 // Families; the supply family must be in, or ManageSupplySafety parks
-// every goal after a raid, #620), the player control path's clock flags
+// every concern after a raid, #620), the player control path's clock flags
 // and the campaign's own request prefix.
 func serveSpec(prefix string) (cases.ServeSpec, error) {
 	// The player control path: the player's Ultrafast, which serve runs
@@ -171,7 +171,7 @@ type phase struct {
 	Label    string
 	Timeline []map[string]any
 	Window   *sustainedfood.TickWindow
-	// Progress is every goal's progress record when the phase ended.
+	// Progress is every concern's progress record when the phase ended.
 	Progress []progressRecord
 	// Mode is /api/state's mode when the phase ended.
 	Mode string
@@ -202,7 +202,7 @@ func (p *phase) advanced() uint64 {
 	return p.Window.LastTick - p.Window.FirstTick
 }
 
-// playOptions shape one phase: the watch (window, goal, early exit).
+// playOptions shape one phase: the watch (window, concern, early exit).
 type playOptions struct {
 	Watch sustainedfood.WatchConfig
 }
@@ -270,10 +270,10 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 	return p, nil
 }
 
-// progressRecord is one goal's GoalProgress record as /api/routines
+// progressRecord is one concern's GoalProgress record as /api/routines
 // renders it (#629).
 type progressRecord struct {
-	Goal         string `json:"goal"`
+	Concern      string `json:"concern"`
 	Method       string `json:"method"`
 	Expected     string `json:"expected"`
 	LastProgress uint64 `json:"lastProgress"`
@@ -281,7 +281,7 @@ type progressRecord struct {
 	Blocked      string `json:"blocked"`
 }
 
-// readProgress reads the live service's goal progress records.
+// readProgress reads the live service's concern progress records.
 func readProgress(service *na.ServiceProcess) ([]progressRecord, error) {
 	body, status, err := service.API("GET", "/api/routines", nil, "")
 	if err != nil {
@@ -301,7 +301,7 @@ func readProgress(service *na.ServiceProcess) ([]progressRecord, error) {
 	return records, nil
 }
 
-// assertProgress is the sustained-progress gate (#629): at least one goal
+// assertProgress is the sustained-progress gate (#629): at least one concern
 // record advanced on native evidence during the phase (LastProgress at or
 // past its first tick), and no unblocked record sat past its NextReview
 // deadline without progress or a named blocker (the contract rotates or
@@ -316,14 +316,14 @@ func (p *phase) assertProgress() error {
 		if r.LastProgress >= p.Window.FirstTick {
 			advanced++
 		} else if r.Blocked == "" && r.NextReview > 0 && r.NextReview < p.Window.LastTick {
-			stalled = append(stalled, fmt.Sprintf("%s/%s last=%d next=%d", r.Goal, r.Method, r.LastProgress, r.NextReview))
+			stalled = append(stalled, fmt.Sprintf("%s/%s last=%d next=%d", r.Concern, r.Method, r.LastProgress, r.NextReview))
 		}
 	}
 	if advanced == 0 {
-		return fmt.Errorf("%s: no goal progress record advanced between ticks %d and %d (%d records)", p.Label, p.Window.FirstTick, p.Window.LastTick, len(p.Progress))
+		return fmt.Errorf("%s: no concern progress record advanced between ticks %d and %d (%d records)", p.Label, p.Window.FirstTick, p.Window.LastTick, len(p.Progress))
 	}
 	if len(stalled) > 0 {
-		return fmt.Errorf("%s: %d goal(s) past their progress deadline with no blocker: %v", p.Label, len(stalled), stalled)
+		return fmt.Errorf("%s: %d concern(s) past their progress deadline with no blocker: %v", p.Label, len(stalled), stalled)
 	}
 	return nil
 }

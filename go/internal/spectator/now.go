@@ -68,10 +68,10 @@ type Now struct {
 	// Stage is the colony stage with the first unmet condition of the next,
 	// nil until a review filed one.
 	Stage *Stage `json:"stage"`
-	// Goals are the active goals' progress records, the most urgent first
-	// (blocked before unblocked, then by review deadline), at most Goals
+	// Concerns are the active concerns' progress records, the most urgent first
+	// (blocked before unblocked, then by review deadline), at most Concerns
 	// rows.
-	Goals []Goal `json:"goals"`
+	Concerns []Concern `json:"concerns"`
 	// Pacing is why the clock runs as it does and how fast it is actually
 	// going.
 	Pacing Pacing `json:"pacing"`
@@ -91,11 +91,11 @@ type Stage struct {
 	Held    bool        `json:"held"`
 }
 
-// Goal is one active goal's progress: the method it is working, the native
+// Concern is one active concern's progress: the method it is working, the native
 // observable that proves the method advances, when that last moved, when it
 // is judged stalled and what blocks it now.
-type Goal struct {
-	Goal         string      `json:"goal"`
+type Concern struct {
+	Concern      string      `json:"concern"`
 	Method       string      `json:"method"`
 	Expected     string      `json:"expected"`
 	LastProgress domain.Tick `json:"lastProgress"`
@@ -167,18 +167,18 @@ type Input struct {
 	Holds []string
 	Tick  *int64
 	TPS   float64
-	// Goals bounds the goal rows; 0 uses GoalsShown.
-	Goals int
+	// Concerns bounds the concern rows; 0 uses ConcernsShown.
+	Concerns int
 }
 
-// GoalsShown is the default goal-row bound: a panel, not a report.
-const GoalsShown = 6
+// ConcernsShown is the default concern-row bound: a panel, not a report.
+const ConcernsShown = 6
 
 // Project composes the panel from the timeline rows of one launch (oldest
 // first, as the recorder wrote them) and the already-read state. It reads
 // nothing else: no native call, no journal write, no speed request.
 func Project(rows []bridge.TimelineRecord, in Input) Now {
-	out := Now{Tick: in.Tick, Goals: goals(in.Progress, in.Goals), Pacing: Pacing{Reason: ReasonUnknown, Mode: ModeAutonomous, EffectiveTPS: in.TPS}}
+	out := Now{Tick: in.Tick, Concerns: concerns(in.Progress, in.Concerns), Pacing: Pacing{Reason: ReasonUnknown, Mode: ModeAutonomous, EffectiveTPS: in.TPS}}
 	if in.Stage != nil {
 		out.Stage = &Stage{Stage: in.Stage.Stage.String(), Since: in.Stage.Since, Blocker: string(in.Stage.Blocker), Reason: in.Stage.Reason, Held: in.Stage.Held}
 	}
@@ -321,16 +321,16 @@ func stop(row bridge.TimelineRecord) *Stop {
 	return out
 }
 
-// goals orders the progress records the way a watcher reads them: blocked
-// goals first, then the nearest review deadline, then the goal id so the
+// concerns orders the progress records the way a watcher reads them: blocked
+// concerns first, then the nearest review deadline, then the concern id so the
 // order is stable; at most limit rows.
-func goals(records []policy.GoalProgress, limit int) []Goal {
+func concerns(records []policy.GoalProgress, limit int) []Concern {
 	if limit <= 0 {
-		limit = GoalsShown
+		limit = ConcernsShown
 	}
-	out := make([]Goal, 0, len(records))
+	out := make([]Concern, 0, len(records))
 	for _, r := range records {
-		out = append(out, Goal{Goal: string(r.Goal), Method: r.Method, Expected: r.Expected, LastProgress: r.LastProgress,
+		out = append(out, Concern{Concern: string(r.Goal), Method: r.Method, Expected: r.Expected, LastProgress: r.LastProgress,
 			NextReview: r.NextReview, Blocked: string(r.Blocked), Prerequisite: string(r.Blocked.Prerequisite()), Observed: r.Observed})
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -344,7 +344,7 @@ func goals(records []policy.GoalProgress, limit int) []Goal {
 		if a.NextReview != b.NextReview {
 			return a.NextReview < b.NextReview
 		}
-		return a.Goal < b.Goal
+		return a.Concern < b.Concern
 	})
 	if len(out) > limit {
 		out = out[:limit]

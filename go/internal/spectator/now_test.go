@@ -22,7 +22,7 @@ func stopRow(sequence uint64, reason string, extra map[string]any) bridge.Timeli
 	return row("scheduler_stop", sequence, payload)
 }
 
-func TestProjectStageGoalsAndStop(t *testing.T) {
+func TestProjectStageConcernsAndStop(t *testing.T) {
 	stage := &policy.ColonyStageRecord{Stage: policy.StageReserves, Since: 4000, Blocker: policy.StageBlockerWood, Reason: "wood floor 120 of 400"}
 	observed := 0.25
 	progress := []policy.GoalProgress{
@@ -46,19 +46,19 @@ func TestProjectStageGoalsAndStop(t *testing.T) {
 	}
 	// Blocked first, then the nearest review deadline, then no deadline.
 	want := []string{"MaintainFoodStorage", "MaintainResource-WoodLog", "EnsureShelter"}
-	if len(now.Goals) != 3 {
-		t.Fatal(now.Goals)
+	if len(now.Concerns) != 3 {
+		t.Fatal(now.Concerns)
 	}
-	for i, goal := range want {
-		if now.Goals[i].Goal != goal {
-			t.Fatal(i, now.Goals[i].Goal, goal)
+	for i, concern := range want {
+		if now.Concerns[i].Concern != concern {
+			t.Fatal(i, now.Concerns[i].Concern, concern)
 		}
 	}
-	if now.Goals[0].Blocked != "no_worker" || now.Goals[0].Method != "hunt" || now.Goals[0].Expected == "" {
-		t.Fatal(now.Goals[0])
+	if now.Concerns[0].Blocked != "no_worker" || now.Concerns[0].Method != "hunt" || now.Concerns[0].Expected == "" {
+		t.Fatal(now.Concerns[0])
 	}
-	if now.Goals[1].Observed == nil || *now.Goals[1].Observed != 0.25 {
-		t.Fatal(now.Goals[1])
+	if now.Concerns[1].Observed == nil || *now.Concerns[1].Observed != 0.25 {
+		t.Fatal(now.Concerns[1])
 	}
 	stop := now.LastStop
 	if stop == nil || stop.Reason != "STOP_REASON_COLONIST_HEALTH" || stop.Evidence != "health" || stop.Cursor != 41 || stop.Benign || stop.Tick != 5040 {
@@ -113,21 +113,21 @@ func TestProjectPacingReasons(t *testing.T) {
 	}
 }
 
-// The panel bounds its goal rows and carries a prerequisite blocker's goal.
-func TestProjectGoalBoundAndPrerequisite(t *testing.T) {
+// The panel bounds its concern rows and carries a prerequisite blocker's concern.
+func TestProjectConcernBoundAndPrerequisite(t *testing.T) {
 	progress := []policy.GoalProgress{{Goal: "MaintainResource-Steel", Method: "mine", Expected: "steel in storage", Blocked: policy.BlockedPrerequisite("MaintainFoodStorage")}}
 	for i := 0; i < 10; i++ {
 		progress = append(progress, policy.GoalProgress{Goal: policy.ConcernID(string(rune('a' + i))), Method: "m", Expected: "e", NextReview: 100})
 	}
 	now := Project(nil, Input{Progress: progress, ReviewsEnabled: true})
-	if len(now.Goals) != GoalsShown {
-		t.Fatal(len(now.Goals))
+	if len(now.Concerns) != ConcernsShown {
+		t.Fatal(len(now.Concerns))
 	}
-	if now.Goals[0].Blocked != "prerequisite:MaintainFoodStorage" || now.Goals[0].Prerequisite != "MaintainFoodStorage" {
-		t.Fatal(now.Goals[0])
+	if now.Concerns[0].Blocked != "prerequisite:MaintainFoodStorage" || now.Concerns[0].Prerequisite != "MaintainFoodStorage" {
+		t.Fatal(now.Concerns[0])
 	}
-	if now := Project(nil, Input{Progress: progress, ReviewsEnabled: true, Goals: 2}); len(now.Goals) != 2 {
-		t.Fatal(len(now.Goals))
+	if now := Project(nil, Input{Progress: progress, ReviewsEnabled: true, Concerns: 2}); len(now.Concerns) != 2 {
+		t.Fatal(len(now.Concerns))
 	}
 }
 
@@ -146,9 +146,9 @@ func TestProjectWireShapeWithoutAReview(t *testing.T) {
 			t.Fatal(key, wire[key])
 		}
 	}
-	goals, ok := wire["goals"].([]any)
-	if !ok || len(goals) != 0 {
-		t.Fatal(wire["goals"])
+	concerns, ok := wire["concerns"].([]any)
+	if !ok || len(concerns) != 0 {
+		t.Fatal(wire["concerns"])
 	}
 	pacing, ok := wire["pacing"].(map[string]any)
 	if !ok || pacing["reason"] != "unknown" || pacing["mode"] != ModeAutonomous || pacing["effectiveTps"] != float64(0) {

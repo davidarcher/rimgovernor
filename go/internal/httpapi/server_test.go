@@ -453,10 +453,10 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	}
 }
 
-// The Governor projection carries every goal's progress record (#629):
+// The Governor projection carries every concern's progress record (#629):
 // method, expected observable, last progress tick, next review tick and
 // blocker, with its bounded cooldowns.
-func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
+func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 	progress := []policy.GoalProgress{
 		{Goal: policy.EnsureFoodSupply, Method: "acquire", Expected: "food runway toward target", LastProgress: 100, NextReview: 100 + policy.DevelopmentStallTicks, Blocked: policy.BlockedPrerequisite(policy.EnsureCooking)},
 		{Goal: policy.MaintainResource, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
@@ -476,10 +476,10 @@ func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 	if status != 200 || len(got.Progress) != 2 {
-		t.Fatalf("goal progress: %s", body)
+		t.Fatalf("concern progress: %s", body)
 	}
 	food := got.Progress[0]
-	if food.Goal != policy.EnsureFoodSupply || food.Method != "acquire" || food.Expected == "" || food.LastProgress != 100 || food.NextReview != 100+policy.DevelopmentStallTicks || food.Blocked.Prerequisite() != policy.EnsureCooking || len(food.Cooldowns) != 0 {
+	if food.Concern != policy.EnsureFoodSupply || food.Method != "acquire" || food.Expected == "" || food.LastProgress != 100 || food.NextReview != 100+policy.DevelopmentStallTicks || food.Blocked.Prerequisite() != policy.EnsureCooking || len(food.Cooldowns) != 0 {
 		t.Fatalf("food record: %s", body)
 	}
 	wood := got.Progress[1]

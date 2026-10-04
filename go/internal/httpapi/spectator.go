@@ -9,7 +9,7 @@ import (
 )
 
 // Spectator (#632): GET /api/spectator/now is the watcher's one read —
-// what the colony is trying to do (the colony stage and the active goals'
+// what the colony is trying to do (the colony stage and the active concerns'
 // progress records), why the clock runs as it does (the pacing reason and
 // the effective TPS) and the last clock stop with its latency split.
 //

@@ -37,7 +37,7 @@ type RoutineStatus struct {
 	LastReviewTick  domain.Tick
 	LastReviewKnown bool
 	Development     *policy.DevelopmentState
-	// Progress is every active goal's progress record from the last review
+	// Progress is every active concern's progress record from the last review
 	// (#629): method, expected observable, last progress tick, next review
 	// tick and blocker.
 	Progress []policy.GoalProgress
@@ -70,7 +70,7 @@ type routineStatusDTO struct {
 	ActiveFamilies    []string                     `json:"activeFamilies"`
 	LastReviewTick    *domain.Tick                 `json:"lastReviewTick"`
 	Development       *routineDevelopmentDTO       `json:"development"`
-	Progress          []goalProgressDTO            `json:"progress"`
+	Progress          []concernProgressDTO         `json:"progress"`
 	Stage             *colonyStageDTO              `json:"stage"`
 	Roster            *routineRosterDTO            `json:"roster"`
 	LayoutTidy        *layoutTidyDTO               `json:"layoutTidy"`
@@ -81,8 +81,8 @@ type routineStatusDTO struct {
 
 // noOpDTO is one detector that raised nothing and why.
 type noOpDTO struct {
-	Goal   domain.ConcernID  `json:"goal"`
-	Reason policy.NoOpReason `json:"reason"`
+	Concern domain.ConcernID  `json:"concern"`
+	Reason  policy.NoOpReason `json:"reason"`
 }
 
 // layoutTidyDTO is the TidyLayout review for the development panel: the
@@ -206,7 +206,7 @@ type colonyStageDTO struct {
 }
 
 // routineDevelopmentDTO is the recorded development ranking: bounded
-// admission (capacity, labor) and every optional goal's ordering evidence and
+// admission (capacity, labor) and every optional concern's ordering evidence and
 // deferral reason. Unknown facts are null; labor rows are sorted by work type.
 type routineDevelopmentDTO struct {
 	Tick      domain.Tick                `json:"tick"`
@@ -218,7 +218,7 @@ type routineDevelopmentDTO struct {
 	// Capacity bounds planner cost; distinct observed workers decide
 	// admission. HeldWorkers is labor open startup work and withheld prerequisites
 	// hold without a slot; Limiting the
-	// first reason an eligible goal was left unselected.
+	// first reason an eligible concern was left unselected.
 	HeldWorkers int                      `json:"heldWorkers"`
 	Limiting    policy.DevelopmentReason `json:"limiting"`
 }
@@ -227,7 +227,7 @@ type routineLaborDTO struct {
 	Free int             `json:"free"`
 }
 type routineDevelopmentRowDTO struct {
-	Goal         domain.ConcernID         `json:"goal"`
+	Concern      domain.ConcernID         `json:"concern"`
 	Score        float64                  `json:"score"`
 	Deficit      *float64                 `json:"deficit"`
 	Risk         *float64                 `json:"risk"`
@@ -236,13 +236,13 @@ type routineDevelopmentRowDTO struct {
 	Committed    bool                     `json:"committed"`
 	Reason       policy.DevelopmentReason `json:"reason"`
 	Bottleneck   policy.WorkType          `json:"bottleneck"`
-	// Donation is the ordering the row inherited from a goal waiting on
+	// Donation is the ordering the row inherited from a concern waiting on
 	// its shortfall (#651); absent when it serves none.
 	Donation *routineDonationDTO `json:"donation,omitempty"`
 }
 
-// routineDonationDTO: priority is the effective ordering (the goal's own
-// priority is unchanged), chain runs from the originating goal to this one,
+// routineDonationDTO: priority is the effective ordering (the concern's own
+// priority is unchanged), chain runs from the originating concern to this one,
 // shortfall is the bounded demand, conflict names an operator ceiling that
 // kept the row from a slot.
 type routineDonationDTO struct {
@@ -253,12 +253,12 @@ type routineDonationDTO struct {
 	Conflict  string             `json:"conflict,omitempty"`
 }
 
-// goalProgressDTO is one goal's progress record on the wire (#629): the
-// five fields per goal plus the bounded cooldowns keying failed situations
+// concernProgressDTO is one concern's progress record on the wire (#629): the
+// five fields per concern plus the bounded cooldowns keying failed situations
 // out. lastProgress and nextReview are ticks; blocked is empty when the
-// goal is not blocked.
-type goalProgressDTO struct {
-	Goal         domain.ConcernID      `json:"goal"`
+// concern is not blocked.
+type concernProgressDTO struct {
+	Concern      domain.ConcernID      `json:"concern"`
 	Method       string                `json:"method"`
 	Expected     string                `json:"expected"`
 	LastProgress domain.Tick           `json:"lastProgress"`
@@ -272,10 +272,10 @@ type progressCooldownDTO struct {
 	Until domain.Tick `json:"until"`
 }
 
-func goalProgress(records []policy.GoalProgress) []goalProgressDTO {
-	out := make([]goalProgressDTO, 0, len(records))
+func concernProgress(records []policy.GoalProgress) []concernProgressDTO {
+	out := make([]concernProgressDTO, 0, len(records))
 	for _, p := range records {
-		dto := goalProgressDTO{Goal: p.Goal, Method: p.Method, Expected: p.Expected, LastProgress: p.LastProgress, NextReview: p.NextReview, Blocked: p.Blocked, Cooldowns: []progressCooldownDTO{}}
+		dto := concernProgressDTO{Concern: p.Goal, Method: p.Method, Expected: p.Expected, LastProgress: p.LastProgress, NextReview: p.NextReview, Blocked: p.Blocked, Cooldowns: []progressCooldownDTO{}}
 		for _, c := range p.Cooldowns {
 			dto.Cooldowns = append(dto.Cooldowns, progressCooldownDTO{Key: c.Key, Until: c.Until})
 		}
@@ -295,10 +295,10 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	result.Extent = routineExtent(v.ResourceReach.Extent)
 	result.ExtentEligibility = policy.ExtentEligibility(v.ExtentEligibility)
 	result.LootHolds = lootHolds(v.LootHolds)
-	result.Progress = goalProgress(v.Progress)
+	result.Progress = concernProgress(v.Progress)
 	result.NoOps = []noOpDTO{}
 	for _, n := range v.NoOps {
-		result.NoOps = append(result.NoOps, noOpDTO{Goal: n.Goal, Reason: n.Reason})
+		result.NoOps = append(result.NoOps, noOpDTO{Concern: n.Goal, Reason: n.Reason})
 	}
 	for _, section := range v.Sections {
 		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano)})
@@ -394,7 +394,7 @@ func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {
 	}
 	dto.Committed = append(dto.Committed, s.Committed...)
 	for _, row := range s.Rows {
-		v := routineDevelopmentRowDTO{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
+		v := routineDevelopmentRowDTO{Concern: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
 		if d, k := row.Deficit.Value(); k {
 			v.Deficit = &d
 		}

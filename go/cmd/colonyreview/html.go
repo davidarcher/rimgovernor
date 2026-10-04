@@ -102,7 +102,7 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <h2>Flags</h2>{{if .Flagged}}<ul class="flags">{{range .Flagged}}{{$a := .Anchor}}{{$d := .Label}}{{range .Flags}}<li class="{{.Severity}}"><a href="#{{$a}}">{{$d}}</a> {{.Text}}</li>{{end}}{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
 <h2>Whole map, daily</h2><div class="days">{{range .Rows}}{{if .MapShot}}<figure><a href="review/{{.MapShot}}"><img loading="lazy" src="review/{{.MapShot}}" alt="Map {{.Label}}"></a><figcaption>{{.Label}}</figcaption></figure>{{end}}{{end}}</div>
 <h2>Hour by hour</h2>
-<label class="filter"><input type="checkbox" id="only"> Only hours with flags or goal changes</label>
+<label class="filter"><input type="checkbox" id="only"> Only hours with flags or concern changes</label>
 <div class="hours" id="hours">{{range .Rows}}
 <section class="hour{{if hasBad .Flags}} hasbad{{end}}" id="{{.Anchor}}" data-flags="{{len .Flags}}{{len .Changes}}">
 {{if .ColonyShot}}<a href="review/{{.ColonyShot}}"><img loading="lazy" src="review/{{.ColonyShot}}" alt="Colony {{.Label}}"></a>{{end}}
@@ -112,7 +112,7 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <table>{{range .Pawns}}<tr><td>{{.Label}}</td><td>mood {{pct .Mood}}</td><td>food {{pct .Food}}</td><td>{{if .Downed}}{{if deref .Downed}}<span class="bad">downed</span>{{end}}{{end}}</td></tr>{{end}}</table>{{end}}
 {{if .Flags}}<ul>{{range .Flags}}<li class="{{.Severity}}">{{.Text}}</li>{{end}}</ul>{{end}}
 {{if .Changes}}<ul class="muted">{{range .Changes}}<li>{{.}}</li>{{end}}</ul>{{end}}
-<details><summary class="muted">goals</summary><table>{{range .Goals}}<tr><td>{{.ID}}</td><td class="{{if eq .Need "deficit"}}warn{{end}}">{{.Need}}</td><td class="job">{{.Status}}</td></tr>{{end}}</table></details>
+<details><summary class="muted">concerns</summary><table>{{range .Concerns}}<tr><td>{{.ID}}</td><td class="{{if eq .Need "deficit"}}warn{{end}}">{{.Need}}</td><td class="job">{{.Status}}</td></tr>{{end}}</table></details>
 </div></section>{{end}}</div>
 <script>
 document.getElementById('only').addEventListener('change',e=>{for(const s of document.querySelectorAll('#hours .hour'))s.style.display=e.target.checked&&s.dataset.flags==='00'?'none':''})
@@ -166,9 +166,9 @@ func renderRun(w io.Writer, rows []Row, s Summary) error {
 		newChart("Mean mood %", rows, func(r Row) float64 { return val(r.Census.MoodMean) * 100 }, "%.0f"),
 		newChart("Food runway days", rows, func(r Row) float64 { return val(r.Census.FoodRunwayDays) }, "%.1f"),
 		newChart("Wealth", rows, func(r Row) float64 { return val(r.Census.WealthTotal) }, "%.0f"),
-		newChart("Goals in deficit", rows, func(r Row) float64 {
+		newChart("Concerns in deficit", rows, func(r Row) float64 {
 			n := 0
-			for _, g := range r.Goals {
+			for _, g := range r.Concerns {
 				if g.Need == "deficit" {
 					n++
 				}

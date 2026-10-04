@@ -13,7 +13,7 @@ type Flag struct {
 const (
 	lowMood     = 0.25 // near a minor break
 	lowFoodDays = 2.0
-	stuckHours  = 12 // a goal in deficit this long
+	stuckHours  = 12 // a concern in deficit this long
 	// forbiddenHours is how long starting supplies may stay forbidden: the
 	// playtest that found them still forbidden was a day and a half in (#1581).
 	forbiddenHours = 24
@@ -43,7 +43,7 @@ func flags(rows []Row, prev *Row) []Flag {
 			add("warn", "%s mood %.0f%%", p.Label, *p.Mood*100)
 		}
 	}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if n := deficitRun(rows, g.ID); n == stuckHours {
 			add("warn", "%s in deficit %d hours running (%s)", g.ID, n, g.Status)
 		}
@@ -94,12 +94,12 @@ func forbiddenRun(rows []Row) int {
 	return n
 }
 
-// deficitRun is how many rows, ending at the last, hold goal id in deficit.
+// deficitRun is how many rows, ending at the last, hold concern id in deficit.
 func deficitRun(rows []Row, id string) int {
 	n := 0
 	for i := len(rows) - 1; i >= 0; i-- {
 		found := false
-		for _, g := range rows[i].Goals {
+		for _, g := range rows[i].Concerns {
 			if g.ID == id && g.Need == "deficit" {
 				found = true
 			}
