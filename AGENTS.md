@@ -17,6 +17,10 @@ once acceptance passes, and land immediately.
    packages the working tree changed and their in-module importers
    (`./...` only when `go.mod`/`go.sum` changed) and names the acceptance
    harnesses the change touches. Do not follow it with `go test ./...`.
+   It can run minutes with little output (a package prints only when it
+   finishes): it prints `still running: ...` every 30 s and always ends
+   with `test: PASS (...)` or `test: FAIL (...)`. Wait for that line; do
+   not poll or probe the process.
 3. Commit each completed iteration. Checkpoint commits are authorized; do
    not ask. Size an iteration to a coherent milestone, not the smallest
    possible edit, so slow checks run once against meaningful progress.

@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 )
@@ -678,6 +679,17 @@ func output(dir, name string, args ...string) (string, error) {
 // plus the smoke set and runs fresh (#249, #273); running the areas on
 // their own first and then the tier would run every case twice.
 func Test(repo string, changed []string, base ...string) error {
+	start := time.Now()
+	err := test(repo, changed, base...)
+	if err != nil {
+		fmt.Printf("test: FAIL (%s)\n", time.Since(start).Round(time.Second))
+		return err
+	}
+	fmt.Printf("test: PASS (%s)\n", time.Since(start).Round(time.Second))
+	return nil
+}
+
+func test(repo string, changed []string, base ...string) error {
 	goDir := filepath.Join(repo, "go")
 	sel, err := Select(repo, changed, base...)
 	if err != nil {
@@ -708,8 +720,8 @@ func Test(repo string, changed []string, base ...string) error {
 		if err := lint(goDir, changed, []string{"./..."}); err != nil {
 			return err
 		}
-		fmt.Println("tests: go.mod/go.sum changed, testing ./...")
-		return goRun(goDir, "test", "./...")
+		fmt.Println("tests: go.mod/go.sum changed, testing ./... (a package prints only when it finishes; silence is normal)")
+		return timed("tests", func() error { return goRun(goDir, "test", "./...") })
 	case len(sel.Packages) == 0:
 		fmt.Println("tests: no Go files changed, nothing to test")
 		return nil
@@ -717,8 +729,21 @@ func Test(repo string, changed []string, base ...string) error {
 	if err := lint(goDir, changed, sel.Packages); err != nil {
 		return err
 	}
-	fmt.Println("tests:", len(sel.Packages), "affected package(s)")
-	return goRun(goDir, append([]string{"test"}, sel.Packages...)...)
+	fmt.Println("tests:", len(sel.Packages), "affected package(s) (a package prints only when it finishes; silence is normal)")
+	return timed("tests", func() error { return goRun(goDir, append([]string{"test"}, sel.Packages...)...) })
+}
+
+// timed runs a stage and prints how long it took, so a quiet stage still
+// ends with a visible line.
+func timed(stage string, fn func() error) error {
+	start := time.Now()
+	err := fn()
+	status := "ok"
+	if err != nil {
+		status = "failed"
+	}
+	fmt.Printf("%s: %s (%s)\n", stage, status, time.Since(start).Round(time.Second))
+	return err
 }
 
 // lint runs the static gates task go:build applies to the whole module
@@ -745,25 +770,53 @@ func lint(goDir string, changed, packages []string) error {
 			return fmt.Errorf("gofmt -l: %s", strings.Join(strings.Fields(unformatted), " "))
 		}
 	}
-	fmt.Println("lint: go vet and staticcheck on", len(packages), "package(s)")
-	if err := goRun(goDir, append([]string{"vet"}, packages...)...); err != nil {
-		return errors.New("go vet: findings above")
-	}
-	if err := goRun(goDir, append([]string{"tool", "staticcheck"}, packages...)...); err != nil {
-		return errors.New("staticcheck: findings above")
-	}
-	return nil
+	fmt.Println("lint: go vet and staticcheck on", len(packages), "package(s) (silent when clean)")
+	return timed("lint", func() error {
+		if err := goRun(goDir, append([]string{"vet"}, packages...)...); err != nil {
+			return errors.New("go vet: findings above")
+		}
+		if err := goRun(goDir, append([]string{"tool", "staticcheck"}, packages...)...); err != nil {
+			return errors.New("staticcheck: findings above")
+		}
+		return nil
+	})
 }
 
 // goRun streams a go command's output so test failures are visible.
 func goRun(dir string, args ...string) error { return run(dir, "go", args...) }
 
-// run streams a command's output so failures are visible.
+// heartbeatEvery is how often a running command reports that it is alive.
+const heartbeatEvery = 30 * time.Second
+
+// run streams a command's output so failures are visible, and prints a
+// heartbeat while it is quiet so a slow command reads as running, not stuck.
 func run(dir, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	label := name
+	if len(args) > 0 {
+		label += " " + args[0]
+		if args[0] == "tool" && len(args) > 1 {
+			label += " " + args[1]
+		}
+	}
+	start := time.Now()
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		ticker := time.NewTicker(heartbeatEvery)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				fmt.Fprintf(os.Stderr, "  still running: %s (%s)\n", label, time.Since(start).Round(time.Second))
+			}
+		}
+	}()
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 	}
