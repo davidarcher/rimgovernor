@@ -100,7 +100,7 @@ namespace HomeBridge.BridgeTools
             var job = giver.TryIssueJobPackage(pawn!, default(JobIssueParams)).Job;
             if (job == null) throw new InvalidOperationException("No eligible native need job; inspect access, resources and recreation tolerance.");
             if (need == Operations.Need.Food && job.def != JobDefOf.Ingest)
-                throw new InvalidOperationException("Food recovery requires an available ingestible; production remains a separate goal.");
+                throw new InvalidOperationException("Food recovery requires an available ingestible; production remains a separate concern.");
             if (job.targetA.IsValid && (!pawn!.CanReach(job.targetA, PathEndMode.Touch, Danger.None) || job.targetA.Cell.IsForbidden(pawn)))
                 throw new InvalidOperationException("Need target is not safely reachable under current restrictions.");
             if (!job.TryMakePreToilReservations(pawn!, errorOnFailed: false))

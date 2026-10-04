@@ -27,10 +27,9 @@ Viewing a colony does not take control of it.
 
 ## Give a request
 
-The autopilot reads policy on its next review, so check Work for the result.
+The autopilot reads policy in its next round, so check Work for the result.
 
 Manual permits explicit player requests while routine automation stays off.
-Cancelling a goal stops further pursuit but leaves issued game orders in place.
 Removing pending construction is a separate request; completed buildings remain.
 
 ## Read development priorities

@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
             var sets = ThingSets.Of(map, things);
             Read("items", result, () => {
                 // Every real map carries hundreds of natural chunk and slag
-                // stacks that no upkeep goal may ever target, and a whole-map
+                // stacks that no upkeep concern may ever target, and a whole-map
                 // census exceeded the bound on every real map. Items count
                 // when the home area holds them (MaintainStorage debris),
                 // when they sit in storage (reserve stock wherever it is
@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
                 // supplies to secure: a raider corpse across the map would
                 // otherwise keep the SecureSupplies deficit open forever.
                 // A settled stored stack (roofed, or not deteriorating) is no
-                // target of any upkeep goal: only unstored rows and deteriorating
+                // target of any upkeep concern: only unstored rows and deteriorating
                 // unroofed ones are selected. Medicine stays for the reserve count.
                 var rows = sets.Items.Where(t => !t.def.IsCorpse
                     && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)

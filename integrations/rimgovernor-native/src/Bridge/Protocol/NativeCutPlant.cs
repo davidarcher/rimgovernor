@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     // the colony read (Read) and the CutPlant designation on one exact
     // blighted plant (DesignateIntent with THING_DESIGNATION_CUT_PLANT). The
     // designation is the whole write; ordinary plant-cutting work cuts the
-    // plant afterwards, and the census emptying is what settles the goal.
+    // plant afterwards, and the census emptying is what settles the concern.
     internal static class NativeCutPlant
     {
         internal const string Kind = "Cut plant";

@@ -4,7 +4,7 @@
 
 The dashboard's save/load controls write and read a normal RimWorld save
 (`POST /api/lifecycle`), the same file the game itself would produce. Controller
-state (goals, policies and progress) lives separately, in the Go controller's own
+state (standards, projects, incidents and progress) lives separately, in the Go controller's own
 SQLite database under `.rimgovernor/go/`.
 
 ## Restart a session
@@ -19,7 +19,7 @@ when ready. Turn on **Start bot automatically on load** to run the bot for the
 loaded colony at startup and again after every load.
 
 Loading a save (from the dashboard or in-game) starts a fresh review of the
-loaded colony; goals are re-derived from what the controller observes, and
+loaded colony; concerns are re-derived from what the controller observes, and
 only orders that were already issued but never confirmed are followed up.
 Keep the installed game DLLs unchanged until all sessions have closed.
 

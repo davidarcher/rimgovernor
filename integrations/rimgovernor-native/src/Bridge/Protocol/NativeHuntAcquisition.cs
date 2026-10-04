@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
             // reach; tribal8's game grazes 60-100 cells out, #260), then every pest on
             // the map: a pest row is a hunt of one unit of nothing edible
             // (food false, no nutrition), so the food and wood selections
-            // pass it over and only the pest goal takes it.
+            // pass it over and only the pest concern takes it.
             var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Position.DistanceTo(center) <= 100 && Eligible(p))
                 .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
                 .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber));

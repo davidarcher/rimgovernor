@@ -16,7 +16,7 @@ Open **Help** in the dashboard to read this guide without leaving your colony.
 ## When something stops
 
 - **Manual:** routine automation is off. Choose Automate when ready to resume.
-- **Work is blocked:** inspect the goal in Work and its reason before changing
+- **Work is blocked:** inspect the concern in Work and its reason before changing
   priorities. Issued orders still depend on available pawns, materials and access.
 - **No game image:** a headless session supplies colony data only.
 - **Launch fails:** check the [setup prerequisites](setup.md).

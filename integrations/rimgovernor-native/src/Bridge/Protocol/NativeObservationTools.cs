@@ -274,7 +274,7 @@ namespace HomeBridge.BridgeTools
                 var workType = job.workGiverDef?.workType?.defName;
                 if (workType != null) row.WorkTypeDefName = Identifier(workType);
                 // targetA attributes the job to the thing or cell it works
-                // (#643): a haul for one goal is no evidence for another.
+                // (#643): a haul for one concern is no evidence for another.
                 // A thing target is its Ref and cell; an invalid target reads
                 // unavailable, so an absent field means an older producer.
                 // A delivery (HaulToContainer) carries its material as
