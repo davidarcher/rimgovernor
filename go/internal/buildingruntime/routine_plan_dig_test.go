@@ -196,6 +196,15 @@ func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 		t.Fatal("the open dig plan must be waited on, not doubled", again.Verdict)
 	}
 	completeRoutineBuildingMethod(t, db, first)
+	// A settled wave with rock standing starts the next wave, up to digWaves.
+	last := first
+	for wave := 1; wave < digWaves; wave++ {
+		last = dig()
+		if last.Verdict != BuildingReasonAdmitted {
+			t.Fatal(wave, last.Verdict)
+		}
+		completeRoutineBuildingMethod(t, db, last)
+	}
 	stuck := dig()
 	if !stuck.Verdict.Is(RefusalRockNotDug) || stuck.Verdict.Outcome != OutcomeRefused {
 		t.Fatal(stuck.Verdict)

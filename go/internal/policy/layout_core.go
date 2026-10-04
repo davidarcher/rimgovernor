@@ -81,6 +81,7 @@ func PlanCore(zones []LayoutZone, pawns int, tier BuildTier) LayoutPlan {
 // what its floor meets grows it outward (#1218).
 func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
+	g.soil = fieldSoil(plan.Zones)
 	if len(g.core) == 0 {
 		return plan
 	}
@@ -242,6 +243,25 @@ func (g coreGrid) withSoil(s MapSurvey) coreGrid {
 		}
 	}
 	return g
+}
+
+// fieldSoil is the soil cost Grow reads off a saved plan, which carries no
+// survey: every cell of a field zone is soil worth farming (plain or rich,
+// which the zone does not tell apart), so it costs soilCostNormal. Wings
+// keep off it when other ground fits as many rooms.
+func fieldSoil(zones []LayoutZone) map[domain.Cell]int {
+	soil := map[domain.Cell]int{}
+	for _, z := range zones {
+		if z.Kind != ZoneField {
+			continue
+		}
+		for _, r := range z.Runs {
+			for x := r.X; x < r.X+r.Length; x++ {
+				soil[domain.Cell{X: x, Z: r.Z}] = soilCostNormal
+			}
+		}
+	}
+	return soil
 }
 
 // soilCost sums the build cost of r's cells.

@@ -151,6 +151,23 @@ func animalContainmentStuff(a, b observation.PlanningDefinition) (string, bool) 
 	return observation.SharedStuff(a, b)
 }
 
+// shellSharedStuff is the one stuff a shell raised from a and b is built
+// from. The tier ladder's wall stuff comes first (wood at Camp, stone blocks
+// after), then the cheapest stuff the stock covers; only a colony stocking
+// none falls back to the cheapest allowed whatever the stock. Ranking by
+// market value alone picked Bioferrite, which no colony holds.
+func shellSharedStuff(facts observation.ColonyProjection, a, b observation.PlanningDefinition) (string, bool) {
+	if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && len(a.StuffOptions) > 0 && a.MakeableFrom(want) && b.MakeableFrom(want) {
+		return want, true
+	}
+	if stock, known := facts.Stock(); known {
+		if price, err := a.StuffChoice(observation.CheapestStuff, stock); err == nil && b.MakeableFrom(price.Stuff) {
+			return price.Stuff, true
+		}
+	}
+	return animalContainmentStuff(a, b)
+}
+
 // animalContainmentDevelopmentGated reports whether an unselected
 // low-priority goal must wait for development: only a new shell does. Once
 // a shell stands, its PenMarker is the step that makes it a working pen, so
@@ -312,7 +329,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 	if !favail || !gavail {
 		return RoutineAnimalContainmentResult{Verdict: awaitingPlan("fence", "unbuildable")}, nil
 	}
-	stuff, known := animalContainmentStuff(fenceDef, gateDef)
+	stuff, known := shellSharedStuff(facts, fenceDef, gateDef)
 	if !known {
 		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("fence_stuff")}, nil
 	}

@@ -68,12 +68,14 @@ func TestRoutineShelterDigsADugPlannedStoreroom(t *testing.T) {
 		}
 		dug[excavation.Cell()] = true
 	}
-	if len(dug) != len(rock) {
-		t.Fatal(len(dug), len(rock))
+	// The first wave mines the rock bordering open floor; the interior
+	// (6,2..6) waits so no diagonal-only gaps form.
+	if len(dug) != 16 {
+		t.Fatal(len(dug))
 	}
-	for cell := range rock {
-		if !dug[cell] {
-			t.Fatal("storeroom rock not dug", cell)
+	for cell := range dug {
+		if !rock[cell] || cell.X == 6 && cell.Z > 1 && cell.Z < 7 {
+			t.Fatal("not an exposed storeroom cell", cell)
 		}
 	}
 	for _, m := range result.Decision.Goal.Methods {

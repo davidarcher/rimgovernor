@@ -172,7 +172,7 @@ func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapsh
 	if !wok || !dok {
 		return nil, stock, fieldUnavailable("wall_door_definitions"), nil
 	}
-	stuff, known := animalContainmentStuff(wall, door)
+	stuff, known := shellSharedStuff(facts, wall, door)
 	if !known {
 		return nil, stock, fieldUnavailable("wall_door_stuff"), nil
 	}

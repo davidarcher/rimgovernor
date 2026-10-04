@@ -79,6 +79,9 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 			}
 			excavations = append(excavations, excavation)
 		}
+		if len(buildings) == 0 {
+			excavations = exposedFirst(excavations, s.facts.Cells)
+		}
 		if len(excavations) == 0 {
 			if designated {
 				return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, true, nil
@@ -91,7 +94,15 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 			return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, true, nil
 		}
 	}
-	if prior, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method); err == nil {
+	admitted := method
+	for wave := 0; ; wave++ {
+		prior, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, admitted)
+		if errors.Is(err, store.ErrNotFound) {
+			break
+		}
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
 		plan, err := b.reviewer.player.journal.LoadPlan(call, prior.Plan)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
@@ -103,10 +114,11 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 			clockSchedulerLog("%s: %s: %d roof cells still standing after the plan settled", b.goal, method, len(unroof))
 			return RoutineBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("roof_standing_%d_cells", len(unroof)))}, true, nil
 		}
-		clockSchedulerLog("%s: %s: %d rock cells still standing after the dig plan settled", b.goal, method, len(excavations))
-		return RoutineBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("%d_cells_standing", len(excavations)))}, true, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineBuildingResult{}, false, err
+		if len(buildings) > 0 || wave+1 >= digWaves {
+			clockSchedulerLog("%s: %s: %d rock cells still standing after the dig plan settled", b.goal, method, len(excavations))
+			return RoutineBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("%d_cells_standing", len(excavations)))}, true, nil
+		}
+		admitted = domain.MethodID(fmt.Sprintf("%s~%d", method, wave+1))
 	}
 	snapshot.Plan = domain.MintPlanID()
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
@@ -166,7 +178,7 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	result, err := dig.admitExcavation(call, epoch, s, snapshot, method, plan, previews, stock, check)
+	result, err := dig.admitExcavation(call, epoch, s, snapshot, admitted, plan, previews, stock, check)
 	if err != nil {
 		return result, false, err
 	}
@@ -179,6 +191,35 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 // #874).
 type overRockPreviewer interface {
 	PreviewBuildingOverRock(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
+}
+
+// digWaves bounds the waves one room dig may take; each wave mines the rock
+// the previous one exposed.
+const digWaves = 64
+
+// exposedFirst keeps the excavations with an open walkable cardinal
+// neighbour. Designating a whole room at once let miners clear cells that
+// touch only diagonally, and a pawn cannot step between two diagonal gaps, so
+// the rock behind stood unreachable. Each settled wave exposes the next
+// layer. With no cell exposed the list stays whole.
+func exposedFirst(excavations []domain.Excavation, cells []policy.SiteCell) []domain.Excavation {
+	open := make(map[domain.Cell]bool, len(cells))
+	for _, c := range cells {
+		if walkable, known := c.Walkable.Value(); known && walkable {
+			open[c.Cell] = true
+		}
+	}
+	var out []domain.Excavation
+	for _, e := range excavations {
+		c := e.Cell()
+		if open[domain.Cell{X: c.X + 1, Z: c.Z}] || open[domain.Cell{X: c.X - 1, Z: c.Z}] || open[domain.Cell{X: c.X, Z: c.Z + 1}] || open[domain.Cell{X: c.X, Z: c.Z - 1}] {
+			out = append(out, e)
+		}
+	}
+	if len(out) == 0 {
+		return excavations
+	}
+	return out
 }
 
 // digMethod is the per-epoch method that mines what for room (#836).

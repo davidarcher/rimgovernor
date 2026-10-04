@@ -736,10 +736,12 @@ func workerSameReceipt(a, b domain.ProgressView) bool {
 
 // workerOutcomeEvent publishes one "worker_outcome" event when an action's
 // reconciliation outcome changes: the action, its stage before and after
-// the run, the outcome text, and the error, at Warn when the run failed.
+// the run, the outcome text, and the error, at Warn when the run failed. An
+// action waiting on a prerequisite that has not completed is the plan
+// sequencing itself, not a failure, so it logs at Info.
 func workerOutcomeEvent(ctx context.Context, before, after domain.ProgressView, outcome string, err error, repeats int) {
 	level := slog.LevelInfo
-	if err != nil {
+	if err != nil && !errors.Is(err, domain.ErrDependency) {
 		level = slog.LevelWarn
 	}
 	slog.Default().Log(ctx, level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "err", err, "repeated", repeats)

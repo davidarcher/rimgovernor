@@ -60,6 +60,19 @@ func (p LayoutPlan) RoomRock(room LayoutRoom, cells []SiteCell) RockStepResult {
 	}
 	if shell, err := room.Footprint(); err == nil {
 		from := shell.Threshold()
+		// A room entered through a neighbour's wall (the butchery behind the
+		// freezer) is reached only by walking that neighbour: its interior,
+		// door and the corridor from its own threshold are mined too, or the
+		// miners have no way in to the link.
+		if through, ok := p.linkedNeighbour(room); ok {
+			for _, c := range RectangleCells(through.Interior) {
+				add(c)
+			}
+			add(through.Door)
+			if outer, err := through.Footprint(); err == nil {
+				from = outer.Threshold()
+			}
+		}
 		add(from)
 		hall := p.hallwayCells()
 		corridor := make([]domain.Cell, 0, len(hall))
@@ -81,6 +94,19 @@ func (p LayoutPlan) RoomRock(room LayoutRoom, cells []SiteCell) RockStepResult {
 		}
 	}
 	return RockStep(planned, cells)
+}
+
+// linkedNeighbour is the other room whose wall holds room's Link door.
+func (p LayoutPlan) linkedNeighbour(room LayoutRoom) (LayoutRoom, bool) {
+	if room.Link == nil {
+		return LayoutRoom{}, false
+	}
+	for _, o := range p.AllRooms() {
+		if o.Interior != room.Interior && inWall(o.Interior, *room.Link) {
+			return o, true
+		}
+	}
+	return LayoutRoom{}, false
 }
 
 func manhattan(a, b domain.Cell) int32 {

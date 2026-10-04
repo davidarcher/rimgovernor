@@ -363,8 +363,8 @@ func (g coreGrid) wingGround(spine []SpineSegment, rooms []LayoutRoom) func(Rect
 }
 
 // siteWing picks a new wing's frame off the main hallway: among columns
-// the hallway can reach, the one fitting the most rooms by count, then the
-// nearest the storage room's door (#1178).
+// the hallway can reach, the one fitting the most rooms by count, then over the
+// least field soil, then the nearest the storage room's door (#1178).
 func (g coreGrid) siteWing(spine []SpineSegment, rooms []LayoutRoom, count func(wingFrame) int) (wingFrame, bool) {
 	walls := map[domain.Cell]bool{}
 	for _, r := range rooms {
@@ -390,7 +390,7 @@ func (g coreGrid) siteWing(spine []SpineSegment, rooms []LayoutRoom, count func(
 		return true
 	}
 	var f wingFrame
-	bestN, bestD, found := 0, int64(0), false
+	bestN, bestCost, bestD, found := 0, 0, int64(0), false
 	for cx := main.From.X - spineMaxLen/2; cx <= main.To.X+spineMaxLen/2; cx++ {
 		if !reaches(cx) {
 			continue
@@ -403,8 +403,11 @@ func (g coreGrid) siteWing(spine []SpineSegment, rooms []LayoutRoom, count func(
 			}
 			dx, dz := int64(cx-anchor.X), int64(try.z(2)-anchor.Z)
 			d := dx*dx + dz*dz
-			if !found || n > bestN || n == bestN && d < bestD {
-				f, bestN, bestD, found = try, n, d, true
+			// Among columns fitting as many rooms, the one over the least
+			// field soil, then the nearest the storage door.
+			cost := g.soilCost(try.ground(int32(n), coreMaxDepth))
+			if !found || n > bestN || n == bestN && (cost < bestCost || cost == bestCost && d < bestD) {
+				f, bestN, bestCost, bestD, found = try, n, cost, d, true
 			}
 		}
 	}

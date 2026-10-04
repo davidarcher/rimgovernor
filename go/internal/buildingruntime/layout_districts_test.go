@@ -72,10 +72,11 @@ func TestLayoutAnchorReadsTheLayoutPlan(t *testing.T) {
 	if c := layoutAnchor(p, policy.DistrictProduction); c != p.Center {
 		t.Fatalf("production %v", c)
 	}
-	// Camp ignores the plan.
+	// Camp reads the plan too: pens, barn and turbines must not stack on
+	// the colony centre.
 	p.BuildTier = domain.Known(policy.BuildTierCamp)
-	if layoutAnchor(p, policy.DistrictHousing) != p.Center {
-		t.Fatal("camp anchors on the centre")
+	if c := layoutAnchor(p, policy.DistrictFields); c != (domain.Cell{X: 65, Z: 70}) {
+		t.Fatalf("camp fields %v", c)
 	}
 }
 

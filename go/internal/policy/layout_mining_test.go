@@ -121,3 +121,26 @@ func TestRoomDigIncludesFoggedCells(t *testing.T) {
 		t.Fatal("the fogged door is not dug")
 	}
 }
+
+// TestRoomDigThroughLinkedNeighbour: a butchery whose door is a Link in the
+// freezer's wall is reached through the freezer, so the dig takes the
+// freezer's interior and door as well as its own (the unmined freezer left
+// the butchery's door unreachable).
+func TestRoomDigThroughLinkedNeighbour(t *testing.T) {
+	link := domain.Cell{X: 96, Z: 36}
+	freezer := LayoutRoom{Role: ModuleFreezer, Interior: Rectangle{X: 96, Z: 37, Width: 5, Height: 5}, Door: domain.Cell{X: 98, Z: 42}, DoorRot: domain.North}
+	butchery := LayoutRoom{Role: ModuleButchery, Interior: Rectangle{X: 93, Z: 32, Width: 4, Height: 4}, Door: link, Link: &link, DoorRot: domain.North}
+	p := LayoutPlan{Rooms: []LayoutRoom{freezer, butchery}}
+	dig := map[domain.Cell]bool{}
+	for _, c := range p.RoomRock(butchery, nil).Dig {
+		dig[c] = true
+	}
+	for _, c := range append(RectangleCells(freezer.Interior), freezer.Door) {
+		if !dig[c] {
+			t.Fatalf("%v of the freezer the butchery is entered through is not dug", c)
+		}
+	}
+	if len(p.RoomRock(freezer, nil).Dig) == 0 || dig[domain.Cell{X: 200, Z: 200}] {
+		t.Fatal("unexpected dig set")
+	}
+}

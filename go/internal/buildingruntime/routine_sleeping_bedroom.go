@@ -184,16 +184,20 @@ func bedroomShellReason(step policy.BedroomStep) string {
 // method; prefix names the plan (the tomb shares it, #832). reason is the
 // admission's short why for Operation.intent (#846).
 func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string) (RoutineBuildingResult, error) {
-	return b.shellRoomOf(call, epoch, state, review, goal, reading, room, method, reason, sharedShellStuff)
+	choose := func(wall, door observation.PlanningDefinition) (string, string, Verdict, bool) {
+		return sharedShellStuff(reading.Projection, wall, door)
+	}
+	return b.shellRoomOf(call, epoch, state, review, goal, reading, room, method, reason, choose)
 }
 
 // shellStuff chooses the wall's and the door's stuff; refusal names what is
 // unavailable when it cannot.
 type shellStuff func(wall, door observation.PlanningDefinition) (wallStuff, doorStuff string, refusal Verdict, ok bool)
 
-// sharedShellStuff builds both from the one cheapest stuff they share.
-func sharedShellStuff(wall, door observation.PlanningDefinition) (string, string, Verdict, bool) {
-	stuff, known := animalContainmentStuff(wall, door)
+// sharedShellStuff builds both from the one stuff the colony can raise a
+// shell from (shellSharedStuff).
+func sharedShellStuff(facts observation.ColonyProjection, wall, door observation.PlanningDefinition) (string, string, Verdict, bool) {
+	stuff, known := shellSharedStuff(facts, wall, door)
 	if !known {
 		return "", "", fieldUnavailable("wall_door_stuff"), false
 	}

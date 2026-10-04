@@ -17,15 +17,15 @@ func planCore(facts observation.ColonyProjection) domain.Cell {
 	return facts.Center
 }
 
-// layoutAnchor is the cell a routine anchors its site search on. At
-// Masonry and above it reads the v2 layout plan first (#785): the centre of
-// the district's planned room (or field zone run) whose cells are all
-// observed open ground and free of player buildings. Without a plan, or
-// with no such slot, it falls back to the colony centre, so a Camp colony
-// and a colony that has filled a district search exactly as before.
+// layoutAnchor is the cell a routine anchors its site search on. It reads the
+// v2 layout plan first (#785): the centre of the district's planned room (or
+// field zone run) whose cells are all observed open ground and free of player
+// buildings. Without a plan, or with no such slot, it falls back to the
+// colony centre. The plan is read at every build tier: gating it on Masonry
+// stacked the pens, barn and turbines of a Camp colony on the map centre.
 func layoutAnchor(facts observation.ColonyProjection, district policy.District) domain.Cell {
 	plan, planned := facts.LayoutPlan.Value()
-	if tier, ok := facts.BuildTier.Value(); !ok || tier < policy.BuildTierMasonry || !planned {
+	if !planned {
 		return facts.Center
 	}
 	cells := make(map[domain.Cell]policy.SiteCell, len(facts.Cells))
