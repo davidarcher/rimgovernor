@@ -954,31 +954,6 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			facts.Cells = held.Value.Cells
 		}
 	}
-	if standInDefinition(r) {
-		// The window is centred on the colony, which can lie far from the
-		// layout's core: read the cells round the core when the census holds
-		// too few of them, or the search finds only far-off ground.
-		if _, known := facts.LayoutPlan.Value(); known {
-			core := planCore(facts)
-			box := policy.Rectangle{X: max(0, core.X-baseStandInReach), Z: max(0, core.Z-baseStandInReach), Width: 2*baseStandInReach + 1, Height: 2*baseStandInReach + 1}
-			held := 0
-			for _, c := range facts.Cells {
-				if c.Cell.X >= box.X && c.Cell.X < box.X+box.Width && c.Cell.Z >= box.Z && c.Cell.Z < box.Z+box.Height {
-					held++
-				}
-			}
-			if source := observation.PlanningWindowFrom(call); source != nil && held < int(box.Width*box.Height)/2 {
-				window, err := source.PlanningWindow(call, boundary.Identity(snapshot), box)
-				if err != nil {
-					return nil, policy.StockObservation{}, Verdict{}, err
-				}
-				if !window.Complete {
-					return nil, policy.StockObservation{}, fieldUnavailable("planning_window"), nil
-				}
-				facts.Cells = window.Value.Cells
-			}
-		}
-	}
 	for _, c := range facts.Cells {
 		if r.recreationPowerW > 0 && !poweredRecreationCell(facts, c.Cell, r.recreationPowerW) {
 			continue
@@ -1001,17 +976,11 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		anchor := layoutAnchor(facts, r.district())
 		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
 	}
-	if standInDefinition(r) {
+	if r.goal == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" || r.definition == "TableButcher" {
 		// The cooking campfire and the butcher spot stand by the base, not the landing
 		// centroid (#1534).
-		// With a plan they stay within baseStandInReach of its core: the
-		// butcher bill only reaches 40 cells from its spot, so one out by the
-		// landing centroid butchers nothing the hunters bring home.
 		anchor := planCore(facts)
 		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
-		if _, known := facts.LayoutPlan.Value(); known {
-			searchRequest.Radius = baseStandInReach
-		}
 	}
 	if r.cells != nil {
 		// The room is fixed: search around it, wherever it stands (#838).
