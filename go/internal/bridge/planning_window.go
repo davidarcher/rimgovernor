@@ -11,21 +11,14 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// PlanningWindowRadius is the planning window's reach around the colony
-// centre: the window is centre +/- radius clipped to the map, the same
-// rect the native colony facts read carried as planning.cells.
-const PlanningWindowRadius int32 = 22
-
-// PlanningWindowRect is the planning window around center on a map of
-// bounds: centre +/- PlanningWindowRadius, widened to take in plan (the
-// stored layout plan's extent, #1282; an empty rect adds nothing), clipped
-// to the map. A planned room far from where the colonists stand is still
-// read, so its cells are never missing from the census.
+// PlanningWindowRect is the planning window on a map of bounds: the whole
+// map. The window was the colony centre +/- 22 cells widened to the layout
+// plan's extent, and a plan first derived after the window was read left
+// the planners that anchor on its core looking at cells round the landing
+// only (a butcher spot placed 70 cells from the core). center and plan are
+// kept for the callers' signature; neither narrows the read.
 func PlanningWindowRect(center domain.Cell, bounds policy.Bounds, plan policy.Rectangle) policy.Rectangle {
-	r, _ := policy.RectUnion(policy.Rectangle{X: center.X - PlanningWindowRadius, Z: center.Z - PlanningWindowRadius, Width: 2*PlanningWindowRadius + 1, Height: 2*PlanningWindowRadius + 1}, plan)
-	minX, minZ := max(r.X, 0), max(r.Z, 0)
-	maxX, maxZ := min(r.X+r.Width-1, bounds.Width-1), min(r.Z+r.Height-1, bounds.Height-1)
-	return policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
+	return policy.Rectangle{Width: bounds.Width, Height: bounds.Height}
 }
 
 // PlanningWindow is the planning window's site cells inside Region, from

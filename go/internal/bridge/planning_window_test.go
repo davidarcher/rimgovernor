@@ -9,30 +9,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestPlanningWindowRectClipsToMap(t *testing.T) {
+// The window is the whole map, whatever the colonists and the plan cover.
+func TestPlanningWindowRectIsTheWholeMap(t *testing.T) {
 	bounds := policy.Bounds{Width: 100, Height: 60}
-	if got := PlanningWindowRect(domain.Cell{X: 50, Z: 30}, bounds, policy.Rectangle{}); got != (policy.Rectangle{X: 28, Z: 8, Width: 45, Height: 45}) {
-		t.Fatal(got)
-	}
-	if got := PlanningWindowRect(domain.Cell{X: 3, Z: 55}, bounds, policy.Rectangle{}); got != (policy.Rectangle{X: 0, Z: 33, Width: 26, Height: 27}) {
-		t.Fatal(got)
-	}
-}
-
-// TestPlanningWindowRectCoversPlanExtent is #1282: colonists at x 101-114
-// put the window at x 85..129, and a planned Barracks walled from x 127
-// to 137 must still be read, the union clipped to the map.
-func TestPlanningWindowRectCoversPlanExtent(t *testing.T) {
-	bounds := policy.Bounds{Width: 250, Height: 250}
-	barracks := policy.Rectangle{X: 127, Z: 130, Width: 11, Height: 9}
-	if got := PlanningWindowRect(domain.Cell{X: 107, Z: 120}, bounds, barracks); got != (policy.Rectangle{X: 85, Z: 98, Width: 53, Height: 45}) {
-		t.Fatal(got)
-	}
-	if got := PlanningWindowRect(domain.Cell{X: 107, Z: 120}, policy.Bounds{Width: 135, Height: 250}, barracks); got != (policy.Rectangle{X: 85, Z: 98, Width: 50, Height: 45}) {
-		t.Fatal("clip", got)
-	}
-	if got := PlanningWindowRect(domain.Cell{X: 107, Z: 120}, bounds, policy.Rectangle{X: 100, Z: 110, Width: 5, Height: 5}); got != (policy.Rectangle{X: 85, Z: 98, Width: 45, Height: 45}) {
-		t.Fatal("inside", got)
+	want := policy.Rectangle{Width: 100, Height: 60}
+	for _, plan := range []policy.Rectangle{{}, {X: 90, Z: 50, Width: 5, Height: 5}} {
+		if got := PlanningWindowRect(domain.Cell{X: 50, Z: 30}, bounds, plan); got != want {
+			t.Fatal(got)
+		}
 	}
 }
 
