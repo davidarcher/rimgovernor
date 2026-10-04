@@ -191,6 +191,69 @@ jobs:
         shell: bash
         run: go test -mod=readonly ./...
 
+  # Per-test budget (#2012): under -short every test not marked
+  # slowtest.Skip must finish within 1 s. Own job so the box is quiet
+  # and the durations are honest; also reports every test the marker skips
+  # (a run summary), so nothing is skipped forever. The parse logic is
+  # go/internal/testkit/cmd/checktesttimes.
+  budget:
+    needs: plan
+    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.head }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go/.go-version
+          cache: false
+      - name: go test -short, 1 s per-test budget
+        working-directory: go
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -short -count=1 -p 2 -json ./... \
+            | go run ./internal/testkit/cmd/checktesttimes -budget 1s -skipped "$RUNNER_TEMP/skipped.md"
+      - name: Report tests skipped by slowtest.Skip
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/skipped.md" ]; then
+            cat "$RUNNER_TEMP/skipped.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload skipped report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skipped-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/skipped.md
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Non-race full test run on Windows (#2012): the race job above is Linux
+  # only, and the landing loop runs on Windows with -short. Git is
+  # preinstalled on windows-2022 for the git-heavy tests.
+  windows-full:
+    needs: plan
+    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
+    runs-on: windows-2022
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.head }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go/.go-version
+          cache: false
+      - name: go test (full, no -short, no -race)
+        working-directory: go
+        run: go test -count=1 -timeout 40m ./...
+
   # The trusted remoteaccept tool, cross-compiled once on Linux beside
   # plan instead of cold-compiled on every Windows shard and the verdict.
   # Trusted (workflow) source only; no environment or secrets.

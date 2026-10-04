@@ -33,16 +33,33 @@ type testKey struct{ pkg, test string }
 
 func main() {
 	max := flag.Duration("hang", 60*time.Second, "hang guard: a single test running longer than this is treated as hung (not a latency gate)")
+	budget := flag.Duration("budget", 0, "per-test budget: fail when any test not marked slowtest.Skip runs longer than this (0 = off); the nightly uses 1s under -short")
+	skipped := flag.String("skipped", "", "write a markdown report of every test skipped with a \"slow:\" reason to this file")
 	flag.Parse()
-	os.Exit(run(os.Stdin, os.Stderr, *max))
+	os.Exit(runOpts(os.Stdin, os.Stderr, options{hang: *max, budget: *budget, skippedPath: *skipped}))
+}
+
+type options struct {
+	hang        time.Duration
+	budget      time.Duration
+	skippedPath string
 }
 
 func run(r io.Reader, w io.Writer, max time.Duration) int {
+	return runOpts(r, w, options{hang: max})
+}
+
+// slowSkipPrefix is the message slowtest.Skip prepends to its reason.
+const slowSkipPrefix = "slow: "
+
+func runOpts(r io.Reader, w io.Writer, opt options) int {
+	max := opt.hang
 	type slow struct {
 		pkg, name string
 		elapsed   time.Duration
 	}
 	var slowTests []slow
+	var skippedSlow []skippedTest
 	var keyOrder []testKey
 	passed := 0
 	slowestBy := map[string]slow{} // per package; the headline picks among uncached ones
@@ -90,8 +107,22 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 			if elapsed > slowestBy[e.Package].elapsed {
 				slowestBy[e.Package] = slow{pkg: e.Package, name: e.Package + "." + e.Test, elapsed: elapsed}
 			}
-			if elapsed > max {
+			limit := max
+			if opt.budget > 0 && opt.budget < limit {
+				limit = opt.budget
+			}
+			if elapsed > limit {
 				slowTests = append(slowTests, slow{pkg: e.Package, name: e.Package + "." + e.Test, elapsed: elapsed})
+			}
+		case "skip":
+			if e.Test == "" {
+				continue
+			}
+			for _, line := range output[k] {
+				if i := strings.Index(line, slowSkipPrefix); i >= 0 && strings.Contains(line[:i], ".go:") {
+					skippedSlow = append(skippedSlow, skippedTest{name: e.Package + "." + e.Test, reason: strings.TrimSpace(line[i+len(slowSkipPrefix):])})
+					break
+				}
 			}
 		}
 	}
@@ -138,12 +169,27 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 
 	if len(slowTests) > 0 {
 		sort.Slice(slowTests, func(i, j int) bool { return slowTests[i].elapsed > slowTests[j].elapsed })
-		fmt.Fprintf(w, "checktesttimes: %d test(s) ran past the %s hang bound:\n", len(slowTests), max)
-		for _, s := range slowTests {
-			fmt.Fprintf(w, "  %s took %s\n", s.name, s.elapsed)
+		if opt.budget > 0 && opt.budget < max {
+			fmt.Fprintf(w, "checktesttimes: %d unmarked test(s) ran past the %s budget:\n", len(slowTests), opt.budget)
+			for _, s := range slowTests {
+				fmt.Fprintf(w, "  %s took %s\n", s.name, s.elapsed)
+			}
+			fmt.Fprintln(w, "Make the test faster, or mark it with slowtest.Skip(t, reason) so -short skips it.")
+		} else {
+			fmt.Fprintf(w, "checktesttimes: %d test(s) ran past the %s hang bound:\n", len(slowTests), max)
+			for _, s := range slowTests {
+				fmt.Fprintf(w, "  %s took %s\n", s.name, s.elapsed)
+			}
+			fmt.Fprintln(w, "A test this long is hung or structurally broken, not merely slow.")
+			fmt.Fprintln(w, "Fix the test (find the hang) rather than raising the bound.")
 		}
-		fmt.Fprintln(w, "A test this long is hung or structurally broken, not merely slow.")
-		fmt.Fprintln(w, "Fix the test (find the hang) rather than raising the bound.")
+	}
+
+	if opt.skippedPath != "" {
+		if err := os.WriteFile(opt.skippedPath, []byte(skippedReport(skippedSlow)), 0o644); err != nil {
+			fmt.Fprintln(w, "checktesttimes: writing skipped report:", err)
+			return 1
+		}
 	}
 
 	if failed || len(slowTests) > 0 {
@@ -151,4 +197,21 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 	}
 	fmt.Fprintf(w, "checktesttimes: %d tests passed under the %s hang bound; slowest %s took %s\n", passed, max, slowest.name, slowest.elapsed.Round(time.Millisecond))
 	return 0
+}
+
+type skippedTest struct{ name, reason string }
+
+// skippedReport lists every test slowtest.Skip skipped, as markdown suited to
+// a GitHub step summary, so a marker cannot skip a test forever unseen.
+func skippedReport(tests []skippedTest) string {
+	sort.Slice(tests, func(i, j int) bool { return tests[i].name < tests[j].name })
+	var b strings.Builder
+	fmt.Fprintf(&b, "### Tests skipped under -short by slowtest.Skip: %d\n\n", len(tests))
+	if len(tests) > 0 {
+		b.WriteString("| Test | Reason |\n| --- | --- |\n")
+	}
+	for _, t := range tests {
+		fmt.Fprintf(&b, "| `%s` | %s |\n", t.name, strings.ReplaceAll(t.reason, "|", `\|`))
+	}
+	return b.String()
 }

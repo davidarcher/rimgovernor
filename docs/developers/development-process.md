@@ -96,7 +96,7 @@ table fails the gate; everything in the second is reviewed by hand.
 | --- | --- |
 | Go toolchain pinned to `go/.go-version` and the root `GOTOOLCHAIN`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go`, `wire` (`contracts/generated/protobuf/go`), `protobuf-go` (`tools/protobuf/go`) |
 | Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go` (`go tool staticcheck`, pinned in `go/go.mod`) |
-| Go tests under a 60 s per-test hang guard (`-race` is opt-in via `task go:test:race`) | `go` (`checktesttimes`) |
+| Go tests under a 60 s per-test hang guard (`-race` is opt-in via `task go:test:race`); the nightly also enforces a 1 s `-short` budget and reports `slow:` skips | `go` (`checktesttimes`) |
 | Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` (`tools/protobuf`) |
 | C# `TreatWarningsAsErrors` and `RestoreLockedMode` on Bridge, Runtime, contract probes and both fixture projects; nullable reference types on Runtime | `native`, `probes` (`contracts/tests`, ungated probes only), `fixtures` (`scripts/fixtures`) |
 
