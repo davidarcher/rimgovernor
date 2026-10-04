@@ -65,6 +65,9 @@ func TestReplayScoreFixtures(t *testing.T) {
 			if !f.mayFail && !sc.Passes() {
 				t.Fatalf("hard-fail tier: missing=%v routes=%q rich=%d", sc.Missing, sc.RoutesErr, sc.RichCells)
 			}
+			if sc.RoutesErr == "" && len(plan.AllRooms()) > 0 && !plan.Valid() {
+				t.Fatal("plan is not Valid")
+			}
 			if again := Score(plan, s); again.Total() != sc.Total() {
 				t.Fatal("Score is not deterministic")
 			}

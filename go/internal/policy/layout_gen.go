@@ -2,16 +2,18 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The new generator (#1955, epic #1938): obstacles, clusters, packing. It
-// grows a fresh plan from one seed over a grid whose obstacle cells are
-// already out of the core (layout_gen_obstacles.go), placing the base rooms
-// by affinity cluster (layout_gen_cluster.go) and the housing as wings, as
-// Grow does; wings as units and corridor routing are #1956. SiteCore runs
+// The new generator (#1955, #1956, epic #1938): obstacles, clusters,
+// packing, housing blocks and corridors. It grows a fresh plan from one
+// seed over a grid whose obstacle cells are already out of the core
+// (layout_gen_obstacles.go), placing the base rooms by affinity cluster
+// (layout_gen_cluster.go), the housing as straight wings and suite blocks
+// sited as units (layout_gen_wing.go), then finishing the hallway network:
+// rings, second doors and entrances (layout_gen_corridor.go). SiteCore runs
 // it from the seed set, level by level.
 
 // generate grows plan from seed over g, for pawns colonists and tombs tomb
 // rooms. g is not changed.
-func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier BuildTier) LayoutPlan {
+func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
 	open := g
 	g, base := open.clone(), open.clone()
 	spine := []SpineSegment{{From: seed, To: seed}}
@@ -43,7 +45,8 @@ func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, 
 	house := func() {
 		if !housed {
 			housed = true
-			spine, wings = growWing(g, base, spine, rooms, wings, pawns, tier)
+			spine, wings = base.siteBedWings(spine, rooms, wings, pawns, tier)
+			g.carveBedroomWings(wings)
 		}
 	}
 	for _, c := range clusters {
@@ -66,8 +69,15 @@ func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, 
 	sg := open.clone()
 	sg.carveBedroomWings(wings)
 	sg.carveSuiteWings(wings)
-	spine, wings = sg.growSuites(spine, rooms, wings, nil)
+	spine, wings = sg.siteSuiteBlocks(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
-	plan.Entrances = spineEntrances(spine)
-	return plan
+	plan.Entrances = hallEntrances(spine)
+	if _, err := CheckRoutes(plan); err != nil {
+		// An entrance set that strands a trip: the end slabs of every
+		// hallway are always enough.
+		plan.Entrances = spineEntrances(spine)
+		return plan
+	}
+	plan = open.routeRings(plan)
+	return plan.addSecondDoors()
 }
