@@ -76,18 +76,15 @@ type Neuroformer struct {
 
 // RoyalRung is one title on the ladder; FavorNeeded is the favor that earns it.
 //
-// The Throne fields are the title's throne-room requirement: minimum
-// impressiveness and area (unknown when the read left them absent), the
-// throne definitions it accepts (empty when it needs no throne) and whether
-// the throne must be assigned to the holder.
+// Throne is the title's throne-room requirement read from the def mirror
+// (RoyalTitleDef.throneRoomRequirements, bridge ThroneRequirements #1861):
+// unknown until the mirror is read, and a title that asks for no throne
+// holds a requirement with no Things.
 type RoyalRung struct {
-	Title                   string
-	Seniority               domain.Fact[int]
-	FavorNeeded             domain.Fact[int]
-	ThroneMinImpressiveness domain.Fact[int]
-	ThroneMinArea           domain.Fact[int]
-	ThroneThings            []string
-	ThroneAssigned          domain.Fact[bool]
+	Title       string
+	Seniority   domain.Fact[int]
+	FavorNeeded domain.Fact[int]
+	Throne      domain.Fact[ThroneRequirements]
 	// Bedroom* are the title's bedroom requirements: an absent area or
 	// impressiveness is none, and no BedroomThings needs no furniture.
 	BedroomMinArea           domain.Fact[int]

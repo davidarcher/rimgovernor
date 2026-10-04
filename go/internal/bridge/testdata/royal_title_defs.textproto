@@ -1,0 +1,43 @@
+# The Royalty throne-room requirements of the Empire titles (#1861), transcribed field for
+# field from Royalty/Defs/RoyalTitles/RoyalTitles_Empire.xml with every DLC active (the
+# MayRequire entries resolved in): Yeoman (an empty list), Knight and Baron. Only the
+# throneRoomRequirements are carried; the mirror's other title fields are not read here.
+royal_title_defs: {
+  defName: "Yeoman"
+  modPackageId: "ludeon.rimworld.royalty"
+}
+royal_title_defs: {
+  defName: "Knight"
+  throneRoomRequirements: { value: { RoomRequirement_HasAssignedThroneAnyOf: { things: "Throne" things: "GrandThrone" } } }
+  throneRoomRequirements: { value: { RoomRequirement_Area: { area: 30 } } }
+  throneRoomRequirements: { value: { RoomRequirement_Impressiveness: { impressiveness: 60 } } }
+  throneRoomRequirements: { value: { RoomRequirement_TerrainWithTags: { labelKey: "RoomRequirementAllFloored" tags: "Floor" tags: "FineFloor" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ThingAnyOfCount: { things: "Brazier" things: "DarklightBrazier" count: 2 } } }
+  throneRoomRequirements: { value: { RoomRequirement_ThingCount: { thingDef: "Column" count: 2 } } }
+  throneRoomRequirements: { value: { RoomRequirement_ThingAnyOf: { things: "Harp" things: "Harpsichord" things: "Piano" } } }
+  throneRoomRequirements: { value: { RoomRequirement_AllThingsAnyOfAreGlowing: { labelKey: "RoomRequirementAllBraziersMustBeLit" things: "Brazier" things: "DarklightBrazier" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoProductionFacilities" buildingTags: "Production" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoBeds" buildingTags: "Bed" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbidAltars: { labelKey: "RoomRequirementNoAltars" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoBiotechBuildings" buildingTags: "Biotech" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoAnomalyBuildings" buildingTags: "Anomaly" } } }
+  modPackageId: "ludeon.rimworld.royalty"
+}
+royal_title_defs: {
+  defName: "Baron"
+  throneRoomRequirements: { value: { RoomRequirement_HasAssignedThroneAnyOf: { things: "GrandThrone" } } }
+  throneRoomRequirements: { value: { RoomRequirement_Area: { area: 60 } } }
+  throneRoomRequirements: { value: { RoomRequirement_Impressiveness: { impressiveness: 120 } } }
+  throneRoomRequirements: { value: { RoomRequirement_TerrainWithTags: { labelKey: "RoomRequirementAllFineFloored" tags: "FineFloor" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ThingAnyOfCount: { things: "Brazier" things: "DarklightBrazier" count: 2 } } }
+  throneRoomRequirements: { value: { RoomRequirement_ThingCount: { thingDef: "Column" count: 4 } } }
+  throneRoomRequirements: { value: { RoomRequirement_ThingCount: { thingDef: "Drape" count: 2 } } }
+  throneRoomRequirements: { value: { RoomRequirement_ThingAnyOf: { things: "Harpsichord" things: "Piano" } } }
+  throneRoomRequirements: { value: { RoomRequirement_AllThingsAnyOfAreGlowing: { labelKey: "RoomRequirementAllBraziersMustBeLit" things: "Brazier" things: "DarklightBrazier" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoProductionFacilities" buildingTags: "Production" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoBeds" buildingTags: "Bed" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbidAltars: { labelKey: "RoomRequirementNoAltars" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoBiotechBuildings" buildingTags: "Biotech" } } }
+  throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoAnomalyBuildings" buildingTags: "Anomaly" } } }
+  modPackageId: "ludeon.rimworld.royalty"
+}

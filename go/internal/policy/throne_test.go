@@ -12,9 +12,13 @@ import (
 func throneLadder() []RoyalRung {
 	return []RoyalRung{
 		{Title: "Yeoman", Seniority: domain.Known(100), FavorNeeded: domain.Known(6)},
-		{Title: "Knight", Seniority: domain.Known(200), FavorNeeded: domain.Known(10), ThroneMinArea: domain.Known(30), ThroneMinImpressiveness: domain.Known(55), ThroneThings: []string{"Throne"}, ThroneAssigned: domain.Known(true)},
-		{Title: "Baron", Seniority: domain.Known(300), FavorNeeded: domain.Known(16), ThroneMinArea: domain.Known(48), ThroneMinImpressiveness: domain.Known(70), ThroneThings: []string{"GrandThrone", "Throne"}, ThroneAssigned: domain.Known(true)},
+		{Title: "Knight", Seniority: domain.Known(200), FavorNeeded: domain.Known(10), Throne: throneRequirement(30, 55, "Throne")},
+		{Title: "Baron", Seniority: domain.Known(300), FavorNeeded: domain.Known(16), Throne: throneRequirement(48, 70, "GrandThrone", "Throne")},
 	}
+}
+
+func throneRequirement(area, impressiveness int, things ...string) domain.Fact[ThroneRequirements] {
+	return domain.Known(ThroneRequirements{MinArea: area, MinImpressiveness: impressiveness, Things: things, Assigned: true})
 }
 
 func royalHolder(title string, favor int) []RoyalHolding {
@@ -55,8 +59,8 @@ func TestThroneNeedGatedOnATitleOrTheFavorToClaimOne(t *testing.T) {
 	}
 	// A rung with an unknown area is no requirement.
 	ladder := throneLadder()
-	ladder[1].ThroneMinArea = domain.Unknown[int]()
-	ladder[2].ThroneThings = nil
+	ladder[1].Throne = domain.Unknown[ThroneRequirements]()
+	ladder[2].Throne = domain.Known(ThroneRequirements{MinArea: 48})
 	if _, ok := NextThroneNeed(RoyaltyFacts{Ladder: ladder, Holders: map[PawnID][]RoyalHolding{"Alice": royalHolder("Yeoman", 0)}}); ok {
 		t.Error("no rung names a known area and a throne")
 	}
@@ -93,7 +97,7 @@ func TestThroneRoomSizeMeetsTheArea(t *testing.T) {
 
 func throneFixture() (LayoutPlan, LayoutRoom, ThroneNeed) {
 	room := LayoutRoom{Role: ModuleThrone, Interior: Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
-	need := ThroneNeed{Holder: "Alice", Title: "Knight", MinArea: 30, MinImpressiveness: 55, Things: []string{"Throne"}, Assigned: true}
+	need := ThroneNeed{Holder: "Alice", Title: "Knight", ThroneRequirements: ThroneRequirements{MinArea: 30, MinImpressiveness: 55, Things: []string{"Throne"}, Assigned: true}}
 	return LayoutPlan{Rooms: []LayoutRoom{room}}, room, need
 }
 

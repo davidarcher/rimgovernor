@@ -46,6 +46,14 @@ func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.Gen
 	if facts == nil {
 		return nil
 	}
+	// The throne requirements come from the def mirror, not the native read
+	// (#1861); a title the mirror cannot answer for leaves royalty unknown.
+	mirrored, err := reading.Frame.Catalog.WithThroneRequirements(*facts)
+	if err != nil {
+		clockSchedulerLog("royalty read deferred: %v", err)
+		return nil
+	}
+	facts = &mirrored
 	projection.Royalty = domain.Known(*facts)
 	if err := projection.AddDefinitions(reading.Frame, throneThings(*facts)); err != nil {
 		return err
@@ -58,7 +66,8 @@ func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.Gen
 func throneThings(f policy.RoyaltyFacts) []string {
 	var names []string
 	for _, rung := range f.Ladder {
-		for _, thing := range rung.ThroneThings {
+		req, _ := rung.Throne.Value()
+		for _, thing := range req.Things {
 			if !slices.Contains(names, thing) {
 				names = append(names, thing)
 			}

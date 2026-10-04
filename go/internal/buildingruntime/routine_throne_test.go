@@ -15,7 +15,7 @@ func throneRoyalty() domain.Fact[policy.RoyaltyFacts] {
 	return domain.Known(policy.RoyaltyFacts{
 		Ladder: []policy.RoyalRung{
 			{Title: "Yeoman", FavorNeeded: domain.Known(6)},
-			{Title: "Knight", FavorNeeded: domain.Known(10), ThroneMinArea: domain.Known(30), ThroneMinImpressiveness: domain.Known(55), ThroneThings: []string{"Throne"}, ThroneAssigned: domain.Known(true)},
+			{Title: "Knight", FavorNeeded: domain.Known(10), Throne: domain.Known(policy.ThroneRequirements{MinArea: 30, MinImpressiveness: 55, Things: []string{"Throne"}, Assigned: true})},
 		},
 		Holders: map[policy.PawnID][]policy.RoyalHolding{"Alice": {{FactionDef: "Empire", Title: "Yeoman", Favor: domain.Known(2)}}},
 	})

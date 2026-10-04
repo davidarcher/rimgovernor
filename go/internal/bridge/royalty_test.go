@@ -13,8 +13,7 @@ func royaltyRead() *o.RoyaltyFacts {
 	return &o.RoyaltyFacts{
 		Context: authorityTestContext(7),
 		Ladder: []*o.RoyalTitleRung{
-			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6), ThroneMinImpressiveness: proto.Int32(55), ThroneMinArea: proto.Int32(30), ThroneThings: []string{"Throne"}, ThroneAssigned: proto.Bool(true),
-				BedroomMinImpressiveness: proto.Int32(50), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"EndTable"}, Count: proto.Int32(1)}}},
+			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6), BedroomMinImpressiveness: proto.Int32(50), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"EndTable"}, Count: proto.Int32(1)}}},
 			{DefName: proto.String("Yeoman")},
 		},
 		Ceremonies: []*o.BestowingCeremony{{Quest: proto.String("Quest_4"), Pawn: &c.Ref{Id: proto.String("Human12")}, Bestower: &c.Ref{Id: proto.String("Human30")}, FactionDef: proto.String("Empire"),
@@ -54,18 +53,8 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	if _, ok := facts.Ladder[1].FavorNeeded.Value(); ok {
 		t.Fatal("absent favor needed read as known")
 	}
-	knight := facts.Ladder[0]
-	if n, ok := knight.ThroneMinImpressiveness.Value(); !ok || n != 55 {
-		t.Fatalf("throne impressiveness %v %v", n, ok)
-	}
-	if n, ok := knight.ThroneMinArea.Value(); !ok || n != 30 {
-		t.Fatalf("throne area %v %v", n, ok)
-	}
-	if assigned, ok := knight.ThroneAssigned.Value(); !ok || !assigned || len(knight.ThroneThings) != 1 || knight.ThroneThings[0] != "Throne" {
-		t.Fatalf("throne %+v", knight)
-	}
-	if _, ok := facts.Ladder[1].ThroneMinArea.Value(); ok {
-		t.Fatal("absent throne area read as known")
+	if _, ok := facts.Ladder[0].Throne.Value(); ok {
+		t.Fatal("the native read supplied a throne requirement: the def mirror owns it")
 	}
 	call := facts.Permits["CallLaborerPack"]
 	if call.Worker != "RoyalTitlePermitWorker_CallLaborers" || facts.Permits["TradeSettlement"].Worker != "" {
@@ -170,7 +159,7 @@ func TestDecodeRoyaltyFactsCeremonyAndBedroom(t *testing.T) {
 }
 
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held", "throne-duplicate", "throne-owner"} {
+	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held", "throne-duplicate", "throne-owner"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
@@ -190,8 +179,6 @@ func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
 				v.Ladder = append(v.Ladder, v.Ladder[0])
 			case "title-id":
 				v.Ladder[0].DefName = proto.String("")
-			case "throne-id":
-				v.Ladder[0].ThroneThings = []string{""}
 			case "permit-duplicate":
 				v.Permits = append(v.Permits, v.Permits[0])
 			case "permit-min-title":

@@ -29,28 +29,70 @@ type ThroneNeed struct {
 	// sized to.
 	Holder PawnID
 	Title  string
-	// MinArea and MinImpressiveness are the title's minimums; the
-	// impressiveness is zero when the read left it absent.
-	MinArea, MinImpressiveness int
-	// Things are the throne definitions the title accepts.
-	Things []string
-	// Assigned is whether the throne must be assigned to the holder.
-	Assigned bool
+	// ThroneRequirements are Title's requirements, read from the def
+	// mirror: the area, impressiveness, throne definitions, assignment,
+	// flooring, furnishings and forbidden buildings.
+	ThroneRequirements
 	// Titled is whether the holder holds a title already: native lets
 	// only a titled colonist own a throne, so assignment waits for it.
 	Titled bool
 }
 
+// ThroneRequirements is one title's throneRoomRequirements as the def mirror
+// holds them (RoyalTitleDef, RoomRequirement_* messages), one field per
+// requirement kind. Names are the game's own, never a Go list: nothing
+// here is a def-name constant.
+type ThroneRequirements struct {
+	// Things are the throne definitions the title accepts and Assigned
+	// whether one must be assigned to the holder (HasAssignedThroneAnyOf);
+	// a title that asks for no throne has none.
+	Things   []string
+	Assigned bool
+	// MinArea and MinImpressiveness are the room minimums (Area,
+	// Impressiveness); the impressiveness is zero when the title sets none.
+	MinArea, MinImpressiveness int
+	// FloorTags are the terrain tags whose floors satisfy the flooring
+	// requirement (TerrainWithTags: every cell's terrain carries one),
+	// empty when the title does not ask for floors; FloorLabel is its
+	// labelKey ("RoomRequirementAllFloored", "RoomRequirementAllFineFloored").
+	FloorTags  []string
+	FloorLabel string
+	// AnyOfCounts are ThingAnyOfCount requirements (two braziers), Counts
+	// ThingCount ones (the columns), AnyOf ThingAnyOf ones (one instrument)
+	// and Glowing the def sets every standing building of which must be lit
+	// (AllThingsAnyOfAreGlowing, AllThingsAreGlowing).
+	AnyOfCounts []ThingAnyOfCount
+	Counts      []ThingCount
+	AnyOf       [][]string
+	Glowing     [][]string
+	// ForbiddenBuildingTags are the building tags no building in the room
+	// may carry (ForbiddenBuildings: Production, Bed, Biotech, Anomaly) and
+	// ForbidAltars whether an ideology altar is forbidden too.
+	ForbiddenBuildingTags []string
+	ForbidAltars          bool
+}
+
+// ThingAnyOfCount asks for Count buildings of any of Things.
+type ThingAnyOfCount struct {
+	Things []string
+	Count  int
+}
+
+// ThingCount asks for Count buildings of Def.
+type ThingCount struct {
+	Def   string
+	Count int
+}
+
 // rungRequirement is rung's throne requirement, false for a title that asks
-// for no throne or no known area.
+// for no throne or whose requirement is not read.
 func rungRequirement(rung RoyalRung) (ThroneNeed, bool) {
-	area, ak := rung.ThroneMinArea.Value()
-	if len(rung.ThroneThings) == 0 || !ak || area <= 0 {
+	req, ok := rung.Throne.Value()
+	if !ok || len(req.Things) == 0 || req.MinArea <= 0 {
 		return ThroneNeed{}, false
 	}
-	impressiveness, _ := rung.ThroneMinImpressiveness.Value()
-	assigned, _ := rung.ThroneAssigned.Value()
-	return ThroneNeed{Title: rung.Title, MinArea: area, MinImpressiveness: max(impressiveness, 0), Things: rung.ThroneThings, Assigned: assigned}, true
+	req.MinImpressiveness = max(req.MinImpressiveness, 0)
+	return ThroneNeed{Title: rung.Title, ThroneRequirements: req}, true
 }
 
 // NextThroneNeed is the largest throne room any colonist is owed, false

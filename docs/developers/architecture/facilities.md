@@ -288,12 +288,16 @@ logs `entity_study_unread` at warn.
 
 A colonist who holds an Empire title, or has the favor to claim the next
 one, is owed the throne room of the first title above its own whose
-requirement names a throne and a minimum area (`RoyalRung.Throne*`, the
-royalty read; the largest room any colonist is owed wins). The sleeping
+requirement names a throne and a minimum area (`RoyalRung.Throne`, read from
+the def mirror's `RoyalTitleDef.throneRoomRequirements`, see the royalty read
+in controller-contracts; the largest room any colonist is owed wins).
+`policy.ThroneNeed` carries the whole requirement (floor tags, braziers,
+columns, instrument, glowing and forbidden buildings); the template, flooring
+and brazier upkeep that act on it are #1862-#1865. The sleeping
 planner raises it under MaintainHousing, like the tomb:
 
 1. The layout review grows a `throne` core room of at least
-   `throne_min_area` cells (`policy.ReplanLayoutWithRooms`); existing
+   `MinArea` cells (`policy.ReplanLayoutWithRooms`); existing
    rooms never move, so a title that outgrows the room adds a larger one.
 2. `NextThroneStep` shells the room, then places the title's throne at
    the template's back-wall slot. The throne's footprint is the native

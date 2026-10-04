@@ -88,14 +88,9 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 			return nil, contract("invalid royalty title")
 		}
 		titles[row.GetDefName()] = true
-		for _, thing := range row.ThroneThings {
-			if validID(thing) != nil {
-				return nil, contract("invalid royalty throne definition")
-			}
-		}
+		// The throne requirement is not read here: the def mirror supplies it
+		// (DefinitionCatalog.WithThroneRequirements, #1861).
 		rung := policy.RoyalRung{Title: row.GetDefName(), Seniority: optionalFact(intPtr(row.Seniority)), FavorNeeded: optionalFact(intPtr(row.FavorNeeded)),
-			ThroneMinImpressiveness: optionalFact(intPtr(row.ThroneMinImpressiveness)), ThroneMinArea: optionalFact(intPtr(row.ThroneMinArea)),
-			ThroneThings: append([]string{}, row.ThroneThings...), ThroneAssigned: optionalFact(row.ThroneAssigned),
 			BedroomMinArea: optionalFact(intPtr(row.BedroomMinArea)), BedroomMinImpressiveness: optionalFact(intPtr(row.BedroomMinImpressiveness)), BedroomFloored: optionalFact(row.BedroomFloored)}
 		for _, req := range row.BedroomThings {
 			if req == nil || len(req.AnyOf) == 0 || req.GetCount() < 1 {

@@ -253,6 +253,29 @@ stock: the psylink neuroformer and each psycast neurotrainer with `held`
 pending bestowing ceremonies (observations.md, Royalty facts). Absent scalars are unknown, never zero. The
 pawn row keeps only the constantly refreshed psylink level and Psyfocus.
 
+The throne-room requirements are not read from this reply (#1861): the rung's
+throne fields on the wire are ignored, and the client reads each title's
+`RoyalTitleDef.throneRoomRequirements` from the definition-catalog def mirror as
+a Go view (`DefinitionCatalog.ThroneRequirements`, `WithThroneRequirements`),
+filling `RoyalRung.Throne` (`policy.ThroneRequirements`) before the read
+reaches the projection. The view decodes `RoomRequirement_HasAssignedThroneAnyOf`
+(`Things`, `Assigned`), `_Area` (`MinArea`), `_Impressiveness`
+(`MinImpressiveness`), `_TerrainWithTags` (`FloorTags`, any one satisfies;
+`FloorLabel` is its labelKey: AllFloored lists Floor and FineFloor, Baron's
+AllFineFloored lists FineFloor only), `_ThingAnyOfCount` (`AnyOfCounts`: two
+braziers), `_ThingCount` and `_Thing` (`Counts`: columns, drapes), `_ThingAnyOf`
+(`AnyOf`: the instrument), `_AllThingsAnyOfAreGlowing` and `_AllThingsAreGlowing`
+(`Glowing`), `_ForbiddenBuildings` (`ForbiddenBuildingTags`: Production, Bed,
+Biotech, Anomaly) and `_ForbidAltars` (`ForbidAltars`). A title with an empty
+list asks for no throne. A title the mirror has no `RoyalTitleDef` row for, an
+unset or malformed requirement (no defs, a count below one, a repeated
+singleton kind, a throne without an area) is an error wrapping
+`bridge.ErrThroneRequirements` that names the title and requirement; the review
+logs it and leaves royalty unknown. `disablingPrecepts` on a requirement is not
+modelled. `policy.NextThroneNeed` picks the title the colony is working toward
+(the first rung above the holder's with a throne), so stricter rungs follow
+automatically.
+
 `MaintainPsylink` (#1609, `policy.PsylinkCandidates`) gives a psylink to each
 available colonist whose pawn row carries a needs block but no psylink level.
 The psylink neuroformer (`PsychicAmplifier`) is acquired by MaintainResource:
