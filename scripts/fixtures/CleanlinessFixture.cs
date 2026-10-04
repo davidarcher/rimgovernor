@@ -145,7 +145,6 @@ namespace HomeBridge.BridgeTools
                     butcheryRoomId = butcheryRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), butchery = Cells(butchery),
                     stove = stove.GetUniqueLoadID(), butcherSpot = butcherSpot.GetUniqueLoadID(),
                     kitchenFilth, butcheryFilth, colonists = colonists.Select(p => p.GetUniqueLoadID()).ToList(),
-                    spareCell = new { x = At(13, 0).x, z = At(13, 0).z },
                     setup = "Test-only enclosed rooms with a fuelled stove, butcher spot and blood filth with Cleaning priority 0 for every colonist; every clean order, latch and placement remains the controller's.",
                 };
             }, cancellationToken).ConfigureAwait(false);

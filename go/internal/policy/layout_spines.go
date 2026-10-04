@@ -20,26 +20,6 @@ const maxCrossings = 3
 
 func alongX(s SpineSegment) bool { return s.From.Z == s.To.Z }
 
-// trunk is the index of the segment touching the most others, the first on a
-// tie: the hallway a crossing-shaped plan hangs off, found from the geometry
-// rather than the slice order (#1947). -1 for no segments.
-func trunk(spine []SpineSegment) int {
-	rects := spineRects(spine)
-	best, bestN := -1, -1
-	for i := range rects {
-		n := 0
-		for j := range rects {
-			if i != j && rectsOverlap(rects[i], rects[j]) {
-				n++
-			}
-		}
-		if n > bestN {
-			best, bestN = i, n
-		}
-	}
-	return best
-}
-
 // onSegment reports r's door opening onto s's hallway.
 func onSegment(r LayoutRoom, s SpineSegment) bool {
 	lo, hi := s.From, s.To

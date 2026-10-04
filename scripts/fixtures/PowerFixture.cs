@@ -308,7 +308,7 @@ namespace HomeBridge.BridgeTools
                     generator = generator?.GetUniqueLoadID(), fuel = fuel?.Fuel, fuelCapacity = fuel?.Props.fuelCapacity,
                     battery = battery?.GetUniqueLoadID(), storedWattDays = battery?.TryGetComp<CompPowerBattery>().StoredEnergy,
                     geyser = geyser?.GetUniqueLoadID(), geyserCell = geyser == null ? null : new { x = geyser.Position.x, z = geyser.Position.z },
-                    rockCells, consumers, spareCell = new { x = At(width - 1, 0).x, z = At(width - 1, 0).z },
+                    rockCells, consumers,
                     skyGlow = map.skyManager.CurSkyGlow, hour = GenLocalDate.HourOfDay(map),
                     setup = "Test-only single power network; refuelling, generator construction and reconnection remain the controller's and native colonists' own work.",
                 };

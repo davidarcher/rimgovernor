@@ -109,7 +109,6 @@ namespace HomeBridge.BridgeTools
                     role = kitchen.Role?.defName,
                     interior = new { minX = interior.minX, minZ = interior.minZ, maxX = interior.maxX, maxZ = interior.maxZ },
                     cells = interior.Area, stove = stove.GetUniqueLoadID(),
-                    spareCell = new { x = At(9, 0).x, z = At(9, 0).z },
                     setup = "Test-only enclosed roofed kitchen whose interior stands on bare soil, wood outside; every floor choice, placement and latch remains the controller's.",
                 };
             }, cancellationToken).ConfigureAwait(false);

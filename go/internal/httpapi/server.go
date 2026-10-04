@@ -22,7 +22,7 @@ import (
 )
 
 type Server struct {
-	player      PlayerBuildings
+	player      PlayerControl
 	controls    ControlReader
 	playerToken string
 	config      Config

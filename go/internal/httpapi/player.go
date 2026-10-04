@@ -16,19 +16,18 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-type PlayerBuildings interface {
+type PlayerControl interface {
 	Resume(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	Pause(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	State() buildingruntime.ControlState
 }
 type ControlReader interface {
 	CurrentControl(context.Context) (store.ControlRecord, error)
-	LookupControl(context.Context, string) (store.ControlRecord, error)
 }
 
 // NewWithPlayer explicitly enables authenticated player intent. Dependencies and
 // their lifetimes remain owned by the caller; New remains strictly read-only.
-func NewWithPlayer(config Config, snapshots SnapshotProvider, plans PlanReader, player PlayerBuildings, controls ControlReader) (*Server, error) {
+func NewWithPlayer(config Config, snapshots SnapshotProvider, plans PlanReader, player PlayerControl, controls ControlReader) (*Server, error) {
 	if player == nil || controls == nil {
 		return nil, errors.New("player and control reader required")
 	}
@@ -255,19 +254,13 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		}{s.playerToken, "explicit-player"})
 		return true
 	}
-	ids := query["requestId"]
-	if len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil) {
-		s.failure(w, r, 400, "invalid_query", "One requestId is required")
+	if len(query) != 0 || r.URL.ForceQuery {
+		s.failure(w, r, 400, "invalid_query", "Control accepts no query")
 		return true
 	}
-	var record store.ControlRecord
-	if len(ids) == 1 {
-		record, err = s.controls.LookupControl(ctx, ids[0])
-	} else {
-		record, err = s.controls.CurrentControl(ctx)
-		if errors.Is(err, store.ErrNotFound) {
-			err = nil
-		}
+	record, err := s.controls.CurrentControl(ctx)
+	if errors.Is(err, store.ErrNotFound) {
+		err = nil
 	}
 	if err == nil {
 		err = ctx.Err()

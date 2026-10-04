@@ -59,8 +59,7 @@ func roomMethodOrigins(plans []store.PlanState) map[domain.Cell]bool {
 // journal claim whose work has not closed gone (the definition's size when
 // the projection read it, else the anchor), and every player edifice and
 // doorway (a door blueprint or frame included) the planning cells report.
-// Both replans read it (ReplanFresh's built set, RoomGrowth.Fixed), so they
-// never disagree. Unknown without a complete census.
+// RoomGrowth.Fixed reads it. Unknown without a complete census.
 func occupiedCells(projection observation.ColonyProjection) (map[domain.Cell]bool, bool) {
 	census, known := projection.Facts.CurrentConstruction.Value()
 	if !known || !census.Colony {

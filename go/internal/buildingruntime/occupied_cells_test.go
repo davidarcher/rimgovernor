@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// #1943: ReplanFresh's built set and RoomGrowth.Fixed share one helper: the
+// #1943: RoomGrowth.Fixed reads one helper: the
 // census, its blueprint and frame sites and the open journal claims count; a
 // claim whose work closed without a building does not.
 func TestOccupiedCellsCountSitesAndOpenClaims(t *testing.T) {

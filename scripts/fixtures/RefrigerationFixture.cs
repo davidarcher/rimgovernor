@@ -276,7 +276,6 @@ namespace HomeBridge.BridgeTools
                     walls, door = new { x = At(0, 3).x, z = At(0, 3).z },
                     cooler = cooler?.GetUniqueLoadID(), coolerCell = existingCooler ? new { x = coolerCell.x, z = coolerCell.z } : null,
                     generator = generator.GetUniqueLoadID(), disconnected, season, foodDef = meatDef.defName, meat, rotting, stock,
-                    spareCell = new { x = At(width - 1, 0).x, z = At(width - 1, 0).z },
                     setup = "Test-only enclosed roofed stockpile room with warm raw meat, wall-ring conduits, fuelled generator, Cooler research, forced hot room and heat wave; cooler placement, setpoint and cooling remain the controller's and native simulation's.",
                 };
             }, cancellationToken).ConfigureAwait(false);

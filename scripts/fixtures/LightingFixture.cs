@@ -161,7 +161,6 @@ namespace HomeBridge.BridgeTools
                     lamp = lamp?.GetUniqueLoadID(), lampCell = lamp == null ? null : new { x = lamp.Position.x, z = lamp.Position.z },
                     lampGlowRadius = lamp?.TryGetComp<CompGlower>()?.Props.glowRadius,
                     plant = plant?.GetUniqueLoadID(), plantCell = plant == null ? null : new { x = plant.Position.x, z = plant.Position.z },
-                    spareCell = new { x = At(9, 0).x, z = At(9, 0).z },
                     setup = "Test-only enclosed roofed room with a fuelled stove whose interaction cell is dark, wood outside, optionally an unpowered StandingLamp in reach; every lamp choice, placement and latch remains the controller's.",
                 };
             }, cancellationToken).ConfigureAwait(false);

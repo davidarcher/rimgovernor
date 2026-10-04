@@ -153,7 +153,7 @@ type WorldMap struct {
 }
 
 // WorldProgressionRead is the validated subset of one rimgovernor/
-// observations_read_world_progression census world evaluation and the
+// observations_read_world_progression census the world-site and
 // quest boundaries need. It does not surface
 // WorldProgressionSnapshot.factions or assemblies. Maps is read only for
 // its pawn rosters (see WorldMap): a caravan whose world object has

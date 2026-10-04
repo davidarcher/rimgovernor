@@ -51,7 +51,7 @@ and talks GABP to RimBridgeServer directly.
   typed player endpoints under `internal/httpapi/player.go`), the clock worker
   (event polling, epoch renewal, bounded supervised windows: 600 ticks, 30-second
   lease), durable rounds with method execution across every routine
-  planner family, caravan journey tracking and world evaluation..
+  planner family, and caravan journey tracking.
 - `serve --observe ...` is **observation only**: read the running game, never
   acquire control or write to it. Tuning flags are rejected.
 
@@ -97,7 +97,7 @@ structured player endpoints are listed in
 surface is guidance, not per-pawn orders: one building placement and one
 research selection remain as typed plan submissions, and everything else is
 colony configuration (goals, expedition policy) or control (resume/pause, clock
-acknowledgement, world evaluation). Per-command player slices for tend, rescue,
+acknowledgement). Per-command player slices for tend, rescue,
 draft, husbandry, recovery service, bed assignment, movement, building
 temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
 room shells were removed in

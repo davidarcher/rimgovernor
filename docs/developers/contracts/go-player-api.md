@@ -15,7 +15,6 @@ control uses these routes.
 | --- | --- | --- |
 | GET | `/api/player/session` | Process token and `mode: "explicit-player"` |
 | GET | `/api/player/control` | Current control record and actual permission |
-| GET | `/api/player/control?requestId=…` | Historical request and actual permission |
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
 | POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine goals and clean up owned work |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
@@ -90,9 +89,9 @@ Ordinary `progress` keeps its current fields. The public projection omits leases
 native tokens and controller-session ownership data. Drafts carry no cleanup
 progress: the undraft sweep releases drafts no live plan needs (#939).
 
-The Go player surface (`httpapi.PlayerBuildings`) is
+The Go player surface (`httpapi.PlayerControl`) is
 `Resume`, `Pause` and `State`; its reader
-(`httpapi.ControlReader`) is `CurrentControl` and `LookupControl`. Configuration routes
+(`httpapi.ControlReader`) is `CurrentControl`. Configuration routes
 have their own narrow interfaces. Production service composition supplies the
 same Player and store used by the worker.
 

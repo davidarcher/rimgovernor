@@ -101,7 +101,7 @@ func TestPlayerHTTPAuthenticationAndBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		method, path, body string
 		code               int
-	}{{"GET", "/api/player/control/pause", "", 405}, {"POST", "/api/player/session", "", 405}, {"GET", "/api/player/session", "body", 400}, {"POST", "/api/player/control/pause?x=1", manualJSON, 400}, {"POST", "/api/player/control/pause", strings.Repeat("x", 8193), 400}, {"POST", "/api/player/control/pause", `{}`, 400}, {"POST", "/api/player/control/pause", manualJSON[:len(manualJSON)-1] + `,"kind":"resume"}`, 400}, {"GET", "/api/player/control?requestId=a&requestId=b", "", 400}} {
+	}{{"GET", "/api/player/control/pause", "", 405}, {"POST", "/api/player/session", "", 405}, {"GET", "/api/player/session", "body", 400}, {"POST", "/api/player/control/pause?x=1", manualJSON, 400}, {"POST", "/api/player/control/pause", strings.Repeat("x", 8193), 400}, {"POST", "/api/player/control/pause", `{}`, 400}, {"POST", "/api/player/control/pause", manualJSON[:len(manualJSON)-1] + `,"kind":"resume"}`, 400}, {"GET", "/api/player/control?requestId=a", "", 400}} {
 		w := playerCall(s, tc.method, tc.path, tc.body, session.Token)
 		if w.Code != tc.code {
 			t.Fatal(tc, w.Code, w.Body.String())
@@ -138,11 +138,9 @@ func TestPlayerHTTPDurableRecoveryAndLiveState(t *testing.T) {
 	if f.seen.Kind != store.ResumeControl || f.seen.RequestID != "control" {
 		t.Fatal(f.seen)
 	}
-	for _, path := range []string{"/api/player/control", "/api/player/control?requestId=control"} {
-		w = playerCall(s, "GET", path, "", "")
-		if w.Code != 200 || !strings.Contains(w.Body.String(), `"phase":"uncertain"`) {
-			t.Fatal(w.Code, w.Body.String())
-		}
+	w = playerCall(s, "GET", "/api/player/control", "", "")
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"phase":"uncertain"`) {
+		t.Fatal(w.Code, w.Body.String())
 	}
 	w = playerCall(s, "POST", "/api/player/control/resume", acquire, token)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"enabled":false`) {
@@ -152,10 +150,6 @@ func TestPlayerHTTPDurableRecoveryAndLiveState(t *testing.T) {
 	w = playerCall(s, "POST", "/api/player/control/pause", manual, token)
 	if w.Code != 200 || f.seen.Kind != store.PauseControl || !strings.Contains(w.Body.String(), `"phase":"paused"`) {
 		t.Fatal(w.Code, w.Body.String())
-	}
-	w = playerCall(s, "GET", "/api/player/control?requestId=missing", "", "")
-	if w.Code != 404 {
-		t.Fatal(w.Code)
 	}
 }
 func TestPlayerHTTPProjectionGuards(t *testing.T) {
@@ -193,7 +187,7 @@ func TestPlayerHTTPHistoricalGrantDoesNotEnable(t *testing.T) {
 	if _, e := f.journal.CompleteControl(context.Background(), request.RequestID, store.RunningControl, 7); e != nil {
 		t.Fatal(e)
 	}
-	w := playerCall(s, "GET", "/api/player/control?requestId=granted", "", "")
+	w := playerCall(s, "GET", "/api/player/control", "", "")
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"phase":"running"`) || !strings.Contains(w.Body.String(), `"enabled":false`) || !strings.Contains(w.Body.String(), `"generation":null`) {
 		t.Fatal(w.Code, w.Body.String())
 	}
