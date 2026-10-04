@@ -11,7 +11,7 @@ func TestUnsafeLootRuleRefusesOnlyAllowingUnsafe(t *testing.T) {
 	allow, _ := domain.NewSupplyAllow("fire", "Steel", cell)
 	forbid, _ := domain.NewSupplyForbid("fire", "Steel", cell)
 	other, _ := domain.NewSupplyAllow("safe", "Steel", cell)
-	c := ActionContext{Unsafe: UnsafeLoot([]LootItem{
+	c := RuleContext{Enabled: true, Unsafe: UnsafeLoot([]LootItem{
 		{Supply: StartingSupply{Thing: "fire"}, SafetyKnown: true},
 		{Supply: StartingSupply{Thing: "safe"}, SafetyKnown: true, SafeToHaul: true},
 		{Supply: StartingSupply{Thing: "unknown"}},
@@ -24,8 +24,9 @@ func TestUnsafeLootRuleRefusesOnlyAllowingUnsafe(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := VetoAction(c, a) != ""; got != tc.veto {
-			t.Fatalf("%v: veto %v", tc.supply, got)
+		ref, got := RefuseAction(c, a)
+		if got != tc.veto || got && ref.Rule != "UnsafeLootRule" {
+			t.Fatalf("%v: veto %v by %q", tc.supply, got, ref.Rule)
 		}
 	}
 }

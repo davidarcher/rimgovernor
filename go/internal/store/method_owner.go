@@ -52,8 +52,8 @@ func admitRoutineRules(ctx context.Context, tx *sql.Tx, owner methodOwner) error
 	if !bound {
 		return nil
 	}
-	if reason := review.vetoNeed(need, owner.ownerPriority()); reason != "" {
-		return fmt.Errorf("%w: %s: %s", ErrNotAdmitted, owner.ownerLabel(), reason)
+	if ref, vetoed := review.refuseNeed(need, owner.ownerPriority()); vetoed {
+		return fmt.Errorf("%w: %s: %s: %s", ErrNotAdmitted, owner.ownerLabel(), ref.Rule, ref.Reason)
 	}
 	return nil
 }
@@ -69,6 +69,11 @@ func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan d
 	return createPlan(ctx, tx, plan)
 }
 
+func (r RoutineReview) refuseNeed(need domain.GoalID, priority int) (policy.RuleRefusal, bool) {
+	return policy.RefuseProposal(policy.RuleContext{Enabled: r.Enabled, Emergency: r.Emergency, Unsafe: r.Unsafe}, policy.RuleProposal{Need: need, Priority: priority})
+}
+
 func (r RoutineReview) vetoNeed(need domain.GoalID, priority int) string {
-	return policy.VetoProposal(policy.RuleContext{Enabled: r.Enabled, Emergency: r.Emergency}, policy.RuleProposal{Need: need, Priority: priority})
+	ref, _ := r.refuseNeed(need, priority)
+	return ref.Reason
 }

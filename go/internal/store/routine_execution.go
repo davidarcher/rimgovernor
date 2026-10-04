@@ -202,8 +202,8 @@ func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
 	if err != nil {
 		return err
 	}
-	if reason := policy.VetoAction(policy.ActionContext{Unsafe: review.Unsafe}, a); reason != "" {
-		return fmt.Errorf("%w: action %s: %s", ErrActionVetoed, a.ID(), reason)
+	if ref, vetoed := policy.RefuseAction(policy.RuleContext{Enabled: review.Enabled, Emergency: review.Emergency, Unsafe: review.Unsafe}, a); vetoed {
+		return fmt.Errorf("%w: action %s: %s: %s", ErrActionVetoed, a.ID(), ref.Rule, ref.Reason)
 	}
 	return nil
 }
