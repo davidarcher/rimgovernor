@@ -220,9 +220,11 @@ type coreGrid struct {
 
 // Soil build costs per cell (#1279/#1284): rich soil costs more than
 // plain soil, which costs more than anything else (bare ground, rock).
-// Rich soil is a cost, not a ban.
+// Rich soil (fertility above zoneRichFertility, e.g. 140%) is the best
+// farmland on the map, so a room over it costs 50x plain soil: still a cost,
+// not a ban, but only a site with no other ground pays it.
 const (
-	soilCostRich   = 4
+	soilCostRich   = 100
 	soilCostNormal = 2
 	soilCostOther  = 0
 )
