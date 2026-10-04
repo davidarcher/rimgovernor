@@ -42,6 +42,26 @@ func compOf[T any](row *d.ThingDef, pick func(*d.CompPropertiesAny) *T) *T {
 	return nil
 }
 
+// SpawnForbiddenProducts is the set of item defs some def's spawner makes
+// forbidden on purpose (CompProperties_Spawner.spawnForbidden): a hive's
+// insect jelly. A nil catalog has none.
+func (catalog *DefinitionCatalog) SpawnForbiddenProducts() map[string]bool {
+	if catalog == nil {
+		return nil
+	}
+	if cached := catalog.spawnForbidden.Load(); cached != nil {
+		return *cached
+	}
+	out := map[string]bool{}
+	for _, row := range catalog.ThingDefs {
+		if spawner := compOf(row, (*d.CompPropertiesAny).GetCompProperties_Spawner); spawner != nil && spawner.GetSpawnForbidden() && spawner.GetThingToSpawn() != "" {
+			out[spawner.GetThingToSpawn()] = true
+		}
+	}
+	catalog.spawnForbidden.Store(&out)
+	return out
+}
+
 // Books is every book def (a def carrying CompProperties_Book) with what
 // reading it does, by name: skill experience is a textbook, research a
 // schematic, Anomaly research or a mental break a tome, otherwise a novel.

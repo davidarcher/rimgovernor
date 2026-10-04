@@ -26,10 +26,12 @@ func replayEventLoot(t *testing.T, r Routine) policy.EventLootHistory {
 	if err != nil {
 		t.Fatal(err)
 	}
-	census, held, err := policy.FilterLootReach(r.Facts.EventLoot, remote)
+	released, held := policy.FilterLootRelease(r.Facts.EventLoot, r.Facts.DangerSeeds)
+	census, reach, err := policy.FilterLootReach(released, remote)
 	if err != nil {
 		t.Fatal(err)
 	}
+	held = append(held, reach...)
 	loot, _, err := policy.ReviewEventLoot(census, policy.EventLootHistory{})
 	if err != nil {
 		t.Fatal(err)
@@ -176,5 +178,34 @@ func TestLootIsAllowedOnceItsTrapIsGone(t *testing.T) {
 	a, err := r.Assessment(policy.ManageSupplySafety)
 	if err != nil || a.Need != domain.NeedDeficit {
 		t.Fatal(a, err)
+	}
+}
+
+// The recorded safe stack, with a hive recorded beside it, stays forbidden:
+// the danger gate holds it back (#1802).
+func TestLootNextToAHiveStaysForbidden(t *testing.T) {
+	r, err := Load(lootTrapRemoved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := r.Facts.EventLoot.Value()
+	var at domain.Cell
+	for _, row := range rows {
+		if row.Supply.Thing == lootSafetyThing {
+			at = row.Supply.Cell
+		}
+	}
+	hive := policy.EmergencyThreat{ID: "hive", Kind: policy.HostileBuilding, Definition: "Hive", Passive: domain.Known(true), Cells: []domain.Cell{{X: at.X + 3, Z: at.Z}}}
+	r.Facts.DangerSeeds = domain.Known(policy.DangerSeeds([]policy.EmergencyThreat{hive}))
+	loot := replayEventLoot(t, r)
+	if _, ok := pendingLoot(loot, lootSafetyThing); ok {
+		t.Fatal("loot beside a hive queued for Allow")
+	}
+	held := false
+	for _, hold := range loot.Held {
+		held = held || hold.Thing == lootSafetyThing && hold.Reason == policy.LootHoldDanger
+	}
+	if !held {
+		t.Fatal("no danger hold", loot.Held)
 	}
 }

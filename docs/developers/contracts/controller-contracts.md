@@ -922,6 +922,19 @@ without a safety rule of its own, because the forbid flag has other owners with
 other reasons (the reserve food and frozen corpses `MaintainFoodStorage` holds
 while they are perfectly safe to reach, #428/#431).
 
+Release is selective (#1802). A pawn death drops forbidden items (`Pawn.Kill`
+forbids the corpse outside the Home area; `Pawn.DropAndForbidEverything` drops
+equipment and inventory with `forbid: true`), and the standing census above
+releases them one stack at a time. The review keeps a safe, forbidden stack
+forbidden, and records it as a hold, when its def is one a native spawner
+forbids on purpose (`CompProperties_Spawner.spawnForbidden` in the def mirror:
+a hive's insect jelly) or when it lies within `ThreatReachCells` of a danger
+seed: a live, discovered hostile pawn or any hostile building, passive hives
+included (`policy.DangerSeeds`, from the threat census). The same seeds feed
+the hauler gate: while a hostile is live and for an hour after, `MaintainShelter`
+restricts haulers to the `NoDanger` allowed area, the home area minus the
+killbox and the cells near the seeds accumulated over the window.
+
 Unsafe items are forbidden before safe items are allowed, in batches of eight.
 Forbid changes no pawn orders and may execute during an emergency; Allow retains
 the emergency gate. A changed safety census cancels stale undispatched proposals.

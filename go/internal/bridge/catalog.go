@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -48,6 +49,8 @@ type DefinitionCatalog struct {
 	// classBases is each class the rows name by CLR full name with its base
 	// classes, nearest first (ClassIsA, RowIsA).
 	classBases map[string][]string
+	// spawnForbidden caches SpawnForbiddenProducts.
+	spawnForbidden atomic.Pointer[map[string]bool]
 	// Constants are the game constants the native read took from the game
 	// assemblies.
 	Constants *o.CatalogConstants

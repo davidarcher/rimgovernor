@@ -29,6 +29,8 @@ func compsAny(values ...any) []*d.CompPropertiesAny {
 			out = append(out, &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: v}})
 		case *d.CompProperties_Battery:
 			out = append(out, &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Battery{CompProperties_Battery: v}})
+		case *d.CompProperties_Spawner:
+			out = append(out, &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Spawner{CompProperties_Spawner: v}})
 		case *d.CompProperties_Book:
 			out = append(out, &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Book{CompProperties_Book: v}})
 		}
@@ -141,4 +143,20 @@ func doers(values ...*d.ReadingOutcomePropertiesAny) []*d.Opt_ReadingOutcomeProp
 		out = append(out, &d.Opt_ReadingOutcomePropertiesAny{Value: v})
 	}
 	return out
+}
+
+func TestSpawnForbiddenProductsAreTheForbiddenSpawnerOutputs(t *testing.T) {
+	catalog := &DefinitionCatalog{ThingDefs: map[string]*d.ThingDef{
+		"Hive":  {DefName: "Hive", Comps: comps(&d.CompProperties_Spawner{ThingToSpawn: "InsectJelly", SpawnForbidden: true})},
+		"Chem":  {DefName: "Chem", Comps: comps(&d.CompProperties_Spawner{ThingToSpawn: "Chemfuel"})},
+		"Steel": {DefName: "Steel"},
+		"Husky": {DefName: "Husky"},
+	}}
+	got := catalog.SpawnForbiddenProducts()
+	if len(got) != 1 || !got["InsectJelly"] {
+		t.Fatal(got)
+	}
+	if (*DefinitionCatalog)(nil).SpawnForbiddenProducts() != nil {
+		t.Fatal("a nil catalog has none")
+	}
 }

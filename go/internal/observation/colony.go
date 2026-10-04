@@ -379,7 +379,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)
-	r.Facts.NoKillboxArea = allowedAreaID(r.Policies, policy.NoKillboxAreaLabel)
+	r.Facts.NoDangerArea = allowedAreaID(r.Policies, policy.NoDangerAreaLabel)
 	r.Facts.VetRoom.Area = allowedAreaID(r.Policies, policy.VetRoomAreaLabel)
 	r.Facts.IsolationArea = allowedAreaID(r.Policies, policy.IsolationAreaLabel)
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
@@ -637,9 +637,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	}
 	if loot := v.GetEventLoot().GetObserved(); loot != nil && headed(tables, loot.Items, (*o.LootItem).GetItem) {
 		rows := make([]policy.LootItem, 0, len(loot.Items))
+		spawnForbidden := tables.Catalog.SpawnForbiddenProducts()
 		for _, row := range loot.Items {
 			head := tables.Entity(row.Item)
-			item := policy.LootItem{Supply: policy.StartingSupply{Thing: row.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}}, Forbidden: row.GetForbidden(), SafeToHaul: row.GetSafeToHaul(), SafetyKnown: row.SafeToHaul != nil, Count: row.GetCount()}
+			item := policy.LootItem{Supply: policy.StartingSupply{Thing: row.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}}, Forbidden: row.GetForbidden(), SafeToHaul: row.GetSafeToHaul(), SafetyKnown: row.SafeToHaul != nil, Count: row.GetCount(), SpawnForbidden: spawnForbidden[head.GetDefName()]}
 			if row.PathLength != nil {
 				item.PathLength = domain.Known(row.GetPathLength())
 			}

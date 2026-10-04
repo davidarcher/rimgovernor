@@ -342,13 +342,15 @@ type RoutineFacts struct {
 	// colonists a raid or manhunter pack does not shelter. Unknown shelters
 	// no colonist for a threat.
 	ShelterCombatants domain.Fact[[]PawnID]
-	// NoKillboxArea is the NoKillbox allowed area's native load id, ""
-	// when the map has none; KillboxWindow whether haulers are kept out of
-	// the killbox now (KillboxWindowOf); KillboxHaulers the pawns with
-	// Hauling enabled (#1327).
-	NoKillboxArea  domain.Fact[string]
-	KillboxWindow  domain.Fact[bool]
-	KillboxHaulers domain.Fact[[]PawnID]
+	// NoDangerArea is the NoDanger allowed area's native load id, ""
+	// when the map has none; DangerWindow whether haulers are kept out of
+	// the danger cells now (DangerWindowOf); DangerHaulers the pawns with
+	// Hauling enabled (#1327); DangerSeeds the threat census's danger seeds
+	// (DangerSeeds, #1802), unknown with the hostile count.
+	NoDangerArea  domain.Fact[string]
+	DangerSeeds   domain.Fact[[]domain.Cell]
+	DangerWindow  domain.Fact[bool]
+	DangerHaulers domain.Fact[[]PawnID]
 	// IsolationArea is the Isolation allowed area's native load id, "" when
 	// the map has none (ManageCreepJoiners, #1740).
 	IsolationArea domain.Fact[string]

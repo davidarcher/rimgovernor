@@ -110,9 +110,9 @@ func TestShelteringNeedsSafeAreaAndSkipsPenAnimals(t *testing.T) {
 // and the NoKillbox area "nokill" exists.
 func killboxFacts(area string, window bool) RoutineFacts {
 	f := shelterFacts(area)
-	f.NoKillboxArea = domain.Known("nokill")
-	f.KillboxWindow = domain.Known(window)
-	f.KillboxHaulers = domain.Known([]PawnID{"a"})
+	f.NoDangerArea = domain.Known("nokill")
+	f.DangerWindow = domain.Known(window)
+	f.DangerHaulers = domain.Known([]PawnID{"a"})
 	return f
 }
 
@@ -146,21 +146,21 @@ func TestKillboxReleasedAfterCooldown(t *testing.T) {
 		t.Fatal(got)
 	}
 	f := killboxFacts("nokill", true)
-	f.KillboxWindow = domain.Unknown[bool]()
+	f.DangerWindow = domain.Unknown[bool]()
 	if got := PlanSheltering(f); len(got) != 0 {
 		t.Fatal("unknown window released", got)
 	}
 	none := domain.Known(int64(0))
-	if w, _ := KillboxWindowOf(domain.Known(int64(1)), 0, false, 100).Value(); !w {
+	if w, _ := DangerWindowOf(domain.Known(int64(1)), 0, false, 100).Value(); !w {
 		t.Fatal("live hostile closed window")
 	}
-	if w, _ := KillboxWindowOf(none, 100, true, 100+KillboxCooldown-1).Value(); !w {
+	if w, _ := DangerWindowOf(none, 100, true, 100+DangerCooldown-1).Value(); !w {
 		t.Fatal("window closed inside cooldown")
 	}
-	if w, _ := KillboxWindowOf(none, 100, true, 100+KillboxCooldown).Value(); w {
+	if w, _ := DangerWindowOf(none, 100, true, 100+DangerCooldown).Value(); w {
 		t.Fatal("window held past cooldown")
 	}
-	if _, k := KillboxWindowOf(domain.Unknown[int64](), 0, false, 0).Value(); k {
+	if _, k := DangerWindowOf(domain.Unknown[int64](), 0, false, 0).Value(); k {
 		t.Fatal("unknown hostiles known window")
 	}
 }
@@ -170,7 +170,7 @@ func TestKillboxNonHaulersUnaffected(t *testing.T) {
 	if got := PlanSheltering(f); len(got) != 1 || got[0].Pawn != "a" {
 		t.Fatal(got)
 	}
-	f.KillboxHaulers = domain.Known([]PawnID{})
+	f.DangerHaulers = domain.Known([]PawnID{})
 	if got := PlanSheltering(f); len(got) != 0 {
 		t.Fatal(got)
 	}
@@ -179,15 +179,41 @@ func TestKillboxNonHaulersUnaffected(t *testing.T) {
 		{ID: "b", Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 0}})},
 		{ID: "c", Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 2, Disabled: true}})},
 	})
-	if got, _ := KillboxHaulers(workers).Value(); !reflect.DeepEqual(got, []PawnID{"a"}) {
+	if got, _ := DangerHaulers(workers).Value(); !reflect.DeepEqual(got, []PawnID{"a"}) {
 		t.Fatal(got)
 	}
 }
 
-func TestNoKillboxCells(t *testing.T) {
+func TestNoDangerCells(t *testing.T) {
 	home := []domain.Cell{{X: 2, Z: 0}, {X: 1, Z: 0}, {X: 3, Z: 0}}
-	if got := NoKillboxCells(home, []domain.Cell{{X: 2, Z: 0}}); !reflect.DeepEqual(got, []domain.Cell{{X: 1, Z: 0}, {X: 3, Z: 0}}) {
+	if got := NoDangerCells(home, []domain.Cell{{X: 2, Z: 0}}, nil); !reflect.DeepEqual(got, []domain.Cell{{X: 1, Z: 0}, {X: 3, Z: 0}}) {
 		t.Fatal(got)
+	}
+	// A seed takes every home cell within the reach out, the killbox too.
+	far := domain.Cell{X: 3 + ThreatReachCells + 1, Z: 0}
+	home = append(home, far)
+	if got := NoDangerCells(home, nil, []domain.Cell{{X: 1, Z: ThreatReachCells}}); !reflect.DeepEqual(got, []domain.Cell{far}) {
+		t.Fatal(got)
+	}
+}
+
+func TestDangerSeedsAreLiveHostilesAndEveryHive(t *testing.T) {
+	threats := []EmergencyThreat{
+		{ID: "raider", Kind: Hostile, Position: domain.Known(domain.Cell{X: 5, Z: 6})},
+		{ID: "dead", Kind: Hostile, Dead: domain.Known(true), Position: domain.Known(domain.Cell{X: 9, Z: 9})},
+		{ID: "downed", Kind: Hostile, Downed: domain.Known(true), Position: domain.Known(domain.Cell{X: 8, Z: 8})},
+		{ID: "hive", Kind: HostileBuilding, Definition: "Hive", Passive: domain.Known(true), Cells: []domain.Cell{{X: 40, Z: 41}, {X: 41, Z: 41}}},
+		{ID: "pet", Kind: NearbyPredator, Position: domain.Known(domain.Cell{X: 1, Z: 1})},
+	}
+	want := []domain.Cell{{X: 5, Z: 6}, {X: 40, Z: 41}, {X: 41, Z: 41}}
+	got := DangerSeeds(threats)
+	if len(got) != len(want) {
+		t.Fatal(got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatal(got)
+		}
 	}
 }
 

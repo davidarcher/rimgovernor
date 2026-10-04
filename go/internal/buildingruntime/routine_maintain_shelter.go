@@ -20,7 +20,7 @@ type ownedArea struct {
 }
 
 // safeAreaMemory holds MaintainShelter's bot area state in memory only: the
-// Safe area (#1325) and the NoKillbox area (#1327), each with the cells last
+// Safe area (#1325) and the NoDanger area (#1327, #1802), each with the cells last
 // committed and the latest review's plan. A new world (start, reload)
 // forgets the cells, so the first pass resets each area (delete, then
 // create with the full set).
@@ -33,12 +33,15 @@ type safeAreaMemory struct {
 	// last is the tick a live hostile was last seen in world (#1327).
 	last      domain.Tick
 	lastKnown bool
+	// danger is the union of the danger seeds seen while the window held
+	// (policy.DangerSeeds), forgotten once it closes.
+	danger map[domain.Cell]bool
 }
 
 func (m *safeAreaMemory) enter(world string) {
 	if m.world != world || m.areas == nil {
 		// Field by field: overwriting *m would reset the held mutex.
-		m.world, m.areas, m.edits, m.lastKnown = world, map[string]*ownedArea{}, nil, false
+		m.world, m.areas, m.edits, m.lastKnown, m.danger = world, map[string]*ownedArea{}, nil, false, nil
 	}
 }
 
@@ -59,7 +62,7 @@ func (m *safeAreaMemory) plan(key string, want []domain.Cell) error {
 
 // review plans the bot areas from the review's rooms, home area and layout
 // plan and reports whether an edit is owed; unknown when the rooms are. The
-// NoKillbox area is planned only while the home area is known and not empty.
+// NoDanger area is planned only while the home area is known and not empty.
 func (m *safeAreaMemory) review(world string, projection observation.ColonyProjection) (domain.Fact[bool], error) {
 	rooms, known := projection.Rooms.Value()
 	if !known {
@@ -93,7 +96,7 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	}
 	if census, ok := projection.Facts.HomeCoverage.Value(); ok {
 		if home, hk := census.Home.Value(); hk && len(home) > 0 {
-			if err := m.plan(policy.NoKillboxAreaKey, policy.NoKillboxCells(home, killbox)); err != nil {
+			if err := m.plan(policy.NoDangerAreaKey, policy.NoDangerCells(home, killbox, sortedSeeds(m.danger))); err != nil {
 				return domain.Unknown[bool](), err
 			}
 		}
@@ -119,17 +122,52 @@ func (m *safeAreaMemory) commit(world string) {
 	m.edits = nil
 }
 
-// killboxWindow records a live hostile at tick and reports whether haulers
-// are kept out of the killbox (policy.KillboxWindowOf). A new world forgets
-// the last threat, so a reload releases them.
-func (m *safeAreaMemory) killboxWindow(world string, hostiles domain.Fact[int64], tick domain.Tick) domain.Fact[bool] {
+// dangerWindow records a live hostile at tick and reports whether haulers
+// are kept out of the danger cells (policy.DangerWindowOf). While it holds,
+// the threat census's danger seeds accumulate, so the cells a fight covered
+// stay out for the cooldown; a closed window forgets them. A new world
+// forgets the last threat, so a reload releases them.
+func (m *safeAreaMemory) dangerWindow(world string, hostiles domain.Fact[int64], seeds []domain.Cell, tick domain.Tick) domain.Fact[bool] {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.enter(world)
 	if n, known := hostiles.Value(); known && n > 0 {
 		m.last, m.lastKnown = tick, true
 	}
-	return policy.KillboxWindowOf(hostiles, m.last, m.lastKnown, tick)
+	window := policy.DangerWindowOf(hostiles, m.last, m.lastKnown, tick)
+	if open, known := window.Value(); known && open {
+		if m.danger == nil {
+			m.danger = map[domain.Cell]bool{}
+		}
+		for _, c := range seeds {
+			m.danger[c] = true
+		}
+	} else if known {
+		m.danger = nil
+	}
+	return window
+}
+
+// dangerSeedFact is the review's danger seeds, unknown with the hostile count.
+func dangerSeedFact(hostiles domain.Fact[int64], threats []policy.EmergencyThreat) domain.Fact[[]domain.Cell] {
+	if _, known := hostiles.Value(); !known {
+		return domain.Unknown[[]domain.Cell]()
+	}
+	return domain.Known(policy.DangerSeeds(threats))
+}
+
+func sortedSeeds(set map[domain.Cell]bool) []domain.Cell {
+	out := make([]domain.Cell, 0, len(set))
+	for c := range set {
+		out = append(out, c)
+	}
+	slices.SortFunc(out, func(a, b domain.Cell) int {
+		if a.Z != b.Z {
+			return int(a.Z - b.Z)
+		}
+		return int(a.X - b.X)
+	})
+	return out
 }
 
 // MaintainShelterPlanner is MaintainShelter's planner: it commits the Safe

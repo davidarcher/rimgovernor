@@ -18,31 +18,31 @@ type AllowedAreaChange struct {
 // AreaIntent labels an area with its plain key.
 const SafeAreaLabel = SafeAreaKey
 
-// NoKillboxAreaKey is the bot area key of the NoKillbox allowed area: the
-// home area minus the killbox cells (#1327).
-const NoKillboxAreaKey = "NoKillbox"
+// NoDangerAreaKey is the bot area key of the NoDanger allowed area: the home
+// area minus the danger cells (#1327, #1802).
+const NoDangerAreaKey = "NoDanger"
 
-// NoKillboxAreaLabel is the native label of the NoKillbox area.
-const NoKillboxAreaLabel = NoKillboxAreaKey
+// NoDangerAreaLabel is the native label of the NoDanger area.
+const NoDangerAreaLabel = NoDangerAreaKey
 
-// KillboxCooldown is how long after the last live, unrestrained hostile
-// haulers stay out of the killbox (one in-game hour).
-const KillboxCooldown domain.Tick = domain.TicksPerHour
+// DangerCooldown is how long after the last live, unrestrained hostile
+// haulers stay out of the danger cells (one in-game hour).
+const DangerCooldown domain.Tick = domain.TicksPerHour
 
-// KillboxWindowOf reports whether haulers are kept out of the killbox: a
+// DangerWindowOf reports whether haulers are kept out of the danger cells: a
 // hostile is live (hostiles > 0) or the last one was seen (lastThreat, when
-// lastKnown) less than KillboxCooldown before now. Unknown with hostiles.
-func KillboxWindowOf(hostiles domain.Fact[int64], lastThreat domain.Tick, lastKnown bool, now domain.Tick) domain.Fact[bool] {
+// lastKnown) less than DangerCooldown before now. Unknown with hostiles.
+func DangerWindowOf(hostiles domain.Fact[int64], lastThreat domain.Tick, lastKnown bool, now domain.Tick) domain.Fact[bool] {
 	n, known := hostiles.Value()
 	if !known {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(n > 0 || lastKnown && now-lastThreat < KillboxCooldown)
+	return domain.Known(n > 0 || lastKnown && now-lastThreat < DangerCooldown)
 }
 
-// KillboxHaulers are the work pawns with Hauling enabled (priority 1..4).
+// DangerHaulers are the work pawns with Hauling enabled (priority 1..4).
 // Unknown when any row's work is unknown.
-func KillboxHaulers(workers domain.Fact[[]WorkPawn]) domain.Fact[[]PawnID] {
+func DangerHaulers(workers domain.Fact[[]WorkPawn]) domain.Fact[[]PawnID] {
 	rows, known := workers.Value()
 	if !known {
 		return domain.Unknown[[]PawnID]()
@@ -62,15 +62,53 @@ func KillboxHaulers(workers domain.Fact[[]WorkPawn]) domain.Fact[[]PawnID] {
 	return domain.Known(out)
 }
 
-// NoKillboxCells is the home area minus the killbox cells, sorted.
-func NoKillboxCells(home, killbox []domain.Cell) []domain.Cell {
+// DangerSeeds are the cells a hauler must keep away from, from the native
+// threat census: every live, discovered hostile pawn's cell and every
+// hostile building's occupied cells, passive hives and dormant clusters
+// included (a hive is danger though it holds no fight). Sorted, deduplicated.
+func DangerSeeds(threats []EmergencyThreat) []domain.Cell {
+	set := map[domain.Cell]bool{}
+	for _, t := range threats {
+		if t.Kind != Hostile && t.Kind != HuntingPredator && t.Kind != HostileBuilding || t.Undiscovered() {
+			continue
+		}
+		if dead, known := t.Dead.Value(); known && dead {
+			continue
+		}
+		if downed, known := t.Downed.Value(); known && downed {
+			continue
+		}
+		cells := t.Cells
+		if at, known := t.Position.Value(); known && !t.Building() {
+			cells = []domain.Cell{at}
+		}
+		for _, c := range cells {
+			set[c] = true
+		}
+	}
+	return sortedCells(set)
+}
+
+// NearDanger reports whether cell lies within ThreatReachCells of a seed.
+func NearDanger(seeds []domain.Cell, cell domain.Cell) bool {
+	for _, s := range seeds {
+		if abs32(cell.X-s.X) <= ThreatReachCells && abs32(cell.Z-s.Z) <= ThreatReachCells {
+			return true
+		}
+	}
+	return false
+}
+
+// NoDangerCells is the home area minus the killbox cells and every cell near
+// a danger seed, sorted.
+func NoDangerCells(home, killbox, seeds []domain.Cell) []domain.Cell {
 	excluded := map[domain.Cell]bool{}
 	for _, c := range killbox {
 		excluded[c] = true
 	}
 	set := map[domain.Cell]bool{}
 	for _, c := range home {
-		if !excluded[c] {
+		if !excluded[c] && !NearDanger(seeds, c) {
 			set[c] = true
 		}
 	}
@@ -136,7 +174,7 @@ func ShelterTriggerOf(f RoutineFacts) (ShelterTrigger, bool) {
 // draft set, ShelterCombatants) and animals that take areas without a pen
 // are moved into the Safe area. Once every trigger is known clear, pawns
 // still restricted to the Safe area go back to unrestricted. Haulers not
-// sheltered are kept to the NoKillbox area while KillboxWindow holds, and go
+// sheltered are kept to the NoDanger area while DangerWindow holds, and go
 // back to unrestricted once it is known closed; other areas are left to
 // their own planners. It keeps no history: the same facts give the
 // same moves after a restart or reload.
@@ -146,9 +184,9 @@ func PlanSheltering(f RoutineFacts) []AllowedAreaChange {
 	if !tk {
 		return nil
 	}
-	noKill, _ := f.NoKillboxArea.Value()
-	window, windowKnown := f.KillboxWindow.Value()
-	haulerRows, hk := f.KillboxHaulers.Value()
+	noKill, _ := f.NoDangerArea.Value()
+	window, windowKnown := f.DangerWindow.Value()
+	haulerRows, hk := f.DangerHaulers.Value()
 	haulers := map[PawnID]bool{}
 	for _, id := range haulerRows {
 		haulers[id] = true
@@ -175,8 +213,8 @@ func PlanSheltering(f RoutineFacts) []AllowedAreaChange {
 		case shelter && safe != "":
 			to, move = safe, area != safe
 		case noKill != "" && windowKnown && window && hk && hauler:
-			// Haulers stay out of the killbox through the fight and its
-			// cooldown (#1327).
+			// Haulers stay out of the danger cells through the fight and its
+			// cooldown (#1327, #1802).
 			to, move = noKill, area != noKill
 		case safe != "" && area == safe:
 			move = trigger == ShelterNone

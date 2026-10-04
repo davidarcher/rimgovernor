@@ -11,6 +11,10 @@ type LootItem struct {
 	Supply                StartingSupply
 	Forbidden, SafeToHaul bool
 	SafetyKnown           bool
+	// SpawnForbidden marks a def a native spawner makes forbidden on purpose
+	// (a hive's insect jelly: CompProperties_Spawner.spawnForbidden in the
+	// def mirror); such a stack is never released (FilterLootRelease).
+	SpawnForbidden bool
 	// Count, PathLength and StorageHeadroom feed remote loot's reach and
 	// demand filter (#522); unknown cost or storage holds a remote stack.
 	Count           int64

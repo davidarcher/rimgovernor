@@ -100,8 +100,10 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	facts.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
-	facts.KillboxWindow = r.reviewer.safeArea.killboxWindow(stockpileWorld(state.Snapshot), facts.Hostiles, expected.Tick)
-	facts.KillboxHaulers = policy.KillboxHaulers(read.Projection.WorkPawns)
+	facts.DangerSeeds = dangerSeedFact(facts.Hostiles, read.Emergency.Threats)
+	seeds, _ := facts.DangerSeeds.Value()
+	facts.DangerWindow = r.reviewer.safeArea.dangerWindow(stockpileWorld(state.Snapshot), facts.Hostiles, seeds, expected.Tick)
+	facts.DangerHaulers = policy.DangerHaulers(read.Projection.WorkPawns)
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	if facts.ShelterCombatants, err = shelterCombatants(call, p.journal, world); err != nil {
 		return RoutineRecoveryResult{}, err
