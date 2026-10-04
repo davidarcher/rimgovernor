@@ -422,6 +422,11 @@ biostats, exclusion tags); `XenotypeDef` rows with their genes; controllable
 mech kinds (`PawnKindDef` of a mechanoid race with an overseer-subject comp:
 weight class, bandwidth cost, work types and priorities); and
 `MechWorkModeDef` rows (`work`, `escort` and `recharge` mark `MechWorkModeDefOf.Work`, `.Escort` and `.Recharge`). Effects come from the game defs, never Go name lists.
+`gene_tuning` (`GeneTuningFacts`, #1932) is a singleton of the game's own
+`GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
+complexity to assembler hours curve, the extractor regrow days range, and the
+extractor's private `TicksToExtract` and power-cut eject limit (absent when
+reflection cannot read them). Go keeps it as `BiotechCatalog.GeneTuning`.
 The Go client decodes the section into `bridge.BiotechCatalog` (rows by name,
 refusing duplicates, unknown cross references and nonfinite numbers) with the
 rest of the catalog, once per load token.

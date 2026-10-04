@@ -24,6 +24,40 @@ func biotechCatalogFixture() *o.BiotechCatalog {
 	}
 }
 
+// TestGeneTuningFacts (#1932): the singleton passes through the catalog view
+// and a malformed one is refused.
+func TestGeneTuningFacts(t *testing.T) {
+	tuning := func() *o.GeneTuningFacts {
+		return &o.GeneTuningFacts{BiostatMin: proto.Int32(-5), BiostatMax: proto.Int32(5), BaseMaxComplexity: proto.Int32(6),
+			CreationHoursCurve: []*o.CurvePointRow{{X: proto.Float64(0), Y: proto.Float64(3)}, {X: proto.Float64(4), Y: proto.Float64(5)}},
+			RegrowDaysMin:      proto.Float64(12), RegrowDaysMax: proto.Float64(20), ExtractTicks: proto.Int32(30000), NoPowerEjectTicks: proto.Int32(60000)}
+	}
+	v := biotechCatalogFixture()
+	v.GeneTuning = tuning()
+	got, err := DecodeBiotechCatalog(v)
+	if err != nil || got.GeneTuning.GetBiostatMax() != 5 || got.GeneTuning.GetExtractTicks() != 30000 || len(got.GeneTuning.CreationHoursCurve) != 2 {
+		t.Fatalf("gene tuning = %+v, %v", got, err)
+	}
+	if plain, err := DecodeBiotechCatalog(biotechCatalogFixture()); err != nil || plain.GeneTuning != nil {
+		t.Fatalf("absent gene tuning = %v, %v", plain, err)
+	}
+	for name, mutate := range map[string]func(*o.GeneTuningFacts){
+		"descending biostat":  func(g *o.GeneTuningFacts) { g.BiostatMin = proto.Int32(6) },
+		"descending regrow":   func(g *o.GeneTuningFacts) { g.RegrowDaysMin = proto.Float64(30) },
+		"nan regrow":          func(g *o.GeneTuningFacts) { g.RegrowDaysMax = proto.Float64(math.NaN()) },
+		"negative ticks":      func(g *o.GeneTuningFacts) { g.ExtractTicks = proto.Int32(-1) },
+		"curve not ascending": func(g *o.GeneTuningFacts) { g.CreationHoursCurve[1].X = proto.Float64(0) },
+		"curve incomplete":    func(g *o.GeneTuningFacts) { g.CreationHoursCurve[0].Y = nil },
+	} {
+		bad := biotechCatalogFixture()
+		bad.GeneTuning = tuning()
+		mutate(bad.GeneTuning)
+		if _, err := DecodeBiotechCatalog(bad); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+}
+
 // TestBiotechCatalogDecode (#1678): the section decodes by name and refuses
 // duplicates, bad references and nonfinite numbers; absent stays nil.
 func TestBiotechCatalogDecode(t *testing.T) {

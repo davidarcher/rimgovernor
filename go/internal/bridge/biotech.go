@@ -18,6 +18,9 @@ type BiotechCatalog struct {
 	Xenotypes     map[string]*o.XenotypeRow
 	MechKinds     map[string]*o.MechKindRow
 	MechWorkModes map[string]*o.MechWorkModeRow
+	// GeneTuning is the singleton of GeneTuning constants (#1932); nil when
+	// the native did not send it.
+	GeneTuning *o.GeneTuningFacts
 }
 
 func biotechEffects(kind string, rows []*o.StatEffect) error {
@@ -74,6 +77,10 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 			}
 		}
 	}
+	if err := validateGeneTuning(v.GeneTuning); err != nil {
+		return nil, err
+	}
+	out.GeneTuning = v.GeneTuning
 	for _, row := range v.LifeStages {
 		if err := biotechEffects("life stage", row.Effects); err != nil {
 			return nil, err
@@ -151,6 +158,42 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 		}
 	}
 	return out, nil
+}
+
+// validateGeneTuning bounds the GeneTuning singleton (#1932): finite
+// numbers, ordered ranges, an ascending curve, nonnegative counts.
+func validateGeneTuning(g *o.GeneTuningFacts) error {
+	if g == nil {
+		return nil
+	}
+	if err := catalogNumbers("gene tuning", g.RegrowDaysMin, g.RegrowDaysMax); err != nil {
+		return err
+	}
+	if g.BiostatMin != nil && g.BiostatMax != nil && g.GetBiostatMin() > g.GetBiostatMax() {
+		return contract("gene tuning biostat range is descending")
+	}
+	if g.RegrowDaysMin != nil && g.RegrowDaysMax != nil && g.GetRegrowDaysMin() > g.GetRegrowDaysMax() {
+		return contract("gene tuning regrow range is descending")
+	}
+	for _, v := range []*int32{g.BaseMaxComplexity, g.ExtractTicks, g.NoPowerEjectTicks} {
+		if v != nil && *v < 0 {
+			return contract("gene tuning has a negative count")
+		}
+	}
+	last := math.Inf(-1)
+	for _, p := range g.CreationHoursCurve {
+		if p.X == nil || p.Y == nil {
+			return contract("gene tuning curve point is incomplete")
+		}
+		if err := catalogNumbers("gene tuning curve", p.X, p.Y); err != nil {
+			return err
+		}
+		if p.GetX() <= last {
+			return contract("gene tuning curve is not ascending")
+		}
+		last = p.GetX()
+	}
+	return nil
 }
 
 // validatePawnBiotech bounds a pawn row's Biotech block (#1678).

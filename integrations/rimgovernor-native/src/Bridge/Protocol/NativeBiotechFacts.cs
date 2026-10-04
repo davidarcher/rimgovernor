@@ -48,7 +48,33 @@ namespace HomeBridge.BridgeTools
             foreach (var def in Sorted(DefDatabase<MechWorkModeDef>.AllDefsListForReading))
                 catalog.MechWorkModes.Add(new Obs.MechWorkModeRow { DefName = def.defName, Label = Label(def), UiOrder = def.uiOrder, IgnoreGroupChargeLimits = def.ignoreGroupChargeLimits,
                     Recharge = def == MechWorkModeDefOf.Recharge, Work = def == MechWorkModeDefOf.Work, Escort = def == MechWorkModeDefOf.Escort });
+            catalog.GeneTuning = GeneTuningRow();
             return catalog;
+        }
+
+        // The game's own GeneTuning constants and the extractor's private
+        // ones (#1932); an unreadable private constant stays absent.
+        private static Obs.GeneTuningFacts GeneTuningRow()
+        {
+            var row = new Obs.GeneTuningFacts { BiostatMin = GeneTuning.BiostatRange.min, BiostatMax = GeneTuning.BiostatRange.max,
+                BaseMaxComplexity = GeneTuning.BaseMaxComplexity };
+            foreach (var p in GeneTuning.ComplexityToCreationHoursCurve.Points)
+                if (Finite(p.x) && Finite(p.y)) row.CreationHoursCurve.Add(new Obs.CurvePointRow { X = p.x, Y = p.y });
+            var regrow = GeneTuning.GeneExtractorRegrowingDurationDaysRange;
+            if (Finite(regrow.min) && Finite(regrow.max)) { row.RegrowDaysMin = regrow.min; row.RegrowDaysMax = regrow.max; }
+            if (ExtractorConstant("TicksToExtract") is int extract) row.ExtractTicks = extract;
+            if (ExtractorConstant("NoPowerEjectCumulativeTicks") is int eject) row.NoPowerEjectTicks = eject;
+            return row;
+        }
+
+        private static int? ExtractorConstant(string name)
+        {
+            try
+            {
+                var field = typeof(Building_GeneExtractor).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                return field != null && field.IsLiteral ? field.GetRawConstantValue() as int? : null;
+            }
+            catch (Exception) { return null; }
         }
 
         private static Obs.LifeStageRow LifeStage(LifeStageDef def)

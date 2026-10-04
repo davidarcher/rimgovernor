@@ -2009,9 +2009,28 @@ message MechWorkModeRow {
   optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4;
   optional bool recharge = 5; optional bool work = 6; optional bool escort = 7;
 }
+// One point of a game SimpleCurve (#1932).
+message CurvePointRow { optional double x = 1; optional double y = 2; }
+// The Biotech tuning constants the defs do not carry (#1932), read natively
+// from GeneTuning and the gene extractor, a singleton per load.
+// biostat_min and biostat_max are GeneTuning.BiostatRange (the metabolism
+// bound of a gene set); base_max_complexity GeneTuning.BaseMaxComplexity;
+// creation_hours_curve ComplexityToCreationHoursCurve (complexity to hours of
+// assembler work, ascending x); regrow_days_min and regrow_days_max
+// GeneExtractorRegrowingDurationDaysRange; extract_ticks the extractor's
+// TicksToExtract and no_power_eject_ticks its cumulative power-cut limit
+// (private constants read by reflection, absent when unreadable). An absent
+// scalar is unknown, never zero.
+message GeneTuningFacts {
+  optional int32 biostat_min = 1; optional int32 biostat_max = 2; optional int32 base_max_complexity = 3;
+  repeated CurvePointRow creation_hours_curve = 4;
+  optional double regrow_days_min = 5; optional double regrow_days_max = 6;
+  optional int32 extract_ticks = 7; optional int32 no_power_eject_ticks = 8;
+}
 message BiotechCatalog {
   repeated LifeStageRow life_stages = 1; repeated RaceLifeStages races = 2; repeated GeneRow genes = 3; repeated XenotypeRow xenotypes = 4;
   repeated MechKindRow mech_kinds = 5; repeated MechWorkModeRow mech_work_modes = 6;
+  GeneTuningFacts gene_tuning = 7;
 }
 // The Odyssey facts the def mirror (defs.proto) cannot give (#1708, #1791).
 // Biome, tile mutator, hackable and portal defs are the mirror's BiomeDef,
