@@ -27,19 +27,10 @@ const siteCandidates = 1000
 // under on the #1280 fixture (BenchmarkLayoutSiteCore checks it).
 const siteBudget = 10 * time.Second
 
-// Score weights. Soil under rooms and hallways is a loss (by soilCost),
-// rock under them a dig cost, and a base
-// room that did not fit outweighs any soil.
-const (
-	siteUnderWeight = 3
-	siteRockWeight  = 1
-	siteMissingRoom = 100000
-)
-
-// siteScore is one candidate's result.
+// siteScore is one candidate's result, scored by Score's terms (#1952).
 type siteScore struct {
 	seed  domain.Cell
-	score int
+	score PlanScore
 	plan  LayoutPlan
 }
 
@@ -59,24 +50,24 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) La
 		return plan
 	}
 	scores := make([]siteScore, len(seeds))
-	ground := newSiteGround(s)
+	scorer := planScorer{g: g, s: s, ground: newSiteGround(s)}
 	eachParallel(len(seeds), func(i int) {
 		p := plan
 		p.Spine = []SpineSegment{{From: seeds[i], To: seeds[i]}}
 		p = Grow(p, pawns, tombs, tier)
-		scores[i] = siteScore{seed: seeds[i], score: g.scoreSite(p) - siteEdgeCost(p, s.Bounds, ground), plan: p}
+		scores[i] = siteScore{seed: seeds[i], score: scorer.core(p), plan: p}
 	})
 	rankSites(scores)
 	// The wall terms (#1288) need PlanPerimeter, far dearer than Grow, so
 	// only the best siteWallCandidates by core score are walled and reranked.
 	walled := scores[:min(siteWallCandidates, len(scores))]
 	eachParallel(len(walled), func(i int) {
-		walled[i].score += scoreWall(PlanPerimeter(walled[i].plan, s))
+		walled[i].score = scorer.walled(walled[i].plan, walled[i].score)
 	})
 	rankSites(walled)
 	var top []string
 	for _, sc := range scores[:min(3, len(scores))] {
-		top = append(top, fmt.Sprintf("(%d,%d)=%d", sc.seed.X, sc.seed.Z, sc.score))
+		top = append(top, fmt.Sprintf("(%d,%d)=%d", sc.seed.X, sc.seed.Z, sc.score.Total()))
 	}
 	slog.Info("[layout] site scores top 3: "+strings.Join(top, " "), "candidates", len(seeds))
 	return scores[0].plan
@@ -167,85 +158,12 @@ func stepped(cs []domain.Cell, k int) []domain.Cell {
 	return out
 }
 
-// scoreSite scores a grown plan: soilCost and rock under rooms and
-// hallways, and every base room left out, count against it. Fields near the
-// core earn nothing: the wall cost (scoreWall) steers the site.
-func (g coreGrid) scoreSite(p LayoutPlan) int {
-	rooms := p.AllRooms()
-	if len(rooms) == 0 {
-		return -siteMissingRoom * (len(coreBaseRooms) + 1)
-	}
-	under := map[domain.Cell]bool{}
-	for _, r := range rooms {
-		for _, c := range rectCells(r.Interior) {
-			under[c] = true
-		}
-	}
-	for _, h := range p.Hallways() {
-		for _, c := range rectCells(pad(rectOf(h.From, h.To), SpineWidth/2)) {
-			under[c] = true
-		}
-	}
-	score := 0
-	for c := range under {
-		score -= siteUnderWeight * g.soil[c]
-		if g.rock[c] {
-			score -= siteRockWeight
-		}
-	}
-	have := map[ModuleRole]bool{}
-	for _, r := range rooms {
-		have[r.Role] = true
-	}
-	for _, role := range coreBaseRooms {
-		if !have[role] {
-			score -= siteMissingRoom
-		}
-	}
-	return score
-}
-
-// siteEdgeClear is how far a raider must walk from an open map edge cell
-// before the edge stops costing a room: the ring cannot be built in the
-// edge margin, so scoreWall would otherwise read a core pressed against the
-// edge as a cheap one, and raiders arrive at the edge.
-const (
-	siteEdgeClear  = 50
-	siteEdgeWeight = 3
-)
-
-// siteEdgeCost charges every room cell siteEdgeWeight per step of walking
-// distance (siteGround.walk) it stands closer to an open map edge cell than
-// siteEdgeClear, or a fifth of the map's short side on a small map. Rock
-// and other blocked cells lengthen the path, so a core tucked into a
-// mountain is as far as a raider must walk around it; a cell no raider can
-// reach costs nothing.
-func siteEdgeCost(p LayoutPlan, b Bounds, ground siteGround) int {
-	clear := min(siteEdgeClear, int(min(b.Width, b.Height))/5)
-	cost := 0
-	for _, r := range p.AllRooms() {
-		for _, c := range rectCells(r.Interior) {
-			d := ground.walkDist(c)
-			if d < 0 || d >= clear {
-				continue
-			}
-			cost += siteEdgeWeight * (clear - d)
-		}
-	}
-	return cost
-}
-
 // siteWallCandidates is K, how many of the best sites by core score are
 // walled with PlanPerimeter and rescored (#1288). One PlanPerimeter call
 // on the #1280 fixture costs ~250-300 ms and ~250 MB; walling 8 in
 // parallel took the whole pass from ~0.5 s to ~0.86 s at 96 seeds (32 threads,
 // quiet box), inside siteBudget.
 const siteWallCandidates = 16
-
-// siteWallWeight is the cost of each built wall cell (#1288, #1594): the
-// main site signal. Ring edge backed by rock is not built, so a
-// mountain-side site is cheaper than an open one by its saved cells.
-const siteWallWeight = 10
 
 // siteGround is the map's size, its impassable cells and every cell's
 // walking distance from the nearest open edge cell, shared by every
@@ -313,21 +231,6 @@ func (g siteGround) walkDist(c domain.Cell) int {
 	return int(g.walk[c.Z*g.w+c.X])
 }
 
-// scoreWall scores p's wall (p as PlanPerimeter returns it): each built
-// wall cell is a cost.
-func scoreWall(p LayoutPlan) int {
-	seen := map[domain.Cell]bool{}
-	for _, r := range p.Reservations {
-		if r.Kind != ReservePerimeter && r.Kind != ReservePerimeterLight && r.Kind != ReserveBridge {
-			continue
-		}
-		for _, c := range rectCells(r.Area) {
-			seen[c] = true
-		}
-	}
-	return -siteWallWeight * len(seen)
-}
-
 // eachParallel runs f for 0..n-1 over the worker pool.
 func eachParallel(n int, f func(i int)) {
 	work := make(chan int)
@@ -352,8 +255,8 @@ func eachParallel(n int, f func(i int)) {
 func rankSites(scores []siteScore) {
 	sort.SliceStable(scores, func(i, j int) bool {
 		a, b := scores[i], scores[j]
-		if a.score != b.score {
-			return a.score > b.score
+		if a.score.Better(b.score) != b.score.Better(a.score) {
+			return a.score.Better(b.score)
 		}
 		return a.seed.Z < b.seed.Z || a.seed.Z == b.seed.Z && a.seed.X < b.seed.X
 	})

@@ -13,14 +13,22 @@ import (
 
 // routeTrips are the room pairs pawns travel between; ModuleRole("") is
 // the entrance.
-var routeTrips = [][2]ModuleRole{
-	{ModuleBedroom, ModuleDining},
-	{ModuleSuite, ModuleDining},
-	{ModuleKitchen, ModuleFreezer},
-	{"", ModuleFreezer},
-	{ModuleStorage, ModuleWorkshop},
-	{"", ModuleStorage},
-	{ModuleHospital, ""},
+// weight is the trip's frequency, the affinity between the two ends (#1952):
+// plan scoring weights each walking distance by it.
+var routeTrips = []routeTrip{
+	{ModuleBedroom, ModuleDining, 3},
+	{ModuleSuite, ModuleDining, 3},
+	{ModuleKitchen, ModuleFreezer, 3},
+	{"", ModuleFreezer, 2},
+	{ModuleStorage, ModuleWorkshop, 2},
+	{"", ModuleStorage, 1},
+	{ModuleHospital, "", 1},
+}
+
+// routeTrip is one weighted edge of the affinity graph.
+type routeTrip struct {
+	from, to ModuleRole
+	weight   int
 }
 
 // noThroughfare are the roles nobody may walk through.
@@ -61,7 +69,64 @@ func spineEntrances(spine []SpineSegment) []domain.Cell {
 // cell (for the overlay). A thoroughfare or an unreachable trip is an error.
 // Trips whose rooms the plan lacks are skipped.
 func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
-	walk := map[domain.Cell]int{} // cell -> room index, -1 for hallway/door
+	walk, rooms := routeWalk(p)
+	cells := tripCells(p, rooms)
+	traffic := map[domain.Cell]int{}
+	for _, trip := range routeTrips {
+		tos, froms := cells(trip.to), cells(trip.from)
+		if len(p.Entrances) == 0 && (trip.from == "" && len(tos) > 0 || trip.to == "" && len(froms) > 0) {
+			return nil, fmt.Errorf("no entrances for trip %s -> %s", trip.from, trip.to)
+		}
+		if len(tos) == 0 {
+			continue
+		}
+		// Every room of the target role is a goal: a ring offers pawns the
+		// nearest one.
+		var to []domain.Cell
+		for _, g := range tos {
+			to = append(to, g...)
+		}
+		for _, from := range froms {
+			path := routePath(walk, from, to)
+			if path == nil {
+				return nil, fmt.Errorf("no route %s -> %s", trip.from, trip.to)
+			}
+			ends := map[int]bool{walk[path[0]]: true, walk[path[len(path)-1]]: true}
+			for _, c := range path {
+				traffic[c]++
+				if i := walk[c]; i >= 0 && !ends[i] && noThroughfare[rooms[i].Role] {
+					return nil, fmt.Errorf("%s -> %s crosses %s at %v", trip.from, trip.to, rooms[i].Role, c)
+				}
+			}
+		}
+	}
+	return traffic, nil
+}
+
+// tripCells returns a role's trip end cells: the entrances for "", else one
+// single-cell group (the interior centre) per room of that role.
+func tripCells(p LayoutPlan, rooms []LayoutRoom) func(ModuleRole) [][]domain.Cell {
+	return func(role ModuleRole) [][]domain.Cell {
+		if role == "" {
+			if len(p.Entrances) == 0 {
+				return nil
+			}
+			return [][]domain.Cell{p.Entrances}
+		}
+		var out [][]domain.Cell
+		for _, r := range rooms {
+			if r.Role == role {
+				out = append(out, []domain.Cell{{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}})
+			}
+		}
+		return out
+	}
+}
+
+// routeWalk is the cells pawns walk over p, each mapped to its room index
+// (in p.AllRooms()), -1 for a hallway or door cell, with those rooms.
+func routeWalk(p LayoutPlan) (map[domain.Cell]int, []LayoutRoom) {
+	walk := map[domain.Cell]int{}
 	rooms := p.AllRooms()
 	for _, s := range p.Hallways() {
 		lo, hi := s.From, s.To
@@ -102,51 +167,7 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			walk[*r.Link] = -1
 		}
 	}
-	cells := func(role ModuleRole) [][]domain.Cell {
-		if role == "" {
-			if len(p.Entrances) == 0 {
-				return nil
-			}
-			return [][]domain.Cell{p.Entrances}
-		}
-		var out [][]domain.Cell
-		for _, r := range rooms {
-			if r.Role == role {
-				out = append(out, []domain.Cell{{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}})
-			}
-		}
-		return out
-	}
-	traffic := map[domain.Cell]int{}
-	for _, trip := range routeTrips {
-		tos, froms := cells(trip[1]), cells(trip[0])
-		if len(p.Entrances) == 0 && (trip[0] == "" && len(tos) > 0 || trip[1] == "" && len(froms) > 0) {
-			return nil, fmt.Errorf("no entrances for trip %s -> %s", trip[0], trip[1])
-		}
-		if len(tos) == 0 {
-			continue
-		}
-		// Every room of the target role is a goal: a ring offers pawns the
-		// nearest one.
-		var to []domain.Cell
-		for _, g := range tos {
-			to = append(to, g...)
-		}
-		for _, from := range froms {
-			path := routePath(walk, from, to)
-			if path == nil {
-				return nil, fmt.Errorf("no route %s -> %s", trip[0], trip[1])
-			}
-			ends := map[int]bool{walk[path[0]]: true, walk[path[len(path)-1]]: true}
-			for _, c := range path {
-				traffic[c]++
-				if i := walk[c]; i >= 0 && !ends[i] && noThroughfare[rooms[i].Role] {
-					return nil, fmt.Errorf("%s -> %s crosses %s at %v", trip[0], trip[1], rooms[i].Role, c)
-				}
-			}
-		}
-	}
-	return traffic, nil
+	return walk, rooms
 }
 
 // routePath is a shortest 4-neighbour path over walk from any of from to

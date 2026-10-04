@@ -50,10 +50,9 @@ func TestSiteCoreLandsOffCentreRichPatch(t *testing.T) {
 func TestSiteCoreBaselineScoresNoBelowCentroid(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
 	zones := Zone(s)
-	g := newCoreGrid(zones, nil).withSoil(s)
 	centroid := PlanCore(zones, 3, BuildTierCamp)
 	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
-	if g.scoreSite(sited) < g.scoreSite(centroid) {
+	if Score(centroid, s).Better(Score(sited, s)) {
 		t.Fatal("sited plan scores below the centroid plan")
 	}
 	if !reflect.DeepEqual(sited, SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)) {
@@ -168,11 +167,11 @@ func TestSiteEdgeCostIsWalkingDistance(t *testing.T) {
 	// straight-line distance but the nearest open edge cell is far away.
 	open := newSiteGround(MapSurvey{Bounds: b})
 	walled := newSiteGround(MapSurvey{Bounds: b, Cells: rock})
-	near := siteEdgeCost(room(20), b, open)
+	near := edgeOf(room(20), b, open)
 	if near == 0 {
 		t.Fatal("open edge not charged")
 	}
-	if got := siteEdgeCost(room(20), b, walled); got >= near {
+	if got := edgeOf(room(20), b, walled); got >= near {
 		t.Fatalf("walled-off room cost %d, want less than open %d", got, near)
 	}
 	// Fully enclosed by rock: unreachable, free.
@@ -184,7 +183,7 @@ func TestSiteEdgeCostIsWalkingDistance(t *testing.T) {
 			}
 		}
 	}
-	if got := siteEdgeCost(room(20), b, newSiteGround(MapSurvey{Bounds: b, Cells: box})); got != 0 {
+	if got := edgeOf(room(20), b, newSiteGround(MapSurvey{Bounds: b, Cells: box})); got != 0 {
 		t.Fatalf("unreachable room charged %d", got)
 	}
 }
@@ -210,7 +209,7 @@ func TestSiteCorePrefersMountainSide(t *testing.T) {
 	if len(sited.Rooms) == 0 || len(centroid.Rooms) == 0 {
 		t.Fatal("no rooms")
 	}
-	wall := func(p LayoutPlan) int { return scoreWall(PlanPerimeter(p, s)) }
+	wall := func(p LayoutPlan) int { return Score(p, s).Wall }
 	if c, m := wall(centroid), wall(sited); m <= c {
 		t.Fatal("wall score: centroid", c, "sited", m)
 	}
