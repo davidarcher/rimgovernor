@@ -241,6 +241,15 @@ that reaches the demand owes no cell. One catalog file,
 unreadable catalog input or an unbuildable platform leaves the cell unowed
 with a plain reason.
 
+**Cell lamp (#1743).** The cell is furnished with one standing lamp beside the
+platform (`policy.ContainmentLampDefinition`, an Optional `ChildFurniture` the
+child-room staging places like any piece; left out until the catalog offers
+it). Power rides the existing power planner: an unpowered, unconnected lamp is
+a consumer it joins to a live network with conduit, or feeds from a generator
+as for any other consumer; there is no cell-specific conduit or source action.
+The predicted strength still counts no glow, so a lamp never makes a cell owed
+and the native strength read once built is the check.
+
 **Upkeep and breach response (#1743).** MaintainPopulation's custody step,
 once no capture or custody is owed, keeps a held entity contained
 (`routine_population_containment.go`, facts in `policy/entity_upkeep.go`).

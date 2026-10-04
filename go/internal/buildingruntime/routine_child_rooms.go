@@ -47,7 +47,7 @@ func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) 
 // places; none while the catalog's containment inputs are unknown.
 func containmentDefinitions(facts observation.ColonyProjection) []string {
 	if defs, known := facts.Facts.Containment.Defs.Value(); known {
-		return []string{defs.Holder}
+		return []string{defs.Holder, policy.ContainmentLampDefinition}
 	}
 	return nil
 }

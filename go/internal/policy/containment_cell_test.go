@@ -88,12 +88,47 @@ func planning(entities int, required float64) ContainmentPlanning {
 
 func TestContainmentCellIsOwedWhenTheDesignReachesTheEntity(t *testing.T) {
 	need, verdict := ContainmentCellNeed(planning(1, 100), platformFurniture())
-	if !verdict.Owed || verdict.Reason != "" || need.Role != RoomRoleContainmentCell || need.Module != ModuleContainmentCell || len(need.Furniture) != 1 || need.Furniture[0].Defs[0] != "HoldingPlatform" {
+	if !verdict.Owed || verdict.Reason != "" || need.Role != RoomRoleContainmentCell || need.Module != ModuleContainmentCell || len(need.Furniture) != 2 || need.Furniture[0].Defs[0] != "HoldingPlatform" || need.Furniture[1].Defs[0] != ContainmentLampDefinition || !need.Furniture[1].Optional {
 		t.Fatalf("%+v %+v", need, verdict)
 	}
 	// The predicted 176.67 reaches 116.6 plus the margin of 60.
 	if _, v := ContainmentCellNeed(planning(1, 116.6), platformFurniture()); !v.Owed {
 		t.Fatalf("equal strength: %+v", v)
+	}
+}
+
+// TestContainmentCellIsFurnishedWithALamp (#1743): the standing lamp joins the
+// cell once the catalog offers it; until then it is left out and the cell is
+// owed all the same, and the platform's room holds the lamp either way.
+func TestContainmentCellIsFurnishedWithALamp(t *testing.T) {
+	lamp := FurnitureDefinition{Name: ContainmentLampDefinition, Available: domain.Known(true), Size: domain.Known(Bounds{Width: 1, Height: 1})}
+	withLamp := append(platformFurniture(), lamp)
+	need, v := ContainmentCellNeed(planning(1, 100), withLamp)
+	if !v.Owed {
+		t.Fatalf("%+v", v)
+	}
+	pieces, ok := need.resolve(withLamp)
+	if !ok || len(pieces) != 2 || pieces[1].Piece.Def != ContainmentLampDefinition {
+		t.Fatalf("%+v %v", pieces, ok)
+	}
+	lamp.Available = domain.Known(false)
+	pieces, ok = need.resolve(append(platformFurniture(), lamp))
+	if !ok || len(pieces) != 1 || pieces[0].Piece.Def != "HoldingPlatform" {
+		t.Fatalf("an unresearched lamp is left out: %+v %v", pieces, ok)
+	}
+	// The predicted strength counts no glow, so the lamp never makes a cell owed.
+	if _, v := ContainmentCellNeed(planning(1, 400), withLamp); v.Owed {
+		t.Fatalf("%+v", v)
+	}
+	shape, _ := need.shape(withLamp)
+	plain, _ := need.shape(platformFurniture())
+	base := Grow(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	grown, added, _ := growChildRoom(base, plain)
+	if !added {
+		t.Fatal("no room grown")
+	}
+	if _, ok := grown.ChildRoomFor(shape); !ok {
+		t.Fatal("a room grown for the platform alone does not hold the lamp's shape")
 	}
 }
 

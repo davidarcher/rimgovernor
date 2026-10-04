@@ -26,6 +26,10 @@ const (
 	ShellDoorDefinition = "Door"
 )
 
+// ContainmentLampDefinition is the lamp the cell is furnished with (#1743):
+// the same standing lamp that stands beside a bed or throne.
+const ContainmentLampDefinition = standingLampDef
+
 // ModuleContainmentCell is the containment cell's plan role.
 const ModuleContainmentCell ModuleRole = "containment-cell"
 
@@ -112,7 +116,14 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition)
 	if strength < required {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: fmt.Sprintf("a cell of %s with the planned walls and door holds at most %.1f containment strength and an entity needs %.1f plus a margin of %.1f; facilities that add strength are not planned", defs.Holder, strength, demand.Required, margin)}
 	}
-	need := ChildRoomNeed{Role: RoomRoleContainmentCell, Module: ModuleContainmentCell, Furniture: []ChildFurniture{{Defs: []string{defs.Holder}, Count: 1}}}
+	need := ChildRoomNeed{Role: RoomRoleContainmentCell, Module: ModuleContainmentCell, Furniture: []ChildFurniture{
+		{Defs: []string{defs.Holder}, Count: 1},
+		// A lamp lights the cell (#1743): glow adds ten containment strength
+		// per unit of mean glow, and the power planner connects the lamp
+		// like any other unpowered consumer. Optional: left out until the
+		// lamp is researched, and the predicted strength above counts no
+		// glow, so the cell never relies on it.
+		{Defs: []string{ContainmentLampDefinition}, Count: 1, Optional: true}}}
 	if _, ok := need.resolve(furniture); !ok {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the holding platform " + defs.Holder + " is not buildable yet or its size is unknown"}
 	}
