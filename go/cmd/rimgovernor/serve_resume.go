@@ -15,12 +15,12 @@ import (
 )
 
 // autoResumeAttempts bounds how often one observed world is offered a
-// startup resume before the controller leaves it to the dashboard.
+// startup resume before the controller leaves it to the launcher.
 const autoResumeAttempts = 20
 
 // autoResumeCycles bounds how often one world that lost authority under a
 // resume intent is re-acquired in a process; past it the loss is left to the
-// dashboard. From the third cycle each re-acquire first waits a doubling
+// launcher. From the third cycle each re-acquire first waits a doubling
 // number of steps (capped at autoResumeBackoffMax), so a loop that keeps
 // revoking the grant cannot churn authority unbounded.
 const (
@@ -49,7 +49,7 @@ type autoResumeControls interface {
 }
 
 // autoResumer runs the bot for every fresh observed world once, without a
-// dashboard click: the world present at startup, and each new load token a
+// launcher click: the world present at startup, and each new load token a
 // native load afterwards issues. It goes through exactly the control intent
 // POST /api/player/control/resume submits, so authority, the root plan and
 // the fresh review are established the same way. A world is offered a resume
@@ -135,7 +135,7 @@ func (a *autoResumer) step(ctx context.Context) bool {
 		}
 		if a.cycles[world] >= autoResumeCycles {
 			a.running[world] = false
-			fmt.Fprintf(a.out, "auto resume: authority for %s/%s/%d lost %d times; leaving it to the dashboard's Resume\n", world.Colony, world.Load, world.Map, autoResumeCycles)
+			fmt.Fprintf(a.out, "auto resume: authority for %s/%s/%d lost %d times; leaving it to the launcher's Resume\n", world.Colony, world.Load, world.Map, autoResumeCycles)
 			return false
 		}
 		if a.cycles[world] >= 2 {
@@ -162,7 +162,7 @@ func (a *autoResumer) step(ctx context.Context) bool {
 	a.attempts[world]++
 	if a.attempts[world] > autoResumeAttempts {
 		a.settled[world] = true
-		fmt.Fprintf(a.out, "auto resume: giving up on %s/%s/%d after %d attempts; use the dashboard's Resume\n", world.Colony, world.Load, world.Map, autoResumeAttempts)
+		fmt.Fprintf(a.out, "auto resume: giving up on %s/%s/%d after %d attempts; use the launcher's Resume\n", world.Colony, world.Load, world.Map, autoResumeAttempts)
 		return false
 	}
 	request := store.ControlRequest{RequestID: fmt.Sprintf("auto-resume/%s/%s/%s/%d/%d/%d", a.process, world.Colony, world.Load, world.Map, a.cycles[world], a.attempts[world]), Kind: store.ResumeControl, World: world}
@@ -183,7 +183,7 @@ func (a *autoResumer) step(ctx context.Context) bool {
 // resumeIntended reports whether the journal's current control intent is a
 // running Resume for world. Anything else -- a Pause, a different world, an
 // unfinished or refused record, no record, or an unreadable journal -- leaves
-// the lost authority to the dashboard.
+// the lost authority to the launcher.
 func (a *autoResumer) resumeIntended(ctx context.Context, world store.World) bool {
 	record, err := a.controls.CurrentControl(ctx)
 	if err != nil {

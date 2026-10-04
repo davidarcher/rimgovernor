@@ -192,9 +192,6 @@ internal static class Program
         Example(descriptors, "rimgovernor.lifecycle.v1.LoadReply",
             @"{""pending"":{""requestId"":""load-request"",""saveName"":""save"",""processConnected"":true,""mapReady"":false,""visualReady"":false}}",
             "csharp-load-pending");
-        Example(descriptors, "rimgovernor.operations.v1.ApplyRequest",
-            @"{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""actions"":[{""key"":""zone-1"",""createZone"":{""type"":""ZONE_TYPE_STOCKPILE"",""label"":""Stockpile"",""cells"":{""rectangle"":{""origin"":{""x"":10,""z"":10},""width"":3,""height"":3}}}}]}",
-            "csharp-apply-create-zone");
         Example(descriptors, "rimgovernor.receipts.v1.Receipt",
             @"{""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""},""admittedContext"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""tick"":""42"",""nativeGeneration"":""1""},""applied"":{""observed"":{""settings"":{""snapshot"":{""entityId"":""Thing_Pawn1"",""beforeToken"":""before"",""afterToken"":""after""}}}}}",
             "csharp-attributed-settings");

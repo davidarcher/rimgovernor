@@ -23,7 +23,6 @@ env:
 
 includes:
   go: { taskfile: go, dir: go }
-  dashboard: { taskfile: dashboard, dir: dashboard }
   wire: { taskfile: contracts/generated/protobuf/go, dir: contracts/generated/protobuf/go }
   protobuf: { taskfile: tools/protobuf, dir: tools/protobuf }
   protobuf-go: { taskfile: tools/protobuf/go, dir: tools/protobuf/go }
@@ -36,7 +35,6 @@ tasks:
     desc: Static gates and builds for every project
     cmds:
       - task: go:build
-      - task: dashboard:build
       - task: wire:build
       - task: protobuf-go:build
       - task: protobuf:build
@@ -47,11 +45,9 @@ tasks:
   test:
     desc: Tests for every project, run concurrently; the Go suite last, alone
     # go:test measures a per-test wall-clock ceiling, so it runs after the
-    # concurrent deps finish rather than beside them: under the dashboard,
-    # protobuf and dotnet load its go-list-backed tests ran 3x over budget
-    # (#334).
+    # concurrent deps finish rather than beside them: under protobuf and
+    # dotnet load its go-list-backed tests ran 3x over budget (#334).
     deps:
-      - dashboard:test
       - wire:test
       - protobuf-go:test
       - protobuf:test

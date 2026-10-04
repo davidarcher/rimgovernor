@@ -13,7 +13,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"unicode/utf8"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -28,37 +27,23 @@ type Server struct {
 	config      Config
 	snapshots   SnapshotProvider
 	plans       PlanReader
-	assets      *os.Root
 	telemetry   *bridge.TimelineReader // the profile's ring, decoded once per byte (#375)
-	closeOnce   sync.Once
-	closeErr    error
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {
 	if config.ReadTimeout <= 0 || config.ShutdownTimeout <= 0 || config.MaxResponseBytes < 256 || config.MaxResponseBytes > 16<<20 || snapshots == nil || plans == nil {
 		return nil, errors.New("read timeout, shutdown timeout, response bound and read providers required")
 	}
-	assets, err := openAssets(config.AssetsDir)
-	if err != nil {
-		return nil, err
-	}
-	server := &Server{config: config, snapshots: snapshots, plans: plans, assets: assets}
+	server := &Server{config: config, snapshots: snapshots, plans: plans}
 	if config.FlightRecorder != "" {
 		server.telemetry = bridge.NewTimelineReader(config.FlightRecorder)
 	}
 	return server, nil
 }
 
-// Close releases owned asset directory handles; provider/store ownership remains
-// with the caller. Concurrent calls are safe and return the same result.
-func (s *Server) Close() error {
-	s.closeOnce.Do(func() {
-		if s.assets != nil {
-			s.closeErr = s.assets.Close()
-		}
-	})
-	return s.closeErr
-}
+// Close is a no-op kept for callers' defers: the server owns no handles, and
+// provider/store ownership remains with the caller.
+func (s *Server) Close() error          { return nil }
 func (s *Server) Handler() http.Handler { return http.HandlerFunc(s.handle) }
 
 // Serve owns the supplied loopback TCP listener until shutdown. Cancellation
@@ -165,10 +150,6 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !known {
-		if !strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/api" && s.assets != nil {
-			s.serveAsset(w, r)
-			return
-		}
 		s.failure(w, r, 404, "not_found", "Route not found")
 		return
 	}

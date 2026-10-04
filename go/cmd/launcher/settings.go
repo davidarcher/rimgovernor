@@ -84,7 +84,7 @@ func (s Settings) Validate() error {
 
 // Paths are the resolved files serve runs against.
 type Paths struct {
-	Profile, Config, Game, State, Assets string
+	Profile, Config, Game, State string
 }
 
 // ServeArgs is the serve command line for s over p. Flags left at serve's
@@ -100,7 +100,7 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 	} else {
 		args = append(args, "--profile", p.Profile)
 	}
-	args = append(args, "--config", p.Config, "--game", p.Game, "--state", p.State, "--assets", p.Assets,
+	args = append(args, "--config", p.Config, "--game", p.Game, "--state", p.State,
 		"--listen", "127.0.0.1:"+strconv.Itoa(port))
 	if !s.Observe {
 		if s.AutoStart {

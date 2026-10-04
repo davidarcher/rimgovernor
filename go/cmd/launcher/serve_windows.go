@@ -124,7 +124,6 @@ func (a *app) start(s Settings) error {
 		Config:  config,
 		Game:    game,
 		State:   state,
-		Assets:  filepath.Join(a.dashboardDir(), "dist"),
 	}
 	args, err := ServeArgs(s, paths, port)
 	if err != nil {

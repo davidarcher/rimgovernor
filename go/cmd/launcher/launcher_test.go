@@ -18,14 +18,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-var testPaths = Paths{Profile: `C:\p`, Config: `C:\c`, Game: "rimgovernor-trial", State: `C:\s.sqlite`, Assets: `C:\a`}
+var testPaths = Paths{Profile: `C:\p`, Config: `C:\c`, Game: "rimgovernor-trial", State: `C:\s.sqlite`}
 
 func TestServeArgsDefaults(t *testing.T) {
 	got, err := ServeArgs(DefaultSettings(), testPaths, 8787)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"serve", "--profile", `C:\p`, "--config", `C:\c`, "--game", "rimgovernor-trial", "--state", `C:\s.sqlite`, "--assets", `C:\a`, "--listen", "127.0.0.1:8787"}
+	want := []string{"serve", "--profile", `C:\p`, "--config", `C:\c`, "--game", "rimgovernor-trial", "--state", `C:\s.sqlite`, "--listen", "127.0.0.1:8787"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
 	}
@@ -39,9 +39,9 @@ func TestServeArgsEverything(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tail := strings.Join(got[13:], " ")
+	tail := strings.Join(got[11:], " ")
 	want := "--resume --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
-	if got[12] != "127.0.0.1:9000" || tail != want {
+	if got[10] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}
 	if got[len(got)-1] != "a b" {
@@ -273,29 +273,6 @@ func TestModState(t *testing.T) {
 		if got, _ := ModState(c.m, "h"); got != c.want {
 			t.Errorf("%+v: %s, want %s", c.m, got, c.want)
 		}
-	}
-}
-
-func TestDashboardState(t *testing.T) {
-	dir := t.TempDir()
-	if s, _ := DashboardState(dir); s != StateMissing {
-		t.Fatal(s)
-	}
-	os.MkdirAll(filepath.Join(dir, "dist"), 0755)
-	os.MkdirAll(filepath.Join(dir, "src"), 0755)
-	src := filepath.Join(dir, "src", "App.tsx")
-	built := filepath.Join(dir, "dist", "index.html")
-	os.WriteFile(src, nil, 0644)
-	os.WriteFile(built, nil, 0644)
-	old, fresh := time.Now().Add(-time.Hour), time.Now()
-	os.Chtimes(src, old, old)
-	os.Chtimes(built, fresh, fresh)
-	if s, _ := DashboardState(dir); s != StateOK {
-		t.Fatal(s)
-	}
-	os.Chtimes(src, fresh.Add(time.Minute), fresh.Add(time.Minute))
-	if s, why := DashboardState(dir); s != StateStale || why != "src/App.tsx is newer than the build" {
-		t.Fatal(s, why)
 	}
 }
 

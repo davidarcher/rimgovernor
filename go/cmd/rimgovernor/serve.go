@@ -32,7 +32,7 @@ func (wallClock) Now() time.Time { return time.Now() }
 type serveConfig struct {
 	bridge                         bridge.ProcessConfig
 	flightRecorder                 string
-	state, listen, assets          string
+	state, listen                  string
 	profile                        string
 	playerControl                  bool
 	clockControl                   bool
@@ -133,7 +133,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.bridge.Launch.StateDir, "config", "", "absolute game configuration directory: config.json describes the launch and the running game's endpoint record lives under it")
 	flags.StringVar(&c.bridge.GameID, "game", "", "configured game ID")
 	flags.StringVar(&c.state, "state", "", "absolute fresh Go SQLite database path")
-	flags.StringVar(&c.assets, "assets", "", "absolute built dashboard directory (optional)")
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost and run every window at Ultrafast whatever the player chose; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
@@ -143,7 +142,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
-	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
+	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a launcher Resume")
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
@@ -182,11 +181,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if _, err := strconv.ParseUint(port, 10, 16); err != nil || port == "" || strings.Trim(port, "0123456789") != "" {
 		return c, errors.New("--listen port must be numeric in 0..65535")
-	}
-	if c.assets != "" {
-		if err := validateAssets(c.assets); err != nil {
-			return c, err
-		}
 	}
 	if c.bridge.Timeout < time.Second || c.bridge.Timeout > time.Minute {
 		return c, errors.New("--timeout must be 1s..1m")
@@ -349,32 +343,6 @@ func (c serveConfig) activeRoundsFamilies() []string {
 	return names
 }
 
-// Validate before opening the game session or creating state. The HTTP server subsequently
-// opens and retains its own confined directory handle for serving.
-func validateAssets(directory string) (result error) {
-	if !filepath.IsAbs(directory) {
-		return errors.New("--assets requires an absolute directory")
-	}
-	root, err := os.OpenRoot(directory)
-	if err != nil {
-		return fmt.Errorf("dashboard assets: %w", err)
-	}
-	defer func() { result = errors.Join(result, root.Close()) }()
-	index, err := root.Open("index.html")
-	if err != nil {
-		return fmt.Errorf("dashboard index: %w", err)
-	}
-	defer func() { result = errors.Join(result, index.Close()) }()
-	info, err := index.Stat()
-	if err != nil {
-		return err
-	}
-	if !info.Mode().IsRegular() {
-		return errors.New("dashboard index must be a regular file")
-	}
-	return nil
-}
-
 func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 	config, err := parseServe(args, diagnostics)
 	if err != nil {
@@ -472,7 +440,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	if err != nil {
 		return err
 	}
-	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
+	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
 	if err != nil {
 		return err
 	}

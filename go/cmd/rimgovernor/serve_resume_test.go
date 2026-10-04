@@ -46,7 +46,7 @@ func (p *resumePlayer) CurrentControl(context.Context) (store.ControlRecord, err
 	return p.current, nil
 }
 
-// pause models the dashboard's Pause: local writes stop and the journal's
+// pause models the launcher's Pause: local writes stop and the journal's
 // current intent becomes a paused Pause record for the world.
 func (p *resumePlayer) pause(world store.World) {
 	p.state.Enabled = false
@@ -139,7 +139,7 @@ func TestAutoResumeRetriesBoundedlyWithFreshRequestIDs(t *testing.T) {
 	if !strings.Contains(out.String(), "giving up on colony/load-1/0") {
 		t.Fatal(out.String())
 	}
-	// A world the dashboard already resumed is settled without an attempt.
+	// A world the launcher already resumed is settled without an attempt.
 	snapshots.snapshot = resumeObserved("load-2")
 	player.state = buildingruntime.ControlState{Snapshot: domain.GenerationSnapshot{Colony: "colony", Load: "load-2"}, ObservationKnown: true, Enabled: true}
 	if r.step(ctx) || len(player.requests) != autoResumeAttempts {
@@ -149,7 +149,7 @@ func TestAutoResumeRetriesBoundedlyWithFreshRequestIDs(t *testing.T) {
 
 // TestAutoResumeBoundsLossCycles: a world whose grant keeps being revoked
 // (as replayed backlog revocations did on serve --resume) is re-acquired a
-// bounded number of times, with growing waits, then left to the dashboard.
+// bounded number of times, with growing waits, then left to the launcher.
 func TestAutoResumeBoundsLossCycles(t *testing.T) {
 	snapshots := &resumeSnapshots{snapshot: resumeObserved("load-1")}
 	player := newResumePlayer()
@@ -176,7 +176,7 @@ func TestAutoResumeBoundsLossCycles(t *testing.T) {
 	if len(player.requests) != 1+autoResumeCycles {
 		t.Fatal(len(player.requests))
 	}
-	if !strings.Contains(out.String(), "leaving it to the dashboard") {
+	if !strings.Contains(out.String(), "leaving it to the launcher") {
 		t.Fatal(out.String())
 	}
 	if steps < 2*autoResumeCycles+1+2+4+8+16+32 {
@@ -210,7 +210,7 @@ func TestAutoResumeForgivesLossesAfterHealthyPlay(t *testing.T) {
 			t.Fatalf("loss %d not re-acquired: %s", loss, out.String())
 		}
 	}
-	if strings.Contains(out.String(), "leaving it to the dashboard") {
+	if strings.Contains(out.String(), "leaving it to the launcher") {
 		t.Fatal(out.String())
 	}
 }
@@ -255,7 +255,7 @@ func TestAutoResumeReacquiresAfterNonPlayerLoss(t *testing.T) {
 	}
 	r.step(ctx)
 	// A loss native keeps refusing exhausts one bounded cycle and then waits
-	// for the dashboard instead of looping: the world was never observed
+	// for the launcher instead of looping: the world was never observed
 	// running again, so nothing re-arms it.
 	player.state.Enabled = false
 	player.fail = errors.New("native refused")

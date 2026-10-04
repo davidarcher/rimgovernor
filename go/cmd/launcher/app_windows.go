@@ -49,7 +49,6 @@ const (
 	artLayout     = "Game files"
 	artMod        = "RimGovernor mod"
 	artController = "Controller"
-	artDashboard  = "Dashboard"
 )
 
 // Jobs: one of each runs at a time. setup covers the game layout and
@@ -57,7 +56,6 @@ const (
 const (
 	jobSetup      = "setup"
 	jobController = "controller"
-	jobDashboard  = "dashboard"
 )
 
 type app struct {
@@ -87,7 +85,7 @@ func newApp(repo string) *app {
 		busy: map[string]bool{}, failed: map[string]bool{}}
 	a.tail.dir = filepath.Join(a.private, "go")
 	a.recorder = newRecorderTail(filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl"))
-	for _, n := range []string{artLayout, artMod, artController, artDashboard} {
+	for _, n := range []string{artLayout, artMod, artController} {
 		a.artifacts = append(a.artifacts, Artifact{Name: n, State: StateBuilding, Detail: "Checking"})
 	}
 	s, err := LoadSettings(a.settingsPath())
@@ -102,7 +100,6 @@ func (a *app) settingsPath() string  { return filepath.Join(a.private, "launcher
 func (a *app) recordPath() string    { return filepath.Join(a.private, "launcher-controller.json") }
 func (a *app) controllerExe() string { return filepath.Join(a.private, "go", "rimgovernor.exe") }
 func (a *app) configPath() string    { return filepath.Join(a.layout.Root, "config", "config.json") }
-func (a *app) dashboardDir() string  { return filepath.Join(a.repo, "dashboard") }
 func (a *app) url(port int) string   { return "http://127.0.0.1:" + strconv.Itoa(port) }
 
 // Write appends build output to the log panel.
@@ -217,11 +214,6 @@ func (a *app) poll() {
 	a.mu.Unlock()
 	if _, err := os.Stat(a.configPath()); err != nil || (pending && !gameUp) {
 		a.job(jobSetup, true, a.prepareSetup)
-	}
-	if st, why := DashboardState(a.dashboardDir()); st != StateOK {
-		a.job(jobDashboard, true, a.prepareDashboard)
-	} else if !a.isBusy(jobDashboard) {
-		a.set(artDashboard, StateOK, why)
 	}
 	if state != ctrlStarting && !own {
 		// Adopt only the controller this launcher recorded; another
@@ -376,24 +368,4 @@ func sameFile(a, b string) bool {
 	}
 	ha, hb := hash(a), hash(b)
 	return ha != nil && bytes.Equal(ha, hb)
-}
-
-func (a *app) prepareDashboard() bool {
-	_, reason := DashboardState(a.dashboardDir())
-	a.set(artDashboard, StateBuilding, "Building ("+reason+")")
-	pnpm, err := exec.LookPath("pnpm")
-	if err != nil {
-		a.set(artDashboard, StateFailed, "pnpm is not installed (or not on PATH)")
-		return false
-	}
-	for _, args := range [][]string{{"install", "--frozen-lockfile"}, {"run", "build"}} {
-		cmd := exec.Command(pnpm, args...)
-		cmd.Dir, cmd.Stdout, cmd.Stderr = a.dashboardDir(), a, a
-		if err := cmd.Run(); err != nil {
-			a.set(artDashboard, StateFailed, "pnpm "+strings.Join(args, " ")+" failed; see Details")
-			return false
-		}
-	}
-	a.set(artDashboard, StateOK, "Rebuilt")
-	return true
 }

@@ -37,7 +37,6 @@ type Snapshot struct {
 	ActivePlanID domain.Fact[domain.PlanID]
 }
 type Config struct {
-	AssetsDir                    string
 	ReadTimeout, ShutdownTimeout time.Duration
 	MaxResponseBytes             int
 	Presentation                 PresentationReader

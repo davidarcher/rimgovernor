@@ -84,7 +84,7 @@ func TestServePprofIsOffUnlessAsked(t *testing.T) {
 	}
 }
 
-func TestServeRejectsNonNumericPortsAndInvalidAssets(t *testing.T) {
+func TestServeRejectsNonNumericPortsAndRemovedAssets(t *testing.T) {
 	dir := t.TempDir()
 	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	for _, port := range []string{"http", "", "-1", "+80", "65536", " 80"} {
@@ -97,19 +97,11 @@ func TestServeRejectsNonNumericPortsAndInvalidAssets(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, assets := range []string{"relative", filepath.Join(dir, "missing"), dir} {
-		if code := serve(context.Background(), append(append([]string{}, base...), "--assets", assets), io.Discard, io.Discard); code != 2 {
-			t.Fatalf("assets %q code %d", assets, code)
-		}
+	if code := serve(context.Background(), append(append([]string{}, base...), "--assets", dir), io.Discard, io.Discard); code != 2 {
+		t.Fatalf("removed --assets flag accepted: code %d", code)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "state.db")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("invalid startup touched state: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("dashboard"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := parseServe(append(base, "--assets", dir), io.Discard); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -178,11 +170,8 @@ func (w addressWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func TestServeAssetsAndCancellationJoinsNativePoll(t *testing.T) {
+func TestServeCancellationJoinsNativePoll(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>Observation mode</html>"), 0600); err != nil {
-		t.Fatal(err)
-	}
 	fake := &serviceFake{entered: make(chan struct{}, 1)}
 	ring := filepath.Join(dir, "flight", "flight.jsonl")
 	recorder, err := bridge.NewFlightRecorder(ring)
@@ -190,7 +179,7 @@ func TestServeAssetsAndCancellationJoinsNativePoll(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer recorder.Close()
-	cfg := serveConfig{state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", assets: dir, refresh: 10 * time.Millisecond, flightRecorder: ring, bridge: bridge.ProcessConfig{Timeout: time.Second, Recorder: recorder}}
+	cfg := serveConfig{state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: 10 * time.Millisecond, flightRecorder: ring, bridge: bridge.ProcessConfig{Timeout: time.Second, Recorder: recorder}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addresses := make(addressWriter, 1)
@@ -210,7 +199,7 @@ func TestServeAssetsAndCancellationJoinsNativePoll(t *testing.T) {
 	for _, check := range []struct {
 		path, contains string
 		code           int
-	}{{"/", "Observation mode", 200}, {"/api/health", `"backend":"go"`, 200}, {"/api/state", `"tick":123`, 200}, {"/api/automate", "unsupported", 501}} {
+	}{{"/", "not_found", 404}, {"/api/health", `"backend":"go"`, 200}, {"/api/state", `"tick":123`, 200}, {"/api/automate", "unsupported", 501}} {
 		method := "GET"
 		if check.code == 501 {
 			method = "POST"
