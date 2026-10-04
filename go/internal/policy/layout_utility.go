@@ -496,6 +496,11 @@ func (u *utilityGrid) reserve(plan *LayoutPlan, r LayoutReservation) {
 	u.mark(r.Area)
 }
 
+// siteInset is how far from the map edge a core-side site starts: the ring walls
+// a site in from the edge margin inward, so one nearer the edge would stand
+// on the ring itself.
+const siteInset = LayoutEdgeMargin + perimeterThick + 1
+
 // free reports every cell of r on unplanned core candidates, off the core
 // band; rockOK lets it cross natural rock.
 func (u *utilityGrid) free(r Rectangle, rockOK bool) bool {
@@ -585,7 +590,7 @@ func (u *utilityGrid) siteCost(w, h int32, rockOK, beyondRing bool, cx, cz int32
 			if found && cost >= bestCost {
 				continue
 			}
-			if u.free(r, rockOK) && (!beyondRing || u.outside(r)) {
+			if u.free(r, rockOK) && (beyondRing && u.outside(r) || !beyondRing && u.inset(r)) {
 				best, found, bestCost = r, true, cost
 			}
 		}
@@ -648,4 +653,9 @@ func TurbineCatchZone(plan LayoutPlan, area Rectangle) []domain.Cell {
 		}
 	}
 	return out
+}
+
+// inset reports r clear of siteInset around the map edge.
+func (u *utilityGrid) inset(r Rectangle) bool {
+	return r.X >= siteInset && r.Z >= siteInset && r.X+r.Width <= u.w-siteInset && r.Z+r.Height <= u.h-siteInset
 }

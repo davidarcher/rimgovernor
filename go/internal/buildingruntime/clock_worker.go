@@ -331,8 +331,8 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 		level, message = slog.LevelWarn, "step failed: "+err.Error()
 		if err == executor.ErrHeld && len(failures) == 0 {
 			level, message = slog.LevelInfo, "step held: "+err.Error()
-		} else if (errors.Is(err, executor.ErrAuthority) || errors.Is(err, observation.ErrChanged)) && len(failures) == 0 {
-			// Authority or the native observation lapsed between the step's
+		} else if (errors.Is(err, executor.ErrAuthority) || errors.Is(err, observation.ErrChanged) || errors.Is(err, ErrControl)) && len(failures) == 0 {
+			// Authority, the native observation or the planner read lapsed between the step's
 			// state read and its review (a poll hold, a resume, a reload in
 			// flight): the next step reviews with fresh state or exits on
 			// authority's absence, so it is a retry, not a fault.
