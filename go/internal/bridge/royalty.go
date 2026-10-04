@@ -31,23 +31,13 @@ type royaltyCache struct {
 // it is younger than RoyaltyRefreshTicks. A nil result with a nil error means
 // Royalty is not applicable.
 func (client *Client) RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error) {
-	return client.royaltyFacts(ctx, identity, now, false)
-}
-
-// FreshRoyaltyFacts is the royalty read taken now, bypassing and refreshing the
-// cache: the cooldown re-read that resolves an uncertain ability receipt (#1607).
-func (client *Client) FreshRoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error) {
-	return client.royaltyFacts(ctx, identity, now, true)
-}
-
-func (client *Client) royaltyFacts(ctx context.Context, identity *c.Identity, now int64, fresh bool) (*policy.RoyaltyFacts, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
 	}
 	held := &client.royalty
 	held.mu.Lock()
 	defer held.mu.Unlock()
-	if !fresh && held.token == identity.GetLoadToken() && now >= held.tick && now-held.tick < RoyaltyRefreshTicks {
+	if held.token == identity.GetLoadToken() && now >= held.tick && now-held.tick < RoyaltyRefreshTicks {
 		return held.facts, nil
 	}
 	request := &o.RoyaltyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
@@ -118,58 +108,6 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 		out.Permits[name] = policy.RoyalPermit{Name: name, MinTitle: optionalFact(row.MinTitle), PermitPoints: optionalFact(intPtr(row.PermitPoints)), Acts: optionalFact(row.Acts),
 			FavorCost: optionalFact(intPtr(row.FavorCost)), CooldownDays: optionalFact(row.CooldownDays), Worker: row.GetWorkerClass()}
 	}
-	for _, row := range v.Pawns {
-		id := row.GetPawn().GetId()
-		if validID(id) != nil {
-			return nil, contract("invalid royalty pawn")
-		}
-		if _, exists := out.Holders[policy.PawnID(id)]; exists {
-			return nil, contract("duplicate royalty pawn %s", id)
-		}
-		holdings := []policy.RoyalHolding{}
-		for _, h := range row.Holdings {
-			if validID(h.GetFactionDef()) != nil || h.Title != nil && validID(h.GetTitle()) != nil {
-				return nil, contract("invalid royalty holding")
-			}
-			for _, permit := range h.Permits {
-				if validID(permit) != nil {
-					return nil, contract("invalid royalty holding permit")
-				}
-			}
-			cooldowns := map[string]policy.PermitCooldown{}
-			for _, cd := range h.PermitCooldowns {
-				if validID(cd.GetPermit()) != nil || cd.GetLastUsedTick() < 0 || cd.GetCooldownRemainingTicks() < 0 {
-					return nil, contract("invalid royalty permit cooldown")
-				}
-				if _, dup := cooldowns[cd.GetPermit()]; dup {
-					return nil, contract("duplicate royalty permit cooldown %s", cd.GetPermit())
-				}
-				cooldowns[cd.GetPermit()] = policy.PermitCooldown{LastUsedTick: optionalFact(intPtr(cd.LastUsedTick)), RemainingTicks: optionalFact(intPtr(cd.CooldownRemainingTicks))}
-			}
-			holdings = append(holdings, policy.RoyalHolding{FactionDef: h.GetFactionDef(), Title: h.GetTitle(), Favor: optionalFact(intPtr(h.Favor)), PermitPoints: optionalFact(intPtr(h.PermitPoints)), Permits: append([]string{}, h.Permits...), Cooldowns: cooldowns})
-		}
-		out.Holders[policy.PawnID(id)] = holdings
-		casts := []policy.Psycast{}
-		known := map[string]bool{}
-		for _, cast := range row.Psycasts {
-			name := cast.GetDefName()
-			if validID(name) != nil || known[name] || cast.GetPsyfocusCost() < 0 || cast.GetPsyfocusCost() > 1 || cast.GetEntropy() < 0 || cast.GetCooldownTicks() < 0 || cast.GetLevel() < 0 {
-				return nil, contract("invalid royalty psycast")
-			}
-			known[name] = true
-			target, ok := psycastTargets[cast.GetTargetKind()]
-			if !ok {
-				return nil, contract("invalid royalty psycast target")
-			}
-			casts = append(casts, policy.Psycast{Def: name, Level: optionalFact(intPtr(cast.Level)), PsyfocusCost: optionalFact(cast.PsyfocusCost), Entropy: optionalFact(cast.Entropy),
-				Target: target, CooldownTicks: optionalFact(intPtr(cast.CooldownTicks)), CooldownRemaining: optionalFact(intPtr(cast.CooldownRemainingTicks))})
-		}
-		out.Psycasts[policy.PawnID(id)] = casts
-		if row.GetPsyfocus() < 0 || row.GetPsyfocus() > 1 || row.GetEntropy() < 0 || row.GetEntropyMax() < 0 {
-			return nil, contract("invalid royalty psycaster state")
-		}
-		out.Casters[policy.PawnID(id)] = policy.PsycasterState{Psyfocus: optionalFact(row.Psyfocus), Entropy: optionalFact(row.Entropy), EntropyMax: optionalFact(row.EntropyMax)}
-	}
 	for _, row := range v.Neuroformers {
 		name := row.GetDefName()
 		if validID(name) != nil || row.TeachesPsycast != nil && validID(row.GetTeachesPsycast()) != nil || row.GetHeld() < 0 {
@@ -214,7 +152,78 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 	return out, nil
 }
 
-var psycastTargets = map[o.PsycastTargetKind]policy.PsycastTarget{
+// WithPawnRoyalty adds each colonist's own royalty facts (PawnState.royalty,
+// #1876) to the colony-level read. facts is the client's cached read and is
+// not modified. A colonist with neither a holding nor a psycast is not
+// listed. A row whose royalty read failed (ReadIssue "royalty") or whose block
+// is invalid is an error: royalty stays unknown rather than read as empty.
+func WithPawnRoyalty(facts policy.RoyaltyFacts, pawns *o.PawnSnapshot) (policy.RoyaltyFacts, error) {
+	if pawns == nil {
+		return policy.RoyaltyFacts{}, contract("no pawn rows for the royalty facts")
+	}
+	facts.Holders, facts.Psycasts, facts.Casters = map[policy.PawnID][]policy.RoyalHolding{}, map[policy.PawnID][]policy.Psycast{}, map[policy.PawnID]policy.PsycasterState{}
+	for _, pawn := range pawns.Pawns {
+		id := pawn.GetPawn().GetId()
+		for _, issue := range pawn.Issues {
+			if issue.GetField() == "royalty" {
+				return policy.RoyaltyFacts{}, contract("royalty of pawn %s unread", id)
+			}
+		}
+		row := pawn.Royalty
+		if row == nil || len(row.Holdings) == 0 && len(row.Psycasts) == 0 {
+			continue
+		}
+		if validID(id) != nil {
+			return policy.RoyaltyFacts{}, contract("invalid royalty pawn")
+		}
+		holdings := []policy.RoyalHolding{}
+		for _, h := range row.Holdings {
+			if validID(h.GetFactionDef()) != nil || h.Title != nil && validID(h.GetTitle()) != nil {
+				return policy.RoyaltyFacts{}, contract("invalid royalty holding")
+			}
+			for _, permit := range h.Permits {
+				if validID(permit) != nil {
+					return policy.RoyaltyFacts{}, contract("invalid royalty holding permit")
+				}
+			}
+			cooldowns := map[string]policy.PermitCooldown{}
+			for _, cd := range h.PermitCooldowns {
+				if validID(cd.GetPermit()) != nil || cd.GetLastUsedTick() < 0 || cd.GetCooldownRemainingTicks() < 0 {
+					return policy.RoyaltyFacts{}, contract("invalid royalty permit cooldown")
+				}
+				if _, dup := cooldowns[cd.GetPermit()]; dup {
+					return policy.RoyaltyFacts{}, contract("duplicate royalty permit cooldown %s", cd.GetPermit())
+				}
+				cooldowns[cd.GetPermit()] = policy.PermitCooldown{LastUsedTick: optionalFact(intPtr(cd.LastUsedTick)), RemainingTicks: optionalFact(intPtr(cd.CooldownRemainingTicks))}
+			}
+			holdings = append(holdings, policy.RoyalHolding{FactionDef: h.GetFactionDef(), Title: h.GetTitle(), Favor: optionalFact(intPtr(h.Favor)), PermitPoints: optionalFact(intPtr(h.PermitPoints)), Permits: append([]string{}, h.Permits...), Cooldowns: cooldowns})
+		}
+		facts.Holders[policy.PawnID(id)] = holdings
+		casts := []policy.Psycast{}
+		known := map[string]bool{}
+		for _, cast := range row.Psycasts {
+			name := cast.GetDefName()
+			if validID(name) != nil || known[name] || cast.GetPsyfocusCost() < 0 || cast.GetPsyfocusCost() > 1 || cast.GetEntropy() < 0 || cast.GetCooldownTicks() < 0 || cast.GetLevel() < 0 {
+				return policy.RoyaltyFacts{}, contract("invalid royalty psycast")
+			}
+			known[name] = true
+			target, ok := psycastTargets[cast.GetTargetKind()]
+			if !ok {
+				return policy.RoyaltyFacts{}, contract("invalid royalty psycast target")
+			}
+			casts = append(casts, policy.Psycast{Def: name, Level: optionalFact(intPtr(cast.Level)), PsyfocusCost: optionalFact(cast.PsyfocusCost), Entropy: optionalFact(cast.Entropy),
+				Target: target, CooldownTicks: optionalFact(intPtr(cast.CooldownTicks)), CooldownRemaining: optionalFact(intPtr(cast.CooldownRemainingTicks))})
+		}
+		facts.Psycasts[policy.PawnID(id)] = casts
+		if row.GetPsyfocus() < 0 || row.GetPsyfocus() > 1 || row.GetEntropy() < 0 || row.GetEntropyMax() < 0 {
+			return policy.RoyaltyFacts{}, contract("invalid royalty psycaster state")
+		}
+		facts.Casters[policy.PawnID(id)] = policy.PsycasterState{Psyfocus: optionalFact(row.Psyfocus), Entropy: optionalFact(row.Entropy), EntropyMax: optionalFact(row.EntropyMax)}
+	}
+	return facts, nil
+}
+
+var psycastTargets =map[o.PsycastTargetKind]policy.PsycastTarget{
 	o.PsycastTargetKind_PSYCAST_TARGET_KIND_UNSPECIFIED: "",
 	o.PsycastTargetKind_PSYCAST_TARGET_KIND_SELF:        policy.PsycastTargetSelf,
 	o.PsycastTargetKind_PSYCAST_TARGET_KIND_PAWN:        policy.PsycastTargetPawn,

@@ -457,6 +457,8 @@ message PawnState {
   PawnBiotech biotech = 46;
   // Anomaly facts (#1737); absent without Anomaly.
   PawnAnomaly anomaly = 47;
+  // Royalty facts of a free colonist (#1876); absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
+  PawnRoyalty royalty = 48;
 }
 // Biotech facts of one pawn (#1678). Each scalar is absent when native could
 // not read it (unknown, not zero); a failed sub-read adds a ReadIssue named
@@ -1114,7 +1116,7 @@ message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority
 // rows. ladder: every RoyalTitleDef by seniority, favor_needed the favor
 // that earns it. permits: every RoyalTitlePermitDef; acts is true when the
 // permit is a call (it carries a royal aid) and favor_cost is then the favor
-// a call spends. pawns: colonists holding a title or favor, one holding per
+// a call spends. A colonist's own holdings ride PawnState.royalty (#1876): one holding per
 // faction. Royalty inactive is Unavailable(NOT_APPLICABLE).
 // RoyalTitleRung throne fields read RoyalTitleDef.throneRoomRequirements:
 // throne_min_impressiveness and throne_min_area are absent when the title sets
@@ -1144,7 +1146,8 @@ message PawnRoyalHolding { optional string faction_def = 1; optional string titl
 enum PsycastTargetKind { PSYCAST_TARGET_KIND_UNSPECIFIED = 0; PSYCAST_TARGET_KIND_SELF = 1; PSYCAST_TARGET_KIND_PAWN = 2; PSYCAST_TARGET_KIND_THING = 3; PSYCAST_TARGET_KIND_CELL = 4; }
 message PawnPsycast { optional string def_name = 1; optional int32 level = 2; optional double psyfocus_cost = 3; optional double entropy = 4; PsycastTargetKind target_kind = 5; optional int32 cooldown_ticks = 6; optional int32 cooldown_remaining_ticks = 7; }
 message NeuroformerStock { optional string def_name = 1; optional string teaches_psycast = 2; optional int32 held = 3; optional bool craftable = 4; optional bool tradeable = 5; }
-message PawnRoyalty { rimgovernor.common.v1.Ref pawn = 1; repeated PawnRoyalHolding holdings = 2; repeated PawnPsycast psycasts = 3; optional double psyfocus = 4; optional double entropy = 5; optional double entropy_max = 6; }
+// PawnState.royalty (#1876): the pawn is the row's.
+message PawnRoyalty { reserved 1; repeated PawnRoyalHolding holdings = 2; repeated PawnPsycast psycasts = 3; optional double psyfocus = 4; optional double entropy = 5; optional double entropy_max = 6; }
 // Pending bestowing ceremonies (#1602): one per colonist holding an ongoing or
 // offered bestowing-ceremony quest (RoyalTitleUtility.GetCurrentBestowingCeremonyQuest).
 // quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, bestower the Empire pawn, title the def
@@ -1160,7 +1163,7 @@ message BestowingCeremony { optional string quest = 10; rimgovernor.common.v1.Re
 // assigned. A throne appears once it stands, so a throne missing from the
 // list was built after the read.
 message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_name = 2; rimgovernor.common.v1.Ref owner = 3; }
-message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; repeated PawnRoyalty pawns = 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; repeated RoyalThrone thrones = 7; }
+message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; reserved 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; repeated RoyalThrone thrones = 7; }
 message RoyaltyFactsRequest { ReadScope scope = 1; }
 message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // reachable_benches lists the player work tables whose position the animal

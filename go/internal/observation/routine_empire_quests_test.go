@@ -74,8 +74,10 @@ func TestRoutineQuestCensusJoinsFactionAndMapAndReadsRoyalty(t *testing.T) {
 	if offers[2].Favor[0] != (policy.QuestFavor{Choice: 1, Favor: 4}) {
 		t.Fatalf("%+v", offers[2])
 	}
-	if royalty, known := out.Projection.Facts.Royalty.Value(); !known || !reflect.DeepEqual(royalty, *facts) {
-		t.Fatal("royalty facts not carried")
+	// The colonists' own royalty rides the pawn rows (#1876): this frame has
+	// none, so royalty stays unknown.
+	if _, known := out.Projection.Facts.Royalty.Value(); known {
+		t.Fatal("royalty known without pawn rows")
 	}
 	if source.now != base.GetObserved().GetContext().GetTick() {
 		t.Fatal("royalty read not at the frame tick")

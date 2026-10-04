@@ -73,7 +73,7 @@ func TestAbilityRefusals(t *testing.T) {
 // The royalty read decodes each held permit's cooldown (#1607), and an absent
 // last use stays unknown rather than zero.
 func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
-	facts, err := DecodeRoyaltyFacts(royaltyRead(), pbIdentity())
+	facts, err := decodeRoyalty(royaltyRead(), royaltyPawns())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,9 +90,9 @@ func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
 	if facts.PermitUsedSince("Human12", "Other", "CallLaborerPack", 0) || facts.PermitUsedSince("Human99", "Empire", "CallLaborerPack", 0) {
 		t.Fatal("an unheld permit read as used")
 	}
-	read := royaltyRead()
-	read.Pawns[0].Holdings[0].PermitCooldowns = []*o.PermitCooldown{{Permit: proto.String("CallLaborerPack")}}
-	facts, err = DecodeRoyaltyFacts(read, pbIdentity())
+	pawns := royaltyPawns()
+	pawns.Pawns[1].Royalty.Holdings[0].PermitCooldowns = []*o.PermitCooldown{{Permit: proto.String("CallLaborerPack")}}
+	facts, err = decodeRoyalty(royaltyRead(), pawns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,9 +104,9 @@ func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
 		"unnamed":  {{CooldownRemainingTicks: proto.Int32(1)}},
 		"repeated": {{Permit: proto.String("A")}, {Permit: proto.String("A")}},
 	} {
-		read := royaltyRead()
-		read.Pawns[0].Holdings[0].PermitCooldowns = bad
-		if _, err := DecodeRoyaltyFacts(read, pbIdentity()); err == nil {
+		pawns := royaltyPawns()
+		pawns.Pawns[1].Royalty.Holdings[0].PermitCooldowns = bad
+		if _, err := decodeRoyalty(royaltyRead(), pawns); err == nil {
 			t.Fatalf("%s cooldown accepted", name)
 		}
 	}

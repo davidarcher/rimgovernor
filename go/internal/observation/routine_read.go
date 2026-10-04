@@ -187,8 +187,11 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	// not fail the routine reading the whole review stands on.
 	p.Facts.Royalty = domain.Unknown[policy.RoyaltyFacts]()
 	if royalty, ok := source.(RoutineRoyaltySource); ok {
-		if facts, err := royalty.RoyaltyFacts(ctx, id, frame.Colony.GetContext().GetTick()); err == nil && facts != nil {
-			p.Facts.Royalty = domain.Known(*facts)
+		if facts, err := royalty.RoyaltyFacts(ctx, id, frame.Colony.GetContext().GetTick()); err == nil && facts != nil && pawns != nil {
+			// The colonists' own holdings and psycasts ride their pawn rows (#1876).
+			if merged, err := bridge.WithPawnRoyalty(*facts, pawns); err == nil {
+				p.Facts.Royalty = domain.Known(merged)
+			}
 		}
 	}
 	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}, policy.PopulationOutlook{}

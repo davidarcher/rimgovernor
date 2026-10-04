@@ -22,13 +22,6 @@ func royaltyRead() *o.RoyaltyFacts {
 			{DefName: proto.String("CallLaborerPack"), MinTitle: proto.String("Knight"), PermitPoints: proto.Int32(1), Acts: proto.Bool(true), FavorCost: proto.Int32(6), CooldownDays: proto.Float64(30), WorkerClass: proto.String("RoyalTitlePermitWorker_CallLaborers")},
 			{DefName: proto.String("TradeSettlement"), Acts: proto.Bool(false)},
 		},
-		Pawns: []*o.PawnRoyalty{{Pawn: &c.Ref{Id: proto.String("Human12")}, Holdings: []*o.PawnRoyalHolding{
-			{FactionDef: proto.String("Empire"), Title: proto.String("Knight"), Favor: proto.Int32(3), PermitPoints: proto.Int32(0), Permits: []string{"CallLaborerPack"}, PermitCooldowns: []*o.PermitCooldown{{Permit: proto.String("CallLaborerPack"), LastUsedTick: proto.Int32(100), CooldownRemainingTicks: proto.Int32(500)}}},
-			{FactionDef: proto.String("Other")},
-		}, Psycasts: []*o.PawnPsycast{
-			{DefName: proto.String("Skip"), Level: proto.Int32(1), PsyfocusCost: proto.Float64(0.1), Entropy: proto.Float64(12), TargetKind: o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL, CooldownTicks: proto.Int32(900), CooldownRemainingTicks: proto.Int32(40)},
-			{DefName: proto.String("Burden")},
-		}, Psyfocus: proto.Float64(0.6), Entropy: proto.Float64(10), EntropyMax: proto.Float64(100)}},
 		Thrones: []*o.RoyalThrone{{Thing: &c.Ref{Id: proto.String("Throne_1")}, DefName: proto.String("Throne"), Owner: &c.Ref{Id: proto.String("Human12")}}, {Thing: &c.Ref{Id: proto.String("Throne_2")}, DefName: proto.String("Throne")}},
 		Neuroformers: []*o.NeuroformerStock{
 			{DefName: proto.String("PsychicAmplifier"), Held: proto.Int32(2), Craftable: proto.Bool(false), Tradeable: proto.Bool(true)},
@@ -37,10 +30,68 @@ func royaltyRead() *o.RoyaltyFacts {
 	}
 }
 
+// royaltyPawns is the pawn rows the royalty facts merge with (#1876): Human12
+// carries the holdings, psycasts and psycaster state.
+func royaltyPawns() *o.PawnSnapshot {
+	return &o.PawnSnapshot{Pawns: []*o.PawnState{
+		{Pawn: &o.EntityRef{Id: proto.String("Human1")}},
+		{Pawn: &o.EntityRef{Id: proto.String("Human12")}, Royalty: &o.PawnRoyalty{Holdings: []*o.PawnRoyalHolding{
+			{FactionDef: proto.String("Empire"), Title: proto.String("Knight"), Favor: proto.Int32(3), PermitPoints: proto.Int32(0), Permits: []string{"CallLaborerPack"}, PermitCooldowns: []*o.PermitCooldown{{Permit: proto.String("CallLaborerPack"), LastUsedTick: proto.Int32(100), CooldownRemainingTicks: proto.Int32(500)}}},
+			{FactionDef: proto.String("Other")},
+		}, Psycasts: []*o.PawnPsycast{
+			{DefName: proto.String("Skip"), Level: proto.Int32(1), PsyfocusCost: proto.Float64(0.1), Entropy: proto.Float64(12), TargetKind: o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL, CooldownTicks: proto.Int32(900), CooldownRemainingTicks: proto.Int32(40)},
+			{DefName: proto.String("Burden")},
+		}, Psyfocus: proto.Float64(0.6), Entropy: proto.Float64(10), EntropyMax: proto.Float64(100)}},
+	}}
+}
+
+// decodeRoyalty decodes the colony read and merges the pawn rows over it.
+func decodeRoyalty(read *o.RoyaltyFacts, pawns *o.PawnSnapshot) (*policy.RoyaltyFacts, error) {
+	facts, err := DecodeRoyaltyFacts(read, pbIdentity())
+	if err != nil {
+		return nil, err
+	}
+	merged, err := WithPawnRoyalty(*facts, pawns)
+	return &merged, err
+}
+
+// TestWithPawnRoyaltyRefusesMalformedRows: a pawn's royalty block that is
+// invalid, or whose read failed, leaves royalty unknown (#1876).
+func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
+	for _, change := range []string{"pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "read-issue", "no-rows"} {
+		t.Run(change, func(t *testing.T) {
+			pawns := royaltyPawns()
+			row := pawns.Pawns[1]
+			switch change {
+			case "pawn-id":
+				row.Pawn.Id = proto.String("")
+			case "holding-faction":
+				row.Royalty.Holdings[0].FactionDef = proto.String("")
+			case "holding-permit":
+				row.Royalty.Holdings[0].Permits = []string{""}
+			case "psycast-duplicate":
+				row.Royalty.Psycasts = append(row.Royalty.Psycasts, row.Royalty.Psycasts[0])
+			case "psycast-cost":
+				row.Royalty.Psycasts[0].PsyfocusCost = proto.Float64(1.5)
+			case "psycast-target":
+				row.Royalty.Psycasts[0].TargetKind = o.PsycastTargetKind(99)
+			case "read-issue":
+				row.Royalty = nil
+				row.Issues = []*o.ReadIssue{{Field: proto.String("royalty")}}
+			case "no-rows":
+				pawns = nil
+			}
+			if _, err := decodeRoyalty(royaltyRead(), pawns); err == nil {
+				t.Fatal("malformed royalty pawn rows accepted")
+			}
+		})
+	}
+}
+
 // TestDecodeRoyaltyFacts (#1599): recorded facts decode, and an absent
 // scalar stays unknown rather than zero.
 func TestDecodeRoyaltyFacts(t *testing.T) {
-	facts, err := DecodeRoyaltyFacts(royaltyRead(), pbIdentity())
+	facts, err := decodeRoyalty(royaltyRead(), royaltyPawns())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +210,7 @@ func TestDecodeRoyaltyFactsCeremonyAndBedroom(t *testing.T) {
 }
 
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held", "throne-duplicate", "throne-owner"} {
+	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "permit-duplicate", "permit-min-title", "neuroformer-duplicate", "neuroformer-held", "throne-duplicate", "throne-owner"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
@@ -183,20 +234,6 @@ func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
 				v.Permits = append(v.Permits, v.Permits[0])
 			case "permit-min-title":
 				v.Permits[0].MinTitle = proto.String("")
-			case "pawn-duplicate":
-				v.Pawns = append(v.Pawns, v.Pawns[0])
-			case "pawn-id":
-				v.Pawns[0].Pawn.Id = proto.String("")
-			case "holding-faction":
-				v.Pawns[0].Holdings[0].FactionDef = proto.String("")
-			case "holding-permit":
-				v.Pawns[0].Holdings[0].Permits = []string{""}
-			case "psycast-duplicate":
-				v.Pawns[0].Psycasts = append(v.Pawns[0].Psycasts, v.Pawns[0].Psycasts[0])
-			case "psycast-cost":
-				v.Pawns[0].Psycasts[0].PsyfocusCost = proto.Float64(1.5)
-			case "psycast-target":
-				v.Pawns[0].Psycasts[0].TargetKind = o.PsycastTargetKind(99)
 			case "neuroformer-duplicate":
 				v.Neuroformers = append(v.Neuroformers, v.Neuroformers[0])
 			case "throne-duplicate":

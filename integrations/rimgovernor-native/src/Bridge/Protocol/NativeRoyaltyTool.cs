@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_royalty_facts";
 
-        [Tool(ToolName, Title = "Read royalty facts", Description = "Royal title ladder, permit catalog and each colonist's held titles, favor and taken permits. Not applicable without Royalty. Read-only.")]
+        [Tool(ToolName, Title = "Read royalty facts", Description = "Royal title ladder, permit catalog, thrones, ceremonies and neuroformers (each colonist's own royalty rides its pawn row). Not applicable without Royalty. Read-only.")]
         [ToolResponse("payload", "string", "Official RoyaltyFactsReply ProtoJSON.", Always = true)]
         public async Task<object> ReadRoyaltyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw RoyaltyFactsRequest ProtoJSON string.")] object? request = null)
@@ -100,51 +100,66 @@ namespace HomeBridge.BridgeTools
                 if (permit.workerClass != null && ProtoBoundary.IsIdentifier(permit.workerClass.Name)) row.WorkerClass = permit.workerClass.Name;
                 facts.Permits.Add(row);
             }
-            foreach (var pawn in PawnsFinder.AllMaps_FreeColonists.Where(p => p.royalty != null).OrderBy(p => p.thingIDNumber))
-            {
-                var royalty = pawn.royalty;
-                var factions = royalty.AllFactionPermits.Select(p => p.Faction)
-                    .Concat(royalty.AllTitlesForReading.Select(t => t.faction))
-                    .Where(f => f?.def != null && ProtoBoundary.IsIdentifier(f.def.defName)).Distinct()
-                    .OrderBy(f => f.def.defName, StringComparer.Ordinal).ToList();
-                var row = new Obs.PawnRoyalty { Pawn = new Common.Ref { Id = pawn.GetUniqueLoadID() } };
-                foreach (var faction in factions)
-                {
-                    var holding = new Obs.PawnRoyalHolding { FactionDef = faction.def.defName, Favor = royalty.GetFavor(faction), PermitPoints = royalty.GetPermitPoints(faction) };
-                    var title = royalty.GetCurrentTitle(faction);
-                    if (title != null) holding.Title = title.defName;
-                    holding.Permits.AddRange(royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null)
-                        .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal));
-                    // The native cooldown of each held permit (#1607): FactionPermit.LastUsedTick
-                    // (-1 until first used) and the ticks left of the permit's cooldown.
-                    var now = Find.TickManager.TicksGame;
-                    foreach (var held in royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null && ProtoBoundary.IsIdentifier(p.Permit.defName))
-                        .OrderBy(p => p.Permit.defName, StringComparer.Ordinal))
-                    {
-                        var cooldown = new Obs.PermitCooldown { Permit = held.Permit.defName, CooldownRemainingTicks = held.OnCooldown ? Math.Max(0, held.LastUsedTick + held.Permit.CooldownTicks - now) : 0 };
-                        if (held.LastUsedTick >= 0) cooldown.LastUsedTick = held.LastUsedTick;
-                        holding.PermitCooldowns.Add(cooldown);
-                    }
-                    row.Holdings.Add(holding);
-                }
-                if (pawn.abilities != null)
-                    foreach (var ability in pawn.abilities.abilities.Where(a => a.def != null && a.def.IsPsycast && ProtoBoundary.IsIdentifier(a.def.defName))
-                        .OrderBy(a => a.def.level).ThenBy(a => a.def.defName, StringComparer.Ordinal))
-                        row.Psycasts.Add(Psycast(ability.def, ability.CooldownTicksRemaining));
-                // The caster's psyfocus and neural heat at the read (#1611): combat casts hold on them.
-                var tracker = pawn.psychicEntropy;
-                if (tracker != null && tracker.Psylink != null)
-                {
-                    if (tracker.NeedsPsyfocus) row.Psyfocus = tracker.CurrentPsyfocus;
-                    row.Entropy = tracker.EntropyValue;
-                    row.EntropyMax = tracker.MaxEntropy;
-                }
-                if (row.Holdings.Count > 0 || row.Psycasts.Count > 0) facts.Pawns.Add(row);
-            }
             ReadThrones(facts);
             ReadNeuroformers(facts);
             ReadCeremonies(facts);
             return facts;
+        }
+
+        // A free colonist's royalty facts on its pawn row (#1876): holdings per
+        // faction with each held permit's cooldown, the known psycasts and the
+        // caster's psyfocus and neural heat (combat casts hold on them, #1611).
+        // Absent without Royalty or a royalty tracker; a failed read leaves the
+        // block absent next to a ReadIssue named "royalty".
+        internal static void Apply(Pawn pawn, Obs.PawnState row)
+        {
+            if (!ModsConfig.RoyaltyActive || !pawn.IsFreeColonist || pawn.royalty == null) return;
+            try { row.Royalty = Pawn(pawn); }
+            catch (Exception ex)
+            {
+                row.Issues.Add(new Obs.ReadIssue { Field = "royalty", Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } });
+            }
+        }
+
+        private static Obs.PawnRoyalty Pawn(Pawn pawn)
+        {
+            var royalty = pawn.royalty;
+            var factions = royalty.AllFactionPermits.Select(p => p.Faction)
+                .Concat(royalty.AllTitlesForReading.Select(t => t.faction))
+                .Where(f => f?.def != null && ProtoBoundary.IsIdentifier(f.def.defName)).Distinct()
+                .OrderBy(f => f.def.defName, StringComparer.Ordinal).ToList();
+            var row = new Obs.PawnRoyalty();
+            foreach (var faction in factions)
+            {
+                var holding = new Obs.PawnRoyalHolding { FactionDef = faction.def.defName, Favor = royalty.GetFavor(faction), PermitPoints = royalty.GetPermitPoints(faction) };
+                var title = royalty.GetCurrentTitle(faction);
+                if (title != null) holding.Title = title.defName;
+                holding.Permits.AddRange(royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null)
+                    .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal));
+                // The native cooldown of each held permit (#1607): FactionPermit.LastUsedTick
+                // (-1 until first used) and the ticks left of the permit's cooldown.
+                var now = Find.TickManager.TicksGame;
+                foreach (var held in royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null && ProtoBoundary.IsIdentifier(p.Permit.defName))
+                    .OrderBy(p => p.Permit.defName, StringComparer.Ordinal))
+                {
+                    var cooldown = new Obs.PermitCooldown { Permit = held.Permit.defName, CooldownRemainingTicks = held.OnCooldown ? Math.Max(0, held.LastUsedTick + held.Permit.CooldownTicks - now) : 0 };
+                    if (held.LastUsedTick >= 0) cooldown.LastUsedTick = held.LastUsedTick;
+                    holding.PermitCooldowns.Add(cooldown);
+                }
+                row.Holdings.Add(holding);
+            }
+            if (pawn.abilities != null)
+                foreach (var ability in pawn.abilities.abilities.Where(a => a.def != null && a.def.IsPsycast && ProtoBoundary.IsIdentifier(a.def.defName))
+                    .OrderBy(a => a.def.level).ThenBy(a => a.def.defName, StringComparer.Ordinal))
+                    row.Psycasts.Add(Psycast(ability.def, ability.CooldownTicksRemaining));
+            var tracker = pawn.psychicEntropy;
+            if (tracker != null && tracker.Psylink != null)
+            {
+                if (tracker.NeedsPsyfocus) row.Psyfocus = tracker.CurrentPsyfocus;
+                row.Entropy = tracker.EntropyValue;
+                row.EntropyMax = tracker.MaxEntropy;
+            }
+            return row;
         }
 
         // Throne ownership (#1601): every spawned player throne on the home
