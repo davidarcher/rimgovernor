@@ -264,25 +264,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		if !fk || !lk || !legal || !sk || !safe || !rk || !reachable {
 			continue
 		}
-		cells := f.Cells
-		if source := observation.PlanningWindowFrom(call); source != nil {
-			minX, minZ, maxX, maxZ := site.Centre.X, site.Centre.Z, site.Centre.X, site.Centre.Z
-			for _, cell := range footprint {
-				minX = min(minX, cell.X)
-				minZ = min(minZ, cell.Z)
-				maxX = max(maxX, cell.X)
-				maxZ = max(maxZ, cell.Z)
-			}
-			held, err := source.PlanningWindow(call, boundary.Identity(snapshot), policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1})
-			if err != nil {
-				return RoutineResourceResult{}, true, err
-			}
-			if !held.Complete {
-				return RoutineResourceResult{}, true, fmt.Errorf("%w: deepDrill: !held.Complete", ErrControl)
-			}
-			cells = held.Value.Cells
-		}
-		if !deepDrillFootprint(cells, footprint, site.Centre) {
+		if !deepDrillFootprint(f.Cells, footprint, site.Centre) {
 			continue
 		}
 		plan, err := domain.NewPlan(planID, 1, []domain.Action{action})
