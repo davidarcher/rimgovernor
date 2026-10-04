@@ -1,14 +1,12 @@
-import {useReading} from '../useReading';
-import {fetchThreatStatus} from './threatData';
-
-const threatIntervalMs = 5000;
+import {useDecoded, type Reading} from '../useReading';
+import {readThreatStatus} from './threatData';
 
 // Raid points and the wealth split the storyteller scales them by (#395):
 // evidence from the live colony census, read every few seconds while the
 // Colony view is open. Hidden when the service does not serve the census.
 const silver = (v: number | null) => v === null ? '—' : Math.round(v).toLocaleString();
-export default function ThreatPanel({active}: {active: boolean}) {
-  const state = useReading(active, fetchThreatStatus, threatIntervalMs, 'Colony status unavailable');
+export default function ThreatPanel({colony}: {colony: Reading<unknown>}) {
+  const state = useDecoded(colony, readThreatStatus);
   if (state.hidden) return null;
   const v = state.value;
   return <section className="observation-panel" aria-label="Raid threat"><h2>Raid threat</h2>

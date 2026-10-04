@@ -1,26 +1,10 @@
-import {useEffect, useState} from 'react';
-import {fetchFoodPlan, type FoodPlanStatus} from './foodPlanData';
+import {useDecoded, type Reading} from '../useReading';
+import {readFoodPlanStatus} from './foodPlanData';
 import './FoodPlanPanel.css';
 
-const foodPlanTimeoutMs = 20000, foodPlanIntervalMs = 5000;
 const rate = (n: number) => n.toLocaleString(undefined, {maximumFractionDigits: 2});
-export default function FoodPlanPanel({active}: {active: boolean}) {
-  const [reading, setReading] = useState<FoodPlanStatus | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (!active) return;
-    const controller = new AbortController();
-    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      try {
-        const value = await fetchFoodPlan(AbortSignal.any([controller.signal, AbortSignal.timeout(foodPlanTimeoutMs)]));
-        if (!stopped) {setReading(value); setError('');}
-      } catch (e) {if (!stopped) setError(e instanceof Error ? e.message : 'Food plan unavailable');}
-      finally {if (!stopped) timer = setTimeout(() => void poll(), foodPlanIntervalMs);}
-    };
-    void poll();
-    return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [active]);
+export default function FoodPlanPanel({colony}: {colony: Reading<unknown>}) {
+  const {value: reading, error} = useDecoded(colony, readFoodPlanStatus);
   const p = reading?.plan;
   // Only chart geometry is computed here. Contributions and demand are server facts.
   const scale = p ? Math.max(1, p.demandPerDay, ...p.portfolio.map(r => r.deliveredPerDay)) * 1.1 : 1;

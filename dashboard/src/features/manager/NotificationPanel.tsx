@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
-import {HTTPError, pollIntervalMs, requestTimeoutMs} from '../http';
+import {HTTPError, pollIntervalMs} from '../http';
+import {usePoll} from '../usePoll';
 import {sameWorld} from '../world';
 import type {ObservationState} from './observationData';
 import {fetchNotifications, type Notifications, type NoticeSection} from './notificationData';
@@ -20,16 +21,13 @@ export default function NotificationPanel({observation, observationFresh}: {obse
  const world = observation?.identity, key = world ? JSON.stringify([observation?.sessionId, world.colonyId, world.mapId, world.loadToken]) : '';
  const enabled = Boolean(world && observation?.connected && !observation.game.stale && observationFresh);
  const [state, setState] = useState<Reading>({key: '', value: null, stale: true, hidden: false, error: ''});
- useEffect(() => {
-  if (!enabled || !world) {setState(previous => ({...previous, stale: true})); return;}
-  const controller = new AbortController(); let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-  const poll = async () => {
-   try {const value = await fetchNotifications(AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)])); if (!sameWorld(value.context.identity, world)) throw Error('Observed world changed; waiting for matching notifications'); if (!stopped) setState({key, value, stale: false, hidden: false, error: ''});}
-   catch (error) {if (!stopped) setState(previous => ({key, value: previous.key === key ? previous.value : null, stale: true, hidden: error instanceof HTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Notifications unavailable'}));}
-   finally {if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);}
-  };
-  void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
- }, [key, enabled]);
+ useEffect(() => {if (!enabled) setState(previous => ({...previous, stale: true}));}, [enabled]);
+ usePoll(enabled ? key : null, async signal => {
+  const value = await fetchNotifications(signal);
+  if (!world || !sameWorld(value.context.identity, world)) throw Error('Observed world changed; waiting for matching notifications');
+  return value;
+ }, pollIntervalMs, value => setState({key, value, stale: false, hidden: false, error: ''}),
+ error => setState(previous => ({key, value: previous.key === key ? previous.value : null, stale: true, hidden: error instanceof HTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Notifications unavailable'})));
  if (!world || state.key === key && state.hidden) return null;
  const value = state.key === key ? state.value : null, stale = state.key !== key || state.stale || !enabled;
  return <section className="observation-panel notification-panel" aria-label="Notifications"><h2>Notifications</h2>{stale && <p role="status">{value ? 'Stale — last good notifications. ' : 'Unavailable. '}{state.key === key ? state.error || 'Waiting for fresh observations.' : 'Waiting for this world.'}</p>}

@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
-import {HTTPError, pollIntervalMs, requestTimeoutMs} from '../http';
+import {HTTPError, pollIntervalMs} from '../http';
+import {usePoll} from '../usePoll';
 import {sameWorld} from '../world';
 import type {ObservationState} from './observationData';
 import {fetchPresentation, readCamera, readRoster, readSelection, type Camera, type Dossier, type Listing, type PresentationContext, type Roster, type Selection} from './presentationData';
@@ -11,21 +12,13 @@ function useReading<T extends {context: PresentationContext}>(kind: 'camera' | '
   const world = observation?.identity, key = world ? JSON.stringify([observation?.sessionId, world.colonyId, world.mapId, world.loadToken]) : '';
   const enabled = Boolean(key && observation?.connected && !observation.game.stale && fresh);
   const [state, setState] = useState<Reading<T>>({key: '', value: null, fresh: false, hidden: false, error: ''});
-  useEffect(() => {
-    if (!enabled || !world) {setState(previous => ({...previous, fresh: false})); return;}
-    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const controller = new AbortController();
-    const poll = async () => {
-      try {
-        const value = await fetchPresentation(kind, read, AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)]));
-        if (!sameWorld(value.context.identity, world)) throw Error('Observed world changed; waiting for matching data');
-        if (!stopped) setState({key, value, fresh: true, hidden: false, error: ''});
-      } catch (error) {
-        if (!stopped) setState(previous => ({key, value: previous.key === key ? previous.value : null, fresh: false, hidden: error instanceof HTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Presentation unavailable'}));
-      } finally {if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);}
-    };
-    void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [key, enabled, kind, read]); // Key contains every field used to scope this read.
+  useEffect(() => {if (!enabled) setState(previous => ({...previous, fresh: false}));}, [enabled]);
+  usePoll(enabled ? JSON.stringify([key, kind]) : null, async signal => {
+    const value = await fetchPresentation(kind, read, signal);
+    if (!world || !sameWorld(value.context.identity, world)) throw Error('Observed world changed; waiting for matching data');
+    return value;
+  }, pollIntervalMs, value => setState({key, value, fresh: true, hidden: false, error: ''}),
+  error => setState(previous => ({key, value: previous.key === key ? previous.value : null, fresh: false, hidden: error instanceof HTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Presentation unavailable'})));
   if (state.key !== key) return {key, value: null, fresh: false, hidden: false, error: 'Waiting for this world'};
   return {...state, fresh: state.fresh && enabled};
 }

@@ -1,4 +1,4 @@
-import {HTTPError} from '../http';
+import {getJSON} from '../http';
 import type {Listing, PresentationContext} from './presentationData';
 type Notice = {id: string | null; label: string | null; text: string | null; tick: string | null; ageTicks: string | null; ageSeconds: number | null; active: boolean | null; expired: boolean | null; detail: string | null};
 export type NoticeSection = {kind: 'observed'; rows: Notice[]; listing: Listing | null} | {kind: 'unavailable'; reason: string; detail: string | null};
@@ -45,7 +45,5 @@ export function readNotifications(value: unknown): Notifications {
  return {context, letters: section(v.letters, 'letters', 40), messages: section(v.messages, 'messages', 12), alerts: section(v.alerts, 'alerts', 40)};
 }
 export async function fetchNotifications(signal: AbortSignal): Promise<Notifications> {
- const response = await fetch('/api/presentation/notifications', {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
- if (!response.ok) {let detail = `Notifications unavailable (${response.status})`; try {const error = object(await response.json(), ['code', 'detail']); id(error.code); detail = text(error.detail);} catch { /* Retain local diagnostic for malformed errors. */ } throw new HTTPError(response.status, detail);}
- const source = await response.text(); if (new TextEncoder().encode(source).length > 1048576) throw Error('Notification response exceeds size bound'); const value: unknown = JSON.parse(source); return readNotifications(value);
+ return readNotifications(await getJSON('/api/presentation/notifications', signal, 'Notifications unavailable', 1048576));
 }

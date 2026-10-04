@@ -1,5 +1,7 @@
-import {useEffect, useState} from 'react';
-import {pollIntervalMs, requestTimeoutMs} from '../http';
+import {useEffect, useRef, useState} from 'react';
+import {getJSON, pollIntervalMs} from '../http';
+import {usePoll} from '../usePoll';
+import {useColony} from './colonyData';
 import {readObservation, readPlan, type BuildingAction, type BuildingPlan, type ObservationState, type UnsuccessfulReason} from './observationData';
 import './ObservationDashboard.css';
 import PlayerControls from './PlayerControls';
@@ -50,36 +52,21 @@ export default function ObservationDashboard() {
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
-  useEffect(() => {
-    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    let currentKey = '';
-    const controller = new AbortController();
-    const read = async (path: string): Promise<unknown> => {
-      const response = await fetch(path, {signal: AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)])});
-      if (!response.ok) throw Error(`Refresh unavailable (${response.status})`);
-      return response.json();
-    };
-    const poll = async () => {
-      try {
-        const next = readObservation(await read('/api/state'));
-        if (stopped) return;
-        const key = JSON.stringify([next.sessionId, next.identity, next.activePlanId]);
-        if (key !== currentKey) {setPlan(null); currentKey = key;}
-        setState(next);
-        if (next.activePlanId !== null) {
-          const nextPlan = readPlan(await read(`/api/plan?id=${encodeURIComponent(next.activePlanId)}`));
-          if (nextPlan.id !== next.activePlanId) throw Error('Plan response does not match the active plan');
-          if (stopped) return;
-          setPlan(nextPlan);
-        }
-        setError('');
-      } catch (reason) {
-        if (!stopped) setError(reason instanceof Error ? reason.message : 'Refresh unavailable');
-      } finally {if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);}
-    };
-    void poll();
-    return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, []);
+  const currentKey = useRef('');
+  usePoll('observation', async signal => {
+    const next = readObservation(await getJSON('/api/state', signal, 'Refresh unavailable'));
+    if (signal.aborted) return;
+    const key = JSON.stringify([next.sessionId, next.identity, next.activePlanId]);
+    if (key !== currentKey.current) {setPlan(null); currentKey.current = key;}
+    setState(next);
+    if (next.activePlanId !== null) {
+      const nextPlan = readPlan(await getJSON(`/api/plan?id=${encodeURIComponent(next.activePlanId)}`, signal, 'Refresh unavailable'));
+      if (nextPlan.id !== next.activePlanId) throw Error('Plan response does not match the active plan');
+      if (signal.aborted) return;
+      setPlan(nextPlan);
+    }
+  }, pollIntervalMs, () => setError(''), reason => setError(reason instanceof Error ? reason.message : 'Refresh unavailable'));
+  const colony = useColony(view === 'colony');
   const observationFresh = !error && state !== null;
 
   return <main className="observation-shell">
@@ -119,9 +106,9 @@ export default function ObservationDashboard() {
         <NotificationPanel observation={state} observationFresh={observationFresh}/>
       </>}
       {view === 'colony' && <>
-        <FoodPlanPanel active/>
+        <FoodPlanPanel colony={colony}/>
         <PresentationPanel observation={state} observationFresh={observationFresh}/>
-        <ThreatPanel active/>
+        <ThreatPanel colony={colony}/>
       </>}
       {view === 'governor' && <GovernorPanel active/>}
     </>}

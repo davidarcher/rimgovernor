@@ -31,8 +31,3 @@ export function readFoodPlanStatus(raw: unknown): FoodPlanStatus {
   const p = object(v.foodPlan);
   return {tick, plan: {portfolio: rows(p.portfolio), unknown: rows(p.unknown), deliveredPerDay: number(p.deliveredPerDay), demandPerDay: number(p.demandPerDay), gapPerDay: number(p.gapPerDay, true), explain: text(p.explain), petShortfalls: pets(p.petShortfalls)}};
 }
-export async function fetchFoodPlan(signal: AbortSignal): Promise<FoodPlanStatus> {
-  const response = await fetch('/api/player/colony', {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
-  if (!response.ok) throw Error(`Food plan unavailable (${response.status})`);
-  return readFoodPlanStatus(await response.json());
-}

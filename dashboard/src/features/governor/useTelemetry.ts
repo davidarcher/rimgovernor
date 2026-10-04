@@ -5,6 +5,7 @@ import {HTTPError} from '../http';
 // route follows the tail, so the panel polls at its own cadence and keeps
 // the last good reading through a failed refresh.
 import {useEffect, useState} from 'react';
+import {usePoll} from '../usePoll';
 import {fetchTelemetryEvents, fetchTelemetryMetrics, type TelemetryEvent, type TelemetryMetrics} from './telemetryData';
 
 const telemetryTimeoutMs = 8000;
@@ -22,21 +23,10 @@ const describe = (error: unknown, fallback: string) => error instanceof Error ? 
 
 export function useTelemetryMetrics(active: boolean): MetricsReading {
   const [reading, setReading] = useState<MetricsReading>({value: null, series: [], stale: true, unavailable: false, error: ''});
-  useEffect(() => {
-    if (!active) return;
-    const controller = new AbortController(); let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      try {
-        const value = await fetchTelemetryMetrics(timeout(controller));
-        if (stopped) return;
-        const sample: Sample = {at: Date.now(), tps: value.tps, lastStepMs: value.lastStepMs, nativeErrors: value.metrics.native_errors ?? 0, readsPerStep: value.metrics.reads_per_step_mean ?? 0, nativeCalls: value.metrics.native_calls ?? 0};
-        setReading(previous => ({value, series: [...previous.series, sample].slice(-seriesLength), stale: false, unavailable: false, error: ''}));
-      } catch (error) {
-        if (!stopped) setReading(previous => ({...previous, stale: true, unavailable: error instanceof HTTPError && error.status === 404, error: describe(error, 'Telemetry unavailable')}));
-      } finally {if (!stopped) timer = setTimeout(() => void poll(), metricsInterval);}
-    };
-    void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [active]);
+  usePoll(active ? 'on' : null, fetchTelemetryMetrics, metricsInterval, value => {
+    const sample: Sample = {at: Date.now(), tps: value.tps, lastStepMs: value.lastStepMs, nativeErrors: value.metrics.native_errors ?? 0, readsPerStep: value.metrics.reads_per_step_mean ?? 0, nativeCalls: value.metrics.native_calls ?? 0};
+    setReading(previous => ({value, series: [...previous.series, sample].slice(-seriesLength), stale: false, unavailable: false, error: ''}));
+  }, error => setReading(previous => ({...previous, stale: true, unavailable: error instanceof HTTPError && error.status === 404, error: describe(error, 'Telemetry unavailable')})), telemetryTimeoutMs);
   return reading;
 }
 

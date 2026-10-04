@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import {act, cleanup, render, screen, waitFor} from '@testing-library/react';
 import {afterEach, expect, it, vi} from 'vitest';
 import FoodPlanPanel from './FoodPlanPanel';
+import {useColony} from './colonyData';
 import {readFoodPlanStatus} from './foodPlanData';
 
 const census = {foodPlanTick: 4200, foodPlan: {deliveredPerDay: 7, demandPerDay: 10, gapPerDay: 8, explain: 'Target includes buffer', portfolio: [
@@ -12,10 +13,11 @@ const census = {foodPlanTick: 4200, foodPlan: {deliveredPerDay: 7, demandPerDay:
   {kind: 'Trade', id: 'trader', decision: 'Close', reason: 'surplus', deliveredPerDay: 0},
 ], unknown: [{kind: 'Fishing', id: 'river', decision: 'Hold', reason: 'unknown: nutrition_per_day', deliveredPerDay: 0}]}};
 const reply = (value: unknown) => Promise.resolve(new Response(JSON.stringify(value)));
+function Colony({active = true}: {active?: boolean}) {return <FoodPlanPanel colony={useColony(active)}/>;}
 afterEach(() => {cleanup(); vi.unstubAllGlobals(); vi.useRealTimers();});
 it('renders the server portfolio, zero Hold/Close rows and unknown reasons without deriving the gap', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply(census)));
-  const {container} = render(<FoodPlanPanel active/>);
+  const {container} = render(<Colony/>);
   await screen.findByText('Forage');
   expect(screen.getByText(/nutrition\/day delivered/)).toHaveTextContent('7 nutrition/day delivered · 10 demand · 8 plan gap');
   expect(screen.getByRole('img', {name: /Crop rice: Hold, 0 nutrition/})).toBeInTheDocument();
@@ -28,7 +30,7 @@ it('retains last good data on refresh failure and clears it when the server inva
   vi.useFakeTimers({shouldAdvanceTime: true});
   const fetcher = vi.fn().mockImplementationOnce(() => reply(census)).mockRejectedValueOnce(Error('offline')).mockImplementation(() => reply({foodPlan: null, foodPlanTick: null}));
   vi.stubGlobal('fetch', fetcher);
-  render(<FoodPlanPanel active/>);
+  render(<Colony/>);
   await screen.findByText('Forage');
   await act(() => vi.advanceTimersByTimeAsync(5000));
   expect(screen.getByRole('status')).toHaveTextContent('Stale — last recorded plan. offline');
@@ -40,9 +42,9 @@ it('retains last good data on refresh failure and clears it when the server inva
 it('does not poll while inactive and aborts on unmount', async () => {
   const fetcher = vi.fn(() => reply(census));
   vi.stubGlobal('fetch', fetcher);
-  const view = render(<FoodPlanPanel active={false}/>);
+  const view = render(<Colony active={false}/>);
   expect(fetcher).not.toHaveBeenCalled();
-  view.rerender(<FoodPlanPanel active/>);
+  view.rerender(<Colony/>);
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
   view.unmount();
 });
@@ -56,7 +58,7 @@ it('accepts surplus gaps but rejects malformed rates, decisions and tick/plan pa
 });
 it('lists pet shortfalls the colony runway no longer carries (#708)', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({...census, foodPlan: {...census.foodPlan, petShortfalls: [{id: 'Thing_Cat5169', label: 'Whiskers', runwayDays: 0, nutritionPerDay: 0.3}]}})));
-  render(<FoodPlanPanel active/>);
+  render(<Colony/>);
   expect(await screen.findByText('Pet shortfalls (1)')).toBeInTheDocument();
   expect(screen.getByText('Whiskers').closest('li')).toHaveTextContent('Whiskers · 0 days of food · needs 0.3 nutrition/day');
 });
@@ -64,11 +66,11 @@ it('reads a missing petShortfalls as none and rejects malformed rows', async () 
   expect(readFoodPlanStatus(census).plan?.petShortfalls).toEqual([]);
   expect(() => readFoodPlanStatus({...census, foodPlan: {...census.foodPlan, petShortfalls: [{id: 'cat', runwayDays: -1, nutritionPerDay: 0.3}]}})).toThrow();
   vi.stubGlobal('fetch', vi.fn(() => reply(census)));
-  render(<FoodPlanPanel active/>);
+  render(<Colony/>);
   expect(await screen.findByText('No pet below the minimum food runway.')).toBeInTheDocument();
 });
 it('falls back to the thing id for an unlabelled pet', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({...census, foodPlan: {...census.foodPlan, petShortfalls: [{id: 'Thing_Cat5169', label: null, runwayDays: 0, nutritionPerDay: 0.3}]}})));
-  render(<FoodPlanPanel active/>);
+  render(<Colony/>);
   expect(await screen.findByText('Thing_Cat5169')).toBeInTheDocument();
 });

@@ -1,4 +1,3 @@
-import {HTTPError} from '../http';
 // The raid-threat slice of /api/player/colony (#395): the raid points the
 // storyteller would draw now and the wealth split behind them. Every figure
 // is null when the native census could not observe it.
@@ -48,13 +47,4 @@ export function readThreatStatus(raw: unknown): ThreatStatus {
   return {tick: v.tick, raidPoints: figure(v.raidPoints, 'raidPoints'), wealthTotal: figure(v.wealthTotal, 'wealthTotal'),
     wealthItems: figure(v.wealthItems, 'wealthItems'), wealthBuildings: figure(v.wealthBuildings, 'wealthBuildings'), wealthPawns: figure(v.wealthPawns, 'wealthPawns'), shrines: readShrines(v.shrines),
     playerTechLevel: name(v.playerTechLevel, 'playerTechLevel'), buildTier: name(v.buildTier, 'buildTier')};
-}
-export async function fetchThreatStatus(signal?: AbortSignal): Promise<ThreatStatus> {
-  const response = await fetch('/api/player/colony', {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
-  const value: unknown = await response.json();
-  if (!response.ok) {
-    const detail = typeof value === 'object' && value !== null && typeof (value as Record<string, unknown>).detail === 'string' ? (value as Record<string, string>).detail : `Colony status unavailable (${response.status})`;
-    throw new HTTPError(response.status, detail);
-  }
-  return readThreatStatus(value);
 }

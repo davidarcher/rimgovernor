@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState} from 'react';
-import {pollIntervalMs, requestTimeoutMs} from '../http';
 import ClockReview from './ClockReview';
 import type {ObservationState} from './observationData';
+import {pollIntervalMs, requestTimeoutMs} from '../http';
+import {usePoll} from '../usePoll';
 import {PlayerHTTPError, definiteRejection, pauseControl, readBuilding, readControlResult, readCurrentControl, readPlayerSession, readSubmissionResult, resumeControl, submitBuilding, type ControlKind, type ControlRecord, type ControlReply, type ControlRequest, type Submission, type SubmissionRequest} from './playerData';
 import {sameWorld, type World} from '../world';
 
@@ -58,19 +59,11 @@ export default function PlayerControls({observation, observationFresh}: {observa
     };
     void bootstrap(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
   }, [sessionId, bootstrapRetry]);
-  useEffect(() => {
-    if (!token) return;
-    const controller = new AbortController(); let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      const expected = version.current;
-      try {
-        const next = await readCurrentControl(AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)]));
-        if (!stopped && expected === version.current) {setCurrent(next); setCurrentFresh(next.error === null); setRefreshError(next.error?.detail ?? '');}
-      } catch (reason) {if (!stopped && expected === version.current) {setCurrentFresh(false); setRefreshError(message(reason));}}
-      finally {if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);}
-    };
-    void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [token, worldKey]);
+  // A reply applies only if the world did not change since its poll began.
+  const polledVersion = useRef(0);
+  usePoll(token ? JSON.stringify([token, worldKey]) : null, signal => {polledVersion.current = version.current; return readCurrentControl(signal);}, pollIntervalMs,
+    next => {if (polledVersion.current === version.current) {setCurrent(next); setCurrentFresh(next.error === null); setRefreshError(next.error?.detail ?? '');}},
+    reason => {if (polledVersion.current === version.current) {setCurrentFresh(false); setRefreshError(message(reason));}});
   const fail = (reason: unknown, expected: number) => {
     if (!mounted.current) return;
     setError(message(reason));

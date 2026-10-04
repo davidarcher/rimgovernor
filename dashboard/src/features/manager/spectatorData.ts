@@ -1,4 +1,4 @@
-import {HTTPError} from '../http';
+import {getJSON} from '../http';
 // Read-only view of GET /api/spectator/now (#632): the watcher's one read of
 // what the colony is trying to do, why the clock runs as it does and the last
 // stop with its latency split. Nulls are unknown facts; nothing is derived
@@ -81,13 +81,5 @@ export function readNow(value: unknown): Now {
 }
 
 export async function fetchNow(signal: AbortSignal): Promise<Now> {
-  const response = await fetch('/api/spectator/now', {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
-  if (!response.ok) {
-    let detail = `The now panel is unavailable (${response.status})`;
-    try {const error = object(await response.json(), ['code', 'detail']); detail = text(error.detail);} catch { /* Retain the local diagnostic for a malformed error. */ }
-    throw new HTTPError(response.status, detail);
-  }
-  const source = await response.text();
-  if (new TextEncoder().encode(source).length > 262144) throw Error('Spectator response exceeds size bound');
-  return readNow(JSON.parse(source) as unknown);
+  return readNow(await getJSON('/api/spectator/now', signal, 'The now panel is unavailable', 262144));
 }
