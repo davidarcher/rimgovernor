@@ -58,6 +58,9 @@ const (
 	// (#1821): every cell needs ground that neither burns nor grows (zero
 	// flammability and fertility) so the burn leaves nothing to spread on.
 	FloorTierIncinerator FloorTier = "incinerator"
+	// FloorTierThrone covers the throne room (#1863): every cell needs a
+	// floor whose terrain carries one of the title's required tags.
+	FloorTierThrone FloorTier = "throne"
 )
 
 // incineratorKey is the latch key of the single incinerator deficit.
@@ -189,6 +192,11 @@ type FloorRoom struct {
 	ID    string
 	Role  domain.Fact[RoomRole]
 	Cells []FloorCell
+	// RequiredTags, when set, are terrain tags every cell's floor must carry
+	// one of: the throne room's flooring requirement (#1863), read from the
+	// def mirror. RequiredLabel is the requirement's labelKey.
+	RequiredTags  []string
+	RequiredLabel string
 }
 
 // RoomQuality is a room's native quality stats as Room.GetStat reports them.
@@ -209,6 +217,8 @@ type FloorTerrain struct {
 	Fertility float64
 	// Natural is native's own flag for unbuilt ground.
 	Natural bool
+	// Tags are the TerrainDef's tags (the mirror's, never a name list).
+	Tags []string
 }
 
 func (v FlooringObservation) Validate() error {
@@ -281,6 +291,8 @@ type FloorDeficit struct {
 	// Pending counts the deficient cells with a floor already ordered.
 	Cells   []domain.Cell
 	Pending int
+	// Tags are the terrain tags a throne deficit's floor must carry one of.
+	Tags []string
 	// Floor is the floor the traffic tier priced its cells on (#950); the
 	// selector lays exactly it. Unknown marks a traffic latch kept while the
 	// floor could not be priced.
@@ -305,6 +317,9 @@ type FlooringReview struct {
 // when the room census does not list the room. Inherently dirty rooms and
 // every role outside the two tiers have no requirement.
 func floorTier(room FloorRoom, census map[string]Room) (FloorTier, bool) {
+	if len(room.RequiredTags) > 0 {
+		return FloorTierThrone, true
+	}
 	if r, ok := census[room.ID]; ok {
 		if InherentlyDirty(r) {
 			return "", false
@@ -324,6 +339,16 @@ func floorTier(room FloorRoom, census map[string]Room) (FloorTier, bool) {
 		return FloorTierLiving, true
 	}
 	return "", false
+}
+
+// hasAnyTag reports whether tags holds any of want.
+func hasAnyTag(tags, want []string) bool {
+	for _, tag := range tags {
+		if slices.Contains(want, tag) {
+			return true
+		}
+	}
+	return false
 }
 
 func floorDeficient(tier FloorTier, t FloorTerrain) bool {
@@ -553,8 +578,14 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 		}
 		role, _ := room.Role.Value()
 		d := FloorDeficit{Key: FloorRoomKey(room), Room: room.ID, Tier: tier, Role: role}
+		if tier == FloorTierThrone {
+			d.Tags = room.RequiredTags
+		}
 		for _, c := range room.Cells {
-			if !floorDeficient(tier, v.Terrains[c.Terrain]) || tier == FloorTierClean && entry[c.Terrain] {
+			if tier == FloorTierThrone && hasAnyTag(v.Terrains[c.Terrain].Tags, room.RequiredTags) {
+				continue
+			}
+			if tier != FloorTierThrone && !floorDeficient(tier, v.Terrains[c.Terrain]) || tier == FloorTierClean && entry[c.Terrain] {
 				continue
 			}
 			if c.Pending != "" {
@@ -621,7 +652,7 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 	return r, nil
 }
 
-var floorTierOrder = map[FloorTier]int{FloorTierClean: 0, FloorTierEntry: 1, FloorTierLiving: 2, FloorTierIncinerator: 3, FloorTierFirebreak: 4, FloorTierTraffic: 5}
+var floorTierOrder = map[FloorTier]int{FloorTierClean: 0, FloorTierEntry: 1, FloorTierLiving: 2, FloorTierThrone: 2, FloorTierIncinerator: 3, FloorTierFirebreak: 4, FloorTierTraffic: 5}
 
 type FlooringMethod string
 
@@ -656,6 +687,8 @@ type FloorDefinition struct {
 	Costs                             domain.Fact[[]Amount]
 	// WorkToBuild is the native WorkToBuild stat in work ticks (#950).
 	WorkToBuild domain.Fact[float64]
+	// Tags are the TerrainDef's tags, for the throne tier's requirement.
+	Tags []string
 }
 
 // FlooringFacts is what SelectFlooringMethod needs beyond the review.
@@ -743,7 +776,7 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 		batch := min(len(d.Cells), p.MaxCellsPerPlan)
 		weights := p.Clean
 		switch d.Tier {
-		case FloorTierLiving:
+		case FloorTierLiving, FloorTierThrone:
 			weights = p.Living
 		case FloorTierTraffic:
 			weights = p.Traffic
@@ -763,6 +796,19 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 		scored := p.Floors
 		if d.Tier == FloorTierEntry {
 			scored = p.EntryFloors
+		} else if d.Tier == FloorTierThrone {
+			// Any floor the mirror tags as the title requires, however
+			// the policy lists floors; none known is a fact gap.
+			scored = nil
+			for name, def := range facts.Definitions {
+				if hasAnyTag(def.Tags, d.Tags) {
+					scored = append(scored, name)
+				}
+			}
+			sort.Strings(scored)
+			if len(scored) == 0 {
+				unknown = true
+			}
 		} else if d.Floor != "" {
 			// The traffic tier lays the floor its payback was priced on.
 			scored = []string{d.Floor}

@@ -1,6 +1,10 @@
 package bridge
 
-import "github.com/davidarcher/RimGovernor/go/internal/policy"
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+)
 
 // The StatDefs a floor is judged by.
 const (
@@ -52,5 +56,24 @@ func (catalog *DefinitionCatalog) FloorTerrain(name string) (policy.FloorTerrain
 		}
 		stats[i] = value
 	}
-	return policy.FloorTerrain{Cleanliness: float64(stats[0]), Beauty: float64(stats[1]), Flammability: float64(stats[2]), PathCost: row.GetPathCost(), Fertility: float64(row.GetFertility()), Natural: row.GetNatural()}, nil
+	return policy.FloorTerrain{Cleanliness: float64(stats[0]), Beauty: float64(stats[1]), Flammability: float64(stats[2]), PathCost: row.GetPathCost(), Fertility: float64(row.GetFertility()), Natural: row.GetNatural(), Tags: slices.Clone(row.GetTags())}, nil
+}
+
+// TerrainsWithTags lists, sorted, every TerrainDef carrying any of tags: the
+// floors that satisfy a TerrainWithTags requirement (#1863).
+func (catalog *DefinitionCatalog) TerrainsWithTags(tags []string) []string {
+	if catalog == nil {
+		return nil
+	}
+	var out []string
+	for name, row := range catalog.TerrainDefs {
+		for _, tag := range row.GetTags() {
+			if slices.Contains(tags, tag) {
+				out = append(out, name)
+				break
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
 }

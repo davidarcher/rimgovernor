@@ -253,5 +253,8 @@ func terrainView(catalog *bridge.DefinitionCatalog, name string, row *d.TerrainD
 		return v, err
 	}
 	v.WorkToBuild = nonnegativeFact(float64(work))
+	if tags := row.GetTags(); len(tags) > 0 {
+		v.FloorTags = slices.Clone(tags)
+	}
 	return v, nil
 }

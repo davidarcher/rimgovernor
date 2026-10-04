@@ -113,7 +113,7 @@ func (r *RoutineBuildingPlanner) selectFlooring(call context.Context, current do
 	}
 	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts)}
 	for _, d := range facts.Definitions {
-		flooring.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
+		flooring.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild, Tags: d.FloorTags}
 	}
 	proposal, err := policy.SelectFlooringMethod(review, flooring, p)
 	if err != nil {
@@ -258,9 +258,10 @@ func trafficFlooringFacts(facts observation.ColonyProjection, p policy.FlooringP
 	v.Floors = map[string]policy.FloorDefinition{}
 	for _, d := range facts.Definitions {
 		if slices.Contains(p.Floors, d.Name) {
-			v.Floors[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
+			v.Floors[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild, Tags: d.FloorTags}
 		}
 	}
+	v = withThroneFloor(facts, v)
 	v.Stock = facts.Resources
 	if style := floorStyle(facts); style != nil {
 		v.TrafficStyle, _ = style(policy.RoomRoleNone)

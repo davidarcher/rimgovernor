@@ -43,6 +43,8 @@ type PlanningDefinition struct {
 	// WorkToBuild is the native WorkToBuild stat (work ticks) for the row's
 	// stuff (#950).
 	WorkToBuild domain.Fact[float64]
+	// FloorTags are a TerrainDef's tags (the throne floor requirement, #1863).
+	FloorTags []string
 	// Stuffed is whether the def is made from stuff (it has stuff
 	// categories). A stuffed def has no single cost list: Costs is unknown
 	// and StuffChoice prices it from StuffOptions.

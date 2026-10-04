@@ -2,6 +2,7 @@ package observation
 
 import (
 	"maps"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -125,7 +126,7 @@ func TestRecordedCatalogPricesEveryTerrainNativeCouldName(t *testing.T) {
 	}
 	for name, row := range catalog.TerrainDefs {
 		old, err := catalog.FloorTerrain(name)
-		if err != nil || table[name] != old {
+		if err != nil || !reflect.DeepEqual(table[name], old) {
 			t.Fatalf("%s: table %+v, per-terrain %+v (%v)", name, table[name], old, err)
 		}
 		if old.PathCost != row.GetPathCost() || old.Natural != row.GetNatural() {

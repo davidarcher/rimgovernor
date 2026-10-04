@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -117,7 +118,7 @@ func TestCatalogFloorTerrain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := catalog.FloorTerrain("Soil"); err != nil || got != (policy.FloorTerrain{Cleanliness: -1, Beauty: -3, Flammability: .5, PathCost: 2, Natural: true}) {
+	if got, err := catalog.FloorTerrain("Soil"); err != nil || !reflect.DeepEqual(got, policy.FloorTerrain{Cleanliness: -1, Beauty: -3, Flammability: .5, PathCost: 2, Natural: true}) {
 		t.Fatal(got, err)
 	}
 	if _, err := catalog.FloorTerrain("Lava"); err == nil || !strings.Contains(err.Error(), "not shown") {

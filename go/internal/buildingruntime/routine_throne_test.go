@@ -115,6 +115,44 @@ func TestThroneTargetsJoinTheRoomQualityTargets(t *testing.T) {
 	}
 }
 
+// An unfloored throne room is marked with the title's floor tags and plans
+// floors of a terrain the mirror tags so (#1863), whatever its name.
+func TestThroneRoomFlooringPlansTheRequiredTag(t *testing.T) {
+	facts, _ := throneProjection(true)
+	royalty, _ := facts.Royalty.Value()
+	for i := range royalty.Ladder {
+		if req, ok := royalty.Ladder[i].Throne.Value(); ok {
+			req.FloorTags, req.FloorLabel = []string{"FineFloor"}, "RoomRequirementAllFineFloored"
+			royalty.Ladder[i].Throne = domain.Known(req)
+		}
+	}
+	facts.Royalty = domain.Known(royalty)
+	var cells []policy.FloorCell
+	for z := int32(20); z < 25; z++ {
+		for x := int32(10); x < 16; x++ {
+			cells = append(cells, policy.FloorCell{Cell: domain.Cell{X: x, Z: z}, Terrain: "Soil"})
+		}
+	}
+	census := policy.FlooringObservation{
+		Rooms:    []policy.FloorRoom{{ID: "r1", Cells: cells}},
+		Terrains: map[string]policy.FloorTerrain{"Soil": {Natural: true}, "Carpet": {Tags: []string{"FineFloor"}}},
+	}
+	v := withThroneFloor(facts, census)
+	if len(v.Rooms[0].RequiredTags) != 1 || len(census.Rooms[0].RequiredTags) != 0 {
+		t.Fatalf("%+v", v.Rooms)
+	}
+	review, err := policy.ReviewFlooring(domain.Known(v), facts.Rooms, nil, policy.DefaultFlooringPolicy())
+	if err != nil || len(review.Deficits) != 1 || review.Deficits[0].Tier != policy.FloorTierThrone {
+		t.Fatal(review, err)
+	}
+	proposal, err := policy.SelectFlooringMethod(review, policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{
+		"Carpet": {Available: domain.Known(true), Terrain: domain.Known(true), Tags: []string{"FineFloor"}},
+	}}, policy.DefaultFlooringPolicy())
+	if err != nil || proposal.Method != policy.FlooringBuild || proposal.Definition != "Carpet" {
+		t.Fatal(proposal, err)
+	}
+}
+
 // A title that asks for a throne room the plan lacks grows one at the next
 // hourly layout review, sized to the title's area; the ladder's throne
 // definitions name what the planners read.

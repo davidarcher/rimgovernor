@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -55,7 +56,7 @@ func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.Gen
 	}
 	facts = &mirrored
 	projection.Royalty = domain.Known(*facts)
-	if err := projection.AddDefinitions(reading.Frame, throneThings(*facts)); err != nil {
+	if err := projection.AddDefinitions(reading.Frame, append(throneThings(*facts), throneFloorTerrains(reading.Frame.Catalog, *facts)...)); err != nil {
 		return err
 	}
 	r.census.rememberRoyalty(projection.Identity, projection.Royalty)
@@ -162,6 +163,47 @@ func withThroneTargets(facts observation.ColonyProjection, targets map[string]po
 		targets[id] = t
 	}
 	return targets
+}
+
+// withThroneFloor marks the standing throne room in the flooring census with
+// the title's flooring requirement (#1863), so the flooring review measures
+// it against the required terrain tags. The census rooms are copied: the
+// projection's own stay untouched. No requirement, no standing room or an
+// unlisted room leaves the census as read.
+func withThroneFloor(facts observation.ColonyProjection, v policy.FlooringObservation) policy.FlooringObservation {
+	need, owed := throneNeed(facts)
+	plan, pk := facts.LayoutPlan.Value()
+	rooms, rk := facts.Rooms.Value()
+	if !owed || !pk || !rk || len(need.FloorTags) == 0 {
+		return v
+	}
+	room, ok := plan.ThroneRoomFor(need.MinArea)
+	if !ok {
+		return v
+	}
+	standing, ok := policy.PlannedRoomStanding(room, rooms)
+	if !ok {
+		return v
+	}
+	v.Rooms = slices.Clone(v.Rooms)
+	for i := range v.Rooms {
+		if v.Rooms[i].ID == standing.ID {
+			v.Rooms[i].RequiredTags, v.Rooms[i].RequiredLabel = need.FloorTags, need.FloorLabel
+		}
+	}
+	return v
+}
+
+// throneFloorTerrains is every terrain the ladder's titles accept as a throne
+// floor, from the mirror's terrain tags: the definitions the flooring read
+// must carry for the throne tier to choose among them.
+func throneFloorTerrains(catalog *bridge.DefinitionCatalog, f policy.RoyaltyFacts) []string {
+	var tags []string
+	for _, rung := range f.Ladder {
+		req, _ := rung.Throne.Value()
+		tags = append(tags, req.FloorTags...)
+	}
+	return catalog.TerrainsWithTags(tags)
 }
 
 // throneMethod names a throne step's method: the shell once per room, the

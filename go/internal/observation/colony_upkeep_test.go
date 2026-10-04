@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -78,7 +79,7 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 	if _, ok := f.Rooms[1].Role.Value(); ok {
 		t.Fatal("roleless room gained a role", f.Rooms[1])
 	}
-	if f.Terrains["Soil"] != (policy.FloorTerrain{Cleanliness: -1, Beauty: -3, PathCost: 2, Natural: true}) || f.Terrains["WoodPlankFloor"].Natural {
+	if !reflect.DeepEqual(f.Terrains["Soil"], policy.FloorTerrain{Cleanliness: -1, Beauty: -3, PathCost: 2, Natural: true}) || f.Terrains["WoodPlankFloor"].Natural {
 		t.Fatal(f.Terrains)
 	}
 	if _, err := colonyUpkeep(v, bridge.Tables{Catalog: itemCatalog(t, nil, map[string][3]float32{"Soil": {-1, -3, 0}})}); err == nil || !strings.Contains(err.Error(), "flooring census") || !strings.Contains(err.Error(), "WoodPlankFloor") {
