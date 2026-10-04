@@ -203,7 +203,7 @@ func (control *Control) acquireOnce(ctx context.Context, requested domain.Genera
 	if epoch.Err() != nil && !control.isClosing() && reply.GetGranted().GetContext().GetNativeGeneration() == uint64(requested.Native) {
 		// The epoch was replaced mid-write: this grant is stale evidence.
 		// Revoke it at the known generation, then the caller acquires again
-		// under the new epoch.
+		// under the new Episode.
 		if _, _, err = control.native.Revoke(write, &a.Revoke{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(uint64(requested.Native)), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()}); err != nil {
 			return domain.GenerationSnapshot{}, err
 		}

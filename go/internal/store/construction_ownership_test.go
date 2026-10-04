@@ -28,7 +28,7 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	request.Facts.BedCapacity = domain.Known(int64(0))
 	request.Facts.IndoorCapacity = domain.Known(int64(0))
 	g := routineGoal(t, reviewRoutine(t, s, &request), policy.MaintainHousing)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "build", plan(t, "method", "placed")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "build", plan(t, "method", "placed")); err != nil {
 		t.Fatal(err)
 	}
 	scope := request.Current

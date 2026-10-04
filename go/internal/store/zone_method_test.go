@@ -70,7 +70,7 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if g.Goal.Need != domain.NeedDeficit {
+	if g.Standard.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
 	zone, err := allowListZone(domain.ImportantPriority, []string{"Steel"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
@@ -85,7 +85,7 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "ingredient-storage-0", plan); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "ingredient-storage-0", plan); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -104,7 +104,7 @@ func TestCommitStockpileZoneMethodBindsToAnimalFeedGoal(t *testing.T) {
 	}
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainAnimalFeed)
-	if g.Goal.Need != domain.NeedDeficit {
+	if g.Standard.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
 	zone, err := allowListZone(domain.ImportantPriority, []string{"Kibble"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
@@ -119,7 +119,7 @@ func TestCommitStockpileZoneMethodBindsToAnimalFeedGoal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "feed-storage-0", plan); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "feed-storage-0", plan); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -134,7 +134,7 @@ func TestCommitStockpileZoneMethodCappedAtOneAction(t *testing.T) {
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainAnimalFeed)
 	plan := stockpilePlan(t, "storage-plan", []domain.Cell{{X: 4, Z: 6}}, []domain.Cell{{X: 8, Z: 6}})
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "food-storage", plan); err == nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "food-storage", plan); err == nil {
 		t.Fatal("expected rejection of multi-action stockpile plan")
 	}
 }
@@ -150,11 +150,11 @@ func TestCommitOpeningStockpilesBindToStockpilesGoal(t *testing.T) {
 	r.Facts.Stockpiles = domain.Known(policy.StockpileReview{Known: true, Active: true})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainStockpiles)
-	if g.Goal.Need != domain.NeedDeficit {
+	if g.Standard.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
 	plan := stockpilePlan(t, "opening-plan", []domain.Cell{{X: 4, Z: 6}}, []domain.Cell{{X: 8, Z: 6}}, []domain.Cell{{X: 12, Z: 6}}, []domain.Cell{{X: 16, Z: 6}})
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "stockpile-create", plan); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "stockpile-create", plan); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -169,7 +169,7 @@ func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainAnimalFeed)
 	plan := growingPlan(t, "fields-plan", []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "fields", plan); err == nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "fields", plan); err == nil {
 		t.Fatal("expected rejection of growing zone bound to food storage goal")
 	}
 }
@@ -196,7 +196,7 @@ func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "food-storage", plan); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "food-storage", plan); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := s.LoadPlan(ctx, "storage-plan")
@@ -238,7 +238,7 @@ func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "food-storage", plan); err == nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "food-storage", plan); err == nil {
 		t.Fatal("expected rejection of overlapping stockpile cells")
 	}
 }
@@ -254,7 +254,7 @@ func TestCommitFieldMethodExemptFromAcquisitionOpenWork(t *testing.T) {
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -265,18 +265,18 @@ func TestCommitFieldMethodExemptFromAcquisitionOpenWork(t *testing.T) {
 	if _, err := s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
 		t.Fatal(err)
 	}
-	g, err := s.LoadGoal(ctx, g.Goal.ID)
+	g, err := s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	field := growingPlan(t, "field-plan-1", []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}})
-	if g, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "field-1", field); err != nil {
+	if g, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "field-1", field); err != nil {
 		t.Fatal("open acquisition blocked a field method", err)
 	}
 	// The committed field batch is open until its zone resolves, so another
 	// field batch waits.
 	second := growingPlan(t, "field-plan-2", []domain.Cell{{X: 5, Z: 5}})
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "field-2", second); err == nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "field-2", second); err == nil {
 		t.Fatal("open field work did not block a second field batch")
 	}
 }
@@ -291,7 +291,7 @@ func TestCommitFieldInfrastructureExemptFromAcquisitionOpenWork(t *testing.T) {
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -302,14 +302,14 @@ func TestCommitFieldInfrastructureExemptFromAcquisitionOpenWork(t *testing.T) {
 	if _, err := s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
 		t.Fatal(err)
 	}
-	g, err := s.LoadGoal(ctx, g.Goal.ID)
+	g, err := s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
 		t.Fatal("open acquisition did not block an unrelated building")
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "lamp-1", buildingOnlyPlan(t, "lamp-plan-1", "SunLamp")); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "lamp-1", buildingOnlyPlan(t, "lamp-plan-1", "SunLamp")); err != nil {
 		t.Fatal("open acquisition blocked a sun lamp field batch", err)
 	}
 }
@@ -340,17 +340,17 @@ func TestCommitGrowerCropExemptFromOpenFieldWork(t *testing.T) {
 	r := foodDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "basin-1", buildingOnlyPlan(t, "basin-plan-1", "HydroponicsBasin")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "basin-1", buildingOnlyPlan(t, "basin-plan-1", "HydroponicsBasin")); err != nil {
 		t.Fatal(err)
 	}
-	g, err := s.LoadGoal(ctx, g.Goal.ID)
+	g, err := s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
 		t.Fatal("open basin batch did not block an unrelated building")
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "fields-recrop-basin-1", growerCropPlan(t, "recrop-plan-1")); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "fields-recrop-basin-1", growerCropPlan(t, "recrop-plan-1")); err != nil {
 		t.Fatal("open basin batch blocked a re-crop", err)
 	}
 }

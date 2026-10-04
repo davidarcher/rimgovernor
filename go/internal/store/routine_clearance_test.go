@@ -16,21 +16,21 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true}})
 	g := routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions)
 	// Shared journal semantics do not depend on the future upkeep action family.
-	if _, err := db.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
+	if _, err := db.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{})
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Goal.Need != domain.NeedRecovered || g.Goal.Status != domain.GoalSatisfied {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedRecovered || g.Standard.Status != domain.StandardSettled {
 		t.Fatal("unissued plan invented a deficit", g)
 	}
 	// The unissued method settles with the recovery (#290); the renewed
-	// deficit opens a new epoch and binds a fresh method.
+	// deficit opens a new Episode and binds a fresh method.
 	if p, err := db.LoadPlan(ctx, "p"); err != nil || p.Progress[0].View().Stage != domain.Cancelled {
 		t.Fatal("recovery left the unissued method open", p, err)
 	}
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true}})
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions)
-	if _, err := db.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
+	if _, err := db.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
 		t.Fatal(err)
 	}
 	scope2 := scope()
@@ -43,14 +43,14 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	}
 	r.Tick++
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{})
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Goal.Need != domain.NeedDeficit {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedDeficit {
 		t.Fatal("issued target loss recovered need", g)
 	}
 	r.Enabled = false
 	reviewRoutine(t, db, &r)
 	r.Enabled = true
 	for i := 0; i < 2; i++ {
-		if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Goal.Need != domain.NeedDeficit {
+		if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedDeficit {
 			t.Fatal("replacement binding lost unresolved work", g)
 		}
 	}
@@ -59,7 +59,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	}
 	// An applied building closes once the census shows it built (#856).
 	r.Facts.CurrentConstruction = builtCensus(t, "wall")
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Goal.Need != domain.NeedRecovered {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}
 }

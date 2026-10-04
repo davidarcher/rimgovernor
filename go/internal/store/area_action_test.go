@@ -37,7 +37,7 @@ func TestAreaActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "restore", p); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "restore", p); err != nil {
 		t.Fatal(err)
 	}
 	s.Close()

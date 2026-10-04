@@ -265,10 +265,10 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `GoalConcept`, "concept" | Type | Standard, Project or Incident. | done (#1968) |
 | `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | done (#1968) |
 | `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings. Log word "routine review" is now "rounds" (the `rounds ran` event keeps the `routine_review` event name and table until #1976). The `Routine*` family follows as `Rounds*`. | done (#1975); family pending #1979 |
-| `Goal` row, `goals` table | Standard | `Open / Settled / Voided` (was `Cancelled` too; the player-goal path is deleted). | pending #1972, #1976 |
-| `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. | pending #1972 |
-| `Project` | Project | `Open / Completed / Voided`. | pending #1972 |
-| `Response` concept, `Incident` row | Incident | Both the Type and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | pending #1972 |
+| `Goal` row, `goals` table | Standard | `Open / Settled / Voided` (was `Cancelled` too; the player-goal path is deleted). | done #1972; pending #1976 (storage names) |
+| `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. | done #1972 |
+| `Project` | Project | `Open / Completed / Voided`. | done #1972 |
+| `Response` concept, `Incident` row | Incident | Both the Type and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | done #1972 |
 | `Rule` | Safeguard | An admission veto; not a Type. | done (#1970) |
 | `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | pending #1973 |
 | `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); the table is renamed in place, then split per owner. | pending #1974, #1976, #1980 |

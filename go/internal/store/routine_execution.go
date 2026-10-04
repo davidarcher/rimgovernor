@@ -109,7 +109,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner Wor
 		return ErrConflict
 	}
 	g, _ := SummarizeOwner(owner)
-	if g.Retired || g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || !sameRoot(g.Snapshot, root) {
+	if g.Retired || g.Status != domain.StandardOpen || g.Need == domain.NeedUnknown || !sameRoot(g.Snapshot, root) {
 		return ErrConflict
 	}
 	// A prepared plan does not dispatch while a Safeguard vetoes its goal.
@@ -118,7 +118,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner Wor
 	}
 	bound := false
 	for _, method := range owner.OwnerMethods() {
-		if method.Plan == target.Plan && method.Epoch == g.Epoch {
+		if method.Plan == target.Plan && method.Episode == g.Episode {
 			bound = true
 		}
 	}
@@ -191,7 +191,7 @@ func (r Rounds) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
 // Veto asks the policy Safeguards (#1017) whether this review admits a proposal
 // for the goal, returning the veto's reason or "". A goal the review does
 // not bind (a player goal) is outside the routine Safeguards.
-func (r Rounds) Veto(g domain.Goal) string {
+func (r Rounds) Veto(g domain.Standard) string {
 	need, bound := r.Need(g.ID)
 	if !bound {
 		return ""
@@ -202,7 +202,7 @@ func (r Rounds) Veto(g domain.Goal) string {
 // Workable loads the Standard goal the review binds to need and reports whether a
 // planner may work it: an active deficit the Safeguards admit (#1121). The goal
 // is returned whenever the review binds one, workable or not.
-func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (GoalState, bool, error) {
+func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (StandardState, bool, error) {
 	id := domain.ConcernID("")
 	for _, binding := range r.Goals {
 		if binding.Need == need {
@@ -210,13 +210,13 @@ func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (
 		}
 	}
 	if id == "" {
-		return GoalState{}, false, nil
+		return StandardState{}, false, nil
 	}
-	goal, err := s.LoadGoal(ctx, id)
+	goal, err := s.LoadStandard(ctx, id)
 	if err != nil {
-		return GoalState{}, false, err
+		return StandardState{}, false, err
 	}
-	return goal, goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit && r.Veto(goal.Goal) == "", nil
+	return goal, goal.Standard.Status == domain.StandardOpen && goal.Standard.Need == domain.NeedDeficit && r.Veto(goal.Standard) == "", nil
 }
 
 // vetoAction asks the action Safeguards (#1018) at dispatch: a vetoed action is

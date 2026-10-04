@@ -28,7 +28,7 @@ type PlanMethod struct {
 func (s *Store) PlanGoalMethod(ctx context.Context, plan domain.PlanID) (method PlanMethod, ok bool, err error) {
 	var reason, goal sql.NullString
 	var incident, project, kind sql.NullString
-	err = s.db.QueryRowContext(ctx, "SELECT m.goal_id, m.incident_id, m.project_id, i.kind, m.epoch, m.method_id, m.reason FROM goal_methods m LEFT JOIN incidents i ON i.id=m.incident_id WHERE m.plan_id=?", plan).Scan(&goal, &incident, &project, &kind, &method.Epoch, &method.Method, &reason)
+	err = s.db.QueryRowContext(ctx, "SELECT m.goal_id, m.incident_id, m.project_id, i.kind, m.epoch, m.method_id, m.reason FROM goal_methods m LEFT JOIN incidents i ON i.id=m.incident_id WHERE m.plan_id=?", plan).Scan(&goal, &incident, &project, &kind, &method.Episode, &method.Method, &reason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return PlanMethod{}, false, nil
 	}

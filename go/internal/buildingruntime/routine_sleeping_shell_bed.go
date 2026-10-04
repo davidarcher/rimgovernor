@@ -17,7 +17,7 @@ import (
 // beds instead of a newly built one: a stored packed Bed is reinstalled at
 // the room's first bed spot, else a vacant Bed left in the shell is packed
 // (uninstalled) so the next round reinstalls it. Each step once per bed per
-// goal epoch; due is false when there is no bed to carry over, the room has
+// Episode; due is false when there is no bed to carry over, the room has
 // no spot, or the step was tried, so the ordinary build goes on.
 func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, bool, error) {
 	facts := reading.Projection

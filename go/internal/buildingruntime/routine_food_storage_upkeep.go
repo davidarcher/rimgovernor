@@ -296,7 +296,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, medChoice.ID, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, medChoice.ID, plan); err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

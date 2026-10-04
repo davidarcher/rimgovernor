@@ -65,7 +65,7 @@ func coupleBedSlot(room TidyRoom) (domain.Cell, domain.Rotation, bool) {
 
 // NextCoupleBed returns the first couple (by lower pawn id) bed step due,
 // false when none. rooms are the furniture rooms; packed are the cells of
-// the beds this goal epoch's completed pack steps uninstalled, the
+// the beds this Episode's completed pack steps uninstalled, the
 // couple's room's bed first; buildable reports that a DoubleBed can be
 // built, without which nothing is packed.
 func NextCoupleBed(obs SleepingObservation, rooms []TidyRoom, packed []domain.Cell, buildable bool) (CoupleBed, bool) {

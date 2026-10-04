@@ -142,7 +142,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	// Keyed by item and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever hauler is currently best.
 	prefix := fmt.Sprintf("waste-%s-", item.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineWasteResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -163,7 +163,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineWasteResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWasteResult{}, err
 	}
 	return RoutineWasteResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

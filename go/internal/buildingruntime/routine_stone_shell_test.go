@@ -61,18 +61,18 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 	current := base.reviewer.player.session.State().Snapshot
 	var err error
 	if history {
-		goal, err := domain.NewGoal("stone-owner", 4, current, 7)
+		goal, err := domain.NewStandard("stone-owner", 4, current, 7)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = db.SeedGoal(ctx, goal); err != nil {
+		if err = db.SeedStandard(ctx, goal); err != nil {
 			t.Fatal(err)
 		}
-		g, err := db.LoadGoal(ctx, goal.ID)
+		g, err := db.LoadStandard(ctx, goal.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if g, err = db.ReviewGoal(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit); err != nil {
+		if g, err = db.ReviewStandard(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit); err != nil {
 			t.Fatal(err)
 		}
 		wall, err := domain.NewBuilding("Wall", domain.Cell{X: 4, Z: 4}, domain.North, "WoodLog")

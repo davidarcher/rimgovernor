@@ -111,7 +111,7 @@ func herdRoomsOwed(facts observation.ColonyProjection) (domain.Fact[bool], error
 }
 
 // herdMethod names a herd step's method: the shell once per room, each bed
-// slot once, per goal epoch.
+// slot once, per Episode.
 func herdMethod(step policy.HerdStep) domain.MethodID {
 	in := step.Room.Interior
 	if step.Kind == policy.HerdPlace {
@@ -123,7 +123,7 @@ func herdMethod(step policy.HerdStep) domain.MethodID {
 // stageHerdRooms answers the due herd step: the room's shell through
 // shellRoom, a bed through placePiece. It reads the room census itself, the
 // pen steps before it did not need it.
-func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim]) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim]) (RoutineAnimalContainmentResult, error) {
 	reading, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, claims, herdDefinitions...)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
@@ -138,7 +138,7 @@ func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Con
 	if !step.Owed() {
 		return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	clockSchedulerLog("%s: %s %s", goal.Goal.ID, step.Role, step.Kind)
+	clockSchedulerLog("%s: %s %s", goal.Standard.ID, step.Role, step.Kind)
 	var result RoutineBuildingResult
 	switch step.Kind {
 	case policy.HerdShell:
@@ -152,16 +152,16 @@ func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Con
 }
 
 // markHerdBedMedical commits one CAS-gated patch flagging a vet room bed
-// medical, once per bed per goal epoch. A native that cannot read bed use
+// medical, once per bed per Episode. A native that cannot read bed use
 // is an error, never a skipped step.
-func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context.Context, state ControlState, goal store.GoalState, facts observation.ColonyProjection, bed string) (RoutineBuildingResult, error) {
+func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context.Context, state ControlState, goal store.StandardState, facts observation.ColonyProjection, bed string) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	native, ok := r.reviewer.native.(RoutineHospitalSource)
 	if !ok {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: the native source cannot read bed use", ErrControl)
 	}
 	method := domain.MethodID("herd-medical-" + bed)
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "herd_bed_medical_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err

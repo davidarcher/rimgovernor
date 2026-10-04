@@ -152,7 +152,7 @@ const fieldRichFertility = 1.0
 // fieldShortfall is one goal's open field-block demand in the cross-crop
 // ledger (#1308): options lead with the goal's own crop and cells.
 type fieldShortfall struct {
-	Goal    store.GoalState
+	Goal    store.StandardState
 	Options []policy.FieldBlockOption
 	What    string
 }
@@ -163,7 +163,7 @@ func fieldShortfallWeight(s fieldShortfall) int {
 	if len(s.Options) == 0 {
 		return 0
 	}
-	return (5 - s.Goal.Goal.Priority) * s.Options[0].Needed
+	return (5 - s.Goal.Standard.Priority) * s.Options[0].Needed
 }
 
 // rankFieldShortfalls orders the ledger heaviest first; the first placed

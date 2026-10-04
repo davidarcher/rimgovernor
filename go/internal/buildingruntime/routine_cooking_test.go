@@ -90,7 +90,7 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 }
 
 // A campfire the pawns let burn out leaves the census without a cooking
-// bench in the same goal epoch; the completed method yields to a numbered
+// bench in the same Episode; the completed method yields to a numbered
 // successor instead of holding the goal at method_already_used (#217).
 func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
 	t.Parallel()

@@ -200,7 +200,7 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 }
 
 // The throne step commits one Assign of the throne to its holder, once per
-// holder and throne per goal epoch (#1601).
+// holder and throne per Episode (#1601).
 func TestAssignThroneCommitsOneGenericAssign(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

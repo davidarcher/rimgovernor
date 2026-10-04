@@ -136,7 +136,7 @@ func loadProject(ctx context.Context, tx *sql.Tx, id domain.ProjectID) (ProjectS
 	if out.Project.ID != id {
 		return ProjectState{}, errors.New("project identity mismatch")
 	}
-	if out.Retired && out.Project.Status != domain.ProjectInvalidated {
+	if out.Retired && out.Project.Status != domain.ProjectVoided {
 		return ProjectState{}, errors.New("invalid retired project")
 	}
 	out.Revision = n
@@ -215,7 +215,7 @@ func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision
 	if err != nil {
 		return ProjectState{}, err
 	}
-	if p.Status == domain.ProjectInvalidated {
+	if p.Status == domain.ProjectVoided {
 		if err = cancelGoalMethods(ctx, tx, state); err != nil {
 			return ProjectState{}, err
 		}
@@ -306,7 +306,7 @@ func retireProjects(ctx context.Context, tx *sql.Tx, retained map[domain.Project
 		if err != nil {
 			return err
 		}
-		if p.Project.Status != domain.ProjectInvalidated {
+		if p.Project.Status != domain.ProjectVoided {
 			continue
 		}
 		open, err := goalOpenWork(ctx, tx, p)

@@ -205,8 +205,8 @@ func readUpkeep(ctx context.Context, h *na.Harness, identity map[string]any, lab
 
 // waitNeed polls until need's goal binding reports state (deficit or
 // recovered) and returns the goal.
-func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, state domain.NeedState) (store.GoalState, error) {
-	var found store.GoalState
+func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, state domain.NeedState) (store.StandardState, error) {
+	var found store.StandardState
 	err := na.WaitProgress(ctx, na.Wait{Stall: needStall, Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRounds(ctx)
 		if err != nil {
@@ -216,11 +216,11 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, 
 			if binding.Need != need {
 				continue
 			}
-			goal, err := journal.LoadGoal(ctx, binding.Goal)
+			goal, err := journal.LoadStandard(ctx, binding.Goal)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
-			if err == nil && goal.Goal.Need == state {
+			if err == nil && goal.Standard.Need == state {
 				found = goal
 				return "", true, nil
 			}
@@ -229,7 +229,7 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, 
 		return fmt.Sprintf("tick=%d revision=%d", review.Tick, review.Revision), false, nil
 	})
 	if err != nil {
-		return store.GoalState{}, fmt.Errorf("%s never reported %s: %w", need, state, err)
+		return store.StandardState{}, fmt.Errorf("%s never reported %s: %w", need, state, err)
 	}
 	return found, nil
 }
@@ -266,14 +266,14 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 			if binding.Need != need {
 				continue
 			}
-			goal, err := journal.LoadGoal(ctx, binding.Goal)
+			goal, err := journal.LoadStandard(ctx, binding.Goal)
 			if err != nil {
 				if errors.Is(err, store.ErrNotFound) {
 					continue
 				}
 				return false, err
 			}
-			if goal.Goal.Need == domain.NeedRecovered {
+			if goal.Standard.Need == domain.NeedRecovered {
 				return true, nil
 			}
 		}
@@ -450,7 +450,7 @@ func watchMedicine(ctx context.Context, journal *store.Store, prepared map[strin
 	if err != nil {
 		return err
 	}
-	report["medicine_recovered_tick"] = int64(goal.Goal.Tick)
+	report["medicine_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 
@@ -515,7 +515,7 @@ func watchFeed(ctx context.Context, journal *store.Store, prepared map[string]an
 	if err != nil {
 		return err
 	}
-	report["feed_recovered_tick"] = int64(goal.Goal.Tick)
+	report["feed_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 
@@ -594,7 +594,7 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 	if err != nil {
 		return err
 	}
-	report["sleeping_recovered_tick"] = int64(goal.Goal.Tick)
+	report["sleeping_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 
@@ -694,7 +694,7 @@ func watchCold(ctx context.Context, journal *store.Store, prepared map[string]an
 	if err != nil {
 		return err
 	}
-	report["temperature_recovered_tick"] = int64(goal.Goal.Tick)
+	report["temperature_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 

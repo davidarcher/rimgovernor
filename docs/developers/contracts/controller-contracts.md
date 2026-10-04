@@ -277,7 +277,7 @@ candidate waits, none is held and the royalty read marks it `craftable` or
 `tradeable`, so the resource ladder bills or buys it. With one held (a live
 `observations_list_supplies` read names the item ids; the royalty count lags
 it) the planner orders `UseItem` with the colonist as its own target, at most
-twice per colonist per goal epoch. The same use levels up an available
+twice per colonist per Episode. The same use levels up an available
 psycaster below level 6 (`policy.PsylinkLevelUps`, #1940; the hediff's
 `maxSeverity`, the game's `CanBeUsedBy` cap) who holds no royal title with any
 faction (`PawnState.royalty.holdings[].title`: the title caps the psylink level),
@@ -445,7 +445,7 @@ step ranks every observed grower that can sow (`policy.PlanGrowerCrops`: the ava
 edible crops carrying the grower's sow tag by nutrition rate over its fertility, the
 fastest first under urgency) and commits a one-shot `grower_crop` patch
 (BuildingPatchIntent `plant_def`) for a grower not
-on the winner, once per grower per goal epoch. The `farm/select-*` cases
+on the winner, once per grower per Episode. The `farm/select-*` cases
 assert the traced selection kind/crop, the winner's term breakdown and every loser's
 reason; `farm/select-greenhouse` and `farm/select-hydroponics` stage a lit, heated room under a cold
 snap through `FarmEnvironmentFixture` and audits the zones or basin placements inside
@@ -865,7 +865,7 @@ eligible only while the shrine is still sealed; a wall that vanishes or
 changes definition is absent. The wall falling ends the method: the plan
 has no open work, the undraft sweep undrafts the squad and `ActiveCombat`
 answers the guards, which the goal then holds `guards_alive` until they are
-dead or downed. Eight attempts per wall and goal epoch; Stop and Manual
+dead or downed. Eight attempts per wall and Episode; Stop and Manual
 leave the squad drafted (the game's own auto-undraft applies once authority
 is inactive). Ranged breaching is not composed.
 

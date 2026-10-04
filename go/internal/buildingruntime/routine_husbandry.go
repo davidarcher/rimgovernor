@@ -136,7 +136,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	// collides with, or is exhausted by, a slaughter attempt on the same
 	// animal (or vice versa) -- they are independent write kinds.
 	prefix := fmt.Sprintf("%s-%s-", choice.Method, choice.Animal)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineHusbandryResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -171,7 +171,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineHusbandryResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineHusbandryResult{}, err
 	}
 	return RoutineHusbandryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

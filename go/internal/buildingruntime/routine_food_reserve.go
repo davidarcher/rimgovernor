@@ -53,7 +53,7 @@ func foodDeliveryDays(f domain.Fact[policy.FoodPlan]) domain.Fact[[]float64] {
 
 // Reserve access uses the same durable supply actions as ordinary supplies.
 // Locations come from a fresh bounded supply census; Hands rechecks them.
-func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Context, goal store.GoalState, observed *o.ColonyFactsSnapshot, reserve policy.FoodReserveReview) (RoutineFoodStorageUpkeepResult, error) {
+func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Context, goal store.StandardState, observed *o.ColonyFactsSnapshot, reserve policy.FoodReserveReview) (RoutineFoodStorageUpkeepResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	wanted := map[string]bool{}
@@ -115,6 +115,6 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitReserve: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
+	_, err = p.journal.CommitGoalMethod(ctx, goal.Standard.ID, goal.Revision, method, plan)
 	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, err
 }

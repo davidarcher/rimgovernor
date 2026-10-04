@@ -30,14 +30,14 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	}
 	scope := f.authority.Snapshot
 	scope.Plan = plan.ID()
-	goal, err := domain.NewGoal("shelter", 2, scope, 100)
+	goal, err := domain.NewStandard("shelter", 2, scope, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = f.store.SeedGoal(ctx, goal); err != nil {
+	if err = f.store.SeedStandard(ctx, goal); err != nil {
 		t.Fatal(err)
 	}
-	g, err := f.store.ReviewGoal(ctx, goal.ID, 0, scope, 100, domain.NeedDeficit)
+	g, err := f.store.ReviewStandard(ctx, goal.ID, 0, scope, 100, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}

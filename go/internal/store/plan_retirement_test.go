@@ -76,7 +76,7 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	for i := 0; i < 260; i++ {
 		id := fmt.Sprintf("method-%03d", i)
 		p := plan(t, domain.PlanID(id), domain.ActionID(id+"-a"))
-		committed, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, domain.MethodID(id), p)
+		committed, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, domain.MethodID(id), p)
 		if err != nil {
 			t.Fatal(i, err)
 		}
@@ -84,14 +84,14 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 			t.Fatal(err)
 		}
 		if i == 0 {
-			r.Tick = g.Goal.Tick
+			r.Tick = g.Standard.Tick
 		}
 		g = routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 		if i == 0 {
 			if g.Revision <= committed.Revision {
 				t.Fatal("same-tick retirement retained stale revision")
 			}
-			if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, committed.Revision, "stale", plan(t, "stale", "stale-a")); !errors.Is(err, ErrConflict) {
+			if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, committed.Revision, "stale", plan(t, "stale", "stale-a")); !errors.Is(err, ErrConflict) {
 				t.Fatal("stale goal revision admitted", err)
 			}
 		}
@@ -105,7 +105,7 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	if err != nil || len(active) != 0 {
 		t.Fatal(active, err)
 	}
-	m, err := s.LoadGoalMethod(ctx, g.Goal.ID, 0, "method-000")
+	m, err := s.LoadGoalMethod(ctx, g.Standard.ID, 0, "method-000")
 	if err != nil || m.Plan != "method-000" {
 		t.Fatal(m, err)
 	}
@@ -116,7 +116,7 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	if err = s.CreatePlan(ctx, p.Spec); err == nil {
 		t.Fatal("retired plan identity reused")
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "method-000", plan(t, "duplicate", "duplicate-a")); err == nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "method-000", plan(t, "duplicate", "duplicate-a")); err == nil {
 		t.Fatal("retired method identity reused")
 	}
 	if _, err = s.Cancel(ctx, p.Spec.ID(), p.Spec.Actions()[0].ID()); err == nil {
@@ -130,7 +130,7 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "current", plan(t, "p", "a")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "current", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Cancel(ctx, "p", "a"); err != nil {
@@ -170,7 +170,7 @@ func TestRoutinePlanRetirementPinsUnfinishedMethods(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "method", p); err != nil {
+			if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "method", p); err != nil {
 				t.Fatal(err)
 			}
 			current := scope()

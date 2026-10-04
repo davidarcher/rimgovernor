@@ -38,7 +38,7 @@ func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generat
 		if err != nil {
 			return nil, err
 		}
-		s := g.Goal.Snapshot
+		s := g.Standard.Snapshot
 		if s.Colony != current.Colony || s.Load != current.Load || s.Map != current.Map || !strings.HasPrefix(string(goal), "routine-") {
 			continue
 		}

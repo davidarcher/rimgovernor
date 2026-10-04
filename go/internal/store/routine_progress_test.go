@@ -50,7 +50,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 		t.Fatal(first.Review.Development.Rows)
 	}
 	for _, binding := range first.Review.Goals {
-		if _, ok := first.Review.GoalProgress(binding.Need); !ok && routineGoal(t, first, binding.Need).Goal.Status == domain.GoalActive {
+		if _, ok := first.Review.GoalProgress(binding.Need); !ok && routineGoal(t, first, binding.Need).Standard.Status == domain.StandardOpen {
 			t.Fatal("active goal without a progress record", binding.Need)
 		}
 	}
@@ -119,7 +119,7 @@ func TestRoutineProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 		t.Fatalf("wood record %+v", wood)
 	}
 	g := routineGoal(t, first, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "cut-0123456789abcdef", plan(t, "wood", "wood-action")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "cut-0123456789abcdef", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
 	target := scope()

@@ -64,7 +64,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 			// ranked queue never turns into a slot hold when the goal
 			// drops back to 3 (#705), and slot work stays one.
 			priority = admitted
-			world = World{Colony: g.Goal.Snapshot.Colony, Load: g.Goal.Snapshot.Load, Map: g.Goal.Snapshot.Map}
+			world = World{Colony: g.Standard.Snapshot.Colony, Load: g.Standard.Snapshot.Load, Map: g.Standard.Snapshot.Map}
 			for _, b := range bindings {
 				if goalID == b.Goal || routineStandardOwns(goalID, b.Need) {
 					goalID = b.Need
@@ -160,7 +160,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, ne
 			if b.Need == goals[i].ID {
 				owner := states[j]
 				g, _ := SummarizeOwner(owner)
-				goals[i].Blocked = g.Status != domain.GoalActive
+				goals[i].Blocked = g.Status != domain.StandardOpen
 				// Served counts retired methods too: a startup goal whose
 				// campfire plan completed and retired is served, not owed.
 				var served int

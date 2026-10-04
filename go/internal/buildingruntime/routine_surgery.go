@@ -127,7 +127,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		// Prisoners stay on herbal (#1239): a cut only better medicine
 		// could serve is refused; the review asks for herbal instead.
 		if blocked, ok := policy.CareLimitedHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants), inFlight); ok {
-			clockSchedulerLog("%s: surgery %s on prisoner %s refused: medicine care limit %s allows no stocked medicine; herbal wanted", goal.Goal.ID, blocked.Recipe, blocked.Prisoner, policy.PrisonerMedicalCare)
+			clockSchedulerLog("%s: surgery %s on prisoner %s refused: medicine care limit %s allows no stocked medicine; herbal wanted", goal.Standard.ID, blocked.Recipe, blocked.Prisoner, policy.PrisonerMedicalCare)
 		}
 	}
 	if !harvesting {
@@ -151,7 +151,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	// The tick keys the method: a failed surgery leaves the part missing,
 	// and the same recipe is queued again on a later review.
 	hash := sha256.New()
-	fmt.Fprintf(hash, "%s/%d/%d\n", goal.Goal.ID, goal.Goal.Epoch, expected.Tick)
+	fmt.Fprintf(hash, "%s/%d/%d\n", goal.Standard.ID, goal.Standard.Episode, expected.Tick)
 	for _, choice := range queue {
 		fmt.Fprintf(hash, "%s/%s/%d\n", choice.Pawn, choice.Recipe, choice.Part)
 	}
@@ -202,7 +202,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if p.session.State() != state {
 		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineSurgeryResult{}, err
 	}
 	result.Verdict, result.Plan = BuildingReasonAdmitted, id

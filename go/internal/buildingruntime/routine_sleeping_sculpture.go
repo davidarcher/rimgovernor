@@ -39,7 +39,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyS
 // sculptBedroom is the beauty lever after pots and floors (#830): a
 // finished packed sculpture (MaintainArt's pinned bill, #1190) installed (a
 // RelocateIntent on the packed item's inner building) on free floor in the
-// room, once per goal epoch. due is false when the lever has nothing to do.
+// room, once per Episode. due is false when the lever has nothing to do.
 func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
 	native, ok := r.native.(sculptureSource)
 	facts := reading.Projection

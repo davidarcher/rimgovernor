@@ -38,17 +38,17 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 	}
 	return r
 }
-func anotherGoal(t *testing.T, s *Store, id domain.ConcernID) GoalState {
+func anotherGoal(t *testing.T, s *Store, id domain.ConcernID) StandardState {
 	t.Helper()
 	ctx := context.Background()
-	g, e := domain.NewGoal(id, 3, scope(), 10)
+	g, e := domain.NewStandard(id, 3, scope(), 10)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = s.SeedGoal(ctx, g); e != nil {
+	if e = s.SeedStandard(ctx, g); e != nil {
 		t.Fatal(e)
 	}
-	v, e := s.ReviewGoal(ctx, id, 0, scope(), 10, domain.NeedDeficit)
+	v, e := s.ReviewStandard(ctx, id, 0, scope(), 10, domain.NeedDeficit)
 	if e != nil {
 		t.Fatal(e)
 	}

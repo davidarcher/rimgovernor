@@ -164,11 +164,11 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	case policy.HospitalBuild:
 		return r.building.step(call, epoch, arbiter)
 	}
-	// Convert: one bed, one CAS-gated patch, once per goal epoch. A method
+	// Convert: one bed, one CAS-gated patch, once per Episode. A method
 	// that already ran this epoch (the patch was refused, or a player undid
 	// it) is not retried; the next epoch reconsiders.
 	method := domain.MethodID("hospital-convert-" + choice.Bed)
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "hospital_convert_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
@@ -213,7 +213,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 // the single copy of the tail the hospital convert, the vet-room medical
 // bed and the jail bed share. guard, when set, runs after the session and
 // epoch checks, last before the commit.
-func (p *Player) commitBedPatch(call, epoch context.Context, state ControlState, goal store.GoalState, method domain.MethodID, patch domain.BedUse, guard func() error) error {
+func (p *Player) commitBedPatch(call, epoch context.Context, state ControlState, goal store.StandardState, method domain.MethodID, patch domain.BedUse, guard func() error) error {
 	id := domain.MintPlanID()
 	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
@@ -234,6 +234,6 @@ func (p *Player) commitBedPatch(call, epoch context.Context, state ControlState,
 			return err
 		}
 	}
-	_, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan)
+	_, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan)
 	return err
 }

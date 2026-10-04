@@ -59,7 +59,7 @@ roster identities and unknown availability preserve explicit blockers.
 With exposure protection satisfied, candidate pairs use the ordered refuel,
 breakdown and repair needs. Method identities include pawn/target and observed
 hit points or fuel; refuge identities include the prior area and a 600-tick lease
-window. The shared goal epoch supplies used methods, including retired plans.
+window. The shared Episode supplies used methods, including retired plans.
 Refreshing a proposal does not count as attempting it. Saved typed inputs reproduce
 the candidates on load, and cancelled or emergency-suspended goals receive no new
 proposals.

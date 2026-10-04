@@ -113,7 +113,7 @@ func RecoveryNeed(h *DisasterHistory) domain.NeedState {
 }
 
 // SelectRecoveryMethods bounds the next admission batch to eight proposals.
-// Seen methods belong to the current shared goal epoch, including retired plans.
+// Seen methods belong to the current shared Episode, including retired plans.
 // Merely creating or refreshing a batch does not count as attempting its methods.
 func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain.MethodID, tick domain.Tick) (RecoverySelection, error) {
 	out := RecoverySelection{Tick: tick, Reason: RecoveryFactsUnknown}

@@ -162,17 +162,17 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		}
 	}
 	for i, binding := range active.Review.Goals {
-		if want, ok := animalNeeds[binding.Need]; ok && active.Goals[i].Goal.Need != want {
+		if want, ok := animalNeeds[binding.Need]; ok && active.Goals[i].Standard.Need != want {
 			t.Fatal(active.Goals[i], want)
 		}
 		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
-			g, err := db.LoadGoal(ctx, binding.Goal)
-			if err != nil || g.Goal.Need != medicalNeed {
+			g, err := db.LoadStandard(ctx, binding.Goal)
+			if err != nil || g.Standard.Need != medicalNeed {
 				t.Fatal(g, err)
 			}
 		}
 		if want, ok := fixture.Expected[binding.Need]; ok {
-			g := active.Goals[i].Goal
+			g := active.Goals[i].Standard
 			if g.Need != want.Need || g.Priority != want.Priority {
 				t.Fatal(g, want)
 			}
@@ -197,20 +197,20 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	}
 	for _, binding := range retained.Goals {
 		if want, ok := animalNeeds[binding.Need]; ok {
-			g, err := db.LoadGoal(ctx, binding.Goal)
-			if err != nil || g.Goal.Need != want || g.Goal.Status != domain.GoalInvalidated {
+			g, err := db.LoadStandard(ctx, binding.Goal)
+			if err != nil || g.Standard.Need != want || g.Standard.Status != domain.StandardVoided {
 				t.Fatal(g, want, err)
 			}
 		}
 		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
-			g, err := db.LoadGoal(ctx, binding.Goal)
-			if err != nil || g.Goal.Need != medicalNeed {
+			g, err := db.LoadStandard(ctx, binding.Goal)
+			if err != nil || g.Standard.Need != medicalNeed {
 				t.Fatal(g, err)
 			}
 		}
 		if want, ok := fixture.Expected[binding.Need]; ok {
-			g, err := db.LoadGoal(ctx, binding.Goal)
-			if err != nil || g.Goal.Need != want.Need || g.Goal.Status != domain.GoalInvalidated {
+			g, err := db.LoadStandard(ctx, binding.Goal)
+			if err != nil || g.Standard.Need != want.Need || g.Standard.Status != domain.StandardVoided {
 				t.Fatal(g, err)
 			}
 		}

@@ -330,7 +330,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 		if binding.Need != policy.ClearAncientShrine {
 			continue
 		}
-		if goal, err := db.LoadGoal(ctx, binding.Goal); err != nil || goal.Goal.Need == domain.NeedDeficit {
+		if goal, err := db.LoadStandard(ctx, binding.Goal); err != nil || goal.Standard.Need == domain.NeedDeficit {
 			t.Fatal("a cleared shrine is no deficit", goal, err)
 		}
 	}

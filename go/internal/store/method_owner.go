@@ -14,7 +14,7 @@ import (
 // methodOwner is what method admission reads of the goal or incident a
 // goal_methods row binds to (#1019): the world it was last reviewed in,
 // whether the autopilot owns it, the routine need it serves and its open
-// plans. GoalState, ProjectState and IncidentState implement it.
+// plans. StandardState, ProjectState and IncidentState implement it.
 type methodOwner interface {
 	ownerSnapshot() domain.GenerationSnapshot
 	// ownerNeed is the routine need the owner serves under this review:
@@ -28,23 +28,23 @@ type methodOwner interface {
 	ownerKey() (column, id, epoch string)
 }
 
-func (g GoalState) ownerKey() (string, string, string) {
-	return "goal_id", string(g.Goal.ID), strconv.FormatUint(g.Goal.Epoch, 10)
+func (g StandardState) ownerKey() (string, string, string) {
+	return "goal_id", string(g.Standard.ID), strconv.FormatUint(g.Standard.Episode, 10)
 }
 
-func (g GoalState) ownerSnapshot() domain.GenerationSnapshot { return g.Goal.Snapshot }
-func (g GoalState) ownerNeed(r Rounds) (domain.ConcernID, bool) {
-	return r.Need(g.Goal.ID)
+func (g StandardState) ownerSnapshot() domain.GenerationSnapshot { return g.Standard.Snapshot }
+func (g StandardState) ownerNeed(r Rounds) (domain.ConcernID, bool) {
+	return r.Need(g.Standard.ID)
 }
-func (g GoalState) ownerPriority() int { return g.Goal.Priority }
-func (g GoalState) ownerPlans() []domain.PlanID {
+func (g StandardState) ownerPriority() int { return g.Standard.Priority }
+func (g StandardState) ownerPlans() []domain.PlanID {
 	out := make([]domain.PlanID, len(g.Methods))
 	for i, m := range g.Methods {
 		out[i] = m.Plan
 	}
 	return out
 }
-func (g GoalState) ownerLabel() string { return "goal " + string(g.Goal.ID) }
+func (g StandardState) ownerLabel() string { return "goal " + string(g.Standard.ID) }
 
 // admitRoutineSafeguards is method admission's backstop for the Safeguards the
 // planner already asked: a vetoed proposal is ErrNotAdmitted with the

@@ -130,7 +130,7 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 			if err != nil {
 				return "", false, err
 			}
-			recovered = goal.Project.Status == domain.ProjectFinished
+			recovered = goal.Project.Status == domain.ProjectCompleted
 			s.Report()["shrine_project"] = goal
 		}
 		var states []string

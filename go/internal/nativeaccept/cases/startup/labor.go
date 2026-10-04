@@ -272,7 +272,7 @@ func ownerMethods(ctx context.Context, st *store.Store, review store.Rounds, nee
 	} else {
 		for _, b := range review.Goals {
 			if b.Need == need {
-				owner, err = st.LoadGoal(ctx, b.Goal)
+				owner, err = st.LoadStandard(ctx, b.Goal)
 			}
 		}
 	}
@@ -317,7 +317,7 @@ func shelterRecovery(ctx context.Context, st *store.Store, review store.Rounds, 
 		if b.Need != policy.MaintainHousing {
 			continue
 		}
-		state, err := st.LoadGoal(ctx, b.Goal)
+		state, err := st.LoadStandard(ctx, b.Goal)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				return known, nil

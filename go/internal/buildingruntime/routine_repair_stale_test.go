@@ -9,18 +9,18 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func staleRepairGoal(t *testing.T, journal *store.Store) store.GoalState {
+func staleRepairGoal(t *testing.T, journal *store.Store) store.StandardState {
 	t.Helper()
 	ctx := context.Background()
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "p", Revision: domain.PlanRevision(^uint64(0))}
-	g, err := domain.NewGoal("repairs", 3, snapshot, 10)
+	g, err := domain.NewStandard("repairs", 3, snapshot, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = journal.SeedGoal(ctx, g); err != nil {
+	if err = journal.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	state, err := journal.ReviewGoal(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
+	state, err := journal.ReviewStandard(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,12 +56,12 @@ func TestCancelSettledRepairMethodsCancelsPendingWorkOfARecoveredGoal(t *testing
 	if _, err = journal.Hold(ctx, "repair-plan", "repair-plan-0", []domain.HeldReason{domain.HeldStaleFacts}, 100); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := goal.Goal.Snapshot
-	if goal, err = journal.ReviewGoal(ctx, goal.Goal.ID, goal.Revision, snapshot, 200, domain.NeedRecovered); err != nil {
+	snapshot := goal.Standard.Snapshot
+	if goal, err = journal.ReviewStandard(ctx, goal.Standard.ID, goal.Revision, snapshot, 200, domain.NeedRecovered); err != nil {
 		t.Fatal(err)
 	}
-	if goal.Goal.Need != domain.NeedRecovered || goal.Goal.Status != domain.GoalActive {
-		t.Fatalf("recovered goal with open work: need=%s status=%s", goal.Goal.Need, goal.Goal.Status)
+	if goal.Standard.Need != domain.NeedRecovered || goal.Standard.Status != domain.StandardOpen {
+		t.Fatalf("recovered goal with open work: need=%s status=%s", goal.Standard.Need, goal.Standard.Status)
 	}
 	if err = cancelSettledRepairMethods(ctx, journal, goal); err != nil {
 		t.Fatal(err)

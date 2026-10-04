@@ -166,7 +166,7 @@ func stoneShellFunded(budget map[policy.Resource]int64, material bridge.WallMate
 	return true
 }
 
-func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, wall string) (RoutineStoneShellResult, bool, error) {
+func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal store.StandardState, state ControlState, read observation.RoutineReading, wall string) (RoutineStoneShellResult, bool, error) {
 	p := r.reviewer.player
 	projection := read.Projection
 	sites, _, err := r.native.ReadWallUpgradeSites(call, boundary.Identity(state.Snapshot), wall)

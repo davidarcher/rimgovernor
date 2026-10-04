@@ -18,7 +18,7 @@ import (
 // Edges come from typed admission evidence (a shelter method's stock
 // observation against its previewed costs), never from reason strings.
 // ResolveDonations is pure: the caller supplies only edges of the current
-// world whose dependent goal epoch is still active, with the costs of the
+// world whose dependent Episode is still active, with the costs of the
 // dependent actions still open and the current usable stock.
 
 // ResourcePrerequisite is the goal that acquires resource: MaintainResource
@@ -42,7 +42,7 @@ type DependencyCost struct {
 type DevelopmentDependency struct {
 	Dependent    ConcernID
 	Goal         domain.ConcernID // the dependent's goal identity
-	Epoch        uint64
+	Episode      uint64           `json:"Epoch"`
 	Method       domain.MethodID
 	Prerequisite ConcernID
 	Resource     Resource `json:",omitempty"`

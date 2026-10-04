@@ -177,11 +177,11 @@ func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surg
 			if binding.Need != need {
 				continue
 			}
-			goal, err := journal.LoadGoal(ctx, binding.Goal)
+			goal, err := journal.LoadStandard(ctx, binding.Goal)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return false, err
 			}
-			if err == nil && goal.Goal.Need == domain.NeedRecovered {
+			if err == nil && goal.Standard.Need == domain.NeedRecovered {
 				return true, nil
 			}
 		}

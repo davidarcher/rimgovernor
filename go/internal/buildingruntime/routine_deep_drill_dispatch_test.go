@@ -38,7 +38,7 @@ type drillDispatch struct {
 	call     context.Context
 	epoch    context.Context
 	state    ControlState
-	goal     store.GoalState
+	goal     store.StandardState
 	review   store.Rounds
 	db       *store.Store
 	sleeping *sleepingNative
@@ -79,10 +79,10 @@ func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrill
 	if err != nil {
 		t.Fatal(err)
 	}
-	var goal store.GoalState
+	var goal store.StandardState
 	for _, binding := range review.Review.Goals {
 		if binding.Need == policy.MaintainResource {
-			goal, err = db.LoadGoal(context.Background(), binding.Goal)
+			goal, err = db.LoadStandard(context.Background(), binding.Goal)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -194,7 +194,7 @@ func TestDeepDrillRemovesOnlyExhaustedDrills(t *testing.T) {
 			}
 			// A second pass on the same episode commits the next attempt only
 			// once the first plan is closed; the goal's open work holds it.
-			goal, err := d.db.LoadGoal(context.Background(), d.goal.Goal.ID)
+			goal, err := d.db.LoadStandard(context.Background(), d.goal.Standard.ID)
 			if err != nil || len(goal.Methods) != 1 || goal.Methods[0].Method != "deconstruct-drill-Thing_DeepDrill_7-0" {
 				t.Fatal(goal.Methods, err)
 			}

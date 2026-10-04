@@ -106,7 +106,7 @@ func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) 
 }
 
 // bedroomMethod names a bedroom step's method: one per planned room, so a
-// room is shelled or furnished once per goal epoch.
+// room is shelled or furnished once per Episode.
 func bedroomMethod(kind policy.BedroomStepKind, room policy.LayoutRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("bedroom-%s-%d-%d", kind, room.Interior.X, room.Interior.Z))
 }

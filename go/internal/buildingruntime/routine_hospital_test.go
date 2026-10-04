@@ -108,10 +108,10 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var goal store.GoalState
+	var goal store.StandardState
 	for _, binding := range review.Goals {
 		if binding.Need == policy.MaintainMedicalReserves {
-			if goal, err = db.LoadGoal(ctx, binding.Goal); err != nil {
+			if goal, err = db.LoadStandard(ctx, binding.Goal); err != nil {
 				t.Fatal(err)
 			}
 		}

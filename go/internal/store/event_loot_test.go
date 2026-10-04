@@ -31,10 +31,10 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	lootExtentFacts(t, &r.Facts, cell)
 	out = reviewRoutine(t, s, &r)
 	goal := routineGoal(t, out, policy.ManageSupplySafety)
-	if goal.Goal.Need != domain.NeedDeficit || len(out.Review.EventLoot.Pending) != 1 || len(out.Review.EventLoot.Held) != 0 {
+	if goal.Standard.Need != domain.NeedDeficit || len(out.Review.EventLoot.Pending) != 1 || len(out.Review.EventLoot.Held) != 0 {
 		t.Fatal(out)
 	}
-	if _, err := s.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "loot", supplyPlan(t, "loot", 1, cell)); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, goal.Standard.ID, goal.Revision, "loot", supplyPlan(t, "loot", 1, cell)); err != nil {
 		t.Fatal(err)
 	}
 	row.Forbidden = false
@@ -86,7 +86,7 @@ func TestSafetyForbidPersistsAsDistinctAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "forbid", plan); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, goal.Standard.ID, goal.Revision, "forbid", plan); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := s.LoadPlan(ctx, plan.ID())

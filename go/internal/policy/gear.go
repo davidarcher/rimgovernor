@@ -363,7 +363,7 @@ type GearPlanningRequest struct {
 }
 
 func gearMethodID(kind string, p GearPawn, target string, need GearReplacement) domain.MethodID {
-	// Stable typed identity; retired methods stay seen for this goal epoch.
+	// Stable typed identity; retired methods stay seen for this Episode.
 	value := struct {
 		Pawn            PawnID
 		Loadout, Target string

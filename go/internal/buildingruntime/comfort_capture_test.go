@@ -16,19 +16,19 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 	ctx := context.Background()
 	planner, db, session, _, native := sleepingFixture(t)
 	current := session.State().Snapshot
-	goal, err := domain.NewGoal("comfort-history", 4, current, 7)
+	goal, err := domain.NewStandard("comfort-history", 4, current, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.SeedGoal(ctx, goal)
+	err = db.SeedStandard(ctx, goal)
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err := db.LoadGoal(ctx, goal.ID)
+	g, err := db.LoadStandard(ctx, goal.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err = db.ReviewGoal(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit)
+	g, err = db.ReviewStandard(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 	if _, err = planner.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	g, err = db.LoadGoal(ctx, goal.ID)
+	g, err = db.LoadStandard(ctx, goal.ID)
 	if err != nil || len(g.Methods) != 0 {
 		t.Fatal(g, err)
 	}
@@ -86,7 +86,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 		t.Fatal("changed direction inherited allowance", got, err)
 	}
 	renewed := g
-	renewed.Goal.Epoch++
+	renewed.Standard.Episode++
 	if got, err := comfortUseAllowance(ctx, db, renewed, current, 7, testDiningFurniture); err != nil || got != 0 {
 		t.Fatal("renewed deficit inherited allowance", got, err)
 	}
@@ -120,7 +120,7 @@ func TestNativeComfortCompletionBudgetCapture(t *testing.T) {
 		if binding.Need != policy.EnsureComfort {
 			continue
 		}
-		goal, err := db.LoadGoal(context.Background(), binding.Goal)
+		goal, err := db.LoadStandard(context.Background(), binding.Goal)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -251,7 +251,7 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 		return MaintainShelterResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	method := domain.MethodID(fmt.Sprintf("safe-area-%s", id))
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("bot areas %d edits", len(edits)), plan); err != nil {
+	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("bot areas %d edits", len(edits)), plan); err != nil {
 		return MaintainShelterResult{}, err
 	}
 	r.reviewer.safeArea.commit(world)

@@ -26,8 +26,8 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	g, err := s.LoadGoal(ctx, old.Goal.ID)
-	if err != nil || !g.Retired || g.Goal.Status != domain.GoalInvalidated {
+	g, err := s.LoadStandard(ctx, old.Standard.ID)
+	if err != nil || !g.Retired || g.Standard.Status != domain.StandardVoided {
 		t.Fatal(g, err)
 	}
 	var active, history int
@@ -37,14 +37,14 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if active != 43 || history != 43*33 {
 		t.Fatal(active, history)
 	}
-	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit); err == nil {
+	if _, err = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit); err == nil {
 		t.Fatal("retired goal reviewed")
 	}
-	replacement, err := domain.NewGoal(old.Goal.ID, 2, r.Current, r.Tick)
+	replacement, err := domain.NewStandard(old.Standard.ID, 2, r.Current, r.Tick)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.SeedGoal(ctx, replacement); err == nil {
+	if err = s.SeedStandard(ctx, replacement); err == nil {
 		t.Fatal("retired identity reused")
 	}
 }
@@ -56,7 +56,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Prepare(ctx, "p", "a", scope(), 10); err != nil {
@@ -68,7 +68,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	r.Current.Load = "other"
 	r.Current.Plan = "other"
 	reviewRoutine(t, s, &r)
-	before, err := s.LoadGoal(ctx, g.Goal.ID)
+	before, err := s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil || before.Retired {
 		t.Fatal(before, err)
 	}
@@ -76,23 +76,23 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 		t.Fatal(err)
 	}
 	reviewRoutine(t, s, &r)
-	after, err := s.LoadGoal(ctx, g.Goal.ID)
+	after, err := s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil || !after.Retired || len(after.Methods) != 0 {
 		t.Fatal(after, err)
 	}
 	// Attempt-numbering planners count History; losing the retired method
 	// here re-mints its plan ID and fails plans.id's unique constraint.
-	if len(after.History) != 1 || after.History[0].Method != "wood" || after.History[0].Plan != "p" || after.History[0].Epoch != g.Goal.Epoch {
+	if len(after.History) != 1 || after.History[0].Method != "wood" || after.History[0].Plan != "p" || after.History[0].Episode != g.Standard.Episode {
 		t.Fatal("retired method missing from history", after.History)
 	}
-	if method, err := s.LoadGoalMethod(ctx, g.Goal.ID, g.Goal.Epoch, "wood"); err != nil || method.Plan != "p" {
+	if method, err := s.LoadGoalMethod(ctx, g.Standard.ID, g.Standard.Episode, "wood"); err != nil || method.Plan != "p" {
 		t.Fatal(method, err)
 	}
-	if methods, err := s.LoadGoalMethods(ctx, g.Goal.ID, g.Goal.Epoch); err != nil || len(methods) != 1 || methods[0].Plan != "p" {
+	if methods, err := s.LoadGoalMethods(ctx, g.Standard.ID, g.Standard.Episode); err != nil || len(methods) != 1 || methods[0].Plan != "p" {
 		t.Fatal("retired method evidence missing", methods, err)
 	}
-	if _, err := s.LoadGoalMethods(ctx, g.Goal.ID, g.Goal.Epoch+1); err == nil {
-		t.Fatal("future method epoch accepted")
+	if _, err := s.LoadGoalMethods(ctx, g.Standard.ID, g.Standard.Episode+1); err == nil {
+		t.Fatal("future Episode accepted")
 	}
 	p, err := s.LoadPlan(ctx, "p")
 	if err != nil || p.Progress[0].View().Unresolved {
@@ -117,8 +117,8 @@ func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
 		t.Fatal("injected failure ignored")
 	}
 	for _, old := range out.Goals {
-		g, err := s.LoadGoal(ctx, old.Goal.ID)
-		if err != nil || g.Retired || g.Goal != old.Goal {
+		g, err := s.LoadStandard(ctx, old.Standard.ID)
+		if err != nil || g.Retired || g.Standard != old.Standard {
 			t.Fatal(g, err)
 		}
 	}

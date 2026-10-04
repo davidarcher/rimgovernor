@@ -92,7 +92,7 @@ func runPersonalShare(ctx context.Context, s cases.Session, wealth string) error
 				err = werr
 				break
 			}
-			report[string(need)+"_recovered_tick"] = int64(g.Goal.Tick)
+			report[string(need)+"_recovered_tick"] = int64(g.Standard.Tick)
 		}
 		cancel()
 	}

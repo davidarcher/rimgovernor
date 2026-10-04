@@ -95,14 +95,14 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var goal domain.Goal
+	var goal domain.Standard
 	for _, binding := range review.Goals {
 		if binding.Need == policy.EnsureFoodSupply {
-			g, err := db.LoadGoal(ctx, binding.Goal)
+			g, err := db.LoadStandard(ctx, binding.Goal)
 			if err != nil {
 				t.Fatal(err)
 			}
-			goal = g.Goal
+			goal = g.Standard
 		}
 	}
 	facts := observation.ColonyProjection{Identity: observation.Identity{Tick: tick + 1}, Definitions: []observation.PlanningDefinition{{Name: "Plant_Rice", GrowDays: domain.Known(3.0)}}, Farms: []observation.FarmZoneFact{{ID: "field", Crop: "Plant_Rice"}}}

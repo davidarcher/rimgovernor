@@ -145,7 +145,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	var previous *domain.GoalMethod
 	var plans []string
 	cut, seen := map[string]bool{}, map[string]bool{}
-	var settled store.GoalState
+	var settled store.StandardState
 	for renewals := 0; len(plans) < 4; {
 		methodCtx, methodCancel := context.WithTimeout(ctx, 3*time.Minute)
 		goalID, method, goal, done, err := waitBlightMethodOrSettled(methodCtx, journal, service, previous)
@@ -207,7 +207,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	if len(cut) == 0 {
 		return fmt.Errorf("no cut designation completed under the executor across %d plans", len(plans))
 	}
-	if settled.Goal.ID == "" {
+	if settled.Standard.ID == "" {
 		// The measured census, not the receipt, settles the goal.
 		settleCtx, settleCancel := context.WithTimeout(ctx, 3*time.Minute)
 		settled, err = waitBlightSettled(settleCtx, journal, service)
@@ -216,7 +216,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 			return err
 		}
 	}
-	report["blight_goal"] = map[string]any{"status": string(settled.Goal.Status), "need": string(settled.Goal.Need), "methods": len(settled.Methods)}
+	report["blight_goal"] = map[string]any{"status": string(settled.Standard.Status), "need": string(settled.Standard.Need), "methods": len(settled.Methods)}
 	report["plants_designated"] = sortedKeys(seen)
 	if err := na.AssertRoutineRunning(service.Get); err != nil {
 		return err
@@ -380,16 +380,16 @@ func readBlightCensus(ctx context.Context, h *na.Harness, identity map[string]an
 	return s, nil
 }
 
-func blightSettled(goal store.GoalState) bool {
-	return goal.Goal.Need == domain.NeedRecovered && goal.Goal.Status == domain.GoalSatisfied
+func blightSettled(goal store.StandardState) bool {
+	return goal.Standard.Need == domain.NeedRecovered && goal.Standard.Status == domain.StandardSettled
 }
 
 // waitBlightMethodOrSettled polls the journal for RemoveBlight's goal
 // binding and either a committed method on it other than previous (the
 // goal's live methods, then the epoch's bounded history) or the goal
 // settled: recovered and satisfied on the emptied census.
-func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, store.GoalState, bool, error) {
-	var goal store.GoalState
+func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, store.StandardState, bool, error) {
+	var goal store.StandardState
 	var found domain.GoalMethod
 	settled := false
 	err := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
@@ -401,12 +401,12 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 			if binding.Need != policy.RemoveBlight {
 				continue
 			}
-			if goal, err = s.LoadGoal(ctx, binding.Goal); err != nil {
+			if goal, err = s.LoadStandard(ctx, binding.Goal); err != nil {
 				return "", false, err
 			}
 			methods := goal.Methods
 			if len(methods) == 0 {
-				if methods, err = s.LoadGoalMethods(ctx, binding.Goal, goal.Goal.Epoch); err != nil {
+				if methods, err = s.LoadGoalMethods(ctx, binding.Goal, goal.Standard.Episode); err != nil {
 					return "", false, err
 				}
 			}
@@ -420,21 +420,21 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 				settled = true
 				return "", true, nil
 			}
-			return na.Signature(goal.Goal.Need, goal.Goal.Status, len(methods)), false, nil
+			return na.Signature(goal.Standard.Need, goal.Standard.Status, len(methods)), false, nil
 		}
 		return na.Signature("unbound", review.Revision), false, nil
 	})
 	if err != nil {
-		return "", domain.GoalMethod{}, goal, false, fmt.Errorf("RemoveBlight neither admitted a new method nor settled (need=%s status=%s): %w", goal.Goal.Need, goal.Goal.Status, err)
+		return "", domain.GoalMethod{}, goal, false, fmt.Errorf("RemoveBlight neither admitted a new method nor settled (need=%s status=%s): %w", goal.Standard.Need, goal.Standard.Status, err)
 	}
-	return goal.Goal.ID, found, goal, settled, nil
+	return goal.Standard.ID, found, goal, settled, nil
 }
 
 // waitBlightSettled polls the journal until RemoveBlight's goal reads
 // recovered and satisfied: the census emptied under the review, which is
 // what settles the goal.
-func waitBlightSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.GoalState, error) {
-	var goal store.GoalState
+func waitBlightSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.StandardState, error) {
+	var goal store.StandardState
 	err := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRounds(ctx)
 		if err != nil {
@@ -444,18 +444,18 @@ func waitBlightSettled(ctx context.Context, s *store.Store, service *na.ServiceP
 			if binding.Need != policy.RemoveBlight {
 				continue
 			}
-			if goal, err = s.LoadGoal(ctx, binding.Goal); err != nil {
+			if goal, err = s.LoadStandard(ctx, binding.Goal); err != nil {
 				return "", false, err
 			}
 			if blightSettled(goal) {
 				return "", true, nil
 			}
-			return na.Signature(goal.Goal.Need, goal.Goal.Status, goal.Revision), false, nil
+			return na.Signature(goal.Standard.Need, goal.Standard.Status, goal.Revision), false, nil
 		}
 		return na.Signature("unbound", review.Revision), false, nil
 	})
 	if err != nil {
-		return goal, fmt.Errorf("RemoveBlight never settled on the emptied census (need=%s status=%s): %w", goal.Goal.Need, goal.Goal.Status, err)
+		return goal, fmt.Errorf("RemoveBlight never settled on the emptied census (need=%s status=%s): %w", goal.Standard.Need, goal.Standard.Status, err)
 	}
 	return goal, nil
 }

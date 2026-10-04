@@ -14,7 +14,7 @@ import (
 // to (#1928). The building ladder is the same code for a Standard goal and
 // for the Project kinds it serves (cooking, butcher, power, research shelter,
 // defense dig), so those planners hold the owner through this interface
-// instead of a goal handle. GoalState and ProjectState implement it; a
+// instead of a goal handle. StandardState and ProjectState implement it; a
 // planner that serves only one concept takes that concept's state.
 type WorkOwner interface {
 	methodOwner
@@ -35,22 +35,22 @@ type WorkOwner interface {
 	OwnerPriority() int
 }
 
-func (g GoalState) OwnerID() string                      { return string(g.Goal.ID) }
-func (g GoalState) OwnerEpoch() uint64                   { return g.Goal.Epoch }
-func (g GoalState) OwnerRevision() uint64                { return g.Revision }
-func (g GoalState) OwnerMethods() []domain.GoalMethod    { return g.Methods }
-func (g GoalState) OwnerHistory() []domain.GoalMethod    { return g.History }
-func (p ProjectState) OwnerID() string                   { return string(p.Project.ID) }
-func (p ProjectState) OwnerEpoch() uint64                { return 0 }
-func (p ProjectState) OwnerRevision() uint64             { return p.Revision }
-func (p ProjectState) OwnerMethods() []domain.GoalMethod { return p.goalMethods(p.Methods) }
-func (p ProjectState) OwnerHistory() []domain.GoalMethod { return p.goalMethods(p.History) }
+func (g StandardState) OwnerID() string                   { return string(g.Standard.ID) }
+func (g StandardState) OwnerEpoch() uint64                { return g.Standard.Episode }
+func (g StandardState) OwnerRevision() uint64             { return g.Revision }
+func (g StandardState) OwnerMethods() []domain.GoalMethod { return g.Methods }
+func (g StandardState) OwnerHistory() []domain.GoalMethod { return g.History }
+func (p ProjectState) OwnerID() string                    { return string(p.Project.ID) }
+func (p ProjectState) OwnerEpoch() uint64                 { return 0 }
+func (p ProjectState) OwnerRevision() uint64              { return p.Revision }
+func (p ProjectState) OwnerMethods() []domain.GoalMethod  { return p.goalMethods(p.Methods) }
+func (p ProjectState) OwnerHistory() []domain.GoalMethod  { return p.goalMethods(p.History) }
 
-func (g GoalState) OwnerPriority() int    { return g.Goal.Priority }
-func (p ProjectState) OwnerPriority() int { return p.Project.Priority }
+func (g StandardState) OwnerPriority() int { return g.Standard.Priority }
+func (p ProjectState) OwnerPriority() int  { return p.Project.Priority }
 
-func (g GoalState) OwnerDeficit() bool {
-	return g.Goal.Status == domain.GoalActive && g.Goal.Need == domain.NeedDeficit
+func (g StandardState) OwnerDeficit() bool {
+	return g.Standard.Status == domain.StandardOpen && g.Standard.Need == domain.NeedDeficit
 }
 func (p ProjectState) OwnerDeficit() bool {
 	return p.Project.Status == domain.ProjectOpen && p.Project.Need == domain.NeedDeficit
@@ -126,8 +126,8 @@ func (r Rounds) ProjectFor(need policy.ConcernID) (domain.ProjectID, bool) {
 // or CommitProjectMethod, whichever the owner is.
 func (s *Store) CommitOwnerMethod(ctx context.Context, owner WorkOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
 	switch o := owner.(type) {
-	case GoalState:
-		_, err := s.CommitGoalMethodReason(ctx, o.Goal.ID, o.Revision, method, reason, plan)
+	case StandardState:
+		_, err := s.CommitGoalMethodReason(ctx, o.Standard.ID, o.Revision, method, reason, plan)
 		return err
 	case ProjectState:
 		_, err := s.CommitProjectMethod(ctx, o.Project.ID, o.Revision, method, reason, plan)
@@ -140,8 +140,8 @@ func (s *Store) CommitOwnerMethod(ctx context.Context, owner WorkOwner, method d
 // including a retired plan's.
 func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method domain.MethodID) (domain.GoalMethod, error) {
 	switch o := owner.(type) {
-	case GoalState:
-		return s.LoadGoalMethod(ctx, o.Goal.ID, o.Goal.Epoch, method)
+	case StandardState:
+		return s.LoadGoalMethod(ctx, o.Standard.ID, o.Standard.Episode, method)
 	case ProjectState:
 		var plan domain.PlanID
 		err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE project_id=? AND method_id=?", o.Project.ID, method).Scan(&plan)
@@ -157,8 +157,8 @@ func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method dom
 // bindings included.
 func (s *Store) LoadOwnerMethods(ctx context.Context, owner WorkOwner) ([]domain.GoalMethod, error) {
 	switch o := owner.(type) {
-	case GoalState:
-		return s.LoadGoalMethods(ctx, o.Goal.ID, o.Goal.Epoch)
+	case StandardState:
+		return s.LoadGoalMethods(ctx, o.Standard.ID, o.Standard.Episode)
 	case ProjectState:
 		p, err := s.LoadProject(ctx, o.Project.ID)
 		if err != nil {
@@ -172,8 +172,8 @@ func (s *Store) LoadOwnerMethods(ctx context.Context, owner WorkOwner) ([]domain
 // reloadOwner reads the owner's row again inside tx.
 func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, error) {
 	switch o := owner.(type) {
-	case GoalState:
-		return loadGoal(ctx, tx, o.Goal.ID)
+	case StandardState:
+		return loadGoal(ctx, tx, o.Standard.ID)
 	case ProjectState:
 		return loadProject(ctx, tx, o.Project.ID)
 	}
@@ -183,8 +183,8 @@ func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, e
 // ownerTick is the tick the owner was last reviewed at.
 func ownerTick(owner WorkOwner) domain.Tick {
 	switch o := owner.(type) {
-	case GoalState:
-		return o.Goal.Tick
+	case StandardState:
+		return o.Standard.Tick
 	case ProjectState:
 		return o.Project.Tick
 	}
@@ -195,8 +195,8 @@ func ownerTick(owner WorkOwner) domain.Tick {
 // committed.
 func commitOwnerMethod(ctx context.Context, tx *sql.Tx, owner WorkOwner, method domain.MethodID, reason string, plan domain.PlanSpec) (WorkOwner, error) {
 	switch o := owner.(type) {
-	case GoalState:
-		return commitGoalMethod(ctx, tx, o.Goal.ID, o.Revision, method, reason, plan)
+	case StandardState:
+		return commitGoalMethod(ctx, tx, o.Standard.ID, o.Revision, method, reason, plan)
 	case ProjectState:
 		return commitProjectMethod(ctx, tx, o.Project.ID, o.Revision, method, reason, plan)
 	}
@@ -206,7 +206,7 @@ func commitOwnerMethod(ctx context.Context, tx *sql.Tx, owner WorkOwner, method 
 func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecision {
 	d := BuildingMethodDecision{Refused: refused}
 	switch o := owner.(type) {
-	case GoalState:
+	case StandardState:
 		d.Goal = o
 	case ProjectState:
 		d.Project = o
@@ -220,10 +220,10 @@ func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecisio
 // for a Project, which has none.
 type OwnerSummary struct {
 	ID       string
-	Status   domain.GoalStatus
+	Status   domain.StandardStatus
 	Need     domain.NeedState
 	Priority int
-	Epoch    uint64
+	Episode  uint64 `json:"Epoch"`
 	Revision uint64
 	Tick     domain.Tick
 	Snapshot domain.GenerationSnapshot
@@ -234,17 +234,17 @@ type OwnerSummary struct {
 // owner that is neither a goal nor a Project.
 func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 	switch o := owner.(type) {
-	case GoalState:
-		g := o.Goal
-		return OwnerSummary{string(g.ID), g.Status, g.Need, g.Priority, g.Epoch, o.Revision, g.Tick, g.Snapshot, o.Retired}, true
+	case StandardState:
+		g := o.Standard
+		return OwnerSummary{string(g.ID), g.Status, g.Need, g.Priority, g.Episode, o.Revision, g.Tick, g.Snapshot, o.Retired}, true
 	case ProjectState:
 		p := o.Project
-		status := domain.GoalActive
+		status := domain.StandardOpen
 		switch p.Status {
-		case domain.ProjectFinished:
-			status = domain.GoalSatisfied
-		case domain.ProjectInvalidated:
-			status = domain.GoalInvalidated
+		case domain.ProjectCompleted:
+			status = domain.StandardSettled
+		case domain.ProjectVoided:
+			status = domain.StandardVoided
 		}
 		return OwnerSummary{string(p.ID), status, p.Need, p.Priority, 0, o.Revision, p.Tick, p.Snapshot, o.Retired}, true
 	}
@@ -257,7 +257,7 @@ func (s *Store) LoadOwner(ctx context.Context, id string) (WorkOwner, error) {
 	if isProjectID(id) {
 		return s.LoadProject(ctx, domain.ProjectID(id))
 	}
-	return s.LoadGoal(ctx, domain.ConcernID(id))
+	return s.LoadStandard(ctx, domain.ConcernID(id))
 }
 
 // loadOwner is LoadOwner inside tx.
@@ -280,5 +280,5 @@ func (d BuildingMethodDecision) Owner() WorkOwner {
 // Project or an active goal.
 func ownerActive(owner WorkOwner) bool {
 	summary, ok := SummarizeOwner(owner)
-	return ok && summary.Status == domain.GoalActive
+	return ok && summary.Status == domain.StandardOpen
 }

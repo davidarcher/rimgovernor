@@ -42,7 +42,7 @@ func woodShortage() DevelopmentRequest {
 }
 
 func shelterWood(available domain.Fact[int64], costs ...DependencyCost) DevelopmentDependency {
-	return DevelopmentDependency{Dependent: MaintainHousing, Goal: "routine-shelter", Epoch: 1, Method: "shell", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: costs, Available: available, Observed: 90}
+	return DevelopmentDependency{Dependent: MaintainHousing, Goal: "routine-shelter", Episode: 1, Method: "shell", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: costs, Available: available, Observed: 90}
 }
 
 func rankDep(t *testing.T, r DevelopmentRequest) DevelopmentState {
@@ -177,7 +177,7 @@ func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 	if r := needs(t, f, RoutineLatches{}); r.Latches.Wood || hasNeed(r, MaintainResource) {
 		t.Fatal("150 wood is above WoodMin", r)
 	}
-	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
+	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Episode: 1, Method: "m", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
 	r := needs(t, f, RoutineLatches{})
 	if r.Latches.Wood || !hasNeed(r, MaintainResource) {
 		t.Fatal("shortfall did not activate MaintainResource", r)
@@ -213,7 +213,7 @@ func TestNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	if hasNeed(needs(t, f, RoutineLatches{}), MaintainResource) {
 		t.Fatal("no floor configured")
 	}
-	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "Steel", Costs: []DependencyCost{{Action: "a", Count: 25}, {Action: "b", Count: 25}}, Available: domain.Known(int64(10))}}
+	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Episode: 1, Method: "m", Prerequisite: MaintainResource, Resource: "Steel", Costs: []DependencyCost{{Action: "a", Count: 25}, {Action: "b", Count: 25}}, Available: domain.Known(int64(10))}}
 	if got := DependencyResourceNeeds(f.Dependencies); got["Steel"] != 50 || len(got) != 1 {
 		t.Fatal(got)
 	}

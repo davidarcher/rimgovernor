@@ -101,7 +101,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	// interrupted or failed try re-selects whichever prisoner and write is
 	// currently best.
 	prefix := fmt.Sprintf("%s-%s-", choice.Interaction, choice.Pawn)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePrisonerInteractionResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -126,7 +126,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePrisonerInteractionResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
 	return RoutinePrisonerInteractionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -137,7 +137,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 // place the next template bed. handled is false when nothing is due, the
 // step was already tried this epoch, or native refuses it, so the
 // interaction goes on.
-func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, expected observation.Identity) (RoutinePrisonerInteractionResult, bool, error) {
+func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, expected observation.Identity) (RoutinePrisonerInteractionResult, bool, error) {
 	if r.building == nil {
 		return RoutinePrisonerInteractionResult{}, false, nil
 	}
@@ -158,7 +158,7 @@ func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Contex
 	case policy.JailMark:
 		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
 	}
-	clockSchedulerLog("%s: jail %s (held %d, beds %d) reason=%v", goal.Goal.ID, step.Kind, step.Held, step.Beds, result.Verdict)
+	clockSchedulerLog("%s: jail %s (held %d, beds %d) reason=%v", goal.Standard.ID, step.Kind, step.Held, step.Beds, result.Verdict)
 	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
 		return RoutinePrisonerInteractionResult{}, false, err
 	}
@@ -179,15 +179,15 @@ func jailStep(facts observation.ColonyProjection) policy.JailStep {
 }
 
 // markJailBed commits one CAS-gated patch setting bed for prisoners, once
-// per bed per goal epoch.
-func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Context, state ControlState, goal store.GoalState, facts observation.ColonyProjection, bed string) (RoutineBuildingResult, error) {
+// per bed per Episode.
+func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Context, state ControlState, goal store.StandardState, facts observation.ColonyProjection, bed string) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	native, ok := r.reviewer.native.(RoutineHospitalSource)
 	if !ok {
 		return RoutineBuildingResult{Verdict: fieldUnavailable("hospital_source")}, nil
 	}
 	method := domain.MethodID("jail-mark-" + bed)
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "jail_bed_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err

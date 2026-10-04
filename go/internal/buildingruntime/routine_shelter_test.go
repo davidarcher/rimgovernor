@@ -107,7 +107,7 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 
 // shellMethod is the goal method the ring was admitted under: the one that
 // is not a bunk rung, or the last bound when only bunks are.
-func shellMethod(goal store.GoalState) domain.GoalMethod {
+func shellMethod(goal store.StandardState) domain.GoalMethod {
 	for _, m := range goal.Methods {
 		if m.Method != shelterSpotsMethod && m.Method != shelterBedsMethod {
 			return m
@@ -130,7 +130,7 @@ func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	actions := plan.Spec.Actions()
-	snapshot := result.Decision.Goal.Goal.Snapshot
+	snapshot := result.Decision.Goal.Standard.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	door, _ := actions[0].Building()
 	if door.Definition() != "Door" || door.Cell() != (domain.Cell{X: 4, Z: 0}) {
@@ -308,7 +308,7 @@ func TestShelterRoofingBudgetCountsFromTheApplyReceiptAndDoesNotRenew(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	current := result.Decision.Goal.Goal.Snapshot
+	current := result.Decision.Goal.Standard.Snapshot
 	snapshot := current
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	if shelterNativeWorkTicks(plan, current, 7) != 0 {
@@ -358,7 +358,7 @@ func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 	if err != nil || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
-	request := store.ControlRequest{RequestID: "manual-shell", Kind: store.PauseControl, World: playerWorld(result.Decision.Goal.Goal.Snapshot)}
+	request := store.ControlRequest{RequestID: "manual-shell", Kind: store.PauseControl, World: playerWorld(result.Decision.Goal.Standard.Snapshot)}
 	if _, err := r.reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
@@ -565,7 +565,7 @@ func TestRoutineShelterRaisesTheStarterRectangle(t *testing.T) {
 		t.Fatal(len(plan.Progress), len(plan.Spec.Dependencies()))
 	}
 	// Roofing budget accepts a shell of any size once every wall is complete.
-	current := result.Decision.Goal.Goal.Snapshot
+	current := result.Decision.Goal.Standard.Snapshot
 	snapshot := current
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	for i, p := range plan.Progress {
@@ -1052,7 +1052,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := first.Decision.Goal.Goal.Snapshot
+	snapshot := first.Decision.Goal.Standard.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	actions := plan.Spec.Actions()
 	if len(actions) != 1 {
@@ -1083,7 +1083,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 			repair = &m
 		}
 	}
-	if repair == nil || repair.Epoch != first.Decision.Goal.Goal.Epoch {
+	if repair == nil || repair.Episode != first.Decision.Goal.Standard.Episode {
 		t.Fatal("repair not bound under the same epoch:", second.Decision.Goal.Methods)
 	}
 	repaired, err := db.LoadPlan(ctx, repair.Plan)

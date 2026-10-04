@@ -71,7 +71,7 @@ func (r *Rounder) censusResearchNeeds(needs []string) []string {
 
 // fishing uses the shared food goal and the ordinary zone Hands handler. The
 // footprint offers access; native population-floor settings govern catches.
-func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state ControlState, goal store.GoalState, read observation.RoutineReading) (RoutineFieldResult, bool, error) {
+func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state ControlState, goal store.StandardState, read observation.RoutineReading) (RoutineFieldResult, bool, error) {
 	p := read.Projection
 	plan, pk := p.Facts.FoodPlan.Value()
 	census, ck := p.FoodChannels.Value()
@@ -97,7 +97,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			}
 			method := domain.MethodID("fishing-" + entry.Channel.ID)
 			journal := r.reviewer.player.journal
-			if _, err := journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+			if _, err := journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 				continue
 			} else if !errors.Is(err, store.ErrNotFound) {
 				return RoutineFieldResult{}, false, err

@@ -25,7 +25,7 @@ import (
 // journal still carries the earlier recoveries), serves again with every
 // family composed so far, follows the stage's own journal watch and audits
 // the native outcome. A recovered goal that is measured in deficit again
-// starts a new method epoch (domain.ReviewGoal). Colony traffic can reopen
+// starts a new Episode (domain.ReviewStandard). Colony traffic can reopen
 // a goal honestly (dirt tracked into the cleaned kitchen), so the property is
 // the issue's: no deficit reopens without recovery. A reopen is recorded and
 // the goal must be recovered again within reopenTicks and before the stage
@@ -62,12 +62,12 @@ type stage struct {
 }
 
 // closedGoal is a goal an earlier stage recovered, pinned by identity and
-// method epoch.
+// Episode.
 type closedGoal struct {
-	Stage string           `json:"stage"`
-	Need  policy.ConcernID `json:"need"`
-	Goal  domain.ConcernID `json:"goal"`
-	Epoch uint64           `json:"epoch"`
+	Stage   string           `json:"stage"`
+	Need    policy.ConcernID `json:"need"`
+	Goal    domain.ConcernID `json:"goal"`
+	Episode uint64           `json:"epoch"`
 }
 
 const campaignBudget = 25 * time.Minute
@@ -75,7 +75,7 @@ const campaignBudget = 25 * time.Minute
 const campaignStateKey = "upkeep_campaign"
 
 // The paired stage bundle carries the identities guarded by later stages and
-// their timeline, including any method epochs advanced by the closed tracker.
+// their timeline, including any Episodes advanced by the closed tracker.
 type campaignState struct {
 	Closed   []closedGoal     `json:"closed"`
 	Timeline []map[string]any `json:"timeline"`
@@ -125,7 +125,7 @@ func init() {
 		Name: "upkeep/campaign",
 		Scope: "Sustained colony upkeep (issue #99): on one kept " + sustained.BaselineSave + " colony and one durable journal the deficits " +
 			fmt.Sprint(names) + " are staged in turn over the live map, each recovered by the routine families composed so far and audited natively, " +
-			"and no goal an earlier stage recovered reopens (new method epoch), is rebound or is invalidated while the later ones are handled.",
+			"and no goal an earlier stage recovered reopens (new Episode), is rebound or is invalidated while the later ones are handled.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  &cases.ServeSpec{Families: cumulativeFamilies(stages, len(stages)), Prefix: prefix},
 		Stages: names,
@@ -226,7 +226,7 @@ func runCampaign(ctx context.Context, s cases.Session) error {
 			state.Closed = append(state.Closed, recovered...)
 			row := map[string]any{"stage": st.name, "tick_before": before.Tick, "tick_after": after.Tick, "wall_ms": time.Since(started).Milliseconds()}
 			for _, c := range recovered {
-				row[string(c.Need)] = map[string]any{"goal": string(c.Goal), "epoch": c.Epoch}
+				row[string(c.Need)] = map[string]any{"goal": string(c.Goal), "epoch": c.Episode}
 			}
 			state.Timeline = append(state.Timeline, row)
 			report["timeline"] = state.Timeline
@@ -290,7 +290,7 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 			return nil, err
 		}
 		report["restored_goals"] = append([]closedGoal(nil), closed...)
-		if err := rebindClosedGoals(ctx, closed, review, journal.LoadGoal); err != nil {
+		if err := rebindClosedGoals(ctx, closed, review, journal.LoadStandard); err != nil {
 			return nil, err
 		}
 		report["loaded_goals"] = append([]closedGoal(nil), closed...)
@@ -334,14 +334,14 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 		if err != nil {
 			return nil, err
 		}
-		recovered = append(recovered, closedGoal{Stage: st.name, Need: need, Goal: goal.Goal.ID, Epoch: goal.Goal.Epoch})
+		recovered = append(recovered, closedGoal{Stage: st.name, Need: need, Goal: goal.Standard.ID, Episode: goal.Standard.Episode})
 	}
 	return recovered, nil
 }
 
 // Only a bundle load may rebind the guards, once at the first live review.
 // Subsequent reviews and every stage of a fresh run retain the strict IDs.
-func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.Rounds, load func(context.Context, domain.ConcernID) (store.GoalState, error)) error {
+func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.Rounds, load func(context.Context, domain.ConcernID) (store.StandardState, error)) error {
 	bound := map[policy.ConcernID]domain.ConcernID{}
 	for _, binding := range review.Goals {
 		bound[binding.Need] = binding.Goal
@@ -356,10 +356,10 @@ func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.Ro
 		if err != nil {
 			return err
 		}
-		if goal.Goal.Status == domain.GoalInvalidated {
-			return fmt.Errorf("restored %s is %s in the loaded world", c.Need, goal.Goal.Status)
+		if goal.Standard.Status == domain.StandardVoided {
+			return fmt.Errorf("restored %s is %s in the loaded world", c.Need, goal.Standard.Status)
 		}
-		c.Goal, c.Epoch = id, goal.Goal.Epoch
+		c.Goal, c.Episode = id, goal.Standard.Episode
 	}
 	return nil
 }
@@ -375,7 +375,7 @@ const reopenTicks = 90000
 const recoveredWait = 4 * time.Minute
 
 // closedTracker follows the goals earlier stages recovered. A goal that
-// enters a new method epoch is recorded as a reopen and its recorded epoch
+// enters a new Episode is recorded as a reopen and its recorded epoch
 // moves on; the failure is a goal that stays in deficit past reopenTicks,
 // is rebound to another goal, leaves the journal or is cancelled or
 // invalidated.
@@ -411,7 +411,7 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 		if id, ok := bound[c.Need]; ok && id != c.Goal {
 			return nil, fmt.Errorf("%s (recovered in stage %s as %s) is bound to a new goal %s in review %d", c.Need, c.Stage, c.Goal, id, review.Revision)
 		}
-		goal, err := journal.LoadGoal(ctx, c.Goal)
+		goal, err := journal.LoadStandard(ctx, c.Goal)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, nil
@@ -421,17 +421,17 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 			}
 			return nil, err
 		}
-		if goal.Goal.Status == domain.GoalInvalidated {
-			return nil, fmt.Errorf("%s (recovered in stage %s) is %s at review %d", c.Need, c.Stage, goal.Goal.Status, review.Revision)
+		if goal.Standard.Status == domain.StandardVoided {
+			return nil, fmt.Errorf("%s (recovered in stage %s) is %s at review %d", c.Need, c.Stage, goal.Standard.Status, review.Revision)
 		}
-		if goal.Goal.Epoch != c.Epoch {
+		if goal.Standard.Episode != c.Episode {
 			t.reopens = append(t.reopens, map[string]any{
 				"need": string(c.Need), "stage": c.Stage, "goal": string(c.Goal),
-				"epoch_from": c.Epoch, "epoch_to": goal.Goal.Epoch, "tick": review.Tick, "review": review.Revision,
+				"epoch_from": c.Episode, "epoch_to": goal.Standard.Episode, "tick": review.Tick, "review": review.Revision,
 			})
-			c.Epoch = goal.Goal.Epoch
+			c.Episode = goal.Standard.Episode
 		}
-		if goal.Goal.Need != domain.NeedDeficit {
+		if goal.Standard.Need != domain.NeedDeficit {
 			delete(t.deficitSince, c.Goal)
 			continue
 		}
@@ -579,7 +579,7 @@ func watchKitchen(ctx context.Context, journal *store.Store, prepared map[string
 		goal, err := waitNeed(recoverCtx, journal, policy.MaintainCleanFacilities, domain.NeedRecovered)
 		recoverCancel()
 		if err == nil {
-			report["kitchen_recovered_tick"] = int64(goal.Goal.Tick)
+			report["kitchen_recovered_tick"] = int64(goal.Standard.Tick)
 			break
 		}
 		if ctx.Err() != nil {

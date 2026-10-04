@@ -139,8 +139,8 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 			if binding.Need != policy.MaintainHomeCoverage && binding.Need != policy.MaintainStoneShell {
 				continue
 			}
-			g, err := db.LoadGoal(ctx, binding.Goal)
-			if err != nil || g.Goal.Need != want {
+			g, err := db.LoadStandard(ctx, binding.Goal)
+			if err != nil || g.Standard.Need != want {
 				t.Fatal(g, want, err)
 			}
 			count++

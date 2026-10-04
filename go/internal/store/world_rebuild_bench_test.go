@@ -19,22 +19,22 @@ func BenchmarkWorldRebuild(b *testing.B) {
 		b.Fatal(err)
 	}
 	b.Cleanup(func() { _ = s.Close() })
-	goal, err := domain.NewGoal("routine-0000000000000000-MaintainResource-0", 2, scope(), 10)
+	goal, err := domain.NewStandard("routine-0000000000000000-MaintainResource-0", 2, scope(), 10)
 	if err != nil {
 		b.Fatal(err)
 	}
-	if err = s.SeedGoal(ctx, goal); err != nil {
+	if err = s.SeedStandard(ctx, goal); err != nil {
 		b.Fatal(err)
 	}
-	first, err := s.ReviewGoal(ctx, goal.ID, 0, scope(), 10, domain.NeedDeficit)
+	first, err := s.ReviewStandard(ctx, goal.ID, 0, scope(), 10, domain.NeedDeficit)
 	if err != nil {
 		b.Fatal(err)
 	}
-	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.Goal, Revision: first.Revision})
+	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.Standard, Revision: first.Revision})
 	if err != nil {
 		b.Fatal(err)
 	}
-	saved := map[string]string{GovernorGoalKeyPrefix + string(first.Goal.ID): string(blob)}
+	saved := map[string]string{GovernorGoalKeyPrefix + string(first.Standard.ID): string(blob)}
 	b.ResetTimer()
 	for range b.N {
 		if err = s.RebuildGoals(ctx, saved, nil); err != nil {

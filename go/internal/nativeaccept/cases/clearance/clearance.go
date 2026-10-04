@@ -148,7 +148,7 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 			if binding.Need != policy.ClearHomeObstructions {
 				continue
 			}
-			goal, err := journal.LoadGoal(ctx, binding.Goal)
+			goal, err := journal.LoadStandard(ctx, binding.Goal)
 			if err != nil {
 				return "", false, err
 			}
@@ -164,8 +164,8 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 				return "", false, err
 			}
 			designated = designated || len(hauls) > 0
-			s.Report()["chunk_goal"] = goal.Goal
-			return na.Signature(goal.Goal.Need, len(goal.Methods), designated), admitted && designated && goal.Goal.Need == domain.NeedRecovered, nil
+			s.Report()["chunk_goal"] = goal.Standard
+			return na.Signature(goal.Standard.Need, len(goal.Methods), designated), admitted && designated && goal.Standard.Need == domain.NeedRecovered, nil
 		}
 		return "waiting for chunk goal", false, nil
 	})

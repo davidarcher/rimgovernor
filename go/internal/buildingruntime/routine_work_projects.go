@@ -287,11 +287,11 @@ func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.Ro
 		}
 		for _, binding := range review.Goals {
 			if binding.Need == policy.MaintainEquipment {
-				goal, err := journal.LoadGoal(ctx, binding.Goal)
+				goal, err := journal.LoadStandard(ctx, binding.Goal)
 				if err != nil {
 					return nil, err
 				}
-				if goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit {
+				if goal.Standard.Status == domain.StandardOpen && goal.Standard.Need == domain.NeedDeficit {
 					return ladder.Research, nil
 				}
 			}

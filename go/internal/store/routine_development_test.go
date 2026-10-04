@@ -39,7 +39,7 @@ func TestRoutineDevelopmentPersistsAge(t *testing.T) {
 		t.Fatal(loaded, err)
 	}
 	g := routineGoal(t, first, policy.MaintainResource)
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
 	committed := reviewRoutine(t, s, &r)
@@ -184,7 +184,7 @@ func TestRoutineDevelopmentConfiguredTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "accept", questPlan); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "accept", questPlan); err != nil {
 		t.Fatal("quest acceptance refused for a development slot", err)
 	}
 	// A wanderer letter uses the same no-pawn-work exemption, even though
@@ -192,14 +192,14 @@ func TestRoutineDevelopmentConfiguredTargets(t *testing.T) {
 	if _, err := s.Cancel(ctx, questPlan.ID(), questAction.ID()); err != nil {
 		t.Fatal(err)
 	}
-	g, err = s.LoadGoal(ctx, g.Goal.ID)
+	g, err = s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	letter, _ := domain.NewJoinerLetterAnswer(8, "Accept", "letter-token")
 	letterAction, _ := domain.NewDialogAnswerAction("letter-action", letter)
 	letterPlan, _ := domain.NewPlan("letter", 1, []domain.Action{letterAction})
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "letter", letterPlan); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "letter", letterPlan); err != nil {
 		t.Fatal("joiner letter refused for a development slot", err)
 	}
 	dialog, _ := domain.NewDialogAnswer(8, 0, "Accept")
@@ -213,12 +213,12 @@ func TestRoutineDevelopmentConfiguredTargets(t *testing.T) {
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Current: "Stonecutting", Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 120}})
 	out = reviewRoutine(t, s, &r)
-	if routineProject(t, out, policy.EnsureResearch).Project.Need != domain.NeedRecovered || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedRecovered {
+	if routineProject(t, out, policy.EnsureResearch).Project.Need != domain.NeedRecovered || routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedRecovered {
 		t.Fatal(out.Goals)
 	}
 	r.Facts.Research, r.Facts.Resources = domain.Unknown[policy.ResearchFacts](), domain.Unknown[[]policy.Amount]()
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedUnknown {
+	if routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedUnknown {
 		t.Fatal(out.Goals)
 	}
 }
@@ -330,7 +330,7 @@ func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, wood.Standard.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
 	const woodPlan domain.PlanID = "wood"
@@ -402,7 +402,7 @@ func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, wood.Standard.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Colonists = domain.Known(int64(3))

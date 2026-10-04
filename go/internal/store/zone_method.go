@@ -132,7 +132,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 // committed under any open work. It re-crops a grower that already stands,
 // shares no cells or stock with the basin batch that built it, and that
 // batch stays open until its last basin does; the planner commits one such
-// method per grower per goal epoch.
+// method per grower per Episode.
 func growerCropOpenWorkExempt(plan domain.PlanSpec) bool {
 	if len(plan.Actions()) == 0 {
 		return false

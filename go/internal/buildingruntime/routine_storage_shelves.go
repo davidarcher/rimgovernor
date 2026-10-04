@@ -89,20 +89,20 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	if !known {
 		return RoutineStorageShelvesResult{Verdict: fieldUnavailable("shelf_claims")}, nil
 	}
-	goals := map[domain.ConcernID]store.GoalState{}
+	goals := map[domain.ConcernID]store.StandardState{}
 	var zones []store.OwnedZone
 	for _, z := range owned {
 		if z.Kind != domain.StockpileZone || selected[z.Goal] == "" || z.Priority == domain.LowPriority {
 			continue
 		}
 		if _, loaded := goals[z.Goal]; !loaded {
-			g, err := p.journal.LoadGoal(call, z.Goal)
+			g, err := p.journal.LoadStandard(call, z.Goal)
 			if err != nil {
 				return RoutineStorageShelvesResult{}, err
 			}
 			goals[z.Goal] = g
 		}
-		if g := goals[z.Goal].Goal; g.Status == domain.GoalActive && g.Need == domain.NeedDeficit {
+		if g := goals[z.Goal].Standard; g.Status == domain.StandardOpen && g.Need == domain.NeedDeficit {
 			zones = append(zones, z)
 		}
 	}

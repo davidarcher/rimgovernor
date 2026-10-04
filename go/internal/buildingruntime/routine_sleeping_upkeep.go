@@ -393,7 +393,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		}
 		return r.building.step(call, epoch, arbiter)
 	}
-	// Assign: one pawn, one bed, once per goal epoch. A method that already
+	// Assign: one pawn, one bed, once per Episode. A method that already
 	// ran this epoch (the native side refused it, or the player undid it) is
 	// not retried; the next epoch reconsiders. The one exception is an
 	// intent native refused: that leaves no effect behind, so a bounded
@@ -498,7 +498,7 @@ func sleepingAssignUnadmitted(progress []domain.Progress) bool {
 }
 
 // markSlaveBed commits one patch setting bed for slaves (#1036), once per
-// bed per goal epoch; the next review assigns the waiting slave to it.
+// bed per Episode; the next review assigns the waiting slave to it.
 func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context, state ControlState, goal store.WorkOwner, bed string) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	method := domain.MethodID("sleeping-slave-bed-" + bed)

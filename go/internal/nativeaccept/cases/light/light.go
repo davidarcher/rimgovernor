@@ -464,7 +464,7 @@ func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess
 }
 
 // lightingMethods lists every method ever committed on a MaintainLighting
-// goal, across goal epochs, from the journal.
+// goal, across Episodes, from the journal.
 func lightingMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, error) {
 	review, err := s.LoadRounds(ctx)
 	if err != nil {
@@ -475,7 +475,7 @@ func lightingMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, 
 		if binding.Need != policy.MaintainLighting {
 			continue
 		}
-		goal, err := s.LoadGoal(ctx, binding.Goal)
+		goal, err := s.LoadStandard(ctx, binding.Goal)
 		if err != nil {
 			return nil, err
 		}

@@ -203,7 +203,7 @@ func throneFloorTerrains(catalog *bridge.DefinitionCatalog, f policy.RoyaltyFact
 }
 
 // throneMethod names a throne step's method: the shell once per room, the
-// throne once per slot, per goal epoch.
+// throne once per slot, per Episode.
 func throneMethod(step policy.ThroneStep) domain.MethodID {
 	in := step.Room.Interior
 	if step.Kind == policy.ThronePlace {
@@ -230,7 +230,7 @@ func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, 
 }
 
 // assignThrone commits one Assign of the standing throne to its holder,
-// once per holder and throne per goal epoch (refused attempts retry within
+// once per holder and throne per Episode (refused attempts retry within
 // assignMethod's bound). The royalty read refreshes on its own cadence, so a
 // throne assigned this epoch reads unowned until then and the method is used.
 func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, step policy.ThroneStep) (RoutineBuildingResult, error) {

@@ -4,24 +4,24 @@ import "errors"
 
 // ProjectID names one Project row: "project-<hex8 world digest>-<kind>-<gen>",
 // minted per world and kind like a routine goal id. A regression mints the
-// next generation rather than reopening the finished row (#1925, epic #1911).
+// next generation rather than reopening the completed row (#1925, epic #1911).
 type ProjectID string
 
 type ProjectStatus string
 
 const (
-	ProjectOpen        ProjectStatus = "open"
-	ProjectFinished    ProjectStatus = "finished"
-	ProjectInvalidated ProjectStatus = "invalidated"
+	ProjectOpen      ProjectStatus = "open"
+	ProjectCompleted ProjectStatus = "finished"
+	ProjectVoided    ProjectStatus = "invalidated"
 )
 
 // MaxProjectRecord bounds Project.Record in bytes.
 const MaxProjectRecord = 4096
 
 // Project is a build-once outcome (cooking, basic power, defensive layout...):
-// it finishes once and stays finished as its own record. A finished Project
-// measured broken with no work open is replaced by a new row; it has no Epoch
-// and no RecoveryObserved, unlike a Standard goal.
+// it completes once and stays completed as its own record. A completed Project
+// measured broken with no work open is replaced by a new row; it has no Episode
+// and no RecoveryObserved, unlike a Standard.
 type Project struct {
 	ID       ProjectID
 	Kind     ConcernID // the Project's ConcernID (the routine need it serves)
@@ -30,7 +30,7 @@ type Project struct {
 	Tick     Tick
 	Status   ProjectStatus
 	Need     NeedState
-	// Record is the Project's durable planner intent, as Goal.Record.
+	// Record is the Project's durable planner intent, as Standard.Record.
 	Record string `json:",omitempty"`
 }
 
@@ -47,7 +47,7 @@ func (p Project) Validate() error {
 		return errors.New("project record exceeds bound")
 	}
 	switch p.Status {
-	case ProjectOpen, ProjectFinished, ProjectInvalidated:
+	case ProjectOpen, ProjectCompleted, ProjectVoided:
 	default:
 		return errors.New("invalid project status")
 	}
@@ -56,22 +56,22 @@ func (p Project) Validate() error {
 	default:
 		return errors.New("invalid project need")
 	}
-	if p.Status == ProjectFinished && p.Need != NeedRecovered {
-		return errors.New("finished project needs observed recovery")
+	if p.Status == ProjectCompleted && p.Need != NeedRecovered {
+		return errors.New("completed project needs observed recovery")
 	}
 	return nil
 }
 
-// ProjectRegressed reports whether a finished Project was measured broken
+// ProjectRegressed reports whether a completed Project was measured broken
 // with no work open; the caller opens a new Project row and leaves this one
 // as its record.
 func ProjectRegressed(p Project, need NeedState, openWork bool) bool {
-	return p.Status == ProjectFinished && need == NeedDeficit && !openWork
+	return p.Status == ProjectCompleted && need == NeedDeficit && !openWork
 }
 
-// ReviewProject reviews a Project against the current world. An unfinished
-// Project finishes when recovery is measured with no work open; a finished one
-// stays finished (an unknown measurement does not reopen it) until the world
+// ReviewProject reviews a Project against the current world. An uncompleted
+// Project completes when recovery is measured with no work open; a completed one
+// stays completed (an unknown measurement does not reopen it) until the world
 // changes or the tick rewinds. Callers check ProjectRegressed first and open a
 // new row instead.
 func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Project, error) {
@@ -86,23 +86,23 @@ func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need NeedSt
 	default:
 		return p, errors.New("invalid observed need")
 	}
-	if p.Status == ProjectInvalidated {
+	if p.Status == ProjectVoided {
 		return p, nil
 	}
 	if ProjectRegressed(p, need, openWork) {
 		return p, errors.New("regressed project needs a new project")
 	}
 	if !p.Snapshot.sameColonyMap(current) || tick < p.Tick {
-		p.Status = ProjectInvalidated
+		p.Status = ProjectVoided
 		return p, nil
 	}
 	p.Snapshot, p.Tick = current, tick
-	if p.Status == ProjectFinished {
+	if p.Status == ProjectCompleted {
 		return p, nil
 	}
 	p.Need = need
 	if need == NeedRecovered && !openWork {
-		p.Status = ProjectFinished
+		p.Status = ProjectCompleted
 	}
 	return p, nil
 }

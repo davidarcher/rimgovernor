@@ -105,11 +105,11 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		if !policy.MoodProvisionGoal(binding.Need) {
 			continue
 		}
-		goal, err := p.journal.LoadGoal(call, binding.Goal)
+		goal, err := p.journal.LoadStandard(call, binding.Goal)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
 		}
-		activeOwner[binding.Need] = goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit
+		activeOwner[binding.Need] = goal.Standard.Status == domain.StandardOpen && goal.Standard.Need == domain.NeedDeficit
 	}
 	started := r.reviewer.clock.Now()
 	for _, binding := range review.SubjectIncidents(policy.EnsureMood) {

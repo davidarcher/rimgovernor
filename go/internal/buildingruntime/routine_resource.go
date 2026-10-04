@@ -236,7 +236,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 // path to those bench IDs (the caller's delivery constraint: a bill's product
 // drops at its bench); an empty set refuses the production path outright
 // rather than producing where the product cannot be used.
-func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoutineResourceResult, error) {
+func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoutineResourceResult, error) {
 	if r.reviewer.policy.GearSpareTargets[resource] > 0 {
 		_, storage, _, err := r.native.ReadResourceSources(call, identity, string(resource))
 		if err != nil {
@@ -290,7 +290,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		// No bench where the product would be usable: producing elsewhere
 		// only piles it up out of reach (#237). Lend a window so a bench
 		// built or an area widened meanwhile is seen next step.
-		clockSchedulerLog("%s: no reachable bench for %s among %d benches", goal.Goal.ID, resource, len(census))
+		clockSchedulerLog("%s: no reachable bench for %s among %d benches", goal.Standard.ID, resource, len(census))
 		return RoutineResourceResult{Verdict: awaitingPlan("feed_bench", "within_reach_of_animals"), NativeWorkTicks: stockWaitTicks}, nil
 	}
 	names := recipeIngredientNames(census, resource)
@@ -377,7 +377,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			return RoutineResourceResult{Verdict: claimHeld(string(resource))}, nil
 		}
 		if ok && len(ranked) > 0 && ranked[0].Kind == policy.AcquisitionMining {
-			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Goal.ID, resource, ranked[0].ID, ranked[0].Score)
+			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Standard.ID, resource, ranked[0].ID, ranked[0].Score)
 			result, dispatched, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, &sel)
 			if err != nil || dispatched {
 				return result, err
@@ -422,7 +422,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineResourceResult{}, err
 	}
 	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -431,14 +431,14 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 // outbid posts this planner's best catalog score for resource on the joint
 // board (#728) and reports whether the acquisition planner's chop, harvest
 // or hunt bid beats it: the resource is then left to that planner.
-func (r *RoutineResourcePlanner) outbid(goal store.GoalState, state ControlState, resource policy.Resource, ranked []policy.AcquisitionScore, tick domain.Tick) bool {
+func (r *RoutineResourcePlanner) outbid(goal store.StandardState, state ControlState, resource policy.Resource, ranked []policy.AcquisitionScore, tick domain.Tick) bool {
 	var best policy.AcquisitionScore
 	if len(ranked) > 0 {
 		best = ranked[0]
 	}
 	rival, yield := r.reviewer.bids.bid(state.Snapshot, resource, bidResource, best.Score, best.Kind, tick)
 	if yield {
-		clockSchedulerLog("%s: %s %s %.3f yields to %s %.3f", goal.Goal.ID, resource, best.Kind, best.Score, rival.kind, rival.score)
+		clockSchedulerLog("%s: %s %s %.3f yields to %s %.3f", goal.Standard.ID, resource, best.Kind, best.Score, rival.kind, rival.score)
 	}
 	return yield
 }
@@ -466,7 +466,7 @@ type sourceSelection struct {
 // select sources for the deficit (or use pre, already selected), build
 // storage when hauling them needs it, then dispatch a mine source.
 // dispatched is true when a zone or a mine method was admitted or refused.
-func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], started time.Time, pre *sourceSelection) (RoutineResourceResult, bool, error) {
+func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], started time.Time, pre *sourceSelection) (RoutineResourceResult, bool, error) {
 	if pre == nil {
 		remote, err := r.miningReach(call, state, reviewTick)
 		if err != nil {
@@ -621,7 +621,7 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 // and capacity left, or existing capacity already covers the deficit) -- the caller should then
 // fall through to dispatchMineSource instead: the storage zone-build takes
 // the place of an acquisition action only when storage is inadequate.
-func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, selected []policy.ResourceSource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoutineResourceResult, bool, error) {
+func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, resource policy.Resource, selected []policy.ResourceSource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoutineResourceResult, bool, error) {
 	zone, needed, blocked, err := policy.SelectResourceStorageZone(selected, 0, storage)
 	if err != nil {
 		return RoutineResourceResult{}, false, err
@@ -648,12 +648,12 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 // plasteel, precious metals, uranium, jade, stone chunks and blocks), so this
 // is the outdoor stockpile for those; a deteriorating resource gets roofed
 // cells only. handled is true when a zone was admitted or refused.
-func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoutineResourceResult, bool, error) {
+func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, resource policy.Resource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoutineResourceResult, bool, error) {
 	zone, needed, err := policy.SelectFullStorageZone(deficit, storage)
 	if err != nil || !needed {
 		return RoutineResourceResult{}, false, err
 	}
-	clockSchedulerLog("%s: %s storage full under a %d deficit; stockpile on %d cells", goal.Goal.ID, resource, deficit, len(zone.Cells))
+	clockSchedulerLog("%s: %s storage full under a %d deficit; stockpile on %d cells", goal.Standard.ID, resource, deficit, len(zone.Cells))
 	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage")
 	return result, true, err
 }
@@ -785,7 +785,7 @@ func admitZoneMethod(reviewer *Rounder, native zoneMethodNative, call, epoch con
 // source was selected or its covered storage already suffices. dispatched is
 // false, with a zero result and nil error, when there is nothing to dispatch
 // -- the caller then falls back to its own WaitMethodUsed reporting.
-func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.GoalState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoutineResourceResult, bool, error) {
+func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.StandardState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoutineResourceResult, bool, error) {
 	var source policy.ResourceSource
 	found := false
 	for _, candidate := range sources {
@@ -802,7 +802,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 	if err != nil {
 		return RoutineResourceResult{}, false, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Goal.ID, goal.Goal.Epoch, source.ThingID, source.Cell.X, source.Cell.Z)))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Standard.ID, goal.Standard.Episode, source.ThingID, source.Cell.X, source.Cell.Z)))
 	id := domain.MintPlanID()
 	methodID := domain.MethodID(fmt.Sprintf("resource-mine-%x", digest[:16]))
 	action, err := domain.NewMineAcquisitionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), acquisitionValue)
@@ -820,7 +820,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineResourceResult{}, false, fmt.Errorf("%w: dispatchMineSource: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, methodID, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, methodID, plan); err != nil {
 		return RoutineResourceResult{}, false, err
 	}
 	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil

@@ -4,12 +4,12 @@ import "errors"
 
 type ConcernID string
 type MethodID string
-type GoalStatus string
+type StandardStatus string
 
 const (
-	GoalActive      GoalStatus = "active"
-	GoalSatisfied   GoalStatus = "satisfied"
-	GoalInvalidated GoalStatus = "invalidated"
+	StandardOpen    StandardStatus = "active"
+	StandardSettled StandardStatus = "satisfied"
+	StandardVoided  StandardStatus = "invalidated"
 )
 
 type NeedState string
@@ -20,15 +20,15 @@ const (
 	NeedRecovered NeedState = "recovered"
 )
 
-// Goal records a maintained outcome. Executable methods reference ordinary shared
+// Standard records a maintained outcome. Executable methods reference ordinary shared
 // plans; their receipts, progress and uncertainty stay in those plans.
-type Goal struct {
+type Standard struct {
 	ID               ConcernID
 	Priority         int
 	Snapshot         GenerationSnapshot
 	Tick             Tick
-	Epoch            uint64
-	Status           GoalStatus
+	Episode          uint64 `json:"Epoch"`
+	Status           StandardStatus
 	Need             NeedState
 	RecoveryObserved bool
 	// Record is the goal's own durable intent, JSON the goal's planner
@@ -37,100 +37,100 @@ type Goal struct {
 	Record string `json:",omitempty"`
 }
 
-// MaxGoalRecord bounds Goal.Record in bytes.
-const MaxGoalRecord = 4096
+// MaxStandardRecord bounds Standard.Record in bytes.
+const MaxStandardRecord = 4096
 
-func NewGoal(id ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Goal, error) {
-	g := Goal{ID: id, Priority: priority, Snapshot: snapshot, Tick: tick, Status: GoalActive, Need: NeedUnknown}
+func NewStandard(id ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Standard, error) {
+	g := Standard{ID: id, Priority: priority, Snapshot: snapshot, Tick: tick, Status: StandardOpen, Need: NeedUnknown}
 	return g, g.Validate()
 }
-func (g Goal) Validate() error {
+func (g Standard) Validate() error {
 	if !validID(string(g.ID)) || g.Priority < 0 || g.Priority > 4 || g.Tick < 0 || g.Snapshot.Validate() != nil {
-		return errors.New("invalid maintained goal")
+		return errors.New("invalid standard")
 	}
-	if len(g.Record) > MaxGoalRecord {
-		return errors.New("goal record exceeds bound")
+	if len(g.Record) > MaxStandardRecord {
+		return errors.New("standard record exceeds bound")
 	}
 	switch g.Status {
-	case GoalActive, GoalSatisfied, GoalInvalidated:
+	case StandardOpen, StandardSettled, StandardVoided:
 	default:
-		return errors.New("invalid goal status")
+		return errors.New("invalid standard status")
 	}
 	switch g.Need {
 	case NeedUnknown, NeedDeficit, NeedRecovered:
 	default:
-		return errors.New("invalid goal need")
+		return errors.New("invalid standard need")
 	}
-	if g.Status == GoalSatisfied && (g.Need != NeedRecovered || !g.RecoveryObserved) {
-		return errors.New("satisfied goal needs observed recovery")
+	if g.Status == StandardSettled && (g.Need != NeedRecovered || !g.RecoveryObserved) {
+		return errors.New("settled standard needs observed recovery")
 	}
 	return nil
 }
 
-// ReviewGoal invalidates captured work on world,
+// ReviewStandard invalidates captured work on world,
 // direction or tick replacement. OpenWork is derived from linked shared plans,
 // including cancelled actions whose effects are still unresolved. A deficit
-// measured after a recovery starts a new method epoch once no work is open:
+// measured after a recovery starts a new Episode once no work is open:
 // either the recovery was observed as satisfaction, or the previous review
 // measured it while a plan's effects were still unresolved and the world has
 // regressed since (a lamp removed behind a lit bench), so the settled
-// epoch's methods may be proposed again. Priority orders work only: an
+// episode's methods may be proposed again. Priority orders work only: an
 // emergency or a pause vetoes proposals through the policy Safeguards (#1017).
 // Projects are not goals (Project, ReviewProject).
-func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Goal, error) {
+func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Standard, error) {
 	original := g
 	if err := g.Validate(); err != nil {
 		return g, err
 	}
 	if current.Validate() != nil || tick < 0 {
-		return g, errors.New("invalid goal review scope")
+		return g, errors.New("invalid standard review scope")
 	}
 	switch need {
 	case NeedUnknown, NeedDeficit, NeedRecovered:
 	default:
 		return g, errors.New("invalid observed need")
 	}
-	if g.Status == GoalInvalidated {
+	if g.Status == StandardVoided {
 		return g, nil
 	}
 	if !g.Snapshot.sameColonyMap(current) || tick < g.Tick {
-		g.Status = GoalInvalidated
+		g.Status = StandardVoided
 		return g, nil
 	}
 	// Review revisions may advance without changing the player's direction.
 	g.Snapshot = current
 	g.Tick = tick
 	if need == NeedUnknown {
-		if g.Status == GoalSatisfied {
-			g.Status = GoalActive
+		if g.Status == StandardSettled {
+			g.Status = StandardOpen
 		}
 		g.Need = need
 		return g, nil
 	}
 	if need == NeedDeficit && (g.RecoveryObserved || g.Need == NeedRecovered) && !openWork {
-		if g.Epoch == ^uint64(0) {
-			return original, errors.New("goal epoch exhausted")
+		if g.Episode == ^uint64(0) {
+			return original, errors.New("standard episode exhausted")
 		}
-		g.Epoch++
+		g.Episode++
 		g.RecoveryObserved = false
 	}
 	g.Need = need
 	if need == NeedRecovered && !openWork {
-		g.Status = GoalSatisfied
+		g.Status = StandardSettled
 		g.RecoveryObserved = true
 	} else {
-		g.Status = GoalActive
+		g.Status = StandardOpen
 	}
 	return g, nil
 }
 
-// GoalMethod binds a selected method to its original epoch and executable plan.
-// Renewed deficits get a new epoch; the old plan remains available for readback.
+// GoalMethod binds a selected method to its original Episode and executable plan.
+// Renewed deficits get a new Episode; the old plan remains available for readback.
 type GoalMethod struct {
-	Goal   ConcernID
-	Epoch  uint64
-	Method MethodID
-	Plan   PlanID
+	Goal    ConcernID
+	Episode uint64 `json:"Epoch"`
+	Method  MethodID
+	Plan    PlanID
 }
 
 func (m GoalMethod) Validate() error {

@@ -17,7 +17,7 @@ import (
 // Vanilla haulers inter the body.
 
 // tombMethod names a tomb step's method: the shell once per room, each
-// sarcophagus slot once, per goal epoch.
+// sarcophagus slot once, per Episode.
 func tombMethod(step policy.TombStep) domain.MethodID {
 	if step.Kind == policy.TombPlace {
 		return domain.MethodID(fmt.Sprintf("tomb-place-%d-%d-%s", step.Room.Interior.X, step.Room.Interior.Z, step.Piece.Slot))
@@ -26,7 +26,7 @@ func tombMethod(step policy.TombStep) domain.MethodID {
 }
 
 // stageTomb answers a due tomb step; handled is false when none is due.
-func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, arbiter *stepArbiter, expected observation.Identity) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, arbiter *stepArbiter, expected observation.Identity) (RoutineWasteResult, bool, error) {
 	source, ok := r.native.(observation.RoutineSource)
 	if !ok || r.building == nil {
 		return RoutineWasteResult{}, false, nil

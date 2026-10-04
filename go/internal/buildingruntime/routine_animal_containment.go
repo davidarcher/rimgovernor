@@ -276,7 +276,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	if animalContainmentDevelopmentGated(goal.Goal.Priority, selected, choice.Reason) {
+	if animalContainmentDevelopmentGated(goal.Standard.Priority, selected, choice.Reason) {
 		return RoutineAnimalContainmentResult{Verdict: awaitingSlot(string(policy.MaintainAnimalContainment))}, nil
 	}
 	if choice.Reason == policy.ContainmentNoDeficit {
@@ -314,7 +314,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 // any is admitted; a site whose native preview refuses a cell is abandoned in
 // favor of the next, exactly like previewShell abandons a planned room
 // candidate that fails partway through its perimeter.
-func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	fenceDef, fok := animalContainmentDefinition(facts.Definitions, "Fence")
 	gateDef, gok := animalContainmentDefinition(facts.Definitions, "FenceGate")
@@ -411,7 +411,7 @@ func penShellCells(room policy.Rectangle) (gate domain.Cell, ring []domain.Cell)
 // rest of the ring is built, all in one shell method through the shared rock
 // step. The gate opens onto ground the frame lists open, which a miner and
 // the animals reach.
-func (r *RoutineAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, stuff string) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, stuff string) (RoutineAnimalContainmentResult, error) {
 	anchor := fieldAnchor(facts)
 	reach := policy.RockSiteReach
 	view := policy.RockSiteView(facts.Cells, facts.Bounds, policy.Rectangle{X: anchor.X - reach, Z: anchor.Z - reach, Width: 2*reach + 1, Height: 2*reach + 1})
@@ -533,7 +533,7 @@ func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, s
 
 // placeMarker searches the completed shell's interior for a legal PenMarker
 // spot, nearest its northwest interior corner within radius 4.
-func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Context, state ControlState, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, room policy.Rectangle) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Context, state ControlState, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, room policy.Rectangle) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	markerDef, ok := animalContainmentDefinition(facts.Definitions, "PenMarker")
 	if !ok {

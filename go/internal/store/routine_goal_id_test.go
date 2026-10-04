@@ -54,12 +54,12 @@ func TestRoutineGoalIdentityWorldChangeInvalidatesAndMintsNewRow(t *testing.T) {
 			if id == old || id[:24] == old[:24] {
 				t.Fatal("different world reused identity", old, id)
 			}
-			g, err := s.LoadGoal(t.Context(), old)
+			g, err := s.LoadStandard(t.Context(), old)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if g.Goal.Status != domain.GoalInvalidated {
-				t.Fatal("world change did not invalidate", old, g.Goal.Status)
+			if g.Standard.Status != domain.StandardVoided {
+				t.Fatal("world change did not invalidate", old, g.Standard.Status)
 			}
 		}
 	}
@@ -80,12 +80,12 @@ func TestRoutineGoalIdentityRewindBumpsGeneration(t *testing.T) {
 		if want := strings.TrimSuffix(string(old), "-0") + "-1"; string(id) != want {
 			t.Fatal("rewind did not bump generation", old, id)
 		}
-		g, err := s.LoadGoal(t.Context(), old)
+		g, err := s.LoadStandard(t.Context(), old)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if g.Goal.Status != domain.GoalInvalidated {
-			t.Fatal("rewound row not terminal", g.Goal.Status)
+		if g.Standard.Status != domain.StandardVoided {
+			t.Fatal("rewound row not terminal", g.Standard.Status)
 		}
 	}
 }

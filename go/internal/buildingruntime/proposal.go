@@ -70,7 +70,7 @@ type Proposal struct {
 	Planner  string
 	Goal     domain.ConcernID
 	Priority int
-	// Urgency is the goal's own priority class (domain.Goal.Priority):
+	// Urgency is the goal's own priority class (domain.Standard.Priority):
 	// lower is more urgent, the same sense as Priority.
 	Urgency  int
 	Snapshot domain.GenerationSnapshot

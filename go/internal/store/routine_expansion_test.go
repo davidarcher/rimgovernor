@@ -23,12 +23,12 @@ func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	r.Facts.Sleeping = housedSleeping(3)
 	out := reviewRoutine(t, s, &r)
 	first := routineGoal(t, out, policy.MaintainHousing)
-	if first.Goal.Need != domain.NeedDeficit || !developmentRow(t, out.Review, policy.MaintainHousing).Selected {
+	if first.Standard.Need != domain.NeedDeficit || !developmentRow(t, out.Review, policy.MaintainHousing).Selected {
 		t.Fatal(out)
 	}
 	r.Facts.IndoorCapacity = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)
-	if g := routineGoal(t, out, policy.MaintainHousing); g.Goal.Need != domain.NeedUnknown || g.Goal.Epoch != first.Goal.Epoch {
+	if g := routineGoal(t, out, policy.MaintainHousing); g.Standard.Need != domain.NeedUnknown || g.Standard.Episode != first.Standard.Episode {
 		t.Fatal(g)
 	}
 	r.Enabled = false
@@ -45,7 +45,7 @@ func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	r.Enabled = true
 	r.Facts.IndoorCapacity = domain.Known(int64(4))
 	out = reviewRoutine(t, s, &r)
-	if g := routineGoal(t, out, policy.MaintainHousing); g.Goal.Need != domain.NeedRecovered {
+	if g := routineGoal(t, out, policy.MaintainHousing); g.Standard.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}
 	recovered := routineGoal(t, out, policy.MaintainHousing)
@@ -53,7 +53,7 @@ func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	r.Facts.BedCapacity = domain.Known(int64(4))
 	r.Facts.Sleeping = housedSleeping(4)
 	out = reviewRoutine(t, s, &r)
-	if g := routineGoal(t, out, policy.MaintainHousing); g.Goal.Need != domain.NeedDeficit || g.Goal.Epoch <= recovered.Goal.Epoch {
+	if g := routineGoal(t, out, policy.MaintainHousing); g.Standard.Need != domain.NeedDeficit || g.Standard.Episode <= recovered.Standard.Episode {
 		t.Fatal(g, recovered)
 	}
 }
@@ -86,7 +86,7 @@ func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	if !developmentRow(t, out.Review, policy.MaintainHousing).Selected {
 		t.Fatal(out)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{})
@@ -95,7 +95,7 @@ func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	if row.Selected || !row.Committed || row.Reason != policy.DevelopmentCommitted {
 		t.Fatal(row)
 	}
-	if got := routineGoal(t, out, policy.MaintainHousing); got.Goal.Need != domain.NeedDeficit || len(got.Methods) != 1 {
+	if got := routineGoal(t, out, policy.MaintainHousing); got.Standard.Need != domain.NeedDeficit || len(got.Methods) != 1 {
 		t.Fatal(got)
 	}
 }

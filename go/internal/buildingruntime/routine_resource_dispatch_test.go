@@ -180,15 +180,15 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var goal store.GoalState
+	var goal store.StandardState
 	for _, binding := range review.Goals {
 		if binding.Need == policy.MaintainResource {
-			if goal, err = p.journal.LoadGoal(ctx, binding.Goal); err != nil {
+			if goal, err = p.journal.LoadStandard(ctx, binding.Goal); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
-	if goal.Goal.Status != domain.GoalActive {
+	if goal.Standard.Status != domain.StandardOpen {
 		t.Fatal(goal)
 	}
 	identity := boundary.Identity(state.Snapshot)

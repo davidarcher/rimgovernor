@@ -241,11 +241,11 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if !ok {
 		return fmt.Errorf("%s was never bound in the rounds", policy.MaintainResource)
 	}
-	goal, err := journal.LoadGoal(ctx, id)
+	goal, err := journal.LoadStandard(ctx, id)
 	if err != nil {
 		return err
 	}
-	report[strings.ToLower(string(policy.MaintainResource))+"_goal"] = map[string]any{"status": string(goal.Goal.Status), "need": string(goal.Goal.Need), "methods": len(goal.Methods)}
+	report[strings.ToLower(string(policy.MaintainResource))+"_goal"] = map[string]any{"status": string(goal.Standard.Status), "need": string(goal.Standard.Need), "methods": len(goal.Methods)}
 	// EnsureResearch is a Project (#1911): its own row, not a goal.
 	projectID, ok := review.ProjectFor(policy.EnsureResearch)
 	if !ok {

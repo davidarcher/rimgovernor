@@ -41,7 +41,7 @@ func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		next, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, domain.MethodID(fmt.Sprintf("method-%d", index)), p)
+		next, err := db.CommitGoalMethod(context.Background(), g.Standard.ID, g.Revision, domain.MethodID(fmt.Sprintf("method-%d", index)), p)
 		if err == nil {
 			g = next
 		}
@@ -74,26 +74,26 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	r.Facts.Gear = domain.Known(gear)
 	out := reviewRoutine(t, db, &r)
 	g := routineGoal(t, out, policy.MaintainEquipment)
-	if g.Goal.Need != domain.NeedDeficit || g.Goal.Priority != 3 {
+	if g.Standard.Need != domain.NeedDeficit || g.Standard.Priority != 3 {
 		t.Fatal(g)
 	}
-	epoch := g.Goal.Epoch
+	epoch := g.Standard.Episode
 	db.Close()
 	db = open(t, path)
 	r.Facts.Gear = domain.Unknown[policy.GearObservation]()
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
-	if g.Goal.Need != domain.NeedUnknown || g.Goal.Epoch != epoch {
+	if g.Standard.Need != domain.NeedUnknown || g.Standard.Episode != epoch {
 		t.Fatal("missing census recovered or renewed need", g)
 	}
 	gear.Pawns[0] = gearRecoveredPawn("pawn")
 	r.Facts.Gear = domain.Known(gear)
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
-	if g.Goal.Status != domain.GoalSatisfied {
+	if g.Standard.Status != domain.StandardSettled {
 		t.Fatal(g)
 	}
 	gear.Pawns[0] = gearDeficitPawn("pawn")
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
-	if g.Goal.Need != domain.NeedDeficit || g.Goal.Epoch <= epoch {
+	if g.Standard.Need != domain.NeedDeficit || g.Standard.Episode <= epoch {
 		t.Fatal("a new model gap did not reopen equipment need", g)
 	}
 	// The equipment goal ranks for a development slot like any other
@@ -111,17 +111,17 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "method", method); err != nil {
+	if _, err := db.CommitGoalMethod(context.Background(), g.Standard.ID, g.Revision, "method", method); err != nil {
 		t.Fatal("selected equipment goal refused a bill", err)
 	}
-	g, err = db.LoadGoal(context.Background(), g.Goal.ID)
+	g, err = db.LoadStandard(context.Background(), g.Standard.ID)
 	if err != nil || len(g.Methods) != 1 {
 		t.Fatal(g, err)
 	}
 	r.Enabled = false
 	paused := reviewRoutine(t, db, &r)
-	suspended, err := db.LoadGoal(context.Background(), g.Goal.ID)
-	if err != nil || suspended.Goal.Status != domain.GoalActive || paused.Review.Veto(suspended.Goal) == "" {
+	suspended, err := db.LoadStandard(context.Background(), g.Standard.ID)
+	if err != nil || suspended.Standard.Status != domain.StandardOpen || paused.Review.Veto(suspended.Standard) == "" {
 		t.Fatal("Manual left the equipment need active", suspended, err)
 	}
 	db.Close()

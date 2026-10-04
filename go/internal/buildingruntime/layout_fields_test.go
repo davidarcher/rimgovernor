@@ -31,8 +31,8 @@ func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
 		}
 		facts.LayoutPlan = domain.Known(plan)
 		facts.Definitions = []observation.PlanningDefinition{{Name: "Plant_Haygrass", Edible: domain.Known(false)}}
-		goal := func(priority int) store.GoalState {
-			return store.GoalState{Goal: domain.Goal{Priority: priority}}
+		goal := func(priority int) store.StandardState {
+			return store.StandardState{Standard: domain.Standard{Priority: priority}}
 		}
 		ledger := rankFieldShortfalls([]fieldShortfall{
 			{Goal: goal(hayPriority), Options: []policy.FieldBlockOption{{Crop: hay, Needed: 200}}, What: "hay"},

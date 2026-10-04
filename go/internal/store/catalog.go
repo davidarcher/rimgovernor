@@ -65,10 +65,10 @@ func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) 
 	return states, nil
 }
 
-// SeedGoal inserts a fresh goal row for fixtures; the rounds mints
-// every production goal (createGoal).
-func (s *Store) SeedGoal(ctx context.Context, g domain.Goal) error {
-	if g.Status != domain.GoalActive || g.Epoch != 0 || g.Need != domain.NeedUnknown || g.RecoveryObserved {
+// SeedStandard inserts a fresh goal row for fixtures; the rounds mints
+// every production goal (createStandard).
+func (s *Store) SeedStandard(ctx context.Context, g domain.Standard) error {
+	if g.Status != domain.StandardOpen || g.Episode != 0 || g.Need != domain.NeedUnknown || g.RecoveryObserved {
 		return errors.New("new goal must start without completion evidence")
 	}
 	tx, err := s.begin(ctx)
@@ -76,7 +76,7 @@ func (s *Store) SeedGoal(ctx context.Context, g domain.Goal) error {
 		return err
 	}
 	defer tx.Rollback()
-	if err = createGoal(ctx, tx, g); err != nil {
+	if err = createStandard(ctx, tx, g); err != nil {
 		return err
 	}
 	if err = tx.Commit(); err != nil {

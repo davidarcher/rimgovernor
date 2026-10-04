@@ -41,7 +41,7 @@ func lanceUsers(rows []*n.PawnState, things bridge.Things) []policy.LanceUser {
 // (#1038), read from the same emergency colonist pool and combat pawn read
 // the capture path uses. ok is false when no colonist can use one now, so
 // the step goes on to capture and rescue.
-func (r *RoutinePopulationCustodyPlanner) stepLance(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.GoalState, reviewTick domain.Tick, target domain.PawnID, arbiter *stepArbiter) (RoutinePopulationCustodyResult, bool, error) {
+func (r *RoutinePopulationCustodyPlanner) stepLance(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, reviewTick domain.Tick, target domain.PawnID, arbiter *stepArbiter) (RoutinePopulationCustodyResult, bool, error) {
 	identityCtx := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityCtx)
 	if err != nil {
@@ -88,7 +88,7 @@ func (r *RoutinePopulationCustodyPlanner) stepLance(call, epoch context.Context,
 		return RoutinePopulationCustodyResult{}, false, nil
 	}
 	prefix := fmt.Sprintf("population-lance-%s-", choice.Target)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationCustodyResult{}, false, nil
 	}

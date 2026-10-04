@@ -55,7 +55,7 @@ func TestPenShellOnRockMinesInteriorAndGateThenBuildsGate(t *testing.T) {
 			}
 			defer done()
 			ctx := context.Background()
-			result, err := r.digShell(call, epoch, s.state, s.review, s.goal.(store.GoalState), s.facts, nil, observation.RoutineReading{ColonyReading: s.read}, "")
+			result, err := r.digShell(call, epoch, s.state, s.review, s.goal.(store.StandardState), s.facts, nil, observation.RoutineReading{ColonyReading: s.read}, "")
 			if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
 				t.Fatal(result, err)
 			}

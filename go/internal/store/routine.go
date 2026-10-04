@@ -142,7 +142,7 @@ type RoundsRequest struct {
 type RoundsResult struct {
 	Review Rounds
 	Needs  policy.RoundsFindings
-	Goals  []GoalState
+	Goals  []StandardState
 	// Projects are the Project rows Review.Projects binds.
 	Projects []ProjectState
 	// Incidents are the occurrences Review.Incidents binds (#1020).
@@ -537,7 +537,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 			}
 		}
 	}
-	old := map[domain.ConcernID]GoalState{}
+	old := map[domain.ConcernID]StandardState{}
 	assessed := map[domain.ConcernID]bool{}
 	for _, n := range needs.All() {
 		assessed[n.ID] = true
@@ -553,13 +553,13 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 			return RoundsResult{}, err
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
-			if g.Goal.Status != domain.GoalInvalidated {
+			if g.Standard.Status != domain.StandardVoided {
 				if err = cancelGoalMethods(ctx, tx, g); err != nil {
 					return RoundsResult{}, err
 				}
-				next := g.Goal
-				next.Status = domain.GoalInvalidated
-				g, err = saveGoal(ctx, tx, g, next)
+				next := g.Standard
+				next.Status = domain.StandardVoided
+				g, err = saveStandard(ctx, tx, g, next)
 				if err != nil {
 					return RoundsResult{}, err
 				}
@@ -577,12 +577,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 			return RoundsResult{}, err
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
-			if p.Project.Status != domain.ProjectInvalidated {
+			if p.Project.Status != domain.ProjectVoided {
 				if err = cancelGoalMethods(ctx, tx, p); err != nil {
 					return RoundsResult{}, err
 				}
 				next := p.Project
-				next.Status = domain.ProjectInvalidated
+				next.Status = domain.ProjectVoided
 				if p, err = saveProject(ctx, tx, p, next); err != nil {
 					return RoundsResult{}, err
 				}
@@ -603,8 +603,8 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 	// invalidated bindings, so their clean history can leave active capacity.
 	retained := map[domain.ConcernID]bool{}
 	for _, g := range old {
-		if !request.Enabled || g.Goal.Status != domain.GoalInvalidated {
-			retained[g.Goal.ID] = true
+		if !request.Enabled || g.Standard.Status != domain.StandardVoided {
+			retained[g.Standard.ID] = true
 		}
 	}
 	if err = retireRoutineGoals(ctx, tx, retained); err != nil {
@@ -612,7 +612,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 	}
 	retainedProjects := map[domain.ProjectID]bool{}
 	for _, p := range oldProjects {
-		if !request.Enabled || p.Project.Status != domain.ProjectInvalidated {
+		if !request.Enabled || p.Project.Status != domain.ProjectVoided {
 			retainedProjects[p.Project.ID] = true
 		}
 	}
@@ -769,19 +769,19 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 				continue
 			}
 			g, exists := old[n.ID]
-			if !exists || g.Goal.Status == domain.GoalInvalidated {
+			if !exists || g.Standard.Status == domain.StandardVoided {
 				id, err := mintRoutineStandardID(ctx, tx, World{b.Colony, b.Load, b.Map}, n.ID)
 				if err != nil {
 					return RoundsResult{}, err
 				}
-				goal, err := domain.NewGoal(id, n.Priority, b, request.Tick)
+				goal, err := domain.NewStandard(id, n.Priority, b, request.Tick)
 				if err != nil {
 					return RoundsResult{}, err
 				}
-				if err = createGoal(ctx, tx, goal); err != nil {
+				if err = createStandard(ctx, tx, goal); err != nil {
 					return RoundsResult{}, err
 				}
-				g = GoalState{Goal: goal}
+				g = StandardState{Standard: goal}
 			}
 			if n.Need == domain.NeedRecovered {
 				if err = cancelUndispatchedGoalMethods(ctx, tx, g); err != nil {
@@ -792,17 +792,17 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 			if err != nil {
 				return RoundsResult{}, err
 			}
-			next := g.Goal
+			next := g.Standard
 			next.Priority = n.Priority
-			next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open)
+			next, err = domain.ReviewStandard(next, b, request.Tick, n.Need, open)
 			if err != nil {
 				return RoundsResult{}, err
 			}
-			g, err = saveGoal(ctx, tx, g, next)
+			g, err = saveStandard(ctx, tx, g, next)
 			if err != nil {
 				return RoundsResult{}, err
 			}
-			r.Goals = append(r.Goals, RoutineGoal{n.ID, g.Goal.ID})
+			r.Goals = append(r.Goals, RoutineGoal{n.ID, g.Standard.ID})
 			result.Goals = append(result.Goals, g)
 			states = append(states, g)
 		}
@@ -880,7 +880,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]Pro
 		}
 		exists = open
 	}
-	if !exists || p.Project.Status == domain.ProjectInvalidated {
+	if !exists || p.Project.Status == domain.ProjectVoided {
 		id, err := mintRoutineProjectID(ctx, tx, World{current.Colony, current.Load, current.Map}, n.ID)
 		if err != nil {
 			return ProjectState{}, err

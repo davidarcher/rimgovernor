@@ -51,7 +51,7 @@ func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 	}
 	r.Facts.StartingSupplies = domain.Known([]policy.StartingSupply{a, later})
 	out = reviewRoutine(t, s, &r)
-	if routineProject(t, out, policy.AllowStartingSupplies).Project.Status != domain.ProjectFinished {
+	if routineProject(t, out, policy.AllowStartingSupplies).Project.Status != domain.ProjectCompleted {
 		t.Fatal(out)
 	}
 	s.Close()

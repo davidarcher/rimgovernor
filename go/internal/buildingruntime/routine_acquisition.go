@@ -57,7 +57,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if !workable {
 		return RoutineAcquisitionResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	if goal.Goal.Priority >= 3 {
+	if goal.Standard.Priority >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == r.need && row.Selected
@@ -167,7 +167,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				if err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
-				if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+				if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 					continue
 				} else if !errors.Is(err, store.ErrNotFound) {
 					return RoutineAcquisitionResult{}, err
@@ -181,7 +181,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				if p.session.State() != state {
 					return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 				}
-				if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, "withdraw stalled "+row.Resource, plan); err != nil {
+				if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, "withdraw stalled "+row.Resource, plan); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
 				return RoutineAcquisitionResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
@@ -279,7 +279,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				hunts++
 			}
 		}
-		clockSchedulerLog("%s: acquisition select rows=%d hunts=%d deficit=%v pending=%v slots=%v held=%d selected=%d err=%v", goal.Goal.ID, len(rows), hunts, deficit, pending, slots, len(held), len(selected), err)
+		clockSchedulerLog("%s: acquisition select rows=%d hunts=%d deficit=%v pending=%v slots=%v held=%d selected=%d err=%v", goal.Standard.ID, len(rows), hunts, deficit, pending, slots, len(held), len(selected), err)
 	}
 	if err != nil {
 		return RoutineAcquisitionResult{Verdict: fieldUnavailable(unreadAcquisitionFact(projection.Acquisition, deficit, pending, pest || stockGoal))}, nil
@@ -307,7 +307,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		prefix = "resource-acquire"
 	}
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineAcquisitionResult{Verdict: waitFor(WaitMethodUsed, "acquisition_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineAcquisitionResult{}, err
@@ -335,7 +335,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if p.session.State() != state {
 		return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, acquisitionReason(food, pest, runway, selected), plan); err != nil {
+	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, acquisitionReason(food, pest, runway, selected), plan); err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
 	return RoutineAcquisitionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

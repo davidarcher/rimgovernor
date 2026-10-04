@@ -28,7 +28,7 @@ type RoutineCustodySource interface {
 // action), then a held entity that needs tending is tended through the same
 // SelectTend a colonist patient takes. Facts upkeep cannot read, and a door
 // no order can clear, are logged loudly and are not a pass.
-func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.GoalState, containment policy.ContainmentPlanning, arbiter *stepArbiter) (RoutinePopulationCustodyResult, error) {
+func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, containment policy.ContainmentPlanning, arbiter *stepArbiter) (RoutinePopulationCustodyResult, error) {
 	upkeep := policy.ContainmentDoorUpkeep(containment)
 	for _, issue := range upkeep.Issues {
 		slog.Default().WarnContext(call, "containment upkeep: "+issue.Reason, telemetry.ComponentKey, "routine-population-custody", telemetry.KindKey, "containment_upkeep_issue", "x", issue.Cell.X, "z", issue.Cell.Z)
@@ -40,7 +40,7 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 			return RoutinePopulationCustodyResult{}, err
 		}
 		prefix := fmt.Sprintf("population-door-%d-%d-", cell.X, cell.Z)
-		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			slog.Default().WarnContext(call, "containment upkeep: the cell door is held open again after every close order", telemetry.ComponentKey, "routine-population-custody", telemetry.KindKey, "containment_upkeep_exhausted", "x", cell.X, "z", cell.Z)
 			return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
@@ -122,7 +122,7 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 		return RoutinePopulationCustodyResult{}, err
 	}
 	prefix := fmt.Sprintf("population-tend-%s-", target)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}

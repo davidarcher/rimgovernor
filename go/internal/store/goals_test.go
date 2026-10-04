@@ -10,20 +10,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func goalFixture(t *testing.T) (*Store, string, GoalState) {
+func goalFixture(t *testing.T) (*Store, string, StandardState) {
 	t.Helper()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "goals.db")
 	s := open(t, path)
 	// A Standard routine identity, so a regress re-arms its epoch (#1024).
-	g, e := domain.NewGoal("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
+	g, e := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = s.SeedGoal(ctx, g); e != nil {
+	if e = s.SeedStandard(ctx, g); e != nil {
 		t.Fatal(e)
 	}
-	state, e := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
+	state, e := s.ReviewStandard(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -34,26 +34,26 @@ func TestGoalMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
 	p := plan(t, "method-plan", "method-action")
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", p)
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", p)
 	if e != nil {
 		t.Fatal(e)
 	}
 	s.Close()
 	s = open(t, path)
-	loaded, e := s.LoadGoal(ctx, g.Goal.ID)
+	loaded, e := s.LoadStandard(ctx, g.Standard.ID)
 	if e != nil || !reflect.DeepEqual(g, loaded) {
 		t.Fatal(loaded, e)
 	}
 	if _, e = s.LoadPlan(ctx, p.ID()); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "orphan", "orphan-action")); e == nil {
+	if _, e = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "orphan", "orphan-action")); e == nil {
 		t.Fatal("unresolved method duplicated")
 	}
 	if _, e = s.LoadPlan(ctx, "orphan"); !errors.Is(e, ErrNotFound) {
 		t.Fatal("failed method left a plan", e)
 	}
-	if _, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision-1, scope(), 11, domain.NeedRecovered); !errors.Is(e, ErrConflict) {
+	if _, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision-1, scope(), 11, domain.NeedRecovered); !errors.Is(e, ErrConflict) {
 		t.Fatal("stale review accepted", e)
 	}
 }
@@ -62,7 +62,7 @@ func TestGoalInvalidationRetainsIssuedUncertainty(t *testing.T) {
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	p := plan(t, "p", "issued", "waiting")
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", p)
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", p)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -72,8 +72,8 @@ func TestGoalInvalidationRetainsIssuedUncertainty(t *testing.T) {
 	if _, e = s.Dispatch(ctx, "p", "issued", scope(), 10); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, otherMap(), 11, domain.NeedDeficit)
-	if e != nil || g.Goal.Status != domain.GoalInvalidated {
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, otherMap(), 11, domain.NeedDeficit)
+	if e != nil || g.Standard.Status != domain.StandardVoided {
 		t.Fatal(g, e)
 	}
 	state, e := s.LoadPlan(ctx, "p")
@@ -94,7 +94,7 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -104,8 +104,8 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if _, e = s.Dispatch(ctx, "p", "a", scope(), 10); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedRecovered)
-	if e != nil || g.Goal.Status == domain.GoalSatisfied {
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.NeedRecovered)
+	if e != nil || g.Standard.Status == domain.StandardSettled {
 		t.Fatal(g, e)
 	}
 	// An applied building stays open work until retirement reads the census
@@ -113,19 +113,19 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if _, e = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptRefused); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 12, domain.NeedRecovered)
-	if e != nil || g.Goal.Status != domain.GoalSatisfied {
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 12, domain.NeedRecovered)
+	if e != nil || g.Standard.Status != domain.StandardSettled {
 		t.Fatal(g, e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 13, domain.NeedUnknown)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 13, domain.NeedUnknown)
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 14, domain.NeedDeficit)
-	if e != nil || g.Goal.Epoch != 1 {
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 14, domain.NeedDeficit)
+	if e != nil || g.Standard.Episode != 1 {
 		t.Fatal(g, e)
 	}
-	g, e = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "renewed", "new-action"))
+	g, e = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "renewed", "new-action"))
 	if e != nil || len(g.Methods) != 2 {
 		t.Fatal(g, e)
 	}
@@ -138,14 +138,14 @@ func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
 	}
 	loaded := scope()
 	loaded.Load = "other"
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, loaded, 11, domain.NeedDeficit)
-	if e != nil || g.Goal.Status == domain.GoalInvalidated {
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, loaded, 11, domain.NeedDeficit)
+	if e != nil || g.Standard.Status == domain.StandardVoided {
 		t.Fatal("load change must keep the goal", g, e)
 	}
 	if p, e := s.LoadPlan(ctx, "p"); e != nil || p.Progress[0].View().Stage == domain.Cancelled {
@@ -153,8 +153,8 @@ func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	}
 	changed := scope()
 	changed.Map++
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, changed, 11, domain.NeedDeficit)
-	if e != nil || g.Goal.Status != domain.GoalInvalidated {
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, changed, 11, domain.NeedDeficit)
+	if e != nil || g.Standard.Status != domain.StandardVoided {
 		t.Fatal(g, e)
 	}
 	p, e := s.LoadPlan(ctx, "p")
@@ -167,20 +167,20 @@ func TestGoalDuplicateMethodRollsBackPlanAfterTerminalWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
 	}
 	if _, e = s.Cancel(ctx, "p", "a"); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "orphan", "b")); !errors.Is(e, ErrConflict) {
+	if _, e = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "orphan", "b")); !errors.Is(e, ErrConflict) {
 		t.Fatal(e)
 	}
 	if _, e = s.LoadPlan(ctx, "orphan"); !errors.Is(e, ErrNotFound) {
 		t.Fatal(e)
 	}
-	after, e := s.LoadGoal(ctx, g.Goal.ID)
+	after, e := s.LoadStandard(ctx, g.Standard.ID)
 	if e != nil || !reflect.DeepEqual(after, g) {
 		t.Fatal(after, e)
 	}
@@ -190,7 +190,7 @@ func TestGoalInvalidationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a", "b"))
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a", "b"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -198,10 +198,10 @@ func TestGoalInvalidationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, otherMap(), 11, domain.NeedDeficit); e == nil {
+	if _, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, otherMap(), 11, domain.NeedDeficit); e == nil {
 		t.Fatal("expected injected failure")
 	}
-	after, e := s.LoadGoal(ctx, g.Goal.ID)
+	after, e := s.LoadStandard(ctx, g.Standard.ID)
 	if e != nil || !reflect.DeepEqual(after, g) {
 		t.Fatal(after, e)
 	}
@@ -220,13 +220,13 @@ func TestGoalCorruptPayloadNeverAdmitsMethods(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	if _, e := s.db.ExecContext(ctx, "UPDATE goals SET payload=? WHERE id=?", []byte(`{"ID":"routine-0000000000000000-MaintainHousing-0"}`), g.Goal.ID); e != nil {
+	if _, e := s.db.ExecContext(ctx, "UPDATE goals SET payload=? WHERE id=?", []byte(`{"ID":"routine-0000000000000000-MaintainHousing-0"}`), g.Standard.ID); e != nil {
 		t.Fatal(e)
 	}
-	if _, e := s.LoadGoal(ctx, g.Goal.ID); e == nil {
+	if _, e := s.LoadStandard(ctx, g.Standard.ID); e == nil {
 		t.Fatal("corrupt goal accepted")
 	}
-	if _, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a")); e == nil {
+	if _, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a")); e == nil {
 		t.Fatal("corrupt goal admitted method")
 	}
 }
@@ -235,11 +235,11 @@ func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedUnknown)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.NeedUnknown)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -259,15 +259,15 @@ func TestGoalRecoveredNeedFinishesAcceptedMethodWithoutStartingAnother(t *testin
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedRecovered)
-	if e != nil || g.Goal.Status == domain.GoalSatisfied {
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.NeedRecovered)
+	if e != nil || g.Standard.Status == domain.StandardSettled {
 		t.Fatal(g, e)
 	}
-	if _, e = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "more", plan(t, "extra", "b")); e == nil {
+	if _, e = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "more", plan(t, "extra", "b")); e == nil {
 		t.Fatal("recovered need created new work")
 	}
 	if _, e = s.Prepare(ctx, "p", "a", scope(), 11); e != nil {

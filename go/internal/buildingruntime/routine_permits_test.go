@@ -28,7 +28,7 @@ func TestPermitMethodRecordsTheIntentAndBoundsAttempts(t *testing.T) {
 	}
 	var history []domain.GoalMethod
 	for i := 0; i < maxMedicalAttemptsPerPatient; i++ {
-		history = append(history, domain.GoalMethod{Method: domain.MethodID("permit-Alice-CallMilitaryAidSmall-" + string(rune('0'+i))), Epoch: 1})
+		history = append(history, domain.GoalMethod{Method: domain.MethodID("permit-Alice-CallMilitaryAidSmall-" + string(rune('0'+i))), Episode: 1})
 	}
 	if _, _, exhausted, err := permitMethod(intent, history, 1); err != nil || !exhausted {
 		t.Fatal("attempts must be bounded", exhausted, err)
@@ -38,6 +38,6 @@ func TestPermitMethodRecordsTheIntentAndBoundsAttempts(t *testing.T) {
 		t.Fatal("another permit is not spent")
 	}
 	if _, _, exhausted, _ := permitMethod(intent, history, 2); exhausted {
-		t.Fatal("a new goal epoch retries")
+		t.Fatal("a new Episode retries")
 	}
 }

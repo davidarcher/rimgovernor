@@ -14,7 +14,7 @@ import (
 )
 
 // Completed methods leave the active catalog but retain their bounded use budget.
-// Look up only this goal epoch's known comfort methods; old epochs cannot lend time.
+// Look up only this Episode's known comfort methods; old epochs cannot lend time.
 func comfortUseAllowance(ctx context.Context, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick, furniture policy.DiningFurniture) (uint32, error) {
 	var ticks uint32
 	for _, definition := range furniture.Definitions() {

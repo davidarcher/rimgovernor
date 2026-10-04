@@ -85,7 +85,7 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 		if binding.Need != policy.MaintainEquipment {
 			continue
 		}
-		goal, err := db.LoadGoal(context.Background(), binding.Goal)
+		goal, err := db.LoadStandard(context.Background(), binding.Goal)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -318,8 +318,8 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 		if binding.Need != policy.MaintainEquipment {
 			continue
 		}
-		g, err := db.LoadGoal(ctx, binding.Goal)
-		if err != nil || g.Goal.Need != domain.NeedDeficit || g.Goal.Status != domain.GoalActive {
+		g, err := db.LoadStandard(ctx, binding.Goal)
+		if err != nil || g.Standard.Need != domain.NeedDeficit || g.Standard.Status != domain.StandardOpen {
 			t.Fatal("MaintainEquipment is not an active deficit", g, err)
 		}
 		found = true

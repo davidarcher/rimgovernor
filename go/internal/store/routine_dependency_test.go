@@ -22,8 +22,8 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkPlantCutting: 1, policy.WorkConstruction: 1})
 	first := reviewRoutine(t, s, &r)
 	shelter := routineGoal(t, first, policy.MaintainHousing)
-	if shelter.Goal.Status != domain.GoalActive {
-		t.Fatalf("shelter %+v", shelter.Goal)
+	if shelter.Standard.Status != domain.StandardOpen {
+		t.Fatalf("shelter %+v", shelter.Standard)
 	}
 	req := methodRequest(t, shelter, "shell", 60, 60)
 	req.Purpose = policy.Shelter
@@ -32,7 +32,7 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 	if err != nil || !d.Admitted {
 		t.Fatalf("shell %+v %v", d, err)
 	}
-	rec, short := ShortfallDependency(policy.MaintainHousing, d.Goal.Goal, req.Method, req.Plan.ID(), req.Previews, req.Stock, "WoodLog", req.Tick)
+	rec, short := ShortfallDependency(policy.MaintainHousing, d.Goal.Standard, req.Method, req.Plan.ID(), req.Previews, req.Stock, "WoodLog", req.Tick)
 	if !short || len(rec.Costs) != 2 {
 		t.Fatalf("record %+v", rec)
 	}
@@ -70,14 +70,14 @@ func TestShortfallDependencyNeedsMeasuredShortfall(t *testing.T) {
 	defer s.Close()
 	g := anotherGoal(t, s, "shelter")
 	req := methodRequest(t, g, "shell", 60)
-	if _, short := ShortfallDependency(policy.MaintainHousing, g.Goal, "shell", req.Plan.ID(), req.Previews, req.Stock, "WoodLog", 10); short {
+	if _, short := ShortfallDependency(policy.MaintainHousing, g.Standard, "shell", req.Plan.ID(), req.Previews, req.Stock, "WoodLog", 10); short {
 		t.Fatal("covered stock recorded a shortfall")
 	}
 	req.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Unknown[int64]()}}
-	if _, short := ShortfallDependency(policy.MaintainHousing, g.Goal, "shell", req.Plan.ID(), req.Previews, req.Stock, "WoodLog", 10); short {
+	if _, short := ShortfallDependency(policy.MaintainHousing, g.Standard, "shell", req.Plan.ID(), req.Previews, req.Stock, "WoodLog", 10); short {
 		t.Fatal("unknown stock recorded a shortfall")
 	}
-	if _, short := ShortfallDependency(policy.MaintainHousing, g.Goal, "shell", req.Plan.ID(), req.Previews, policy.StockObservation{Values: []policy.Stock{{Resource: "Steel", Available: domain.Known(int64(0))}}}, "Steel", 10); short {
+	if _, short := ShortfallDependency(policy.MaintainHousing, g.Standard, "shell", req.Plan.ID(), req.Previews, policy.StockObservation{Values: []policy.Stock{{Resource: "Steel", Available: domain.Known(int64(0))}}}, "Steel", 10); short {
 		t.Fatal("a resource the previews do not cost recorded a shortfall")
 	}
 }
@@ -103,7 +103,7 @@ func TestShelterNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 		req.Previews[i].Costs = domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 60}})
 	}
 	req.Stock.Values = []policy.Stock{{Resource: "BlocksGranite", Available: domain.Known(int64(30))}}
-	rec, short := ShortfallDependency(policy.MaintainHousing, shelter.Goal, req.Method, req.Plan.ID(), req.Previews, req.Stock, "BlocksGranite", req.Tick)
+	rec, short := ShortfallDependency(policy.MaintainHousing, shelter.Standard, req.Method, req.Plan.ID(), req.Previews, req.Stock, "BlocksGranite", req.Tick)
 	if !short {
 		t.Fatal("granite shortfall not recorded")
 	}

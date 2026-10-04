@@ -120,7 +120,7 @@ apply. A pawn that holds a role is never moved. The planner commits one Assign
 whose `thing_id` is the role precept id and whose expected previous is none;
 the write is the shared Assign intent ([action contracts](action-contracts.md)),
 postcondition: the pawn holds the role. At most `maxMedicalAttemptsPerPatient`
-tries per pawn and role per goal epoch. Composed by the `ideo-roles` routine family.
+tries per pawn and role per Episode. Composed by the `ideo-roles` routine family.
 
 ## Ritual scheduling
 
@@ -161,7 +161,7 @@ in Go.
 
 The planner commits one Ritual `begin` per step: the plan's organizer, the
 site, the slot fills and the spectators. A refused begin is retried at most
-`maxMedicalAttemptsPerPatient` times per ritual and site per goal epoch; the
+`maxMedicalAttemptsPerPatient` times per ritual and site per Episode; the
 goal method's reason records the organizer, ritual, site and attendance.
 Postcondition: a `LordJob_Ritual` of the precept is running
 (`RitualEffect.started`), read back as `running`. Composed by the `rituals`

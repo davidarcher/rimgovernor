@@ -55,11 +55,11 @@ func creepJoinerRecord(ctx context.Context, journal *store.Store) (policy.CreepJ
 		if binding.Need != policy.ManageCreepJoiners {
 			continue
 		}
-		state, err := journal.LoadGoal(ctx, binding.Goal)
+		state, err := journal.LoadStandard(ctx, binding.Goal)
 		if err != nil {
 			return policy.CreepJoinerRecord{}, err
 		}
-		return policy.ParseCreepJoinerRecord(state.Goal.Record)
+		return policy.ParseCreepJoinerRecord(state.Standard.Record)
 	}
 	return policy.CreepJoinerRecord{}, nil
 }
@@ -206,7 +206,7 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 	if !ok {
 		return RoutineCreepJoinerResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	was, err := policy.ParseCreepJoinerRecord(goal.Goal.Record)
+	was, err := policy.ParseCreepJoinerRecord(goal.Standard.Record)
 	if err != nil {
 		return RoutineCreepJoinerResult{}, err
 	}
@@ -284,20 +284,20 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	if len(actions) == 0 {
 		for _, why := range work.disarm.Waiting {
-			clockSchedulerLog("%s: %s", goal.Goal.ID, why)
+			clockSchedulerLog("%s: %s", goal.Standard.ID, why)
 		}
 		// No order to place: an ended inspection bill still changes the record.
 		if ordered.Encode() != was.Encode() {
 			if err = p.current(call, epoch); err != nil {
 				return RoutineCreepJoinerResult{}, err
 			}
-			if _, err = p.journal.RecordGoal(call, goal.Goal.ID, goal.Revision, ordered.Encode()); err != nil {
+			if _, err = p.journal.RecordStandard(call, goal.Standard.ID, goal.Revision, ordered.Encode()); err != nil {
 				return RoutineCreepJoinerResult{}, err
 			}
 			return RoutineCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order_recorded")}, nil
 		}
 		if len(work.inspections.Waiting) > 0 {
-			clockSchedulerLog("%s: %s", goal.Goal.ID, work.inspections.Waiting[0])
+			clockSchedulerLog("%s: %s", goal.Standard.ID, work.inspections.Waiting[0])
 			return RoutineCreepJoinerResult{Verdict: awaitingPlan("creepjoiner_inspection", "")}, nil
 		}
 		return RoutineCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order")}, nil
@@ -314,7 +314,7 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	method := nextWaveMethod(goal, "creepjoiner-drop-")
 	reason := fmt.Sprintf("creepjoiner: %v are held back (weapon dropped, surgical inspection, isolation room, arrested ones disarmed) until their downside shows", claimed)
-	if _, err = p.journal.CommitGoalMethodRecord(call, goal.Goal.ID, goal.Revision, method, reason, plan, ordered.Encode()); err != nil {
+	if _, err = p.journal.CommitGoalMethodRecord(call, goal.Standard.ID, goal.Revision, method, reason, plan, ordered.Encode()); err != nil {
 		return RoutineCreepJoinerResult{}, err
 	}
 	return RoutineCreepJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

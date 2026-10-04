@@ -33,7 +33,7 @@ func (r *Rounder) reviewRituals(reading *observation.RoutineReading, snapshot do
 // The committed plan is the persisted intent on the goal's method. The game
 // offers the begin command at the building its obligation targets, so a
 // refused begin is tried at the next site; each ritual and site is tried at
-// most maxMedicalAttemptsPerPatient times per goal epoch.
+// most maxMedicalAttemptsPerPatient times per Episode.
 type RoutineRitualsPlanner struct {
 	reviewer *Rounder
 }
@@ -102,7 +102,7 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 	for _, plan := range plans {
 		for _, site := range plan.Sites {
 			prefix := fmt.Sprintf("ritual-%s-%d-%d-", plan.Ritual, site.X, site.Z)
-			attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+			attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 			if attempt >= maxMedicalAttemptsPerPatient {
 				continue
 			}
@@ -147,7 +147,7 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 			method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 			reason := fmt.Sprintf("ideology: %s leads %s at (%d,%d) with %d attending", plan.Organizer, plan.Def, site.X, site.Z, len(attendees))
-			if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, reason, spec); err != nil {
+			if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, reason, spec); err != nil {
 				return RoutineRitualsResult{}, err
 			}
 			return RoutineRitualsResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

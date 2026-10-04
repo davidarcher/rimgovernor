@@ -251,7 +251,7 @@ it). While a barrel is empty and one of its fuel definitions is in stock,
 the goal issues one forced refuel order per step (a `recovery_service`
 action on the turret's census identity, carried by an available colonist
 whose Hauling work is not disabled, the highest-priority enabled hauler
-first; up to four attempts per turret and goal epoch), the same native
+first; up to four attempts per turret and Episode), the same native
 work-giver job a float-menu click issues, so a switched-off auto-refuel or
 an idle hauling roster does not leave the line unarmed. When no fuel
 definition is in stock the record carries the barrels' fuel gap as a
@@ -473,7 +473,7 @@ sleeping targets (colonists without an owned suitable bed, or without observed
 use of one) from the upkeep census against the retained use history. The method
 assigns first: the lowest waiting colonist with a vacant suitable bed receives
 the lowest such bed through the typed `assign` operation, one assignment per
-goal epoch, carrying that colonist's expected previous bed so a player change
+Episode, carrying that colonist's expected previous bed so a player change
 since the review is refused rather than overwritten. An attempt the native side
 never admitted (its CAS token moved between inspection and write, so the
 observation is absent and nothing changed) is retried up to three times in the
@@ -563,7 +563,7 @@ sleeping rooms. The barn's interior is the bot-owned `Barn` allowed area
 (`BarnAreaKey`, planned by MaintainShelter once the barn stands shelled) that
 pen animals are moved into while exposure endangers their race, and released
 from afterwards (#1869, [husbandry contracts](husbandry-contracts.md)). Each standing vet bed is then flagged medical (a
-`BedUse` patch, once per bed per goal epoch, before the next bed is placed; the
+`BedUse` patch, once per bed per Episode, before the next bed is placed; the
 census's `Medical` fact says which are flagged). A bonded animal's master is its
 first bond partner by id on the roster (`policy.CompanionMaster`); each master
 with a solo bedroom gets one `AnimalSleepingSpot` in it per animal mastered

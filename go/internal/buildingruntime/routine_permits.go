@@ -15,7 +15,7 @@ import (
 // choose_permit pawn setting for that colonist, faction and permit. The committed
 // plan is the persisted PermitIntent: it lives on the goal's method in the
 // save. A permit native refuses is not retried past the attempt limit, so the
-// next best waits behind it only after the goal epoch turns.
+// next best waits behind it only after the Episode turns.
 type RoutinePermitsPlanner struct {
 	reviewer *Rounder
 }
@@ -80,7 +80,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePermitsResult{Verdict: waitFor(WaitMethodUsed, "permit")}, nil
 	}
 	intent := choice.Intent()
-	method, plan, exhausted, err := permitMethod(intent, goal.History, goal.Goal.Epoch)
+	method, plan, exhausted, err := permitMethod(intent, goal.History, goal.Standard.Episode)
 	if err != nil {
 		return RoutinePermitsResult{}, err
 	}
@@ -97,7 +97,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePermitsResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("permits: %s takes %s with %s", intent.Holder, intent.Permit, intent.Faction), plan); err != nil {
+	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("permits: %s takes %s with %s", intent.Holder, intent.Permit, intent.Faction), plan); err != nil {
 		return RoutinePermitsResult{}, err
 	}
 	return RoutinePermitsResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil

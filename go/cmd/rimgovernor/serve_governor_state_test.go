@@ -85,7 +85,7 @@ func TestShadowGovernorStateRereadsSaveOnWorldChange(t *testing.T) {
 
 func governorGoalBlob(t *testing.T, id domain.ConcernID, colony domain.ColonyID, revision uint64) string {
 	t.Helper()
-	g, err := domain.NewGoal(id, 1, domain.GenerationSnapshot{Colony: colony, Load: "l", Plan: "p"}, 0)
+	g, err := domain.NewStandard(id, 1, domain.GenerationSnapshot{Colony: colony, Load: "l", Plan: "p"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,17 +144,17 @@ func TestShadowGovernorStateRebuildsGoalsOnWorldChange(t *testing.T) {
 	if err = shadow.round(ctx, governorWorld{Colony: "one", Map: 1, Load: "l", Generation: 1}, first, database, &out); err != nil {
 		t.Fatal(err)
 	}
-	if state, err := database.LoadGoal(ctx, "a"); err != nil || state.Revision != 3 {
+	if state, err := database.LoadStandard(ctx, "a"); err != nil || state.Revision != 3 {
 		t.Fatal("world 1 goals not rebuilt", state, err)
 	}
 	second := &fakeGovernorState{blobs: map[string]string{"goal/b": governorGoalBlob(t, "b", "two", 7)}}
 	if err = shadow.round(ctx, governorWorld{Colony: "two", Map: 1, Load: "l", Generation: 1}, second, database, &out); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.LoadGoal(ctx, "a"); !errors.Is(err, store.ErrNotFound) {
+	if _, err := database.LoadStandard(ctx, "a"); !errors.Is(err, store.ErrNotFound) {
 		t.Fatal("world 1 goal survived the load", err)
 	}
-	if state, err := database.LoadGoal(ctx, "b"); err != nil || state.Revision != 7 || state.Goal.Snapshot.Colony != "two" || len(state.Methods) != 0 {
+	if state, err := database.LoadStandard(ctx, "b"); err != nil || state.Revision != 7 || state.Standard.Snapshot.Colony != "two" || len(state.Methods) != 0 {
 		t.Fatal("world 2 goals not rebuilt", state, err)
 	}
 }
@@ -167,11 +167,11 @@ func TestShadowGovernorStateEmptySaveStartsWithoutGoals(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	g, err := domain.NewGoal("stale", 1, domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"}, 0)
+	g, err := domain.NewStandard("stale", 1, domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = database.SeedGoal(ctx, g); err != nil {
+	if err = database.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	var shadow governorShadow
@@ -180,7 +180,7 @@ func TestShadowGovernorStateEmptySaveStartsWithoutGoals(t *testing.T) {
 	if err = shadow.round(ctx, governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 1}, native, database, &out); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.LoadGoal(ctx, "stale"); !errors.Is(err, store.ErrNotFound) || len(native.blobs) != 0 {
+	if _, err := database.LoadStandard(ctx, "stale"); !errors.Is(err, store.ErrNotFound) || len(native.blobs) != 0 {
 		t.Fatal("empty save kept a goal", err, native.blobs)
 	}
 }
@@ -213,14 +213,14 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	}
 	defer database.Close()
 	snapshot := domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"}
-	g, err := domain.NewGoal("trade", 1, snapshot, 0)
+	g, err := domain.NewStandard("trade", 1, snapshot, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = database.SeedGoal(ctx, g); err != nil {
+	if err = database.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	state, err := database.ReviewGoal(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
+	state, err := database.ReviewStandard(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}

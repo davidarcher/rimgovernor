@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md)
 
-Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names (`goals`, `goal/<id>`, `goal_methods`, `epoch`) stay until the schema bump (#1976).
+Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names (`goals`, `goal/<id>`, `goal_methods`, `epoch`, and the stored status words `active`, `satisfied`, `invalidated`, `finished`) stay until the schema bump (#1976).
 
 Every fact has exactly one home, chosen by what must happen to it when a
 save is reloaded. A second copy of a fact is a bug, not a cache.

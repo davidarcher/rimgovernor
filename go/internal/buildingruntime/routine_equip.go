@@ -55,7 +55,7 @@ func NewRoutineEquipPlanner(reviewer *Rounder, native RoutineEquipSource) (*Rout
 // settled and retired ones included: goal.Methods lists only the unretired
 // plans, so counting it reused "equip-wave-0" once the first wave retired and
 // the goal_methods key refused every later wave (#1674).
-func nextEquipWaveMethod(goal store.GoalState) domain.MethodID {
+func nextEquipWaveMethod(goal store.StandardState) domain.MethodID {
 	return nextWaveMethod(goal, "equip-wave-")
 }
 
@@ -93,7 +93,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		for _, progress := range plan.Progress {
 			if equip, ok := progress.Action().Equip(); ok {
-				if method.Epoch == goal.Goal.Epoch {
+				if method.Episode == goal.Standard.Episode {
 					attemptsByPawn[equip.Pawn()]++
 				}
 			}
@@ -257,7 +257,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineEquipResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineEquipResult{}, err
 	}
 	return RoutineEquipResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

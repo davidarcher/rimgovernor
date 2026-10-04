@@ -22,7 +22,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	set(1, false)
 	out := reviewRoutine(t, s, &r)
 	for _, id := range []policy.ConcernID{policy.MaintainAnimalContainment, policy.MaintainAnimalFeed} {
-		if g := routineGoal(t, out, id); g.Goal.Need != domain.NeedDeficit || g.Goal.Priority != 3 {
+		if g := routineGoal(t, out, id); g.Standard.Need != domain.NeedDeficit || g.Standard.Priority != 3 {
 			t.Fatal(g)
 		}
 	}
@@ -31,7 +31,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	// Containment keeps its latch across an unknown census; the feed reserve
 	// has none, so an unread herd ranks as any other unknown optional need.
 	for id, priority := range map[policy.ConcernID]int{policy.MaintainAnimalContainment: 3, policy.MaintainAnimalFeed: 4} {
-		if g := routineGoal(t, out, id); g.Goal.Need != domain.NeedUnknown || g.Goal.Priority != priority {
+		if g := routineGoal(t, out, id); g.Standard.Need != domain.NeedUnknown || g.Standard.Priority != priority {
 			t.Fatal(g)
 		}
 	}
@@ -49,28 +49,28 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	r.Enabled = true
 	set(3, true)
 	out = reviewRoutine(t, s, &r)
-	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedDeficit {
+	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Standard.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	if g := routineGoal(t, out, policy.MaintainAnimalContainment); g.Goal.Need != domain.NeedRecovered {
+	if g := routineGoal(t, out, policy.MaintainAnimalContainment); g.Standard.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}
 	set(5, true)
 	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainAnimalFeed: true}
 	out = reviewRoutine(t, s, &r)
 	recovered := routineGoal(t, out, policy.MaintainAnimalFeed)
-	if recovered.Goal.Need != domain.NeedRecovered {
+	if recovered.Standard.Need != domain.NeedRecovered {
 		t.Fatal(recovered)
 	}
 	set(1, false)
 	out = reviewRoutine(t, s, &r)
-	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedDeficit || g.Goal.Epoch <= recovered.Goal.Epoch {
+	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Standard.Need != domain.NeedDeficit || g.Standard.Episode <= recovered.Standard.Episode {
 		t.Fatal(g)
 	}
 	set(6, true)
 	r.Current.Load = "replacement"
 	out = reviewRoutine(t, s, &r)
-	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedRecovered {
+	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Standard.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}
 }

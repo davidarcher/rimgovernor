@@ -16,8 +16,8 @@ import (
 // #61 saw the defensive layout never re-verified behind a repair of a wall
 // the colonists mended themselves). It runs before the need gate, since a
 // recovered goal with open work is exactly the case.
-func cancelSettledRepairMethods(ctx context.Context, journal *store.Store, goal store.GoalState) error {
-	if goal.Goal.Need != domain.NeedRecovered {
+func cancelSettledRepairMethods(ctx context.Context, journal *store.Store, goal store.StandardState) error {
+	if goal.Standard.Need != domain.NeedRecovered {
 		return nil
 	}
 	for _, method := range goal.Methods {

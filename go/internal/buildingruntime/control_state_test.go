@@ -108,7 +108,7 @@ func TestControlDisableInvalidatesBlockedAcquireGrant(t *testing.T) {
 
 // A clock-poll Disable during the SetMode write (our own AuthorityChanged)
 // must not cancel the write and leave a player resume uncertain: the stale
-// grant is revoked and Acquire retries once under the new epoch (#1140).
+// grant is revoked and Acquire retries once under the new Episode (#1140).
 func TestControlAcquireRetriesAfterDisableDuringSetMode(t *testing.T) {
 	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)

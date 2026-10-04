@@ -58,7 +58,7 @@ func runJealousAscetic(ctx context.Context, s cases.Session) error {
 		cancel()
 		err = werr
 		if werr == nil {
-			report["sleeping_recovered_tick"] = int64(g.Goal.Tick)
+			report["sleeping_recovered_tick"] = int64(g.Standard.Tick)
 		}
 	}
 	service.Stop()

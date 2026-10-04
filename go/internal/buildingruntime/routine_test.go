@@ -570,8 +570,8 @@ func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
 			if binding.Need != policy.EnsureFoodSupply {
 				continue
 			}
-			g, err := db.LoadGoal(context.Background(), binding.Goal)
-			if err != nil || g.Goal.Need != want {
+			g, err := db.LoadStandard(context.Background(), binding.Goal)
+			if err != nil || g.Standard.Need != want {
 				t.Fatal("field budget did not reach durable food need", reserve, g, err)
 			}
 		}
@@ -621,8 +621,8 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	}
 	for _, binding := range got.Review.Goals {
 		if binding.Need == domain.ConcernID(policy.EnsureFoodSupply) {
-			g, err := db.LoadGoal(context.Background(), binding.Goal)
-			if err != nil || g.Goal.Need != domain.NeedUnknown {
+			g, err := db.LoadStandard(context.Background(), binding.Goal)
+			if err != nil || g.Standard.Need != domain.NeedUnknown {
 				t.Fatal("raw food became recovery", g, err)
 			}
 		}
@@ -638,8 +638,8 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 		t.Fatal(stored, err)
 	}
 	for _, binding := range stored.Goals {
-		g, err := db.LoadGoal(context.Background(), binding.Goal)
-		if err != nil || g.Goal.Status == domain.GoalInvalidated || stored.Veto(g.Goal) != "control paused" {
+		g, err := db.LoadStandard(context.Background(), binding.Goal)
+		if err != nil || g.Standard.Status == domain.StandardVoided || stored.Veto(g.Standard) != "control paused" {
 			t.Fatal(g, err)
 		}
 	}

@@ -17,14 +17,14 @@ import (
 // clear its target, and journals every moved piece moving under the plan.
 // The executor previews each reinstall natively before dispatch; a pawn
 // uninstalls a piece only once it can reserve it, so nobody is interrupted.
-func (r *RoutineTidyPlanner) move(call, epoch context.Context, state ControlState, goal store.GoalState, read observation.RoutineReading, proposal policy.TidyProposal) (RoutineTidyResult, error) {
+func (r *RoutineTidyPlanner) move(call, epoch context.Context, state ControlState, goal store.StandardState, read observation.RoutineReading, proposal policy.TidyProposal) (RoutineTidyResult, error) {
 	p := r.reviewer.player
 	var things []string
 	for _, m := range proposal.Moves {
 		things = append(things, m.Thing)
 	}
 	method := tidyMethodID(proposal.Item.ID+"/"+strings.Join(things, ","), "furniture")
-	if _, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, method); err == nil {
+	if _, err := p.journal.LatestMethodPlan(call, goal.Standard.ID, method); err == nil {
 		return RoutineTidyResult{Verdict: waitFor(WaitMethodUsed, "tidy_furniture")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err

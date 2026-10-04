@@ -410,20 +410,20 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineGearResult{}, err
 	}
 	return RoutineGearResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
-// policyMethod is the method id of a policy write or prune: the goal epoch
+// policyMethod is the method id of a policy write or prune: the Episode
 // and the action's canonical value, so a repeat of the same write is seen.
-func policyMethod(goal store.GoalState, prefix, value string) domain.MethodID {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, value)))
+func policyMethod(goal store.StandardState, prefix, value string) domain.MethodID {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Standard.ID, goal.Standard.Episode, value)))
 	return domain.MethodID(fmt.Sprintf("%s-%x", prefix, digest[:16]))
 }
 
-func seenMethod(goal store.GoalState, method domain.MethodID) bool {
+func seenMethod(goal store.StandardState, method domain.MethodID) bool {
 	for _, m := range goal.Methods {
 		if m.Method == method {
 			return true
@@ -435,7 +435,7 @@ func seenMethod(goal store.GoalState, method domain.MethodID) bool {
 // commitPolicyPlan admits a one-action policy plan (an outfit write or the
 // outfit prune) under the goal unless the same method was already tried;
 // the zero result is a repeat. goal is advanced to the committed revision.
-func (r *RoutineGearPlanner) commitPolicyPlan(call, epoch context.Context, state ControlState, started time.Time, goal *store.GoalState, prefix, value string, build func(domain.ActionID) (domain.Action, error)) (RoutineGearResult, error) {
+func (r *RoutineGearPlanner) commitPolicyPlan(call, epoch context.Context, state ControlState, started time.Time, goal *store.StandardState, prefix, value string, build func(domain.ActionID) (domain.Action, error)) (RoutineGearResult, error) {
 	p := r.reviewer.player
 	method := policyMethod(*goal, prefix, value)
 	if seenMethod(*goal, method) {
@@ -457,7 +457,7 @@ func (r *RoutineGearPlanner) commitPolicyPlan(call, epoch context.Context, state
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineGearResult{}, fmt.Errorf("%w: commitPolicyPlan: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if *goal, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if *goal, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineGearResult{}, err
 	}
 	return RoutineGearResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

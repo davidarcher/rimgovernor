@@ -32,7 +32,7 @@ type BuildingMethodDecision struct {
 	Admitted bool
 	// Goal is the owning goal, Project the owning Project: the other is
 	// zero.
-	Goal    GoalState
+	Goal    StandardState
 	Project ProjectState
 	Refused []policy.Refusal
 }

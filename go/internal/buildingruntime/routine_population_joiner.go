@@ -105,7 +105,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	// RoutinePrisonerInteractionPlanner's method key: a fresh attempt after
 	// an interrupted or failed try re-selects whichever offer is current.
 	prefix = fmt.Sprintf("%s-%s-", prefix, choice.Quest)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -130,7 +130,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
 	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -139,10 +139,10 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 // admitCeremonyStart commands the bestowing ritual of a ceremony whose
 // bestower waits (policy.CeremonyStart, #1639) through the generic Ritual
 // write; native refuses while the game offers no start command.
-func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.Context, state ControlState, goal store.GoalState, ceremony policy.BestowingCeremony, started time.Time) (RoutinePopulationJoinerResult, error) {
+func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.Context, state ControlState, goal store.StandardState, ceremony policy.BestowingCeremony, started time.Time) (RoutinePopulationJoinerResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("ritual-start-%s-", ceremony.Pawn)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -167,16 +167,16 @@ func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: admitCeremonyStart: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
 	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
-func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context, state ControlState, goal store.GoalState, letter policy.JoinerLetterOffer, started time.Time) (RoutinePopulationJoinerResult, error) {
+func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context, state ControlState, goal store.StandardState, letter policy.JoinerLetterOffer, started time.Time) (RoutinePopulationJoinerResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("joiner-letter-%d-", letter.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -201,7 +201,7 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: admitLetter: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
 	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

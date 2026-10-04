@@ -100,7 +100,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 				review, _ := db.LoadRounds(context.Background())
 				for _, b := range review.Goals {
 					if b.Need == policy.EnsureBasicPower {
-						g, _ := db.LoadGoal(context.Background(), b.Goal)
+						g, _ := db.LoadStandard(context.Background(), b.Goal)
 						t.Logf("power goal %+v", g)
 					}
 				}

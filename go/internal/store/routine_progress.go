@@ -52,7 +52,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, pre
 		var method domain.MethodID
 		labor := policy.GoalLabor(n.ID)
 		for _, m := range g.OwnerMethods() {
-			if m.Epoch != g.OwnerEpoch() {
+			if m.Episode != g.OwnerEpoch() {
 				continue
 			}
 			plan, err := load(ctx, tx, m.Plan)

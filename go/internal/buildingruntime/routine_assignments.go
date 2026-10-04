@@ -61,7 +61,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		// A resource deficit needs its bench work type covered before
 		// the bill can be admitted natively (routineDeficitWork).
-		resource, err := p.journal.LoadGoal(call, binding.Goal)
+		resource, err := p.journal.LoadStandard(call, binding.Goal)
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}

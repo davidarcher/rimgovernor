@@ -767,7 +767,7 @@ func mergeRoutineStock(stock *policy.StockObservation, next policy.StockObservat
 }
 
 // shellRepairLimit bounds how many times one shell is repaired under one
-// goal epoch; a ring the player keeps cancelling is not fought forever.
+// Episode; a ring the player keeps cancelling is not fought forever.
 const shellRepairLimit = 8
 
 // shellRepairMethod walks a shell's method chain under the goal's current

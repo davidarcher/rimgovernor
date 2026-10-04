@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func completedFacility(t *testing.T, proof bool) (*Store, string, GoalState, domain.Building) {
+func completedFacility(t *testing.T, proof bool) (*Store, string, StandardState, domain.Building) {
 	t.Helper()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
@@ -24,7 +24,7 @@ func completedFacility(t *testing.T, proof bool) (*Store, string, GoalState, dom
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "build", p)
+	g, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "build", p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,10 +82,10 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	// margin is missing Home while it stands, unknown while the census is.
 	assertNeeds := func(out RoundsResult, want domain.NeedState) {
 		t.Helper()
-		if got := routineGoal(t, out, policy.MaintainStoneShell).Goal.Need; got != want {
+		if got := routineGoal(t, out, policy.MaintainStoneShell).Standard.Need; got != want {
 			t.Fatal(policy.MaintainStoneShell, got, want)
 		}
-		if got := routineGoal(t, out, policy.MaintainHomeCoverage).Goal.Need; got != want {
+		if got := routineGoal(t, out, policy.MaintainHomeCoverage).Standard.Need; got != want {
 			t.Fatal(policy.MaintainHomeCoverage, got)
 		}
 	}
@@ -126,7 +126,7 @@ func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	out := reviewRoutine(t, s, &r)
 	for _, id := range []domain.ConcernID{policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
-		if got := routineGoal(t, out, id).Goal.Need; got != domain.NeedRecovered {
+		if got := routineGoal(t, out, id).Standard.Need; got != domain.NeedRecovered {
 			t.Fatal(id, got)
 		}
 	}

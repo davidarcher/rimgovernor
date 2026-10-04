@@ -808,7 +808,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 		// only while its actions stay open.
 		if a.purpose == policy.Shelter {
 			for _, resource := range previewResources(a.selected) {
-				if rec, short := store.ShortfallDependency(r.goal, decision.Goal.Goal, a.method, plan.ID(), a.selected, a.stock, resource, a.facts.Identity.Tick); short {
+				if rec, short := store.ShortfallDependency(r.goal, decision.Goal.Standard, a.method, plan.ID(), a.selected, a.stock, resource, a.facts.Identity.Tick); short {
 					if err = p.journal.RecordDependency(call, a.review.Revision, rec); err != nil && !errors.Is(err, store.ErrConflict) {
 						return RoutineBuildingResult{}, err
 					}
@@ -1263,11 +1263,11 @@ func initialShelterOwed(ctx context.Context, p *Player, review store.Rounds) (bo
 		if binding.Need != policy.MaintainHousing {
 			continue
 		}
-		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
+		goal, err := p.journal.LoadStandard(ctx, binding.Goal)
 		if err != nil {
 			return false, err
 		}
-		return goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit, nil
+		return goal.Standard.Status == domain.StandardOpen && goal.Standard.Need == domain.NeedDeficit, nil
 	}
 	return false, nil
 }

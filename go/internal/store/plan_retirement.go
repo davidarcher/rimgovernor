@@ -69,7 +69,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if v.plan == current.Plan {
 			continue
 		}
-		var g GoalState
+		var g StandardState
 		var owned ProjectState
 		switch {
 		case v.project.Valid:
@@ -157,7 +157,7 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.ConcernID, epoch
 	if err != nil {
 		return domain.GoalMethod{}, err
 	}
-	m := domain.GoalMethod{Goal: goal, Epoch: epoch, Method: method}
+	m := domain.GoalMethod{Goal: goal, Episode: epoch, Method: method}
 	column, key := "goal_id", strconv.FormatUint(epoch, 10)
 	if err = tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? AND method_id=?", goal, key, method).Scan(&m.Plan); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -168,8 +168,8 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.ConcernID, epoch
 	if err = m.Validate(); err != nil {
 		return domain.GoalMethod{}, err
 	}
-	if m.Epoch > g.Goal.Epoch {
-		return domain.GoalMethod{}, errors.New("invalid historical method epoch")
+	if m.Episode > g.Standard.Episode {
+		return domain.GoalMethod{}, errors.New("invalid historical Episode")
 	}
 	if err = tx.Commit(); err != nil {
 		return domain.GoalMethod{}, err
@@ -202,8 +202,8 @@ func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.ConcernID, epoc
 	if err != nil {
 		return nil, err
 	}
-	if epoch > g.Goal.Epoch {
-		return nil, errors.New("invalid historical method epoch")
+	if epoch > g.Standard.Episode {
+		return nil, errors.New("invalid historical Episode")
 	}
 	column, key := "goal_id", strconv.FormatUint(epoch, 10)
 	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? ORDER BY method_id LIMIT 257", goal, key)
@@ -212,7 +212,7 @@ func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.ConcernID, epoc
 	}
 	var result []domain.GoalMethod
 	for rows.Next() {
-		m := domain.GoalMethod{Goal: goal, Epoch: epoch}
+		m := domain.GoalMethod{Goal: goal, Episode: epoch}
 		if err = rows.Scan(&m.Method, &m.Plan); err != nil {
 			rows.Close()
 			return nil, err

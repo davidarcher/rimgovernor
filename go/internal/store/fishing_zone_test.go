@@ -28,7 +28,7 @@ func TestFishingZoneMethodRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s.CommitGoalMethod(context.Background(), goal.Goal.ID, goal.Revision, "fishing", plan); err != nil {
+		if _, err = s.CommitGoalMethod(context.Background(), goal.Standard.ID, goal.Revision, "fishing", plan); err != nil {
 			t.Fatal(err)
 		}
 		loaded, err := s.LoadPlan(context.Background(), "fish")

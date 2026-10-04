@@ -477,18 +477,18 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	if pressure, ok := policy.MoodProvisionDeficits(review.MoodHistory())[need]; ok {
 		sample["mood_provision"] = pressure
 	}
-	goal, err := s.LoadGoal(ctx, goalID)
+	goal, err := s.LoadStandard(ctx, goalID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return sample, nil
 		}
 		return sample, err
 	}
-	sample["status"] = string(goal.Goal.Status)
-	sample["need"] = string(goal.Goal.Need)
-	sample["priority"] = goal.Goal.Priority
-	sample["vetoed"] = review.Veto(goal.Goal) != ""
-	sample["epoch"] = goal.Goal.Epoch
+	sample["status"] = string(goal.Standard.Status)
+	sample["need"] = string(goal.Standard.Need)
+	sample["priority"] = goal.Standard.Priority
+	sample["vetoed"] = review.Veto(goal.Standard) != ""
+	sample["epoch"] = goal.Standard.Episode
 	sample["method_count"] = len(goal.Methods)
 	describe := func(method domain.GoalMethod) map[string]any {
 		return describeMethod(ctx, s, method.Method, method.Plan)
@@ -503,7 +503,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	// A completed method leaves goal.Methods at the next review, so a
 	// "did the bench plan finish" question needs this epoch's history too.
 	var retired []map[string]any
-	if history, err := s.LoadGoalMethods(ctx, goalID, goal.Goal.Epoch); err == nil {
+	if history, err := s.LoadGoalMethods(ctx, goalID, goal.Standard.Episode); err == nil {
 		for _, method := range history {
 			if !active[method.Plan] {
 				retired = append(retired, describe(method))

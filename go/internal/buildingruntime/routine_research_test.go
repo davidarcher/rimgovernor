@@ -171,7 +171,7 @@ func TestRoutineResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 		if binding.Need != policy.EnsureResearch {
 			continue
 		}
-		if goal, err := db.LoadGoal(context.Background(), binding.Goal); err != nil || len(goal.Methods) != 0 {
+		if goal, err := db.LoadStandard(context.Background(), binding.Goal); err != nil || len(goal.Methods) != 0 {
 			t.Fatal("no selection may be committed while the bench is missing", goal, err)
 		}
 	}

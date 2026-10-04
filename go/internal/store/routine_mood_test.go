@@ -193,7 +193,7 @@ func TestRoutineMentalBreakDoesNotSuspendOtherGoals(t *testing.T) {
 	if b, ok := moodIncident(out, p.ID); !ok || b.Need != domain.NeedDeficit || len(out.Review.Emergency) != 0 {
 		t.Fatal(out.Review.Incidents, out.Review.Emergency)
 	}
-	if g := routineGoal(t, out, policy.MaintainResource); out.Review.Veto(g.Goal) != "" {
+	if g := routineGoal(t, out, policy.MaintainResource); out.Review.Veto(g.Standard) != "" {
 		t.Fatal(g)
 	}
 }

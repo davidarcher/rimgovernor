@@ -416,7 +416,7 @@ type TradeReserveFacts struct {
 // policy's own reserves, and each economic target's own stock level raised
 // over them -- and so is the construction-commitment addition. Python's fourth
 // source, an active colony goal's target quantity, is deliberately omitted:
-// domain.Goal carries no target quantity at all (see domain/goal_kind.go's own
+// domain.Standard carries no target quantity at all (see domain/goal_kind.go's own
 // doc comment on why MaintainResource's resource/quantity is not stored in
 // Go), so there is no such figure to read rather than invent. The two ported
 // sources are the ones a player actually sets for this purpose.

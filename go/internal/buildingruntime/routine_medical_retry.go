@@ -22,7 +22,7 @@ const maxMedicalAttemptsPerPatient = 8
 func medicalAttemptCount(methods []domain.GoalMethod, epoch uint64, prefix string) int {
 	count := 0
 	for _, m := range methods {
-		if m.Epoch == epoch && strings.HasPrefix(string(m.Method), prefix) {
+		if m.Episode == epoch && strings.HasPrefix(string(m.Method), prefix) {
 			count++
 		}
 	}
@@ -42,7 +42,7 @@ func medicalAttemptCount(methods []domain.GoalMethod, epoch uint64, prefix strin
 const medicalWaitTicks = stockWaitTicks
 
 // nextWaveMethod is nextEquipWaveMethod for any wave prefix.
-func nextWaveMethod(goal store.GoalState, prefix string) domain.MethodID {
+func nextWaveMethod(goal store.StandardState, prefix string) domain.MethodID {
 	bound := map[domain.MethodID]bool{}
 	for _, m := range goal.History {
 		bound[m.Method] = true

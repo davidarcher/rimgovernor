@@ -133,7 +133,7 @@ func tunnelStage(t *testing.T, db *store.Store) (domain.PlanID, []domain.Cell) {
 		if binding.Need != policy.MaintainResource {
 			continue
 		}
-		goal, err := db.LoadGoal(ctx, binding.Goal)
+		goal, err := db.LoadStandard(ctx, binding.Goal)
 		if err != nil {
 			t.Fatal(err)
 		}

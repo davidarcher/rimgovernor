@@ -397,7 +397,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 	if !work.Owed() {
 		return RoutineFirebreakResult{Verdict: waitFor(WaitMethodUsed, "firebreak_work")}, nil
 	}
-	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	history, err := p.journal.LoadGoalMethods(call, goal.Standard.ID, goal.Standard.Episode)
 	if err != nil {
 		return RoutineFirebreakResult{}, err
 	}
@@ -420,7 +420,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineFirebreakResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, review.Tick))
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("firebreak cut %d cells, deconstruct %d ruins", actions.cut, actions.ruins), plan); err != nil {
+	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("firebreak cut %d cells, deconstruct %d ruins", actions.cut, actions.ruins), plan); err != nil {
 		return RoutineFirebreakResult{}, err
 	}
 	return RoutineFirebreakResult{Verdict: BuildingReasonAdmitted, Plan: actions.id}, nil

@@ -87,7 +87,7 @@ func rockCoolerStep(t *testing.T) (p *RoutineBuildingPlanner, db *store.Store, n
 			goalID = binding.Goal
 		}
 	}
-	goal, err := db.LoadGoal(ctx, goalID)
+	goal, err := db.LoadStandard(ctx, goalID)
 	if err != nil {
 		t.Fatal(err)
 	}

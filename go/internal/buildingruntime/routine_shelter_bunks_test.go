@@ -213,7 +213,7 @@ func TestRoutineShelterStalledBedsAdmitShell(t *testing.T) {
 	if err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
-	goal, err := db.LoadGoal(ctx, shell.Decision.Goal.Goal.ID)
+	goal, err := db.LoadStandard(ctx, shell.Decision.Goal.Standard.ID)
 	if err != nil || len(goal.Methods) != 3 {
 		t.Fatal("methods", goal.Methods, err)
 	}
@@ -260,7 +260,7 @@ func TestRoutineShelterRestartKeepsBunks(t *testing.T) {
 	if again, err := restarted.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
-	if goal, err := db.LoadGoal(ctx, shell.Decision.Goal.Goal.ID); err != nil || len(goal.Methods) != 3 {
+	if goal, err := db.LoadStandard(ctx, shell.Decision.Goal.Standard.ID); err != nil || len(goal.Methods) != 3 {
 		t.Fatal(goal.Methods, err)
 	}
 }

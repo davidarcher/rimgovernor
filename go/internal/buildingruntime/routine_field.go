@@ -58,7 +58,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	idle := BuildingReasonNoDeficit
-	if workable && goal.Goal.Priority >= 3 {
+	if workable && goal.Standard.Priority >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == policy.EnsureFoodSupply && row.Selected
@@ -117,7 +117,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if binding.Need != policy.MaintainHousing {
 			continue
 		}
-		shelter, err := p.journal.LoadGoal(call, binding.Goal)
+		shelter, err := p.journal.LoadStandard(call, binding.Goal)
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
@@ -170,7 +170,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		blocked = !foodPlanAdditionalField(projection, openPlans)
 	}
-	wait, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
+	wait, err := r.fieldAllowance(call, goal.Standard, state.Snapshot, projection)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
@@ -243,7 +243,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 // with open work waits for it.
 func (r *RoutineFieldPlanner) otherFieldShortfalls(call context.Context, review store.Rounds, projection observation.ColonyProjection) ([]fieldShortfall, error) {
 	p := r.reviewer.player
-	ready := func(kind policy.ConcernID) (store.GoalState, bool, error) {
+	ready := func(kind policy.ConcernID) (store.StandardState, bool, error) {
 		goal, workable, err := p.journal.Workable(call, review, kind)
 		if err != nil || !workable {
 			return goal, false, err
@@ -294,7 +294,7 @@ func (r *RoutineFieldPlanner) placeLedger(call, epoch context.Context, state Con
 			continue
 		}
 		lead := s.Options[0]
-		clockSchedulerLog("Fields ledger: %s %s needs %d (priority %d)", s.What, lead.Crop.Name, lead.Needed, s.Goal.Goal.Priority)
+		clockSchedulerLog("Fields ledger: %s %s needs %d (priority %d)", s.What, lead.Crop.Name, lead.Needed, s.Goal.Standard.Priority)
 		var tried bool
 		var err error
 		result, tried, err = r.enactBlock(call, epoch, state, s.Goal, projection, read, wait, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: lead.Crop, Needed: lead.Needed}, s.Options, anchor, protected)
@@ -316,13 +316,13 @@ const (
 // enact previews and admits one candidate. tried reports whether the
 // candidate reached admission (admitted or refused by the store); a candidate
 // the game refuses to place is not tried so the caller can move on.
-func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate) (RoutineFieldResult, bool, error) {
+func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlState, goal store.StandardState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate) (RoutineFieldResult, bool, error) {
 	p := r.reviewer.player
 	crop := candidate.Crop
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%s/%v/%v", candidate.Kind, crop.Name, candidate.Sites.Patches, candidate.Buildings)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "field_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
@@ -429,7 +429,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 }
 
 // admit admits one field method's actions with their previews.
-func (r *RoutineFieldPlanner) admit(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, method domain.MethodID, id domain.PlanID, snapshot domain.GenerationSnapshot, stock policy.StockObservation, actions []domain.Action, previews []policy.Preview, what string) (RoutineFieldResult, bool, error) {
+func (r *RoutineFieldPlanner) admit(call, epoch context.Context, state ControlState, goal store.StandardState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, method domain.MethodID, id domain.PlanID, snapshot domain.GenerationSnapshot, stock policy.StockObservation, actions []domain.Action, previews []policy.Preview, what string) (RoutineFieldResult, bool, error) {
 	p := r.reviewer.player
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -466,7 +466,7 @@ const fieldBatchPatches = 6
 // block's growing zone, or grow it with add-cells until the block is full.
 // No plan field blocks is a refusal with its reason; nothing is sited
 // outside the plan.
-func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate, options []policy.FieldBlockOption, anchor domain.Cell, protected []domain.Cell) (RoutineFieldResult, bool, error) {
+func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state ControlState, goal store.StandardState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate, options []policy.FieldBlockOption, anchor domain.Cell, protected []domain.Cell) (RoutineFieldResult, bool, error) {
 	p := r.reviewer.player
 	edit, reason, ok := planFieldBlock(projection, anchor, options, protected)
 	if !ok {
@@ -476,7 +476,7 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 	hash := sha256.New()
 	fmt.Fprintf(hash, "block/%s/%s/%v", edit.Zone, edit.Crop, edit.Cells)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "field_block_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
@@ -507,7 +507,7 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 		if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 			return RoutineFieldResult{}, false, fmt.Errorf("%w: enactBlock: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 		}
-		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 			return RoutineFieldResult{}, false, err
 		}
 		clockEvent(call, "layout", "fields", "field block grown", "zone", edit.Zone, "crop", edit.Crop, "cells", len(edit.Cells), "plan", string(id))
@@ -539,12 +539,12 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 }
 
 // recrop commits one grower's crop change as a one-shot
-// GrowerCrop plan, once per grower per goal epoch: a method that already
+// GrowerCrop plan, once per grower per Episode: a method that already
 // ran this epoch (the patch was refused, or a player changed the crop back)
 // is not retried until the next epoch. tried reports whether the grower
 // reached commitment; a grower whose native read refuses is not
 // tried so the caller moves on to the next one.
-func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, choice policy.GrowerCropChoice, arbiter *stepArbiter) (RoutineFieldResult, bool, error) {
+func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlState, goal store.StandardState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, choice policy.GrowerCropChoice, arbiter *stepArbiter) (RoutineFieldResult, bool, error) {
 	native, ok := r.native.(interface {
 		ReadGrowerCropTarget(context.Context, *c.Identity, string) (bridge.GrowerCropTarget, bridge.Result, error)
 	})
@@ -553,7 +553,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	}
 	p := r.reviewer.player
 	method := domain.MethodID("fields-recrop-" + choice.Grower)
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "recrop_method"), NativeWorkTicks: wait}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
@@ -595,7 +595,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 		return RoutineFieldResult{}, false, fmt.Errorf("%w: recrop: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
 	clockSchedulerLog("Fields recrop: grower=%s %s -> %s | %s", choice.Grower, choice.Current, choice.Crop.Name, choice.Reason)
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineFieldResult{}, false, err
 	}
 	return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
@@ -653,12 +653,12 @@ func uniqueFieldDefinitions(values []string) []string {
 	return out
 }
 
-// Growth time belongs to a zone an applied zone_create of this goal epoch
+// Growth time belongs to a zone an applied zone_create of this Episode
 // created, while the farm census still lists it growing the crop. Its
 // deadline starts at durable creation and cannot be renewed by polling or
 // restarting.
-func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Goal, current domain.GenerationSnapshot, facts observation.ColonyProjection) (uint32, error) {
-	methods, err := r.reviewer.player.journal.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
+func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Standard, current domain.GenerationSnapshot, facts observation.ColonyProjection) (uint32, error) {
+	methods, err := r.reviewer.player.journal.LoadGoalMethods(ctx, goal.ID, goal.Episode)
 	if err != nil {
 		return 0, err
 	}

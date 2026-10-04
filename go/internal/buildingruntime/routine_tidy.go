@@ -50,11 +50,11 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !review.Enabled || review.Snapshot != state.Snapshot || review.Layout == nil {
 		return RoutineTidyResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	var goal store.GoalState
+	var goal store.StandardState
 	found := false
 	for _, binding := range review.Goals {
 		if binding.Need == policy.TidyLayout {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
+			goal, err = p.journal.LoadStandard(call, binding.Goal)
 			found = true
 			break
 		}
@@ -62,7 +62,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || review.Veto(goal.Goal) != "" {
+	if !found || goal.Standard.Status != domain.StandardOpen || review.Veto(goal.Standard) != "" {
 		return RoutineTidyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	expected, err := stepScope(call, r.reviewer.native)
@@ -81,7 +81,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return r.finishFurniture(call, state, expected.Tick, tidies, t.PlanID)
 		}
 	}
-	if goal.Goal.Need != domain.NeedDeficit {
+	if goal.Standard.Need != domain.NeedDeficit {
 		return RoutineTidyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
@@ -123,7 +123,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 
 // commit journals one goal method after the freshness checks every planner
 // makes between its native reads and its write.
-func (r *RoutineTidyPlanner) commit(call, epoch context.Context, state ControlState, goal store.GoalState, started observation.RoutineReading, method domain.MethodID, plan domain.PlanSpec) error {
+func (r *RoutineTidyPlanner) commit(call, epoch context.Context, state ControlState, goal store.StandardState, started observation.RoutineReading, method domain.MethodID, plan domain.PlanSpec) error {
 	p := r.reviewer.player
 	if err := p.current(call, epoch); err != nil {
 		return err
@@ -132,6 +132,6 @@ func (r *RoutineTidyPlanner) commit(call, epoch context.Context, state ControlSt
 	if p.session.State() != state || now.Before(started.StartedAt) || now.Sub(started.StartedAt) > r.reviewer.maxAge {
 		return fmt.Errorf("%w: commit: p.session.State() != state || now.Before(started.StartedAt) || now.Sub(started.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
-	_, err := p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan)
+	_, err := p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan)
 	return err
 }

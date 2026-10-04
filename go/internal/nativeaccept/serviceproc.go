@@ -523,13 +523,13 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Con
 		if goalID == "" {
 			return Signature("unbound", review.Revision > 0), false, nil
 		}
-		goal, err := s.LoadGoal(ctx, goalID)
+		goal, err := s.LoadStandard(ctx, goalID)
 		if err != nil && !errors.Is(err, store.ErrNotFound) {
 			return "", false, err
 		}
 		methods := goal.Methods
 		if err == nil && len(methods) == 0 {
-			if methods, err = s.LoadGoalMethods(ctx, goalID, goal.Goal.Epoch); err != nil {
+			if methods, err = s.LoadGoalMethods(ctx, goalID, goal.Standard.Episode); err != nil {
 				return "", false, err
 			}
 		}

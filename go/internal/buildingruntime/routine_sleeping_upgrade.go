@@ -170,7 +170,7 @@ func beautyUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage)
 	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors, bedroomGate(facts, stage))
 }
 
-// removeOldBed deconstructs a replaced bed, once per bed per goal epoch.
+// removeOldBed deconstructs a replaced bed, once per bed per Episode.
 func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading, rep policy.BedReplacement) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	bed := sha256.Sum256([]byte(rep.Bed))
@@ -227,7 +227,7 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 }
 
 // upgradeBedroom previews and admits one upgrade piece, once per room and
-// slot per goal epoch.
+// slot per Episode.
 func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading, u policy.RoomUpgrade) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection

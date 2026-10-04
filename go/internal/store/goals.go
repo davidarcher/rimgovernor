@@ -12,10 +12,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// GoalState links methods to the existing plan catalog. Revision is a local CAS
+// StandardState links methods to the existing plan catalog. Revision is a local CAS
 // token, not a native generation or permission to run a method.
-type GoalState struct {
-	Goal     domain.Goal
+type StandardState struct {
+	Standard domain.Standard
 	Revision uint64
 	Methods  []domain.GoalMethod // Active plans; retired methods remain in LoadGoalMethod.
 	// Admitted counts every method ever committed for the goal, retired
@@ -54,7 +54,7 @@ CREATE TABLE soldier_squad(singleton INTEGER PRIMARY KEY CHECK(singleton=1), pay
 	return err
 }
 
-func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
+func createStandard(ctx context.Context, tx *sql.Tx, g domain.Standard) error {
 	if err := g.Validate(); err != nil {
 		return err
 	}
@@ -75,8 +75,8 @@ func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
 	return nil
 }
 
-func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (GoalState, error) {
-	var out GoalState
+func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardState, error) {
+	var out StandardState
 	var data []byte
 	var revision string
 	if err := tx.QueryRowContext(ctx, "SELECT revision,payload,retired FROM goals WHERE id=?", id).Scan(&revision, &data, &out.Retired); err != nil {
@@ -92,46 +92,46 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (GoalState, 
 	if len(data) > 8192 {
 		return out, errors.New("goal payload exceeds bound")
 	}
-	if err = json.Unmarshal(data, &out.Goal); err != nil {
-		return GoalState{}, err
+	if err = json.Unmarshal(data, &out.Standard); err != nil {
+		return StandardState{}, err
 	}
-	canonical, err := json.Marshal(out.Goal)
+	canonical, err := json.Marshal(out.Standard)
 	if err != nil || !bytes.Equal(data, canonical) {
-		return GoalState{}, errors.New("noncanonical goal state")
+		return StandardState{}, errors.New("noncanonical goal state")
 	}
-	if err = out.Goal.Validate(); err != nil {
-		return GoalState{}, err
+	if err = out.Standard.Validate(); err != nil {
+		return StandardState{}, err
 	}
-	if out.Goal.ID != id {
-		return GoalState{}, errors.New("goal identity mismatch")
+	if out.Standard.ID != id {
+		return StandardState{}, errors.New("goal identity mismatch")
 	}
-	if out.Retired && out.Goal.Status != domain.GoalInvalidated {
-		return GoalState{}, errors.New("invalid retired goal")
+	if out.Retired && out.Standard.Status != domain.StandardVoided {
+		return StandardState{}, errors.New("invalid retired goal")
 	}
 	out.Revision = n
 	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM goal_methods WHERE goal_id=?", id).Scan(&out.Admitted); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
-	history, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE goal_id=? AND epoch=? ORDER BY method_id", id, strconv.FormatUint(out.Goal.Epoch, 10))
+	history, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE goal_id=? AND epoch=? ORDER BY method_id", id, strconv.FormatUint(out.Standard.Episode, 10))
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	for history.Next() {
-		m := domain.GoalMethod{Goal: id, Epoch: out.Goal.Epoch}
+		m := domain.GoalMethod{Goal: id, Episode: out.Standard.Episode}
 		if err = history.Scan(&m.Method, &m.Plan); err != nil {
 			history.Close()
-			return GoalState{}, err
+			return StandardState{}, err
 		}
 		out.History = append(out.History, m)
 	}
 	err = history.Err()
 	history.Close()
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	rows, err := tx.QueryContext(ctx, "SELECT m.epoch,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.goal_id=? ORDER BY length(m.epoch),m.epoch,m.method_id", id)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -139,58 +139,58 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (GoalState, 
 		var epoch string
 		m.Goal = id
 		if err = rows.Scan(&epoch, &m.Method, &m.Plan); err != nil {
-			return GoalState{}, err
+			return StandardState{}, err
 		}
-		m.Epoch, err = strconv.ParseUint(epoch, 10, 64)
-		if err != nil || strconv.FormatUint(m.Epoch, 10) != epoch || m.Epoch > out.Goal.Epoch || m.Validate() != nil {
-			return GoalState{}, errors.New("invalid goal method record")
+		m.Episode, err = strconv.ParseUint(epoch, 10, 64)
+		if err != nil || strconv.FormatUint(m.Episode, 10) != epoch || m.Episode > out.Standard.Episode || m.Validate() != nil {
+			return StandardState{}, errors.New("invalid goal method record")
 		}
 		out.Methods = append(out.Methods, m)
 		if len(out.Methods) > 256 {
-			return GoalState{}, ErrCapacity
+			return StandardState{}, ErrCapacity
 		}
 	}
 	return out, rows.Err()
 }
 
-func (s *Store) LoadGoal(ctx context.Context, id domain.ConcernID) (GoalState, error) {
+func (s *Store) LoadStandard(ctx context.Context, id domain.ConcernID) (StandardState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	defer tx.Rollback()
 	out, err := loadGoal(ctx, tx, id)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	if err = tx.Commit(); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	return out, nil
 }
 
-func saveGoal(ctx context.Context, tx *sql.Tx, previous GoalState, g domain.Goal) (GoalState, error) {
+func saveStandard(ctx context.Context, tx *sql.Tx, previous StandardState, g domain.Standard) (StandardState, error) {
 	if previous.Retired {
-		return GoalState{}, errors.New("retired goal is read-only")
+		return StandardState{}, errors.New("retired goal is read-only")
 	}
-	if g == previous.Goal {
+	if g == previous.Standard {
 		return previous, nil
 	}
 	if previous.Revision == ^uint64(0) {
-		return GoalState{}, ErrCapacity
+		return StandardState{}, ErrCapacity
 	}
 	if err := g.Validate(); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	data, err := json.Marshal(g)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	next := previous.Revision + 1
 	if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=?,payload=? WHERE id=?", strconv.FormatUint(next, 10), data, g.ID); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
-	previous.Goal = g
+	previous.Standard = g
 	previous.Revision = next
 	return previous, nil
 }
@@ -225,80 +225,80 @@ func planOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, err
 	return false, nil
 }
 
-func (s *Store) ReviewGoal(ctx context.Context, id domain.ConcernID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (GoalState, error) {
+func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (StandardState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	defer tx.Rollback()
 	state, err := loadGoal(ctx, tx, id)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	if state.Revision != revision {
-		return GoalState{}, ErrConflict
+		return StandardState{}, ErrConflict
 	}
 	open, err := goalOpenWork(ctx, tx, state)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
-	g, err := domain.ReviewGoal(state.Goal, current, tick, need, open)
+	g, err := domain.ReviewStandard(state.Standard, current, tick, need, open)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
-	if g.Status == domain.GoalInvalidated {
+	if g.Status == domain.StandardVoided {
 		if err = cancelGoalMethods(ctx, tx, state); err != nil {
-			return GoalState{}, err
+			return StandardState{}, err
 		}
 	}
-	out, err := saveGoal(ctx, tx, state, g)
+	out, err := saveStandard(ctx, tx, state, g)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	if err = tx.Commit(); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	return out, nil
 }
 
 // CommitGoalMethod stores the method and its shared plan atomically. Admission
 // and dispatch still belong to existing policy/Hands; this grants no authority.
-func (s *Store) CommitGoalMethod(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (GoalState, error) {
+func (s *Store) CommitGoalMethod(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (StandardState, error) {
 	return s.CommitGoalMethodReason(ctx, id, revision, method, "", plan)
 }
 
 // CommitGoalMethodReason is CommitGoalMethod with the planner's short reason
 // for admitting it (runway, deficit, target); the dispatcher appends it to
 // Operation.intent (#846). Empty stores none.
-func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (GoalState, error) {
+func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	if err := plan.Validate(); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	if len(plan.Actions()) == 0 {
-		return GoalState{}, errors.New("empty goal method")
+		return StandardState{}, errors.New("empty goal method")
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	defer tx.Rollback()
 	state, err := commitGoalMethod(ctx, tx, id, revision, method, reason, plan)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	if err = tx.Commit(); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	return state, nil
 }
 
-func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (GoalState, error) {
+func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	state, err := loadGoal(ctx, tx, id)
 	if err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	if err = admitOwnerCommit(ctx, tx, state, revision, method, reason, plan); err != nil {
-		return GoalState{}, err
+		return StandardState{}, err
 	}
 	return loadGoal(ctx, tx, id)
 }
@@ -313,7 +313,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if state.OwnerRevision() != revision {
 		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrConflict, state.ownerLabel(), state.OwnerRevision(), revision)
 	}
-	if summary.Status != domain.GoalActive || summary.Need != domain.NeedDeficit {
+	if summary.Status != domain.StandardOpen || summary.Need != domain.NeedDeficit {
 		return errors.New("goal does not admit a method")
 	}
 	if err := admitRoutineSafeguards(ctx, tx, state); err != nil {
@@ -368,7 +368,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			return errors.New("existing method requires observation")
 		}
 	}
-	m := domain.GoalMethod{Goal: domain.ConcernID(summary.ID), Epoch: summary.Epoch, Method: method, Plan: plan.ID()}
+	m := domain.GoalMethod{Goal: domain.ConcernID(summary.ID), Episode: summary.Episode, Method: method, Plan: plan.ID()}
 	if err = m.Validate(); err != nil {
 		return err
 	}
@@ -481,9 +481,9 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	if err != nil {
 		return err
 	}
-	g := state.Goal
+	g := state.Standard
 	s := g.Snapshot
-	if g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || epoch != strconv.FormatUint(g.Epoch, 10) ||
+	if g.Status != domain.StandardOpen || g.Need == domain.NeedUnknown || epoch != strconv.FormatUint(g.Episode, 10) ||
 		s.Colony != current.Colony || s.Map != current.Map || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}

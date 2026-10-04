@@ -220,7 +220,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		}
 	}
 	if stored && record.Project != goal.Project.ID {
-		// A new goal epoch (cancelled and re-created, e.g. by a letter pause)
+		// A new Episode (cancelled and re-created, e.g. by a letter pause)
 		// keeps the stored geometry: re-proposing against a census that
 		// already holds the earlier epoch's walls shifts the corridor by a
 		// cell and lands traps beside the old ones, which can never place.

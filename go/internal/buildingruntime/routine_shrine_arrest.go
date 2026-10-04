@@ -30,14 +30,14 @@ func shrineArrestPlan(id domain.PlanID, performer, target domain.PawnID, bed str
 	return domain.NewPlan(id, 1, []domain.Action{draftAction, arrest}, domain.ActionDependency{Action: arrest.ID(), Requires: draftAction.ID(), Coupled: true})
 }
 
-func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.GoalState, facts policy.RoutineFacts, squad []policy.ShrineDefenderFacts, target domain.PawnID, arbiter *stepArbiter) (RoutinePopulationCustodyResult, error) {
+func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, facts policy.RoutineFacts, squad []policy.ShrineDefenderFacts, target domain.PawnID, arbiter *stepArbiter) (RoutinePopulationCustodyResult, error) {
 	bed := policy.ShrineArrestBed(facts.Sleeping)
 	performer := policy.ShrineArrester(squad)
 	if bed == "" || performer == "" || performer == target {
 		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "shrine_arrest")}, nil
 	}
 	prefix := fmt.Sprintf("population-arrest-%s-", target)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -57,7 +57,7 @@ func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Conte
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: commitArrest: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
 	return RoutinePopulationCustodyResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

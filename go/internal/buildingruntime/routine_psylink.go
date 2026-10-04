@@ -23,7 +23,7 @@ import (
 // MaintainResource: the review adds policy.NeuroformerNeeds, for the
 // no-psylink colonists only, to the resource needs, which the resource ladder
 // meets with a production bill or a trade. At most maxPsylinkAttempts uses
-// are ordered per colonist per goal epoch, so a colonist native refuses
+// are ordered per colonist per Episode, so a colonist native refuses
 // does not block the others or loop.
 const (
 	maxPsylinkAttempts = 2
@@ -145,14 +145,14 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !ok {
 		return RoutinePsylinkResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	history, err := p.journal.LoadGoalMethods(call, goal.Standard.ID, goal.Standard.Episode)
 	if err != nil {
 		return RoutinePsylinkResult{}, err
 	}
 	willingOf := func(who []policy.PawnID) []policy.PawnID {
 		var out []policy.PawnID
 		for _, pawn := range who {
-			if medicalAttemptCount(history, goal.Goal.Epoch, fmt.Sprintf("%s%s-", psylinkPrefix, pawn)) < maxPsylinkAttempts {
+			if medicalAttemptCount(history, goal.Standard.Episode, fmt.Sprintf("%s%s-", psylinkPrefix, pawn)) < maxPsylinkAttempts {
 				out = append(out, pawn)
 			}
 		}
@@ -169,7 +169,7 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_pawn_claim")}, nil
 	}
 	prefix := fmt.Sprintf("%s%s-", psylinkPrefix, choice.Pawn)
-	attempt := medicalAttemptCount(history, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(history, goal.Standard.Episode, prefix)
 	use, err := domain.NewUseItem(domain.PawnID(choice.Pawn), choice.Item, domain.PawnID(choice.Pawn))
 	if err != nil {
 		return RoutinePsylinkResult{}, err
@@ -190,7 +190,7 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePsylinkResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("psylink: %s uses neuroformer %s", choice.Pawn, choice.Item), plan); err != nil {
+	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("psylink: %s uses neuroformer %s", choice.Pawn, choice.Item), plan); err != nil {
 		return RoutinePsylinkResult{}, err
 	}
 	return RoutinePsylinkResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

@@ -47,7 +47,7 @@ func fireBurning(facts observation.ColonyProjection) bool {
 
 // stageBurn answers a due ash cleanup or burn; handled is false when
 // neither is due.
-func (r *RoutineWastePlanner) stageBurn(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) stageBurn(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
 	room := standingIncinerator(reading.Projection)
 	if room == nil {
 		return RoutineWasteResult{}, false, nil
@@ -74,7 +74,7 @@ func (r *RoutineWastePlanner) stageBurn(call, epoch context.Context, state Contr
 }
 
 // cleanAsh sends the lowest-ID eligible cleaner at the first ash.
-func (r *RoutineWastePlanner) cleanAsh(call, epoch context.Context, state ControlState, goal store.GoalState, arbiter *stepArbiter, ash []policy.UpkeepFilth, rows []*n.PawnState) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) cleanAsh(call, epoch context.Context, state ControlState, goal store.StandardState, arbiter *stepArbiter, ash []policy.UpkeepFilth, rows []*n.PawnState) (RoutineWasteResult, bool, error) {
 	var pawns []policy.CleanCandidateFacts
 	for _, row := range rows {
 		if row == nil || row.Pawn == nil {
@@ -94,7 +94,7 @@ func (r *RoutineWastePlanner) cleanAsh(call, epoch context.Context, state Contro
 		return RoutineWasteResult{}, true, err
 	}
 	prefix := fmt.Sprintf("burn-ash-%s-", target.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineWasteResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, true, nil
 	}
@@ -107,7 +107,7 @@ func (r *RoutineWastePlanner) cleanAsh(call, epoch context.Context, state Contro
 }
 
 // burnRoom plans one burn of a full incinerator.
-func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state ControlState, goal store.GoalState, arbiter *stepArbiter, room policy.LayoutRoom, stored int, rows []*n.PawnState) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state ControlState, goal store.StandardState, arbiter *stepArbiter, room policy.LayoutRoom, stored int, rows []*n.PawnState) (RoutineWasteResult, bool, error) {
 	identity := boundary.Identity(state.Snapshot)
 	things, err := frameThings(call, r.native, identity)
 	if err != nil {
@@ -148,7 +148,7 @@ func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state Contro
 	}
 	order, verdict := policy.PlanBurn(request)
 	if verdict != policy.BurnReady {
-		clockSchedulerLog("%s: incinerator burn held: %s", goal.Goal.ID, verdict)
+		clockSchedulerLog("%s: incinerator burn held: %s", goal.Standard.ID, verdict)
 		return RoutineWasteResult{Verdict: refuse(RefusalNoWorker, "incinerator_"+string(verdict), "")}, true, nil
 	}
 	var claims []string
@@ -198,7 +198,7 @@ func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state Contro
 		return RoutineWasteResult{}, true, err
 	}
 	chain(igniteAction)
-	clockSchedulerLog("%s: burn the incinerator (%d cells) with %s", goal.Goal.ID, stored, order.Burner)
+	clockSchedulerLog("%s: burn the incinerator (%d cells) with %s", goal.Standard.ID, stored, order.Burner)
 	return r.commitBurnPlan(call, epoch, state, goal, nextWaveMethod(goal, "burn-wave-"), id, actions, dependencies)
 }
 
@@ -213,7 +213,7 @@ func molotovs(targets []bridge.EquipCandidate) []policy.EquipCandidateWeapon {
 	return out
 }
 
-func (r *RoutineWastePlanner) commitBurnPlan(call, epoch context.Context, state ControlState, goal store.GoalState, method domain.MethodID, id domain.PlanID, actions []domain.Action, dependencies []domain.ActionDependency) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) commitBurnPlan(call, epoch context.Context, state ControlState, goal store.StandardState, method domain.MethodID, id domain.PlanID, actions []domain.Action, dependencies []domain.ActionDependency) (RoutineWasteResult, bool, error) {
 	p := r.reviewer.player
 	plan, err := domain.NewPlan(id, 1, actions, dependencies...)
 	if err != nil {
@@ -225,7 +225,7 @@ func (r *RoutineWastePlanner) commitBurnPlan(call, epoch context.Context, state 
 	if p.session.State() != state {
 		return RoutineWasteResult{}, true, fmt.Errorf("%w: commitBurnPlan: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWasteResult{}, true, err
 	}
 	return RoutineWasteResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil

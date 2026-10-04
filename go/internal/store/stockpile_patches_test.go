@@ -26,7 +26,7 @@ func TestStockpilePatchesListTheLatestCompletedPatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "stockpiles-1", plan); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "stockpiles-1", plan); err != nil {
 		t.Fatal(err)
 	}
 	current := r.Current

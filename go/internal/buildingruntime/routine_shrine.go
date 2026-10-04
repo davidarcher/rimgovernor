@@ -292,7 +292,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 // standing cell behind the trap line for each drafted defender, and the
 // breach deconstruction of the chosen wall. One colonist is always left
 // undrafted for the deconstruct job. The method is retried at most
-// maxMedicalAttemptsPerPatient times per wall and goal epoch.
+// maxMedicalAttemptsPerPatient times per wall and Episode.
 func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, report ShrineReadinessReport, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoutineShrineResult, error) {
 	p := r.reviewer.player
 	wall := report.Readiness.Wall

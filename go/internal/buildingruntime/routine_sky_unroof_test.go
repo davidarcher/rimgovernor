@@ -51,7 +51,7 @@ func TestUnroofOnlyPlanNeedsNoExcavationSourceAndStallIsNamed(t *testing.T) {
 	if stalled, err := p.roofStalled(ctx, s, method); err != nil || stalled {
 		t.Fatal("stalled before the plan ran", stalled, err)
 	}
-	snapshot := result.Decision.Goal.Goal.Snapshot
+	snapshot := result.Decision.Goal.Standard.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	for _, a := range plan.Spec.Actions() {
 		if _, ok := a.RemoveRoof(); !ok {

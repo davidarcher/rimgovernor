@@ -9,11 +9,11 @@ import (
 func TestMedicalAttemptCountScopesToPrefixAndEpoch(t *testing.T) {
 	t.Parallel()
 	methods := []domain.GoalMethod{
-		{Goal: "CriticalMedical", Epoch: 1, Method: "tend-alice-0", Plan: "p0"},
-		{Goal: "CriticalMedical", Epoch: 1, Method: "tend-alice-1", Plan: "p1"},
-		{Goal: "CriticalMedical", Epoch: 1, Method: "tend-bob-0", Plan: "p2"},
-		{Goal: "CriticalMedical", Epoch: 1, Method: "rescue-alice-0", Plan: "p3"},
-		{Goal: "CriticalMedical", Epoch: 2, Method: "tend-alice-0", Plan: "p4"},
+		{Goal: "CriticalMedical", Episode: 1, Method: "tend-alice-0", Plan: "p0"},
+		{Goal: "CriticalMedical", Episode: 1, Method: "tend-alice-1", Plan: "p1"},
+		{Goal: "CriticalMedical", Episode: 1, Method: "tend-bob-0", Plan: "p2"},
+		{Goal: "CriticalMedical", Episode: 1, Method: "rescue-alice-0", Plan: "p3"},
+		{Goal: "CriticalMedical", Episode: 2, Method: "tend-alice-0", Plan: "p4"},
 	}
 	if n := medicalAttemptCount(methods, 1, "tend-alice-"); n != 2 {
 		t.Fatalf("tend-alice epoch 1: got %d, want 2", n)

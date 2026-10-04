@@ -71,7 +71,7 @@ func (m *tunnelMemory) forget(resource policy.Resource) {
 // any new corridor is sited, and so does a sited corridor whose first stage
 // was never admitted (#1124). handled is false when there is no excavation
 // read, nothing buried in reach, or a finished corridor and no new one.
-func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource) (RoutineResourceResult, bool, error) {
+func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource) (RoutineResourceResult, bool, error) {
 	source, ok := r.native.(RoutineExcavationSource)
 	if !ok {
 		return RoutineResourceResult{}, false, nil
@@ -147,7 +147,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 			return RoutineResourceResult{}, false, err
 		}
 		if !done {
-			clockSchedulerLog("%s: %s deposit %s at %v is buried; resuming tunnel %s", goal.Goal.ID, resource, ore.ThingID, ore.Cell, sited.Key())
+			clockSchedulerLog("%s: %s deposit %s at %v is buried; resuming tunnel %s", goal.Standard.ID, resource, ore.ThingID, ore.Cell, sited.Key())
 			return finish(result)
 		}
 		r.reviewer.tunnels.forget(resource)
@@ -201,7 +201,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 		if !verified {
 			continue
 		}
-		clockSchedulerLog("%s: %s deposit %s at %v is buried; tunnelling %s", goal.Goal.ID, resource, ore.ThingID, ore.Cell, target.Key())
+		clockSchedulerLog("%s: %s deposit %s at %v is buried; tunnelling %s", goal.Standard.ID, resource, ore.ThingID, ore.Cell, target.Key())
 		r.reviewer.tunnels.set(world, resource, ore.Cell, target)
 		result, _, err := resume(target)
 		if err != nil {
@@ -209,6 +209,6 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 		}
 		return finish(result)
 	}
-	clockSchedulerLog("%s: %s deposit %s at %v is buried and no corridor verifies (%d proposed)", goal.Goal.ID, resource, ore.ThingID, ore.Cell, len(targets))
+	clockSchedulerLog("%s: %s deposit %s at %v is buried and no corridor verifies (%d proposed)", goal.Standard.ID, resource, ore.ThingID, ore.Cell, len(targets))
 	return RoutineResourceResult{}, false, nil
 }

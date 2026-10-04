@@ -50,7 +50,7 @@ func TestRoutineUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 		out := reviewRoutine(t, s, &r)
 		fire := routineGoal(t, out, policy.MaintainFireSafety)
-		if fire.Goal.Priority != 1 || fire.Goal.Need != domain.NeedDeficit {
+		if fire.Standard.Priority != 1 || fire.Standard.Need != domain.NeedDeficit {
 			t.Fatal("fire need not recorded", declared, fire)
 		}
 		target := q.Current

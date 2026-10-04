@@ -70,7 +70,7 @@ func IsExcavationMethod(method domain.MethodID) bool {
 	return ok
 }
 
-// excavationProgress reads a goal epoch's tunnel stages: the target the
+// excavationProgress reads a Episode's tunnel stages: the target the
 // latest (highest) stage carries and the next stage number.
 func excavationProgress(methods []domain.GoalMethod) (latest *policy.ExcavationTarget, next int) {
 	for _, m := range methods {
@@ -82,7 +82,7 @@ func excavationProgress(methods []domain.GoalMethod) (latest *policy.ExcavationT
 }
 
 // excavationProject reports the target of the goal's current tunnel: the
-// one the most recently admitted stage under this goal epoch carries.
+// one the most recently admitted stage under this Episode carries.
 func (r *RoutineBuildingPlanner) excavationProject(call context.Context, goal store.WorkOwner) (*policy.ExcavationTarget, error) {
 	methods, err := r.reviewer.player.journal.LoadOwnerMethods(call, goal)
 	if err != nil {

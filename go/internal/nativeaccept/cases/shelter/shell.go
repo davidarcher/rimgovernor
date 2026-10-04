@@ -238,7 +238,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 			if binding.Need != policy.MaintainHousing {
 				continue
 			}
-			goal, err := st.LoadGoal(ctx, binding.Goal)
+			goal, err := st.LoadStandard(ctx, binding.Goal)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
@@ -247,7 +247,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 			}
 			// Retired bindings too: a shell plan completes on its placement
 			// receipts and retires at once, as the bunk rungs do (8221a21).
-			methods, err := st.LoadGoalMethods(ctx, binding.Goal, goal.Goal.Epoch)
+			methods, err := st.LoadGoalMethods(ctx, binding.Goal, goal.Standard.Episode)
 			if err != nil {
 				return "", false, err
 			}

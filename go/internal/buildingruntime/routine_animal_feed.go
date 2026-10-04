@@ -72,8 +72,8 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		}
 	}
 	// A completed bill plan retires at the next review and leaves
-	// GoalState.Methods, so the standing-bill check reads the epoch's history.
-	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	// StandardState.Methods, so the standing-bill check reads the epoch's history.
+	history, err := p.journal.LoadGoalMethods(call, goal.Standard.ID, goal.Standard.Episode)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -169,7 +169,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		case choice.Delivered:
 			benches = nil
 		case len(choice.StorageCells) > 0:
-			clockSchedulerLog("%s: no reachable bench for %s; zoning %d feed storage cells inside the animals' area", goal.Goal.ID, choice.Resource, len(choice.StorageCells))
+			clockSchedulerLog("%s: no reachable bench for %s; zoning %d feed storage cells inside the animals' area", goal.Standard.ID, choice.Resource, len(choice.StorageCells))
 			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage")
 			if err == nil && (result.Verdict.Is(RefusalSharedAdmission) || result.Verdict.Is(RefusalNoSpace)) {
 				// The footprint native offered was refused at preview (the

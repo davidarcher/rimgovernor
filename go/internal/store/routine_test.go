@@ -30,7 +30,7 @@ func TestRoundsWithPollutionFactsLoads(t *testing.T) {
 	}
 }
 
-func routineGoal(t *testing.T, r RoundsResult, need domain.ConcernID) GoalState {
+func routineGoal(t *testing.T, r RoundsResult, need domain.ConcernID) StandardState {
 	t.Helper()
 	for i, b := range r.Review.Goals {
 		if b.Need == need {
@@ -38,7 +38,7 @@ func routineGoal(t *testing.T, r RoundsResult, need domain.ConcernID) GoalState 
 		}
 	}
 	t.Fatal("missing routine goal", need)
-	return GoalState{}
+	return StandardState{}
 }
 
 // routineIncident is the review's open colony-wide occurrence of kind.
@@ -82,7 +82,7 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	initial := routineGoal(t, out, policy.MaintainResource)
-	if initial.Goal.Need != domain.NeedDeficit || !out.Review.Latches.Wood {
+	if initial.Standard.Need != domain.NeedDeficit || !out.Review.Latches.Wood {
 		t.Fatal(out)
 	}
 	s.Close()
@@ -93,27 +93,27 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 	r.Facts.Wood = domain.Known(int64(200))
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedDeficit {
+	if routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedDeficit {
 		t.Fatal("restart lost recovery threshold")
 	}
 	r.Facts.Wood = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if g.Goal.Need != domain.NeedUnknown || !out.Review.Latches.Wood {
+	if g.Standard.Need != domain.NeedUnknown || !out.Review.Latches.Wood {
 		t.Fatal(g)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "unknown", plan(t, "p", "a")); err == nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "unknown", plan(t, "p", "a")); err == nil {
 		t.Fatal("unknown need admitted method")
 	}
 	r.Facts.Wood = domain.Known(int64(400))
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainResource).Goal.Status != domain.GoalSatisfied {
+	if routineGoal(t, out, policy.MaintainResource).Standard.Status != domain.StandardSettled {
 		t.Fatal(out)
 	}
 	r.Facts.Wood = domain.Known(int64(100))
 	out = reviewRoutine(t, s, &r)
 	g = routineGoal(t, out, policy.MaintainResource)
-	if g.Goal.Epoch != 1 || g.Goal.ID != initial.Goal.ID || g.Goal.Need != domain.NeedDeficit {
+	if g.Standard.Episode != 1 || g.Standard.ID != initial.Standard.ID || g.Standard.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
 }
@@ -127,7 +127,7 @@ func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 			r := routineRequest()
 			out := reviewRoutine(t, s, &r)
 			g := routineGoal(t, out, policy.MaintainResource)
-			if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
+			if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := s.Prepare(ctx, "p", "a", scope(), 10); err != nil {
@@ -153,19 +153,19 @@ func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			old, err := s.LoadGoal(ctx, g.Goal.ID)
+			old, err := s.LoadStandard(ctx, g.Standard.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if change == "manual" {
 				// Manual vetoes new work: dispatched work stays open for the resumed goal.
-				if p.Progress[0].View().Stage != domain.Dispatched || old.Goal.Status != domain.GoalActive {
-					t.Fatal(p.Progress[0].View().Stage, old.Goal.Status)
+				if p.Progress[0].View().Stage != domain.Dispatched || old.Standard.Status != domain.StandardOpen {
+					t.Fatal(p.Progress[0].View().Stage, old.Standard.Status)
 				}
 				if _, err := s.Prepare(ctx, "p", "a", scope(), 10); err == nil {
 					t.Fatal("suspended goal admitted work")
 				}
-			} else if p.Progress[0].View().Stage != domain.Cancelled || !p.Progress[0].View().Unresolved || old.Goal.Status != domain.GoalInvalidated {
+			} else if p.Progress[0].View().Stage != domain.Cancelled || !p.Progress[0].View().Unresolved || old.Standard.Status != domain.StandardVoided {
 				t.Fatal(p, old)
 			}
 			r.Enabled = true
@@ -174,10 +174,10 @@ func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 			out = reviewRoutine(t, s, &r)
 			resumed := routineGoal(t, out, policy.MaintainResource)
 			if change == "manual" {
-				if resumed.Goal.ID != g.Goal.ID || resumed.Goal.Status != domain.GoalActive {
+				if resumed.Standard.ID != g.Standard.ID || resumed.Standard.Status != domain.StandardOpen {
 					t.Fatal("resume replaced the suspended goal", resumed)
 				}
-			} else if resumed.Goal.ID == g.Goal.ID {
+			} else if resumed.Standard.ID == g.Standard.ID {
 				t.Fatal("reused invalidated goal")
 			}
 		})
@@ -207,7 +207,7 @@ func TestRoundsTransactionRollbackAndStaleCursor(t *testing.T) {
 		t.Fatal("review partially committed", loaded, err)
 	}
 	for _, before := range out.Goals {
-		after, err := s.LoadGoal(ctx, before.Goal.ID)
+		after, err := s.LoadStandard(ctx, before.Standard.ID)
 		if err != nil || !reflect.DeepEqual(before, after) {
 			t.Fatal("goal changed despite rollback", after, err)
 		}
@@ -221,12 +221,12 @@ func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Hostiles = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)
-	if out.Review.Veto(routineGoal(t, out, policy.MaintainResource).Goal) == "" {
+	if out.Review.Veto(routineGoal(t, out, policy.MaintainResource).Standard) == "" {
 		t.Fatal(out)
 	}
 	if _, err := s.Prepare(ctx, "p", "a", scope(), r.Tick); err == nil {
@@ -247,14 +247,14 @@ func TestRoutineDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
 	r.Facts.Wood = domain.Known(int64(200))
 	r.Current.Native++
 	out := reviewRoutine(t, s, &r)
-	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedDeficit {
+	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedDeficit {
 		t.Fatal("direction erased known recovery target")
 	}
 	r.Enabled = false
 	reviewRoutine(t, s, &r)
 	r.Enabled = true
 	out = reviewRoutine(t, s, &r)
-	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedDeficit {
+	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedDeficit {
 		t.Fatal("Manual erased known recovery target")
 	}
 }

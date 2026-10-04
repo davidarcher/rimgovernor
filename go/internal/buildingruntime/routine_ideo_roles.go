@@ -84,7 +84,7 @@ func (r *RoutineIdeoRolesPlanner) step(call, epoch context.Context, arbiter *ste
 	// step keeps a role with several places filling one believer at a time.
 	for _, choice := range owed {
 		prefix := fmt.Sprintf("ideorole-%s-%s-", choice.Pawn, choice.Role)
-		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			continue
 		}
@@ -112,7 +112,7 @@ func (r *RoutineIdeoRolesPlanner) step(call, epoch context.Context, arbiter *ste
 			return RoutineIdeoRolesResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("ideology: %s takes role %s (%s)", choice.Pawn, choice.Def, choice.Role), plan); err != nil {
+		if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("ideology: %s takes role %s (%s)", choice.Pawn, choice.Def, choice.Role), plan); err != nil {
 			return RoutineIdeoRolesResult{}, err
 		}
 		return RoutineIdeoRolesResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

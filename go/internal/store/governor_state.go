@@ -50,9 +50,9 @@ const (
 // GovernorGoalBlob is one goal: its payload and CAS revision. Methods and
 // admission counts are session state, re-planned after a load (#997).
 type GovernorGoalBlob struct {
-	SchemaVersion int         `json:"schemaVersion"`
-	Goal          domain.Goal `json:"goal"`
-	Revision      uint64      `json:"revision"`
+	SchemaVersion int             `json:"schemaVersion"`
+	Goal          domain.Standard `json:"goal"`
+	Revision      uint64          `json:"revision"`
 }
 
 // GovernorProjectBlob is one project: its payload and CAS revision. Methods
@@ -121,7 +121,7 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 		if err != nil {
 			return nil, fmt.Errorf("goal %s: %w", id, err)
 		}
-		if err = put(GovernorGoalKeyPrefix+string(id), GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Goal, Revision: g.Revision}); err != nil {
+		if err = put(GovernorGoalKeyPrefix+string(id), GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Standard, Revision: g.Revision}); err != nil {
 			return nil, err
 		}
 	}

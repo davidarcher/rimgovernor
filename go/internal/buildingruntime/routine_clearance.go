@@ -135,7 +135,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineClearanceResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
@@ -151,7 +151,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineClearanceResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineClearanceResult{}, err
 	}
 	return RoutineClearanceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -248,7 +248,7 @@ func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.Gr
 // the pending chunk kinds and steel slag is admitted on the native outdoor
 // footprint, outside held building footprints, and ordinary hauling clears
 // the stacks. The method is content-addressed by cells and allow list.
-func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
+func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
 	if len(policy.PendingChunks(census.Chunks)) == 0 {
 		return r.haulChunks(call, epoch, state, goal, census, started)
 	}
@@ -288,7 +288,7 @@ const maxChunkHaulBatch = 8
 // dump alone never moves it. The method is content-addressed by the chunks
 // and their cells, so a batch is ordered once; a chunk still standing where
 // it was designated is ordinary hauling's to finish.
-func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state ControlState, goal store.GoalState, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
+func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state ControlState, goal store.StandardState, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
 	p := r.reviewer.player
 	// A chunk an earlier batch of this epoch ordered is ordinary hauling's
 	// (#1234): one that never moves must not hold the batch after it.
@@ -362,7 +362,7 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineClearanceResult{}, fmt.Errorf("%w: haulChunks: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineClearanceResult{}, err
 	}
 	return RoutineClearanceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

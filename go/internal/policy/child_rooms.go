@@ -317,7 +317,7 @@ func standingChildPieces(r LayoutRoom, defs []string, built []CurrentBuilding) i
 }
 
 // Method names the step's method: per room and slot, so the shell and each
-// piece are staged once per goal epoch.
+// piece are staged once per Episode.
 func (s ChildRoomStep) Method() string {
 	in := s.Room.Interior
 	if s.Kind == ChildRoomPlace {

@@ -206,7 +206,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{}, err
 		}
 		prefix = fmt.Sprintf("population-rescue-%s-", target)
-		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
@@ -234,7 +234,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{}, err
 		}
 		prefix = fmt.Sprintf("population-capture-%s-", target)
-		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
@@ -250,7 +250,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	}
 }
 
-func (r *RoutinePopulationCustodyPlanner) commit(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.GoalState, method domain.MethodID, id domain.PlanID, action domain.Action) (RoutinePopulationCustodyResult, error) {
+func (r *RoutinePopulationCustodyPlanner) commit(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, method domain.MethodID, id domain.PlanID, action domain.Action) (RoutinePopulationCustodyResult, error) {
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
@@ -262,7 +262,7 @@ func (r *RoutinePopulationCustodyPlanner) commit(call, epoch context.Context, p 
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: commit: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
 	return RoutinePopulationCustodyResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

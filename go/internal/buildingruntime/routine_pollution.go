@@ -169,7 +169,7 @@ func (r *RoutinePollutionPlanner) step(call, epoch context.Context, arbiter *ste
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePollutionResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePollutionResult{}, err
 	}
 	return RoutinePollutionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

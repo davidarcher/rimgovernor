@@ -68,7 +68,7 @@ type DefenseLayoutRecord struct {
 	Tiers     []DefenseTierRecord
 	Complete  bool
 	// VerifiedTick is the tick of the last census that found every tier
-	// standing, and VerifiedCombat the ActiveCombat goal epoch (goal/epoch)
+	// standing, and VerifiedCombat the ActiveCombat Episode (goal/epoch)
 	// whose aftermath that census covered. A Complete record is re-verified
 	// after each combat and once per game hour of simulation; Complete
 	// itself stays true while a lost building is being replaced, so combat

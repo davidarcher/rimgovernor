@@ -55,11 +55,11 @@ func init() {
 // joinerAnswer is what the durable journal proves for the offer: the
 // MaintainPopulation method whose plan carries a QuestAccept for it.
 type joinerAnswer struct {
-	Goal   domain.ConcernID `json:"goal"`
-	Epoch  uint64           `json:"epoch"`
-	Plan   domain.PlanID    `json:"plan"`
-	Reward int32            `json:"reward_choice"`
-	Stage  string           `json:"stage"`
+	Goal    domain.ConcernID `json:"goal"`
+	Episode uint64           `json:"epoch"`
+	Plan    domain.PlanID    `json:"plan"`
+	Reward  int32            `json:"reward_choice"`
+	Stage   string           `json:"stage"`
 }
 
 // joinerAnswers lists every QuestAccept plan MaintainPopulation has ever
@@ -76,11 +76,11 @@ func joinerAnswers(ctx context.Context, st *store.Store) (map[domain.QuestID]joi
 			continue
 		}
 		found = true
-		g, err := st.LoadGoal(ctx, binding.Goal)
+		g, err := st.LoadStandard(ctx, binding.Goal)
 		if err != nil {
 			return nil, false, err
 		}
-		for epoch := uint64(0); epoch <= g.Goal.Epoch; epoch++ {
+		for epoch := uint64(0); epoch <= g.Standard.Episode; epoch++ {
 			methods, err := st.LoadGoalMethods(ctx, binding.Goal, epoch)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return nil, false, err
@@ -95,7 +95,7 @@ func joinerAnswers(ctx context.Context, st *store.Store) (map[domain.QuestID]joi
 					if !ok {
 						continue
 					}
-					out[accept.Quest()] = joinerAnswer{Goal: binding.Goal, Epoch: epoch, Plan: m.Plan, Reward: accept.RewardChoice(), Stage: string(plan.Progress[i].View().Stage)}
+					out[accept.Quest()] = joinerAnswer{Goal: binding.Goal, Episode: epoch, Plan: m.Plan, Reward: accept.RewardChoice(), Stage: string(plan.Progress[i].View().Stage)}
 				}
 			}
 		}

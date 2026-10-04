@@ -88,7 +88,7 @@ type shelterSite struct {
 	check     func() error
 }
 
-// shelterBunkRecord is what the goal epoch already placed: the anchors of
+// shelterBunkRecord is what the Episode already placed: the anchors of
 // the spots and beds bound under it.
 type shelterBunkRecord struct {
 	spots, beds           []domain.Cell
@@ -248,7 +248,7 @@ func shellClaimMethod(room domain.Cell) domain.MethodID {
 }
 
 // admitShellClaims claims the ruin walls of the ring's kind standing on
-// the planned room's ring (#718), once per goal epoch, before the ring,
+// the planned room's ring (#718), once per Episode, before the ring,
 // which is then raised on the ring's other cells. Home clearance may still
 // deconstruct such a ruin first (#1024); the next siting then finds open
 // ground there and the ring walls it as any other cell. It reports

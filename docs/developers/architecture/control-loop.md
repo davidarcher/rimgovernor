@@ -88,8 +88,8 @@ and go through the same admission. A Project is saved as `project/<id>`
 re-planned after a load. Rounds bind Projects separately from Standards
 (`Rounds.Projects`, `RoundsResult.Projects`): one row per world
 and kind, reused while it stands, invalidated with the world, and replaced by
-a new row when a finished Project is measured broken with no work open. A
-player activation that forces a deficit on a finished Project mints a new
+a new row when a Completed Project is measured broken with no work open. A
+player activation that forces a deficit on a Completed Project mints a new
 `project-player-<hex32>-<kind>` row the same way. No Project or Incident kind
 is ever a `goals` row.
 

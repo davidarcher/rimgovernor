@@ -13,16 +13,16 @@ import (
 )
 
 // DependencyRecord is one typed shortfall edge (#651) a planner observed at
-// admission: the dependent goal epoch and method, the resource its open
+// admission: the dependent Episode and method, the resource its open
 // actions cost, each action's cost, and the stock it was measured against.
-// The review keeps the record while the goal epoch stays active and any of
+// The review keeps the record while the Episode stays active and any of
 // the actions stays open, for at most policy.DevelopmentStallTicks; the
 // ranking recomputes the shortfall from the actions still open and the
 // current stock (routineDependencies).
 type DependencyRecord struct {
 	Need     domain.ConcernID
 	Goal     domain.ConcernID
-	Epoch    uint64
+	Episode  uint64 `json:"Epoch"`
 	Method   domain.MethodID
 	Plan     domain.PlanID
 	Resource policy.Resource
@@ -54,7 +54,7 @@ func (d DependencyRecord) validate() error {
 // covers them (or the resource has no prerequisite goal): a shelter shell
 // is admitted without a stock check (#602), and its frames then wait for
 // the difference.
-func ShortfallDependency(need domain.ConcernID, goal domain.Goal, method domain.MethodID, plan domain.PlanID, previews []policy.Preview, stock policy.StockObservation, resource policy.Resource, tick domain.Tick) (DependencyRecord, bool) {
+func ShortfallDependency(need domain.ConcernID, goal domain.Standard, method domain.MethodID, plan domain.PlanID, previews []policy.Preview, stock policy.StockObservation, resource policy.Resource, tick domain.Tick) (DependencyRecord, bool) {
 	if _, ok := policy.ResourcePrerequisite(resource); !ok {
 		return DependencyRecord{}, false
 	}
@@ -67,7 +67,7 @@ func ShortfallDependency(need domain.ConcernID, goal domain.Goal, method domain.
 	if available < 0 {
 		return DependencyRecord{}, false
 	}
-	rec := DependencyRecord{Need: need, Goal: goal.ID, Epoch: goal.Epoch, Method: method, Plan: plan, Resource: resource, Available: available, Observed: tick}
+	rec := DependencyRecord{Need: need, Goal: goal.ID, Episode: goal.Episode, Method: method, Plan: plan, Resource: resource, Available: available, Observed: tick}
 	var total int64
 	for _, p := range previews {
 		costs, known := p.Costs.Value()
@@ -144,7 +144,7 @@ func sortDependencies(d []DependencyRecord) {
 
 // routineDependencies keeps the records still live this review and turns
 // them into ranking edges. A record drops when its goal is no longer the
-// need's active goal epoch, every one of its actions has settled (the
+// need's active Episode, every one of its actions has settled (the
 // dependency is satisfied, cancelled or replaced), or its evidence is
 // older than a game day. The shortfall is recomputed from the actions
 // still open against the current stock, so wood gained since admission
@@ -158,7 +158,7 @@ func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRe
 	var edges []policy.DevelopmentDependency
 	for _, rec := range records {
 		g, ok := active[rec.Need]
-		if !ok || domain.ConcernID(g.OwnerID()) != rec.Goal || g.OwnerEpoch() != rec.Epoch || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
+		if !ok || domain.ConcernID(g.OwnerID()) != rec.Goal || g.OwnerEpoch() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
 			continue
 		}
 		prerequisite, ok := policy.ResourcePrerequisite(rec.Resource)
@@ -191,7 +191,7 @@ func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRe
 			continue
 		}
 		kept = append(kept, rec)
-		edges = append(edges, policy.DevelopmentDependency{Dependent: rec.Need, Goal: rec.Goal, Epoch: rec.Epoch, Method: rec.Method, Prerequisite: prerequisite, Resource: rec.Resource, Costs: costs, Available: resourceStock(facts, rec.Resource), Observed: rec.Observed})
+		edges = append(edges, policy.DevelopmentDependency{Dependent: rec.Need, Goal: rec.Goal, Episode: rec.Episode, Method: rec.Method, Prerequisite: prerequisite, Resource: rec.Resource, Costs: costs, Available: resourceStock(facts, rec.Resource), Observed: rec.Observed})
 	}
 	return kept, edges, nil
 }

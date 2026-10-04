@@ -17,15 +17,15 @@ func TestRebuildGoalsHandsOldPlansToOrphanPass(t *testing.T) {
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	id := domain.MintPlanID()
-	g, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, id, domain.ActionID(id+"-0")))
+	g, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, id, domain.ActionID(id+"-0")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Goal, Revision: g.Revision})
+	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Standard, Revision: g.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
-	saved := map[string]string{GovernorGoalKeyPrefix + string(g.Goal.ID): string(blob)}
+	saved := map[string]string{GovernorGoalKeyPrefix + string(g.Standard.ID): string(blob)}
 	state := func() (methods, retired int) {
 		t.Helper()
 		if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM goal_methods WHERE plan_id=?", id).Scan(&methods); err != nil {
@@ -61,7 +61,7 @@ func TestRebuildGoalsHandsOldPlansToOrphanPass(t *testing.T) {
 	if methods, retired := state(); methods != 0 || retired != 1 {
 		t.Fatal("method not deleted or plan not retired", methods, retired)
 	}
-	if kept, err := s.LoadGoal(ctx, g.Goal.ID); err != nil || len(kept.Methods) != 0 {
+	if kept, err := s.LoadStandard(ctx, g.Standard.ID); err != nil || len(kept.Methods) != 0 {
 		t.Fatal("saved goal not rebuilt without methods", kept, err)
 	}
 }

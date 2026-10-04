@@ -258,7 +258,7 @@ func TestEquipPlannerOneWave(t *testing.T) {
 // methods, so the next wave reused "equip-wave-0" and the store refused it on
 // every step while colonists stayed disarmed.
 func TestNextEquipWaveMethodSkipsRetiredWaves(t *testing.T) {
-	var goal store.GoalState
+	var goal store.StandardState
 	if got := nextEquipWaveMethod(goal); got != "equip-wave-0" {
 		t.Fatal(got)
 	}
@@ -298,8 +298,8 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 		if binding.Need != policy.EnsureBasicDefense {
 			continue
 		}
-		g, err := db.LoadGoal(ctx, binding.Goal)
-		if err != nil || g.Goal.Need != domain.NeedDeficit {
+		g, err := db.LoadStandard(ctx, binding.Goal)
+		if err != nil || g.Standard.Need != domain.NeedDeficit {
 			t.Fatal("EnsureBasicDefense is not in deficit", g, err)
 		}
 		found = true

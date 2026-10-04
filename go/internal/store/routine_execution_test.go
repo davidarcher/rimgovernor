@@ -142,7 +142,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
 	g = routineProject(t, out, policy.EnsureCooking)
-	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectFinished {
+	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectCompleted {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
@@ -377,7 +377,7 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	}
 	r.Facts.Cooking = domain.Known(true)
 	g = routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectFinished {
+	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectCompleted {
 		t.Fatal("recovered goal kept its undispatched method open", g.Project)
 	}
 	p, err := s.LoadPlan(ctx, "bill-plan")
@@ -441,7 +441,7 @@ func TestRoutineExecutionAuthorizesWallRemovalBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", bundle); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", bundle); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current

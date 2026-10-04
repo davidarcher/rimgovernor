@@ -96,7 +96,7 @@ out (minimum nine), and walls its ring; that is how shapeless rooms in a
 corridor arise. Site score, reserved yard and indoor storage placement are
 computed from the footprint, not a fixed rectangle.
 
-On a fresh site the initial shelter runs three rungs under one goal epoch
+On a fresh site the initial shelter runs three rungs under one Episode
 (#612): sleeping spots at the first review, one per colonist owed, on the
 chosen layout's interior; then the wooden beds (`Bed`, north-facing 1x2; bedrolls in stocked
 fabric or leather while `Bed` is locked, as many as the stock covers)
@@ -145,7 +145,7 @@ never adopts a lesser shape at the same door nor sites a second shell beside
 an unfinished first. A facility ladder (comfort, workshop, hospital, sleeping)
 reaches adoption only because its furnishing step found no site, so it passes
 by every ring that already encloses a census room, whole or a template cell
-short, and sites a fresh shell for the facility, at most one per goal epoch. A controller restarted with an empty journal recognises template
+short, and sites a fresh shell for the facility, at most one per Episode. A controller restarted with an empty journal recognises template
 shells from the census alone; a grown shell is then not recognised and the
 routine sites afresh.
 

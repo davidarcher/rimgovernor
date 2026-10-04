@@ -10,7 +10,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.Context, arbiter *stepArbiter, goal store.GoalState, observed *o.ColonyFactsSnapshot, choice policy.CorpseLarderMethod) (RoutineFoodStorageUpkeepResult, error) {
+func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.Context, arbiter *stepArbiter, goal store.StandardState, observed *o.ColonyFactsSnapshot, choice policy.CorpseLarderMethod) (RoutineFoodStorageUpkeepResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	started := r.reviewer.clock.Now()
@@ -56,6 +56,6 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitCorpseLarder: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
+	_, err = p.journal.CommitGoalMethod(ctx, goal.Standard.ID, goal.Revision, method, plan)
 	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, err
 }

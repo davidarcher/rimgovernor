@@ -29,7 +29,7 @@ func TestDropEquipmentActionRowRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "drop-method", p); err != nil {
+	if _, err = db.CommitGoalMethod(context.Background(), g.Standard.ID, g.Revision, "drop-method", p); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := db.LoadPlan(context.Background(), "drop")

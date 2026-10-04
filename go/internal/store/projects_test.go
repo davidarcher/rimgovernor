@@ -64,19 +64,19 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	}
 	// One orphan pass over the goal and the project: both plans are handed
 	// over, both method rows go, both owners come back from the save.
-	g, err := domain.NewGoal("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
+	g, err := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.SeedGoal(ctx, g); err != nil {
+	if err = s.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	gs, err := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
+	gs, err := s.ReviewStandard(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}
 	gid := domain.MintPlanID()
-	if _, err = s.CommitGoalMethod(ctx, gs.Goal.ID, gs.Revision, "shell", plan(t, gid, domain.ActionID(gid+"-0"))); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, gs.Standard.ID, gs.Revision, "shell", plan(t, gid, domain.ActionID(gid+"-0"))); err != nil {
 		t.Fatal(err)
 	}
 	if blobs, err = s.GovernorStateBlobs(ctx); err != nil {
@@ -143,7 +143,7 @@ func TestProjectFinishInvalidateRetireAndOwnerKey(t *testing.T) {
 		t.Fatal("stale revision reviewed", err)
 	}
 	cancelled, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, otherMap(), 11, domain.NeedDeficit)
-	if err != nil || cancelled.Project.Status != domain.ProjectInvalidated {
+	if err != nil || cancelled.Project.Status != domain.ProjectVoided {
 		t.Fatal(cancelled.Project, err)
 	}
 	loaded, err := s.LoadPlan(ctx, p.ID())
@@ -174,7 +174,7 @@ func TestProjectInvalidatedByWorldChangeRetires(t *testing.T) {
 	other := scope()
 	other.Colony = "another-colony"
 	invalid, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, other, 20, domain.NeedDeficit)
-	if err != nil || invalid.Project.Status != domain.ProjectInvalidated {
+	if err != nil || invalid.Project.Status != domain.ProjectVoided {
 		t.Fatal(invalid.Project, err)
 	}
 	tx, err := s.begin(ctx)
@@ -205,7 +205,7 @@ func TestProjectFinishesOnceAndBlobSkipsRetired(t *testing.T) {
 	ctx := context.Background()
 	s, state := projectFixture(t)
 	done, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, scope(), 20, domain.NeedRecovered)
-	if err != nil || done.Project.Status != domain.ProjectFinished {
+	if err != nil || done.Project.Status != domain.ProjectCompleted {
 		t.Fatal(done.Project, err)
 	}
 	if !domain.ProjectRegressed(done.Project, domain.NeedDeficit, false) {

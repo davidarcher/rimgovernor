@@ -58,7 +58,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		if binding.Need != policy.ManageSupplySafety {
 			continue
 		}
-		safety, err := p.journal.LoadGoal(call, binding.Goal)
+		safety, err := p.journal.LoadStandard(call, binding.Goal)
 		if err != nil {
 			return RoutineSupplyResult{}, err
 		}

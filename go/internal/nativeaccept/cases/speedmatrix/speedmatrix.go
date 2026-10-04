@@ -612,7 +612,7 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 		return 0, 0, err
 	}
 	for _, binding := range review.Goals {
-		goal, err := s.LoadGoal(ctx, binding.Goal)
+		goal, err := s.LoadStandard(ctx, binding.Goal)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				continue
@@ -620,7 +620,7 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 			return 0, 0, err
 		}
 		methods := goal.Methods
-		if more, err := s.LoadGoalMethods(ctx, binding.Goal, goal.Goal.Epoch); err == nil {
+		if more, err := s.LoadGoalMethods(ctx, binding.Goal, goal.Standard.Episode); err == nil {
 			methods = append(methods, more...)
 		}
 		for _, method := range methods {

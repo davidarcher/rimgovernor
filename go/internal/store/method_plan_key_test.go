@@ -16,7 +16,7 @@ func TestMethodPlanKey(t *testing.T) {
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	first := domain.MintPlanID()
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, first, domain.ActionID(first+"-0")))
+	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, first, domain.ActionID(first+"-0")))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -24,7 +24,7 @@ func TestMethodPlanKey(t *testing.T) {
 		t.Fatal(e)
 	}
 	again := domain.MintPlanID()
-	if _, e = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, again, domain.ActionID(again+"-0"))); !errors.Is(e, ErrConflict) {
+	if _, e = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, again, domain.ActionID(again+"-0"))); !errors.Is(e, ErrConflict) {
 		t.Fatal("same key admitted twice under a fresh plan id", e)
 	}
 	// Later epochs of the same method, as a re-opened goal writes them.
@@ -34,7 +34,7 @@ func TestMethodPlanKey(t *testing.T) {
 		if e = s.CreatePlan(ctx, plan(t, id, domain.ActionID(id+"-0"))); e != nil {
 			t.Fatal(e)
 		}
-		if _, e = s.db.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,epoch,method_id,plan_id,priority) VALUES(?,?,?,?,?)", g.Goal.ID, epoch, "shell", id, 1); e != nil {
+		if _, e = s.db.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,epoch,method_id,plan_id,priority) VALUES(?,?,?,?,?)", g.Standard.ID, epoch, "shell", id, 1); e != nil {
 			t.Fatal(e)
 		}
 		latest = id
@@ -45,8 +45,8 @@ func TestMethodPlanKey(t *testing.T) {
 		want   domain.PlanID
 		err    error
 	}{
-		{g.Goal.ID, "shell", latest, nil},
-		{g.Goal.ID, "other", "", ErrNotFound},
+		{g.Standard.ID, "shell", latest, nil},
+		{g.Standard.ID, "other", "", ErrNotFound},
 		{"missing", "shell", "", ErrNotFound},
 	} {
 		got, e := s.LatestMethodPlan(ctx, c.goal, c.method)

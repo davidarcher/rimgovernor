@@ -107,7 +107,7 @@ func incineratorMethod(room policy.LayoutRoom) domain.MethodID {
 
 // stageDisposal answers a due burn, else the incinerator's shell; handled is
 // false when neither is due.
-func (r *RoutineWastePlanner) stageDisposal(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) stageDisposal(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
 	if result, handled, err := r.stageBurn(call, epoch, state, review, goal, arbiter, reading); err != nil || handled {
 		return result, handled, err
 	}
@@ -118,7 +118,7 @@ func (r *RoutineWastePlanner) stageDisposal(call, epoch context.Context, state C
 	if !owed {
 		return RoutineWasteResult{}, false, nil
 	}
-	clockSchedulerLog("%s: incinerator shell at %d,%d", goal.Goal.ID, room.Interior.X, room.Interior.Z)
+	clockSchedulerLog("%s: incinerator shell at %d,%d", goal.Standard.ID, room.Interior.X, room.Interior.Z)
 	result, err := r.building.shellRoomOf(call, epoch, state, review, goal, reading.ColonyReading, room, incineratorMethod(room), "burn rotten and worn items", fireproofShellStuff)
 	return RoutineWasteResult{Verdict: result.Verdict}, true, err
 }

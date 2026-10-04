@@ -77,7 +77,7 @@ func (r *RoutineSleepingUpkeepPlanner) couplePacked(call context.Context, goal s
 
 // coupleBed is the couple bed lever (#843): pack the couple's single beds,
 // then install a DoubleBed (a stored one first) in the couple's room's
-// bedroom slot; each step once per goal epoch. due is false when nothing
+// bedroom slot; each step once per Episode. due is false when nothing
 // is to do, so the ordinary sleeping choice goes on.
 func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
 	facts := reading.Projection
@@ -163,7 +163,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 
 // reinstallStoredBed answers a SleepingBuild with a stored packed bed of
 // the chosen definition, installed at the first free bed spot of a hosting
-// room; once per packed bed per goal epoch. due is false when none is
+// room; once per packed bed per Episode. due is false when none is
 // stored or none fits, so the build goes on.
 func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoutineReading, choice policy.SleepingChoice) (RoutineBuildingResult, bool, error) {
 	facts := reading.Projection
