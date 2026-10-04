@@ -10,14 +10,14 @@ import (
 )
 
 type RoutineMoodReliefPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutineMoodReliefResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer) (*RoutineMoodReliefPlanner, error) {
+func NewRoutineMoodReliefPlanner(reviewer *Rounder) (*RoutineMoodReliefPlanner, error) {
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutineMoodReliefPlanner: reviewer == nil", ErrControl)
 	}
@@ -84,7 +84,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 	if !sessionState.ObservationKnown || sessionState.Snapshot.Validate() != nil || sessionState.Snapshot.Native == 0 {
 		return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: !sessionState.ObservationKnown || sessionState.Snapshot.Validate() != nil || sessionState.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineMoodReliefResult{}, err
 	}

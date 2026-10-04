@@ -97,7 +97,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 			p, db, n, request := powerFixture(t, conduit)
 			first, err := p.Step(context.Background())
 			if err != nil || first.Verdict != BuildingReasonAdmitted {
-				review, _ := db.LoadRoutineReview(context.Background())
+				review, _ := db.LoadRounds(context.Background())
 				for _, b := range review.Goals {
 					if b.Need == policy.EnsureBasicPower {
 						g, _ := db.LoadGoal(context.Background(), b.Goal)

@@ -36,7 +36,7 @@ func equipCandidateWeapon(catalog *bridge.DefinitionCatalog, w bridge.EquipCandi
 }
 
 type RoutineEquipPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineEquipSource
 }
 type RoutineEquipResult struct {
@@ -44,7 +44,7 @@ type RoutineEquipResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineEquipPlanner(reviewer *RoutineReviewer, native RoutineEquipSource) (*RoutineEquipPlanner, error) {
+func NewRoutineEquipPlanner(reviewer *Rounder, native RoutineEquipSource) (*RoutineEquipPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineEquipPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -68,7 +68,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineEquipResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}

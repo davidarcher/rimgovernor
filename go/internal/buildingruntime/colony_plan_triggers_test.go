@@ -31,7 +31,7 @@ func TestLayoutTriggersHourly(t *testing.T) {
 	ctx := context.Background()
 	survey := openSurvey(120)
 	reads := 0
-	r := &RoutineReviewer{player: s.player, native: countingSurvey{survey: survey, reads: &reads}}
+	r := &Rounder{player: s.player, native: countingSurvey{survey: survey, reads: &reads}}
 	snapshot := s.player.session.State().Snapshot
 	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}, Bounds: survey.Bounds}
 	projection.Facts.Colonists = domain.Known(int64(3))

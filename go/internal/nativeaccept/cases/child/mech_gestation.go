@@ -159,7 +159,7 @@ func runMechGestation(ctx context.Context, s cases.Session) error {
 		}
 		defer st.Close()
 		err = na.WaitProgress(ctx, na.Wait{Ceiling: ceiling, Stall: na.StallBudget(), Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-			review, err := st.LoadRoutineReview(ctx)
+			review, err := st.LoadRounds(ctx)
 			if err != nil {
 				return na.Signature("no-review"), false, nil
 			}

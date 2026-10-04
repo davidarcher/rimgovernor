@@ -21,7 +21,7 @@ import (
 // It dispatches whichever use policy.MaintainPopulation chooses per
 // prisoner: Recruit, Convert, Enslave or Release; never execution.
 type RoutinePrisonerInteractionPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	// building shells the planned jail while a prisoner is held (#835);
 	// nil for a source that cannot preview buildings.
 	building *RoutineBuildingPlanner
@@ -31,7 +31,7 @@ type RoutinePrisonerInteractionResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutinePrisonerInteractionPlanner(reviewer *RoutineReviewer) (*RoutinePrisonerInteractionPlanner, error) {
+func NewRoutinePrisonerInteractionPlanner(reviewer *Rounder) (*RoutinePrisonerInteractionPlanner, error) {
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutinePrisonerInteractionPlanner: reviewer == nil", ErrControl)
 	}
@@ -51,7 +51,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePrisonerInteractionResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
@@ -137,7 +137,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 // place the next template bed. handled is false when nothing is due, the
 // step was already tried this epoch, or native refuses it, so the
 // interaction goes on.
-func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, expected observation.Identity) (RoutinePrisonerInteractionResult, bool, error) {
+func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, expected observation.Identity) (RoutinePrisonerInteractionResult, bool, error) {
 	if r.building == nil {
 		return RoutinePrisonerInteractionResult{}, false, nil
 	}

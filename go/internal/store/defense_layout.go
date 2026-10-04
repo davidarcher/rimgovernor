@@ -82,7 +82,7 @@ type DefenseLayoutRecord struct {
 	// MortarsProbedTick is TurretsProbedTick for the mortar tier (#1206).
 	MortarsProbedTick domain.Tick `json:",omitempty"`
 	// FuelShortage is the fuel the tier's empty barrels need and the last
-	// census found no stock of (#205), per definition; the routine review
+	// census found no stock of (#205), per definition; the rounds
 	// raises it as a derived MaintainResource floor until a barrel is
 	// rearmed or the stock returns.
 	FuelShortage []policy.Amount `json:",omitempty"`

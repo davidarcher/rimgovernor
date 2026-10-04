@@ -42,7 +42,7 @@ type RoutineShrineSource interface {
 // OpenCasket order, held lock_understaffed while the squad cannot cover
 // every casket. While the gate holds back, filled caskets stay sealed.
 type RoutineShrinePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineShrineSource
 }
 type RoutineShrineResult struct {
@@ -57,7 +57,7 @@ type RoutineShrineResult struct {
 	NativeWorkTicks uint32
 }
 
-func NewRoutineShrinePlanner(reviewer *RoutineReviewer, native RoutineShrineSource) (*RoutineShrinePlanner, error) {
+func NewRoutineShrinePlanner(reviewer *Rounder, native RoutineShrineSource) (*RoutineShrinePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineShrinePlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -72,7 +72,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineShrineResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineShrineResult{}, err
 	}

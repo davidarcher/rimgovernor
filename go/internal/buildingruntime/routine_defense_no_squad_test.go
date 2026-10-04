@@ -45,12 +45,12 @@ func TestRoutineDefenseReportsNoSquadForAnUnanswerableBuilding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	current, err := db.LoadRoutineReview(ctx)
+	current, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	facts := policy.RoutineFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
-	if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: current.Revision, Current: session.State().Snapshot, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
+	if _, err = db.ReviewRoutine(ctx, store.RoundsRequest{Revision: current.Revision, Current: session.State().Snapshot, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := planner.Step(ctx)

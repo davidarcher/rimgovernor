@@ -40,7 +40,7 @@ func HuntPrey(i domain.Incident) []domain.PawnID {
 }
 
 // Incident is the review's binding for kind's colony-wide occurrence.
-func (r RoutineReview) Incident(kind domain.ConcernID) (RoutineIncident, bool) {
+func (r Rounds) Incident(kind domain.ConcernID) (RoutineIncident, bool) {
 	for _, b := range r.Incidents {
 		if b.Kind == kind && b.Subject == "" {
 			return b, true
@@ -51,7 +51,7 @@ func (r RoutineReview) Incident(kind domain.ConcernID) (RoutineIncident, bool) {
 
 // SubjectIncidents are the review's bindings for kind's per-subject
 // occurrences (EnsureMood: one per pawn), in assessment order.
-func (r RoutineReview) SubjectIncidents(kind domain.ConcernID) []RoutineIncident {
+func (r Rounds) SubjectIncidents(kind domain.ConcernID) []RoutineIncident {
 	var out []RoutineIncident
 	for _, b := range r.Incidents {
 		if b.Kind == kind && b.Subject != "" {
@@ -62,7 +62,7 @@ func (r RoutineReview) SubjectIncidents(kind domain.ConcernID) []RoutineIncident
 }
 
 // incidentBinding is the review's binding for an incident id.
-func (r RoutineReview) incidentBinding(id domain.IncidentID) (RoutineIncident, bool) {
+func (r Rounds) incidentBinding(id domain.IncidentID) (RoutineIncident, bool) {
 	for _, b := range r.Incidents {
 		if b.Incident == id {
 			return b, true
@@ -73,7 +73,7 @@ func (r RoutineReview) incidentBinding(id domain.IncidentID) (RoutineIncident, b
 
 // VetoIncident asks the Safeguards whether this review admits a proposal for
 // the incident, returning the veto's reason or "".
-func (r RoutineReview) VetoIncident(i domain.Incident) string {
+func (r Rounds) VetoIncident(i domain.Incident) string {
 	return r.vetoNeed(i.Kind, i.Priority)
 }
 
@@ -240,7 +240,7 @@ func (s *Store) IncidentHistory(ctx context.Context, world World, kind domain.Co
 	return out, nil
 }
 
-func validateRoutineIncidents(ctx context.Context, tx *sql.Tx, r RoutineReview) error {
+func validateRoutineIncidents(ctx context.Context, tx *sql.Tx, r Rounds) error {
 	if len(r.Incidents) > 512 {
 		return errors.New("invalid routine incident bindings")
 	}

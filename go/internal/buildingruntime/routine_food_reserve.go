@@ -15,7 +15,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func (r *RoutineReviewer) reviewReserve(p *observation.ColonyProjection) {
+func (r *Rounder) reviewReserve(p *observation.ColonyProjection) {
 	p.Facts.FoodReserve = domain.Unknown[policy.FoodReserveReview]()
 	supply, known := p.FoodSupply.Value()
 	staged := r.staged()

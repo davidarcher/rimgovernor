@@ -8,7 +8,7 @@
 // (the clock cannot start at all until it is answered), and one scheduled
 // to open on a later game tick while a supervised window is running (the
 // STOP_REASON_DIALOG_PAUSE hold, acknowledged like a letter pause). For
-// each, the routine review raises AnswerDialog, the dialog planner picks the
+// each, the rounds raises AnswerDialog, the dialog planner picks the
 // policy-preferred option ("OK" over "Research screen"), the executor
 // activates it through a DialogIntent on Actions/Apply, and the clock runs again.
 package dialog
@@ -144,7 +144,7 @@ type answered struct {
 // dialogAnswers lists every AnswerDialog plan any occurrence admitted (each
 // dialog is its own incident, #1078), keyed by the targeted window.
 func dialogAnswers(ctx context.Context, st *store.Store) (map[int32]answered, error) {
-	review, err := st.LoadRoutineReview(ctx)
+	review, err := st.LoadRounds(ctx)
 	if err != nil {
 		return nil, err
 	}

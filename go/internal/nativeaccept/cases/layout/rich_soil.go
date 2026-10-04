@@ -102,7 +102,7 @@ func richSoil(ctx context.Context, s cases.Session) error {
 	}
 	service.KeepAuthority(ctx)
 	var replan *na.FlightRow
-	_, err = service.WaitReview(ctx, na.Wait{Ceiling: 4 * time.Minute}, func(r store.RoutineReview) bool {
+	_, err = service.WaitReview(ctx, na.Wait{Ceiling: 4 * time.Minute}, func(r store.Rounds) bool {
 		rows, _ := na.ReadFlight(service.FlightPath)
 		for i := range rows {
 			if rows[i].Kind == "layout_replan" && int64(na.AsNumber(rows[i].Payload["colonists"])) == pawns+1 {
@@ -143,7 +143,7 @@ func servePlanned(ctx context.Context, s cases.Session, report na.Report) (store
 		return store.LayoutPlanRecord{}, err
 	}
 	var plan store.LayoutPlanRecord
-	_, err = service.WaitReview(ctx, na.Wait{Ceiling: 3 * time.Minute}, func(r store.RoutineReview) bool {
+	_, err = service.WaitReview(ctx, na.Wait{Ceiling: 3 * time.Minute}, func(r store.Rounds) bool {
 		record, ok, err := journal.LayoutPlan(ctx, r.Snapshot, r.Tick)
 		if err != nil || !ok {
 			return false

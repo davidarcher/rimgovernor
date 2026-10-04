@@ -106,7 +106,7 @@ func roomAt(plan policy.LayoutPlan, purpose policy.WingPurpose, x, z int32) (pol
 
 // findSuiteMove reads the journal for pawn's completed move into a suite.
 func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID) (suiteMove, bool, error) {
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return suiteMove{}, false, nil
 	}
@@ -267,7 +267,7 @@ func suites(ctx context.Context, s cases.Session) error {
 // newSuiteShelled finds a suite other than first whose shell plan
 // completed, and the plan's layout.
 func newSuiteShelled(ctx context.Context, journal *store.Store, first policy.LayoutRoom) (policy.LayoutRoom, bool, error) {
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return policy.LayoutRoom{}, false, nil
 	}
@@ -304,7 +304,7 @@ func auditNewSuite(ctx context.Context, journal *store.Store, report na.Report, 
 	if !ok {
 		return fmt.Errorf("the title raised the colonist's target but no new suite was shelled")
 	}
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return err
 	}

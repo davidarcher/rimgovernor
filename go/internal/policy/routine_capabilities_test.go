@@ -55,7 +55,7 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 }
 
 // Every method capability the composed serve default declares must validate
-// against empty facts, which is how NewRoutineReviewer checks them before any
+// against empty facts, which is how NewRounder checks them before any
 // native read. RecoverDisasterServices is only assessed once a disaster
 // history exists, so it needs an explicit recognition.
 func TestRoutineComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {

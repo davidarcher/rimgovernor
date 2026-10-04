@@ -28,7 +28,7 @@ func TestTemperatureBracketRejectsLateResults(t *testing.T) {
 	for _, mode := range []string{"disabled", "expired", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
 			p, db, n, _ := temperatureFixture(t, false)
-			before, err := db.LoadRoutineReview(context.Background())
+			before, err := db.LoadRounds(context.Background())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -54,7 +54,7 @@ func TestTemperatureBracketRejectsLateResults(t *testing.T) {
 			if err == nil {
 				t.Fatal("late thermal observation was published")
 			}
-			after, err := db.LoadRoutineReview(context.Background())
+			after, err := db.LoadRounds(context.Background())
 			if err != nil || after.Revision != before.Revision {
 				t.Fatal(after, err)
 			}
@@ -209,7 +209,7 @@ func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
 	anchor := n.reply.GetObserved().Context.GetTick()
 	// A room census at any tick of the same world publishes a review.
 	for _, tick := range []int64{anchor, anchor + 250, anchor + 5000, anchor} {
-		before, err := db.LoadRoutineReview(ctx)
+		before, err := db.LoadRounds(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -221,7 +221,7 @@ func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
 		if n.roomReads != reads+1 {
 			t.Fatal("repeated review reused the retained room census")
 		}
-		after, err := db.LoadRoutineReview(ctx)
+		after, err := db.LoadRounds(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}

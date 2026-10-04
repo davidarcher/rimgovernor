@@ -113,7 +113,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer journal.Close()
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return err
@@ -273,7 +273,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 func plannedTurbines(ctx context.Context, journal *store.Store) ([]string, error) {
 	deadline := time.Now().Add(3 * time.Minute)
 	for {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return nil, err
 		}

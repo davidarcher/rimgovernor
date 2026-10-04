@@ -18,7 +18,7 @@ import (
 
 // Player requests (#957): a button on the in-game status panel publishes a
 // clock PlayerRequest event naming the panel action the reviewer offered
-// (drawStatusStrip); the poll hands each fresh one to the routine reviewer,
+// (drawStatusStrip); the poll hands each fresh one to the rounder,
 // which acts on it at its next review. The layout actions keep a replan
 // proposal beside the saved plan in memory only: a reload or rewind drops
 // it, and so does a change of the saved plan under it.
@@ -100,7 +100,7 @@ func (p *layoutProposal) current(world store.World, tick domain.Tick, layout sto
 // the pending requests in order and returns the saved plan as they leave
 // it. A request that cannot be served is logged and noted on the panel,
 // never an error.
-func (r *RoutineReviewer) servePlayerRequests(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord, haveLayout bool) (store.LayoutPlanRecord, bool, error) {
+func (r *Rounder) servePlayerRequests(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord, haveLayout bool) (store.LayoutPlanRecord, bool, error) {
 	tick := projection.Identity.Tick
 	world := playerWorld(snapshot)
 	if r.proposal != nil && !r.proposal.current(world, tick, layout, haveLayout) {
@@ -145,7 +145,7 @@ func (r *RoutineReviewer) servePlayerRequests(ctx context.Context, snapshot doma
 
 // proposeLayout replans the saved layout fresh (policy.ReplanFresh) and
 // keeps the result as the proposal when it differs.
-func (r *RoutineReviewer) proposeLayout(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord, haveLayout bool) {
+func (r *Rounder) proposeLayout(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord, haveLayout bool) {
 	tick := projection.Identity.Tick
 	refuse := func(why string) {
 		clockEvent(ctx, "layout", "layout_replan_refused", "layout replan refused: "+why, "tick", int64(tick))
@@ -195,7 +195,7 @@ func (r *RoutineReviewer) proposeLayout(ctx context.Context, snapshot domain.Gen
 // layoutOccupied is occupiedCells plus the walls of the planned rooms an
 // open journal plan is working on (roomMethodOrigins, #1958). Unknown when
 // the census or the plan catalog is.
-func (r *RoutineReviewer) layoutOccupied(ctx context.Context, projection observation.ColonyProjection, plan policy.LayoutPlan) (map[domain.Cell]bool, bool) {
+func (r *Rounder) layoutOccupied(ctx context.Context, projection observation.ColonyProjection, plan policy.LayoutPlan) (map[domain.Cell]bool, bool) {
 	cells, known := occupiedCells(projection)
 	if !known {
 		return nil, false
@@ -296,14 +296,14 @@ type layoutNote struct {
 	tick domain.Tick
 }
 
-func (r *RoutineReviewer) noteLayout(tick domain.Tick, text string) {
+func (r *Rounder) noteLayout(tick domain.Tick, text string) {
 	r.note = layoutNote{text: text, tick: tick}
 }
 
 // layoutPanel is the panel's layout row and buttons: Apply and Discard
 // with the proposal's row while one stands, else Replan layout once a plan
 // is saved, with the last request's outcome for an hour.
-func (r *RoutineReviewer) layoutPanel(projection *observation.ColonyProjection) ([]policy.StatusRow, []policy.PanelAction) {
+func (r *Rounder) layoutPanel(projection *observation.ColonyProjection) ([]policy.StatusRow, []policy.PanelAction) {
 	tick := projection.Identity.Tick
 	current, have := projection.LayoutPlan.Value()
 	if r.proposal != nil && have {
@@ -327,7 +327,7 @@ func (r *RoutineReviewer) layoutPanel(projection *observation.ColonyProjection) 
 // drawProposalOverlay draws the standing proposal against the saved plan
 // on its own layer, or removes the layer once it is gone. Output only: a
 // failure is logged, never fatal.
-func (r *RoutineReviewer) drawProposalOverlay(ctx context.Context, native LayoutOverlayNative, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord) {
+func (r *Rounder) drawProposalOverlay(ctx context.Context, native LayoutOverlayNative, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord) {
 	key := ""
 	if r.proposal != nil && r.layoutOverlay {
 		key = fmt.Sprint(r.proposal.Tick, "@", r.proposal.Base)

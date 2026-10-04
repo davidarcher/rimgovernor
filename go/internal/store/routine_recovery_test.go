@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func recoveryRequest() RoutineReviewRequest {
+func recoveryRequest() RoundsRequest {
 	r := routineRequest()
 	k := domain.Known(false)
 	r.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "fallout", Definition: "ToxicFallout"}})
@@ -36,7 +36,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded.Recovery, first) {
 		t.Fatal(loaded.Recovery, err)
 	}
@@ -48,7 +48,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	loaded, err = s.LoadRoutineReview(ctx)
+	loaded, err = s.LoadRounds(ctx)
 	if err != nil || loaded.Recovery != nil {
 		t.Fatal(loaded, err)
 	}
@@ -60,7 +60,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	if out.Review.Recovery == nil || out.Review.Recovery.Incident != first.Incident {
 		t.Fatal("resume replaced the recovery incident", out.Review.Recovery)
 	}
-	if _, err = s.LoadRoutineReview(ctx); err != nil {
+	if _, err = s.LoadRounds(ctx); err != nil {
 		t.Fatal(err)
 	}
 	r.Current.Load = "replacement"
@@ -86,7 +86,7 @@ func TestRoutineRecoveryUnknownWorkerDoesNotBecomeAvailableAfterRestart(t *testi
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || loaded.Recovery.Selection.Reason != policy.RecoveryFactsUnknown || (*loaded.Recovery.Workers)[0].Dead != nil {
 		t.Fatal(loaded, err)
 	}
@@ -123,7 +123,7 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 			if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.LoadRoutineReview(context.Background()); err == nil {
+			if _, err = s.LoadRounds(context.Background()); err == nil {
 				t.Fatal("corrupt recovery accepted")
 			}
 		})
@@ -146,7 +146,7 @@ func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
 	if out.Review.Recovery == nil || len(out.Review.Recovery.Used) != 1 || out.Review.Recovery.Used[0] != candidate.ID || out.Review.Recovery.Selection.Reason != policy.RecoveryMethodsSeen {
 		t.Fatal("shared method was proposed twice", out.Review.Recovery)
 	}
-	if _, err := s.LoadRoutineReview(ctx); err != nil {
+	if _, err := s.LoadRounds(ctx); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -183,7 +183,7 @@ func TestRoutineRecoveryForcedEvidenceSurvivesRestart(t *testing.T) {
 		}
 		s.Close()
 		s = open(t, path)
-		loaded, err := s.LoadRoutineReview(context.Background())
+		loaded, err := s.LoadRounds(context.Background())
 		s.Close()
 		if err != nil {
 			t.Fatal(err)

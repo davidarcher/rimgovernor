@@ -11,7 +11,7 @@ import (
 
 // The food plan raises ActiveCombat with no hostile (#1617): its occurrence
 // carries the squad prey and recovers when the plan stops opening the hunt.
-func TestRoutineReviewHuntOrigin(t *testing.T) {
+func TestRoundsHuntOrigin(t *testing.T) {
 	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "hunt.db"))
 	r := routineRequest()

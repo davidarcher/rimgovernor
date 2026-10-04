@@ -34,7 +34,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "floor/kitchen",
 		Scope: "Native MaintainFlooring vertical: a measured-deficient kitchen interior on bare soil drives the live Go " +
-			"routine reviewer/planner to admit an affordable floor on the deficient cells only; the colonists lay it and " +
+			"rounder/planner to admit an affordable floor on the deficient cells only; the colonists lay it and " +
 			"the measured census, not the receipt, releases the latch, confirmed by an independent native read.",
 		Start:   cases.Fixture{On: cases.LabStart(), Op: "test/flooring_prepare"},
 		Service: true,
@@ -131,7 +131,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer journal.Close()
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return err
@@ -377,7 +377,7 @@ func readFlooring(ctx context.Context, h *na.Harness, identity map[string]any, l
 	return flooringSummary{}, fmt.Errorf("%s: no flooring room holds the fixture interior %+v", label, interior)
 }
 
-func latchedOn(review store.RoutineReview, key string) bool {
+func latchedOn(review store.Rounds, key string) bool {
 	for _, k := range review.Latches.Flooring {
 		if k == key {
 			return true
@@ -392,8 +392,8 @@ func storeWait(service *na.ServiceProcess) na.Wait {
 	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
 }
 
-func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.Rounds, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool {
 		if !latchedOn(r, key) {
 			return false
 		}
@@ -410,8 +410,8 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, 
 	return review, nil
 }
 
-func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return !latchedOn(r, key) })
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.Rounds, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool { return !latchedOn(r, key) })
 	if err != nil {
 		return review, fmt.Errorf("review never released the flooring latch on room %s (revision %d): %w", key, review.Revision, err)
 	}

@@ -102,7 +102,7 @@ func TestMoodProvisionDefersRecordedEnvironmentPressure(t *testing.T) {
 
 // Replaces the native mood/berserk case's selection half (#748). The
 // subdue squad and the rescue are chosen by the defense and rescue step
-// planners from reads outside the routine review, so their inputs were
+// planners from reads outside the rounds, so their inputs were
 // recorded by a temporary dump at the policy call (buildingruntime
 // planBreak -> SelectBreakSquad, RoutineRescuePlanner -> SelectRescue)
 // during `acceptance run mood/berserk` at 4e86b4663: the tribal8 fixture

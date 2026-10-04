@@ -12,7 +12,7 @@ import (
 // stay forbidden), then to the resource reach stage and unmet demand (#522),
 // before the safety review (#336) acts on it. The reach reads the same
 // derived extent the routines API reports.
-func lootReachFilter(request RoutineReviewRequest) (domain.Fact[[]policy.LootItem], []policy.LootHold, error) {
+func lootReachFilter(request RoundsRequest) (domain.Fact[[]policy.LootItem], []policy.LootHold, error) {
 	f := request.Facts
 	if _, known := f.EventLoot.Value(); !known {
 		return f.EventLoot, nil, nil

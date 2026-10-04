@@ -33,7 +33,7 @@ type StepBudget struct {
 }
 
 // DefaultStepWall is the planner waves' wall budget, counted from the wave's
-// start (after the routine review): under the 60 s step call (the cold review
+// start (after the rounds): under the 60 s step call (the cold review
 // and layout of a slow 2-vCPU runner take ~12 s and its planners ~20 s each, so
 // the former 30 s step and 20 s wall cut the step off at every attempt), so a
 // wave that never returns holds admission with its planners named instead of

@@ -26,7 +26,7 @@ type RoutineCleanSource interface {
 }
 
 type RoutineCleanPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineCleanSource
 }
 type RoutineCleanResult struct {
@@ -34,7 +34,7 @@ type RoutineCleanResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineCleanPlanner(reviewer *RoutineReviewer, native RoutineCleanSource) (*RoutineCleanPlanner, error) {
+func NewRoutineCleanPlanner(reviewer *Rounder, native RoutineCleanSource) (*RoutineCleanPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineCleanPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -49,7 +49,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineCleanResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineCleanResult{}, err
 	}

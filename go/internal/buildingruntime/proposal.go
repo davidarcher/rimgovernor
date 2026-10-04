@@ -156,7 +156,7 @@ func (l *lateProposals) drain() []proposalArrival {
 }
 
 // stepBudget is what the coordinator checks a proposal's quantity claims
-// against (#628): Stock is the count the routine review observed for each
+// against (#628): Stock is the count the rounds observed for each
 // bounded resource (a resource absent from it is unbounded here and checked
 // by the admission path beneath the commit).
 type stepBudget struct {

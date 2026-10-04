@@ -343,7 +343,7 @@ func TestRoutineExecutionAuthorizesNamingConfirmationPlan(t *testing.T) {
 // review that observes the recovery: its never-dispatched actions cancel and
 // the goal satisfies instead of staying Active behind a plan the worker
 // refuses on every step (#290).
-func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
+func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))

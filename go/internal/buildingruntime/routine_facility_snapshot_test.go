@@ -7,7 +7,7 @@ import (
 )
 
 // Snapshot tests (#750) for the facility and medical cases whose decision
-// the routine review's own facts carry; see routine_snapshot_test.go.
+// the rounds's own facts carry; see routine_snapshot_test.go.
 
 // facility/basic-comfort: the fixture's hut stands bare, so the foothold
 // comfort goal furnishes it with a table first, under the roof.

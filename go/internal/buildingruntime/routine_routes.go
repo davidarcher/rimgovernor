@@ -14,7 +14,7 @@ import (
 // slice 5). The deficit and its release are the native reachability census,
 // never a flood fill: the latch opens only once a measured census reads the
 // facility reachable by some colonist.
-func NewRoutineRoutesPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineRoutesPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRoutes) {
 		return nil, fmt.Errorf("%w: NewRoutineRoutesPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRoutes)", ErrControl)
 	}

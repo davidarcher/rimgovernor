@@ -14,7 +14,7 @@ type resourceRunwaySource interface {
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 }
 
-func (r *RoutineReviewer) resourceSurfaceOre(ctx context.Context, snapshot domain.GenerationSnapshot) map[policy.Resource]domain.Fact[int64] {
+func (r *Rounder) resourceSurfaceOre(ctx context.Context, snapshot domain.GenerationSnapshot) map[policy.Resource]domain.Fact[int64] {
 	out := map[policy.Resource]domain.Fact[int64]{}
 	reader, ok := r.native.(resourceRunwaySource)
 	if !ok {

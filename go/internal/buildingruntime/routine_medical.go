@@ -20,7 +20,7 @@ import (
 // RoutineMedicalSource is the native census RoutineMedicalPlanner reads
 // immediately before proposing a medicine-production method: a fresh colony
 // facts read for the current medicine stock (the top-level
-// Resources/Upkeep sections used during ordinary routine review, not
+// Resources/Upkeep sections used during ordinary rounds, not
 // gated behind the planning flag) plus the same generic bench/recipe census
 // and ingredient stock funding GearProduce already established
 // (bridge.ReadGearBenches/ReadSupplyStock read every bench's bills and
@@ -35,7 +35,7 @@ type RoutineMedicalSource interface {
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 }
 type RoutineMedicalPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineMedicalSource
 }
 type RoutineMedicalResult struct {
@@ -43,7 +43,7 @@ type RoutineMedicalResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineMedicalPlanner(reviewer *RoutineReviewer, native RoutineMedicalSource) (*RoutineMedicalPlanner, error) {
+func NewRoutineMedicalPlanner(reviewer *Rounder, native RoutineMedicalSource) (*RoutineMedicalPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineMedicalPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -70,7 +70,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}
@@ -371,7 +371,7 @@ func medicineChoiceVerdict(kind policy.MedicineMethodKind, resource policy.Resou
 // projected death (policy.LifeSavingAmputations).
 const amputationRequeueTicks = domain.TicksPerHour
 
-func (r *RoutineMedicalPlanner) planAmputation(call, epoch context.Context, state ControlState, review store.RoutineReview) (RoutineMedicalResult, error) {
+func (r *RoutineMedicalPlanner) planAmputation(call, epoch context.Context, state ControlState, review store.Rounds) (RoutineMedicalResult, error) {
 	p := r.reviewer.player
 	incident, found, err := incidentDeficit(call, p.journal, review, policy.CriticalMedicine)
 	if err != nil || !found {

@@ -16,7 +16,7 @@ import (
 // never on the bill. When nothing can be queued the first want (part short
 // or no capable doctor) is the step's reason, filed on the goal record.
 type RoutineSurgeryPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 
 type RoutineSurgeryResult struct {
@@ -35,7 +35,7 @@ type RoutineSurgeryResult struct {
 // next stop reads the bill again.
 const surgeryNativeWorkTicks = medicalWaitTicks
 
-func NewRoutineSurgeryPlanner(reviewer *RoutineReviewer) (*RoutineSurgeryPlanner, error) {
+func NewRoutineSurgeryPlanner(reviewer *Rounder) (*RoutineSurgeryPlanner, error) {
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutineSurgeryPlanner: reviewer == nil", ErrControl)
 	}
@@ -51,7 +51,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineSurgeryResult{}, err
 	}

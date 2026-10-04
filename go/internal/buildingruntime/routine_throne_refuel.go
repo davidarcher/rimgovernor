@@ -39,7 +39,7 @@ func throneRefuelRecent(history []domain.GoalMethod, lamp string, tick domain.Ti
 // room light as a recovery_service action under the housing goal: the same
 // native work-giver job the defense rearm issues, whose CAS token and pawn
 // eligibility Hands re-check at dispatch.
-func (r *RoutineSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	tick := reading.Projection.Identity.Tick
 	history, err := p.journal.LoadOwnerMethods(call, goal)
@@ -72,7 +72,7 @@ func (r *RoutineSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context,
 	if p.session.State() != state {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: refuelThrone: p.session.State() != state", ErrControl)
 	}
-	latest, err := p.journal.LoadRoutineReview(call)
+	latest, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

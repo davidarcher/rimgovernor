@@ -96,7 +96,7 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 	if !known {
 		t.Fatal("missing native generation")
 	}
-	request := store.RoutineReviewRequest{Current: domain.GenerationSnapshot{Colony: id.Colony, Load: id.Load, Map: id.Map, Native: native, Plan: "disaster-native-replay", Revision: 1}, Tick: id.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	request := store.RoundsRequest{Current: domain.GenerationSnapshot{Colony: id.Colony, Load: id.Load, Map: id.Map, Native: native, Plan: "disaster-native-replay", Revision: 1}, Tick: id.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
 	table, err := bridge.PawnTable(p, v.Context.Identity)
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +133,7 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	active, err := journal.LoadRoutineReview(context.Background())
+	active, err := journal.LoadRounds(context.Background())
 	if err != nil || !reflect.DeepEqual(active.Recovery, selection) {
 		t.Fatal("restart changed recovery proposals", active.Recovery, err)
 	}
@@ -150,7 +150,7 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer journal.Close()
-	loaded, err := journal.LoadRoutineReview(context.Background())
+	loaded, err := journal.LoadRounds(context.Background())
 	if err != nil || loaded.Enabled || !reflect.DeepEqual(loaded.Disaster, h) {
 		t.Fatal(loaded, err)
 	}

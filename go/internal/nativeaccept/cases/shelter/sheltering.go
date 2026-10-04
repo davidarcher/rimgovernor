@@ -207,7 +207,7 @@ func checkPawns(status map[string]any, expected []string, sheltered bool) error 
 func waitAreas(ctx context.Context, st *store.Store, pawns []string, shelter bool, w na.Wait, report na.Report, label string) error {
 	var last map[string]string
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		review, err := st.LoadRoutineReview(ctx)
+		review, err := st.LoadRounds(ctx)
 		if err != nil {
 			return na.Signature("no-review", err), false, nil
 		}

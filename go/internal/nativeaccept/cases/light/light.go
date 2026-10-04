@@ -39,7 +39,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "light/dark",
 		Scope: "Native MaintainLighting vertical on the lab: a measured-dark stove interaction cell in an enclosed room " +
-			"drives the live Go routine reviewer/planner to admit one affordable lamp beside it; " +
+			"drives the live Go rounder/planner to admit one affordable lamp beside it; " +
 			"the measured glow, not the receipt, releases the latch, confirmed by an independent native read.",
 		Start:   cases.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": "dark"}, On: cases.LabStart()},
 		Service: true,
@@ -153,7 +153,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer journal.Close()
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return err
@@ -422,7 +422,7 @@ func readLighting(ctx context.Context, h *na.Harness, identity map[string]any, l
 	return s, nil
 }
 
-func latchedOn(review store.RoutineReview, bench string) bool {
+func latchedOn(review store.Rounds, bench string) bool {
 	for _, id := range review.Latches.Lighting {
 		if id == bench {
 			return true
@@ -437,8 +437,8 @@ func storeWait(service *na.ServiceProcess) na.Wait {
 	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
 }
 
-func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, bench string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, bench string) (store.Rounds, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool {
 		if !latchedOn(r, bench) {
 			return false
 		}
@@ -455,8 +455,8 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, 
 	return review, nil
 }
 
-func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, bench string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return lightingReleased(r, bench) })
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, bench string) (store.Rounds, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool { return lightingReleased(r, bench) })
 	if err != nil {
 		return review, fmt.Errorf("review never released the lighting latch on %s (revision %d): %w", bench, review.Revision, err)
 	}
@@ -466,7 +466,7 @@ func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess
 // lightingMethods lists every method ever committed on a MaintainLighting
 // goal, across goal epochs, from the journal.
 func lightingMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, error) {
-	review, err := s.LoadRoutineReview(ctx)
+	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +486,7 @@ func lightingMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, 
 
 // A disabled review after a transport timeout cannot prove measured light.
 // Keep waiting while the case's authority keep-alive resumes the controller.
-func lightingReleased(r store.RoutineReview, bench string) bool {
+func lightingReleased(r store.Rounds, bench string) bool {
 	return r.Enabled && !latchedOn(r, bench)
 }
 

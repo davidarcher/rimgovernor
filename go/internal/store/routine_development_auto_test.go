@@ -38,7 +38,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
 		t.Fatal(loaded, err)
 	}

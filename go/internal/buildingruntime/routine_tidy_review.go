@@ -16,7 +16,7 @@ import (
 // stands, so the tidy never competes with real work. Runs only when the
 // tidy method is served; otherwise the fact stays unknown and the goal is
 // never assessed active.
-func (r *RoutineReviewer) reviewTidy(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, busy bool) error {
+func (r *Rounder) reviewTidy(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, busy bool) error {
 	projection.Facts.LayoutTidy = domain.Unknown[policy.TidyReview]()
 	if !r.methodEnabled(policy.TidyLayout) {
 		return nil

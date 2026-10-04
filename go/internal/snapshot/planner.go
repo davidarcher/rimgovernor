@@ -16,7 +16,7 @@ import (
 
 // Planner is one shelter planner step as recorded (#745): the pure
 // decisions it made and the inputs each took, the native site reads
-// among them. The routine review's facts (Routine) say which goals open;
+// among them. The rounds's facts (Routine) say which goals open;
 // this says where the shelter is sited and how an excavation proceeds,
 // which the planner decides from its own colony read at step time.
 type Planner struct {

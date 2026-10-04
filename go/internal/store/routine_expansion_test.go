@@ -38,7 +38,7 @@ func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	}
 	s = open(t, path)
 	defer s.Close()
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || loaded.Enabled || loaded.Revision != out.Review.Revision {
 		t.Fatal(loaded, err)
 	}

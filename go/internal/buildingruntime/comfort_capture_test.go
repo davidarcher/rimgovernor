@@ -111,7 +111,7 @@ func TestNativeComfortCompletionBudgetCapture(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	review, err := db.LoadRoutineReview(context.Background())
+	review, err := db.LoadRounds(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

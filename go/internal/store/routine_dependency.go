@@ -104,7 +104,7 @@ func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec Depen
 		return err
 	}
 	if review.Revision != revision {
-		return fmt.Errorf("%w: routine review revision %d, dependency under %d", ErrConflict, review.Revision, revision)
+		return fmt.Errorf("%w: rounds revision %d, dependency under %d", ErrConflict, review.Revision, revision)
 	}
 	kept := []DependencyRecord{rec}
 	for _, d := range review.Dependencies {
@@ -218,7 +218,7 @@ func resourceStock(f policy.RoutineFacts, resource policy.Resource) domain.Fact[
 // priorDependencies is the last review's still-live edges against its goal
 // bindings, read before DetectRoutine so an open shortfall raises its
 // MaintainResource floor (#711, #728).
-func priorDependencies(ctx context.Context, tx *sql.Tx, previous RoutineReview, facts policy.RoutineFacts, tick domain.Tick) ([]policy.DevelopmentDependency, error) {
+func priorDependencies(ctx context.Context, tx *sql.Tx, previous Rounds, facts policy.RoutineFacts, tick domain.Tick) ([]policy.DevelopmentDependency, error) {
 	if len(previous.Dependencies) == 0 {
 		return nil, nil
 	}

@@ -39,7 +39,7 @@ func stableRoutine() RoutineFacts {
 		FoodStorage: domain.Known(true), Cooking: domain.Known(true), WorkCoverage: domain.Known(true), PowerRequired: domain.Known(false), DisabledConsumers: domain.Known(false),
 	}
 }
-func needs(t *testing.T, f RoutineFacts, l RoutineLatches) RoutineNeeds {
+func needs(t *testing.T, f RoutineFacts, l RoutineLatches) RoundsFindings {
 	t.Helper()
 	r, e := DetectRoutine(f, l, DefaultRoutinePolicy())
 	if e != nil {
@@ -47,7 +47,7 @@ func needs(t *testing.T, f RoutineFacts, l RoutineLatches) RoutineNeeds {
 	}
 	return r
 }
-func hasNeed(r RoutineNeeds, id ConcernID) bool {
+func hasNeed(r RoundsFindings, id ConcernID) bool {
 	for _, g := range r.Goals {
 		if g.ID == id {
 			return true
@@ -58,7 +58,7 @@ func hasNeed(r RoutineNeeds, id ConcernID) bool {
 
 // assessedDeficit reports an unrecovered assessment of id: a Response
 // (#1078) is assessed, never filed as a development goal.
-func assessedDeficit(r RoutineNeeds, id ConcernID) bool {
+func assessedDeficit(r RoundsFindings, id ConcernID) bool {
 	for _, a := range r.All() {
 		if a.ID == id && a.Need != domain.NeedRecovered {
 			return true
@@ -236,7 +236,7 @@ func TestRoutineRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
 func TestRoutineMealClosetOwedOpensRefrigeration(t *testing.T) {
 	f := stableRoutine()
 	f.FoodStorageUpkeep = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{})}
-	open := func(r RoutineNeeds) (bool, float64) {
+	open := func(r RoundsFindings) (bool, float64) {
 		for _, g := range r.Goals {
 			if g.ID == MaintainRefrigeration {
 				d, _ := g.Deficit.Value()
@@ -258,7 +258,7 @@ func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 	f := stableRoutine()
 	f.PowerRequired, f.PowerHeadroom = domain.Known(true), domain.Known(-100.0)
 	f.FoodStorageUpkeep = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 20, 20)})}
-	method := func(r RoutineNeeds, id ConcernID) (open, unavailable bool) {
+	method := func(r RoundsFindings, id ConcernID) (open, unavailable bool) {
 		for _, g := range r.Goals {
 			if g.ID == id {
 				return true, g.MethodUnavailable

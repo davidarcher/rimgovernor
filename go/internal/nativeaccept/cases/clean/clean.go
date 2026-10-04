@@ -46,7 +46,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "clean/" + scenario,
 		Scope: "Native MaintainCleanFacilities vertical (" + scenario + "): blood filth in a kitchen with no cleaners " +
-			"drives the live Go routine reviewer/planner to latch the kitchen alone and order its filth cleaned one " +
+			"drives the live Go rounder/planner to latch the kitchen alone and order its filth cleaned one " +
 			"target at a time until the measured cleanliness releases the latch; confirmed by an independent native read.",
 		Start:   cases.Fixture{On: cases.LabStart(), Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
 		Service: true,
@@ -202,7 +202,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return err
 	}
 	defer journal.Close()
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func runFilthy(ctx context.Context, journal *store.Store, service *na.ServicePro
 	if err != nil {
 		return fmt.Errorf("first clean method: %w", err)
 	}
-	current, err := journal.LoadRoutineReview(ctx)
+	current, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return err
 	}
@@ -489,9 +489,9 @@ func storeWait(service *na.ServiceProcess) na.Wait {
 
 // waitDirtyRoom polls until the review's upkeep latch lists room, returning
 // the review and the latch's entry tick.
-func waitDirtyRoom(ctx context.Context, s *store.Store, service *na.ServiceProcess, room string) (store.RoutineReview, domain.Tick, error) {
+func waitDirtyRoom(ctx context.Context, s *store.Store, service *na.ServiceProcess, room string) (store.Rounds, domain.Tick, error) {
 	var since domain.Tick
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool {
 		for _, dirty := range r.Latches.Upkeep.DirtyRooms {
 			if dirty.Key == room {
 				since = dirty.Since
@@ -506,8 +506,8 @@ func waitDirtyRoom(ctx context.Context, s *store.Store, service *na.ServiceProce
 	return review, since, nil
 }
 
-func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, room string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, room string) (store.Rounds, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool {
 		for _, dirty := range r.Latches.Upkeep.DirtyRooms {
 			if dirty.Key == room {
 				return false

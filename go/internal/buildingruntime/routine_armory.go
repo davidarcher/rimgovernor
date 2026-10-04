@@ -15,7 +15,7 @@ import (
 // weapon and gates upgrades (#1204), and the equip planner's crafting-spot
 // fallback lives here too.
 type RoutineArmoryPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineGearSource
 	// spot places a crafting spot when no bench hosts a weapon recipe for
 	// an unarmed colonist; nil when the source cannot build.
@@ -28,7 +28,7 @@ type RoutineArmoryResult struct {
 	Plan       domain.PlanID
 }
 
-func NewRoutineArmoryPlanner(reviewer *RoutineReviewer, native RoutineGearSource) (*RoutineArmoryPlanner, error) {
+func NewRoutineArmoryPlanner(reviewer *Rounder, native RoutineGearSource) (*RoutineArmoryPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineArmoryPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -44,7 +44,7 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown {
 		return RoutineArmoryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineArmoryResult{}, err
 	}
@@ -88,7 +88,7 @@ const craftingSpotDefinition = "CraftingSpot"
 // newCraftingSpotPlanner is the EnsureBasicDefense placement the armory
 // falls back to (moved from the equip planner, #1204); nil when the source
 // cannot serve a building step.
-func newCraftingSpotPlanner(reviewer *RoutineReviewer, native RoutineGearSource) *RoutineBuildingPlanner {
+func newCraftingSpotPlanner(reviewer *Rounder, native RoutineGearSource) *RoutineBuildingPlanner {
 	building, ok := native.(RoutineBuildingSource)
 	if !ok {
 		return nil

@@ -78,7 +78,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	retained, err := db.LoadRoutineReview(ctx)
+	retained, err := db.LoadRounds(ctx)
 	if err != nil || retained.Enabled {
 		t.Fatal(retained, err)
 	}
@@ -123,7 +123,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 		t.Fatal(stones, err)
 	}
 	projection.Facts.CurrentConstruction = current
-	request := store.RoutineReviewRequest{Revision: retained.Revision, Current: retained.Snapshot, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	request := store.RoundsRequest{Revision: retained.Revision, Current: retained.Snapshot, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
 	request.Current.Native, known = identity.NativeGeneration.Value()
 	if !known {
 		t.Fatal("native replay generation unavailable")
@@ -132,7 +132,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertNeeds := func(review store.RoutineReview, want domain.NeedState) {
+	assertNeeds := func(review store.Rounds, want domain.NeedState) {
 		t.Helper()
 		count := 0
 		for _, binding := range review.Goals {
@@ -170,7 +170,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	retained, err = db.LoadRoutineReview(ctx)
+	retained, err = db.LoadRounds(ctx)
 	if err != nil || retained.Enabled || !retained.Latches.HomeCoverage || !retained.Latches.StoneShell {
 		t.Fatal(retained, err)
 	}

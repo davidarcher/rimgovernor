@@ -24,7 +24,7 @@ with it. Where each fact lives is in
 [persistence contracts](../contracts/persistence-contracts.md).
 
 Loading (`POST /api/lifecycle/load`, or the player loading in-game) issues a
-new load token. The next routine review sees the world change, invalidates
+new load token. The next rounds sees the world change, invalidates
 the previous bindings, cancels their non-uncertain pending work and starts
 fresh under the new world's root plan; uncertain dispatched work keeps its
 recovery requirement. A restarted controller does the same with an empty

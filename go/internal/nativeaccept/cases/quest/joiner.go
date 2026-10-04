@@ -65,7 +65,7 @@ type joinerAnswer struct {
 // joinerAnswers lists every QuestAccept plan MaintainPopulation has ever
 // admitted, across epochs, keyed by the accepted quest.
 func joinerAnswers(ctx context.Context, st *store.Store) (map[domain.QuestID]joinerAnswer, bool, error) {
-	review, err := st.LoadRoutineReview(ctx)
+	review, err := st.LoadRounds(ctx)
 	if err != nil {
 		return nil, false, err
 	}

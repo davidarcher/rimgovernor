@@ -11,7 +11,7 @@ import (
 // two unarmed soldiers, Thing_Human724 at Shooting 12 and Thing_Human726
 // at Shooting 8 (test/gear_area_prepare mode "soldier" on the 11x11
 // starter site), with a bolt-action rifle and a pump shotgun loose. The
-// equip step's weapon assignment reads outside the routine review, so its
+// equip step's weapon assignment reads outside the rounds, so its
 // AssignEquip input was recorded by a temporary dump at the policy call
 // (buildingruntime RoutineEquipPlanner) during `acceptance run
 // gear/soldier` at 4e86b4663. In that run both soldiers were downed when

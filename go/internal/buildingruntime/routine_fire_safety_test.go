@@ -27,7 +27,7 @@ func (n *routineFireNative) ReadEmergency(ctx context.Context, identity *c.Ident
 	return v, receipt, err
 }
 
-func fireSafetyFixture(t *testing.T, size float64, firefighting bool) (*RoutineFireSafetyPlanner, *RoutineReviewer) {
+func fireSafetyFixture(t *testing.T, size float64, firefighting bool) (*RoutineFireSafetyPlanner, *Rounder) {
 	t.Helper()
 	reviewer, _, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()

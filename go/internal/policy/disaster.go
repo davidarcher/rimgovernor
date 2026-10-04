@@ -58,7 +58,7 @@ func (c DisasterCondition) RemainingTicks() domain.Fact[int64] {
 	return domain.Known(*c.TicksLeft)
 }
 
-// Native game condition definitions the routine reviews consult by name.
+// Native game condition definitions the rounds consult by name.
 const (
 	ConditionEclipse        = "Eclipse"
 	ConditionPsychicDrone   = "PsychicDrone"

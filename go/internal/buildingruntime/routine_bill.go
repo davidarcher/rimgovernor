@@ -14,7 +14,7 @@ import (
 )
 
 type RoutineBillPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	need     policy.ConcernID
 	purpose  policy.BillPurpose
 	native   BillPlannerNative
@@ -36,7 +36,7 @@ type BillPlannerNative interface{}
 // cook-ahead bill MaintainRefrigeration under a solar flare (#408), and the
 // pinned sculpture bills MaintainArt (#1190), the part bills
 // MaintainSurgery (#1168), the baby food bill MaintainBabyFeeding (#1681), and the mech gestation bills MaintainMechs (#1686).
-func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
+func NewRoutineBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
 	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill && purpose != policy.MechGestationBill) {
 		return nil, fmt.Errorf("%w: NewRoutineBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
@@ -68,7 +68,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !state.ObservationKnown {
 		return RoutineBillResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
@@ -474,7 +474,7 @@ func (r *RoutineBillPlanner) unclaimedBenches(ctx context.Context, snapshot doma
 // butcherSpotSeparated reports whether MaintainButcherSpot has tried its
 // separated-spot method this epoch; a review that binds no such goal has
 // nothing left to try.
-func (p *Player) butcherSpotSeparated(ctx context.Context, review store.RoutineReview) (bool, error) {
+func (p *Player) butcherSpotSeparated(ctx context.Context, review store.Rounds) (bool, error) {
 	id, bound := review.ProjectFor(policy.MaintainButcherSpot)
 	if !bound {
 		return true, nil

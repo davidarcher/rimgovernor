@@ -29,7 +29,7 @@ func serveBase(dir string) []string {
 }
 
 // serve with no mode flag is the autonomous composition: player control,
-// supervised clock, routine reviews and methods, every planner family and world
+// supervised clock, rounds and methods, every planner family and world
 // evaluation.
 func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	dir := t.TempDir()
@@ -38,7 +38,7 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.playerControl || !c.clockControl || !c.routineReviews || !c.routineMethods {
+	if !c.playerControl || !c.clockControl || !c.roundsEnabled || !c.routineMethods {
 		t.Fatalf("autonomous composition: %+v", c)
 	}
 	families := routineFamilies(&c)
@@ -85,7 +85,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)
 	c, err := parseServe(append(serveBase(dir), "--observe"), io.Discard)
-	if err != nil || c.playerControl || c.clockControl || c.routineReviews || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
+	if err != nil || c.playerControl || c.clockControl || c.roundsEnabled || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
 	for _, extra := range [][]string{{"--profile", dir}, {"--resume"}, {"--clock-test-acceleration"}, {"unexpected"}} {
@@ -111,7 +111,7 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 	if got := strings.Join(c.activeRoutineFamilies(), ","); got != "sleeping,husbandry" {
 		t.Fatalf("selected families %q", got)
 	}
-	if !c.routineReviews || !c.routineMethods || c.routineComfortPlans {
+	if !c.roundsEnabled || !c.routineMethods || c.routineComfortPlans {
 		t.Fatalf("selection changed composition: %+v", c)
 	}
 	withRoutineFamilies(t, "sleeping,unknown", true)

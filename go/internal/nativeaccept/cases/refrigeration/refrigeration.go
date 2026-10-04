@@ -47,7 +47,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "refrigeration/build",
 		Scope: "Native MaintainRefrigeration vertical on the lab: warm at-risk meat in an enclosed room drives the live Go " +
-			"routine reviewer/planner to admit a Cooler on a vented wall; native cooling then takes the measured room under " +
+			"rounder/planner to admit a Cooler on a vented wall; native cooling then takes the measured room under " +
 			"the exit threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress " +
 			"stops advancing.",
 		Start: cases.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
@@ -168,7 +168,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer journal.Close()
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return err
@@ -551,11 +551,11 @@ func storeWait(service *na.ServiceProcess) na.Wait {
 }
 
 // waitLatch waits for the review to latch refrigeration with a bound goal.
-func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.RoutineReview, error) {
+func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.Rounds, error) {
 	w := storeWait(service)
-	var review store.RoutineReview
+	var review store.Rounds
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		r, err := s.LoadRoutineReview(ctx)
+		r, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}
@@ -571,7 +571,7 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess) 
 	return review, nil
 }
 
-func latchedWithGoal(r store.RoutineReview) bool {
+func latchedWithGoal(r store.Rounds) bool {
 	if !r.Latches.Refrigeration {
 		return false
 	}
@@ -588,20 +588,20 @@ func latchedWithGoal(r store.RoutineReview) bool {
 // tick: a running game never reads as stalled, a paused one still does, and
 // the tick budget (two game days, ample for a cooler against a heat wave)
 // bounds the cooling itself.
-func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.RoutineReview, error) {
-	var review store.RoutineReview
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.Rounds, error) {
+	var review store.Rounds
 	w := storeWait(service)
 	w.Interval = time.Second
 	w.Ticks = 2 * na.TicksPerDay
 	w.Tick = func(ctx context.Context) (uint64, error) {
-		r, err := s.LoadRoutineReview(ctx)
+		r, err := s.LoadRounds(ctx)
 		if err != nil {
 			return 0, err
 		}
 		return uint64(r.Tick), nil
 	}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		r, err := s.LoadRoutineReview(ctx)
+		r, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}
@@ -620,7 +620,7 @@ func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess
 // refrigerationMethods lists every method ever committed on a
 // MaintainRefrigeration goal, across goal epochs, from the journal.
 func refrigerationMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, error) {
-	review, err := s.LoadRoutineReview(ctx)
+	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		return nil, err
 	}

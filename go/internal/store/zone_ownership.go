@@ -89,7 +89,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 	return domain.Known(result), nil
 }
 
-// ZoneClaims exposes zoneClaims outside the routine review transaction:
+// ZoneClaims exposes zoneClaims outside the rounds transaction:
 // every zone this colony created in the current world scope.
 func (s *Store) ZoneClaims(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]OwnedZone], error) {
 	if current.Validate() != nil || tick < 0 {

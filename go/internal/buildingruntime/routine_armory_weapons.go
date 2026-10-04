@@ -16,7 +16,7 @@ import (
 // for the colonists no loose weapon arms (#1203). It moved here from the
 // gear planner unchanged: the gear planner still wears and replaces, and a
 // pending wear candidate or any open bill holds the armory back.
-func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, tier policy.ArmoryTier, holds []policy.Amount) (RoutineArmoryResult, error) {
+func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, tier policy.ArmoryTier, holds []policy.Amount) (RoutineArmoryResult, error) {
 	p := r.reviewer.player
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {

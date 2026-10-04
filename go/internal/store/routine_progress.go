@@ -19,7 +19,7 @@ import (
 // deficit the review measured. Records are keyed by need, the id the
 // dashboard names goals by; a goal that is recovered, cancelled or
 // invalidated drops its record.
-func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest, previous RoutineReview, reset bool, needs policy.RoutineNeeds, states []WorkOwner) ([]policy.GoalProgress, error) {
+func routineProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []WorkOwner) ([]policy.GoalProgress, error) {
 	old := map[domain.ConcernID]policy.GoalProgress{}
 	if !reset {
 		for _, p := range previous.Progress {
@@ -162,18 +162,18 @@ func methodLabel(id domain.MethodID) string {
 // selection passes that target over until the cooldown lifts. A review
 // that has moved past revision is ErrConflict; a need without a record is
 // a no-op.
-func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, need domain.ConcernID, key string, until domain.Tick) (RoutineReview, error) {
+func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, need domain.ConcernID, key string, until domain.Tick) (Rounds, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	defer tx.Rollback()
 	review, err := loadRoutine(ctx, tx)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if review.Revision != revision {
-		return RoutineReview{}, fmt.Errorf("%w: routine review revision %d, cooldown under %d", ErrConflict, review.Revision, revision)
+		return Rounds{}, fmt.Errorf("%w: rounds revision %d, cooldown under %d", ErrConflict, review.Revision, revision)
 	}
 	changed := false
 	for i := range review.Progress {
@@ -182,7 +182,7 @@ func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, nee
 		}
 		review.Progress[i] = policy.AddProgressCooldown(review.Progress[i], key, until, review.Tick)
 		if err = policy.ValidateGoalProgress(review.Progress[i], review.Tick); err != nil {
-			return RoutineReview{}, err
+			return Rounds{}, err
 		}
 		changed = true
 	}
@@ -191,19 +191,19 @@ func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, nee
 	}
 	data, err := json.Marshal(review)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if len(data) > 1024*1024 {
-		return RoutineReview{}, ErrCapacity
+		return Rounds{}, ErrCapacity
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	return review, tx.Commit()
 }
 
 // GoalProgress is need's progress record in the review, if it has one.
-func (r RoutineReview) GoalProgress(need domain.ConcernID) (policy.GoalProgress, bool) {
+func (r Rounds) GoalProgress(need domain.ConcernID) (policy.GoalProgress, bool) {
 	for _, p := range r.Progress {
 		if p.Goal == need {
 			return p, true

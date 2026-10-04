@@ -76,7 +76,7 @@ type ColonyProjection struct {
 	Anomaly       domain.Fact[AnomalyColony]
 	// RoyaltyColony is the Royalty colony section (#1877); unknown without Royalty or when the read failed.
 	RoyaltyColony domain.Fact[policy.RoyaltyColony]
-	// Isolation is the creepjoiner isolation room's inputs (#1740), set by the routine review.
+	// Isolation is the creepjoiner isolation room's inputs (#1740), set by the rounds.
 	Isolation policy.IsolationPlanning
 	// Shapes are the catalog's piece shapes and the furniture its rules choose
 	// (DefinitionCatalog.PieceShapes), set when a catalog is read; the zero

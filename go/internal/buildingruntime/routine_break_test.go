@@ -66,11 +66,11 @@ func TestBreakResponsePlannerDraftsSubduesThenOffersRescue(t *testing.T) {
 	current := session.State().Snapshot
 	review := func(hostiles, patients int64) {
 		t.Helper()
-		old, err := db.LoadRoutineReview(ctx)
+		old, err := db.LoadRounds(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: old.Revision, Current: current, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{Workers: domain.Known(2), Hostiles: domain.Known(hostiles), CriticalPatients: domain.Known(patients), CleanupPawns: domain.Known(false)}})
+		_, err = db.ReviewRoutine(ctx, store.RoundsRequest{Revision: old.Revision, Current: current, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{Workers: domain.Known(2), Hostiles: domain.Known(hostiles), CriticalPatients: domain.Known(patients), CleanupPawns: domain.Known(false)}})
 		if err != nil {
 			t.Fatal(err)
 		}

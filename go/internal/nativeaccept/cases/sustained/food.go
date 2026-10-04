@@ -73,7 +73,7 @@ func food(name, save, prefix string, ticks uint64) cases.Case {
 	return cases.Case{
 		Name: name,
 		Scope: "Diagnostic: EnsureFoodSupply goal-state timeline against the " + save +
-			" save under the live routine reviewer/field planner, evidence for issue #1's eight-colonist crop labor / interim food deficit. Not a pass/fail acceptance gate.",
+			" save under the live rounder/field planner, evidence for issue #1's eight-colonist crop labor / interim food deficit. Not a pass/fail acceptance gate.",
 		Start: cases.Save{Name: save},
 		Keep:  []string{string(na.NeedFood)},
 		Serve: ptr(Spec(prefix)),

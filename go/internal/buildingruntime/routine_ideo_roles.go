@@ -18,14 +18,14 @@ import (
 // tried at most maxMedicalAttemptsPerPatient times per pawn and role per goal
 // epoch.
 type RoutineIdeoRolesPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutineIdeoRolesResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutineIdeoRolesPlanner(reviewer *RoutineReviewer) (*RoutineIdeoRolesPlanner, error) {
+func NewRoutineIdeoRolesPlanner(reviewer *Rounder) (*RoutineIdeoRolesPlanner, error) {
 	if reviewer == nil || !reviewer.methodEnabled(policy.MaintainIdeoRoles) {
 		return nil, fmt.Errorf("%w: NewRoutineIdeoRolesPlanner: reviewer == nil || !reviewer.methodEnabled(policy.MaintainIdeoRoles)", ErrControl)
 	}
@@ -41,7 +41,7 @@ func (r *RoutineIdeoRolesPlanner) step(call, epoch context.Context, arbiter *ste
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineIdeoRolesResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineIdeoRolesResult{}, err
 	}

@@ -10,7 +10,7 @@ import (
 // colony section's baby care and the food supply. It is unknown without
 // either, or when a baby has no consumer row; a colony with no babies reviews
 // as not short.
-func (r *RoutineReviewer) reviewBabyFeeding(p *observation.ColonyProjection) {
+func (r *Rounder) reviewBabyFeeding(p *observation.ColonyProjection) {
 	p.Facts.BabyFeeding = domain.Unknown[policy.BabyFeeding]()
 	biotech, known := p.Biotech.Value()
 	supply, supplied := p.FoodSupply.Value()

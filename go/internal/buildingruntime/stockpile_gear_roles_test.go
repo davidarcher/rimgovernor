@@ -68,7 +68,7 @@ func TestGearStoreFailsWithoutCatalogArmor(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
 	projection.Facts.Items = policy.ItemFacts{}
-	var r RoutineReviewer
+	var r Rounder
 	if _, err := r.gearStore(context.Background(), domain.GenerationSnapshot{}, projection); !errors.Is(err, policy.ErrNoArmorDefs) {
 		t.Fatalf("gearStore error %v", err)
 	}

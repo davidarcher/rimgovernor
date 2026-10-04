@@ -274,7 +274,7 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 	if err != nil {
 		return nil, err
 	}
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return nil, err
@@ -283,7 +283,7 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 		// Loading a paired bundle starts a new world generation. Wait for
 		// its review rather than accepting the old journal's last review.
 		load := domain.LoadID(na.AsString(s.Identity()["loadToken"]))
-		review, err = na.WaitReview(ctx, journal, na.Wait{Ceiling: 90 * time.Second, Stall: na.StallBudget()}, func(r store.RoutineReview) bool {
+		review, err = na.WaitReview(ctx, journal, na.Wait{Ceiling: 90 * time.Second, Stall: na.StallBudget()}, func(r store.Rounds) bool {
 			return r.Snapshot.Load == load
 		})
 		if err != nil {
@@ -314,7 +314,7 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 		return nil, guardErr
 	}
 	if watchErr != nil {
-		if final, loadErr := journal.LoadRoutineReview(ctx); loadErr == nil {
+		if final, loadErr := journal.LoadRounds(ctx); loadErr == nil {
 			data, _ := json.Marshal(final)
 			report["routine_review_at_failure"] = json.RawMessage(data)
 		}
@@ -341,7 +341,7 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 
 // Only a bundle load may rebind the guards, once at the first live review.
 // Subsequent reviews and every stage of a fresh run retain the strict IDs.
-func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.RoutineReview, load func(context.Context, domain.ConcernID) (store.GoalState, error)) error {
+func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.Rounds, load func(context.Context, domain.ConcernID) (store.GoalState, error)) error {
 	bound := map[policy.ConcernID]domain.ConcernID{}
 	for _, binding := range review.Goals {
 		bound[binding.Need] = binding.Goal
@@ -395,7 +395,7 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 	if len(t.closed) == 0 {
 		return nil, nil
 	}
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, nil
@@ -586,7 +586,7 @@ func watchKitchen(ctx context.Context, journal *store.Store, prepared map[string
 			return ctx.Err()
 		}
 	}
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return err
 	}

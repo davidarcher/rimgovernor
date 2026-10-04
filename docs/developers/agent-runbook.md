@@ -264,7 +264,7 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `GoalDetector` | Inspection | Checks one Concern. | done (#1968) |
 | `GoalConcept`, "concept" | Type | Standard, Project or Incident. | done (#1968) |
 | `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | done (#1968) |
-| `RoutineReview` | Rounds | The routine review. The `Routine*` family follows as `Rounds*`. | pending #1975, then #1979 |
+| `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings. Log word "routine review" is now "rounds" (the `rounds ran` event keeps the `routine_review` event name and table until #1976). The `Routine*` family follows as `Rounds*`. | done (#1975); family pending #1979 |
 | `Goal` row, `goals` table | Standard | `Open / Settled / Voided` (was `Cancelled` too; the player-goal path is deleted). | pending #1972, #1976 |
 | `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. | pending #1972 |
 | `Project` | Project | `Open / Completed / Voided`. | pending #1972 |

@@ -37,7 +37,7 @@ func TestResourceRunwayReserveDeficitAndReviewPersistence(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

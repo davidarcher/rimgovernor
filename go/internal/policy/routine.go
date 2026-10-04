@@ -671,7 +671,7 @@ type RoutineLatches struct {
 	// medicine stock). Empty once recovered.
 	Medical Phase `json:",omitempty"`
 }
-type RoutineNeeds struct {
+type RoundsFindings struct {
 	Disaster *DisasterHistory
 	Latches  RoutineLatches
 	Goals    []DevelopmentGoal
@@ -783,68 +783,68 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // survival goals: it reviews the facts once, then runs every registered
 // inspection in registry order (inspections). Family-specific needs
 // join these same goals during review.
-func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
+func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoundsFindings, error) {
 	if c, known := f.Calendar.Value(); known && !c.Valid() {
-		return RoutineNeeds{}, errors.New("invalid calendar fact")
+		return RoundsFindings{}, errors.New("invalid calendar fact")
 	}
 	p = p.Seasonal(f.Calendar, f.DisasterConditions)
 	owned, err := OwnedConstructions(f.ConstructionClaims, f.CurrentConstruction)
 	if err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	c := &routineRun{f: f, previous: previous, p: p}
 	if c.home, err = PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if c.stone, err = ReviewStoneShell(owned, f.StoneStructures); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if c.animals, err = ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals, p.FoodReserveDays); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	medicineFacts := f.MedicalReserve
 	medicineFacts.Colonists = f.Colonists
 	if c.medicine, err = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if c.foodStorage, err = ReviewFoodStorage(f.FoodStorageUpkeep, previous.FoodStorage, p.FoodStorage); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if c.refrigeration, err = ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	c.refrigeration = c.refrigeration.WithTombs(f.TombsWarm)
 	if c.upkeep, err = ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if c.lighting, err = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark)); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if c.flooring, err = ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if c.routes, err = ReviewRoutes(f.Upkeep.Routes, previous.Routes, p.Routes); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	if v, known := f.ComfortDeficit.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1) {
-		return RoutineNeeds{}, errors.New("invalid comfort deficit")
+		return RoundsFindings{}, errors.New("invalid comfort deficit")
 	}
 	if err := p.Validate(); err != nil {
-		return RoutineNeeds{}, err
+		return RoundsFindings{}, err
 	}
 	for _, fact := range []domain.Fact[int64]{f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients} {
 		if v, k := fact.Value(); k && (v < 0 || v > math.MaxInt64/10) {
-			return RoutineNeeds{}, errors.New("invalid routine count")
+			return RoundsFindings{}, errors.New("invalid routine count")
 		}
 	}
 	for _, fact := range []domain.Fact[float64]{f.FoodDays, f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.OutdoorTemperature, f.PowerHeadroom} {
 		if v, k := fact.Value(); k && (math.IsNaN(v) || math.IsInf(v, 0)) {
-			return RoutineNeeds{}, errors.New("nonfinite routine fact")
+			return RoundsFindings{}, errors.New("nonfinite routine fact")
 		}
 	}
 	for _, fact := range []domain.Fact[float64]{f.FoodDays, f.FieldCoverage} {
 		if v, k := fact.Value(); k && v < 0 {
-			return RoutineNeeds{}, errors.New("negative food fact")
+			return RoundsFindings{}, errors.New("negative food fact")
 		}
 	}
 	wood := domain.Unknown[float64]()
@@ -879,11 +879,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Wood:           latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
 		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
 	}
-	c.r = RoutineNeeds{Latches: c.l}
+	c.r = RoundsFindings{Latches: c.l}
 	for _, d := range inspections {
 		goals, assessments := len(c.r.Goals), len(c.r.Assessments)
 		if err := d.Inspect(c); err != nil {
-			return RoutineNeeds{}, err
+			return RoundsFindings{}, err
 		}
 		if n, noOp := noOpOf(d.Concern, c.r.Goals[goals:], c.r.Assessments[assessments:]); noOp {
 			c.r.NoOps = append(c.r.NoOps, n)
@@ -917,7 +917,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		recognized[RecoverDisasterServices] = true
 		for _, id := range methods {
 			if !recognized[id] || available[id] {
-				return RoutineNeeds{}, errors.New("invalid routine method capability " + string(id))
+				return RoundsFindings{}, errors.New("invalid routine method capability " + string(id))
 			}
 			available[id] = true
 		}
@@ -951,7 +951,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 }
 
 // All is every assessment, goal needs then incident kinds.
-func (r RoutineNeeds) All() []RoutineAssessment {
+func (r RoundsFindings) All() []RoutineAssessment {
 	return slices.Concat(r.Assessments, r.Incidents)
 }
 

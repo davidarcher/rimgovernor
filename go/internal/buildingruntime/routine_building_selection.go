@@ -20,14 +20,14 @@ func pendingFacility(progress domain.Progress, definition string) bool {
 	return ok && building.Definition() == definition && pendingWork(progress)
 }
 
-func NewRoutineCookingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineCookingPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineCookingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureCooking, definition: "Campfire", environment: policy.PlacementAnywhere}, nil
 }
 
-func NewRoutineButcherPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineButcherPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineButcherPlanner: reviewer == nil || native == nil", ErrControl)
 	}

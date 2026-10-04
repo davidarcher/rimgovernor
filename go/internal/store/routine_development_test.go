@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func developmentRow(t *testing.T, r RoutineReview, id domain.ConcernID) RoutineDevelopmentRow {
+func developmentRow(t *testing.T, r Rounds, id domain.ConcernID) RoutineDevelopmentRow {
 	t.Helper()
 	for _, row := range r.Development.Rows {
 		if row.Goal == id {
@@ -34,7 +34,7 @@ func TestRoutineDevelopmentPersistsAge(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
 		t.Fatal(loaded, err)
 	}
@@ -122,7 +122,7 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 			if _, err = s.db.Exec("UPDATE routine_review SET payload=?", payload); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.LoadRoutineReview(context.Background()); err == nil {
+			if _, err = s.LoadRounds(context.Background()); err == nil {
 				t.Fatal("corrupt development history accepted")
 			}
 		})
@@ -145,7 +145,7 @@ func TestRoutineDevelopmentReloadsFoodStorageRow(t *testing.T) {
 	if _, err = s.db.Exec("UPDATE routine_review SET payload=?", payload); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.LoadRoutineReview(context.Background()); err != nil {
+	if _, err = s.LoadRounds(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -245,7 +245,7 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
 		t.Fatal(loaded, err)
 	}
@@ -272,7 +272,7 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	if research := developmentRow(t, third.Review, policy.EnsureResearch); !research.Selected || research.Risk == nil || *research.Risk != 0 {
 		t.Fatal(research)
 	}
-	loaded, err = s.LoadRoutineReview(ctx)
+	loaded, err = s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded, third.Review) {
 		t.Fatal(loaded, err)
 	}

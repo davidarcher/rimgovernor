@@ -79,7 +79,7 @@ func ShelterBedsMethod() domain.MethodID  { return shelterBedsMethod }
 // shelterSite is one review's context for siting the initial shelter.
 type shelterSite struct {
 	state     ControlState
-	review    store.RoutineReview
+	review    store.Rounds
 	goal      store.WorkOwner
 	facts     observation.ColonyProjection
 	read      observation.ColonyReading

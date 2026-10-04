@@ -180,7 +180,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 // reviewStockpiles serves the MaintainStockpiles review (#725) on the
 // projection when the method is served; otherwise the fact stays unknown
 // and the goal is never assessed active.
-func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
+func (r *Rounder) reviewStockpiles(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
 	projection.Facts.Stockpiles = domain.Unknown[policy.StockpileReview]()
 	if !r.methodEnabled(policy.MaintainStockpiles) {
 		return nil
@@ -204,7 +204,7 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 
 // stockpileRequest assembles the maintenance request; the string names the
 // fact still unread (empty when the request is whole).
-func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (policy.StockpileRequest, string, error) {
+func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (policy.StockpileRequest, string, error) {
 	tick := projection.Identity.Tick
 	claims, err := r.player.journal.ZoneClaims(ctx, snapshot, tick)
 	if err != nil {
@@ -269,7 +269,7 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 // footprints of held building reservations and the unroofed floor inside a
 // shell's wall ring, which belongs to the shell's own furniture until a roof
 // stands. Every sited role reads it as the planner's protected set.
-func (r *RoutineReviewer) reservedGround(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) ([]domain.Cell, error) {
+func (r *Rounder) reservedGround(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) ([]domain.Cell, error) {
 	held, err := r.player.journal.BuildingReservations(ctx, snapshot)
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (r *RoutineReviewer) reservedGround(ctx context.Context, snapshot domain.Ge
 // on the map. The weapons read is skipped once layout plans the armory, which
 // no longer needs the count. A catalog naming no armor fails with
 // policy.ErrNoArmorDefs; an unknown stored census counts nothing.
-func (r *RoutineReviewer) gearStore(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (*policy.GearStore, error) {
+func (r *Rounder) gearStore(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (*policy.GearStore, error) {
 	if len(projection.Facts.Items.Armor) == 0 {
 		return nil, policy.ErrNoArmorDefs
 	}
@@ -332,7 +332,7 @@ type weaponCensus interface {
 
 // looseWeapons counts the unbiocoded weapons by trade lying on the map; a
 // source without the read counts none.
-func (r *RoutineReviewer) looseWeapons(ctx context.Context, snapshot domain.GenerationSnapshot, bounds policy.Bounds) (int, error) {
+func (r *Rounder) looseWeapons(ctx context.Context, snapshot domain.GenerationSnapshot, bounds policy.Bounds) (int, error) {
 	source, ok := r.native.(weaponCensus)
 	if !ok || bounds.Width <= 0 || bounds.Height <= 0 {
 		return 0, nil
@@ -365,7 +365,7 @@ func (r *RoutineReviewer) looseWeapons(ctx context.Context, snapshot domain.Gene
 }
 
 // benchCensus is the bench census (bills and recipes per bench).
-func (r *RoutineReviewer) benchCensus(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity) ([]bridge.GearBenchRead, error) {
+func (r *Rounder) benchCensus(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity) ([]bridge.GearBenchRead, error) {
 	native, ok := r.native.(RoutineWorkBenchSource)
 	if !ok {
 		return nil, fmt.Errorf("%w: benchCensus: native lacks the bench census", ErrControl)
@@ -401,7 +401,7 @@ type RoutineStockpileSource interface {
 // admitted alone once no other edit stands. A plan still open holds the
 // next cycle.
 type RoutineStockpilePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineStockpileSource
 	// building shells the planned armory and wardrobe (#1774); nil for a
 	// source that cannot preview buildings.
@@ -414,7 +414,7 @@ type RoutineStockpileResult struct {
 	Edits int
 }
 
-func NewRoutineStockpilePlanner(reviewer *RoutineReviewer, native RoutineStockpileSource) (*RoutineStockpilePlanner, error) {
+func NewRoutineStockpilePlanner(reviewer *Rounder, native RoutineStockpileSource) (*RoutineStockpilePlanner, error) {
 	if reviewer == nil || native == nil || reviewer.native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineStockpilePlanner: reviewer == nil || native == nil || reviewer.native == nil", ErrControl)
 	}
@@ -429,7 +429,7 @@ func NewRoutineStockpilePlanner(reviewer *RoutineReviewer, native RoutineStockpi
 // path. handled is false when nothing was admitted (the room stands, its
 // shell was tried this goal epoch, no space, refused or a fact is missing),
 // with the verdict saying why.
-func (r *RoutineStockpilePlanner) shell(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, read observation.RoutineReading, edit policy.StockpileEdit) (RoutineStockpileResult, bool, error) {
+func (r *RoutineStockpilePlanner) shell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, read observation.RoutineReading, edit policy.StockpileEdit) (RoutineStockpileResult, bool, error) {
 	if r.building == nil {
 		return RoutineStockpileResult{Verdict: fieldUnavailable("building_source")}, false, nil
 	}
@@ -454,7 +454,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	if !state.ObservationKnown {
 		return RoutineStockpileResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}

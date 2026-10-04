@@ -37,7 +37,7 @@ results and changed native player orders do not authorize retries.
 
 ## Go planning
 
-The Go routine reviewer keeps `CriticalMedicine` a priority-1 emergency, suspending
+The Go rounder keeps `CriticalMedicine` a priority-1 emergency, suspending
 every other goal, only while a critical patient is bleeding or downed with a tend
 outstanding, or that count is unknown (`policy.UrgentPatients`). A living colonist
 who merely needs tending, a chronic condition among them, or who is downed with

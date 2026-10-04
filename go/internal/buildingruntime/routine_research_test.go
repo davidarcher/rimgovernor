@@ -100,7 +100,7 @@ func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 	}
 	result, err := planner.Step(context.Background())
 	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
-		review, _ := db.LoadRoutineReview(context.Background())
+		review, _ := db.LoadRounds(context.Background())
 		t.Fatal(result, err, review.Development.Rows)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
@@ -163,7 +163,7 @@ func TestRoutineResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 	if err != nil || result.Verdict != BuildingResearchBench || result.Plan != "" {
 		t.Fatal(result, err)
 	}
-	review, err := db.LoadRoutineReview(context.Background())
+	review, err := db.LoadRounds(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

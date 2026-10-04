@@ -129,7 +129,7 @@ without authority (Manual, a player interruption, a restart before authority ret
 keeps the last ranking with nothing selected and `control_disabled` on the rows it
 un-selects, so waiting ages survive it.
 The shared plan retains the ranking, observed worker and per-work-type labor counts and
-explicit deferral reasons in the routine review's development record. `GET /api/routines`
+explicit deferral reasons in the rounds's development record. `GET /api/routines`
 returns that record under `development` (null until a review has ranked): reviewed tick,
 capacity, nullable worker count, sorted free-labor rows, committed goal IDs and one row
 per optional goal with score, nullable deficit and risk, `waitingSince`, selection and
@@ -196,7 +196,7 @@ a tame animal, the animal goals from Stable; comfort, flooring and lighting at
 Development. Emergencies and cross-stage monitors (tending, mood, fire, raids) are
 raised at every stage. The record (`ColonyStageRecord`: stage, since, the first unmet
 exit criterion as blocker + reason, held) persists on the review
-(`RoutineReview.Stage`) and sets the next review's budgets and goals
+(`Rounds.Stage`) and sets the next review's budgets and goals
 (`policy.StageRoutinePolicy`): Development adds one to the development-project limit,
 the research ladder walks two rungs at Foothold, five at Reserves, eight at Stable and
 all at Development, and the food reserve and wood targets scale 1.5x at Stable and 2x

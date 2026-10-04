@@ -56,7 +56,7 @@ func powerSites(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("reopen journal: %w", err)
 			}
 			defer journal.Close()
-			review, err := journal.LoadRoutineReview(ctx)
+			review, err := journal.LoadRounds(ctx)
 			if err != nil {
 				return err
 			}

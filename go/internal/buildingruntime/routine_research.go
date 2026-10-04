@@ -34,7 +34,7 @@ type RoutineResearchSource interface {
 	ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error)
 }
 type RoutineResearchPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineResearchSource
 	// building is the facility ladder the planner walks when the next rung
 	// is locked only for lack of a research bench (#254): furnish a hosting
@@ -56,7 +56,7 @@ type RoutineResearchResult struct {
 // for per step; the review re-reads progress between windows.
 const researchNativeWorkTicks = 2500
 
-func NewRoutineResearchPlanner(reviewer *RoutineReviewer, native RoutineResearchSource) (*RoutineResearchPlanner, error) {
+func NewRoutineResearchPlanner(reviewer *Rounder, native RoutineResearchSource) (*RoutineResearchPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineResearchPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -124,7 +124,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResearchResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}

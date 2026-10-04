@@ -26,7 +26,7 @@ func tombMethod(step policy.TombStep) domain.MethodID {
 }
 
 // stageTomb answers a due tomb step; handled is false when none is due.
-func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, arbiter *stepArbiter, expected observation.Identity) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, arbiter *stepArbiter, expected observation.Identity) (RoutineWasteResult, bool, error) {
 	source, ok := r.native.(observation.RoutineSource)
 	if !ok || r.building == nil {
 		return RoutineWasteResult{}, false, nil
@@ -73,7 +73,7 @@ const graveSiteTries = 4
 
 // placeGrave places a plain grave (#857) on the free 1x2 site nearest the
 // fields anchor, trying the next site while native refuses one.
-func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.TombStep) (RoutineBuildingResult, error) {
+func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading, step policy.TombStep) (RoutineBuildingResult, error) {
 	facts := reading.Projection
 	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: fieldAnchor(facts), Cells: facts.Cells, Protected: nil}, 1, 2)
 	if err != nil {
@@ -95,7 +95,7 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 
 // placePiece previews and admits one interior piece: an interior piece (a
 // sarcophagus, bed, throne...).
-func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID) (RoutineBuildingResult, error) {
+func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {

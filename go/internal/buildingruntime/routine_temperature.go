@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func NewRoutineTemperaturePlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineTemperaturePlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.temperatureEnabled() {
 		return nil, fmt.Errorf("%w: NewRoutineTemperaturePlanner: reviewer == nil || native == nil || !reviewer.temperatureEnabled()", ErrControl)
 	}
@@ -20,7 +20,7 @@ func NewRoutineTemperaturePlanner(reviewer *RoutineReviewer, native RoutineBuild
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureTemperatureSafety}, nil
 }
 
-func (r *RoutineReviewer) temperatureEnabled() bool {
+func (r *Rounder) temperatureEnabled() bool {
 	return r.methodEnabled(policy.EnsureTemperatureSafety)
 }
 
@@ -28,14 +28,14 @@ func (r *RoutineReviewer) temperatureEnabled() bool {
 // census inside the review bracket: temperature and refrigeration plans need
 // room heat, comfort plans need each facility's hosting room role and
 // cleaning plans need each room's measured cleanliness.
-func (r *RoutineReviewer) roomsEnabled() bool {
+func (r *Rounder) roomsEnabled() bool {
 	// MaintainHousing: suite claims and the plan's suite wing read the
 	// census's standing bedrooms (#1221). MaintainShelter: the Safe area
 	// covers the census's enclosed roofed rooms (#1325).
 	return r.temperatureEnabled() || r.methodEnabled(policy.MaintainShelter) || r.methodEnabled(policy.MaintainHousing) || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities) || r.methodEnabled(policy.MaintainLighting) || r.methodEnabled(policy.MaintainFlooring) || r.methodEnabled(policy.MaintainRoutes) || r.methodEnabled(policy.MaintainWaste) || r.methodEnabled(policy.MaintainStockpiles)
 }
 
-func (r *RoutineReviewer) methodEnabled(goal policy.ConcernID) bool {
+func (r *Rounder) methodEnabled(goal policy.ConcernID) bool {
 	methods, _ := r.methods.Value()
 	for _, method := range methods {
 		if method == goal {

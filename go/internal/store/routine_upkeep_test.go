@@ -36,7 +36,7 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 	reviewRoutine(t, db, &r)
 	db.Close()
 	db = open(t, path)
-	loaded, err := db.LoadRoutineReview(context.Background())
+	loaded, err := db.LoadRounds(context.Background())
 	if err != nil || loaded.Enabled || !loaded.Latches.Upkeep.Fire {
 		t.Fatal(loaded, err)
 	}

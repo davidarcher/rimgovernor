@@ -118,7 +118,7 @@ func TestColonyMapBoundsReachRoutineFacts(t *testing.T) {
 		t.Fatal(p.Facts.MapBounds)
 	}
 }
-func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
+func TestColonyNativeCaptureReachesRounds(t *testing.T) {
 	path := os.Getenv("RIMGOVERNOR_NATIVE_COLONY_CAPTURE")
 	if path == "" {
 		t.Skip("requires retained native colony acceptance payload")
@@ -228,7 +228,7 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 	}
 	defer s.Close()
 	current := domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map, Plan: "native-review", Revision: 1, Native: 1}
-	out, err := s.ReviewRoutine(context.Background(), store.RoutineReviewRequest{Current: current, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: p.Facts})
+	out, err := s.ReviewRoutine(context.Background(), store.RoundsRequest{Current: current, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: p.Facts})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,5 +270,5 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("Native core and %d cells/%d definitions reached durable routine review", len(p.Cells), len(p.Definitions))
+	t.Logf("Native core and %d cells/%d definitions reached durable rounds", len(p.Cells), len(p.Definitions))
 }

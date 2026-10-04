@@ -16,7 +16,7 @@ import (
 // replies the step read (the emergency census, the combat pawn rows and,
 // for a hostile building, the lines of fire), the layout record it held
 // the line against, and what it decided. A threat response is not a
-// routine review, so the routine snapshot does not carry these inputs.
+// rounds, so the routine snapshot does not carry these inputs.
 type Defense struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot

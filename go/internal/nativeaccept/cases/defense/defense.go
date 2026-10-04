@@ -283,7 +283,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		}
 
 		// Scenario 1: the layout is planned on the constrained site and every
-		// tier is built natively under the live routine reviewer/planner.
+		// tier is built natively under the live rounder/planner.
 		svc, err = launch("layout")
 		if err != nil {
 			return err
@@ -708,7 +708,7 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 	var building buildProgress
 	tiers := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err == nil && projectID == "" {
 			if id, ok := review.ProjectFor(policy.EnsureDefensiveLayout); ok {
 				projectID = id
@@ -753,7 +753,7 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 }
 
 // combatIncident is the review's ActiveCombat incident (#1020), if bound.
-func combatIncident(ctx context.Context, s *store.Store, review store.RoutineReview) (store.IncidentState, store.RoutineIncident, bool, error) {
+func combatIncident(ctx context.Context, s *store.Store, review store.Rounds) (store.IncidentState, store.RoutineIncident, bool, error) {
 	binding, ok := review.Incident(policy.ActiveCombat)
 	if !ok {
 		return store.IncidentState{}, binding, false, nil
@@ -767,7 +767,7 @@ func combatIncident(ctx context.Context, s *store.Store, review store.RoutineRev
 func waitCombatMethod(ctx context.Context, s *store.Store, w na.Wait, report na.Report) (store.IncidentMethod, error) {
 	var found store.IncidentMethod
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return na.Signature("no-review"), false, nil
 		}
@@ -866,7 +866,7 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		out["colony_windows"] = colonyWindows
 		out["last_acknowledged_hostiles"] = acknowledged
 		out["last_applied_phase"] = lastPhase
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}
@@ -949,7 +949,7 @@ func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.Pla
 	out := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		plans := map[domain.PlanID]bool{first: true}
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}
@@ -1004,7 +1004,7 @@ func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, 
 	plans := map[string]domain.PlanID{}
 	trapsRebuilt := 0
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}

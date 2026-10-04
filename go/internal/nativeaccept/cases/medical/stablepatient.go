@@ -30,7 +30,7 @@ func init() {
 		Name: "medical/stable-patient",
 		Scope: "Diagnostic: CriticalMedicine (two Flu patients plus a forced GoJuiceAddiction " +
 			"withdrawal patient) and EnsureFoodSupply (concurrent pre-seeded growing zone/campfire bill) goal-state " +
-			"timelines under the live routine reviewer/field planner, evidence for issue #1's stable-patient feeding " +
+			"timelines under the live rounder/field planner, evidence for issue #1's stable-patient feeding " +
 			"acceptance extension to withdrawal recovery and concurrent food production. Not a pass/fail acceptance gate.",
 		Start: cases.Fixture{
 			Op:   "test/medical_management_setup",

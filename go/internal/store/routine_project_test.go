@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func routineProject(t *testing.T, r RoutineReviewResult, need domain.ConcernID) ProjectState {
+func routineProject(t *testing.T, r RoundsResult, need domain.ConcernID) ProjectState {
 	t.Helper()
 	for i, b := range r.Review.Projects {
 		if b.Need == need {

@@ -18,11 +18,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// RoutineReviewer observes and journals needs under Player's existing gate.
+// Rounder observes and journals needs under Player's existing gate.
 // It neither acquires authority nor creates methods or game orders.
 // itemFacts are the load's catalog item facts for a planner that holds no
 // frame; none when the reviewer's source serves no definitions.
-func (r *RoutineReviewer) itemFacts(ctx context.Context, snapshot domain.GenerationSnapshot) (policy.ItemFacts, error) {
+func (r *Rounder) itemFacts(ctx context.Context, snapshot domain.GenerationSnapshot) (policy.ItemFacts, error) {
 	source, ok := r.native.(observation.DefinitionSource)
 	if !ok {
 		return policy.ItemFacts{}, nil
@@ -36,7 +36,7 @@ func (r *RoutineReviewer) itemFacts(ctx context.Context, snapshot domain.Generat
 
 // combatDrug is the preferred combat drug of the load's catalog (#1540), ""
 // when it has none or the reviewer's source serves no definitions.
-func (r *RoutineReviewer) combatDrug(ctx context.Context, snapshot domain.GenerationSnapshot) (string, error) {
+func (r *Rounder) combatDrug(ctx context.Context, snapshot domain.GenerationSnapshot) (string, error) {
 	items, err := r.itemFacts(ctx, snapshot)
 	if err != nil {
 		return "", err
@@ -47,7 +47,7 @@ func (r *RoutineReviewer) combatDrug(ctx context.Context, snapshot domain.Genera
 	return "", nil
 }
 
-type RoutineReviewer struct {
+type Rounder struct {
 	methods domain.Fact[[]policy.ConcernID]
 	player  *Player
 	native  observation.RoutineSource
@@ -146,14 +146,14 @@ type RoutineReviewer struct {
 // staged is the configured policy with its goal budgets set by the colony
 // stage (policy.StageRoutinePolicy): the development-project limit, the
 // research ladder's pace and the stall deadline.
-func (r *RoutineReviewer) staged() policy.RoutinePolicy {
+func (r *Rounder) staged() policy.RoutinePolicy {
 	return policy.StageRoutinePolicy(r.policy, r.stage)
 }
 
 // logColonyStage records a review's stage in the service log and timeline
 // once per change of stage or blocker: `[routine] colony stage Reserves
 // (settling: production clear 1.0 of 2.0 days)`.
-func (r *RoutineReviewer) logColonyStage(ctx context.Context, review store.RoutineReview) {
+func (r *Rounder) logColonyStage(ctx context.Context, review store.Rounds) {
 	if review.Stage == nil {
 		return
 	}
@@ -172,7 +172,7 @@ func (r *RoutineReviewer) logColonyStage(ctx context.Context, review store.Routi
 // logBuildTier records the reading's build tier in the service log once per
 // change: `[layout] build tier Masonry (Stonecutting)`. An unknown tier
 // (no research census) is not a change.
-func (r *RoutineReviewer) logBuildTier(ctx context.Context, projection observation.ColonyProjection) {
+func (r *Rounder) logBuildTier(ctx context.Context, projection observation.ColonyProjection) {
 	tier, known := projection.BuildTier.Value()
 	if !known {
 		return
@@ -197,7 +197,7 @@ type odysseySkipKey struct {
 // logOdysseySkips records each Odyssey offer the colony does not accept
 // (policy.OdysseySkips) in the service log once per quest and reason:
 // `[routine] odyssey quest skipped Q12 OrbitalFugitive: ship_only (Orbit)`.
-func (r *RoutineReviewer) logOdysseySkips(ctx context.Context, facts policy.RoutineFacts) {
+func (r *Rounder) logOdysseySkips(ctx context.Context, facts policy.RoutineFacts) {
 	for _, skip := range policy.OdysseySkips(facts.QuestOffers) {
 		key := odysseySkipKey{skip.Quest, skip.Reason}
 		if r.skipsLogged[key] {
@@ -219,7 +219,7 @@ func (r *RoutineReviewer) logOdysseySkips(ctx context.Context, facts policy.Rout
 // by the calendar the reading carries (policy.RoutinePolicy.Seasonal): the
 // same targets DetectRoutine measures the latches against, so a planner's
 // deficit, field budget and butcher gate agree with the review.
-func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePolicy {
+func (r *Rounder) seasonal(facts policy.RoutineFacts) policy.RoutinePolicy {
 	return r.staged().Seasonal(facts.Calendar, facts.DisasterConditions)
 }
 
@@ -227,7 +227,7 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 // tables into the colony mirror (#795), which recordings and planners serve. A
 // section the frame lacks keeps the table the mirror holds, and its tick
 // (#1347).
-func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame bridge.RoutineFrame) {
+func (r *Rounder) publishFrame(expected observation.Identity, frame bridge.RoutineFrame) {
 	if r.store == nil {
 		r.census.rememberColony(nil)
 		return
@@ -253,18 +253,18 @@ type RoutineCapabilities struct {
 	Undraft boundary.ActionsWriter
 }
 
-func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration, capabilities ...RoutineCapabilities) (*RoutineReviewer, error) {
+func NewRounder(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration, capabilities ...RoutineCapabilities) (*Rounder, error) {
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
-		return nil, fmt.Errorf("%w: NewRoutineReviewer: player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > t", ErrControl)
+		return nil, fmt.Errorf("%w: NewRounder: player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > t", ErrControl)
 	}
 	if _, ok := native.(RoutineWorkBenchSource); !ok {
-		return nil, fmt.Errorf("%w: NewRoutineReviewer: native lacks the bench census read", ErrControl)
+		return nil, fmt.Errorf("%w: NewRounder: native lacks the bench census read", ErrControl)
 	}
 	methods := domain.Unknown[[]policy.ConcernID]()
 	reviewerOverlay := false
 	var undraftWriter boundary.ActionsWriter
 	if len(capabilities) > 1 {
-		return nil, fmt.Errorf("%w: NewRoutineReviewer: len(capabilities) > 1", ErrControl)
+		return nil, fmt.Errorf("%w: NewRounder: len(capabilities) > 1", ErrControl)
 	}
 	if len(capabilities) == 1 {
 		reviewerOverlay, undraftWriter = capabilities[0].LayoutOverlay, capabilities[0].Undraft
@@ -273,14 +273,14 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 			return nil, err
 		}
 	}
-	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, layoutOverlay: reviewerOverlay, undraft: undraftWriter}
+	reviewer := &Rounder{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, layoutOverlay: reviewerOverlay, undraft: undraftWriter}
 	return reviewer, nil
 }
 
-func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, error) {
+func (r *Rounder) Step(ctx context.Context) (store.RoundsResult, error) {
 	call, epoch, done, err := r.player.enter(ctx, "routine_review", false)
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter(), false)
@@ -288,7 +288,7 @@ func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, 
 
 // step is also usable by a scheduler already holding the player gate;
 // partial is set when only a subset of the planners follows the review.
-func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter, partial bool) (store.RoutineReviewResult, error) {
+func (r *Rounder) step(ctx, epoch context.Context, arbiter *stepArbiter, partial bool) (store.RoundsResult, error) {
 	p := r.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -297,12 +297,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		clockSchedulerLog("routine.step: ErrControl observationKnown=%v snapshotValidate=%v native=%d", state.ObservationKnown, state.Snapshot.Validate(), state.Snapshot.Native)
-		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
+		return store.RoundsResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	previous, err := p.journal.LoadRoutineReview(ctx)
+	previous, err := p.journal.LoadRounds(ctx)
 	if err != nil {
-		clockSchedulerLog("routine.step: LoadRoutineReview err=%v", err)
-		return store.RoutineReviewResult{}, err
+		clockSchedulerLog("routine.step: LoadRounds err=%v", err)
+		return store.RoundsResult{}, err
 	}
 	r.stage = policy.StageFoothold
 	if previous.Stage != nil {
@@ -311,21 +311,21 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	expected, err := stepScope(ctx, r.native)
 	if err != nil {
 		clockSchedulerLog("routine.step: stepScope err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	native, known := expected.NativeGeneration.Value()
 	if expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map || !known || native != state.Snapshot.Native {
 		clockSchedulerLog("routine.step: ErrControl identity mismatch expectedColony=%v stateColony=%v expectedLoad=%v stateLoad=%v expectedMap=%v stateMap=%v known=%v native=%d stateNative=%d",
 			expected.Colony, state.Snapshot.Colony, expected.Load, state.Snapshot.Load, expected.Map, state.Snapshot.Map, known, native, state.Snapshot.Native)
-		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.S", ErrControl)
+		return store.RoundsResult{}, fmt.Errorf("%w: step: expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.S", ErrControl)
 	}
 	plans, err := p.journal.LoadPlans(ctx, 256)
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	playerPlans, err := p.journal.PlayerPlans(ctx, playerWorld(state.Snapshot))
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
 	readDefinitions := definitions
@@ -353,7 +353,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
 		clockSchedulerLog("routine.step: ConstructionClaims err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	observe := observation.ObserveRoutineOwned
 	if r.roomsEnabled() {
@@ -365,10 +365,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	if err != nil {
 		clockSchedulerLog("routine.step: observe err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if err = releaseBreakWork(ctx, p.journal, state.Snapshot, reading.Emergency, plans); err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	r.logBuildTier(ctx, reading.Projection)
 	r.logOdysseySkips(ctx, reading.Projection.Facts)
@@ -376,23 +376,23 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
 	if err = r.reviewRoyalty(ctx, state.Snapshot, &reading); err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	// A creepjoiner held apart owes the isolation room, so the census is read
 	// before the child rooms and the layout (#1740).
 	var creepRecord policy.CreepJoinerRecord
 	if r.creepJoiners != nil {
 		if creepRecord, err = creepJoinerRecord(ctx, p.journal); err != nil {
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 		reading.Projection.Isolation = creepJoinerIsolation(reading.Projection, reading.Frame, creepRecord)
 	}
 	if err = r.reviewChildRooms(&reading); err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if err = r.reviewLayoutPlan(ctx, state.Snapshot, &reading.Projection); err != nil {
 		clockSchedulerLog("routine.step: layout plan err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	reading.Sections.Colony.Value.LayoutPlan = reading.Projection.LayoutPlan
 	if plan, ok := reading.Projection.LayoutPlan.Value(); ok {
@@ -408,7 +408,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	// (readDefinitions above); a review without it owes no herd step.
 	if r.methodEnabled(policy.MaintainAnimalContainment) {
 		if reading.Projection.Facts.HerdRoomsOwed, err = herdRoomsOwed(reading.Projection); err != nil {
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 	}
 	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)
@@ -416,41 +416,41 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
 	reading.Projection.Facts.TemperatureOwed = temperatureOwed(reading.Projection)
 	if targets, err := shellTargets(ctx, r.native, p.journal, state.Snapshot, reading.Projection); err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	} else {
 		reading.Projection.Facts.ShellsShort = policy.ShellsShort(targets, reading.Projection.Resources)
 	}
 	if r.methodEnabled(policy.MaintainShelter) {
 		if reading.Projection.Facts.SafeAreaOwed, err = r.safeArea.review(stockpileWorld(state.Snapshot), reading.Projection); err != nil {
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 	}
 	// The review's PlanSheltering raises RecoverDisasterServices, so it reads
 	// the same draft set as the recovery planner: unknown, a threat shelters
 	// no colonist and the planner never runs (#1560).
 	if reading.Projection.Facts.ShelterCombatants, err = shelterCombatants(ctx, p.journal, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}); err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if r.methodEnabled(policy.MaintainArt) {
 		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection, r.stage)
 	}
 	if reading.Projection.Facts.SaleArt, err = reviewSaleArt(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection); err != nil {
 		clockSchedulerLog("routine.step: sale art err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if parts, benches, err := surgeryPartDemand(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection.Facts.MedicalPawns, reading.Projection.SurgeryContext()); err != nil {
 		clockSchedulerLog("routine.step: surgery parts err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	} else if len(parts) > 0 {
 		reading.Projection.Facts.FabricableParts = policy.FabricableParts(benches)
 	}
 	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
 		clockSchedulerLog("routine.step: tidy err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if err = r.reviewStockpiles(ctx, state.Snapshot, &reading.Projection); err != nil {
 		clockSchedulerLog("routine.step: stockpiles err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
 	r.reviewMeals(&reading.Projection)
@@ -463,7 +463,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.firebreak != nil {
 		if reading.Projection.Facts.FirebreakOwed, err = r.firebreak.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, r.stage, r.policy.Flooring, firebreakBusy(plans, state.Snapshot, playerPlans)); err != nil {
 			clockSchedulerLog("routine.step: firebreak err=%v", err)
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 	}
 	var psylinkCandidates domain.Fact[[]policy.PawnID]
@@ -493,7 +493,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
 		clockSchedulerLog("routine.step: NewEmergencySnapshot err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	reading.Projection.Facts.DangerSeeds = dangerSeedFact(reading.Projection.Facts.Hostiles, reading.Emergency.Threats)
@@ -507,11 +507,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	// working, not stranded (#679).
 	needed, err := plannedDrafts(ctx, p.journal)
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	stray, err := idleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed)
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.CleanupPawns = domain.Known(len(stray) > 0)
 	reading.Projection.Facts.HostilityOwed = policy.HostilityOwed(hostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats)
@@ -525,19 +525,19 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	needs, err := routineResearchNeeds(ctx, p.journal, r.policy, reading.Projection.Facts.Items, state.Snapshot)
 	if err != nil {
 		clockSchedulerLog("routine.step: LoadProductionLadder err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	needs = r.censusResearchNeeds(needs)
 	reading.Projection.Facts.ResearchNeeds = needs
 	reading.Projection.Facts.DefensiveLayoutStanding, reading.Projection.Facts.ResourceNeeds, err = routineDefensiveLayoutStanding(ctx, p.journal, r.policy, state.Snapshot)
 	if err != nil {
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.ResourceNeeds = policy.ResourceGoalTargets(reading.Projection.Facts.ResourceNeeds, policy.SocialDrugTargets(reading.Projection.Facts.Research))
 	medicine, err := policy.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, r.policy.MedicalReserve)
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.MedicineCarryOwed = policy.MedicineCarryOwed(reading.Projection.WorkPawns, medicine)
 	reading.Projection.Facts.ResourceNeeds = policy.MedicineResourceNeeds(reading.Projection.Facts.Items, reading.Projection.Facts.ResourceNeeds, r.policy.MedicineReserveTarget(reading.Projection.Facts.Colonists, medicine.Active))
@@ -547,7 +547,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.ResourceNeeds = policy.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Royalty, psylinkCandidates)
 	resourceTargets, err := r.policy.EffectiveResourceTargets(reading.Projection.Facts.Resources, reading.Projection.Facts.ResourceNeeds)
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
@@ -565,7 +565,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			deficit, deficitKnown := recovered.Value()
 			targets, err := routineDeficitTargets(resourceTargets, deficitKnown && !deficit, reading.Projection.Facts.Gear)
 			if err != nil {
-				return store.RoutineReviewResult{}, err
+				return store.RoundsResult{}, err
 			}
 			benchWork, err := routineBenchWork(ctx, benches, state.Snapshot, plans, playerPlans, targets, len(targets) > 0, reading.Projection.Facts.Items.Wort)
 			if err != nil {
@@ -583,7 +583,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		if known {
 			demand, err := routineDiseaseDemand(reading.Projection, definitions, previous, state.Snapshot)
 			if err != nil {
-				return store.RoutineReviewResult{}, err
+				return store.RoundsResult{}, err
 			}
 			work, err := policy.PlanWork(pawns, required, demand)
 			if err == nil {
@@ -610,11 +610,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		gestation, known, err := mechGestation(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection)
 		if err != nil {
 			clockSchedulerLog("routine.step: mech gestation err=%v", err)
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 		if known {
 			if reading.Projection.Facts.MechGestationOwed, err = policy.MechGestationOwed(gestation); err != nil {
-				return store.RoutineReviewResult{}, err
+				return store.RoundsResult{}, err
 			}
 		}
 	}
@@ -622,23 +622,23 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.CleaningContext(reading.Projection.Identity.Tick)
 	if err = p.current(ctx, epoch); err != nil {
 		clockSchedulerLog("routine.step: p.current err=%v", err)
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if p.session.State() != state {
 		clockSchedulerLog("routine.step: ErrControl state changed under us")
-		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
+		return store.RoundsResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
 	if r.methodEnabled(policy.ClearHomeObstructions) {
 		source, ok := r.native.(observation.ClearanceSource)
 		if !ok {
-			return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
+			return store.RoundsResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		ground := plannedGround(reading.Projection)
 		clearance, err := observation.ObserveClearanceCensusOnGround(ctx, source, expected, true, ground)
 		if err != nil {
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 		if census, known := clearance.Value(); known {
 			others, player := policy.SplitGroundRows(census.Targets)
@@ -650,25 +650,25 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.methodEnabled(policy.ClearAncientShrine) {
 		source, ok := r.native.(observation.ShrineSource)
 		if !ok {
-			return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
+			return store.RoundsResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		if reading.Projection.Facts.Upkeep.Shrines, err = observation.ObserveShrines(ctx, source, expected); err != nil {
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 		// The breach judgement (#457) is journalled beside the review so the
 		// hold reason and the chosen wall are readable; the planner re-reads
 		// before drafting anyone. The reads only happen for a sealed shrine
 		// with a breach wall.
 		if reading.Projection.Facts.ShrineHolds, reading.Projection.Facts.Upkeep.ShrinePolicy, err = routineShrineHolds(ctx, r.native, state.Snapshot, reading.Projection); err != nil {
-			return store.RoutineReviewResult{}, err
+			return store.RoundsResult{}, err
 		}
 	}
 	reading.Projection.Facts.AvailableMethods = r.methods
-	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
+	result, err := p.journal.ReviewRoutine(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {
-		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals) + len(result.Projects), "emergency", routineEmergencyNames(result.Emergency)}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		clockEvent(ctx, "routine", "routine_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals) + len(result.Projects), "emergency", routineEmergencyNames(result.Emergency)}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoutineSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawStatusStrip(ctx, state.Snapshot, &reading.Projection, result)
@@ -721,21 +721,21 @@ func routineEmergencyNames(ids []policy.ConcernID) []string {
 	return out
 }
 
-func (p *Player) stopRoutine(ctx context.Context) (store.RoutineReviewResult, error) {
-	previous, err := p.journal.LoadRoutineReview(ctx)
+func (p *Player) stopRoutine(ctx context.Context) (store.RoundsResult, error) {
+	previous, err := p.journal.LoadRounds(ctx)
 	if err != nil {
-		return store.RoutineReviewResult{}, err
+		return store.RoundsResult{}, err
 	}
 	if previous.Revision == 0 || !previous.Enabled {
-		return store.RoutineReviewResult{Review: previous}, nil
+		return store.RoundsResult{Review: previous}, nil
 	}
-	return p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, Current: previous.Snapshot, Tick: previous.Tick, Enabled: false})
+	return p.journal.ReviewRoutine(ctx, store.RoundsRequest{Revision: previous.Revision, Current: previous.Snapshot, Tick: previous.Tick, Enabled: false})
 }
 
 // recordRoutineSnapshot writes the review's colony snapshot when
 // snapshot.DirEnv names a directory (#742); a failed write is logged, never
 // the review's error.
-func recordRoutineSnapshot(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick, result store.RoutineReviewResult, reading observation.ColonyProjection) {
+func recordRoutineSnapshot(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick, result store.RoundsResult, reading observation.ColonyProjection) {
 	dir := os.Getenv(snapshot.DirEnv)
 	if dir == "" {
 		return

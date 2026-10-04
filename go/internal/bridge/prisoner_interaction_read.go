@@ -23,7 +23,7 @@ var prisonerInteractionDefNames = map[string]domain.PrisonerInteractionMode{
 	"Convert":          domain.PrisonerInteractionConvert,
 }
 
-// PrisonerCensus is one routine review cycle's whole prisoner census, read
+// PrisonerCensus is one rounds cycle's whole prisoner census, read
 // once per cycle so RoutinePrisonerInteractionPlanner can detect
 // MaintainPopulation's deficit and select a candidate the same way the
 // always-present generic colony census lets RoutineHusbandryPlanner detect

@@ -31,7 +31,7 @@ func worshipDefinitions(facts observation.ColonyProjection) []string {
 // projection's definitions so the planners size and place them from the
 // catalog, and remembers the buildings for the planners' own reads (#1658).
 // Room-role furniture rides every routine reading (the catalog names it).
-func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) error {
+func (r *Rounder) reviewChildRooms(reading *observation.RoutineReading) error {
 	worship := worshipDefinitions(reading.Projection)
 	if err := reading.Projection.AddDefinitions(reading.Frame, slices.Concat(worship, containmentDefinitions(reading.Projection))); err != nil {
 		return err
@@ -111,7 +111,7 @@ func childRoomStep(facts observation.ColonyProjection) policy.ChildRoomStep {
 
 // stageChildRoom answers a due child room step: the shell through
 // shellRoom, a piece through placePiece.
-func (r *RoutineSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.ChildRoomStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading, step policy.ChildRoomStep) (RoutineBuildingResult, error) {
 	clockSchedulerLog("%s: %s %s", goal.OwnerID(), step.Need.Role, step.Kind)
 	method := domain.MethodID(step.Method())
 	if step.Kind == policy.ChildRoomPlace {

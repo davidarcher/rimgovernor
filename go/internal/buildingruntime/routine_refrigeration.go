@@ -30,7 +30,7 @@ const (
 // NewRoutineRefrigerationPlanner composes MaintainRefrigeration's building
 // method: cool the rooms holding warm at-risk perishable food with a Cooler
 // on a vented wall, or by patching an existing cooler's setpoint.
-func NewRoutineRefrigerationPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineRefrigerationPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRefrigeration) {
 		return nil, fmt.Errorf("%w: NewRoutineRefrigerationPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRefrigeration)", ErrControl)
 	}

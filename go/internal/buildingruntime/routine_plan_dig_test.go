@@ -77,7 +77,7 @@ func rockCoolerStep(t *testing.T) (p *RoutineBuildingPlanner, db *store.Store, n
 	p.native = n
 	ctx := context.Background()
 	state := p.reviewer.player.session.State()
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -16,7 +16,7 @@ import (
 // transient sets Disabled or raises the threshold.
 //
 // Four shapes abort, each with the journal's own text as the failure:
-//   - no method: the routine review handed the watched goal a development
+//   - no method: the rounds handed the watched goal a development
 //     slot and its planner committed nothing (the row's Idle flag) for
 //     NoMethodReviews consecutive reviews while the goal stayed
 //     active/deficit with no method in flight;
@@ -51,7 +51,7 @@ type FailFast struct {
 	// method_unavailable as neutral for the no-method count: neither a
 	// count nor a reset. A goal whose methods are exhausted by design
 	// (MaintainResource while the project gating its bench is unfinished,
-	// policy.RoutineNeeds) returns method_unavailable and waits for the
+	// policy.RoundsFindings) returns method_unavailable and waits for the
 	// next review, which reads like a planner that found no method, so the
 	// case that knows the design opts in.
 	MethodUnavailableWaits bool

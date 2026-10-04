@@ -20,7 +20,7 @@ type RoutineRescueSource interface {
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 }
 type RoutineRescuePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineRescueSource
 }
 type RoutineRescueResult struct {
@@ -32,7 +32,7 @@ type RoutineRescueResult struct {
 	NativeWorkTicks uint32
 }
 
-func NewRoutineRescuePlanner(reviewer *RoutineReviewer, native RoutineRescueSource) (*RoutineRescuePlanner, error) {
+func NewRoutineRescuePlanner(reviewer *Rounder, native RoutineRescueSource) (*RoutineRescuePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineRescuePlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -47,7 +47,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineRescueResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineRescueResult{}, err
 	}

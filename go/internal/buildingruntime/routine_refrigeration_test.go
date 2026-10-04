@@ -90,7 +90,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
 	t.Parallel()
 	p, db, n, _ := refrigerationFixture(t, false)
-	review, err := db.LoadRoutineReview(context.Background())
+	review, err := db.LoadRounds(context.Background())
 	if err != nil || !review.Latches.Refrigeration {
 		t.Fatal(review.Latches, err)
 	}
@@ -125,7 +125,7 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 	}
 	goal, err := db.LoadGoal(context.Background(), result.Decision.Goal.Goal.ID)
 	if err != nil {
-		review, loadErr := db.LoadRoutineReview(context.Background())
+		review, loadErr := db.LoadRounds(context.Background())
 		if loadErr != nil {
 			t.Fatal(loadErr)
 		}
@@ -204,7 +204,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	review, err := db.LoadRoutineReview(context.Background())
+	review, err := db.LoadRounds(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +295,7 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +343,7 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 	ctx := context.Background()
 	p, db, n, _ := refrigerationFixture(t, true)
 	n.buildings.GetObserved().Buildings[0].Settings.TargetTemperatureC = proto.Float64(-5)
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil || !review.Latches.Refrigeration || review.Latches.RefrigerationSince != review.Tick {
 		t.Fatal(review.Latches, review.Tick, err)
 	}
@@ -351,7 +351,7 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 	if _, err := p.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if again, err := db.LoadRoutineReview(ctx); err != nil || again.Latches.RefrigerationSince != review.Latches.RefrigerationSince {
+	if again, err := db.LoadRounds(ctx); err != nil || again.Latches.RefrigerationSince != review.Latches.RefrigerationSince {
 		t.Fatal(again.Latches, err)
 	}
 	result, err := p.Step(ctx)

@@ -62,7 +62,7 @@ func TestCancelStalledExcavation(t *testing.T) {
 	if _, err := db.Hold(ctx, planID, action, []domain.HeldReason{domain.HeldNotReady}, 7); err != nil {
 		t.Fatal(err)
 	}
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

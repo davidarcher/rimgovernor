@@ -74,7 +74,7 @@ func TestPestAcquisitionPlannerRequiresAnAcquisitionNeed(t *testing.T) {
 
 // pestFixture stages one wild alphabeaver in the wild-animal census and as a
 // pest hunt row, with a hunting budget of two and no colonist restrictions.
-func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *store.Store, *o.ColonyFactsSnapshot, *routineNative) {
+func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *Rounder, *store.Store, *o.ColonyFactsSnapshot, *routineNative) {
 	t.Helper()
 	reviewer, db, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()

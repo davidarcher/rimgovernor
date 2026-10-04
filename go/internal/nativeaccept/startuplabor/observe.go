@@ -6,7 +6,7 @@ import (
 
 // SamplesFromPawnSnapshot reads pawn samples out of one
 // rimgovernor/observations_list_pawns reply the service already made --
-// the labor census every routine review takes. Nothing here calls native:
+// the labor census every rounds takes. Nothing here calls native:
 // the diagnosis rides the observation the review paid for, so no review
 // grows a per-pawn RPC or a map scan.
 //

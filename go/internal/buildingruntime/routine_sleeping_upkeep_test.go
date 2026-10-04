@@ -89,7 +89,7 @@ func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.
 func sleepingGoal(t *testing.T, db *store.Store) store.GoalState {
 	t.Helper()
 	ctx := context.Background()
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, _ := sleepingUpkeepFixture(t)
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	// A completed (admitted) attempt is final for the epoch even when the
 	// bed still reads vacant.
 	planner, db, _ = sleepingUpkeepFixture(t)
-	if review, err = db.LoadRoutineReview(ctx); err != nil {
+	if review, err = db.LoadRounds(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted {
@@ -282,7 +282,7 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 	// colonist it went to counted as housed already, or another bed turned
 	// unsuitable): the same owed count names a numbered successor rather
 	// than reporting the epoch's method used.
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

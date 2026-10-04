@@ -130,8 +130,8 @@ func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native g
 		return fmt.Errorf("rebuild families: %w", err)
 	}
 	families := time.Since(began) - read - goals
-	if err = r.database.ResetRoutineReview(ctx); err != nil {
-		return fmt.Errorf("reset routine review: %w", err)
+	if err = r.database.ResetRounds(ctx); err != nil {
+		return fmt.Errorf("reset rounds: %w", err)
 	}
 	r.world = world
 	r.count++

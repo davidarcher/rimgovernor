@@ -18,7 +18,7 @@ type RoutineTendSource interface {
 	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 }
 type RoutineTendPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineTendSource
 }
 type RoutineTendResult struct {
@@ -30,7 +30,7 @@ type RoutineTendResult struct {
 	NativeWorkTicks uint32
 }
 
-func NewRoutineTendPlanner(reviewer *RoutineReviewer, native RoutineTendSource) (*RoutineTendPlanner, error) {
+func NewRoutineTendPlanner(reviewer *Rounder, native RoutineTendSource) (*RoutineTendPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineTendPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -45,7 +45,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineTendResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineTendResult{}, err
 	}

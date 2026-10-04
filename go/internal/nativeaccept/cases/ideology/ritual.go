@@ -119,7 +119,7 @@ func runFirstRitual(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return "", false, err
 		}
-		review, err := st.LoadRoutineReview(ctx)
+		review, err := st.LoadRounds(ctx)
 		if err != nil {
 			return na.Signature("no-review", stages), false, nil
 		}

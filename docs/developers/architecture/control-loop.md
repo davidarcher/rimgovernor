@@ -68,7 +68,7 @@ sleeping planner uses the existing bed-assignment operation for ordinary beds.
 
 ## Concerns and their forms
 
-The governor makes **Rounds** (the routine review): in each **Department** it
+The governor makes **Rounds** (the rounds): in each **Department** it
 runs an **Inspection** on every **Concern**. A Concern is a kind the governor
 watches (`EnsureFoodSupply`, `ActiveCombat`); it takes one of three **Types**
 (epic #1012), and the Type says which lifecycle it follows. **Safeguards**
@@ -76,7 +76,7 @@ veto unsafe Plans at Admission, and the chosen **Method** produces a **Plan**.
 The shared words and what each replaced are in the
 [vocabulary glossary](../agent-runbook.md#vocabulary-glossary-epic-1964);
 code and storage still carry the old words until the rename children of
-#1964 land, so a grep for `RoutineReview`
+#1964 land, so a grep for `Rounds`
 finds Rounds.
 
 An Incident is a `incidents` row and a Project is a `projects` row (#1926);
@@ -86,7 +86,7 @@ Standards are the only `goals` rows. Incident and Project methods live in
 and go through the same admission. A Project is saved as `project/<id>`
 (`GovernorProjectBlob`, `GovernorStateSchemaVersion` 3); its methods are
 re-planned after a load. Rounds bind Projects separately from Standards
-(`RoutineReview.Projects`, `RoutineReviewResult.Projects`): one row per world
+(`Rounds.Projects`, `RoundsResult.Projects`): one row per world
 and kind, reused while it stands, invalidated with the world, and replaced by
 a new row when a finished Project is measured broken with no work open. A
 player activation that forces a deficit on a finished Project mints a new

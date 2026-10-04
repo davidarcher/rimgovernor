@@ -132,7 +132,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal("native generation unavailable")
 	}
 	scope := domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map, Native: native, Plan: "native-upkeep-replay", Revision: 1}
-	request := store.RoutineReviewRequest{Current: scope, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	request := store.RoundsRequest{Current: scope, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
 	active, err := db.ReviewRoutine(ctx, request)
 	if err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	retained, err := db.LoadRoutineReview(ctx)
+	retained, err := db.LoadRounds(ctx)
 	if err != nil || retained.Enabled {
 		t.Fatal(retained, err)
 	}

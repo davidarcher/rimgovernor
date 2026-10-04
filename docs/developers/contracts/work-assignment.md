@@ -122,7 +122,7 @@ When unmet demand clears, helpers hold for `ConstructionHelpHoldTicks`
 (2500) from the last tick it held (`held_after_demand`), then return to the
 ordinary 0; an override set meanwhile wins. The record (`Idle`, `Helpers`,
 `DemandTick`, `Ready`, `Unmet`, `Reason`, `Risky`) rides the roster report
-(`RoutineReview.Roster.Help`), which the next review reads back for the
+(`Rounds.Roster.Help`), which the next review reads back for the
 hysteresis; `no_sustained_idle_pawn` and `no_unmet_suitable_construction`
 name why spare capacity went unused.
 

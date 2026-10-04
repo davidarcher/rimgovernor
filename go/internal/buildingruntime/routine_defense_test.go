@@ -47,7 +47,7 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 				if err == nil {
 					t.Fatal("mixed observation committed")
 				}
-				stored, e := db.LoadRoutineReview(context.Background())
+				stored, e := db.LoadRounds(context.Background())
 				if e != nil || stored.Revision != 0 {
 					t.Fatal(stored, e)
 				}
@@ -195,20 +195,20 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot := session.State().Snapshot
-	review := func(hostiles int64) store.RoutineReviewResult {
+	review := func(hostiles int64) store.RoundsResult {
 		t.Helper()
-		current, err := db.LoadRoutineReview(ctx)
+		current, err := db.LoadRounds(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 		facts := policy.RoutineFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(hostiles), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
-		out, err := db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: current.Revision, Current: snapshot, Tick: 7 /* the fixture context tick */, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts})
+		out, err := db.ReviewRoutine(ctx, store.RoundsRequest{Revision: current.Revision, Current: snapshot, Tick: 7 /* the fixture context tick */, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts})
 		if err != nil {
 			t.Fatal(err)
 		}
 		return out
 	}
-	combat := func(out store.RoutineReviewResult) (store.RoutineIncident, bool) {
+	combat := func(out store.RoundsResult) (store.RoutineIncident, bool) {
 		t.Helper()
 		return out.Review.Incident(policy.ActiveCombat)
 	}

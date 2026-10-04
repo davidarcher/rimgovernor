@@ -117,7 +117,7 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	for _, s := range d.Sections {
 		names = append(names, s.Name)
 	}
-	want := []string{"revision", "stage graph", "native refusals (last first)", "routine review", "colony extent", "unsuccessful plan stages", "native job failures", "authority generations", "pooled-job mismatches"}
+	want := []string{"revision", "stage graph", "native refusals (last first)", "rounds", "colony extent", "unsuccessful plan stages", "native job failures", "authority generations", "pooled-job mismatches"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("sections = %v", names)
 	}
@@ -134,7 +134,7 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	if !hasLine(refusals, "native_error rimgovernor/orders_haul: the target is not a haulable item", "flight.jsonl:1 seq 2") {
 		t.Fatalf("flight native_error missing: %+v", refusals)
 	}
-	review := section(t, d, "routine review")
+	review := section(t, d, "rounds")
 	if !hasLine(review, "EnsureComfort not selected: startup_survival", "Development.Rows[EnsureComfort]") {
 		t.Fatalf("review = %+v", review)
 	}
@@ -183,7 +183,7 @@ func TestCollectToleratesMissingEvidence(t *testing.T) {
 			t.Fatalf("section %s is silent on missing evidence", s.Name)
 		}
 	}
-	if s := section(t, d, "routine review"); !strings.Contains(s.Note, "no service.sqlite") {
+	if s := section(t, d, "rounds"); !strings.Contains(s.Note, "no service.sqlite") {
 		t.Fatalf("store note = %q", s.Note)
 	}
 	// A store without the tables the digest reads is reported per step.
@@ -196,7 +196,7 @@ func TestCollectToleratesMissingEvidence(t *testing.T) {
 	}
 	db.Close()
 	d = Collect(context.Background(), dir, map[string]any{})
-	if s := section(t, d, "routine review"); !strings.Contains(s.Note, "no such table") {
+	if s := section(t, d, "rounds"); !strings.Contains(s.Note, "no such table") {
 		t.Fatalf("old schema note = %+v", s)
 	}
 	if s := section(t, d, "unsuccessful plan stages"); !strings.Contains(s.Note, "no such table") {

@@ -36,7 +36,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "route/stockpile",
 		Scope: "Native MaintainRoutes vertical: a walled-in stockpile the native reachability census reads unreachable " +
-			"drives the live Go routine reviewer/planner to admit exactly one door on a listed breach wall; the colonists " +
+			"drives the live Go rounder/planner to admit exactly one door on a listed breach wall; the colonists " +
 			"build it and the measured census, not the receipt, releases the latch, confirmed by an independent native read " +
 			"with observed traffic samples.",
 		Start: cases.Fixture{Op: "test/routes_prepare", On: cases.LabStart()},
@@ -136,7 +136,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer journal.Close()
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return err
@@ -384,7 +384,7 @@ func readRoutes(ctx context.Context, h *na.Harness, identity map[string]any, lab
 	return routesSummary{}, fmt.Errorf("%s: routes census lists no facility %s", label, facility)
 }
 
-func latchedOn(review store.RoutineReview, key string) bool {
+func latchedOn(review store.Rounds, key string) bool {
 	for _, k := range review.Latches.Routes {
 		if k == key {
 			return true
@@ -399,8 +399,8 @@ func storeWait(service *na.ServiceProcess) na.Wait {
 	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
 }
 
-func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.Rounds, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool {
 		if !latchedOn(r, key) {
 			return false
 		}
@@ -417,8 +417,8 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, 
 	return review, nil
 }
 
-func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return !latchedOn(r, key) })
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, key string) (store.Rounds, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.Rounds) bool { return !latchedOn(r, key) })
 	if err != nil {
 		return review, fmt.Errorf("review never released the routes latch on facility %s (revision %d): %w", key, review.Revision, err)
 	}

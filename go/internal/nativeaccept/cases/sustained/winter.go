@@ -51,7 +51,7 @@ func init() {
 		Name: "sustained/winter",
 		Scope: "Winter survival (#251, the acceptance #229 named): on the " + BaselineSave + " save moved to the last hours of its growing " +
 			"season (test/winter_prepare) with a larder stocked to the seasonal food target the calendar derives (test/winter_stock), " +
-			"EnsureFoodSupply's families run without a player target and every routine review through the window reads a food " +
+			"EnsureFoodSupply's families run without a player target and every rounds through the window reads a food " +
 			"runway at or above the seasonal FoodMinDays, on both sides of the tile's first non-growing day.",
 		Start:  cases.Fixture{Op: "test/winter_prepare", Args: map[string]any{"hoursBeforeFrost": winterHoursBeforeFrost}, On: cases.Save{Name: BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
@@ -61,7 +61,7 @@ func init() {
 	})
 }
 
-// winterSample is one routine review's stored-food reading off the flight
+// winterSample is one rounds's stored-food reading off the flight
 // recorder's routine_review row.
 type winterSample struct {
 	Revision   uint64  `json:"revision"`
@@ -188,7 +188,7 @@ func stockWinterLarder(ctx context.Context, h *na.Harness, identity, prepared ma
 	return nil
 }
 
-// auditWinter reads every routine review the service committed off the
+// auditWinter reads every rounds the service committed off the
 // flight recorder and holds each one's food runway to the seasonal minimum
 // it reviewed under; the window must have reached the first non-growing
 // day so the seasonal flip is covered.
@@ -245,7 +245,7 @@ func auditWinter(output string, report na.Report) error {
 	}
 	report["review_summary"] = map[string]any{"reviews": len(samples), "food_days_known": known, "growing": growing, "waiting": waiting, "lowest_margin_days": lowest}
 	if known == 0 {
-		return fmt.Errorf("no routine review read a food runway across %d reviews", len(samples))
+		return fmt.Errorf("no rounds read a food runway across %d reviews", len(samples))
 	}
 	if growing == 0 || waiting == 0 {
 		return fmt.Errorf("the reviews did not straddle the first non-growing day (growing %d, waiting %d over %d reviews; window %v)", growing, waiting, len(samples), report["window"])

@@ -381,7 +381,7 @@ func ProductionBlockedGoal(progress []GoalProgress) (ConcernID, BlockedReason) {
 // facts read live, the food runway, the wood latch, the built
 // research bench, the season, the doctors and the production goals'
 // progress records.
-func StageColonyFacts(needs RoutineNeeds, f RoutineFacts, p RoutinePolicy, progress []GoalProgress) ColonyStageFacts {
+func StageColonyFacts(needs RoundsFindings, f RoutineFacts, p RoutinePolicy, progress []GoalProgress) ColonyStageFacts {
 	facts := ColonyStageFacts{
 		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: f.FoodStorage, Armed: footholdArmed(f),
 		FoodDays:  f.FoodDays,

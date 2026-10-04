@@ -25,7 +25,7 @@ import (
 // ReadCombatPawns -- since a capture/rescue performer must be an
 // undrafted colonist, exactly like a CriticalMedicine rescuer.
 type RoutinePopulationCustodyPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineCustodySource
 }
 type RoutinePopulationCustodyResult struct {
@@ -33,7 +33,7 @@ type RoutinePopulationCustodyResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutinePopulationCustodyPlanner(reviewer *RoutineReviewer, native RoutineCustodySource) (*RoutinePopulationCustodyPlanner, error) {
+func NewRoutinePopulationCustodyPlanner(reviewer *Rounder, native RoutineCustodySource) (*RoutinePopulationCustodyPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutinePopulationCustodyPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -48,7 +48,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}

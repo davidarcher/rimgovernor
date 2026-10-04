@@ -14,7 +14,7 @@ import (
 // lamp beside them (issue #6 slice 3). Completion is the next measured
 // census, not the build receipt: the review releases a bench only once its
 // interaction cell reads lit.
-func NewRoutineLightingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineLightingPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainLighting) {
 		return nil, fmt.Errorf("%w: NewRoutineLightingPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainLighting)", ErrControl)
 	}

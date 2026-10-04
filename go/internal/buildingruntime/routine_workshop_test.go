@@ -77,7 +77,7 @@ func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 	native.finished = []string{"Fabrication"}
 	native.hosts = []policy.RecipeHost{{Definition: "MakeComponent", Products: []policy.Resource{policy.ComponentResource}, Available: true, Benches: []string{"FabricationBench"}, Research: []string{"Fabrication"}}}
 	ctx := context.Background()
-	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
+	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.Rounds{})
 	if err != nil || !reason.IsZero() || selection == nil || selection.resource != policy.ComponentResource || selection.candidates[0] != "FabricationBench" {
 		t.Fatal(selection, reason, err)
 	}
@@ -86,7 +86,7 @@ func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 		{Name: "FabricationBench", Available: domain.Known(true), NeedsPower: domain.Known(true), ConstructionSkill: domain.Known(int32(0))},
 		{Name: "WoodFiredGenerator", Available: domain.Known(true)},
 	}}
-	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
+	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.Rounds{}, facts)
 	if err != nil || !reason.IsZero() || bench == nil || bench.definition != "FabricationBench" || bench.facility == nil || bench.facility.Role != policy.RoomRoleWorkshop {
 		t.Fatal(bench, reason, err)
 	}
@@ -101,13 +101,13 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	native.finished = []string{}
 	native.hosts = []policy.RecipeHost{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: true, Benches: []string{"HandTailoringBench"}}}
 	ctx := context.Background()
-	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
+	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.Rounds{})
 	if err != nil || !reason.IsZero() || selection == nil || selection.resource != "Apparel_BasicShirt" || selection.candidates[0] != "HandTailoringBench" {
 		t.Fatal(selection, reason, err)
 	}
 	planner.workshop = selection
 	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "HandTailoringBench", Available: domain.Known(true), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}}}
-	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
+	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.Rounds{}, facts)
 	if err != nil || !reason.IsZero() || bench == nil || bench.goal != policy.MaintainEquipment || bench.definition != "HandTailoringBench" || !bench.facilityLadder() {
 		t.Fatal(bench, reason, err)
 	}
@@ -118,7 +118,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	}
 	facts.Definitions[0].Available = domain.Known(false)
 	facts.Definitions[0].Research = []string{"ComplexClothing"}
-	if _, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts); err != nil || reason != BuildingWorkshopResearch {
+	if _, reason, err := planner.selectWorkshop(ctx, session.State(), store.Rounds{}, facts); err != nil || reason != BuildingWorkshopResearch {
 		t.Fatal(reason, err)
 	}
 	w := session.State().Snapshot
@@ -127,7 +127,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 		t.Fatal(ladder, ok, err)
 	}
 	native.benches = []bridge.GearBenchRead{{Token: "bench", Bench: policy.GearBench{ID: "tailor", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}
-	if _, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{}); err != nil || reason != BuildingExistingFacility {
+	if _, reason, err := planner.prepareWorkshop(ctx, session.State(), store.Rounds{}); err != nil || reason != BuildingExistingFacility {
 		t.Fatal(reason, err)
 	}
 	// A missing layer may suggest advanced armor before the worn shirt in
@@ -137,7 +137,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	reconPawn.ApparelPolicy.Drafted = proto.Bool(true)
 	reconPawn.LoadoutModel.Options = append(reconPawn.LoadoutModel.Options, gearBillOption("Apparel_ArmorRecon", ""))
 	native.hosts = append(native.hosts, policy.RecipeHost{Definition: "Make_Armor", Products: []policy.Resource{"Apparel_ArmorRecon"}, Available: false, Research: []string{"ReconArmor"}, Benches: []string{"FabricationBench"}})
-	selection, reason, err = planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
+	selection, reason, err = planner.prepareWorkshop(ctx, session.State(), store.Rounds{})
 	if err != nil || !reason.IsZero() || selection == nil || len(selection.alternatives) != 1 {
 		t.Fatal(selection, reason, err)
 	}
@@ -145,7 +145,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	facts.Definitions[0].Available = domain.Known(true)
 	facts.Definitions[0].Research = nil
 	facts.Definitions = append(facts.Definitions, observation.PlanningDefinition{Name: "FabricationBench", Available: domain.Known(false), NeedsPower: domain.Known(true), ConstructionSkill: domain.Known(int32(6)), Research: []string{"Fabrication"}})
-	bench, reason, err = planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
+	bench, reason, err = planner.selectWorkshop(ctx, session.State(), store.Rounds{}, facts)
 	if err != nil || !reason.IsZero() || bench == nil || bench.definition != "HandTailoringBench" || bench.workshop.resource != "Apparel_BasicShirt" {
 		t.Fatal(bench, reason, err)
 	}
@@ -190,7 +190,7 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 				planner.reviewer.policy.ResourceTargets = test.targets
 			}
 			native.reply.GetObserved().Resources[0].Units = proto.Int64(test.stock)
-			selection, reason, err := planner.prepareWorkshop(context.Background(), session.State(), store.RoutineReview{})
+			selection, reason, err := planner.prepareWorkshop(context.Background(), session.State(), store.Rounds{})
 			if err != nil || reason != test.reason {
 				t.Fatal(selection, reason, err)
 			}
@@ -218,7 +218,7 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	state := session.State()
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{definition("CraftingSpot", true, false), definition("FabricationBench", true, true)}}
-	selected, reason, err := planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts)
+	selected, reason, err := planner.selectWorkshop(ctx, state, store.Rounds{}, facts)
 	if err != nil || !reason.IsZero() || selected.definition != "CraftingSpot" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleWorkshop {
 		t.Fatal(selected, reason, err)
 	}
@@ -232,27 +232,27 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	// staged once a generator definition is available.
 	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", false, false), definition("FabricationBench", true, true)}
 	facts.Definitions[0].Research = []string{"Smithing"}
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingWorkshopResearch || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.Rounds{}, facts); err != nil || reason != BuildingWorkshopResearch || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 	if ladder, ok, err := planner.reviewer.player.journal.LoadProductionLadder(ctx, world); err != nil || !ok || ladder.Bench != "CraftingSpot" || len(ladder.Research) != 1 || ladder.Research[0] != "Smithing" {
 		t.Fatal(ladder, ok, err)
 	}
 	facts.Definitions = append(facts.Definitions, definition("WoodFiredGenerator", true, false))
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || !reason.IsZero() || selected.definition != "FabricationBench" {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.Rounds{}, facts); err != nil || !reason.IsZero() || selected.definition != "FabricationBench" {
 		t.Fatal(selected, reason, err)
 	}
 	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", false, false), definition("FabricationBench", true, true)}
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingWorkshopUnavailable || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.Rounds{}, facts); err != nil || reason != BuildingWorkshopUnavailable || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", true, false)}
 	facts.Definitions[0].NeedsPower = domain.Unknown[bool]()
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != fieldUnavailable("workshop") || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.Rounds{}, facts); err != nil || reason != fieldUnavailable("workshop") || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 	planner.workshop = nil
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != fieldUnavailable("workshop") || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.Rounds{}, facts); err != nil || reason != fieldUnavailable("workshop") || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 }
@@ -371,7 +371,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 func TestWorkshopShellWaitsWhileInitialShelterIsOwed(t *testing.T) {
 	t.Parallel()
 	r, db, _ := shelterFixture(t)
-	review, err := db.LoadRoutineReview(context.Background())
+	review, err := db.LoadRounds(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

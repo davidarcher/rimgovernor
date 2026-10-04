@@ -86,7 +86,7 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 	}
 	defer done()
 	state := p.session.State()
-	review, err := p.journal.LoadRoutineReview(ctx)
+	review, err := p.journal.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

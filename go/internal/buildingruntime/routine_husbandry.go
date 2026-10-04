@@ -18,7 +18,7 @@ import (
 // effective operator/food floor. Removal always needs its operator opt-in;
 // food slaughter additionally requires an admitted portfolio offer.
 type RoutineHusbandryPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutineHusbandryResult struct {
 	Verdict
@@ -29,7 +29,7 @@ type RoutineHusbandryResult struct {
 	NativeWorkTicks uint32
 }
 
-func NewRoutineHusbandryPlanner(reviewer *RoutineReviewer) (*RoutineHusbandryPlanner, error) {
+func NewRoutineHusbandryPlanner(reviewer *Rounder) (*RoutineHusbandryPlanner, error) {
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutineHusbandryPlanner: reviewer == nil", ErrControl)
 	}
@@ -45,7 +45,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineHusbandryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}

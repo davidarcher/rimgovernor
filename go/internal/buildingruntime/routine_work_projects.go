@@ -278,7 +278,7 @@ func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.Ro
 		return nil, nil
 	}
 	if ladder.Goal == policy.MaintainEquipment {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return nil, err
 		}

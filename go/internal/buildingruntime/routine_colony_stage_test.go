@@ -45,7 +45,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	v := n.reply.GetObserved()
 	stage := func() policy.ColonyStageRecord {
 		t.Helper()
-		review, err := db.LoadRoutineReview(ctx)
+		review, err := db.LoadRounds(ctx)
 		if err != nil || review.Stage == nil {
 			t.Fatal(review.Revision, err)
 		}
@@ -53,7 +53,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	}
 	row := func() (store.RoutineDevelopmentRow, bool) {
 		t.Helper()
-		review, err := db.LoadRoutineReview(ctx)
+		review, err := db.LoadRounds(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}

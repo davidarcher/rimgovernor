@@ -123,7 +123,7 @@ func TestNativeRoutineMoodReplay(t *testing.T) {
 	}
 	scope := domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map, Native: native, Plan: "mood-native-replay", Revision: 1}
 	projection.Facts.MoodPawns = observed
-	r := store.RoutineReviewRequest{Current: scope, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	r := store.RoundsRequest{Current: scope, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
 	out, err := db.ReviewRoutine(ctx, r)
 	if err != nil {
 		t.Fatal(err)
@@ -153,7 +153,7 @@ func TestNativeRoutineMoodReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	loaded, err := db.LoadRoutineReview(ctx)
+	loaded, err := db.LoadRounds(ctx)
 	if err != nil || loaded.Enabled || loaded.Mood == nil || len(loaded.Mood.States) != len(h.States) || len(loaded.MoodMethods) != 0 {
 		t.Fatal(loaded, err)
 	}

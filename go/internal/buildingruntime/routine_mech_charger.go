@@ -17,11 +17,11 @@ import (
 // first footprint native previews as legal, safe and reachable. The goal
 // settles on the game's verdict (a charger stands idle), never on the plan.
 type RoutineMechChargerPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineBuildingSource
 }
 
-func NewRoutineMechChargerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineMechChargerPlanner, error) {
+func NewRoutineMechChargerPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineMechChargerPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.EnsureMechCharger) {
 		return nil, fmt.Errorf("%w: NewRoutineMechChargerPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.EnsureMechCharger)", ErrControl)
 	}
@@ -62,7 +62,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

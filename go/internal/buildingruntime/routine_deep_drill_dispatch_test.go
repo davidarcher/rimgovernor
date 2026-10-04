@@ -39,7 +39,7 @@ type drillDispatch struct {
 	epoch    context.Context
 	state    ControlState
 	goal     store.GoalState
-	review   store.RoutineReview
+	review   store.Rounds
 	db       *store.Store
 	sleeping *sleepingNative
 	base     *RoutineBuildingPlanner

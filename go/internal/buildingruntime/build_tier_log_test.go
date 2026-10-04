@@ -15,12 +15,12 @@ import (
 
 // The service log records the build tier once per change (#604): the first
 // known reading, then only a different tier; an unknown tier is silent.
-func TestRoutineReviewerLogsBuildTierOncePerChange(t *testing.T) {
+func TestRounderLogsBuildTierOncePerChange(t *testing.T) {
 	var out bytes.Buffer
 	previous := slog.Default()
 	slog.SetDefault(telemetry.New(&out, slog.LevelInfo, nil))
 	defer slog.SetDefault(previous)
-	r := &RoutineReviewer{}
+	r := &Rounder{}
 	reading := func(finished ...policy.ResearchProjectID) observation.ColonyProjection {
 		p := observation.ColonyProjection{PlayerTechLevel: domain.Known("Neolithic")}
 		p.Facts.Research = domain.Known(policy.ResearchFacts{Finished: finished})

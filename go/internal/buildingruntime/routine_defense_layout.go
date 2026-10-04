@@ -93,7 +93,7 @@ type RoutineDefenseLayoutSource interface {
 	PreviewBuildings(context.Context, []domain.Action, domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error)
 }
 type RoutineDefenseLayoutPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineDefenseLayoutSource
 }
 type RoutineDefenseLayoutResult struct {
@@ -110,7 +110,7 @@ type RoutineDefenseLayoutResult struct {
 // blueprint the game placed itself.
 const defenseNativeWorkTicks = 2500
 
-func NewRoutineDefenseLayoutPlanner(reviewer *RoutineReviewer, native RoutineDefenseLayoutSource) (*RoutineDefenseLayoutPlanner, error) {
+func NewRoutineDefenseLayoutPlanner(reviewer *Rounder, native RoutineDefenseLayoutSource) (*RoutineDefenseLayoutPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineDefenseLayoutPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -139,7 +139,7 @@ func defenseTierMethodID(tier store.DefenseTierRecord) domain.MethodID {
 
 // defenseLayoutGoal finds the goal the planner serves: the review binding
 // for EnsureDefensiveLayout when the routine policy opts in.
-func defenseLayoutGoal(ctx context.Context, p *Player, review store.RoutineReview) (store.ProjectState, bool, error) {
+func defenseLayoutGoal(ctx context.Context, p *Player, review store.Rounds) (store.ProjectState, bool, error) {
 	if id, bound := review.ProjectFor(policy.EnsureDefensiveLayout); bound {
 		project, err := p.journal.LoadProject(ctx, id)
 		return project, err == nil, err
@@ -156,7 +156,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineDefenseLayoutResult{}, defenseControlErr(113)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
@@ -459,7 +459,7 @@ func defenseRearmAttempts(history []domain.GoalMethod, turret string, tick domai
 // recovery_service action under the layout goal: the same native work-giver
 // job a player's float-menu click issues, whose CAS token and pawn
 // eligibility Hands re-check at dispatch.
-func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal store.ProjectState, review store.RoutineReview, state ControlState, read observation.RoutineReading, order policy.DefenseRearm, arbiter *stepArbiter) (RoutineDefenseLayoutResult, error) {
+func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoutineReading, order policy.DefenseRearm, arbiter *stepArbiter) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	tick := read.Projection.Identity.Tick
 	history, err := p.journal.LoadOwnerMethods(call, goal)
@@ -994,7 +994,7 @@ func defenseReverifyDue(record store.DefenseLayoutRecord, tick domain.Tick, comb
 // or closed (#1020): each raid opens a new one, so a changed key marks a
 // combat whose aftermath the layout has not verified. Empty before the
 // first combat.
-func defenseCombatKey(ctx context.Context, p *Player, review store.RoutineReview) (string, error) {
+func defenseCombatKey(ctx context.Context, p *Player, review store.Rounds) (string, error) {
 	s := review.Snapshot
 	latest, ok, err := p.journal.LatestIncident(ctx, store.World{Colony: s.Colony, Load: s.Load, Map: s.Map}, policy.ActiveCombat)
 	if err != nil || !ok {
@@ -1111,12 +1111,12 @@ func routineDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p
 // floor the stock census derives (#231) and the journal's derived needs
 // merged, the targets every resource planner dispatches on. An unknown
 // census leaves the stone floor out.
-func (r *RoutineReviewer) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot, stock domain.Fact[[]policy.Amount]) (map[policy.Resource]int64, error) {
+func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot, stock domain.Fact[[]policy.Amount]) (map[policy.Resource]int64, error) {
 	_, needs, err := routineDefensiveLayoutStanding(ctx, r.player.journal, r.policy, snapshot)
 	if err != nil {
 		return nil, err
 	}
-	review, err := r.player.journal.LoadRoutineReview(ctx)
+	review, err := r.player.journal.LoadRounds(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1159,7 +1159,7 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 // colony has no verified killbox geometry yet (no ranged defender, no
 // chokepoint, no line of sight), which is a wait rather than an error; the
 // verdict then names which of those is missing.
-func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.ProjectState, review store.RoutineReview, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, Verdict, bool, error) {
+func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, Verdict, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
 	killbox, region, home, ok := defenseKillbox(projection)
@@ -1251,7 +1251,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 // shared rock step (admitRockStep), reached from the yard behind the
 // killbox. handled is false when nothing needs digging or the native side
 // has nothing to dig (or no excavation read).
-func (r *RoutineDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goal store.ProjectState, review store.RoutineReview, state ControlState, read observation.RoutineReading, access domain.Cell, planned []policy.RoleCell) (RoutineBuildingResult, bool, error) {
+func (r *RoutineDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoutineReading, access domain.Cell, planned []policy.RoleCell) (RoutineBuildingResult, bool, error) {
 	source, ok := r.native.(RoutineExcavationSource)
 	if !ok {
 		return RoutineBuildingResult{}, false, nil

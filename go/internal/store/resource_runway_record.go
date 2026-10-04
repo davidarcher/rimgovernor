@@ -40,7 +40,7 @@ func resourceRunwayRecords(rows []policy.ResourceRunway) []ResourceRunwayRecord 
 	return out
 }
 
-func (r RoutineReview) ResourceRunwayState() []policy.ResourceRunway {
+func (r Rounds) ResourceRunwayState() []policy.ResourceRunway {
 	var out []policy.ResourceRunway
 	for _, row := range r.ResourceRunways {
 		out = append(out, policy.ResourceRunway{Resource: row.Resource, Tick: row.Tick, WindowDays: row.WindowDays, Reserve: row.Reserve,

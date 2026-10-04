@@ -94,7 +94,7 @@ func TestProjectPacingReasons(t *testing.T) {
 		detail string
 	}{
 		{"no rows", nil, Input{ReviewsEnabled: true}, ReasonUnknown, ""},
-		{"governor off", []bridge.TimelineRecord{running}, Input{}, ReasonGovernorOff, "routine reviews are disabled"},
+		{"governor off", []bridge.TimelineRecord{running}, Input{}, ReasonGovernorOff, "rounds are disabled"},
 		{"held", []bridge.TimelineRecord{running}, Input{ReviewsEnabled: true, Holds: []string{"interruption"}}, ReasonHeld, "interruption"},
 		{"running", []bridge.TimelineRecord{running}, Input{ReviewsEnabled: true}, ReasonRunning, ""},
 		{"refused", []bridge.TimelineRecord{running, refused}, Input{ReviewsEnabled: true}, ReasonRefused, "stale_facts, combat_plan, held by draft"},

@@ -18,7 +18,7 @@ import (
 )
 
 type RoutineFieldPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   FieldNative
 }
 type RoutineFieldResult struct {
@@ -31,7 +31,7 @@ type FieldNative interface {
 	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 }
 
-func NewRoutineFieldPlanner(reviewer *RoutineReviewer, native FieldNative) (*RoutineFieldPlanner, error) {
+func NewRoutineFieldPlanner(reviewer *Rounder, native FieldNative) (*RoutineFieldPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineFieldPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -46,7 +46,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !state.ObservationKnown {
 		return RoutineFieldResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
@@ -241,7 +241,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 // read (#1308), each under its own goal: hay under MaintainAnimalFeed,
 // social crops under MaintainResource once brewing is researched. A goal
 // with open work waits for it.
-func (r *RoutineFieldPlanner) otherFieldShortfalls(call context.Context, review store.RoutineReview, projection observation.ColonyProjection) ([]fieldShortfall, error) {
+func (r *RoutineFieldPlanner) otherFieldShortfalls(call context.Context, review store.Rounds, projection observation.ColonyProjection) ([]fieldShortfall, error) {
 	p := r.reviewer.player
 	ready := func(kind policy.ConcernID) (store.GoalState, bool, error) {
 		goal, workable, err := p.journal.Workable(call, review, kind)

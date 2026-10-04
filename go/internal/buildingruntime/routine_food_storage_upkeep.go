@@ -28,7 +28,7 @@ const foodStorageSiteLimit = 16
 // RoutineFoodStorageUpkeepSource is the native census RoutineFoodStorageUpkeepPlanner
 // reads immediately before proposing a MaintainFoodStorage method: a fresh
 // colony facts read for the current food-supply census (the same top-level
-// section used during ordinary routine review, not gated behind the planning
+// section used during ordinary rounds, not gated behind the planning
 // flag), the generic per-definition resource-storage census
 // routine_resource.go's RoutineResourceSource already established (reused
 // here rather than inventing a food-specific storage read), and the same
@@ -46,7 +46,7 @@ type RoutineFoodStorageUpkeepSource interface {
 	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
 }
 type RoutineFoodStorageUpkeepPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineFoodStorageUpkeepSource
 }
 type RoutineFoodStorageUpkeepResult struct {
@@ -54,7 +54,7 @@ type RoutineFoodStorageUpkeepResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineFoodStorageUpkeepPlanner(reviewer *RoutineReviewer, native RoutineFoodStorageUpkeepSource) (*RoutineFoodStorageUpkeepPlanner, error) {
+func NewRoutineFoodStorageUpkeepPlanner(reviewer *Rounder, native RoutineFoodStorageUpkeepSource) (*RoutineFoodStorageUpkeepPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineFoodStorageUpkeepPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -62,7 +62,7 @@ func NewRoutineFoodStorageUpkeepPlanner(reviewer *RoutineReviewer, native Routin
 }
 
 // foodStorageObservationFacts decodes the freshly read colony census with
-// the same observation.DecodeFoodSupply the routine review uses, so the
+// the same observation.DecodeFoodSupply the rounds uses, so the
 // planner and the review agree on every stock's cover and temperature
 // facts; a stock the things table misses leaves them unknown.
 func foodStorageObservationFacts(ctx context.Context, native RoutineFoodStorageUpkeepSource, v *o.ColonyFactsSnapshot) policy.FoodStorageObservation {
@@ -122,7 +122,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}

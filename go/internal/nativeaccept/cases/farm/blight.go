@@ -21,7 +21,7 @@ const blightPrefix = "blight-accept"
 // live rimgovernor service composed with the blight family. The private
 // test/blight_prepare fixture sows a small rice zone near the colonists and
 // blights a few plants. The typed colony read's blighted_plants census must
-// list exactly those plants undesignated; the routine review opens
+// list exactly those plants undesignated; the rounds opens
 // RemoveBlight on the census, the planner admits one plan of CutPlant
 // designations on the blighted plants only, the colonist cuts them within a
 // stall-bounded window, and the goal settles on the census emptying, never
@@ -30,7 +30,7 @@ const blightPrefix = "blight-accept"
 func init() {
 	cases.Register(cases.Case{
 		Name: "farm/blight",
-		Scope: "Native blight responder: the blighted_plants census drives the live Go routine reviewer/planner to open " +
+		Scope: "Native blight responder: the blighted_plants census drives the live Go rounder/planner to open " +
 			"RemoveBlight and admit CutPlant designations on the blighted plants only; the colonists cut them within a " +
 			"stall-bounded window and the goal settles on the census emptying, confirmed by an independent native read (#245).",
 		Start:   cases.Fixture{Op: "test/blight_prepare", On: cases.LabStart()},
@@ -126,7 +126,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer journal.Close()
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return err
@@ -393,7 +393,7 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 	var found domain.GoalMethod
 	settled := false
 	err := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}
@@ -436,7 +436,7 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 func waitBlightSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.GoalState, error) {
 	var goal store.GoalState
 	err := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}

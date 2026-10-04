@@ -23,7 +23,7 @@ import (
 // that whole method has no space does it propose a native-grounded starter shell.
 // The shell is the layout plan's storeroom; a room the plan marks Dug is
 // mined by plan dig (#1250).
-func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineShelterPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineShelterPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -32,7 +32,7 @@ func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 
 // Expansion reuses the same furnishing and whole-shell admission path to keep
 // one spare indoor sleeping place beyond the observed population.
-func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineExpansionPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineExpansionPlanner: reviewer == nil || native == nil", ErrControl)
 	}

@@ -23,7 +23,7 @@ type ColonyStatus interface {
 // mood was readable, null when none was). raidPoints and the wealth split
 // are the census's threat section (#395). playerTechLevel is the faction's
 // native TechLevel name and buildTier the research-derived construction
-// tier (#604), null until a routine review with the research census filed.
+// tier (#604), null until a Rounds pass with the research census filed.
 type colonyStatusDTO struct {
 	FoodPlan             *foodPlanDTO      `json:"foodPlan"`
 	FoodPlanTick         *domain.Tick      `json:"foodPlanTick"`

@@ -40,7 +40,7 @@ func TestMedicalReserveRetainsHistoryAcrossManualUnknownAndRestart(t *testing.T)
 	}
 	s = open(t, path)
 	defer s.Close()
-	retained, err := s.LoadRoutineReview(ctx)
+	retained, err := s.LoadRounds(ctx)
 	if err != nil || !retained.Latches.MedicalReserve || retained.Enabled {
 		t.Fatal(retained, err)
 	}

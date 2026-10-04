@@ -259,7 +259,7 @@ func pacing(in Input, out Now, refused string, admitted, running, haveStep bool)
 	case out.Pacing.Mode != ModeAutonomous:
 		return ReasonCinematic, out.Pacing.Mode
 	case !in.ReviewsEnabled:
-		return ReasonGovernorOff, "routine reviews are disabled"
+		return ReasonGovernorOff, "rounds are disabled"
 	case len(in.Holds) > 0:
 		return ReasonHeld, strings.Join(in.Holds, ", ")
 	case refused != "":

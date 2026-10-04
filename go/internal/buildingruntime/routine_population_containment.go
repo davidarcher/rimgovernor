@@ -57,7 +57,7 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 	if !ok {
 		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "entity_tend_target")}, nil
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}

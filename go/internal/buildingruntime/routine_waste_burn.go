@@ -47,7 +47,7 @@ func fireBurning(facts observation.ColonyProjection) bool {
 
 // stageBurn answers a due ash cleanup or burn; handled is false when
 // neither is due.
-func (r *RoutineWastePlanner) stageBurn(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) stageBurn(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
 	room := standingIncinerator(reading.Projection)
 	if room == nil {
 		return RoutineWasteResult{}, false, nil

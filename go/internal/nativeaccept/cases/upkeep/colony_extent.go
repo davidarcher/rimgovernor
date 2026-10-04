@@ -67,7 +67,7 @@ func runColonyExtent(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return err
 	}

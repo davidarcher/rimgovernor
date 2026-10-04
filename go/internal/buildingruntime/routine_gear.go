@@ -35,7 +35,7 @@ type RoutineGearSource interface {
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 }
 type RoutineGearPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineGearSource
 }
 type RoutineGearResult struct {
@@ -43,14 +43,14 @@ type RoutineGearResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineGearPlanner(reviewer *RoutineReviewer, native RoutineGearSource) (*RoutineGearPlanner, error) {
+func NewRoutineGearPlanner(reviewer *Rounder, native RoutineGearSource) (*RoutineGearPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineGearPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineGearPlanner{reviewer, native}, nil
 }
 
-// gearObservationFacts decodes the frame's gear census the way routine review
+// gearObservationFacts decodes the frame's gear census the way rounds
 // does (observation.GearFacts). The planner reads a fresh census of its own
 // immediately before proposing a method, the same way RoutineEquipPlanner
 // rereads combat pawns and loose weapons rather than reusing the review's
@@ -111,7 +111,7 @@ func gearCandidateDefinition(observation policy.GearObservation, pawn policy.Paw
 }
 
 func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineGearResult, error) {
-	review, err := r.reviewer.player.journal.LoadRoutineReview(call)
+	review, err := r.reviewer.player.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
@@ -139,7 +139,7 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 // equipmentSlots is how many MaintainEquipment methods the gear and armory
 // planners may start in one step. There is no development slot or pawn limit:
 // each gear plan is already confined to one pawn and one item.
-func equipmentSlots(call context.Context, p *Player, review store.RoutineReview) (int, Verdict, error) {
+func equipmentSlots(call context.Context, p *Player, review store.Rounds) (int, Verdict, error) {
 	return 16, Verdict{}, nil
 }
 
@@ -148,7 +148,7 @@ func equipmentSlots(call context.Context, p *Player, review store.RoutineReview)
 // reason and holds none, and a wear order or bill admitted for it is refused
 // on every tick. Settings writes hold no slot and go ahead regardless. A
 // review with no rows at all predates the ranking.
-func equipmentRanked(review store.RoutineReview) bool {
+func equipmentRanked(review store.Rounds) bool {
 	if len(review.Development.Rows) == 0 {
 		return true
 	}
@@ -169,7 +169,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineGearResult{}, err
 	}

@@ -64,7 +64,7 @@ func (r *RoutineBuildingPlanner) stepWorkshops(call, epoch context.Context, arbi
 // walks. A powered bench is staged when a generator definition is
 // available; EnsureBasicPower then connects it as an unpowered consumer.
 // Bills on the staged bench belong to the resource or gear planner.
-func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineWorkshopPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineWorkshopPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -81,7 +81,7 @@ func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 // the recipe catalog before the planning census is requested, so the census
 // can describe exactly the candidate bench definitions. A non-empty reason
 // ends the step.
-func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.RoutineReview) (*workshopSelection, Verdict, error) {
+func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.Rounds) (*workshopSelection, Verdict, error) {
 	if r.goal != policy.MaintainEquipment && !r.reviewer.policy.ResourceGoalConfigured() {
 		targets, err := r.reviewer.resourceTargets(call, state.Snapshot, domain.Unknown[[]policy.Amount]())
 		if err != nil {
@@ -230,9 +230,9 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 }
 
 // recordWorkshopLadder persists the rung the workshop settled on so the next
-// routine review can raise EnsureResearch for a research-gated bench, or
+// rounds can raise EnsureResearch for a research-gated bench, or
 // clear that need once the bench is buildable or standing.
-func (r *RoutineBuildingPlanner) recordWorkshopLadder(call context.Context, state ControlState, review store.RoutineReview, resource policy.Resource, choice policy.WorkshopChoice) error {
+func (r *RoutineBuildingPlanner) recordWorkshopLadder(call context.Context, state ControlState, review store.Rounds, resource policy.Resource, choice policy.WorkshopChoice) error {
 	record := store.ProductionLadderRecord{World: store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}, Tick: review.Tick, Resource: resource, Bench: choice.Definition, Recipe: choice.Recipe, Goal: r.goal}
 	if choice.Method == policy.WorkshopResearch {
 		record.Research = choice.Research
@@ -243,7 +243,7 @@ func (r *RoutineBuildingPlanner) recordWorkshopLadder(call context.Context, stat
 // selectWorkshop resolves the prepared candidates against the planning
 // census the same way selectComfort resolves a comfort method: the chosen
 // bench becomes the definition, placed indoors in a Workshop-hosting room.
-func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state ControlState, review store.RoutineReview, facts observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict, error) {
+func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state ControlState, review store.Rounds, facts observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict, error) {
 	if r.workshop == nil {
 		return nil, fieldUnavailable("workshop"), nil
 	}

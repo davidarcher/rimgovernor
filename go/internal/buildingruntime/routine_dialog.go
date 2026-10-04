@@ -18,13 +18,13 @@ import (
 // RoutineDialogSource is the native colony census RoutineDialogPlanner reads
 // to find the exact observed window/options of the force-pausing choice
 // dialog the game opened by itself (#156), the same ReadColonyFacts call
-// RoutineReviewer itself uses to raise the AnswerDialog goal
+// Rounder itself uses to raise the AnswerDialog goal
 // (observation.colony.go's own r.Facts.ChoiceDialog derivation).
 type RoutineDialogSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 type RoutineDialogPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineDialogSource
 	policy   policy.DialogAnswerPolicy
 }
@@ -35,7 +35,7 @@ type RoutineDialogResult struct {
 	Option string
 }
 
-func NewRoutineDialogPlanner(reviewer *RoutineReviewer, native RoutineDialogSource, answer policy.DialogAnswerPolicy) (*RoutineDialogPlanner, error) {
+func NewRoutineDialogPlanner(reviewer *Rounder, native RoutineDialogSource, answer policy.DialogAnswerPolicy) (*RoutineDialogPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineDialogPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -50,7 +50,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineDialogResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineDialogResult{}, err
 	}

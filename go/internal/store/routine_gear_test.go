@@ -126,7 +126,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	}
 	db.Close()
 	db = open(t, path)
-	disabled, err := db.LoadRoutineReview(context.Background())
+	disabled, err := db.LoadRounds(context.Background())
 	if err != nil || disabled.Enabled {
 		t.Fatal(disabled, err)
 	}

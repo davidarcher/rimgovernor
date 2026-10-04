@@ -25,7 +25,7 @@ func init() {
 		Keep:   sleeping.keep,
 		Serve:  &cases.ServeSpec{Families: []string{"sleeping", "home-coverage", "work"}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 12 * time.Minute,
-		Reason: "Two small beds establish real ownership; subsequent Home writes require only routine reviews on the same colony.",
+		Reason: "Two small beds establish real ownership; subsequent Home writes require only rounds on the same colony.",
 		Run:    runHomeCoverage,
 	})
 }
@@ -237,7 +237,7 @@ func serveStage(ctx context.Context, service *na.ServiceProcess, report na.Repor
 	if err != nil {
 		return nil, err
 	}
-	review, diagnostics, err := service.WaitRoutineReview(ctx, journal, 90*time.Second)
+	review, diagnostics, err := service.WaitRounds(ctx, journal, 90*time.Second)
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return nil, err

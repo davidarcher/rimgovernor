@@ -47,7 +47,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	// the 24 TimetableSlot rows. Requesting schedule must never also set
 	// Settings -- doing so live-fires CarePolicy and returns MedicalCare/SelfTend
 	// the caller never asked for, which validateSettings correctly refuses as
-	// unrequested detail, permanently failing every routine review (confirmed
+	// unrequested detail, permanently failing every rounds (confirmed
 	// live: routinehaulaccept/issue #42).
 	request := pawnDetailsRequest(identity, copied, want)
 	reply := &o.ListPawnsReply{}

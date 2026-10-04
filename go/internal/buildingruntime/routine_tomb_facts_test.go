@@ -27,7 +27,7 @@ func TestSarcophagusWithoutStuffFallsBackToAGrave(t *testing.T) {
 // A restarted reviewer holds no refusal until its forced first survey
 // replans; the answer then comes from that survey's tick alone (#857).
 func TestTombGrowthRefusedAfterRestart(t *testing.T) {
-	restarted := &RoutineReviewer{}
+	restarted := &Rounder{}
 	if restarted.tombGrowthRefused(500000) {
 		t.Fatal("no survey yet this process: the review replans first")
 	}

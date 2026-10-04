@@ -11,7 +11,7 @@ import (
 
 // planFood retains one complete review per observed tick and invalidation
 // generation, independently of additional definition/room reads by planners.
-func (r *RoutineReviewer) planFood(p observation.ColonyProjection) domain.Fact[policy.FoodPlan] {
+func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.FoodPlan] {
 	s := &r.census
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -33,7 +33,7 @@ func (r *RoutineReviewer) planFood(p observation.ColonyProjection) domain.Fact[p
 }
 
 // reviewFoodPlan budgets the complete competing-consumer census. It is called
-// by the routine review, before its reading is retained for method planners.
+// by the rounds, before its reading is retained for method planners.
 // A missing census never becomes an empty portfolio that certifies surplus.
 func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePolicy) domain.Fact[policy.FoodPlan] {
 	supply, sk := p.CombinedFoodSupply.Value()

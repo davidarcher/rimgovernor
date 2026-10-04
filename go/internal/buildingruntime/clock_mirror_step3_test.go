@@ -62,7 +62,7 @@ func TestBenchSectionServesPlannersOfTheCensus(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	identity := observation.Identity{Colony: "c", Load: "l", Map: 1, Tick: 100, NativeGeneration: domain.Known(domain.NativeGeneration(3))}
-	r := &RoutineReviewer{store: facts.NewStore()}
+	r := &Rounder{store: facts.NewStore()}
 	reading := observation.RoutineReading{}
 	reading.Projection.Identity = identity
 	r.census.retain(reading, false, domain.Unknown[[]policy.ConstructionClaim]())

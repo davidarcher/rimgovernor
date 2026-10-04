@@ -91,7 +91,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	if _, err := db.RecordZoneReceipt(ctx, result.Plan, a.ID(), dispatched.View().Attempt, "field"); err != nil {
 		t.Fatal(err)
 	}
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

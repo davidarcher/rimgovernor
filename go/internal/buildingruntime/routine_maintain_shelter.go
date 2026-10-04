@@ -180,14 +180,14 @@ func sortedSeeds(set map[domain.Cell]bool) []domain.Cell {
 // MaintainShelterPlanner is MaintainShelter's planner: it commits the Safe
 // area edits the review planned as one AreaIntent plan.
 type MaintainShelterPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type MaintainShelterResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewMaintainShelterPlanner(reviewer *RoutineReviewer) (*MaintainShelterPlanner, error) {
+func NewMaintainShelterPlanner(reviewer *Rounder) (*MaintainShelterPlanner, error) {
 	if reviewer == nil || !reviewer.methodEnabled(policy.MaintainShelter) {
 		return nil, fmt.Errorf("%w: NewMaintainShelterPlanner: reviewer == nil || !reviewer.methodEnabled(policy.MaintainShelter)", ErrControl)
 	}
@@ -203,7 +203,7 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return MaintainShelterResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return MaintainShelterResult{}, err
 	}

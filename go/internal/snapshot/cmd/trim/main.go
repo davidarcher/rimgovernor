@@ -1,4 +1,4 @@
-// Command trim copies one recorded routine review, or a planner step read
+// Command trim copies one recorded rounds, or a planner step read
 // (#794), into testdata as gzipped compact JSON without its planning cells
 // (-keep-cells keeps them for a site-search test). The input is a serve's
 // recorded stream (#756), with -tick naming the review (-seq one of

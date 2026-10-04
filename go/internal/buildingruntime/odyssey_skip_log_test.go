@@ -14,12 +14,12 @@ import (
 
 // The service log names each skipped Odyssey offer once per quest and
 // reason (#1717), at warn level.
-func TestRoutineReviewerLogsOdysseySkipsOncePerQuest(t *testing.T) {
+func TestRounderLogsOdysseySkipsOncePerQuest(t *testing.T) {
 	var out bytes.Buffer
 	previous := slog.Default()
 	slog.SetDefault(telemetry.New(&out, slog.LevelInfo, nil))
 	defer slog.SetDefault(previous)
-	r := &RoutineReviewer{}
+	r := &Rounder{}
 	offer := func(id, script string, class domain.Fact[policy.QuestClass]) policy.JoinerOffer {
 		return policy.JoinerOffer{Quest: domain.QuestID(id), ScriptDef: script, State: "NotYetAccepted", CanAccept: true, Class: class}
 	}

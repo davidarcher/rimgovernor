@@ -255,7 +255,7 @@ first; up to four attempts per turret and goal epoch), the same native
 work-giver job a float-menu click issues, so a switched-off auto-refuel or
 an idle hauling roster does not leave the line unarmed. When no fuel
 definition is in stock the record carries the barrels' fuel gap as a
-`FuelShortage` and the routine review raises it as a derived
+`FuelShortage` and the rounds raises it as a derived
 `MaintainResource` floor (`RoutineFacts.ResourceNeeds`, merged by
 `ResourceGoalTargets` without lowering an operator's floor), so the resource
 policy sources steel (bench recipe, then native mineable sources) until the
@@ -1073,7 +1073,7 @@ passed to `NextRoomUpgrade`, `NextBeautyUpgrade` and, through
   throne rooms stay on the baseline), the royal title's bed and furniture, and
   the assign and remove steps that finish a started bed replacement.
 - Charged steps begin at the Reserves stage (`stage < Reserves` refuses them),
-  the stage of the previous review, as `RoutineReviewer.stage` carries it.
+  the stage of the previous review, as `Rounder.stage` carries it.
 - A shared room spends its owners' combined remaining share; an owner with an
   unknown remaining refuses the room.
 - A refused step is not due, so `bedroomsOwed` (`MaintainHousing`) closes once

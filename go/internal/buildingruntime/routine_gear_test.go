@@ -76,7 +76,7 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	review, err := db.LoadRoutineReview(context.Background())
+	review, err := db.LoadRounds(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func (n *gearTestNative) ReadSupplyStock(ctx context.Context, _ *c.Identity, nam
 	return stock, bridge.Result{}, ctx.Err()
 }
 
-// The gear family must admit a GearReplace method once the routine review
+// The gear family must admit a GearReplace method once the rounds
 // ranks MaintainEquipment in deficit: the goal was hard-gated
 // method_unavailable for every review until #233, and no planner test covered
 // the family (#258).
@@ -309,7 +309,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

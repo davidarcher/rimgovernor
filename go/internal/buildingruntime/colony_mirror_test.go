@@ -59,7 +59,7 @@ func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 		Planning:  &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{}}},
 	}
 	native := &colonyCountingNative{tick: 100, facts: observed}
-	r := &RoutineReviewer{store: facts.NewStore(), native: native}
+	r := &Rounder{store: facts.NewStore(), native: native}
 	identity := observation.Identity{Colony: "c", Load: "l", Map: 1, Tick: 100, NativeGeneration: domain.Known(domain.NativeGeneration(3))}
 	scope := facts.Scope{Load: "l", Map: 1, Generation: 3}
 	id := &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("l"), MapId: proto.Int32(1)}

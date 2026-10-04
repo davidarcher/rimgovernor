@@ -30,7 +30,7 @@ func schedulerRoutine(t *testing.T, s *ClockScheduler, f *schedulerNative) *rout
 	n.cells = fixtureCells(t)
 	n.reply.GetObserved().Context = proto.Clone(f.status.Context).(*c.ObservationContext)
 	n.cells.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
-	r, err := NewRoutineReviewer(s.player, n, s.clock, policy.DefaultRoutinePolicy(), time.Second)
+	r, err := NewRounder(s.player, n, s.clock, policy.DefaultRoutinePolicy(), time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func (w windowedScheduler) ReadPlanningWindow(ctx context.Context, id *c.Identit
 	return w.window.ReadPlanningWindow(ctx, id, rect)
 }
 
-// TestClockSchedulerReviewsRoutineUnderARunningWindow: the routine review
+// TestClockSchedulerReviewsRoutineUnderARunningWindow: the rounds
 // is no longer bound to the stop between windows (#243). A timer step under
 // the window it started reviews nothing until the full step is due; a full
 // step reviews live, reported with the "live" cause, and admits nothing
@@ -94,7 +94,7 @@ func TestClockSchedulerFailedRoutineReadCannotStartWindow(t *testing.T) {
 	if err == nil || got.Routine != nil || f.writes != 0 {
 		t.Fatal(got, err, f.writes)
 	}
-	review, err := s.player.journal.LoadRoutineReview(context.Background())
+	review, err := s.player.journal.LoadRounds(context.Background())
 	if err != nil || review.Revision != 0 {
 		t.Fatal(review, err)
 	}
@@ -152,7 +152,7 @@ func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
 }
 
 // TestClockSchedulerDisabledReviewFailsTheStep: authority that lapses
-// between the step's state read and the routine review (a poll hold, a
+// between the step's state read and the rounds (a poll hold, a
 // resume in flight) leaves a disabled review that ranks nothing. The step
 // must not evaluate a window on it -- that refuses no_work at every step
 // until something else re-reviews (#331) -- and the first step with
@@ -182,7 +182,7 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 	if !errors.Is(err, executor.ErrAuthority) || planners != nil || out.Routine != nil || f.writes != writes {
 		t.Fatal(planners, err, f.writes, writes)
 	}
-	review, err := s.player.journal.LoadRoutineReview(ctx)
+	review, err := s.player.journal.LoadRounds(ctx)
 	if err != nil || review.Enabled || review.Revision != first.Routine.Review.Revision+1 {
 		t.Fatal(review, err)
 	}

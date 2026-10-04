@@ -87,7 +87,7 @@ func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]Clearan
 	return out, holds, nil
 }
 
-// ReviewClearanceHolds is the routine review's journalled clearance
+// ReviewClearanceHolds is the rounds's journalled clearance
 // judgement over a known clearance census: every Home hold, with a remote
 // salvage hold replacing the Home reason for the same target, and the
 // selected salvage target ("" when none).

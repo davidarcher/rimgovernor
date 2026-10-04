@@ -1,6 +1,6 @@
 # Colony snapshots
 
-A colony snapshot is the input one enabled routine review planned against,
+A colony snapshot is the input one enabled rounds planned against,
 recorded from a native run and replayed in `go test` (package
 `internal/snapshot`). It turns a question a native case answers in minutes
 ("does the review open `MaintainCleanFacilities` on this colony?") into a
@@ -18,7 +18,7 @@ millisecond unit test over the facts that colony really produced.
 - `Latches` and `Policy`: the prior latches and the staged policy the
   review detected against, so replay reproduces hysteresis and stage
   budgets.
-- `Review`: the journal's routine review cursor after the review filed
+- `Review`: the journal's rounds cursor after the review filed
   (goal bindings, progress records, stage, dependencies).
 - `Projection`: the colony reading the review took, holding what the
   planners read beyond `Facts`: site `Cells`, planning `Definitions`,
@@ -151,7 +151,7 @@ review recording of the same run (`loadRecorded`, `recordedPlanner`).
 
 ## Defense snapshots
 
-A threat response is not a routine review: `RoutineDefensePlanner` reads
+A threat response is not a Rounds pass: `RoutineDefensePlanner` reads
 the emergency census, the combat pawn rows and (for a hostile building)
 the lines of fire itself. With the recording variable set, every defense
 step that read the emergency census also writes

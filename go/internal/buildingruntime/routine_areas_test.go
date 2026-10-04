@@ -73,7 +73,7 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 		t.Fatal(w)
 	}
 	// The correction is the RecoverDisasterServices incident's method (#1078).
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

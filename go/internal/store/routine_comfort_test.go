@@ -41,7 +41,7 @@ func TestRecreationMaintenanceAssessmentSurvivesJournalRead(t *testing.T) {
 	if routineGoal(t, out, policy.EnsureComfort).Goal.Need != domain.NeedDeficit {
 		t.Fatal("variety not persisted as a deficit")
 	}
-	// Loading and reviewing again traverses RoutineReview's optional-goal
+	// Loading and reviewing again traverses Rounds's optional-goal
 	// validation: this goal can be foothold or maintenance in the same save.
 	out = reviewRoutine(t, s, &r)
 	row := developmentRow(t, out.Review, policy.EnsureComfort)
@@ -129,7 +129,7 @@ func TestRoutineComfortWorldResetAndInvalidDisabledHistory(t *testing.T) {
 			if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.LoadRoutineReview(context.Background()); err == nil {
+			if _, err = s.LoadRounds(context.Background()); err == nil {
 				t.Fatal("accepted future use in disabled history")
 			}
 		})

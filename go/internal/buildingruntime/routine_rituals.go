@@ -15,7 +15,7 @@ import (
 // the building sites), planned only while the emergency census reads calm.
 // Both the review and the planners' own readings carry them, so the schedule
 // planners hold the same attendees off Sleep that the planner gathers.
-func (r *RoutineReviewer) reviewRituals(reading *observation.RoutineReading, snapshot domain.GenerationSnapshot) {
+func (r *Rounder) reviewRituals(reading *observation.RoutineReading, snapshot domain.GenerationSnapshot) {
 	facts := &reading.Projection.Facts
 	tick := reading.Projection.Identity.Tick
 	calm := domain.Unknown[bool]()
@@ -35,14 +35,14 @@ func (r *RoutineReviewer) reviewRituals(reading *observation.RoutineReading, sna
 // refused begin is tried at the next site; each ritual and site is tried at
 // most maxMedicalAttemptsPerPatient times per goal epoch.
 type RoutineRitualsPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutineRitualsResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutineRitualsPlanner(reviewer *RoutineReviewer) (*RoutineRitualsPlanner, error) {
+func NewRoutineRitualsPlanner(reviewer *Rounder) (*RoutineRitualsPlanner, error) {
 	if reviewer == nil || !reviewer.methodEnabled(policy.MaintainRituals) {
 		return nil, fmt.Errorf("%w: NewRoutineRitualsPlanner: reviewer == nil || !reviewer.methodEnabled(policy.MaintainRituals)", ErrControl)
 	}
@@ -58,7 +58,7 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineRitualsResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineRitualsResult{}, err
 	}

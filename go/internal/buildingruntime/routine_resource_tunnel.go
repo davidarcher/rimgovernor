@@ -78,7 +78,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 	}
 	p := r.reviewer.player
 	dig := &RoutineBuildingPlanner{reviewer: r.reviewer, goal: policy.MaintainResource, excavation: source}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineResourceResult{}, false, err
 	}

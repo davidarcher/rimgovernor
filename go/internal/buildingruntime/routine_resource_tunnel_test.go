@@ -125,7 +125,7 @@ func buriedOreFixture(t *testing.T) (*RoutineResourcePlanner, *store.Store, *bur
 func tunnelStage(t *testing.T, db *store.Store) (domain.PlanID, []domain.Cell) {
 	t.Helper()
 	ctx := context.Background()
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func finishTunnelStage(t *testing.T, db *store.Store, n *buriedOreNative, id dom
 	if err != nil {
 		t.Fatal(err)
 	}
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

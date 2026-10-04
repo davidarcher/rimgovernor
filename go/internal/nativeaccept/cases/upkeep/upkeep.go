@@ -208,7 +208,7 @@ func readUpkeep(ctx context.Context, h *na.Harness, identity map[string]any, lab
 func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, state domain.NeedState) (store.GoalState, error) {
 	var found store.GoalState
 	err := na.WaitProgress(ctx, na.Wait{Stall: needStall, Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}
@@ -234,7 +234,7 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, 
 	return found, nil
 }
 
-// needStall ends waitNeed once the routine review stops advancing: the
+// needStall ends waitNeed once the rounds stops advancing: the
 // governor parked the game (no work) or it died, and the need cannot move.
 const needStall = 3 * time.Minute
 
@@ -258,7 +258,7 @@ func followMethods(ctx context.Context, journal *store.Store, need policy.Concer
 func followMethodsExcluding(ctx context.Context, journal *store.Store, need policy.ConcernID, label string, seen map[domain.PlanID]bool, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
 	renewals, rejected := 0, 0
 	recovered := func() (bool, error) {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return false, err
 		}

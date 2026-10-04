@@ -12,13 +12,13 @@ import (
 )
 
 // checkDependencies is every admission's prerequisite gate (#937):
-// domain.CheckDependencies, then the last routine review's census for each
+// domain.CheckDependencies, then the last rounds's census for each
 // prerequisite whose receipt does not mean the work is done. An accepted
 // building intent completes once its blueprint is placed, so a dependent (a
-// bed on a floor) waits for the building to stand built (RoutineReview.Built).
+// bed on a floor) waits for the building to stand built (Rounds.Built).
 // An accepted wall removal completes once its demolition is designated, so a
 // dependent (the replacement wall on the same cell) waits for the census to
-// show no wall left in that cell (RoutineReview.WallCells, #989).
+// show no wall left in that cell (Rounds.WallCells, #989).
 func checkDependencies(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	if err := state.Spec.CheckDependencies(action, state.Progress, current, tick); err != nil {
 		return err
@@ -74,7 +74,7 @@ type WallCell struct {
 	Standing bool `json:",omitempty"`
 }
 
-// maxWallCells bounds RoutineReview.WallCells: one stone-shell bundle names
+// maxWallCells bounds Rounds.WallCells: one stone-shell bundle names
 // at most four removal cells, and few bundles are ever live at once.
 const maxWallCells = 256
 

@@ -34,7 +34,7 @@ type RoutineDefenseSource interface {
 	burnFuelSource
 }
 type RoutineDefensePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineDefenseSource
 }
 type RoutineDefenseResult struct {
@@ -42,7 +42,7 @@ type RoutineDefenseResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineDefensePlanner(reviewer *RoutineReviewer, native RoutineDefenseSource) (*RoutineDefensePlanner, error) {
+func NewRoutineDefensePlanner(reviewer *Rounder, native RoutineDefenseSource) (*RoutineDefensePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineDefensePlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -57,7 +57,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineDefenseResult{}, fmt.Errorf("%w: decide: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}

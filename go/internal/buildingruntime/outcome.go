@@ -19,7 +19,7 @@ const (
 	OutcomeNothingToDo Outcome = "nothing_to_do"
 	// OutcomeDisabled: the planner is switched off in this runtime.
 	OutcomeDisabled Outcome = "disabled"
-	// OutcomeNoReview: there is no current routine review to judge.
+	// OutcomeNoReview: there is no current rounds to judge.
 	OutcomeNoReview Outcome = "no_current_review"
 	// OutcomeExpired: the proposal went stale before it could be admitted.
 	OutcomeExpired Outcome = "expired"

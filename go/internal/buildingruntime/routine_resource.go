@@ -52,7 +52,7 @@ type RoutineResourceSource interface {
 	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 }
 type RoutineResourcePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineResourceSource
 }
 type RoutineResourceResult struct {
@@ -83,7 +83,7 @@ type RoutineResourceResult struct {
 	Sources []policy.ResourceSource
 }
 
-func NewRoutineResourcePlanner(reviewer *RoutineReviewer, native RoutineResourceSource) (*RoutineResourcePlanner, error) {
+func NewRoutineResourcePlanner(reviewer *Rounder, native RoutineResourceSource) (*RoutineResourcePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineResourcePlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -92,7 +92,7 @@ func NewRoutineResourcePlanner(reviewer *RoutineReviewer, native RoutineResource
 
 // resourceStockFacts decodes the same generic top-level resource census
 // observation.ColonyMedicalReserve reads (v.Resources), from a freshly read
-// ColonyFactsSnapshot rather than the cached routine review snapshot.
+// ColonyFactsSnapshot rather than the cached rounds snapshot.
 func resourceStockFacts(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Amount] {
 	if medicalIssue(v.Issues, "resources") {
 		return domain.Unknown[[]policy.Amount]()
@@ -143,7 +143,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	if len(targets) == 0 && !r.reviewer.policy.ResourceGoalConfigured() {
 		return RoutineResourceResult{Verdict: BuildingReasonDisabled}, nil
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -303,7 +303,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	}
 	var runways []policy.ResourceRunway
 	if resource == policy.ComponentResource {
-		review, err := p.journal.LoadRoutineReview(call)
+		review, err := p.journal.LoadRounds(call)
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
@@ -707,7 +707,7 @@ type zoneMethodNative interface {
 // method ID is the caller's (fingerprint dedup reports WaitMethodUsed),
 // the zone is previewed against the live zone-map token and admitted through
 // AdmitBuildingMethod, since a zone carries footprint like a building.
-func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.WorkOwner, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, started time.Time) (RoutineResourceResult, error) {
+func admitZoneMethod(reviewer *Rounder, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.WorkOwner, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, started time.Time) (RoutineResourceResult, error) {
 	p := reviewer.player
 	cells := value.Cells()
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {

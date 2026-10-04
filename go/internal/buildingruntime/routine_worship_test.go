@@ -73,7 +73,7 @@ func TestWorshipRoomOwesHousingUntilTheBuildingsStand(t *testing.T) {
 
 // A review names the required buildings for the planners' own reads.
 func TestReviewRemembersTheRequiredBuildings(t *testing.T) {
-	r := &RoutineReviewer{}
+	r := &Rounder{}
 	facts, _ := worshipProjection(false)
 	r.reviewChildRooms(&observation.RoutineReading{ColonyReading: observation.ColonyReading{Projection: facts}})
 	if got := r.census.rememberedWorship(); len(got) != 1 || got[0] != "TestAltar" {

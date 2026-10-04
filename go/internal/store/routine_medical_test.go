@@ -32,7 +32,7 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded.MedicalCare, out.Review.MedicalCare) {
 		t.Fatal(loaded, err)
 	}
@@ -72,10 +72,10 @@ func TestRoutineMedicalWorldAndRewindResetHistory(t *testing.T) {
 	t.Parallel()
 	for _, change := range []struct {
 		name  string
-		apply func(*RoutineReviewRequest)
+		apply func(*RoundsRequest)
 	}{
-		{"world", func(r *RoutineReviewRequest) { r.Current.Load = "another-load" }},
-		{"rewind", func(r *RoutineReviewRequest) { r.Tick = 1 }},
+		{"world", func(r *RoundsRequest) { r.Current.Load = "another-load" }},
+		{"rewind", func(r *RoundsRequest) { r.Tick = 1 }},
 	} {
 		t.Run(change.name, func(t *testing.T) {
 			s := open(t, memoryPath(t))
@@ -108,7 +108,7 @@ func TestRoutineMedicalCorruptHistoryRejectedWhileDisabled(t *testing.T) {
 	if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.LoadRoutineReview(context.Background()); err == nil {
+	if _, err = s.LoadRounds(context.Background()); err == nil {
 		t.Fatal("duplicated patient persisted across restart")
 	}
 }

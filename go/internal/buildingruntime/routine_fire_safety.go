@@ -34,7 +34,7 @@ const fireSafetyNativeWorkTicks = 600
 // unsafe (#715). A blocked fire (no eligible firefighter) keeps the emergency
 // hold and the clock paused.
 type RoutineFireSafetyPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineFireSafetySource
 }
 
@@ -44,7 +44,7 @@ type RoutineFireSafetyResult struct {
 	NativeWorkTicks uint32
 }
 
-func NewRoutineFireSafetyPlanner(reviewer *RoutineReviewer, native RoutineFireSafetySource) (*RoutineFireSafetyPlanner, error) {
+func NewRoutineFireSafetyPlanner(reviewer *Rounder, native RoutineFireSafetySource) (*RoutineFireSafetyPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineFireSafetyPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -60,7 +60,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineFireSafetyResult{}, err
 	}

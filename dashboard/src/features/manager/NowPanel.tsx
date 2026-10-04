@@ -16,7 +16,7 @@ const useNow = (active: boolean): NowReading => useReading(active, fetchNow, now
 // panel names the evidence, it does not advise.
 const pacingLabels: Record<PacingReason, string> = {
   unknown: 'Pace unknown: no step has run yet',
-  governor_off: 'Governor off: routine reviews are disabled',
+  governor_off: 'Governor off: rounds are disabled',
   held: 'Held: a clock event awaits review',
   window_refused: 'Window refused',
   running: 'Running',
@@ -60,7 +60,7 @@ export default function NowPanel({active}: {active: boolean}) {
       <p className="now-stage" data-testid="now-stage">
         {now.stage
           ? <>Stage <strong>{now.stage.stage}</strong> since tick {ticks(now.stage.since)}{now.stage.blocker ? <> · next stage waits on {now.stage.blocker}: {now.stage.reason}</> : <> · every condition met</>}{now.stage.held ? ' · development held' : ''}</>
-          : <>No routine review has derived a colony stage yet.</>}
+          : <>No rounds has derived a colony stage yet.</>}
         {now.tick !== null && <> · tick {ticks(now.tick)}</>}
       </p>
       <p className="now-pacing" data-testid="now-pacing">

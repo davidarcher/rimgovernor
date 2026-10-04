@@ -337,7 +337,7 @@ func firebreakAttempts(history []domain.GoalMethod, tick domain.Tick) int {
 // RoutineFirebreakPlanner is MaintainFirebreak's planner: it orders the
 // work the review found.
 type RoutineFirebreakPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	memory   *firebreakMemory
 }
 type RoutineFirebreakResult struct {
@@ -347,7 +347,7 @@ type RoutineFirebreakResult struct {
 
 // NewRoutineFirebreakPlanner composes the planner and has reviewer run the
 // firebreak review over native.
-func NewRoutineFirebreakPlanner(reviewer *RoutineReviewer, native RoutineFirebreakSource) (*RoutineFirebreakPlanner, error) {
+func NewRoutineFirebreakPlanner(reviewer *Rounder, native RoutineFirebreakSource) (*RoutineFirebreakPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainFirebreak) {
 		return nil, fmt.Errorf("%w: NewRoutineFirebreakPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainFirebreak)", ErrControl)
 	}
@@ -367,7 +367,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineFirebreakResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineFirebreakResult{}, err
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 // A standing stove alone does not satisfy a requested change in meal tier.
-func (r *RoutineReviewer) reviewMeals(p *observation.ColonyProjection) {
+func (r *Rounder) reviewMeals(p *observation.ColonyProjection) {
 	seasonal := r.seasonal(p.Facts)
 	request := p.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays)
 	review, err := policy.ReviewMealTier(request, p.ProductionBenches)

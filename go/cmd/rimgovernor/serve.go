@@ -36,7 +36,7 @@ type serveConfig struct {
 	profile                         string
 	playerControl                   bool
 	clockControl                    bool
-	routineReviews                  bool
+	roundsEnabled                   bool
 	routineSleepingPlans            bool
 	routineAcquisitionPlans         bool
 	routineFieldPlans               bool
@@ -163,7 +163,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 			return c, fmt.Errorf("%s does not apply to --observe", routineFamiliesEnv)
 		}
 	} else {
-		c.playerControl, c.clockControl, c.routineReviews, c.routineMethods = true, true, true, true
+		c.playerControl, c.clockControl, c.roundsEnabled, c.routineMethods = true, true, true, true
 		if err := c.selectRoutineFamilies(lookupEnv(routineFamiliesEnv)); err != nil {
 			return c, err
 		}

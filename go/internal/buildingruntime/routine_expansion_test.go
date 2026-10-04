@@ -81,12 +81,12 @@ func prepareExpansionReview(t *testing.T, db *store.Store, n *sleepingNative) {
 	n.reply.GetObserved().ColonistCount = proto.Uint32(2)
 	n.reply.GetObserved().IndoorSleepingCapacity = proto.Uint32(2)
 	n.reply.GetObserved().BedCapacity = proto.Uint32(2)
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	facts := policy.RoutineFacts{Workers: domain.Known(3), Colonists: domain.Known(int64(2)), BedCapacity: domain.Known(int64(2)), IndoorCapacity: domain.Known(int64(2)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false), Wood: domain.Known(int64(500))}
-	_, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: review.Snapshot, Tick: review.Tick, Enabled: true, Policy: expansionPolicy(), Facts: facts})
+	_, err = db.ReviewRoutine(ctx, store.RoundsRequest{Revision: review.Revision, Current: review.Snapshot, Tick: review.Tick, Enabled: true, Policy: expansionPolicy(), Facts: facts})
 	if err != nil {
 		t.Fatal(err)
 	}

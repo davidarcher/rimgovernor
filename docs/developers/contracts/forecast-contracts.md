@@ -162,7 +162,7 @@ checks the fine-to-simple tier decision once raw stock is drained.
 
 ## Shared food portfolio
 
-The routine reviewer retains one complete FoodPlan per observed tick and fact
+The rounder retains one complete FoodPlan per observed tick and fact
 invalidation generation. It budgets combined human and animal demand, seasonal
 thresholds, native forage/hunt sources and field estimates. Unknown inputs do not
 certify surplus. Field harvest ETA remains an optimistic native bound; projected

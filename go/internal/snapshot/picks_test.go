@@ -11,7 +11,7 @@ import (
 
 // Planner picks converted from the native upkeep/* and clearance/* cases
 // (#746): each planner step's recorded policy inputs, the reads the
-// routine review's facts do not carry (feed benches and zones, haulers,
+// rounds's facts do not carry (feed benches and zones, haulers,
 // dump sites, shrine squads and breach readiness), replayed through the
 // policy that chose the bench, cell, pawn or casket.
 
@@ -94,7 +94,7 @@ func TestPickChunkDumpForUnstoredKinds(t *testing.T) {
 	}
 }
 
-// homeShrineCaskets replays the routine review's open targets for its one
+// homeShrineCaskets replays the rounds's open targets for its one
 // Home shrine.
 func homeShrineCaskets(t *testing.T, path string) (policy.AncientShrine, []policy.ShrineCasket) {
 	t.Helper()

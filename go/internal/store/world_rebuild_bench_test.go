@@ -11,7 +11,7 @@ import (
 
 // BenchmarkWorldRebuild times the store half of the per-world rebuild
 // (#1123/#1251) over a save holding one goal blob: goals, families and the
-// routine review reset, as serve's worldRebuild.ensure runs them.
+// rounds reset, as serve's worldRebuild.ensure runs them.
 func BenchmarkWorldRebuild(b *testing.B) {
 	ctx := context.Background()
 	s, err := Open(ctx, filepath.Join(b.TempDir(), "rebuild.sqlite"))
@@ -43,7 +43,7 @@ func BenchmarkWorldRebuild(b *testing.B) {
 		if err = s.RebuildFamilies(ctx, saved); err != nil {
 			b.Fatal(err)
 		}
-		if err = s.ResetRoutineReview(ctx); err != nil {
+		if err = s.ResetRounds(ctx); err != nil {
 			b.Fatal(err)
 		}
 	}

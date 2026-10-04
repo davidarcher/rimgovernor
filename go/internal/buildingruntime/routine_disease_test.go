@@ -11,7 +11,7 @@ import (
 
 func TestDiseaseDemandFreshRecoveryAndWorldScope(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 1}
-	previous := store.RoutineReview{Snapshot: snapshot, Tick: 100, MedicalCare: policy.MedicalCareHistory{Resting: []policy.DiseaseRest{{Pawn: "patient", Conditions: []string{"Flu"}}}}}
+	previous := store.Rounds{Snapshot: snapshot, Tick: 100, MedicalCare: policy.MedicalCareHistory{Resting: []policy.DiseaseRest{{Pawn: "patient", Conditions: []string{"Flu"}}}}}
 	facts := observation.ColonyProjection{Identity: observation.Identity{Tick: 101}}
 	for _, stage := range []string{"unknown", "immune", "new world", "rewind"} {
 		facts.Facts.MedicalPawns = domain.Unknown[[]policy.CarePawn]()

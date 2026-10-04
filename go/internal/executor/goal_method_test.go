@@ -73,7 +73,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	}
 	foundation, _ := actions[0].Building()
 	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "Wall1", Building: foundation, Cells: []domain.Cell{foundation.Cell()}}}}
-	if _, err = f.store.ReviewRoutine(ctx, store.RoutineReviewRequest{Current: scope, Tick: 101, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}); err != nil {
+	if _, err = f.store.ReviewRoutine(ctx, store.RoundsRequest{Current: scope, Tick: 101, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}); err != nil {
 		t.Fatal(err)
 	}
 	f.env.tick = 102

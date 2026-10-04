@@ -23,7 +23,7 @@ type RoutineClearanceSource interface {
 }
 
 type RoutineClearancePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineClearanceSource
 }
 type RoutineClearanceResult struct {
@@ -34,7 +34,7 @@ type RoutineClearanceResult struct {
 	NativeWorkTicks uint32
 }
 
-func NewRoutineClearancePlanner(reviewer *RoutineReviewer, native RoutineClearanceSource) (*RoutineClearancePlanner, error) {
+func NewRoutineClearancePlanner(reviewer *Rounder, native RoutineClearanceSource) (*RoutineClearancePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineClearancePlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -49,7 +49,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineClearanceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}

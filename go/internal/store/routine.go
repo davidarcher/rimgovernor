@@ -32,9 +32,9 @@ type ReserveSupply struct {
 	Forbid            bool
 }
 
-// RoutineReview is the durable review cursor and hysteresis history. Goal
+// Rounds is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
-type RoutineReview struct {
+type Rounds struct {
 	// Emergency names the assessed needs policy.EmergencyNeed found in this
 	// enabled review; the EmergencySafeguard vetoes other work from them (#1017).
 	Emergency []policy.ConcernID `json:",omitempty"`
@@ -70,7 +70,7 @@ type RoutineReview struct {
 	// DependencyNeeds are the MaintainResource floors this review's live
 	// shortfall edges raised (#728), so the resource planner stocks them.
 	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
-	// WoodFloor is the wood latch's WoodLog floor (policy.RoutineNeeds).
+	// WoodFloor is the wood latch's WoodLog floor (policy.RoundsFindings).
 	WoodFloor        int64 `json:",omitempty"`
 	StartingSupplies policy.StartingSupplies
 	EventLoot        policy.EventLootHistory
@@ -127,7 +127,7 @@ type RoutineReview struct {
 	NoOps []policy.NoOpRecord `json:",omitempty"`
 }
 
-type RoutineReviewRequest struct {
+type RoundsRequest struct {
 	Revision uint64
 	Current  domain.GenerationSnapshot
 	Tick     domain.Tick
@@ -139,9 +139,9 @@ type RoutineReviewRequest struct {
 	PartialPlanners bool
 }
 
-type RoutineReviewResult struct {
-	Review RoutineReview
-	Needs  policy.RoutineNeeds
+type RoundsResult struct {
+	Review Rounds
+	Needs  policy.RoundsFindings
 	Goals  []GoalState
 	// Projects are the Project rows Review.Projects binds.
 	Projects []ProjectState
@@ -165,15 +165,15 @@ type RoutineDetection struct {
 	Policy  policy.RoutinePolicy
 }
 
-func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
+func loadRoutine(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	var data []byte
 	if err := tx.QueryRowContext(ctx, "SELECT payload FROM routine_review WHERE singleton=1").Scan(&data); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return RoutineReview{}, nil
+			return Rounds{}, nil
 		}
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
-	var r RoutineReview
+	var r Rounds
 	if len(data) > 1024*1024 {
 		return r, ErrCapacity
 	}
@@ -182,134 +182,134 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	canonical, err := json.Marshal(r)
 	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 306 || len(r.Projects) > 306 {
-		return RoutineReview{}, errors.New("invalid routine review history")
+		return Rounds{}, errors.New("invalid rounds history")
 	}
 	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
-		return RoutineReview{}, errors.New("invalid medicine resource target")
+		return Rounds{}, errors.New("invalid medicine resource target")
 	}
 	if r.WoodFloor < 0 || r.WoodFloor > 1_000_000 {
-		return RoutineReview{}, errors.New("invalid wood floor")
+		return Rounds{}, errors.New("invalid wood floor")
 	}
 	if len(r.DependencyNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.DependencyNeeds) != nil {
-		return RoutineReview{}, errors.New("invalid dependency resource needs")
+		return Rounds{}, errors.New("invalid dependency resource needs")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if len(r.Dependencies) > maxDependencyRecords {
-		return RoutineReview{}, errors.New("invalid routine dependencies")
+		return Rounds{}, errors.New("invalid routine dependencies")
 	}
 	if len(r.WallCells) > maxWallCells {
-		return RoutineReview{}, errors.New("invalid routine wall cells")
+		return Rounds{}, errors.New("invalid routine wall cells")
 	}
 	for _, d := range r.Dependencies {
 		if err := d.validate(); err != nil {
-			return RoutineReview{}, err
+			return Rounds{}, err
 		}
 	}
 	if err := r.moodHistory().Validate(); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if err := r.Disaster.Validate(); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if r.Disaster != nil && r.Disaster.Observed > r.Tick {
-		return RoutineReview{}, errors.New("future disaster history")
+		return Rounds{}, errors.New("future disaster history")
 	}
 	if err := validateRoutineRecovery(r); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	var proposals []RoutineMoodMethod
 	if r.Enabled {
 		proposals, err = moodProposals(r.moodHistory())
 		if err != nil {
-			return RoutineReview{}, err
+			return Rounds{}, err
 		}
 	}
 	if len(proposals) != len(r.MoodMethods) {
-		return RoutineReview{}, errors.New("invalid mood method review")
+		return Rounds{}, errors.New("invalid mood method review")
 	}
 	expectedProposals, _ := json.Marshal(proposals)
 	actualProposals, _ := json.Marshal(r.MoodMethods)
 	if !bytes.Equal(expectedProposals, actualProposals) {
-		return RoutineReview{}, errors.New("stale mood method proposal")
+		return Rounds{}, errors.New("stale mood method proposal")
 	}
 	if err := r.EventLoot.Validate(); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if err := r.StartingSupplies.Validate(); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if len(r.ReserveSupplies) > 4096 || !r.Enabled && len(r.ReserveSupplies) != 0 {
-		return RoutineReview{}, errors.New("invalid reserve method history")
+		return Rounds{}, errors.New("invalid reserve method history")
 	}
 	reserveIDs := map[string]bool{}
 	for _, row := range r.ReserveSupplies {
 		if !policy.ReserveFoodDefinition(policy.Resource(row.Definition)) || reserveIDs[row.Thing] {
-			return RoutineReview{}, errors.New("invalid reserve supply")
+			return Rounds{}, errors.New("invalid reserve supply")
 		}
 		if err := (policy.StartingSupply{Thing: row.Thing, Definition: row.Definition}).Validate(); err != nil {
-			return RoutineReview{}, err
+			return Rounds{}, err
 		}
 		reserveIDs[row.Thing] = true
 	}
 	if len(r.LarderSupplies) > 1 || !r.Enabled && len(r.LarderSupplies) != 0 {
-		return RoutineReview{}, errors.New("invalid larder method history")
+		return Rounds{}, errors.New("invalid larder method history")
 	}
 	for _, row := range r.LarderSupplies {
 		if err := row.Validate(); err != nil {
-			return RoutineReview{}, err
+			return Rounds{}, err
 		}
 	}
 	if err := r.Sleeping.Validate(); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	for _, use := range r.Sleeping.Uses {
 		if use.Tick > r.Tick {
-			return RoutineReview{}, errors.New("future sleeping use history")
+			return Rounds{}, errors.New("future sleeping use history")
 		}
 	}
 	if err := r.Comfort.Validate(); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if r.Comfort.Dining.Tick > r.Tick || r.Comfort.Recreation.Tick > r.Tick {
-		return RoutineReview{}, errors.New("future comfort use history")
+		return Rounds{}, errors.New("future comfort use history")
 	}
 	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256 || r.Roster.Help != nil && (r.Roster.Help.Tick > r.Roster.Tick || len(r.Roster.Help.Idle) > 256 || len(r.Roster.Help.Helpers) > 256 || len(r.Roster.Help.Risky) > 256)) {
-		return RoutineReview{}, errors.New("invalid routine roster history")
+		return Rounds{}, errors.New("invalid routine roster history")
 	}
 	if r.ShrineStep != nil && r.ShrineStep.validate(r.Tick) != nil {
-		return RoutineReview{}, errors.New("invalid routine shrine step")
+		return Rounds{}, errors.New("invalid routine shrine step")
 	}
 	if r.Layout != nil && len(r.Layout.Reason) > 256 {
-		return RoutineReview{}, errors.New("invalid routine layout review")
+		return Rounds{}, errors.New("invalid routine layout review")
 	}
 	if len(r.Progress) > 306 {
-		return RoutineReview{}, errors.New("invalid routine progress history")
+		return Rounds{}, errors.New("invalid routine progress history")
 	}
 	progressGoals := map[domain.ConcernID]bool{}
 	for _, p := range r.Progress {
 		if progressGoals[p.Goal] || policy.ValidateGoalProgress(p, r.Tick) != nil {
-			return RoutineReview{}, errors.New("invalid routine progress history")
+			return Rounds{}, errors.New("invalid routine progress history")
 		}
 		progressGoals[p.Goal] = true
 	}
 	if r.Stage != nil && policy.ValidateColonyStage(*r.Stage, r.Tick) != nil {
-		return RoutineReview{}, errors.New("invalid routine stage history")
+		return Rounds{}, errors.New("invalid routine stage history")
 	}
 	if r.Enabled {
 		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
-			return RoutineReview{}, errors.New("invalid routine development history")
+			return Rounds{}, errors.New("invalid routine development history")
 		}
 	} else if len(r.Development.Rows) > 0 || r.Development.Workers != nil {
 		// A disabled review keeps the last ranking (waiting ages) but
 		// selects nothing: methods cannot be committed without authority.
 		if r.Development.Tick > r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
-			return RoutineReview{}, errors.New("invalid routine development history")
+			return Rounds{}, errors.New("invalid routine development history")
 		}
 		for _, row := range r.Development.Rows {
 			if row.Selected {
-				return RoutineReview{}, errors.New("disabled routine retains development selection")
+				return Rounds{}, errors.New("disabled routine retains development selection")
 			}
 		}
 	}
@@ -320,54 +320,54 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	// Standards only.
 	for _, row := range r.Development.Rows {
 		if c := policy.ConcernTypeOf(row.Goal); c != policy.StandardConcern && c != policy.ProjectConcern {
-			return RoutineReview{}, errors.New("unknown optional routine goal")
+			return Rounds{}, errors.New("unknown optional routine goal")
 		}
 	}
 	seen := map[domain.ConcernID]bool{}
 	identities := map[domain.ConcernID]bool{}
 	for _, binding := range r.Goals {
 		if policy.ConcernTypeOf(binding.Need) != policy.StandardConcern || seen[binding.Need] || identities[binding.Goal] {
-			return RoutineReview{}, errors.New("duplicate routine need")
+			return Rounds{}, errors.New("duplicate routine need")
 		}
 		seen[binding.Need] = true
 		identities[binding.Goal] = true
 		if _, err := loadGoal(ctx, tx, binding.Goal); err != nil {
-			return RoutineReview{}, err
+			return Rounds{}, err
 		}
 		if !routineStandardOwns(binding.Goal, binding.Need) {
-			return RoutineReview{}, errors.New("routine goal ownership mismatch")
+			return Rounds{}, errors.New("routine goal ownership mismatch")
 		}
 	}
 	projects := map[domain.ProjectID]bool{}
 	for _, binding := range r.Projects {
 		if !policy.IsProjectKind(binding.Need) || seen[binding.Need] || projects[binding.Project] {
-			return RoutineReview{}, errors.New("duplicate routine need")
+			return Rounds{}, errors.New("duplicate routine need")
 		}
 		seen[binding.Need] = true
 		projects[binding.Project] = true
 		p, err := loadProject(ctx, tx, binding.Project)
 		if err != nil {
-			return RoutineReview{}, err
+			return Rounds{}, err
 		}
 		if p.Project.Kind != binding.Need || !routineProjectOwns(binding.Project, binding.Need) {
-			return RoutineReview{}, errors.New("routine project ownership mismatch")
+			return Rounds{}, errors.New("routine project ownership mismatch")
 		}
 	}
 	if err := validateRoutineIncidents(ctx, tx, r); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	return r, nil
 }
 
-func (s *Store) LoadRoutineReview(ctx context.Context) (RoutineReview, error) {
+func (s *Store) LoadRounds(ctx context.Context) (Rounds, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	defer tx.Rollback()
 	r, err := loadRoutine(ctx, tx)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	return r, tx.Commit()
 }
@@ -378,38 +378,38 @@ func (s *Store) LoadRoutineReview(ctx context.Context) (RoutineReview, error) {
 // open for the next enabled review to resume; only world replacement or a
 // tick rewind invalidates linked work through the same cancellation journal
 // as Hands.
-func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest) (RoutineReviewResult, error) {
+func (s *Store) ReviewRoutine(ctx context.Context, request RoundsRequest) (RoundsResult, error) {
 	if request.Current.Validate() != nil || request.Tick < 0 {
-		return RoutineReviewResult{}, errors.New("invalid routine scope")
+		return RoundsResult{}, errors.New("invalid routine scope")
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
 	defer tx.Rollback()
 	settled := map[retirementWorld]domain.Tick{}
 	result, err := reviewRoutineTx(ctx, tx, request, settled)
 	if err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
 	if err = tx.Commit(); err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
 	s.floors.raise(settled)
 	s.notifyGoalsWritten()
 	return result, nil
 }
 
-func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest, settled map[retirementWorld]domain.Tick) (RoutineReviewResult, error) {
+func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, settled map[retirementWorld]domain.Tick) (RoundsResult, error) {
 	previous, err := loadRoutine(ctx, tx)
 	if err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
 	if previous.Revision != request.Revision {
-		return RoutineReviewResult{}, ErrConflict
+		return RoundsResult{}, ErrConflict
 	}
 	if previous.Revision == ^uint64(0) {
-		return RoutineReviewResult{}, ErrCapacity
+		return RoundsResult{}, ErrCapacity
 	}
 	a, b := previous.Snapshot, request.Current
 	changed := previous.Revision != 0 && (a.Colony != b.Colony || a.Load != b.Load || a.Map != b.Map || request.Tick < previous.Tick)
@@ -442,26 +442,26 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		previousStage = *previous.Stage
 	}
 	request.Policy = policy.StageRoutinePolicy(request.Policy, previousStage.Stage)
-	needs := policy.RoutineNeeds{}
+	needs := policy.RoundsFindings{}
 	var detection *RoutineDetection
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
 		request.Facts.ResourceRunways, err = resourceRunways(ctx, tx, request)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		request.Facts.ResourceNeeds = policy.ResourceGoalTargets(request.Facts.ResourceNeeds, policy.ResourceRunwayTargets(request.Facts.ResourceRunways))
 		request.Facts.ConstructionClaims, err = constructionClaims(ctx, tx, request.Current, request.Tick)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		request.Facts.UpkeepIssued, err = routineUpkeepIssued(ctx, tx, request.Current)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		sleepingReview, sleepingErr := policy.ReviewSleeping(request.Facts.Sleeping, sleeping, request.Tick)
 		if sleepingErr != nil {
-			return RoutineReviewResult{}, sleepingErr
+			return RoundsResult{}, sleepingErr
 		}
 		sleeping = sleepingReview.History
 		request.Facts.SleepingRecovered = sleepingReview.Recovered()
@@ -470,21 +470,21 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		comfortReview, comfortErr := policy.ReviewComfort(request.Facts.Comfort, comfort, request.Tick)
 		if comfortErr != nil {
-			return RoutineReviewResult{}, comfortErr
+			return RoundsResult{}, comfortErr
 		}
 		comfort = comfortReview.History
 		request.Facts.ComfortRecovered, request.Facts.ComfortDeficit = comfortReview.Recovered(), comfortReview.Deficit()
 		supplies, request.Facts.ForbiddenSupplies, err = policy.ReviewStartingSuppliesAt(request.Facts.StartingSupplies, supplies, request.Tick)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		lootCensus, held, err := lootReachFilter(request)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		loot, request.Facts.EventLootPending, err = policy.ReviewEventLoot(lootCensus, loot)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		loot.Held = held
 		// The food reserve owns the forbid state of reserve food; drop its
@@ -500,34 +500,34 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
 			remote, err := policy.SalvageContext(request.Policy, request.Facts)
 			if err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 			filtered, _, err := policy.FilterRemoteSalvage(rows, remote)
 			if err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 			request.Facts.Upkeep.Clearance = domain.Known(filtered)
 		}
 		medical, err = policy.ReviewMedicalCare(request.Facts.MedicalPawns, medical)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		request.Facts.MedicalCareRecovered = medical.Recovered()
 		mood, err = policy.ReviewMood(request.Facts.MoodPawns, mood)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		request.Facts.Mood = mood
 		request.Facts.Disaster, request.Facts.DisasterTick = disaster, request.Tick
 		if !reset {
 			if request.Facts.Dependencies, err = priorDependencies(ctx, tx, previous, request.Facts, request.Tick); err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 		}
 		detection = &RoutineDetection{Facts: request.Facts, Latches: latches, Policy: request.Policy}
 		needs, err = policy.DetectRoutine(request.Facts, latches, request.Policy)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		disaster = needs.Disaster
 		if needs.Latches.Refrigeration {
@@ -544,24 +544,24 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	if request.Enabled {
 		if err = retireRoutinePlans(ctx, tx, request.Current, request.Tick, request.Facts.CurrentConstruction, settled); err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 	}
 	for _, binding := range previous.Goals {
 		g, err := loadGoal(ctx, tx, binding.Goal)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
 			if g.Goal.Status != domain.GoalInvalidated {
 				if err = cancelGoalMethods(ctx, tx, g); err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 				next := g.Goal
 				next.Status = domain.GoalInvalidated
 				g, err = saveGoal(ctx, tx, g, next)
 				if err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 			}
 		}
@@ -574,17 +574,17 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	for _, binding := range previous.Projects {
 		p, err := loadProject(ctx, tx, binding.Project)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
 			if p.Project.Status != domain.ProjectInvalidated {
 				if err = cancelGoalMethods(ctx, tx, p); err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 				next := p.Project
 				next.Status = domain.ProjectInvalidated
 				if p, err = saveProject(ctx, tx, p, next); err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 			}
 		}
@@ -595,7 +595,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	if changed {
 		for _, binding := range previous.Incidents {
 			if err = abandonIncident(ctx, tx, binding.Incident, previous.Tick); err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 		}
 	}
@@ -608,7 +608,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 	}
 	if err = retireRoutineGoals(ctx, tx, retained); err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
 	retainedProjects := map[domain.ProjectID]bool{}
 	for _, p := range oldProjects {
@@ -617,9 +617,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 	}
 	if err = retireProjects(ctx, tx, retainedProjects); err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
-	r := RoutineReview{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
+	r := Rounds{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
@@ -640,15 +640,15 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	if census, known := request.Facts.CurrentConstruction.Value(); known && census.Colony {
 		if r.WallCells, err = wallCells(ctx, tx, census); err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		if err = abandonStuckWallRemovals(ctx, tx, r.WallCells, request.Tick); err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 	}
 	if census, known := request.Facts.CurrentConstruction.Value(); known && census.Colony {
 		if r.Built, err = builtActions(ctx, tx, census); err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 	}
 	if request.Enabled {
@@ -669,7 +669,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		choice, choiceErr := policy.SelectCorpseLarder(request.Facts.FoodStorageUpkeep)
 		if choiceErr != nil {
-			return RoutineReviewResult{}, choiceErr
+			return RoundsResult{}, choiceErr
 		}
 		if choice.Kind == "allow" || choice.Kind == "forbid" {
 			r.LarderSupplies = []policy.StartingSupply{{Thing: choice.Stock.ID, Definition: string(choice.Stock.DefName), Cell: choice.Handling.Cell, Forbid: choice.Kind == "forbid"}}
@@ -695,10 +695,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	if request.Enabled {
 		r.MoodMethods, err = moodProposals(mood)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 	}
-	result := RoutineReviewResult{Needs: needs, Detection: detection}
+	result := RoundsResult{Needs: needs, Detection: detection}
 	// states is every assessment's row in assessment order, Projects as the
 	// goal handles ranking and progress read.
 	var states []WorkOwner
@@ -710,7 +710,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			for _, binding := range r.Incidents {
 				state, err := loadIncident(ctx, tx, binding.Incident)
 				if err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 				result.Incidents = append(result.Incidents, state)
 			}
@@ -750,18 +750,18 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		result.Emergency = r.Emergency
 		for _, n := range needs.NoOps {
 			if err = n.Reason.Validate(); err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 		}
 		r.NoOps = needs.NoOps
 		if r.Incidents, result.Incidents, err = reviewIncidents(ctx, tx, needs.Incidents, b, request.Tick); err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		for _, n := range needs.Assessments {
 			if policy.IsProjectKind(n.ID) {
 				p, err := reviewProject(ctx, tx, oldProjects, n, b, request.Tick)
 				if err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 				r.Projects = append(r.Projects, RoutineProject{n.ID, p.Project.ID})
 				result.Projects = append(result.Projects, p)
@@ -772,35 +772,35 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			if !exists || g.Goal.Status == domain.GoalInvalidated {
 				id, err := mintRoutineStandardID(ctx, tx, World{b.Colony, b.Load, b.Map}, n.ID)
 				if err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 				goal, err := domain.NewGoal(id, n.Priority, b, request.Tick)
 				if err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 				if err = createGoal(ctx, tx, goal); err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 				g = GoalState{Goal: goal}
 			}
 			if n.Need == domain.NeedRecovered {
 				if err = cancelUndispatchedGoalMethods(ctx, tx, g); err != nil {
-					return RoutineReviewResult{}, err
+					return RoundsResult{}, err
 				}
 			}
 			open, err := goalOpenWork(ctx, tx, g)
 			if err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 			next := g.Goal
 			next.Priority = n.Priority
 			next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open)
 			if err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 			g, err = saveGoal(ctx, tx, g, next)
 			if err != nil {
-				return RoutineReviewResult{}, err
+				return RoundsResult{}, err
 			}
 			r.Goals = append(r.Goals, RoutineGoal{n.ID, g.Goal.ID})
 			result.Goals = append(result.Goals, g)
@@ -810,7 +810,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	if request.Enabled {
 		r.Progress, err = routineProgress(ctx, tx, request, previous, reset, needs, states)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		stage := policy.ReviewColonyStage(previousStage, policy.StageColonyFacts(needs, request.Facts, request.Policy, r.Progress), request.Policy.Stages(), request.Tick)
 		r.Stage = &stage
@@ -823,7 +823,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		development, ready, shadow, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, states, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 		unavailable := map[domain.ConcernID]bool{}
 		for _, n := range needs.All() {
@@ -835,14 +835,14 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.ShadowRank = &shadow
 		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r, request.Tick)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 	}
 	if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
 		var err error
 		r.ClearanceHolds, r.SalvageTarget, err = policy.ReviewClearanceHolds(request.Policy, request.Facts, rows)
 		if err != nil {
-			return RoutineReviewResult{}, err
+			return RoundsResult{}, err
 		}
 	} else {
 		r.ClearanceHolds = previous.ClearanceHolds
@@ -855,13 +855,13 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	markShrineHolds(r.ShrineHolds, r.ShrineStep)
 	data, err := json.Marshal(r)
 	if err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
 	if len(data) > 1024*1024 {
-		return RoutineReviewResult{}, ErrCapacity
+		return RoundsResult{}, ErrCapacity
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
-		return RoutineReviewResult{}, err
+		return RoundsResult{}, err
 	}
 	result.Review = r
 	return result, nil
@@ -915,7 +915,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]Pro
 // work, keeps the previous report while it did not (a disabled review, an
 // unknown census) and drops it with the rest of the history on a world
 // change or tick rewind.
-func routineRoster(request RoutineReviewRequest, previous RoutineReview, reset bool) *policy.WorkRosterReport {
+func routineRoster(request RoundsRequest, previous Rounds, reset bool) *policy.WorkRosterReport {
 	coverage, known := request.Facts.WorkRoster.Value()
 	if !request.Enabled || !known {
 		if reset {

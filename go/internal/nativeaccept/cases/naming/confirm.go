@@ -4,7 +4,7 @@
 // which force-pauses the game until it is answered, is resolved by the
 // ConfirmColonyNames routine family. The NamingFixture reopens the dialog on
 // the baseline's settlement before the service attaches and the harness
-// leaves it open (ServeSpec.KeepColonyNaming); the routine review raises
+// leaves it open (ServeSpec.KeepColonyNaming); the rounds raises
 // ConfirmColonyNames, the naming planner commits a one-action
 // NamingConfirmation plan for the exact observed window and suggestions,
 // the store persists it, the executor confirms it through
@@ -129,7 +129,7 @@ type confirmed struct {
 // confirmations lists every ConfirmColonyNames plan any occurrence admitted
 // (#1078), keyed by the targeted window.
 func confirmations(ctx context.Context, st *store.Store) (map[int32]confirmed, error) {
-	review, err := st.LoadRoutineReview(ctx)
+	review, err := st.LoadRounds(ctx)
 	if err != nil {
 		return nil, err
 	}

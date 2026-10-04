@@ -96,12 +96,12 @@ func crossedHoldFight(t *testing.T) {
 	if err := db.SaveDefenseLayout(ctx, layout); err != nil {
 		t.Fatal(err)
 	}
-	current, err := db.LoadRoutineReview(ctx)
+	current, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	facts := policy.RoutineFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
-	if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: current.Revision, Current: snapshot, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
+	if _, err = db.ReviewRoutine(ctx, store.RoundsRequest{Revision: current.Revision, Current: snapshot, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := planner.Step(ctx)
@@ -153,12 +153,12 @@ func crossedHoldFight(t *testing.T) {
 		t.Fatal(fight.Memory)
 	}
 	// The raid over, the fight closes and its drafts are no longer held.
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	facts.Hostiles = domain.Known(int64(0))
-	if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: snapshot, Tick: 9, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
+	if _, err = db.ReviewRoutine(ctx, store.RoundsRequest{Revision: review.Revision, Current: snapshot, Tick: 9, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 		t.Fatal(err)
 	}
 	if got, err = planner.Step(ctx); err != nil || got.Verdict != BuildingReasonNoDeficit {
@@ -186,12 +186,12 @@ func TestRoutineDefenseHoldFallbackNeedsProof(t *testing.T) {
 	if err := db.SaveDefenseLayout(ctx, layout); err != nil {
 		t.Fatal(err)
 	}
-	current, err := db.LoadRoutineReview(ctx)
+	current, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	facts := policy.RoutineFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
-	if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: current.Revision, Current: snapshot, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
+	if _, err = db.ReviewRoutine(ctx, store.RoundsRequest{Revision: current.Revision, Current: snapshot, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := planner.Step(ctx); err != nil || got.Verdict != BuildingReasonAdmitted {

@@ -35,7 +35,7 @@ Removing pending construction is a separate request; completed buildings remain.
 
 ## Read development priorities
 
-Work lists the optional projects the last routine review ranked: comfort, research,
+Work lists the optional projects the last rounds ranked: comfort, research,
 production targets, defense and expansion. Each row shows whether the project was
 selected, is in progress, or why it waits - for capacity, for free pawns of a named
 work type, for a known deficit, or because outdoor work is unsafe. Emergencies are

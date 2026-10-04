@@ -17,14 +17,14 @@ import (
 // save. A permit native refuses is not retried past the attempt limit, so the
 // next best waits behind it only after the goal epoch turns.
 type RoutinePermitsPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutinePermitsResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutinePermitsPlanner(reviewer *RoutineReviewer) (*RoutinePermitsPlanner, error) {
+func NewRoutinePermitsPlanner(reviewer *Rounder) (*RoutinePermitsPlanner, error) {
 	if reviewer == nil || !reviewer.methodEnabled(policy.MaintainPermits) {
 		return nil, fmt.Errorf("%w: NewRoutinePermitsPlanner: reviewer == nil || !reviewer.methodEnabled(policy.MaintainPermits)", ErrControl)
 	}
@@ -40,7 +40,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePermitsResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutinePermitsResult{}, err
 	}

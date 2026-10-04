@@ -23,11 +23,11 @@ const geneBankSiteTries = 8
 // reachable. The goal settles on the game's verdict (every pack has a slot),
 // never on the plan; powering the bank is EnsureBasicPower's.
 type RoutineGeneBankPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineBuildingSource
 }
 
-func NewRoutineGeneBankPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineGeneBankPlanner, error) {
+func NewRoutineGeneBankPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineGeneBankPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainGeneBank) {
 		return nil, fmt.Errorf("%w: NewRoutineGeneBankPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainGeneBank)", ErrControl)
 	}
@@ -80,7 +80,7 @@ func (r *RoutineGeneBankPlanner) step(call, epoch context.Context, arbiter *step
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

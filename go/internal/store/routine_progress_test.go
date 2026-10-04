@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func progressRecord(t *testing.T, r RoutineReview, id domain.ConcernID) policy.GoalProgress {
+func progressRecord(t *testing.T, r Rounds, id domain.ConcernID) policy.GoalProgress {
 	t.Helper()
 	p, ok := r.GoalProgress(id)
 	if !ok {
@@ -57,7 +57,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
 		t.Fatal(loaded, err)
 	}

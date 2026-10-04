@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func foodDeficitRoutineRequest() RoutineReviewRequest {
+func foodDeficitRoutineRequest() RoundsRequest {
 	r := routineRequest()
 	r.Current.Native = 2
 	r.Facts.FoodDays = domain.Known(0.0)

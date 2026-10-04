@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func NewRoutinePowerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutinePowerPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutinePowerPlanner: reviewer == nil || native == nil", ErrControl)
 	}

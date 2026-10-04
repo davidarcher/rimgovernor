@@ -166,13 +166,13 @@ func campfireRetireOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 
 // retireCampfire admits one deconstruction of a misplaced or superseded
 // cooking campfire, once per campfire per goal epoch.
-func (r *RoutineBuildingPlanner) retireCampfire(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding) (RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) retireCampfire(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding) (RoutineBuildingResult, error) {
 	return r.retireBuilding(call, epoch, state, review, goal, reading, campfire, "campfire-retire", "cooking campfire")
 }
 
 // retireBuilding deconstructs one standing building, once per building per
 // goal epoch under a method named prefix and its ID.
-func (r *RoutineBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding, prefix, label string) (RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding, prefix, label string) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	sum := sha256.Sum256([]byte(campfire.ID))
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, sum[:8]))

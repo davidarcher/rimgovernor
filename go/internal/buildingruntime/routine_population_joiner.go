@@ -21,14 +21,14 @@ import (
 // same write. Pending WandererJoins letters use the same capacity gate
 // and the dialog-answer executor. Offers the colony cannot host expire.
 type RoutinePopulationJoinerPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutinePopulationJoinerResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutinePopulationJoinerPlanner(reviewer *RoutineReviewer) (*RoutinePopulationJoinerPlanner, error) {
+func NewRoutinePopulationJoinerPlanner(reviewer *Rounder) (*RoutinePopulationJoinerPlanner, error) {
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutinePopulationJoinerPlanner: reviewer == nil", ErrControl)
 	}
@@ -44,7 +44,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}

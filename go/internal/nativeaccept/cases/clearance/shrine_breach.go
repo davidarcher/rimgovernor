@@ -107,7 +107,7 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 	var shrineProject domain.ProjectID
 	drafted, breached, combat, claimed, salvaged, recovered := false, false, false, false, false, false
 	err = na.WaitProgress(ctx, na.Wait{Ceiling: 6 * time.Minute, Stall: 90 * time.Second, Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}

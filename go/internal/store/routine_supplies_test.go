@@ -61,7 +61,7 @@ func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 	if routineProject(t, out, policy.AllowStartingSupplies).Project.Need != domain.NeedRecovered || len(out.Review.StartingSupplies.Pending) != 0 {
 		t.Fatal("restart adopted player forbid", out)
 	}
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !loaded.StartingSupplies.Initialized {
 		t.Fatal(loaded, err)
 	}
@@ -71,10 +71,10 @@ func TestRoutineSuppliesResetAndCorruptHistory(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
 		name   string
-		change func(*RoutineReviewRequest)
+		change func(*RoundsRequest)
 	}{
-		{"world", func(r *RoutineReviewRequest) { r.Current.Load = "other" }},
-		{"rewind", func(r *RoutineReviewRequest) { r.Tick = 1 }},
+		{"world", func(r *RoundsRequest) { r.Current.Load = "other" }},
+		{"rewind", func(r *RoundsRequest) { r.Tick = 1 }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			s := open(t, memoryPath(t))
@@ -97,7 +97,7 @@ func TestRoutineSuppliesResetAndCorruptHistory(t *testing.T) {
 			if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.LoadRoutineReview(context.Background()); err == nil {
+			if _, err = s.LoadRounds(context.Background()); err == nil {
 				t.Fatal("invalid disabled cohort accepted")
 			}
 		})

@@ -22,7 +22,7 @@ import (
 // (stream.go); unset records nothing.
 const DirEnv = "RIMGOVERNOR_SNAPSHOT_DIR"
 
-// Routine is one enabled routine review as recorded: the input the review
+// Routine is one enabled rounds as recorded: the input the review
 // passed policy.DetectRoutine and, optionally, the journal's review cursor
 // it filed. Facts carry every census the planners of that tick read
 // (Upkeep, Research, ...).
@@ -36,8 +36,8 @@ type Routine struct {
 	Latches  policy.RoutineLatches
 	// Policy is the staged policy the review detected against.
 	Policy policy.RoutinePolicy
-	// Review is the journal's routine review after this one filed.
-	Review *store.RoutineReview
+	// Review is the journal's rounds after this one filed.
+	Review *store.Rounds
 	// Projection is the colony reading the review took, the planners'
 	// inputs beyond Facts (site cells, planning definitions, power
 	// topology, rooms, bounds); its Facts are left empty here and restored
@@ -48,7 +48,7 @@ type Routine struct {
 
 // FromReview is the snapshot of an enabled review's result; false when
 // the review detected nothing (disabled).
-func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result store.RoutineReviewResult, reading observation.ColonyProjection) (Routine, bool) {
+func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result store.RoundsResult, reading observation.ColonyProjection) (Routine, bool) {
 	if result.Detection == nil {
 		return Routine{}, false
 	}
@@ -131,7 +131,7 @@ func dropNativeGearCensus(f *policy.RoutineFacts) {
 }
 
 // Detect replays the review's need detection over the recorded facts.
-func (r Routine) Detect() (policy.RoutineNeeds, error) {
+func (r Routine) Detect() (policy.RoundsFindings, error) {
 	return policy.DetectRoutine(r.Facts, r.Latches, r.Policy)
 }
 

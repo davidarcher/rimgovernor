@@ -10,12 +10,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// reviewCensus files a disabled routine review whose construction census
+// reviewCensus files a disabled rounds whose construction census
 // holds the given intents built and blueprints standing.
 func reviewCensus(t *testing.T, s *Store, current domain.GenerationSnapshot, tick domain.Tick, built []domain.ActionID, blueprints ...domain.ActionID) {
 	t.Helper()
 	ctx := context.Background()
-	previous, err := s.LoadRoutineReview(ctx)
+	previous, err := s.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func reviewCensus(t *testing.T, s *Store, current domain.GenerationSnapshot, tic
 	if len(blueprints) > 0 {
 		census.Sites = append(census.Sites, policy.ConstructionSite{Building: wall, Stage: "blueprint"})
 	}
-	r := RoutineReviewRequest{Revision: previous.Revision, Current: current, Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
+	r := RoundsRequest{Revision: previous.Revision, Current: current, Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
 	if _, err = s.ReviewRoutine(ctx, r); err != nil {
 		t.Fatal(err)
 	}
@@ -76,11 +76,11 @@ func TestBuildingDependencyWaitsForCensusBuilt(t *testing.T) {
 		t.Fatal(err)
 	}
 	// An incomplete census keeps the last built set.
-	previous, err := s.LoadRoutineReview(ctx)
+	previous, err := s.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.ReviewRoutine(ctx, RoutineReviewRequest{Revision: previous.Revision, Current: scope(), Tick: 14, Policy: policy.DefaultRoutinePolicy()}); err != nil {
+	if _, err = s.ReviewRoutine(ctx, RoundsRequest{Revision: previous.Revision, Current: scope(), Tick: 14, Policy: policy.DefaultRoutinePolicy()}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "p", "bed", scope(), 14); err != nil {
@@ -88,12 +88,12 @@ func TestBuildingDependencyWaitsForCensusBuilt(t *testing.T) {
 	}
 }
 
-// reviewWalls files a disabled routine review whose complete construction
+// reviewWalls files a disabled rounds whose complete construction
 // census holds a colony Wall on each given cell.
 func reviewWalls(t *testing.T, s *Store, tick domain.Tick, walls ...domain.Cell) {
 	t.Helper()
 	ctx := context.Background()
-	previous, err := s.LoadRoutineReview(ctx)
+	previous, err := s.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func reviewWalls(t *testing.T, s *Store, tick domain.Tick, walls ...domain.Cell)
 		}
 		census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: fmt.Sprintf("Wall%d", i), Building: b, Cells: []domain.Cell{c}})
 	}
-	r := RoutineReviewRequest{Revision: previous.Revision, Current: scope(), Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
+	r := RoundsRequest{Revision: previous.Revision, Current: scope(), Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
 	if _, err = s.ReviewRoutine(ctx, r); err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestWallReplacementWaitsForCensusRemoval(t *testing.T) {
 		t.Fatal("replacement admitted onto the standing wall", err)
 	}
 	reviewWalls(t, s, 12, domain.Cell{X: 9, Z: 9})
-	review, err := s.LoadRoutineReview(ctx)
+	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

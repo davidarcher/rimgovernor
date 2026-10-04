@@ -18,13 +18,13 @@ import (
 // RoutineNamingSource is the native colony census RoutineNamingPlanner reads
 // to find the exact observed window/suggestions in the initial
 // faction/settlement naming dialog, the same ReadColonyFacts call
-// RoutineReviewer itself uses to raise the ConfirmColonyNames goal
+// Rounder itself uses to raise the ConfirmColonyNames goal
 // (observation.colony.go's own r.Facts.ColonyNaming derivation).
 type RoutineNamingSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 type RoutineNamingPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineNamingSource
 }
 type RoutineNamingResult struct {
@@ -32,7 +32,7 @@ type RoutineNamingResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineNamingPlanner(reviewer *RoutineReviewer, native RoutineNamingSource) (*RoutineNamingPlanner, error) {
+func NewRoutineNamingPlanner(reviewer *Rounder, native RoutineNamingSource) (*RoutineNamingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineNamingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -47,7 +47,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineNamingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineNamingResult{}, err
 	}

@@ -14,7 +14,7 @@ import (
 
 // ProductionLadderRecord is the workshop planner's last observed rung for a
 // resource or equipment deficit: which bench and recipe it settled on and the
-// research projects still gating them. The routine review reads it back as
+// research projects still gating them. The rounds read it back as
 // the derived EnsureResearch target, so a research-gated bench raises its
 // own deficit without a native read per review. Research empty means the
 // bench is buildable or standing and nothing is owed to research.

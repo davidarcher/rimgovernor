@@ -80,7 +80,7 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	// Home follows the building census (#1328): the wall's footprint plus
 	// margin is missing Home while it stands, unknown while the census is.
-	assertNeeds := func(out RoutineReviewResult, want domain.NeedState) {
+	assertNeeds := func(out RoundsResult, want domain.NeedState) {
 		t.Helper()
 		if got := routineGoal(t, out, policy.MaintainStoneShell).Goal.Need; got != want {
 			t.Fatal(policy.MaintainStoneShell, got, want)
@@ -111,7 +111,7 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	assertNeeds(reviewRoutine(t, s, &r), domain.NeedRecovered)
 }
 
-func TestRoutineReviewCannotInventConstructionOrZoneOwnership(t *testing.T) {
+func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	t.Parallel()
 	s, _, _ := goalFixture(t)
 	defer s.Close()

@@ -67,7 +67,7 @@ func TestPlannedDiningFurnishingLeavesOtherPlansAlone(t *testing.T) {
 		"a recreation":  {goal: policy.EnsureComfort, facility: &dining, definition: "HorseshoesPin"},
 		"no facility":   {goal: policy.EnsureComfort, definition: "Table1x2c"},
 	} {
-		got, _, done, err := r.plannedDiningFurnishing(context.TODO(), context.TODO(), ControlState{}, store.RoutineReview{}, store.GoalState{}, observation.ColonyReading{}, facts)
+		got, _, done, err := r.plannedDiningFurnishing(context.TODO(), context.TODO(), ControlState{}, store.Rounds{}, store.GoalState{}, observation.ColonyReading{}, facts)
 		if err != nil || done || got != r {
 			t.Errorf("%s: planner changed or stepped: done=%v err=%v", name, done, err)
 		}

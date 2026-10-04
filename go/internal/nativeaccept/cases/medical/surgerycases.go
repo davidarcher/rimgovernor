@@ -111,9 +111,9 @@ func surgeryHarvestCareLimit(ctx context.Context, s cases.Session) error {
 type surgeryRun struct {
 	plans func(ctx context.Context) ([]domain.Surgery, error)
 	stop  func()
-	// tick is the journal's routine review tick.
+	// tick is the journal's rounds tick.
 	tick func(ctx context.Context) (domain.Tick, error)
-	// recovered is whether the routine review binds the need to a goal the
+	// recovered is whether the rounds binds the need to a goal the
 	// journal reads as recovered.
 	recovered func(ctx context.Context, need policy.ConcernID) (bool, error)
 }
@@ -166,10 +166,10 @@ func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surg
 		}
 		return out, nil
 	}, tick: func(ctx context.Context) (domain.Tick, error) {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		return review.Tick, err
 	}, recovered: func(ctx context.Context, need policy.ConcernID) (bool, error) {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return false, err
 		}

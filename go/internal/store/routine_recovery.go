@@ -90,7 +90,7 @@ func (r *RoutineRecovery) planning() policy.RecoveryPlanning {
 	}
 	return p
 }
-func validateRoutineRecovery(r RoutineReview) error {
+func validateRoutineRecovery(r Rounds) error {
 	if r.Recovery == nil {
 		return nil
 	}
@@ -113,7 +113,7 @@ func validateRoutineRecovery(r RoutineReview) error {
 	return nil
 }
 
-func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *policy.DisasterHistory, review RoutineReview, tick domain.Tick) (*RoutineRecovery, error) {
+func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *policy.DisasterHistory, review Rounds, tick domain.Tick) (*RoutineRecovery, error) {
 	if h == nil {
 		return nil, nil
 	}

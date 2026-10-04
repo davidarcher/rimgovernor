@@ -315,8 +315,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if config.clockControl {
 		clockReview = serviceClockReview{database, config.profile}
 	}
-	if config.routineReviews {
-		routines = serviceRoutineDiagnostics{journal: database, reviewsEnabled: config.routineReviews, methodsEnabled: config.routineMethods, families: config.activeRoutineFamilies(), sections: sections}
+	if config.roundsEnabled {
+		routines = serviceRoutineDiagnostics{journal: database, reviewsEnabled: config.roundsEnabled, methodsEnabled: config.routineMethods, families: config.activeRoutineFamilies(), sections: sections}
 	}
 	worldEvaluation, err := buildingruntime.NewWorldEvaluation(player, natives.world, policy.WorldEvaluationPolicy{TravelFoodMarginDays: worldEvaluationFoodMarginDays})
 	if err != nil {

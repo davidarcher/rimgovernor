@@ -119,7 +119,7 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 		var start, lastTick domain.Tick
 		var parkedSince time.Time
 		e = na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-			r, e := journal.LoadRoutineReview(ctx)
+			r, e := journal.LoadRounds(ctx)
 			if e != nil {
 				return "", false, e
 			}

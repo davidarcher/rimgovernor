@@ -193,7 +193,7 @@ func serveFields(ctx context.Context, s cases.Session, report na.Report) error {
 		return err
 	}
 	defer journal.Close()
-	_, err = service.WaitReview(ctx, na.Wait{Stall: na.StallBudget(), Ceiling: 5 * time.Minute}, func(r store.RoutineReview) bool {
+	_, err = service.WaitReview(ctx, na.Wait{Stall: na.StallBudget(), Ceiling: 5 * time.Minute}, func(r store.Rounds) bool {
 		record, ok, err := journal.LayoutPlan(ctx, r.Snapshot, r.Tick)
 		if err != nil || !ok {
 			return false

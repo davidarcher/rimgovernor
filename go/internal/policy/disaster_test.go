@@ -149,7 +149,7 @@ func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 	if err != nil || r.Disaster.Phase != DisasterDisrupted {
 		t.Fatal(r.Disaster, err)
 	}
-	priority := func(r RoutineNeeds, id ConcernID) int {
+	priority := func(r RoundsFindings, id ConcernID) int {
 		for _, n := range r.Assessments {
 			if n.ID == id {
 				return n.Priority

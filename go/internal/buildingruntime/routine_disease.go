@@ -14,7 +14,7 @@ import (
 // The same demand carries the construction helper input (#653): the
 // review's recorded ready work and helper record, and every open plan's
 // building definition, so assessment and assignment plan the same helpers.
-func routineDiseaseDemand(facts observation.ColonyProjection, definitions []string, previous store.RoutineReview, current domain.GenerationSnapshot) (policy.WorkDemand, error) {
+func routineDiseaseDemand(facts observation.ColonyProjection, definitions []string, previous store.Rounds, current domain.GenerationSnapshot) (policy.WorkDemand, error) {
 	demand := policy.RoutineWorkDemand(facts.Facts, len(definitions) > 0)
 	history := previous.MedicalCare.Resting
 	var helped *policy.ConstructionHelpRecord

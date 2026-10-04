@@ -140,7 +140,7 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 	}
 	admitted, designated := false, false
 	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
-		review, err := journal.LoadRoutineReview(ctx)
+		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}

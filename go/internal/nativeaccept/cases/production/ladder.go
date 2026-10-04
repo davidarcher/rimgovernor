@@ -81,7 +81,7 @@ const benchStage = "bench-built"
 // ladderFailFast keeps the watch's fail-fast on but lets MaintainResource
 // sit method_unavailable through the research rung: while the project the
 // workshop recorded as gating the bench is unfinished the goal holds no
-// method of its own by design (policy.RoutineNeeds), so those reviews are
+// method of its own by design (policy.RoundsFindings), so those reviews are
 // not the planner committing nothing under a slot it was handed.
 //
 // MaintainResource also keeps other resources (medicine) stocked, and one of
@@ -229,9 +229,9 @@ func benches(audit map[string]any) []map[string]any {
 // audit compares the journal's goals with the live research state, bench,
 // stockpile and item count after the service has stopped.
 func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report, baseline float64) error {
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return fmt.Errorf("load routine review: %w", err)
+		return fmt.Errorf("load rounds: %w", err)
 	}
 	goals := map[policy.ConcernID]domain.ConcernID{}
 	for _, binding := range review.Goals {
@@ -239,7 +239,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	}
 	id, ok := goals[policy.MaintainResource]
 	if !ok {
-		return fmt.Errorf("%s was never bound in the routine review", policy.MaintainResource)
+		return fmt.Errorf("%s was never bound in the rounds", policy.MaintainResource)
 	}
 	goal, err := journal.LoadGoal(ctx, id)
 	if err != nil {
@@ -249,7 +249,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	// EnsureResearch is a Project (#1911): its own row, not a goal.
 	projectID, ok := review.ProjectFor(policy.EnsureResearch)
 	if !ok {
-		return fmt.Errorf("%s was never bound in the routine review", policy.EnsureResearch)
+		return fmt.Errorf("%s was never bound in the rounds", policy.EnsureResearch)
 	}
 	research, err := journal.LoadProject(ctx, projectID)
 	if err != nil {

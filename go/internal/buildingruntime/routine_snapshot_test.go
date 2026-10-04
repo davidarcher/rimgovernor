@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Snapshot tests (#747): each replays a routine review recorded from the
+// Snapshot tests (#747): each replays a Rounds pass recorded from the
 // native case it replaced (docs/developers/testing/colony-snapshots.md) and
 // asserts the planner decision that case asserted live. Every recording
 // here was taken at the commit that deleted its case.
@@ -191,7 +191,7 @@ func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, poli
 // recordedPlanner is goal's building planner over the recording's policy,
 // with no native source: select* only read the projection.
 func recordedPlanner(r snapshot.Routine, goal policy.ConcernID) *RoutineBuildingPlanner {
-	return &RoutineBuildingPlanner{reviewer: &RoutineReviewer{policy: r.Policy}, goal: goal}
+	return &RoutineBuildingPlanner{reviewer: &Rounder{policy: r.Policy}, goal: goal}
 }
 
 // loadStep loads testdata/<name>.json.gz, a planner step's own colony read
@@ -522,7 +522,7 @@ func TestSnapshotConditionCookAheadBill(t *testing.T) {
 	if !policy.PowerOutageHold(p.Facts.DisasterConditions) {
 		t.Fatal("no flare hold")
 	}
-	reviewer := &RoutineReviewer{policy: r.Policy}
+	reviewer := &Rounder{policy: r.Policy}
 	warm, err := policy.ReviewRefrigeration(p.Facts.FoodStorageUpkeep, r.Review.Latches.Refrigeration, r.Policy.FoodStorage)
 	if err != nil {
 		t.Fatal(err)

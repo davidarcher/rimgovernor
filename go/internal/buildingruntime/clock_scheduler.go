@@ -84,7 +84,7 @@ type ClockSchedulerConfig struct {
 	// reads the shared one.
 	Store *facts.Store
 	// Routine is reviewed only after owned clock obligations have drained.
-	Routine         *RoutineReviewer
+	Routine         *Rounder
 	FoodAcquisition *RoutineAcquisitionPlanner
 	// ResourceAcquisition chops, forages and hunts for MaintainResource (#728).
 	ResourceAcquisition *RoutineAcquisitionPlanner
@@ -168,7 +168,7 @@ type ClockSchedulerResult struct {
 	// Window is the colony window the admission tail sized (before any
 	// native-work or combat bound), zero when the tail did not run.
 	Window                       ClockWindowSize
-	Routine                      *store.RoutineReviewResult
+	Routine                      *store.RoundsResult
 	FoodAcquisition              *RoutineAcquisitionResult
 	ResourceAcquisition          *RoutineAcquisitionResult
 	PestAcquisition              *RoutineAcquisitionResult
@@ -291,7 +291,7 @@ type ClockSchedulerResult struct {
 	// reason names them.
 	HeldBy []string
 	// CriticalWave is the wall time of the admission cycle's wave: the
-	// routine review and the critical planners.
+	// rounds and the critical planners.
 	CriticalWave time.Duration
 	// PlannerMS is each queued planner's wall time in milliseconds (the
 	// elapsed time so far for one that missed the cutoff): the clock_step
@@ -1517,7 +1517,7 @@ func (s *ClockScheduler) markStarved(finished, missed []string) {
 	}
 }
 
-// runPlanners runs the routine reviewer and the selected planner wave as an
+// runPlanners runs the rounder and the selected planner wave as an
 // admission cycle and an optional wave (#623). The cycle joins the routine
 // review and the critical planners under the wall budget: past it, the
 // critical planners still pending are named on out.HeldBy and the step
@@ -1556,7 +1556,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		watched(0, false)
 		return nil, err
 	}
-	// The wall budget bounds the planners, not the routine review that
+	// The wall budget bounds the planners, not the rounds that
 	// stepPlanners ran first: a cold review and layout take seconds on a
 	// slow runner and used to leave the critical planners the rest of the
 	// budget, so a startup planner was cut at every step.
@@ -1655,7 +1655,7 @@ func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionRe
 }
 
 // stepBudget is the coordinator's quantity budget for this step (#628): the
-// stock the routine review's resource runways observed. Nothing is read when no proposal claims a
+// stock the rounds's resource runways observed. Nothing is read when no proposal claims a
 // quantity, and a step without a review carries no stock, so every
 // quantity is unbounded here and checked beneath the commit.
 func (s *ClockScheduler) stepBudget(call context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (stepBudget, error) {
@@ -1745,7 +1745,7 @@ func (s *ClockScheduler) stepRead(reason StepReason) bridge.StepRequest {
 }
 
 // stepReviews is whether a step taken for reason is expected to run the
-// routine review: never without a reviewer, on a timer step only when the
+// rounds: never without a reviewer, on a timer step only when the
 // full-step safety net is due, and for any other cause as plannerSelection
 // decides.
 func (s *ClockScheduler) stepReviews(reason StepReason) bool {
@@ -1820,7 +1820,7 @@ func (s *ClockScheduler) fullStepDue() bool {
 	return s.lastFull.IsZero() || s.clock.Now().Sub(s.lastFull) >= every
 }
 
-// stepPlanners runs the routine reviewer synchronously first (every other
+// stepPlanners runs the rounder synchronously first (every other
 // planner's dispatch depends on being able to load the review it commits),
 // then queues the configured catalog planners pick selects (nil: all) onto
 // the wave sharing arbiter, returning the queued names without waiting.
@@ -1910,7 +1910,7 @@ func clockWatchedKind(kind domain.ActionKind) bool {
 // the catalog (every plan but the root's own).
 // clockShelterHeld is policy.ShelterHeld over the review's facts: unknown
 // without an enabled review.
-func clockShelterHeld(review *store.RoutineReviewResult) domain.Fact[bool] {
+func clockShelterHeld(review *store.RoundsResult) domain.Fact[bool] {
 	if review == nil || review.Detection == nil {
 		return domain.Unknown[bool]()
 	}
@@ -2001,11 +2001,11 @@ func (s *ClockScheduler) pauseForHunt(call context.Context, snapshot domain.Gene
 	return s.session.CleanupClock(call)
 }
 
-// clockSchedulerCombatPlan reports whether the current routine review binds an
+// clockSchedulerCombatPlan reports whether the current rounds binds an
 // ActiveCombat incident in deficit whose admitted plan still has open work: the only
 // evidence under which live hostiles are watched rather than refused.
 func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, bool, []domain.PawnID, error) {
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return false, false, nil, err
 	}

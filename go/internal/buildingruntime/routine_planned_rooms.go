@@ -101,7 +101,7 @@ func plannedRoomMethod(room policy.LayoutRoom) domain.MethodID {
 // admitted and the furniture goes onto the footprint's interior with it, not
 // after the walls, since the room is where they will stand anyway. done is
 // true when the ring's own step produced the result to return.
-func (r *RoutineBuildingPlanner) plannedDiningFurnishing(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoutineBuildingPlanner, result RoutineBuildingResult, done bool, err error) {
+func (r *RoutineBuildingPlanner) plannedDiningFurnishing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoutineBuildingPlanner, result RoutineBuildingResult, done bool, err error) {
 	if r.goal != policy.EnsureComfort || r.facility == nil || r.facility.Role != policy.RoomRoleDiningRoom || !comfortFurniture(facts).IsTable(r.definition) && !comfortFurniture(facts).IsChair(r.definition) {
 		return r, RoutineBuildingResult{}, false, nil
 	}

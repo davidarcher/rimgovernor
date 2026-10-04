@@ -24,7 +24,7 @@ func TestRoutineSafeguardsVetoAdmissionUntilEmergencyClears(t *testing.T) {
 	if len(out.Review.Emergency) != 1 || out.Review.Emergency[0] != policy.MaintainFireSafety {
 		t.Fatal("review did not record the emergency", out.Review.Emergency)
 	}
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || len(loaded.Emergency) != 1 {
 		t.Fatal("emergency not journalled with the review", loaded.Emergency, err)
 	}

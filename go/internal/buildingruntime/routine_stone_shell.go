@@ -21,7 +21,7 @@ const stoneShellCandidateBound = 8
 // RoutineStoneShellSource previews each backup/replacement Wall placement
 // and lists current wall-upgrade candidate sites. General colony facts
 // (owned construction, the Upkeep stone-structure census, map bounds) come
-// from the shared RoutineReviewer.native read instead, the same split
+// from the shared Rounder.native read instead, the same split
 // RoutineFieldPlanner uses between its own FieldNative and the reviewer's
 // observation.RoutineSource.
 type RoutineStoneShellSource interface {
@@ -29,7 +29,7 @@ type RoutineStoneShellSource interface {
 	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
 type RoutineStoneShellPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineStoneShellSource
 }
 type RoutineStoneShellResult struct {
@@ -37,7 +37,7 @@ type RoutineStoneShellResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineStoneShellPlanner(reviewer *RoutineReviewer, native RoutineStoneShellSource) (*RoutineStoneShellPlanner, error) {
+func NewRoutineStoneShellPlanner(reviewer *Rounder, native RoutineStoneShellSource) (*RoutineStoneShellPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineStoneShellPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -61,7 +61,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 	if !state.ObservationKnown {
 		return RoutineStoneShellResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineStoneShellResult{}, err
 	}

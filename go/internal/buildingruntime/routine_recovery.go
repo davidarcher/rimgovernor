@@ -22,14 +22,14 @@ import (
 // produces; see routine_recovery.go in package store for the analogous
 // review-cycle computation this mirrors at dispatch time.
 type RoutineRecoveryPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutineRecoveryResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutineRecoveryPlanner(reviewer *RoutineReviewer) (*RoutineRecoveryPlanner, error) {
+func NewRoutineRecoveryPlanner(reviewer *Rounder) (*RoutineRecoveryPlanner, error) {
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutineRecoveryPlanner: reviewer == nil", ErrControl)
 	}
@@ -58,7 +58,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineRecoveryResult{}, err
 	}

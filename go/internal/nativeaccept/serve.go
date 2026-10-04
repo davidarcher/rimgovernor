@@ -576,10 +576,10 @@ func (p *ServiceProcess) wait(w Wait) Wait {
 }
 
 // WaitReview is WaitReview on this service's store, ended by its exit.
-func (p *ServiceProcess) WaitReview(ctx context.Context, w Wait, ready func(store.RoutineReview) bool) (store.RoutineReview, error) {
+func (p *ServiceProcess) WaitReview(ctx context.Context, w Wait, ready func(store.Rounds) bool) (store.Rounds, error) {
 	s, err := p.Store(ctx)
 	if err != nil {
-		return store.RoutineReview{}, err
+		return store.Rounds{}, err
 	}
 	return WaitReview(ctx, s, p.wait(w), ready)
 }

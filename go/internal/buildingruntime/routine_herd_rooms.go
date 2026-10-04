@@ -123,7 +123,7 @@ func herdMethod(step policy.HerdStep) domain.MethodID {
 // stageHerdRooms answers the due herd step: the room's shell through
 // shellRoom, a bed through placePiece. It reads the room census itself, the
 // pen steps before it did not need it.
-func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim]) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim]) (RoutineAnimalContainmentResult, error) {
 	reading, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, claims, herdDefinitions...)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err

@@ -25,7 +25,7 @@ type RoutineWasteSource interface {
 }
 
 type RoutineWastePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineWasteSource
 	// building stages the tomb (#832); nil for a source that cannot
 	// preview buildings.
@@ -36,7 +36,7 @@ type RoutineWasteResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineWastePlanner(reviewer *RoutineReviewer, native RoutineWasteSource) (*RoutineWastePlanner, error) {
+func NewRoutineWastePlanner(reviewer *Rounder, native RoutineWasteSource) (*RoutineWastePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineWastePlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -55,7 +55,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineWasteResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineWasteResult{}, err
 	}
@@ -176,7 +176,7 @@ func wasteCandidateFacts(pawn domain.PawnID, row *n.PawnState) policy.WastePawn 
 
 // colonistRows are the detail rows of every colonist, in one tend-pawn read;
 // ok is false while the colonist list is incomplete or empty.
-func (r *RoutineWastePlanner) colonistRows(call context.Context, state ControlState, review store.RoutineReview) ([]*n.PawnState, bool, error) {
+func (r *RoutineWastePlanner) colonistRows(call context.Context, state ControlState, review store.Rounds) ([]*n.PawnState, bool, error) {
 	identityRef := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityRef)
 	if err != nil {

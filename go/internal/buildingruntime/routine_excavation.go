@@ -157,7 +157,7 @@ func maxInt32(a, b int32) int32 {
 // excavationStep carries one review's facts into stepExcavation.
 type excavationStep struct {
 	state  ControlState
-	review store.RoutineReview
+	review store.Rounds
 	goal   store.WorkOwner
 	facts  observation.ColonyProjection
 	read   observation.ColonyReading
@@ -360,7 +360,7 @@ func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s 
 	if err = check(); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	latest, err := p.journal.LoadRoutineReview(call)
+	latest, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

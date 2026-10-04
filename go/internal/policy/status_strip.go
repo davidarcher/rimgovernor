@@ -60,7 +60,7 @@ type PanelAction struct {
 	ID, Label, Tip string
 }
 
-// StatusInput is what the routine review already knows when it pushes the
+// StatusInput is what the rounds already knows when it pushes the
 // strip.
 type StatusInput struct {
 	Stage     *ColonyStageRecord

@@ -35,7 +35,7 @@ type chargerDispatch struct {
 	epoch    context.Context
 	db       *store.Store
 	sleeping *sleepingNative
-	review   store.RoutineReview
+	review   store.Rounds
 }
 
 // mechChargerFixture is a colony with one mechanitor, the given chargers and
@@ -60,8 +60,8 @@ func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor
 
 // biotechPlannerFixture is a two-colonist colony with the given Biotech
 // colony facts and a catalog holding def (and a wall) under a name no Go
-// code knows; the first routine review has run with goal's method enabled.
-func biotechPlannerFixture(t *testing.T, goal policy.ConcernID, facts *o.BiotechColonyFacts, def bridge.FixtureDef, mechanitor bool) (*RoutineBuildingPlanner, *store.Store, *sleepingNative, chargerNative, store.RoutineReview) {
+// code knows; the first rounds has run with goal's method enabled.
+func biotechPlannerFixture(t *testing.T, goal policy.ConcernID, facts *o.BiotechColonyFacts, def bridge.FixtureDef, mechanitor bool) (*RoutineBuildingPlanner, *store.Store, *sleepingNative, chargerNative, store.Rounds) {
 	t.Helper()
 	base, db, _, _, sleeping := sleepingFixture(t)
 	base.reviewer.methods = domain.Known([]policy.ConcernID{goal})

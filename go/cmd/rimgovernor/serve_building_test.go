@@ -77,7 +77,7 @@ type unusedBuildingCapabilities struct {
 	boundary.BuildingWriter
 }
 
-// The routine reviewer requires the bench census read; this fake answers it
+// The rounder requires the bench census read; this fake answers it
 // as empty.
 func (*clockServiceFake) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
 	return nil, bridge.Result{}, nil

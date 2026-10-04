@@ -55,7 +55,7 @@ func shellTargets(ctx context.Context, native any, journal *store.Store, snapsho
 // stockShells admits one stock-target shell bill under MaintainEquipment
 // for the first shell no bench bill produces (#1207). Native keeps the
 // stock from then on; the planner only adds missing bills.
-func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.RoutineReview, projection observation.ColonyProjection, holds []policy.Amount) (RoutineArmoryResult, error) {
+func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection, holds []policy.Amount) (RoutineArmoryResult, error) {
 	p := r.reviewer.player
 	targets, err := shellTargets(call, r.native, p.journal, state.Snapshot, projection)
 	if err != nil || len(targets) == 0 {

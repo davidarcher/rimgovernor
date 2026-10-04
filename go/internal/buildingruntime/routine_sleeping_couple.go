@@ -79,7 +79,7 @@ func (r *RoutineSleepingUpkeepPlanner) couplePacked(call context.Context, goal s
 // then install a DoubleBed (a stored one first) in the couple's room's
 // bedroom slot; each step once per goal epoch. due is false when nothing
 // is to do, so the ordinary sleeping choice goes on.
-func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
+func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
 	facts := reading.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()

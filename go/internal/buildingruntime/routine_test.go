@@ -546,7 +546,7 @@ func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, plan
 	return n.reply, bridge.Result{}, nil // A late transport may ignore cancellation.
 }
 
-func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
+func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := routineFixture(t)
 	v := n.reply.GetObserved()
@@ -577,7 +577,7 @@ func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
 		}
 	}
 }
-func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSession, store.ControlRequest, *routineNative) {
+func routineFixture(t *testing.T) (*Rounder, *store.Store, *playerFakeSession, store.ControlRequest, *routineNative) {
 	t.Helper()
 	p, db, session, _ := playerFixture(t)
 	request := playerAcquire(t, p)
@@ -585,7 +585,7 @@ func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSe
 		t.Fatal(err)
 	}
 	n := colonyCoreNative(t)
-	r, err := NewRoutineReviewer(p, n, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
+	r, err := NewRounder(p, n, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -609,7 +609,7 @@ func colonyCoreNative(t *testing.T) *routineNative {
 	return n
 }
 
-func TestRoutineReviewerPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
+func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	t.Parallel()
 	r, db, session, request, n := routineFixture(t)
 	got, err := r.Step(context.Background())
@@ -633,7 +633,7 @@ func TestRoutineReviewerPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	if _, err = r.player.Pause(context.Background(), request); err == nil {
 		t.Fatal("stale browser accepted")
 	}
-	stored, err := db.LoadRoutineReview(context.Background())
+	stored, err := db.LoadRounds(context.Background())
 	if err != nil || stored.Enabled || stored.Revision != 2 || n.reads != 1 || session.State().Enabled {
 		t.Fatal(stored, err)
 	}
@@ -645,7 +645,7 @@ func TestRoutineReviewerPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	}
 }
 
-func TestRoutineReviewerRejectsAuthorityChangesDuringRead(t *testing.T) {
+func TestRounderRejectsAuthorityChangesDuringRead(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"direction", "disabled", "native", "load"} {
 		t.Run(change, func(t *testing.T) {
@@ -667,7 +667,7 @@ func TestRoutineReviewerRejectsAuthorityChangesDuringRead(t *testing.T) {
 			if _, err := r.Step(context.Background()); err == nil {
 				t.Fatal("late facts committed")
 			}
-			stored, err := db.LoadRoutineReview(context.Background())
+			stored, err := db.LoadRounds(context.Background())
 			if err != nil || stored.Revision != 0 {
 				t.Fatal(stored, err)
 			}
@@ -675,7 +675,7 @@ func TestRoutineReviewerRejectsAuthorityChangesDuringRead(t *testing.T) {
 	}
 }
 
-func TestRoutineReviewerManualCancelsBlockedNativeRead(t *testing.T) {
+func TestRounderManualCancelsBlockedNativeRead(t *testing.T) {
 	t.Parallel()
 	r, db, session, request, n := routineFixture(t)
 	entered := make(chan struct{})
@@ -694,13 +694,13 @@ func TestRoutineReviewerManualCancelsBlockedNativeRead(t *testing.T) {
 	if err := <-reviewDone; err == nil {
 		t.Fatal("cancelled review succeeded")
 	}
-	stored, err := db.LoadRoutineReview(context.Background())
+	stored, err := db.LoadRounds(context.Background())
 	if err != nil || stored.Revision != 0 || session.State().Enabled {
 		t.Fatal(stored, err)
 	}
 }
 
-func TestRoutineReviewerDisabledStepRetiresReviewWithoutReacquiring(t *testing.T) {
+func TestRounderDisabledStepRetiresReviewWithoutReacquiring(t *testing.T) {
 	t.Parallel()
 	r, db, session, _, n := routineFixture(t)
 	if _, err := r.Step(context.Background()); err != nil {
@@ -717,7 +717,7 @@ func TestRoutineReviewerDisabledStepRetiresReviewWithoutReacquiring(t *testing.T
 	if err != nil || got.Review.Revision != 2 || n.reads != 1 || session.acquires.Load() != 1 {
 		t.Fatal(got, err)
 	}
-	stored, err := db.LoadRoutineReview(context.Background())
+	stored, err := db.LoadRounds(context.Background())
 	if err != nil || stored.Enabled {
 		t.Fatal(stored, err)
 	}
@@ -737,7 +737,7 @@ func (n *routineMedicalNative) ReadEmergency(ctx context.Context, id *c.Identity
 	v.Facts.Colonists = []policy.EmergencyPawn{pawn}
 	return v, receipt, err
 }
-func TestRoutineReviewerUsesSameTickMedicalCensus(t *testing.T) {
+func TestRounderUsesSameTickMedicalCensus(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"needs_tend", "unknown"} {
 		t.Run(kind, func(t *testing.T) {

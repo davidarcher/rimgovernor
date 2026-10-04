@@ -19,7 +19,7 @@ type RoutineSupplySource interface {
 	ReadAllowSupplies(context.Context, *c.Identity, domain.Cell) (bridge.SupplyRead, bridge.Result, error)
 }
 type RoutineSupplyPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineSupplySource
 }
 type RoutineSupplyResult struct {
@@ -27,7 +27,7 @@ type RoutineSupplyResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineSupplyPlanner(reviewer *RoutineReviewer, native RoutineSupplySource) (*RoutineSupplyPlanner, error) {
+func NewRoutineSupplyPlanner(reviewer *Rounder, native RoutineSupplySource) (*RoutineSupplyPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineSupplyPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -42,7 +42,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineSupplyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineSupplyResult{}, err
 	}

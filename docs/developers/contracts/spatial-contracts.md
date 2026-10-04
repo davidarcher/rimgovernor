@@ -205,7 +205,7 @@ active only at tier >= `Masonry` while the colony has no unfilled
 construction or hauling work. One re-site is in flight at a time and a
 tidied piece is never moved again; the set is journaled per world
 (`store.RecordLayoutTidy`). Stockpiles are MaintainStockpiles' (below).
-The review record carries the outcome (`RoutineReview.Layout`), the
+The review record carries the outcome (`Rounds.Layout`), the
 routines API reports it as `layoutTidy` and the dashboard's development
 panel shows it.
 

@@ -157,9 +157,9 @@ func plannedIncinerator(ctx context.Context, s cases.Session) (policy.LayoutRoom
 		return policy.LayoutRoom{}, fmt.Errorf("reopen journal: %w", err)
 	}
 	defer journal.Close()
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return policy.LayoutRoom{}, fmt.Errorf("load routine review: %w", err)
+		return policy.LayoutRoom{}, fmt.Errorf("load rounds: %w", err)
 	}
 	record, ok, err := journal.LayoutPlan(ctx, review.Snapshot, review.Tick)
 	if err != nil || !ok {

@@ -19,7 +19,7 @@ import (
 // MaintainStockpiles configures every built shelf like its zone
 // (policy.StockpileShelfPatch, role shelf:<buildingID>).
 type RoutineStorageShelvesPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineStorageShelvesSource
 }
 
@@ -41,7 +41,7 @@ var shelfGoals = map[policy.ConcernID]bool{policy.MaintainResource: true}
 // maxShelvesPerZone bounds the shelves a zone may ever be given.
 const maxShelvesPerZone = 8
 
-func NewRoutineStorageShelvesPlanner(reviewer *RoutineReviewer, native RoutineStorageShelvesSource) (*RoutineStorageShelvesPlanner, error) {
+func NewRoutineStorageShelvesPlanner(reviewer *Rounder, native RoutineStorageShelvesSource) (*RoutineStorageShelvesPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineStorageShelvesPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -66,7 +66,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineStorageShelvesResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineStorageShelvesResult{}, err
 	}
@@ -224,7 +224,7 @@ func zoneShelves(ctx context.Context, journal *store.Store, goal domain.ConcernI
 
 // build previews the step's candidate sites in turn and admits the first
 // native accepts as the zone's next shelf.
-func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, need policy.ConcernID, reading observation.RoutineReading, step policy.ShelfStep, index int) (RoutineStorageShelvesResult, error) {
+func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, need policy.ConcernID, reading observation.RoutineReading, step policy.ShelfStep, index int) (RoutineStorageShelvesResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
 	stuff := facts.BuildStuff(policy.ShelfDefinition)

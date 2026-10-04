@@ -65,7 +65,7 @@ func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) 
 	return states, nil
 }
 
-// SeedGoal inserts a fresh goal row for fixtures; the routine review mints
+// SeedGoal inserts a fresh goal row for fixtures; the rounds mints
 // every production goal (createGoal).
 func (s *Store) SeedGoal(ctx context.Context, g domain.Goal) error {
 	if g.Status != domain.GoalActive || g.Epoch != 0 || g.Need != domain.NeedUnknown || g.RecoveryObserved {

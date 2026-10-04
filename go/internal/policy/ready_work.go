@@ -21,7 +21,7 @@ import (
 // value-only: it makes no native writes and reserves nothing, so discovery
 // never needs the optional slot a candidate competes for. The store records
 // the projection beside the development rows as shadow diagnostics
-// (RoutineReview.ReadyWork); admission does not read it yet. Extension: a
+// (Rounds.ReadyWork); admission does not read it yet. Extension: a
 // family migrates by giving readyActionStage a case for its action kind (or
 // a proposal adapter below) that names the actual stage, work type, claims
 // and parallelism; every other kind stays on the conservative adapter.

@@ -20,7 +20,7 @@ type campaignRestoreSession struct {
 
 func TestCampaignRebindsGuardsOnlyToLoadedReview(t *testing.T) {
 	old := closedGoal{Stage: "kitchen", Need: policy.MaintainCleanFacilities, Goal: "old-kitchen", Epoch: 7}
-	review := store.RoutineReview{Goals: []store.RoutineGoal{{Need: old.Need, Goal: "loaded-kitchen"}}}
+	review := store.Rounds{Goals: []store.RoutineGoal{{Need: old.Need, Goal: "loaded-kitchen"}}}
 	for _, status := range []domain.GoalStatus{domain.GoalActive, domain.GoalInvalidated} {
 		closed := []closedGoal{old}
 		err := rebindClosedGoals(context.Background(), closed, review, func(_ context.Context, id domain.ConcernID) (store.GoalState, error) {
@@ -37,7 +37,7 @@ func TestCampaignRebindsGuardsOnlyToLoadedReview(t *testing.T) {
 			t.Fatalf("accepted %s goal", status)
 		}
 	}
-	if err := rebindClosedGoals(context.Background(), []closedGoal{old}, store.RoutineReview{}, nil); err == nil {
+	if err := rebindClosedGoals(context.Background(), []closedGoal{old}, store.Rounds{}, nil); err == nil {
 		t.Fatal("accepted a missing loaded binding")
 	}
 }

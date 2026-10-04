@@ -13,14 +13,14 @@ import (
 // auto-expand off and edits home to the base footprint policy.PlanHomeArea
 // derives, reading the reviewer's routine census.
 type RoutineHomeCoveragePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutineHomeCoverageResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutineHomeCoveragePlanner(reviewer *RoutineReviewer) (*RoutineHomeCoveragePlanner, error) {
+func NewRoutineHomeCoveragePlanner(reviewer *Rounder) (*RoutineHomeCoveragePlanner, error) {
 	if reviewer == nil || reviewer.native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineHomeCoveragePlanner: reviewer == nil || reviewer.native == nil", ErrControl)
 	}
@@ -36,7 +36,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}

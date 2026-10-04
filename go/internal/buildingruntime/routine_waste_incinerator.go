@@ -107,7 +107,7 @@ func incineratorMethod(room policy.LayoutRoom) domain.MethodID {
 
 // stageDisposal answers a due burn, else the incinerator's shell; handled is
 // false when neither is due.
-func (r *RoutineWastePlanner) stageDisposal(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) stageDisposal(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, arbiter *stepArbiter, reading observation.RoutineReading) (RoutineWasteResult, bool, error) {
 	if result, handled, err := r.stageBurn(call, epoch, state, review, goal, arbiter, reading); err != nil || handled {
 		return result, handled, err
 	}

@@ -15,14 +15,14 @@ import (
 // (#611, #809) one room at a time. A refused or retired method journals the
 // tidy abandoned so the item is never proposed again.
 type RoutineTidyPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutineTidyResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutineTidyPlanner(reviewer *RoutineReviewer) (*RoutineTidyPlanner, error) {
+func NewRoutineTidyPlanner(reviewer *Rounder) (*RoutineTidyPlanner, error) {
 	if reviewer == nil || reviewer.native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineTidyPlanner: reviewer == nil || reviewer.native == nil", ErrControl)
 	}
@@ -43,7 +43,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !state.ObservationKnown {
 		return RoutineTidyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}

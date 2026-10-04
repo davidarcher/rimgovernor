@@ -36,7 +36,7 @@ type Digest struct {
 	Case  string `json:"case,omitempty"`
 	Error string `json:"error,omitempty"`
 	// Sections are in the order the digest is read: revision, refusals,
-	// routine review, unsuccessful stages, job failures, authority
+	// rounds, unsuccessful stages, job failures, authority
 	// generations, pooled-job mismatches.
 	Sections []Section `json:"sections"`
 }
@@ -82,7 +82,7 @@ func Collect(ctx context.Context, dir string, report map[string]any) Digest {
 	if db != nil {
 		defer db.Close()
 	}
-	d.Sections = append(d.Sections, routineReview(ctx, db, storeNote))
+	d.Sections = append(d.Sections, roundsSection(ctx, db, storeNote))
 	d.Sections = append(d.Sections, extentEligibility(dir))
 	d.Sections = append(d.Sections, unsuccessfulStages(ctx, db, storeNote))
 	d.Sections = append(d.Sections, jobFailures(dir, logs))
@@ -478,7 +478,7 @@ func flightFiles(dir string) []string {
 	return out
 }
 
-// --- 3. routine review (raw store) -------------------------------------
+// --- 3. rounds (raw store) -------------------------------------
 
 // openRaw opens dir/service.sqlite read-only through the store's driver
 // without the store's schema checks; the note explains a nil db.
@@ -508,13 +508,13 @@ func openRaw(dir string) (*sql.DB, string) {
 	return db, ""
 }
 
-// routineReview reads routine_review raw: development rows not selected
+// roundsSection reads routine_review raw: development rows not selected
 // (with the reason, which the goal's own status hides: a goal
 // "deficit/active, zero methods" is usually a development refusal, not a
 // planner that offered nothing) and every active goal in deficit with its
 // live method count.
-func routineReview(ctx context.Context, db *sql.DB, note string) Section {
-	s := Section{Name: "routine review"}
+func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
+	s := Section{Name: "rounds"}
 	if db == nil {
 		s.Note = note
 		return s

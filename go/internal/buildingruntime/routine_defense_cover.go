@@ -171,7 +171,7 @@ func defenseCoverSelection(approaches policy.DefenseApproaches, byCell map[domai
 // clearCover proposes the next cover-clearance method for a complete
 // layout. handled false means nothing to order: no cover selected, the
 // policy holding, or no ranged defender to size the zone by.
-func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, goal store.ProjectState, review store.RoutineReview, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord) (RoutineDefenseLayoutResult, bool, error) {
+func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord) (RoutineDefenseLayoutResult, bool, error) {
 	p := r.reviewer.player
 	projection := read.Projection
 	tick := projection.Identity.Tick

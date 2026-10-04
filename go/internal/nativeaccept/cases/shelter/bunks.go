@@ -221,7 +221,7 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 	var found []bunk
 	var seen string
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		review, err := st.LoadRoutineReview(ctx)
+		review, err := st.LoadRounds(ctx)
 		if err != nil {
 			return na.Signature("no-review", err), false, nil
 		}

@@ -11,7 +11,7 @@ import (
 // development goal by projected shortfall days per open plan action and
 // records where that order disagrees with the live ranking
 // (RankDevelopment: capacity, dependency donation, waiting age, overcommit
-// deferral). Shadow only: RoutineReview.ShadowRank is read by no admission,
+// deferral). Shadow only: Rounds.ShadowRank is read by no admission,
 // and ShadowRankOf takes the DevelopmentState by value and never writes it.
 // No cutover without the colony-score A/B (decided on #1856).
 

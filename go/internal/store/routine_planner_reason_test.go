@@ -34,7 +34,7 @@ func TestRecordPlannerReasonsNamesTheRefusal(t *testing.T) {
 	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
 		t.Fatal(err)
 	}
-	review, err := s.LoadRoutineReview(ctx)
+	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestRecordPlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	if _, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {Text: spaceText}}); err != nil {
 		t.Fatal(err)
 	}
-	review, err := s.LoadRoutineReview(ctx)
+	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestRecordPlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
 		t.Fatal(err)
 	}
-	if review, err = s.LoadRoutineReview(ctx); err != nil {
+	if review, err = s.LoadRounds(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if wood = progressRecord(t, review, policy.MaintainResource); wood.Planner != "" || wood.PlannerWaiting || wood.Blocked != policy.BlockedNoMethod {

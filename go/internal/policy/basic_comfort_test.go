@@ -64,7 +64,7 @@ func TestComfortFootholdComesFromTheCensus(t *testing.T) {
 func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 	f := stableRoutine()
 	f.BasicComfort = domain.Known(ComfortObservation{People: []PawnID{"a"}})
-	find := func(needs RoutineNeeds) (DevelopmentGoal, bool) {
+	find := func(needs RoundsFindings) (DevelopmentGoal, bool) {
 		for _, g := range needs.Goals {
 			if g.ID == EnsureComfort {
 				return g, true

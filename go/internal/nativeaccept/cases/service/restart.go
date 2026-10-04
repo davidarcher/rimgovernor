@@ -3,7 +3,7 @@
 // A controller launched with --resume runs the bot for the observed world
 // with no HTTP write at all, is killed mid-play, and a second controller
 // reopening the same SQLite state resumes autonomous play for the same
-// world -- again without a dashboard step -- continuing the routine review
+// world -- again without a dashboard step -- continuing the rounds
 // past the revision the killed process left. Nothing here backs up or
 // restores the database; the plan is re-derived from observation.
 package service
@@ -21,9 +21,9 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name:  "service/restart",
-		Scope: "Kill-and-restart: serve --resume runs the bot for the observed world with no HTTP write, is killed, and a restarted controller on the same state resumes autonomous play for the same world and advances the routine review, again with no player step.",
+		Scope: "Kill-and-restart: serve --resume runs the bot for the observed world with no HTTP write, is killed, and a restarted controller on the same state resumes autonomous play for the same world and advances the rounds, again with no player step.",
 		Start: cases.LabStart(),
-		// "work" is the lightest family that still produces a routine review
+		// "work" is the lightest family that still produces a Rounds pass
 		// with a bound goal; the point is autonomy, not any particular
 		// planner.
 		Serve:  &cases.ServeSpec{Families: []string{"work"}, Resume: true, Prefix: "restart"},
@@ -47,7 +47,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	first, diagnostics, err := service.WaitRoutineReview(ctx, journal, 120*time.Second)
+	first, diagnostics, err := service.WaitRounds(ctx, journal, 120*time.Second)
 	report["first_diagnostics"] = diagnostics
 	if err != nil {
 		return fmt.Errorf("first controller never played autonomously: %w", err)
@@ -97,7 +97,7 @@ func run(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("restarted controller reached automate but the review did not advance past revision %d: %#v", first.Revision, second)
 		}
 		var diagnostics []map[string]any
-		second, diagnostics, err = restarted.WaitRoutineReview(ctx, journal, time.Until(deadline))
+		second, diagnostics, err = restarted.WaitRounds(ctx, journal, time.Until(deadline))
 		report["second_diagnostics"] = diagnostics
 		if err != nil {
 			return fmt.Errorf("restarted controller never resumed autonomous play: %w", err)

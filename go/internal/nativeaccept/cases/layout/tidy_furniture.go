@@ -132,9 +132,9 @@ func tidyFurniture(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("reopen journal: %w", err)
 			}
 			defer journal.Close()
-			review, err := journal.LoadRoutineReview(ctx)
+			review, err := journal.LoadRounds(ctx)
 			if err != nil {
-				return fmt.Errorf("load routine review: %w", err)
+				return fmt.Errorf("load rounds: %w", err)
 			}
 			report["layout_review"] = review.Layout
 			if tidies, err = journal.LayoutTidies(ctx, review.Snapshot, review.Tick); err != nil {

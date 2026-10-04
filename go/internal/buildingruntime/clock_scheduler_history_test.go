@@ -42,7 +42,7 @@ func seedClockHistory(tb testing.TB, db *store.Store, path string, plans, attemp
 	ctx := context.Background()
 	// A second connection on the shared-cache database retires the plans
 	// directly, as the store's own catalog tests do: retirement through
-	// the routine review needs a settled autopilot goal per plan.
+	// the rounds needs a settled autopilot goal per plan.
 	raw, err := sql.Open(store.DriverName, path)
 	if err != nil {
 		tb.Fatal(err)

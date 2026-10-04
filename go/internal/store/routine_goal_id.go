@@ -53,7 +53,7 @@ func routineStandardOwns(id, need domain.ConcernID) bool {
 }
 
 // routineProjectOwns reports whether id has the project-<world>-<need>-<gen>
-// shape a routine review mints (a player's is project-player-...).
+// shape a Rounds pass mints (a player's is project-player-...).
 func routineProjectOwns(id domain.ProjectID, need domain.ConcernID) bool {
 	return ownsRoutineID(string(id), projectIDPrefix, need)
 }

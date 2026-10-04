@@ -259,7 +259,7 @@ func sameNativeSource(a, b any) bool {
 
 // observeOwned is ObserveRoutineOwned served from the review's census when
 // the census covers the request, otherwise a fresh read through source.
-func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.RoutineSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoutineReading, error) {
+func (r *Rounder) observeOwned(ctx context.Context, source observation.RoutineSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoutineReading, error) {
 	ctx = standaloneWindow(ctx, source)
 	if reading, ok := r.census.lookup(source, r.native, expected, false, claims, definitions); ok {
 		return reading, nil
@@ -285,7 +285,7 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 // section and remembers the table; a planner serves that table while the
 // review's census serves it and refreshes the section otherwise. Without
 // a mirror (a standalone reviewer) it is native itself.
-func (r *RoutineReviewer) benchSource(native RoutineWorkBenchSource, expected observation.Identity, fresh bool) RoutineWorkBenchSource {
+func (r *Rounder) benchSource(native RoutineWorkBenchSource, expected observation.Identity, fresh bool) RoutineWorkBenchSource {
 	if native == nil || r.store == nil {
 		return native
 	}
@@ -295,7 +295,7 @@ func (r *RoutineReviewer) benchSource(native RoutineWorkBenchSource, expected ob
 }
 
 type mirroredBenches struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineWorkBenchSource
 	scope    facts.Scope
 	expected observation.Identity
@@ -322,7 +322,7 @@ func (m mirroredBenches) ReadGearBenches(ctx context.Context, id *c.Identity) ([
 
 // observeRooms is ObserveRoutineRooms served from the census when it read
 // rooms, otherwise a fresh read through source.
-func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.RoutineSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoutineReading, error) {
+func (r *Rounder) observeRooms(ctx context.Context, source observation.RoutineSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoutineReading, error) {
 	ctx = standaloneWindow(ctx, source)
 	if reading, ok := r.census.lookup(source, r.native, expected, true, claims, definitions); ok {
 		return reading, nil
@@ -342,7 +342,7 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 // ColonyReading is the same census read with the routine sections beside it),
 // otherwise a fresh read through source. Project definitions ride the
 // snapshot frame's subscription, so a read naming any takes the frame.
-func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.ColonySource, expected observation.Identity, definitions []string) (observation.ColonyReading, error) {
+func (r *Rounder) observeColony(ctx context.Context, source observation.ColonySource, expected observation.Identity, definitions []string) (observation.ColonyReading, error) {
 	ctx = standaloneWindow(ctx, source)
 	if len(definitions) > 0 {
 		routine, ok := source.(observation.RoutineSource)

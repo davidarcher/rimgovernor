@@ -23,12 +23,12 @@ import (
 // the construction receipt recovers the goal; ReviewSleeping does, on the
 // assigned pawn's observed use of that bed.
 type RoutineSleepingUpkeepPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineBuildingSource
 	building *RoutineBuildingPlanner
 }
 
-func NewRoutineSleepingUpkeepPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineSleepingUpkeepPlanner, error) {
+func NewRoutineSleepingUpkeepPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineSleepingUpkeepPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineSleepingUpkeepPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -42,7 +42,7 @@ func NewRoutineSleepingUpkeepPlanner(reviewer *RoutineReviewer, native RoutineBu
 // sleepingRequest re-derives the sleeping targets from this step's census
 // against the review's retained use history, so the choice and the build
 // site share one observation.
-func sleepingRequest(facts observation.ColonyProjection, review store.RoutineReview) (policy.SleepingRequest, error) {
+func sleepingRequest(facts observation.ColonyProjection, review store.Rounds) (policy.SleepingRequest, error) {
 	sleeping, err := policy.ReviewSleeping(facts.Facts.Sleeping, review.Sleeping, facts.Identity.Tick)
 	if err != nil {
 		return policy.SleepingRequest{}, err
@@ -101,7 +101,7 @@ func bedroomsFirst(method policy.SleepingMethod) bool {
 // selectSleeping resolves the building ladder's definition and site from
 // the same census the sleeping planner chose from: only a SleepingBuild
 // choice furnishes; every other outcome is reported, never built around.
-func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjection, review store.RoutineReview) (*RoutineBuildingPlanner, Verdict, error) {
+func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjection, review store.Rounds) (*RoutineBuildingPlanner, Verdict, error) {
 	request, err := sleepingRequest(facts, review)
 	if err != nil {
 		return nil, Verdict{}, err
@@ -186,7 +186,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -265,7 +265,7 @@ func sleepingNativeWorkTicks(plan store.PlanState, current domain.GenerationSnap
 	return min(uint32(sleepingObservationSlice), uint32(sleepingObservationBudget-(tick-v.Tick)))
 }
 
-func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.WorkOwner) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.WorkOwner) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)
@@ -437,7 +437,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	latest, err := p.journal.LoadRoutineReview(call)
+	latest, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

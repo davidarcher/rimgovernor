@@ -10,7 +10,7 @@ import (
 func TestLastStepFailure(t *testing.T) {
 	log := strings.Join([]string{
 		"[clock-scheduler] reached stepPlanners",
-		"[clock-worker] step failed: routine review: context deadline exceeded",
+		"[clock-worker] step failed: rounds: context deadline exceeded",
 		"[clock-scheduler] step done: err=<nil>",
 		"  2026-09-18T19:46:03.123Z tick=4200 WARN [clock-worker] step failed: Fields: context deadline exceeded err=\"Fields: context deadline exceeded\"  ",
 		"[clock-scheduler] EvaluateClockWindow: work=false",

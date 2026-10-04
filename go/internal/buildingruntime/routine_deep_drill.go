@@ -154,7 +154,7 @@ func deepDrillFootprint(cells []policy.SiteCell, footprint []domain.Cell, anchor
 	return onLump
 }
 
-func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state ControlState, goal store.GoalState, review store.RoutineReview, started time.Time) (RoutineResourceResult, bool, error) {
+func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state ControlState, goal store.GoalState, review store.Rounds, started time.Time) (RoutineResourceResult, bool, error) {
 	if len(policy.DeepDrillingResearch(nil, review.ResourceRunwayState())) == 0 {
 		return RoutineResourceResult{}, false, nil
 	}

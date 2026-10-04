@@ -113,7 +113,7 @@ func (r *RoutineDefensePlanner) defenseSnapshot(ctx context.Context, rec *defens
 	if result.Plan == "" {
 		return d, nil
 	}
-	review, err := p.journal.LoadRoutineReview(ctx)
+	review, err := p.journal.LoadRounds(ctx)
 	if err != nil {
 		return d, err
 	}

@@ -21,7 +21,7 @@ import (
 // on purpose: the shared switch is actively edited by parallel building-family
 // slices, and this goal's action family needs none of its machinery.
 type RoutineAnimalContainmentPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineBuildingSource
 	// building raises the barn and vet room (stageHerdRooms).
 	building *RoutineBuildingPlanner
@@ -31,7 +31,7 @@ type RoutineAnimalContainmentResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineAnimalContainmentPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineAnimalContainmentPlanner, error) {
+func NewRoutineAnimalContainmentPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineAnimalContainmentPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineAnimalContainmentPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -204,7 +204,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
@@ -314,7 +314,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 // any is admitted; a site whose native preview refuses a cell is abandoned in
 // favor of the next, exactly like previewShell abandons a planned room
 // candidate that fails partway through its perimeter.
-func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	fenceDef, fok := animalContainmentDefinition(facts.Definitions, "Fence")
 	gateDef, gok := animalContainmentDefinition(facts.Definitions, "FenceGate")
@@ -411,7 +411,7 @@ func penShellCells(room policy.Rectangle) (gate domain.Cell, ring []domain.Cell)
 // rest of the ring is built, all in one shell method through the shared rock
 // step. The gate opens onto ground the frame lists open, which a miner and
 // the animals reach.
-func (r *RoutineAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, stuff string) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, stuff string) (RoutineAnimalContainmentResult, error) {
 	anchor := fieldAnchor(facts)
 	reach := policy.RockSiteReach
 	view := policy.RockSiteView(facts.Cells, facts.Bounds, policy.Rectangle{X: anchor.X - reach, Z: anchor.Z - reach, Width: 2*reach + 1, Height: 2*reach + 1})

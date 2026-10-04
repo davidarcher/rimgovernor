@@ -34,7 +34,7 @@ const maxActiveGoals = 512
 
 // initializeGoals creates the goal lifecycle tables. goals and routine_review
 // are session caches (#1011): RebuildGoals refills goals and projects from the save and
-// ResetRoutineReview empties routine_review on every world change, and the
+// ResetRounds empties routine_review on every world change, and the
 // next review recomputes it. Goal-create request replay is in memory only.
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;

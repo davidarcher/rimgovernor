@@ -100,7 +100,7 @@ it. The native census includes every target, including fully covered
 facilities, with complete geometry separate from its 256-cell Home write
 batch. Enclosed traversable cells carry interior provenance; internal
 door cells carry corridor provenance. The clock scheduler establishes known
-regions after each routine review; missing or stale evidence writes nothing.
+regions after each rounds; missing or stale evidence writes nothing.
 The planner reads established history and live expansion areas for that
 world, falling back to current derivation when history is empty.
 

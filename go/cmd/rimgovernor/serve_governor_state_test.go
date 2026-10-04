@@ -275,14 +275,14 @@ func TestWorldRebuildRunsBeforeTheWorkerReview(t *testing.T) {
 		t.Fatal("first step did not rebuild", reset, err)
 	}
 	snapshot := domain.GenerationSnapshot{Colony: "c", Map: 1, Load: "l", Plan: "p"}
-	if _, err = database.ReviewRoutine(ctx, store.RoutineReviewRequest{Current: snapshot, Tick: 27, Enabled: true, Policy: policy.DefaultRoutinePolicy()}); err != nil {
+	if _, err = database.ReviewRoutine(ctx, store.RoundsRequest{Current: snapshot, Tick: 27, Enabled: true, Policy: policy.DefaultRoutinePolicy()}); err != nil {
 		t.Fatal(err)
 	}
 	shadow := governorShadow{rebuild: rebuild}
 	if err = shadow.round(ctx, governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 4}, native, database, &out); err != nil {
 		t.Fatal(err)
 	}
-	if review, err := database.LoadRoutineReview(ctx); err != nil || review.Revision == 0 {
+	if review, err := database.LoadRounds(ctx); err != nil || review.Revision == 0 {
 		t.Fatal("shadow round wiped the worker's review", review.Revision, err)
 	}
 	if reset, err := gate(ctx, observed); err != nil || reset {

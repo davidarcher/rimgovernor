@@ -67,7 +67,7 @@ func (p ProjectState) goalMethods(rows []ProjectMethod) []domain.GoalMethod {
 // WorkableOwner is Workable for a need that may be a Project's: it loads the
 // goal or Project the review binds to need and reports whether a planner may
 // work it. The owner is returned whenever the review binds one.
-func (s *Store) WorkableOwner(ctx context.Context, r RoutineReview, need policy.ConcernID) (WorkOwner, bool, error) {
+func (s *Store) WorkableOwner(ctx context.Context, r Rounds, need policy.ConcernID) (WorkOwner, bool, error) {
 	for _, binding := range r.Projects {
 		if binding.Need == need {
 			p, ok, err := s.WorkableProject(ctx, r, need)
@@ -80,7 +80,7 @@ func (s *Store) WorkableOwner(ctx context.Context, r RoutineReview, need policy.
 
 // WorkableProject loads the Project the review binds to need and reports
 // whether a planner may work it: an open deficit the Safeguards admit (#1121).
-func (s *Store) WorkableProject(ctx context.Context, r RoutineReview, need policy.ConcernID) (ProjectState, bool, error) {
+func (s *Store) WorkableProject(ctx context.Context, r Rounds, need policy.ConcernID) (ProjectState, bool, error) {
 	for _, binding := range r.Projects {
 		if binding.Need != need {
 			continue
@@ -95,7 +95,7 @@ func (s *Store) WorkableProject(ctx context.Context, r RoutineReview, need polic
 }
 
 // VetoOwner is Veto for the goal or Project the owner is.
-func (r RoutineReview) VetoOwner(owner WorkOwner) string {
+func (r Rounds) VetoOwner(owner WorkOwner) string {
 	need, bound := owner.ownerNeed(r)
 	if !bound {
 		return ""
@@ -104,7 +104,7 @@ func (r RoutineReview) VetoOwner(owner WorkOwner) string {
 }
 
 // VetoProject is Veto for a Project.
-func (r RoutineReview) VetoProject(p domain.Project) string {
+func (r Rounds) VetoProject(p domain.Project) string {
 	need, bound := r.projectNeed(p.ID)
 	if !bound {
 		return ""
@@ -113,7 +113,7 @@ func (r RoutineReview) VetoProject(p domain.Project) string {
 }
 
 // ProjectFor returns the Project the review binds to need.
-func (r RoutineReview) ProjectFor(need policy.ConcernID) (domain.ProjectID, bool) {
+func (r Rounds) ProjectFor(need policy.ConcernID) (domain.ProjectID, bool) {
 	for _, binding := range r.Projects {
 		if binding.Need == need {
 			return binding.Project, true

@@ -50,9 +50,9 @@ func moodFact[T any](v *T) domain.Fact[T] {
 }
 
 // MoodHistory lifts the persisted mood review back into policy terms.
-func (r RoutineReview) MoodHistory() policy.MoodHistory { return r.moodHistory() }
+func (r Rounds) MoodHistory() policy.MoodHistory { return r.moodHistory() }
 
-func (r RoutineReview) moodHistory() policy.MoodHistory {
+func (r Rounds) moodHistory() policy.MoodHistory {
 	h := policy.MoodHistory{}
 	if r.Mood == nil {
 		return h

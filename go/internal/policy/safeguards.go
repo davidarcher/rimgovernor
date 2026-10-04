@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// SafeguardContext is what the Safeguards read: the routine review's control state,
+// SafeguardContext is what the Safeguards read: the rounds's control state,
 // the emergency needs it found (EmergencyNeed), which the review keeps in its
 // JSON record, and the loose things the last safety census reported unsafe
 // to haul (fire, trap, hostile line of sight).

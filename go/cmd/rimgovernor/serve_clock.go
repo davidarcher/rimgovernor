@@ -47,7 +47,7 @@ type serviceRoutineDiagnostics struct {
 }
 
 func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.RoutineStatus, error) {
-	review, err := s.journal.LoadRoutineReview(ctx)
+	review, err := s.journal.LoadRounds(ctx)
 	if err != nil {
 		return httpapi.RoutineStatus{}, err
 	}
@@ -185,7 +185,7 @@ func clockResourceThresholds(targets map[policy.Resource]int64) []*k.ResourceThr
 	return out
 }
 
-// serviceClockStepTimeout budgets one scheduler step: the routine review
+// serviceClockStepTimeout budgets one scheduler step: the rounds
 // census plus every composed planner's native reads. It matches the Player's
 // CallTimeout (serve_building.go) and is independent of the epoch lease. Under
 // peer load (several headless RimWorld instances on one machine) a planner
@@ -229,7 +229,7 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, sections *facts.Store, worldReady func(context.Context, *c.ObservationContext) (bool, error)) (*buildingruntime.ClockWorker, error) {
-	profile, routine := sc.profile, sc.routineReviews
+	profile, routine := sc.profile, sc.roundsEnabled
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.workshopPlans()
 	research := sc.researchPlans()
@@ -279,12 +279,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
-		return nil, errors.New("building plans require routine reviews")
+		return nil, errors.New("building plans require rounds")
 	}
 	if routine {
 		native, ok := reads.(observation.RoutineSource)
 		if !ok {
-			return nil, errors.New("routine reviews require typed colony and emergency observations")
+			return nil, errors.New("rounds require typed colony and emergency observations")
 		}
 		thresholds, capabilities := routineCapabilities(sc)
 		// The undraft sweep releases drafts no live plan needs (#939).
@@ -293,7 +293,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, thresholds, config.MaxAge, capabilities)
+		reviewer, err := buildingruntime.NewRounder(player, native, wallClock{}, thresholds, config.MaxAge, capabilities)
 		if err != nil {
 			return nil, err
 		}

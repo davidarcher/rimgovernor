@@ -24,7 +24,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	first := out.Review.Disaster
 	s.Close()
 	s = open(t, path)
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded.Disaster, first) {
 		t.Fatal(loaded.Disaster, err)
 	}
@@ -36,7 +36,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	if _, err = s.LoadRoutineReview(ctx); err != nil {
+	if _, err = s.LoadRounds(ctx); err != nil {
 		t.Fatal(err)
 	}
 	r.Enabled = true
@@ -51,7 +51,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	if out.Review.Disaster != nil {
 		t.Fatal("new world retained disaster")
 	}
-	if _, err = s.LoadRoutineReview(ctx); err != nil {
+	if _, err = s.LoadRounds(ctx); err != nil {
 		t.Fatal(err)
 	}
 }

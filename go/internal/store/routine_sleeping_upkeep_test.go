@@ -27,7 +27,7 @@ func TestSleepingUseSurvivesManualRestartAndResetsWithWorld(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	saved, err := s.LoadRoutineReview(context.Background())
+	saved, err := s.LoadRounds(context.Background())
 	if err != nil || saved.Enabled || len(saved.Sleeping.Uses) != 1 {
 		t.Fatal(saved, err)
 	}

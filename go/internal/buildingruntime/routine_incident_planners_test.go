@@ -55,7 +55,7 @@ func TestRoutineMoodReliefPlannerCommitsToPawnIncident(t *testing.T) {
 	}
 	pawn := policy.MoodPawn{ID: "pawn", Mood: domain.Known(.2), Threshold: domain.Known(.3), Food: domain.Known(.1), Rest: domain.Known(.8), Joy: domain.Known(.8), Mental: domain.Known(false), Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), PlayerForced: domain.Known(false)}
 	facts := policy.RoutineFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false), MoodPawns: domain.Known([]policy.MoodPawn{pawn})}
-	mood, err := db.ReviewRoutine(ctx, store.RoutineReviewRequest{Current: out.Review.Snapshot, Revision: out.Review.Revision, Tick: out.Review.Tick + 1, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts})
+	mood, err := db.ReviewRoutine(ctx, store.RoundsRequest{Current: out.Review.Snapshot, Revision: out.Review.Revision, Tick: out.Review.Tick + 1, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts})
 	if err != nil {
 		t.Fatal(err)
 	}

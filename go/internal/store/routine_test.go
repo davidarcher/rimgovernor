@@ -10,13 +10,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func routineRequest() RoutineReviewRequest {
-	return RoutineReviewRequest{Current: scope(), Tick: 10, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}}
+func routineRequest() RoundsRequest {
+	return RoundsRequest{Current: scope(), Tick: 10, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}}
 }
 
 // A review whose facts carry the Biotech pollution read binds the same goals
 // the loader derives from empty facts, so the stored review loads back.
-func TestRoutineReviewWithPollutionFactsLoads(t *testing.T) {
+func TestRoundsWithPollutionFactsLoads(t *testing.T) {
 	t.Parallel()
 	s := open(t, memoryPath(t))
 	r := routineRequest()
@@ -24,13 +24,13 @@ func TestRoutineReviewWithPollutionFactsLoads(t *testing.T) {
 	r.Facts.MechChargerOwed = domain.Known(false)
 	r.Facts.GeneBankOwed = domain.Known(false)
 	out := reviewRoutine(t, s, &r)
-	loaded, err := s.LoadRoutineReview(context.Background())
+	loaded, err := s.LoadRounds(context.Background())
 	if err != nil || !reflect.DeepEqual(out.Review, loaded) {
 		t.Fatal(loaded, err)
 	}
 }
 
-func routineGoal(t *testing.T, r RoutineReviewResult, need domain.ConcernID) GoalState {
+func routineGoal(t *testing.T, r RoundsResult, need domain.ConcernID) GoalState {
 	t.Helper()
 	for i, b := range r.Review.Goals {
 		if b.Need == need {
@@ -42,7 +42,7 @@ func routineGoal(t *testing.T, r RoutineReviewResult, need domain.ConcernID) Goa
 }
 
 // routineIncident is the review's open colony-wide occurrence of kind.
-func routineIncident(t *testing.T, r RoutineReviewResult, kind domain.ConcernID) IncidentState {
+func routineIncident(t *testing.T, r RoundsResult, kind domain.ConcernID) IncidentState {
 	t.Helper()
 	for i, b := range r.Review.Incidents {
 		if b.Kind == kind && b.Subject == "" {
@@ -54,7 +54,7 @@ func routineIncident(t *testing.T, r RoutineReviewResult, kind domain.ConcernID)
 }
 
 // routineIncidentNeed is the need the review bound kind's occurrence at.
-func routineIncidentNeed(t *testing.T, r RoutineReviewResult, kind domain.ConcernID) domain.NeedState {
+func routineIncidentNeed(t *testing.T, r RoundsResult, kind domain.ConcernID) domain.NeedState {
 	t.Helper()
 	b, ok := r.Review.Incident(kind)
 	if !ok {
@@ -63,7 +63,7 @@ func routineIncidentNeed(t *testing.T, r RoutineReviewResult, kind domain.Concer
 	return b.Need
 }
 
-func reviewRoutine(t *testing.T, s *Store, r *RoutineReviewRequest) RoutineReviewResult {
+func reviewRoutine(t *testing.T, s *Store, r *RoundsRequest) RoundsResult {
 	t.Helper()
 	out, err := s.ReviewRoutine(context.Background(), *r)
 	if err != nil {
@@ -74,7 +74,7 @@ func reviewRoutine(t *testing.T, s *Store, r *RoutineReviewRequest) RoutineRevie
 	return out
 }
 
-func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
+func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	path := memoryPath(t)
@@ -87,7 +87,7 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(out.Review, loaded) {
 		t.Fatal(loaded, err)
 	}
@@ -118,7 +118,7 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 }
 
-func TestRoutineReviewSuspendsOrInvalidatesLinkedWork(t *testing.T) {
+func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"manual", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
@@ -184,7 +184,7 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 	}
 }
 
-func TestRoutineReviewTransactionRollbackAndStaleCursor(t *testing.T) {
+func TestRoundsTransactionRollbackAndStaleCursor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -202,7 +202,7 @@ func TestRoutineReviewTransactionRollbackAndStaleCursor(t *testing.T) {
 	if _, err := s.ReviewRoutine(ctx, r); err == nil {
 		t.Fatal("injected failure ignored")
 	}
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(out.Review, loaded) {
 		t.Fatal("review partially committed", loaded, err)
 	}

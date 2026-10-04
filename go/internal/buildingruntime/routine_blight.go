@@ -25,7 +25,7 @@ type RoutineBlightSource interface {
 // one plan of up to eight CutPlant designations on the census's undesignated
 // plants. The goal settles on the census emptying, never on the plan.
 type RoutineBlightPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineBlightSource
 }
 type RoutineBlightResult struct {
@@ -33,7 +33,7 @@ type RoutineBlightResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineBlightPlanner(reviewer *RoutineReviewer, native RoutineBlightSource) (*RoutineBlightPlanner, error) {
+func NewRoutineBlightPlanner(reviewer *Rounder, native RoutineBlightSource) (*RoutineBlightPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineBlightPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -48,7 +48,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineBlightResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBlightResult{}, err
 	}

@@ -104,7 +104,7 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	if native.targetReads != 1 || native.previews != 0 {
 		t.Fatal("convert previewed a building", native.targetReads, native.previews)
 	}
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

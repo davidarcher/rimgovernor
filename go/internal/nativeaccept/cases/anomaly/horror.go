@@ -61,8 +61,8 @@ func init() {
 }
 
 // fightState reads the review's ActiveCombat binding: bound, and its need.
-func fightState(ctx context.Context, st *store.Store) (review store.RoutineReview, bound bool, need domain.NeedState, err error) {
-	review, err = st.LoadRoutineReview(ctx)
+func fightState(ctx context.Context, st *store.Store) (review store.Rounds, bound bool, need domain.NeedState, err error) {
+	review, err = st.LoadRounds(ctx)
 	if err != nil {
 		return review, false, "", nil
 	}
@@ -118,7 +118,7 @@ func runHorrorIncident(ctx context.Context, s cases.Session) error {
 	err = na.WaitProgress(ctx, na.Wait{
 		Ceiling: fightCeiling, Stall: na.StallBudget(), Terminal: service.Exited, Ticks: fightTicks,
 		Tick: func(ctx context.Context) (uint64, error) {
-			review, err := st.LoadRoutineReview(ctx)
+			review, err := st.LoadRounds(ctx)
 			return uint64(review.Tick), err
 		},
 	}, func(ctx context.Context) (string, bool, error) {

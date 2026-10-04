@@ -11,11 +11,11 @@ import (
 // census: without it SafeAreaOwed stays unknown, no Safe area is drawn and
 // sheltering never moves a pawn (CI run 36957589404, #1560).
 func TestRoomsEnabledForMaintainShelter(t *testing.T) {
-	r := &RoutineReviewer{methods: domain.Known([]policy.ConcernID{policy.RecoverDisasterServices, policy.MaintainShelter})}
+	r := &Rounder{methods: domain.Known([]policy.ConcernID{policy.RecoverDisasterServices, policy.MaintainShelter})}
 	if !r.roomsEnabled() {
 		t.Fatal("MaintainShelter composed without a rooms read")
 	}
-	if (&RoutineReviewer{methods: domain.Known([]policy.ConcernID{policy.RecoverDisasterServices})}).roomsEnabled() {
+	if (&Rounder{methods: domain.Known([]policy.ConcernID{policy.RecoverDisasterServices})}).roomsEnabled() {
 		t.Fatal("recovery alone reads rooms")
 	}
 }

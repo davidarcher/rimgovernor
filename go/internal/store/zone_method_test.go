@@ -10,7 +10,7 @@ import (
 
 // animalFeedRoutineRequest opens a MaintainAnimalFeed deficit, a goal the
 // one-zone stockpile methods bind to.
-func animalFeedRoutineRequest() RoutineReviewRequest {
+func animalFeedRoutineRequest() RoundsRequest {
 	r := routineRequest()
 	r.Current.Native = 2
 	r.Facts.AnimalUpkeep = policy.AnimalUpkeepObservation{

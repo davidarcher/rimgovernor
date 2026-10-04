@@ -26,7 +26,7 @@ type RoutineRepairSource interface {
 }
 
 type RoutineRepairPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineRepairSource
 }
 type RoutineRepairResult struct {
@@ -34,7 +34,7 @@ type RoutineRepairResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineRepairPlanner(reviewer *RoutineReviewer, native RoutineRepairSource) (*RoutineRepairPlanner, error) {
+func NewRoutineRepairPlanner(reviewer *Rounder, native RoutineRepairSource) (*RoutineRepairPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineRepairPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -49,7 +49,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineRepairResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineRepairResult{}, err
 	}

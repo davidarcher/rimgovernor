@@ -39,7 +39,7 @@ type statusStripState struct {
 // the refusal markers (#823) after a review, gated by the layout overlay flag: only when the rows
 // changed or an hour passed; with the flag off it hides both once. Output
 // only: a failure is logged, never fatal.
-func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, result store.RoutineReviewResult) {
+func (r *Rounder) drawStatusStrip(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, result store.RoundsResult) {
 	strip, ok := r.native.(StatusStripNative)
 	overlay, overlayOK := r.native.(LayoutOverlayNative)
 	if !ok || !overlayOK {
@@ -97,7 +97,7 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 // review draws its rows (#1251): startup rebuilds and reviews for a while
 // before the panel has anything to say, which otherwise reads as a hang.
 // ASCII only (#600). Output only: a failure is logged, never fatal.
-func (r *RoutineReviewer) drawReviewing(ctx context.Context, identity *c.Identity) {
+func (r *Rounder) drawReviewing(ctx context.Context, identity *c.Identity) {
 	strip, ok := r.native.(StatusStripNative)
 	if !ok || !r.layoutOverlay || r.strip.key != "" || identity == nil {
 		return
@@ -129,7 +129,7 @@ func openIncidents(states []store.IncidentState) []domain.Incident {
 // when its plan retires or the action leaves Pending), and each goal's
 // target, the cell of its first open action that names one (#847). A plan
 // that does not load is skipped.
-func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState, projects []store.ProjectState, incidents []store.IncidentState) ([]policy.RefusalMarker, map[policy.ConcernID]domain.Cell) {
+func (r *Rounder) planMarks(ctx context.Context, goals []store.GoalState, projects []store.ProjectState, incidents []store.IncidentState) ([]policy.RefusalMarker, map[policy.ConcernID]domain.Cell) {
 	type owner struct {
 		id    policy.ConcernID
 		plans []domain.PlanID

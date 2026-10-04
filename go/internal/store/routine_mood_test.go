@@ -16,7 +16,7 @@ func moodPerson() policy.MoodPawn {
 }
 
 // moodIncident is the review's EnsureMood binding for pawn.
-func moodIncident(r RoutineReviewResult, pawn policy.PawnID) (RoutineIncident, bool) {
+func moodIncident(r RoundsResult, pawn policy.PawnID) (RoutineIncident, bool) {
 	for _, b := range r.Review.SubjectIncidents(policy.EnsureMood) {
 		if b.Subject == domain.PawnID(pawn) {
 			return b, true
@@ -51,7 +51,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	loaded, err := s.LoadRoutineReview(ctx)
+	loaded, err := s.LoadRounds(ctx)
 	if err != nil || !reflect.DeepEqual(loaded.Mood, out.Review.Mood) {
 		t.Fatal(loaded, err)
 	}
@@ -67,7 +67,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	if _, err = s.LoadRoutineReview(ctx); err != nil {
+	if _, err = s.LoadRounds(ctx); err != nil {
 		t.Fatal(err)
 	}
 	r.Enabled = true
@@ -97,7 +97,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	if out.Review.Mood != nil {
 		t.Fatal("inactive departed pawn retained")
 	}
-	if _, err = s.LoadRoutineReview(ctx); err != nil {
+	if _, err = s.LoadRounds(ctx); err != nil {
 		t.Fatal("retired dynamic binding corrupt", err)
 	}
 }
@@ -114,7 +114,7 @@ func TestRoutineMoodWorldResetWhileDisabled(t *testing.T) {
 	if out.Review.Mood != nil {
 		t.Fatal("world history leaked")
 	}
-	if _, err := s.LoadRoutineReview(context.Background()); err != nil {
+	if _, err := s.LoadRounds(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	r.Enabled = true
@@ -139,7 +139,7 @@ func TestRoutineMoodCompleteBoundedCohort(t *testing.T) {
 	if len(out.Review.Goals) != 43 || len(out.Review.SubjectIncidents(policy.EnsureMood)) != 256 {
 		t.Fatal(len(out.Review.Goals), len(out.Review.Incidents))
 	}
-	if _, err := s.LoadRoutineReview(context.Background()); err != nil {
+	if _, err := s.LoadRounds(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -172,7 +172,7 @@ func TestRoutineMoodRejectsCorruptHistoryAndProposals(t *testing.T) {
 			if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.LoadRoutineReview(context.Background()); err == nil {
+			if _, err = s.LoadRounds(context.Background()); err == nil {
 				t.Fatal("corrupt mood accepted")
 			}
 		})

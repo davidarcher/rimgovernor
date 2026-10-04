@@ -16,7 +16,7 @@ import (
 // and the food runway, sent when it changes or an hour passed, and cleared
 // once with the flag off or no stockpile. Output only: a failure is
 // logged, never fatal.
-func (r *RoutineReviewer) drawStockOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, result store.RoutineReviewResult) {
+func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, result store.RoundsResult) {
 	native, ok := r.native.(LayoutOverlayNative)
 	if !ok {
 		return
@@ -64,7 +64,7 @@ func (r *RoutineReviewer) drawStockOverlay(ctx context.Context, snapshot domain.
 // from the projection's planning cells (else its census bounds), with the
 // colony's claim role and settings, the latest patch superseding them,
 // when the colony created it.
-func (r *RoutineReviewer) stockZones(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) ([]policy.StockZone, error) {
+func (r *Rounder) stockZones(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) ([]policy.StockZone, error) {
 	tick := projection.Identity.Tick
 	claims, err := r.player.journal.ZoneClaims(ctx, snapshot, tick)
 	if err != nil {

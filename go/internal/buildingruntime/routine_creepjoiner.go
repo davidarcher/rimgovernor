@@ -44,7 +44,7 @@ type creepJoinerMemory struct {
 // creepJoinerRecord is the colony's inspection record on the goal the latest
 // review binds to ManageCreepJoiners; empty while there is none.
 func creepJoinerRecord(ctx context.Context, journal *store.Store) (policy.CreepJoinerRecord, error) {
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if errors.Is(err, store.ErrNotFound) {
 		return policy.CreepJoinerRecord{}, nil
 	}
@@ -152,7 +152,7 @@ func (m *creepJoinerMemory) take(world string, tick domain.Tick) (creepJoinerWor
 
 // RoutineCreepJoinerPlanner is ManageCreepJoiners's planner.
 type RoutineCreepJoinerPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	memory   *creepJoinerMemory
 }
 type RoutineCreepJoinerResult struct {
@@ -162,7 +162,7 @@ type RoutineCreepJoinerResult struct {
 
 // NewRoutineCreepJoinerPlanner composes the planner and has reviewer run the
 // creepjoiner review over each frame.
-func NewRoutineCreepJoinerPlanner(reviewer *RoutineReviewer) (*RoutineCreepJoinerPlanner, error) {
+func NewRoutineCreepJoinerPlanner(reviewer *Rounder) (*RoutineCreepJoinerPlanner, error) {
 	if reviewer == nil || !reviewer.methodEnabled(policy.ManageCreepJoiners) {
 		return nil, fmt.Errorf("%w: NewRoutineCreepJoinerPlanner: reviewer == nil || !reviewer.methodEnabled(policy.ManageCreepJoiners)", ErrControl)
 	}
@@ -179,7 +179,7 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineCreepJoinerResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineCreepJoinerResult{}, err
 	}

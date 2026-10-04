@@ -123,7 +123,7 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []routinePlan) ([]poli
 // plans: recorded beside the development rows, read by no admission.
 // Stage inputs (bill ingredients, crop readiness) are not observed here
 // yet, so staged work reads awaiting_observation rather than ready.
-func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.DevelopmentGoal) policy.ReadyWorkReport {
+func readyWorkOf(r RoundsRequest, plans []routinePlan, goals []policy.DevelopmentGoal) policy.ReadyWorkReport {
 	var ready []policy.ReadyPlan
 	for _, p := range plans {
 		ready = append(ready, policy.ReadyPlan{Goal: p.goal, Spec: p.state.Spec, Progress: p.state.Progress})
@@ -137,7 +137,7 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction, Recipes: r.Facts.Recipes})
 }
 
-func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []WorkOwner, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
+func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, needs policy.RoundsFindings, states []WorkOwner, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
 	var bindings []RoutineGoal
 	for i, n := range needs.Assessments {
 		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: domain.ConcernID(states[i].OwnerID())})

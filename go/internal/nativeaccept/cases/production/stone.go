@@ -130,9 +130,9 @@ func stoneCount(audit map[string]any) float64 {
 }
 
 func auditStone(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report, baseline float64) error {
-	review, err := journal.LoadRoutineReview(ctx)
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return fmt.Errorf("load routine review: %w", err)
+		return fmt.Errorf("load rounds: %w", err)
 	}
 	ladder, ok, err := journal.LoadProductionLadder(ctx, store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map})
 	if err != nil {

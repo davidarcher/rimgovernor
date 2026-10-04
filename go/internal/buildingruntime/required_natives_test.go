@@ -7,7 +7,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// The routine reviewer requires the bench census read, so the base fake
+// The rounder requires the bench census read, so the base fake
 // answers it as empty; tests that exercise benches define their own.
 func (n *routineNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
 	return nil, bridge.Result{}, nil

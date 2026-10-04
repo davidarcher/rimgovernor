@@ -24,7 +24,7 @@ import (
 // ladder's throne definitions from the review's catalog and remembers the
 // read for the planners. A colony without Royalty owes no throne room; a
 // failed read leaves royalty unknown.
-func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.GenerationSnapshot, reading *observation.RoutineReading) error {
+func (r *Rounder) reviewRoyalty(ctx context.Context, snapshot domain.GenerationSnapshot, reading *observation.RoutineReading) error {
 	projection := &reading.Projection
 	if !r.methodEnabled(policy.MaintainHousing) && !r.methodEnabled(policy.MaintainPsylink) && !r.moodCasts {
 		return nil
@@ -66,7 +66,7 @@ func throneThings(f policy.RoyaltyFacts) []string {
 
 // rememberedThrones is the throne definitions a planner's read names beside
 // its own: the ladder's, from the review's royalty read.
-func (r *RoutineReviewer) rememberedThrones() []string {
+func (r *Rounder) rememberedThrones() []string {
 	if facts, ok := r.census.remembered().Value(); ok {
 		return throneThings(facts)
 	}
@@ -214,7 +214,7 @@ func throneMethod(step policy.ThroneStep) domain.MethodID {
 
 // stageThrone answers a due throne step: the shell through shellRoom, the
 // throne through placePiece. Furnishing follows through the room upgrade.
-func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
 	clockSchedulerLog("%s: throne room %s for %s (%s)", goal.OwnerID(), step.Kind, step.Need.Holder, step.Need.Title)
 	switch step.Kind {
 	case policy.ThroneShell:
@@ -233,7 +233,7 @@ func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, 
 // once per holder and throne per goal epoch (refused attempts retry within
 // assignMethod's bound). The royalty read refreshes on its own cadence, so a
 // throne assigned this epoch reads unowned until then and the method is used.
-func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, step policy.ThroneStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, step policy.ThroneStep) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	method, err := r.assignMethod(call, goal, fmt.Sprintf("throne-assign-%s-%s", step.Need.Holder, step.Throne))
 	if err != nil {
@@ -267,7 +267,7 @@ func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context,
 	if p.session.State() != state {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: assignThrone: p.session.State() != state", ErrControl)
 	}
-	latest, err := p.journal.LoadRoutineReview(call)
+	latest, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

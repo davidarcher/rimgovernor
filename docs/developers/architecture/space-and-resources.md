@@ -230,7 +230,7 @@ Planners that return proposals do not commit anything
 themselves: the step's coordinator ranks the wave's proposals by (planner
 priority, goal urgency, proposal ID) and checks each one's pawn, entity and
 quantity claims before its commit runs. Quantities are checked against the
-stock the routine review observed less what earlier proposals in the step
+stock the rounds observed less what earlier proposals in the step
 claimed and less the `ActivePlanCommitments` view (`store.LoadPlanCommitments`):
 for every admitted plan bound to an active goal, the admitted costs of its
 next work segment, the actions whose prerequisites have completed in the

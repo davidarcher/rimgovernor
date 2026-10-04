@@ -29,7 +29,7 @@ func resourceHistory(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 	return h, nil
 }
 
-func resourceRunways(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest) ([]policy.ResourceRunway, error) {
+func resourceRunways(ctx context.Context, tx *sql.Tx, r RoundsRequest) ([]policy.ResourceRunway, error) {
 	history, err := resourceHistory(ctx, tx, r.Current, r.Tick)
 	if err != nil {
 		return nil, err

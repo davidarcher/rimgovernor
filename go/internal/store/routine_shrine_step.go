@@ -42,34 +42,34 @@ func (s RoutineShrineStep) validate(tick domain.Tick) error {
 // under revision and marks its ShrineHolds rows: the shrine the step held
 // on as held, every candidate it passed over as skipped. A review that has
 // moved past revision is ErrConflict.
-func (s *Store) RecordShrineStep(ctx context.Context, revision uint64, step RoutineShrineStep) (RoutineReview, error) {
+func (s *Store) RecordShrineStep(ctx context.Context, revision uint64, step RoutineShrineStep) (Rounds, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	defer tx.Rollback()
 	review, err := loadRoutine(ctx, tx)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if review.Revision != revision {
-		return RoutineReview{}, fmt.Errorf("%w: routine review revision %d, shrine step under %d", ErrConflict, review.Revision, revision)
+		return Rounds{}, fmt.Errorf("%w: rounds revision %d, shrine step under %d", ErrConflict, review.Revision, revision)
 	}
 	if err = step.validate(review.Tick); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	markShrineHolds(review.ShrineHolds, &step)
 	copied := step
 	review.ShrineStep = &copied
 	data, err := json.Marshal(review)
 	if err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	if len(data) > 1024*1024 {
-		return RoutineReview{}, ErrCapacity
+		return Rounds{}, ErrCapacity
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
-		return RoutineReview{}, err
+		return Rounds{}, err
 	}
 	return review, tx.Commit()
 }

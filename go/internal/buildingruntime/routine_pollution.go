@@ -19,14 +19,14 @@ import (
 // Where freezer storage stands is #1684's siting; a pack no stockpile takes
 // stays exposed and is not re-ordered.
 type RoutinePollutionPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 }
 type RoutinePollutionResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutinePollutionPlanner(reviewer *RoutineReviewer) (*RoutinePollutionPlanner, error) {
+func NewRoutinePollutionPlanner(reviewer *Rounder) (*RoutinePollutionPlanner, error) {
 	if reviewer == nil || reviewer.native == nil {
 		return nil, fmt.Errorf("%w: NewRoutinePollutionPlanner: reviewer == nil || reviewer.native == nil", ErrControl)
 	}
@@ -42,7 +42,7 @@ func (r *RoutinePollutionPlanner) step(call, epoch context.Context, arbiter *ste
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePollutionResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutinePollutionResult{}, err
 	}

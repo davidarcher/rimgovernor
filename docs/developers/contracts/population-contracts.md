@@ -66,7 +66,7 @@ probability are never written.
 
 The `population-joiner` routine family (on in the autonomous default; selected by
 `RIMGOVERNOR_ROUTINE_FAMILIES` like every other family) lets the same
-goal answer joiner quests from population capacity. The routine review reads the
+goal answer joiner quests from population capacity. The rounds read the
 visible quest census and accepts a not-yet-accepted `ThreatReward_*_Joiner` offer
 (a refugee chased by a threat; native checks `CanAcceptQuest` when it applies
 the `AcceptQuestIntent`) only when living admitted colonists plus guests and prisoners are below the

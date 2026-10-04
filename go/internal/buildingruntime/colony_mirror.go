@@ -48,14 +48,14 @@ func colonyTables(m *facts.Store, scope facts.Scope, versions map[string]uint64)
 // world and generation, within the pawn cadence after the review, no clock
 // invalidation since), otherwise native. A read without planning gets the
 // planning section the native answers it with.
-func (r *RoutineReviewer) colonyFacts(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
+func (r *Rounder) colonyFacts(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	if r == nil || !sameNativeSource(native, r.native) {
 		return native.ReadColonyFacts(ctx, identity, planning)
 	}
 	return r.servedColonyFacts(ctx, native, identity, planning)
 }
 
-func (r *RoutineReviewer) servedColonyFacts(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
+func (r *Rounder) servedColonyFacts(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	if v, ok := r.mirroredColony(ctx, identity); ok {
 		if !planning {
 			v.Planning = bridge.NotRequestedPlanning()
@@ -65,7 +65,7 @@ func (r *RoutineReviewer) servedColonyFacts(ctx context.Context, native colonyFa
 	return native.ReadColonyFacts(ctx, identity, planning)
 }
 
-func (r *RoutineReviewer) mirroredColony(ctx context.Context, identity *c.Identity) (*o.ColonyFactsSnapshot, bool) {
+func (r *Rounder) mirroredColony(ctx context.Context, identity *c.Identity) (*o.ColonyFactsSnapshot, bool) {
 	if r == nil || r.store == nil {
 		return nil, false
 	}

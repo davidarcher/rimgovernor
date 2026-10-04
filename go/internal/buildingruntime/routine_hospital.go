@@ -28,12 +28,12 @@ type RoutineHospitalSource interface {
 // room, else a starter shell first), converting it on a later review.
 // Tending, rescue and the medicine reserve stay their own families.
 type RoutineHospitalPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineHospitalSource
 	building *RoutineBuildingPlanner
 }
 
-func NewRoutineHospitalPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineHospitalPlanner, error) {
+func NewRoutineHospitalPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineHospitalPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineHospitalPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -104,7 +104,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -194,7 +194,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		if elapsed := r.reviewer.clock.Now().Sub(started); elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return fmt.Errorf("%w: step: elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		latest, err := p.journal.LoadRoutineReview(call)
+		latest, err := p.journal.LoadRounds(call)
 		if err != nil {
 			return err
 		}

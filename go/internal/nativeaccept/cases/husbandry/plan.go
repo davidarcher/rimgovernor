@@ -313,9 +313,9 @@ func begin(ctx context.Context, s cases.Session, previous *na.ServiceProcess) (*
 
 // until polls the journal until done; the signature is the write counts and
 // the game day, so a broken phase stalls and a long build does not.
-func (p *phase) until(ctx context.Context, what string, done func(review store.RoutineReview, w []write) (bool, error)) error {
+func (p *phase) until(ctx context.Context, what string, done func(review store.Rounds, w []write) (bool, error)) error {
 	err := na.WaitProgress(ctx, p.wait, func(ctx context.Context) (string, bool, error) {
-		review, err := p.st.LoadRoutineReview(ctx)
+		review, err := p.st.LoadRounds(ctx)
 		if err != nil {
 			return na.Signature("no-review"), false, nil
 		}
@@ -451,7 +451,7 @@ func runPlan(ctx context.Context, s cases.Session) error {
 	}
 	var room policy.LayoutRoom
 	var cells []domain.Cell
-	err = one.until(ctx, "layout plan with a vet room", func(review store.RoutineReview, _ []write) (bool, error) {
+	err = one.until(ctx, "layout plan with a vet room", func(review store.Rounds, _ []write) (bool, error) {
 		record, ok, err := one.st.LayoutPlan(ctx, review.Snapshot, review.Tick)
 		if err != nil || !ok || len(record.Plan.HerdRooms(policy.ModuleVetRoom)) == 0 {
 			return false, err
@@ -479,7 +479,7 @@ func runPlan(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	var sterilized string
-	err = two.until(ctx, "sterilize write on an old male", func(_ store.RoutineReview, w []write) (bool, error) {
+	err = two.until(ctx, "sterilize write on an old male", func(_ store.Rounds, w []write) (bool, error) {
 		for _, x := range w {
 			if x.animal == cow {
 				return false, fmt.Errorf("the lone cow founder got a %s write", x.method)
@@ -536,7 +536,7 @@ func runPlan(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	var removals []write
-	err = three.until(ctx, "bull tamed and two old animals removed", func(_ store.RoutineReview, w []write) (bool, error) {
+	err = three.until(ctx, "bull tamed and two old animals removed", func(_ store.Rounds, w []write) (bool, error) {
 		tamed := false
 		removals = removals[:0]
 		for _, x := range w {

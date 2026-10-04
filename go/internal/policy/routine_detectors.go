@@ -11,7 +11,7 @@ import (
 // latches are built from them) and the needs the detectors append to. The
 // registry runs the detectors in order; an assessment lands where its
 // detector sits, so the order of inspections is the order of
-// RoutineNeeds.Assessments (the stored bindings are index-aligned).
+// RoundsFindings.Assessments (the stored bindings are index-aligned).
 type routineRun struct {
 	f        RoutineFacts
 	previous RoutineLatches
@@ -19,7 +19,7 @@ type routineRun struct {
 	// l are the latches the reviews yield; r.Latches starts as l and the
 	// housing, comfort and medical detectors set their own phase on it.
 	l RoutineLatches
-	r RoutineNeeds
+	r RoundsFindings
 
 	home           domain.Fact[HomeAreaPlan]
 	stone          domain.Fact[[]string]

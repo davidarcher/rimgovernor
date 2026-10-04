@@ -127,7 +127,7 @@ func (n *scriptedBuildingNative) Apply(_ context.Context, identity *c.Identity, 
 
 // controllerRig is one process lifetime of the routine controller over a
 // durable journal: the real Session (executor and placement boundary),
-// Player, RoutineReviewer, sleeping planner and Worker, wired the way
+// Player, Rounder, sleeping planner and Worker, wired the way
 // autonomous play wires them, over a scripted native boundary. Restarting
 // closes the rig and opens another on the same database path against the
 // same native, which keeps its ledger the way the game keeps running.
@@ -135,7 +135,7 @@ type controllerRig struct {
 	db       *store.Store
 	session  *Session
 	player   *Player
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	planner  *RoutineBuildingPlanner
 	worker   *Worker
 	native   *scriptedBuildingNative
@@ -161,7 +161,7 @@ func openControllerRig(t *testing.T, path, dir string, authority *controlNative,
 	if err != nil {
 		t.Fatal(err)
 	}
-	reviewer, err := NewRoutineReviewer(player, native.routineNative, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Minute)
+	reviewer, err := NewRounder(player, native.routineNative, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func (rig *controllerRig) close(t *testing.T) {
 // resume is the dashboard's Resume for the rig's world followed by the
 // review that binds the routine goals under the granted authority. The
 // reviewer's facts report the granted generation, as the game would.
-func (rig *controllerRig) resume(t *testing.T, requestID string) store.RoutineReviewResult {
+func (rig *controllerRig) resume(t *testing.T, requestID string) store.RoundsResult {
 	t.Helper()
 	ctx := context.Background()
 	if _, err := rig.player.Resume(ctx, store.ControlRequest{RequestID: requestID, Kind: store.ResumeControl, World: rig.world}); err != nil {
@@ -235,7 +235,7 @@ func stampContexts(m proto.Message, fn func(*c.ObservationContext)) {
 		return true
 	})
 }
-func (rig *controllerRig) review(t *testing.T) store.RoutineReviewResult {
+func (rig *controllerRig) review(t *testing.T) store.RoundsResult {
 	t.Helper()
 	result, err := rig.reviewer.Step(context.Background())
 	if err != nil {
@@ -269,7 +269,7 @@ func planStages(plan store.PlanState) map[domain.ActionID]domain.ProgressView {
 
 // admitSleepingSpots takes the rig from a fresh journal to the sleeping
 // planner's admitted method: two SleepingSpot placements, pending and
-// undispatched, under the routine review the resume enabled.
+// undispatched, under the rounds the resume enabled.
 func admitSleepingSpots(t *testing.T, rig *controllerRig) store.PlanState {
 	t.Helper()
 	rig.resume(t, "resume-1")

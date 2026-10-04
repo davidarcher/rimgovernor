@@ -14,7 +14,7 @@ import (
 // reach, the raid edge and the vetoed loot, sent when they change or an
 // hour passed, and cleared once when nothing holds. Output only: a failure
 // is logged, never fatal.
-func (r *RoutineReviewer) drawSafetyOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, emergency policy.EmergencyFacts) {
+func (r *Rounder) drawSafetyOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, emergency policy.EmergencyFacts) {
 	native, ok := r.native.(LayoutOverlayNative)
 	if !ok {
 		return

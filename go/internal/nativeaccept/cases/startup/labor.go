@@ -180,7 +180,7 @@ func observe(ctx context.Context, s cases.Session, variant string) (startuplabor
 		start     domain.Tick
 	)
 	err = na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		review, err := st.LoadRoutineReview(ctx)
+		review, err := st.LoadRounds(ctx)
 		if err != nil {
 			return na.Signature("no-review", err), false, nil
 		}
@@ -233,7 +233,7 @@ func observe(ctx context.Context, s cases.Session, variant string) (startuplabor
 // reviewDiagnoses builds one subject per ranked goal of the review: the
 // ranking row, the goal's open action (when it bound one) and whether
 // shelter is waiting on its beds rung.
-func reviewDiagnoses(ctx context.Context, st *store.Store, review store.RoutineReview) ([]startuplabor.Diagnosis, error) {
+func reviewDiagnoses(ctx context.Context, st *store.Store, review store.Rounds) ([]startuplabor.Diagnosis, error) {
 	world := startuplabor.World{Colony: string(review.Snapshot.Colony), Load: string(review.Snapshot.Load), Map: int(review.Snapshot.Map)}
 	var out []startuplabor.Diagnosis
 	for _, row := range review.Development.Rows {
@@ -264,7 +264,7 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.RoutineR
 
 // ownerMethods is the open methods of the goal or Project the review binds to
 // need; ok is false when it binds none or the row is gone.
-func ownerMethods(ctx context.Context, st *store.Store, review store.RoutineReview, need domain.ConcernID) ([]domain.GoalMethod, bool, error) {
+func ownerMethods(ctx context.Context, st *store.Store, review store.Rounds, need domain.ConcernID) ([]domain.GoalMethod, bool, error) {
 	var owner store.WorkOwner
 	var err error
 	if id, ok := review.ProjectFor(need); ok {
@@ -309,7 +309,7 @@ func openWork(ctx context.Context, st *store.Store, methods []domain.GoalMethod)
 
 // shelterRecovery is the first tick at which the shelter goal's beds rung
 // is completed for every colonist; once known it is never moved.
-func shelterRecovery(ctx context.Context, st *store.Store, review store.RoutineReview, known domain.Fact[domain.Tick]) (domain.Fact[domain.Tick], error) {
+func shelterRecovery(ctx context.Context, st *store.Store, review store.Rounds, known domain.Fact[domain.Tick]) (domain.Fact[domain.Tick], error) {
 	if _, ok := known.Value(); ok {
 		return known, nil
 	}

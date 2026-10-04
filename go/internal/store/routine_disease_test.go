@@ -22,7 +22,7 @@ func TestDiseaseRestPersistsThroughRestartAndManual(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	loaded, err := s.LoadRoutineReview(context.Background())
+	loaded, err := s.LoadRounds(context.Background())
 	if err != nil || len(loaded.MedicalCare.Resting) != 1 {
 		t.Fatal(loaded, err)
 	}

@@ -17,7 +17,7 @@ import (
 
 // ColonyStatusNative is the read-only native surface ColonyStatus needs:
 // the Identity call every clock-scheduled planner uses to learn the current
-// authoritative snapshot, the colony-facts census the routine reviewer
+// authoritative snapshot, the colony-facts census the rounder
 // judges food from, and the home colonist roster (downed, needs). Nothing
 // here dispatches a native write.
 type ColonyStatusNative interface {
@@ -65,14 +65,14 @@ type ColonyStatusReport struct {
 	// Shrines row; empty while the census or its inputs are unknown.
 	ShrineReadiness []ShrineReadinessReport
 	// PlayerTechLevel is the player faction's native TechLevel name and
-	// BuildTier the construction tier the last routine review derived from
+	// BuildTier the construction tier the last rounds derived from
 	// it and finished research (#604); the tier is unknown until a review
 	// with the research census has filed.
 	PlayerTechLevel domain.Fact[string]
 	BuildTier       domain.Fact[policy.BuildTier]
 	// Stockpiles counts the owned stockpile zones by role kind as the last
 	// stockpile review read them, and ForbiddenSupplies is whether starting
-	// supplies were still forbidden at the last routine review; both are
+	// supplies were still forbidden at the last rounds; both are
 	// unknown until a review with the fact has filed.
 	Stockpiles        domain.Fact[[]policy.StockpileRoleCount]
 	ForbiddenSupplies domain.Fact[bool]

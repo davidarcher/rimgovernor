@@ -21,7 +21,7 @@ import (
 // composedFamilyPlanners are the three routine planner families this file
 // composes in one process: AllowStartingSupplies (supply), MaintainResource
 // (acquisition) and EnsureWorkAssignments (work) all attach to the same
-// RoutineReviewer/Player/journal, the way autonomous play
+// Rounder/Player/journal, the way autonomous play
 // runs every implemented family together instead of one at a time.
 type composedFamilyPlanners struct {
 	supply      *RoutineSupplyPlanner
@@ -61,9 +61,9 @@ func composedRoutineFacts(t *testing.T, n *routineNative) {
 
 // composedRoutineFixture cancels the fixture's default building submission
 // (so it cannot count as acquisition-blocking work), wires the reviewer with
-// the shared work/emergency native, seeds one routine review that covers all
+// the shared work/emergency native, seeds one rounds that covers all
 // three families, and returns their planners attached to it.
-func composedRoutineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSession, store.ControlRequest, *routineNative, composedFamilyPlanners) {
+func composedRoutineFixture(t *testing.T) (*Rounder, *store.Store, *playerFakeSession, store.ControlRequest, *routineNative, composedFamilyPlanners) {
 	t.Helper()
 	ctx := context.Background()
 	reviewer, db, session, request, native := routineFixture(t)
@@ -177,7 +177,7 @@ func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 
 // TestComposedRoutineFamiliesWorldChangeRejectsAllWithoutCrossLeak simulates
 // a native world/tick-rewind change (the session's authoritative snapshot
-// moving out from under an already-committed routine review, e.g. a save
+// moving out from under an already-committed rounds, e.g. a save
 // reload) landing while three families each have a held plan. Every
 // family must independently detect the stale review and refuse to progress
 // without further native reads, and none of their already-durable holds may
@@ -212,7 +212,7 @@ func TestComposedRoutineFamiliesWorldChangeRejectsAllWithoutCrossLeak(t *testing
 	}
 
 	// A world replacement or tick rewind changes the session's native
-	// generation out from under the last committed routine review, without
+	// generation out from under the last committed rounds, without
 	// going through the player Manual path.
 	session.mu.Lock()
 	session.state.Snapshot.Native++
@@ -280,7 +280,7 @@ func composedNativeFixture(t *testing.T) *routineNative {
 
 // TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently
 // seeds durable supply and acquisition holds as if from a prior composed
-// run, then starts a fresh Player/RoutineReviewer/planner set (a new
+// run, then starts a fresh Player/Rounder/planner set (a new
 // process) against that same durable store and confirms each family
 // reconciles its own already-held plan correctly, without either family's
 // recovery interfering with the other's.
@@ -312,7 +312,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	}
 	n1 := composedNativeFixture(t)
 	composedRoutineFacts(t, n1)
-	r1, err := NewRoutineReviewer(p1, n1, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
+	r1, err := NewRounder(p1, n1, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +384,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	}
 	n2 := composedNativeFixture(t)
 	composedRoutineFacts(t, n2)
-	r2, err := NewRoutineReviewer(p2, n2, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
+	r2, err := NewRounder(p2, n2, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

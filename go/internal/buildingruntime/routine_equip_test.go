@@ -289,7 +289,7 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

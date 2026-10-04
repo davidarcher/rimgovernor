@@ -64,7 +64,7 @@ type Wait struct {
 	// keeps ticking without finishing.
 	Ticks uint64
 	// Tick reads the current game tick; Harness.Tick for a harness that
-	// holds the session, the routine review's tick for a serve-driven one.
+	// holds the session, the rounds's tick for a serve-driven one.
 	Tick func(ctx context.Context) (uint64, error)
 }
 

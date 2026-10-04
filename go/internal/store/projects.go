@@ -41,7 +41,7 @@ func (p ProjectState) ownerKey() (string, string, string) {
 	return "project_id", string(p.Project.ID), "0"
 }
 func (p ProjectState) ownerSnapshot() domain.GenerationSnapshot { return p.Project.Snapshot }
-func (p ProjectState) ownerNeed(r RoutineReview) (domain.ConcernID, bool) {
+func (p ProjectState) ownerNeed(r Rounds) (domain.ConcernID, bool) {
 	return r.projectNeed(p.Project.ID)
 }
 func (p ProjectState) ownerPriority() int { return p.Project.Priority }
@@ -323,7 +323,7 @@ func retireProjects(ctx context.Context, tx *sql.Tx, retained map[domain.Project
 	return nil
 }
 
-// projectIDPrefix starts every Project id: a routine review's
+// projectIDPrefix starts every Project id: a Rounds pass's
 // "project-<hex16 world digest>-<kind>-<gen>" and a player's
 // "project-player-<hex32>-<kind>".
 const projectIDPrefix = "project-"

@@ -50,7 +50,7 @@ and talks GABP to RimBridgeServer directly.
   plan-owned draft and combat orders, lifecycle save/load, presentation/media, the
   typed player endpoints under `internal/httpapi/player.go`), the clock worker
   (event polling, epoch renewal, bounded supervised windows: 600 ticks, 30-second
-  lease), durable routine reviews with method execution across every routine
+  lease), durable rounds with method execution across every routine
   planner family, caravan journey tracking and world evaluation..
 - `serve --observe ...` is **observation only**: read the running game, never
   acquire control or write to it. Tuning flags are rejected.
@@ -234,7 +234,7 @@ planners retain their need assessments with `method_unavailable` and cannot occu
 selection slots. Existing committed work still consumes capacity. Capability
 availability comes from runtime configuration, not a native observation.
 
-Routine reviews persist development scores, waiting age, known worker counts and
+Rounds persist development scores, waiting age, known worker counts and
 selection history alongside need assessments. Current wood and defense deficits
 use bounded native deficit fractions. Accepted player projects and unresolved
 optional methods consume capacity across shared plans; admission rechecks new
@@ -289,7 +289,7 @@ and unsuccessful outcomes stay pinned.
 Completed plan retirement retains a per-world observation-tick floor. Method
 admission, preparation and dispatch reject older observations, including after a
 restart or tick rewind in the same load. A different colony/load/map has its own
-floor. Retirement and the floor commit with the routine review; neither issues
+floor. Retirement and the floor commit with the rounds; neither issues
 orders or releases unresolved work. Unsuccessful-plan resource release remains open.
 
 `bridge.ReadColonyFacts` and `observation.DecodeColony` consume the typed native
@@ -315,13 +315,13 @@ rejected; incomplete quantities retain unknown runway. Native replay compares
 both forecasts against the `RIMGOVERNOR_NATIVE_FOOD_FORECAST` and
 `RIMGOVERNOR_NATIVE_COMBINED_FOOD_FORECAST` reference files.
 
-`buildingruntime.RoutineReviewer.Step` serializes observation and durable review
+`buildingruntime.Rounder.Step` serializes observation and durable review
 through the existing player gate, rechecks authority after the read, and retains
 unknown needs. `observation.ObserveRoutine` includes the typed emergency census
 inside the same paused brackets. Medical/combat need counts use the shared emergency
 rules, deduplicate patients/threats, and remain unknown on incomplete or conflicting
 evidence. The undraft sweep reads the complete shared journal for the live plans
-that need drafts (#939). Manual and fresh acquisition invalidate previous routine reviews
+that need drafts (#939). Manual and fresh acquisition invalidate previous rounds
 without a native read. A disabled reviewer retires existing work without acquiring
 authority. The reviewer has no independent background loop. A clock scheduler can
 attach the same player's reviewer through `ClockSchedulerConfig.Routine`; it runs
@@ -533,7 +533,7 @@ border: a door frame is walkable before the door stands, so an ordered door
 holds the latch (and its plan) until it lands. Targeted acceptance is
 `acceptance run route/stockpile` against `RoutesFixture`.
 
-Routine reviews also read native pawn needs and thought targets. Per-pawn mood
+Rounds also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and
 restart; missing pawns and unknown reads cannot certify recovery. `MoodMethods`
 records one bounded relief proposal and its measured need benefit, preserving an
@@ -690,7 +690,7 @@ A safe assignment still needs observed use; unsafe assignments remain deficits.
 Native floor-place replay establishes upgrade detection; a colony snapshot
 of `upkeep/sleeping` (#746) replays the deficit through real-bed use.
 Completed autonomous building methods retain exact native origin/current IDs in
-the journal, including after retirement and Manual. Routine reviews query those
+the journal, including after retirement and Manual. Rounds query those
 current IDs inside the paused observation bracket and verify definition, position,
 rotation and material before deriving Home coverage or stone-shell needs. Player
 placements, explicit cancellation and replacement geometry confer no ownership.
@@ -860,7 +860,7 @@ Drafts are plan-owned (#939). A plan's `owned_draft` action drafts its pawn
 through the `DraftIntent` arm of `Actions/Apply`; subdue and movement actions
 name that draft action as their prerequisite, and combat orders go out as the
 `CombatOrders` arm (a fight keeps a roster of its drafted defenders). Native
-keeps no draft claim. The routine review's undraft sweep (`plannedDrafts`,
+keeps no draft claim. The rounds's undraft sweep (`plannedDrafts`,
 `undraftCandidates`) undrafts every drafted, live, sane colonist no live plan
 needs: an unsettled or still-held draft action, the capturer of an open capture
 or arrest plan, or an open fight's roster; a pawn running an Arrest or Capture

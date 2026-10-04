@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)
 
-Go routine reviews track environmental disruption inside the shared goal journal.
+Go rounds track environmental disruption inside the shared goal journal.
 Native condition identities start an episode. `ColonyFactsSnapshot.environment`
 is the game-condition census: every condition affecting the map with its
 definition, implementation class, label, whether it is permanent and, for a

@@ -385,7 +385,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	stopKeepAlive := keepAlive.Start(ctx)
 	defer func() { report["authority_reacquisitions"] = stopKeepAlive() }()
 
-	if _, _, err := service.WaitRoutineReview(ctx, journal, 90*time.Second); err != nil {
+	if _, _, err := service.WaitRounds(ctx, journal, 90*time.Second); err != nil {
 		return outcome, err
 	}
 	// The budget is game time: the wait ends once the tick the service
@@ -400,7 +400,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	flight := na.FlightRecorderPath(output)
 	waitErr := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second, Terminal: service.Exited},
 		func(ctx context.Context) (string, bool, error) {
-			review, err := journal.LoadRoutineReview(ctx)
+			review, err := journal.LoadRounds(ctx)
 			if err != nil {
 				return "", false, err
 			}
@@ -422,7 +422,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	wallSeconds := time.Since(resumedAt).Seconds()
 	report["wait"] = map[string]any{"start_tick": startTick, "last_tick": lastTick, "wall_seconds": wallSeconds, "work_done": workDone}
 	if waitErr != nil {
-		if final, loadErr := journal.LoadRoutineReview(ctx); loadErr == nil {
+		if final, loadErr := journal.LoadRounds(ctx); loadErr == nil {
 			data, _ := json.Marshal(final)
 			report["routine_review_at_failure"] = json.RawMessage(data)
 		}
@@ -607,7 +607,7 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 			ids = append(ids, id)
 		}
 	}
-	review, err := s.LoadRoutineReview(ctx)
+	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		return 0, 0, err
 	}

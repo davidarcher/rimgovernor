@@ -35,7 +35,7 @@ type RoutineBuildingResult struct {
 // acquires a lease, dispatches an action or advances the game.
 type RoutineBuildingPlanner struct {
 	paste            []policy.SiteBuilding
-	reviewer         *RoutineReviewer
+	reviewer         *Rounder
 	native           RoutineBuildingSource
 	goal             policy.ConcernID
 	definition       string
@@ -74,7 +74,7 @@ type RoutineBuildingPlanner struct {
 	phase policy.Phase
 }
 
-func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineSleepingPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineSleepingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -105,7 +105,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -764,7 +764,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 // selected under one observation, bound to the goal as that method.
 type routineAdmission struct {
 	state  ControlState
-	review store.RoutineReview
+	review store.Rounds
 	goal   store.WorkOwner
 	facts  observation.ColonyProjection
 	method domain.MethodID
@@ -1255,7 +1255,7 @@ func routineCachedFresh(family bridge.FactFamily, actual, anchor domain.Tick) bo
 
 // initialShelterOwed reports whether the review binds an active
 // MaintainHousing goal still in deficit on its starter-shelter phase.
-func initialShelterOwed(ctx context.Context, p *Player, review store.RoutineReview) (bool, error) {
+func initialShelterOwed(ctx context.Context, p *Player, review store.Rounds) (bool, error) {
 	if review.Latches.Housing != policy.HousingShelter {
 		return false, nil
 	}

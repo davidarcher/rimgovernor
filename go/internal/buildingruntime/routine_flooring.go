@@ -22,7 +22,7 @@ import (
 // room's requirement (issue #6 slice 4). Completion is the next measured
 // census, not the build receipts: the review releases a room only once no
 // cell of it reads deficient.
-func NewRoutineFlooringPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineFlooringPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainFlooring) {
 		return nil, fmt.Errorf("%w: NewRoutineFlooringPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainFlooring)", ErrControl)
 	}

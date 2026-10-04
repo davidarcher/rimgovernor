@@ -247,7 +247,7 @@ type ClockSample struct {
 	TicksAdvanced int64  `json:"ticks_advanced"`
 	// LastTick is the tick of the newest sample, the game time the service
 	// last observed; a harness waiting out a game-time budget under a
-	// running window reads it, since the routine review's tick only moves
+	// running window reads it, since the rounds's tick only moves
 	// once per full step (#244).
 	LastTick      int64   `json:"last_tick"`
 	WallSecs      float64 `json:"wall_seconds"`

@@ -364,14 +364,14 @@ func OpenStoreWithRetry(ctx context.Context, path string) (*store.Store, error) 
 	}
 }
 
-// WaitRoutineReview polls until the service reaches automate mode and a
-// routine review has been persisted, returning the diagnostics it gathered.
+// WaitRounds polls until the service reaches automate mode and a
+// rounds has been persisted, returning the diagnostics it gathered.
 // Besides timeout the wait stalls (StallBudget) when neither the service
 // mode nor the review revision changes.
-func (p *ServiceProcess) WaitRoutineReview(ctx context.Context, s *store.Store, timeout time.Duration) (store.RoutineReview, []map[string]any, error) {
+func (p *ServiceProcess) WaitRounds(ctx context.Context, s *store.Store, timeout time.Duration) (store.Rounds, []map[string]any, error) {
 	var diagnostics []map[string]any
 	sawAutomate := false
-	var review store.RoutineReview
+	var review store.Rounds
 	err := WaitProgress(ctx, Wait{Ceiling: timeout, Stall: StallBudget(), Terminal: p.Exited}, func(ctx context.Context) (string, bool, error) {
 		st, _, stErr := p.API("GET", "/api/state", nil, "")
 		clk, _, clkErr := p.API("GET", "/api/player/clock", nil, "")
@@ -386,7 +386,7 @@ func (p *ServiceProcess) WaitRoutineReview(ctx context.Context, s *store.Store, 
 		if AsString(st["mode"]) == "automate" {
 			sawAutomate = true
 		}
-		if r, err := s.LoadRoutineReview(ctx); err == nil {
+		if r, err := s.LoadRounds(ctx); err == nil {
 			review = r
 			if review.Revision > 0 && sawAutomate {
 				return "", true, nil
@@ -400,19 +400,19 @@ func (p *ServiceProcess) WaitRoutineReview(ctx context.Context, s *store.Store, 
 	if !sawAutomate {
 		return review, diagnostics, fmt.Errorf("service never reached automate mode after acquire: %w", err)
 	}
-	return review, diagnostics, fmt.Errorf("service reached automate mode but the routine review was never persisted (revision 0): %w", err)
+	return review, diagnostics, fmt.Errorf("service reached automate mode but the Rounds pass was never persisted (revision 0): %w", err)
 }
 
-// WaitReview polls the durable routine review under w until ready accepts
+// WaitReview polls the durable rounds under w until ready accepts
 // it. The progress signature is the review's latches and goal bindings, so
 // a review that keeps revising without moving either stalls.
-func WaitReview(ctx context.Context, s *store.Store, w Wait, ready func(store.RoutineReview) bool) (store.RoutineReview, error) {
-	var review store.RoutineReview
+func WaitReview(ctx context.Context, s *store.Store, w Wait, ready func(store.Rounds) bool) (store.Rounds, error) {
+	var review store.Rounds
 	if w.Interval <= 0 {
 		w.Interval = time.Second
 	}
 	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		r, err := s.LoadRoutineReview(ctx)
+		r, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}
@@ -462,7 +462,7 @@ func PlanSignature(state store.PlanState) string {
 	return Signature(parts...)
 }
 
-// WaitGoalMethod polls the durable routine review for need's goal binding
+// WaitGoalMethod polls the durable rounds for need's goal binding
 // and a committed method on it other than previous, exactly what the
 // building planners themselves read (review.Goals then the goal's Methods).
 // A method whose plan completed and retired within a single clock window
@@ -491,7 +491,7 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Con
 	var foundGoal domain.ConcernID
 	var found domain.GoalMethod
 	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		review, err := s.LoadRoutineReview(ctx)
+		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
 		}

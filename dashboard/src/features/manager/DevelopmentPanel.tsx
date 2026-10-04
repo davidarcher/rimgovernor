@@ -26,7 +26,7 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
   return <section className="observation-panel development-panel" aria-label="Development priorities"><h2>Development priorities</h2>
     {state.stale && <p role="status">{state.value ? 'Stale — last recorded ranking and forecasts. ' : 'Unavailable. '}{state.error || 'Waiting for routine diagnostics.'}</p>}
     {state.value?.stage && <p className="colony-stage" data-testid="colony-stage">Colony stage {state.value.stage.stage} since tick {state.value.stage.since.toLocaleString()}{state.value.stage.blocker ? ` · next stage waits on ${state.value.stage.blocker}: ${state.value.stage.reason}` : ''}{state.value.stage.held ? ' · comfort-class development held' : ''}</p>}
-    {state.value && !d && <p>No routine review has ranked development yet.</p>}
+    {state.value && !d && <p>No rounds has ranked development yet.</p>}
     {d && <>
       <p>Reviewed tick {d.tick.toLocaleString()} · Automatic admission, at most {d.capacity} · Workers {d.workers ?? 'unknown'} · Committed {d.committed.length ? d.committed.join(', ') : 'none'}</p>
       <p className="development-capacity" data-testid="development-capacity">Held by startup work: {d.heldWorkers} · {d.limiting ? `Limited by: ${reasonLabels[d.limiting]}` : 'No eligible goal waiting'}</p>
@@ -70,6 +70,6 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
         <p>Days left includes stock above reserve and safe surface ore; stock-only days excludes ore. Unknown values mean evidence is missing. No observed consumption means no finite runway estimate.</p>
       </>}
     </section>}
-    <p className="observation-note">Ordering evidence from the last routine review: emergencies pre-empt this list, and admission is bounded by capacity and free labor.</p>
+    <p className="observation-note">Ordering evidence from the last rounds: emergencies pre-empt this list, and admission is bounded by capacity and free labor.</p>
   </section>;
 }

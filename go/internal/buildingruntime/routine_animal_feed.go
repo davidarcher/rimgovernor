@@ -24,12 +24,12 @@ import (
 // MaintainResource-* acquisition plumbing landing first; see docs/BACKLOG.md
 // 05.6.
 type RoutineAnimalFeedPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineResourceSource
 	core     *RoutineResourcePlanner
 }
 
-func NewRoutineAnimalFeedPlanner(reviewer *RoutineReviewer, native RoutineResourceSource) (*RoutineAnimalFeedPlanner, error) {
+func NewRoutineAnimalFeedPlanner(reviewer *Rounder, native RoutineResourceSource) (*RoutineAnimalFeedPlanner, error) {
 	core, err := NewRoutineResourcePlanner(reviewer, native)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResourceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

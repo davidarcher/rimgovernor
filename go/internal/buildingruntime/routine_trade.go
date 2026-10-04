@@ -57,7 +57,7 @@ type RoutineTradeSource interface {
 // as neither walk nor session, and the open is sent again. Once open, the
 // session binds its participants and the remaining phases need no escort.
 type RoutineTradePlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	native   RoutineTradeSource
 }
 type RoutineTradeResult struct {
@@ -79,7 +79,7 @@ const tradeArrivalTicks = domain.TicksPerHour
 // session, after which the session is read again.
 const tradeWalkTicks = 250
 
-func NewRoutineTradePlanner(reviewer *RoutineReviewer, native RoutineTradeSource) (*RoutineTradePlanner, error) {
+func NewRoutineTradePlanner(reviewer *Rounder, native RoutineTradeSource) (*RoutineTradePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineTradePlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -186,7 +186,7 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineTradeResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
@@ -306,7 +306,7 @@ func (r *RoutineTradePlanner) bid(state ControlState, trader string, selection p
 // (alive, undrafted, able to talk). Native's own first row (best trade
 // price improvement) stands when the roster is unknown or no profile
 // qualifies -- native has already vetted every listed row.
-func (r *RoutineTradePlanner) negotiator(call context.Context, state ControlState, review store.RoutineReview, eligible []bridge.NegotiatorRead) (bridge.NegotiatorRead, error) {
+func (r *RoutineTradePlanner) negotiator(call context.Context, state ControlState, review store.Rounds, eligible []bridge.NegotiatorRead) (bridge.NegotiatorRead, error) {
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return bridge.NegotiatorRead{}, err
@@ -354,7 +354,7 @@ func (r *RoutineTradePlanner) open(call, epoch context.Context, state ControlSta
 
 // drive advances one caravan's open session: stage the selected lines from
 // its sheet, confirm and accept them, or cancel.
-func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlState, incident store.IncidentState, review store.RoutineReview, trader string, negotiator domain.PawnID, started time.Time) (RoutineTradeResult, error) {
+func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlState, incident store.IncidentState, review store.Rounds, trader string, negotiator domain.PawnID, started time.Time) (RoutineTradeResult, error) {
 	lines, err := r.phase(call, incident, domain.TradeSetLines, trader)
 	if err != nil {
 		return RoutineTradeResult{}, err
@@ -480,7 +480,7 @@ func tradeSessionPhase(lines tradePhase, staged int) domain.TradeOperationKind {
 
 // selection re-measures the need from a fresh colony read and turns it,
 // with the live sheet, into SelectTrade's inputs.
-func (r *RoutineTradePlanner) selection(call context.Context, state ControlState, review store.RoutineReview, sheet bridge.TradeSheetRead) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, bool, error) {
+func (r *RoutineTradePlanner) selection(call context.Context, state ControlState, review store.Rounds, sheet bridge.TradeSheetRead) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, bool, error) {
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
@@ -617,7 +617,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 // favorPrisoners reads the prisoner census through the routine reading (the
 // one the negotiator choice uses) and returns the surplus prisoners a favor
 // session sells (#1971).
-func (r *RoutineTradePlanner) favorPrisoners(call context.Context, state ControlState, review store.RoutineReview) (map[string]bool, error) {
+func (r *RoutineTradePlanner) favorPrisoners(call context.Context, state ControlState, review store.Rounds) (map[string]bool, error) {
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return nil, err

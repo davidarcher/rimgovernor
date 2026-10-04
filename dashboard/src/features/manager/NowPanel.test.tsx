@@ -52,7 +52,7 @@ it('names an opt-in cinematic pace as the pacing reason', async () => {
 it('says what is missing before a review and before any stop', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({tick: null, stage: null, goals: [], pacing: {reason: 'unknown', detail: '', mode: 'autonomous', effectiveTps: 0, windowTicks: 0}, lastStop: null, stops: {stops: 0, budget: 0, reactive: 0}})));
   render(<NowPanel active/>);
-  await waitFor(() => expect(screen.getByText('No routine review has derived a colony stage yet.')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText('No rounds has derived a colony stage yet.')).toBeInTheDocument());
   expect(screen.getByText('No active goal has filed a progress record yet.')).toBeInTheDocument();
   expect(screen.getByTestId('now-stop')).toHaveTextContent('No window has stopped on this launch.');
 });

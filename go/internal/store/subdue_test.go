@@ -34,7 +34,7 @@ func TestSubdueRoundTripAndMoodEvidence(t *testing.T) {
 	}
 	state := policy.MentalState{DefName: "Wander_Sad", TicksInState: 90}
 	history := policy.MoodHistory{States: []policy.MoodState{{Pawn: policy.MoodPawn{ID: "broken", Mental: domain.Known(true), Break: domain.Known(state)}, Active: true}}}
-	restored := (RoutineReview{Mood: moodRecord(history)}).MoodHistory()
+	restored := (Rounds{Mood: moodRecord(history)}).MoodHistory()
 	if value, known := restored.States[0].Pawn.Break.Value(); !known || value != state {
 		t.Fatal(restored)
 	}

@@ -42,7 +42,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	}
 	s = open(t, path)
 	defer s.Close()
-	retained, err := s.LoadRoutineReview(context.Background())
+	retained, err := s.LoadRounds(context.Background())
 	if err != nil || retained.Enabled || !retained.Latches.Animals.Containment {
 		t.Fatal(retained, err)
 	}

@@ -92,7 +92,7 @@ type WatchConfig struct {
 // Watch is the serve-driven family's observation window on a service
 // na.Serve has just launched (not yet acquired): it acquires player
 // authority and keeps it granted, confirms the scheduler reaches automate
-// with a persisted routine review, then samples the goal's durable state
+// with a persisted rounds, then samples the goal's durable state
 // at the cadence WatchConfig sets (PollTicks, Poll, Wake) for Watch (or
 // until Until) with the step-stall check from the service's spec. Every sample also carries the service's live colony
 // census (sampleColony) so starvation is visible in the timeline itself
@@ -143,17 +143,17 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	// re-acquires it automatically -- see na.AuthorityKeepAlive.
 	service.KeepAuthority(ctx)
 
-	// Confirm the scheduler actually reaches automate and a routine review
+	// Confirm the scheduler actually reaches automate and a Rounds pass
 	// gets persisted before starting the real observation window.
 	diagDeadline := time.Now().Add(60 * time.Second)
 	sawAutomate := false
-	var review store.RoutineReview
+	var review store.Rounds
 	for time.Now().Before(diagDeadline) {
 		st, _, _ := apiCall("GET", "/api/state", nil, "")
 		if na.AsString(st["mode"]) == "automate" {
 			sawAutomate = true
 		}
-		if r, err := verifyStore.LoadRoutineReview(ctx); err == nil {
+		if r, err := verifyStore.LoadRounds(ctx); err == nil {
 			review = r
 			if review.Revision > 0 {
 				break
@@ -169,7 +169,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		return nil, fmt.Errorf("service never reached automate mode after acquire")
 	}
 	if review.Revision == 0 {
-		return nil, fmt.Errorf("service reached automate mode but the routine review was never persisted")
+		return nil, fmt.Errorf("service reached automate mode but the Rounds pass was never persisted")
 	}
 
 	// The observation window: sample the goal's state and the stage of
@@ -429,7 +429,7 @@ func liveTick(apiCall func(string, string, map[string]any, string) (map[string]a
 // Status/Need/Priority/Methods.
 func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map[string]any, error) {
 	sample := map[string]any{"at": time.Now().UTC().Format(time.RFC3339), "method_count": 0}
-	review, err := s.LoadRoutineReview(ctx)
+	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		return sample, err
 	}
@@ -540,7 +540,7 @@ func describeMethod(ctx context.Context, s *store.Store, method domain.MethodID,
 
 // sampleProject is SampleGoal for a Project (#1911): the review's current
 // Project row for the kind, its status and need, and its plans.
-func sampleProject(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
+func sampleProject(ctx context.Context, s *store.Store, review store.Rounds, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
 	id, bound := review.ProjectFor(kind)
 	sample["goal_bound"] = bound
 	if !bound {
@@ -587,7 +587,7 @@ func sampleProject(ctx context.Context, s *store.Store, review store.RoutineRevi
 // sampleIncident is SampleGoal for a Response whose occurrences are
 // incidents (#1020): the latest occurrence in the review's world, open or
 // closed, with the need the review binds it at and its plans.
-func sampleIncident(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
+func sampleIncident(ctx context.Context, s *store.Store, review store.Rounds, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
 	world := store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}
 	incident, ok, err := s.LatestIncident(ctx, world, kind)
 	if err != nil || !ok {

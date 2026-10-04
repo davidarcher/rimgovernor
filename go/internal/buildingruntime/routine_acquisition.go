@@ -13,7 +13,7 @@ import (
 )
 
 type RoutineAcquisitionPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	need     policy.ConcernID
 }
 
@@ -28,7 +28,7 @@ type RoutineAcquisitionResult struct {
 // hunt method per admission, until none remain; MaintainResource chops,
 // forages and hunts toward its ranked floors through the acquisition
 // catalog (#728), beside RoutineResourcePlanner's bills and mines.
-func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.ConcernID) (*RoutineAcquisitionPlanner, error) {
+func NewRoutineAcquisitionPlanner(reviewer *Rounder, need policy.ConcernID) (*RoutineAcquisitionPlanner, error) {
 	if reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.MaintainResource) {
 		return nil, fmt.Errorf("%w: NewRoutineAcquisitionPlanner: reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.Maintain", ErrControl)
 	}
@@ -43,7 +43,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if !state.ObservationKnown {
 		return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineAcquisitionResult{}, err
 	}

@@ -131,7 +131,7 @@ func TestIncidentMethodCommit(t *testing.T) {
 // The review owns the incident kinds' occurrences (#1020): a deficit opens
 // one and files no goal; a recovered one closes once its work settles; the
 // next deficit opens a new row; a world change abandons an open one.
-func TestRoutineReviewIncidentLifecycle(t *testing.T) {
+func TestRoundsIncidentLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "incidents.db"))

@@ -167,7 +167,7 @@ generation seam with `epoch = 0` and no owner, and a `PlayerRequest` (#957),
 published when the player presses a status-panel button: an action id the
 controller offered on its status strip and a fresh request id, both 1-64
 printable ASCII characters. The poll hands requests past the history watermark
-from the current world to the routine reviewer, which answers at its next
+from the current world to the rounder, which answers at its next
 review; a press under Manual authority waits for Auto. `OperationOutcome` rows carry an
 attempt key, the latching tick and exactly one receipts effect; an
 `OperationOutcome` immediately precedes its `STOP_REASON_WATCH_LATCHED` stop on
@@ -315,13 +315,13 @@ The internal `ClockScheduler.Step` uses the player's cancellation and serializat
 scope for one decision. Its explicit start configuration is colony watch mode
 without acknowledgement or medical suppression lists; the step derives a combat
 start (mode, acknowledged hostiles, combat budget) from the window decision when
-the current routine review binds an active ActiveCombat goal whose plan has open
+the current rounds binds an active ActiveCombat goal whose plan has open
 work, so a raid runs in short windows re-planned between them. It checks the shared profile,
 current plan work and complete attempt/epoch catalogs before collecting fresh native
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
 an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
 perform owned cleanup and cannot start. A valid running window is left unchanged.
-The routine reviewer runs first and its failure aborts the
+The rounder runs first and its failure aborts the
 step; every other composed planner then runs as one concurrent wave whose failures
 are isolated: a planner whose native read is refused or whose preview is stale
 commits nothing and is reported in `ClockSchedulerResult.PlannerFailures` (the
@@ -433,7 +433,7 @@ Beside the cache the scheduler keeps one `facts.Store` (`go/internal/facts`,
 #354): decoded state per section (`colony`, `planning_cells`, `population`,
 `research`, `pawns`, `emergency`, `rooms`, `zones`, `buildings`), each held
 with the tick its reply described (`AsOf`), whether it covers the whole
-section and the method that produced it. Every routine review files the
+section and the method that produced it. Every rounds files the
 sections it decoded (`observation.RoutineReading.Sections`) and the
 admission's emergency census is filed from the step's bundle; the store
 follows the cache's scope rule (a new (load, generation) empties it) and
@@ -468,7 +468,7 @@ reread whole. The #795 `mirror_poll` cell grid and the #357
 is the frame's whole-map grid (#1345) and the snapshot recorder's
 planning_cells line encoding.
 
-The routine review reads every continuous section (`research`,
+The rounds read every continuous section (`research`,
 `population`, `rooms`, `pawns`) from the frame on every review; none is
 served from the store in its place (#884).
 
@@ -618,7 +618,7 @@ snapshot frame sections it consumes. An entry that reported `existing_work` wait
 attempts of its kinds it found (`plannerQueue.waits`): it is not selected
 again until one of them reaches its outcome row, its own next review tick
 passes, or a full step runs, and a step that skips it lists it under
-`waiting`. The routine reviewer runs before any planner wave; its retained
+`waiting`. The rounder runs before any planner wave; its retained
 census is retired by any typed-event invalidation (`routineCensusStore`
 generation) so a same-tick reuse never serves facts an event made stale.
 

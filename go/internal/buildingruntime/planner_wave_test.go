@@ -335,11 +335,11 @@ func TestClockSchedulerCutsOffTheShelterPlannerWithoutTheHold(t *testing.T) {
 	}
 }
 
-// The wall budget bounds the planners, not the routine review that precedes
+// The wall budget bounds the planners, not the rounds that precedes
 // them: a review slower than the whole budget (a cold review and layout on a
 // slow runner) leaves the critical planner its full wall instead of holding
 // the step with nothing evaluated.
-func TestClockSchedulerWallExcludesTheRoutineReview(t *testing.T) {
+func TestClockSchedulerWallExcludesTheRounds(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRoutine(t, s, f)

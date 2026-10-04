@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func routineIDs(t *testing.T, out RoutineReviewResult) map[domain.ConcernID]domain.ConcernID {
+func routineIDs(t *testing.T, out RoundsResult) map[domain.ConcernID]domain.ConcernID {
 	t.Helper()
 	ids := map[domain.ConcernID]domain.ConcernID{}
 	for _, b := range out.Review.Goals {

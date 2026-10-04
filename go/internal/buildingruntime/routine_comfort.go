@@ -51,7 +51,7 @@ func comfortFurniture(facts observation.ColonyProjection) policy.DiningFurniture
 // dining or recreation; when no such room exists it stages a starter shell
 // the same way shelter does, and furnishes it once the census reports it as
 // a proper room. The typed room census is read in the same bracket.
-func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineComfortPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineComfortPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -245,7 +245,7 @@ func builderCensus(pawns []policy.WorkPawn) string {
 // priority: one table with a seat in any proper indoor room and one
 // recreation source wherever colonists can reach it. It never stages a
 // shell; while the initial shelter is owed it waits for that room.
-func NewRoutineBasicComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineBasicComfortPlanner(reviewer *Rounder, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineBasicComfortPlanner: reviewer == nil || native == nil", ErrControl)
 	}

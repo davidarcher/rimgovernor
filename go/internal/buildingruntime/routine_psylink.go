@@ -91,7 +91,7 @@ func (m *psylinkMemory) take(world string, tick domain.Tick) ([]policy.PawnID, [
 
 // RoutinePsylinkPlanner is MaintainPsylink's planner.
 type RoutinePsylinkPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	memory   *psylinkMemory
 }
 type RoutinePsylinkResult struct {
@@ -101,7 +101,7 @@ type RoutinePsylinkResult struct {
 
 // NewRoutinePsylinkPlanner composes the planner and has reviewer run the
 // psylink review over native.
-func NewRoutinePsylinkPlanner(reviewer *RoutineReviewer, native RoutinePsylinkSource) (*RoutinePsylinkPlanner, error) {
+func NewRoutinePsylinkPlanner(reviewer *Rounder, native RoutinePsylinkSource) (*RoutinePsylinkPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainPsylink) {
 		return nil, fmt.Errorf("%w: NewRoutinePsylinkPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainPsylink)", ErrControl)
 	}
@@ -118,7 +118,7 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePsylinkResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutinePsylinkResult{}, err
 	}

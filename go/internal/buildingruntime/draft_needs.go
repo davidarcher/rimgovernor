@@ -150,7 +150,7 @@ func undraft(ctx context.Context, writer undraftWriter, identity *c.Identity, ti
 // It reads a fresh frame, holds the pawns against the step's other
 // planners and sends the Draft intents directly: an undraft owns no plan.
 // A reviewer without an actions writer never undrafts.
-func (r *RoutineReviewer) sweepDrafts(ctx, epoch context.Context, arbiter *stepArbiter) error {
+func (r *Rounder) sweepDrafts(ctx, epoch context.Context, arbiter *stepArbiter) error {
 	p := r.player
 	state := p.session.State()
 	if r.undraft == nil || !state.Enabled {

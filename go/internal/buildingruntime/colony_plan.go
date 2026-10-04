@@ -60,7 +60,7 @@ type MapSurveyNative interface {
 // once an hour) and re-reads the survey every hour (#1290), growing the
 // plan when a pawn, tier, research, need or the terrain changed since the
 // last replan. The replan is incremental: built rooms never move.
-func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
+func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
 	tick := projection.Identity.Tick
 	layout, haveLayout, err := r.layoutPlan(ctx, snapshot, tick)
 	if err != nil {
@@ -220,7 +220,7 @@ type LayoutOverlayNative interface {
 // drawLayoutOverlay rewrites the overlay when the plan changed or a day
 // passed since the last draw; with the overlay off it deletes the owned
 // plans once per process. Output only: a failure is logged, never fatal.
-func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord, haveLayout bool) {
+func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, layout store.LayoutPlanRecord, haveLayout bool) {
 	native, ok := r.native.(LayoutOverlayNative)
 	if !ok {
 		return
@@ -263,7 +263,7 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 // layoutPlan reads the v2 layout plan (#783). A saved plan that no longer
 // decodes or validates reads as none, logged once per process, so the next
 // survey derives a fresh one.
-func (r *RoutineReviewer) layoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) (store.LayoutPlanRecord, bool, error) {
+func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) (store.LayoutPlanRecord, bool, error) {
 	record, ok, err := r.player.journal.LayoutPlan(ctx, snapshot, tick)
 	if err == nil && record.Invalid && !r.layoutInvalidLogged {
 		r.layoutInvalidLogged = true
@@ -274,7 +274,7 @@ func (r *RoutineReviewer) layoutPlan(ctx context.Context, snapshot domain.Genera
 
 // deriveLayoutPlan lays a fresh v2 plan over survey and the reported
 // geysers and records it.
-func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.BuildTier, geysers []policy.PowerGeyser, animals int) error {
+func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.BuildTier, geysers []policy.PowerGeyser, animals int) error {
 	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers, animals).Value()
 	if !known {
 		clockSchedulerLog("map survey holds no core for the layout plan")
@@ -289,7 +289,7 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
+func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
 	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
 	if unplaced != nil {
 		clockSchedulerLog("layout plan could not add rooms: %v", unplaced)
@@ -322,7 +322,7 @@ func layoutReasons(fired map[string]bool) string {
 
 // logSuiteClaims logs the suite claims (pawn, reason, target) whenever the
 // set changes (#1257), so a run shows who is owed a suite and why.
-func (r *RoutineReviewer) logSuiteClaims(ctx context.Context, claims []policy.SuiteClaim) {
+func (r *Rounder) logSuiteClaims(ctx context.Context, claims []policy.SuiteClaim) {
 	line := "none"
 	if len(claims) > 0 {
 		line = ""
@@ -347,7 +347,7 @@ const heatRedrawEvery domain.Tick = 2500
 // drawHeatOverlay redraws a "heat.<layer>" overlay layer per traffic layer
 // (#817) from the census's busiest cells, on its own hourly cadence; with
 // the overlay off it removes them once. Output only, like the layout.
-func (r *RoutineReviewer) drawHeatOverlay(ctx context.Context, native LayoutOverlayNative, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) {
+func (r *Rounder) drawHeatOverlay(ctx context.Context, native LayoutOverlayNative, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) {
 	census, known := projection.Facts.Upkeep.Flooring.Value()
 	on := r.layoutOverlay && known
 	if !on && r.heatCleared {
@@ -376,7 +376,7 @@ func (r *RoutineReviewer) drawHeatOverlay(ctx context.Context, native LayoutOver
 // that day, and at once after a restart (planSurveyed is unset), so a plan
 // still full after it holds no room for one. Nothing is remembered beyond
 // the survey tick the reviewer already keeps.
-func (r *RoutineReviewer) tombGrowthRefused(tick domain.Tick) bool {
+func (r *Rounder) tombGrowthRefused(tick domain.Tick) bool {
 	return r.planSurveyed && r.planChecked <= tick && tick-r.planChecked < layoutReplanEvery
 }
 

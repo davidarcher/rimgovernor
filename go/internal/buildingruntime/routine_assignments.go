@@ -23,7 +23,7 @@ type RoutineWorkBenchSource interface {
 }
 
 type RoutineWorkPlanner struct {
-	reviewer *RoutineReviewer
+	reviewer *Rounder
 	benches  RoutineWorkBenchSource
 }
 type RoutineWorkResult struct {
@@ -31,7 +31,7 @@ type RoutineWorkResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoutineWorkPlanner(reviewer *RoutineReviewer) (*RoutineWorkPlanner, error) {
+func NewRoutineWorkPlanner(reviewer *Rounder) (*RoutineWorkPlanner, error) {
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutineWorkPlanner: reviewer == nil", ErrControl)
 	}
@@ -47,7 +47,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !state.ObservationKnown {
 		return RoutineWorkResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}

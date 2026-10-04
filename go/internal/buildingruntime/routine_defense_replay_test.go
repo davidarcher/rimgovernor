@@ -144,12 +144,12 @@ func replayDefenseSteps(t *testing.T, frame replayFrame, steps ...snapshot.Defen
 					t.Fatal(err)
 				}
 			}
-			review, err := db.LoadRoutineReview(ctx)
+			review, err := db.LoadRounds(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
 			facts := policy.RoutineFacts{Workers: domain.Known(len(step.Emergency.Colonists)), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
-			if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: current, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
+			if _, err = db.ReviewRoutine(ctx, store.RoundsRequest{Revision: review.Revision, Current: current, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -170,7 +170,7 @@ func admittedMethod(t *testing.T, db *store.Store, plan domain.PlanID) domain.Me
 		return ""
 	}
 	ctx := context.Background()
-	review, err := db.LoadRoutineReview(ctx)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

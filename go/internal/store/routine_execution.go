@@ -76,7 +76,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 // authorizeIncidentPlan is AuthorizeRoutinePlan for an incident's method
 // (#1020): the review binds the open occurrence in deficit, no Safeguard vetoes
 // it and the plan is its unretired method.
-func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
+func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
 	binding, bound := review.incidentBinding(id)
 	if !bound || binding.Need != domain.NeedDeficit {
 		return ErrConflict
@@ -104,7 +104,7 @@ func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review RoutineReview
 	return routineActionsSupported(p.Spec)
 }
 
-func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, owner WorkOwner, root, target domain.GenerationSnapshot) error {
+func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
 	if _, bound := owner.ownerNeed(review); !bound {
 		return ErrConflict
 	}
@@ -169,7 +169,7 @@ func routineActionsSupported(spec domain.PlanSpec) error {
 }
 
 // Need returns the routine need the review binds the goal to.
-func (r RoutineReview) Need(goal domain.ConcernID) (domain.ConcernID, bool) {
+func (r Rounds) Need(goal domain.ConcernID) (domain.ConcernID, bool) {
 	for _, binding := range r.Goals {
 		if binding.Goal == goal {
 			return binding.Need, true
@@ -179,7 +179,7 @@ func (r RoutineReview) Need(goal domain.ConcernID) (domain.ConcernID, bool) {
 }
 
 // projectNeed returns the routine need the review binds the Project to.
-func (r RoutineReview) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
+func (r Rounds) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
 	for _, binding := range r.Projects {
 		if binding.Project == project {
 			return binding.Need, true
@@ -191,7 +191,7 @@ func (r RoutineReview) projectNeed(project domain.ProjectID) (domain.ConcernID, 
 // Veto asks the policy Safeguards (#1017) whether this review admits a proposal
 // for the goal, returning the veto's reason or "". A goal the review does
 // not bind (a player goal) is outside the routine Safeguards.
-func (r RoutineReview) Veto(g domain.Goal) string {
+func (r Rounds) Veto(g domain.Goal) string {
 	need, bound := r.Need(g.ID)
 	if !bound {
 		return ""
@@ -202,7 +202,7 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 // Workable loads the Standard goal the review binds to need and reports whether a
 // planner may work it: an active deficit the Safeguards admit (#1121). The goal
 // is returned whenever the review binds one, workable or not.
-func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.ConcernID) (GoalState, bool, error) {
+func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (GoalState, bool, error) {
 	id := domain.ConcernID("")
 	for _, binding := range r.Goals {
 		if binding.Need == need {
@@ -233,7 +233,7 @@ func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
 }
 
 // needOf is the need the review binds the goal or Project row id to.
-func (r RoutineReview) needOf(id string) (domain.ConcernID, bool) {
+func (r Rounds) needOf(id string) (domain.ConcernID, bool) {
 	if isProjectID(id) {
 		return r.projectNeed(domain.ProjectID(id))
 	}
