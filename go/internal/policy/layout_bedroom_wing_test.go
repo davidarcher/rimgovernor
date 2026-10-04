@@ -40,7 +40,7 @@ func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
 	for _, i := range bedroomWings(p.Wings) {
 		w := p.Wings[i]
 		// Each wing keeps its own reserve: no other wing's room is on it.
-		res := wingReserve(w, 0)
+		res := wingReserve(w)
 		for _, j := range bedroomWings(p.Wings) {
 			if j == i {
 				continue

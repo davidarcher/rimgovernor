@@ -82,9 +82,7 @@ func growModuleRoom(plan LayoutPlan, role ModuleRole, sizes [][2]int32) (LayoutP
 		return plan, false, fmt.Errorf("the plan needs a %s room but the map survey left no core ground to place it on", role)
 	}
 	// Keep off the wings' ground, as Grow does.
-	if i := wingOf(plan.Wings, WingSuites); i >= 0 {
-		g.carve(wingReserve(plan.Wings[i], plan.SuiteRooms()))
-	}
+	g.carveSuiteWings(plan.Wings)
 	g.carveBedroomWings(plan.Wings)
 	clear := weaponClearance(plan, role)
 	for _, r := range clear {

@@ -180,10 +180,10 @@ func (f wingFrame) corridor(slots int32) Rectangle {
 }
 
 // wingReserve is the ground w keeps: a bedroom wing's rooms out to its end
-// wall, and no more; suites reserve want at their largest size.
-func wingReserve(w Wing, want int) Rectangle {
+// wall, and no more; suites reserve the ground out to their deepest suite.
+func wingReserve(w Wing) Rectangle {
 	if w.Purpose == WingSuites {
-		return suiteReserve(w, want)
+		return suiteWingGround(w)
 	}
 	f := frameOf(w)
 	return f.ground(f.sign*(f.reach(w.Rooms).Z-f.z0)-1, f.size[1])
@@ -212,7 +212,7 @@ func bedroomWings(wings []Wing) []int {
 func (g coreGrid) carveBedroomWings(wings []Wing) {
 	for _, w := range wings {
 		if w.Purpose == WingBedrooms || w.Purpose == WingBedroomsRetiring {
-			g.carve(wingReserve(w, 0))
+			g.carve(wingReserve(w))
 		}
 	}
 }

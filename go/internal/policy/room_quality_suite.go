@@ -8,8 +8,8 @@ import (
 
 // Suites for qualifying pawns (#1216, epic #1200). Where the gap closer
 // and the bed ladder skip a room whose weakest stat is space, the pawn is
-// given a suite instead: the plan grows the suite wing by one suite sized
-// for the pawn's target (SuiteTargets into Grow), the bedroom ladder
+// given a suite instead: the plan sites a suite block holding one suite
+// sized for the pawn's target (SuiteTargets into Grow), the bedroom ladder
 // shells and furnishes it and moves the pawn in (NextBedroomStep), and
 // the standard room left behind is vacant for the next unhoused pawn. No
 // claim is stored: a pawn qualifies while it holds a standard room its
@@ -34,8 +34,9 @@ const (
 	SuiteClaimSpace SuiteClaimReason = "space_weakest"
 	// SuiteClaimFloor: the target needs more floor than the room has.
 	SuiteClaimFloor SuiteClaimReason = "target_outgrows_room"
-	// SuiteClaimNoGrowth: the pawn's suite cannot grow outward to its target.
-	SuiteClaimNoGrowth SuiteClaimReason = "suite_cannot_grow"
+	// SuiteClaimTooSmall: the pawn's suite is smaller than its target needs;
+	// a suite never grows (#1951), so it is owed a new one.
+	SuiteClaimTooSmall SuiteClaimReason = "suite_too_small"
 )
 
 // suiteCells is the interior area whose space alone meets target (see
@@ -53,46 +54,8 @@ func plannedRoomIDs(plan LayoutPlan, rooms RoomObservation, role ModuleRole) map
 		if r.Role != role {
 			continue
 		}
-		standing := PlannedRoomStanding
-		if role == ModuleSuite {
-			standing = suiteHome
-		}
-		if room, ok := standing(r, rooms); ok {
+		if room, ok := PlannedRoomStanding(r, rooms); ok {
 			out[room.ID] = r
-		}
-	}
-	return out
-}
-
-// suiteHome is the census room a planned suite is lived in: the suite as
-// planned, else, while it grows (#1218), the enclosed room inside its
-// planned interior that holds a bed.
-func suiteHome(r LayoutRoom, rooms RoomObservation) (Room, bool) {
-	if room, ok := PlannedRoomStanding(r, rooms); ok {
-		return room, true
-	}
-	for _, room := range roomsInside(r.Interior, rooms) {
-		if len(room.Beds) > 0 {
-			return room, true
-		}
-	}
-	return Room{}, false
-}
-
-// roomsInside is the enclosed census rooms whose floor lies wholly inside
-// in.
-func roomsInside(in Rectangle, rooms RoomObservation) []Room {
-	var out []Room
-	for _, room := range rooms.Rooms {
-		if enclosed, known := room.Enclosed.Value(); !known || !enclosed || len(room.Cells) == 0 {
-			continue
-		}
-		inside := true
-		for _, c := range room.Cells {
-			inside = inside && c.X >= in.X && c.Z >= in.Z && c.X < in.X+in.Width && c.Z < in.Z+in.Height
-		}
-		if inside {
-			out = append(out, room)
 		}
 	}
 	return out
@@ -110,8 +73,8 @@ func SuiteRoomIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 // SuiteClaims is every pawn owed a suite, most suite pressure first (#1217): the sole owner of a
 // standing planned standard bedroom below its target's Min whose space is
 // the weakest stat, or whose target needs more floor than the room has
-// (Greedy, Jealous of a suite, a title), and the owner of a suite that
-// cannot grow outward to its target (#1218). An ascetic never gets one. A claim
+// (Greedy, Jealous of a suite, a title), and the owner of a suite smaller than
+// its target (#1951). An ascetic never gets one. A claim
 // the owner's remaining share cannot furnish is dropped (#1841, RoomGate).
 func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, traits map[PawnID]TraitEffects, pressure map[PawnID]float64, gate RoomGate) []SuiteClaim {
 	census, ok := sleeping.Rooms.Value()
@@ -133,20 +96,15 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 		if !tk || !qk || traits[s.owner].Ascetic || t.NeverUpgrade || t.Min <= 0 || q.Impressiveness >= t.Min {
 			continue
 		}
-		// A suite that cannot grow outward to its owner's target (#1218)
-		// is left for a larger new one.
+		// A suite below its owner's target is left for a larger new one; a
+		// built suite never grows (#1951).
 		if r, ok := suites[s.room]; ok {
 			area := r.Interior.Width * r.Interior.Height
 			w, d := SuiteSize(t.Min)
 			if suiteCells(t.Min) <= area || w*d <= area {
 				continue
 			}
-			if wing, ok := suiteWingRoom(plan, r); ok {
-				if _, grows := grownSuite(plan, wing, r, t.Min); grows {
-					continue
-				}
-			}
-			out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min, Reason: SuiteClaimNoGrowth})
+			out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min, Reason: SuiteClaimTooSmall})
 			continue
 		}
 		r, planned := standard[s.room]
@@ -216,7 +174,7 @@ func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObser
 		if r.Role != ModuleSuite {
 			continue
 		}
-		room, ok := suiteHome(r, rooms)
+		room, ok := PlannedRoomStanding(r, rooms)
 		taken := false
 		for _, b := range room.Beds {
 			taken = taken || ok && owned[b]
@@ -240,32 +198,11 @@ func (p LayoutPlan) SuiteRooms() int {
 }
 
 // SuiteTargets is Grow's suites argument: one entry per suite the plan
-// holds, its sole owner's target while the suite is below it (Grow grows
-// it outward, #1218) and zero otherwise (kept as it is), then the target
-// of each claim no vacant suite answers.
-func SuiteTargets(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, claims []SuiteClaim) []float64 {
+// holds, in plan order across its suite blocks and zero (kept as it is,
+// a suite never grows), then the target of each claim no vacant suite
+// answers.
+func SuiteTargets(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, claims []SuiteClaim) []float64 {
 	out := make([]float64, plan.SuiteRooms())
-	below := map[string]float64{}
-	if census, ok := sleeping.Rooms.Value(); ok {
-		for _, r := range census {
-			q, qk := r.Quality.Value()
-			t, tk := targets[r.ID]
-			if qk && tk && !t.NeverUpgrade && q.Impressiveness < t.Min {
-				below[r.ID] = t.Min
-			}
-		}
-	}
-	solo := map[string]bool{}
-	for _, s := range soloBedrooms(sleeping) {
-		solo[s.room] = true
-	}
-	if i := wingOf(plan.Wings, WingSuites); i >= 0 {
-		for k, r := range plan.Wings[i].Rooms {
-			if room, ok := suiteHome(r, rooms); ok && k < len(out) && solo[room.ID] {
-				out[k] = below[room.ID]
-			}
-		}
-	}
 	for _, c := range claims[min(len(vacantSuites(plan, rooms, sleeping)), len(claims)):] {
 		out = append(out, c.Target)
 	}

@@ -211,7 +211,7 @@ func activeWingRooms(p LayoutPlan) int {
 }
 
 // sameInteriors reports whether a and b hold the same rooms in order: a
-// grown suite (#1218) changes an interior without adding a room.
+// changed interior is not the same plan.
 func sameInteriors(a, b []LayoutRoom) bool {
 	if len(a) != len(b) {
 		return false

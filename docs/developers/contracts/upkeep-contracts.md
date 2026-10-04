@@ -1094,7 +1094,7 @@ passed to `NextRoomUpgrade`, `NextBeautyUpgrade` and, through
   `SuiteTargets` grows nothing for it, `UpgradeTargets` leaves the owner's room
   to the in-place ladder and `MaintainHousing` closes.
 - `SuiteClaims` covers solo bedrooms only, so the claimant is the lone owner.
-  `NextSuiteGrowth` and the royal-title and bed-replacement assign/remove steps
+  The royal-title and bed-replacement assign/remove steps
   stay ungated; `RoomQualityTargets` Min is still the tier ceiling.
 - The sculpture install (`NextSculpture`) charges the packed item's `MarketValue`
   against the room owners' combined share. `SculptureRoomsOwed`, `NewArtDemand`

@@ -90,16 +90,16 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		tombs = layout.Plan.TombRooms() + 1
 	}
 	tomb = tomb && hourly
-	// A pawn owed a suite no planned suite answers (#1216): grow the suite
-	// wing, or a suite below its owner's target outward (#1218), at most
-	// once an hour.
+	// A pawn owed a suite no planned suite answers (#1216) is planned a new
+	// suite block, sized at siting (#1951); suites already planned never
+	// change.
 	var suites []float64
 	if haveLayout {
 		var claims []policy.SuiteClaim
 		suites, claims = suiteTargets(*projection, layout.Plan, r.stage)
 		r.logSuiteClaims(ctx, claims)
 	}
-	suite := haveLayout && policy.SuitesOwed(layout.Plan, suites) && hourly
+	suite := haveLayout && len(suites) > layout.Plan.SuiteRooms() && hourly
 	// A colonist who holds or can claim a title that asks for a throne room
 	// the plan lacks (#1601): grow one sized to the title's area.
 	var growth policy.RoomGrowth

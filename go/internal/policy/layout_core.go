@@ -75,10 +75,10 @@ func PlanCore(zones []LayoutZone, pawns int, tier BuildTier) LayoutPlan {
 // that no longer fit are left out. A new bedroom wing takes tier's room
 // size (#1214).
 // suites are the impressiveness targets of the suites wanted, in order;
-// the suite wing is sited and grown to one suite each (#1215); SuiteTargets
-// builds it from the pawns SuiteClaims finds (#1216), and none keeps a
-// plan's existing suite wing as it is. An existing suite's entry above
-// what its floor meets grows it outward (#1218).
+// its entries past the suites the plan holds site suite blocks of up to
+// suiteMaxRooms suites each, sized by SuiteSize at siting (#1951);
+// SuiteTargets builds it from the pawns SuiteClaims finds (#1216), and none
+// keeps the plan's suites as they are. A suite never grows.
 func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	g.soil = fieldSoil(plan.Zones)
@@ -110,12 +110,10 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	rooms := append([]LayoutRoom(nil), plan.Rooms...)
 	spine := append([]SpineSegment(nil), plan.Spine...)
 	wings := retireWings(plan.Wings, tier)
-	// Other rooms stay off the wing's ground and its growth reserve.
+	// Other rooms stay off the suite blocks' ground.
 	base := newCoreGrid(plan.Zones, plan.Reservations)
-	if i := wingOf(wings, WingSuites); i >= 0 {
-		g.carve(wingReserve(wings[i], len(suites)))
-		base.carve(wingReserve(wings[i], len(suites)))
-	}
+	g.carveSuiteWings(wings)
+	base.carveSuiteWings(wings)
 	g.carveBedroomWings(wings)
 	if len(spine) == 1 {
 		// The centre crossing is laid first so no room takes its column (#952).
@@ -143,11 +141,10 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 			rooms = trial
 		}
 	}
-	// The suite wing grows over its own ground and whatever no other room
-	// or the bedroom wing claimed.
+	// New suite blocks take whatever no other room or wing claimed.
 	sg := newCoreGrid(plan.Zones, plan.Reservations)
 	sg.carveBedroomWings(wings)
-	wings = growSuitesOutward(plan, wings, suites)
+	sg.carveSuiteWings(wings)
 	spine, wings = sg.growSuites(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
 	plan.Entrances = spineEntrances(spine)

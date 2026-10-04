@@ -6,10 +6,9 @@ package sleeping
 // bedroom wing, gives the Greedy colonist (whose standard room cannot
 // reach slightly impressive on space) a suite and moves them into it.
 // Then the fixture grants them Baron, whose bedroom floor (70) needs more
-// floor than the suite has. Phase two: the suite grows outward, its new
-// ring completing before the old wall's deconstruct is admitted. The
-// colonist owns the suite bed at both phase ends and no later assignment
-// moves them.
+// floor than the suite has. Phase two: a suite never grows (#1951), so the
+// planner sites a second, larger suite and shells it, and the first
+// suite's plan row stays exactly as it was.
 
 import (
 	"context"
@@ -33,10 +32,7 @@ const (
 	suiteTitleOp = "test/layout_grid_title"
 	// suiteTitle's bedroom floor (70) outgrows a suite sized for Greedy
 	// (50): 7x7 then, 7x8 after (layout_suite.go SuiteSize).
-	suiteTitle   = "Baron"
-	growShell    = "bedroom-grow-shell-"
-	growOpen     = "bedroom-grow-open-"
-	growRelocate = "bedroom-grow-relocate-"
+	suiteTitle = "Baron"
 )
 
 func init() {
@@ -44,9 +40,8 @@ func init() {
 		Name: "sleeping/suites",
 		Scope: "Issue #1221: on the tribal " + sustained.BaselineSave + " colony at Masonry with a fixture hut and a Greedy colonist, " +
 			"the sleeping planner builds a standard bedroom wing, gives the Greedy colonist a suite and moves them into it; " +
-			"once a Baron title raises their target the suite grows outward, the new ring completing before the old wall's " +
-			"deconstruct is admitted, and the colonist owns the suite bed throughout. A snapshot test cannot cover it: the " +
-			"growth order is proven against real enclosure, roofing and native bed ownership.",
+			"once a Baron title raises their target a second, larger suite is planned and shelled and the first suite " +
+			"is left as it is. A snapshot test cannot cover it: the order is proven against real enclosure, roofing and native bed ownership.",
 		Start: cases.Fixture{Op: "test/layout_grid_prepare", ArgsFrom: startersite.Args,
 			Args: map[string]any{"sleepingSpots": 8, "stoneBlocks": 1500, "builders": true, "greedy": true},
 			On:   cases.Save{Name: sustained.BaselineSave}},
@@ -54,7 +49,7 @@ func init() {
 		Keep:        []string{string(na.NeedFood)},
 		Serve:       &cases.ServeSpec{Families: []string{"shelter", "expansion", "sleeping"}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-suites"},
 		Budget:      30 * time.Minute,
-		Reason:      "two watches on a Royalty profile: the standard wing goes up one room per review (four rooms in ~236k ticks, 7 min, on the first run) before the suite and move, then the title-driven growth whose old wall pawns deconstruct",
+		Reason:      "two watches on a Royalty profile: the standard wing goes up one room per review (four rooms in ~236k ticks, 7 min, on the first run) before the suite and move, then the title-driven second suite",
 		Run:         suites,
 	})
 }
@@ -167,22 +162,6 @@ func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID
 	return suiteMove{}, false, nil
 }
 
-// grownOpen reports a completed grow-open plan in a housing sample.
-func grownOpen(sample map[string]any) bool {
-	goal, _ := sample[string(policy.MaintainHousing)].(map[string]any)
-	plans, _ := goal["plans"].([]map[string]any)
-	retired, _ := goal["retired_plans"].([]map[string]any)
-	for _, plan := range append(plans, retired...) {
-		method, _ := plan["method"].(string)
-		actions, _ := plan["actions"].(int)
-		stages, _ := plan["stages"].(map[string]int)
-		if strings.HasPrefix(method, growOpen) && actions > 0 && stages["completed"] == actions {
-			return true
-		}
-	}
-	return false
-}
-
 func suites(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	prepared := s.Prepared()
@@ -241,9 +220,20 @@ func suites(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	// Phase two: the title raises the target; the suite grows.
+	// Phase two: the title raises the target; a second suite is planned and
+	// shelled, and the first one is left as it is (#1951).
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 8 * time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: grownOpen},
+		WatchConfig: sustainedfood.WatchConfig{Watch: 8 * time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(map[string]any) bool {
+			if live == nil {
+				j, err := store.Open(ctx, path)
+				if err != nil {
+					return false
+				}
+				live = j
+			}
+			_, ok, err := newSuiteShelled(ctx, live, move.room)
+			return err == nil && ok
+		}},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			granted, err := h.Call(ctx, "suite-title", suiteTitleOp, map[string]any{"pawn": string(pawn), "title": suiteTitle})
 			if err != nil {
@@ -256,87 +246,87 @@ func suites(ctx context.Context, s cases.Session) error {
 			return nil
 		},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
+			if live != nil {
+				live.Close()
+				live = nil
+			}
 			journal, err := store.Open(ctx, path)
 			if err != nil {
 				return fmt.Errorf("reopen journal: %w", err)
 			}
 			defer journal.Close()
-			if err := auditGrowth(ctx, journal, report, pawn, move); err != nil {
+			if err := auditNewSuite(ctx, journal, report, move); err != nil {
 				return err
 			}
-			return ownsBed(ctx, h, s.Identity(), pawn, move.assign.Thing(), "after the growth")
+			return nil
 		},
 	})
 	return err
 }
 
-// auditGrowth checks the journal: a grow-shell for a larger interior on
-// the suite's row completed, every grow-open was admitted no earlier than
-// the ring's last completion and completed, and no bed assignment moved
-// the colonist after the suite move.
-func auditGrowth(ctx context.Context, journal *store.Store, report na.Report, pawn domain.PawnID, move suiteMove) error {
+// newSuiteShelled finds a suite other than first whose shell plan
+// completed, and the plan's layout.
+func newSuiteShelled(ctx context.Context, journal *store.Store, first policy.LayoutRoom) (policy.LayoutRoom, bool, error) {
+	review, err := journal.LoadRoutineReview(ctx)
+	if err != nil {
+		return policy.LayoutRoom{}, false, nil
+	}
+	layout, laid, err := journal.LayoutPlan(ctx, review.Snapshot, review.Tick)
+	if err != nil || !laid {
+		return policy.LayoutRoom{}, false, err
+	}
+	plans, err := history(ctx, journal)
+	if err != nil {
+		return policy.LayoutRoom{}, false, err
+	}
+	for _, plan := range plans {
+		var x, z int32
+		if _, err := fmt.Sscanf(string(plan.Method), "bedroom-shell-%d-%d", &x, &z); err != nil || (x == first.Interior.X && z == first.Interior.Z) {
+			continue
+		}
+		if room, ok := roomAt(layout.Plan, policy.WingSuites, x, z); ok {
+			if _, done := completed(plan); done {
+				return room, true, nil
+			}
+		}
+	}
+	return policy.LayoutRoom{}, false, nil
+}
+
+// auditNewSuite checks the journal and the plan: a second suite was
+// planned and shelled, the first suite's plan row is exactly as it was
+// when the colonist moved in, and nothing deepened a suite shell.
+func auditNewSuite(ctx context.Context, journal *store.Store, report na.Report, first suiteMove) error {
+	second, ok, err := newSuiteShelled(ctx, journal, first.room)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("the title raised the colonist's target but no new suite was shelled")
+	}
+	review, err := journal.LoadRoutineReview(ctx)
+	if err != nil {
+		return err
+	}
+	layout, _, err := journal.LayoutPlan(ctx, review.Snapshot, review.Tick)
+	if err != nil {
+		return err
+	}
+	kept, ok := roomAt(layout.Plan, policy.WingSuites, first.room.Interior.X, first.room.Interior.Z)
+	if !ok || !kept.Same(first.room) {
+		return fmt.Errorf("the first suite %+v changed or left the plan (now %+v)", first.room.Interior, kept.Interior)
+	}
 	plans, err := history(ctx, journal)
 	if err != nil {
 		return err
 	}
-	in := move.room.Interior
-	var ringDone domain.Tick
-	rings, opens, relocations := 0, 0, 0
-	var openAdmitted []int64
-	after := false
 	for _, plan := range plans {
-		method := string(plan.Method)
-		var x, z, w, d int32
-		switch {
-		case strings.HasPrefix(method, growShell):
-			if _, err := fmt.Sscanf(method, growShell+"%d-%d-%dx%d", &x, &z, &w, &d); err != nil || z != in.Z || int64(w)*int64(d) <= int64(in.Width)*int64(in.Height) {
-				continue
-			}
-			tick, done := completed(plan)
-			if !done {
-				return fmt.Errorf("grow ring %s never completed", method)
-			}
-			rings++
-			ringDone = max(ringDone, tick)
-		case strings.HasPrefix(method, growOpen):
-			if rings == 0 {
-				return fmt.Errorf("old wall deconstruct %s was committed before any completed grow ring", method)
-			}
-			if _, done := completed(plan); !done {
-				return fmt.Errorf("old wall deconstruct %s never completed", method)
-			}
-			for _, a := range plan.Admissions {
-				if a.Admission.Tick < ringDone {
-					return fmt.Errorf("old wall deconstruct %s admitted at tick %d, before the ring completed at %d", method, a.Admission.Tick, ringDone)
-				}
-				openAdmitted = append(openAdmitted, int64(a.Admission.Tick))
-			}
-			opens++
-		case strings.HasPrefix(method, growRelocate):
-			relocations++
-		}
-		for _, a := range plan.Spec.Actions() {
-			assign, ok := a.Assign()
-			if !ok || assign.Pawn() != pawn {
-				continue
-			}
-			if assign.Thing() == move.assign.Thing() && assign.Previous().ID() == move.assign.Previous().ID() {
-				after = true
-				continue
-			}
-			if after {
-				return fmt.Errorf("colonist %s was reassigned to %s after the suite move (method %s)", pawn, assign.Thing(), method)
-			}
+		if strings.HasPrefix(string(plan.Method), "bedroom-grow-") {
+			return fmt.Errorf("a suite was grown in place: %s", plan.Method)
 		}
 	}
-	report["growth"] = map[string]any{"rings": rings, "ring_completed_tick": int64(ringDone), "opens": opens,
-		"open_admitted_ticks": openAdmitted, "relocations": relocations}
-	if rings == 0 {
-		return fmt.Errorf("the suite at %d,%d never grew: no completed grow ring larger than %dx%d", in.X, in.Z, in.Width, in.Height)
-	}
-	if opens == 0 {
-		return fmt.Errorf("the grown suite's old wall was never deconstructed")
-	}
+	in := second.Interior
+	report["new_suite"] = fmt.Sprintf("%d,%d %dx%d", in.X, in.Z, in.Width, in.Height)
 	return nil
 }
 

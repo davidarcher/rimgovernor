@@ -63,7 +63,7 @@ func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan, st
 	}
 	targets := bedroomTargets(facts)
 	claims := policy.SuiteClaims(plan, rooms, sleeping, targets, traits, suitePressure(facts), bedroomGate(facts, stage))
-	return policy.SuiteTargets(plan, rooms, sleeping, targets, claims), claims
+	return policy.SuiteTargets(plan, rooms, sleeping, claims), claims
 }
 
 // upgradeTargets is targets less the rooms of pawns owed a suite (#1257,
@@ -96,9 +96,6 @@ func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) 
 			return domain.Known(true)
 		}
 		if _, bed := companionBed(facts); bed {
-			return domain.Known(true)
-		}
-		if _, grow := suiteGrowth(facts); grow {
 			return domain.Known(true)
 		}
 		if throneStep(facts).Owed() || childRoomStep(facts).Owed() {

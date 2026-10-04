@@ -108,7 +108,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	if !has {
 		g := newCoreGrid(coreWithout(plan.Zones, geothermalCells(want.Geysers)), plan.Reservations)
 		for _, w := range plan.Wings {
-			g.carve(wingReserve(w, 0))
+			g.carve(wingReserve(w))
 		}
 		// The battery room goes on the main hallway, or on a crossing when
 		// the main hallway is full (#1265; BatterySlots turns its rows).

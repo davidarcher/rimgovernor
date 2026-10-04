@@ -4,11 +4,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The suite wing (#1215, epic #1200): a second wing off the main hallway,
-// sited only once a suite is wanted, whose rooms are sized per owner. Each
-// side packs its suites outward along the corridor, sharing walls; a suite
-// grows away from the corridor (#1218), so the wing keeps the ground out
-// to the largest depth free on both sides and past its open end.
+// Suite blocks (#1215, #1951, epic #1938): a block is a wing off the main
+// hallway whose rooms are sized per owner at siting. Each side packs its
+// suites outward along the corridor, sharing walls. A block is planned at
+// full size and never grows; a claim no planned suite answers sites another
+// block, and sited suites never move or deepen.
 
 // ModuleSuite is a suite's plan role.
 const ModuleSuite ModuleRole = "suite"
@@ -24,13 +24,13 @@ const (
 	suiteMinDepth, suiteMaxDepth int32 = 4, 8
 )
 
+// suiteMaxRooms caps a suite block: six suites of 3-7 by 4-8 cover about
+// the area of a bedroom wing's ten standard rooms.
+const suiteMaxRooms = 6
+
 // suiteFurnitureTiles is the bedroom template's footprint (bed 2, end
 // table 1, dresser 2, lamp 1), each tile costing the Space stat 0.9.
 const suiteFurnitureTiles = 6
-
-// suiteGrowthReserve is how many suites past the wanted count the wing
-// keeps ground for at its open end.
-const suiteGrowthReserve = 2
 
 func init() {
 	RegisterInteriorTemplate(RoomRoleSuite, InteriorTemplate{Name: "suite", Plan: planBedroom})
@@ -59,215 +59,116 @@ func SuiteSize(target float64) (int32, int32) {
 	return bw, bd
 }
 
-// suiteCursor is where each side's next suite starts along the corridor.
-func suiteCursor(f wingFrame, rooms []LayoutRoom) (east, west int32) {
-	east, west = 3, 3
-	for _, r := range rooms {
-		v0, w := f.along(r)
-		if r.Interior.X > f.cx {
-			east = max(east, v0+w+1)
-		} else {
-			west = max(west, v0+w+1)
-		}
-	}
-	return east, west
-}
-
-// nextSuite is the next suite of interior w x d on the side whose cursor
-// is nearer the main hallway (east on a tie), and its ground grown to the
-// largest depth, walls included.
-func nextSuite(f wingFrame, rooms []LayoutRoom, w, d int32) (LayoutRoom, Rectangle) {
-	east, west := suiteCursor(f, rooms)
-	v0, onEast := east, true
-	if west < east {
-		v0, onEast = west, false
-	}
-	grown := roomWalls(f.roomAt(onEast, v0, w, suiteMaxDepth, ModuleSuite))
-	return f.roomAt(onEast, v0, w, d, ModuleSuite), grown
-}
-
 // corridorTo is the corridor's floor out to the wall row v.
 func (f wingFrame) corridorTo(v int32) Rectangle {
 	z, h := f.span(2, v-1)
 	return Rectangle{X: f.cx - SpineWidth/2, Z: z, Width: SpineWidth, Height: h}
 }
 
-// suiteReserve is the ground the suite wing keeps: both sides at the
-// largest depth, out past its open end for want suites (at least those it
-// has) plus suiteGrowthReserve more at the largest width.
-func suiteReserve(w Wing, want int) Rectangle {
-	f := frameOf(w)
-	east, west := suiteCursor(f, w.Rooms)
-	extra := int32((max(want-len(w.Rooms), 0) + suiteGrowthReserve + 1) / 2)
-	return f.ground(max(east, west)-2+extra*(suiteMaxWidth+1), suiteMaxDepth)
+// packSuites is one suite per target, sized by SuiteSize, packed outward
+// along the corridor of frame f: each takes the side nearer the main
+// hallway (east on a tie), sharing walls with its neighbour.
+func packSuites(f wingFrame, targets []float64) []LayoutRoom {
+	east, west := int32(3), int32(3)
+	var out []LayoutRoom
+	for _, t := range targets {
+		w, d := SuiteSize(t)
+		onEast := east <= west
+		v0 := west
+		if onEast {
+			v0 = east
+		}
+		out = append(out, f.roomAt(onEast, v0, w, d, ModuleSuite))
+		if onEast {
+			east = v0 + w + 1
+		} else {
+			west = v0 + w + 1
+		}
+	}
+	return out
 }
 
-// growSuites sites the suite wing off the main hallway once targets asks
-// for a suite, and adds suites at its open end until it holds one per
-// target, sized by SuiteSize; existing suites never move or shrink. Suites
-// that do not fit (grown to the largest depth) are left out.
+// suiteWingGround is the ground a suite block keeps: the corridor and both
+// sides out to the deepest suite it holds, walls included, no more.
+func suiteWingGround(w Wing) Rectangle {
+	f := frameOf(w)
+	depth := int32(0)
+	for _, r := range w.Rooms {
+		depth = max(depth, r.Interior.Width)
+	}
+	return f.ground(f.sign*(f.reach(w.Rooms).Z-f.z0)-1, depth)
+}
+
+// suiteWings is the indexes of the suite blocks, in siting order.
+func suiteWings(wings []Wing) []int {
+	var out []int
+	for i, w := range wings {
+		if w.Purpose == WingSuites {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// carveSuiteWings takes every suite block's ground out of g.
+func (g coreGrid) carveSuiteWings(wings []Wing) {
+	for _, i := range suiteWings(wings) {
+		g.carve(wingReserve(wings[i]))
+	}
+}
+
+// growSuites sites suite blocks off the main hallway for the targets past
+// the suites the plan holds (index-aligned with plan.AllRooms' suites),
+// each block of at most suiteMaxRooms suites sized by SuiteSize at siting.
+// Existing suites never move or change. Suites that do not fit are left
+// out.
 func (g coreGrid) growSuites(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, targets []float64) ([]SpineSegment, []Wing) {
 	if len(spine) == 0 || !alongX(spine[0]) {
 		return spine, wings
 	}
-	idx := wingOf(wings, WingSuites)
 	have := 0
-	if idx >= 0 {
-		have = len(wings[idx].Rooms)
-	}
-	if have >= len(targets) {
-		return spine, wings
-	}
-	free := g.wingGround(spine, rooms)
-	fits := func(f wingFrame, placed []LayoutRoom, target float64) (LayoutRoom, bool) {
-		w, d := SuiteSize(target)
-		r, grown := nextSuite(f, placed, w, d)
-		v0, _ := f.along(r)
-		return r, free(grown) && free(f.corridorTo(v0+w))
+	for _, i := range suiteWings(wings) {
+		have += len(wings[i].Rooms)
 	}
 	wings = append([]Wing(nil), wings...)
-	var f wingFrame
-	if idx < 0 {
-		var ok bool
-		f, ok = g.siteWing(spine, rooms, func(try wingFrame) int {
+	for have < len(targets) {
+		chunk := targets[have:min(have+suiteMaxRooms, len(targets))]
+		free := g.wingGround(spine, rooms)
+		fitting := func(f wingFrame) []LayoutRoom {
 			var placed []LayoutRoom
-			for _, t := range targets {
-				r, ok := fits(try, placed, t)
-				if !ok {
+			for _, r := range packSuites(f, chunk) {
+				v0, w := f.along(r)
+				if !free(roomWalls(r)) || !free(f.corridorTo(v0+w)) {
 					break
 				}
 				placed = append(placed, r)
 			}
-			return len(placed)
-		})
-		if !ok {
-			return spine, wings
+			return placed
 		}
-		spine = openWing(spine, f)
+		f, ok := g.siteWing(spine, rooms, func(try wingFrame) int { return len(fitting(try)) })
+		if !ok {
+			break
+		}
+		grown := openWing(spine, f)
 		base := domain.Cell{X: f.cx, Z: f.z(2)}
-		wings = append(wings, Wing{Purpose: WingSuites, Corridor: SpineSegment{From: base, To: base}})
-		idx = len(wings) - 1
-	} else {
-		f = frameOf(wings[idx])
-	}
-	w := wings[idx]
-	for _, t := range targets[len(w.Rooms):] {
-		r, ok := fits(f, w.Rooms, t)
-		if !ok {
+		w := Wing{Purpose: WingSuites, Corridor: SpineSegment{From: base, To: base}}
+		for _, r := range fitting(f) {
+			r.Dug = g.dug(r)
+			trial := w
+			trial.Rooms = append(append([]LayoutRoom(nil), w.Rooms...), r)
+			trial.Corridor.To = f.reach(trial.Rooms)
+			next := append(append([]Wing(nil), wings...), trial)
+			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Entrances: spineEntrances(grown), Rooms: rooms, Wings: next}); err != nil {
+				break
+			}
+			w = trial
+		}
+		if len(w.Rooms) == 0 {
 			break
 		}
-		r.Dug = g.dug(r)
-		trial := w
-		trial.Rooms = append(append([]LayoutRoom(nil), w.Rooms...), r)
-		trial.Corridor.To = f.reach(trial.Rooms)
-		next := append([]Wing(nil), wings...)
-		next[idx] = trial
-		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: rooms, Wings: next}); err != nil {
-			break
-		}
-		w = trial
+		spine, wings = grown, append(wings, w)
+		g.carve(wingReserve(w))
+		have += len(w.Rooms)
 	}
-	if len(w.Rooms) == 0 {
-		return spine, append(wings[:idx], wings[idx+1:]...)
-	}
-	wings[idx] = w
 	return spine, wings
-}
-
-// grownSuite is suite r (of wing w) deepened away from the corridor to the
-// smallest depth, up to suiteMaxDepth, whose floor meets target's space
-// (#1218); the door and the width along the corridor stay. False when r
-// already meets target, is at its largest depth, or the strip it grows
-// into (walls included) is not free core ground in plan.
-func grownSuite(plan LayoutPlan, w Wing, r LayoutRoom, target float64) (LayoutRoom, bool) {
-	f := frameOf(w)
-	in := r.Interior
-	width, depth := in.Height, in.Width
-	cells := suiteCells(target)
-	if width*depth >= cells || depth >= suiteMaxDepth {
-		return r, false
-	}
-	d := depth
-	for d < suiteMaxDepth && width*d < cells {
-		d++
-	}
-	grown := r
-	strip := Rectangle{Z: in.Z - 1, Width: d - depth, Height: width + 2}
-	if in.X > f.cx {
-		grown.Interior.Width = d
-		strip.X = in.X + depth + 1
-	} else {
-		grown.Interior.X, grown.Interior.Width = in.X-(d-depth), d
-		strip.X = grown.Interior.X - 1
-	}
-	g := newCoreGrid(plan.Zones, plan.Reservations)
-	g.carveBedroomWings(plan.Wings)
-	if !g.wingGround(plan.Spine, plan.Rooms)(strip) {
-		return r, false
-	}
-	grown.Dug = r.Dug || g.dug(grown)
-	return grown, true
-}
-
-// suiteWingRoom finds r among the plan's suites: its wing and index.
-func suiteWingRoom(plan LayoutPlan, r LayoutRoom) (Wing, bool) {
-	if i := wingOf(plan.Wings, WingSuites); i >= 0 {
-		for _, s := range plan.Wings[i].Rooms {
-			if s.Interior == r.Interior {
-				return plan.Wings[i], true
-			}
-		}
-	}
-	return Wing{}, false
-}
-
-// SuitesOwed reports whether Grow would change the suite wing for
-// targets: a suite to add, or an existing one to grow outward.
-func SuitesOwed(plan LayoutPlan, targets []float64) bool {
-	if len(targets) > plan.SuiteRooms() {
-		return true
-	}
-	if i := wingOf(plan.Wings, WingSuites); i >= 0 {
-		w := plan.Wings[i]
-		for k, r := range w.Rooms {
-			if k < len(targets) && targets[k] > 0 {
-				if _, ok := grownSuite(plan, w, r, targets[k]); ok {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// growSuitesOutward grows each existing suite whose entry in targets asks
-// for more floor than it has (#1218); a zero entry keeps the suite. The
-// new plan row carries the grown interior; the ladder then raises the new
-// ring, takes the old wall down and re-sites the furniture
-// (NextSuiteGrowth).
-func growSuitesOutward(plan LayoutPlan, wings []Wing, targets []float64) []Wing {
-	idx := wingOf(wings, WingSuites)
-	if idx < 0 {
-		return wings
-	}
-	w := wings[idx]
-	var rooms []LayoutRoom
-	for i, r := range w.Rooms {
-		if i >= len(targets) || targets[i] <= 0 {
-			continue
-		}
-		if grown, ok := grownSuite(plan, w, r, targets[i]); ok {
-			if rooms == nil {
-				rooms = append([]LayoutRoom(nil), w.Rooms...)
-			}
-			rooms[i] = grown
-		}
-	}
-	if rooms == nil {
-		return wings
-	}
-	wings = append([]Wing(nil), wings...)
-	w.Rooms = rooms
-	wings[idx] = w
-	return wings
 }
