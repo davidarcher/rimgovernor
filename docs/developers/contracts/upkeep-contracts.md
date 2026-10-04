@@ -550,7 +550,16 @@ kept animal) and `AnimalBed`s in the vet room (`VetBeds`) one at a time
 (`policy.NextHerdStep`, `buildingruntime/routine_herd_rooms.go`); the review
 holds the goal open while a step is due (`HerdRoomsOwed`). Both definitions are
 read from the live native catalog; one the catalog lacks fails the review
-rather than being skipped. Each standing vet bed is then flagged medical (a
+rather than being skipped. The barn also owes a climate slot (#1867): one
+heater (`RoomFurniture.Heater`, the cheapest buildable def with a temperature
+control that heats from a power draw, chosen from the catalog rows), planned by
+`planBarn` on the free floor furthest from the door, never counted as a bed and
+placed by a `HerdPlace` step once the beds stand. Like the containment lamp it
+is optional until researched, so the beds never wait on it; the power planner
+connects it as any unpowered consumer, and the temperature planner counts a
+room holding a powered heater as already heated (`TemperatureCooling.Conditioned`).
+A barn cooler is not planned: the temperature planner places coolers only for
+sleeping rooms. Each standing vet bed is then flagged medical (a
 `BedUse` patch, once per bed per goal epoch, before the next bed is placed; the
 census's `Medical` fact says which are flagged). A bonded animal's master is its
 first bond partner by id on the roster (`policy.CompanionMaster`); each master

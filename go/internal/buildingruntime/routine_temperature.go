@@ -97,7 +97,7 @@ func temperatureGap(rooms domain.Fact[policy.RoomObservation]) string {
 // power topology, the site cells the vented-wall search walks, and the
 // sleepers whose comfortable ranges band each room (#1199).
 func temperatureCooling(facts observation.ColonyProjection) policy.TemperatureCooling {
-	cooling := policy.TemperatureCooling{CoolerAvailable: domain.Unknown[bool](), CoolerDrawW: domain.Unknown[float64](), Power: facts.PowerPlanning, Cells: facts.Cells, HeatCampfires: heatCampfires(facts)}
+	cooling := policy.TemperatureCooling{CoolerAvailable: domain.Unknown[bool](), CoolerDrawW: domain.Unknown[float64](), Power: facts.PowerPlanning, Cells: facts.Cells, HeatCampfires: heatCampfires(facts), Heater: facts.Shapes.Furniture.Heater}
 	if sleeping, known := facts.Facts.Sleeping.Value(); known {
 		cooling.Sleepers = append(append([]policy.SleepingPerson{}, sleeping.People...), sleeping.Slaves...)
 	}

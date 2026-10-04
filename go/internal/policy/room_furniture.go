@@ -39,6 +39,9 @@ type FacilityLink struct {
 //     something by Comfort per unit of cost at the best stuff, then the free
 //     ones by Comfort (the same rule as the dining chair);
 //   - Sarcophagus is the Building_Sarcophagus, the cheapest when several;
+//   - Heater is the cheapest buildable def that heats from a power draw (a
+//     temperature control with positive energy and a consuming power comp),
+//     the barn's climate slot;
 //   - AnimalSpot is the free bed of the kind animals use (not humanlike, no
 //     body size limit) and AnimalBed the costed one with the most Comfort per
 //     cost;
@@ -51,6 +54,7 @@ type FacilityLink struct {
 type RoomFurniture struct {
 	Beds        []FurnitureBed
 	Sarcophagus string
+	Heater      string
 	AnimalSpot  string
 	AnimalBed   string
 	Bench       map[RoomRole]string
@@ -148,7 +152,7 @@ func (f RoomFurniture) BenchFor(role RoomRole) string { return f.Bench[role] }
 // beds, the default benches and the facilities.
 func (f RoomFurniture) Definitions() []string {
 	out := bedDefs(f.Beds)
-	out = append(out, f.Sarcophagus, f.AnimalSpot, f.AnimalBed)
+	out = append(out, f.Sarcophagus, f.Heater, f.AnimalSpot, f.AnimalBed)
 	for _, bench := range f.Bench {
 		out = append(out, bench)
 	}
@@ -172,7 +176,7 @@ func (f RoomFurniture) Validate() error {
 	if f.CoupleBed() == "" {
 		return fmt.Errorf("room furniture has no costed double bed")
 	}
-	for role, def := range map[string]string{"sarcophagus": f.Sarcophagus, "animal sleeping spot": f.AnimalSpot, "animal bed": f.AnimalBed} {
+	for role, def := range map[string]string{"sarcophagus": f.Sarcophagus, "heater": f.Heater, "animal sleeping spot": f.AnimalSpot, "animal bed": f.AnimalBed} {
 		if def == "" {
 			return fmt.Errorf("room furniture has no %s", role)
 		}

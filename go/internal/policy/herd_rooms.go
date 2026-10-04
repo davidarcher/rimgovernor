@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -39,7 +40,7 @@ const herdBarnMinBeds = 8
 const herdSizeSide = 24
 
 func init() {
-	RegisterInteriorTemplate(RoomRoleBarn, InteriorTemplate{Name: "barn", Plan: planBedGrid})
+	RegisterInteriorTemplate(RoomRoleBarn, InteriorTemplate{Name: "barn", Plan: planBarn})
 	RegisterInteriorTemplate(RoomRoleVetRoom, InteriorTemplate{Name: "vet room", Plan: planBedGrid})
 }
 
@@ -67,6 +68,77 @@ func planBedGrid(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 		}
 	}
 	return out, len(out) > 0
+}
+
+// herdHeaterSlot is the barn's climate slot (#1867): the heater the
+// temperature planner counts as conditioning the room and the power planner
+// connects like any other unpowered consumer. It is no bed.
+const herdHeaterSlot = "climate.heater"
+
+// planBarn is planBedGrid plus the climate slot: the catalog's heater
+// (RoomFurniture.Heater) on the free floor furthest from the door where it
+// keeps the room walkable and leaves every bed a free neighbour to be tended
+// from. A room with no such cell, or a catalog with no heater shape, has no
+// climate slot.
+func planBarn(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
+	beds, ok := planBedGrid(f, piece)
+	if !ok {
+		return nil, false
+	}
+	heater, found := f.Shapes.Get(f.Shapes.Furniture.Heater)
+	if !found || heater.Size.X != 1 || heater.Size.Z != 1 {
+		return beds, true
+	}
+	blocked := map[domain.Cell]bool{}
+	for _, b := range beds {
+		for _, c := range rectCells(b.Rect) {
+			blocked[c] = true
+		}
+	}
+	room := InteriorRoom{Interior: Rectangle{Width: f.Width, Height: f.Depth}, Doors: f.Doors}
+	for v := f.Depth - 1; v >= 0; v-- {
+		for _, u := range herdHeaterColumns(f) {
+			cell := domain.Cell{X: u, Z: v}
+			if blocked[cell] || !herdBedsStayTended(f, blocked, cell) || !InteriorPlacementWalkable(room, blocked, []domain.Cell{cell}) {
+				continue
+			}
+			return append(beds, NewInteriorPiece(herdHeaterSlot, heater.Def, heater.Size, domain.North, cell)), true
+		}
+	}
+	return beds, true
+}
+
+// herdHeaterColumns are the frame's columns furthest from the aisle first.
+func herdHeaterColumns(f InteriorFrame) []int32 {
+	var out []int32
+	for u := int32(0); u < f.Width; u++ {
+		out = append(out, u)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return abs64(float64(out[i]-f.Entrance)) > abs64(float64(out[j]-f.Entrance))
+	})
+	return out
+}
+
+// herdBedsStayTended reports whether every bed next to cell keeps a free
+// neighbour other than cell to be tended from.
+func herdBedsStayTended(f InteriorFrame, blocked map[domain.Cell]bool, cell domain.Cell) bool {
+	around := func(c domain.Cell) []domain.Cell {
+		return []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}}
+	}
+	for _, bed := range around(cell) {
+		if !blocked[bed] {
+			continue
+		}
+		free := false
+		for _, n := range around(bed) {
+			free = free || n != cell && !blocked[n] && n.X >= 0 && n.Z >= 0 && n.X < f.Width && n.Z < f.Depth
+		}
+		if !free {
+			return false
+		}
+	}
+	return true
 }
 
 // herdGridBeds is the 1x1 beds an interior w by h holds whichever wall its
@@ -198,12 +270,28 @@ func herdRoomBeds(room LayoutRoom, shapes PieceShapes, def InteriorPieceDef) int
 	if !ok {
 		return 0
 	}
-	return len(plan.Pieces)
+	return len(herdBedPieces(plan.Pieces))
+}
+
+// herdBedPieces are the pieces of a barn or vet room plan that are beds: all
+// but the climate slot.
+func herdBedPieces(pieces []InteriorPiece) []InteriorPiece {
+	var out []InteriorPiece
+	for _, p := range pieces {
+		if p.Slot != herdHeaterSlot {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // HerdFurniture are the native shapes of the two animal bed definitions.
 type HerdFurniture struct {
 	Spot, Bed InteriorPieceDef
+	// Heater is the barn's climate piece; the zero value while its research
+	// is unfinished or its size unread, which plans no heater step (the beds
+	// never wait on it).
+	Heater InteriorPieceDef
 }
 
 // HerdStepKind is the next animal-bed step.
@@ -214,7 +302,7 @@ const (
 	HerdNone HerdStepKind = ""
 	// HerdShell: raise the walls and door of Room.
 	HerdShell HerdStepKind = "shell"
-	// HerdPlace: place Piece, a bed, in Room.
+	// HerdPlace: place Piece, a bed or the barn's heater, in Room.
 	HerdPlace HerdStepKind = "place"
 	// HerdMedical: flag Bed, a standing vet room bed, medical.
 	HerdMedical HerdStepKind = "medical"
@@ -269,7 +357,8 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 			if !ok {
 				continue
 			}
-			quota := min(want, len(layout.Pieces))
+			beds := herdBedPieces(layout.Pieces)
+			quota := min(want, len(beds))
 			want -= quota
 			if _, standing := PlannedRoomStanding(room, rooms); !standing {
 				return HerdStep{Kind: HerdShell, Role: site.role, Room: room}
@@ -286,9 +375,12 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 				}
 			}
 			if have >= quota {
+				if p, due := barnHeater(site.role, f.Heater, layout.Pieces, room, built, taken); due {
+					return HerdStep{Kind: HerdPlace, Role: site.role, Room: room, Piece: p}
+				}
 				continue
 			}
-			for _, p := range layout.Pieces {
+			for _, p := range beds {
 				free := true
 				for _, c := range rectCells(p.Rect) {
 					free = free && !taken[c]
@@ -300,6 +392,32 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 		}
 	}
 	return HerdStep{}
+}
+
+// barnHeater is the climate piece a barn owes once its beds stand: the
+// planned heater slot while no heater of def stands in the room and its cells
+// are free. A catalog heater that is not buildable yet owes nothing.
+func barnHeater(role ModuleRole, def InteriorPieceDef, pieces []InteriorPiece, room LayoutRoom, built []CurrentBuilding, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+	if role != ModuleBarn || def.Def == "" {
+		return InteriorPiece{}, false
+	}
+	for _, b := range built {
+		if b.Building.Definition() == def.Def && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) {
+			return InteriorPiece{}, false
+		}
+	}
+	for _, p := range pieces {
+		if p.Slot != herdHeaterSlot || p.Def != def.Def {
+			continue
+		}
+		for _, c := range rectCells(p.Rect) {
+			if taken[c] {
+				return InteriorPiece{}, false
+			}
+		}
+		return p, true
+	}
+	return InteriorPiece{}, false
 }
 
 // unflaggedVetBed is the first standing bed of def in room whose census row

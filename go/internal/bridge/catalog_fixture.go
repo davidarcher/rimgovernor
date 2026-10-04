@@ -37,6 +37,9 @@ type FixtureDef struct {
 	Stuffed bool
 	// PowerW, GlowRadius and ExplosiveRadius add the comp carrying them.
 	PowerW, GlowRadius, ExplosiveRadius *float64
+	// TempControlW adds a CompProperties_TempControl with that energyPerSecond
+	// (positive heats, negative cools).
+	TempControlW *float32
 	// MechCharger gives the def a thing class derived from Building_MechCharger.
 	MechCharger bool
 	// SowTag and GrowerFertility make the def a plant grower.
@@ -257,6 +260,8 @@ func CoreFurnitureFixtures() []FixtureDef {
 		{Name: "EndTable", Width: 1, Height: 1, Costs: wood(30), Facility: &FixtureFacility{Offsets: map[string]float32{StatComfort: .03}, MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true, CardinalToHead: true}},
 		{Name: "Dresser", Width: 2, Height: 1, Costs: wood(50), Facility: &FixtureFacility{Offsets: map[string]float32{StatComfort: .02}, MaxDistance: 6, MaxSimultaneous: 1}},
 		{Name: "StandingLamp", Width: 1, Height: 1, Costs: wood(20)},
+		{Name: "Heater", Width: 1, Height: 1, Costs: wood(30), PowerW: ptr(175.0), TempControlW: ptr(float32(21))},
+		{Name: "Cooler", Width: 2, Height: 1, Costs: wood(40), PowerW: ptr(200.0), TempControlW: ptr(float32(-12))},
 		{Name: "ToolCabinet", Width: 2, Height: 1, Costs: wood(40), Facility: &FixtureFacility{Offsets: map[string]float32{StatWorkTableWorkSpeedFactor: .06}, MaxDistance: 8, MaxSimultaneous: 2}},
 		{Name: "ShelfSmall", Width: 1, Height: 1, Costs: wood(20)},
 		{Name: "VitalsMonitor", Width: 1, Height: 1, Costs: wood(100), Facility: &FixtureFacility{Offsets: map[string]float32{StatMedicalTendQualityOffset: .06}, MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true}},
@@ -350,7 +355,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
 	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil, classVolumeGetter: nil, classNutritionGetter: nil}
-	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}, &d.CompProperties_Facility{}, &d.CompProperties_AffectedByFacilities{}} {
+	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}, &d.CompProperties_Facility{}, &d.CompProperties_AffectedByFacilities{}, &d.CompProperties_TempControl{}} {
 		class, _ := proto.GetExtension(message.ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)
 		chains[class] = nil
 	}
@@ -474,6 +479,9 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		}
 		if def.PowerW != nil {
 			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{BasePowerConsumption: float32(*def.PowerW)}}})
+		}
+		if def.TempControlW != nil {
+			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_TempControl{CompProperties_TempControl: &d.CompProperties_TempControl{EnergyPerSecond: *def.TempControlW}}})
 		}
 		if def.GlowRadius != nil {
 			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Glower{CompProperties_Glower: &d.CompProperties_Glower{GlowRadius: float32(*def.GlowRadius)}}})

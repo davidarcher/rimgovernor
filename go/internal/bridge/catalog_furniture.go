@@ -40,6 +40,9 @@ func (catalog *DefinitionCatalog) RoomFurniture(shapes map[string]policy.Interio
 	if out.AnimalSpot, out.AnimalBed, err = beds.animalBeds(); err != nil {
 		return out, err
 	}
+	if out.Heater, err = catalog.cheapestHeater(); err != nil {
+		return out, err
+	}
 	if out.Sarcophagus, err = catalog.cheapestOfClass(ClassSarcophagus); err != nil {
 		return out, err
 	}
@@ -240,6 +243,36 @@ func (catalog *DefinitionCatalog) cheapestOfClass(class string) (string, error) 
 	}
 	if best == "" {
 		return "", contract("catalog has no buildable %s", class)
+	}
+	return best, nil
+}
+
+// cheapestHeater is the cheapest buildable def that heats its room from a
+// power draw (a CompProperties_TempControl with a positive energyPerSecond and
+// a consuming power comp), by name when equal. A cooler's energy is negative
+// and a campfire has no power comp, so neither matches.
+func (catalog *DefinitionCatalog) cheapestHeater() (string, error) {
+	var best string
+	bestCost := math.Inf(1)
+	for name, row := range catalog.ThingDefs {
+		if !Buildable(row) {
+			continue
+		}
+		control := compOf(row, (*d.CompPropertiesAny).GetCompProperties_TempControl)
+		power := compOf(row, (*d.CompPropertiesAny).GetCompProperties_Power)
+		if control == nil || power == nil || control.GetEnergyPerSecond() <= 0 || power.GetBasePowerConsumption() <= 0 {
+			continue
+		}
+		cost, err := catalog.CheapestCostValue(name)
+		if err != nil {
+			return "", err
+		}
+		if cost < bestCost || cost == bestCost && name < best {
+			best, bestCost = name, cost
+		}
+	}
+	if best == "" {
+		return "", contract("catalog has no buildable heater (a temperature control that heats from a power draw)")
 	}
 	return best, nil
 }

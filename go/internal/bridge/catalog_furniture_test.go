@@ -78,3 +78,15 @@ func TestRoomFurnitureFacilitiesAreChosenFromTheLinks(t *testing.T) {
 		t.Errorf("end table %q, want the linked better one", got)
 	}
 }
+
+// The climate heater is the cheapest def that heats from a power draw (#1867):
+// a cooler (negative energy) and an unpowered def never match, whatever the names.
+func TestRoomFurnitureHeaterIsChosenByTempControlRule(t *testing.T) {
+	if got := furnitureOf(t, CoreFurnitureFixtures()...).Heater; got != "Heater" {
+		t.Errorf("heater %q", got)
+	}
+	cheap := FixtureDef{Name: "ZRadiator", Width: 1, Height: 1, Costs: []policy.Amount{{Resource: "WoodLog", Count: 5}}, PowerW: ptr(100.0), TempControlW: ptr(float32(10))}
+	if got := furnitureOf(t, append(CoreFurnitureFixtures(), cheap)...).Heater; got != "ZRadiator" {
+		t.Errorf("heater %q, want the cheaper ZRadiator", got)
+	}
+}

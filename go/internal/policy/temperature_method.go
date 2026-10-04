@@ -69,6 +69,39 @@ type TemperatureCooling struct {
 	// Sleepers are the colonists and slaves whose owned beds and
 	// comfortable ranges band each sleeping room (#1199).
 	Sleepers []SleepingPerson
+	// Heater is the catalog's heater definition (RoomFurniture.Heater), the
+	// climate piece of the barn (#1867); empty when the catalog has none.
+	Heater string
+}
+
+// Conditioned reports whether room holds a working climate piece (#1867): a
+// powered heater of the catalog's heater definition standing on its floor, or
+// a wall cooler beside it. The barn's heater is the first; a room that holds
+// one needs no second.
+func (c TemperatureCooling) Conditioned(room Room) bool {
+	return c.wallCoolerBeside(room) || c.heaterIn(room)
+}
+
+// heaterIn reports whether a powered heater of the catalog's heater
+// definition stands in room.
+func (c TemperatureCooling) heaterIn(room Room) bool {
+	topology, known := c.Power.Value()
+	if !known || c.Heater == "" {
+		return false
+	}
+	inside := map[domain.Cell]bool{}
+	for _, cell := range room.Cells {
+		inside[cell] = true
+	}
+	for _, b := range topology.Buildings {
+		if b.Definition != c.Heater {
+			continue
+		}
+		if powered, ok := b.Powered.Value(); ok && powered && inside[b.Cell] {
+			return true
+		}
+	}
+	return false
 }
 
 // sleepersBand is the intersection of the comfortable ranges of the people
@@ -481,6 +514,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		if choice.method == TemperatureCool && !exists {
 			exists = cooling.wallCoolerBeside(choice.room)
 		}
+		exists = exists || choice.method == TemperatureHeat && cooling.heaterIn(choice.room)
 		if exists {
 			continue
 		}

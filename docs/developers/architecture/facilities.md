@@ -96,7 +96,7 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | Workshop | implemented | Barracks, Room | the bench the recipe catalog names for the deficit |
 | Laboratory | implemented | Workshop, Barracks, Room | SimpleResearchBench |
 | ThroneRoom (Royalty) | implemented (own planned room) | | the title's throne definitions, then bedroom furnishing |
-| Barn | implemented (own planned room, #1633) | | AnimalSleepingSpot; the vet room (a controller role, natively scored Barn) takes AnimalBed |
+| Barn | implemented (own planned room, #1633) | | AnimalSleepingSpot and a powered heater (#1867); the vet room (a controller role, natively scored Barn) takes AnimalBed |
 | Bedroom, Barracks, PrisonCell, PrisonBarracks, Storeroom, Kitchen, Tomb | pending | | |
 | Nursery (Biotech) | implemented (own planned room, #1680) | | catalog role BabyBed |
 | Playroom (Biotech) | implemented (own planned room, #1680) | | catalog roles Toy, Decoration |

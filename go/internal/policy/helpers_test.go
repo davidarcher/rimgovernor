@@ -39,7 +39,7 @@ var testFurniture = RoomFurniture{
 		{testPrimaryBed, 1, false}, {testBedroll, 1, false}, {testSleepingSpot, 1, true},
 		{testCoupleBed, 2, false}, {SleepingCoupleBedrollDefinition, 2, false}, {"RoyalBed", 2, false}, {"DoubleSleepingSpot", 2, true},
 	},
-	Sarcophagus: testSarcophagus, AnimalSpot: testAnimalSpot, AnimalBed: testAnimalBed,
+	Sarcophagus: testSarcophagus, Heater: "Heater", AnimalSpot: testAnimalSpot, AnimalBed: testAnimalBed,
 	Bench:    map[RoomRole]string{RoomRoleKitchen: testStove, RoomRoleWorkshop: testWorkshop, RoomRoleLaboratory: testResearch},
 	EndTable: FacilityLink{Def: "EndTable", MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true, CardinalToHead: true},
 	Dresser:  FacilityLink{Def: "Dresser", MaxDistance: 6, MaxSimultaneous: 1},
@@ -66,6 +66,7 @@ var testShapes = func() PieceShapes {
 	add("EndTable", 1, 1, "", nil)
 	add("Dresser", 2, 1, "", nil)
 	add("StandingLamp", 1, 1, "", nil)
+	add("Heater", 1, 1, "", nil)
 	add("ToolCabinet", 2, 1, "", nil)
 	add("ShelfSmall", 1, 1, "", nil)
 	add("VitalsMonitor", 1, 1, "", nil)

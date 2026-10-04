@@ -21,7 +21,7 @@ import (
 // stuff and size for.
 var herdDefinitions = []string{"Wall", "Door"}
 
-// herdFurniture reads the two animal bed shapes from the live catalog. A
+// herdFurniture reads the two animal bed shapes and the barn's heater from the live catalog. A
 // definition the catalog lacks (a wrong defName, or a game without it) is an
 // error, never a quiet skip; one that exists but is not buildable yet, or
 // has no size read, reports false.
@@ -47,6 +47,19 @@ func herdFurniture(facts observation.ColonyProjection) (policy.HerdFurniture, bo
 			out.Spot = def
 		} else {
 			out.Bed = def
+		}
+	}
+	// The barn's heater is optional like the containment lamp: until its
+	// research is done or its size is read, the barn is furnished without it
+	// (a definition the catalog lacks is still an error).
+	if name := facts.Shapes.Furniture.Heater; name != "" {
+		d, found := animalContainmentDefinition(facts.Definitions, name)
+		if !found {
+			return out, false, fmt.Errorf("%w: herdFurniture: %s was not read from the native catalog", ErrControl, name)
+		}
+		size, sizeKnown := d.Size.Value()
+		if available, known := d.Available.Value(); known && available && sizeKnown && size.Width == 1 && size.Height == 1 {
+			out.Heater = policy.InteriorPieceDef{Def: name, Size: domain.Cell{X: 1, Z: 1}}
 		}
 	}
 	return out, usable, nil
