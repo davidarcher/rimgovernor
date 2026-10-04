@@ -24,7 +24,7 @@ func burnRegion(hive domain.Cell) bridge.CellRect {
 // seal and corridor doors and its wood stools, on the census around the
 // hive; nothing once all of it stands, or while the seal reads unroofed
 // (the fight then drops the burn).
-func (r *RoutineDefenseLayoutPlanner) fuel(call, epoch context.Context, goal store.GoalState, state ControlState, burn policy.CombatBurn) (RoutineDefenseLayoutResult, error) {
+func (r *RoutineDefenseLayoutPlanner) fuel(call, epoch context.Context, goal store.ProjectState, state ControlState, burn policy.CombatBurn) (RoutineDefenseLayoutResult, error) {
 	read, census, err := r.fightCensus(call, state, burnRegion(burn.Hive))
 	if err != nil || !policy.BurnRoofed(burn.Hive, census) {
 		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit, Tier: defenseFuelTier}, err

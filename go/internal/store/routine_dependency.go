@@ -149,8 +149,8 @@ func sortDependencies(d []DependencyRecord) {
 // older than a game day. The shortfall is recomputed from the actions
 // still open against the current stock, so wood gained since admission
 // shrinks the donation; unknown stock keeps the record but donates nothing.
-func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoutineGoal, states []GoalState, facts policy.RoutineFacts, tick domain.Tick) ([]DependencyRecord, []policy.DevelopmentDependency, error) {
-	active := map[domain.GoalID]GoalState{}
+func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoutineGoal, states []WorkOwner, facts policy.RoutineFacts, tick domain.Tick) ([]DependencyRecord, []policy.DevelopmentDependency, error) {
+	active := map[domain.GoalID]WorkOwner{}
 	for i, b := range bindings {
 		active[b.Need] = states[i]
 	}
@@ -158,7 +158,7 @@ func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRe
 	var edges []policy.DevelopmentDependency
 	for _, rec := range records {
 		g, ok := active[rec.Need]
-		if !ok || g.Goal.ID != rec.Goal || g.Goal.Epoch != rec.Epoch || g.Goal.Status != domain.GoalActive || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
+		if !ok || domain.GoalID(g.OwnerID()) != rec.Goal || g.OwnerEpoch() != rec.Epoch || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
 			continue
 		}
 		prerequisite, ok := policy.ResourcePrerequisite(rec.Resource)
@@ -223,7 +223,7 @@ func priorDependencies(ctx context.Context, tx *sql.Tx, previous RoutineReview, 
 		return nil, nil
 	}
 	var bindings []RoutineGoal
-	var states []GoalState
+	var states []WorkOwner
 	for _, b := range previous.Goals {
 		g, err := loadGoal(ctx, tx, b.Goal)
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
@@ -235,7 +235,7 @@ func priorDependencies(ctx context.Context, tx *sql.Tx, previous RoutineReview, 
 		bindings, states = append(bindings, b), append(states, g)
 	}
 	for _, b := range previous.Projects {
-		g, err := loadGoal(ctx, tx, domain.GoalID(b.Project))
+		g, err := loadProject(ctx, tx, b.Project)
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
 			continue
 		}

@@ -214,8 +214,8 @@ func throneMethod(step policy.ThroneStep) domain.MethodID {
 
 // stageThrone answers a due throne step: the shell through shellRoom, the
 // throne through placePiece. Furnishing follows through the room upgrade.
-func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
-	clockSchedulerLog("%s: throne room %s for %s (%s)", goal.Goal.ID, step.Kind, step.Need.Holder, step.Need.Title)
+func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
+	clockSchedulerLog("%s: throne room %s for %s (%s)", goal.OwnerID(), step.Kind, step.Need.Holder, step.Need.Title)
 	switch step.Kind {
 	case policy.ThroneShell:
 		return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, throneMethod(step), "throne room")
@@ -233,7 +233,7 @@ func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, 
 // once per holder and throne per goal epoch (refused attempts retry within
 // assignMethod's bound). The royalty read refreshes on its own cadence, so a
 // throne assigned this epoch reads unowned until then and the method is used.
-func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, step policy.ThroneStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, step policy.ThroneStep) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	method, err := r.assignMethod(call, goal, fmt.Sprintf("throne-assign-%s-%s", step.Need.Holder, step.Throne))
 	if err != nil {
@@ -274,7 +274,7 @@ func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context,
 	if latest.Revision != review.Revision || !latest.Enabled {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: assignThrone: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil

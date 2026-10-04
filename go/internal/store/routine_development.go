@@ -138,10 +138,10 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction, Recipes: r.Facts.Recipes})
 }
 
-func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
+func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []WorkOwner, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
 	var bindings []RoutineGoal
 	for i, n := range needs.Assessments {
-		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: states[i].Goal.ID})
+		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: domain.GoalID(states[i].OwnerID())})
 	}
 	plans, err := routinePlans(ctx, tx, r.Current, bindings)
 	if err != nil {
@@ -159,14 +159,15 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 	for i := range goals {
 		for j, b := range bindings {
 			if b.Need == goals[i].ID {
-				g := states[j].Goal
+				owner := states[j]
+				g, _ := SummarizeOwner(owner)
 				goals[i].Cancelled = g.Status == domain.GoalCancelled
 				goals[i].Blocked = g.Status != domain.GoalActive
 				// Served counts retired methods too: a startup goal whose
 				// campfire plan completed and retired is served, not owed.
 				var served int
-				column, epoch := methodOwnerColumn(g.ID, g.Epoch)
-				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE "+column+"=? AND epoch=?", g.ID, epoch).Scan(&served); err != nil {
+				column, id, epoch := owner.ownerKey()
+				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE "+column+"=? AND epoch=?", id, epoch).Scan(&served); err != nil {
 					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 				}
 				goals[i].Served = served > 0
@@ -246,8 +247,8 @@ func husbandrySettingsWrite(method domain.HusbandryMethod) bool {
 // since the review may already have consumed its last optional slot. A
 // method that is a pure settings write (developmentExemptMethod) is
 // admitted without a slot.
-func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, plan domain.PlanSpec) error {
-	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !(strings.HasPrefix(string(g.ID), "routine-") || isProjectID(g.ID)) || developmentExemptMethod(plan) {
+func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g OwnerSummary, plan domain.PlanSpec) error {
+	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !(strings.HasPrefix(g.ID, "routine-") || isProjectID(g.ID)) || developmentExemptMethod(plan) {
 		return nil
 	}
 	review, err := loadRoutine(ctx, tx)
@@ -257,7 +258,7 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 	if review.Snapshot != g.Snapshot {
 		return fmt.Errorf("%w: goal %s reviewed under snapshot %+v, current review is %+v", ErrNotAdmitted, g.ID, g.Snapshot, review.Snapshot)
 	}
-	need, _ := review.Need(g.ID)
+	need, _ := review.needOf(g.ID)
 	if err := policy.AdmitDevelopment(review.Development.State(), need); err != nil {
 		return fmt.Errorf("%w: %v", ErrNotAdmitted, err)
 	}

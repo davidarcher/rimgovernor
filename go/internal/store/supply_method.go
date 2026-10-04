@@ -132,14 +132,14 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan 
 }
 
 // A standing refill bill must not delay access to food in an emergency.
-func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) (bool, error) {
+func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRoutine(ctx, tx)
 	if err != nil {
 		return false, err
 	}
 	bound := false
 	for _, binding := range review.Goals {
-		bound = bound || binding.Goal == goal.Goal.ID && binding.Need == policy.MaintainFoodStorage
+		bound = bound || string(binding.Goal) == goal.OwnerID() && binding.Need == policy.MaintainFoodStorage
 	}
 	if !bound || len(review.ReserveSupplies) == 0 || len(plan.Actions()) == 0 {
 		return false, nil
@@ -157,7 +157,7 @@ func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState
 			return false, nil
 		}
 	}
-	for _, method := range goal.Methods {
+	for _, method := range goal.OwnerMethods() {
 		existing, err := load(ctx, tx, method.Plan)
 		if err != nil {
 			return false, err

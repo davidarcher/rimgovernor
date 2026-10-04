@@ -51,12 +51,12 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	if _, err = s.CommitGoalMethod(ctx, expansion.Goal.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); err != nil {
 		t.Fatal("builder limit refused a goal", err)
 	}
-	research := routineGoal(t, first, policy.EnsureResearch)
-	if _, err = s.CommitGoalMethod(ctx, research.Goal.ID, research.Revision, "study", plan(t, "study", "study-action")); err != nil {
+	research := routineProject(t, first, policy.EnsureResearch)
+	if _, err = s.CommitProjectMethod(ctx, research.Project.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err != nil {
 		t.Fatal(err)
 	}
 	// A retry of the same admission is refused, not duplicated.
-	if _, err = s.CommitGoalMethod(ctx, research.Goal.ID, research.Revision, "study", plan(t, "study", "study-action")); err == nil {
+	if _, err = s.CommitProjectMethod(ctx, research.Project.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err == nil {
 		t.Fatal("retry admitted twice")
 	}
 	wood := routineGoal(t, first, policy.MaintainResource)

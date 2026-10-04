@@ -220,7 +220,7 @@ func TestDefenseCensusStandsConduitsAndPower(t *testing.T) {
 
 func TestDefenseRecordGeometryAndTurretTier(t *testing.T) {
 	t.Parallel()
-	record := store.DefenseLayoutRecord{World: store.World{Colony: "c", Load: "l"}, Goal: "g", Entry: domain.Cell{X: 9, Z: 14}, Toward: domain.North, Firing: []domain.Cell{{X: 9, Z: 23}},
+	record := store.DefenseLayoutRecord{World: store.World{Colony: "c", Load: "l"}, Project: "g", Entry: domain.Cell{X: 9, Z: 14}, Toward: domain.North, Firing: []domain.Cell{{X: 9, Z: 23}},
 		TrapLane: []domain.Cell{{X: 9, Z: 14}}, SafeLane: []domain.Cell{{X: 8, Z: 14}}, Tiers: []store.DefenseTierRecord{
 			{Name: policy.TierFiringLine, Reserved: []domain.Cell{{X: 9, Z: 22}}, Buildings: []store.DefenseBuilding{{Definition: "Barricade", Cell: domain.Cell{X: 9, Z: 22}}}},
 			{Name: policy.TierTurrets, Reserved: []domain.Cell{{X: 5, Z: 23}}, Buildings: []store.DefenseBuilding{{Definition: defenseTurretDefinition, Cell: domain.Cell{X: 5, Z: 23}}}},

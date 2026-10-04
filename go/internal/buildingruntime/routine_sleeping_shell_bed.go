@@ -19,7 +19,7 @@ import (
 // (uninstalled) so the next round reinstalls it. Each step once per bed per
 // goal epoch; due is false when there is no bed to carry over, the room has
 // no spot, or the step was tried, so the ordinary build goes on.
-func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Context, state ControlState, goal store.GoalState, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, bool, error) {
+func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, bool, error) {
 	facts := reading.Projection
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -42,7 +42,7 @@ func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Cont
 	}
 	p := r.reviewer.player
 	used := func(method domain.MethodID) (bool, error) {
-		_, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		_, err := p.journal.LoadOwnerMethod(call, goal, method)
 		if err == nil {
 			return true, nil
 		}
@@ -66,7 +66,7 @@ func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Cont
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		clockSchedulerLog("%s: bedroom: reinstall stored %s in the new room", goal.Goal.ID, move.Thing())
+		clockSchedulerLog("%s: bedroom: reinstall stored %s in the new room", goal.OwnerID(), move.Thing())
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	plan, _ := facts.LayoutPlan.Value()
@@ -86,7 +86,7 @@ func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Cont
 	for _, b := range vacant {
 		digest := sha256.Sum256([]byte(b.ID))
 		method := domain.MethodID(fmt.Sprintf("bedroom-shell-pack-%x", digest[:8]))
-		if m, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		if m, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 			// Packing is under way: wait for it rather than build a second bed.
 			if prior, err := p.journal.LoadPlan(call, m.Plan); err == nil && domain.GoalWorkOpen(prior.Progress) {
 				return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "shell_bed_pack")}, true, nil
@@ -104,7 +104,7 @@ func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Cont
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		clockSchedulerLog("%s: bedroom: pack shell bed %s to carry it over", goal.Goal.ID, b.ID)
+		clockSchedulerLog("%s: bedroom: pack shell bed %s to carry it over", goal.OwnerID(), b.ID)
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	return RoutineBuildingResult{}, false, nil

@@ -45,12 +45,12 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews != 1 {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Project.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 1 || len(plan.Admissions) != 0 {
 		t.Fatal(plan, err)
 	}
 	b, _ := plan.Spec.Actions()[0].Building()
-	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Goal.Goal.Need != domain.NeedDeficit {
+	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Project.Project.Need != domain.NeedDeficit {
 		t.Fatal(plan, result)
 	}
 	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || native.previews != 1 {
@@ -113,8 +113,8 @@ func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
 	}
 	// The burnt-out campfire's plan retired on the census (#856); the
 	// goal's history still binds both methods.
-	goal := again.Decision.Goal.Goal
-	methods, err := db.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
+	goal := again.Decision.Project
+	methods, err := db.LoadOwnerMethods(ctx, goal)
 	if err != nil || len(methods) != 2 || methods[0].Method != "campfire" || methods[1].Method != "campfire-1" {
 		t.Fatal(methods, err)
 	}

@@ -80,7 +80,7 @@ func ShelterBedsMethod() domain.MethodID  { return shelterBedsMethod }
 type shelterSite struct {
 	state     ControlState
 	review    store.RoutineReview
-	goal      store.GoalState
+	goal      store.WorkOwner
 	facts     observation.ColonyProjection
 	read      observation.ColonyReading
 	snapshot  domain.GenerationSnapshot
@@ -105,11 +105,11 @@ func (b shelterBunkRecord) cells() []domain.Cell {
 }
 
 // shelterBunks reads the bunk rungs bound under the goal's epoch.
-func (r *RoutineBuildingPlanner) shelterBunks(call context.Context, goal store.GoalState) (shelterBunkRecord, error) {
+func (r *RoutineBuildingPlanner) shelterBunks(call context.Context, goal store.WorkOwner) (shelterBunkRecord, error) {
 	journal := r.reviewer.player.journal
 	var record shelterBunkRecord
 	read := func(method domain.MethodID) ([]domain.Cell, bool, error) {
-		bound, err := journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		bound, err := journal.LoadOwnerMethod(call, goal, method)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, false, nil
 		}
@@ -256,7 +256,7 @@ func shellClaimMethod(room domain.Cell) domain.MethodID {
 // ring is still claimable, so the ring is raised this review.
 func (r *RoutineBuildingPlanner) admitShellClaims(call, epoch context.Context, s excavationStep, layout policy.StarterLayout, check func() error) (RoutineBuildingResult, bool, error) {
 	method := shellClaimMethod(domain.Cell{X: layout.Room.X, Z: layout.Room.Z})
-	if _, err := r.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method); err == nil {
+	if _, err := r.reviewer.player.journal.LoadOwnerMethod(call, s.goal, method); err == nil {
 		return RoutineBuildingResult{}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, false, err

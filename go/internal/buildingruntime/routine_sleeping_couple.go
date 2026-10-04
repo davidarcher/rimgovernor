@@ -50,9 +50,9 @@ func (r *RoutineSleepingUpkeepPlanner) storedPiece(call context.Context, state C
 
 // couplePacked is the cells of the beds this epoch's completed couple pack
 // steps uninstalled, each plan's first (the couple's room's) first.
-func (r *RoutineSleepingUpkeepPlanner) couplePacked(call context.Context, goal store.GoalState) ([]domain.Cell, error) {
+func (r *RoutineSleepingUpkeepPlanner) couplePacked(call context.Context, goal store.WorkOwner) ([]domain.Cell, error) {
 	p := r.reviewer.player
-	methods, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	methods, err := p.journal.LoadOwnerMethods(call, goal)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (r *RoutineSleepingUpkeepPlanner) couplePacked(call context.Context, goal s
 // then install a DoubleBed (a stored one first) in the couple's room's
 // bedroom slot; each step once per goal epoch. due is false when nothing
 // is to do, so the ordinary sleeping choice goes on.
-func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
+func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
 	facts := reading.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
@@ -98,7 +98,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 	}
 	p := r.reviewer.player
 	used := func(method domain.MethodID) (bool, error) {
-		_, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		_, err := p.journal.LoadOwnerMethod(call, goal, method)
 		if err == nil {
 			return true, nil
 		}
@@ -131,7 +131,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 			}
 			actions = append(actions, action)
 		}
-		clockSchedulerLog("%s: couple %s+%s: pack %d single bed(s) for room %s", goal.Goal.ID, step.Pawn, step.Partner, len(actions), step.Room)
+		clockSchedulerLog("%s: couple %s+%s: pack %d single bed(s) for room %s", goal.OwnerID(), step.Pawn, step.Partner, len(actions), step.Room)
 		return r.commitCouple(call, epoch, state, goal, method, id, actions)
 	case policy.CoupleInstall:
 		room := sha256.Sum256([]byte(fmt.Sprintf("%d,%d", step.Anchor.X, step.Anchor.Z)))
@@ -149,10 +149,10 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 			if err != nil {
 				return RoutineBuildingResult{}, false, err
 			}
-			clockSchedulerLog("%s: couple %s+%s: reinstall stored %s in room %s", goal.Goal.ID, step.Pawn, step.Partner, move.Thing(), step.Room)
+			clockSchedulerLog("%s: couple %s+%s: reinstall stored %s in room %s", goal.OwnerID(), step.Pawn, step.Partner, move.Thing(), step.Room)
 			return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 		}
-		clockSchedulerLog("%s: couple %s+%s: build DoubleBed in room %s", goal.Goal.ID, step.Pawn, step.Partner, step.Room)
+		clockSchedulerLog("%s: couple %s+%s: build DoubleBed in room %s", goal.OwnerID(), step.Pawn, step.Partner, step.Room)
 		result, err := r.upgradeBedroom(call, epoch, state, review, goal, reading, policy.RoomUpgrade{Room: step.Room, Slot: "couple-bed", Def: policy.SleepingCoupleBedDefinition, Anchor: step.Anchor, Rot: step.Rot})
 		// A build already tried this epoch, or refused, leaves the
 		// ordinary choice to go on.
@@ -165,7 +165,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 // the chosen definition, installed at the first free bed spot of a hosting
 // room; once per packed bed per goal epoch. due is false when none is
 // stored or none fits, so the build goes on.
-func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Context, state ControlState, goal store.GoalState, reading observation.RoutineReading, choice policy.SleepingChoice) (RoutineBuildingResult, bool, error) {
+func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoutineReading, choice policy.SleepingChoice) (RoutineBuildingResult, bool, error) {
 	facts := reading.Projection
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -188,7 +188,7 @@ func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Co
 		}
 		digest := sha256.Sum256([]byte(move.Thing()))
 		method := domain.MethodID(fmt.Sprintf("sleeping-reinstall-%x", digest[:8]))
-		if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 			return RoutineBuildingResult{}, false, nil
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineBuildingResult{}, false, err
@@ -198,13 +198,13 @@ func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Co
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		clockSchedulerLog("%s: reinstall stored %s %s in room %s", goal.Goal.ID, choice.Definition, move.Thing(), room.ID)
+		clockSchedulerLog("%s: reinstall stored %s %s in room %s", goal.OwnerID(), choice.Definition, move.Thing(), room.ID)
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	return RoutineBuildingResult{}, false, nil
 }
 
-func (r *RoutineSleepingUpkeepPlanner) commitCouple(call, epoch context.Context, state ControlState, goal store.GoalState, method domain.MethodID, id domain.PlanID, actions []domain.Action) (RoutineBuildingResult, bool, error) {
+func (r *RoutineSleepingUpkeepPlanner) commitCouple(call, epoch context.Context, state ControlState, goal store.WorkOwner, method domain.MethodID, id domain.PlanID, actions []domain.Action) (RoutineBuildingResult, bool, error) {
 	p := r.reviewer.player
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -216,7 +216,7 @@ func (r *RoutineSleepingUpkeepPlanner) commitCouple(call, epoch context.Context,
 	if p.session.State() != state {
 		return RoutineBuildingResult{}, false, fmt.Errorf("%w: commitCouple: p.session.State() != state", ErrControl)
 	}
-	if _, err := p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err := p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, true, nil

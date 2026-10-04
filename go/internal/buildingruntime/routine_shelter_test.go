@@ -382,7 +382,7 @@ func completeRoutineBuildingMethod(t *testing.T, db *store.Store, result Routine
 	t.Helper()
 	ctx := context.Background()
 	var plan store.PlanState
-	for _, method := range result.Decision.Goal.Methods {
+	for _, method := range result.Decision.Owner().OwnerMethods() {
 		candidate, err := db.LoadPlan(ctx, method.Plan)
 		if err != nil {
 			t.Fatal(err)
@@ -397,7 +397,8 @@ func completeRoutineBuildingMethod(t *testing.T, db *store.Store, result Routine
 	if len(plan.Progress) == 0 {
 		t.Fatal("no pending method")
 	}
-	snapshot := result.Decision.Goal.Goal.Snapshot
+	summary, _ := store.SummarizeOwner(result.Decision.Owner())
+	snapshot := summary.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	for _, action := range plan.Spec.Actions() {
 		if _, err := db.Prepare(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {

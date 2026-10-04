@@ -14,11 +14,11 @@ func (p *playerFixture) SubmitGoalCreate(ctx context.Context, q store.GoalCreate
 	p.calls++
 	return p.journal.SubmitGoalCreate(ctx, q)
 }
-func (p *playerFixture) CancelGoal(ctx context.Context, w store.World, id domain.GoalID, revision uint64) (store.GoalState, error) {
+func (p *playerFixture) CancelGoal(ctx context.Context, w store.World, id string, revision uint64) (store.WorkOwner, error) {
 	p.calls++
 	return p.journal.CancelPlayerGoal(ctx, w, id, revision)
 }
-func (p *playerFixture) PlayerGoals(ctx context.Context, w store.World) (map[domain.GoalKind]domain.GoalID, error) {
+func (p *playerFixture) PlayerGoals(ctx context.Context, w store.World) (map[domain.GoalKind]store.WorkOwner, error) {
 	return p.journal.PlayerGoals(ctx, w)
 }
 func (p *playerFixture) LookupGoalCreateSubmission(ctx context.Context, id string) (store.GoalCreateSubmission, error) {

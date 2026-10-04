@@ -149,7 +149,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if len(needs) == 0 && len(staged.ResearchLadder) == 0 {
 		return RoutineResearchResult{Verdict: BuildingReasonDisabled}, nil
 	}
-	goal, deficit, err := p.journal.Workable(call, review, policy.EnsureResearch)
+	goal, deficit, err := p.journal.WorkableProject(call, review, policy.EnsureResearch)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
@@ -217,11 +217,11 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 
 // admit records the one-action plan that selects next, unless this goal
 // epoch already tried it.
-func (r *RoutineResearchPlanner) admit(call, epoch context.Context, state ControlState, goal store.GoalState, next string) (RoutineResearchResult, error) {
+func (r *RoutineResearchPlanner) admit(call, epoch context.Context, state ControlState, goal store.ProjectState, next string) (RoutineResearchResult, error) {
 	p := r.reviewer.player
 	digestNext := sha256.Sum256([]byte(next))
 	method := domain.MethodID(fmt.Sprintf("research-%x", digestNext[:16]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineResearchResult{Verdict: waitFor(WaitMethodUsed, "research_selection")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResearchResult{}, err
@@ -245,7 +245,7 @@ func (r *RoutineResearchPlanner) admit(call, epoch context.Context, state Contro
 	if p.session.State() != state {
 		return RoutineResearchResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoutineResearchResult{}, err
 	}
 	return RoutineResearchResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

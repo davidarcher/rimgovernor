@@ -24,7 +24,7 @@ func completedStockpile(t *testing.T, zone string) (*Store, string, domain.Gener
 	current := r.Current
 	current.Plan, current.Revision = p.ID(), p.Revision()
 	preview := policy.Preview{Action: a, Snapshot: current, Tick: 10, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known([]domain.Cell{{X: 3, Z: 7}}), Costs: domain.Known([]policy.Amount{})}
-	request := BuildingMethodRequest{Goal: g.Goal.ID, Revision: g.Revision, Method: "food-storage", Plan: p, Current: current, Tick: 10, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
+	request := BuildingMethodRequest{Owner: g, Method: "food-storage", Plan: p, Current: current, Tick: 10, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
 		Stock: policy.StockObservation{Snapshot: current, Tick: 10, Values: []policy.Stock{}}, Previews: []policy.Preview{preview}}
 	d, err := s.AdmitBuildingMethod(ctx, request)
 	if err != nil || !d.Admitted {

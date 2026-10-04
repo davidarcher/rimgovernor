@@ -776,11 +776,11 @@ const shellRepairLimit = 8
 // on to the next repair method once it settled with a cell unsuccessful.
 // It returns the method the next shell plan should bind, or the plan in use
 // when one already covers the shell (including the chain's limit).
-func (r *RoutineBuildingPlanner) shellRepairMethod(call context.Context, goal store.GoalState, method domain.MethodID) (domain.MethodID, *store.PlanState, error) {
+func (r *RoutineBuildingPlanner) shellRepairMethod(call context.Context, goal store.WorkOwner, method domain.MethodID) (domain.MethodID, *store.PlanState, error) {
 	journal := r.reviewer.player.journal
 	base := method
 	for repair := 0; ; repair++ {
-		bound, err := journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		bound, err := journal.LoadOwnerMethod(call, goal, method)
 		if errors.Is(err, store.ErrNotFound) {
 			return method, nil, nil
 		}

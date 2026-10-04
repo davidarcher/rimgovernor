@@ -134,7 +134,7 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 	}
 	admitted := method
 	for wave := 0; ; wave++ {
-		prior, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, admitted)
+		prior, err := b.reviewer.player.journal.LoadOwnerMethod(call, s.goal, admitted)
 		if errors.Is(err, store.ErrNotFound) {
 			break
 		}

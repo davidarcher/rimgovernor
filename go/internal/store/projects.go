@@ -43,7 +43,7 @@ func (p ProjectState) ownerKey() (string, string, string) {
 func (p ProjectState) ownerSnapshot() domain.GenerationSnapshot { return p.Project.Snapshot }
 func (p ProjectState) ownerAutopilot() bool                     { return p.Project.Source == domain.AutopilotGoal }
 func (p ProjectState) ownerNeed(r RoutineReview) (domain.GoalID, bool) {
-	return r.Need(domain.GoalID(p.Project.ID))
+	return r.projectNeed(p.Project.ID)
 }
 func (p ProjectState) ownerPriority() int { return p.Project.Priority }
 func (p ProjectState) ownerPlans() []domain.PlanID {
@@ -272,14 +272,22 @@ func (s *Store) CommitProjectMethod(ctx context.Context, id domain.ProjectID, re
 		return ProjectState{}, err
 	}
 	defer tx.Rollback()
-	if _, err = commitGoalMethod(ctx, tx, domain.GoalID(id), revision, method, reason, plan); err != nil {
-		return ProjectState{}, err
-	}
-	state, err := loadProject(ctx, tx, id)
+	state, err := commitProjectMethod(ctx, tx, id, revision, method, reason, plan)
 	if err != nil {
 		return ProjectState{}, err
 	}
 	return state, tx.Commit()
+}
+
+func commitProjectMethod(ctx context.Context, tx *sql.Tx, id domain.ProjectID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (ProjectState, error) {
+	state, err := loadProject(ctx, tx, id)
+	if err != nil {
+		return ProjectState{}, err
+	}
+	if err = admitOwnerCommit(ctx, tx, state, revision, method, reason, plan); err != nil {
+		return ProjectState{}, err
+	}
+	return loadProject(ctx, tx, id)
 }
 
 // guardProjectWork is guardGoalWork for a project's plan: the project is open
@@ -351,72 +359,20 @@ func retireProjects(ctx context.Context, tx *sql.Tx, retained map[domain.Project
 const projectIDPrefix = "project-"
 
 // isProjectID reports whether id names a Project row, not a goal row.
-func isProjectID(id domain.GoalID) bool {
-	return strings.HasPrefix(string(id), projectIDPrefix)
+func isProjectID(id string) bool {
+	return strings.HasPrefix(id, projectIDPrefix)
 }
 
-// goalView is the Project as the goal handle method admission and the
-// planners hold: the id is the Project's, the epoch is 0, an open Project is
-// active and a finished one satisfied. Every write through the view
-// (saveGoal, setGoalRevision, ownerKey) lands in the projects table.
-func (p ProjectState) goalView() GoalState {
-	pr := p.Project
-	g := domain.Goal{ID: domain.GoalID(pr.ID), Source: pr.Source, Priority: pr.Priority, Snapshot: pr.Snapshot, Tick: pr.Tick, Need: pr.Need, Record: pr.Record}
-	switch pr.Status {
-	case domain.ProjectOpen:
-		g.Status = domain.GoalActive
-	case domain.ProjectFinished:
-		g.Status, g.RecoveryObserved = domain.GoalSatisfied, true
-	case domain.ProjectCancelled:
-		g.Status = domain.GoalCancelled
-	default:
-		g.Status = domain.GoalInvalidated
-	}
-	methods := func(rows []ProjectMethod) []domain.GoalMethod {
-		var out []domain.GoalMethod
-		for _, m := range rows {
-			out = append(out, domain.GoalMethod{Goal: g.ID, Method: m.Method, Plan: m.Plan})
-		}
-		return out
-	}
-	return GoalState{Goal: g, Revision: p.Revision, Methods: methods(p.Methods), Admitted: p.Admitted, History: methods(p.History), Retired: p.Retired, kind: pr.Kind}
-}
-
-// projectOf is goalView's inverse for the fields a goal write can change.
-func projectOf(g domain.Goal, kind domain.GoalID) domain.Project {
-	p := domain.Project{ID: domain.ProjectID(g.ID), Kind: kind, Source: g.Source, Priority: g.Priority, Snapshot: g.Snapshot, Tick: g.Tick, Need: g.Need, Record: g.Record}
-	switch g.Status {
-	case domain.GoalActive:
-		p.Status = domain.ProjectOpen
-	case domain.GoalSatisfied:
-		p.Status = domain.ProjectFinished
-	case domain.GoalCancelled:
-		p.Status = domain.ProjectCancelled
-	default:
-		p.Status = domain.ProjectInvalidated
-	}
-	return p
-}
-
-// methodOwnerColumn is the goal_methods column and epoch key a goal id's
-// rows are stored under.
-func methodOwnerColumn(id domain.GoalID, epoch uint64) (column, epochKey string) {
-	if isProjectID(id) {
-		return "project_id", "0"
-	}
-	return "goal_id", strconv.FormatUint(epoch, 10)
-}
-
-// projectRowIDs lists every project id as a goal-view id.
-func projectRowIDs(ctx context.Context, tx *sql.Tx) ([]domain.GoalID, error) {
+// projectRowIDs lists every project id.
+func projectRowIDs(ctx context.Context, tx *sql.Tx) ([]domain.ProjectID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []domain.GoalID
+	var out []domain.ProjectID
 	for rows.Next() {
-		var id domain.GoalID
+		var id domain.ProjectID
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}

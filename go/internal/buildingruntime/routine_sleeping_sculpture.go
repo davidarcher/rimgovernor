@@ -40,7 +40,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyS
 // finished packed sculpture (MaintainArt's pinned bill, #1190) installed (a
 // RelocateIntent on the packed item's inner building) on free floor in the
 // room, once per goal epoch. due is false when the lever has nothing to do.
-func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, state ControlState, goal store.GoalState, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
+func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
 	native, ok := r.native.(sculptureSource)
 	facts := reading.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
@@ -48,7 +48,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	traits := sleepingTraits(facts)
 	if !ok || !sk || !rk || !ck || !census.Colony || traits == nil {
-		clockSchedulerLog("%s: sculpture install: inputs unknown source=%v sleeping=%v rooms=%v census=%v traits=%v", goal.Goal.ID, ok, sk, rk, ck, traits != nil)
+		clockSchedulerLog("%s: sculpture install: inputs unknown source=%v sleeping=%v rooms=%v census=%v traits=%v", goal.OwnerID(), ok, sk, rk, ck, traits != nil)
 		return RoutineBuildingResult{}, false, nil
 	}
 	tier, _ := facts.BuildTier.Value()
@@ -65,14 +65,14 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), r.reviewer.stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed, facts.Facts.Items, bedroomGate(facts, r.reviewer.stage))
 	if !due {
 		if len(packed) > 0 {
-			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.Goal.ID, len(packed), packed, sculptureRoomsOwed(facts, r.reviewer.stage))
+			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.OwnerID(), len(packed), packed, sculptureRoomsOwed(facts, r.reviewer.stage))
 		}
 		return RoutineBuildingResult{}, false, nil
 	}
 	p := r.reviewer.player
 	digest := sha256.Sum256([]byte(step.Packed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-sculpture-install-%x", digest[:8]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "sculpture_install")}, true, nil
 	}
 	item := inner[step.Packed]
@@ -95,10 +95,10 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	if p.session.State() != state {
 		return RoutineBuildingResult{}, false, fmt.Errorf("%w: sculptBedroom: p.session.State() != state", ErrControl)
 	}
-	if _, err := p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err := p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	clockSchedulerLog("%s: bedroom %s: sculpture install (weakest beauty)", goal.Goal.ID, step.Room)
+	clockSchedulerLog("%s: bedroom %s: sculpture install (weakest beauty)", goal.OwnerID(), step.Room)
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, true, nil
 }
 

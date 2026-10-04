@@ -49,35 +49,39 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineSupplyResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	var goal store.GoalState
+	// The safety goal (a Standard) is worked before the starting-supplies
+	// Project.
+	var goal store.WorkOwner
 	var cohort []policy.StartingSupply
 	safetyGoal := false
-	sort.SliceStable(review.Goals, func(i, j int) bool {
-		return review.Goals[i].Need == policy.ManageSupplySafety && review.Goals[j].Need != policy.ManageSupplySafety
-	})
-	for _, binding := range review.Bindings() {
-		if binding.Need == policy.AllowStartingSupplies || binding.Need == policy.ManageSupplySafety {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			if err != nil {
-				return RoutineSupplyResult{}, err
-			}
-			if goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit {
-				cohort = review.StartingSupplies.Pending
-				if binding.Need == policy.ManageSupplySafety {
-					cohort = review.EventLoot.Pending
-					safetyGoal = true
-				}
-				break
-			}
+	for _, binding := range review.Goals {
+		if binding.Need != policy.ManageSupplySafety {
+			continue
+		}
+		safety, err := p.journal.LoadGoal(call, binding.Goal)
+		if err != nil {
+			return RoutineSupplyResult{}, err
+		}
+		goal = safety
+		if safety.OwnerDeficit() {
+			cohort, safetyGoal = review.EventLoot.Pending, true
+			break
 		}
 	}
-	if err != nil {
-		return RoutineSupplyResult{}, err
+	if id, bound := review.ProjectFor(policy.AllowStartingSupplies); bound && !safetyGoal {
+		starting, err := p.journal.LoadProject(call, id)
+		if err != nil {
+			return RoutineSupplyResult{}, err
+		}
+		goal = starting
+		if starting.OwnerDeficit() {
+			cohort = review.StartingSupplies.Pending
+		}
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if goal == nil || !goal.OwnerDeficit() || review.VetoOwner(goal) != "" {
 		return RoutineSupplyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	for _, method := range goal.Methods {
+	for _, method := range goal.OwnerMethods() {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineSupplyResult{}, err
@@ -205,7 +209,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineSupplyResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineSupplyResult{}, err
 	}
 	return RoutineSupplyResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

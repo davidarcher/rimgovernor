@@ -171,11 +171,11 @@ func beautyUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage)
 }
 
 // removeOldBed deconstructs a replaced bed, once per bed per goal epoch.
-func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, rep policy.BedReplacement) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, rep policy.BedReplacement) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	bed := sha256.Sum256([]byte(rep.Bed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-replace-remove-%x", bed[:8]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "old_bed_removal")}, nil
 	}
 	// A real bed is packed, not deconstructed: the stored bed furnishes the
@@ -190,7 +190,7 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
-		clockSchedulerLog("%s: bedroom %s: pack replaced bed %s for reuse", goal.Goal.ID, rep.Room, rep.Bed)
+		clockSchedulerLog("%s: bedroom %s: pack replaced bed %s for reuse", goal.OwnerID(), rep.Room, rep.Bed)
 		result, _, err := r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 		return result, err
 	}
@@ -221,19 +221,19 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: bedroom %s: remove replaced bed %s", goal.Goal.ID, rep.Room, rep.Bed)
+	clockSchedulerLog("%s: bedroom %s: remove replaced bed %s", goal.OwnerID(), rep.Room, rep.Bed)
 	facts := reading.Projection
 	return r.building.admitExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }
 
 // upgradeBedroom previews and admits one upgrade piece, once per room and
 // slot per goal epoch.
-func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, u policy.RoomUpgrade) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, u policy.RoomUpgrade) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
 	room := sha256.Sum256([]byte(u.Room))
 	method := domain.MethodID(fmt.Sprintf("bedroom-upgrade-%s-%x", u.Slot, room[:8]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "bedroom_upgrade")}, nil
 	}
 	stuff := u.Stuff
@@ -278,7 +278,7 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
-			clockSchedulerLog("%s: bedroom upgrade %s %s refused at %d,%d", goal.Goal.ID, u.Room, u.Def, cell.X, cell.Z)
+			clockSchedulerLog("%s: bedroom upgrade %s %s refused at %d,%d", goal.OwnerID(), u.Room, u.Def, cell.X, cell.Z)
 			continue
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
@@ -289,6 +289,6 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 	if len(selected) == 0 {
 		return RoutineBuildingResult{Verdict: noSpace("bedroom_upgrade_site")}, nil
 	}
-	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.Goal.ID, u.Room, u.Def, len(selected), u.Weakest)
+	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.OwnerID(), u.Room, u.Def, len(selected), u.Weakest)
 	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }

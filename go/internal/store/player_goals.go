@@ -48,10 +48,10 @@ type GoalCreateSubmission struct {
 	// request ID returns the identity that request actually activated, even
 	// after a later cancel-and-recreate has moved the kind's current binding
 	// on to a different identity.
-	Goal domain.GoalID
+	Goal string
 	// State is that goal's state now, which is what the request produced for a
 	// freshly accepted request and a later value when an older ID is replayed.
-	State GoalState
+	State WorkOwner
 }
 
 // World is the world half of the requested snapshot; PlayerGoals matches its
@@ -133,7 +133,7 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 		return GoalCreateSubmission{}, false, err
 	}
 	s.notifyGoalsWritten()
-	result := GoalCreateSubmission{Request: q, Goal: state.Goal.ID, State: state}
+	result := GoalCreateSubmission{Request: q, Goal: state.OwnerID(), State: state}
 	if s.submissions.entries == nil {
 		s.submissions.entries = map[string]GoalCreateSubmission{}
 	}
@@ -143,146 +143,188 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 
 // activatePlayerGoal reuses or creates the world's player goal for one kind and
 // leaves it active and in deficit. It never resurrects a cancelled or
-// invalidated goal; see SubmitGoalCreate.
-func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionRequest) (GoalState, error) {
+// invalidated goal; see SubmitGoalCreate. A Project kind's player goal is a
+// Project row (a GoalState for any other kind).
+func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionRequest) (WorkOwner, error) {
 	current, err := playerGoals(ctx, tx, q.World())
 	if err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	project := policy.IsProjectKind(policy.GoalID(q.Kind))
-	if state, ok := current[q.Kind]; ok {
-		if !state.Retired && state.Goal.Status != domain.GoalCancelled && state.Goal.Status != domain.GoalInvalidated {
+	if owner, ok := current[q.Kind]; ok && playerGoalLive(owner) {
+		switch state := owner.(type) {
+		case ProjectState:
 			open, err := goalOpenWork(ctx, tx, state)
 			if err != nil {
-				return GoalState{}, err
+				return nil, err
 			}
-			if project {
-				p, err := loadProject(ctx, tx, domain.ProjectID(state.Goal.ID))
+			// A finished Project forced back to deficit keeps its row as the
+			// record and a new row follows below (domain.ProjectRegressed).
+			if !domain.ProjectRegressed(state.Project, domain.NeedDeficit, open) {
+				next, err := domain.ReviewProject(state.Project, q.Snapshot, q.Tick, domain.NeedDeficit, open)
 				if err != nil {
-					return GoalState{}, err
+					return nil, err
 				}
-				// A finished Project forced back to deficit keeps its row as the
-				// record and a new row follows below (domain.ProjectRegressed).
-				if !domain.ProjectRegressed(p.Project, domain.NeedDeficit, open) {
-					next, err := domain.ReviewProject(p.Project, q.Snapshot, q.Tick, domain.NeedDeficit, open)
-					if err != nil {
-						return GoalState{}, err
-					}
-					next.Priority = q.Kind.Priority()
-					if next.Status == domain.ProjectInvalidated {
-						if err = cancelGoalMethods(ctx, tx, p); err != nil {
-							return GoalState{}, err
-						}
-						if _, err = saveProject(ctx, tx, p, next); err != nil {
-							return GoalState{}, err
-						}
-					} else {
-						saved, err := saveProject(ctx, tx, p, next)
-						return saved.goalView(), err
-					}
+				next.Priority = q.Kind.Priority()
+				if next.Status != domain.ProjectInvalidated {
+					return saveProject(ctx, tx, state, next)
 				}
-			} else {
-				g, err := domain.ReviewGoal(state.Goal, q.Snapshot, q.Tick, domain.NeedDeficit, open)
-				if err != nil {
-					return GoalState{}, err
+				if err = cancelGoalMethods(ctx, tx, state); err != nil {
+					return nil, err
 				}
-				g.Priority = q.Kind.Priority()
-				if g.Status == domain.GoalInvalidated {
-					// The player's own direction moved under the goal. Cancel its
-					// captured work exactly as ReviewGoal's own invalidation does,
-					// record the invalidation, and fall through to a fresh identity.
-					if err = cancelGoalMethods(ctx, tx, state); err != nil {
-						return GoalState{}, err
-					}
-					if _, err = saveGoal(ctx, tx, state, g); err != nil {
-						return GoalState{}, err
-					}
-				} else {
-					return saveGoal(ctx, tx, state, g)
+				if _, err = saveProject(ctx, tx, state, next); err != nil {
+					return nil, err
 				}
+			}
+		case GoalState:
+			open, err := goalOpenWork(ctx, tx, state)
+			if err != nil {
+				return nil, err
+			}
+			g, err := domain.ReviewGoal(state.Goal, q.Snapshot, q.Tick, domain.NeedDeficit, open)
+			if err != nil {
+				return nil, err
+			}
+			g.Priority = q.Kind.Priority()
+			if g.Status != domain.GoalInvalidated {
+				return saveGoal(ctx, tx, state, g)
+			}
+			// The player's own direction moved under the goal. Cancel its
+			// captured work exactly as ReviewGoal's own invalidation does,
+			// record the invalidation, and fall through to a fresh identity.
+			if err = cancelGoalMethods(ctx, tx, state); err != nil {
+				return nil, err
+			}
+			if _, err = saveGoal(ctx, tx, state, g); err != nil {
+				return nil, err
 			}
 		}
 	}
 	var entropy [16]byte
 	if _, err = rand.Read(entropy[:]); err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	if project {
 		id := domain.ProjectID(projectIDPrefix + "player-" + hex.EncodeToString(entropy[:]) + "-" + string(q.Kind))
 		pr, err := domain.NewProject(id, domain.GoalID(q.Kind), domain.PlayerGoal, q.Kind.Priority(), q.Snapshot, q.Tick)
 		if err != nil {
-			return GoalState{}, err
+			return nil, err
 		}
 		if err = createProject(ctx, tx, pr); err != nil {
-			return GoalState{}, err
+			return nil, err
 		}
 		activated, err := domain.ReviewProject(pr, q.Snapshot, q.Tick, domain.NeedDeficit, false)
 		if err != nil {
-			return GoalState{}, err
+			return nil, err
 		}
-		saved, err := saveProject(ctx, tx, ProjectState{Project: pr}, activated)
-		return saved.goalView(), err
+		return saveProject(ctx, tx, ProjectState{Project: pr}, activated)
 	}
 	id := domain.GoalID("player-" + hex.EncodeToString(entropy[:]) + "-" + string(q.Kind))
 	goal, err := domain.NewGoal(id, domain.PlayerGoal, q.Kind.Priority(), q.Snapshot, q.Tick)
 	if err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	if err = createGoal(ctx, tx, goal); err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	activated, err := domain.ReviewGoal(goal, q.Snapshot, q.Tick, domain.NeedDeficit, false)
 	if err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	return saveGoal(ctx, tx, GoalState{Goal: goal}, activated)
 }
 
+// playerGoalLive reports a player goal that is neither retired, cancelled nor
+// invalidated.
+func playerGoalLive(owner WorkOwner) bool {
+	switch o := owner.(type) {
+	case GoalState:
+		return !o.Retired && o.Goal.Status != domain.GoalCancelled && o.Goal.Status != domain.GoalInvalidated
+	case ProjectState:
+		return !o.Retired && o.Project.Status != domain.ProjectCancelled && o.Project.Status != domain.ProjectInvalidated
+	}
+	return false
+}
+
+// playerGoalSource is the owner's source: only PlayerGoal rows are the
+// player's.
+func playerGoalSource(owner WorkOwner) domain.GoalSource {
+	switch o := owner.(type) {
+	case GoalState:
+		return o.Goal.Source
+	case ProjectState:
+		return o.Project.Source
+	}
+	return ""
+}
+
 // CancelPlayerGoal is the player-facing cancellation path: it resolves one
-// already-observed goal identity within one world and cancels it through the
-// unchanged store cancellation, which invalidates unissued work and marks
-// issued work cancelled in the ordinary progress journal.
+// already-observed goal or Project identity within one world and cancels it
+// through the unchanged store cancellation, which invalidates unissued work
+// and marks issued work cancelled in the ordinary progress journal.
 //
-// It deliberately cancels autopilot-sourced goals too: any recorded goal ID
+// It deliberately cancels autopilot-sourced goals too: any recorded row ID
 // resolves. The world check is
-// what bounds it: a goal whose snapshot names a different colony, load or map
+// what bounds it: a row whose snapshot names a different colony, load or map
 // is not this world's goal and returns ErrNotFound rather than being cancelled
 // across worlds. Revision is the same local CAS token ReviewGoal uses; a stale
 // one returns ErrConflict and changes nothing.
-func (s *Store) CancelPlayerGoal(ctx context.Context, w World, id domain.GoalID, revision uint64) (GoalState, error) {
+func (s *Store) CancelPlayerGoal(ctx context.Context, w World, id string, revision uint64) (WorkOwner, error) {
 	if err := w.Validate(); err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	defer tx.Rollback()
-	state, err := loadGoal(ctx, tx, id)
-	if err != nil {
-		return GoalState{}, err
-	}
-	s2 := state.Goal.Snapshot
-	if s2.Colony != w.Colony || s2.Load != w.Load || s2.Map != w.Map {
-		return GoalState{}, ErrNotFound
-	}
-	out, err := cancelGoalState(ctx, tx, state, revision)
-	if err != nil {
-		return GoalState{}, err
+	var out WorkOwner
+	if isProjectID(id) {
+		state, err := loadProject(ctx, tx, domain.ProjectID(id))
+		if err != nil {
+			return nil, err
+		}
+		if !snapshotInWorld(state.Project.Snapshot, w) {
+			return nil, ErrNotFound
+		}
+		if state.Revision != revision {
+			return nil, ErrConflict
+		}
+		p, err := domain.CancelProject(state.Project)
+		if err != nil {
+			return nil, err
+		}
+		if err = cancelGoalMethods(ctx, tx, state); err != nil {
+			return nil, err
+		}
+		if out, err = saveProject(ctx, tx, state, p); err != nil {
+			return nil, err
+		}
+	} else {
+		state, err := loadGoal(ctx, tx, domain.GoalID(id))
+		if err != nil {
+			return nil, err
+		}
+		if !snapshotInWorld(state.Goal.Snapshot, w) {
+			return nil, ErrNotFound
+		}
+		if out, err = cancelGoalState(ctx, tx, state, revision); err != nil {
+			return nil, err
+		}
 	}
 	if err = tx.Commit(); err != nil {
-		return GoalState{}, err
+		return nil, err
 	}
 	return out, nil
 }
 
-// PlayerGoals returns the goal identity the player has activated for each kind
-// in one world. It is derived from the rebuilt goals themselves (#1006): every
-// goal whose Source is PlayerGoal and whose snapshot names this colony and map
-// (U4b: the load token is not compared, so a player goal survives a world
-// change). The kind is read from the identity activatePlayerGoal mints. An
-// empty result is not an error.
-func (s *Store) PlayerGoals(ctx context.Context, w World) (map[domain.GoalKind]domain.GoalID, error) {
+// PlayerGoals returns the goal or Project the player has activated for each
+// kind in one world. It is derived from the rebuilt rows themselves (#1006):
+// every row whose Source is PlayerGoal and whose snapshot names this colony
+// and map (U4b: the load token is not compared, so a player goal survives a
+// world change). The kind is read from the identity activatePlayerGoal mints.
+// An empty result is not an error.
+func (s *Store) PlayerGoals(ctx context.Context, w World) (map[domain.GoalKind]WorkOwner, error) {
 	if err := w.Validate(); err != nil {
 		return nil, err
 	}
@@ -295,19 +337,16 @@ func (s *Store) PlayerGoals(ctx context.Context, w World) (map[domain.GoalKind]d
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[domain.GoalKind]domain.GoalID, len(found))
-	for kind, state := range found {
-		out[kind] = state.Goal.ID
-	}
-	return out, tx.Commit()
+	return found, tx.Commit()
 }
 
 // playerGoalKind reads the kind from a player goal identity,
-// "player-<hex>-<kind>". A goal minted any other way has no kind.
-func playerGoalKind(id domain.GoalID) (domain.GoalKind, bool) {
-	rest, ok := strings.CutPrefix(string(id), "player-")
+// "player-<hex>-<kind>" or a Project's "project-player-<hex>-<kind>". A row
+// minted any other way has no kind.
+func playerGoalKind(id string) (domain.GoalKind, bool) {
+	rest, ok := strings.CutPrefix(id, "player-")
 	if !ok {
-		rest, ok = strings.CutPrefix(string(id), projectIDPrefix+"player-")
+		rest, ok = strings.CutPrefix(id, projectIDPrefix+"player-")
 	}
 	if !ok {
 		return "", false
@@ -323,8 +362,8 @@ func playerGoalKind(id domain.GoalID) (domain.GoalKind, bool) {
 // playerGoals picks, per kind, the world's current player goal: a live one
 // over a cancelled, invalidated or retired one, then the latest tick, then
 // the greater identity.
-func playerGoals(ctx context.Context, tx *sql.Tx, w World) (map[domain.GoalKind]GoalState, error) {
-	ids, err := goalIDs(ctx, tx)
+func playerGoals(ctx context.Context, tx *sql.Tx, w World) (map[domain.GoalKind]WorkOwner, error) {
+	goalIDs, err := goalIDs(ctx, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -332,35 +371,45 @@ func playerGoals(ctx context.Context, tx *sql.Tx, w World) (map[domain.GoalKind]
 	if err != nil {
 		return nil, err
 	}
-	ids = append(ids, projectIDs...)
-	live := func(s GoalState) bool {
-		return !s.Retired && s.Goal.Status != domain.GoalCancelled && s.Goal.Status != domain.GoalInvalidated
-	}
-	out := map[domain.GoalKind]GoalState{}
-	for _, id := range ids {
-		kind, ok := playerGoalKind(id)
-		if !ok {
+	var rows []WorkOwner
+	for _, id := range goalIDs {
+		if _, ok := playerGoalKind(string(id)); !ok {
 			continue
 		}
 		state, err := loadGoal(ctx, tx, id)
 		if err != nil {
 			return nil, err
 		}
-		g := state.Goal
-		if g.Source != domain.PlayerGoal || g.Snapshot.Colony != w.Colony || g.Snapshot.Map != w.Map {
+		rows = append(rows, state)
+	}
+	for _, id := range projectIDs {
+		if _, ok := playerGoalKind(string(id)); !ok {
+			continue
+		}
+		state, err := loadProject(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, state)
+	}
+	out := map[domain.GoalKind]WorkOwner{}
+	for _, row := range rows {
+		kind, _ := playerGoalKind(row.OwnerID())
+		snapshot := row.ownerSnapshot()
+		if playerGoalSource(row) != domain.PlayerGoal || snapshot.Colony != w.Colony || snapshot.Map != w.Map {
 			continue
 		}
 		prev, seen := out[kind]
 		if seen {
-			if live(prev) != live(state) {
-				if live(prev) {
+			if playerGoalLive(prev) != playerGoalLive(row) {
+				if playerGoalLive(prev) {
 					continue
 				}
-			} else if prev.Goal.Tick > g.Tick {
+			} else if ownerTick(prev) > ownerTick(row) {
 				continue
 			}
 		}
-		out[kind] = state
+		out[kind] = row
 	}
 	return out, nil
 }
@@ -402,12 +451,25 @@ func (s *Store) lookupGoalCreateSubmission(ctx context.Context, tx *sql.Tx, id s
 	if !ok {
 		return GoalCreateSubmission{}, ErrNotFound
 	}
-	state, err := loadGoal(ctx, tx, entry.Goal)
+	state, err := reloadPlayerGoal(ctx, tx, entry.Goal)
 	if err != nil {
 		return GoalCreateSubmission{}, err
 	}
-	if state.Goal.Source != domain.PlayerGoal {
+	if playerGoalSource(state) != domain.PlayerGoal {
 		return GoalCreateSubmission{}, errors.New("goal activation did not produce a player goal")
 	}
-	return GoalCreateSubmission{Request: entry.Request, Goal: state.Goal.ID, State: state}, nil
+	return GoalCreateSubmission{Request: entry.Request, Goal: state.OwnerID(), State: state}, nil
+}
+
+// reloadPlayerGoal reads the goal or Project row an id names.
+func reloadPlayerGoal(ctx context.Context, tx *sql.Tx, id string) (WorkOwner, error) {
+	if isProjectID(id) {
+		return loadProject(ctx, tx, domain.ProjectID(id))
+	}
+	return loadGoal(ctx, tx, domain.GoalID(id))
+}
+
+// snapshotInWorld reports whether the snapshot names the world w.
+func snapshotInWorld(s domain.GenerationSnapshot, w World) bool {
+	return s.Colony == w.Colony && s.Load == w.Load && s.Map == w.Map
 }

@@ -279,7 +279,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		if player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoutineResourceResult{}, true, fmt.Errorf("%w: deepDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		decision, err := admitMethod(call, player.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: preview.Stock, Previews: []policy.Preview{p}, Purpose: policy.Routine})
+		decision, err := admitMethod(call, player.journal, store.BuildingMethodRequest{Owner: goal, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: preview.Stock, Previews: []policy.Preview{p}, Purpose: policy.Routine})
 		if err != nil {
 			return RoutineResourceResult{}, true, err
 		}

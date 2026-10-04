@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -29,8 +30,7 @@ type methodOwner interface {
 }
 
 func (g GoalState) ownerKey() (string, string, string) {
-	column, epoch := methodOwnerColumn(g.Goal.ID, g.Goal.Epoch)
-	return column, string(g.Goal.ID), epoch
+	return "goal_id", string(g.Goal.ID), strconv.FormatUint(g.Goal.Epoch, 10)
 }
 
 func (g GoalState) ownerSnapshot() domain.GenerationSnapshot { return g.Goal.Snapshot }

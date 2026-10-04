@@ -121,9 +121,9 @@ func TestUnsafeItemAllowVetoedAtDispatchOnly(t *testing.T) {
 	if len(review.Review.Emergency) != 0 {
 		t.Fatal("unsafe loot raised an emergency", review.Review.Emergency)
 	}
-	goal := routineGoal(t, review, policy.AllowStartingSupplies)
+	goal := routineProject(t, review, policy.AllowStartingSupplies)
 	plan := supplyPlan(t, "allow", 2, cell)
-	if _, err := s.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "allow", plan); err != nil {
+	if _, err := s.CommitProjectMethod(ctx, goal.Project.ID, goal.Revision, "allow", "", plan); err != nil {
 		t.Fatal(err)
 	}
 	snapshot := request.Current

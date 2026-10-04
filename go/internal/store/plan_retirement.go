@@ -166,7 +166,7 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.GoalID, epoch ui
 		return domain.GoalMethod{}, err
 	}
 	m := domain.GoalMethod{Goal: goal, Epoch: epoch, Method: method}
-	column, key := methodOwnerColumn(goal, epoch)
+	column, key := "goal_id", strconv.FormatUint(epoch, 10)
 	if err = tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? AND method_id=?", goal, key, method).Scan(&m.Plan); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
@@ -190,7 +190,7 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.GoalID, epoch ui
 // epoch turnover (tidy re-sites, zone shelves) load it by this stored key.
 func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.GoalID, method domain.MethodID) (domain.PlanID, error) {
 	var id domain.PlanID
-	column, _ := methodOwnerColumn(goal, 0)
+	column := "goal_id"
 	err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND method_id=? ORDER BY CAST(epoch AS INTEGER) DESC LIMIT 1", goal, method).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound
@@ -213,7 +213,7 @@ func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.GoalID, epoch u
 	if epoch > g.Goal.Epoch {
 		return nil, errors.New("invalid historical method epoch")
 	}
-	column, key := methodOwnerColumn(goal, epoch)
+	column, key := "goal_id", strconv.FormatUint(epoch, 10)
 	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? ORDER BY method_id LIMIT 257", goal, key)
 	if err != nil {
 		return nil, err

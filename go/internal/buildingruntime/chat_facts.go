@@ -29,9 +29,9 @@ type ChatFactsNative interface {
 // policy input a guidance nudge may change.
 type ChatFactsJournal interface {
 	LoadRoutineReview(context.Context) (store.RoutineReview, error)
-	LoadGoal(context.Context, domain.GoalID) (store.GoalState, error)
+	LoadOwner(context.Context, string) (store.WorkOwner, error)
 	LoadIncident(context.Context, domain.IncidentID) (store.IncidentState, error)
-	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]domain.GoalID, error)
+	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]store.WorkOwner, error)
 	PopulationDecisions(context.Context, store.World) ([]domain.PopulationDirective, error)
 }
 
@@ -131,29 +131,34 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 	if err != nil {
 		return none, domain.GenerationSnapshot{}, err
 	}
-	goals := map[domain.GoalID]bool{}
-	addGoal := func(id domain.GoalID, kind string) error {
+	goals := map[string]bool{}
+	addGoal := func(id string, kind string) error {
 		if goals[id] {
 			return nil
 		}
-		state, err := journal.LoadGoal(ctx, id)
+		owner, err := journal.LoadOwner(ctx, id)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		g := state.Goal
-		if g.Snapshot.Colony != world.Colony || g.Snapshot.Load != world.Load || g.Snapshot.Map != world.Map || state.Retired || g.Status == domain.GoalCancelled || g.Status == domain.GoalInvalidated {
+		g, _ := store.SummarizeOwner(owner)
+		if g.Snapshot.Colony != world.Colony || g.Snapshot.Load != world.Load || g.Snapshot.Map != world.Map || g.Retired || g.Status == domain.GoalCancelled || g.Status == domain.GoalInvalidated {
 			return nil
 		}
 		goals[id] = true
-		facts.Goals = append(facts.Goals, interpreter.Goal{ID: id, Kind: kind, Source: g.Source, Status: g.Status, Need: g.Need, Priority: g.Priority})
+		facts.Goals = append(facts.Goals, interpreter.Goal{ID: domain.GoalID(id), Kind: kind, Source: g.Source, Status: g.Status, Need: g.Need, Priority: g.Priority})
 		return nil
 	}
 	if review.Snapshot.Colony == world.Colony && review.Snapshot.Load == world.Load && review.Snapshot.Map == world.Map {
-		for _, binding := range review.Bindings() {
-			if err = addGoal(binding.Goal, string(binding.Need)); err != nil {
+		for _, binding := range review.Goals {
+			if err = addGoal(string(binding.Goal), string(binding.Need)); err != nil {
+				return none, domain.GenerationSnapshot{}, err
+			}
+		}
+		for _, binding := range review.Projects {
+			if err = addGoal(string(binding.Project), string(binding.Need)); err != nil {
 				return none, domain.GenerationSnapshot{}, err
 			}
 		}
@@ -178,7 +183,7 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 	}
 	sort.Slice(kinds, func(i, j int) bool { return kinds[i] < kinds[j] })
 	for _, kind := range kinds {
-		if err = addGoal(playerGoals[kind], string(kind)); err != nil {
+		if err = addGoal(playerGoals[kind].OwnerID(), string(kind)); err != nil {
 			return none, domain.GenerationSnapshot{}, err
 		}
 	}

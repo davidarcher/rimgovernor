@@ -702,7 +702,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	result := RoutineReviewResult{Needs: needs, Detection: detection}
 	// states is every assessment's row in assessment order, Projects as the
 	// goal handles ranking and progress read.
-	var states []GoalState
+	var states []WorkOwner
 	if !request.Enabled {
 		r.Goals = previous.Goals
 		r.Projects = previous.Projects
@@ -766,7 +766,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 				}
 				r.Projects = append(r.Projects, RoutineProject{n.ID, p.Project.ID})
 				result.Projects = append(result.Projects, p)
-				states = append(states, p.goalView())
+				states = append(states, p)
 				continue
 			}
 			g, exists := old[n.ID]

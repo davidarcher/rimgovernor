@@ -112,7 +112,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineBuildingResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	goal, workable, err := p.journal.Workable(call, review, r.goal)
+	goal, workable, err := p.journal.WorkableOwner(call, review, r.goal)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -155,7 +155,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	bunksOpen := false
-	for _, m := range goal.Methods {
+	for _, m := range goal.OwnerMethods() {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
 			return RoutineBuildingResult{}, err
@@ -346,7 +346,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			resolved, reason, err = r.selectTemperature(facts, review.Latches)
 		} else if r.goal == policy.MaintainRefrigeration {
 			var exhausted bool
-			coolingAllowance, exhausted, coolingLent, err = refrigerationOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick, review.Latches.RefrigerationSince)
+			coolingAllowance, exhausted, coolingLent, err = refrigerationOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick, review.Latches.RefrigerationSince)
 			if err != nil {
 				return RoutineBuildingResult{}, err
 			}
@@ -387,7 +387,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if !reason.IsZero() {
 			result := RoutineBuildingResult{Verdict: reason}
 			if r.goal == policy.EnsureBasicPower && reason.Is(RefusalNoSpace) {
-				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
 				return result, err
 			}
 			if r.goal == policy.EnsureBasicPower && reason == awaitingMethod(policy.PowerWaitFuel) {
@@ -407,13 +407,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			powerSettling := r.goal == policy.MaintainRefrigeration && reason == awaitingMethod(policy.RefrigerationPowerNeeded) && !coolingLent
 			if reason == BuildingComfortWait || reason == awaitingMethod(policy.PowerWaitOutput) || reason == BuildingTemperatureWait || reason == awaitingMethod(policy.RefrigerationWait) || powerSettling {
 				if r.goal == policy.EnsureTemperatureSafety {
-					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
 				} else if r.goal == policy.MaintainRefrigeration {
 					result.NativeWorkTicks = coolingAllowance
 				} else if r.goal == policy.EnsureBasicPower {
-					result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+					result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
 				} else {
-					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick, furniture)
+					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick, furniture)
 				}
 				if err != nil {
 					return RoutineBuildingResult{}, err
@@ -568,7 +568,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if clockDebug() {
 			for _, d := range facts.Definitions {
 				if d.Name == r.definition {
-					clockSchedulerLog("%s: builder unavailable definition=%+v workPawns=%+v", goal.Goal.ID, d, facts.WorkPawns)
+					clockSchedulerLog("%s: builder unavailable definition=%+v workPawns=%+v", goal.OwnerID(), d, facts.WorkPawns)
 				}
 			}
 		}
@@ -610,7 +610,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				return RoutineBuildingResult{}, err
 			}
 		}
-		if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
+		if _, loadErr := p.journal.LoadOwnerMethod(call, goal, method); loadErr == nil {
 			return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "sleeping_method")}, nil
 		} else if !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
@@ -675,7 +675,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	// Building intents admitted on other goals' plans but not yet applied
 	// show nothing on the map; keep off their anchors (#943).
 	var own []domain.PlanID
-	for _, m := range goal.Methods {
+	for _, m := range goal.OwnerMethods() {
 		own = append(own, m.Plan)
 	}
 	pendingAnchors, err := p.journal.PendingBuildingAnchors(call, snapshot, own)
@@ -765,7 +765,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 type routineAdmission struct {
 	state  ControlState
 	review store.RoutineReview
-	goal   store.GoalState
+	goal   store.WorkOwner
 	facts  observation.ColonyProjection
 	method domain.MethodID
 	// reason is the planner's short why, stored with the method (#846).
@@ -795,7 +795,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: a.goal.Goal.ID, Revision: a.goal.Revision, Method: a.method, Reason: a.reason, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Previews: a.selected, Purpose: a.purpose})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: a.goal, Method: a.method, Reason: a.reason, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Previews: a.selected, Purpose: a.purpose})
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -1284,11 +1284,11 @@ const sleepingBedsPerEpoch = 8
 // only a method whose plan is still open stays the one reported used. A
 // building gone from the census (a campfire that burnt out, a bed that
 // disappeared) and one never built both mean try again (#856).
-func (r *RoutineBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.GoalState, method domain.MethodID, census domain.Fact[policy.CurrentConstruction]) (domain.MethodID, error) {
+func (r *RoutineBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.WorkOwner, method domain.MethodID, census domain.Fact[policy.CurrentConstruction]) (domain.MethodID, error) {
 	p := r.reviewer.player
 	base := method
 	for n := 1; n < sleepingBedsPerEpoch; n++ {
-		existing, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		existing, err := p.journal.LoadOwnerMethod(call, goal, method)
 		if errors.Is(err, store.ErrNotFound) {
 			return method, nil
 		}

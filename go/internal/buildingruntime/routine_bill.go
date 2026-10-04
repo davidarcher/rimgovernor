@@ -75,14 +75,14 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineBillResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	goal, workable, err := p.journal.Workable(call, review, r.need)
+	goal, workable, err := p.journal.WorkableOwner(call, review, r.need)
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
 	if !workable {
 		return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	if goal.Goal.Priority >= 3 {
+	if goal.OwnerPriority() >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == r.need && row.Selected
@@ -91,7 +91,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineBillResult{Verdict: awaitingSlot(string(r.need))}, nil
 		}
 	}
-	for _, method := range goal.Methods {
+	for _, method := range goal.OwnerMethods() {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineBillResult{}, err
@@ -168,7 +168,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		// Each gestation is a new method of the goal: the bill is the same
 		// bench, recipe and count as the one before it.
-		return r.admit(call, epoch, arbiter, state, goal, read, selected, len(goal.Methods))
+		return r.admit(call, epoch, arbiter, state, goal, read, selected, len(goal.OwnerMethods()))
 	}
 	if r.purpose == policy.SurgeryPartBill {
 		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns, projection.SurgeryContext())
@@ -360,7 +360,7 @@ func (r *RoutineBillPlanner) lendReserveWork(result RoutineBillResult, running b
 
 // admit commits the selected bill as the goal's method, once per goal
 // epoch and claim.
-func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, goal store.GoalState, read observation.RoutineReading, selected policy.BillSelection, round int) (RoutineBillResult, error) {
+func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, goal store.WorkOwner, read observation.RoutineReading, selected policy.BillSelection, round int) (RoutineBillResult, error) {
 	p := r.reviewer.player
 	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
 	if selected.Mode == domain.HumanButcherForever {
@@ -401,7 +401,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 		fmt.Fprint(hash, "/", selected.Replace, "/", selected.Token)
 	}
 	method := domain.MethodID(fmt.Sprintf("bill-%x", hash.Sum(nil)[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err = p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBillResult{Verdict: waitFor(WaitMethodUsed, "bill_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBillResult{}, err
@@ -432,7 +432,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineBillResult{}, observation.ErrStale
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBillResult{}, err
 	}
 	return RoutineBillResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -475,19 +475,17 @@ func (r *RoutineBillPlanner) unclaimedBenches(ctx context.Context, snapshot doma
 // separated-spot method this epoch; a review that binds no such goal has
 // nothing left to try.
 func (p *Player) butcherSpotSeparated(ctx context.Context, review store.RoutineReview) (bool, error) {
-	for _, binding := range review.Bindings() {
-		if binding.Need != policy.MaintainButcherSpot {
-			continue
-		}
-		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			return false, err
-		}
-		_, err = p.journal.LoadGoalMethod(ctx, goal.Goal.ID, goal.Goal.Epoch, "butcher-spot-separated")
-		if errors.Is(err, store.ErrNotFound) {
-			return false, nil
-		}
-		return err == nil, err
+	id, bound := review.ProjectFor(policy.MaintainButcherSpot)
+	if !bound {
+		return true, nil
 	}
-	return true, nil
+	project, err := p.journal.LoadProject(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	_, err = p.journal.LoadOwnerMethod(ctx, project, "butcher-spot-separated")
+	if errors.Is(err, store.ErrNotFound) {
+		return false, nil
+	}
+	return err == nil, err
 }

@@ -19,16 +19,16 @@ import (
 // the required PlayerBuildings interface.
 type playerGoals interface {
 	SubmitGoalCreate(context.Context, store.GoalCreateSubmissionRequest) (store.GoalCreateSubmission, bool, error)
-	CancelGoal(context.Context, store.World, domain.GoalID, uint64) (store.GoalState, error)
-	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]domain.GoalID, error)
+	CancelGoal(context.Context, store.World, string, uint64) (store.WorkOwner, error)
+	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]store.WorkOwner, error)
 	LookupGoalCreateSubmission(context.Context, string) (store.GoalCreateSubmission, error)
 }
 
 // PlayerGoal is one kind the player has activated in a world and the goal
 // identity that activation produced, the identity a cancellation names.
 type PlayerGoal struct {
-	Kind   string        `json:"kind"`
-	GoalID domain.GoalID `json:"goalId"`
+	Kind   string `json:"kind"`
+	GoalID string `json:"goalId"`
 }
 
 type playerGoalsDTO struct {
@@ -41,14 +41,14 @@ type playerGoalsDTO struct {
 // goalStateDTO is one goal's lifecycle state. Revision is the local CAS token a
 // cancellation must present; it is not native authority or a native generation.
 type goalStateDTO struct {
-	GoalID   domain.GoalID `json:"goalId"`
-	Source   string        `json:"source"`
-	Status   string        `json:"status"`
-	Need     string        `json:"need"`
-	Priority int           `json:"priority"`
-	Epoch    uint64        `json:"epoch,string"`
-	Revision uint64        `json:"revision,string"`
-	Tick     domain.Tick   `json:"tick"`
+	GoalID   string      `json:"goalId"`
+	Source   string      `json:"source"`
+	Status   string      `json:"status"`
+	Need     string      `json:"need"`
+	Priority int         `json:"priority"`
+	Epoch    uint64      `json:"epoch,string"`
+	Revision uint64      `json:"revision,string"`
+	Tick     domain.Tick `json:"tick"`
 }
 
 type goalCreateSubmissionDTO struct {
@@ -61,8 +61,9 @@ type goalCreateSubmissionDTO struct {
 	State goalStateDTO `json:"state"`
 }
 
-func goalStateWire(v store.GoalState) goalStateDTO {
-	return goalStateDTO{v.Goal.ID, string(v.Goal.Source), string(v.Goal.Status), string(v.Goal.Need), v.Goal.Priority, v.Goal.Epoch, v.Revision, v.Goal.Tick}
+func goalStateWire(owner store.WorkOwner) goalStateDTO {
+	v, _ := store.SummarizeOwner(owner)
+	return goalStateDTO{v.ID, string(v.Source), string(v.Status), string(v.Need), v.Priority, v.Epoch, v.Revision, v.Tick}
 }
 
 // decodeGoalCreate reads one goal activation. The snapshot is supplied whole
@@ -119,7 +120,7 @@ func decodeGoalCreate(reader io.Reader) (store.GoalCreateSubmissionRequest, erro
 // recorded goal identity, and that goal's local CAS revision.
 type goalCancelRequest struct {
 	World    store.World
-	Goal     domain.GoalID
+	Goal     string
 	Revision uint64
 }
 
@@ -139,7 +140,7 @@ func decodeGoalCancel(reader io.Reader) (goalCancelRequest, error) {
 	if err = buildingRequestID(id); err != nil {
 		return q, err
 	}
-	q.Goal = domain.GoalID(id)
+	q.Goal = id
 	if q.Revision, err = buildingUint(fields["revision"]); err != nil {
 		return q, err
 	}
@@ -148,8 +149,9 @@ func decodeGoalCancel(reader io.Reader) (goalCancelRequest, error) {
 
 func projectGoalCreateSubmission(v store.GoalCreateSubmission) (goalCreateSubmissionDTO, error) {
 	var zero goalCreateSubmissionDTO
+	summary, ok := store.SummarizeOwner(v.State)
 	if buildingRequestID(v.Request.RequestID) != nil || v.Request.Kind.Validate() != nil || v.Request.World().Validate() != nil ||
-		v.State.Goal.Validate() != nil || v.State.Goal.ID != v.Goal || v.State.Goal.Source != domain.PlayerGoal {
+		summary.ID != v.Goal || summary.Source != domain.PlayerGoal || !ok {
 		return zero, errors.New("invalid goal activation submission")
 	}
 	return goalCreateSubmissionDTO{v.Request.RequestID, playerWorldDTO(v.Request.World()), string(v.Request.Kind), goalStateWire(v.State)}, nil
@@ -214,7 +216,7 @@ func (s *Server) handlePlayerGoals(ctx context.Context, w http.ResponseWriter, r
 			s.write(w, r, status, failure)
 			return
 		}
-		if v.Goal.ID != q.Goal || v.Goal.Status != domain.GoalCancelled {
+		if summary, ok := store.SummarizeOwner(v); !ok || summary.ID != q.Goal || summary.Status != domain.GoalCancelled {
 			s.readFailure(w, r, errors.New("mismatched cancellation"))
 			return
 		}
@@ -258,8 +260,9 @@ func (s *Server) handlePlayerGoals(ctx context.Context, w http.ResponseWriter, r
 			return
 		}
 		goals := make([]PlayerGoal, 0, len(bindings))
-		for kind, id := range bindings {
-			if kind.Validate() != nil || buildingRequestID(string(id)) != nil {
+		for kind, owner := range bindings {
+			id := owner.OwnerID()
+			if kind.Validate() != nil || buildingRequestID(id) != nil {
 				s.readFailure(w, r, errors.New("invalid player goal binding"))
 				return
 			}

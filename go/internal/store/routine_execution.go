@@ -48,9 +48,11 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		return err
 	}
 	if projectID.Valid {
-		// A Project's row is read through its goal view; the review binds it
-		// by need exactly as it binds a Standard.
-		if err = authorizeGoalPlan(ctx, tx, review, domain.GoalID(projectID.String), root, target); err != nil {
+		project, err := loadProject(ctx, tx, domain.ProjectID(projectID.String))
+		if err != nil {
+			return err
+		}
+		if err = authorizeGoalPlan(ctx, tx, review, project, root, target); err != nil {
 			return err
 		}
 		return tx.Commit()
@@ -61,7 +63,11 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		}
 		return tx.Commit()
 	}
-	if err = authorizeGoalPlan(ctx, tx, review, domain.GoalID(goalID.String), root, target); err != nil {
+	goal, err := loadGoal(ctx, tx, domain.GoalID(goalID.String))
+	if err != nil {
+		return err
+	}
+	if err = authorizeGoalPlan(ctx, tx, review, goal, root, target); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -98,24 +104,21 @@ func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review RoutineReview
 	return routineActionsSupported(p.Spec)
 }
 
-func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, goalID domain.GoalID, root, target domain.GenerationSnapshot) error {
-	if _, bound := review.Need(goalID); !bound {
+func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, owner WorkOwner, root, target domain.GenerationSnapshot) error {
+	if _, bound := owner.ownerNeed(review); !bound {
 		return ErrConflict
 	}
-	g, err := loadGoal(ctx, tx, goalID)
-	if err != nil {
-		return err
-	}
-	if g.Retired || g.Goal.Source != domain.AutopilotGoal || g.Goal.Status != domain.GoalActive || g.Goal.Need == domain.NeedUnknown || !sameRoot(g.Goal.Snapshot, root) {
+	g, _ := SummarizeOwner(owner)
+	if g.Retired || g.Source != domain.AutopilotGoal || g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || !sameRoot(g.Snapshot, root) {
 		return ErrConflict
 	}
 	// A prepared plan does not dispatch while a Rule vetoes its goal.
-	if reason := review.Veto(g.Goal); reason != "" {
-		return fmt.Errorf("%w: %w: goal %s: %s", ErrConflict, ErrNotAdmitted, g.Goal.ID, reason)
+	if reason := review.VetoOwner(owner); reason != "" {
+		return fmt.Errorf("%w: %w: goal %s: %s", ErrConflict, ErrNotAdmitted, g.ID, reason)
 	}
 	bound := false
-	for _, method := range g.Methods {
-		if method.Plan == target.Plan && method.Epoch == g.Goal.Epoch {
+	for _, method := range owner.OwnerMethods() {
+		if method.Plan == target.Plan && method.Epoch == g.Epoch {
 			bound = true
 		}
 	}
@@ -129,7 +132,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, go
 	if p.Retired || p.Spec.Revision() != target.Revision {
 		return ErrConflict
 	}
-	if g.Goal.Need == domain.NeedRecovered {
+	if g.Need == domain.NeedRecovered {
 		// A configured bill has recovered setup, but its already-issued first output
 		// still needs ordinary pawn time. This never permits another setup write.
 		waiting := false
@@ -172,22 +175,17 @@ func (r RoutineReview) Need(goal domain.GoalID) (domain.GoalID, bool) {
 			return binding.Need, true
 		}
 	}
+	return "", false
+}
+
+// projectNeed returns the routine need the review binds the Project to.
+func (r RoutineReview) projectNeed(project domain.ProjectID) (domain.GoalID, bool) {
 	for _, binding := range r.Projects {
-		if domain.GoalID(binding.Project) == goal {
+		if binding.Project == project {
 			return binding.Need, true
 		}
 	}
 	return "", false
-}
-
-// Bindings returns every need binding of the review, Standards then Projects,
-// as the goal-view ids the journal's goal reads accept.
-func (r RoutineReview) Bindings() []RoutineGoal {
-	out := append([]RoutineGoal(nil), r.Goals...)
-	for _, b := range r.Projects {
-		out = append(out, RoutineGoal{Need: b.Need, Goal: domain.GoalID(b.Project)})
-	}
-	return out
 }
 
 // Veto asks the policy Rules (#1017) whether this review admits a proposal
@@ -201,7 +199,7 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 	return r.vetoNeed(need, g.Priority)
 }
 
-// Workable loads the goal the review binds to need and reports whether a
+// Workable loads the Standard goal the review binds to need and reports whether a
 // planner may work it: an active deficit the Rules admit (#1121). The goal
 // is returned whenever the review binds one, workable or not.
 func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.GoalID) (GoalState, bool, error) {
@@ -209,11 +207,6 @@ func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.GoalI
 	for _, binding := range r.Goals {
 		if binding.Need == need {
 			id = binding.Goal
-		}
-	}
-	for _, binding := range r.Projects {
-		if binding.Need == need {
-			id = domain.GoalID(binding.Project)
 		}
 	}
 	if id == "" {
@@ -237,4 +230,12 @@ func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
 		return fmt.Errorf("%w: action %s: %s: %s", ErrActionVetoed, a.ID(), ref.Rule, ref.Reason)
 	}
 	return nil
+}
+
+// needOf is the need the review binds the goal or Project row id to.
+func (r RoutineReview) needOf(id string) (domain.GoalID, bool) {
+	if isProjectID(id) {
+		return r.projectNeed(domain.ProjectID(id))
+	}
+	return r.Need(domain.GoalID(id))
 }

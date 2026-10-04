@@ -66,8 +66,8 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureCooking)
-	if g.Goal.Need != domain.NeedDeficit {
+	g := routineProject(t, out, policy.EnsureCooking)
+	if g.Project.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
@@ -82,7 +82,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "cook", billPlan); err != nil {
+	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -95,8 +95,8 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	}
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
-	g = routineGoal(t, out, policy.EnsureCooking)
-	if g.Goal.Need != domain.NeedRecovered || g.Goal.Status != domain.GoalActive {
+	g = routineProject(t, out, policy.EnsureCooking)
+	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectOpen {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err != nil {
@@ -116,7 +116,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureCooking)
+	g := routineProject(t, out, policy.EnsureCooking)
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -129,7 +129,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "cook", billPlan); err != nil {
+	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -145,8 +145,8 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	}
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
-	g = routineGoal(t, out, policy.EnsureCooking)
-	if g.Goal.Need != domain.NeedRecovered || g.Goal.Status != domain.GoalSatisfied {
+	g = routineProject(t, out, policy.EnsureCooking)
+	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectFinished {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
@@ -166,7 +166,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureCooking)
+	g := routineProject(t, out, policy.EnsureCooking)
 	bill1, err := domain.NewProductionBill("bench1", "recipe1", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -187,7 +187,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "cook", billPlan); err != nil {
+	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -201,8 +201,8 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 	// bill2 is deliberately left Pending: never prepared or dispatched.
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
-	g = routineGoal(t, out, policy.EnsureCooking)
-	if g.Goal.Need != domain.NeedRecovered || g.Goal.Status != domain.GoalActive {
+	g = routineProject(t, out, policy.EnsureCooking)
+	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectOpen {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
@@ -355,7 +355,7 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
+	g := routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -368,7 +368,7 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "cook", billPlan); err != nil {
+	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -380,9 +380,9 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 		t.Fatal(p, err)
 	}
 	r.Facts.Cooking = domain.Known(true)
-	g = routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	if g.Goal.Need != domain.NeedRecovered || g.Goal.Status != domain.GoalSatisfied {
-		t.Fatal("recovered goal kept its undispatched method open", g.Goal)
+	g = routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
+	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectFinished {
+		t.Fatal("recovered goal kept its undispatched method open", g.Project)
 	}
 	p, err := s.LoadPlan(ctx, "bill-plan")
 	if err != nil {

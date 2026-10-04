@@ -49,17 +49,19 @@ func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.Generati
 		return unknown, nil
 	}
 	result := []policy.ConstructionClaim{}
-	goals := map[domain.GoalID]GoalState{}
+	goals := map[domain.GoalID]OwnerSummary{}
 	for _, link := range links {
 		g, cached := goals[link.goal]
 		if !cached {
-			if g, err = loadGoal(ctx, tx, link.goal); err != nil {
+			owner, err := loadOwner(ctx, tx, string(link.goal))
+			if err != nil {
 				return unknown, err
 			}
+			g, _ = SummarizeOwner(owner)
 			goals[link.goal] = g
 		}
-		scope := g.Goal.Snapshot
-		if g.Goal.Source != domain.AutopilotGoal || g.Goal.Status == domain.GoalCancelled || scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {
+		scope := g.Snapshot
+		if g.Source != domain.AutopilotGoal || g.Status == domain.GoalCancelled || scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {
 			continue
 		}
 		plan, err := load(ctx, tx, link.plan)

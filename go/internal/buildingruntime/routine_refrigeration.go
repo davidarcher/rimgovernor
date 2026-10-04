@@ -94,8 +94,8 @@ func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts
 // re-latched when the season warmed, or a cooler the player set) lends the
 // same allowance from the tick the latch engaged, so a second cooler can
 // still be proposed once it elapses (#202); lent reports that case.
-func refrigerationOutputAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick, since domain.Tick) (allowance uint32, exhausted bool, lent bool, err error) {
-	methods, err := journal.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
+func refrigerationOutputAllowance(ctx context.Context, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick, since domain.Tick) (allowance uint32, exhausted bool, lent bool, err error) {
+	methods, err := journal.LoadOwnerMethods(ctx, goal)
 	if err != nil {
 		return 0, false, false, err
 	}
@@ -244,14 +244,14 @@ func (r *RoutineBuildingPlanner) previewPlannedBuilding(ctx context.Context, sna
 // commitRefrigerationTarget binds a one-action building-temperature plan to
 // the goal, the same shape the tend planner commits: the Hands worker then
 // applies the CAS-gated setpoint patch and records its receipt.
-func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context, goal store.GoalState, check func() error) (RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context, goal store.WorkOwner, check func() error) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	proposal := r.refrigeration
 	if proposal == nil || proposal.Method != policy.RefrigerationSetTarget {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: commitRefrigerationTarget: proposal == nil || proposal.Method != policy.RefrigerationSetTarget", ErrControl)
 	}
 	method := proposal.Key
-	if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
+	if _, loadErr := p.journal.LoadOwnerMethod(call, goal, method); loadErr == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "refrigeration_target")}, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoutineBuildingResult{}, loadErr
@@ -272,7 +272,7 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	if err = check(); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil

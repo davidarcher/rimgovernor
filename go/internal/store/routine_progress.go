@@ -19,7 +19,7 @@ import (
 // deficit the review measured. Records are keyed by need, the id the
 // dashboard names goals by; a goal that is recovered, cancelled or
 // invalidated drops its record.
-func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest, previous RoutineReview, reset bool, needs policy.RoutineNeeds, states []GoalState) ([]policy.GoalProgress, error) {
+func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest, previous RoutineReview, reset bool, needs policy.RoutineNeeds, states []WorkOwner) ([]policy.GoalProgress, error) {
 	old := map[domain.GoalID]policy.GoalProgress{}
 	if !reset {
 		for _, p := range previous.Progress {
@@ -32,7 +32,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	storageOpen := false
 	for i, n := range needs.Assessments {
-		if n.ID != policy.MaintainFoodStorage || states[i].Goal.Status != domain.GoalActive {
+		if n.ID != policy.MaintainFoodStorage || !ownerActive(states[i]) {
 			continue
 		}
 		open, err := goalOpenWork(ctx, tx, states[i])
@@ -44,15 +44,15 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	var out []policy.GoalProgress
 	for i, n := range needs.Assessments {
 		g := states[i]
-		if g.Goal.Status != domain.GoalActive {
+		if !ownerActive(g) {
 			continue
 		}
 		last := old[n.ID]
 		evidence := policy.ProgressEvidence{Observed: deficits[n.ID]}
 		var method domain.MethodID
 		labor := policy.GoalLabor(n.ID)
-		for _, m := range g.Methods {
-			if m.Epoch != g.Goal.Epoch {
+		for _, m := range g.OwnerMethods() {
+			if m.Epoch != g.OwnerEpoch() {
 				continue
 			}
 			plan, err := load(ctx, tx, m.Plan)

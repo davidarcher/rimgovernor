@@ -33,7 +33,7 @@ func perimeterRecord(t *testing.T, plan policy.LayoutPlan) store.DefenseLayoutRe
 	if !ok {
 		t.Fatal("no killbox")
 	}
-	return store.DefenseLayoutRecord{World: store.World{Colony: "c", Load: "l"}, Goal: "g", Entry: k.Entry, Firing: []domain.Cell{k.Entry},
+	return store.DefenseLayoutRecord{World: store.World{Colony: "c", Load: "l"}, Project: "g", Entry: k.Entry, Firing: []domain.Cell{k.Entry},
 		Tiers: []store.DefenseTierRecord{{Name: policy.TierTrapCorridor, Buildings: []store.DefenseBuilding{{Definition: "TrapSpike", Cell: k.Entry, Rotation: domain.North, Stuff: "WoodLog"}}}}}
 }
 

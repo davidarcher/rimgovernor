@@ -53,7 +53,7 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 	}
 	snapshot := session.State().Snapshot
 	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
-	layout := store.DefenseLayoutRecord{World: world, Goal: "layout-goal", Toward: domain.North, Chokepoint: domain.Cell{X: 9, Z: 10}, Entry: domain.Cell{X: 9, Z: 10}, Firing: []domain.Cell{{X: 9, Z: 23}}, Tiers: []store.DefenseTierRecord{{Name: policy.TierMortars, Built: true, Buildings: []store.DefenseBuilding{{Definition: "Turret_Mortar", Cell: domain.Cell{X: 5, Z: 5}, Rotation: domain.North}}}}}
+	layout := store.DefenseLayoutRecord{World: world, Project: "layout-goal", Toward: domain.North, Chokepoint: domain.Cell{X: 9, Z: 10}, Entry: domain.Cell{X: 9, Z: 10}, Firing: []domain.Cell{{X: 9, Z: 23}}, Tiers: []store.DefenseTierRecord{{Name: policy.TierMortars, Built: true, Buildings: []store.DefenseBuilding{{Definition: "Turret_Mortar", Cell: domain.Cell{X: 5, Z: 5}, Rotation: domain.North}}}}}
 	if err := db.SaveDefenseLayout(ctx, layout); err != nil {
 		t.Fatal(err)
 	}

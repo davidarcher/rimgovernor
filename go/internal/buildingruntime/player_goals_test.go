@@ -30,11 +30,11 @@ func TestPlayerGoalCreateReplayAndConflict(t *testing.T) {
 	if err != nil || !created {
 		t.Fatal(result, created, err)
 	}
-	if result.State.Goal.Source != domain.PlayerGoal || result.State.Goal.Status != domain.GoalActive || result.State.Goal.Need != domain.NeedDeficit {
-		t.Fatal("goal not player-activated", result.State.Goal)
+	if result.State.(store.GoalState).Goal.Source != domain.PlayerGoal || result.State.(store.GoalState).Goal.Status != domain.GoalActive || result.State.(store.GoalState).Goal.Need != domain.NeedDeficit {
+		t.Fatal("goal not player-activated", result.State.(store.GoalState).Goal)
 	}
 	bindings, err := p.PlayerGoals(ctx, q.World())
-	if err != nil || len(bindings) != 1 || bindings[domain.EnsureFoodSupplyGoal] != result.Goal {
+	if err != nil || len(bindings) != 1 || bindings[domain.EnsureFoodSupplyGoal].OwnerID() != result.Goal {
 		t.Fatal(bindings, err)
 	}
 	// A replay is answered from the journal without re-reading native identity.
@@ -53,7 +53,7 @@ func TestPlayerGoalCreateReplayAndConflict(t *testing.T) {
 	if err != nil || found.Request != q {
 		t.Fatal(found, err)
 	}
-	if _, err = db.LoadGoal(ctx, result.Goal); err != nil {
+	if _, err = db.LoadGoal(ctx, domain.GoalID(result.Goal)); err != nil {
 		t.Fatal(err)
 	}
 	if s.acquires.Load() != 0 || s.manuals.Load() != 0 || p.State().Enabled {
@@ -75,7 +75,7 @@ func TestPlayerGoalCreateFreshWorldAndClosedPlayer(t *testing.T) {
 	}
 	worlds.world = q.World()
 	result, created, err := p.SubmitGoalCreate(ctx, q)
-	if err != nil || !created || result.State.Goal.Priority != 3 {
+	if err != nil || !created || result.State.(store.GoalState).Goal.Priority != 3 {
 		t.Fatal(result, created, err)
 	}
 	if err = p.Close(ctx); err != nil {
@@ -97,23 +97,23 @@ func TestPlayerCancelGoalWorldBoundRevisionAndClosedPlayer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = p.CancelGoal(ctx, q.World(), result.Goal, result.State.Revision+1); !errors.Is(err, store.ErrConflict) {
+	if _, err = p.CancelGoal(ctx, q.World(), result.Goal, result.State.OwnerRevision()+1); !errors.Is(err, store.ErrConflict) {
 		t.Fatal("stale revision accepted", err)
 	}
-	if _, err = p.CancelGoal(ctx, q.World(), "absent", result.State.Revision); !errors.Is(err, store.ErrNotFound) {
+	if _, err = p.CancelGoal(ctx, q.World(), "absent", result.State.OwnerRevision()); !errors.Is(err, store.ErrNotFound) {
 		t.Fatal(err)
 	}
 	worlds.world.Load = "replacement"
-	if _, err = p.CancelGoal(ctx, q.World(), result.Goal, result.State.Revision); !errors.Is(err, store.ErrConflict) {
+	if _, err = p.CancelGoal(ctx, q.World(), result.Goal, result.State.OwnerRevision()); !errors.Is(err, store.ErrConflict) {
 		t.Fatal("cancelled against a replaced world", err)
 	}
-	live, err := db.LoadGoal(ctx, result.Goal)
-	if err != nil || live.Goal.Status != domain.GoalActive {
+	live, err := db.LoadProject(ctx, domain.ProjectID(result.Goal))
+	if err != nil || live.Project.Status != domain.ProjectOpen {
 		t.Fatal("refused cancellation changed the goal", live, err)
 	}
 	worlds.world = q.World()
-	cancelled, err := p.CancelGoal(ctx, q.World(), result.Goal, result.State.Revision)
-	if err != nil || cancelled.Goal.Status != domain.GoalCancelled {
+	cancelled, err := p.CancelGoal(ctx, q.World(), result.Goal, result.State.OwnerRevision())
+	if err != nil || cancelled.(store.ProjectState).Project.Status != domain.ProjectCancelled {
 		t.Fatal(cancelled, err)
 	}
 	if s.acquires.Load() != 0 || s.manuals.Load() != 0 || p.State().Enabled {
@@ -122,7 +122,7 @@ func TestPlayerCancelGoalWorldBoundRevisionAndClosedPlayer(t *testing.T) {
 	if err = p.Close(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = p.CancelGoal(ctx, q.World(), result.Goal, cancelled.Revision); !errors.Is(err, ErrControl) {
+	if _, err = p.CancelGoal(ctx, q.World(), result.Goal, cancelled.OwnerRevision()); !errors.Is(err, ErrControl) {
 		t.Fatal(err)
 	}
 }

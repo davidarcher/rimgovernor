@@ -18,7 +18,7 @@ func TestDefenseLayoutRoundTripPerWorld(t *testing.T) {
 	wall, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 4}, domain.North, "BlocksGranite")
 	layout := policy.DefenseLayout{Chokepoint: domain.Cell{X: 9, Z: 15}, Entry: domain.Cell{X: 9, Z: 8}, Toward: domain.North, Width: 3,
 		Firing: []policy.FiringPosition{{Cell: domain.Cell{X: 9, Z: 22}}}, Tiers: []policy.DefenseTier{{Name: policy.TierChokepoint, Buildings: []domain.Building{wall}, Reserved: []domain.Cell{{X: 3, Z: 4}}}}}
-	record, err := NewDefenseLayoutRecord(world, "goal-1", 2, layout, []domain.Cell{{X: 9, Z: 30}})
+	record, err := NewDefenseLayoutRecord(world, "project-1", layout, []domain.Cell{{X: 9, Z: 30}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestDefenseLayoutRoundTripPerWorld(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, ok, err := db.LoadDefenseLayout(context.Background(), world)
-	if err != nil || !ok || got.Firing[0] != (domain.Cell{X: 9, Z: 22}) || got.Epoch != 2 || got.Entrances[0] != (domain.Cell{X: 9, Z: 30}) {
+	if err != nil || !ok || got.Firing[0] != (domain.Cell{X: 9, Z: 22}) || got.Entrances[0] != (domain.Cell{X: 9, Z: 30}) {
 		t.Fatalf("%v %v %+v", ok, err, got)
 	}
 	tier, buildings, ok := got.Tier(policy.TierChokepoint)

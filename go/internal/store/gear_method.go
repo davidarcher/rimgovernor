@@ -9,14 +9,14 @@ import (
 )
 
 // Independent pawn dressing may share a review; a bill remains exclusive.
-func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) (bool, error) {
+func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRoutine(ctx, tx)
 	if err != nil {
 		return false, err
 	}
 	bound := false
 	for _, b := range review.Goals {
-		bound = bound || b.Goal == goal.Goal.ID && b.Need == policy.MaintainEquipment
+		bound = bound || string(b.Goal) == goal.OwnerID() && b.Need == policy.MaintainEquipment
 	}
 	if !bound {
 		return false, nil
@@ -49,7 +49,7 @@ func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan do
 	}
 	// No slot limit: open work only has to stay off the pawns and items this
 	// plan touches.
-	for _, m := range goal.Methods {
+	for _, m := range goal.OwnerMethods() {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err

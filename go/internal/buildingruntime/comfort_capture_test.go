@@ -75,18 +75,18 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 		tick domain.Tick
 		want uint32
 	}{{7, 120}, {10006, 1}, {10007, 0}} {
-		got, err := comfortUseAllowance(ctx, db, g.Goal, current, row.tick, testDiningFurniture)
+		got, err := comfortUseAllowance(ctx, db, g, current, row.tick, testDiningFurniture)
 		if err != nil || got != row.want {
 			t.Fatal(row, got, err)
 		}
 	}
 	changed := current
 	changed.Native++
-	if got, err := comfortUseAllowance(ctx, db, g.Goal, changed, 7, testDiningFurniture); err != nil || got != 0 {
+	if got, err := comfortUseAllowance(ctx, db, g, changed, 7, testDiningFurniture); err != nil || got != 0 {
 		t.Fatal("changed direction inherited allowance", got, err)
 	}
-	renewed := g.Goal
-	renewed.Epoch++
+	renewed := g
+	renewed.Goal.Epoch++
 	if got, err := comfortUseAllowance(ctx, db, renewed, current, 7, testDiningFurniture); err != nil || got != 0 {
 		t.Fatal("renewed deficit inherited allowance", got, err)
 	}
@@ -124,7 +124,7 @@ func TestNativeComfortCompletionBudgetCapture(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ticks, err = comfortUseAllowance(context.Background(), db, goal.Goal, review.Snapshot, review.Tick, testDiningFurniture)
+		ticks, err = comfortUseAllowance(context.Background(), db, goal, review.Snapshot, review.Tick, testDiningFurniture)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -139,8 +139,8 @@ func generatorResearch(facts observation.ColonyProjection) []string {
 
 // Existing native power may need ordinary hauling/refueling, but only a
 // completed method in this direction can lend a non-renewable clock budget.
-func powerOutputAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
-	methods, err := journal.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
+func powerOutputAllowance(ctx context.Context, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
+	methods, err := journal.LoadOwnerMethods(ctx, goal)
 	if err != nil {
 		return 0, err
 	}

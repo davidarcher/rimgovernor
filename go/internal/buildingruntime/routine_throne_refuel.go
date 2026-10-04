@@ -39,10 +39,10 @@ func throneRefuelRecent(history []domain.GoalMethod, lamp string, tick domain.Ti
 // room light as a recovery_service action under the housing goal: the same
 // native work-giver job the defense rearm issues, whose CAS token and pawn
 // eligibility Hands re-check at dispatch.
-func (r *RoutineSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	tick := reading.Projection.Identity.Tick
-	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	history, err := p.journal.LoadOwnerMethods(call, goal)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -79,9 +79,9 @@ func (r *RoutineSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context,
 	if latest.Revision != review.Revision || !latest.Enabled {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: refuelThrone: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: throne light %s refuel by %s (%s)", goal.Goal.ID, step.Lamp, step.Pawn, method)
+	clockSchedulerLog("%s: throne light %s refuel by %s (%s)", goal.OwnerID(), step.Lamp, step.Pawn, method)
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

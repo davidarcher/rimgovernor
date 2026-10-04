@@ -154,15 +154,16 @@ func (s *Server) applyChatGuidance(ctx context.Context, requestID string, world 
 		if !ok {
 			return disabled("Maintained goals")
 		}
-		state, err := s.chatJournal.LoadGoal(ctx, guidance.CancelGoal)
+		state, err := s.chatJournal.LoadOwner(ctx, string(guidance.CancelGoal))
 		if status, failure := check(err); failure != nil {
 			return dto, status, failure, nil
 		}
-		v, err := player.CancelGoal(ctx, world, guidance.CancelGoal, state.Revision)
+		stateSummary, _ := store.SummarizeOwner(state)
+		v, err := player.CancelGoal(ctx, world, string(guidance.CancelGoal), stateSummary.Revision)
 		if status, failure := check(err); failure != nil {
 			return dto, status, failure, nil
 		}
-		if v.Goal.ID != guidance.CancelGoal || v.Goal.Status != domain.GoalCancelled {
+		if summary, ok := store.SummarizeOwner(v); !ok || summary.ID != string(guidance.CancelGoal) || summary.Status != domain.GoalCancelled {
 			return dto, 0, nil, errors.New("mismatched cancellation")
 		}
 		projected := goalStateWire(v)

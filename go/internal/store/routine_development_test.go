@@ -213,7 +213,7 @@ func TestRoutineDevelopmentConfiguredTargets(t *testing.T) {
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Current: "Stonecutting", Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 120}})
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.EnsureResearch).Goal.Need != domain.NeedRecovered || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedRecovered {
+	if routineProject(t, out, policy.EnsureResearch).Project.Need != domain.NeedRecovered || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedRecovered {
 		t.Fatal(out.Goals)
 	}
 	r.Facts.Research, r.Facts.Resources = domain.Unknown[policy.ResearchFacts](), domain.Unknown[[]policy.Amount]()

@@ -56,3 +56,15 @@ func nextWaveMethod(goal store.GoalState, prefix string) domain.MethodID {
 		}
 	}
 }
+
+// projectAttemptCount counts the Project's methods whose id starts with
+// prefix, retired plans included. A Project has no epochs.
+func projectAttemptCount(p store.ProjectState, prefix string) int {
+	count := 0
+	for _, m := range p.History {
+		if strings.HasPrefix(string(m.Method), prefix) {
+			count++
+		}
+	}
+	return count
+}

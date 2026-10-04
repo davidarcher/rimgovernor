@@ -206,7 +206,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoutineBuildingResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: stock, Previews: []policy.Preview{pv}, Purpose: policy.Routine})
+		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: stock, Previews: []policy.Preview{pv}, Purpose: policy.Routine})
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}

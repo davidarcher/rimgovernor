@@ -264,10 +264,10 @@ func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l 
 		return out
 	}
 	record := store.DefenseLayoutRecord{
-		World:  store.World{Colony: domain.ColonyID(typed.GetColonyId()), Load: domain.LoadID(typed.GetLoadToken()), Map: domain.MapID(typed.GetMapId())},
-		Goal:   "combatlab-layout",
-		Toward: domain.Rotation(l.Toward),
-		Firing: cells(l.Firing), Retreat: cells(l.Retreat),
+		World:   store.World{Colony: domain.ColonyID(typed.GetColonyId()), Load: domain.LoadID(typed.GetLoadToken()), Map: domain.MapID(typed.GetMapId())},
+		Project: "combatlab-layout",
+		Toward:  domain.Rotation(l.Toward),
+		Firing:  cells(l.Firing), Retreat: cells(l.Retreat),
 		// Validate wants a tier; a fixture's structures are staged, not
 		// built by the planner, so its one tier names no buildings.
 		Tiers:    []store.DefenseTierRecord{{Name: policy.TierFiringLine, Built: true}},

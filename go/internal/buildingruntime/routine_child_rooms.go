@@ -111,8 +111,8 @@ func childRoomStep(facts observation.ColonyProjection) policy.ChildRoomStep {
 
 // stageChildRoom answers a due child room step: the shell through
 // shellRoom, a piece through placePiece.
-func (r *RoutineSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.ChildRoomStep) (RoutineBuildingResult, error) {
-	clockSchedulerLog("%s: %s %s", goal.Goal.ID, step.Need.Role, step.Kind)
+func (r *RoutineSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.ChildRoomStep) (RoutineBuildingResult, error) {
+	clockSchedulerLog("%s: %s %s", goal.OwnerID(), step.Need.Role, step.Kind)
 	method := domain.MethodID(step.Method())
 	if step.Kind == policy.ChildRoomPlace {
 		return r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, method)

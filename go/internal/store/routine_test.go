@@ -37,12 +37,6 @@ func routineGoal(t *testing.T, r RoutineReviewResult, need domain.GoalID) GoalSt
 			return r.Goals[i]
 		}
 	}
-	// A Project need is read through its goal view.
-	for i, b := range r.Review.Projects {
-		if b.Need == need {
-			return r.Projects[i].goalView()
-		}
-	}
 	t.Fatal("missing routine goal", need)
 	return GoalState{}
 }
@@ -142,8 +136,8 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 			if _, err := s.Dispatch(ctx, "p", "a", scope(), 10); err != nil {
 				t.Fatal(err)
 			}
-			cancelled := routineGoal(t, out, policy.EnsureCooking)
-			if _, err := s.CancelGoal(ctx, cancelled.Goal.ID, cancelled.Revision); err != nil {
+			cancelled := routineProject(t, out, policy.EnsureCooking)
+			if _, err := s.CancelProject(ctx, cancelled.Project.ID, cancelled.Revision); err != nil {
 				t.Fatal(err)
 			}
 			switch change {
@@ -190,7 +184,7 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 			} else if resumed.Goal.ID == g.Goal.ID {
 				t.Fatal("reused invalidated goal")
 			}
-			if routineGoal(t, out, policy.EnsureCooking).Goal.Status != domain.GoalCancelled {
+			if routineProject(t, out, policy.EnsureCooking).Project.Status != domain.ProjectCancelled {
 				t.Fatal("routine review revived player cancellation")
 			}
 		})

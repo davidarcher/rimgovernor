@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func methodRequest(t *testing.T, g GoalState, id string, costs ...int64) BuildingMethodRequest {
+func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) BuildingMethodRequest {
 	t.Helper()
 	var actions []domain.Action
 	for i := range costs {
@@ -26,11 +26,12 @@ func methodRequest(t *testing.T, g GoalState, id string, costs ...int64) Buildin
 	if e != nil {
 		t.Fatal(e)
 	}
-	s := g.Goal.Snapshot
+	summary, _ := SummarizeOwner(g)
+	s := summary.Snapshot
 	s.Plan = p.ID()
 	s.Revision = p.Revision()
-	r := BuildingMethodRequest{Goal: g.Goal.ID, Revision: g.Revision, Method: "build", Plan: p, Current: s, Tick: g.Goal.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
-		Stock: policy.StockObservation{Snapshot: s, Tick: g.Goal.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}}}
+	r := BuildingMethodRequest{Owner: g, Method: "build", Plan: p, Current: s, Tick: summary.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
+		Stock: policy.StockObservation{Snapshot: s, Tick: summary.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}}}
 	for i, a := range actions {
 		b, _ := a.Building()
 		r.Previews = append(r.Previews, policy.Preview{Action: a, Snapshot: s, Tick: r.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: costs[i]}})})

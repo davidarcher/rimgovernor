@@ -156,7 +156,7 @@ func bedroomRing(room policy.LayoutRoom, doors map[domain.Cell]bool, order []dom
 
 // shellBedroom previews and admits the planned room's walls and door. A
 // refused cell makes the slot no site this step.
-func (r *RoutineSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, error) {
 	// A suite is only started with its whole ring in stock (#1216).
 	if step.Room.Role == policy.ModuleSuite {
 		in := step.Room.Interior
@@ -180,7 +180,7 @@ func bedroomShellReason(step policy.BedroomStep) string {
 // shellRoom previews and admits a planned room's walls and door once per
 // method; prefix names the plan (the tomb shares it, #832). reason is the
 // admission's short why for Operation.intent (#846).
-func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string) (RoutineBuildingResult, error) {
+func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string) (RoutineBuildingResult, error) {
 	choose := func(wall, door observation.PlanningDefinition) (string, string, Verdict, bool) {
 		return sharedShellStuff(reading.Projection, wall, door)
 	}
@@ -202,10 +202,10 @@ func sharedShellStuff(facts observation.ColonyProjection, wall, door observation
 }
 
 // shellRoomOf is shellRoom with the walls' and door's stuff chosen by stuff.
-func (b *RoutineBuildingPlanner) shellRoomOf(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string, choose shellStuff) (RoutineBuildingResult, error) {
+func (b *RoutineBuildingPlanner) shellRoomOf(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string, choose shellStuff) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "shell_room_method")}, nil
 	}
 	wallDef, wok := animalContainmentDefinition(facts.Definitions, policy.ShellWallDefinition)
@@ -273,7 +273,7 @@ func (b *RoutineBuildingPlanner) shellRoomOf(call, epoch context.Context, state 
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
-			clockSchedulerLog("%s: %s %d,%d refused at %d,%d", goal.Goal.ID, method, room.Interior.X, room.Interior.Z, cell.X, cell.Z)
+			clockSchedulerLog("%s: %s %d,%d refused at %d,%d", goal.OwnerID(), method, room.Interior.X, room.Interior.Z, cell.X, cell.Z)
 			return RoutineBuildingResult{Verdict: noSpace("bedroom_wall_cell")}, nil
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {

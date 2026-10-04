@@ -117,13 +117,13 @@ func temperatureOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 
 // commitCampfireRefuel binds a one-action auto-refuel plan for the heat
 // campfire the temperature proposal switches.
-func (r *RoutineBuildingPlanner) commitCampfireRefuel(call context.Context, goal store.GoalState, check func() error) (RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) commitCampfireRefuel(call context.Context, goal store.WorkOwner, check func() error) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	proposal := r.temperature
 	if proposal == nil || proposal.Method != policy.TemperatureRefuelOff && proposal.Method != policy.TemperatureRefuelOn {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: commitCampfireRefuel: not a refuel proposal", ErrControl)
 	}
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, proposal.Key); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, proposal.Key); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "campfire_refuel_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
@@ -144,8 +144,8 @@ func (r *RoutineBuildingPlanner) commitCampfireRefuel(call context.Context, goal
 	if err = check(); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: campfire %s auto-refuel %v", goal.Goal.ID, proposal.Thing, value.Allow())
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, proposal.Key, plan); err != nil {
+	clockSchedulerLog("%s: campfire %s auto-refuel %v", goal.OwnerID(), proposal.Thing, value.Allow())
+	if err = p.journal.CommitOwnerMethod(call, goal, proposal.Key, "", plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
@@ -166,17 +166,17 @@ func campfireRetireOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 
 // retireCampfire admits one deconstruction of a misplaced or superseded
 // cooking campfire, once per campfire per goal epoch.
-func (r *RoutineBuildingPlanner) retireCampfire(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, campfire policy.CurrentBuilding) (RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) retireCampfire(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding) (RoutineBuildingResult, error) {
 	return r.retireBuilding(call, epoch, state, review, goal, reading, campfire, "campfire-retire", "cooking campfire")
 }
 
 // retireBuilding deconstructs one standing building, once per building per
 // goal epoch under a method named prefix and its ID.
-func (r *RoutineBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, campfire policy.CurrentBuilding, prefix, label string) (RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding, prefix, label string) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	sum := sha256.Sum256([]byte(campfire.ID))
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, sum[:8]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "building_retire_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
@@ -208,7 +208,7 @@ func (r *RoutineBuildingPlanner) retireBuilding(call, epoch context.Context, sta
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: retire %s %s at %d,%d", goal.Goal.ID, label, campfire.ID, campfire.Cells[0].X, campfire.Cells[0].Z)
+	clockSchedulerLog("%s: retire %s %s at %d,%d", goal.OwnerID(), label, campfire.ID, campfire.Cells[0].X, campfire.Cells[0].Z)
 	facts := reading.Projection
 	return r.admitExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }

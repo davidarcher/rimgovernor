@@ -28,13 +28,7 @@ type GoalState struct {
 	// constraint.
 	History []domain.GoalMethod
 	Retired bool
-	// kind is the Project kind when this handle views a Project row
-	// (ProjectState.goalView): loads, saves and method rows then go to the
-	// projects table. Empty for a goal row.
-	kind domain.GoalID
 }
-
-func (g GoalState) isProject() bool { return g.kind != "" }
 
 const maxActiveGoals = 512
 
@@ -104,13 +98,6 @@ func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
 }
 
 func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, error) {
-	if isProjectID(id) {
-		p, err := loadProject(ctx, tx, domain.ProjectID(id))
-		if err != nil {
-			return GoalState{}, err
-		}
-		return p.goalView(), nil
-	}
 	var out GoalState
 	var data []byte
 	var revision string
@@ -205,14 +192,6 @@ func (s *Store) LoadGoal(ctx context.Context, id domain.GoalID) (GoalState, erro
 }
 
 func saveGoal(ctx context.Context, tx *sql.Tx, previous GoalState, g domain.Goal) (GoalState, error) {
-	if previous.isProject() {
-		saved, err := saveProject(ctx, tx, ProjectState{Project: projectOf(previous.Goal, previous.kind), Revision: previous.Revision, Retired: previous.Retired}, projectOf(g, previous.kind))
-		if err != nil {
-			return GoalState{}, err
-		}
-		previous.Goal, previous.Revision = g, saved.Revision
-		return previous, nil
-	}
 	if previous.Retired {
 		return GoalState{}, errors.New("retired goal is read-only")
 	}
@@ -269,10 +248,6 @@ func planOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, err
 }
 
 func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (GoalState, error) {
-	if isProjectID(id) {
-		p, err := s.ReviewProject(ctx, domain.ProjectID(id), revision, current, tick, need)
-		return p.goalView(), err
-	}
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return GoalState{}, err
@@ -344,32 +319,44 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if err != nil {
 		return GoalState{}, err
 	}
-	if state.Revision != revision {
-		return GoalState{}, fmt.Errorf("%w: goal %s is at revision %d, not %d", ErrConflict, id, state.Revision, revision)
-	}
-	g := state.Goal
-	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit {
-		return GoalState{}, errors.New("goal does not admit a method")
-	}
-	if err = admitRoutineRules(ctx, tx, state); err != nil {
+	if err = admitOwnerCommit(ctx, tx, state, revision, method, reason, plan); err != nil {
 		return GoalState{}, err
 	}
-	if err = admitRoutineDevelopment(ctx, tx, g, plan); err != nil {
-		return GoalState{}, err
+	return loadGoal(ctx, tx, id)
+}
+
+// admitOwnerCommit is the commit every method owner shares, a goal or a
+// Project: the revision CAS, the open-deficit check, the Rules and development
+// admission, the open-work check with its exemptions, then the family
+// admission, the goal_methods row and the revision bump. The caller reloads
+// the owner.
+func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
+	summary, _ := SummarizeOwner(state)
+	if state.OwnerRevision() != revision {
+		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrConflict, state.ownerLabel(), state.OwnerRevision(), revision)
+	}
+	if summary.Status != domain.GoalActive || summary.Need != domain.NeedDeficit {
+		return errors.New("goal does not admit a method")
+	}
+	if err := admitRoutineRules(ctx, tx, state); err != nil {
+		return err
+	}
+	if err := admitRoutineDevelopment(ctx, tx, summary, plan); err != nil {
+		return err
 	}
 	open, err := goalOpenWork(ctx, tx, state)
 	if err != nil {
-		return GoalState{}, err
+		return err
 	}
 	if open {
 		exempt, err := acquisitionOpenWorkExempt(ctx, tx, state, plan)
 		if err != nil {
-			return GoalState{}, err
+			return err
 		}
 		if !exempt {
 			exempt, err = fieldOpenWorkExempt(ctx, tx, state, plan)
 			if err != nil {
-				return GoalState{}, err
+				return err
 			}
 		}
 		if !exempt {
@@ -378,54 +365,47 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 		if !exempt {
 			exempt, err = foodFacilityOpenWorkExempt(ctx, tx, state, plan)
 			if err != nil {
-				return GoalState{}, err
+				return err
 			}
 		}
 		if !exempt {
 			exempt, err = reserveAccessOpenWorkExempt(ctx, tx, state, plan)
 			if err != nil {
-				return GoalState{}, err
+				return err
 			}
 		}
 		if !exempt {
 			exempt, err = gearOpenWorkExempt(ctx, tx, state, plan)
 			if err != nil {
-				return GoalState{}, err
+				return err
 			}
 		}
 		if !exempt {
 			exempt, err = shelterOpenWorkExempt(ctx, tx, state, plan)
 			if err != nil {
-				return GoalState{}, err
+				return err
 			}
 		}
 		if !exempt {
-			return GoalState{}, errors.New("existing method requires observation")
+			return errors.New("existing method requires observation")
 		}
 	}
-	m := domain.GoalMethod{Goal: id, Epoch: g.Epoch, Method: method, Plan: plan.ID()}
+	m := domain.GoalMethod{Goal: domain.GoalID(summary.ID), Epoch: summary.Epoch, Method: method, Plan: plan.ID()}
 	if err = m.Validate(); err != nil {
-		return GoalState{}, err
+		return err
 	}
-	if state.Revision == ^uint64(0) {
-		return GoalState{}, ErrCapacity
+	if state.OwnerRevision() == ^uint64(0) {
+		return ErrCapacity
 	}
 	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {
-		return GoalState{}, err
+		return err
 	}
-	state.Revision++
 	table := "goals"
-	if state.isProject() {
+	if column, _, _ := state.ownerKey(); column == "project_id" {
 		table = "projects"
 	}
-	if _, err = tx.ExecContext(ctx, "UPDATE "+table+" SET revision=? WHERE id=?", strconv.FormatUint(state.Revision, 10), id); err != nil {
-		return GoalState{}, err
-	}
-	state, err = loadGoal(ctx, tx, id)
-	if err != nil {
-		return GoalState{}, err
-	}
-	return state, nil
+	_, err = tx.ExecContext(ctx, "UPDATE "+table+" SET revision=? WHERE id=?", strconv.FormatUint(state.OwnerRevision()+1, 10), summary.ID)
+	return err
 }
 
 // CancelGoal invalidates unissued work and marks issued work cancelled through

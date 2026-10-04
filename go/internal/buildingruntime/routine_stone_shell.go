@@ -319,7 +319,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineStoneShellResult{}, false, observation.ErrStale
 	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: key, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: key, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineStoneShellResult{}, false, err
 	}

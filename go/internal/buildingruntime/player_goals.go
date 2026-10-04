@@ -61,17 +61,17 @@ func (p *Player) SubmitGoalCreate(ctx context.Context, request store.GoalCreateS
 // with the world bound and the local CAS revision -- not new goal-cancellation
 // logic. Native orders already issued are not erased; cancellation stops new
 // controller orders for the goal.
-func (p *Player) CancelGoal(ctx context.Context, w store.World, id domain.GoalID, revision uint64) (store.GoalState, error) {
+func (p *Player) CancelGoal(ctx context.Context, w store.World, id string, revision uint64) (store.WorkOwner, error) {
 	call, epoch, done, err := p.enter(ctx, "goals", false)
 	if err != nil {
-		return store.GoalState{}, err
+		return nil, err
 	}
 	defer done()
 	if err = p.world(call, w); err != nil {
-		return store.GoalState{}, err
+		return nil, err
 	}
 	if err = p.current(call, epoch); err != nil {
-		return store.GoalState{}, err
+		return nil, err
 	}
 	return p.journal.CancelPlayerGoal(call, w, id, revision)
 }
@@ -79,7 +79,7 @@ func (p *Player) CancelGoal(ctx context.Context, w store.World, id domain.GoalID
 // PlayerGoals reports every goal identity the player has activated for one
 // world, keyed by kind: the read side of SubmitGoalCreate, and the source of
 // the cancellable goal identities a cancel_goal command is bounded against.
-func (p *Player) PlayerGoals(ctx context.Context, w store.World) (map[domain.GoalKind]domain.GoalID, error) {
+func (p *Player) PlayerGoals(ctx context.Context, w store.World) (map[domain.GoalKind]store.WorkOwner, error) {
 	return p.journal.PlayerGoals(ctx, w)
 }
 

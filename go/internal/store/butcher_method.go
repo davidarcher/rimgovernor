@@ -14,8 +14,8 @@ const butcherSpotDefinition = "ButcherSpot"
 
 // foodGoal reports the routine EnsureFoodSupply goal; the routine goal id
 // ends in its need.
-func foodGoal(goal GoalState) bool {
-	return goal.Goal.Source == domain.AutopilotGoal && routineGoalOwns(goal.Goal.ID, policy.EnsureFoodSupply)
+func foodGoal(goal WorkOwner) bool {
+	return goal.ownerAutopilot() && routineGoalOwns(domain.GoalID(goal.OwnerID()), policy.EnsureFoodSupply)
 }
 
 // butcherSpotBuilding reports a building action placing the butcher spot.
@@ -31,7 +31,7 @@ func butcherSpotBuilding(action domain.Action) bool {
 // made only of butcher-spot placements is blocked only by an open
 // butcher-spot placement; a plan made only of production bills only by an
 // open bill. Any other goal keeps the ordinary rule.
-func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) (bool, error) {
+func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 || !foodGoal(goal) {
 		return false, nil
 	}
@@ -55,7 +55,7 @@ func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState,
 	if spot == bill {
 		return false, nil
 	}
-	for _, m := range goal.Methods {
+	for _, m := range goal.OwnerMethods() {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err

@@ -116,8 +116,8 @@ var temperatureDefinitions = []string{"Campfire", "PassiveCooler", "Cooler"}
 
 // Completed construction lends bounded ordinary refueling and heat-exchange
 // time. Neither the construction receipt nor this allowance establishes safety.
-func temperatureOutputAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
-	methods, err := journal.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
+func temperatureOutputAllowance(ctx context.Context, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
+	methods, err := journal.LoadOwnerMethods(ctx, goal)
 	if err != nil {
 		return 0, err
 	}

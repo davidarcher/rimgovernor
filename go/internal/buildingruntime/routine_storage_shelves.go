@@ -224,7 +224,7 @@ func zoneShelves(ctx context.Context, journal *store.Store, goal domain.GoalID, 
 
 // build previews the step's candidate sites in turn and admits the first
 // native accepts as the zone's next shelf.
-func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, need policy.GoalID, reading observation.RoutineReading, step policy.ShelfStep, index int) (RoutineStorageShelvesResult, error) {
+func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, need policy.GoalID, reading observation.RoutineReading, step policy.ShelfStep, index int) (RoutineStorageShelvesResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
 	stuff := facts.BuildStuff(policy.ShelfDefinition)
@@ -289,7 +289,7 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
-			clockSchedulerLog("%s: shelf %s refused in zone %s", goal.Goal.ID, piece.Slot, step.Zone.Zone)
+			clockSchedulerLog("%s: shelf %s refused in zone %s", goal.OwnerID(), piece.Slot, step.Zone.Zone)
 			continue
 		}
 		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}

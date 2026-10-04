@@ -12,8 +12,9 @@ import (
 )
 
 type BuildingMethodRequest struct {
-	Goal     domain.GoalID
-	Revision uint64
+	// Owner is the goal or Project the method binds to, as loaded: its
+	// revision scopes the commit.
+	Owner    WorkOwner
 	Method   domain.MethodID
 	Plan     domain.PlanSpec
 	Current  domain.GenerationSnapshot
@@ -29,8 +30,11 @@ type BuildingMethodRequest struct {
 // BuildingMethodDecision reports an admission; Refused lists a refusal's reasons.
 type BuildingMethodDecision struct {
 	Admitted bool
-	Goal     GoalState
-	Refused  []policy.Refusal
+	// Goal is the owning goal, Project the owning Project: the other is
+	// zero.
+	Goal    GoalState
+	Project ProjectState
+	Refused []policy.Refusal
 }
 
 // AdmitBuildingMethod applies the same pure resource/geometry policy as Hands
@@ -71,16 +75,15 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	if err = s.floors.guard(r.Current, r.Tick); err != nil {
 		return BuildingMethodDecision{}, err
 	}
-	goal, err := loadGoal(ctx, tx, r.Goal)
+	owner, err := reloadOwner(ctx, tx, r.Owner)
 	if err != nil {
 		return BuildingMethodDecision{}, err
 	}
-	if goal.Revision != r.Revision {
-		return BuildingMethodDecision{}, fmt.Errorf("%w: goal %s revision %d, method scoped to %d", ErrConflict, r.Goal, goal.Revision, r.Revision)
+	if owner.OwnerRevision() != r.Owner.OwnerRevision() {
+		return BuildingMethodDecision{}, fmt.Errorf("%w: %s revision %d, method scoped to %d", ErrConflict, owner.ownerLabel(), owner.OwnerRevision(), r.Owner.OwnerRevision())
 	}
-	g := goal.Goal
-	old := g.Snapshot
-	if old.Colony != r.Current.Colony || old.Map != r.Current.Map || r.Tick < g.Tick {
+	old := owner.ownerSnapshot()
+	if old.Colony != r.Current.Colony || old.Map != r.Current.Map || r.Tick < ownerTick(owner) {
 		return BuildingMethodDecision{}, errors.New("method observation differs from reviewed goal")
 	}
 	var candidates []policy.Candidate
@@ -96,7 +99,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 			if err != nil {
 				return BuildingMethodDecision{}, err
 			}
-			candidates = append(candidates, policy.Candidate{Action: a, Progress: progress, Priority: int32(4 - g.Priority), Purpose: r.Purpose, Preview: preview})
+			candidates = append(candidates, policy.Candidate{Action: a, Progress: progress, Priority: int32(4 - owner.ownerPriority()), Purpose: r.Purpose, Preview: preview})
 		case domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction, domain.ClaimBuildingAction, domain.RemoveRoofAction:
 			// Guarded demolition, staged excavation and a shell ring's ruin
 			// clearance and claims carry no cost/footprint preview; they are
@@ -126,15 +129,15 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		}
 		decision = policy.Admit(input)
 		if len(decision.Refused) != 0 || len(decision.Admitted) != len(candidates) {
-			return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
+			return decisionOf(owner, decision.Refused), nil
 		}
 	}
-	goal, err = commitGoalMethod(ctx, tx, r.Goal, r.Revision, r.Method, r.Reason, r.Plan)
+	committed, err := commitOwnerMethod(ctx, tx, owner, r.Method, r.Reason, r.Plan)
 	if errors.Is(err, ErrNotAdmitted) {
 		// The review no longer grants this goal a development slot: refuse
 		// the method like any other policy outcome so the planner reports a
 		// reason and waits for the next review instead of failing every step.
-		return BuildingMethodDecision{Goal: goal, Refused: []policy.Refusal{{Reason: policy.NoDevelopmentSlot}}}, nil
+		return decisionOf(owner, []policy.Refusal{{Reason: policy.NoDevelopmentSlot}}), nil
 	}
 	if err != nil {
 		return BuildingMethodDecision{}, err
@@ -155,7 +158,9 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	if err = tx.Commit(); err != nil {
 		return BuildingMethodDecision{}, err
 	}
-	return BuildingMethodDecision{Admitted: true, Goal: goal, Refused: decision.Refused}, nil
+	d := decisionOf(committed, decision.Refused)
+	d.Admitted = true
+	return d, nil
 }
 
 // Read authoritative reservations under the admission transaction. Never accept

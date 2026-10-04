@@ -28,8 +28,8 @@ func TestRoutineUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		r.Facts.PowerRequired = domain.Known(true)
 		r.Facts.PowerHeadroom = domain.Known(-100.0)
 		r.Facts.DisabledConsumers = domain.Known(false)
-		g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureBasicPower)
-		if g.Goal.Need != domain.NeedDeficit || g.Goal.Status != domain.GoalActive {
+		g := routineProject(t, reviewRoutine(t, s, &r), policy.EnsureBasicPower)
+		if g.Project.Need != domain.NeedDeficit || g.Project.Status != domain.ProjectOpen {
 			t.Fatal(declared, g)
 		}
 		q := methodRequest(t, g, "enclosure", 10)
@@ -56,14 +56,14 @@ func TestRoutineUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		target := q.Current
 		target.Native = r.Current.Native
 		err = s.AuthorizeRoutinePlan(ctx, r.Current, target)
-		power := routineGoal(t, out, policy.EnsureBasicPower)
+		power := routineProject(t, out, policy.EnsureBasicPower)
 		if declared {
-			if len(out.Emergency) != 1 || out.Review.Veto(power.Goal) == "" || err == nil {
+			if len(out.Emergency) != 1 || out.Review.VetoProject(power.Project) == "" || err == nil {
 				t.Fatal("declared fire method did not veto", out.Emergency, power, err)
 			}
 			continue
 		}
-		if len(out.Emergency) != 0 || power.Goal.Status != domain.GoalActive {
+		if len(out.Emergency) != 0 || power.Project.Status != domain.ProjectOpen {
 			t.Fatal("undeclared fire suspended the colony", out.Emergency, power)
 		}
 		if err != nil {

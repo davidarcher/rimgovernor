@@ -38,7 +38,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	step := tombStep(reading.Projection)
 	if step.Kind == policy.TombNone {
 		if morgue, owed := plannedMorgue(reading.Projection); owed {
-			clockSchedulerLog("%s: morgue shell for a waiting stranger corpse", goal.Goal.ID)
+			clockSchedulerLog("%s: morgue shell for a waiting stranger corpse", goal.OwnerID())
 			result, err := r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, morgue, plannedRoomMethod(morgue), "")
 			// A shell already tried this epoch, or refused, leaves the
 			// burn to go on.
@@ -48,7 +48,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 		}
 		return r.stageDisposal(call, epoch, state, review, goal, arbiter, reading)
 	}
-	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.Goal.ID, step.Kind, step.Dead, step.Empty)
+	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.OwnerID(), step.Kind, step.Dead, step.Empty)
 	var result RoutineBuildingResult
 	switch step.Kind {
 	case policy.TombShell:
@@ -73,7 +73,7 @@ const graveSiteTries = 4
 
 // placeGrave places a plain grave (#857) on the free 1x2 site nearest the
 // fields anchor, trying the next site while native refuses one.
-func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.TombStep) (RoutineBuildingResult, error) {
+func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, step policy.TombStep) (RoutineBuildingResult, error) {
 	facts := reading.Projection
 	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: fieldAnchor(facts), Cells: facts.Cells, Protected: nil}, 1, 2)
 	if err != nil {
@@ -95,10 +95,10 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 
 // placePiece previews and admits one interior piece: an interior piece (a
 // sarcophagus, bed, throne...).
-func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID) (RoutineBuildingResult, error) {
+func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "interior_piece")}, nil
 	}
 	stuff := facts.BuildStuff(piece.Def)
@@ -133,7 +133,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 	can, ck := v.CanPlace.Value()
 	safe, sk := v.SafeToPlace.Value()
 	if !ck || !can || !sk || !safe {
-		clockSchedulerLog("%s: %s %s refused at %d,%d", goal.Goal.ID, piece.Def, piece.Slot, piece.Anchor().X, piece.Anchor().Z)
+		clockSchedulerLog("%s: %s %s refused at %d,%d", goal.OwnerID(), piece.Def, piece.Slot, piece.Anchor().X, piece.Anchor().Z)
 		return RoutineBuildingResult{Verdict: noSpace(piece.Slot)}, nil
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}

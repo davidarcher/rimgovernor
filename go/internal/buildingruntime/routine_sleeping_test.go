@@ -255,7 +255,7 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	}
 	snapshot.Plan = p.ID()
 	snapshot.Revision = 1
-	admitted, err := db.AdmitBuildingMethod(ctx, store.BuildingMethodRequest{Goal: g.ID, Revision: goal.Revision, Method: "player-sleep", Plan: p, Current: snapshot, Tick: 7, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Stock: policy.StockObservation{Snapshot: snapshot, Tick: 7}, Purpose: policy.Routine})
+	admitted, err := db.AdmitBuildingMethod(ctx, store.BuildingMethodRequest{Owner: goal, Method: "player-sleep", Plan: p, Current: snapshot, Tick: 7, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Stock: policy.StockObservation{Snapshot: snapshot, Tick: 7}, Purpose: policy.Routine})
 	if err != nil || !admitted.Admitted {
 		t.Fatal(admitted, err)
 	}

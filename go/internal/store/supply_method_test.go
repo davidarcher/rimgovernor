@@ -48,7 +48,7 @@ func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
 				request.Facts.StartingSupplies = domain.Known([]policy.StartingSupply{{Thing: "later", Definition: "Steel", Cell: cell}})
 			}
 			review := reviewRoutine(t, s, &request)
-			goal := routineGoal(t, review, policy.AllowStartingSupplies)
+			var goal WorkOwner = routineProject(t, review, policy.AllowStartingSupplies)
 			if kind == "manual" {
 				request.Enabled = false
 				reviewRoutine(t, s, &request)
@@ -65,7 +65,7 @@ func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
 			if kind == "oversized" {
 				count = 9
 			}
-			_, err := s.CommitGoalMethod(context.Background(), goal.Goal.ID, goal.Revision, "allow", supplyPlan(t, "supplies", count, cell))
+			err := s.CommitOwnerMethod(context.Background(), goal, "allow", "", supplyPlan(t, "supplies", count, cell))
 			if (err == nil) != (kind == "valid") {
 				t.Fatal(kind, err)
 			}
@@ -90,9 +90,9 @@ func TestSupplyClaimFollowsCompletedAllowNotCancelledAttempt(t *testing.T) {
 	cell := domain.Cell{X: 1, Z: 2}
 	request.Facts.StartingSupplies = domain.Known(supplyCohort(2, cell))
 	review := reviewRoutine(t, s, &request)
-	goal := routineGoal(t, review, policy.AllowStartingSupplies)
+	goal := routineProject(t, review, policy.AllowStartingSupplies)
 	world := World{Colony: request.Current.Colony, Load: request.Current.Load, Map: request.Current.Map}
-	if _, err := s.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "allow", supplyPlan(t, "first", 2, cell)); err != nil {
+	if _, err := s.CommitProjectMethod(ctx, goal.Project.ID, goal.Revision, "allow", "", supplyPlan(t, "first", 2, cell)); err != nil {
 		t.Fatal(err)
 	}
 	plan := supplyPlan(t, "first", 2, cell)
@@ -121,7 +121,7 @@ func TestSupplyClaimFollowsCompletedAllowNotCancelledAttempt(t *testing.T) {
 	s = open(t, path)
 	request.Current.Native++
 	review = reviewRoutine(t, s, &request)
-	goal = routineGoal(t, review, policy.AllowStartingSupplies)
+	goal = routineProject(t, review, policy.AllowStartingSupplies)
 	if claims, err = s.SupplyClaims(ctx, world); err != nil || len(claims) != 1 || !claims["item-0"] {
 		t.Fatal("claim lost across restart and direction change", claims, err)
 	}
@@ -129,7 +129,7 @@ func TestSupplyClaimFollowsCompletedAllowNotCancelledAttempt(t *testing.T) {
 		t.Fatal("claim crossed worlds", claims, err)
 	}
 	// The cancelled stack is still cohort work at the cell the census reports.
-	if _, err = s.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "allow-again", supplyPlan(t, "second", 2, cell)); err != nil {
+	if _, err = s.CommitProjectMethod(ctx, goal.Project.ID, goal.Revision, "allow-again", "", supplyPlan(t, "second", 2, cell)); err != nil {
 		t.Fatal("cohort stack refused after a cancelled attempt", err)
 	}
 }

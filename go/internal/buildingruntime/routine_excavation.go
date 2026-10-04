@@ -83,8 +83,8 @@ func excavationProgress(methods []domain.GoalMethod) (latest *policy.ExcavationT
 
 // excavationProject reports the target of the goal's current tunnel: the
 // one the most recently admitted stage under this goal epoch carries.
-func (r *RoutineBuildingPlanner) excavationProject(call context.Context, goal store.GoalState) (*policy.ExcavationTarget, error) {
-	methods, err := r.reviewer.player.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+func (r *RoutineBuildingPlanner) excavationProject(call context.Context, goal store.WorkOwner) (*policy.ExcavationTarget, error) {
+	methods, err := r.reviewer.player.journal.LoadOwnerMethods(call, goal)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func maxInt32(a, b int32) int32 {
 type excavationStep struct {
 	state  ControlState
 	review store.RoutineReview
-	goal   store.GoalState
+	goal   store.WorkOwner
 	facts  observation.ColonyProjection
 	read   observation.ColonyReading
 	target policy.ExcavationTarget
@@ -191,7 +191,7 @@ func excavationStates(site bridge.ExcavationSite) []policy.ExcavationCellState {
 func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s excavationStep) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	journal := p.journal
-	methods, err := journal.LoadGoalMethods(call, s.goal.Goal.ID, s.goal.Goal.Epoch)
+	methods, err := journal.LoadOwnerMethods(call, s.goal)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -303,8 +303,8 @@ func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) 
 // project instead of re-inspecting the same refusal forever. Cancelling
 // the plan's pending work is the only durable change; cells the pawns
 // already opened stay cleared and are never designated again.
-func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal store.GoalState, now domain.Tick) error {
-	for _, method := range goal.Methods {
+func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal store.WorkOwner, now domain.Tick) error {
+	for _, method := range goal.OwnerMethods() {
 		if !IsExcavationMethod(method.Method) {
 			continue
 		}
@@ -367,7 +367,7 @@ func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s 
 	if latest.Revision != s.review.Revision || !latest.Enabled {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: admitExcavation: latest.Revision != s.review.Revision || !latest.Enabled", ErrControl)
 	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: s.goal.Goal.ID, Revision: s.goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: s.facts.Identity.Tick, Bounds: domain.Known(s.facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: s.goal, Method: method, Plan: plan, Current: snapshot, Tick: s.facts.Identity.Tick, Bounds: domain.Known(s.facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

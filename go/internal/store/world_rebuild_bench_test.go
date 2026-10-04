@@ -23,7 +23,7 @@ func BenchmarkWorldRebuild(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.State.Goal, Revision: first.State.Revision})
+	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.State.(GoalState).Goal, Revision: first.State.OwnerRevision()})
 	if err != nil {
 		b.Fatal(err)
 	}

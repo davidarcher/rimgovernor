@@ -167,7 +167,7 @@ func TestChatHTTPAppliesGuidanceThroughPolicyInputs(t *testing.T) {
 		t.Fatal(completer.seen[1].Messages[1].Content)
 	}
 	goalID := resp.Guidance.Goal.GoalID
-	goal, err := f.journal.LoadGoal(context.Background(), goalID)
+	goal, err := f.journal.LoadGoal(context.Background(), domain.GoalID(goalID))
 	if err != nil || goal.Goal.Snapshot.Plan != "root/colony/load/0" {
 		t.Fatal(goal, err)
 	}

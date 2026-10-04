@@ -200,7 +200,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	if !workable || review.Latches.Housing != policy.HousingSleeping {
 		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	for _, m := range goal.Methods {
+	for _, m := range goal.OwnerMethods() {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
 			return RoutineBuildingResult{}, err
@@ -213,7 +213,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	// its epoch is cleaned, so the epoch's full method history is what
 	// still earns the observation window.
 	var observe uint32
-	methods, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	methods, err := p.journal.LoadOwnerMethods(call, goal)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -265,7 +265,7 @@ func sleepingNativeWorkTicks(plan store.PlanState, current domain.GenerationSnap
 	return min(uint32(sleepingObservationSlice), uint32(sleepingObservationBudget-(tick-v.Tick)))
 }
 
-func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.GoalState) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.WorkOwner) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)
@@ -444,7 +444,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if latest.Revision != review.Revision || !latest.Enabled {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
@@ -457,14 +457,14 @@ const sleepingAssignAttempts = 3
 // assignMethod returns the method ID for the next assignment attempt of this
 // epoch under base, or "" when the pair was already applied (or the
 // attempt bound is spent).
-func (r *RoutineSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.GoalState, base string) (domain.MethodID, error) {
+func (r *RoutineSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.WorkOwner, base string) (domain.MethodID, error) {
 	p := r.reviewer.player
 	for try := 0; try < sleepingAssignAttempts; try++ {
 		method := domain.MethodID(base)
 		if try > 0 {
 			method = domain.MethodID(fmt.Sprintf("%s-retry%d", base, try))
 		}
-		existing, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		existing, err := p.journal.LoadOwnerMethod(call, goal, method)
 		if errors.Is(err, store.ErrNotFound) {
 			return method, nil
 		}
@@ -499,10 +499,10 @@ func sleepingAssignUnadmitted(progress []domain.Progress) bool {
 
 // markSlaveBed commits one patch setting bed for slaves (#1036), once per
 // bed per goal epoch; the next review assigns the waiting slave to it.
-func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context, state ControlState, goal store.GoalState, bed string) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context, state ControlState, goal store.WorkOwner, bed string) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	method := domain.MethodID("sleeping-slave-bed-" + bed)
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "slave_bed_marking")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
@@ -526,7 +526,7 @@ func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context,
 	if p.session.State() != state {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: markSlaveBed: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil

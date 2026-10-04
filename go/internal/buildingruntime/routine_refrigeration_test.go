@@ -384,7 +384,7 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 		{since + refrigerationCoolingTicks, 0, true},
 		{since + 3*refrigerationCoolingTicks, 0, true},
 	} {
-		allowance, exhausted, lent, err := refrigerationOutputAllowance(ctx, db, goal.Goal, snapshot, row.tick, since)
+		allowance, exhausted, lent, err := refrigerationOutputAllowance(ctx, db, goal, snapshot, row.tick, since)
 		if err != nil || !lent || allowance != row.allowance || exhausted != row.exhausted {
 			t.Fatal(row, allowance, exhausted, lent, err)
 		}
@@ -392,7 +392,7 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 	// A latch without a tick (a review written before the field existed)
 	// or a rewound clock lends nothing and never exhausts.
 	for _, row := range []struct{ since, tick domain.Tick }{{0, since + 3*refrigerationCoolingTicks}, {since, since - 1}} {
-		if allowance, exhausted, lent, err := refrigerationOutputAllowance(ctx, db, goal.Goal, snapshot, row.tick, row.since); err != nil || !lent || allowance != 0 || exhausted {
+		if allowance, exhausted, lent, err := refrigerationOutputAllowance(ctx, db, goal, snapshot, row.tick, row.since); err != nil || !lent || allowance != 0 || exhausted {
 			t.Fatal(row, allowance, exhausted, lent, err)
 		}
 	}

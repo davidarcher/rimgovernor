@@ -675,7 +675,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	if p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge {
 		return RoutineStockpileResult{}, fmt.Errorf("%w: create: p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge", ErrControl)
 	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: previews, Purpose: policy.Routine})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: previews, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}

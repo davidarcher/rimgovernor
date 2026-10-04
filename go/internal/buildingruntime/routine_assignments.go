@@ -54,24 +54,24 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineWorkResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	var goal store.GoalState
 	deficit := false
-	for _, binding := range review.Bindings() {
-		switch binding.Need {
-		case policy.EnsureWorkAssignments:
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-		case policy.MaintainResource:
-			// A resource deficit needs its bench work type covered before
-			// the bill can be admitted natively (routineDeficitWork).
-			var resource store.GoalState
-			resource, err = p.journal.LoadGoal(call, binding.Goal)
-			deficit = err == nil && resource.Goal.Status == domain.GoalActive && resource.Goal.Need == domain.NeedDeficit
+	for _, binding := range review.Goals {
+		if binding.Need != policy.MaintainResource {
+			continue
 		}
+		// A resource deficit needs its bench work type covered before
+		// the bill can be admitted natively (routineDeficitWork).
+		resource, err := p.journal.LoadGoal(call, binding.Goal)
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
+		deficit = resource.OwnerDeficit()
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	goal, deficitProject, err := p.journal.WorkableProject(call, review, policy.EnsureWorkAssignments)
+	if err != nil {
+		return RoutineWorkResult{}, err
+	}
+	if !deficitProject {
 		return RoutineWorkResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// Open work no longer gates the fresh decision outright: an undispatched
@@ -306,10 +306,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if len(work) > 8 {
 		work = work[:8]
 	}
-	// The goal epoch is part of the identity: the same edit in a new epoch
-	// is a fresh method, not the used one.
 	hash := sha256.New()
-	fmt.Fprintf(hash, "epoch:%d\n", goal.Goal.Epoch)
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
 		fmt.Fprintf(hash, "%s/%s\n", w.Pawn(), data)
@@ -340,7 +337,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		fmt.Fprintf(hash, "food/%q/%q/%d\n", f.Name(), f.Definitions(), len(goal.Methods))
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err = p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineWorkResult{Verdict: waitFor(WaitMethodUsed, "work_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineWorkResult{}, err
@@ -392,7 +389,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if p.session.State() != state {
 		return RoutineWorkResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoutineWorkResult{}, err
 	}
 	return RoutineWorkResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

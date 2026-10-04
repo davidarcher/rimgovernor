@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // penMountain is a 32x32 map whose middle (8..24 each way) is natural rock
@@ -54,7 +55,7 @@ func TestPenShellOnRockMinesInteriorAndGateThenBuildsGate(t *testing.T) {
 			}
 			defer done()
 			ctx := context.Background()
-			result, err := r.digShell(call, epoch, s.state, s.review, s.goal, s.facts, nil, observation.RoutineReading{ColonyReading: s.read}, "")
+			result, err := r.digShell(call, epoch, s.state, s.review, s.goal.(store.GoalState), s.facts, nil, observation.RoutineReading{ColonyReading: s.read}, "")
 			if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
 				t.Fatal(result, err)
 			}

@@ -171,7 +171,7 @@ func defenseCoverSelection(approaches policy.DefenseApproaches, byCell map[domai
 // clearCover proposes the next cover-clearance method for a complete
 // layout. handled false means nothing to order: no cover selected, the
 // policy holding, or no ranged defender to size the zone by.
-func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord) (RoutineDefenseLayoutResult, bool, error) {
+func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, goal store.ProjectState, review store.RoutineReview, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord) (RoutineDefenseLayoutResult, bool, error) {
 	p := r.reviewer.player
 	projection := read.Projection
 	tick := projection.Identity.Tick
@@ -238,7 +238,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	if len(clearances) > maxDefenseCoverBatch {
 		clearances = clearances[:maxDefenseCoverBatch]
 	}
-	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	history, err := p.journal.LoadOwnerMethods(call, goal)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, false, err
 	}
@@ -267,7 +267,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineDefenseLayoutResult{}, false, defenseControlErr(360)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoutineDefenseLayoutResult{}, false, err
 	}
 	for _, clearance := range clearances {

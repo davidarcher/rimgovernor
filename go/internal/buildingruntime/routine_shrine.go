@@ -112,7 +112,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if err = r.settleOrphanedPlans(call); err != nil {
 		return RoutineShrineResult{}, err
 	}
-	goal, workable, err := p.journal.Workable(call, review, policy.ClearAncientShrine)
+	goal, workable, err := p.journal.WorkableProject(call, review, policy.ClearAncientShrine)
 	if err != nil {
 		return RoutineShrineResult{}, err
 	}
@@ -239,10 +239,10 @@ func (r RoutineShrineResult) pass(shrine, reason string) RoutineShrineResult {
 // the CAS token a fresh target read gives it. A casket the read already
 // shows as the player's (a census a tick behind) is skipped; a claim
 // refused natively surfaces as the action's own unsuccessful outcome.
-func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlState, goal store.GoalState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, started time.Time) (RoutineShrineResult, error) {
+func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, started time.Time) (RoutineShrineResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("claim-%s-", shrine.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := projectAttemptCount(goal, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
 	}
@@ -282,7 +282,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineShrineResult{}, fmt.Errorf("%w: claim: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoutineShrineResult{}, err
 	}
 	return RoutineShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
@@ -293,7 +293,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 // breach deconstruction of the chosen wall. One colonist is always left
 // undrafted for the deconstruct job. The method is retried at most
 // maxMedicalAttemptsPerPatient times per wall and goal epoch.
-func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state ControlState, goal store.GoalState, shrine policy.AncientShrine, report ShrineReadinessReport, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoutineShrineResult, error) {
+func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, report ShrineReadinessReport, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoutineShrineResult, error) {
 	p := r.reviewer.player
 	wall := report.Readiness.Wall
 	colonists, known := projection.Facts.Colonists.Value()
@@ -306,7 +306,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	}
 	positions := policy.ShrineBreachPositions(wall, drafted, report.Standing, report.Traps)
 	prefix := fmt.Sprintf("breach-%s-%s-", shrine.ID, wall.EntityID)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := projectAttemptCount(goal, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
 	}
@@ -369,7 +369,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineShrineResult{}, fmt.Errorf("%w: breach: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoutineShrineResult{}, err
 	}
 	return RoutineShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
@@ -382,7 +382,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 // drafted auto-attack answers a waking hostile; the plan has no further
 // work, so the worker keeps the drafts until the opening resolves and
 // ActiveCombat and the custody planner take the occupants from there.
-func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlState, goal store.GoalState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, lock policy.ShrineLock, started time.Time, arbiter *stepArbiter) (RoutineShrineResult, error) {
+func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, lock policy.ShrineLock, started time.Time, arbiter *stepArbiter) (RoutineShrineResult, error) {
 	p := r.reviewer.player
 	lockers := make([]domain.PawnID, 0, len(lock.Lockers))
 	for _, casket := range caskets {
@@ -392,7 +392,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		return RoutineShrineResult{Verdict: waitFor(WaitMethodUsed, "casket_lockers")}, nil
 	}
 	prefix := fmt.Sprintf("open-%s-", shrine.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := projectAttemptCount(goal, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
 	}
@@ -453,7 +453,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineShrineResult{}, fmt.Errorf("%w: open: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoutineShrineResult{}, err
 	}
 	return RoutineShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil

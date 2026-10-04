@@ -20,7 +20,7 @@ func TestPlayerGoalSurvivesWorldChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.State.Goal, Revision: first.State.Revision})
+	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.State.(GoalState).Goal, Revision: first.State.OwnerRevision()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestPlayerGoalSurvivesWorldChange(t *testing.T) {
 	}
 	w := World{Colony: scope().Colony, Load: "reloaded", Map: scope().Map}
 	bindings, err := reloaded.PlayerGoals(ctx, w)
-	if err != nil || len(bindings) != 1 || bindings[domain.MaintainResourceGoal] != first.Goal {
+	if err != nil || len(bindings) != 1 || bindings[domain.MaintainResourceGoal].OwnerID() != first.Goal {
 		t.Fatal(bindings, err)
 	}
 	if other, err := reloaded.PlayerGoals(ctx, World{Colony: "elsewhere", Load: "reloaded"}); err != nil || len(other) != 0 {
@@ -61,16 +61,16 @@ func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 	}
 	// Player direction is the deficit assertion: the goal is active and in
 	// deficit at once, without waiting for an autopilot review to observe it.
-	g := first.State.Goal
+	g := first.State.(GoalState).Goal
 	if g.Source != domain.PlayerGoal || g.Status != domain.GoalActive || g.Need != domain.NeedDeficit || g.Priority != 2 || g.Snapshot != scope() || g.Tick != 10 {
 		t.Fatal("goal not activated as player direction", g)
 	}
-	if first.Goal != g.ID || first.State.Revision == 0 {
+	if first.Goal != string(g.ID) || first.State.OwnerRevision() == 0 {
 		t.Fatal(first)
 	}
 	// A player goal admits a method on exactly the unchanged terms an
 	// autopilot goal does; nothing new gates or ungates it here.
-	if _, err = s.CommitGoalMethod(ctx, g.ID, first.State.Revision, "method", plan(t, "player-goal-plan", "player-goal-action")); err != nil {
+	if _, err = s.CommitGoalMethod(ctx, g.ID, first.State.OwnerRevision(), "method", plan(t, "player-goal-plan", "player-goal-action")); err != nil {
 		t.Fatal("player goal refused a method", err)
 	}
 	replay, created, err := s.SubmitGoalCreate(ctx, q)
@@ -97,7 +97,7 @@ func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 		t.Fatal("replay survived a restart", err)
 	}
 	bindings, err := s.PlayerGoals(ctx, q.World())
-	if err != nil || len(bindings) != 1 || bindings[domain.EnsureFoodSupplyGoal] != first.Goal {
+	if err != nil || len(bindings) != 1 || bindings[domain.EnsureFoodSupplyGoal].OwnerID() != first.Goal {
 		t.Fatal(bindings, err)
 	}
 }
@@ -133,7 +133,7 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recovered, err := s.ReviewGoal(ctx, first.Goal, first.State.Revision, scope(), 11, domain.NeedRecovered)
+	recovered, err := s.ReviewGoal(ctx, domain.GoalID(first.Goal), first.State.OwnerRevision(), scope(), 11, domain.NeedRecovered)
 	if err != nil || recovered.Goal.Status != domain.GoalSatisfied || !recovered.Goal.RecoveryObserved {
 		t.Fatal(recovered, err)
 	}
@@ -141,28 +141,28 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	if err != nil || !created || again.Goal != first.Goal {
 		t.Fatal("live goal not reused", again, created, err)
 	}
-	if again.State.Goal.Status != domain.GoalActive || again.State.Goal.Need != domain.NeedDeficit ||
-		again.State.Goal.Epoch != recovered.Goal.Epoch+1 || again.State.Goal.RecoveryObserved {
-		t.Fatal("reactivation did not renew the goal", again.State.Goal)
+	if again.State.(GoalState).Goal.Status != domain.GoalActive || again.State.(GoalState).Goal.Need != domain.NeedDeficit ||
+		again.State.(GoalState).Goal.Epoch != recovered.Goal.Epoch+1 || again.State.(GoalState).Goal.RecoveryObserved {
+		t.Fatal("reactivation did not renew the goal", again.State.(GoalState).Goal)
 	}
-	cancelled, err := s.CancelPlayerGoal(ctx, again.Request.World(), again.Goal, again.State.Revision)
-	if err != nil || cancelled.Goal.Status != domain.GoalCancelled {
+	cancelled, err := s.CancelPlayerGoal(ctx, again.Request.World(), again.Goal, again.State.OwnerRevision())
+	if err != nil || cancelled.(GoalState).Goal.Status != domain.GoalCancelled {
 		t.Fatal(cancelled, err)
 	}
 	fresh, created, err := s.SubmitGoalCreate(ctx, GoalCreateSubmissionRequest{RequestID: "fresh", Kind: domain.MaintainResourceGoal, Snapshot: scope(), Tick: 13})
 	if err != nil || !created || fresh.Goal == first.Goal {
 		t.Fatal("cancelled goal resurrected or not replaced", fresh, created, err)
 	}
-	if fresh.State.Goal.Status != domain.GoalActive || fresh.State.Goal.Need != domain.NeedDeficit || fresh.State.Goal.Epoch != 0 {
-		t.Fatal(fresh.State.Goal)
+	if fresh.State.(GoalState).Goal.Status != domain.GoalActive || fresh.State.(GoalState).Goal.Need != domain.NeedDeficit || fresh.State.(GoalState).Goal.Epoch != 0 {
+		t.Fatal(fresh.State.(GoalState).Goal)
 	}
 	// The superseded goal keeps its own cancelled history untouched.
-	old, err := s.LoadGoal(ctx, first.Goal)
+	old, err := s.LoadGoal(ctx, domain.GoalID(first.Goal))
 	if err != nil || old.Goal.Status != domain.GoalCancelled {
 		t.Fatal(old, err)
 	}
 	bindings, err := s.PlayerGoals(ctx, fresh.Request.World())
-	if err != nil || bindings[domain.MaintainResourceGoal] != fresh.Goal {
+	if err != nil || bindings[domain.MaintainResourceGoal].OwnerID() != fresh.Goal {
 		t.Fatal(bindings, err)
 	}
 	// The earlier request ID still reports the identity it actually activated.
@@ -183,24 +183,24 @@ func TestCancelPlayerGoalBoundsWorldAndRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := first.Request.World()
-	if _, err = s.CancelPlayerGoal(ctx, World{Colony: "elsewhere", Load: "load"}, first.Goal, first.State.Revision); !errors.Is(err, ErrNotFound) {
+	if _, err = s.CancelPlayerGoal(ctx, World{Colony: "elsewhere", Load: "load"}, first.Goal, first.State.OwnerRevision()); !errors.Is(err, ErrNotFound) {
 		t.Fatal("cancelled across worlds", err)
 	}
-	if _, err = s.CancelPlayerGoal(ctx, w, first.Goal, first.State.Revision+1); !errors.Is(err, ErrConflict) {
+	if _, err = s.CancelPlayerGoal(ctx, w, first.Goal, first.State.OwnerRevision()+1); !errors.Is(err, ErrConflict) {
 		t.Fatal("stale revision accepted", err)
 	}
-	if _, err = s.CancelPlayerGoal(ctx, w, "absent", first.State.Revision); !errors.Is(err, ErrNotFound) {
+	if _, err = s.CancelPlayerGoal(ctx, w, "absent", first.State.OwnerRevision()); !errors.Is(err, ErrNotFound) {
 		t.Fatal(err)
 	}
-	if _, err = s.CancelPlayerGoal(ctx, World{}, first.Goal, first.State.Revision); err == nil {
+	if _, err = s.CancelPlayerGoal(ctx, World{}, first.Goal, first.State.OwnerRevision()); err == nil {
 		t.Fatal("invalid world accepted")
 	}
-	state, err := s.LoadGoal(ctx, first.Goal)
+	state, err := s.LoadGoal(ctx, domain.GoalID(first.Goal))
 	if err != nil || state.Goal.Status != domain.GoalActive {
 		t.Fatal("refused cancellation still changed the goal", state, err)
 	}
 	cancelled, err := s.CancelPlayerGoal(ctx, w, first.Goal, state.Revision)
-	if err != nil || cancelled.Goal.Status != domain.GoalCancelled {
+	if err != nil || cancelled.(GoalState).Goal.Status != domain.GoalCancelled {
 		t.Fatal(cancelled, err)
 	}
 }
@@ -222,8 +222,8 @@ func TestCancelPlayerGoalCancelsAutopilotGoalInSameWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cancelled, err := s.CancelPlayerGoal(ctx, World{Colony: scope().Colony, Load: scope().Load, Map: scope().Map}, g.ID, state.Revision)
-	if err != nil || cancelled.Goal.Status != domain.GoalCancelled || cancelled.Goal.Source != domain.AutopilotGoal {
+	cancelled, err := s.CancelPlayerGoal(ctx, World{Colony: scope().Colony, Load: scope().Load, Map: scope().Map}, string(g.ID), state.Revision)
+	if err != nil || cancelled.(GoalState).Goal.Status != domain.GoalCancelled || cancelled.(GoalState).Goal.Source != domain.AutopilotGoal {
 		t.Fatal(cancelled, err)
 	}
 }

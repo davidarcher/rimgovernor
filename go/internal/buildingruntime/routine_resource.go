@@ -666,7 +666,7 @@ func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state
 // WaitMethodUsed), and the zone is previewed against the live zone-map
 // token and admitted through AdmitBuildingMethod, since a zone carries
 // footprint like a building.
-func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, footprint []domain.Cell, started time.Time, methodPrefix string) (RoutineResourceResult, error) {
+func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, state ControlState, goal store.WorkOwner, reviewTick domain.Tick, resource policy.Resource, footprint []domain.Cell, started time.Time, methodPrefix string) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
@@ -707,10 +707,10 @@ type zoneMethodNative interface {
 // method ID is the caller's (fingerprint dedup reports WaitMethodUsed),
 // the zone is previewed against the live zone-map token and admitted through
 // AdmitBuildingMethod, since a zone carries footprint like a building.
-func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, started time.Time) (RoutineResourceResult, error) {
+func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.WorkOwner, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, started time.Time) (RoutineResourceResult, error) {
 	p := reviewer.player
 	cells := value.Cells()
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoutineResourceResult{Verdict: waitFor(WaitMethodUsed, "zone_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResourceResult{}, err
@@ -762,7 +762,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	if p.session.State() != state || elapsed < 0 || elapsed > reviewer.maxAge {
 		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: p.session.State() != state || elapsed < 0 || elapsed > reviewer.maxAge", ErrControl)
 	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
