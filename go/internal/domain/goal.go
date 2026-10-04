@@ -149,3 +149,8 @@ func GoalWorkOpen(progress []Progress) bool {
 	}
 	return false
 }
+
+// PopulationTarget is the bot's own colony size target (#1032). The colony
+// grows toward it only as fast as policy.JoinerCapacity's bed and food gates
+// allow, so in practice the target rises with the colony's means.
+const PopulationTarget = 100

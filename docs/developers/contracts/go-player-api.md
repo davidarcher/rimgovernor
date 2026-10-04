@@ -20,7 +20,6 @@ control uses these routes.
 | POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine goals and clean up owned work |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |
 | GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
-| GET/POST | `/api/player/population-decision`, `…/replace` | Per-pawn population decision |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
 | GET | `/api/player/world-evaluation` | Read-only caravan/quest evaluation |
 | GET | `/api/player/colony` | Live colony census: food nutrition and runway, colonists, workers, downed, mood mean, the living home roster (each colonist's `id`, `label`, `downed`, `mood`, `food` and the read-only personal wealth share `share`, what is attributed to them now `spent`, and `remaining`, #1846; null until a review has filed fresh colony facts, for a slave's spent and for any unread input), raid points and the wealth split (`raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`, `wealthPawns`; #395) and the ancient shrine census (`shrines`: id, `sealed`, `inHome`, `caskets`, `filledCaskets`, `guardsKnown`, `guardsAlive`, `breachWalls`; #456; with the breach judgement `ready`, `reason`, `wall`, `squad`, `traps`; #457) (unknown facts are null) |
@@ -77,7 +76,7 @@ no effect; clients recover by reading the same request ID without automatic POST
 
 Configuration routes record player intent; they issue no per-pawn order.
 The population target belongs to the autopilot; there is no population-policy
-route. A population decision of ignore withdraws an earlier direction. The autopilot owns resource stock
+route. The autopilot owns resource stock
 targets; there is no player resource-policy route. Work
 preferences attach to the live root plan.
 

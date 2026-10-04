@@ -111,15 +111,6 @@ type ResearchSelect struct {
 	Project string `json:"project"`
 }
 
-// PopulationDecision is the wire shape for one player-sourced per-pawn
-// population direction: rescue, capture, recruit or ignore for one exact
-// observed pawn. It is a recorded direction rather than a plan action, so
-// it carries no before-token.
-type PopulationDecision struct {
-	Pawn     string `json:"pawn"`
-	Decision string `json:"decision"`
-}
-
 type Building struct {
 	DefName  string          `json:"defName"`
 	X        int32           `json:"x"`

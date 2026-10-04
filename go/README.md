@@ -96,8 +96,7 @@ structured player endpoints are listed in
 [the player API contract](../docs/developers/contracts/go-player-api.md). The player
 surface is guidance, not per-pawn orders: one building placement and one
 research selection remain as typed plan submissions, and everything else is
-colony configuration (goals, population/expedition/resource policies, per-pawn
-population decisions) or control (resume/pause, clock
+colony configuration (goals, expedition policy) or control (resume/pause, clock
 acknowledgement, world evaluation). Per-command player slices for tend, rescue,
 draft, husbandry, recovery service, bed assignment, movement, building
 temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
@@ -105,11 +104,10 @@ room shells were removed in
 [issue #54](https://github.com/davidarcher/rimgovernor/issues/54); those
 families are reached only through the routine planners. 
 
-Two player commands are configuration rather than plans of native actions and
-live outside the plan/action tables, each with request-ID replay safety and one
+One player command is configuration rather than a plan of native actions and
+lives outside the plan/action tables, with request-ID replay safety and one
 current value per colony/load/map: expedition policy (`/api/player/expedition-policy/update`, a
-partial patch merged over the limits in force, validated as a whole) and per-pawn
-population decisions (`/api/player/population-decision/*`). The population
+partial patch merged over the limits in force, validated as a whole). The population
 target and production policy (reserves and spending) belong to the autopilot alone.
 
 Multi-instance colony directory serving (`--colonies`) does not exist in Go

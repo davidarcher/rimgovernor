@@ -7,11 +7,7 @@ player knob (#1032). The colony grows toward it only as fast as
 `policy.JoinerCapacity` allows: a spare colonist bed and a food runway at or above
 `policy.JoinerFoodFloorDays`, which rises linearly from 3 days for one hosted
 person to 15 days at 20 or more.
-`SetPopulationDecision` records an exact observed pawn ID and one of `rescue`,
-`capture`, `recruit` or `ignore`. Ignore cancels future population work; it does not
-release a prisoner or undo a native order.
-
-Each decision uses a `Population-<pawn ID>` ColonyGoal and ordinary Hands actions.
+The population goal is `Population-<pawn ID>` per observed candidate, run as ordinary Hands actions.
 The controller counts living free player colonists as admitted population. Guests,
 prisoners and accepted candidates consume reserved capacity but remain distinct from
 admitted colonists. Shared food and shelter methods can provision future capacity.

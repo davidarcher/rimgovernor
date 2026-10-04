@@ -156,8 +156,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/research-selects/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission"
-	write := path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update"
+	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/research-selects/submission"
+	write := path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans"
 	if !read && !write {
 		return false
 	}
@@ -200,10 +200,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.ReadTimeout)
 	defer cancel()
-	if strings.HasPrefix(path, "/api/player/population-decision") {
-		s.handlePopulationDecision(ctx, w, r, query, path)
-		return true
-	}
 	if path == "/api/player/clock" || path == "/api/player/clock/acknowledge" {
 		if len(query) != 0 || r.URL.ForceQuery {
 			s.failure(w, r, 400, "invalid_request", "Clock review accepts no query")
