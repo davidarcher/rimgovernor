@@ -169,7 +169,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	// it) is not retried; the next epoch reconsiders.
 	method := domain.MethodID("hospital-convert-" + choice.Bed)
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "hospital_convert_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -188,7 +188,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "bed_claim")}, nil
 	}
 	err = p.commitBedPatch(call, epoch, state, goal, method, patch, func() error {
 		if elapsed := r.reviewer.clock.Now().Sub(started); elapsed < 0 || elapsed > r.reviewer.maxAge {

@@ -145,7 +145,7 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 			return RoutineBuildingResult{}, false, err
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineBuildingResult{Verdict: BuildingReasonUsed}, true, nil
+			return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "dig_plan")}, true, nil
 		}
 		if len(excavations) == 0 {
 			clockSchedulerLog("%s: %s: %d roof cells still standing after the plan settled", b.goal, method, len(unroof))

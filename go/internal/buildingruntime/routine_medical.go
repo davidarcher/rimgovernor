@@ -298,7 +298,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	}
 	method := domain.MethodID(fmt.Sprintf("acquire-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineMedicalResult{Verdict: waitFor(WaitMethodUsed, "acquire_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineMedicalResult{}, err
 	}
@@ -358,7 +358,7 @@ func medicineChoiceVerdict(kind policy.MedicineMethodKind, resource policy.Resou
 	case policy.MedicineBlocked:
 		return awaitingPlan("production_bench", string(resource))
 	}
-	return BuildingReasonUsed
+	return waitFor(WaitMethodUsed, "medicine_method")
 }
 
 // planAmputation is CriticalMedical's life-saving amputation (#1166): while

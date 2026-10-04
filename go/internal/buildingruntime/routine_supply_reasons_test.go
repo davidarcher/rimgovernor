@@ -29,7 +29,7 @@ func TestMedicalReasonsNameTheMissingThing(t *testing.T) {
 		{policy.MedicineRecovered, BuildingReasonNoDeficit},
 		{policy.MedicineUnknown, fieldUnavailable("bench_recipes")},
 		{policy.MedicineBlocked, awaitingPlan("production_bench", "MedicineHerbal")},
-		{policy.MedicineWait, BuildingReasonUsed},
+		{policy.MedicineWait, waitFor(WaitMethodUsed, "medicine_method")},
 	} {
 		if got := medicineChoiceVerdict(test.kind, "MedicineHerbal"); got != test.want {
 			t.Fatalf("%s reads %v, want %v", test.kind, got, test.want)
@@ -41,7 +41,7 @@ func TestFoodStorageChoiceReasons(t *testing.T) {
 	for kind, want := range map[policy.FoodStorageMethodKind]Verdict{
 		policy.FoodStorageRecovered: BuildingReasonNoDeficit,
 		policy.FoodStorageUnknown:   fieldUnavailable("food_storage_capacity"),
-		policy.FoodStorageBlocked:   BuildingReasonUsed,
+		policy.FoodStorageBlocked:   waitFor(WaitMethodUsed, "food_storage_method"),
 	} {
 		if got := foodStorageChoiceVerdict(kind); got != want {
 			t.Fatalf("%s reads %v, want %v", kind, got, want)

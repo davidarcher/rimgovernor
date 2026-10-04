@@ -43,7 +43,7 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			slog.Default().WarnContext(call, "containment upkeep: the cell door is held open again after every close order", telemetry.ComponentKey, "routine-population-custody", telemetry.KindKey, "containment_upkeep_exhausted", "x", cell.X, "z", cell.Z)
-			return RoutinePopulationCustodyResult{Verdict: BuildingReasonExhausted}, nil
+			return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		id := domain.MintPlanID()
@@ -55,7 +55,7 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 	}
 	patient, ok := policy.EntityTendTarget(containment)
 	if !ok {
-		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "entity_tend_target")}, nil
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -71,7 +71,7 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "colonists_complete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists)+1)
 	for _, pawn := range emergency.Facts.Colonists {
@@ -111,11 +111,11 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 	}
 	doctor, target, ok := policy.SelectTend(doctors, patients, tend.TendReachability(observed.Pawns))
 	if ok && !arbiter.tryClaim([]domain.PawnID{doctor, target}) {
-		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
 	}
 	if !ok {
 		slog.Default().WarnContext(call, "containment upkeep: a held entity needs tending and no doctor can be ordered to it (the entity is neither downed nor in a bed, or no doctor is eligible and reaches it)", telemetry.ComponentKey, "routine-population-custody", telemetry.KindKey, "entity_tend_unavailable", "pawn", string(patient))
-		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "entity_tend_doctor")}, nil
 	}
 	value, err := domain.NewTend(doctor, target)
 	if err != nil {
@@ -124,7 +124,7 @@ func (r *RoutinePopulationCustodyPlanner) stepContainment(call, epoch context.Co
 	prefix := fmt.Sprintf("population-tend-%s-", target)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationCustodyResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

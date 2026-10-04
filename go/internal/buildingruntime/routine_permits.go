@@ -77,7 +77,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	choice, ok := policy.NextPermitOf(read.Projection.Facts.Royalty)
 	if !ok {
-		return RoutinePermitsResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePermitsResult{Verdict: waitFor(WaitMethodUsed, "permit")}, nil
 	}
 	intent := choice.Intent()
 	method, plan, exhausted, err := permitMethod(intent, goal.History, goal.Goal.Epoch)
@@ -85,10 +85,10 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePermitsResult{}, err
 	}
 	if exhausted {
-		return RoutinePermitsResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutinePermitsResult{Verdict: refuse(RefusalRetriesSpent, "permit_attempts", "")}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(intent.Holder)}) {
-		return RoutinePermitsResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePermitsResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutinePermitsResult{}, err

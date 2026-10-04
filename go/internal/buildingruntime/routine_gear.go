@@ -196,7 +196,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	gear := observed.GetPlanning().GetObserved().GetGear()
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
-		return RoutineGearResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineGearResult{Verdict: waitFor(WaitMethodUsed, "gear_observation")}, nil
 	}
 	things, err := frameThings(call, r.native, identity)
 	if err != nil {
@@ -367,7 +367,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		if len(busy) > 0 {
 			return RoutineGearResult{Verdict: BuildingReasonExistingWork}, nil
 		}
-		return RoutineGearResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineGearResult{Verdict: waitFor(WaitMethodUsed, "gear_bill")}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {

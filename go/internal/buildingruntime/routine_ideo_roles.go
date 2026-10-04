@@ -78,7 +78,7 @@ func (r *RoutineIdeoRolesPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	owed, known := policy.RoleAssignments(read.Projection.Facts.Ideology, read.Projection.WorkPawns).Value()
 	if !known || len(owed) == 0 {
-		return RoutineIdeoRolesResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineIdeoRolesResult{Verdict: waitFor(WaitMethodUsed, "ideology_roles")}, nil
 	}
 	// The first assignment whose attempts are not spent; one in flight per
 	// step keeps a role with several places filling one believer at a time.
@@ -89,7 +89,7 @@ func (r *RoutineIdeoRolesPlanner) step(call, epoch context.Context, arbiter *ste
 			continue
 		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
-			return RoutineIdeoRolesResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineIdeoRolesResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
 		}
 		assign, err := domain.NewAssign(domain.PawnID(choice.Pawn), choice.Role, domain.ClearPrevious())
 		if err != nil {
@@ -117,5 +117,5 @@ func (r *RoutineIdeoRolesPlanner) step(call, epoch context.Context, arbiter *ste
 		}
 		return RoutineIdeoRolesResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 	}
-	return RoutineIdeoRolesResult{Verdict: BuildingReasonExhausted}, nil
+	return RoutineIdeoRolesResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 }

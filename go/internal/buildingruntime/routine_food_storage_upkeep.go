@@ -321,5 +321,5 @@ func foodStorageChoiceVerdict(kind policy.FoodStorageMethodKind) Verdict {
 	case policy.FoodStorageUnknown:
 		return fieldUnavailable("food_storage_capacity")
 	}
-	return BuildingReasonUsed
+	return waitFor(WaitMethodUsed, "food_storage_method")
 }

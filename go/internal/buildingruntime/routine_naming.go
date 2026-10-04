@@ -84,7 +84,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%s/%s", windowID, factionName, settlementName)))
 	method := domain.MethodID(fmt.Sprintf("naming-%x", digestNext[:16]))
 	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
-		return RoutineNamingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineNamingResult{Verdict: waitFor(WaitMethodUsed, "naming_method")}, nil
 	}
 	id := domain.MintPlanID()
 	value, err := domain.NewNamingConfirmation(windowID, factionName, settlementName)

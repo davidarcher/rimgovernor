@@ -229,7 +229,7 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 	world := stockpileWorld(state.Snapshot)
 	edits := r.reviewer.safeArea.take(world)
 	if len(edits) == 0 {
-		return MaintainShelterResult{Verdict: BuildingReasonUsed}, nil
+		return MaintainShelterResult{Verdict: waitFor(WaitMethodUsed, "safe_area_edits")}, nil
 	}
 	id := domain.MintPlanID()
 	actions := make([]domain.Action, 0, len(edits))

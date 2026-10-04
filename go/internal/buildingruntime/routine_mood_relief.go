@@ -92,7 +92,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineMoodReliefResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	if review.Mood == nil || len(review.Mood.States) == 0 {
-		return RoutineMoodReliefResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineMoodReliefResult{Verdict: waitFor(WaitMethodUsed, "mood_states")}, nil
 	}
 	statesByPawn := map[domain.PawnID]store.RoutineMoodState{}
 	for _, s := range review.Mood.States {
@@ -197,5 +197,5 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		return RoutineMoodReliefResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 	}
-	return RoutineMoodReliefResult{Verdict: BuildingReasonUsed}, nil
+	return RoutineMoodReliefResult{Verdict: waitFor(WaitMethodUsed, "mood_relief_method")}, nil
 }

@@ -162,7 +162,7 @@ func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context
 	}
 	method := domain.MethodID("herd-medical-" + bed)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "herd_bed_medical_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -174,7 +174,7 @@ func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context
 		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: stale bed read", ErrControl)
 	}
 	if target.Medical {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "herd_bed_medical")}, nil
 	}
 	patch, err := domain.NewBedMedical(bed, true)
 	if err != nil {

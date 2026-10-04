@@ -85,12 +85,12 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 		return RoutineHomeCoverageResult{Verdict: fieldUnavailable("home_coverage")}, nil
 	}
 	if diff.Empty() {
-		return RoutineHomeCoverageResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineHomeCoverageResult{Verdict: waitFor(WaitMethodUsed, "home_coverage_diff")}, nil
 	}
 	method := diff.MethodID()
 	for _, seen := range goal.Methods {
 		if seen.Method == method {
-			return RoutineHomeCoverageResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineHomeCoverageResult{Verdict: waitFor(WaitMethodUsed, "home_coverage_method")}, nil
 		}
 	}
 	id := domain.MintPlanID()

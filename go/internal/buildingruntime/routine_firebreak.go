@@ -395,7 +395,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineFirebreakResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	if !work.Owed() {
-		return RoutineFirebreakResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineFirebreakResult{Verdict: waitFor(WaitMethodUsed, "firebreak_work")}, nil
 	}
 	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
 	if err != nil {
@@ -403,7 +403,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	if firebreakAttempts(history, review.Tick) >= maxFirebreakAttempts {
 		clockSchedulerLog("firebreak: exhausted for the day (%d cells, %d ruins waiting)", len(work.Cut), len(work.Deconstruct))
-		return RoutineFirebreakResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineFirebreakResult{Verdict: refuse(RefusalRetriesSpent, "maxFirebreakAttempts", "")}, nil
 	}
 	actions, err := firebreakActions(domain.MintPlanID(), work, ruins)
 	if err != nil {

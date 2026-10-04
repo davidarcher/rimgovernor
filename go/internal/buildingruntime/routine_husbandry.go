@@ -138,7 +138,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	prefix := fmt.Sprintf("%s-%s-", choice.Method, choice.Animal)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineHusbandryResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineHusbandryResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Animal)}) {
 		return RoutineHusbandryResult{Verdict: claimHeld("animal")}, nil

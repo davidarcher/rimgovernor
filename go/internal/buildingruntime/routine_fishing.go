@@ -89,7 +89,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 				continue
 			}
 			if open, known := region.Delivering.Value(); known && open {
-				return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: 2500}, true, nil
+				return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "fishing_region"), NativeWorkTicks: 2500}, true, nil
 			}
 			zoned, zk := region.Zoned.Value()
 			if entry.Decision != policy.FoodPlanOpen || !zk || zoned || len(region.ProposedCells) == 0 {

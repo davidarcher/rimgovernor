@@ -109,7 +109,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:
-		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "custody_deficit")}, nil
 	case policy.CustodyUnknown:
 		return RoutinePopulationCustodyResult{Verdict: fieldUnavailable("custody")}, nil
 	}
@@ -123,7 +123,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "colonists_complete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists)+1)
 	for _, pawn := range emergency.Facts.Colonists {
@@ -199,7 +199,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			ok = false
 		}
 		if !ok {
-			return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+			return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "rescue_claim")}, nil
 		}
 		value, err := domain.NewRescue(performer, target)
 		if err != nil {
@@ -208,7 +208,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		prefix = fmt.Sprintf("population-rescue-%s-", target)
 		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
-			return RoutinePopulationCustodyResult{Verdict: BuildingReasonExhausted}, nil
+			return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		id := domain.MintPlanID()
@@ -227,7 +227,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			ok = false
 		}
 		if !ok {
-			return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
+			return RoutinePopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "capture_claim")}, nil
 		}
 		value, err := domain.NewCapture(performer, target)
 		if err != nil {
@@ -236,7 +236,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		prefix = fmt.Sprintf("population-capture-%s-", target)
 		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
-			return RoutinePopulationCustodyResult{Verdict: BuildingReasonExhausted}, nil
+			return RoutinePopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		id := domain.MintPlanID()
