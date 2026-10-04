@@ -46,6 +46,7 @@ var funcs = template.FuncMap{
 	"pct1": func(v float64) string { return fmt.Sprintf("%.0f%%", v*100) },
 	"f1":   func(v float64) string { return fmt.Sprintf("%.1f", v) },
 	"f0":   func(v float64) string { return fmt.Sprintf("%.0f", v) },
+	"f2":   func(v float64) string { return fmt.Sprintf("%.2f", v) },
 	"sgn": func(v *float64, format string) string {
 		if v == nil {
 			return "unknown"
@@ -88,6 +89,9 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <div class="tile"><span class="muted">Hours recorded</span><b>{{.S.Hours}}</b></div>
 <div class="tile"><span class="muted">Flags</span><b class="{{if .S.Flags}}warn{{end}}">{{.S.Flags}}</b></div>
 </div>
+<h2>Colony score</h2>
+<p>Score <b>{{if .S.Score.Scalar}}{{f1 (deref .S.Score.Scalar)}} / 100{{else}}unknown{{end}}</b> <span class="muted">weighted scalar of the components below; a signal, not a verdict.</span></p>
+<table>{{range .S.Score.Components}}<tr><td>{{.Name}}</td><td>{{if .Value}}{{f2 (deref .Value)}} {{.Unit}}{{else}}<span class="muted">unknown</span>{{end}}</td><td>{{if .Score}}{{f2 (deref .Score)}}{{end}}</td><td class="muted">weight {{f1 .Weight}}{{if .Note}} · {{.Note}}{{end}}</td></tr>{{end}}</table>
 {{with .S.Delta}}<h2>Against the previous night</h2>{{if eq .Status "no_baseline"}}<p class="muted">No earlier run with this seed to compare with (unknown, not zero).</p>{{else}}<p>Score {{sgn .Scalar "%+.1f"}} points against {{.Baseline}}{{if .BaselineCommit}} ({{.BaselineCommit}}){{end}}. <span class="muted">One run per seed: a signal, not a verdict.</span></p>
 <table>{{range .Components}}<tr><td>{{.Name}}</td><td>{{sgn .Delta "%+.2f"}}</td><td class="muted">{{if .ValueDelta}}{{sgn .ValueDelta "%+.2f"}} in its unit{{end}}</td></tr>{{end}}</table>{{end}}{{end}}
 <h2>Trends</h2><div class="charts">{{range .Charts}}<div class="chart"><span class="muted">{{.Label}}</span> <b>{{.Last}}</b>
@@ -180,12 +184,13 @@ var sitePage = template.Must(template.New("site").Funcs(funcs).Parse(`<!doctype 
 <title>Colony reviews</title><style>` + style + `</style></head><body><main>
 <h1>Colony reviews</h1>
 <p class="muted">Each run plays a fresh map for an in-game week with the governor in charge. Open one to see it hour by hour.</p>
-<table class="runs"><tr><th></th><th>Run</th><th>Map</th><th>Colonists</th><th>Low food</th><th>Flags</th></tr>
+<table class="runs"><tr><th></th><th>Run</th><th>Map</th><th>Colonists</th><th>Low food</th><th>Flags</th><th>Score</th></tr>
 {{range .}}<tr><td>{{if .S.Thumb}}<a href="{{.Dir}}/index.html"><img loading="lazy" src="{{.Dir}}/{{.S.Thumb}}" alt=""></a>{{end}}</td>
 <td><a href="{{.Dir}}/index.html">{{.S.Meta.date}}</a><br><span class="muted">{{.S.Meta.commit}}</span></td>
 <td>{{.S.Meta.biome}}<br><span class="muted">{{.S.Meta.seed}}</span></td>
 <td class="{{if lt .S.LastColonists .S.FirstColonists}}bad{{end}}">{{.S.FirstColonists}} → {{.S.LastColonists}}</td>
-<td>{{f1 .S.MinFoodDays}} d</td><td>{{.S.Flags}}</td></tr>{{end}}
+<td>{{f1 .S.MinFoodDays}} d</td><td>{{.S.Flags}}</td>
+<td>{{if .S.Score.Scalar}}{{f1 (deref .S.Score.Scalar)}}{{else}}<span class="muted">unknown</span>{{end}}{{with .S.Delta}}{{if eq .Status "ok"}}{{if .Scalar}} <span class="muted">({{sgn .Scalar "%+.1f"}})</span>{{end}}{{end}}{{end}}</td></tr>{{end}}
 </table></main></body></html>
 `))
 

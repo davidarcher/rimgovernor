@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Colony review 2026-10-02</title><style>
+:root{--bg:#fafaf8;--fg:#1d1d1b;--muted:#6b6b66;--card:#fff;--line:#e2e1dc;--bad:#c0392b;--warn:#b7791f;--accent:#2f6f9f}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#9c9b94;--card:#1f1f1d;--line:#34332f;--bad:#ef6f5e;--warn:#e3a64a;--accent:#79b4dd}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}h1{font-size:22px;margin:4px 0}h2{font-size:17px;margin:24px 0 8px}
+a{color:var(--accent)}.muted{color:var(--muted)}.meta span{margin-right:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.tile b{display:block;font-size:20px}
+.charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px}
+.chart{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}.chart svg{width:100%;height:70px;display:block}
+.chart polyline{fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.flags{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
+.flags li{padding:4px 10px;border-bottom:1px solid var(--line)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}.days figure{margin:0;flex:0 0 220px}.days img{width:220px;height:220px;object-fit:cover;border-radius:6px}
+.hours{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.hour{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}.hour.hasbad{border-color:var(--bad)}
+.hour img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#000}.hour .body{padding:8px 10px}
+.hour table{width:100%;border-collapse:collapse;font-size:12px}.hour td{padding:1px 4px 1px 0;vertical-align:top}
+.hour .job{color:var(--muted)}.hour ul{margin:4px 0 0;padding-left:16px;font-size:12px}
+.filter{margin:8px 0}figcaption{font-size:12px;color:var(--muted)}
+table.runs{width:100%;border-collapse:collapse}table.runs td,table.runs th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+table.runs img{width:72px;height:72px;object-fit:cover;border-radius:4px}
+@media (max-width:600px){.hours{grid-template-columns:1fr}}
+</style></head><body><main>
+<p><a href="../index.html">All runs</a></p>
+<h1>Colony review 2026-10-02</h1>
+<p class="meta muted"><span>biome: TemperateForest</span><span>commit: def456</span><span>date: 2026-10-02</span><span>seed: review-x</span></p>
+
+<div class="tiles">
+<div class="tile"><span class="muted">Colonists</span><b>0 → 0</b></div>
+<div class="tile"><span class="muted">Lowest mean mood</span><b>0%</b></div>
+<div class="tile"><span class="muted">Lowest food runway</span><b>0.0 days</b></div>
+<div class="tile"><span class="muted">Final wealth</span><b>0</b></div>
+<div class="tile"><span class="muted">Hours recorded</span><b>0</b></div>
+<div class="tile"><span class="muted">Flags</span><b class="">0</b></div>
+</div>
+<h2>Colony score</h2>
+<p>Score <b>50.0 / 100</b> <span class="muted">weighted scalar of the components below; a signal, not a verdict.</span></p>
+<table><tr><td>mean_mood</td><td>0.50 0-1</td><td>0.50</td><td class="muted">weight 2.0 · mean of the hourly colony mood mean</td></tr><tr><td>raid_damage</td><td><span class="muted">unknown</span></td><td></td><td class="muted">weight 2.0 · the timeline records no raid damage</td></tr></table>
+<h2>Against the previous night</h2><p>Score &#43;2.5 points against 2026-10-01-1 (abc123). <span class="muted">One run per seed: a signal, not a verdict.</span></p>
+<table><tr><td>mean_mood</td><td>&#43;0.10</td><td class="muted">&#43;0.10 in its unit</td></tr><tr><td>raid_damage</td><td>unknown</td><td class="muted"></td></tr></table>
+<h2>Trends</h2><div class="charts"><div class="chart"><span class="muted">Colonists</span> <b></b>
+<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
+<span class="muted"> – </span></div><div class="chart"><span class="muted">Mean mood %</span> <b></b>
+<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
+<span class="muted"> – </span></div><div class="chart"><span class="muted">Food runway days</span> <b></b>
+<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
+<span class="muted"> – </span></div><div class="chart"><span class="muted">Wealth</span> <b></b>
+<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
+<span class="muted"> – </span></div><div class="chart"><span class="muted">Goals in deficit</span> <b></b>
+<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
+<span class="muted"> – </span></div></div>
+<h2>Storage</h2><p class="muted">No stockpile review filed.</p>
+<h2>Flags</h2><p class="muted">None.</p>
+<h2>Whole map, daily</h2><div class="days"></div>
+<h2>Hour by hour</h2>
+<label class="filter"><input type="checkbox" id="only"> Only hours with flags or goal changes</label>
+<div class="hours" id="hours"></div>
+<script>
+document.getElementById('only').addEventListener('change',e=>{for(const s of document.querySelectorAll('#hours .hour'))s.style.display=e.target.checked&&s.dataset.flags==='00'?'none':''})
+</script>
+</main></body></html>
