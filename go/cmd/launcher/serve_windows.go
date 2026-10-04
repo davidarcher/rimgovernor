@@ -282,6 +282,13 @@ func (a *app) activePort() int {
 	return firstPort
 }
 
+// serveURL is the running controller's base URL, for the serve client.
+func (a *app) serveURL() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.url(a.activePort())
+}
+
 // firstPort is where Play starts looking; a port held by another
 // checkout's controller moves it up. Players never pick a port.
 const firstPort = 8787

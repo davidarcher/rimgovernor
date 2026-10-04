@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"os"
 	"path/filepath"
@@ -87,6 +88,18 @@ func main() {
 		"getEvents":      a.tail.rows,
 		"getProblems":    func(hidden []string, needle string) ProblemsView { return a.recorder.view(hidden, needle) },
 		"allProblems":    a.recorder.allProblems,
+	} {
+		if err := w.Bind(name, f); err != nil {
+			fatal(err.Error())
+		}
+	}
+	// The Now tab (#1986): the page polls these at the serve client's
+	// cadences while the tab is visible; no timer lives here.
+	serve := NewServeClient(a.serveURL)
+	for name, f := range map[string]any{
+		"getNowHeader":      func() HeaderView { return headerView(serve.State(context.Background())) },
+		"getNowPanel":       func() NowView { return nowView(serve.Now(context.Background())) },
+		"getNowDevelopment": func() DevView { return devView(serve.Routines(context.Background())) },
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())
