@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
@@ -330,6 +331,12 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 		level, message = slog.LevelWarn, "step failed: "+err.Error()
 		if err == executor.ErrHeld && len(failures) == 0 {
 			level, message = slog.LevelInfo, "step held: "+err.Error()
+		} else if (errors.Is(err, executor.ErrAuthority) || errors.Is(err, observation.ErrChanged)) && len(failures) == 0 {
+			// Authority or the native observation lapsed between the step's
+			// state read and its review (a poll hold, a resume, a reload in
+			// flight): the next step reviews with fresh state or exits on
+			// authority's absence, so it is a retry, not a fault.
+			level, message = slog.LevelInfo, "step retry: "+err.Error()
 		} else if strings.Contains(err.Error(), "FAILURE_CODE_OWNER_CONFLICT") && len(failures) == 0 {
 			// A restarted controller asking after its old clock epoch: it opens a
 			// new one on the next step.
