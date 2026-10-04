@@ -668,7 +668,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {
-		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency)}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals) + len(result.Projects), "emergency", routineEmergencyNames(result.Emergency)}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoutineSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawStatusStrip(ctx, state.Snapshot, &reading.Projection, result)

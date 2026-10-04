@@ -152,7 +152,7 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 		return nil
 	}
 	if review.Snapshot.Colony == world.Colony && review.Snapshot.Load == world.Load && review.Snapshot.Map == world.Map {
-		for _, binding := range review.Goals {
+		for _, binding := range review.Bindings() {
 			if err = addGoal(binding.Goal, string(binding.Need)); err != nil {
 				return none, domain.GenerationSnapshot{}, err
 			}

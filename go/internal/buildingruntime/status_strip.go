@@ -61,7 +61,7 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 		return
 	}
 	tick := projection.Identity.Tick
-	marked, cells := r.planMarks(ctx, result.Goals, result.Incidents)
+	marked, cells := r.planMarks(ctx, result.Goals, result.Projects, result.Incidents)
 	refusals := policy.LiveRefusals(marked, tick)
 	f := projection.Facts
 	// An invalid reserve read leaves Stock unknown and drops the row.
@@ -129,7 +129,7 @@ func openIncidents(states []store.IncidentState) []domain.Incident {
 // when its plan retires or the action leaves Pending), and each goal's
 // target, the cell of its first open action that names one (#847). A plan
 // that does not load is skipped.
-func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState, incidents []store.IncidentState) ([]policy.RefusalMarker, map[policy.GoalID]domain.Cell) {
+func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState, projects []store.ProjectState, incidents []store.IncidentState) ([]policy.RefusalMarker, map[policy.GoalID]domain.Cell) {
 	type owner struct {
 		id    policy.GoalID
 		plans []domain.PlanID
@@ -138,6 +138,13 @@ func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState
 	for _, goal := range goals {
 		o := owner{id: policy.GoalID(goal.Goal.ID)}
 		for _, method := range goal.Methods {
+			o.plans = append(o.plans, method.Plan)
+		}
+		owners = append(owners, o)
+	}
+	for _, project := range projects {
+		o := owner{id: policy.GoalID(project.Project.ID)}
+		for _, method := range project.Methods {
 			o.plans = append(o.plans, method.Plan)
 		}
 		owners = append(owners, o)

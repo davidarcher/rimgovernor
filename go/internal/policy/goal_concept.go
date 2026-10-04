@@ -16,19 +16,11 @@ const (
 // ConceptRule; an unknown id is ConceptUnknown.
 func GoalConcept(id GoalID) Concept { return goalDetectorIndex[id].Concept }
 
-// incidentKinds are the Responses whose occurrences live in the incidents
-// table instead of the goal table (#1020): the review opens and closes
-// their incidents and never files a goal row for them.
-var incidentKinds = map[GoalID]bool{
-	ActiveCombat:            true,
-	CriticalMedicine:        true,
-	RestoreWorkers:          true,
-	AnswerDialog:            true,
-	ConfirmColonyNames:      true,
-	EnsureMood:              true,
-	RecoverDisasterServices: true,
-	TradeWithCaravan:        true,
-}
+// IsIncidentKind reports whether id is a Response, whose occurrences are
+// incidents (#1020): the review opens and closes them and never files a goal
+// row for them.
+func IsIncidentKind(id GoalID) bool { return GoalConcept(id) == ConceptResponse }
 
-// IsIncidentKind reports whether id's occurrences are incidents (#1020).
-func IsIncidentKind(id GoalID) bool { return incidentKinds[id] }
+// IsProjectKind reports whether id is a Project, whose rows live in the
+// projects table (#1911): the review files one per world and never a goal row.
+func IsProjectKind(id GoalID) bool { return GoalConcept(id) == ConceptProject }

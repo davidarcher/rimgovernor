@@ -55,7 +55,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	sort.SliceStable(review.Goals, func(i, j int) bool {
 		return review.Goals[i].Need == policy.ManageSupplySafety && review.Goals[j].Need != policy.ManageSupplySafety
 	})
-	for _, binding := range review.Goals {
+	for _, binding := range review.Bindings() {
 		if binding.Need == policy.AllowStartingSupplies || binding.Need == policy.ManageSupplySafety {
 			goal, err = p.journal.LoadGoal(call, binding.Goal)
 			if err != nil {

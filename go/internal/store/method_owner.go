@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -14,7 +13,7 @@ import (
 // methodOwner is what method admission reads of the goal or incident a
 // goal_methods row binds to (#1019): the world it was last reviewed in,
 // whether the autopilot owns it, the routine need it serves and its open
-// plans. GoalState and IncidentState implement it.
+// plans. GoalState, ProjectState and IncidentState implement it.
 type methodOwner interface {
 	ownerSnapshot() domain.GenerationSnapshot
 	ownerAutopilot() bool
@@ -30,7 +29,8 @@ type methodOwner interface {
 }
 
 func (g GoalState) ownerKey() (string, string, string) {
-	return "goal_id", string(g.Goal.ID), strconv.FormatUint(g.Goal.Epoch, 10)
+	column, epoch := methodOwnerColumn(g.Goal.ID, g.Goal.Epoch)
+	return column, string(g.Goal.ID), epoch
 }
 
 func (g GoalState) ownerSnapshot() domain.GenerationSnapshot { return g.Goal.Snapshot }

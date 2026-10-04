@@ -12,9 +12,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// RoutineGoal binds a Standard need to the goal row the review filed for it.
 type RoutineGoal struct {
 	Need domain.GoalID
 	Goal domain.GoalID
+}
+
+// RoutineProject binds a Project need to the Project row the review filed for
+// it (#1927): Projects are never goal rows.
+type RoutineProject struct {
+	Need    domain.GoalID
+	Project domain.ProjectID
 }
 
 // ReserveSupply binds identity and access direction. Its current position is
@@ -67,7 +75,10 @@ type RoutineReview struct {
 	StartingSupplies policy.StartingSupplies
 	EventLoot        policy.EventLootHistory
 	Comfort          policy.ComfortHistory
-	Goals            []RoutineGoal
+	// Goals binds the Standards this review assessed; Projects binds the
+	// Projects.
+	Goals    []RoutineGoal
+	Projects []RoutineProject `json:",omitempty"`
 	// Incidents binds the Responses this review assessed to their open
 	// occurrences (#1020); those needs have no entry in Goals.
 	Incidents   []RoutineIncident `json:",omitempty"`
@@ -132,6 +143,8 @@ type RoutineReviewResult struct {
 	Review RoutineReview
 	Needs  policy.RoutineNeeds
 	Goals  []GoalState
+	// Projects are the Project rows Review.Projects binds.
+	Projects []ProjectState
 	// Incidents are the occurrences Review.Incidents binds (#1020).
 	Incidents []IncidentState
 	// Emergency names the assessed needs whose EmergencyRule vetoes every
@@ -168,7 +181,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return r, err
 	}
 	canonical, err := json.Marshal(r)
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 306 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 306 || len(r.Projects) > 306 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
@@ -303,20 +316,17 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	// The stored review is the fact: a binding is valid when it names a
 	// routine goal the table knows, not when a second derivation from empty
 	// facts would also have assessed it (#1763). Response kinds live in the
-	// incidents table and carry no binding.
-	allowed := func(id domain.GoalID) bool {
-		c := policy.GoalConcept(id)
-		return (c == policy.ConceptStandard || c == policy.ConceptProject) && !policy.IsIncidentKind(id)
-	}
+	// incidents table and Project kinds in the projects table; Goals binds
+	// Standards only.
 	for _, row := range r.Development.Rows {
-		if !allowed(row.Goal) {
+		if c := policy.GoalConcept(row.Goal); c != policy.ConceptStandard && c != policy.ConceptProject {
 			return RoutineReview{}, errors.New("unknown optional routine goal")
 		}
 	}
 	seen := map[domain.GoalID]bool{}
 	identities := map[domain.GoalID]bool{}
 	for _, binding := range r.Goals {
-		if !allowed(binding.Need) || seen[binding.Need] || identities[binding.Goal] {
+		if policy.GoalConcept(binding.Need) != policy.ConceptStandard || seen[binding.Need] || identities[binding.Goal] {
 			return RoutineReview{}, errors.New("duplicate routine need")
 		}
 		seen[binding.Need] = true
@@ -327,6 +337,21 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		}
 		if g.Goal.Source != domain.AutopilotGoal || !routineGoalOwns(binding.Goal, binding.Need) {
 			return RoutineReview{}, errors.New("routine goal ownership mismatch")
+		}
+	}
+	projects := map[domain.ProjectID]bool{}
+	for _, binding := range r.Projects {
+		if !policy.IsProjectKind(binding.Need) || seen[binding.Need] || projects[binding.Project] {
+			return RoutineReview{}, errors.New("duplicate routine need")
+		}
+		seen[binding.Need] = true
+		projects[binding.Project] = true
+		p, err := loadProject(ctx, tx, binding.Project)
+		if err != nil {
+			return RoutineReview{}, err
+		}
+		if p.Project.Source != domain.AutopilotGoal || p.Project.Kind != binding.Need || !routineProjectOwns(binding.Project, binding.Need) {
+			return RoutineReview{}, errors.New("routine project ownership mismatch")
 		}
 	}
 	if err := validateRoutineIncidents(ctx, tx, r); err != nil {
@@ -546,6 +571,26 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		// resumed goal adopts the result.
 		old[binding.Need] = g
 	}
+	oldProjects := map[domain.GoalID]ProjectState{}
+	for _, binding := range previous.Projects {
+		p, err := loadProject(ctx, tx, binding.Project)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		if changed || (request.Enabled && !assessed[binding.Need]) {
+			if p.Project.Status != domain.ProjectCancelled && p.Project.Status != domain.ProjectInvalidated {
+				if err = cancelGoalMethods(ctx, tx, p); err != nil {
+					return RoutineReviewResult{}, err
+				}
+				next := p.Project
+				next.Status = domain.ProjectInvalidated
+				if p, err = saveProject(ctx, tx, p, next); err != nil {
+					return RoutineReviewResult{}, err
+				}
+			}
+		}
+		oldProjects[binding.Need] = p
+	}
 	// A replaced or rewound world ends its occurrences and their work, as
 	// it invalidates its goals.
 	if changed {
@@ -564,6 +609,15 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 	}
 	if err = retireRoutineGoals(ctx, tx, retained); err != nil {
+		return RoutineReviewResult{}, err
+	}
+	retainedProjects := map[domain.ProjectID]bool{}
+	for _, p := range oldProjects {
+		if !request.Enabled || p.Project.Status != domain.ProjectInvalidated {
+			retainedProjects[p.Project.ID] = true
+		}
+	}
+	if err = retireProjects(ctx, tx, retainedProjects); err != nil {
 		return RoutineReviewResult{}, err
 	}
 	r := RoutineReview{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
@@ -646,8 +700,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 	}
 	result := RoutineReviewResult{Needs: needs, Detection: detection}
+	// states is every assessment's row in assessment order, Projects as the
+	// goal handles ranking and progress read.
+	var states []GoalState
 	if !request.Enabled {
 		r.Goals = previous.Goals
+		r.Projects = previous.Projects
 		if !changed {
 			r.Incidents = previous.Incidents
 			for _, binding := range r.Incidents {
@@ -679,6 +737,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		for _, binding := range r.Goals {
 			result.Goals = append(result.Goals, old[binding.Need])
 		}
+		for _, binding := range r.Projects {
+			result.Projects = append(result.Projects, oldProjects[binding.Need])
+		}
 	} else {
 		// The review records the emergency needs; the EmergencyRule vetoes
 		// other work from them at admission and dispatch (#1017).
@@ -698,17 +759,17 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		for _, n := range needs.Assessments {
-			g, exists := old[n.ID]
-			project := policy.GoalConcept(n.ID) == policy.ConceptProject
-			if exists && project && domain.ProjectGoalRegressed(g.Goal, n.Need, false) {
-				// A finished Project that breaks opens a new Project row;
-				// the finished row stays as its record (#1022).
-				if open, err := goalOpenWork(ctx, tx, g); err != nil {
+			if policy.IsProjectKind(n.ID) {
+				p, err := reviewProject(ctx, tx, oldProjects, n, b, request.Tick)
+				if err != nil {
 					return RoutineReviewResult{}, err
-				} else if !open {
-					exists = false
 				}
+				r.Projects = append(r.Projects, RoutineProject{n.ID, p.Project.ID})
+				result.Projects = append(result.Projects, p)
+				states = append(states, p.goalView())
+				continue
 			}
+			g, exists := old[n.ID]
 			if !exists || g.Goal.Status == domain.GoalInvalidated {
 				id, err := mintRoutineGoalID(ctx, tx, World{b.Colony, b.Load, b.Map}, n.ID)
 				if err != nil {
@@ -734,11 +795,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			}
 			next := g.Goal
 			next.Priority = n.Priority
-			if project {
-				next, err = domain.ReviewProjectGoal(next, b, request.Tick, n.Need, open)
-			} else {
-				next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open, policy.GoalConcept(n.ID) == policy.ConceptStandard)
-			}
+			next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open)
 			if err != nil {
 				return RoutineReviewResult{}, err
 			}
@@ -748,10 +805,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			}
 			r.Goals = append(r.Goals, RoutineGoal{n.ID, g.Goal.ID})
 			result.Goals = append(result.Goals, g)
+			states = append(states, g)
 		}
 	}
 	if request.Enabled {
-		r.Progress, err = routineProgress(ctx, tx, request, previous, reset, needs, result.Goals)
+		r.Progress, err = routineProgress(ctx, tx, request, previous, reset, needs, states)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
@@ -764,7 +822,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if !reset {
 			records = previous.Dependencies
 		}
-		development, ready, shadow, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
+		development, ready, shadow, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, states, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
@@ -808,6 +866,50 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	result.Review = r
 	return result, nil
+}
+
+// reviewProject files and reviews one Project need: it reuses the world's
+// Project row, opens a new one when none stands or the finished one regressed
+// with no work open (the finished row stays as its record, #1022), and reviews
+// it against the assessment.
+func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.GoalID]ProjectState, n policy.RoutineAssessment, current domain.GenerationSnapshot, tick domain.Tick) (ProjectState, error) {
+	p, exists := old[n.ID]
+	if exists && domain.ProjectRegressed(p.Project, n.Need, false) {
+		open, err := goalOpenWork(ctx, tx, p)
+		if err != nil {
+			return ProjectState{}, err
+		}
+		exists = open
+	}
+	if !exists || p.Project.Status == domain.ProjectInvalidated {
+		id, err := mintRoutineProjectID(ctx, tx, World{current.Colony, current.Load, current.Map}, n.ID)
+		if err != nil {
+			return ProjectState{}, err
+		}
+		project, err := domain.NewProject(id, n.ID, domain.AutopilotGoal, n.Priority, current, tick)
+		if err != nil {
+			return ProjectState{}, err
+		}
+		if err = createProject(ctx, tx, project); err != nil {
+			return ProjectState{}, err
+		}
+		p = ProjectState{Project: project}
+	}
+	if n.Need == domain.NeedRecovered {
+		if err := cancelUndispatchedGoalMethods(ctx, tx, p); err != nil {
+			return ProjectState{}, err
+		}
+	}
+	open, err := goalOpenWork(ctx, tx, p)
+	if err != nil {
+		return ProjectState{}, err
+	}
+	next := p.Project
+	next.Priority = n.Priority
+	if next, err = domain.ReviewProject(next, current, tick, n.Need, open); err != nil {
+		return ProjectState{}, err
+	}
+	return saveProject(ctx, tx, p, next)
 }
 
 // routineRoster records the roster planner's report when this review planned

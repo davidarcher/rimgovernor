@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -41,8 +40,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &project, &admitted)
 		goalID = domain.GoalID(owner.String)
 		if err == nil && project.Valid {
-			// A Project's method serves its kind; it is not a routine
-			// binding yet (#1927).
+			// A Project's method serves its kind, which is its need.
 			p, e := loadProject(ctx, tx, domain.ProjectID(project.String))
 			if e != nil {
 				return nil, e
@@ -167,7 +165,8 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 				// Served counts retired methods too: a startup goal whose
 				// campfire plan completed and retired is served, not owed.
 				var served int
-				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE goal_id=? AND epoch=?", g.ID, strconv.FormatUint(g.Epoch, 10)).Scan(&served); err != nil {
+				column, epoch := methodOwnerColumn(g.ID, g.Epoch)
+				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE "+column+"=? AND epoch=?", g.ID, epoch).Scan(&served); err != nil {
 					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 				}
 				goals[i].Served = served > 0
@@ -248,7 +247,7 @@ func husbandrySettingsWrite(method domain.HusbandryMethod) bool {
 // method that is a pure settings write (developmentExemptMethod) is
 // admitted without a slot.
 func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, plan domain.PlanSpec) error {
-	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !strings.HasPrefix(string(g.ID), "routine-") || developmentExemptMethod(plan) {
+	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !(strings.HasPrefix(string(g.ID), "routine-") || isProjectID(g.ID)) || developmentExemptMethod(plan) {
 		return nil
 	}
 	review, err := loadRoutine(ctx, tx)
@@ -258,13 +257,7 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 	if review.Snapshot != g.Snapshot {
 		return fmt.Errorf("%w: goal %s reviewed under snapshot %+v, current review is %+v", ErrNotAdmitted, g.ID, g.Snapshot, review.Snapshot)
 	}
-	var need domain.GoalID
-	for _, b := range review.Goals {
-		if b.Goal == g.ID {
-			need = b.Need
-			break
-		}
-	}
+	need, _ := review.Need(g.ID)
 	if err := policy.AdmitDevelopment(review.Development.State(), need); err != nil {
 		return fmt.Errorf("%w: %v", ErrNotAdmitted, err)
 	}

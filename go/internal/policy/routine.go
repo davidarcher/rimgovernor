@@ -675,7 +675,7 @@ type RoutineNeeds struct {
 	Disaster *DisasterHistory
 	Latches  RoutineLatches
 	Goals    []DevelopmentGoal
-	// Assessments are the goal needs the review files goal rows for;
+	// Assessments are the Standard and Project needs the review files rows for;
 	// Incidents are the incident kinds' assessments (#1020, #1121).
 	Assessments []RoutineAssessment
 	Incidents   []RoutineAssessment

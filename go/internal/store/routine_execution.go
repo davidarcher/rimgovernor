@@ -48,8 +48,12 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		return err
 	}
 	if projectID.Valid {
-		// Projects are not bound by the routine review until #1927.
-		return fmt.Errorf("%w: project %s is not bound by the review", ErrConflict, projectID.String)
+		// A Project's row is read through its goal view; the review binds it
+		// by need exactly as it binds a Standard.
+		if err = authorizeGoalPlan(ctx, tx, review, domain.GoalID(projectID.String), root, target); err != nil {
+			return err
+		}
+		return tx.Commit()
 	}
 	if incidentID.Valid {
 		if err = authorizeIncidentPlan(ctx, tx, review, domain.IncidentID(incidentID.String), root, target); err != nil {
@@ -168,7 +172,22 @@ func (r RoutineReview) Need(goal domain.GoalID) (domain.GoalID, bool) {
 			return binding.Need, true
 		}
 	}
+	for _, binding := range r.Projects {
+		if domain.GoalID(binding.Project) == goal {
+			return binding.Need, true
+		}
+	}
 	return "", false
+}
+
+// Bindings returns every need binding of the review, Standards then Projects,
+// as the goal-view ids the journal's goal reads accept.
+func (r RoutineReview) Bindings() []RoutineGoal {
+	out := append([]RoutineGoal(nil), r.Goals...)
+	for _, b := range r.Projects {
+		out = append(out, RoutineGoal{Need: b.Need, Goal: domain.GoalID(b.Project)})
+	}
+	return out
 }
 
 // Veto asks the policy Rules (#1017) whether this review admits a proposal
@@ -186,17 +205,25 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 // planner may work it: an active deficit the Rules admit (#1121). The goal
 // is returned whenever the review binds one, workable or not.
 func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.GoalID) (GoalState, bool, error) {
+	id := domain.GoalID("")
 	for _, binding := range r.Goals {
-		if binding.Need != need {
-			continue
+		if binding.Need == need {
+			id = binding.Goal
 		}
-		goal, err := s.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			return GoalState{}, false, err
-		}
-		return goal, goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit && r.Veto(goal.Goal) == "", nil
 	}
-	return GoalState{}, false, nil
+	for _, binding := range r.Projects {
+		if binding.Need == need {
+			id = domain.GoalID(binding.Project)
+		}
+	}
+	if id == "" {
+		return GoalState{}, false, nil
+	}
+	goal, err := s.LoadGoal(ctx, id)
+	if err != nil {
+		return GoalState{}, false, err
+	}
+	return goal, goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit && r.Veto(goal.Goal) == "", nil
 }
 
 // vetoAction asks the action Rules (#1018) at dispatch: a vetoed action is

@@ -76,7 +76,12 @@ goals' ones, each row owned by exactly one of `goal_id`, `incident_id` or
 `project_id` (a Project's epoch is always `0`), and go through the same
 admission. A Project is saved as `project/<id>` (`GovernorProjectBlob`,
 `GovernorStateSchemaVersion` 3); its methods are re-planned after a load.
-The review does not bind Projects yet (#1927).
+The review binds Projects separately from Standards (`RoutineReview.Projects`,
+`RoutineReviewResult.Projects`): one row per world and kind, reused while it
+stands, invalidated with the world, and replaced by a new row when a finished
+Project is measured broken with no work open. A player activation that forces
+a deficit on a finished Project mints a new `project-player-<hex32>-<kind>`
+row the same way. No Project or Response kind is ever a goals row.
 
 | Concept | What it is | Lifecycle |
 | --- | --- | --- |

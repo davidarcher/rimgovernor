@@ -1,11 +1,23 @@
 package store
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
+
+func routineProject(t *testing.T, r RoutineReviewResult, need domain.GoalID) ProjectState {
+	t.Helper()
+	for i, b := range r.Review.Projects {
+		if b.Need == need {
+			return r.Projects[i]
+		}
+	}
+	t.Fatal("missing routine project", need)
+	return ProjectState{}
+}
 
 // A finished Project stays finished through an unknown measurement and,
 // once broken, opens a new Project row instead of bumping its epoch (#1022).
@@ -14,21 +26,55 @@ func TestRoutineProjectFinishesAndRegressionOpensNewRow(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Facts.Cooking = domain.Known(true)
-	first := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	if !domain.ProjectGoalFinished(first.Goal) {
+	first := routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
+	if first.Project.Status != domain.ProjectFinished {
 		t.Fatal(first)
 	}
 	r.Facts.Cooking = domain.Unknown[bool]()
-	if g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking); g.Goal.ID != first.Goal.ID || !domain.ProjectGoalFinished(g.Goal) {
-		t.Fatal("unknown reopened a finished project", g)
+	if p := routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking); p.Project.ID != first.Project.ID || p.Project.Status != domain.ProjectFinished {
+		t.Fatal("unknown reopened a finished project", p)
 	}
 	r.Facts.Cooking = domain.Known(false)
-	next := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	if next.Goal.ID == first.Goal.ID || next.Goal.Epoch != 0 || next.Goal.Status != domain.GoalActive || next.Goal.Need != domain.NeedDeficit {
+	next := routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
+	if next.Project.ID == first.Project.ID || next.Project.Status != domain.ProjectOpen || next.Project.Need != domain.NeedDeficit {
 		t.Fatal(next)
 	}
-	old, err := s.LoadGoal(t.Context(), first.Goal.ID)
-	if err != nil || !domain.ProjectGoalFinished(old.Goal) {
+	old, err := s.LoadProject(t.Context(), first.Project.ID)
+	if err != nil || old.Project.Status != domain.ProjectFinished {
 		t.Fatal("finished record lost", old, err)
+	}
+}
+
+// Only Standards are goal rows: a Project or Response need never creates one,
+// however the review measures it.
+func TestProjectAndResponseKindsNeverCreateGoalRows(t *testing.T) {
+	t.Parallel()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Facts.Cooking = domain.Known(false)
+	reviewRoutine(t, s, &r)
+	r.Facts.Cooking = domain.Known(true)
+	reviewRoutine(t, s, &r)
+	tx, err := s.begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	ids, err := goalIDs(t.Context(), tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range ids {
+		for _, d := range policy.GoalDetectors() {
+			if d.Concept == policy.ConceptStandard {
+				continue
+			}
+			if k := string(d.Goal); strings.Contains(string(id), "-"+k+"-") || strings.HasSuffix(string(id), "-"+k) {
+				t.Fatalf("goal row %s is a %s kind %s", id, d.Concept, k)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		t.Fatal("review filed no goals")
 	}
 }

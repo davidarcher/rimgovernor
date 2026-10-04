@@ -141,7 +141,7 @@ func defenseTierMethodID(tier store.DefenseTierRecord) domain.MethodID {
 // for EnsureDefensiveLayout when the routine policy opts in, otherwise the
 // player's create_goal binding for the same kind.
 func defenseLayoutGoal(ctx context.Context, p *Player, review store.RoutineReview, world store.World) (store.GoalState, bool, error) {
-	for _, binding := range review.Goals {
+	for _, binding := range review.Bindings() {
 		if binding.Need == policy.EnsureDefensiveLayout {
 			goal, err := p.journal.LoadGoal(ctx, binding.Goal)
 			return goal, err == nil, err

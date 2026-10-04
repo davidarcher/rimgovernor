@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // GoalCreateSubmissionRequest is explicit player intent to force-activate one
@@ -148,35 +149,79 @@ func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionR
 	if err != nil {
 		return GoalState{}, err
 	}
+	project := policy.IsProjectKind(policy.GoalID(q.Kind))
 	if state, ok := current[q.Kind]; ok {
 		if !state.Retired && state.Goal.Status != domain.GoalCancelled && state.Goal.Status != domain.GoalInvalidated {
 			open, err := goalOpenWork(ctx, tx, state)
 			if err != nil {
 				return GoalState{}, err
 			}
-			g, err := domain.ReviewGoal(state.Goal, q.Snapshot, q.Tick, domain.NeedDeficit, open, goalIsStandard(state.Goal.ID))
-			if err != nil {
-				return GoalState{}, err
-			}
-			g.Priority = q.Kind.Priority()
-			if g.Status == domain.GoalInvalidated {
-				// The player's own direction moved under the goal. Cancel its
-				// captured work exactly as ReviewGoal's own invalidation does,
-				// record the invalidation, and fall through to a fresh identity.
-				if err = cancelGoalMethods(ctx, tx, state); err != nil {
+			if project {
+				p, err := loadProject(ctx, tx, domain.ProjectID(state.Goal.ID))
+				if err != nil {
 					return GoalState{}, err
 				}
-				if _, err = saveGoal(ctx, tx, state, g); err != nil {
-					return GoalState{}, err
+				// A finished Project forced back to deficit keeps its row as the
+				// record and a new row follows below (domain.ProjectRegressed).
+				if !domain.ProjectRegressed(p.Project, domain.NeedDeficit, open) {
+					next, err := domain.ReviewProject(p.Project, q.Snapshot, q.Tick, domain.NeedDeficit, open)
+					if err != nil {
+						return GoalState{}, err
+					}
+					next.Priority = q.Kind.Priority()
+					if next.Status == domain.ProjectInvalidated {
+						if err = cancelGoalMethods(ctx, tx, p); err != nil {
+							return GoalState{}, err
+						}
+						if _, err = saveProject(ctx, tx, p, next); err != nil {
+							return GoalState{}, err
+						}
+					} else {
+						saved, err := saveProject(ctx, tx, p, next)
+						return saved.goalView(), err
+					}
 				}
 			} else {
-				return saveGoal(ctx, tx, state, g)
+				g, err := domain.ReviewGoal(state.Goal, q.Snapshot, q.Tick, domain.NeedDeficit, open)
+				if err != nil {
+					return GoalState{}, err
+				}
+				g.Priority = q.Kind.Priority()
+				if g.Status == domain.GoalInvalidated {
+					// The player's own direction moved under the goal. Cancel its
+					// captured work exactly as ReviewGoal's own invalidation does,
+					// record the invalidation, and fall through to a fresh identity.
+					if err = cancelGoalMethods(ctx, tx, state); err != nil {
+						return GoalState{}, err
+					}
+					if _, err = saveGoal(ctx, tx, state, g); err != nil {
+						return GoalState{}, err
+					}
+				} else {
+					return saveGoal(ctx, tx, state, g)
+				}
 			}
 		}
 	}
 	var entropy [16]byte
 	if _, err = rand.Read(entropy[:]); err != nil {
 		return GoalState{}, err
+	}
+	if project {
+		id := domain.ProjectID(projectIDPrefix + "player-" + hex.EncodeToString(entropy[:]) + "-" + string(q.Kind))
+		pr, err := domain.NewProject(id, domain.GoalID(q.Kind), domain.PlayerGoal, q.Kind.Priority(), q.Snapshot, q.Tick)
+		if err != nil {
+			return GoalState{}, err
+		}
+		if err = createProject(ctx, tx, pr); err != nil {
+			return GoalState{}, err
+		}
+		activated, err := domain.ReviewProject(pr, q.Snapshot, q.Tick, domain.NeedDeficit, false)
+		if err != nil {
+			return GoalState{}, err
+		}
+		saved, err := saveProject(ctx, tx, ProjectState{Project: pr}, activated)
+		return saved.goalView(), err
 	}
 	id := domain.GoalID("player-" + hex.EncodeToString(entropy[:]) + "-" + string(q.Kind))
 	goal, err := domain.NewGoal(id, domain.PlayerGoal, q.Kind.Priority(), q.Snapshot, q.Tick)
@@ -186,7 +231,7 @@ func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionR
 	if err = createGoal(ctx, tx, goal); err != nil {
 		return GoalState{}, err
 	}
-	activated, err := domain.ReviewGoal(goal, q.Snapshot, q.Tick, domain.NeedDeficit, false, goalIsStandard(goal.ID))
+	activated, err := domain.ReviewGoal(goal, q.Snapshot, q.Tick, domain.NeedDeficit, false)
 	if err != nil {
 		return GoalState{}, err
 	}
@@ -262,6 +307,9 @@ func (s *Store) PlayerGoals(ctx context.Context, w World) (map[domain.GoalKind]d
 func playerGoalKind(id domain.GoalID) (domain.GoalKind, bool) {
 	rest, ok := strings.CutPrefix(string(id), "player-")
 	if !ok {
+		rest, ok = strings.CutPrefix(string(id), projectIDPrefix+"player-")
+	}
+	if !ok {
 		return "", false
 	}
 	_, kind, ok := strings.Cut(rest, "-")
@@ -280,6 +328,11 @@ func playerGoals(ctx context.Context, tx *sql.Tx, w World) (map[domain.GoalKind]
 	if err != nil {
 		return nil, err
 	}
+	projectIDs, err := projectRowIDs(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	ids = append(ids, projectIDs...)
 	live := func(s GoalState) bool {
 		return !s.Retired && s.Goal.Status != domain.GoalCancelled && s.Goal.Status != domain.GoalInvalidated
 	}

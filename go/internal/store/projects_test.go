@@ -201,7 +201,7 @@ func TestProjectInvalidatedByWorldChangeRetires(t *testing.T) {
 		t.Fatal("invalidated project kept in capacity", gone.Retired, err)
 	}
 	var active int
-	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM projects WHERE retired=0").Scan(&active); err != nil || active != 0 {
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM projects WHERE retired=0 AND id=?", invalid.Project.ID).Scan(&active); err != nil || active != 0 {
 		t.Fatal(active, err)
 	}
 }

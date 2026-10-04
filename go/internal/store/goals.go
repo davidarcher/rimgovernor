@@ -28,7 +28,13 @@ type GoalState struct {
 	// constraint.
 	History []domain.GoalMethod
 	Retired bool
+	// kind is the Project kind when this handle views a Project row
+	// (ProjectState.goalView): loads, saves and method rows then go to the
+	// projects table. Empty for a goal row.
+	kind domain.GoalID
 }
+
+func (g GoalState) isProject() bool { return g.kind != "" }
 
 const maxActiveGoals = 512
 
@@ -98,6 +104,13 @@ func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
 }
 
 func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, error) {
+	if isProjectID(id) {
+		p, err := loadProject(ctx, tx, domain.ProjectID(id))
+		if err != nil {
+			return GoalState{}, err
+		}
+		return p.goalView(), nil
+	}
 	var out GoalState
 	var data []byte
 	var revision string
@@ -192,6 +205,14 @@ func (s *Store) LoadGoal(ctx context.Context, id domain.GoalID) (GoalState, erro
 }
 
 func saveGoal(ctx context.Context, tx *sql.Tx, previous GoalState, g domain.Goal) (GoalState, error) {
+	if previous.isProject() {
+		saved, err := saveProject(ctx, tx, ProjectState{Project: projectOf(previous.Goal, previous.kind), Revision: previous.Revision, Retired: previous.Retired}, projectOf(g, previous.kind))
+		if err != nil {
+			return GoalState{}, err
+		}
+		previous.Goal, previous.Revision = g, saved.Revision
+		return previous, nil
+	}
 	if previous.Retired {
 		return GoalState{}, errors.New("retired goal is read-only")
 	}
@@ -248,6 +269,10 @@ func planOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, err
 }
 
 func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (GoalState, error) {
+	if isProjectID(id) {
+		p, err := s.ReviewProject(ctx, domain.ProjectID(id), revision, current, tick, need)
+		return p.goalView(), err
+	}
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return GoalState{}, err
@@ -264,7 +289,7 @@ func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint6
 	if err != nil {
 		return GoalState{}, err
 	}
-	g, err := domain.ReviewGoal(state.Goal, current, tick, need, open, goalIsStandard(state.Goal.ID))
+	g, err := domain.ReviewGoal(state.Goal, current, tick, need, open)
 	if err != nil {
 		return GoalState{}, err
 	}
@@ -389,7 +414,11 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 		return GoalState{}, err
 	}
 	state.Revision++
-	if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=? WHERE id=?", strconv.FormatUint(state.Revision, 10), id); err != nil {
+	table := "goals"
+	if state.isProject() {
+		table = "projects"
+	}
+	if _, err = tx.ExecContext(ctx, "UPDATE "+table+" SET revision=? WHERE id=?", strconv.FormatUint(state.Revision, 10), id); err != nil {
 		return GoalState{}, err
 	}
 	state, err = loadGoal(ctx, tx, id)

@@ -234,6 +234,16 @@ func priorDependencies(ctx context.Context, tx *sql.Tx, previous RoutineReview, 
 		}
 		bindings, states = append(bindings, b), append(states, g)
 	}
+	for _, b := range previous.Projects {
+		g, err := loadGoal(ctx, tx, domain.GoalID(b.Project))
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		bindings, states = append(bindings, RoutineGoal{Need: b.Need, Goal: domain.GoalID(b.Project)}), append(states, g)
+	}
 	_, edges, err := routineDependencies(ctx, tx, previous.Dependencies, bindings, states, facts, tick)
 	return edges, err
 }

@@ -29,9 +29,9 @@ type OwnedZone struct {
 // tidy (#611) reads a zone's kind and crop from these when it has one.
 func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]OwnedZone], error) {
 	unknown := domain.Unknown[[]OwnedZone]()
-	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.goal_id FROM goal_methods m JOIN goals g ON g.id=m.goal_id
- WHERE json_extract(g.payload,'$.Source')=? AND json_extract(g.payload,'$.Snapshot.Colony')=?
- AND json_extract(g.payload,'$.Snapshot.Load')=? AND json_extract(g.payload,'$.Snapshot.Map')=?
+	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,COALESCE(m.goal_id,m.project_id) FROM goal_methods m LEFT JOIN goals g ON g.id=m.goal_id LEFT JOIN projects pr ON pr.id=m.project_id
+ WHERE json_extract(COALESCE(g.payload,pr.payload),'$.Source')=? AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Colony')=?
+ AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Load')=? AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Map')=?
  AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='zone_create' AND json_extract(t.payload,'$.Kind') IN ('observe','receipt'))
  ORDER BY m.plan_id`, domain.AutopilotGoal, current.Colony, current.Load, current.Map)
 	if err != nil {

@@ -56,7 +56,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	var goal store.GoalState
 	deficit := false
-	for _, binding := range review.Goals {
+	for _, binding := range review.Bindings() {
 		switch binding.Need {
 		case policy.EnsureWorkAssignments:
 			goal, err = p.journal.LoadGoal(call, binding.Goal)

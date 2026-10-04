@@ -37,6 +37,12 @@ func routineGoal(t *testing.T, r RoutineReviewResult, need domain.GoalID) GoalSt
 			return r.Goals[i]
 		}
 	}
+	// A Project need is read through its goal view.
+	for i, b := range r.Review.Projects {
+		if b.Need == need {
+			return r.Projects[i].goalView()
+		}
+	}
 	t.Fatal("missing routine goal", need)
 	return GoalState{}
 }

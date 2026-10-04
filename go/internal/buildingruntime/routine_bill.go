@@ -475,7 +475,7 @@ func (r *RoutineBillPlanner) unclaimedBenches(ctx context.Context, snapshot doma
 // separated-spot method this epoch; a review that binds no such goal has
 // nothing left to try.
 func (p *Player) butcherSpotSeparated(ctx context.Context, review store.RoutineReview) (bool, error) {
-	for _, binding := range review.Goals {
+	for _, binding := range review.Bindings() {
 		if binding.Need != policy.MaintainButcherSpot {
 			continue
 		}

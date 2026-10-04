@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // mintRoutineGoalID names a routine need's goal by world and need, so every
@@ -32,27 +31,35 @@ func mintRoutineGoalID(ctx context.Context, tx *sql.Tx, w World, need domain.Goa
 	return "", ErrCapacity
 }
 
-// goalIsStandard reports whether a player or routine goal identity names a
-// Standard kind (#1024), the only concept whose epoch re-arms on regress.
-func goalIsStandard(id domain.GoalID) bool {
-	if kind, ok := playerGoalKind(id); ok {
-		return policy.GoalConcept(domain.GoalID(kind)) == policy.ConceptStandard
+// mintRoutineProjectID is mintRoutineGoalID for a Project need: the
+// generation advances past every existing row, so a finished Project's
+// replacement after a regression is a new row.
+func mintRoutineProjectID(ctx context.Context, tx *sql.Tx, w World, need domain.GoalID) (domain.ProjectID, error) {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d", w.Colony, w.Load, w.Map)))
+	for gen := 0; gen < 1<<20; gen++ {
+		id := domain.ProjectID(fmt.Sprintf("project-%x-%s-%d", digest[:8], need, gen))
+		if _, err := loadProject(ctx, tx, id); errors.Is(err, ErrNotFound) {
+			return id, nil
+		} else if err != nil {
+			return "", err
+		}
 	}
-	rest, ok := strings.CutPrefix(string(id), "routine-")
-	if !ok || len(rest) < 17 || rest[16] != '-' {
-		return false
-	}
-	i := strings.LastIndexByte(rest[17:], '-')
-	if i < 0 {
-		return false
-	}
-	need := domain.GoalID(rest[17 : 17+i])
-	return routineGoalOwns(id, need) && policy.GoalConcept(need) == policy.ConceptStandard
+	return "", ErrCapacity
 }
 
 // routineGoalOwns reports whether id has the routine-<world>-<need>-<gen> shape.
 func routineGoalOwns(id, need domain.GoalID) bool {
-	rest, ok := strings.CutPrefix(string(id), "routine-")
+	return ownsRoutineID(string(id), "routine-", need)
+}
+
+// routineProjectOwns reports whether id has the project-<world>-<need>-<gen>
+// shape a routine review mints (a player's is project-player-...).
+func routineProjectOwns(id domain.ProjectID, need domain.GoalID) bool {
+	return ownsRoutineID(string(id), projectIDPrefix, need)
+}
+
+func ownsRoutineID(id, prefix string, need domain.GoalID) bool {
+	rest, ok := strings.CutPrefix(id, prefix)
 	if !ok || len(rest) < 17 || rest[16] != '-' {
 		return false
 	}

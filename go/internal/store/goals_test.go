@@ -10,21 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestGoalIsStandardFollowsGoalConcept(t *testing.T) {
-	for id, want := range map[domain.GoalID]bool{
-		"routine-0000000000000000-MaintainWaste-3": true,
-		"routine-0000000000000000-EnsureCooking-0": false,
-		"player-00ff-MaintainHousing":              true,
-		"player-00ff-EnsureBasicPower":             false,
-		"routine-0000000000000000-MaintainWaste-x": false,
-		"shelter": false,
-	} {
-		if got := goalIsStandard(id); got != want {
-			t.Errorf("%s: got %v", id, got)
-		}
-	}
-}
-
 func goalFixture(t *testing.T) (*Store, string, GoalState) {
 	t.Helper()
 	ctx := context.Background()

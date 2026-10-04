@@ -166,7 +166,8 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.GoalID, epoch ui
 		return domain.GoalMethod{}, err
 	}
 	m := domain.GoalMethod{Goal: goal, Epoch: epoch, Method: method}
-	if err = tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE goal_id=? AND epoch=? AND method_id=?", goal, strconv.FormatUint(epoch, 10), method).Scan(&m.Plan); err != nil {
+	column, key := methodOwnerColumn(goal, epoch)
+	if err = tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? AND method_id=?", goal, key, method).Scan(&m.Plan); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 		}
@@ -189,7 +190,8 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.GoalID, epoch ui
 // epoch turnover (tidy re-sites, zone shelves) load it by this stored key.
 func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.GoalID, method domain.MethodID) (domain.PlanID, error) {
 	var id domain.PlanID
-	err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE goal_id=? AND method_id=? ORDER BY CAST(epoch AS INTEGER) DESC LIMIT 1", goal, method).Scan(&id)
+	column, _ := methodOwnerColumn(goal, 0)
+	err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND method_id=? ORDER BY CAST(epoch AS INTEGER) DESC LIMIT 1", goal, method).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound
 	}
@@ -211,7 +213,8 @@ func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.GoalID, epoch u
 	if epoch > g.Goal.Epoch {
 		return nil, errors.New("invalid historical method epoch")
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE goal_id=? AND epoch=? ORDER BY method_id LIMIT 257", goal, strconv.FormatUint(epoch, 10))
+	column, key := methodOwnerColumn(goal, epoch)
+	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? ORDER BY method_id LIMIT 257", goal, key)
 	if err != nil {
 		return nil, err
 	}
