@@ -37,6 +37,7 @@ func barnShelterFacts(temp float64, conditions ...string) RoutineFacts {
 	f.AnimalUpkeep.Animals = domain.Known([]UpkeepAnimal{pen("a1", "Muffalo", ""), pen("a2", "Thrumbo", "")})
 	f.AnimalUpkeep.AnimalRaces = AnimalRaceCatalog{Races: map[Resource]AnimalRace{"Muffalo": race("Muffalo", -40, 50), "Thrumbo": race("Thrumbo", -10, 30)}}
 	f.DisasterConditions, f.OutdoorTemperature, f.BarnArea = domain.Known(rows), domain.Known(temp), domain.Known("Area_Barn")
+	f.Hostiles = domain.Known(int64(0))
 	return f
 }
 
@@ -123,5 +124,52 @@ func TestAnimalShelterFailsLoudlyOnUnknownExposure(t *testing.T) {
 	f.AnimalUpkeep.AnimalRaces = AnimalRaceCatalog{}
 	if _, err := f.AnimalShelterChoice(); !errors.Is(err, ErrAnimalExposure) {
 		t.Fatal("a race the catalog lacks", err)
+	}
+}
+
+func TestAnimalShelterFromHostileThreat(t *testing.T) {
+	// A threat shelters both races in mild weather, one per cycle.
+	f := barnShelterFacts(20)
+	f.Hostiles = domain.Known(int64(2))
+	for _, id := range []PawnID{"a1", "a2"} {
+		c, err := f.AnimalShelterChoice()
+		if err != nil || c.Animal != id || c.Method != domain.HusbandryAllowedArea || c.Argument != "Area_Barn" {
+			t.Fatalf("shelter %s: %+v %v", id, c, err)
+		}
+		f = moveAll(f, c)
+	}
+	// The threat clears: both are released.
+	f.Hostiles = domain.Known(int64(0))
+	for _, id := range []PawnID{"a1", "a2"} {
+		c, err := f.AnimalShelterChoice()
+		if err != nil || c.Animal != id || c.Argument != "" || c.Method != domain.HusbandryAllowedArea {
+			t.Fatalf("release %s: %+v %v", id, c, err)
+		}
+		f = moveAll(f, c)
+	}
+	// No standing Barn area does nothing.
+	f = barnShelterFacts(20)
+	f.Hostiles, f.BarnArea = domain.Known(int64(1)), domain.Known("")
+	if c, err := f.AnimalShelterChoice(); err != nil || c.Reason != HusbandryNoDeficit {
+		t.Fatalf("no barn area: %+v %v", c, err)
+	}
+}
+
+func TestAnimalShelterThreatIsIndependentOfTheWeatherReads(t *testing.T) {
+	f := barnShelterFacts(20)
+	f.Hostiles = domain.Known(int64(1))
+	f.OutdoorTemperature = domain.Unknown[float64]()
+	f.DisasterConditions = domain.Unknown[[]DisasterCondition]()
+	f.AnimalUpkeep.AnimalRaces = AnimalRaceCatalog{}
+	if c, err := f.AnimalShelterChoice(); err != nil || c.Animal != "a1" || c.Argument != "Area_Barn" {
+		t.Fatalf("%+v %v", c, err)
+	}
+}
+
+func TestAnimalShelterFailsLoudlyOnUnknownHostiles(t *testing.T) {
+	f := barnShelterFacts(20)
+	f.Hostiles = domain.Unknown[int64]()
+	if _, err := f.AnimalShelterChoice(); !errors.Is(err, ErrAnimalExposure) {
+		t.Fatal(err)
 	}
 }

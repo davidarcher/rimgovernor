@@ -250,6 +250,19 @@ or temperature fails the review with `ErrAnimalExposure`. The check also keeps
 MaintainHerd in deficit while a write is owed, and it comes before every
 other husbandry choice since the animals die of the exposure.
 
+**Threat shelter (#1899).** A hostile threat endangers every pen animal:
+while `RoutineFacts.Hostiles > 0` (the emergency census's unsafe-threat holds,
+that is live, discovered, engaging, non-distant Hostile, HuntingPredator and
+hostile-building rows, plus pending drop pods) `AnimalShelterChoice` lets each
+unrestricted pen animal into the `Barn` area, one per cycle, without reading
+the condition census, temperature or race comfort range; once `Hostiles` is
+zero the weather exposure above decides, so a sheltered animal is released
+only when both are clear. An unread hostile count is `ErrAnimalExposure`.
+What else covers a threat: `PlanSheltering` shelters colonists and non-pen
+animals in the Safe area (pen animals are excluded there), and
+`combat_animals.go` uses colony animals as defenders; nothing else protects
+penned animals. Combat orders still do not skip sheltered animals.
+
 Selection order each cycle is exposure shelter, then train, then tame, then
 surplus removal, then master assignment, then sterilize; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh

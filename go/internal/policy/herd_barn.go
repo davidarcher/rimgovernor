@@ -34,15 +34,17 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 // AnimalShelterChoice is the husbandry write that shelters the pen animals
 // from exposure, one per cycle, derived from the animals' current allowed
 // area alone (no stored prior state): while the animal's race is in danger
-// outdoors (AnimalExposures over the pen animals' races) an animal with no
-// area restriction is let into the Barn area (allowed_area), and once its
+// outdoors (a hostile threat, RoutineFacts.Hostiles > 0 -- the colony's
+// non-distant Hostile and HuntingPredator holds -- endangers every race and
+// skips the weather reads; otherwise AnimalExposures over the pen animals'
+// races) an animal with no area restriction is let into the Barn area (allowed_area), and once its
 // race is out of danger an animal in the Barn area is released
 // (allowed_area cleared), which is how a pen animal is unrestricted.
 // An animal in any other area (the vet room's) is left to the flow that put
 // it there, as is one marked for removal or with an unread area, support or
-// removal fact. No standing Barn area or no pen animal chooses nothing; a
-// race with no comfort range or an unread census or temperature is an error
-// (ErrAnimalExposure).
+// removal fact. No standing Barn area or no pen animal chooses nothing; an
+// unread hostile count, or with no threat a race with no comfort range or an
+// unread census or temperature, is an error (ErrAnimalExposure).
 func (f RoutineFacts) AnimalShelterChoice() (HusbandryChoice, error) {
 	none := HusbandryChoice{Reason: HusbandryNoDeficit}
 	rows, known := f.AnimalUpkeep.Animals.Value()
@@ -65,13 +67,23 @@ func (f RoutineFacts) AnimalShelterChoice() (HusbandryChoice, error) {
 	if len(pen) == 0 {
 		return none, nil
 	}
-	exposures, err := AnimalExposures(races, f.DisasterConditions, f.OutdoorTemperature, f.AnimalUpkeep.AnimalRaces.comfort)
-	if err != nil {
-		return none, err
+	hostiles, hostilesKnown := f.Hostiles.Value()
+	if !hostilesKnown {
+		return none, fmt.Errorf("%w: the hostile count is unread", ErrAnimalExposure)
 	}
 	danger := map[Resource]bool{}
-	for _, e := range exposures {
-		danger[e.Race] = e.Danger()
+	if hostiles > 0 {
+		for _, r := range races {
+			danger[r] = true
+		}
+	} else {
+		exposures, err := AnimalExposures(races, f.DisasterConditions, f.OutdoorTemperature, f.AnimalUpkeep.AnimalRaces.comfort)
+		if err != nil {
+			return none, err
+		}
+		for _, e := range exposures {
+			danger[e.Race] = e.Danger()
+		}
 	}
 	sort.Slice(pen, func(i, j int) bool { return pen[i].ID < pen[j].ID })
 	for _, a := range pen {
