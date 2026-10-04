@@ -142,34 +142,48 @@ func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []LayoutRoom, wings [
 	}
 	size := WingRoomSize(tier)
 	for owed > 0 {
-		o := g.clone()
-		o.carveBedroomWings(wings)
-		o.carveSuiteWings(wings)
-		free := o.hallGround(spine, rooms)
-		fits := func(f wingFrame, k int) bool {
-			return free(roomWalls(f.room(k))) && free(f.corridor(int32(k/2)+1))
-		}
-		site, ok := o.siteBlock(spine, rooms, diningAnchor(spine, rooms), func(try wingFrame) int {
-			try.size = size
-			n := 0
-			for n < wingMaxRooms && fits(try, n) {
-				n++
-			}
-			return n
-		})
+		grown, next, ok := g.siteBedWing(spine, rooms, wings, size, nil)
 		if !ok {
-			break
-		}
-		site.f.size = size
-		grown := openBlock(spine, site.seg, site.f)
-		next := o.planWing(grown, rooms, wings, site.f, fits)
-		if len(next) == len(wings) {
 			break
 		}
 		spine, wings = grown, next
 		owed -= len(wings[len(wings)-1].Rooms)
 	}
 	return spine, wings
+}
+
+// siteBedWing sites one more bedroom wing of rooms of size, as siteBedWings
+// does, skipping every frame skip accepts (nil skips none). False means no
+// frame fits a room.
+func (g coreGrid) siteBedWing(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, size [2]int32, skip func(wingFrame) bool) ([]SpineSegment, []Wing, bool) {
+	o := g.clone()
+	o.carveBedroomWings(wings)
+	o.carveSuiteWings(wings)
+	free := o.hallGround(spine, rooms)
+	fits := func(f wingFrame, k int) bool {
+		return free(roomWalls(f.room(k))) && free(f.corridor(int32(k/2)+1))
+	}
+	site, ok := o.siteBlock(spine, rooms, diningAnchor(spine, rooms), func(try wingFrame) int {
+		try.size = size
+		if skip != nil && skip(try) {
+			return 0
+		}
+		n := 0
+		for n < wingMaxRooms && fits(try, n) {
+			n++
+		}
+		return n
+	})
+	if !ok {
+		return spine, wings, false
+	}
+	site.f.size = size
+	grown := openBlock(spine, site.seg, site.f)
+	next := o.planWing(grown, rooms, wings, site.f, fits)
+	if len(next) == len(wings) {
+		return spine, wings, false
+	}
+	return grown, next, true
 }
 
 // siteSuiteBlocks sites suite blocks for the targets past the suites the

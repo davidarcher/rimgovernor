@@ -14,6 +14,13 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // generate grows plan from seed over g, for pawns colonists and tombs tomb
 // rooms. g is not changed.
 func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
+	return g.finish(g.generateBase(plan, seed, pawns, tombs, tier, suites...))
+}
+
+// generateBase is generate before the hallway network is finished: rooms,
+// housing blocks and the entrances. The local search (layout_gen_search.go)
+// varies a base plan, then finish closes its rings.
+func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
 	open := g
 	g, base := open.clone(), open.clone()
 	spine := []SpineSegment{{From: seed, To: seed}}
@@ -71,13 +78,21 @@ func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, 
 	sg.carveSuiteWings(wings)
 	spine, wings = sg.siteSuiteBlocks(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
-	plan.Entrances = hallEntrances(spine)
+	return routedEntrances(plan)
+}
+
+// routedEntrances sets plan's entrances to the hallway ends that reach out
+// of the base, or, when that set strands a trip, to the end slabs of every
+// hallway, which are always enough.
+func routedEntrances(plan LayoutPlan) LayoutPlan {
+	plan.Entrances = hallEntrances(plan.Spine)
 	if _, err := CheckRoutes(plan); err != nil {
-		// An entrance set that strands a trip: the end slabs of every
-		// hallway are always enough.
-		plan.Entrances = spineEntrances(spine)
-		return plan
+		plan.Entrances = spineEntrances(plan.Spine)
 	}
-	plan = open.routeRings(plan)
-	return plan.addSecondDoors()
+	return plan
+}
+
+// finish closes a base plan's hallway network: rings, then second doors.
+func (g coreGrid) finish(plan LayoutPlan) LayoutPlan {
+	return g.routeRings(plan).addSecondDoors()
 }
