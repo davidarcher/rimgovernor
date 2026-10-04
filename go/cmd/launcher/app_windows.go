@@ -78,13 +78,15 @@ type app struct {
 	settings   Settings
 	port       int // the port the running controller listens on; 0 = recorded or firstPort
 	cmd        *exec.Cmd
-	tail       logTail // the Log panel's digest of the controller log
+	tail       logTail       // the Log panel's digest of the controller log
+	recorder   *recorderTail // the Problems tab's reader of the flight recorder
 }
 
 func newApp(repo string) *app {
 	a := &app{repo: repo, private: filepath.Join(repo, ".rimgovernor"), layout: setup.NewLayout(repo), ctrl: ctrlStopped,
 		busy: map[string]bool{}, failed: map[string]bool{}}
 	a.tail.dir = filepath.Join(a.private, "go")
+	a.recorder = newRecorderTail(filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl"))
 	for _, n := range []string{artLayout, artMod, artController, artDashboard} {
 		a.artifacts = append(a.artifacts, Artifact{Name: n, State: StateBuilding, Detail: "Checking"})
 	}

@@ -73,49 +73,80 @@ func ComputeMetrics(r Report, output string) Metrics {
 		}
 	}
 	m["service_launches"] = float64(launches)
-	var calls, errs, hits, bytes, timed uint64
-	var queue, execute, paused, sampled float64
-	var steps, reads uint64
+	var totals recordingTotals
 	for _, path := range flightRecordings(output) {
 		rows, err := bridge.ReadTimeline(path)
 		if err != nil {
 			continue
 		}
-		summary := bridge.SummarizePhases(rows)
-		for _, tool := range summary.Tools {
-			calls += tool.Calls
-			errs += tool.Errors
-			hits += tool.CacheHits
-			bytes += tool.ResponseBytes
-			timed += tool.NativeTimed
-			queue += tool.NativeQueueMs
-			execute += tool.NativeExecuteMs
-		}
-		steps += summary.Steps.Steps
-		reads += summary.Steps.Reads
-		paused += summary.Clock.PausedSecs
-		sampled += summary.Clock.SampledSecs
+		totals.add(bridge.SummarizePhases(rows))
 	}
-	m["native_calls"] = float64(calls)
-	m["native_errors"] = float64(errs)
-	m["native_bytes"] = float64(bytes)
-	if calls+hits > 0 {
-		m["cache_hit_ratio"] = float64(hits) / float64(calls+hits)
+	totals.fill(m)
+	m["evidence_bytes"] = float64(evidenceBytes(output))
+	return m
+}
+
+// RecorderMetrics is the block's recorder-derived part (ticks advanced,
+// wall TPS, native calls and
+// errors, cache hits, reads per step, native phase means, paused fraction)
+// over one recording's rows, the rest 0: what the launcher's Problems tab
+// shows without the report the harness computes the full block from.
+func RecorderMetrics(rows []bridge.TimelineRecord) Metrics {
+	m := Metrics{}
+	for _, name := range MetricNames {
+		m[name] = 0
 	}
-	if steps > 0 {
-		m["reads_per_step_mean"] = float64(reads) / float64(steps)
+	summary := bridge.SummarizePhases(rows)
+	m["ticks_advanced"] = float64(summary.Clock.TicksAdvanced)
+	m["wall_tps"] = summary.Clock.WallTPS
+	var totals recordingTotals
+	totals.add(summary)
+	totals.fill(m)
+	return m
+}
+
+// recordingTotals sums the native round trips of one or more recordings.
+type recordingTotals struct {
+	calls, errs, hits, bytes, timed uint64
+	queue, execute, paused, sampled float64
+	steps, reads                    uint64
+}
+
+func (t *recordingTotals) add(summary bridge.PhaseSummary) {
+	for _, tool := range summary.Tools {
+		t.calls += tool.Calls
+		t.errs += tool.Errors
+		t.hits += tool.CacheHits
+		t.bytes += tool.ResponseBytes
+		t.timed += tool.NativeTimed
+		t.queue += tool.NativeQueueMs
+		t.execute += tool.NativeExecuteMs
 	}
-	if timed > 0 {
-		m["native_queue_ms_mean"] = queue / float64(timed)
-		m["native_exec_ms_mean"] = execute / float64(timed)
+	t.steps += summary.Steps.Steps
+	t.reads += summary.Steps.Reads
+	t.paused += summary.Clock.PausedSecs
+	t.sampled += summary.Clock.SampledSecs
+}
+
+func (t *recordingTotals) fill(m Metrics) {
+	m["native_calls"] = float64(t.calls)
+	m["native_errors"] = float64(t.errs)
+	m["native_bytes"] = float64(t.bytes)
+	if t.calls+t.hits > 0 {
+		m["cache_hit_ratio"] = float64(t.hits) / float64(t.calls+t.hits)
+	}
+	if t.steps > 0 {
+		m["reads_per_step_mean"] = float64(t.reads) / float64(t.steps)
+	}
+	if t.timed > 0 {
+		m["native_queue_ms_mean"] = t.queue / float64(t.timed)
+		m["native_exec_ms_mean"] = t.execute / float64(t.timed)
 	}
 	// The share of the sampled wall time the game stood still between
 	// clock windows (#266), time-weighted across every recording.
-	if sampled > 0 {
-		m["paused_fraction"] = paused / sampled
+	if t.sampled > 0 {
+		m["paused_fraction"] = t.paused / t.sampled
 	}
-	m["evidence_bytes"] = float64(evidenceBytes(output))
-	return m
 }
 
 // metricValue reads a report number as Go or decoded JSON holds it; an

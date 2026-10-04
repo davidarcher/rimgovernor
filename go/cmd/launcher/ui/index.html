@@ -89,6 +89,22 @@
   .tabs button { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); }
   .tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
   .view[hidden], #view-launch[hidden] { display: none; }
+  .health { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .health div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .health b { display: block; font-size: 16px; font-weight: 600; }
+  .health small { color: var(--muted); font-size: 12px; }
+  .health .bad b { color: var(--bad); }
+  .pbbar { display: flex; gap: 6px; margin-bottom: 8px; }
+  .pbbar input { flex: 1; width: auto; min-width: 0; user-select: text; }
+  .kinds { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+  .kinds label { display: inline-flex; align-items: center; gap: 4px; }
+  .kinds input { width: 13px; height: 13px; }
+  .pbstatus { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  #pbList { max-height: none; }
+  .ev.problem .dot { background: var(--bad); }
+  .ev .dot { background: var(--muted); }
+  .ev.open .evhead .msg { white-space: normal; }
+  a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -104,7 +120,21 @@
     <button role="tab" id="tab-problems" data-tab="problems" aria-selected="false">Problems</button>
   </nav>
   <div class="view" id="view-now" role="tabpanel" aria-labelledby="tab-now" hidden><div class="evempty">Nothing here yet.</div></div>
-  <div class="view" id="view-problems" role="tabpanel" aria-labelledby="tab-problems" hidden><div class="evempty">Nothing here yet.</div></div>
+  <div class="view" id="view-problems" role="tabpanel" aria-labelledby="tab-problems" hidden>
+    <div class="evempty" id="pbEmpty" hidden></div>
+    <div id="pbBody" hidden>
+      <div class="health" id="pbHealth" aria-label="Health"></div>
+      <div class="pbbar">
+        <input type="text" id="pbNeedle" placeholder="Filter: goal, plan, action or trace id" spellcheck="false">
+        <button id="pbCopyShown" title="Copy the rows shown">Copy shown</button>
+        <button id="pbCopyAll" title="Copy every problem row">Copy problems</button>
+      </div>
+      <div class="kinds" id="pbKinds" aria-label="Kinds"></div>
+      <div class="pbstatus" id="pbStatus" role="status"></div>
+      <div class="evlist" id="pbList"></div>
+    </div>
+    <p class="note">The controller's own log and the build output are on the <a href="#" id="toLog">Launch tab</a> (Log, Details).</p>
+  </div>
 
   <div id="view-launch" role="tabpanel" aria-labelledby="tab-launch">
   <div class="hero">
@@ -354,6 +384,69 @@ $('logToggle').onclick = () => {
   pollEvents();
 };
 setInterval(pollEvents, 1500);
+
+// Problems tab: the flight recorder, read by the launcher itself.
+let pbHidden = null, pbShown = [], pbKindsKey = '', pbOpen = new Set();
+const num = (v, d = 1) => Number.isFinite(v) ? (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(d)) : '-';
+function renderHealth(h) {
+  if (!h.Known) { $('pbHealth').innerHTML = ''; return; }
+  const cell = (label, value, note, bad) => `<div class="${bad ? 'bad' : ''}"><small>${esc(label)}</small><b>${esc(value)}</b><small>${esc(note || '')}</small></div>`;
+  $('pbHealth').innerHTML =
+    cell('Tick', h.HasTick ? h.Tick.toLocaleString() : '-', num(h.TPS) + ' TPS') +
+    cell('Last step', num(h.LastStepMs) + ' ms', '') +
+    cell('Native errors', String(h.NativeErrors), 'of ' + h.NativeCalls + ' calls', h.NativeErrors > 0) +
+    cell('Reads per step', num(h.ReadsPerStep, 2), 'cache hit ' + num(h.CacheHitRatio * 100) + '%') +
+    cell('Authority', h.Authority || 'none seen', 'run ' + (h.Run || '').slice(0, 8));
+}
+function renderKinds(v) {
+  const key = v.Kinds.map(k => k.Kind + k.Count).join(',') + '|' + [...pbHidden].join(',');
+  if (key === pbKindsKey) return;
+  pbKindsKey = key;
+  $('pbKinds').innerHTML = v.Kinds.map(k =>
+    `<label><input type="checkbox" data-kind="${esc(k.Kind)}"${pbHidden.has(k.Kind) ? '' : ' checked'}>${esc(k.Kind)} <small>${k.Count}</small></label>`).join('');
+}
+function rowKey2(e) { return e.Seq + '|' + e.Kind; }
+async function pollProblems() {
+  if ($('view-problems').hidden) return;
+  let v;
+  try { v = await getProblems(pbHidden ? [...pbHidden] : [], $('pbNeedle').value); } catch (e) { return; }
+  if (!pbHidden) pbHidden = new Set(v.DefaultHidden || []);
+  $('pbEmpty').hidden = v.Available;
+  $('pbBody').hidden = !v.Available;
+  if (!v.Available) { $('pbEmpty').textContent = v.Empty; return; }
+  renderHealth(v.Health);
+  renderKinds(v);
+  pbShown = v.Events;
+  $('pbStatus').textContent = v.Rows.toLocaleString() + ' rows held, ' + pbShown.length + ' shown' + (pbShown.length >= 200 ? ' (newest 200; narrow the filter for older ones)' : '');
+  const list = $('pbList'), top = list.scrollTop;
+  list.innerHTML = pbShown.length ? pbShown.map((e, i) => {
+    const k = rowKey2(e);
+    return `<div class="ev${e.Problem ? ' problem' : ''}${pbOpen.has(k) ? ' open' : ''}" data-k="${esc(k)}">` +
+      `<div class="evhead"><span class="dot" aria-hidden="true"></span><span class="badge">${e.Seq || '-'}</span>` +
+      `<span class="msg"><code>${esc(e.Kind)}</code> ${esc(e.Summary)}</span><button class="copy" data-copy="${i}">Copy</button></div>` +
+      `<div class="evmeta">${e.HasTick ? 'tick ' + e.Tick.toLocaleString() : 'no tick'}${e.Trace ? ' &middot; trace ' + esc(e.Trace) : ''}</div>` +
+      `<pre class="evdetail">${esc(e.Text)}</pre></div>`;
+  }).join('') : '<div class="evempty">No rows match.</div>';
+  list.scrollTop = top;
+}
+$('pbKinds').addEventListener('change', e => {
+  const k = e.target.dataset.kind;
+  if (k === undefined) return;
+  if (e.target.checked) pbHidden.delete(k); else pbHidden.add(k);
+  pollProblems();
+});
+$('pbNeedle').addEventListener('input', pollProblems);
+$('pbList').addEventListener('click', e => {
+  const copy = e.target.closest('[data-copy]');
+  if (copy) { e.stopPropagation(); copyText(pbShown[Number(copy.dataset.copy)].Text); flash(copy, 'Copied'); return; }
+  const row = e.target.closest('.ev');
+  if (row) { row.classList.toggle('open'); (row.classList.contains('open') ? pbOpen.add(row.dataset.k) : pbOpen.delete(row.dataset.k)); }
+});
+$('pbCopyShown').onclick = () => { copyText(pbShown.map(e => e.Text).join('\n\n') || 'No rows.'); flash($('pbCopyShown'), 'Copied'); };
+$('pbCopyAll').onclick = async () => { copyText((await allProblems()) || 'No problems.'); flash($('pbCopyAll'), 'Copied'); };
+$('toLog').onclick = e => { e.preventDefault(); $('tab-launch').click(); };
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', pollProblems));
+setInterval(pollProblems, 1500);
 window.addEventListener('focus', () => focused());
 setInterval(refresh, 600);
 refresh().then(() => $('primary').focus());

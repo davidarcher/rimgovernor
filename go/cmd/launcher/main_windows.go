@@ -85,6 +85,8 @@ func main() {
 		"restart":        func() { go a.restart() },
 		"closeGame":      func() { go a.closeGame() },
 		"getEvents":      a.tail.rows,
+		"getProblems":    func(hidden []string, needle string) ProblemsView { return a.recorder.view(hidden, needle) },
+		"allProblems":    a.recorder.allProblems,
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())
