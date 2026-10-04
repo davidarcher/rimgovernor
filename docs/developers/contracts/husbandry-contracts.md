@@ -278,7 +278,12 @@ unlearned and is requested again; the native read exposes only the learned
 flag, not the step count or time to decay.
 
 Handling joins shared deterministic work allocation with the observed native minimum
-skill. Player work overrides remain authoritative. The herd observation retains safe
+skill. Milking and shearing are the `Milk` and `Shear` work givers of the Handling
+work type (WorkGiverDefs), and the gather speed and yield stats (`AnimalGatherSpeed`,
+`AnimalGatherYield`) scale with the Animals skill alone (#1650). While the herd plan
+holds a milk or wool job (`HerdPlan.Jobs`), Handling has demand for one owner
+(`WorkDemand.Handling`), so the best Animals pawn the planner finds capable owns
+Handling at priority 1 even when nobody is a natural specialist. Player work overrides remain authoritative. The herd observation retains safe
 handler reachability, current priorities, jobs and targets, alongside training target
 count and ready product count. Normal native handlers perform training, milking and
 shearing. No instant training, forced product generation or alternative job executor

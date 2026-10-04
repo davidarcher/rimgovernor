@@ -165,6 +165,10 @@ type WorkDemand struct {
 	Help *ConstructionHelp
 	// HaulBacklog raises Hauling and Cleaning from 4 to 3 (#1278).
 	HaulBacklog bool
+	// Handling is whether the herd plan holds a milk or wool job: a kept animal
+	// yields only to a handler, and the gather speed and yield stats scale with
+	// the Animals skill (#1650), so the best Animals pawn owns Handling.
+	Handling bool
 }
 
 // haulBacklogStacks is the loot census count of unforbidden, safe stacks
@@ -234,6 +238,10 @@ func baselineDemand(work WorkType, pawns int, demand WorkDemand) int {
 		return 1 + int(demand.GrowingCells/150)
 	case WorkWarden:
 		if demand.Prisoners > 0 {
+			return 1
+		}
+	case WorkHandling:
+		if demand.Handling {
 			return 1
 		}
 	}
@@ -646,6 +654,10 @@ func sortedSkills(p PawnProfile) []string {
 // warden. Unknown facts fall back to the baseline.
 func RoutineWorkDemand(facts RoutineFacts, building bool) WorkDemand {
 	demand := WorkDemand{Construction: building}
+	jobs := PlanHerd(facts.HerdPlanInput()).Jobs
+	_, milk := jobs[HerdJobMilk]
+	_, wool := jobs[HerdJobWool]
+	demand.Handling = milk || wool
 	if cells, ok := facts.GrowingCells.Value(); ok {
 		demand.GrowingCells = cells
 	}

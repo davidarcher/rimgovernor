@@ -60,7 +60,9 @@ For each:
   one plant cutter, one hunter — two with four pawns —, a warden while a
   prisoner is held; `RoutineWorkDemand` reads the census from the routine facts)
   and, for any other skilled type, one owner when a natural specialist exists
-  (level 6 or a passion).
+  (level 6 or a passion). Handling also has one owner while the herd plan holds a
+  milk or wool job (`WorkDemand.Handling`, #1650): gathering yield and speed scale
+  with Animals.
 - **Capable** is not incapable, not trait-forbidden (Pyromaniac Firefighter,
   Brawler Hunting, Abrasive Warden), Hunting only with a ranged primary, and
   the skill at or above the floor: Cooking 5 (food poisoning), Doctor and
