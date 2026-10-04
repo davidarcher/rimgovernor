@@ -14,7 +14,7 @@ func TestBuildProfile(t *testing.T) {
 		Incapable: domain.Known([]WorkType{WorkMining, "Violent"}),
 		Age:       domain.Known(11.0)}
 	p := BuildProfile(pawn)
-	if !reflect.DeepEqual(p.Effects, TraitEffects{WorkSpeed: 0.35, LearnRate: 1.5, Sociable: -1}) || !p.Child || p.Age != 11 || !p.Ranged || len(p.Traits) != 5 {
+	if !reflect.DeepEqual(p.Effects, TraitEffects{WorkSpeed: 0.35, LearnRate: 1.5, Sociable: -1}) || p.Child || p.Age != 11 || !p.Ranged || len(p.Traits) != 5 {
 		t.Fatal(p)
 	}
 	if s := p.Skill("Cooking"); s.Stored != 6 || s.LearnFactor(p.Effects) != 1.5*2.5 {
@@ -95,7 +95,7 @@ func TestSituationalRoles(t *testing.T) {
 }
 
 // TestProfileChildFromDevelopmentalStage (#1678): a known developmental
-// stage decides Child; without Biotech facts the age rule stays.
+// stage decides Child; age never does (#1784).
 func TestProfileChildFromDevelopmentalStage(t *testing.T) {
 	stage := func(name string) domain.Fact[PawnBiotech] {
 		return domain.Known(PawnBiotech{DevelopmentalStage: domain.Known(name)})
@@ -107,9 +107,9 @@ func TestProfileChildFromDevelopmentalStage(t *testing.T) {
 	}{
 		{"baby", WorkPawn{Age: domain.Known(15.0), Biotech: stage("Baby")}, true},
 		{"child", WorkPawn{Age: domain.Known(30.0), Biotech: stage("Child")}, true},
-		{"adult below the age rule", WorkPawn{Age: domain.Known(11.0), Biotech: stage("Adult")}, false},
-		{"unread stage keeps the age rule", WorkPawn{Age: domain.Known(11.0), Biotech: domain.Known(PawnBiotech{})}, true},
-		{"core only", WorkPawn{Age: domain.Known(11.0)}, true},
+		{"adult stage below an age of 13", WorkPawn{Age: domain.Known(11.0), Biotech: stage("Adult")}, false},
+		{"unread stage is not a child by age", WorkPawn{Age: domain.Known(11.0), Biotech: domain.Known(PawnBiotech{})}, false},
+		{"core only has no children", WorkPawn{Age: domain.Known(11.0)}, false},
 	} {
 		if got := BuildProfile(c.pawn).Child; got != c.child {
 			t.Errorf("%s: child = %v", c.name, got)

@@ -69,6 +69,12 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 // a trait the catalog lacks is an error, and a pawn with traits needs a catalog.
 func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog, things bridge.Things) (policy.WorkPawn, error) {
 	w := workPawnRow(row)
+	// Native writes the Biotech block on every pawn when Biotech is active and
+	// always names the developmental stage; a row without one is a contract
+	// break, not an adult (#1784).
+	if b := row.Biotech; b != nil && b.DevelopmentalStage == nil {
+		return policy.WorkPawn{}, fmt.Errorf("pawn %s has a Biotech block without a developmental stage", row.Pawn.GetId())
+	}
 	if e := row.Equipment; e != nil {
 		weapon, known, err := catalog.PrimaryWeapon(e, things)
 		if err != nil {

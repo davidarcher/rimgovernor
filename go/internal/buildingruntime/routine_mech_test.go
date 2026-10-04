@@ -26,10 +26,10 @@ func mechBiotechCatalog() *bridge.BiotechCatalog {
 func mechPawnRows() []*o.PawnState {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	boss := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("boss"), Position: cell(10, 10)}, Colonist: proto.Bool(true), Dead: proto.Bool(false),
-		Biotech: &o.PawnBiotech{Mechanitor: &o.PawnMechanitor{ControlGroups: proto.Int32(2)}}}
+		Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Adult"), Mechanitor: &o.PawnMechanitor{ControlGroups: proto.Int32(2)}}}
 	mech := func(id, kind string, group int32, mode string) *o.PawnState {
 		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), Position: cell(11, 10)}, KindDefName: proto.String(kind), Mechanoid: proto.Bool(true), Dead: proto.Bool(false),
-			Biotech: &o.PawnBiotech{Mech: &o.PawnMech{Overseer: &c.Ref{Id: proto.String("boss")}, ControlGroup: proto.Int32(group), WorkMode: proto.String(mode)}}}
+			Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Adult"), Mech: &o.PawnMech{Overseer: &c.Ref{Id: proto.String("boss")}, ControlGroup: proto.Int32(group), WorkMode: proto.String(mode)}}}
 	}
 	return []*o.PawnState{boss, mech("worker", "Mech_Constructoid", 0, "Work"), mech("guard", "Mech_Militor", 0, "Work")}
 }

@@ -433,7 +433,8 @@ fields absent and adds a `ReadIssue` named `life_stage`, `developmental_stage`,
 `learning`, `genes`, `mechanitor`, `mech` or `deathrest`. Go lifts the block into
 `policy.PawnBiotech` on the work pawn (`WorkPawn.Biotech`) and the pawn
 profile. `PawnProfile.Child` follows the developmental stage (Newborn, Baby,
-Child) when it is known and the age rule otherwise. Both are derived state held
+Child) the Biotech block names; a colony without Biotech has no block and no
+child pawns, and a Biotech block without the stage fails the lift. Both are derived state held
 in Go memory (persistence-contracts.md); they add no store.
 
 ## Odyssey defs and facts

@@ -62,7 +62,7 @@ func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor
 	}
 	pawns := []*o.PawnState{colonist("crafter"), colonist("builder")}
 	if mechanitor {
-		pawns[0].Biotech = &o.PawnBiotech{Mechanitor: &o.PawnMechanitor{ControlGroups: proto.Int32(2)}}
+		pawns[0].Biotech = &o.PawnBiotech{DevelopmentalStage: proto.String("Adult"), Mechanitor: &o.PawnMechanitor{ControlGroups: proto.Int32(2)}}
 	}
 	for _, row := range pawns {
 		sleeping.pawn(row)

@@ -173,12 +173,21 @@ func TestWorkPawnRowBiotech(t *testing.T) {
 	}
 }
 
+// TestWorkPawnRowBiotechStageRequired (#1784): a Biotech block without a
+// developmental stage fails the lift instead of reading as an adult.
+func TestWorkPawnRowBiotechStageRequired(t *testing.T) {
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("kid")}, Biotech: &o.PawnBiotech{LifeStage: proto.String("HumanlikeChild")}}
+	if _, err := WorkPawnRow(row, nil, bridge.Things{}); err == nil {
+		t.Fatal("a Biotech row with no developmental stage lifted")
+	}
+}
+
 // TestWorkPawnRowDeathrestingUnavailable (#1690): a deathresting pawn takes
 // no work; an awake deathrester does.
 func TestWorkPawnRowDeathrestingUnavailable(t *testing.T) {
 	row := func(resting bool) *o.PawnState {
 		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("sang")}, Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false),
-			Biotech: &o.PawnBiotech{Deathrest: &o.PawnDeathrest{Deathresting: proto.Bool(resting)}}}
+			Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Adult"), Deathrest: &o.PawnDeathrest{Deathresting: proto.Bool(resting)}}}
 	}
 	if avail, ok := workRow(t, row(true)).Available.Value(); !ok || avail {
 		t.Fatal("deathresting pawn is available for work")

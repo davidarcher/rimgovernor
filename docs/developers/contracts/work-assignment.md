@@ -15,7 +15,7 @@ a pawn's settings; the work review dispatches the differences as a
 `policy.BuildProfile` reads a `PawnProfile` from the same `WorkPawn` the review
 already carries (`observation/routine_work.go`): skills with the effective
 level, the stored level beneath aptitude, passion and disabled flag; traits with
-degree; the backstory-incapable work types; biological age (`Child` under 13).
+degree; the backstory-incapable work types; biological age (`Child` from the Biotech developmental stage).
 Unknown traits, incapable rows or age leave those parts empty and the planner
 skill-only for that pawn; they never make the review unknown.
 

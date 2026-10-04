@@ -159,8 +159,9 @@ type PawnProfile struct {
 	// unskilled has none.
 	WorkSkill map[WorkType]string
 	// Age is the biological age in years; Child is a pre-adult developmental
-	// stage (Newborn, Baby, Child) when Biotech facts carry one, else age
-	// under 13 (the adult stage's start) and age-gates work.
+	// stage (Newborn, Baby, Child) read from the Biotech facts (#1784). A
+	// colony without Biotech has no Biotech block and no child pawns: native
+	// never spawns one under 14 there, so Child is false.
 	Age   float64
 	Child bool
 	// Biotech is the pawn's Biotech facts (#1678): life stage, genes and
@@ -280,7 +281,6 @@ func BuildProfile(pawn WorkPawn) PawnProfile {
 	}
 	if age, ok := pawn.Age.Value(); ok {
 		profile.Age = age
-		profile.Child = age < 13
 	}
 	profile.Biotech = pawn.Biotech
 	if bt, ok := pawn.Biotech.Value(); ok {
