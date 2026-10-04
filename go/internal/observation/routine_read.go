@@ -236,6 +236,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	personalShares(p, frame, pawns)
 	stampGearShares(p)
+	stampGearCreepjoiners(p, pawns, frame.Catalog.CreepJoinerDownsides())
 	return RoutineReading{ColonyReading: reading, Emergency: emergency, Sections: routineSections(frame, *p, roomCensus), Frame: frame}, nil
 }
 

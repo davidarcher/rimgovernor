@@ -53,6 +53,18 @@ func (d CreepJoinerDownsides) Revealed(p CreepJoinerPawn) domain.Fact[bool] {
 	return domain.Known(false)
 }
 
+// Unrevealed is whether the pawn is a creepjoiner whose downside has not shown
+// (or cannot be read to have shown). A pawn that is no creepjoiner, or whose
+// creepjoiner status is unread, is not: the gear census flags only a known
+// creepjoiner (GearRoleInput.UnrevealedCreepjoiner, #1962).
+func (d CreepJoinerDownsides) Unrevealed(p CreepJoinerPawn) bool {
+	if joiner, known := p.CreepJoiner.Value(); !known || joiner == nil {
+		return false
+	}
+	revealed, known := d.Revealed(p).Value()
+	return !known || !revealed
+}
+
 // ArmsHold is the plain-English reason a colonist must not hold a weapon yet,
 // "" when nothing holds it back: a creepjoiner whose downside has not shown,
 // or one whose downside cannot be read. A pawn known to be no creepjoiner is

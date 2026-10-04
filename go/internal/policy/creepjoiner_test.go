@@ -45,6 +45,30 @@ func TestCreepJoinerDownsideRevealed(t *testing.T) {
 	}
 }
 
+// TestCreepJoinerUnrevealed (#1962): only a known creepjoiner whose downside
+// has not shown, or cannot be read to have shown, is flagged for the gear
+// constraint; a non-creepjoiner or an unread tracker is not.
+func TestCreepJoinerUnrevealed(t *testing.T) {
+	no, yes := domain.Known(false), domain.Known(true)
+	plain := CreepJoinerPawn{CreepJoiner: domain.Known[*CreepJoiner](nil), Traits: defNames(), Hediffs: defNames()}
+	unread := CreepJoinerPawn{CreepJoiner: domain.Unknown[*CreepJoiner](), Traits: defNames(), Hediffs: defNames()}
+	for name, tc := range map[string]struct {
+		pawn CreepJoinerPawn
+		want bool
+	}{
+		"hidden":            {hiddenJoiner(no, defNames(), defNames()), true},
+		"unreadable":        {hiddenJoiner(domain.Unknown[bool](), defNames(), defNames()), true},
+		"fired":             {hiddenJoiner(yes, defNames(), defNames()), false},
+		"downside trait":    {hiddenJoiner(no, defNames("TraitX"), defNames()), false},
+		"not a creepjoiner": {plain, false},
+		"tracker unread":    {unread, false},
+	} {
+		if got := downsideDefs.Unrevealed(tc.pawn); got != tc.want {
+			t.Errorf("%s: Unrevealed=%v, want %v", name, got, tc.want)
+		}
+	}
+}
+
 // TestCreepJoinerArmsHold: only a creepjoiner whose downside has not shown
 // (or cannot be read) is held back from arms, with a plain-English reason; a
 // colonist known to be no creepjoiner never is, and an unread tracker holds.

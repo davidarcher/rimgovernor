@@ -65,6 +65,33 @@ func gearDefinitions(call context.Context, source any, identity *c.Identity) (ob
 	return observation.ReadGearDefinitions(call, source, identity)
 }
 
+// stampCreepjoiners flags the census colonists that are creepjoiners with an
+// unrevealed downside (#1962), from a fresh combat-pawn read the way the
+// review does, so the apparel policy this planner writes matches the review's.
+// A source that serves no combat-pawn read leaves the census unflagged.
+func (r *RoutineGearPlanner) stampCreepjoiners(call context.Context, identity *c.Identity, state ControlState, census policy.GearObservation, defs observation.GearDefinitions) (policy.GearObservation, error) {
+	source, ok := r.native.(RoutineEquipSource)
+	if !ok {
+		return census, nil
+	}
+	ids := make([]string, 0, len(census.Pawns))
+	for _, p := range census.Pawns {
+		ids = append(ids, string(p.Pawn))
+	}
+	reply, _, err := source.ReadCombatPawns(call, identity, ids)
+	if err != nil {
+		return census, err
+	}
+	pawns := reply.GetObserved()
+	if pawns == nil {
+		return census, fmt.Errorf("%w: stampCreepjoiners: observed == nil", ErrControl)
+	}
+	if _, err = boundary.Context(pawns.Context, state.Snapshot); err != nil {
+		return census, fmt.Errorf("%w: stampCreepjoiners: %v", ErrControl, err)
+	}
+	return observation.StampGearCreepjoiners(census, pawns, defs.Catalog.CreepJoinerDownsides()), nil
+}
+
 func gearCandidateDefinition(observation policy.GearObservation, pawn policy.PawnID, target string) (string, bool) {
 	for _, p := range observation.Pawns {
 		if p.Pawn != pawn {
@@ -209,6 +236,9 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	observation, known := gearObservationFacts(observed, bridge.Tables{Things: things}, defs)
 	if !known {
 		return RoutineGearResult{Verdict: fieldUnavailable("gear_census")}, nil
+	}
+	if observation, err = r.stampCreepjoiners(call, identity, state, observation, defs); err != nil {
+		return RoutineGearResult{}, err
 	}
 	for i := range observation.Pawns {
 		pawn := &observation.Pawns[i]

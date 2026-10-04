@@ -285,6 +285,43 @@ func OutfitIDs(f domain.Fact[Policies]) domain.Fact[[]string] {
 	return domain.Known(ids)
 }
 
+func stampGearCreepjoiners(p *ColonyProjection, pawns *o.PawnSnapshot, downsides policy.CreepJoinerDownsides) {
+	if gear, ok := p.Facts.Gear.Value(); ok {
+		p.Facts.Gear = domain.Known(StampGearCreepjoiners(gear, pawns, downsides))
+	}
+}
+
+// StampGearCreepjoiners flags each census colonist that is a creepjoiner with
+// an unrevealed downside (GearRoleInput.UnrevealedCreepjoiner, #1962), from
+// pawn rows, on both the apparel policy state and the loadout model so every
+// reader derives the same constrained role. A pawn with no row is left
+// unflagged; the census is copied, never mutated in place.
+func StampGearCreepjoiners(gear policy.GearObservation, pawns *o.PawnSnapshot, downsides policy.CreepJoinerDownsides) policy.GearObservation {
+	if pawns == nil {
+		return gear
+	}
+	rows := make(map[string]*o.PawnState, len(pawns.Pawns))
+	for _, row := range pawns.Pawns {
+		rows[row.GetPawn().GetId()] = row
+	}
+	gear.Pawns = slices.Clone(gear.Pawns)
+	for i, g := range gear.Pawns {
+		row := rows[string(g.Pawn)]
+		if row == nil || !downsides.Unrevealed(bridge.CreepJoinerPawn(row)) {
+			continue
+		}
+		if state, ok := g.Policy.Value(); ok {
+			state.Role.UnrevealedCreepjoiner = true
+			gear.Pawns[i].Policy = domain.Known(state)
+		}
+		if model, ok := g.LoadoutModel.Value(); ok {
+			model.Role.UnrevealedCreepjoiner = true
+			gear.Pawns[i].LoadoutModel = domain.Known(model)
+		}
+	}
+	return gear
+}
+
 // stampGearShares puts each pawn's personal share on its loadout model input
 // (#1842), so PlanGearLoadout drops an upgrade the colonist cannot afford. It
 // runs after personalShares, which reads the same models' worn gear; the held
