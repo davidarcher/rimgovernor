@@ -129,6 +129,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_sleeping_sculpture.go":     {"sleeping"},
 	"routine_sleeping_suite_grow.go":    {"sleeping"},
 	"routine_throne.go":                 {"sleeping"},
+	"routine_throne_refuel.go":          {"sleeping"},
 	"routine_child_rooms.go":            {"sleeping"},
 	"routine_sleeping_upgrade.go":       {"sleeping"},
 	"routine_sleeping_shell_bed.go":     {"sleeping"},

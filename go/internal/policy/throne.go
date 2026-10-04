@@ -191,6 +191,9 @@ const (
 	// ThroneAssign: the throne stands unowned; assign Throne to
 	// Need.Holder, replacing PreviousThrone (empty: none).
 	ThroneAssign ThroneStepKind = "assign"
+	// ThroneRefuel: the room's unlit light Lamp is out of fuel; order Pawn
+	// to refuel it.
+	ThroneRefuel ThroneStepKind = "refuel"
 	// ThroneBlocked: the standing room holds buildings of a class the title
 	// forbids (Intruders). Planning moves nothing; the step names the
 	// failure (Detail) and is not Owed.
@@ -206,6 +209,9 @@ type ThroneStep struct {
 	// Throne is the standing throne to assign and PreviousThrone the
 	// throne the holder owns already, empty when none.
 	Throne, PreviousThrone string
+	// Lamp and Pawn are a ThroneRefuel's light and hauler.
+	Lamp string
+	Pawn PawnID
 	// Intruders are the standing buildings of a forbidden class inside the
 	// room, for ThroneBlocked.
 	Intruders []CurrentBuilding
@@ -245,7 +251,7 @@ func throneIntruders(room LayoutRoom, need ThroneNeed, built []CurrentBuilding) 
 
 // Owed reports whether the planner can act on the step now.
 func (s ThroneStep) Owed() bool {
-	return s.Kind == ThroneShell || s.Kind == ThronePlace || s.Kind == ThroneAssign
+	return s.Kind == ThroneShell || s.Kind == ThronePlace || s.Kind == ThroneAssign || s.Kind == ThroneRefuel
 }
 
 // throneDefinition is the first of need's throne definitions the catalog

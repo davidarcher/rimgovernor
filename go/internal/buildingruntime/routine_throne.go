@@ -143,7 +143,17 @@ func throneStep(facts observation.ColonyProjection) policy.ThroneStep {
 		}
 	}
 	royalty, _ := facts.Royalty.Value()
-	return policy.NextThroneStep(plan, rooms, census.Buildings, need, defs, royalty.Thrones)
+	step := policy.NextThroneStep(plan, rooms, census.Buildings, need, defs, royalty.Thrones)
+	if step.Kind != policy.ThroneNone {
+		return step
+	}
+	// Everything stands and is assigned: keep its braziers lit.
+	lighting, lk := facts.Facts.Upkeep.Lighting.Value()
+	workers, wk := facts.WorkPawns.Value()
+	if !lk || !wk {
+		return step
+	}
+	return policy.NextThroneRefuel(plan, rooms, need, lighting.Lamps, workers)
 }
 
 // withThroneTargets adds the throne room's impressiveness target to the
@@ -218,13 +228,15 @@ func throneMethod(step policy.ThroneStep) domain.MethodID {
 
 // stageThrone answers a due throne step: the shell through shellRoom, the
 // throne through placePiece. Furnishing follows through the room upgrade.
-func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
+func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.ThroneStep) (RoutineBuildingResult, error) {
 	clockSchedulerLog("%s: throne room %s for %s (%s)", goal.Goal.ID, step.Kind, step.Need.Holder, step.Need.Title)
 	switch step.Kind {
 	case policy.ThroneShell:
 		return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, throneMethod(step), "throne room")
 	case policy.ThronePlace:
 		return r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, throneMethod(step))
+	case policy.ThroneRefuel:
+		return r.refuelThrone(call, epoch, arbiter, state, review, goal, reading, step)
 	case policy.ThroneAssign:
 		return r.assignThrone(call, epoch, state, review, goal, step)
 	}

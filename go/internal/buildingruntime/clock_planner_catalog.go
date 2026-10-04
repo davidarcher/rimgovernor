@@ -62,7 +62,10 @@ type plannerEntry struct {
 // colony facts section alone, or that plus its own entity section.
 var (
 	sectionsBuilding = []facts.Section{facts.Colony, facts.PlanningCells, facts.Zones, facts.Buildings, facts.Rooms}
-	sectionsColony   = []facts.Section{facts.Colony}
+	// sectionsThrone adds the colonists the throne light refuel picks a
+	// hauler from.
+	sectionsThrone = []facts.Section{facts.Colony, facts.PlanningCells, facts.Zones, facts.Buildings, facts.Rooms, facts.Pawns}
+	sectionsColony = []facts.Section{facts.Colony}
 	// sectionsRituals: the ritual plan reads the ideoligion, the building
 	// sites, the colonists and the emergency census (#1660).
 	sectionsRituals = []facts.Section{facts.Colony, facts.Pawns, facts.Emergency, facts.Buildings, facts.Ideology}
@@ -410,7 +413,7 @@ var plannerCatalog = []plannerEntry{
 			out.Hospital = &method
 			return method.Verdict, nil
 		}},
-	{name: "sleepingUpkeep", goal: policy.MaintainHousing, class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.AssignAction, domain.MoveBuildingAction, domain.UninstallBuildingAction}, sections: sectionsBuilding,
+	{name: "sleepingUpkeep", goal: policy.MaintainHousing, class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.AssignAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.RecoveryServiceAction}, sections: sectionsThrone,
 		configured: func(c *ClockSchedulerConfig) bool { return c.SleepingUpkeep != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.SleepingUpkeep.step(ctx, epoch, arbiter)

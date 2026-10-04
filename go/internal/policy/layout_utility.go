@@ -534,22 +534,6 @@ func (u *utilityGrid) fieldCells(r Rectangle) int {
 	return n
 }
 
-// fieldCentre is the mean of the planned farmland cells, the spine's centre
-// when there are none.
-func (u *utilityGrid) fieldCentre() (int32, int32) {
-	var sx, sz, n int64
-	for i, f := range u.field {
-		if f {
-			sx, sz, n = sx+int64(int32(i)%u.w), sz+int64(int32(i)/u.w), n+1
-		}
-	}
-	if n == 0 {
-		return u.cx, u.cz
-	}
-	return int32(sx / n), int32(sz / n)
-}
-
-// outside reports r clear of the core ring's keep-out.
 func (u *utilityGrid) outside(r Rectangle) bool {
 	for z := r.Z; z < r.Z+r.Height; z++ {
 		for x := r.X; x < r.X+r.Width; x++ {
