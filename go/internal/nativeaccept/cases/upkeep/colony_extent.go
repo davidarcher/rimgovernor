@@ -88,21 +88,13 @@ func runColonyExtent(ctx context.Context, s cases.Session) error {
 	if occupied[cell] {
 		return fmt.Errorf("expansion fixture origin already belongs to extent")
 	}
-	change := func(path string, add bool) error {
-		body := map[string]any{"expected": service.Identity, "id": "extent-smoke", "reason": "explicit expansion smoke"}
-		if add {
-			body["cells"] = []map[string]int32{{"x": cell.X, "z": cell.Z}}
-		}
-		response, status, e := service.API("POST", "/api/player/expansion-area/"+path, body, service.Token)
-		if e != nil || status != 200 {
-			return fmt.Errorf("expansion %s: status %d, %v: %w", path, status, response, e)
-		}
-		return nil
-	}
-	if err = change("add", true); err != nil {
+	// The service is stopped so the case is the journal's only writer; the
+	// tick is past anything the service journaled.
+	service.Stop()
+	const growTick = domain.Tick(1 << 40)
+	if err = journal.AddExpansionArea(ctx, review.Snapshot, growTick, "extent-smoke", []domain.Cell{cell}, "explicit expansion smoke"); err != nil {
 		return err
 	}
-	// Read past the API's native tick, not the earlier review tick.
 	areas, err := journal.ExpansionAreas(ctx, review.Snapshot, domain.Tick(1<<60))
 	if err != nil || len(areas) != 1 || len(areas[0].Cells) != 1 || areas[0].Cells[0] != cell {
 		return fmt.Errorf("expansion did not grow extent: %v %v", areas, err)
@@ -110,7 +102,6 @@ func runColonyExtent(ctx context.Context, s cases.Session) error {
 	s.Report()["established_regions"] = len(history)
 	s.Report()["extent_cells_before"] = len(occupied)
 	s.Report()["extent_cells_after"] = len(occupied) + 1
-	service.Stop()
 	h, err = reattachPaused(ctx, s)
 	if err != nil {
 		return err
@@ -122,26 +113,12 @@ func runColonyExtent(ctx context.Context, s cases.Session) error {
 	if na.AsString(before["mask"]) == "" || na.AsString(before["mask"]) != na.AsString(grown["mask"]) {
 		return fmt.Errorf("expansion growth mutated native Home")
 	}
-	service, err = s.Serve(ctx, s.Spec())
-	if err != nil {
-		return err
-	}
-	defer service.Stop()
-	journal, err = serveStage(ctx, service, s.Report())
-	if err != nil {
-		return err
-	}
-	if err = change("remove", false); err != nil {
+	if err = journal.RemoveExpansionArea(ctx, review.Snapshot, growTick+1, "extent-smoke", "explicit expansion smoke removed"); err != nil {
 		return err
 	}
 	areas, err = journal.ExpansionAreas(ctx, review.Snapshot, domain.Tick(1<<60))
 	if err != nil || len(areas) != 0 {
 		return fmt.Errorf("expansion removal failed: %v %v", areas, err)
-	}
-	service.Stop()
-	h, err = reattachPaused(ctx, s)
-	if err != nil {
-		return err
 	}
 	after, err := h.Call(ctx, "extent-home-after", "test/home_mask", nil)
 	if err != nil {

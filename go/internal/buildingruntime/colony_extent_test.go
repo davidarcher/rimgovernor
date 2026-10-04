@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 func TestClockEstablishesOnlyKnownExtent(t *testing.T) {
@@ -54,29 +53,4 @@ func TestClockEstablishesOnlyKnownExtent(t *testing.T) {
 	if err != nil || len(areas) != 1 {
 		t.Fatalf("cached census rewound expansion: %v %v", areas, err)
 	}
-	s.player.worlds = extentWorld{identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load, Tick: 200}}
-	world := playerWorld(snapshot)
-	if err = s.player.ChangeExpansionArea(ctx, world, "player", "test", []domain.Cell{{X: 60, Z: 5}, {X: 60, Z: 4}}, false); err != nil {
-		t.Fatal(err)
-	}
-	if err = s.player.ChangeExpansionArea(ctx, world, "outside", "test", []domain.Cell{{X: 100, Z: 4}}, false); err == nil {
-		t.Fatal("out of map expansion accepted")
-	}
-	wrong := world
-	wrong.Load = "other"
-	if err = s.player.ChangeExpansionArea(ctx, wrong, "player", "test", nil, true); err == nil {
-		t.Fatal("wrong world removal accepted")
-	}
-	if err = s.player.ChangeExpansionArea(ctx, world, "player", "test", nil, true); err != nil {
-		t.Fatal(err)
-	}
-}
-
-type extentWorld struct{ identity observation.Identity }
-
-func (w extentWorld) ReadWorld(context.Context) (store.World, error) {
-	return store.World{Colony: w.identity.Colony, Map: w.identity.Map, Load: w.identity.Load}, nil
-}
-func (w extentWorld) ReadExtentIdentity(context.Context) (observation.Identity, error) {
-	return w.identity, nil
 }

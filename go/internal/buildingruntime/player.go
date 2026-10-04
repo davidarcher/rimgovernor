@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -33,7 +32,6 @@ type playerSession interface {
 // Player coordinates explicit trusted player requests. HTTP authentication and
 // admission belong to its caller. It never runs plans, renews leases or resumes time.
 type Player struct {
-	extentFacts     *facts.Store
 	mu              sync.Mutex
 	gate            chan struct{}
 	config          PlayerConfig

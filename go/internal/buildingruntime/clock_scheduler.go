@@ -657,7 +657,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 			session.colonyFacts.bind(config.Routine)
 		}
 	}
-	player.extentFacts = scheduler.facts.store
 	return scheduler, nil
 }
 

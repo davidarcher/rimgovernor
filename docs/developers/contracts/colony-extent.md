@@ -108,21 +108,18 @@ The stone-shell and storage site planners still derive their candidate
 area per facility (claims, starter room, the planning-cell window);
 adopting the extent window there follows the same three steps.
 
-## Expansion area controls
+## Expansion areas
 
-Authenticated player POST routes `/api/player/expansion-area/add` and
-`/api/player/expansion-area/remove` accept `expected` (colonyId, mapId,
-loadToken), `id` and `reason`; add also requires `cells` (`x`, `z`).
-They use the shared player gate, verify the live world, and journal at its
-observed tick. Add requires complete same-world bounds and in-map cells.
-Repeated additions of identical cells are idempotent; a changed live area
-must be removed before its id is reused. Both routes use the existing
-player token and local-origin checks and issue no native write.
+Expansion areas have no HTTP route (#1995). They are journal records
+written through `store.AddExpansionArea` and `RemoveExpansionArea`; only
+tests and the `upkeep/colony-extent` acceptance case write them. Repeated
+additions of identical cells are idempotent; a changed live area must be
+removed before its id is reused.
 
 ## Home mask rule
 
 Extent growth alone never changes the native Home mask. Establishing a
-region, adding or removing an expansion area, and widening a consumer's
+region, adding or removing an expansion area record, and widening a consumer's
 window are Go-side records; the only path that paints Home is the existing
 `AreaIntent` home set_cells, driven by the per-facility Home coverage
 review (#452, #461), whose targets and batches do not read the extent.
