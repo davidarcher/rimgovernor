@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -18,6 +19,7 @@ import (
 // while the ordinary slot is busy (the two slots are independent), and
 // never from another category.
 func TestRoundsResearchFillsAnEmptyKnowledgeSlot(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	reviewer, db, _, _, base := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment

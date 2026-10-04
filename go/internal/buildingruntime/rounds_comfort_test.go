@@ -13,6 +13,7 @@ import (
 )
 
 func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, test := range []struct {
 		name     string
@@ -199,6 +200,7 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 }
 
 func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	dining, _ := policy.Facility(policy.RoomRoleDiningRoom)
 	site := func(cells ...domain.Cell) []policy.SiteCell {

@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -26,6 +27,7 @@ func (n *benchlessMedicalNative) ReadSupplyStock(context.Context, *c.Identity, [
 }
 
 func TestMedicalPlannerHarvestsWildHealrootWithoutBench(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, _, native := roundsFixture(t)

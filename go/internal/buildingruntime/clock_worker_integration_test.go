@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"sync"
 	"testing"
 	"time"
@@ -112,6 +113,7 @@ func (f *joinedClockNative) ReadClockEvents(ctx context.Context, request *k.Even
 	return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: page}}, bridge.Result{}, ctx.Err()
 }
 func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, source := schedulerFixture(t)
 	native := &joinedClockNative{source: source, started: make(chan struct{}), paused: make(chan struct{}), captured: make(chan struct{})}

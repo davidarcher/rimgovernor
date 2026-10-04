@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -88,6 +89,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoundsBuildingPlanner, *s
 }
 
 func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, n, _ := refrigerationFixture(t, false)
 	review, err := db.LoadRounds(context.Background())
@@ -117,6 +119,7 @@ func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
 }
 
 func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, n, _ := refrigerationFixture(t, true)
 	result, err := p.Step(context.Background())
@@ -169,6 +172,7 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 }
 
 func TestRefrigerationWaitsOnColdSetpointCooler(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, _, n, _ := refrigerationFixture(t, true)
 	n.buildings.GetObserved().Buildings[0].Settings.TargetTemperatureC = proto.Float64(-5)
@@ -179,6 +183,7 @@ func TestRefrigerationWaitsOnColdSetpointCooler(t *testing.T) {
 }
 
 func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, _, n, _ := refrigerationFixture(t, true)
 	power := n.reply.GetObserved().Development.GetObserved().Power
@@ -198,6 +203,7 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 // so cooler_power_needed lends the cooling allowance instead of parking the
 // clock on no_work (#66).
 func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, n, _ := refrigerationFixture(t, true)
 	result, err := p.Step(context.Background())
@@ -288,6 +294,7 @@ func TestRefrigerationNativeWorkTicksSurviveGenerationMoves(t *testing.T) {
 // and found used, and that outcome must still lend native cooling time or
 // the clock never runs to refresh the census.
 func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	p, db, _, _ := refrigerationFixture(t, true)
@@ -339,6 +346,7 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 // from the tick the latch engaged and a second cooler becomes proposable
 // once it elapses (#202).
 func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	p, db, n, _ := refrigerationFixture(t, true)

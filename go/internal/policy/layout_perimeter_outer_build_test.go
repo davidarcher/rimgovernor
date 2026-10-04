@@ -1,8 +1,13 @@
 package policy
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
+)
 
 func TestPerimeterOuterSectionsStone(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p, _ := outerPlan(t, 40)
 	sections, err := PerimeterOuterSections(p, "Wall", "Door", nil)
 	if err != nil || len(sections) == 0 {

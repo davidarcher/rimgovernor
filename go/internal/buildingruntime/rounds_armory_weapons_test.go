@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -43,6 +44,7 @@ func (n *clubBenchNative) ReadSupplyStock(context.Context, *c.Identity, []string
 // on the map as filtered; treating that as incomplete failed the step with
 // ErrControl and MaintainEquipment never recovered (#660).
 func TestArmoryPlannerCraftsWeaponsPastFilteredCensus(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	reviewer, db, _, _, native := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment

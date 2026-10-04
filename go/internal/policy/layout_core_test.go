@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -90,6 +91,7 @@ func TestGrowKeepsRooms(t *testing.T) {
 }
 
 func TestGrowStopsAtEdge(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	g := corePlan(coreTestZones(), 500, BuildTierCamp)
 	if n := len(g.AllRooms()); n < 20 || n > 500 {
 		t.Fatal("rooms", len(g.AllRooms()))
@@ -223,6 +225,7 @@ func TestCoreReservesCentreCrossing(t *testing.T) {
 // both sides of the main hallway, never one (no L or U); rooms never move
 // and every door opens on a hallway (#952).
 func TestGrowBranchesIntoCrossings(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	zones := coreTestZones()
 	p := corePlan(zones, 3, BuildTierCamp)
 	// Bedrooms live in the wing (#1213); tomb rooms fill the hallways.
@@ -262,6 +265,7 @@ func TestGrowBranchesIntoCrossings(t *testing.T) {
 
 // Dining sits nearer the core's centre than the tomb and battery room (#1535).
 func TestDiningCentralTombAndBatteryAtTheFringe(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, rock := range []int32{50, 80} {
 		zones := Zone(zoningSurvey(120, func(x, z int32) SurveyCell {
 			if x >= rock {

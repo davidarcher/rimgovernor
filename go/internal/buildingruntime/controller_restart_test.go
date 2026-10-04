@@ -377,6 +377,7 @@ func TestControllerRestartResendsLostIntentWithoutDuplicateEffect(t *testing.T) 
 // TestControllerRefusalIsTerminal: an intent native refuses places nothing;
 // the attempt closes as refused and the same activation does not retry it.
 func TestControllerRefusalIsTerminal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	path, dir := storetest.Path(t), t.TempDir()
 	authority := &controlNative{generation: 1}

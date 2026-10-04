@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -22,6 +23,7 @@ func setRoof(s *excavationStep, roof string, cells ...domain.Cell) {
 // digging is done; the plan holds no building, which the ordinary preview
 // places when the site reads clear (#1758, #1896).
 func TestAdmitRockStepDigsThenUnroofsWithoutBuilding(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, n, s, site, shaft := rockCoolerStep(t)
 	ctx := context.Background()

@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -62,6 +63,7 @@ func fireSafetyFixture(t *testing.T, size float64, firefighting bool) (*RoundsFi
 // planner commits nothing and instead asks for a short clock window, which
 // is the only way NeedsTend-style native work can clear the deficit.
 func TestRoundsFireSafetyWaitsForNativeFirefightingWithClockTicks(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	planner, _ := fireSafetyFixture(t, 0.9, true)
 	result, err := planner.Step(context.Background())
@@ -72,6 +74,7 @@ func TestRoundsFireSafetyWaitsForNativeFirefightingWithClockTicks(t *testing.T) 
 
 // Without an eligible firefighter the emergency hold stays: no window.
 func TestRoundsFireSafetyHoldsWithoutFirefighter(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	planner, _ := fireSafetyFixture(t, 0.9, false)
 	result, err := planner.Step(context.Background())
@@ -83,6 +86,7 @@ func TestRoundsFireSafetyHoldsWithoutFirefighter(t *testing.T) {
 // A fire ReviewUpkeep calls unsafe (size above one) still gets bounded native
 // windows: holding the clock would freeze the emergency forever (#715).
 func TestRoundsFireSafetyTicksBoundedOnUnsafeFire(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	planner, _ := fireSafetyFixture(t, 1.5, true)
 	result, err := planner.Step(context.Background())

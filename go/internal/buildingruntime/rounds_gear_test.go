@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"reflect"
 	"testing"
 
@@ -198,6 +199,7 @@ func gearBillOption(def, stuff string) *o.GearLoadoutOption {
 }
 
 func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	{
 		reviewer, db, session, _, native := roundsFixture(t)
@@ -276,6 +278,7 @@ func (n *gearTestNative) ReadSupplyStock(ctx context.Context, _ *c.Identity, nam
 // method_unavailable for every review until #233, and no planner test covered
 // the family (#258).
 func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, _, native := roundsFixture(t)
@@ -354,6 +357,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 // bench census instead of committing a plan that is refused on every attempt
 // and holds a development slot for the run (#339).
 func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, _, _, _, native := roundsFixture(t)
@@ -402,6 +406,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 // slot): the planner waits quietly instead of admitting a wear order or bill
 // that the development check refuses on every tick.
 func TestGearPlannerWaitsWhileTheGoalIsNotRaised(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, _, _, _, native := roundsFixture(t)

@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -30,6 +31,7 @@ func choiceDialog(labels ...string) *o.ChoiceDialog {
 // recovered once it is gone, and the planner answers it with the preferred
 // selectable option exactly once per observed dialog.
 func TestRoundsDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _, _, n := roundsFixture(t)
 	ctx := context.Background()
@@ -75,6 +77,7 @@ func TestRoundsDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 // A dialog still inside its interactivity delay is not unanswerable: the
 // planner waits for the next review instead of reporting exhaustion (#179).
 func TestRoundsDialogPlannerWaitsForInteractivity(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, _, _, _, n := roundsFixture(t)
 	ctx := context.Background()
@@ -99,6 +102,7 @@ func TestRoundsDialogPlannerWaitsForInteractivity(t *testing.T) {
 }
 
 func TestRoundsDialogPlannerHoldsWithoutSelectableOption(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, _, _, _, n := roundsFixture(t)
 	ctx := context.Background()

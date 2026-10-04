@@ -18,6 +18,7 @@ import (
 // planners declaring it (#625), and the step reads the colony anew. A
 // pawns wake selects the pawn readers and no building planner.
 func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
@@ -180,6 +181,7 @@ func TestPlannerQueueRanRecordsCadenceAndWaits(t *testing.T) {
 // re-examines its open work, and a planner refused admission is marked
 // again, its cadence tick being unreachable too (#692).
 func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	// The verdict may carry the admission decision's real reason (#1880):
 	// recovery keys on the kind, not the whole verdict.

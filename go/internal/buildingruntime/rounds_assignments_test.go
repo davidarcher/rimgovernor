@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -14,6 +15,7 @@ import (
 // Autopilot owns every priority (#719): a player who switched the only
 // builder's Construction off gets it switched back on.
 func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, _, n := roundsFixture(t)
 	r.native = &healthyWorkNative{roundsMedicalNative: &roundsMedicalNative{roundsNative: n}}
@@ -108,6 +110,7 @@ func TestWorkPlannerSkipsPawnInCheckboxMode(t *testing.T) {
 // planner step instead of gating re-planning forever (#305): the armed
 // shooter's Hunting proposal is dropped once the pawn disarms.
 func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _, _, n := roundsFixture(t)
 	r.native = &healthyWorkNative{roundsMedicalNative: &roundsMedicalNative{roundsNative: n}}

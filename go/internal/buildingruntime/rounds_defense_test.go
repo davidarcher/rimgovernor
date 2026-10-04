@@ -83,6 +83,7 @@ func TestHoldTheLineActionKindsAreRoundsExecutable(t *testing.T) {
 // unissued moves and attacks open forever otherwise (#5 scenario 2): the
 // helper names exactly those, never an action still dispatched natively.
 func TestOrphanedDraftDependentsAfterDraftRelease(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	journal, err := store.Open(ctx, filepath.Join(t.TempDir(), "orphans.sqlite"))
@@ -189,6 +190,7 @@ func TestDefenseTargetsIncludeANearHuntingPredator(t *testing.T) {
 // goal could not satisfy and the next raid could never open a fresh epoch
 // (#226). The planner settles the unissued work once the goal is recovered.
 func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, _, n := roundsFixture(t)
 	ctx := context.Background()

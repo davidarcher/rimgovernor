@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"os"
 	"testing"
 	"time"
@@ -61,6 +62,7 @@ func (w windowedScheduler) ReadPlanningWindow(ctx context.Context, id *c.Identit
 // step reviews live, reported with the "live" cause, and admits nothing
 // (the window is already running: no write, no pause).
 func TestClockSchedulerReviewsRoundsUnderARunningWindow(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRounds(t, s, f)
@@ -86,6 +88,7 @@ func TestClockSchedulerReviewsRoundsUnderARunningWindow(t *testing.T) {
 }
 
 func TestClockSchedulerFailedRoundsReadCannotStartWindow(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRounds(t, s, f)
@@ -101,6 +104,7 @@ func TestClockSchedulerFailedRoundsReadCannotStartWindow(t *testing.T) {
 }
 
 func TestClockSchedulerRejectsDifferentRoundsOwner(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, _ := schedulerFixture(t)
 	r, _, _, _, _ := roundsFixture(t)
@@ -118,6 +122,7 @@ func TestClockSchedulerRejectsDifferentRoundsOwner(t *testing.T) {
 // bundle. The admission's emergency census is filed from the bundle read
 // itself.
 func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	schedulerRounds(t, s, f)
@@ -158,6 +163,7 @@ func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
 // until something else re-reviews (#331) -- and the first step with
 // authority back reviews again.
 func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRounds(t, s, f)

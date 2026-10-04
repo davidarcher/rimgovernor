@@ -114,6 +114,7 @@ func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 // plain map sites lands no room or hallway on the prop once re-sited and
 // grown (#1533).
 func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	plain := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	first := SiteCore(LayoutPlan{Zones: Zone(zoningSurvey(140, plain))}, zoningSurvey(140, plain), 3, 1, BuildTierCamp)
 	prop := map[domain.Cell]bool{}
@@ -206,6 +207,7 @@ func mountainSideSurvey() MapSurvey {
 // (#1594): the sited core stands against the rock and walls fewer cells
 // than the centroid core on the same ground.
 func TestSiteCorePrefersMountainSide(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := mountainSideSurvey()
 	zones := Zone(s)
 	centroid := corePlan(zones, 3, BuildTierCamp)

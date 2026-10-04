@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -348,6 +349,7 @@ func TestPlayerWorldReplacementAfterIntentPreventsAcquire(t *testing.T) {
 }
 
 func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, phase := range []store.ControlPhase{store.PendingControl, store.RunningControl} {
 		t.Run(string(phase), func(t *testing.T) {
@@ -490,6 +492,7 @@ func TestPlayerCloseDrainsBeforeSessionCloseAndRetriesFailure(t *testing.T) {
 }
 
 func TestPlayerCompletionJournalFailureDisablesGrantedLease(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "state.sqlite")

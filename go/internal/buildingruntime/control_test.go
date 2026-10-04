@@ -210,6 +210,7 @@ func TestControlRejectsBadGrants(t *testing.T) {
 	}
 }
 func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	var draining atomic.Bool
 	control, _, sink, dir := controlFixture(t, func(context.Context) error {
@@ -310,6 +311,7 @@ func TestControlObserveTargetRestartsWithoutAcquiringOrAdopting(t *testing.T) {
 }
 
 func TestControlObserveTargetFailureDoesNotPublishRequestedGeneration(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	n.onRead = func(context.Context) error { return errors.New("unavailable") }
@@ -386,6 +388,7 @@ func TestControlFailedObservationClearsSeededTargetButRetainsCleanup(t *testing.
 }
 
 func TestControlAcquireSupersedesBlockedObserveTarget(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	entered := make(chan struct{})
@@ -461,6 +464,7 @@ func TestControlAcquireReclaimsStaleAutoFromDeadProcess(t *testing.T) {
 // raises and calls Disable on it; Disable replaces the control epoch.
 // Manual's owned cleanup must still run under a live call (#322).
 func TestControlManualSurvivesConcurrentDisable(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	if _, err := control.Acquire(context.Background(), controlScope()); err != nil {
@@ -498,6 +502,7 @@ func TestControlManualSurvivesConcurrentDisable(t *testing.T) {
 }
 
 func TestControlAcquireRestartsObservationAfterConcurrentDisable(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	var reads atomic.Int32
@@ -549,6 +554,7 @@ func TestControlAcquireRestartsObservationAfterConcurrentDisable(t *testing.T) {
 // re-acquired in place: one SetMode at the held generation, no revoke, one
 // generation advanced (#259). An observed revocation clears the held grant.
 func TestControlAcquireReacquiresOwnHeldGrantInOneGeneration(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	granted, err := control.Acquire(context.Background(), controlScope())

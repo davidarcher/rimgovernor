@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 // are both dispatched under the root plan's authority, without priority
 // arbitration between them; cancellation removes each from dispatch.
 func TestRoundsWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	planner, db, base, _, _ := sleepingFixture(t)
 	ctx := context.Background()
@@ -59,6 +61,7 @@ func TestRoundsWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 }
 
 func TestRoundsClockIncludesMethodsAfterPlayerPlanSettles(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	schedulerSleeping(t, s, f)

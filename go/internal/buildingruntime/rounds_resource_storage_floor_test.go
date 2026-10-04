@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -42,6 +43,7 @@ func (n *fullSteelStorageNative) PreviewZone(_ context.Context, _ *c.Identity, t
 // planner's zero-score mining bid, so the storage branch never ran and
 // every remote salvage target held missing_storage.
 func TestResourceStorageFloorPrecedesRivalBids(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	resourceStorageFloor(t, 0)
 }
@@ -49,6 +51,7 @@ func TestResourceStorageFloorPrecedesRivalBids(t *testing.T) {
 // A preview read one tick newer than the projection still admits: the clock
 // keeps running during planning, so only a read older than the anchor is stale.
 func TestResourceStorageFloorAdmitsNewerPreviewRead(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	resourceStorageFloor(t, 1)
 }

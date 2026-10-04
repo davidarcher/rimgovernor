@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -310,6 +311,7 @@ func TestPlanUtilities(t *testing.T) {
 }
 
 func TestPlanUtilitiesPen(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
 	p := PlanUtilities(core, UtilityWants{Solar: 1, PenAnimals: 30})
 	var pen *LayoutReservation

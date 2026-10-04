@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -28,6 +29,7 @@ func touches(a, b Rectangle) bool {
 }
 
 func TestGearRoomsNeedDemand(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	plan := gearTestPlan()
 	for _, role := range gearRooms {

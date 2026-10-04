@@ -187,6 +187,7 @@ func TestGenerateHundredColonistsGetTenFullWings(t *testing.T) {
 }
 
 func TestGenerateSuiteBlocksAreCappedAndReachable(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	targets := make([]float64, 14)
 	for i := range targets {
 		targets[i] = 60 + float64(i)
@@ -236,6 +237,7 @@ func TestSiteCoreCourtyardNetworkKeepsOffThePatch(t *testing.T) {
 }
 
 func TestGenerateIsDeterministic(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	a, _ := housingFixture(t, 30)
 	b, _ := housingFixture(t, 30)
 	if !reflect.DeepEqual(a, b) {

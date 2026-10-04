@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -54,15 +55,19 @@ func (n *resourceNative) PreviewZone(context.Context, *c.Identity, domain.ZoneCr
 // admission (which once bound bills to the food goals only), and the next
 // step sees that open work rather than a second bill.
 func TestResourceDispatchCommitsWorkshopBillThroughTheJournal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	testResourceDispatch(t, "MeleeWeapon_Club", "MeleeWeapon_Club", "Make_MeleeWeapon_Club", domain.StockTarget)
 }
 func TestBeerReserveDispatchesWortThroughTheJournal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	testResourceDispatch(t, "Beer", "Wort", "Make_Wort", domain.BeerReserve)
 }
 func TestSmokeleafReserveDispatchesThroughTheJournal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	testResourceDispatch(t, "SmokeleafJoint", "SmokeleafJoint", "Make_SmokeleafJoint", domain.StockTarget)
 }
 func TestResourceDispatchReplacesSuspendedKibbleBillThroughTheJournal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	testResourceDispatch(t, "Kibble", "Kibble", "Make_Kibble", domain.StockTarget, "player-kibble")
 }
 func testResourceDispatch(t *testing.T, resource, product policy.Resource, recipe string, mode domain.BillMode, replacement ...string) {
@@ -137,6 +142,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 // (producing where the animal cannot eat only piles feed up, #237), and one
 // that names the bench lets the same step commit the bill there.
 func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	base, _, _, _, sleeping := sleepingFixture(t)
 	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
@@ -244,6 +250,7 @@ func minedSource(result RoundsResourceResult, token string) bool {
 // cannot dispatch; the step must go on to steel and mine its ore rather
 // than surface the medicine selection and admit nothing.
 func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	base, db, _, _, sleeping := sleepingFixture(t)
 	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MedicineHerbal": 100, "Steel": 100}

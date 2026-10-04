@@ -1,11 +1,16 @@
 package policy
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
+)
 
 // A rock face cutting across the ring closes its own cells: the wall covers
 // only the open ones, none on rock, and gates and the killbox stay on open
 // ground (#1592).
 func TestPerimeterSnapsOntoRockFace(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	plains := perimeterPlan(t, open)

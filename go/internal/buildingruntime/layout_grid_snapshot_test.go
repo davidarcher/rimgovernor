@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -15,6 +16,7 @@ import (
 // now fill the layout plan's field blocks (#1223, #1227), which this test
 // asserts.
 func TestLayoutGridFieldFillsPlanFieldBlocks(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	r, err := snapshot.Load("testdata/layout-grid-review.json.gz")
 	if err != nil {
 		t.Fatal(err)

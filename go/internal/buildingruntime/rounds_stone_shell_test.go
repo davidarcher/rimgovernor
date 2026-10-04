@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -150,6 +151,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoundsStoneShellPlan
 // The merged stock observation must carry the current snapshot and tick;
 // a zero StockObservation makes admission refuse every action as stale_facts.
 func TestRoundsStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	p, db, n := stoneShellFixture(t)

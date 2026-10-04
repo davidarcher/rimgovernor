@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,6 +14,7 @@ import (
 // the store admits the mixed plan instead of refusing it as a conflict
 // (pawn/hostility and pawn/reading-policy stalled on that refusal, #1560).
 func TestRoundsWorkAdmitsAssignmentsWithPawnSettings(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, _, native, planners := composedRoundsFixture(t)

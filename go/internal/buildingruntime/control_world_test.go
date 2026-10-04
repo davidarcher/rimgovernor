@@ -104,6 +104,7 @@ func TestControlCloseWorldFailureRetainsOwnershipForRetry(t *testing.T) {
 	}
 }
 func TestControlCloseSameWorldStillRevokes(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, n, _, _ := controlFixture(t, nil)
 	original, err := control.Acquire(context.Background(), controlScope())
@@ -120,6 +121,7 @@ func TestControlCloseSameWorldStillRevokes(t *testing.T) {
 	}
 }
 func TestControlCloseDoesNotReadWorldBeforeSuccessfulDrain(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	blocked := true
 	control, n, _, _ := controlFixture(t, func(context.Context) error {

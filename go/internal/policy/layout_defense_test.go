@@ -1,12 +1,14 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	bounds := Bounds{Width: 200, Height: 200}
 	k, region, home, ok := LayoutKillbox(p, bounds)
@@ -72,6 +74,7 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 }
 
 func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	p.Reservations = append(p.Reservations, LayoutReservation{Kind: ReserveGeothermal, Area: Rectangle{X: 90, Z: 90, Width: 10, Height: 10}})
 	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
@@ -133,6 +136,7 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 // Every perimeter gate is an airlock (#1060): a door on each face of the
 // wall, the cell between them unbuilt and walled in on both flanks.
 func TestPerimeterAirlock(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
 	if err != nil {
@@ -174,6 +178,7 @@ func TestPerimeterAirlock(t *testing.T) {
 // (#1248): once those finish its frame would be sealed, unreachable by any
 // builder, and the section would never close.
 func TestPerimeterSectionsBuildTheHollowFirst(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
 	if err != nil {

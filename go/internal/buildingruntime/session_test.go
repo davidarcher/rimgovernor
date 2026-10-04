@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"path/filepath"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ func (f sessionNative) LookupBuildingAttempt(_ context.Context, id *c.Identity, 
 }
 
 func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, restart := range []bool{false, true} {
 		t.Run(map[bool]string{false: "manual", true: "restart"}[restart], func(t *testing.T) {

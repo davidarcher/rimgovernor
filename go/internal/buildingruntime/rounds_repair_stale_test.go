@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"path/filepath"
 	"testing"
 
@@ -45,6 +46,7 @@ func staleRepairGoal(t *testing.T, journal *store.Store) store.StandardState {
 // Once the goal itself recovers, every pending repair is moot whatever its
 // hold says: nothing was issued and no deficit remains.
 func TestCancelSettledRepairMethodsCancelsPendingWorkOfARecoveredGoal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	journal, err := store.Open(ctx, filepath.Join(t.TempDir(), "recovered.sqlite"))

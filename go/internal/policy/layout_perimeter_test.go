@@ -91,6 +91,7 @@ func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 }
 
 func TestPerimeterOpenPlains(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	checkPerimeter(t, p)
 	// Replanning replaces, never duplicates.
@@ -240,6 +241,7 @@ func plainsRing(t *testing.T) Rectangle {
 var shallowWater = SurveyCell{Walkable: true, Footing: FootingNone, Bridgeable: true, Dries: true}
 
 func TestPerimeterShallowPondDetours(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	// A pond lapping the ring's outer face: the wall steps inside it.
 	face, cz := ring.X+ring.Width-1, ring.Z+ring.Height/2+6
@@ -268,6 +270,7 @@ func TestPerimeterShallowPondDetours(t *testing.T) {
 }
 
 func TestPerimeterRiverIsBridged(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	z0 := ring.Z + ring.Height - 12
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
@@ -281,6 +284,7 @@ func TestPerimeterRiverIsBridged(t *testing.T) {
 }
 
 func TestPerimeterMarshySoilTakesWood(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	z0 := ring.Z + ring.Height - 12
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
@@ -296,6 +300,7 @@ var marsh = SurveyCell{Walkable: true, Footing: FootingLight, Bridgeable: true, 
 // Moisture pump sites stand inside the wall on firm ground and cover every
 // soft ring cell that dries; ground that never dries gets none (#954).
 func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	z0 := ring.Z + ring.Height - 12
 	wet := func(x, z int32) bool { return z >= z0 && z < z0+4 }
@@ -388,6 +393,7 @@ func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
 // The ring plans over the colony's own buildings as ground: walls standing
 // on the planned cells change nothing.
 func TestPerimeterReadsBuildingsAsGround(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	p := perimeterPlan(t, open)
 	walls := reservedCells(p, ReservePerimeter)
@@ -403,6 +409,7 @@ func TestPerimeterReadsBuildingsAsGround(t *testing.T) {
 }
 
 func TestPerimeterDeepWaterSeals(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	x0 := ring.X + ring.Width - 6
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
@@ -416,6 +423,7 @@ func TestPerimeterDeepWaterSeals(t *testing.T) {
 }
 
 func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	z0 := ring.Z + ring.Height - 12
 	cell := func(x, z int32) SurveyCell {
@@ -434,6 +442,7 @@ func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
 // A bridged stretch is laid by its own section just before its wall's: a
 // wooden wall on a plain bridge, stone (stuff left empty) on a heavy one.
 func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
 	z0 := ring.Z + ring.Height - 12
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
@@ -470,6 +479,7 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 // hallway's row on the east and west sides, each crossing's column on the
 // north and south sides (#952).
 func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	gates := reserved(p, ReserveGate)
 	onAxis := func(vertical bool, a int32) bool {
@@ -494,6 +504,7 @@ func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
 // the core, its yard and the killbox only, and no inner wall or gate is
 // planned (#1591).
 func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }
 	s := zoningSurvey(200, ground)
 	plan := corePlan(Zone(s), 3, BuildTierCamp)
@@ -586,6 +597,7 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 // the killbox stays whole across its opening there, not clipped sideways
 // off the approach.
 func TestPerimeterKillboxWholeAtACorner(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	// The base stands near the valley's corner, so its ring reaches it.
 	seed := domain.Cell{X: 70, Z: 80}
 	for _, mouth := range []int32{0, 2, 4, 6, 8, 10, 14} {

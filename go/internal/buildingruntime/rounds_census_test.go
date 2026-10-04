@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,6 +14,7 @@ import (
 // own native source plan from the review's retained reading instead of
 // re-reading colony facts, and still admit their methods from it.
 func TestPlannersPlanFromReviewCensus(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	_, _, _, _, native, planners := composedRoundsFixture(t)

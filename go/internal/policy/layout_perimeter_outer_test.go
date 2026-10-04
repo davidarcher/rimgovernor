@@ -68,6 +68,7 @@ func outerReach(walls map[domain.Cell]bool) map[domain.Cell]bool {
 }
 
 func TestOuterRingEnclosesPatchAndGeothermal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p, units := outerPlan(t, 40)
 	walls, gates := reservedCells(p, ReserveOuterWall), reserved(p, ReserveOuterGate)
 	if len(walls) == 0 || len(gates) == 0 {
@@ -109,6 +110,7 @@ func TestOuterRingEnclosesPatchAndGeothermal(t *testing.T) {
 // A patch past the size cap is a valley floor, left outside; the geothermal
 // enclosure beside it is still walled.
 func TestOuterRingSkipsHugePatch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p, units := outerPlan(t, 126)
 	walls := reservedCells(p, ReserveOuterWall)
 	if len(walls) == 0 {
@@ -136,6 +138,7 @@ func TestOuterRingSkipsHugePatch(t *testing.T) {
 }
 
 func TestOuterRingNeedsUnits(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} })
 	if len(reserved(p, ReserveOuterWall)) != 0 || len(reserved(p, ReserveOuterGate)) != 0 {
 		t.Fatal("outer ring without a patch, pen or geothermal enclosure")

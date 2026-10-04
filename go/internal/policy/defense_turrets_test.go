@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"reflect"
 	"testing"
 
@@ -160,6 +161,7 @@ func TestDefenseTurretsHeavierRungsStandFurtherBack(t *testing.T) {
 	}
 }
 func TestDefenseTurretsGateOnObservedResearchPowerAndStock(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	count := func(t *testing.T, r DefenseRequest) int {
 		t.Helper()
 		layout, err := DefenseLayouts(r)

@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -38,6 +39,7 @@ func (n podLoadoutNative) ReadEquipWeapons(ctx context.Context, id *c.Identity, 
 // equip actions before the first combat.orders batch; the batch leaves the
 // loadout pawn undrafted, and it drafts once its equip settles.
 func TestPodFightCommitsLoadoutBeforeFirstCombatBatch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, _, n := roundsFixture(t)
 	ctx := context.Background()

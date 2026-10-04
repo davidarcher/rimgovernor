@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"slices"
 	"testing"
 	"time"
@@ -90,6 +91,7 @@ func sleepingFacts(n *roundsNative) {
 }
 
 func TestRoundsSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, request, n := sleepingFixture(t)
 	before := session.acquires.Load()
@@ -132,6 +134,7 @@ func TestRoundsSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T
 }
 
 func TestRoundsSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, change := range []string{"space", "unsafe", "direction", "prerequisite", "unknown-room"} {
 		t.Run(change, func(t *testing.T) {
@@ -176,6 +179,7 @@ func TestRoundsSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 // count under the same epoch: the spent method yields to a numbered
 // successor instead of holding the shelter gate at method_already_used.
 func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
 	first, err := r.Step(context.Background())
@@ -225,6 +229,7 @@ func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 // A building intent admitted on another plan but not yet applied holds its
 // anchor from siting (#943): nothing on the map shows it yet.
 func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, _, _ := sleepingFixture(t)
 	ctx := context.Background()
@@ -279,6 +284,7 @@ func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 }
 
 func TestRoundsSleepingManualCancelsBlockedPreview(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, request, n := sleepingFixture(t)
 	entered := make(chan struct{})
@@ -304,6 +310,7 @@ func TestRoundsSleepingManualCancelsBlockedPreview(t *testing.T) {
 }
 
 func TestRoundsSleepingKeepsDoorwayAislesClear(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
 	// A door on the room's south wall at (2,0): the cell just inside it and

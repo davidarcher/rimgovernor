@@ -120,6 +120,7 @@ func shellMethod(goal store.StandardState) domain.Method {
 // The shell is one wave: the door leads the dispatch order and no wall is
 // gated on it completing, since a door blueprint seals nothing (#602).
 func TestRoundsShelterAdmitsWholeShellInOneWave(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
@@ -202,6 +203,7 @@ func TestRoundsShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 // previews nothing and sites no second shell; the frames wait natively for
 // the wood MaintainResource chops (TestReplayWoodShortageKeepsTheShelterOwed).
 func TestRoundsShelterHoldsThroughWoodShortage(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
@@ -231,6 +233,7 @@ func TestRoundsShelterHoldsThroughWoodShortage(t *testing.T) {
 }
 
 func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, change := range []string{"late-refusal", "footprint", "stock-conflict", "definition", "room-unknown", "terrain", "zone", "protected"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, n := shelterFixture(t)
@@ -353,6 +356,7 @@ func TestShelterRoofingBudgetCountsFromTheApplyReceiptAndDoesNotRenew(t *testing
 }
 
 func TestRoundsShelterManualCancelsWholePendingShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	ctx := context.Background()
@@ -538,6 +542,7 @@ func shellCells(t *testing.T, plan store.PlanState) (domain.Building, map[domain
 }
 
 func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -595,6 +600,7 @@ func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 // with no space and searches nowhere else, though open ground lies beside
 // it (#1231).
 func TestRoundsShelterRefusesABlockedPlannedStoreroom(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -638,6 +644,7 @@ func (n *adoptingNative) PreviewBuildings(ctx context.Context, actions []domain.
 }
 
 func TestRoundsShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -713,6 +720,7 @@ func TestRoundsShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) 
 }
 
 func TestRoundsShelterAdoptsALoneDoor(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -998,6 +1006,7 @@ func TestRoundsShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 }
 
 func TestRoundsShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -1027,6 +1036,7 @@ func TestRoundsShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) {
 }
 
 func TestRoundsShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	// Only the missing wall needs a journal lifecycle. The rest of the
@@ -1113,6 +1123,7 @@ func TestRoundsShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *te
 // census lists an enclosed room inside it, a facility ladder whose furnishing
 // step found no site there passes the ring by and sites afresh (#218).
 func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, _, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}

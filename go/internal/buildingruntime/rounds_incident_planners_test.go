@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,6 +15,7 @@ import (
 // The naming planner commits its confirmation to the ConfirmColonyNames
 // incident (#1078), once per observed dialog.
 func TestRoundsNamingPlannerCommitsToIncident(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _, _, n := roundsFixture(t)
 	ctx := context.Background()
@@ -46,6 +48,7 @@ func TestRoundsNamingPlannerCommitsToIncident(t *testing.T) {
 // The mood relief planner commits a pawn's relief to that pawn's EnsureMood
 // incident (#1078).
 func TestRoundsMoodReliefPlannerCommitsToPawnIncident(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _, _, _ := roundsFixture(t)
 	ctx := context.Background()

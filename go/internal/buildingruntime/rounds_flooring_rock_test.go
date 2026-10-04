@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,6 +13,7 @@ import (
 // is floored. A cell the census does not list still goes to the native
 // preview.
 func TestFlooringLeavesRockCellsWithoutPreview(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, _, n, s, site, _ := rockCoolerStep(t)
 	rock := site.Cell // (1,3) is rock in the fixture

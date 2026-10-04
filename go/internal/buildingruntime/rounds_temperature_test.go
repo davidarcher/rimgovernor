@@ -25,6 +25,7 @@ type temperatureNative struct {
 }
 
 func TestTemperatureBracketRejectsLateResults(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, mode := range []string{"disabled", "expired", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
@@ -164,6 +165,7 @@ func temperatureFixture(t *testing.T, hot bool) (*RoundsBuildingPlanner, *store.
 }
 
 func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, hot := range []bool{false, true} {
 		t.Run(map[bool]string{false: "cold", true: "hot"}[hot], func(t *testing.T) {
@@ -204,6 +206,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 }
 
 func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, n, _ := temperatureFixture(t, false)
 	ctx := context.Background()

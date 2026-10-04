@@ -73,6 +73,7 @@ func quickPlanner(name string, class plannerClass) plannerEntry {
 // missed_cutoff, discards its result and cancels it, and does not report
 // the cancellation as a failure. It runs again next step.
 func TestClockSchedulerAdmitsPastBlockedOptionalPlanner(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	s.config.Budget.OptionalGrace = 20 * time.Millisecond
@@ -111,6 +112,7 @@ func TestClockSchedulerAdmitsPastBlockedOptionalPlanner(t *testing.T) {
 // its result is merged instead of being cancelled every step while the
 // clock is refused no_work on the work only it would propose.
 func TestClockSchedulerJoinsStarvedOptionalPlanner(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, _ := schedulerFixture(t)
 	s.config.Budget.OptionalGrace = 20 * time.Millisecond
@@ -144,6 +146,7 @@ func TestClockSchedulerJoinsStarvedOptionalPlanner(t *testing.T) {
 // wall budget the step admits no window, reports the planner under
 // held_by, and the next step evaluates again.
 func TestClockSchedulerHoldsOnBlockedCriticalPlanner(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	s.config.Budget.Wall = 50 * time.Millisecond
@@ -181,6 +184,7 @@ func TestClockSchedulerHoldsOnBlockedCriticalPlanner(t *testing.T) {
 // newer snapshot it is refused with the stale dependency named and its
 // commit never runs; against the same one it commits.
 func TestClockSchedulerRefusesLateProposalAgainstNewerSnapshot(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	s.catalog = nil
@@ -277,6 +281,7 @@ func TestPlannerCatalogStartupPlanners(t *testing.T) {
 // admission and names it, instead of recording it as having missed the
 // cutoff and discarding its result.
 func TestClockSchedulerPromotesTheShelterPlannerUnderTheFootholdHold(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	schedulerRounds(t, s, f)

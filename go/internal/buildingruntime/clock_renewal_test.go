@@ -418,6 +418,7 @@ func TestClockRenewalTerminalUnknownIsIdleWhileDisabled(t *testing.T) {
 }
 
 func TestClockRenewalOldTerminalUncertaintyDoesNotBlockNewEpoch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, n, w, start := renewalFixture(t)
 	w.lost = true

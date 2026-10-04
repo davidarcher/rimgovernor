@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -108,6 +109,7 @@ func workerPending(t *testing.T, w *Worker, id string, unresolved bool) domain.P
 	return v
 }
 func TestWorkerDisabledFairScanAndPausedBackoff(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	w, f, db := workerFixture(t)
 	w.config.MaxDispatches = 1
@@ -395,6 +397,7 @@ func TestWorkerCloseTimeoutRetainsSessionAndCanRetry(t *testing.T) {
 }
 
 func TestWorkerRealSessionResendsAFailedApplyCall(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -585,6 +588,7 @@ func TestWorkerLifetimeCancellationStopsPlayer(t *testing.T) {
 }
 
 func TestWorkerIdentityLossImmediatelyDisablesDispatch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	cases := []struct {
 		name  string
@@ -859,6 +863,7 @@ func workerBatchRecorder(f *workerFake, db *store.Store) *[][]domain.ActionID {
 
 // A 32-wall shell plan goes out in one step as one batched Apply (#1042).
 func TestWorkerShellPlanIsOneBatch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	w, f, db := workerFixture(t)
 	short := workerPending(t, w, "seed", true)

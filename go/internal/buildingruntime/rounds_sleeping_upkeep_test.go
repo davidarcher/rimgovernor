@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -107,6 +108,7 @@ func sleepingGoal(t *testing.T, db *store.Store) store.StandardState {
 }
 
 func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, native := sleepingUpkeepFixture(t)
@@ -149,6 +151,7 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 // An assignment intent native refused leaves nothing behind, so the epoch
 // retries it a bounded number of times; an applied one is never repeated.
 func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, _ := sleepingUpkeepFixture(t)
@@ -229,6 +232,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 }
 
 func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, native := sleepingUpkeepFixture(t)
@@ -260,6 +264,7 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 }
 
 func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, native := sleepingUpkeepFixture(t)
@@ -332,6 +337,7 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 }
 
 func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, _, native := sleepingUpkeepFixture(t)

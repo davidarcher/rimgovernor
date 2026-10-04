@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -44,6 +45,7 @@ func (n *moodRoundsNative) ReadRoundsPawns(ctx context.Context, id *c.Identity, 
 // window is still evaluated while the break is observed or unverified. (The
 // store proves it declares no emergency either.)
 func TestRoundsMoodMentalBreakDoesNotHoldTheClock(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	base := schedulerRounds(t, s, f)

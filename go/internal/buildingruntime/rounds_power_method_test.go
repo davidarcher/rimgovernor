@@ -92,6 +92,7 @@ func powerFixture(t *testing.T, conduit bool) (*RoundsBuildingPlanner, *store.St
 }
 
 func TestRoundsPowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, conduit := range []bool{false, true} {
 		t.Run(map[bool]string{false: "generation", true: "conduit"}[conduit], func(t *testing.T) {

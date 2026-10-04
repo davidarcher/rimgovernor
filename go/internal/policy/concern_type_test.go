@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -12,6 +13,7 @@ import (
 
 // Every ConcernID constant declared in this package must be classified.
 func TestConcernTypeOfCoversEveryConcernID(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	fset := token.NewFileSet()
 	entries, err := os.ReadDir(".")
 	if err != nil {

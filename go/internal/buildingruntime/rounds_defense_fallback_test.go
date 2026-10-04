@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -73,6 +74,7 @@ func batchOrders(batch *op.CombatOrders) map[string]string {
 // past the cover row the formation re-forms as squad defense on the
 // intruder (#118 breach fallback) in the same plan.
 func TestRoundsDefenseAbandonsACrossedHoldForSquadDefense(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	crossedHoldFight(t)
 }
@@ -172,6 +174,7 @@ func crossedHoldFight(t *testing.T) {
 // A raid that switches to a breach toil mid-hold is the same fallback; a
 // raider whose evidence is unknown never abandons the line.
 func TestRoundsDefenseHoldFallbackNeedsProof(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, _, n := roundsFixture(t)
 	ctx := context.Background()

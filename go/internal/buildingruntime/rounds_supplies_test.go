@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -41,6 +42,7 @@ func (n *roundsSupplyNative) ReadAllowSupplies(_ context.Context, _ *c.Identity,
 	return out, bridge.Result{}, nil
 }
 func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, session, request, native := roundsFixture(t)
@@ -122,6 +124,7 @@ func TestSupplyPlannerRejectsChangedWorld(t *testing.T) {
 // that cell are later forbids, and a stack hauled aside is re-read at its
 // new cell on the next review.
 func TestSupplyPlannerTargetsCohortStacksAtTheirCensusCell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, _, native := roundsFixture(t)

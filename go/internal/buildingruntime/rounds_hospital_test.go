@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -94,6 +95,7 @@ func hospitalFixture(t *testing.T) (*RoundsHospitalPlanner, *store.Store, *hospi
 }
 
 func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, native := hospitalFixture(t)
@@ -141,6 +143,7 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 }
 
 func TestHospitalAcceptsExistingMedicalBed(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, _, native := hospitalFixture(t)
@@ -159,6 +162,7 @@ func TestHospitalAcceptsExistingMedicalBed(t *testing.T) {
 }
 
 func TestHospitalBuildsOnlyWhenNoHostedBedCanBeSpared(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, _, native := hospitalFixture(t)

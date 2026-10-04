@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 	"time"
 
@@ -35,6 +36,7 @@ func (c *clockWindowDispatchClock) Now() time.Time {
 }
 
 func TestClockWindowRejectsWeakenedWatchBeforePreparation(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	mutations := []func(*k.WatchPolicy){
 		func(p *k.WatchPolicy) { p.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum() },
@@ -168,6 +170,7 @@ func TestClockWindowExpiresInQueueAndLeaseLookup(t *testing.T) {
 }
 
 func TestClockWindowRechecksNativeStatus(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, field := range []string{"tick", "cursor", "paused", "boundary", "durability"} {
 		t.Run(field, func(t *testing.T) {
@@ -223,6 +226,7 @@ func TestClockWindowInterveningEventAndManualPreventDispatch(t *testing.T) {
 }
 
 func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	combat := func(t *testing.T) (*ClockCoordinator, *store.Store, *clockCoreFake, ClockWindowRequest) {
 		t.Helper()
@@ -293,6 +297,7 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 // that colonist, in colony and combat mode alike (#213); an unacknowledged or
 // different acknowledgement holds.
 func TestClockWindowDownedPolicyMustMatchDecision(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	downed := func(t *testing.T) (*ClockCoordinator, *store.Store, *clockCoreFake, ClockWindowRequest) {
 		t.Helper()
@@ -336,6 +341,7 @@ func TestClockWindowDownedPolicyMustMatchDecision(t *testing.T) {
 // clock_read_status while it is within MaxAge (#200); it is still checked,
 // and a stale one falls back to the native read.
 func TestClockWindowAdmittingStatusReplacesNativeRead(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	t.Run("fresh", func(t *testing.T) {
 		q, _, f, clock, request := clockWindowFixture(t)

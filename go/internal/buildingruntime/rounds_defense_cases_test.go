@@ -25,6 +25,7 @@ import (
 // defense/raid-bypass: an ImmediateAttackSappers raid bypasses the line and
 // is answered with squad defense, never a line position.
 func TestDefenseReplaySapperRaidBypassesTheLine(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/raid-bypass-sappers.json.gz")
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
@@ -37,6 +38,7 @@ func TestDefenseReplaySapperRaidBypassesTheLine(t *testing.T) {
 // is answered by the siege tactic holding at home (#776): attacking now
 // makes them flee.
 func TestDefenseReplaySiegeHoldsWhileTravelling(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/siege.json.gz")
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSiege)
@@ -106,6 +108,7 @@ func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
 // is irrelevant and squad defense engages at the threat with no defender
 // routed to a firing cell.
 func TestDefenseReplayCenterDropIsSquadDefense(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/drop-center.json.gz")
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
@@ -117,6 +120,7 @@ func TestDefenseReplayCenterDropIsSquadDefense(t *testing.T) {
 // defense/drop with the raider read as a mechanoid and no layout stored:
 // the mech still gets a squad (#970).
 func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	step, err := snapshot.LoadDefense("testdata/defense/drop-center.json.gz")
 	if err != nil {
@@ -140,6 +144,7 @@ func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
 // defense/predator: a wild cougar hunting a colonist is answered with
 // squad defense on the predator.
 func TestDefenseReplayHuntingPredatorIsSquadDefense(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/predator-hunt.json.gz")
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
@@ -151,6 +156,7 @@ func TestDefenseReplayHuntingPredatorIsSquadDefense(t *testing.T) {
 // defense/hive: an insect hive near the colony is an infestation (#1071)
 // whose fighters target the hive, melee or ranged from a line of fire.
 func TestDefenseReplayHiveIsTargeted(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/hive.json.gz")
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticInfestation)
@@ -189,6 +195,7 @@ func TestDefenseSnapshotPassiveHiveIsLeftAlone(t *testing.T) {
 // defense/shippart: with every colonist carrying a rifle, a crashed ship
 // part is shot by a defender with a line of fire.
 func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/shippart-rifles.json.gz")
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
@@ -205,6 +212,7 @@ func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
 // defense/shippart with a colony mortar 35 cells from the part: the
 // mortar is crewed and aimed at the part (#930, #931).
 func TestDefenseSnapshotMortarShellsTheShipPart(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	step, err := snapshot.LoadDefense("testdata/defense/shippart-rifles.json.gz")
 	if err != nil {

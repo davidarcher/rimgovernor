@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"reflect"
 	"slices"
 	"testing"
@@ -74,6 +75,7 @@ func schedulerFixtureJournal(t *testing.T, db *store.Store, extra []domain.Actio
 	return scheduler, native
 }
 func TestClockSchedulerStartsOnceAndLeavesRunningEpoch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	got, err := s.Step(context.Background())
@@ -94,6 +96,7 @@ func TestClockSchedulerStartsOnceAndLeavesRunningEpoch(t *testing.T) {
 }
 
 func TestClockSchedulerUnknownRecoversExactRequest(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	f.lost = true
@@ -107,6 +110,7 @@ func TestClockSchedulerUnknownRecoversExactRequest(t *testing.T) {
 	}
 }
 func TestClockSchedulerUnsafeAndUnreviewedNeverStart(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, kind := range []string{"unsafe", "unreviewed", "unknown", "disabled", "cancelled"} {
 		t.Run(kind, func(t *testing.T) {
@@ -136,6 +140,7 @@ func TestClockSchedulerUnsafeAndUnreviewedNeverStart(t *testing.T) {
 	}
 }
 func TestClockSchedulerIdentityAndInertPrepared(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	// Prepare the exact prospective request without dispatch, then let native time
@@ -175,6 +180,7 @@ func TestClockSchedulerIdentityAndInertPrepared(t *testing.T) {
 	}
 }
 func TestClockSchedulerRejectsProfileAndSuppression(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, _ := schedulerFixture(t)
 	config := s.config
@@ -191,6 +197,7 @@ func TestClockSchedulerRejectsProfileAndSuppression(t *testing.T) {
 }
 
 func TestClockSchedulerCancelledWorkCannotAdvanceTime(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, _ := schedulerFixture(t)
 	state, err := s.player.journal.LoadPlan(context.Background(), s.session.State().Snapshot.Plan)
@@ -218,6 +225,7 @@ func TestClockSchedulerCancelledWorkCannotAdvanceTime(t *testing.T) {
 }
 
 func TestClockSchedulerUnknownStartWorldReplacement(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	f.lost = true
@@ -278,6 +286,7 @@ func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
 }
 
 func TestClockSchedulerCombatPlanAdmitsBoundedCombatWindow(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()
@@ -321,6 +330,7 @@ func TestClockSchedulerCombatPlanAdmitsBoundedCombatWindow(t *testing.T) {
 }
 
 func TestClockSchedulerCombatEndsWithLastLiveHostile(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()
@@ -340,6 +350,7 @@ func TestClockSchedulerCombatEndsWithLastLiveHostile(t *testing.T) {
 }
 
 func TestClockSchedulerRejectsCombatBudgetAboveColonyBudget(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, _ := schedulerFixture(t)
 	config := s.config
@@ -354,6 +365,7 @@ func TestClockSchedulerRejectsCombatBudgetAboveColonyBudget(t *testing.T) {
 // With the fight closed and hostiles still live, no window is admitted and
 // the stop holds.
 func TestClockSchedulerCombatStopResumesOnlyUnderAFight(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()
@@ -408,6 +420,7 @@ func TestClockSchedulerCombatStopResumesOnlyUnderAFight(t *testing.T) {
 // #886: once every plan action is settled, the open fight alone owns the
 // combat; its next armed stop needs ticks, not a no_work park.
 func TestClockSchedulerOpenFightIsWork(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()
@@ -459,6 +472,7 @@ func TestClockSchedulerOpenFightIsWork(t *testing.T) {
 // decision, so the step releases the wait and runs the planner instead of
 // parking it until the fight is over.
 func TestClockSchedulerCombatStopReleasesDefenseWait(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()

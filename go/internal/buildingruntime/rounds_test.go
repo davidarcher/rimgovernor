@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"os"
 	"slices"
 	"testing"
@@ -547,6 +548,7 @@ func (n *roundsNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, plann
 }
 
 func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _, _, n := roundsFixture(t)
 	v := n.reply.GetObserved()
@@ -610,6 +612,7 @@ func colonyCoreNative(t *testing.T) *roundsNative {
 }
 
 func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, request, n := roundsFixture(t)
 	got, err := r.Step(context.Background())
@@ -646,6 +649,7 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 }
 
 func TestRounderRejectsAuthorityChangesDuringRead(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, change := range []string{"direction", "disabled", "native", "load"} {
 		t.Run(change, func(t *testing.T) {
@@ -701,6 +705,7 @@ func TestRounderManualCancelsBlockedNativeRead(t *testing.T) {
 }
 
 func TestRounderDisabledStepRetiresReviewWithoutReacquiring(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, session, _, n := roundsFixture(t)
 	if _, err := r.Step(context.Background()); err != nil {

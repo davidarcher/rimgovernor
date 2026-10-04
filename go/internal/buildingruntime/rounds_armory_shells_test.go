@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -30,6 +31,7 @@ func (n *shellBenchNative) ReadGearBenches(context.Context, *c.Identity) ([]brid
 // The armory issues a shell bill once a mortar stands, and none before
 // (#1207).
 func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	reviewer, db, session, _, native := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment

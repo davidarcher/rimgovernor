@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -12,6 +13,7 @@ import (
 )
 
 func TestRoundsPowerCensusReachesDurableNeed(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, _, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()

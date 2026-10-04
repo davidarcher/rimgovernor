@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -208,6 +209,7 @@ func TestRoundsShelterRefusesAlreadyRoofedGround(t *testing.T) {
 // later review raises, though the colony centre (the pawns' mean position)
 // has drifted in between (#672).
 func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, n := shelterSiteFixture(t)

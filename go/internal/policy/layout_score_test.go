@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"reflect"
 	"testing"
 
@@ -38,6 +39,7 @@ func TestScoreDeterministicAndPasses(t *testing.T) {
 }
 
 func TestScoreHardTierRanksBelowAnyPass(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p, s := scoredPlan(t)
 	good := Score(p, s)
 

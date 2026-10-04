@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -40,6 +41,7 @@ func TestUndraftCandidatesSkipNeededAndCustody(t *testing.T) {
 // A draft still in flight and an open fight's roster are needed; a
 // settled draft no order holds is not.
 func TestPlannedDraftsCoversInFlightAndFights(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "needs.sqlite"))
@@ -90,6 +92,7 @@ func TestPlannedDraftsCoversInFlightAndFights(t *testing.T) {
 // drafted. The fight row is keyed by plan, so closing it frees nothing
 // another plan owns.
 func TestClosedFightLeavesAnotherPlansDraft(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "fight.sqlite"))

@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,6 +15,7 @@ import (
 // few cells (it was (45,34), then (45,35) once siting widened), so the test
 // pins that property, not the cell.
 func TestThinRoofMountainLabPlansTurbineOnRockBesidePocket(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	const size, pocketMin, pocketMax = 100, 35, 65
 	var cells []SurveyCell

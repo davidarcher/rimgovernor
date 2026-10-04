@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"testing"
 
@@ -112,6 +113,7 @@ func addPest(native *roundsNative, v *o.ColonyFactsSnapshot, id string, x, z int
 }
 
 func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, reviewer, db, v, native := pestFixture(t)
@@ -158,6 +160,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 // cells leave both hunts open and nothing re-planned; a dispatched hunt of
 // a dispatched hunt is never stall-cancelled, the kill is its exit.
 func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, reviewer, db, v, native := pestFixture(t)
@@ -266,6 +269,7 @@ func retick(m protoreflect.Message, tick int64) {
 // ranged weapon, the hunting budget is zero and the pest goes unplanned;
 // arming the colonist with a bow admits the hunt.
 func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, reviewer, _, v, _ := pestFixture(t)

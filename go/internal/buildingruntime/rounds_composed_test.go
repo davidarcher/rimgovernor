@@ -185,6 +185,7 @@ func TestComposedRoundsFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 // without further native reads, and none of their already-durable holds may
 // be corrupted or leak into one another while the world is unreconciled.
 func TestComposedRoundsFamiliesWorldChangeRejectsAllWithoutCrossLeak(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	_, db, session, _, native, planners := composedRoundsFixture(t)
@@ -287,6 +288,7 @@ func composedNativeFixture(t *testing.T) *roundsNative {
 // reconciles its own already-held plan correctly, without either family's
 // recovery interfering with the other's.
 func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	path := storetest.Path(t)

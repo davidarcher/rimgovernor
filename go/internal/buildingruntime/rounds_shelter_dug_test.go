@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -36,6 +37,7 @@ func (n *dugShelterNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 // by plan dig before anything else is placed (#1250): no excavation site
 // is searched, and the dig mines exactly the storeroom's rock.
 func TestRoundsShelterDigsADugPlannedStoreroom(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterSiteFixture(t)
 	rock := map[domain.Cell]bool{}

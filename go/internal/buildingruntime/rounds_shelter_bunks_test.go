@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -30,6 +31,7 @@ func bunkAnchors(t *testing.T, plan store.PlanState, definition string) []domain
 // The first review places sleeping spots, the first construction is the
 // beds, and only then is the ring sited around them (#612).
 func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
@@ -99,6 +101,7 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 // A beds rung refused whole (the Bed is not buildable) falls through to
 // the ring in the same review; the spots still lead.
 func TestRoundsShelterBedsRefusedFallsThroughToShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
@@ -130,6 +133,7 @@ func TestRoundsShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 // A ring begun earlier is adopted as before: no bunk rung runs on a site
 // whose shell already stands, however incomplete.
 func TestRoundsShelterAdoptionSkipsBunks(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterSiteFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -170,6 +174,7 @@ func TestRoundsShelterAdoptionSkipsBunks(t *testing.T) {
 // review after it admits the shell around the pending bunks, and the review
 // after that adds nothing, neither a second shell nor a second bed rung.
 func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
@@ -223,6 +228,7 @@ func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
 // placed and the beds still open neither duplicates a rung nor forgets
 // their geometry: the ring is sited around the recorded bunks.
 func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()

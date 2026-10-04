@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -79,6 +80,7 @@ func remoteOreStep(t *testing.T, steel int64) (RoundsResourceResult, *remoteOreN
 // A steel demand mines the far lump and never the rock under a foreign
 // designation, whose yield it only reserves.
 func TestSteelDemandMinesTheRemoteLumpNotTheForeignDesignation(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	result, _ := remoteOreStep(t, 0)
 	if result.Verdict != BuildingReasonAdmitted || !minedSource(result, "lump-cas") {
@@ -89,6 +91,7 @@ func TestSteelDemandMinesTheRemoteLumpNotTheForeignDesignation(t *testing.T) {
 // With the steel delivered the demand is met: no further mining, and the
 // foreign designation stays untouched.
 func TestDeliveredSteelPlansNoFurtherMining(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	result, _ := remoteOreStep(t, 200)
 	if result.Verdict == BuildingReasonAdmitted {

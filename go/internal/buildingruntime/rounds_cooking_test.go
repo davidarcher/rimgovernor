@@ -40,6 +40,7 @@ func cookingFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sleepi
 }
 
 func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, native := cookingFixture(t)
 	result, err := p.Step(context.Background())

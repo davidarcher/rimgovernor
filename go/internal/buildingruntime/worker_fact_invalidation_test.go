@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 // to drop them, and the next decision would replan from the rows before
 // our own write (#694). A dispatch that never reached native keeps them.
 func TestWorkerNativeCallDropsWrittenFamilies(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, called := range []bool{false, true} {
 		w, f, db := workerFixture(t)

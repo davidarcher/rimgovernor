@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"io"
 	"os"
 	"path/filepath"
@@ -229,6 +230,7 @@ func containsPawn(ids []domain.PawnID, id domain.PawnID) bool {
 
 // Every committed combat recording stays within the #853 cap.
 func TestCombatRecordingsSizeCap(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	paths, err := filepath.Glob("testdata/combat/*.json.gz")
 	if err != nil {
@@ -257,6 +259,7 @@ func TestCombatRecordingsSizeCap(t *testing.T) {
 // recorded at every stop (the hold, its orders, the squad re-formation);
 // a recording whose geometry ask no longer matches fails with "re-record".
 func TestCombatReplayHarness(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	dir := t.TempDir()
 	t.Setenv(snap.DirEnv, dir)
 	crossedHoldFight(t)

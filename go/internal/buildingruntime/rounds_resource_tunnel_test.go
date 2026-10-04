@@ -249,6 +249,7 @@ func TestBuriedSteelLostSupportHoldsTheNextStage(t *testing.T) {
 
 // A corridor whose removal native reports unsupported is never started.
 func TestBuriedSteelUnsupportedCorridorHoldsTheDig(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	planner, db, native := buriedOreFixture(t)
 	native.support = policy.ExcavationSupportUnsupported
@@ -266,6 +267,7 @@ func TestBuriedSteelUnsupportedCorridorHoldsTheDig(t *testing.T) {
 // resumes on the next review, even once the face has left the colony
 // window and the geometry search proposes nothing.
 func TestBuriedSteelResumesADroppedFirstStage(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	planner, db, native := buriedOreFixture(t)
 	cutoff, cancel := context.WithCancel(context.Background())

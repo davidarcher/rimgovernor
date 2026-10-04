@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"slices"
 	"testing"
 
@@ -165,6 +166,7 @@ func workshopFixture(t *testing.T) (*RoundsBuildingPlanner, *playerFakeSession, 
 }
 
 func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, test := range []struct {
 		name       string
@@ -258,6 +260,7 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 }
 
 func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	workshop, _ := policy.Facility(policy.RoomRoleWorkshop)
 	site := func(cells ...domain.Cell) []policy.SiteCell {
@@ -319,6 +322,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 // spot on a wall) is retried facing east, south and west before the cell is
 // given up; other definitions keep the single north preview.
 func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	workshop, _ := policy.Facility(policy.RoomRoleWorkshop)
 	hosting := domain.Cell{X: 3, Z: 2}
@@ -369,6 +373,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 }
 
 func TestWorkshopShellWaitsWhileInitialShelterIsOwed(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _ := shelterFixture(t)
 	review, err := db.LoadRounds(context.Background())

@@ -59,6 +59,7 @@ func TestClockSchedulerFailFaultIsIsolated(t *testing.T) {
 // A critical planner faulted to hang holds admission past the wall budget
 // (#623): the step admits nothing and names it under held_by.
 func TestClockSchedulerHangFaultOnCriticalHolds(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	s.config.Budget.Wall = 50 * time.Millisecond
@@ -77,6 +78,7 @@ func TestClockSchedulerHangFaultOnCriticalHolds(t *testing.T) {
 // owned epoch to lapse: native stops it lease_expired and revokes, so the
 // scheduler cannot keep a window running on its own.
 func TestClockRenewalDropFaultLetsLeaseLapse(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, n, w, _ := renewalFixture(t)
 	s.config.Faults = Faults{DropRenewal: true}

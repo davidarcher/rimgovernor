@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -276,6 +277,7 @@ func TestNextEquipWaveMethodSkipsRetiredWaves(t *testing.T) {
 // other unarmed colonists: colony-2 ended with every survivor unarmed
 // beside loose bows because SelectEquip always named the same pawn.
 func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, _, native := roundsFixture(t)

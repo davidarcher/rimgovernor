@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 	"time"
 
@@ -89,6 +90,7 @@ func TestClockSchedulerRetakeWaitsForPlayerQuiet(t *testing.T) {
 // player paused and stays paused: the normal pause-bound admission) or
 // not (nothing to re-take; the admission holds as before).
 func TestClockSchedulerRetakeNeedsTheTickToAdvance(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := retakeFixture(t)
 	got, err := s.Step(context.Background())

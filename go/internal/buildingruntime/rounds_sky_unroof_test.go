@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -15,6 +16,7 @@ import (
 // Once the roof job was designated for excavationStallTicks and the roof is
 // still on, roofStalled names it.
 func TestUnroofOnlyPlanNeedsNoExcavationSourceAndStallIsNamed(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, n, s, site, _ := rockCoolerStep(t)
 	ctx := context.Background()

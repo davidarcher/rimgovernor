@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -38,6 +39,7 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 }
 
 func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	base, db, _, request, n := sleepingFixture(t)
 	ctx := context.Background()
@@ -92,6 +94,7 @@ func prepareExpansionReview(t *testing.T, db *store.Store, n *sleepingNative) {
 	}
 }
 func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	// No staged bunks: an open shelter rung would hold the housing goal's
 	// later phases.
@@ -136,6 +139,7 @@ func (n *ruinNative) ReadClaimBuildingTarget(_ context.Context, _ *c.Identity, t
 // planned room's ring is claimed as wall before the ring is built, not
 // deconstructed (#718, #1231).
 func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	base, db, n := shelterSiteFixture(t)
 	prepareExpansionReview(t, db, n)

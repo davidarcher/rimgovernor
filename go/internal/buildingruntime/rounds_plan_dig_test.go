@@ -112,6 +112,7 @@ func rockCoolerStep(t *testing.T) (p *RoundsBuildingPlanner, db *store.Store, n 
 // the shaft and places the cooler in one plan, the cooler waiting on every
 // excavation and previewed over rock (#874).
 func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, n, s, site, shaft := rockCoolerStep(t)
 	ctx := context.Background()

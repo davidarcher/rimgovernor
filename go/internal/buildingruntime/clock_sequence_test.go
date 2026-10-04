@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 )
 
 func TestClockSequenceWindowPreparedReplayAndLogicalMismatch(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, mismatch := range []bool{false, true} {
 		t.Run(map[bool]string{false: "exact", true: "mismatched-key"}[mismatch], func(t *testing.T) {

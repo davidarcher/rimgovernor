@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"strings"
 	"testing"
 
@@ -47,6 +48,7 @@ func TestExcavationMethodTargetRoundTrip(t *testing.T) {
 // A tunnel stage held past excavationStallTicks is cancelled; within the
 // grace it stands.
 func TestCancelStalledExcavation(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	planner, db, _ := buriedOreFixture(t)
 	ctx := context.Background()

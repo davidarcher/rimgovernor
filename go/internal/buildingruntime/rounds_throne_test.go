@@ -204,6 +204,7 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 // The throne step commits one Assign of the throne to its holder, once per
 // holder and throne per Episode (#1601).
 func TestAssignThroneCommitsOneGenericAssign(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, _ := sleepingUpkeepFixture(t)

@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -41,6 +42,7 @@ func completedFor(request *l.SaveRequest, tick int64) *l.SaveReply {
 }
 
 func TestCheckpointHappyPathDrainsAndSaves(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	scope := controlScope()
@@ -67,6 +69,7 @@ func TestCheckpointHappyPathDrainsAndSaves(t *testing.T) {
 }
 
 func TestCheckpointRefusesWithoutLiveAuthority(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	save := &saveFake{}
@@ -79,6 +82,7 @@ func TestCheckpointRefusesWithoutLiveAuthority(t *testing.T) {
 }
 
 func TestCheckpointRefusesForeignWorld(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	scope := controlScope()
@@ -104,6 +108,7 @@ func TestCheckpointRefusesForeignWorld(t *testing.T) {
 }
 
 func TestCheckpointRejectsInvalidRequestShape(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	scope := controlScope()
@@ -133,6 +138,7 @@ func TestCheckpointRejectsInvalidRequestShape(t *testing.T) {
 }
 
 func TestCheckpointNeverAcceptsUncertainOutcome(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, sink, _ := controlFixture(t, nil)
 	scope := controlScope()
@@ -159,6 +165,7 @@ func TestCheckpointNeverAcceptsUncertainOutcome(t *testing.T) {
 }
 
 func TestCheckpointPropagatesNativeFailure(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	scope := controlScope()
@@ -172,6 +179,7 @@ func TestCheckpointPropagatesNativeFailure(t *testing.T) {
 }
 
 func TestCheckpointDrainFailureRefusesBeforeSave(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	scope := controlScope()
@@ -190,6 +198,7 @@ func TestCheckpointDrainFailureRefusesBeforeSave(t *testing.T) {
 }
 
 func TestCheckpointHonorsExpectedTick(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	scope := controlScope()

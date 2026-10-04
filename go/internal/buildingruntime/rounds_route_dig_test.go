@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,6 +13,7 @@ import (
 // builds the door in one method previewed over rock; an open breach needs no
 // dig.
 func TestDigBreachMinesRockWallThenBuildsDoor(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, fogged := range []bool{false, true} {
 		p, db, n, s, site, _ := rockCoolerStep(t)

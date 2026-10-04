@@ -54,6 +54,7 @@ func planStandsClean(t *testing.T, g coreGrid, p LayoutPlan) {
 }
 
 func TestSearchNeverScoresBelowItsStartAndStaysPlaceable(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	g, sc, base, seed := searchFixture(t)
 	planStandsClean(t, g, base)
 	got := g.search(sc, base, seed, 60)
@@ -73,6 +74,7 @@ func TestSearchNeverScoresBelowItsStartAndStaysPlaceable(t *testing.T) {
 // variation it reports must stand clean, and each operator varies the plan
 // at least once over a handful of streams.
 func TestSearchOperatorsKeepPlansPlaceable(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	g, _, base, seed := searchFixture(t)
 	ops := map[string]func(LayoutPlan, *searchRand) (LayoutPlan, bool){
 		"swapRooms":   func(p LayoutPlan, r *searchRand) (LayoutPlan, bool) { return swapRooms(p, r, nil) },

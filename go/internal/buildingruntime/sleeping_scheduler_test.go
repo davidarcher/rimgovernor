@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"slices"
 	"strings"
 	"testing"
@@ -44,6 +45,7 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 // executes it; a timer step under the window it started reads nothing until
 // the full step is due (#243).
 func TestSchedulerCompilesSleepingAtTheReview(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
@@ -70,6 +72,7 @@ func TestSchedulerCompilesSleepingAtTheReview(t *testing.T) {
 // A failed sleeping preview commits nothing for that planner, but no longer
 // blocks the clock: the failure is isolated and the window still starts (#62).
 func TestSchedulerFailedSleepingPreviewIsIsolated(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
@@ -84,6 +87,7 @@ func TestSchedulerFailedSleepingPreviewIsIsolated(t *testing.T) {
 }
 
 func TestSchedulerRejectsSleepingWithoutMatchingReviewer(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	other, _, _, _, _ := sleepingFixture(t)
@@ -101,6 +105,7 @@ func TestSchedulerRejectsSleepingWithoutMatchingReviewer(t *testing.T) {
 }
 
 func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)

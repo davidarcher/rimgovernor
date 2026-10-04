@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -81,6 +82,7 @@ func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *te
 	}
 }
 func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	w := clockLoopFixture(t)
 	var polls, renews, steps atomic.Int32

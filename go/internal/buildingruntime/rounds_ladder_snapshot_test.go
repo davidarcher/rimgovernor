@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"slices"
 	"testing"
 
@@ -71,6 +72,7 @@ func TestSnapshotComponentsFundFabricationBill(t *testing.T) {
 // researched and a seeded steel lump under a built scanner. The deep drill
 // step's own read offers that lump as a drill site.
 func TestSnapshotDeepDrillSitesTheSteelLump(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r := loadRecorded(t, "deepdrill-steel-runway")
 	step := loadStep(t, "deepdrill-step-lump", policy.MaintainResource)

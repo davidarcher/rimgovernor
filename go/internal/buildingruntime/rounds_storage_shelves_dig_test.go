@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,6 +14,7 @@ import (
 // one method (previewed over rock); a footprint on open ground builds as
 // before.
 func TestShelfOnRockMinesFootprintThenBuildsShelf(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, fogged := range []bool{false, true} {
 		p, db, n, s, site, _ := rockCoolerStep(t)

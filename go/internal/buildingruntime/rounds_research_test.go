@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -75,6 +76,7 @@ func (n *researchNative) ReadResearch(ctx context.Context, _ *c.Identity) (bridg
 // idle, and lends the clock ticks while any project is current so the rung
 // finishes on its own (#230).
 func TestRoundsResearchWalksTheLadderAndLendsTicks(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	reviewer, db, _, _, base := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment
@@ -135,6 +137,7 @@ func TestRoundsResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 // a selection native SelectResearch would refuse: with no building ladder
 // composed the planner reports the bench hold by name (#254).
 func TestRoundsResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	reviewer, db, _, _, base := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment

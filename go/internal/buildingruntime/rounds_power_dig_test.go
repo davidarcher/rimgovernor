@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -44,6 +45,7 @@ func rockOn(s *excavationStep, cells ...domain.Cell) {
 // A geothermal footprint on listed rock is dug; the generator is placed by
 // the ordinary preview once it reads open (#1896).
 func TestDigGeothermalMinesListedRockFootprint(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, n, s := geothermalDigFixture(t)
 	ctx := context.Background()
@@ -63,6 +65,7 @@ func TestDigGeothermalMinesListedRockFootprint(t *testing.T) {
 
 // A footprint cell the frame does not list is fogged rock and is dug too.
 func TestDigGeothermalMinesFoggedRockFootprint(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, n, s := geothermalDigFixture(t)
 	ctx := context.Background()
@@ -83,6 +86,7 @@ func TestDigGeothermalMinesFoggedRockFootprint(t *testing.T) {
 // A protected footprint cell holds the build; rock with no open cell beside
 // the footprint is refused.
 func TestDigGeothermalRefusesWithoutAccessOrOnProtectedCell(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, n, s := geothermalDigFixture(t)
 	ctx := context.Background()

@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -92,6 +93,7 @@ func TestCoreFootprintNarrowNotchCloses(t *testing.T) {
 // A rich patch inside the footprint is walled by the core ring only; the
 // outer ring leaves it alone.
 func TestOuterRingSkipsPatchInsideTheFootprint(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	const n = 150
 	patch := Rectangle{X: 70, Z: 70, Width: 8, Height: 8}

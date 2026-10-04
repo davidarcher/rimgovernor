@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -51,6 +52,7 @@ func blightedRow(native *roundsNative, v *o.ColonyFactsSnapshot, id string, x, z
 }
 
 func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	reviewer, db, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
@@ -113,6 +115,7 @@ func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 }
 
 func TestRoundsBlightPlannerRefusesWithoutCensus(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	reviewer, _, _, _, native := roundsFixture(t)
 	if _, err := reviewer.Step(context.Background()); err != nil {

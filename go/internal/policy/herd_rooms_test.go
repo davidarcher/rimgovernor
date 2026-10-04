@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"strconv"
 	"testing"
 
@@ -38,6 +39,7 @@ func bedAt(t *testing.T, def string, p InteriorPiece) CurrentBuilding {
 }
 
 func TestHerdRoomsHaveADoorAndHoldTheirBeds(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, animals := range []int{10, 20, 45} {
 		plan := herdTestPlan(t, animals)
 		barns, vets := plan.HerdRooms(ModuleBarn), plan.HerdRooms(ModuleVetRoom)
