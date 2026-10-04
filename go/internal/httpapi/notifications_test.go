@@ -91,6 +91,9 @@ func TestNotificationsConfinement(t *testing.T) {
 	}
 }
 func TestNotificationsRejectInvalidSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	for _, name := range []string{"nil", "missing-arm", "missing-section", "empty-section", "context", "world", "tick", "unknown-wire", "source-error", "world-switch", "request-mutation", "stale", "unknown-identity", "disconnected", "limit", "timeout"} {
 		t.Run(name, func(t *testing.T) {
 			s, f, snapshot := notificationFixture(t)

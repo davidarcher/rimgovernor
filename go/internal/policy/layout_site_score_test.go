@@ -31,6 +31,9 @@ func centreRichSurvey() MapSurvey {
 }
 
 func TestSiteCoreLandsOffCentreRichPatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := centreRichSurvey()
 	zones := Zone(s)
 	g := newCoreGrid(zones, nil).withSoil(s)
@@ -48,6 +51,9 @@ func TestSiteCoreLandsOffCentreRichPatch(t *testing.T) {
 }
 
 func TestSiteCoreBaselineScoresNoBelowCentroid(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := loadSurvey(t, baselineSurveyPath)
 	zones := Zone(s)
 	centroid := corePlan(zones, 3, BuildTierCamp)
@@ -92,6 +98,9 @@ func TestSoilCostBaselineFixture(t *testing.T) {
 // within ten cells of the edge margin; the edge cost keeps every room
 // far enough in for the ring to stand.
 func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := loadSurvey(t, baselineSurveyPath)
 	p := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
 	if len(p.AllRooms()) == 0 {

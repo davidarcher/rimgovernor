@@ -908,7 +908,7 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
   <output>` reads the suite's `result.json` and refuses a suite that did
   not pass or whose rows resumed from a checkpoint (#308). `-results` is
   optional for every diff.
-- **nightly** (`suite -tier nightly`): the twelve end-to-end cases (#738
+- **nightly** (`suite -tier nightly`): the thirteen end-to-end cases (#738
   bucket C, `endToEnd` in `cmd/acceptance/tier.go`), the scheduled loop
   against `main` on CI (#363, #752); a signal rather than a gate.
 - **full** (`suite -tier full`): every other tiered case outside the
@@ -1191,7 +1191,7 @@ report.
 
 | What changed / what you need to establish | Available support | Requirements and limits |
 | --- | --- | --- |
-| Go controller logic, contracts, persistence | From `go/`: `go test ./...`, `go vet ./...`, `go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor` (also run together, with staticcheck and the test-time budget, by `task go:build && task go:test` from the [root Taskfile](../../../Taskfile.yml)) | Pin Go via [go/.go-version](../../../go/.go-version); `CGO_ENABLED=0`. Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks below. See [go/README.md](../../../go/README.md). |
+| Go controller logic, contracts, persistence | From `go/`: `go run ./cmd/test` (`-short`, ~30 s; `-full` at the end of an epic; not `go test ./...`), `go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor` (also run together, with staticcheck and the test-time budget, by `task go:build && task go:test` from the [root Taskfile](../../../Taskfile.yml)) | Pin Go via [go/.go-version](../../../go/.go-version); `CGO_ENABLED=0`. Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks below. See [go/README.md](../../../go/README.md). |
 | Dashboard behavior and build | `task dashboard:build` runs `pnpm run typecheck`, `pnpm run lint` and `pnpm run build`; `task dashboard:test` runs `pnpm test` (Vitest) | Local pnpm and dashboard dependencies; native UI acceptance is separate. |
 | Shared Protobuf contracts | Official C#/Go generation `--check` for both languages (`task protobuf:build`, ~20 s) | [Generation commands](../../../contracts/schema-generation.md); native adapters additionally need gameplay acceptance. The drift check and the `tools/protobuf/go` module tests are not in the landing loop; the nightly `race` job runs both so a schema edit landed without regeneration is caught there. The C#/Go/C# exchange proof (`task protobuf:test`) proves the pinned runtime and stays manual. |
 | Completed pawn work, recovery or another live-game invariant | A registered case through the shared runner, `go run ./internal/nativeaccept/cmd/acceptance run <area>/<case> -root <abs root> -output <fresh dir>` from `go/` (`acceptance list` prints the registry: the synchronous typed-op cases `bed/assign`, `bills/census`, `caravan/departure`, `lifecycle/checkpoint`, `lifecycle/load`, `mapscope/isolation`, `pawn/reads`, `quest/accept`, `research/reads`, `rooms/reads`, `supplies/reads`, `trade/open`; the Loud cases `combat/melee`, `combat/ranged`, `combat/explosive`, `movement/arrival`, `authority/disconnect`; the lifecycle cases `lifecycle/shutdown`, `lifecycle/runtime-fault`, `lifecycle/reuse`, `lifecycle/headless-soak` (off-tier); the serve-driven `dialog/pause` (#156: a force-pausing choice dialog the game opens is answered and the clock runs again); every other area is listed there too, so trust `acceptance list` over this row) | Disposable prepared colony, matching native DLLs and a real headless RimWorld instance. Never replace installed DLLs while any RimWorld instance is running, including another worktree's tests. Isolated tests must restore temporarily swapped DLLs. Never kill `RimWorldWin64.exe` by image name — that ends every concurrent worktree's game (seen there as the bridge session dropping); stop your own via `gamesstop -root` or kill only pids whose command line contains your `-root`. A receipt alone does not prove pawn work completed — verify the observed postcondition. |
@@ -1233,8 +1233,9 @@ native addition can break them while the mod build stays green (#123).
 price: the total wall and boot time of the baseline's rows in the affected
 areas (cases the baseline never timed are not counted; `acceptance list
 -cost <area>/...` names them).
-`go run ./cmd/test` runs the `go test` line and the probes build (the
-landing lane does not), after gofmt on the changed Go files and `go vet`
+`go run ./cmd/test` runs `go test -short` on the affected packages (slow
+tests skip; `-full` runs them, as the nightly does) and the probes build
+(the landing lane does not unless `-test`, which runs the same checks), after gofmt on the changed Go files and `go vet`
 plus staticcheck on the affected packages, the gates `task go:build`
 applies to the whole module (#334). The individual acceptance lines from
 `cmd/affected` explain selection; use the single land-tier command printed

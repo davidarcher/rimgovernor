@@ -87,6 +87,9 @@ func TestClockInboxReplayWorldLossAndIsolation(t *testing.T) {
 	}
 }
 func TestClockInboxAtomicRollbackAndCorruption(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	t.Run("transaction rollback", func(t *testing.T) {
@@ -125,6 +128,9 @@ func TestClockInboxAtomicRollbackAndCorruption(t *testing.T) {
 	}
 }
 func TestClockInboxEventAndByteCapacity(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, large := range []bool{false, true} {
 		t.Run(map[bool]string{false: "events", true: "bytes"}[large], func(t *testing.T) {

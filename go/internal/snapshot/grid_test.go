@@ -75,6 +75,9 @@ func regrid(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []fac
 // Every committed planning window records as a grid and rebuilds exactly,
 // through changed facts, dropped rows, a scope change and a sync point.
 func TestGridRoundTripsCommittedCells(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	paths, _ := filepath.Glob("testdata/*.json*")
 	windows := 0
 	for _, path := range paths {

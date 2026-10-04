@@ -333,6 +333,9 @@ func assertNoDuplicateEffect(t *testing.T, rig *controllerRig, plan store.PlanSt
 // a fresh attempt; native finds the blueprint already on the cell and
 // answers applied, so each spot completes and is placed exactly once.
 func TestControllerRestartResendsLostIntentWithoutDuplicateEffect(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	path, dir := storetest.Path(t), t.TempDir()
 	authority := &controlNative{generation: 1}

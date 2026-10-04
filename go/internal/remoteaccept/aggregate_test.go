@@ -87,6 +87,9 @@ func raw(s string) json.RawMessage { return json.RawMessage(s) }
 func ptr[T any](v T) *T            { return &v }
 
 func TestContractExamples(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	f := fixtureRun(t)
 	ref, err := FileRef(f.root, "aggregate.json")
 	if err != nil {
@@ -105,6 +108,9 @@ func TestContractExamples(t *testing.T) {
 }
 
 func TestHostedTimeoutLimits(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	for _, tc := range []struct {
 		job, suite int
 		valid      bool
@@ -119,6 +125,9 @@ func TestHostedTimeoutLimits(t *testing.T) {
 }
 
 func TestHostedConcurrencyLimits(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	for _, parallel := range []int{0, 1, 4, 20, 21} {
 		f := fixtureRun(t)
 		f.run.Limits.Parallel = parallel
@@ -130,6 +139,9 @@ func TestHostedConcurrencyLimits(t *testing.T) {
 }
 
 func TestArtifactBudgetIsOptionalAndNotAPlanQuota(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	for _, cap := range []int64{-1, 0, 1 << 30, 8 << 30} {
 		f := fixtureRun(t)
 		f.run.Limits.Bytes = cap
@@ -200,6 +212,9 @@ func TestAggregationRejectsBadEvidence(t *testing.T) {
 	}
 }
 func TestMissingShardAndFailurePrecedence(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	f := fixtureRun(t)
 	r, s := f.save(t)
 	e, err := Evaluate(f.root, r, s, f.shards[:1])
@@ -228,6 +243,9 @@ func (f *fixture) failure(t *testing.T) {
 	})
 }
 func TestInjectedFailureStaysRed(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	f := fixtureRun(t)
 	f.failure(t)
 	e, err := f.evaluate(t)
@@ -250,6 +268,9 @@ func TestInjectedFailureStaysRed(t *testing.T) {
 	}
 }
 func TestRetryRetainsFailureAndDiagnostics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	f := fixtureRun(t)
 	original := f.attempts[0].Attempts[0]
 	f.failure(t)
@@ -301,6 +322,9 @@ func TestJSONAndPathsFailClosed(t *testing.T) {
 	}
 }
 func TestNativeAndSuiteFormats(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	f := fixtureRun(t)
 	f.native(t, 0, 0, func(m map[string]json.RawMessage) { m["case"] = m["name"]; delete(m, "name"); delete(m, "exit") })
 	if e, err := f.evaluate(t); err != nil || !e.Report.Passed {
@@ -336,6 +360,9 @@ func TestNativeAndSuiteFormats(t *testing.T) {
 }
 
 func TestRenderedSkipsAreReportedWithoutFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	f := fixtureRun(t)
 	f.selection.Skipped = []SkippedCase{{Name: "speedmatrix/observations", Reason: "rendered"}, {Name: "speedmatrix/plain", Reason: "rendered"}}
 	e, err := f.evaluate(t)

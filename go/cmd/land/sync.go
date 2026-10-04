@@ -12,11 +12,19 @@ func syncMain(worktree, mainCheckout string) error {
 		fmt.Printf("origin/main not fetched (%v); landing on local main as it is\n", err)
 		return nil
 	}
+	if _, err := git(worktree, "rev-parse", "--verify", "-q", "refs/heads/main"); err != nil {
+		// No local main (the main checkout is detached): origin/main is main.
+		if _, err := git(worktree, "update-ref", "-m", "land: create from origin/main", "refs/heads/main", "origin/main"); err != nil {
+			return err
+		}
+		fmt.Println("local main created at origin/main")
+		return nil
+	}
 	if _, err := git(worktree, "merge-base", "--is-ancestor", "origin/main", "main"); err == nil {
 		return nil // main already contains origin/main
 	}
 	if _, err := git(worktree, "merge-base", "--is-ancestor", "main", "origin/main"); err != nil {
-		return fmt.Errorf("local main and origin/main have diverged; push or rebase local main onto origin/main (git rebase origin/main main), then run land again")
+		return fmt.Errorf("local main holds landings origin/main lacks and origin/main has moved too; rebase them (git rebase origin/main main), then run land again")
 	}
 	if mainCheckout != "" {
 		if _, err := git(mainCheckout, "merge", "--ff-only", "origin/main"); err != nil {

@@ -57,6 +57,9 @@ func TestClockSchedulerTracksTheRunningWindowAndSettlesInOneStep(t *testing.T) {
 
 // A poll page that carries a stopped event clears the running hint.
 func TestClockPollStoppedPageClearsTheRunningWindow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	if _, err := s.Step(context.Background()); err != nil || !s.WindowRunning() {
@@ -359,6 +362,9 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 // evidence refuses a stale read. An ordering-only dependency reports
 // nothing and leaves the window running just the same.
 func TestClockSchedulerKeepsARunningWindowForACoupledOrder(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	for _, coupled := range []bool{false, true} {

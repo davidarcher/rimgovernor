@@ -53,6 +53,9 @@ func fakeRoot(t *testing.T) (Options, setup.Layout) {
 }
 
 func TestMissingRootFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	root := filepath.Join(t.TempDir(), "bridge")
 	checks := Run(context.Background(), Options{Root: root, Repo: t.TempDir()})
 	c := byName(checks, "root")
@@ -70,6 +73,9 @@ func TestMissingRootFails(t *testing.T) {
 }
 
 func TestHealthyRootPasses(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	o, _ := fakeRoot(t)
 	checks := Run(context.Background(), o)
 	for _, name := range []string{"root", "game-copy", "baseline", "mods-config", "output"} {
@@ -100,6 +106,9 @@ func TestGameCopyPathBound(t *testing.T) {
 }
 
 func TestBaselineDLCFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	o, l := fakeRoot(t)
 	write(t, filepath.Join(l.Root, "profile", "Saves", na.BaselineSave), "<savegame><meta><modIds><li>ludeon.rimworld</li><li>Ludeon.RimWorld.Royalty</li></modIds></meta></savegame>")
 	c := byName(Run(context.Background(), o), "baseline")
@@ -109,6 +118,9 @@ func TestBaselineDLCFails(t *testing.T) {
 }
 
 func TestBaselineInstalledDLCPasses(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	o, l := fakeRoot(t)
 	write(t, filepath.Join(l.GameCopy, "Data", "Royalty", "About", "About.xml"), "<ModMetaData><packageId>Ludeon.RimWorld.Royalty</packageId></ModMetaData>")
 	write(t, filepath.Join(l.Root, "profile", "Saves", na.BaselineSave), "<savegame><meta><modIds><li>ludeon.rimworld</li><li>Ludeon.RimWorld.Royalty</li></modIds></meta></savegame>")
@@ -119,6 +131,9 @@ func TestBaselineInstalledDLCPasses(t *testing.T) {
 }
 
 func TestBaselineMissingEverywhereFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	o, l := fakeRoot(t)
 	os.Remove(filepath.Join(l.Root, "profile", "Saves", na.BaselineSave))
 	c := byName(Run(context.Background(), o), "baseline")
@@ -128,6 +143,9 @@ func TestBaselineMissingEverywhereFails(t *testing.T) {
 }
 
 func TestBaselineStagedFromCheckout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	o, l := fakeRoot(t)
 	os.Remove(filepath.Join(l.Root, "profile", "Saves", na.BaselineSave))
 	write(t, filepath.Join(o.Repo, filepath.FromSlash(na.CommittedSavesDir), na.BaselineSave), coreSave)
@@ -138,6 +156,9 @@ func TestBaselineStagedFromCheckout(t *testing.T) {
 }
 
 func TestModsConfigWithoutCoreFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	o, l := fakeRoot(t)
 	write(t, filepath.Join(l.Root, "profile", "Config", "ModsConfig.xml"), "<ModsConfigData><activeMods><li>brrainz.harmony</li></activeMods></ModsConfigData>")
 	c := byName(Run(context.Background(), o), "mods-config")
@@ -213,6 +234,9 @@ func TestMissingFixturesNamesTheClassesTheBuildLacks(t *testing.T) {
 }
 
 func TestStaleModFailsWithHealCode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	o, l := fakeRoot(t)
 	pkg := filepath.Join(l.GameCopy, "Mods", "RimGovernor")
 	write(t, filepath.Join(pkg, na.PackageManifestName), `{"role":"fixture","fixtures":["PowerFixture"],"sourceRevision":"abcdef0123456789","sourceTree":"not-this-worktree"}`)

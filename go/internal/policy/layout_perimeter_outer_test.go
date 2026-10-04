@@ -145,6 +145,9 @@ func TestOuterRingNeedsUnits(t *testing.T) {
 // ring encloses the pair and its lanes whole, and none of them lies on the
 // ring or across the killbox and its approaches.
 func TestCoreRingEnclosesTurbinePair(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	for _, pawns := range []int{3, 6, 10} {
 		t.Run(strconv.Itoa(pawns), func(t *testing.T) { turbinePairInsideCoreRing(t, pawns) })
 	}
@@ -185,6 +188,9 @@ func turbinePairInsideCoreRing(t *testing.T, pawns int) {
 
 // The pen, barn and vet room stand inside the core ring.
 func TestCoreRingEnclosesPenBarnAndVetRoom(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {

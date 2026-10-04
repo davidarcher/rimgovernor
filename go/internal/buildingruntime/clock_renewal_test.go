@@ -27,6 +27,9 @@ func TestClockRenewalSafetyReviewMustCatchUp(t *testing.T) {
 }
 
 func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, reason := range []k.StopReason{k.StopReason_STOP_REASON_TICK_BUDGET, k.StopReason_STOP_REASON_WATCH_LATCHED, k.StopReason_STOP_REASON_EXTERNAL_PAUSE} {
 		// A stop the renewal cannot recognize as the window's own end is
@@ -59,6 +62,9 @@ func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
 // pause, #228) leaves the epoch to the scheduler step with authority
 // standing; an interruption it holds disables.
 func TestClockRenewalStoppedEpochFollowsReview(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, def := range []string{"PositiveEvent", "ThreatBig"} {
 		t.Run(def, func(t *testing.T) {
@@ -116,6 +122,9 @@ func (n *renewalBoundaryNative) ReadStep(ctx context.Context, request bridge.Ste
 }
 
 func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, reason := range []string{"budget", "interruption", "unknown_boundary", "read_error", "manual", "wrong_epoch"} {
 		t.Run(reason, func(t *testing.T) {
@@ -217,6 +226,9 @@ func (f *renewalWriter) Renew(ctx context.Context, r *k.RenewRequest, original *
 }
 
 func TestClockRenewalBudgetFinishesAfterDispatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, mode := range []string{"budget", "external_pause", "expired", "wrong_epoch", "unknown_boundary", "manual", "different_refusal", "lost_reply"} {
 		t.Run(mode, func(t *testing.T) {
@@ -321,6 +333,9 @@ func TestClockRenewalOriginalDeadlineAndIndependentPlayerGate(t *testing.T) {
 // than tiny: a renew whose deadline expires after dispatch is an uncertain
 // write that disables the session, which under CPU contention read as a stall.
 func TestClockRenewalContinuesDuringSlowStep(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	s, _, w, _ := renewalFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -444,6 +459,9 @@ func TestClockRenewalOldTerminalUncertaintyDoesNotBlockNewEpoch(t *testing.T) {
 }
 
 func TestClockRenewalDisabledOrReplacementNeverRenews(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, reason := range []string{"disabled", "owner", "world", "deadline", "speed"} {
 		t.Run(reason, func(t *testing.T) {

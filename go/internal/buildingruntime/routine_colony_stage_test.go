@@ -39,6 +39,9 @@ func stampContextTicks(m protoreflect.Message, tick int64) {
 // policy.TestColonyStageTransitions) the goal ranks and its proposal is
 // admitted on the same fake native.
 func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	p, db, n := stoneShellFixture(t)

@@ -53,6 +53,9 @@ func (f *reattachFake) Reattach(ctx context.Context) error {
 }
 
 func TestSuperviseBridgeReattachesWithBackoffUntilContextEnds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	fake := newReattachFake(2)
 	var out bytes.Buffer
 	ctx, cancel := context.WithCancel(context.Background())

@@ -19,6 +19,9 @@ import (
 )
 
 func TestClockWorkerDisabledRestart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, scenario := range []string{"applied", "lost-start-reply", "historical-unknown-renew"} {
 		t.Run(scenario, func(t *testing.T) {

@@ -8,6 +8,9 @@ import (
 )
 
 func TestDeriveAndReplanLayoutPlan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
@@ -43,6 +46,9 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 // The perimeter replans when the ground under the ring dries; its own walls
 // standing on the ring change nothing; the opening and rooms stay (#954).
 func TestReplanPerimeterOnDriedGround(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	survey := func(dried bool, walls map[domain.Cell]bool) MapSurvey {
 		return zoningSurvey(200, func(x, z int32) SurveyCell {
 			c := SurveyCell{Walkable: true, Fertility: 1}

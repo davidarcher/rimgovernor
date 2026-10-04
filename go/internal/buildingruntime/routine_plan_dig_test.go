@@ -189,6 +189,9 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 // A dig plan that settled with rock still standing refuses at once, naming
 // the rock: no follow-up rounds (#1588).
 func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	p, db, _, s, site, shaft := rockCoolerStep(t)
 	ctx := context.Background()

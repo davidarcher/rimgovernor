@@ -34,6 +34,9 @@ type fixedRoom struct {
 // changes, no fixed room ever changes its Interior, Door or Doors, and no
 // room sited again lands on something of ours.
 func TestReplanNeverChangesFixedRooms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	was := planWeights.ReplanGain
 	t.Cleanup(func() { planWeights.ReplanGain = was })
 	for _, gain := range []int{was, -1 << 30} {
@@ -126,6 +129,9 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 // #1958: a plan replanned again with the same inputs is byte-identical, and
 // a gain under the threshold leaves it so however many times it is checked.
 func TestReplanHysteresisKeepsThePlan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s, plan := replanFixture(t)
 	was := planWeights.ReplanGain
 	t.Cleanup(func() { planWeights.ReplanGain = was })
@@ -140,6 +146,9 @@ func TestReplanHysteresisKeepsThePlan(t *testing.T) {
 
 // #1958: a gain above the threshold re-sites the unbuilt rooms only.
 func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s, plan := replanFixture(t)
 	was := planWeights.ReplanGain
 	t.Cleanup(func() { planWeights.ReplanGain = was })
@@ -171,6 +180,9 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 // #1958: with the census unknown (Fixed nil) no room is known to be
 // unbuilt, so nothing is re-sited however large the gain.
 func TestReplanWithUnknownCensusKeepsEveryRoom(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s, plan := replanFixture(t)
 	was := planWeights.ReplanGain
 	t.Cleanup(func() { planWeights.ReplanGain = was })

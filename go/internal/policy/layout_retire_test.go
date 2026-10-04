@@ -9,6 +9,9 @@ import (
 // Nine worship rooms of mixed size and orientation replan to one: the built
 // room when one stands, else the smallest that holds the shape (#1823).
 func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	need, _ := WorshipRoomNeed(worshipIdeoligion())
 	defs := furnitureDefs(map[string]Bounds{"TestAltar": {Width: 1, Height: 2}, "TestIdeogram": {Width: 1, Height: 1}})
 	shape, _ := need.shape(defs)

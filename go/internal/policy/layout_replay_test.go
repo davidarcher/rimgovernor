@@ -55,6 +55,9 @@ var replayFixtures = []replayFixture{
 }
 
 func TestReplayScoreFixtures(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	for _, f := range replayFixtures {
 		t.Run(f.name, func(t *testing.T) {
 			s := f.survey(t)

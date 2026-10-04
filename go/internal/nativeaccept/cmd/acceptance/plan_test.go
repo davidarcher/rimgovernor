@@ -113,6 +113,9 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 }
 
 func TestRemotePlanUsesAffectedEntryPointAndHarnessRules(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	// Exercise real Go discovery on a small module; the rules do not need
 	// the production repository's dependency closure or external modules.
 	repo := t.TempDir()
@@ -283,6 +286,9 @@ func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 }
 
 func TestRemoteComparisonHistoryAndRename(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	repo := t.TempDir()
 	git := func(args ...string) string {
 		t.Helper()

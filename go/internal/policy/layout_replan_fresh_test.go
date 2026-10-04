@@ -14,6 +14,9 @@ func freshSurvey() MapSurvey {
 
 // #957: with nothing built the fresh replan is the derived plan.
 func TestReplanFreshWithNothingBuiltDerives(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := freshSurvey()
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {
@@ -28,6 +31,9 @@ func TestReplanFreshWithNothingBuiltDerives(t *testing.T) {
 // #957: a room with anything built on it stays where it is with the
 // hallway its door opens onto; unstarted rooms re-grow, off built cells.
 func TestReplanFreshKeepsBuiltRoomsAndRegrowsTheRest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := freshSurvey()
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {
@@ -81,6 +87,9 @@ func TestReplanFreshKeepsBuiltRoomsAndRegrowsTheRest(t *testing.T) {
 
 // A built cell no kept room covers keeps new rooms off it.
 func TestReplanFreshKeepsNewRoomsOffBuiltGround(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := freshSurvey()
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {

@@ -41,6 +41,9 @@ func TestParseFaults(t *testing.T) {
 // A planner faulted to fail is an isolated failure (#62): the step still
 // admits its window and names the fault.
 func TestClockSchedulerFailFaultIsIsolated(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	s.config.Faults = Faults{FailPlanners: map[string]bool{"lighting": true}}

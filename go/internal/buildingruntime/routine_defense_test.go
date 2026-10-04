@@ -14,6 +14,9 @@ import (
 )
 
 func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, change := range []string{"armed", "unarmed", "unknown-equipment", "missing-pawn", "colony-count", "conflicting-downed", "stale-native"} {
 		t.Run(change, func(t *testing.T) {

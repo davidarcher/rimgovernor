@@ -38,6 +38,9 @@ func (f failingBuildingSource) PreviewBuilding(context.Context, domain.Action, d
 // step still evaluates the clock window and starts it on what the other
 // planners committed (#62).
 func TestClockSchedulerIsolatesFailingPlanner(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	schedulerRoutine(t, s, f)

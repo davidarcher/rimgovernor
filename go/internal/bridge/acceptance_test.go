@@ -28,6 +28,9 @@ func TestConnectWithPollRetriesStartupRefusal(t *testing.T) {
 }
 
 func TestConnectWithPollWaitsForUnpublishedStartupEndpoint(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	calls := 0
 	s := &testServer{connectHandler: func() (*callResult, error) {
 		calls++

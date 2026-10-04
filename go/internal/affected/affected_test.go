@@ -166,6 +166,9 @@ func TestSelectFollowsImports(t *testing.T) {
 // save the area loading it, and a fixture build file every area, none of
 // them as a shared-input change.
 func TestSelectScopesFixtures(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	r := repo(t)
 	sel, err := Select(r, []string{"scripts/fixtures/DefenseFixture.cs"})
 	if err != nil {

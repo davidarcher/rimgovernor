@@ -118,6 +118,9 @@ func TestTrimSpineKeepsWhatTheBaseNeeds(t *testing.T) {
 // TestSiteCoreIsIdenticalAtAnyThreadCount: a siting pass with the search on
 // returns the same plan on one thread and on every thread.
 func TestSiteCoreIsIdenticalAtAnyThreadCount(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := courtyardSurvey()
 	run := func(procs int) LayoutPlan {
 		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(procs))

@@ -326,6 +326,9 @@ func TestControlObserveTargetFailureDoesNotPublishRequestedGeneration(t *testing
 }
 
 func TestControlFailedObservationClearsSeededTargetButRetainsCleanup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, operation := range []string{"refresh", "retarget", "malformed", "timeout"} {
 		t.Run(operation, func(t *testing.T) {

@@ -232,6 +232,9 @@ func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
 }
 
 func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, mode := range []string{"unavailable", "existing", "recovered", "skill", "spill"} {
 		t.Run(mode, func(t *testing.T) {

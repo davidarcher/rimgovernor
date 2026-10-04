@@ -214,6 +214,9 @@ func TestLatestColonySave(t *testing.T) {
 }
 
 func TestReloadSave(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	var loads []map[string]any
 	fail, refuse := 1, false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

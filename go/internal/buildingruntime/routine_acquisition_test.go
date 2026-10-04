@@ -15,6 +15,9 @@ import (
 )
 
 func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, session, request, native := routineFixture(t)

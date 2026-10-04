@@ -189,6 +189,9 @@ func finishTunnelStage(t *testing.T, db *store.Store, n *buriedOreNative, id dom
 // Buried steel starts a corridor-only dig toward the deposit; once the
 // corridor is open the deposit is mined.
 func TestBuriedSteelTunnelsThenMines(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	planner, db, native := buriedOreFixture(t)
 	result, err := planner.Step(context.Background())
@@ -224,6 +227,9 @@ func TestBuriedSteelTunnelsThenMines(t *testing.T) {
 
 // Support lost under a corridor already begun holds its next stage.
 func TestBuriedSteelLostSupportHoldsTheNextStage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	planner, db, native := buriedOreFixture(t)
 	if _, err := planner.Step(context.Background()); err != nil {

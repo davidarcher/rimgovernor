@@ -121,6 +121,9 @@ func TestCoreObstaclesByLevel(t *testing.T) {
 // TestSiteCoreWrapsRichCourtyard: the sited plan places every base room and
 // stands no room or hallway cell on the rich patch.
 func TestSiteCoreWrapsRichCourtyard(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := courtyardSurvey()
 	zones := Zone(s)
 	plan := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
@@ -165,6 +168,9 @@ func TestGenerateHopsRichPatchFromTheEdge(t *testing.T) {
 // TestSiteCoreAllRichValleyPlacesEveryRoomAtCost: no ground avoids rich
 // soil, so the last level keeps the cost fallback.
 func TestSiteCoreAllRichValleyPlacesEveryRoomAtCost(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := richValleySurvey()
 	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
 	sc := Score(plan, s)
@@ -177,6 +183,9 @@ func TestSiteCoreAllRichValleyPlacesEveryRoomAtCost(t *testing.T) {
 }
 
 func TestSiteCoreBaselineKeepsLinksAndRoutes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := loadSurvey(t, baselineSurveyPath)
 	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
 	if _, err := CheckRoutes(plan); err != nil {
@@ -189,6 +198,9 @@ func TestSiteCoreBaselineKeepsLinksAndRoutes(t *testing.T) {
 }
 
 func TestSiteCoreSameOnAnyThreadCount(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := courtyardSurvey()
 	zones := Zone(s)
 	many := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)

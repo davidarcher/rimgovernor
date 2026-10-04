@@ -104,6 +104,9 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	return s, native, worker
 }
 func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	// Initialize storetest's process-wide template outside any bubble: its
 	// database/sql opener deliberately lives until the test binary exits.
 	_ = storetest.Path(t)

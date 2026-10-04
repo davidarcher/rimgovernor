@@ -340,6 +340,9 @@ func TestClockSchedulerCutsOffTheShelterPlannerWithoutTheHold(t *testing.T) {
 // slow runner) leaves the critical planner its full wall instead of holding
 // the step with nothing evaluated.
 func TestClockSchedulerWallExcludesTheRounds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRoutine(t, s, f)

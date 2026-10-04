@@ -218,6 +218,9 @@ func historyJournal(tb testing.TB) (*store.Store, string) {
 }
 
 func TestClockSchedulerHistoryKeepsActiveObligationsVisible(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	db, path := historyJournal(t)

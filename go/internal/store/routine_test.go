@@ -119,6 +119,9 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 }
 
 func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, change := range []string{"manual", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {

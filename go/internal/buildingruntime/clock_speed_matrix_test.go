@@ -691,6 +691,9 @@ type speedDecision struct {
 // machine adds hundreds of milliseconds more (#557); neither says
 // anything about wake delivery, so no tighter bound is asserted.
 func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	const windows = 3
 	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, PollWait: 500 * time.Millisecond}
@@ -854,6 +857,9 @@ func (n *speedNative) read(ctx context.Context) {
 // and every window still ran to its budget stop and was settled by a
 // wake step: the regulator slows a window, it never ends one.
 func TestClockSpeedMatrixRegulatorBoundsBlindTicks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	const windows, budget = 3, 30
 	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, PollWait: 500 * time.Millisecond}

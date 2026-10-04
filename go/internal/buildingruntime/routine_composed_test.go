@@ -106,6 +106,9 @@ func composedRoutineFixture(t *testing.T) (*Rounder, *store.Store, *playerFakeSe
 // single player Manual direction change cancels every family's held plan
 // without one family's cancellation touching another's plan or actions.
 func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, request, native, planners := composedRoutineFixture(t)

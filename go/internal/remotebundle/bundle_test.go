@@ -187,6 +187,9 @@ func TestTrustRejectsUnreviewedInputs(t *testing.T) {
 }
 
 func TestGeneratedStartCompatibilityAndStaging(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	repo, err := filepath.Abs("../../..")
 	if err != nil {
 		t.Fatal(err)

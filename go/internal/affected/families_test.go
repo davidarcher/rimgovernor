@@ -154,6 +154,9 @@ func TestReadAreaProfile(t *testing.T) {
 // the binary and no bridge-only area; a buildingruntime test change
 // selects no area.
 func TestSelectScopesRoutineFamilies(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	r := repo(t)
 	sel, err := Select(r, []string{"go/internal/buildingruntime/routine_lighting.go"})
 	if err != nil {

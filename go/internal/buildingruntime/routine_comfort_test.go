@@ -50,6 +50,9 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 }
 
 func TestRoutineBuildingNativeUseBudgetCountsFromTheApplyReceipt(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "HiddenConduit"} {
 		t.Run(definition, func(t *testing.T) {

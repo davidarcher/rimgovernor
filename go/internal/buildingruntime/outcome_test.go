@@ -141,6 +141,9 @@ func TestIsMatchesOnlyRefusalsOfTheKind(t *testing.T) {
 }
 
 func TestNoUnknownPrerequisiteRemains(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	root := filepath.Join("..", "..", "..")
 	var found []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

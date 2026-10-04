@@ -37,6 +37,9 @@ func openSurvey(n int32) policy.MapSurvey {
 // survey at most once an hour and replans nothing; a new pawn or a new
 // tier replans at the next hourly review.
 func TestLayoutTriggersHourly(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()
 	survey := openSurvey(120)

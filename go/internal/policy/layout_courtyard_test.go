@@ -37,6 +37,9 @@ func richSet(s MapSurvey) map[domain.Cell]bool {
 }
 
 func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
 	plan, ok := DeriveLayoutPlan(s, 8, BuildTierCamp, nil, 30).Value()
@@ -92,6 +95,9 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 // The farmed patch is not yard room: the yard is sited on open ground, and
 // the field cells are excluded from it.
 func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
 	plan, ok := DeriveLayoutPlan(s, 8, BuildTierCamp, nil, 30).Value()

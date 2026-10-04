@@ -59,6 +59,9 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 }
 
 func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, change := range []string{"usable", "campfire", "unknown", "definition"} {
 		t.Run(change, func(t *testing.T) {
@@ -93,6 +96,9 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 // bench in the same Episode; the completed method yields to a numbered
 // successor instead of holding the goal at method_already_used (#217).
 func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	p, db, native := cookingFixture(t)
 	ctx := context.Background()

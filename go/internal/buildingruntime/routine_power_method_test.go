@@ -143,6 +143,9 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 }
 
 func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, phase := range []string{"unsafe", "geometry", "unknown", "skill", "switched", "flare", "cancelled"} {
 		t.Run(phase, func(t *testing.T) {

@@ -145,6 +145,9 @@ func housingFixture(t *testing.T, pawns int, suites ...float64) (LayoutPlan, Map
 }
 
 func TestGenerateHundredColonistsGetTenFullWings(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	plan, s := housingFixture(t, 100)
 	if !plan.Valid() {
 		t.Fatal("invalid")
@@ -213,6 +216,9 @@ func TestGenerateSuiteBlocksAreCappedAndReachable(t *testing.T) {
 }
 
 func TestSiteCoreCourtyardNetworkKeepsOffThePatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := courtyardSurvey()
 	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
 	if !plan.Valid() {

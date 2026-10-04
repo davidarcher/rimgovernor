@@ -16,27 +16,27 @@ once acceptance passes, and land immediately.
 2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the
    packages the working tree changed and their in-module importers
    (`./...` only when `go.mod`/`go.sum` changed) and names the acceptance
-   harnesses the change touches. Do not follow it with `go test ./...`.
-   It can run minutes with little output (a package prints only when it
-   finishes): it prints `still running: ...` every 30 s and always ends
-   with `test: PASS (...)` or `test: FAIL (...)`. Wait for that line; do
-   not poll or probe the process.
+   harnesses the change touches. It passes `-short`, which skips the slow
+   tests (git-heavy, planner and solver suites), so it stays near 30 s.
+   Run `go run ./cmd/test -full` (every test) only at the end of an epic
+   or when you changed the code a skipped test covers; the nightly runs
+   the whole module. Do not follow it with `go test ./...`, and never
+   rerun it to filter its output. It prints `still running: ...` every
+   30 s and always ends with `test: PASS (...)` or `test: FAIL (...)`.
+   Redirect it to a file (`go run ./cmd/test > ../test.out 2>&1`) and read
+   the file; never pipe it through `tail`/`grep`. Wait for the final line;
+   do not poll or probe the process.
 3. Commit each completed iteration. Checkpoint commits are authorized; do
    not ask. Size an iteration to a coherent milestone, not the smallest
    possible edit, so slow checks run once against meaningful progress.
-4. Landing needs no acceptance run. Affected areas are proven by `go test`
-   and the on-demand full tier (#752); the scheduled nightly runs the
-   thirteen end-to-end cases (`-tier nightly`, a signal, not a gate). Run a
-   tier (`acceptance suite -tier smoke` or `-tier land`) only when you want
-   the change proven before it lands, hand its output to `cmd/land
-   -results`, and name the run in the commit message; never run the areas
-   with `acceptance run` first and then a tier, which runs every case
-   twice. Add `-resume` to carry the checkpoint
-   rings your failed `acceptance run`s left in `-root`: resumed rows pass,
-   are listed under `resumed` and named in the landing, but prove the fix
-   past the resume point only, so a change to early behaviour runs fresh.
+4. No acceptance run before landing; the required check is one
+   `go run ./cmd/test`. The on-demand full tier (#752) and the nightly
+   (`-tier nightly`, a signal, not a gate) prove the rest. If you did run a
+   tier, hand its output to `cmd/land -results` and name it in the commit
+   message; tier and `-resume` details are in
+   [choose-tests](docs/developers/testing/choose-tests.md).
 5. `go run ./cmd/land [-results <suite output>]` from the branch worktree,
-   never piped through `tail` (nothing prints until it ends). The lane
+   never piped (redirect to a file if you must keep the output). The lane
    titles the squash with the branch tip's commit subject, so make the
    milestone commit the tip and fold fixups into it first.
    The lane takes the repository lock, fetches `origin/main` and
@@ -45,7 +45,10 @@ once acceptance passes, and land immediately.
    refuses a presented suite that failed (resumed rows are recorded),
    squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
-   GitHub issue with the landing commit. Call it once and move on; land
+   GitHub issue with the landing commit (only when the branch name carries
+   the number, `issue-<n>-...`, or you pass `-issue <n>`). It does not
+   push: push straight after (see below). `-test` runs the same `-short`
+   tests as `cmd/test`; do not run `cmd/test` and then `land -test`. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task
    is done. Rebase or merge by hand only to resolve a conflict it reports.
    An orchestrator that spawned worktree agents removes each agent's
@@ -73,7 +76,10 @@ once acceptance passes, and land immediately.
 `main` moves constantly and that is never a reason to redo anything: a test
 or harness that passed on the branch's code stays passed, the lane's merge
 does not invalidate it, and a second rerun-and-land cycle for one milestone
-is forbidden. If something is left unverified, say what in the commit
+is forbidden. After resolving a merge conflict, run `go build ./...` (and
+`go vet` on the touched packages when Go files conflicted), not the tests
+again. A test that fails under load and passes alone is not a reason to
+rerun the suite: land and say so in the commit body. If something is left unverified, say what in the commit
 body; do not open an issue for it. The next
 full-suite pass (#363, acceptance on CI) verifies every unverified landing
 at once; per-landing issues only pile up until then.
@@ -90,9 +96,12 @@ any time too, so every agent:
 2. Lands with the loop above (`go run ./cmd/land` fetches and
    fast-forwards `main` to `origin/main` itself).
 3. Runs `git fetch origin main`, then `git push origin main` immediately.
-   If the push is rejected, fetch,
-   `git rebase origin/main main` (only your unpushed landing moves), rerun
-   `go run ./cmd/test`, and push again. Never force-push `main`.
+   If the push is rejected, `git fetch origin main` and run
+   `go run ./cmd/land` again (it fast-forwards or creates local `main` from
+   `origin/main` and re-lands the branch; nothing is retested), then push.
+   Never force-push `main`, and never push a branch SHA to `main`
+   (`git push origin <sha>:main`): that skips the lane's squash and issue
+   close.
 
 Remote agents additionally:
 

@@ -87,6 +87,9 @@ func TestConcurrentInitializationSharesIdentity(t *testing.T) {
 	}
 }
 func TestIdentityCorruptionFailsWithoutRepair(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, sql := range []string{
 		"DELETE FROM metadata", "UPDATE metadata SET controller_session_id='broken'", "UPDATE metadata SET controller_session_id=upper(controller_session_id)",

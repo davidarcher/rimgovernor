@@ -185,6 +185,9 @@ func TestClockRetirementKeepsLatestWindowAnchor(t *testing.T) {
 	}
 }
 func TestClockRetirementPinnedCapacity(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))

@@ -721,7 +721,7 @@ func test(repo string, changed []string, base ...string) error {
 			return err
 		}
 		fmt.Println("tests: go.mod/go.sum changed, testing ./... (a package prints only when it finishes; silence is normal)")
-		return timed("tests", func() error { return goRun(goDir, "test", "./...") })
+		return timed("tests", func() error { return goRun(goDir, testArgs("./...")...) })
 	case len(sel.Packages) == 0:
 		fmt.Println("tests: no Go files changed, nothing to test")
 		return nil
@@ -730,7 +730,20 @@ func test(repo string, changed []string, base ...string) error {
 		return err
 	}
 	fmt.Println("tests:", len(sel.Packages), "affected package(s) (a package prints only when it finishes; silence is normal)")
-	return timed("tests", func() error { return goRun(goDir, append([]string{"test"}, sel.Packages...)...) })
+	return timed("tests", func() error { return goRun(goDir, testArgs(sel.Packages...)...) })
+}
+
+// Full runs the slow tests too (go test without -short). The default loop
+// stays under about 30 s; the slow tests run in the nightly module run and
+// at the end of an epic (cmd/test -full).
+var Full bool
+
+func testArgs(pkgs ...string) []string {
+	args := []string{"test"}
+	if !Full {
+		args = append(args, "-short")
+	}
+	return append(args, pkgs...)
 }
 
 // timed runs a stage and prints how long it took, so a quiet stage still

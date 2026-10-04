@@ -19,6 +19,9 @@ func TestGateCannotTreatRemoteReportAsLocalSuite(t *testing.T) {
 }
 
 func TestRemoteRejectionPrecedesMainMerge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "b.txt"), "task\n")
 	mustGit(t, wt, "add", ".")
@@ -83,6 +86,9 @@ func TestGateReadsTheSuiteReport(t *testing.T) {
 }
 
 func TestLandsANativeDiffWithoutResults(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	root, wt := newRepo(t)
 	path := filepath.Join(wt, "integrations", "rimgovernor-native", "src", "Foo.cs")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

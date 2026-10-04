@@ -3,7 +3,7 @@
 // cmd/affected computes them (all packages when go.mod or go.sum changed),
 // after gofmt, go vet and staticcheck on the change (#334).
 //
-//	go run ./cmd/test [-base main]
+//	go run ./cmd/test [-base main] [-full]
 //
 // run from anywhere inside the worktree. It diffs the working tree
 // (committed, staged, unstaged and untracked) against -base, so it is the
@@ -14,6 +14,10 @@
 // #387); the nightly full tier proves the named areas, or `-tier land`
 // proves them before landing when the change warrants it. Hand the
 // output to `cmd/land -results`.
+//
+// The default run passes -short, which skips the slow tests (git-heavy,
+// planner and solver suites) so it stays near 30 s; -full runs them, as
+// the nightly module run does.
 package main
 
 import (
@@ -27,7 +31,9 @@ import (
 
 func main() {
 	base := flag.String("base", "main", "revision to diff the working tree against")
+	full := flag.Bool("full", false, "run the slow tests too (go test without -short); for the end of an epic")
 	flag.Parse()
+	affected.Full = *full
 	if err := run(*base); err != nil {
 		fmt.Fprintln(os.Stderr, "test:", err)
 		os.Exit(1)

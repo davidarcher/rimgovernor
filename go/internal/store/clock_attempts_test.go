@@ -274,6 +274,9 @@ func TestClockAdmissionEvidenceSurvivesLaterFailures(t *testing.T) {
 }
 
 func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)

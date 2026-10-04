@@ -68,6 +68,9 @@ func TestEndedRoomRolesNeedKnownFacts(t *testing.T) {
 // Each role's unbuilt room leaves the plan once its need is gone; a standing
 // or furnished room and a role with no ended need keep theirs (#1824).
 func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {

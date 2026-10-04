@@ -65,6 +65,9 @@ func TestClockWindowStoreReplayCloneAndReopen(t *testing.T) {
 	}
 }
 func TestClockWindowStoreDispatchReviewRaces(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	for _, kind := range []string{"append", "ack", "hold", "unreviewed"} {
@@ -113,6 +116,9 @@ func TestClockWindowStoreDispatchReviewRaces(t *testing.T) {
 	}
 }
 func TestClockWindowStoreInvalidAdmission(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	cases := map[string]func(*ClockIntent){
 		"snapshot": func(v *ClockIntent) { v.Window.Snapshot.Native++ }, "negative tick": func(v *ClockIntent) { v.Window.Tick = -1 }, "overflow": func(v *ClockIntent) { v.Window.Tick = domain.Tick(math.MaxInt64) }, "budget mismatch": func(v *ClockIntent) { v.Window.MaxTicks++ }, "zero budget": func(v *ClockIntent) { v.Window.MaxTicks = 0 }, "excess": func(v *ClockIntent) { v.Window.MaxTicks = 1800001 }, "negative cursor": func(v *ClockIntent) { v.Window.CapturedCursor = -1 }, "relative profile": func(v *ClockIntent) { v.Window.Profile = "relative" }, "foreign profile": func(v *ClockIntent) { v.Window.Profile = t.TempDir() }, "profile NUL": func(v *ClockIntent) { v.Window.Profile += "\x00" }, "profile long": func(v *ClockIntent) { v.Window.Profile += strings.Repeat("x", 4096) }, "not start": func(v *ClockIntent) { v.Command = bridge.ClockCommand{Renew: &bridge.ClockRenew{}} },
@@ -132,6 +138,9 @@ func TestClockWindowStoreInvalidAdmission(t *testing.T) {
 	}
 }
 func TestClockWindowStoreCorruptionAndRollback(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	t.Run("atomic dispatch", func(t *testing.T) {

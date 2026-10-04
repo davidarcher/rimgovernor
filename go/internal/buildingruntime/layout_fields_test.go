@@ -67,6 +67,9 @@ func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
 // farmed: planFieldBlock returns cells of the patch, rich ones first, none
 // of them under a room or hallway (#1960).
 func TestFieldBlockFarmsCourtyardPatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	const n = 140
 	patch := func(x, z int32) bool {
 		return (x >= 60 && x < 80 && z >= 66 && z < 74) || (x >= 66 && x < 74 && z >= 60 && z < 80)

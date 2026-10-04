@@ -16,6 +16,9 @@ import (
 // that epoch and reviews under the re-granted snapshot instead of failing
 // the same way every backoff.
 func TestClockSchedulerReviewsAfterAMidWindowRegrant(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()

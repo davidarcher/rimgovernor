@@ -16,8 +16,9 @@ worktrees or player preferences. Local sessions follow the steps below.
 
 ## Session start
 
-1. `git merge main` once (the branch's `cmd/test` and `cmd/land` come from
-   `main`; a branch that predates them has neither).
+1. `git fetch origin main && git merge origin/main` once (the branch's
+   `cmd/test` and `cmd/land` come from `main`; a branch that predates them
+   has neither).
 2. Nothing else until the task needs the game. Go work needs no game and no
    mod build; `go run ./cmd/test` is the loop.
 3. Before the first native acceptance run, `go run
@@ -232,11 +233,12 @@ What it produces:
 
 ## Landing
 
-`go run ./cmd/test` from `go/`, then `go run ./cmd/land -F msg.txt` from the
+`go run ./cmd/test` from `go/`, then `go run ./cmd/land` from the
 branch worktree. The lane merges `main`, squash-lands on the `main`
 checkout, resets the branch and closes the issue named in the branch
 (`claude/github-issue-128-…`; `-issue N` to name it, `-no-close` to skip).
-Call it once. A conflict comes back as an error: `git merge main`, resolve,
+Call it once, then `git fetch origin main && git push origin main`. A
+conflict comes back as an error: `git merge origin/main`, resolve,
 commit, call it again. A conflict only on a generated protobuf file:
 merge, regenerate (`generatego`/`generatecsharp`, absolute `--output`),
 commit, land. `rerere.enabled` is on, so a resolution replays on later

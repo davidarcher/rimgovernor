@@ -298,6 +298,9 @@ func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
 }
 
 func TestShelterRoofingBudgetCountsFromTheApplyReceiptAndDoesNotRenew(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	r, db, _ := shelterFixture(t)
 	result, err := r.Step(context.Background())
@@ -443,6 +446,9 @@ func stageShelterBunks(t *testing.T, r *RoutineBuildingPlanner, db *store.Store,
 }
 
 func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	ctx := context.Background()
@@ -755,6 +761,9 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 }
 
 func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -890,6 +899,9 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 }
 
 func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -944,6 +956,9 @@ func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 }
 
 func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}

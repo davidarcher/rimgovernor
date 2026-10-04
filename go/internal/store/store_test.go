@@ -315,6 +315,9 @@ func TestOpenOrReplaceMovesAnIncompatibleStoreAside(t *testing.T) {
 }
 
 func TestRejectsIncompatibleAndCorruptStore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	for _, statement := range []string{"PRAGMA user_version=999", "PRAGMA application_id=12", "PRAGMA user_version=0; PRAGMA application_id=0"} {
 		t.Run(statement, func(t *testing.T) {

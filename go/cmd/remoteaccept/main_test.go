@@ -10,6 +10,9 @@ import (
 )
 
 func TestAggregateCommandOverwritesStalePassOnMalformedEvidence(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	root := t.TempDir()
 	source := filepath.Join("..", "..", "..", "docs", "developers", "contracts", "remote-acceptance")
 	if err := os.CopyFS(root, os.DirFS(source)); err != nil {

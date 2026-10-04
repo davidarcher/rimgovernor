@@ -187,6 +187,9 @@ func TestClockPageInterruptsDropsOlderWorldStop(t *testing.T) {
 	}
 }
 func TestClockReviewRollbackAndCorruptProvenance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	t.Run("rollback", func(t *testing.T) {

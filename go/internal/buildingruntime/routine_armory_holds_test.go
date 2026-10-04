@@ -91,6 +91,9 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 // A plasteel stock MaintainResource holds is not spent by an armor bill
 // (#1230): the marine need falls to flak, which spends only steel.
 func TestArmoryArmorBillLeavesHeldPlasteel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	if got := armoryArmorRecipe(t, 0); got != "Make_Apparel_PowerArmor" {
 		t.Fatal("unheld plasteel did not fund marine armor", got)

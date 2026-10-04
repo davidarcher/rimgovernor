@@ -37,6 +37,9 @@ func TestEmbeddedManifestsSelectProductionOwners(t *testing.T) {
 }
 
 func TestEmbeddedSelectionWithRemovedInputs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	for _, removed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "edit", true: "remove"}[removed], func(t *testing.T) {
 			r := t.TempDir()

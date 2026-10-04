@@ -10,6 +10,9 @@ import (
 )
 
 func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	t.Parallel()
 	ctx := context.Background()
 	path := memoryPath(t)

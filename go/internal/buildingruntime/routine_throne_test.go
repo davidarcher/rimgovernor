@@ -157,6 +157,9 @@ func TestThroneRoomFlooringPlansTheRequiredTag(t *testing.T) {
 // hourly layout review, sized to the title's area; the ladder's throne
 // definitions name what the planners read.
 func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow: runs under cmd/test -full and nightly")
+	}
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()
 	survey := openSurvey(140)
