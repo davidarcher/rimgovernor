@@ -955,22 +955,22 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			cells = append(cells, c)
 		}
 	}
-	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
+	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: max(facts.Bounds.Width, facts.Bounds.Height), Limit: 64}
 	if r.facility != nil {
 		// A facility furnishes the free room of its role nearest the colony
-		// centre (#609); the radius still reaches the colony centre so the
+		// centre (#609); the search spans the map, so the
 		// starter shell stays a candidate until such a room stands.
 		anchor := facts.Center
 		if module, ok := r.roomModule(); ok {
 			anchor = roomAnchor(facts, module, facts.Center)
 		}
-		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
+		searchRequest.Center = anchor
 	}
 	if r.concern == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" || r.definition == "TableButcher" {
 		// The cooking campfire and the butcher spot stand by the base, not the landing
 		// centroid (#1534).
 		anchor := planCore(facts)
-		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
+		searchRequest.Center = anchor
 	}
 	if r.cells != nil {
 		// The room is fixed: search around it, wherever it stands (#838).

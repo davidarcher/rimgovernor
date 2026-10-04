@@ -121,9 +121,7 @@ namespace HomeBridge.BridgeTools
                     if (room != null) row.AdjacentRoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     result.PasteDispenser.Add(row);
                 }
-                var window = CellRect.FromLimits(new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22)),
-                    new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22)));
-                result.PollutedCells = (uint)window.Cells.Count(c => map.pollutionGrid.IsPolluted(c));
+                result.PollutedCells = (uint)map.AllCells.Count(c => map.pollutionGrid.IsPolluted(c));
                 var twelfths = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile, Plant.DefaultMinOptimalGrowthTemperature, Plant.DefaultMaxOptimalGrowthTemperature);
                 foreach (var plant in map.Biome.AllWildPlants.Where(d => d.plant?.harvestedThingDef != null && humanFood(d.plant.harvestedThingDef)).OrderBy(d => d.defName, StringComparer.Ordinal))
                 {

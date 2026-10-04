@@ -14,10 +14,8 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 		if f == nil {
 			return contract("incomplete food channels")
 		}
-		width := min(v.Center.GetX()+22, int32(v.MapSize.GetWidth())-1) - max(v.Center.GetX()-22, 0) + 1
-		height := min(v.Center.GetZ()+22, int32(v.MapSize.GetHeight())-1) - max(v.Center.GetZ()-22, 0) + 1
-		if f.GetPollutedCells() > uint32(width*height) {
-			return contract("pollution exceeds farm window")
+		if f.GetPollutedCells() > v.MapSize.GetWidth()*v.MapSize.GetHeight() {
+			return contract("pollution exceeds the map")
 		}
 		seen := map[[2]string]bool{}
 		pens := map[string]bool{}

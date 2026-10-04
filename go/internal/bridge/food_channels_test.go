@@ -27,7 +27,7 @@ func TestFoodChannelsRejectsMalformedCensus(t *testing.T) {
 		{"excess fullness", func(f *o.FoodChannelsFacts) { f.Gatherable[0].Fullness = proto.Float64(1.1) }},
 		{"nan", func(f *o.FoodChannelsFacts) { f.Gatherable[0].Fullness = proto.Float64(math.NaN()) }},
 		{"duplicate animal", func(f *o.FoodChannelsFacts) { f.Gatherable = append(f.Gatherable, f.Gatherable[0]) }},
-		{"pollution bounds", func(f *o.FoodChannelsFacts) { f.PollutedCells = proto.Uint32(2026) }},
+		{"pollution bounds", func(f *o.FoodChannelsFacts) { f.PollutedCells = proto.Uint32(1 << 24) }},
 		{"season bounds", func(f *o.FoodChannelsFacts) {
 			f.Forage = []*o.ForagePlant{{DefName: proto.String("Berry"), GrowingTwelfths: []int32{12}}}
 		}},

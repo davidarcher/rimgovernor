@@ -384,14 +384,7 @@ namespace HomeBridge.BridgeTools
             began = System.Diagnostics.Stopwatch.GetTimestamp();
             result.Crops.Add(Crops(map));
             ObservationWork.Detail("cf.crops", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            // The planning window itself (the site cells around the centre)
-            // is no longer carried here: the controller reads it on demand
-            // through observations_get_cells (issue #356), and the
-            // definitions are the definition catalog's (#1340). The window's
-            // rect still bounds the environment census below.
-            var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
-            var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
-            try { result.Environment = Environment(map, min, max); }
+            try { result.Environment = Environment(map); }
             catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error); result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
             return result;
         }
@@ -449,16 +442,15 @@ namespace HomeBridge.BridgeTools
         // never plants where the game would not grow.
         // The native sun lamp class is internal; its def names the class and carries the growth radius as specialDisplayRadius.
         private static bool IsSunLamp(Building b) => b.def.thingClass?.Name == "Building_SunLamp" && b.def.specialDisplayRadius > 0f;
-        private static Obs.ControlledEnvironment Environment(Map map, IntVec3 min, IntVec3 max)
+        private static Obs.ControlledEnvironment Environment(Map map)
         {
             var result = new Obs.ControlledEnvironment { Daylight = GenCelestial.CurCelestialSunGlow(map) >= 0.3f };
             var weather = map.weatherManager?.curWeather?.defName;
             if (!string.IsNullOrEmpty(weather)) result.Weather = weather;
-            bool Inside(IntVec3 c) => c.x >= min.x && c.x <= max.x && c.z >= min.z && c.z <= max.z;
             string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
             var rooms = new Dictionary<int, Room>();
             void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
-            var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Inside(b.Position)).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+            var buildings = map.listerBuildings.allBuildingsColonist.OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             foreach (var building in buildings) {
                 var power = building.TryGetComp<CompPowerTrader>();
                 var room = building.GetRoom();
@@ -484,10 +476,7 @@ namespace HomeBridge.BridgeTools
                     result.Growers.Add(row);
                 }
             }
-            for (int z = min.z; z <= max.z; z++) for (int x = min.x; x <= max.x; x++) {
-                var c = new IntVec3(x, 0, z);
-                if (!c.Fogged(map)) Note(c.GetRoom(map));
-            }
+            foreach (var room in map.regionGrid.AllRooms) if (room.Cells.Any(c => !c.Fogged(map))) Note(room);
             foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
                 var row = new Obs.GrowRoom { Room = NativeRef.Room(room), TemperatureC = Finite(room.Temperature), CellCount = (uint)room.CellCount,
                     OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
