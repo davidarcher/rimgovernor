@@ -110,7 +110,7 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Round
 			if err = cancelUndispatchedMethods(ctx, tx, state); err != nil {
 				return nil, nil, err
 			}
-			work, err := goalOpenWork(ctx, tx, state)
+			work, err := standardOpenWork(ctx, tx, state)
 			if err != nil {
 				return nil, nil, err
 			}

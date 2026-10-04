@@ -228,7 +228,7 @@ func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
 	r := needs(t, f, RoundsLatches{})
 	rule := SafeguardContext{Enabled: true, Emergency: []ConcernID{ActiveCombat}}
 	seen := map[ConcernID]bool{}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainShelter {
 			seen[g.ID] = true
 			if reason := VetoProposal(rule, SafeguardProposal{Need: g.ID, Priority: g.Priority}); reason != "" {

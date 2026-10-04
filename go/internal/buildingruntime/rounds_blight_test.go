@@ -77,7 +77,7 @@ func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	}
 	selected := false
 	for _, row := range got.Review.Development.Rows {
-		selected = selected || row.Goal == policy.RemoveBlight && row.Selected
+		selected = selected || row.Concern == policy.RemoveBlight && row.Selected
 	}
 	if !selected {
 		t.Fatal("RemoveBlight was not selected by development arbitration", got.Review.Development.Rows)

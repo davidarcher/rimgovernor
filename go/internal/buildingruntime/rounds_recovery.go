@@ -124,7 +124,7 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoundsRecoveryResult{}, err
 		}
-		if domain.GoalWorkOpen(updated.Progress) {
+		if domain.StandardWorkOpen(updated.Progress) {
 			return RoundsRecoveryResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}

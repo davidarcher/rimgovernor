@@ -19,7 +19,7 @@ millisecond unit test over the facts that colony really produced.
   review detected against, so replay reproduces hysteresis and stage
   budgets.
 - `Review`: the journal's rounds cursor after the review filed
-  (goal bindings, progress records, stage, dependencies).
+  (concern bindings, progress records, stage, dependencies).
 - `Projection`: the colony reading the review took, holding what the
   planners read beyond `Facts`: site `Cells`, planning `Definitions`,
   `PowerPlanning`, `Rooms`, `Bounds` (its zone read and window are not
@@ -90,7 +90,7 @@ go run ./internal/snapshot/cmd/rerecord -from <dir> [testdata files...]
 
 It finds each registered file's case stream under `<dir>`, re-cuts the
 review at the recorded tick (else the first after it; a new run's ticks
-differ, and steps match on planner and goal), and updates the registry's
+differ, and steps match on planner and concern), and updates the registry's
 tick. `-list` prints the registry. Keep the assertions, since they state
 the behaviour, not the recording; a failure after a refresh means the
 fresh run no longer shows it at that point, so pick another tick by hand.
@@ -100,7 +100,7 @@ fresh run no longer shows it at that point, so pick another tick by hand.
 ```go
 r, err := snapshot.Load("testdata/clean-filthy-kitchen.json")
 needs, err := r.Detect()                                  // policy.DetectRounds over the recording
-a, err := r.Assessment(policy.MaintainCleanFacilities)   // one goal's assessment
+a, err := r.Assessment(policy.MaintainCleanFacilities)   // one concern's assessment
 ```
 
 A planner is a policy function over the same facts: call it with
@@ -117,7 +117,7 @@ the facts are whatever the native read returned at that tick.
 
 Planners whose decisions read the colony at step time, not from the
 review's facts, record separately (#745, #746): with the recording
-variable set, each step writes `planner-<goal>-<tick>-<seq>.json`
+variable set, each step writes `planner-<concern>-<tick>-<seq>.json`
 (`snapshot.Planner`) holding the policy inputs it noted: shelter starter
 searches, dig search, native excavation site reads by purpose and
 dig-or-shell choices; chunk dump sites; animal feed method inputs;
@@ -140,7 +140,7 @@ recording variable set, each such step also appends its read to the
 serve's stream (`snapshot.Step`, #794, #795): the projection it read,
 Facts included, as a patch against the last review's projection, its site
 cells left to the mirror section when they match. `trim -list` names the
-step reads `step-<building|bill|hospital|deepdrill>-<goal>-<tick>-<seq>`, and
+step reads `step-<building|bill|hospital|deepdrill>-<concern>-<tick>-<seq>`, and
 `trim -step <name> <stream> testdata/<name>.json.gz` materialises one
 (a `step-*.json` file recorded before the stream carried them trims as
 before), dropping the site cells unless `-keep-cells` (a lighting or

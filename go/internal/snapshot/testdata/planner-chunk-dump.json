@@ -95,7 +95,7 @@
    ]
   }
  ],
- "Goal": "ClearHomeObstructions",
+ "Concern": "ClearHomeObstructions",
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load d53692b63dbd42649da6e8f7192f2ab8 map 0 tick 15",
  "Snapshot": {
   "Colony": "7f60d09eec774440b7135c426cb600bc",

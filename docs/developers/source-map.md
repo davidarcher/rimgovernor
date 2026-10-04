@@ -9,8 +9,8 @@ operations pass over GABP to RimBridgeServer and the colony bridge companion
 ```mermaid
 flowchart LR
     Game[RimWorld] --> Facts[Native and derived colony state]
-    Facts --> Policy[Deterministic rounds and goal tree]
-    Player[Player HTTP API] --> Plan[Shared domain.Plan goals and actions]
+    Facts --> Policy[Deterministic rounds and concern tree]
+    Player[Player HTTP API] --> Plan[Shared domain.Plan concerns and actions]
     Policy --> Plan
     Plan --> Validate[Legality / geometry / resource admission]
     Validate --> Executor[Executor: durable intent and native dispatch]
@@ -23,10 +23,10 @@ flowchart LR
 | Piece | Responsibility and source |
 | --- | --- |
 | Entry and lifecycle | [go/cmd/launcher](../../go/cmd/launcher) (RimGovernorLauncher.exe) rebuilds the controller, native mod and game layout when stale and starts/stops `serve`; [go/cmd/rimgovernor](../../go/cmd/rimgovernor) is the `serve`/`version`/`help` entry point. |
-| Domain | [go/internal/domain](../../go/internal/domain) defines the core types — plans, actions, goals — shared across policy, store and executor. |
+| Domain | [go/internal/domain](../../go/internal/domain) defines the core types — plans, actions, concerns — shared across policy, store and executor. |
 | Policy | [go/internal/policy](../../go/internal/policy) evaluates routine survival facts, deficits and admission rules (food, power, temperature, mood, defense, disaster, work, and more — see [go/README.md](../../go/README.md)). |
 | Building runtime | [go/internal/buildingruntime](../../go/internal/buildingruntime) composes the rounder, planners and player-command handlers into a running colony loop. |
-| Store | [go/internal/store](../../go/internal/store) persists plans, goals, methods, receipts and player submissions in SQLite, with CAS-token admission. |
+| Store | [go/internal/store](../../go/internal/store) persists plans, concerns, methods, receipts and player submissions in SQLite, with CAS-token admission. |
 | Executor | [go/internal/executor](../../go/internal/executor) dispatches admitted actions to the native bridge and reconciles receipts/outcomes. |
 | Native boundary | [go/internal/bridge](../../go/internal/bridge) launches the game (via go/internal/gamehost) and talks GABP to RimBridgeServer directly; [go/internal/observation](../../go/internal/observation) decodes native reads into typed facts. |
 | HTTP API | [go/internal/httpapi](../../go/internal/httpapi) serves observed state, the player control endpoints, checkpoints, media and diagnostics. |

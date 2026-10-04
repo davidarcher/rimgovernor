@@ -180,12 +180,12 @@ func TestColonyStageHoldAndReset(t *testing.T) {
 // only: a goal between methods or reconciling a write is not stalled.
 func TestProductionBlockedGoal(t *testing.T) {
 	t.Parallel()
-	records := []GoalProgress{{Goal: EnsureComfort, Blocked: BlockedNoWorker}, {Goal: EnsureFoodSupply, Blocked: BlockedNoMethod}, {Goal: MaintainResource, Blocked: BlockedReconciling}}
-	if goal, _ := ProductionBlockedGoal(records); goal != "" {
+	records := []ConcernProgress{{Concern: EnsureComfort, Blocked: BlockedNoWorker}, {Concern: EnsureFoodSupply, Blocked: BlockedNoMethod}, {Concern: MaintainResource, Blocked: BlockedReconciling}}
+	if goal, _ := ProductionBlockedConcern(records); goal != "" {
 		t.Fatal(goal)
 	}
-	records = append(records, GoalProgress{Goal: MaintainResource, Blocked: BlockedCooldown}, GoalProgress{Goal: EnsureCooking, Blocked: BlockedPrerequisite(MaintainHousing)})
-	if goal, reason := ProductionBlockedGoal(records); goal != EnsureCooking || reason.Prerequisite() != MaintainHousing {
+	records = append(records, ConcernProgress{Concern: MaintainResource, Blocked: BlockedCooldown}, ConcernProgress{Concern: EnsureCooking, Blocked: BlockedPrerequisite(MaintainHousing)})
+	if goal, reason := ProductionBlockedConcern(records); goal != EnsureCooking || reason.Prerequisite() != MaintainHousing {
 		t.Fatal(goal, reason)
 	}
 }
@@ -202,14 +202,14 @@ func TestStageRoundsPolicyBudgets(t *testing.T) {
 		wood    int64
 		stall   int64
 	}{
-		{StageFoothold, 2, 5, 350, base.GoalStallTicks / 4},
-		{StageReserves, 5, 5, 350, base.GoalStallTicks},
-		{StageStable, 8, 5, 350, base.GoalStallTicks},
-		{StageDevelopment, len(DefaultResearchLadder()), 5, 350, base.GoalStallTicks},
+		{StageFoothold, 2, 5, 350, base.ConcernStallTicks / 4},
+		{StageReserves, 5, 5, 350, base.ConcernStallTicks},
+		{StageStable, 8, 5, 350, base.ConcernStallTicks},
+		{StageDevelopment, len(DefaultResearchLadder()), 5, 350, base.ConcernStallTicks},
 	} {
 		p := StageRoundsPolicy(base, tc.stage)
-		if len(p.ResearchLadder) != tc.rungs || p.FoodReserveDays != tc.reserve || p.WoodTarget != tc.wood || p.WoodMax < p.WoodTarget || p.GoalStallTicks != tc.stall {
-			t.Fatalf("%s: rungs %d reserve %v wood %d/%d stall %d", tc.stage, len(p.ResearchLadder), p.FoodReserveDays, p.WoodTarget, p.WoodMax, p.GoalStallTicks)
+		if len(p.ResearchLadder) != tc.rungs || p.FoodReserveDays != tc.reserve || p.WoodTarget != tc.wood || p.WoodMax < p.WoodTarget || p.ConcernStallTicks != tc.stall {
+			t.Fatalf("%s: rungs %d reserve %v wood %d/%d stall %d", tc.stage, len(p.ResearchLadder), p.FoodReserveDays, p.WoodTarget, p.WoodMax, p.ConcernStallTicks)
 		}
 		if err := p.Validate(); err != nil {
 			t.Fatal(tc.stage, err)
@@ -230,14 +230,14 @@ func TestStageRoundsPolicyBudgets(t *testing.T) {
 // stone shell without Stonecutting, animal goals with no tame animal).
 func TestRaisedAtStage(t *testing.T) {
 	t.Parallel()
-	ids := func(goals []DevelopmentGoal) map[ConcernID]bool {
+	ids := func(goals []DevelopmentConcern) map[ConcernID]bool {
 		out := map[ConcernID]bool{}
 		for _, g := range goals {
 			out[g.ID] = !g.Staged
 		}
 		return out
 	}
-	raised := func(goals []DevelopmentGoal) map[ConcernID]bool {
+	raised := func(goals []DevelopmentConcern) map[ConcernID]bool {
 		out := map[ConcernID]bool{}
 		for id, ok := range ids(goals) {
 			if ok {
@@ -246,10 +246,10 @@ func TestRaisedAtStage(t *testing.T) {
 		}
 		return out
 	}
-	all := func() []DevelopmentGoal {
-		var goals []DevelopmentGoal
+	all := func() []DevelopmentConcern {
+		var goals []DevelopmentConcern
 		for _, id := range []ConcernID{CriticalMedicine, EnsureFoodSupply, EnsureResearch, MaintainResource, MaintainStoneShell, MaintainRefrigeration, MaintainHerd, MaintainFlooring, MaintainLighting} {
-			goals = append(goals, DevelopmentGoal{ID: id, Deficit: domain.Known(0.5)})
+			goals = append(goals, DevelopmentConcern{ID: id, Deficit: domain.Known(0.5)})
 		}
 		return goals
 	}

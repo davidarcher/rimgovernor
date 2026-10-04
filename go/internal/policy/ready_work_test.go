@@ -89,10 +89,10 @@ func byStage(r ReadyWorkReport) map[string]ReadyWork {
 
 func TestReadyWorkStatesNeverClaimReadinessFromMissingFacts(t *testing.T) {
 	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap(""), Unserved: []ConcernID{"G"}, Proposals: []ReadyProposal{
-		{Goal: "A", Stage: "haul:Steel", Work: WorkHauling, Eligible: domain.Unknown[bool]()},
-		{Goal: "B", Stage: "cut_plant:TreeOak", Work: WorkPlantCutting, Eligible: domain.Known(false)},
-		{Goal: "C", Stage: "building:Wall", Work: WorkConstruction, Eligible: domain.Known(true), Parallelism: 9},
-		{Goal: "D", Stage: "building:Door", Work: WorkConstruction, Eligible: domain.Known(true), Requires: []string{"building:Wall"}},
+		{Concern: "A", Stage: "haul:Steel", Work: WorkHauling, Eligible: domain.Unknown[bool]()},
+		{Concern: "B", Stage: "cut_plant:TreeOak", Work: WorkPlantCutting, Eligible: domain.Known(false)},
+		{Concern: "C", Stage: "building:Wall", Work: WorkConstruction, Eligible: domain.Known(true), Parallelism: 9},
+		{Concern: "D", Stage: "building:Door", Work: WorkConstruction, Eligible: domain.Known(true), Requires: []string{"building:Wall"}},
 	}})
 	got := byStage(r)
 	want := map[string]ReadyState{"none": ReadyNoMethod, "haul:Steel": ReadyAwaiting, "cut_plant:TreeOak": ReadyBlocked, "building:Wall": ReadyRunnable, "building:Door": ReadyBlocked}
@@ -120,7 +120,7 @@ func TestReadyWorkExposesIndependentWallBesideBlockedBed(t *testing.T) {
 	}
 	// The floor blueprint is out; the bed (first open action after it)
 	// waits on the floor, the wall stands alone.
-	plan := ReadyPlan{Goal: MaintainHousing, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "floor", "dispatched"), readyProgress(t, spec, "bed", ""), readyProgress(t, spec, "wall", "")}}
+	plan := ReadyPlan{Concern: MaintainHousing, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "floor", "dispatched"), readyProgress(t, spec, "bed", ""), readyProgress(t, spec, "wall", "")}}
 	got := byStage(ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}}))
 	if c := got["building:Bed"]; c.State != ReadyBlocked || !reflect.DeepEqual(c.Requires, []string{"floor"}) {
 		t.Fatalf("bed %+v", c)
@@ -159,7 +159,7 @@ func TestReadyWorkBillIntentInFlightClaimsNoCook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := ReadyPlan{Goal: MaintainAnimalFeed, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "bill", "dispatched")}}
+	plan := ReadyPlan{Concern: MaintainAnimalFeed, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "bill", "dispatched")}}
 	recipes := RecipeFacts{BillWork: map[string]WorkType{"Make_Kibble": WorkCooking}}
 	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("feed"), Plans: []ReadyPlan{plan}, Recipes: recipes})
 	c := byStage(r)["bill:Make_Kibble"]
@@ -188,7 +188,7 @@ func TestReadyWorkFeedAlternativesAndSharedHaulsDeduplicate(t *testing.T) {
 		}
 		if c.Stage == "haul:Steel" {
 			hauls++
-			if c.Claims[0].Key == "s2" && !reflect.DeepEqual(c.Goals, []ConcernID{"GoalA", "GoalB"}) {
+			if c.Claims[0].Key == "s2" && !reflect.DeepEqual(c.Concerns, []ConcernID{"GoalA", "GoalB"}) {
 				t.Fatalf("shared haul %+v", c)
 			}
 		}
@@ -207,7 +207,7 @@ func TestReadyWorkFeedAlternativesAndSharedHaulsDeduplicate(t *testing.T) {
 func TestReadyWorkStableBoundedAndWorldScoped(t *testing.T) {
 	trees := []string{"t1", "t2", "t3", "t4", "t5"}
 	props := WoodProposals(MaintainResource, "cut", "TreeOak", trees, domain.Known(true))
-	bounds := ReadyBounds{Candidates: 3, PerGoal: 4, Discovery: 10}
+	bounds := ReadyBounds{Candidates: 3, PerConcern: 4, Discovery: 10}
 	a := ProjectReadyWork(ReadyRequest{Snapshot: readySnap(""), Proposals: props, Bounds: bounds})
 	rev := append([]ReadyProposal(nil), props...)
 	for i, j := 0, len(rev)-1; i < j; i, j = i+1, j-1 {
@@ -220,11 +220,11 @@ func TestReadyWorkStableBoundedAndWorldScoped(t *testing.T) {
 	if len(a.Candidates) != 3 {
 		t.Fatalf("candidates %d", len(a.Candidates))
 	}
-	want := []ReadyDeferral{{Goal: MaintainResource, Reason: ReadyDeferredCandidate, Count: 1}, {Goal: MaintainResource, Reason: ReadyDeferredPerGoal, Count: 1}}
+	want := []ReadyDeferral{{Concern: MaintainResource, Reason: ReadyDeferredCandidate, Count: 1}, {Concern: MaintainResource, Reason: ReadyDeferredPerConcern, Count: 1}}
 	if !reflect.DeepEqual(a.Deferred, want) {
 		t.Fatalf("deferred %+v", a.Deferred)
 	}
-	small := ProjectReadyWork(ReadyRequest{Snapshot: readySnap(""), Proposals: props, Bounds: ReadyBounds{Candidates: 9, PerGoal: 9, Discovery: 2}})
+	small := ProjectReadyWork(ReadyRequest{Snapshot: readySnap(""), Proposals: props, Bounds: ReadyBounds{Candidates: 9, PerConcern: 9, Discovery: 2}})
 	if len(small.Candidates) != 2 || small.Continuation == "" {
 		t.Fatalf("discovery bound %+v", small)
 	}

@@ -18,7 +18,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 	for _, name := range []string{"TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin"} {
 		f.Definitions = append(f.Definitions, observation.PlanningDefinition{Name: name, Available: domain.Known(true), ConstructionSkill: domain.Known[int32](0), Stuffed: true, StuffOptions: madeOf("WoodLog")})
 	}
-	planner := &RoundsBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic}
+	planner := &RoundsBuildingPlanner{concern: policy.EnsureComfort, phase: policy.ComfortBasic}
 	check := func(want string) {
 		t.Helper()
 		selected, reason, err := planner.selectBasicComfort(f)
@@ -57,7 +57,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 
 func TestBasicComfortFurnishesAnyRoomAndSitesRecreationAnywhere(t *testing.T) {
 	t.Parallel()
-	planner := &RoundsBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic}
+	planner := &RoundsBuildingPlanner{concern: policy.EnsureComfort, phase: policy.ComfortBasic}
 	people := []policy.PawnID{"pawn"}
 	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin", Furniture: testDiningFurniture}
 	// The hosted census is empty (the hut is a barracks); the foothold goal
@@ -100,7 +100,7 @@ func TestBasicComfortFurnishesAnyRoomAndSitesRecreationAnywhere(t *testing.T) {
 	if planner.definition != "" || planner.stuff != "" || len(planner.adjacent) != 0 {
 		t.Fatal("selection mutated reusable compiler", planner)
 	}
-	if _, method, reason := (&RoundsBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic, definition: "Table1x2c"}).selection(observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3))}}); !reason.IsZero() || method != "basic-comfort-Table1x2c" {
+	if _, method, reason := (&RoundsBuildingPlanner{concern: policy.EnsureComfort, phase: policy.ComfortBasic, definition: "Table1x2c"}).selection(observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3))}}); !reason.IsZero() || method != "basic-comfort-Table1x2c" {
 		t.Fatal(method, reason)
 	}
 }

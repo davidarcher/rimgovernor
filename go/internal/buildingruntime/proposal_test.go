@@ -11,7 +11,7 @@ import (
 
 // testProposal is a proposal whose commit records itself as admitted.
 func testProposal(id string, priority, urgency int, claims ResourceClaims, committed *[]string) *Proposal {
-	return &Proposal{ID: id, Planner: id, Goal: domain.ConcernID(id), Priority: priority, Urgency: urgency, Claims: claims,
+	return &Proposal{ID: id, Planner: id, Concern: domain.ConcernID(id), Priority: priority, Urgency: urgency, Claims: claims,
 		commit: func(context.Context) (domain.PlanID, Verdict, error) {
 			*committed = append(*committed, id)
 			return domain.PlanID("plan-" + id), BuildingReasonAdmitted, nil

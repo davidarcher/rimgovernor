@@ -414,7 +414,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Rounds == nil || planner.reviewer != config.Rounds)", ErrControl)
 		}
 	}
-	if config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butcher.goal != policy.MaintainButcherSpot) {
+	if config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butcher.concern != policy.MaintainButcherSpot) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butc", ErrControl)
 	}
 	if config.Fields != nil && (config.Rounds == nil || config.Fields.reviewer != config.Rounds) {
@@ -452,19 +452,19 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.GeneBank != nil && (config.Rounds == nil || config.GeneBank.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.GeneBank != nil && (config.Rounds == nil || config.GeneBank.reviewer != config.Rounds)", ErrControl)
 	}
-	if config.Sleeping != nil && (config.Rounds == nil || config.Sleeping.reviewer != config.Rounds || config.Sleeping.goal != policy.MaintainHousing || config.Sleeping.phase != policy.HousingShelter) {
+	if config.Sleeping != nil && (config.Rounds == nil || config.Sleeping.reviewer != config.Rounds || config.Sleeping.concern != policy.MaintainHousing || config.Sleeping.phase != policy.HousingShelter) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Sleeping != nil && (config.Rounds == nil || config.Sleeping.reviewer != config.Rounds || config.Sl", ErrControl)
 	}
-	if config.Cooking != nil && (config.Rounds == nil || config.Cooking.reviewer != config.Rounds || config.Cooking.goal != policy.EnsureCooking) {
+	if config.Cooking != nil && (config.Rounds == nil || config.Cooking.reviewer != config.Rounds || config.Cooking.concern != policy.EnsureCooking) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Cooking != nil && (config.Rounds == nil || config.Cooking.reviewer != config.Rounds || config.Cook", ErrControl)
 	}
-	if config.Comfort != nil && (config.Rounds == nil || config.Comfort.reviewer != config.Rounds || config.Comfort.goal != policy.EnsureComfort || config.Comfort.phase != policy.ComfortRanked) {
+	if config.Comfort != nil && (config.Rounds == nil || config.Comfort.reviewer != config.Rounds || config.Comfort.concern != policy.EnsureComfort || config.Comfort.phase != policy.ComfortRanked) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Comfort != nil && (config.Rounds == nil || config.Comfort.reviewer != config.Rounds || config.Comf", ErrControl)
 	}
-	if config.BasicComfort != nil && (config.Rounds == nil || config.BasicComfort.reviewer != config.Rounds || config.BasicComfort.goal != policy.EnsureComfort || config.BasicComfort.phase != policy.ComfortBasic) {
+	if config.BasicComfort != nil && (config.Rounds == nil || config.BasicComfort.reviewer != config.Rounds || config.BasicComfort.concern != policy.EnsureComfort || config.BasicComfort.phase != policy.ComfortBasic) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.BasicComfort != nil && (config.Rounds == nil || config.BasicComfort.reviewer != config.Rounds || c", ErrControl)
 	}
-	if config.Workshop != nil && (config.Rounds == nil || config.Workshop.reviewer != config.Rounds || config.Workshop.goal != policy.MaintainResource) {
+	if config.Workshop != nil && (config.Rounds == nil || config.Workshop.reviewer != config.Rounds || config.Workshop.concern != policy.MaintainResource) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Workshop != nil && (config.Rounds == nil || config.Workshop.reviewer != config.Rounds || config.Wo", ErrControl)
 	}
 	if config.Hospital != nil && (config.Rounds == nil || config.Hospital.reviewer != config.Rounds) {
@@ -473,25 +473,25 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.SleepingUpkeep != nil && (config.Rounds == nil || config.SleepingUpkeep.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.SleepingUpkeep != nil && (config.Rounds == nil || config.SleepingUpkeep.reviewer != config.Rounds)", ErrControl)
 	}
-	if config.Expansion != nil && (config.Rounds == nil || config.Expansion.reviewer != config.Rounds || config.Expansion.goal != policy.MaintainHousing || config.Expansion.phase != policy.HousingExpansion) {
+	if config.Expansion != nil && (config.Rounds == nil || config.Expansion.reviewer != config.Rounds || config.Expansion.concern != policy.MaintainHousing || config.Expansion.phase != policy.HousingExpansion) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Expansion != nil && (config.Rounds == nil || config.Expansion.reviewer != config.Rounds || config", ErrControl)
 	}
-	if config.Power != nil && (config.Rounds == nil || config.Power.reviewer != config.Rounds || config.Power.goal != policy.EnsureBasicPower) {
+	if config.Power != nil && (config.Rounds == nil || config.Power.reviewer != config.Rounds || config.Power.concern != policy.EnsureBasicPower) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Power != nil && (config.Rounds == nil || config.Power.reviewer != config.Rounds || config.Power.go", ErrControl)
 	}
-	if config.Temperature != nil && (config.Rounds == nil || config.Temperature.reviewer != config.Rounds || config.Temperature.goal != policy.EnsureTemperatureSafety) {
+	if config.Temperature != nil && (config.Rounds == nil || config.Temperature.reviewer != config.Rounds || config.Temperature.concern != policy.EnsureTemperatureSafety) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Temperature != nil && (config.Rounds == nil || config.Temperature.reviewer != config.Rounds || con", ErrControl)
 	}
-	if config.Refrigeration != nil && (config.Rounds == nil || config.Refrigeration.reviewer != config.Rounds || config.Refrigeration.goal != policy.MaintainRefrigeration) {
+	if config.Refrigeration != nil && (config.Rounds == nil || config.Refrigeration.reviewer != config.Rounds || config.Refrigeration.concern != policy.MaintainRefrigeration) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Refrigeration != nil && (config.Rounds == nil || config.Refrigeration.reviewer != config.Rounds ||", ErrControl)
 	}
-	if config.Lighting != nil && (config.Rounds == nil || config.Lighting.reviewer != config.Rounds || config.Lighting.goal != policy.MaintainLighting) {
+	if config.Lighting != nil && (config.Rounds == nil || config.Lighting.reviewer != config.Rounds || config.Lighting.concern != policy.MaintainLighting) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Lighting != nil && (config.Rounds == nil || config.Lighting.reviewer != config.Rounds || config.Li", ErrControl)
 	}
-	if config.Flooring != nil && (config.Rounds == nil || config.Flooring.reviewer != config.Rounds || config.Flooring.goal != policy.MaintainFlooring) {
+	if config.Flooring != nil && (config.Rounds == nil || config.Flooring.reviewer != config.Rounds || config.Flooring.concern != policy.MaintainFlooring) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Flooring != nil && (config.Rounds == nil || config.Flooring.reviewer != config.Rounds || config.Fl", ErrControl)
 	}
-	if config.Routes != nil && (config.Rounds == nil || config.Routes.reviewer != config.Rounds || config.Routes.goal != policy.MaintainRoutes) {
+	if config.Routes != nil && (config.Rounds == nil || config.Routes.reviewer != config.Rounds || config.Routes.concern != policy.MaintainRoutes) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Routes != nil && (config.Rounds == nil || config.Routes.reviewer != config.Rounds || config.Routes", ErrControl)
 	}
 	if config.Defense != nil && (config.Rounds == nil || config.Defense.reviewer != config.Rounds) {
@@ -2030,7 +2030,7 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 		if err != nil {
 			return false, false, nil, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if domain.StandardWorkOpen(plan.Progress) {
 			return true, false, nil, nil
 		}
 	}

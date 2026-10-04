@@ -144,11 +144,11 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 		if err != nil {
 			return "", false, err
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != policy.ClearHomeObstructions {
+		for _, binding := range review.Standards {
+			if binding.Concern != policy.ClearHomeObstructions {
 				continue
 			}
-			goal, err := journal.LoadStandard(ctx, binding.Goal)
+			goal, err := journal.LoadStandard(ctx, binding.Standard)
 			if err != nil {
 				return "", false, err
 			}
@@ -164,10 +164,10 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 				return "", false, err
 			}
 			designated = designated || len(hauls) > 0
-			s.Report()["chunk_goal"] = goal.Standard
+			s.Report()["chunk_standard"] = goal.Standard
 			return na.Signature(goal.Standard.Finding, len(goal.Methods), designated), admitted && designated && goal.Standard.Finding == domain.FindingMet, nil
 		}
-		return "waiting for chunk goal", false, nil
+		return "waiting for chunk standard", false, nil
 	})
 	if err != nil {
 		return err

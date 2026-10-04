@@ -18,7 +18,7 @@ type developmentSim struct {
 	workers  domain.Fact[int]
 	labor    domain.Fact[map[WorkType]int]
 	limit    int
-	goals    []DevelopmentGoal
+	goals    []DevelopmentConcern
 	// open holds committed work: goal -> tick it completes.
 	open     map[ConcernID]domain.Tick
 	duration domain.Tick
@@ -28,7 +28,7 @@ type developmentSim struct {
 	selections    map[ConcernID]int
 }
 
-func newDevelopmentSim(t *testing.T, limit int, goals ...DevelopmentGoal) *developmentSim {
+func newDevelopmentSim(t *testing.T, limit int, goals ...DevelopmentConcern) *developmentSim {
 	return &developmentSim{t: t, snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, tick: 100, step: 2500, workers: domain.Known(4), limit: limit, goals: goals, open: map[ConcernID]domain.Tick{}, duration: 5000, wait: map[ConcernID]int{}, maxWait: map[ConcernID]int{}, selections: map[ConcernID]int{}}
 }
 
@@ -59,8 +59,8 @@ func (s *developmentSim) commitment(goal ConcernID, priority int, dispatched boo
 			s.t.Fatal(err)
 		}
 	}
-	profile := GoalLabor(goal)
-	return Commitment{Goal: goal, Priority: priority, Progress: progress, Labor: profile}
+	profile := ConcernLabor(goal)
+	return Commitment{Concern: goal, Priority: priority, Progress: progress, Labor: profile}
 }
 
 // review runs one ranking, commits every selected goal and completes work
@@ -76,7 +76,7 @@ func (s *developmentSim) review() DevelopmentState {
 	for goal := range s.open {
 		commitments = append(commitments, s.commitment(goal, 4, true))
 	}
-	state, err := RankDevelopment(DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Labor: s.labor, Goals: s.goals, Commitments: commitments, Previous: s.state})
+	state, err := RankDevelopment(DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Labor: s.labor, Concerns: s.goals, Commitments: commitments, Previous: s.state})
 	if err != nil {
 		s.t.Fatal(err)
 	}
@@ -86,14 +86,14 @@ func (s *developmentSim) review() DevelopmentState {
 	for _, row := range state.Rows {
 		switch {
 		case row.Selected:
-			s.selections[row.Goal]++
-			s.wait[row.Goal] = 0
-			s.open[row.Goal] = s.tick + s.duration
+			s.selections[row.Concern]++
+			s.wait[row.Concern] = 0
+			s.open[row.Concern] = s.tick + s.duration
 		case row.Reason == DevelopmentCapacity || row.Reason == DevelopmentLabor:
-			s.wait[row.Goal]++
-			s.maxWait[row.Goal] = max(s.maxWait[row.Goal], s.wait[row.Goal])
+			s.wait[row.Concern]++
+			s.maxWait[row.Concern] = max(s.maxWait[row.Concern], s.wait[row.Concern])
 		default:
-			s.wait[row.Goal] = 0
+			s.wait[row.Concern] = 0
 		}
 	}
 	s.state = state
@@ -110,7 +110,7 @@ func (s *developmentSim) run(reviews int) {
 func (s *developmentSim) row(state DevelopmentState, id ConcernID) DevelopmentRow {
 	s.t.Helper()
 	for _, row := range state.Rows {
-		if row.Goal == id {
+		if row.Concern == id {
 			return row
 		}
 	}
@@ -118,8 +118,8 @@ func (s *developmentSim) row(state DevelopmentState, id ConcernID) DevelopmentRo
 	return DevelopmentRow{}
 }
 
-func simGoal(id ConcernID, deficit float64, labor LaborProfile) DevelopmentGoal {
-	return DevelopmentGoal{ID: id, Priority: 4, Deficit: domain.Known(deficit), Labor: labor}
+func simGoal(id ConcernID, deficit float64, labor LaborProfile) DevelopmentConcern {
+	return DevelopmentConcern{ID: id, Priority: 4, Deficit: domain.Known(deficit), Labor: labor}
 }
 
 // Four competing needs on one slot: the smallest constant deficit must still
@@ -127,10 +127,10 @@ func simGoal(id ConcernID, deficit float64, labor LaborProfile) DevelopmentGoal 
 // the slot through hysteresis once it has completed its work.
 func TestDevelopmentSimulationNoStarvationUnderCompetition(t *testing.T) {
 	s := newDevelopmentSim(t, 1,
-		simGoal("comfort", 0.9, GoalLabor(EnsureComfort)),
-		simGoal("expansion", 0.7, GoalLabor(MaintainHousing)),
-		simGoal("research", 0.5, GoalLabor(EnsureResearch)),
-		simGoal("resource", 0.1, GoalLabor(MaintainResource)),
+		simGoal("comfort", 0.9, ConcernLabor(EnsureComfort)),
+		simGoal("expansion", 0.7, ConcernLabor(MaintainHousing)),
+		simGoal("research", 0.5, ConcernLabor(EnsureResearch)),
+		simGoal("resource", 0.1, ConcernLabor(MaintainResource)),
 	)
 	s.run(60)
 	for _, g := range s.goals {
@@ -152,9 +152,9 @@ func TestDevelopmentSimulationNoStarvationUnderCompetition(t *testing.T) {
 // Capacity loss retains accepted work and resumes admission on recovery.
 func TestDevelopmentSimulationCapacityLossAndRecovery(t *testing.T) {
 	s := newDevelopmentSim(t, 2,
-		simGoal("comfort", 0.8, GoalLabor(EnsureComfort)),
-		simGoal("research", 0.6, GoalLabor(EnsureResearch)),
-		simGoal("wood", 0.4, GoalLabor(MaintainResource)),
+		simGoal("comfort", 0.8, ConcernLabor(EnsureComfort)),
+		simGoal("research", 0.6, ConcernLabor(EnsureResearch)),
+		simGoal("wood", 0.4, ConcernLabor(MaintainResource)),
 	)
 	s.duration = 20000
 	first := s.review()

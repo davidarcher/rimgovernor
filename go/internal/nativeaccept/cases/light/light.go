@@ -159,7 +159,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	reviewData, _ := json.Marshal(review)
-	report["routine_review_first"] = json.RawMessage(reviewData)
+	report["rounds_review_first"] = json.RawMessage(reviewData)
 
 	// The review must latch the stove and bind MaintainLighting.
 	waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Minute)
@@ -252,12 +252,12 @@ func admitAndRelease(ctx context.Context, a admission) (admitted, error) {
 	journal, service, report := a.journal, a.service, a.report
 	key := func(name string) string { return a.keys + name }
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainLighting, a.previous)
+	concernID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainLighting, a.previous)
 	methodCancel()
 	if err != nil {
 		return admitted{}, fmt.Errorf("lighting method: %w", err)
 	}
-	report[key("goal_id")] = string(goalID)
+	report[key("concern_id")] = string(concernID)
 	var builtCell domain.Cell
 	var builtDefinition string
 	for renewals := 0; ; renewals++ {
@@ -442,15 +442,15 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, 
 		if !latchedOn(r, bench) {
 			return false
 		}
-		for _, binding := range r.Goals {
-			if binding.Need == policy.MaintainLighting {
+		for _, binding := range r.Standards {
+			if binding.Concern == policy.MaintainLighting {
 				return true
 			}
 		}
 		return false
 	})
 	if err != nil {
-		return review, fmt.Errorf("review never latched %s with a bound MaintainLighting goal (revision %d, latches %+v): %w", bench, review.Revision, review.Latches.Lighting, err)
+		return review, fmt.Errorf("review never latched %s with a bound MaintainLighting standard (revision %d, latches %+v): %w", bench, review.Revision, review.Latches.Lighting, err)
 	}
 	return review, nil
 }
@@ -471,11 +471,11 @@ func lightingMethods(ctx context.Context, s *store.Store) ([]domain.Method, erro
 		return nil, err
 	}
 	var out []domain.Method
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainLighting {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainLighting {
 			continue
 		}
-		goal, err := s.LoadStandard(ctx, binding.Goal)
+		goal, err := s.LoadStandard(ctx, binding.Standard)
 		if err != nil {
 			return nil, err
 		}

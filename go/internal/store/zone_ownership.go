@@ -19,7 +19,7 @@ type OwnedZone struct {
 	Role  string
 	// Goal is the goal whose method created the zone; Filter and Priority
 	// are the stockpile settings it was created with.
-	Goal     domain.ConcernID
+	Concern  domain.ConcernID
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 }
@@ -38,13 +38,13 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 		return unknown, err
 	}
 	type link struct {
-		plan domain.PlanID
-		goal domain.ConcernID
+		plan    domain.PlanID
+		concern domain.ConcernID
 	}
 	links := []link{}
 	for rows.Next() {
 		var v link
-		if err = rows.Scan(&v.plan, &v.goal); err != nil {
+		if err = rows.Scan(&v.plan, &v.concern); err != nil {
 			rows.Close()
 			return unknown, err
 		}
@@ -58,14 +58,14 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 	result := []OwnedZone{}
 	goals := map[domain.ConcernID]OwnerSummary{}
 	for _, link := range links {
-		g, cached := goals[link.goal]
+		g, cached := goals[link.concern]
 		if !cached {
-			owner, err := loadOwner(ctx, tx, string(link.goal))
+			owner, err := loadOwner(ctx, tx, string(link.concern))
 			if err != nil {
 				return unknown, err
 			}
 			g, _ = SummarizeOwner(owner)
-			goals[link.goal] = g
+			goals[link.concern] = g
 		}
 		scope := g.Snapshot
 		if scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {
@@ -83,7 +83,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 			if !isZone || !ek || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Goal: link.goal, Filter: zone.Filter(), Priority: zone.Priority()})
+			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Concern: link.concern, Filter: zone.Filter(), Priority: zone.Priority()})
 		}
 	}
 	return domain.Known(result), nil

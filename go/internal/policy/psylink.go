@@ -119,7 +119,7 @@ func NeuroformerNeeds(needs map[Resource]int64, royalty domain.Fact[RoyaltyFacts
 	if !ok || !hk || held > 0 || !craftable && !tradeable {
 		return needs
 	}
-	return ResourceGoalTargets(needs, map[Resource]int64{PsylinkNeuroformer: 1})
+	return ResourceConcernTargets(needs, map[Resource]int64{PsylinkNeuroformer: 1})
 }
 
 // NextPsylinkUse is the use the colony owes now: the first candidate (a

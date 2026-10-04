@@ -65,11 +65,11 @@ func TestReserveAccessCommitsSupplyActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainFoodStorage {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainFoodStorage {
 			continue
 		}
-		goal, err := db.LoadStandard(ctx, binding.Goal)
+		goal, err := db.LoadStandard(ctx, binding.Standard)
 		if err != nil {
 			t.Fatal(err)
 		}

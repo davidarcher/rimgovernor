@@ -39,18 +39,18 @@ func TestDevelopmentRankingBoundedAndExplained(t *testing.T) {
 			if row.Selected {
 				admitted++
 				if row.Committed || row.Reason != "" {
-					t.Errorf("%s: %s selected with reason %q", path, row.Goal, row.Reason)
+					t.Errorf("%s: %s selected with reason %q", path, row.Concern, row.Reason)
 				}
 			} else if !row.Committed && row.Reason == "" {
-				t.Errorf("%s: %s deferred without a reason", path, row.Goal)
+				t.Errorf("%s: %s deferred without a reason", path, row.Concern)
 			}
 			if row.Reason == policy.DevelopmentLabor {
 				if _, known := d.Labor[row.Bottleneck]; !known {
-					t.Errorf("%s: %s labor deferral without a censused bottleneck %q", path, row.Goal, row.Bottleneck)
+					t.Errorf("%s: %s labor deferral without a censused bottleneck %q", path, row.Concern, row.Bottleneck)
 				}
 			}
 			if row.WaitingSince > d.Tick {
-				t.Errorf("%s: %s waits since %d, after review tick %d", path, row.Goal, row.WaitingSince, d.Tick)
+				t.Errorf("%s: %s waits since %d, after review tick %d", path, row.Concern, row.WaitingSince, d.Tick)
 			}
 		}
 		if d.Workers == nil || admitted > d.Capacity || d.Capacity > *d.Workers {
@@ -69,15 +69,15 @@ func TestDevelopmentSurvivesRestart(t *testing.T) {
 	}
 	prior := map[policy.ConcernID]store.RoundsDevelopmentRow{}
 	for _, row := range before.Rows {
-		prior[row.Goal] = row
+		prior[row.Concern] = row
 	}
 	for _, row := range after.Rows {
-		p, ok := prior[row.Goal]
+		p, ok := prior[row.Concern]
 		if !ok || p.Selected || p.Committed || row.Selected || row.Committed {
 			continue
 		}
 		if row.WaitingSince != p.WaitingSince {
-			t.Errorf("%s waiting age rewritten %d -> %d", row.Goal, p.WaitingSince, row.WaitingSince)
+			t.Errorf("%s waiting age rewritten %d -> %d", row.Concern, p.WaitingSince, row.WaitingSince)
 		}
 	}
 }
@@ -90,11 +90,11 @@ func TestDevelopmentStageHoldsResearchAtFoothold(t *testing.T) {
 	if a, err := r.Assessment(policy.EnsureResearch); err != nil || a.Finding != "unmet" {
 		t.Fatal("research assessment", a, err)
 	}
-	if policy.StageGoalAllowed(policy.EnsureResearch, r.Policy.ColonyStage) {
+	if policy.StageConcernAllowed(policy.EnsureResearch, r.Policy.ColonyStage) {
 		t.Fatal("stage allows research; the recording no longer shows the hold", r.Policy.ColonyStage)
 	}
 	for _, row := range d.Rows {
-		if row.Goal == policy.EnsureResearch && row.Selected {
+		if row.Concern == policy.EnsureResearch && row.Selected {
 			t.Fatal("research ranked under the stage hold")
 		}
 	}
@@ -102,7 +102,7 @@ func TestDevelopmentStageHoldsResearchAtFoothold(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, g := range needs.Goals {
+	for _, g := range needs.Concerns {
 		if g.ID == policy.EnsureResearch && !g.Staged {
 			t.Fatal("replay raised research at the recorded stage")
 		}

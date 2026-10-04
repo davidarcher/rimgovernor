@@ -15,8 +15,8 @@ func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan do
 		return false, err
 	}
 	bound := false
-	for _, b := range review.Goals {
-		bound = bound || string(b.Goal) == goal.OwnerID() && b.Need == policy.MaintainEquipment
+	for _, b := range review.Standards {
+		bound = bound || string(b.Standard) == goal.OwnerID() && b.Concern == policy.MaintainEquipment
 	}
 	if !bound {
 		return false, nil
@@ -54,7 +54,7 @@ func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan do
 		if err != nil {
 			return false, err
 		}
-		if domain.GoalWorkOpen(p.Progress) && !add(p.Spec) {
+		if domain.StandardWorkOpen(p.Progress) && !add(p.Spec) {
 			return false, nil
 		}
 	}

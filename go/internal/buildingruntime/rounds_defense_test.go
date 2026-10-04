@@ -156,7 +156,7 @@ func TestOrphanedDraftDependentsAfterDraftRelease(t *testing.T) {
 	// Only the never-issued draft-b is still open; it carries no orphan.
 	for _, p := range state.Progress {
 		v := p.View()
-		if v.Action != "draft-b" && domain.GoalWorkOpen([]domain.Progress{p}) {
+		if v.Action != "draft-b" && domain.StandardWorkOpen([]domain.Progress{p}) {
 			t.Fatalf("%s still open after cancelling the orphans: %s", v.Action, v.Stage)
 		}
 	}

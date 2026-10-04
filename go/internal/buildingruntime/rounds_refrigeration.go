@@ -40,7 +40,7 @@ func NewRoundsRefrigerationPlanner(reviewer *Rounder, native RoundsBuildingSourc
 	if _, ok := native.(observation.RefrigerationSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsRefrigerationPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainRefrigeration, definition: "Cooler"}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainRefrigeration, definition: "Cooler"}, nil
 }
 
 // selectRefrigeration re-reviews the fresh census under the review's latch,
@@ -236,7 +236,7 @@ func (r *RoundsBuildingPlanner) previewPlannedBuilding(ctx context.Context, snap
 		return nil, stock, Verdict{}, err
 	}
 	if clockDebug() {
-		clockSchedulerLog("%s: %s preview costs=%+v stock=%+v", r.goal, building.Definition(), p.Costs, stock.Values)
+		clockSchedulerLog("%s: %s preview costs=%+v stock=%+v", r.concern, building.Definition(), p.Costs, stock.Values)
 	}
 	return []policy.Preview{p}, stock, Verdict{}, nil
 }

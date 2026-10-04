@@ -32,7 +32,7 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 	if err != nil || !d.Admitted {
 		t.Fatalf("shell %+v %v", d, err)
 	}
-	rec, short := ShortfallDependency(policy.MaintainHousing, d.Goal.Standard, req.Method, req.Plan.ID(), req.Previews, req.Stock, "WoodLog", req.Tick)
+	rec, short := ShortfallDependency(policy.MaintainHousing, d.Standard.Standard, req.Method, req.Plan.ID(), req.Previews, req.Stock, "WoodLog", req.Tick)
 	if !short || len(rec.Costs) != 2 {
 		t.Fatalf("record %+v", rec)
 	}

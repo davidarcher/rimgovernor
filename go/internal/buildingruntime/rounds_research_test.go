@@ -170,11 +170,11 @@ func TestRoundsResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.EnsureResearch {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.EnsureResearch {
 			continue
 		}
-		if goal, err := db.LoadStandard(context.Background(), binding.Goal); err != nil || len(goal.Methods) != 0 {
+		if goal, err := db.LoadStandard(context.Background(), binding.Standard); err != nil || len(goal.Methods) != 0 {
 			t.Fatal("no selection may be committed while the bench is missing", goal, err)
 		}
 	}
@@ -202,7 +202,7 @@ func TestRoundsResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 // ladder: the simple bench, indoors, in a Laboratory-hosting room.
 func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 	t.Parallel()
-	ladder := &RoundsBuildingPlanner{goal: policy.EnsureResearch, definition: "Wall", shelter: true}
+	ladder := &RoundsBuildingPlanner{concern: policy.EnsureResearch, definition: "Wall", shelter: true}
 	definition := func(available domain.Fact[bool]) []observation.PlanningDefinition {
 		return []observation.PlanningDefinition{{Name: "SimpleResearchBench", Available: available, NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}}
 	}
@@ -240,7 +240,7 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "laboratory-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
-	bench := &RoundsBuildingPlanner{goal: policy.EnsureResearch, definition: "SimpleResearchBench"}
+	bench := &RoundsBuildingPlanner{concern: policy.EnsureResearch, definition: "SimpleResearchBench"}
 	if missing, method, reason := bench.selection(facts); missing != 1 || method != "laboratory-SimpleResearchBench" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}

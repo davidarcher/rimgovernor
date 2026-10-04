@@ -71,7 +71,7 @@ func TestReviewCountsAnEmptyKnowledgeSlotAsAResearchDeficit(t *testing.T) {
 	if assessment(t, r, EnsureResearch) != domain.FindingUnmet || !hasNeed(r, EnsureResearch) {
 		t.Fatal("an empty knowledge slot is a spending need", r.Assessments)
 	}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == EnsureResearch && g.Deficit != domain.Known(1.0) {
 			t.Fatal("knowledge deficit", g)
 		}

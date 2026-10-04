@@ -25,10 +25,10 @@ func stopRow(sequence uint64, reason string, extra map[string]any) bridge.Timeli
 func TestProjectStageConcernsAndStop(t *testing.T) {
 	stage := &policy.ColonyStageRecord{Stage: policy.StageReserves, Since: 4000, Blocker: policy.StageBlockerWood, Reason: "wood floor 120 of 400"}
 	observed := 0.25
-	progress := []policy.GoalProgress{
-		{Goal: "MaintainResource-WoodLog", Method: "chop", Expected: "wood in storage", LastProgress: 4900, NextReview: 7000, Observed: &observed},
-		{Goal: "MaintainFoodStorage", Method: "hunt", Expected: "designated animal killed", LastProgress: 4500, NextReview: 6000, Blocked: policy.BlockedNoWorker},
-		{Goal: "EnsureShelter", Method: "build", Expected: "construction observed", LastProgress: 4990},
+	progress := []policy.ConcernProgress{
+		{Concern: "MaintainResource-WoodLog", Method: "chop", Expected: "wood in storage", LastProgress: 4900, NextReview: 7000, Observed: &observed},
+		{Concern: "MaintainFoodStorage", Method: "hunt", Expected: "designated animal killed", LastProgress: 4500, NextReview: 6000, Blocked: policy.BlockedNoWorker},
+		{Concern: "EnsureShelter", Method: "build", Expected: "construction observed", LastProgress: 4990},
 	}
 	tick := int64(5050)
 	rows := []bridge.TimelineRecord{
@@ -115,9 +115,9 @@ func TestProjectPacingReasons(t *testing.T) {
 
 // The panel bounds its concern rows and carries a prerequisite blocker's concern.
 func TestProjectConcernBoundAndPrerequisite(t *testing.T) {
-	progress := []policy.GoalProgress{{Goal: "MaintainResource-Steel", Method: "mine", Expected: "steel in storage", Blocked: policy.BlockedPrerequisite("MaintainFoodStorage")}}
+	progress := []policy.ConcernProgress{{Concern: "MaintainResource-Steel", Method: "mine", Expected: "steel in storage", Blocked: policy.BlockedPrerequisite("MaintainFoodStorage")}}
 	for i := 0; i < 10; i++ {
-		progress = append(progress, policy.GoalProgress{Goal: policy.ConcernID(string(rune('a' + i))), Method: "m", Expected: "e", NextReview: 100})
+		progress = append(progress, policy.ConcernProgress{Concern: policy.ConcernID(string(rune('a' + i))), Method: "m", Expected: "e", NextReview: 100})
 	}
 	now := Project(nil, Input{Progress: progress, ReviewsEnabled: true})
 	if len(now.Concerns) != ConcernsShown {

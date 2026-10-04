@@ -235,7 +235,7 @@ func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.Generati
 	}
 	zoneGoal := map[string]domain.ConcernID{}
 	for _, z := range owned {
-		zoneGoal[z.ID] = z.Goal
+		zoneGoal[z.ID] = z.Concern
 	}
 	gear, err := r.gearStore(ctx, snapshot, projection)
 	if err != nil {
@@ -420,7 +420,7 @@ func NewRoundsStockpilePlanner(reviewer *Rounder, native RoundsStockpileSource) 
 	}
 	planner := &RoundsStockpilePlanner{reviewer: reviewer, native: native}
 	if source, ok := reviewer.native.(RoundsBuildingSource); ok {
-		planner.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainStockpiles, definition: policy.ShellWallDefinition}
+		planner.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, concern: policy.MaintainStockpiles, definition: policy.ShellWallDefinition}
 	}
 	return planner, nil
 }

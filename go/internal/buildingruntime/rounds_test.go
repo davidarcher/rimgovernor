@@ -568,11 +568,11 @@ func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
 		if reserve == 14 {
 			want = domain.FindingUnmet
 		}
-		for _, binding := range out.Review.Goals {
-			if binding.Need != policy.EnsureFoodSupply {
+		for _, binding := range out.Review.Standards {
+			if binding.Concern != policy.EnsureFoodSupply {
 				continue
 			}
-			g, err := db.LoadStandard(context.Background(), binding.Goal)
+			g, err := db.LoadStandard(context.Background(), binding.Standard)
 			if err != nil || g.Standard.Finding != want {
 				t.Fatal("field budget did not reach durable food need", reserve, g, err)
 			}
@@ -619,12 +619,12 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Goals)+len(got.Projects) != 51 || got.Review.Revision != 1 || !got.Review.Enabled {
+	if len(got.Standards)+len(got.Projects) != 51 || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
-	for _, binding := range got.Review.Goals {
-		if binding.Need == domain.ConcernID(policy.EnsureFoodSupply) {
-			g, err := db.LoadStandard(context.Background(), binding.Goal)
+	for _, binding := range got.Review.Standards {
+		if binding.Concern == domain.ConcernID(policy.EnsureFoodSupply) {
+			g, err := db.LoadStandard(context.Background(), binding.Standard)
 			if err != nil || g.Standard.Finding != domain.FindingUnclear {
 				t.Fatal("raw food became recovery", g, err)
 			}
@@ -640,8 +640,8 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	if err != nil || stored.Enabled || stored.Revision != 2 || n.reads != 1 || session.State().Enabled {
 		t.Fatal(stored, err)
 	}
-	for _, binding := range stored.Goals {
-		g, err := db.LoadStandard(context.Background(), binding.Goal)
+	for _, binding := range stored.Standards {
+		g, err := db.LoadStandard(context.Background(), binding.Standard)
 		if err != nil || g.Standard.Status == domain.StandardVoided || stored.Veto(g.Standard) != "control paused" {
 			t.Fatal(g, err)
 		}

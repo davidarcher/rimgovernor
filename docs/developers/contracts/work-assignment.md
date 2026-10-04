@@ -40,7 +40,7 @@ in `pawn_profile.go`, keyed by TraitDef name and degree, and are merged onto the
 derived effects. A trait with neither rows nor flags (a mod trait the catalog
 does not carry fails the read; a mood/nerves spectrum native already folds into
 break thresholds) contributes nothing beyond its rows. The gear
-([equipment upkeep](equipment-upkeep.md)), drug and room goals read their flags
+([equipment upkeep](equipment-upkeep.md)), drug and room concerns read their flags
 from `PawnProfile.Effects`; mood control keeps its native thresholds.
 
 `ProfileSkill.LearnFactor` is the passion multiplier (none 0.35, minor 1.0,
@@ -128,7 +128,7 @@ name why spare capacity went unused.
 
 ## Situational roles
 
-`go/internal/policy/pawn_roles.go` answers the questions other goals ask of the
+`go/internal/policy/pawn_roles.go` answers the questions other concerns ask of the
 roster from the same profiles, each a pure function returning the pawn and
 whether one qualifies: `SurgeonFor(minimum, harvest)` (Medicine at least the
 recipe's minimum and 4, Psychopath preferred for a harvest), `WardenFor(execution)`
@@ -218,7 +218,7 @@ not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.MechCharger` (a `Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
-`EnsureMechCharger` (`mech_charger_goal.go`, `rounds_mech_charger.go`) is the goal
+`EnsureMechCharger` (`rounds_mech_charger.go`) is the concern
 for that need: a Standard in the Upkeep domain, assessed only where the Biotech
 colony read and the mechs are known (`RoundsFacts.MechChargerOwed`), in deficit
 while a charger is owed. Its one method builds the first catalog-flagged,
@@ -228,11 +228,11 @@ reachable, ranked by `MechChargerSites` over the polluting-machine rule
 unoccupied, in no zone, no doorway) at the catalog's `PlanningDefinition.Size`,
 far from field zones, bedroom and barracks cells, dining and recreation room
 cells and polluted cells, then near an atomizer. A charger blueprint, frame or
-open plan holds it. Powering the charger is the power goal's; emptying its waste is
-`ManagePollution`'s. Biotech goals are bound only when assessed, so the store
-counts `policy.BiotechGoals` apart from the goals every colony has.
+open plan holds it. Powering the charger is the power concern's; emptying its waste is
+`ManagePollution`'s. Biotech concerns are bound only when assessed, so the store
+counts them apart from the concerns every colony has.
 
-`MaintainGeneBank` (`gene_bank_goal.go`, `rounds_gene_bank.go`, #1933, epic
+`MaintainGeneBank` (`rounds_gene_bank.go`, #1933, epic
 #1693) keeps every genepack in a gene bank: a Genepack deteriorates unless it
 sits in a powered bank (4 packs each; design note on #1693). A Standard in the
 Upkeep domain over the Colony fact family, assessed from the keyed Biotech
@@ -245,9 +245,9 @@ one method builds the first available catalog bank (the def carrying
 first free footprint native previews as legal, safe and reachable, searched
 outward from the first gene assembler (a bank links to an assembler within 12.9
 cells), else the first bank, else the production district. A bank blueprint,
-frame or open plan holds it. Powering it is the power goal's (a bank is a 40 W
+frame or open plan holds it. Powering it is the power concern's (a bank is a 40 W
 consumer wired like any other); harvesting, assembly and implanting are other
-goals (#1693).
+concerns (#1693).
 
 `policy.PlanMechGuards` orders every standing guard at the hostile nearest to it
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native
@@ -268,7 +268,7 @@ the drafts join the fight roster and are undrafted when it closes.
 `MaintainMechs` (#1686, `policy/mech_gestation.go`, planner flag `mechs`) queues
 one gestation bill at a time: a `Bill_Mech` as a single-count `GearBatch`
 production bill on a gestator (the `mech` branch of the production bill write).
-`MechGestationOwed` raises the goal while a gestator is idle, no waste is
+`MechGestationOwed` raises the concern while a gestator is idle, no waste is
 uncleared, a charger is ready (`MechChargerReady`: chargers before more mechs)
 and `NextMech` finds a kind a mechanitor can afford. The rules:
 

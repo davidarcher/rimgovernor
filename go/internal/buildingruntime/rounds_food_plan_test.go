@@ -82,7 +82,7 @@ func TestFoodPlanAcquisitionRejectsHeldAndUnknownSources(t *testing.T) {
 }
 
 func TestFoodPlanExpansionWaitsForGap(t *testing.T) {
-	r := &RoundsBuildingPlanner{goal: policy.MaintainHousing, phase: policy.HousingExpansion}
+	r := &RoundsBuildingPlanner{concern: policy.MaintainHousing, phase: policy.HousingExpansion}
 	p := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), FoodPlan: domain.Known(policy.FoodPlan{GapPerDay: 1})}}
 	if _, _, reason := r.selection(p); !reason.Is(RefusalAwaitingPlan) {
 		t.Fatal(reason)

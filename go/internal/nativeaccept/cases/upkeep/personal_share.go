@@ -31,7 +31,7 @@ func init() {
 			"Bedroom furniture and floor builds, a gear swap, then native room stats and worn apparel."},
 		{"upkeep/personal-share-poor", "poor",
 			"Personal wealth shares (#1829): in a poor colony the same bedroom stays under the shared stage and the flak vest is kept, yet the bed stays owned and the bare colonist is dressed (necessities are never charged).",
-			"Same staging as the rich case, with a settle wait after the goals recover to show the gates hold."},
+			"Same staging as the rich case, with a settle wait after the standards recover to show the gates hold."},
 	} {
 		wealth := c.wealth
 		sleeping := scenarios()["sleeping"]

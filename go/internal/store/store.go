@@ -45,16 +45,16 @@ type Store struct {
 	floors *retirementFloors
 	// goalsWritten wakes the governor-state mirror after a commit that may
 	// have created a goal (#1362), so a restart does not lose it.
-	goalsWritten chan struct{}
+	standardsWritten chan struct{}
 }
 
 // GoalsWritten fires (coalesced) after a commit that may have created a
 // goal; the governor-state mirror puts it without waiting for its tick.
-func (s *Store) GoalsWritten() <-chan struct{} { return s.goalsWritten }
+func (s *Store) StandardsWritten() <-chan struct{} { return s.standardsWritten }
 
-func (s *Store) notifyGoalsWritten() {
+func (s *Store) notifyStandardsWritten() {
 	select {
-	case s.goalsWritten <- struct{}{}:
+	case s.standardsWritten <- struct{}{}:
 	default:
 	}
 }
@@ -128,7 +128,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("journal mode %q, want %s", journal, want)
 	}
-	s := &Store{db: db, floors: floorsFor(path), goalsWritten: make(chan struct{}, 1)}
+	s := &Store{db: db, floors: floorsFor(path), standardsWritten: make(chan struct{}, 1)}
 	if err = s.initialize(ctx); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -278,7 +278,7 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		if err = clock.InitializeReview(ctx, tx); err != nil {
 			return err
 		}
-		if err = initializeGoals(ctx, tx); err != nil {
+		if err = initializeStandards(ctx, tx); err != nil {
 			return err
 		}
 		if err = clock.InitializeInbox(ctx, tx); err != nil {
@@ -628,7 +628,7 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 
 func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, action domain.ActionID, event transition) (domain.Progress, error) {
 	if event.Kind == "prepare" || event.Kind == "dispatch" {
-		if err := guardGoalWork(ctx, tx, event.floors, plan, event.Snapshot, event.Tick); err != nil {
+		if err := guardStandardWork(ctx, tx, event.floors, plan, event.Snapshot, event.Tick); err != nil {
 			return domain.Progress{}, err
 		}
 	}

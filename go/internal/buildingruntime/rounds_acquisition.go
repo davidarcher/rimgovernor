@@ -60,7 +60,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	if goal.Standard.Priority >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
-			selected = selected || row.Goal == r.need && row.Selected
+			selected = selected || row.Concern == r.need && row.Selected
 		}
 		if !selected {
 			return RoundsAcquisitionResult{Verdict: awaitingSlot(string(r.need))}, nil
@@ -101,7 +101,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	// A source a stall rotated away from stays keyed out for its contract's
 	// bounded cooldown (#629): the goal's progress record carries the key,
 	// and RecordProgressCooldown adds one under this review's revision.
-	progress, _ := review.GoalProgress(r.need)
+	progress, _ := review.ConcernProgress(r.need)
 	cooled := map[string]bool{}
 	// undispatched holds the goal's admitted acquisitions native has not
 	// designated yet (Pending/Prepared): they block and hold their source

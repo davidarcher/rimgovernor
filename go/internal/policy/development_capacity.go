@@ -12,9 +12,9 @@ import (
 // development slot) or open startup/survival work (no slot, but its worker
 // is busy).
 type DevelopmentHold struct {
-	Goal  ConcernID    `json:",omitempty"`
-	Labor LaborProfile `json:",omitempty"`
-	Slot  bool         `json:",omitempty"`
+	Concern ConcernID    `json:",omitempty"`
+	Labor   LaborProfile `json:",omitempty"`
+	Slot    bool         `json:",omitempty"`
 }
 
 // CommitmentHolds is the labor open commitments hold, the same at ranking
@@ -30,17 +30,17 @@ func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[Con
 	byGoal := map[ConcernID]DevelopmentHold{}
 	for _, c := range commitments {
 		v := c.Progress.View()
-		if released[c.Goal] {
+		if released[c.Concern] {
 			continue
 		}
 		if !(v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation) {
 			continue
 		}
 		slot := c.Priority >= 3
-		if prev, seen := byGoal[c.Goal]; seen && (prev.Slot || !slot) {
+		if prev, seen := byGoal[c.Concern]; seen && (prev.Slot || !slot) {
 			continue
 		}
-		byGoal[c.Goal] = DevelopmentHold{Goal: c.Goal, Labor: append(LaborProfile(nil), c.Labor...), Slot: slot}
+		byGoal[c.Concern] = DevelopmentHold{Concern: c.Concern, Labor: append(LaborProfile(nil), c.Labor...), Slot: slot}
 	}
 	ids := make([]ConcernID, 0, len(byGoal))
 	for id := range byGoal {
@@ -59,9 +59,9 @@ func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[Con
 // here.
 func AdmitDevelopment(s DevelopmentState, need ConcernID) error {
 	for _, row := range s.Rows {
-		if row.Goal == need && row.Selected {
+		if row.Concern == need && row.Selected {
 			return nil
 		}
 	}
-	return fmt.Errorf("goal %s holds no development slot", need)
+	return fmt.Errorf("standard %s holds no development slot", need)
 }

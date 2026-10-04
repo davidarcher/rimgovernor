@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
-`MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` goal in
+`MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` concern in
 ColonyPlan. It sizes each race itself (#875); there are no operator flags.
 
 **Race catalog (#1625, #1722).** Static per-race facts (carrying capacity,
@@ -81,7 +81,7 @@ fails the reading loudly like any other required native read.
 - **Plan output.** `HerdPlan.Roles` (job, preferred, founder, wanted sex,
   retiring) and `HerdPlan.Jobs` (ranked obtainable races, target, head count)
   are what the taming, training, sterilize, sale, purchase and pen issues read;
-  `HerdPlan.Policy` is the `HerdPolicy` band the `MaintainHerd-<race>` goals
+  `HerdPlan.Policy` is the `HerdPolicy` band the `MaintainHerd-<race>` concerns
   execute.
 - **Sale (#1632).** `HerdSaleAnimals` lists the animals over a race's ceiling
   (all of a retired race) that are known unbonded and, outside a retired race,
@@ -286,7 +286,7 @@ suitable pen on their own.
 
 ## Ownership and population
 
-The goal belongs to the colony and map where it was accepted. Each native request
+The concern belongs to the colony and map where it was accepted. Each native request
 names the exact animal and applies under native authority against the live
 animal. A refusal re-plans from the next review; an unknown outcome resends
 the same order.
@@ -306,7 +306,7 @@ areas, following and sterilization are written through the methods above.
 Births are never counted as pending: a shortfall with no tameable wild animal
 of the race on the map simply reports no candidate until one appears. Renewing
 a target cancels its uncompleted controller steps; cancellation leaves
-previously issued game orders in place, following the shared goal cancellation
+previously issued game orders in place, following the shared concern cancellation
 contract.
 
 ## Training and products
@@ -342,7 +342,7 @@ membership uses the native enclosed, suitable pen lookup; a marker by itself is 
 containment. Area-managed animals use their current allowed-area membership.
 
 An explicit feed resource, or observed feed used exclusively by animals, creates an
-owned `MaintainResource` goal through the existing acquisition/production methods.
+owned `MaintainResource` concern through the existing acquisition/production methods.
 The stock target uses native per-item nutrition and demand from competing eligible
 eaters. Missing suitable feed, production prerequisites, handlers, access or storage
 remain visible blockers. Cancelling the herd stops its unissued feed work. Acquiring
@@ -395,7 +395,7 @@ native worst-quadrum pasture rate and stored feed. A negative balance can add a
 `Plant_Haygrass` field through the existing soil planner, zone preview and Hands
 admission. Existing hay-field capacity offsets new planting; a short season or
 unknown capacity refuses that method. Hay stays human-inedible and out of human
-food channels and human runway. Growing joins the feed goal's labor profile.
+food channels and human runway. Growing joins the feed concern's labor profile.
 
 While the food runway is below target (a food-plan gap), eligible animals
 above max(floor, breeding pair) rank by native meat nutrition per daily

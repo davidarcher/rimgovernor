@@ -99,7 +99,7 @@ func TestRoundsSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T
 	if err != nil || result.Verdict != BuildingReasonAdmitted || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
-	g := result.Decision.Goal
+	g := result.Decision.Standard
 	if len(g.Methods) != 1 || n.previews != 2 || session.acquires.Load() != before {
 		t.Fatal(g, n.previews)
 	}
@@ -186,7 +186,7 @@ func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
-	g := first.Decision.Goal
+	g := first.Decision.Standard
 	p, err := db.LoadPlan(context.Background(), g.Methods[0].Plan)
 	if err != nil {
 		t.Fatal(err)
@@ -213,10 +213,10 @@ func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	next, err := r.Step(context.Background())
-	if err != nil || next.Verdict != BuildingReasonAdmitted || next.Decision.Goal.Standard.Episode != g.Standard.Episode {
+	if err != nil || next.Verdict != BuildingReasonAdmitted || next.Decision.Standard.Standard.Episode != g.Standard.Episode {
 		t.Fatal(next, err)
 	}
-	methods := next.Decision.Goal.Methods
+	methods := next.Decision.Standard.Methods
 	if last := methods[len(methods)-1]; last.Method != g.Methods[0].Method+"-1" || last.Plan == p.Spec.ID() {
 		t.Fatal(methods)
 	}
@@ -272,7 +272,7 @@ func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	compiled, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)
+	compiled, err := db.LoadPlan(ctx, result.Decision.Standard.Methods[0].Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +326,7 @@ func TestRoundsSleepingKeepsDoorwayAislesClear(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	compiled, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	compiled, err := db.LoadPlan(context.Background(), result.Decision.Standard.Methods[0].Plan)
 	if err != nil {
 		t.Fatal(err)
 	}

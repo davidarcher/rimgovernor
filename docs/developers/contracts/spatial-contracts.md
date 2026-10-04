@@ -107,7 +107,7 @@ per review, and an open rung does not hold the next (#641): the spots, the
 beds and the ring can all be open at once, so a stalled bed never keeps the
 walls and door from starting. The store admits a method beside open bunk
 rungs only when it is pure construction on no bunk cell; an open shell still
-holds the goal, and the indoor furnishing step still waits for the bunks. Bunk cells are treated as free by the shell search
+holds the concern, and the indoor furnishing step still waits for the bunks. Bunk cells are treated as free by the shell search
 and the layout enclosing every bunk, with no bed on a corner, is preferred;
 the dig is weighed only before any bunk is placed, and a ring already
 standing is adopted without bunks. A bed rung the native previews refuse
@@ -119,9 +119,9 @@ materials) follows at the next review. A restart rereads the bound rungs and
 sites the ring around them rather than placing new bunks.
 
 Pausing and resuming control (a letter pause, a keep-alive resume, a paired
-restart) suspends every routine goal and reactivates it in the same world
+restart) suspends every routine concern and reactivates it in the same world
 with its plans still open. A world change (load token, map, tick rewind)
-instead invalidates the goal and cancels its plans, and the executor cancels
+instead invalidates the concern and cancels its plans, and the executor cancels
 the cancelled plan's native blueprints and frames; the walls and door already
 completed natively, and the shell plans in the controller's own journal, are
 then the only durable records of a shell in progress. Before siting a shell,
@@ -150,8 +150,8 @@ shells from the census alone; a grown shell is then not recognised and the
 routine sites afresh.
 
 A shell plan that settles with a cell unsuccessful (a wall the player
-cancelled in-game, a failed frame) leaves a gap the goal alone would never
-close, since a suspended-and-resumed goal keeps its epoch and its bound
+cancelled in-game, a failed frame) leaves a gap the concern alone would never
+close, since a suspended-and-resumed concern keeps its epoch and its bound
 method. The shell planner therefore walks a repair chain under the epoch --
 `<method>`, `<method>-repair-1`, `-2`, ... up to eight -- and once the latest
 bound plan has settled short of every cell completed, binds the next repair
@@ -200,7 +200,7 @@ the plan has no free cell there.
 
 `TidyLayout` (#611, #809) re-sites a settled colony's off-plan furniture
 onto each room's derived interior plan, one room at a time. It is a
-maintenance goal ranked below every production, upkeep and defense goal,
+maintenance concern ranked below every production, upkeep and defense concern,
 active only at tier >= `Masonry` while the colony has no unfilled
 construction or hauling work. One re-site is in flight at a time and a
 tidied piece is never moved again; the set is journaled per world
@@ -238,7 +238,7 @@ the size it was sited at: never grown or merged, and shrunk only to its
 site's size.
 
 The room-bound roles (#917) are created whenever their room stands without
-one, whatever other goal is in deficit. `meals:<roomID>` (#872, #936) is a
+one, whatever other concern is in deficit. `meals:<roomID>` (#872, #936) is a
 Critical meal stockpile where meals keep near the table, best first: the
 standing meal closet, zoned whole for every meal; a 2x2 of every meal in the
 standing planned freezer at its door into the standing planned dining room;
@@ -310,7 +310,7 @@ candidate entrance. Comparisons retain refusal evidence without reserving
 unselected sites.
 
 The persisted spatial program describes habitable shelter, food services and
-maintained capacity using existing functional goals and fresh native gates.
+maintained capacity using existing functional concerns and fresh native gates.
 Population growth reopens shelter capacity. Routine storage development waits
 for observed indoor sleeping capacity; urgent cooking, food acquisition, medical
 care and temperature control retain their priorities. Future phases own no cells
@@ -353,9 +353,9 @@ admitted before such a change closes through its own executor (the native cancel
 is an unsuccessful action); a stage action held not ready, unsupported or on
 changed geometry for longer than the stall grace is cancelled so the closed plan
 lets the review run. The door is built only after every target cell is observed
-cleared or kept, and furnishing follows the ordinary indoor sleeping method. A restarted controller whose goal survives rediscovers the project
-from its durable stage plans; when the goal was invalidated (for example by a control
-hand-back before the restart) the successor goal resumes the most recently planned
+cleared or kept, and furnishing follows the ordinary indoor sleeping method. A restarted controller whose concern survives rediscovers the project
+from its durable stage plans; when the concern was invalidated (for example by a control
+hand-back before the restart) the successor concern resumes the most recently planned
 target from those same plans, verified by a fresh native site read that still shows
 rock to dig, before any new face is considered — the colony window follows the pawns
 and may no longer show a half-dug room at all. Either way a cleared cell is never
@@ -456,7 +456,7 @@ bounded to 64 shrines, 32 caskets, 256 guards and 64 breach walls per
 shrine; overflow or an unreadable scan is unavailable, never
 sampled, and the Go observation treats the unavailable stub as unknown.
 Nothing in this read admits a breach, a casket order or a claim: readiness
-(#457), the breach goal (#458) and casket handling (#459) decide.
+(#457), the breach concern (#458) and casket handling (#459) decide.
 
 The shrine census also carries optional heat facts for a visible roof-connected
 interior of at most 256 cells, independent of building ownership: measured

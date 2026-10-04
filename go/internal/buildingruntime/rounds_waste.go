@@ -42,7 +42,7 @@ func NewRoundsWastePlanner(reviewer *Rounder, native RoundsWasteSource) (*Rounds
 	}
 	r := &RoundsWastePlanner{reviewer: reviewer, native: native}
 	if source, ok := native.(RoundsBuildingSource); ok {
-		r.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainWaste}
+		r.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, concern: policy.MaintainWaste}
 	}
 	return r, nil
 }
@@ -74,7 +74,7 @@ func (r *RoundsWastePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// this review's arbitration actually selected it.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.MaintainWaste && row.Selected
+		selected = selected || row.Concern == policy.MaintainWaste && row.Selected
 	}
 	if !selected {
 		return RoundsWasteResult{Verdict: awaitingSlot(string(policy.MaintainWaste))}, nil

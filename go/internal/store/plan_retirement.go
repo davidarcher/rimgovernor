@@ -76,7 +76,7 @@ func retireRoundsPlans(ctx context.Context, tx *sql.Tx, current domain.Generatio
 				return err
 			}
 		case "standard":
-			if g, err = loadGoal(ctx, tx, domain.ConcernID(v.owner)); err != nil {
+			if g, err = loadStandard(ctx, tx, domain.ConcernID(v.owner)); err != nil {
 				return err
 			}
 		}
@@ -149,7 +149,7 @@ func (s *Store) LoadMethod(ctx context.Context, goal domain.ConcernID, epoch uin
 		return domain.Method{}, err
 	}
 	defer tx.Rollback()
-	g, err := loadGoal(ctx, tx, goal)
+	g, err := loadStandard(ctx, tx, goal)
 	if err != nil {
 		return domain.Method{}, err
 	}
@@ -193,7 +193,7 @@ func (s *Store) LoadMethods(ctx context.Context, goal domain.ConcernID, epoch ui
 		return nil, err
 	}
 	defer tx.Rollback()
-	g, err := loadGoal(ctx, tx, goal)
+	g, err := loadStandard(ctx, tx, goal)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (s *Store) LoadMethods(ctx context.Context, goal domain.ConcernID, epoch ui
 		return nil, err
 	}
 	if len(result) > 256 {
-		return nil, errors.New("goal method history exceeds bound")
+		return nil, errors.New("standard method history exceeds bound")
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err

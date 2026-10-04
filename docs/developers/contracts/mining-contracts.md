@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Space and resources](../architecture/space-and-resources.md)
 
-`MaintainResource` uses the shared goal, plan, reservations and Hands path. A native
+`MaintainResource` uses the shared concern, plan, reservations and Hands path. A native
 resource census ranks eligible sources by distance and stable identity. Each batch
 contains one excavation target, or at most eight plant sources, and accounts for all eligible pending yield,
 including sources beyond the displayed census. Estimated yield cannot satisfy a stock
@@ -110,7 +110,7 @@ writing that save. A stable source identity preserves interruption history acros
 this rebind; an arbitrary replacement rock cannot inherit the old authorization.
 
 Interrupted sources cannot silently return in a differently composed batch. Explicitly
-renewing the resource goal reopens its methods; Hands still checks current native
+renewing the resource concern reopens its methods; Hands still checks current native
 eligibility. Uncertain writes retain the shared execution safeguards.
 Observed reductions in a designated rock's hit points refresh the shared progress
 watchdog without crediting any stock. Unchanged health and designation receipts do
@@ -119,7 +119,7 @@ reopen a player interruption or accept evidence from a different load or map.
 
 Before a new mining batch, native storage reads conservatively count reachable empty
 floor slots accepting the exact resource, with roofing for deteriorating materials.
-When capacity is insufficient, the goal first schedules a new stockpile through the
+When capacity is insufficient, the concern first schedules a new stockpile through the
 existing zone action and its native geometry/filter postconditions. Its filter starts
 empty and allows only the output definition. Player zones are never repurposed. Native
 haul eligibility remains authoritative; storage capacity is not completed hauling.
@@ -128,7 +128,7 @@ The census also reports installed scanner/drill definitions, costs, research, ex
 drill readiness and visible deep deposits when the native scanner overlay is available.
 Deep extraction (`MaintainResource` with `deep_extraction`) requires explicit player direction
 accepting native drilling infestation risk. After surface sources are exhausted, the
-goal stages exact-resource storage and then researched scanner/drill facilities using
+concern stages exact-resource storage and then researched scanner/drill facilities using
 ordinary construction preflight, resource commitments and Hands. Candidate footprints
 must be visible, empty and unroofed, with safe worker access and a native connection
 to a grid whose observed surplus covers the equipment. Missing research, power,
@@ -151,7 +151,7 @@ request cannot silently repeat.
 
 Ownership and recovered output persist with the native save. Stock targets are
 re-admitted from the paired controller state before supervised simulation and are not
-restored as native authority. Cancelled goals suspend owned drilling during supervision;
+restored as native authority. Cancelled concerns suspend owned drilling during supervision;
 ordinary player-controlled simulation remains under normal game rules. Drill progress
 refreshes the shared watchdog without crediting stock. Surface and deep acceptance
 must verify pawn outcomes separately from receipts and compilation.

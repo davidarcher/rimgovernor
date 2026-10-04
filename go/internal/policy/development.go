@@ -11,7 +11,7 @@ import (
 // ConcernID identifies a maintained need, independently of any one executable plan.
 type ConcernID = domain.ConcernID
 
-type DevelopmentGoal struct {
+type DevelopmentConcern struct {
 	ID                ConcernID
 	Priority          int
 	Deficit           domain.Fact[float64]
@@ -64,7 +64,7 @@ func (w DevelopmentWeights) valid() bool {
 // Commitment refers to existing shared action progress, never a receipt-derived
 // claim of completion. All accepted player projects consume optional capacity.
 type Commitment struct {
-	Goal     ConcernID
+	Concern  ConcernID
 	Priority int
 	Progress domain.Progress
 	// Labor is the work the open commitment already occupies (GoalLabor for
@@ -123,7 +123,7 @@ const (
 )
 
 type DevelopmentRow struct {
-	Goal                ConcernID
+	Concern             ConcernID
 	Score               float64
 	Deficit             domain.Fact[float64]
 	WaitingSince        domain.Tick
@@ -192,8 +192,8 @@ type DevelopmentRequest struct {
 	// unknown releases no commitment.
 	LaborUse domain.Fact[LaborUse]
 	// Weights zero value uses DefaultDevelopmentWeights.
-	Weights DevelopmentWeights
-	Goals   []DevelopmentGoal
+	Weights  DevelopmentWeights
+	Concerns []DevelopmentConcern
 	// Assessments are the review's routine needs; any EmergencyNeed holds
 	// freezes development, exactly as it suspends the review.
 	Assessments []RoundsAssessment
@@ -224,7 +224,7 @@ func donatedOrder(row DevelopmentRow) int {
 	return 5
 }
 
-func validGoal(id ConcernID, priority int) bool {
+func validConcern(id ConcernID, priority int) bool {
 	return validResource(Resource(id)) && priority >= 0 && priority <= 4
 }
 
@@ -267,10 +267,10 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			if row.WaitingSince < 0 || row.WaitingSince > r.Previous.Tick {
 				return DevelopmentState{}, errors.New("invalid development history")
 			}
-			if _, duplicate := old[row.Goal]; duplicate {
+			if _, duplicate := old[row.Concern]; duplicate {
 				return DevelopmentState{}, errors.New("duplicate development history")
 			}
-			old[row.Goal] = row
+			old[row.Concern] = row
 		}
 	}
 	committed := map[ConcernID]bool{}
@@ -280,7 +280,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	seenActions := map[domain.ActionID]bool{}
 	for _, c := range r.Commitments {
 		v := c.Progress.View()
-		if !validGoal(c.Goal, c.Priority) || v.Stage == "" || seenActions[v.Action] || !validLabor(c.Labor) {
+		if !validConcern(c.Concern, c.Priority) || v.Stage == "" || seenActions[v.Action] || !validLabor(c.Labor) {
 			return DevelopmentState{}, errors.New("invalid development commitment")
 		}
 		seenActions[v.Action] = true
@@ -295,23 +295,23 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			// work. The evidence is target-linked (#643): a haul for a
 			// third goal is not activity on this one.
 			e := CommitmentLabor(r.LaborUse, c.Labor, c.Targets)
-			if evidenceRank(e) > evidenceRank(evidence[c.Goal]) {
-				evidence[c.Goal] = e
+			if evidenceRank(e) > evidenceRank(evidence[c.Concern]) {
+				evidence[c.Concern] = e
 			}
-			since, carried := old[c.Goal].LaborIdleSince.Value()
+			since, carried := old[c.Concern].LaborIdleSince.Value()
 			carried = carried && since <= r.Tick
 			if e.Idle() || e == LaborUnknown && carried {
-				if _, seen := idleSince[c.Goal]; !seen {
-					idleSince[c.Goal] = r.Tick
+				if _, seen := idleSince[c.Concern]; !seen {
+					idleSince[c.Concern] = r.Tick
 					if carried {
-						idleSince[c.Goal] = since
+						idleSince[c.Concern] = since
 					}
 				}
 			}
-			if !committed[c.Goal] {
+			if !committed[c.Concern] {
 				ledger.take(c.Labor)
 			}
-			committed[c.Goal] = true
+			committed[c.Concern] = true
 		}
 	}
 	for id := range committed {
@@ -329,11 +329,11 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	sort.Slice(result.Committed, func(i, j int) bool { return result.Committed[i] < result.Committed[j] })
 	emergency := false
 	seen := map[ConcernID]bool{}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		fraction, known := g.Deficit.Value()
 		risk, riskKnown := g.Risk.Value()
-		if !validGoal(g.ID, g.Priority) || seen[g.ID] || !validLabor(g.Labor) || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) || riskKnown && (math.IsNaN(risk) || risk < 0 || risk > 1) {
-			return DevelopmentState{}, errors.New("invalid development goal")
+		if !validConcern(g.ID, g.Priority) || seen[g.ID] || !validLabor(g.Labor) || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) || riskKnown && (math.IsNaN(risk) || risk < 0 || risk > 1) {
+			return DevelopmentState{}, errors.New("invalid development standard")
 		}
 		seen[g.ID] = true
 	}
@@ -343,9 +343,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	if len(r.Dependencies) > MaxDevelopmentDependencies {
 		return DevelopmentState{}, errors.New("invalid development dependencies")
 	}
-	donations, blockers := ResolveDonations(r.Goals, r.Dependencies)
+	donations, blockers := ResolveDonations(r.Concerns, r.Dependencies)
 	result.Blockers = blockers
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.Priority < 3 {
 			continue
 		}
@@ -364,7 +364,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if riskKnown {
 			score -= weights.Risk * risk
 		}
-		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk, Idle: idle, Labor: append(LaborProfile(nil), g.Labor...)}
+		row := DevelopmentRow{Concern: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk, Idle: idle, Labor: append(LaborProfile(nil), g.Labor...)}
 		if since, seen := idleSince[g.ID]; seen && (committed[g.ID] || released[g.ID]) {
 			row.LaborIdleSince = domain.Known(since)
 		}
@@ -402,7 +402,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		result.Rows = append(result.Rows, row)
 	}
 	profiles := map[ConcernID]LaborProfile{}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		profiles[g.ID] = g.Labor
 	}
 	// Bottleneck: eligible goals competing for the same scarce labor. The
@@ -411,14 +411,14 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	competing := map[WorkType]int{}
 	for _, row := range result.Rows {
 		if row.Reason == "" {
-			for _, w := range profiles[row.Goal] {
+			for _, w := range profiles[row.Concern] {
 				competing[w]++
 			}
 		}
 	}
 	for i := range result.Rows {
 		row := &result.Rows[i]
-		profile := profiles[row.Goal]
+		profile := profiles[row.Concern]
 		if row.Reason != "" || len(profile) == 0 || !ledger.known {
 			row.Score = math.RoundToEven(max(0, row.Score)*1000) / 1000
 			continue
@@ -447,7 +447,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if a.Score != b.Score {
 			return a.Score > b.Score
 		}
-		return a.Goal < b.Goal
+		return a.Concern < b.Concern
 	})
 	// A round ends once every eligible goal has been idle: the flags clear
 	// and score order restarts.
@@ -474,7 +474,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			if a.Score != b.Score {
 				return a.Score > b.Score
 			}
-			return a.Goal < b.Goal
+			return a.Concern < b.Concern
 		})
 	}
 	// No project limit: every eligible goal acts, whatever the open work holds.

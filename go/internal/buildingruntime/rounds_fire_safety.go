@@ -95,7 +95,7 @@ func (r *RoundsFireSafetyPlanner) step(call, epoch context.Context) (RoundsFireS
 	}
 	active, known := false, false
 	for _, need := range upkeepReview.Needs {
-		if need.Goal == policy.MaintainFireSafety {
+		if need.Concern == policy.MaintainFireSafety {
 			active = need.Active
 			_, known = need.Targets.Value()
 		}

@@ -147,7 +147,7 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 				pending = append(pending, progress)
 			}
 		}
-		if domain.GoalWorkOpen(pending) {
+		if domain.StandardWorkOpen(pending) {
 			return RoundsFoodStorageUpkeepResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}

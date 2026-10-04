@@ -333,7 +333,7 @@ func openWorkOfKinds(plans []store.PlanState, kinds []domain.ActionKind) []domai
 
 // progressOpen is domain.GoalWorkOpen for one progress row.
 func progressOpen(progress domain.Progress) bool {
-	return domain.GoalWorkOpen([]domain.Progress{progress})
+	return domain.StandardWorkOpen([]domain.Progress{progress})
 }
 
 // openWorkIndex indexes every open attempt across plans, for the waits'

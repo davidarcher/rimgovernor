@@ -62,7 +62,7 @@ func init() {
 }
 
 // winterSample is one rounds's stored-food reading off the flight
-// recorder's routine_review row.
+// recorder's rounds_review row.
 type winterSample struct {
 	Revision   uint64  `json:"revision"`
 	Tick       int64   `json:"tick"`
@@ -199,7 +199,7 @@ func auditWinter(output string, report na.Report) error {
 	}
 	var samples []winterSample
 	for _, row := range rows {
-		if row.Kind != "routine_review" {
+		if row.Kind != "rounds_review" {
 			continue
 		}
 		sample := winterSample{
@@ -215,7 +215,7 @@ func auditWinter(output string, report na.Report) error {
 	}
 	report["review_samples"] = samples
 	if len(samples) == 0 {
-		return fmt.Errorf("the flight recorder holds no routine_review rows")
+		return fmt.Errorf("the flight recorder holds no rounds_review rows")
 	}
 	known, growing, waiting := 0, 0, 0
 	lowest := math.Inf(1)

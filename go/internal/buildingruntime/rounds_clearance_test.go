@@ -124,11 +124,11 @@ func TestRoundsClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, binding := range review.Review.Goals {
-		if binding.Need != policy.ClearHomeObstructions {
+	for _, binding := range review.Review.Standards {
+		if binding.Concern != policy.ClearHomeObstructions {
 			continue
 		}
-		if goal, err := db.LoadStandard(ctx, binding.Goal); err != nil || goal.Standard.Finding == domain.FindingUnmet {
+		if goal, err := db.LoadStandard(ctx, binding.Standard); err != nil || goal.Standard.Finding == domain.FindingUnmet {
 			t.Fatal("forbidden and stored chunks are no clearance deficit", goal, err)
 		}
 	}

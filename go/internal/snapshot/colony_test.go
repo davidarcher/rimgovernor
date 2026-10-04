@@ -73,7 +73,7 @@ func TestRecordRebuildsDecodedColonyFacts(t *testing.T) {
 			t.Fatal(err)
 		}
 		var step Step
-		data, _ := Encode(Step{Snapshot: r.Snapshot, Tick: r.Tick, Goal: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
+		data, _ := Encode(Step{Snapshot: r.Snapshot, Tick: r.Tick, Concern: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
 		if err = Decode(data, &step); err != nil {
 			t.Fatal(err)
 		}

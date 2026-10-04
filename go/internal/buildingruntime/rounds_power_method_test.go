@@ -100,9 +100,9 @@ func TestRoundsPowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 			first, err := p.Step(context.Background())
 			if err != nil || first.Verdict != BuildingReasonAdmitted {
 				review, _ := db.LoadRounds(context.Background())
-				for _, b := range review.Goals {
-					if b.Need == policy.EnsureBasicPower {
-						g, _ := db.LoadStandard(context.Background(), b.Goal)
+				for _, b := range review.Standards {
+					if b.Concern == policy.EnsureBasicPower {
+						g, _ := db.LoadStandard(context.Background(), b.Standard)
 						t.Logf("power goal %+v", g)
 					}
 				}

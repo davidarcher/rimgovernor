@@ -54,11 +54,11 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 	var goal store.WorkOwner
 	var cohort []policy.StartingSupply
 	safetyGoal := false
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ManageSupplySafety {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.ManageSupplySafety {
 			continue
 		}
-		safety, err := p.journal.LoadStandard(call, binding.Goal)
+		safety, err := p.journal.LoadStandard(call, binding.Standard)
 		if err != nil {
 			return RoundsSupplyResult{}, err
 		}

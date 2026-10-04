@@ -13,7 +13,7 @@ import (
 // rows follow as soon as the equip family arms someone.
 func TestButcherSpotSelectionIgnoresArmedCount(t *testing.T) {
 	t.Parallel()
-	r := &RoundsBuildingPlanner{reviewer: &Rounder{policy: policy.DefaultRoundsPolicy()}, goal: policy.MaintainButcherSpot, definition: "ButcherSpot"}
+	r := &RoundsBuildingPlanner{reviewer: &Rounder{policy: policy.DefaultRoundsPolicy()}, concern: policy.MaintainButcherSpot, definition: "ButcherSpot"}
 	f := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(8)), FoodDays: domain.Known(1.75), Armed: domain.Known(int64(0))}}
 	f.ButcheringBenches = domain.Known([]observation.CookingBench{})
 	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || !reason.IsZero() {

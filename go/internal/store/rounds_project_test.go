@@ -11,7 +11,7 @@ import (
 func roundsProject(t *testing.T, r RoundsResult, need domain.ConcernID) ProjectState {
 	t.Helper()
 	for i, b := range r.Review.Projects {
-		if b.Need == need {
+		if b.Concern == need {
 			return r.Projects[i]
 		}
 	}
@@ -57,14 +57,14 @@ func TestProjectAndResponseKindsNeverMintGoalRows(t *testing.T) {
 	reviewRounds(t, s, &r)
 	// The review binds Standards as goals and Projects as Projects; no
 	// Response is bound as either (Responses are incidents).
-	for _, b := range out.Review.Goals {
-		if c := policy.ConcernTypeOf(b.Need); c != policy.StandardConcern {
-			t.Fatalf("goal binding %s is a %s kind", b.Need, c)
+	for _, b := range out.Review.Standards {
+		if c := policy.ConcernTypeOf(b.Concern); c != policy.StandardConcern {
+			t.Fatalf("goal binding %s is a %s kind", b.Concern, c)
 		}
 	}
 	for _, b := range out.Review.Projects {
-		if !policy.IsProjectKind(b.Need) {
-			t.Fatalf("project binding %s is a %s kind", b.Need, policy.ConcernTypeOf(b.Need))
+		if !policy.IsProjectKind(b.Concern) {
+			t.Fatalf("project binding %s is a %s kind", b.Concern, policy.ConcernTypeOf(b.Concern))
 		}
 	}
 	if len(out.Review.Projects) == 0 {
@@ -75,7 +75,7 @@ func TestProjectAndResponseKindsNeverMintGoalRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	ids, err := goalIDs(t.Context(), tx)
+	ids, err := concernIDs(t.Context(), tx)
 	if err != nil {
 		t.Fatal(err)
 	}

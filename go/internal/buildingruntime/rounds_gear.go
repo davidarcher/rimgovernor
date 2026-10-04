@@ -153,7 +153,7 @@ func equipmentRanked(review store.Rounds) bool {
 		return true
 	}
 	for _, row := range review.Development.Rows {
-		if row.Goal == policy.MaintainEquipment {
+		if row.Concern == policy.MaintainEquipment {
 			return row.Selected || row.Committed
 		}
 	}

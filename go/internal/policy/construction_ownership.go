@@ -16,7 +16,7 @@ import (
 type ConstructionClaim struct {
 	Plan     domain.PlanID
 	Action   domain.ActionID
-	Goal     domain.ConcernID
+	Concern  domain.ConcernID
 	Identity domain.ConstructionIdentity
 	Building domain.Building
 	Cells    []domain.Cell
@@ -102,7 +102,7 @@ func OwnedConstructions(claims domain.Fact[[]ConstructionClaim], observed domain
 	history, _ := claims.Value()
 	byBuilding := map[domain.Building]ConstructionClaim{}
 	for _, claim := range history {
-		if foodID(string(claim.Plan)) && foodID(string(claim.Action)) && foodID(string(claim.Goal)) {
+		if foodID(string(claim.Plan)) && foodID(string(claim.Action)) && foodID(string(claim.Concern)) {
 			byBuilding[claim.Building] = claim
 		}
 	}

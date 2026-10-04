@@ -326,11 +326,11 @@ func TestRoundsShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	if review, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	for _, binding := range review.Review.Goals {
-		if binding.Need != policy.ClearAncientShrine {
+	for _, binding := range review.Review.Standards {
+		if binding.Concern != policy.ClearAncientShrine {
 			continue
 		}
-		if goal, err := db.LoadStandard(ctx, binding.Goal); err != nil || goal.Standard.Finding == domain.FindingUnmet {
+		if goal, err := db.LoadStandard(ctx, binding.Standard); err != nil || goal.Standard.Finding == domain.FindingUnmet {
 			t.Fatal("a cleared shrine is no deficit", goal, err)
 		}
 	}

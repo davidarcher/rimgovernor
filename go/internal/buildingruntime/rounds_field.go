@@ -61,7 +61,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if workable && goal.Standard.Priority >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
-			selected = selected || row.Goal == policy.EnsureFoodSupply && row.Selected
+			selected = selected || row.Concern == policy.EnsureFoodSupply && row.Selected
 		}
 		if !selected {
 			workable, idle = false, awaitingSlot(string(policy.EnsureFoodSupply))
@@ -113,11 +113,11 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		protected = append(protected, h.Footprint...)
 	}
 	var shells []store.PlanState
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainHousing {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainHousing {
 			continue
 		}
-		shelter, err := p.journal.LoadStandard(call, binding.Goal)
+		shelter, err := p.journal.LoadStandard(call, binding.Standard)
 		if err != nil {
 			return RoundsFieldResult{}, err
 		}
@@ -223,7 +223,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		var tried bool
 		var err error
 		if candidate.Kind == policy.SiteOutdoor && len(candidate.Buildings) == 0 {
-			food := fieldShortfall{Goal: goal, Options: fieldBlockOptions(candidate, selection.Candidates), What: "food"}
+			food := fieldShortfall{Standard: goal, Options: fieldBlockOptions(candidate, selection.Candidates), What: "food"}
 			result, tried, err = r.placeLedger(call, epoch, state, projection, read, wait, append([]fieldShortfall{food}, others...), request.Field.Site.Anchor, protected)
 			others = nil
 		} else {
@@ -266,7 +266,7 @@ func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, review s
 			return nil, err
 		}
 		if ready {
-			out = append(out, fieldShortfall{Goal: goal, Options: []policy.FieldBlockOption{opt}, What: "hay"})
+			out = append(out, fieldShortfall{Standard: goal, Options: []policy.FieldBlockOption{opt}, What: "hay"})
 		}
 	}
 	if review.BrewingFinished && policy.BrewingFinished(projection.Facts.Research) {
@@ -277,7 +277,7 @@ func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, review s
 			}
 			for _, opt := range opts {
 				if ready {
-					out = append(out, fieldShortfall{Goal: goal, Options: []policy.FieldBlockOption{opt}, What: "social"})
+					out = append(out, fieldShortfall{Standard: goal, Options: []policy.FieldBlockOption{opt}, What: "social"})
 				}
 			}
 		}
@@ -294,10 +294,10 @@ func (r *RoundsFieldPlanner) placeLedger(call, epoch context.Context, state Cont
 			continue
 		}
 		lead := s.Options[0]
-		clockSchedulerLog("Fields ledger: %s %s needs %d (priority %d)", s.What, lead.Crop.Name, lead.Needed, s.Goal.Standard.Priority)
+		clockSchedulerLog("Fields ledger: %s %s needs %d (priority %d)", s.What, lead.Crop.Name, lead.Needed, s.Standard.Standard.Priority)
 		var tried bool
 		var err error
-		result, tried, err = r.enactBlock(call, epoch, state, s.Goal, projection, read, wait, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: lead.Crop, Needed: lead.Needed}, s.Options, anchor, protected)
+		result, tried, err = r.enactBlock(call, epoch, state, s.Standard, projection, read, wait, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: lead.Crop, Needed: lead.Needed}, s.Options, anchor, protected)
 		if err != nil || tried {
 			return result, tried, err
 		}

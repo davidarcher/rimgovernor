@@ -223,7 +223,7 @@ func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, 
 	}
 	clockSchedulerLog("%s: bedroom %s: remove replaced bed %s", goal.OwnerID(), rep.Room, rep.Bed)
 	facts := reading.Projection
-	return r.building.admitExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
+	return r.building.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }
 
 // upgradeBedroom previews and admits one upgrade piece, once per room and
@@ -290,5 +290,5 @@ func (r *RoundsSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context
 		return RoundsBuildingResult{Verdict: noSpace("bedroom_upgrade_site")}, nil
 	}
 	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.OwnerID(), u.Room, u.Def, len(selected), u.Weakest)
-	return r.building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
+	return r.building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }

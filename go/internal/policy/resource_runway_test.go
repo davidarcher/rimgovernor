@@ -114,7 +114,7 @@ func TestSurfaceOreOnlySafeMineables(t *testing.T) {
 func TestRunwaySurfacesMaintainResourceDeficit(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 100}}), ResourceRunways: []ResourceRunway{{Resource: "Steel", DaysLeft: domain.Known(2.0), Deficit: domain.Known(true)}}}
-	r, err := DetectRounds(f, RoundsLatches{}, p)
+	r, err := InspectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestRunwaySurfacesMaintainResourceDeficit(t *testing.T) {
 
 func TestUnknownRunwayCannotRecoverMaintenance(t *testing.T) {
 	f := RoundsFacts{Resources: domain.Known([]Amount{}), ResourceRunways: []ResourceRunway{{Resource: "Steel", WindowDays: 2}}}
-	r, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
+	r, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

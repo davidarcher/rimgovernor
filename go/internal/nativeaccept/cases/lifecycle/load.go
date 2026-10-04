@@ -68,8 +68,8 @@ func runLoad(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	governorBlob := `{"schemaVersion":1,"goals":[` + strings.Repeat(`{"id":"g","kind":"MaintainResource","payload":{}},`, 200) + `{}]}`
-	if blobs, err := governorState(ctx, h, "governor-state-put", "lifecycle_put_governor_state", map[string]any{"key": "goals", "blob": governorBlob}); err != nil || blobs["goals"] != governorBlob {
+	governorBlob := `{"probe":[` + strings.Repeat(`{"id":"p","payload":{}},`, 200) + `{}]}`
+	if blobs, err := governorState(ctx, h, "governor-state-put", "lifecycle_put_governor_state", map[string]any{"key": "probe", "blob": governorBlob}); err != nil || blobs["probe"] != governorBlob {
 		return fmt.Errorf("governor-state-put: blob not stored: %v", err)
 	}
 
@@ -123,7 +123,7 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("load-happy: expected READINESS_MAP, got %q", completed["readiness"])
 	}
 	report["case_happy"] = map[string]any{"saveName": setupSaveName, "colonyId": originalColonyID, "newLoadToken": afterIdentity["loadToken"]}
-	if blobs, err := governorState(ctx, h, "governor-state-loaded", "lifecycle_read_governor_state", map[string]any{}); err != nil || blobs["goals"] != governorBlob || len(blobs) != 1 {
+	if blobs, err := governorState(ctx, h, "governor-state-loaded", "lifecycle_read_governor_state", map[string]any{}); err != nil || blobs["probe"] != governorBlob || len(blobs) != 1 {
 		return fmt.Errorf("governor-state-loaded: blob did not survive the save and load: %v", err)
 	}
 	report["case_governor_state_round_trip"] = true

@@ -87,7 +87,7 @@ type RoundsPolicy struct {
 	// planners cancel it so the goal re-plans from another source instead
 	// of waiting on one plant (#291: wild healroot pending 120k ticks).
 	AcquisitionStallTicks int64
-	// GoalStallTicks bounds how long a goal's progress record (#629) may go
+	// ConcernStallTicks bounds how long a goal's progress record (#629) may go
 	// without native evidence advancing its expected observable before
 	// ExpireGoalProgress rotates the method (or keys the failed situation
 	// out with a cooldown): GoalProgressContract's default contract and the
@@ -97,7 +97,7 @@ type RoundsPolicy struct {
 	// day rather than the full day this defaults to, while starvation risk
 	// is highest; it returns to this value once the colony reaches
 	// Reserves.
-	GoalStallTicks int64
+	ConcernStallTicks int64
 	// ResearchLadder is the ordered roadmap EnsureResearch walks when the workshop ladder records no need
 	// (DefaultResearchLadder by default; empty disables the roadmap). Each
 	// rung is reached through ResearchPrerequisiteQueue like a target, a
@@ -152,7 +152,7 @@ type RoundsPolicy struct {
 // bound planner cost only and distinct observed workers decide admission.
 func DefaultRoundsPolicy() RoundsPolicy {
 	return RoundsPolicy{MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: domain.TicksPerDay / 2, AcquisitionStallTicks: domain.TicksPerDay, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: domain.TicksPerDay / 2, AcquisitionStallTicks: domain.TicksPerDay, ConcernStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
 }
 
 func (p RoundsPolicy) Validate() error {
@@ -187,8 +187,8 @@ func (p RoundsPolicy) Validate() error {
 	if p.AcquisitionStallTicks <= 0 {
 		return errors.New("invalid acquisition stall grace")
 	}
-	if p.GoalStallTicks <= 0 {
-		return errors.New("invalid goal stall grace")
+	if p.ConcernStallTicks <= 0 {
+		return errors.New("invalid standard stall grace")
 	}
 	if err := p.Trade.Validate(); err != nil {
 		return err
@@ -674,7 +674,7 @@ type RoundsLatches struct {
 type RoundsFindings struct {
 	Disaster *DisasterHistory
 	Latches  RoundsLatches
-	Goals    []DevelopmentGoal
+	Concerns []DevelopmentConcern
 	// Assessments are the Standard and Project needs the review files rows for;
 	// Incidents are the incident kinds' assessments (#1020, #1121).
 	Assessments []RoundsAssessment
@@ -783,7 +783,7 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // survival goals: it reviews the facts once, then runs every registered
 // inspection in registry order (inspections). Family-specific needs
 // join these same goals during review.
-func DetectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (RoundsFindings, error) {
+func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (RoundsFindings, error) {
 	if c, known := f.Calendar.Value(); known && !c.Valid() {
 		return RoundsFindings{}, errors.New("invalid calendar fact")
 	}
@@ -881,11 +881,11 @@ func DetectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Rounds
 	}
 	c.r = RoundsFindings{Latches: c.l}
 	for _, d := range inspections {
-		goals, assessments := len(c.r.Goals), len(c.r.Assessments)
+		goals, assessments := len(c.r.Concerns), len(c.r.Assessments)
 		if err := d.Inspect(c); err != nil {
 			return RoundsFindings{}, err
 		}
-		if n, noOp := noOpOf(d.Concern, c.r.Goals[goals:], c.r.Assessments[assessments:]); noOp {
+		if n, noOp := noOpOf(d.Concern, c.r.Concerns[goals:], c.r.Assessments[assessments:]); noOp {
 			c.r.NoOps = append(c.r.NoOps, n)
 		}
 	}
@@ -895,16 +895,16 @@ func DetectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Rounds
 	// own census still decides whether it is active and what it builds, so a
 	// recovered owner is not re-raised, and the pawn's EnsureMood incident
 	// defers to it (MoodProvision) instead of dispatching need relief.
-	for i := range r.Goals {
-		pressure, ok := MoodProvisionDeficits(f.Mood)[r.Goals[i].ID]
+	for i := range r.Concerns {
+		pressure, ok := MoodProvisionDeficits(f.Mood)[r.Concerns[i].ID]
 		if !ok {
 			continue
 		}
-		if current, known := r.Goals[i].Deficit.Value(); !known || current < pressure {
-			r.Goals[i].Deficit = domain.Known(pressure)
+		if current, known := r.Concerns[i].Deficit.Value(); !known || current < pressure {
+			r.Concerns[i].Deficit = domain.Known(pressure)
 		}
 	}
-	r.Goals = raisedAtStage(r.Goals, f, p, c.l)
+	r.Concerns = raisedAtStage(r.Concerns, f, p, c.l)
 	if methods, known := f.AvailableMethods.Value(); known {
 		available := map[ConcernID]bool{}
 		recognized := map[ConcernID]bool{}
@@ -921,16 +921,16 @@ func DetectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Rounds
 			}
 			available[id] = true
 		}
-		for i := range r.Goals {
-			if r.Goals[i].Priority >= 3 && !available[r.Goals[i].ID] {
-				r.Goals[i].MethodUnavailable = true
+		for i := range r.Concerns {
+			if r.Concerns[i].Priority >= 3 && !available[r.Concerns[i].ID] {
+				r.Concerns[i].MethodUnavailable = true
 			}
 		}
 		// Each upkeep need's method is its own serve family; an undeclared
 		// one at emergency priority is recorded without the suspension.
 		declarable := map[ConcernID]bool{}
 		for _, n := range c.upkeep.Needs {
-			declarable[n.Goal] = true
+			declarable[n.Concern] = true
 		}
 		for i := range r.Assessments {
 			if a := r.Assessments[i]; a.Priority < 2 && declarable[a.ID] && !available[a.ID] {
@@ -983,11 +983,11 @@ func criticalMedicinePriority(f RoundsFacts) int {
 // for a full spoiling emergency, the stone shell waits for stone blocks
 // (a known unfinished Stonecutting) and the animal goals for a tame animal (a census that knows of none
 // raises none).
-func raisedAtStage(goals []DevelopmentGoal, f RoundsFacts, p RoundsPolicy, l RoundsLatches) []DevelopmentGoal {
+func raisedAtStage(goals []DevelopmentConcern, f RoundsFacts, p RoundsPolicy, l RoundsLatches) []DevelopmentConcern {
 	stage := p.ColonyStage
 	for i := range goals {
 		g := goals[i]
-		allowed := StageGoalAllowed(g.ID, stage)
+		allowed := StageConcernAllowed(g.ID, stage)
 		switch g.ID {
 		case MaintainResource:
 			allowed = allowed || l.Wood || len(DependencyResourceNeeds(f.Dependencies)) > 0

@@ -26,7 +26,7 @@ func TestMealTierUsesSeasonalTargetAndOnlyActiveBill(t *testing.T) {
 func TestMealMoodLeverNeedsObservedExpectationsPressure(t *testing.T) {
 	p := MoodPawn{HighExpectations: domain.Known(true), Mood: domain.Known(.3), Target: domain.Known(.5)}
 	rows := mealMoodProvision(p, nil)
-	if len(rows) != 1 || rows[0].Goal != EnsureCooking || rows[0].Offset >= 0 {
+	if len(rows) != 1 || rows[0].Concern != EnsureCooking || rows[0].Offset >= 0 {
 		t.Fatal(rows)
 	}
 	p.Mood = domain.Known(.6)

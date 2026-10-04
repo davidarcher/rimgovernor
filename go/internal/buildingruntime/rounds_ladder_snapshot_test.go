@@ -26,8 +26,8 @@ func loadPlannerStep(t *testing.T, name string, goal policy.ConcernID) snapshot.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Goal != goal {
-		t.Fatalf("%s: recorded %s's step, want %s", name, p.Goal, goal)
+	if p.Concern != goal {
+		t.Fatalf("%s: recorded %s's step, want %s", name, p.Concern, goal)
 	}
 	return p
 }
@@ -114,7 +114,7 @@ func TestSnapshotResearchLadderBenchThenNextRung(t *testing.T) {
 		t.Fatalf("research: next %q reason %q, want Stonecutting owing a bench", next, reason)
 	}
 	step := loadStep(t, "research-ladder-step-bench", policy.EnsureResearch)
-	bench, reason, err := (&RoundsBuildingPlanner{goal: policy.EnsureResearch}).selectResearchBench(step.Projection)
+	bench, reason, err := (&RoundsBuildingPlanner{concern: policy.EnsureResearch}).selectResearchBench(step.Projection)
 	if err != nil || bench == nil || bench.definition != "SimpleResearchBench" || bench.environment != policy.PlacementIndoors {
 		t.Fatalf("bench: %+v reason %q err %v, want an indoor %s", bench, reason, err, "SimpleResearchBench")
 	}

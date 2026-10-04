@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)
 
-Go rounds track environmental disruption inside the shared goal journal.
+Go rounds track environmental disruption inside the shared concern journal.
 Native condition identities start an episode. `ColonyFactsSnapshot.environment`
 is the game-condition census: every condition affecting the map with its
 definition, implementation class, label, whether it is permanent and, for a
@@ -42,7 +42,7 @@ of that target. Forbidden or burning buildings are excluded from new work; their
 exclusion cannot clear previously tracked damage.
 
 The review records ordered refuel, breakdown and repair needs. It promotes affected
-service goals to priority 2, including wood when cooking or temperature is disrupted.
+service concerns to priority 2, including wood when cooking or temperature is disrupted.
 Existing emergency priorities, player cancellation, resource reservations and
 admission checks still apply. A known roof-sensitive hazard independently keeps
 `RecoverDisasterServices` at priority 2, including when buildings are intact or
@@ -61,7 +61,7 @@ breakdown and repair needs. Method identities include pawn/target and observed
 hit points or fuel; refuge identities include the prior area and a 600-tick lease
 window. The shared Episode supplies used methods, including retired plans.
 Refreshing a proposal does not count as attempting it. Saved typed inputs reproduce
-the candidates on load, and cancelled or emergency-suspended goals receive no new
+the candidates on load, and cancelled or emergency-suspended concerns receive no new
 proposals.
 
 Candidates require fresh native preview of pawn eligibility, reachability,
@@ -69,7 +69,7 @@ reservations, supplies, area safety and non-widening restrictions. Native job an
 area-lease dispatch remain unavailable until the shared action family is connected.
 Proposals do not allocate resources, alter areas, issue jobs or prove recovery.
 
-Manual clears candidates and suspends the recovery goal while retaining observation
+Manual clears candidates and suspends the recovery concern while retaining observation
 history; the episode survives a resume. Colony/load/map replacement or tick rewind
 resets it.
 A restored episode stays closed through unrelated later shortages and a newly

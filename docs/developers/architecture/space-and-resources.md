@@ -57,7 +57,7 @@ acquisition, while an unrelated routine deficit does not. Positive scores sort b
 score descending, then kind and stable source ID; input order cannot break ties.
 These are alternatives, not a batch allocation or permission to dispatch. Consumers
 must bound selected work and refresh demand, reach, native safety and storage before
-using the existing goals and Hands path. Remote loot consumes it through the
+using the existing concerns and Hands path. Remote loot consumes it through the
 [supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach)
 (#522). Surface mining uses the same reach ceiling and one-rock demand batches
 ([mining contract](../contracts/mining-contracts.md)); salvage reads the
@@ -99,7 +99,7 @@ and counts each placement or completed bill only once.
 
 ## Development uses observed room functions
 
-Shelter, food services and later capacity share the same maintained goals. A
+Shelter, food services and later capacity share the same maintained concerns. A
 phase advances when native indoor sleeping capacity and service gates verify its
 function; issuing construction cannot advance it. Growth can reopen shelter work.
 Future phases reserve no land. A player can adopt an inspected existing room,
@@ -133,7 +133,7 @@ colonist can fill the starter hut). A bench gated only by research records its p
 builder, or power no generator can supply, is an explicit
 `workshop_bench_unavailable` prerequisite. Once a bench with the recipe exists
 the workshop planner steps aside: an allow-list stockpile for the recipe's
-ingredients is placed in the Workshop room, and the resource goal's bill path,
+ingredients is placed in the Workshop room, and the resource concern's bill path,
 worker coverage for the bench's own work type, and native readback of the
 rising item count carry the deficit to recovery. The full ladder and the
 per-role matrix are in [facilities](facilities.md).
@@ -191,9 +191,9 @@ constrained terrain grow a connected irregular footprint
 A shell whose materials run out mid-build simply holds: dispatched wall
 orders wait for stock with no attempt timeout, and the review neither sites
 a second shell nor reissues an order while the plan is live.
-Pausing and resuming control keeps the routine goal and its shell plan, so a
+Pausing and resuming control keeps the routine concern and its shell plan, so a
 restart mid-construction simply waits on the open plan. Only a world change
-(load token, map, tick rewind) invalidates the goal; the successor then
+(load token, map, tick rewind) invalidates the concern; the successor then
 recognises the half-built shell from its own earlier shell plans and the
 walls and door standing natively (whatever its shape, template or grown) and
 reissues only its missing cells rather than siting a second shell.
@@ -218,7 +218,7 @@ its native costs; issued blueprints and frames contribute their native deficits 
 of being counted a second time.
 
 Building admission never checks stock: RimWorld places blueprints regardless
-and the frames hold natively for materials, which the upkeep goals then read as
+and the frames hold natively for materials, which the upkeep concerns then read as
 a deficit. Admission guards geometry, safety and freshness only. The native
 production path checks actual recipe ingredients and consumption. A controller-side
 stock estimate alone could not protect a reserve once an ordinary bill begins consuming
@@ -228,11 +228,11 @@ a different permitted ingredient.
 
 Planners that return proposals do not commit anything
 themselves: the step's coordinator ranks the wave's proposals by (planner
-priority, goal urgency, proposal ID) and checks each one's pawn, entity and
+priority, concern urgency, proposal ID) and checks each one's pawn, entity and
 quantity claims before its commit runs. Quantities are checked against the
 stock the rounds observed less what earlier proposals in the step
 claimed and less the `ActivePlanCommitments` view (`store.LoadPlanCommitments`):
-for every admitted plan bound to an active goal, the admitted costs of its
+for every admitted plan bound to an active concern, the admitted costs of its
 next work segment, the actions whose prerequisites have completed in the
 current world or that are already dispatched. Costs still waiting on a
 prerequisite are the plan's remainder and are exposed as demand, never held,
@@ -248,8 +248,8 @@ A proposal the free stock cannot cover is refused as demand with its
 shortfall on the step row, unless less urgent commitments can release it: a
 strictly more urgent proposal retires the smallest set of undispatched,
 less urgent plans that covers the shortage through `store.PreemptMethod`
-(the ordinary cancellation rows, as a recovered goal's undispatched methods
-retire), and claims what they held in the same step. The preempted goal stays
+(the ordinary cancellation rows, as a recovered concern's undispatched methods
+retire), and claims what they held in the same step. The preempted concern stays
 active and its planner re-evaluates it at the next review. Dispatched work is
 never preempted. Commitments are a software view: dispatch revalidates every
 order against the live game, and the admission path beneath each commit still
@@ -257,7 +257,7 @@ checks its own stock and reservations.
 
 ## Production capacity is not current stock
 
-A resource goal may designate mining or harvest work, or configure an ordinary
+A resource concern may designate mining or harvest work, or configure an ordinary
 production bill. Any ordinary recipe whose products are all items may carry such a
 bill, not only food; the pawn work type a bill needs is the type of the
 `WorkGiver_DoBill` giver serving that bench (read from the definition catalog's

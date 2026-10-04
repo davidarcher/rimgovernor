@@ -36,8 +36,8 @@ func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
 			return store.StandardState{Standard: domain.Standard{Priority: priority}}
 		}
 		ledger := rankFieldShortfalls([]fieldShortfall{
-			{Goal: goal(hayPriority), Options: []policy.FieldBlockOption{{Crop: hay, Needed: 200}}, What: "hay"},
-			{Goal: goal(ricePriority), Options: rice(400), What: "food"},
+			{Standard: goal(hayPriority), Options: []policy.FieldBlockOption{{Crop: hay, Needed: 200}}, What: "hay"},
+			{Standard: goal(ricePriority), Options: rice(400), What: "food"},
 		})
 		got := map[string]int{}
 		for i, s := range ledger {

@@ -68,7 +68,7 @@ func (r *RoundsCleanPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// while this review's arbitration actually selected it.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.MaintainCleanFacilities && row.Selected
+		selected = selected || row.Concern == policy.MaintainCleanFacilities && row.Selected
 	}
 	if !selected {
 		return RoundsCleanResult{Verdict: awaitingSlot(string(policy.MaintainCleanFacilities))}, nil
@@ -112,7 +112,7 @@ func (r *RoundsCleanPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	var targetIDs []string
 	for _, need := range upkeepReview.Needs {
-		if need.Goal == policy.MaintainCleanFacilities {
+		if need.Concern == policy.MaintainCleanFacilities {
 			targetIDs, _ = need.Targets.Value()
 		}
 	}

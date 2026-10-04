@@ -295,10 +295,10 @@ architecture and procedure docs when behaviour changes.
 
 The governor makes **Rounds**, running an **Inspection** on each **Concern**
 in its **Department**; a Concern takes one **Type**: **Standard**,
-**Project** or **Incident**. Code and storage still carry the old words
-until the rename children of
-[#1964](https://github.com/davidarcher/rimgovernor/issues/1964) land, so
-grep the old word to find the new one. Full table and per-rename status:
+**Project** or **Incident**. The rename of
+[#1964](https://github.com/davidarcher/rimgovernor/issues/1964) is complete:
+code, storage and logs use the new words, and the table maps the old words
+for grep and history. Full table and per-rename status:
 [agent runbook glossary](docs/developers/agent-runbook.md#vocabulary-glossary-epic-1964).
 
 | Old | New |

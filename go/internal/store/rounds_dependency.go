@@ -21,7 +21,7 @@ import (
 // current stock (roundsDependencies).
 type DependencyRecord struct {
 	Need     domain.ConcernID
-	Goal     domain.ConcernID
+	Concern  domain.ConcernID
 	Episode  uint64
 	Method   domain.MethodID
 	Plan     domain.PlanID
@@ -35,11 +35,11 @@ type DependencyRecord struct {
 const maxDependencyRecords = 64
 
 func (d DependencyRecord) validate() error {
-	if d.Need == "" || d.Goal == "" || d.Method == "" || d.Plan == "" || d.Resource == "" || len(d.Costs) == 0 || len(d.Costs) > 256 || d.Available < 0 || d.Observed < 0 {
+	if d.Need == "" || d.Concern == "" || d.Method == "" || d.Plan == "" || d.Resource == "" || len(d.Costs) == 0 || len(d.Costs) > 256 || d.Available < 0 || d.Observed < 0 {
 		return errors.New("invalid dependency record")
 	}
 	if _, ok := policy.ResourcePrerequisite(d.Resource); !ok {
-		return errors.New("dependency resource has no prerequisite goal")
+		return errors.New("dependency resource has no prerequisite standard")
 	}
 	for _, c := range d.Costs {
 		if c.Action == "" || c.Count <= 0 || c.Count > 1_000_000 {
@@ -67,7 +67,7 @@ func ShortfallDependency(need domain.ConcernID, goal domain.Standard, method dom
 	if available < 0 {
 		return DependencyRecord{}, false
 	}
-	rec := DependencyRecord{Need: need, Goal: goal.ID, Episode: goal.Episode, Method: method, Plan: plan, Resource: resource, Available: available, Observed: tick}
+	rec := DependencyRecord{Need: need, Concern: goal.ID, Episode: goal.Episode, Method: method, Plan: plan, Resource: resource, Available: available, Observed: tick}
 	var total int64
 	for _, p := range previews {
 		costs, known := p.Costs.Value()
@@ -108,7 +108,7 @@ func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec Depen
 	}
 	kept := []DependencyRecord{rec}
 	for _, d := range review.Dependencies {
-		if d.Goal != rec.Goal || d.Method != rec.Method || d.Resource != rec.Resource {
+		if d.Concern != rec.Concern || d.Method != rec.Method || d.Resource != rec.Resource {
 			kept = append(kept, d)
 		}
 	}
@@ -132,8 +132,8 @@ func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec Depen
 
 func sortDependencies(d []DependencyRecord) {
 	sort.SliceStable(d, func(i, j int) bool {
-		if d[i].Goal != d[j].Goal {
-			return d[i].Goal < d[j].Goal
+		if d[i].Concern != d[j].Concern {
+			return d[i].Concern < d[j].Concern
 		}
 		if d[i].Method != d[j].Method {
 			return d[i].Method < d[j].Method
@@ -149,16 +149,16 @@ func sortDependencies(d []DependencyRecord) {
 // older than a game day. The shortfall is recomputed from the actions
 // still open against the current stock, so wood gained since admission
 // shrinks the donation; unknown stock keeps the record but donates nothing.
-func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoundsGoal, states []WorkOwner, facts policy.RoundsFacts, tick domain.Tick) ([]DependencyRecord, []policy.DevelopmentDependency, error) {
+func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoundsStandard, states []WorkOwner, facts policy.RoundsFacts, tick domain.Tick) ([]DependencyRecord, []policy.DevelopmentDependency, error) {
 	active := map[domain.ConcernID]WorkOwner{}
 	for i, b := range bindings {
-		active[b.Need] = states[i]
+		active[b.Concern] = states[i]
 	}
 	var kept []DependencyRecord
 	var edges []policy.DevelopmentDependency
 	for _, rec := range records {
 		g, ok := active[rec.Need]
-		if !ok || domain.ConcernID(g.OwnerID()) != rec.Goal || g.OwnerEpoch() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
+		if !ok || domain.ConcernID(g.OwnerID()) != rec.Concern || g.OwnerEpisode() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
 			continue
 		}
 		prerequisite, ok := policy.ResourcePrerequisite(rec.Resource)
@@ -191,7 +191,7 @@ func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRec
 			continue
 		}
 		kept = append(kept, rec)
-		edges = append(edges, policy.DevelopmentDependency{Dependent: rec.Need, Goal: rec.Goal, Episode: rec.Episode, Method: rec.Method, Prerequisite: prerequisite, Resource: rec.Resource, Costs: costs, Available: resourceStock(facts, rec.Resource), Observed: rec.Observed})
+		edges = append(edges, policy.DevelopmentDependency{Dependent: rec.Need, Concern: rec.Concern, Episode: rec.Episode, Method: rec.Method, Prerequisite: prerequisite, Resource: rec.Resource, Costs: costs, Available: resourceStock(facts, rec.Resource), Observed: rec.Observed})
 	}
 	return kept, edges, nil
 }
@@ -222,10 +222,10 @@ func priorDependencies(ctx context.Context, tx *sql.Tx, previous Rounds, facts p
 	if len(previous.Dependencies) == 0 {
 		return nil, nil
 	}
-	var bindings []RoundsGoal
+	var bindings []RoundsStandard
 	var states []WorkOwner
-	for _, b := range previous.Goals {
-		g, err := loadGoal(ctx, tx, b.Goal)
+	for _, b := range previous.Standards {
+		g, err := loadStandard(ctx, tx, b.Standard)
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
 			continue
 		}
@@ -242,7 +242,7 @@ func priorDependencies(ctx context.Context, tx *sql.Tx, previous Rounds, facts p
 		if err != nil {
 			return nil, err
 		}
-		bindings, states = append(bindings, RoundsGoal{Need: b.Need, Goal: domain.ConcernID(b.Project)}), append(states, g)
+		bindings, states = append(bindings, RoundsStandard{Concern: b.Concern, Standard: domain.ConcernID(b.Project)}), append(states, g)
 	}
 	_, edges, err := roundsDependencies(ctx, tx, previous.Dependencies, bindings, states, facts, tick)
 	return edges, err

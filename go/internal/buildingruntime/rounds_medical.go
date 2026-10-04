@@ -276,7 +276,7 @@ func (r *RoundsMedicalPlanner) harvestMedicine(call, epoch context.Context, stat
 	held := map[string]bool{}
 	for _, plan := range plans {
 		for _, progress := range plan.Progress {
-			if acquisition, ok := progress.Action().Acquisition(); ok && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if acquisition, ok := progress.Action().Acquisition(); ok && domain.StandardWorkOpen([]domain.Progress{progress}) {
 				held[acquisition.Thing()] = true
 			}
 		}

@@ -98,7 +98,7 @@ func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepA
 	// priority>=3 autopilot goals.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.MaintainGeneBank && row.Selected
+		selected = selected || row.Concern == policy.MaintainGeneBank && row.Selected
 	}
 	if !selected {
 		return RoundsBuildingResult{Verdict: awaitingSlot(string(policy.MaintainGeneBank))}, nil

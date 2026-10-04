@@ -23,7 +23,7 @@ type Planner struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
-	Goal     policy.ConcernID
+	Concern  policy.ConcernID
 	// Shelter is every starter search the step ran, in order.
 	Shelter []policy.StarterRequest
 	// Excavation is the tunnel corridor search the step ran, if any.
@@ -87,7 +87,7 @@ func StartPlanner(ctx context.Context, goal policy.ConcernID) (context.Context, 
 	if dir == "" {
 		return ctx, func(domain.GenerationSnapshot, domain.Tick) error { return nil }
 	}
-	rec := &plannerRecorder{p: Planner{Goal: goal}}
+	rec := &plannerRecorder{p: Planner{Concern: goal}}
 	return context.WithValue(ctx, plannerKey{}, rec), func(current domain.GenerationSnapshot, tick domain.Tick) error {
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
@@ -202,7 +202,7 @@ func RecordPlanner(dir string, p Planner) error {
 	}
 	// Several steps at one paused tick each keep their own file.
 	for seq := 1; ; seq++ {
-		f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("planner-%s-%d-%d.json", p.Goal, p.Tick, seq)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("planner-%s-%d-%d.json", p.Concern, p.Tick, seq)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if errors.Is(err, fs.ErrExist) {
 			continue
 		}

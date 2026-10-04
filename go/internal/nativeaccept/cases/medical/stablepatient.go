@@ -29,7 +29,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "medical/stable-patient",
 		Scope: "Diagnostic: CriticalMedicine (two Flu patients plus a forced GoJuiceAddiction " +
-			"withdrawal patient) and EnsureFoodSupply (concurrent pre-seeded growing zone/campfire bill) goal-state " +
+			"withdrawal patient) and EnsureFoodSupply (concurrent pre-seeded growing zone/campfire bill) standard-state " +
 			"timelines under the live rounder/field planner, evidence for issue #1's stable-patient feeding " +
 			"acceptance extension to withdrawal recovery and concurrent food production. Not a pass/fail acceptance gate.",
 		Start: cases.Fixture{
@@ -57,7 +57,7 @@ func init() {
 				return fmt.Errorf("medical_management_setup: missing withdrawalPatient identifier: %#v", medicalPrepared)
 			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.CriticalMedicine, Extra: []policy.ConcernID{policy.EnsureFoodSupply}},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Concern: policy.CriticalMedicine, Extra: []policy.ConcernID{policy.EnsureFoodSupply}},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					productionPrepared, err := h.Call(ctx, "production-setup", "test/routine_production_prepare", map[string]any{})
 					if err != nil {
@@ -76,12 +76,12 @@ func init() {
 						return err
 					}
 					defer journal.Close()
-					food, err := sustainedfood.SampleGoal(ctx, journal, policy.EnsureFoodSupply)
+					food, err := sustainedfood.SampleStandard(ctx, journal, policy.EnsureFoodSupply)
 					if err != nil {
 						return err
 					}
 					report["food_final"] = food
-					medical, err := sustainedfood.SampleGoal(ctx, journal, policy.CriticalMedicine)
+					medical, err := sustainedfood.SampleStandard(ctx, journal, policy.CriticalMedicine)
 					if err != nil {
 						return err
 					}

@@ -37,7 +37,7 @@ func NewRoundsPrisonerInteractionPlanner(reviewer *Rounder) (*RoundsPrisonerInte
 	}
 	r := &RoundsPrisonerInteractionPlanner{reviewer: reviewer}
 	if source, ok := reviewer.native.(RoundsBuildingSource); ok {
-		r.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainPopulation, definition: "Wall"}
+		r.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, concern: policy.MaintainPopulation, definition: "Wall"}
 	}
 	return r, nil
 }

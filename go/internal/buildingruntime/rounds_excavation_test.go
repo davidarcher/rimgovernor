@@ -15,12 +15,12 @@ import (
 // methodPlan is the plan decision bound to method (or a stub of it).
 func methodPlan(t *testing.T, decision store.BuildingMethodDecision, method domain.MethodID) domain.PlanID {
 	t.Helper()
-	for _, m := range decision.Goal.Methods {
+	for _, m := range decision.Standard.Methods {
 		if matchesMethod(m.Method, method) {
 			return m.Plan
 		}
 	}
-	t.Fatal("method not admitted", method, decision.Goal.Methods)
+	t.Fatal("method not admitted", method, decision.Standard.Methods)
 	return ""
 }
 
@@ -69,9 +69,9 @@ func TestCancelStalledExcavation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var goal store.StandardState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainResource {
-			if goal, err = db.LoadStandard(ctx, binding.Goal); err != nil {
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainResource {
+			if goal, err = db.LoadStandard(ctx, binding.Standard); err != nil {
 				t.Fatal(err)
 			}
 		}

@@ -105,7 +105,7 @@ func init() {
 		Run: func(ctx context.Context, s cases.Session) error {
 			if err := s.Stage(ctx, benchStage, func(ctx context.Context) error {
 				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-					WatchConfig: sustainedfood.WatchConfig{Watch: benchWindow, Goal: policy.MaintainResource, Until: benchBuilt, FailFast: ladderFailFast},
+					WatchConfig: sustainedfood.WatchConfig{Watch: benchWindow, Concern: policy.MaintainResource, Until: benchBuilt, FailFast: ladderFailFast},
 					Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 						prepared := s.Prepared()
 						report["fixture"] = prepared
@@ -153,7 +153,7 @@ func init() {
 				s.Report()["baseline_count"] = na.AsNumber(restored)
 			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced, FailFast: ladderFailFast},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Concern: policy.MaintainResource, Until: billProduced, FailFast: ladderFailFast},
 			})
 			return err
 		},
@@ -234,8 +234,8 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		return fmt.Errorf("load rounds: %w", err)
 	}
 	goals := map[policy.ConcernID]domain.ConcernID{}
-	for _, binding := range review.Goals {
-		goals[binding.Need] = binding.Goal
+	for _, binding := range review.Standards {
+		goals[binding.Concern] = binding.Standard
 	}
 	id, ok := goals[policy.MaintainResource]
 	if !ok {
@@ -245,7 +245,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if err != nil {
 		return err
 	}
-	report[strings.ToLower(string(policy.MaintainResource))+"_goal"] = map[string]any{"status": string(goal.Standard.Status), "need": string(goal.Standard.Finding), "methods": len(goal.Methods)}
+	report[strings.ToLower(string(policy.MaintainResource))+"_standard"] = map[string]any{"status": string(goal.Standard.Status), "need": string(goal.Standard.Finding), "methods": len(goal.Methods)}
 	// EnsureResearch is a Project (#1911): its own row, not a goal.
 	projectID, ok := review.ProjectFor(policy.EnsureResearch)
 	if !ok {
@@ -255,7 +255,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if err != nil {
 		return err
 	}
-	report[strings.ToLower(string(policy.EnsureResearch))+"_goal"] = map[string]any{"status": string(research.Project.Status), "need": string(research.Project.Finding), "methods": len(research.Methods)}
+	report[strings.ToLower(string(policy.EnsureResearch))+"_standard"] = map[string]any{"status": string(research.Project.Status), "need": string(research.Project.Finding), "methods": len(research.Methods)}
 	ladder, ok, err := journal.LoadProductionLadder(ctx, store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map})
 	if err != nil {
 		return err

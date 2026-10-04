@@ -36,7 +36,7 @@ func TestPendingLetterRaisesPopulationNeedOnlyWithRoom(t *testing.T) {
 		QuestOffers: domain.Known([]JoinerOffer{}), JoinerLetters: domain.Known([]JoinerLetterOffer{{ID: 3, CanAccept: true}})}
 	for _, food := range []float64{20, 1} {
 		facts.FoodDays = domain.Known(food)
-		needs, err := DetectRounds(facts, RoundsLatches{}, DefaultRoundsPolicy())
+		needs, err := InspectRounds(facts, RoundsLatches{}, DefaultRoundsPolicy())
 		if err != nil {
 			t.Fatal(err)
 		}

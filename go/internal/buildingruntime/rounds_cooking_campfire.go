@@ -77,7 +77,7 @@ func campfireRetirement(facts observation.ColonyProjection, claims []policy.Cons
 func heatCampfireCells(claims []policy.ConstructionClaim) map[domain.Cell]bool {
 	heat := map[domain.Cell]bool{}
 	for _, claim := range claims {
-		if claim.Goal == policy.EnsureTemperatureSafety && claim.Building.Definition() == "Campfire" {
+		if claim.Concern == policy.EnsureTemperatureSafety && claim.Building.Definition() == "Campfire" {
 			for _, c := range claim.Cells {
 				heat[c] = true
 			}
@@ -210,5 +210,5 @@ func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, stat
 	}
 	clockSchedulerLog("%s: retire %s %s at %d,%d", goal.OwnerID(), label, campfire.ID, campfire.Cells[0].X, campfire.Cells[0].Z)
 	facts := reading.Projection
-	return r.admitExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
+	return r.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }

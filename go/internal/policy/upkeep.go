@@ -84,7 +84,7 @@ type UpkeepHistory struct {
 	DirtyRooms []DirtyRoom `json:",omitempty"`
 }
 type UpkeepNeed struct {
-	Goal     ConcernID
+	Concern  ConcernID
 	Priority int
 	Active   bool
 	Targets  domain.Fact[[]string]

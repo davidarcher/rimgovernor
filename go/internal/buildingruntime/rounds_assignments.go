@@ -55,13 +55,13 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		return RoundsWorkResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	deficit := false
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainResource {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainResource {
 			continue
 		}
 		// A resource deficit needs its bench work type covered before
 		// the bill can be admitted natively (roundsDeficitWork).
-		resource, err := p.journal.LoadStandard(call, binding.Goal)
+		resource, err := p.journal.LoadStandard(call, binding.Standard)
 		if err != nil {
 			return RoundsWorkResult{}, err
 		}

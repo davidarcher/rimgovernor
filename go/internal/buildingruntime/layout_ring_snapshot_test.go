@@ -24,7 +24,7 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 	if tier := styleTier(facts); tier != policy.BuildTierMasonry {
 		t.Fatalf("build tier %v, want Masonry", tier)
 	}
-	planner := &RoundsBuildingPlanner{reviewer: &Rounder{policy: r.Policy}, goal: policy.MaintainHousing, phase: policy.HousingExpansion, shelter: true, definition: "Wall"}
+	planner := &RoundsBuildingPlanner{reviewer: &Rounder{policy: r.Policy}, concern: policy.MaintainHousing, phase: policy.HousingExpansion, shelter: true, definition: "Wall"}
 	rooms, shells := planner.plannedRooms(facts)
 	if len(rooms) == 0 {
 		t.Fatal("no planned room for the capacity ring")

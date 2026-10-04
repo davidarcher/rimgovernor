@@ -22,7 +22,7 @@ func TestLarderHandlingDoesNotWaitForDevelopmentSlot(t *testing.T) {
 	f := stableRounds()
 	f.FoodStorageUpkeep = larderObservation(larderCorpse("a", false, 300, 2))
 	r := needs(t, f, RoundsLatches{})
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainFoodStorage {
 			if g.Priority != 2 || g.MethodUnavailable {
 				t.Fatal("larder handling must be available as food upkeep", g)

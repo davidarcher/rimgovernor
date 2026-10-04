@@ -189,7 +189,7 @@ type ResearchFacts struct {
 // census lists and has not finished. Unknown facts keep the first derived
 // need so the deficit stays unknown rather than recovered; no need at all
 // is no target.
-func ResearchGoalTarget(configured string, derived []string, facts domain.Fact[ResearchFacts]) string {
+func ResearchConcernTarget(configured string, derived []string, facts domain.Fact[ResearchFacts]) string {
 	if configured != "" || len(derived) == 0 {
 		return configured
 	}
@@ -229,14 +229,14 @@ func DefaultResearchLadder() []string {
 // rung of RoundsPolicy.ResearchLadder. A ladder rung is only walked under a
 // known research census: the ladder is a default, not a declared need, and
 // without the census there is nothing to measure it against.
-func ResearchGoal(p RoundsPolicy, needs []string, facts domain.Fact[ResearchFacts]) (target string, derived bool) {
-	if target = ResearchGoalTarget("", needs, facts); target != "" {
+func ResearchConcern(p RoundsPolicy, needs []string, facts domain.Fact[ResearchFacts]) (target string, derived bool) {
+	if target = ResearchConcernTarget("", needs, facts); target != "" {
 		return target, true
 	}
 	if _, known := facts.Value(); !known {
 		return "", false
 	}
-	return ResearchGoalTarget("", p.ResearchLadder, facts), false
+	return ResearchConcernTarget("", p.ResearchLadder, facts), false
 }
 
 // ResearchGate names the first project of required that the native census
@@ -336,7 +336,7 @@ var outdoorHazards = map[string]bool{"ToxicFallout": true}
 // and Hands dispatch guards still apply.
 func RoundsDevelopmentRisk(id ConcernID, f RoundsFacts, l RoundsLatches) domain.Fact[float64] {
 	outdoor := false
-	for _, w := range GoalLabor(id) {
+	for _, w := range ConcernLabor(id) {
 		outdoor = outdoor || w == WorkConstruction || w == WorkMining || w == WorkPlantCutting
 	}
 	if !outdoor {

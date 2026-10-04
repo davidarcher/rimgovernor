@@ -142,7 +142,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	reviewData, _ := json.Marshal(review)
-	report["routine_review_first"] = json.RawMessage(reviewData)
+	report["rounds_review_first"] = json.RawMessage(reviewData)
 
 	// The review must latch the facility and bind MaintainRoutes.
 	waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Minute)
@@ -162,12 +162,12 @@ func run(ctx context.Context, s cases.Session) error {
 	released := false
 	for renewals := 0; !released && len(plans) < 4; {
 		methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-		goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainRoutes, previous)
+		concernID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainRoutes, previous)
 		methodCancel()
 		if err != nil {
 			return fmt.Errorf("routes method: %w", err)
 		}
-		report["goal_id"] = string(goalID)
+		report["concern_id"] = string(concernID)
 		previous = &method
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
@@ -404,15 +404,15 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, 
 		if !latchedOn(r, key) {
 			return false
 		}
-		for _, binding := range r.Goals {
-			if binding.Need == policy.MaintainRoutes {
+		for _, binding := range r.Standards {
+			if binding.Concern == policy.MaintainRoutes {
 				return true
 			}
 		}
 		return false
 	})
 	if err != nil {
-		return review, fmt.Errorf("review never latched facility %s with a bound MaintainRoutes goal (revision %d, latches %+v): %w", key, review.Revision, review.Latches.Routes, err)
+		return review, fmt.Errorf("review never latched facility %s with a bound MaintainRoutes standard (revision %d, latches %+v): %w", key, review.Revision, review.Latches.Routes, err)
 	}
 	return review, nil
 }

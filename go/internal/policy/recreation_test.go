@@ -83,12 +83,12 @@ func TestRecreationSelectionUsesNativeKindAndAvailability(t *testing.T) {
 func TestRecreationVarietyRanksAsMaintenance(t *testing.T) {
 	f := stableRounds()
 	f.BasicComfort = domain.Known(joyComfort("a", "b"))
-	r, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
+	r, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := false
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == EnsureComfort {
 			found = true
 			if g.Priority != 3 || g.Deficit != domain.Known(.5) || g.MethodUnavailable {

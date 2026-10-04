@@ -41,14 +41,14 @@ func stableRounds() RoundsFacts {
 }
 func needs(t *testing.T, f RoundsFacts, l RoundsLatches) RoundsFindings {
 	t.Helper()
-	r, e := DetectRounds(f, l, DefaultRoundsPolicy())
+	r, e := InspectRounds(f, l, DefaultRoundsPolicy())
 	if e != nil {
 		t.Fatal(e)
 	}
 	return r
 }
 func hasNeed(r RoundsFindings, id ConcernID) bool {
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == id {
 			return true
 		}
@@ -69,7 +69,7 @@ func assessedDeficit(r RoundsFindings, id ConcernID) bool {
 func TestRoundsStableAndRenewedDeficits(t *testing.T) {
 	f := stableRounds()
 	r := needs(t, f, RoundsLatches{})
-	if len(r.Goals) != 0 {
+	if len(r.Concerns) != 0 {
 		t.Fatal(r)
 	}
 	f.FoodDays = domain.Known(2.0)
@@ -106,7 +106,7 @@ func TestRoundsUnknownNeverRecovers(t *testing.T) {
 	if !hasNeed(r, ActiveCombat) || !hasNeed(r, CriticalMedicine) {
 		t.Fatal("unknown emergency facts must hold", r)
 	}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainResource {
 			if _, known := g.Deficit.Value(); known {
 				t.Fatal("unknown stock became zero")
@@ -160,12 +160,12 @@ func TestRoundsRestingMedicalStillRequiresKnownPatients(t *testing.T) {
 	f.AllPatientsResting = domain.Known(true)
 	f.CriticalPatients = domain.Known(int64(1))
 	r := needs(t, f, RoundsLatches{})
-	if r.Goals[0].ID != CriticalMedicine || r.Goals[0].Priority != 2 {
+	if r.Concerns[0].ID != CriticalMedicine || r.Concerns[0].Priority != 2 {
 		t.Fatal(r)
 	}
 	f.CriticalPatients = domain.Unknown[int64]()
 	r = needs(t, f, RoundsLatches{})
-	if r.Goals[0].Priority != 1 {
+	if r.Concerns[0].Priority != 1 {
 		t.Fatal(r)
 	}
 }
@@ -178,7 +178,7 @@ func TestRoundsStablePatientsAreNotAnEmergency(t *testing.T) {
 	f.CriticalPatients = domain.Known(int64(1))
 	f.UrgentPatients = domain.Known(int64(0))
 	r := needs(t, f, RoundsLatches{})
-	if r.Goals[0].ID != CriticalMedicine || r.Goals[0].Priority != 2 {
+	if r.Concerns[0].ID != CriticalMedicine || r.Concerns[0].Priority != 2 {
 		t.Fatal(r)
 	}
 	for _, a := range r.Assessments {
@@ -188,24 +188,24 @@ func TestRoundsStablePatientsAreNotAnEmergency(t *testing.T) {
 	}
 	for _, urgent := range []domain.Fact[int64]{domain.Known(int64(1)), domain.Unknown[int64]()} {
 		f.UrgentPatients = urgent
-		if r := needs(t, f, RoundsLatches{}); r.Goals[0].ID != CriticalMedicine || r.Goals[0].Priority != 1 {
+		if r := needs(t, f, RoundsLatches{}); r.Concerns[0].ID != CriticalMedicine || r.Concerns[0].Priority != 1 {
 			t.Fatal(r)
 		}
 	}
 	f.UrgentPatients = domain.Known(int64(-1))
-	if _, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy()); err == nil {
+	if _, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy()); err == nil {
 		t.Fatal("negative urgent count accepted")
 	}
 }
 func TestRoundsRejectsInvalidFactsAndPolicy(t *testing.T) {
 	f := stableRounds()
 	f.FoodDays = domain.Known(math.NaN())
-	if _, e := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy()); e == nil {
+	if _, e := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy()); e == nil {
 		t.Fatal("NaN accepted")
 	}
 	p := DefaultRoundsPolicy()
 	p.HotExit = p.HotEnter
-	if _, e := DetectRounds(stableRounds(), RoundsLatches{}, p); e == nil {
+	if _, e := InspectRounds(stableRounds(), RoundsLatches{}, p); e == nil {
 		t.Fatal("invalid thresholds accepted")
 	}
 }
@@ -217,7 +217,7 @@ func TestRoundsRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
 	r := needs(t, f, RoundsLatches{})
 	for _, id := range []ConcernID{MaintainEssentialRepairs, MaintainCleanFacilities} {
 		found := false
-		for _, g := range r.Goals {
+		for _, g := range r.Concerns {
 			if g.ID == id {
 				found = true
 				if g.MethodUnavailable {
@@ -237,7 +237,7 @@ func TestRoundsMealClosetOwedOpensRefrigeration(t *testing.T) {
 	f := stableRounds()
 	f.FoodStorageUpkeep = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{})}
 	open := func(r RoundsFindings) (bool, float64) {
-		for _, g := range r.Goals {
+		for _, g := range r.Concerns {
 			if g.ID == MaintainRefrigeration {
 				d, _ := g.Deficit.Value()
 				return true, d
@@ -259,7 +259,7 @@ func TestRoundsSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 	f.PowerRequired, f.PowerHeadroom = domain.Known(true), domain.Known(-100.0)
 	f.FoodStorageUpkeep = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 20, 20)})}
 	method := func(r RoundsFindings, id ConcernID) (open, unavailable bool) {
-		for _, g := range r.Goals {
+		for _, g := range r.Concerns {
 			if g.ID == id {
 				return true, g.MethodUnavailable
 			}
@@ -307,15 +307,15 @@ func TestMedicalCarePhaseKeepsRestocking(t *testing.T) {
 	f.MedicalReserve = MedicalReserveObservation{Catalog: CoreItemFacts(), Items: domain.Known([]MedicineStack{}), Resources: domain.Known([]Amount{})}
 	p := DefaultRoundsPolicy()
 	p.ColonyStage = StageStable
-	r, err := DetectRounds(f, RoundsLatches{}, p)
+	r, err := InspectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r.Latches.Medical != MedicalCare || !r.Latches.MedicalReserve || !r.Latches.Medical.Restocks() || !hasNeed(r, MaintainMedicalReserves) {
-		t.Fatal(r.Latches.Medical, r.Latches.MedicalReserve, r.Goals)
+		t.Fatal(r.Latches.Medical, r.Latches.MedicalReserve, r.Concerns)
 	}
 	f.MedicalCareRecovered = domain.Known(true)
-	if r, err = DetectRounds(f, r.Latches, p); err != nil || r.Latches.Medical != MedicalReserves || !r.Latches.Medical.Restocks() {
+	if r, err = InspectRounds(f, r.Latches, p); err != nil || r.Latches.Medical != MedicalReserves || !r.Latches.Medical.Restocks() {
 		t.Fatal(err, r.Latches.Medical)
 	}
 	if Phase("").Restocks() {

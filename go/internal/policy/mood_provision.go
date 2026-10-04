@@ -20,8 +20,8 @@ type MoodThought struct {
 // observed environment thought pressure, with the summed offset of the
 // thoughts it owns (most negative first in MoodState.Provision).
 type MoodProvision struct {
-	Goal   ConcernID
-	Offset float64
+	Concern ConcernID
+	Offset  float64
 }
 
 // moodProvisionOwners maps the removable environment thoughts to the goals
@@ -58,7 +58,7 @@ var moodUnownedThoughts = map[string]bool{
 }
 
 // MoodProvisionGoal reports whether the catalog can name the goal as an owner.
-func MoodProvisionGoal(goal ConcernID) bool {
+func MoodProvisionConcern(goal ConcernID) bool {
 	for _, owners := range moodProvisionOwners {
 		for _, owner := range owners {
 			if owner == goal {
@@ -79,16 +79,16 @@ func mealMoodProvision(p MoodPawn, rows []MoodProvision) []MoodProvision {
 		return rows
 	}
 	for _, row := range rows {
-		if row.Goal == EnsureCooking {
+		if row.Concern == EnsureCooking {
 			return rows
 		}
 	}
-	rows = append(rows, MoodProvision{Goal: EnsureCooking, Offset: -math.Max(1, (target-mood)*100)})
+	rows = append(rows, MoodProvision{Concern: EnsureCooking, Offset: -math.Max(1, (target-mood)*100)})
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Offset != rows[j].Offset {
 			return rows[i].Offset < rows[j].Offset
 		}
-		return rows[i].Goal < rows[j].Goal
+		return rows[i].Concern < rows[j].Concern
 	})
 	return rows
 }
@@ -131,13 +131,13 @@ func validateMoodProvision(rows []MoodProvision) error {
 	}
 	seen := map[ConcernID]bool{}
 	for i, p := range rows {
-		if p.Goal == "" || seen[p.Goal] || math.IsNaN(p.Offset) || math.IsInf(p.Offset, 0) || p.Offset >= 0 {
+		if p.Concern == "" || seen[p.Concern] || math.IsNaN(p.Offset) || math.IsInf(p.Offset, 0) || p.Offset >= 0 {
 			return errors.New("invalid mood provision")
 		}
 		if i > 0 && rows[i-1].Offset > p.Offset {
 			return errors.New("mood provision out of order")
 		}
-		seen[p.Goal] = true
+		seen[p.Concern] = true
 	}
 	return nil
 }
@@ -174,7 +174,7 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 		if result[i].Offset != result[j].Offset {
 			return result[i].Offset < result[j].Offset
 		}
-		return result[i].Goal < result[j].Goal
+		return result[i].Concern < result[j].Concern
 	})
 	return result
 }
@@ -223,7 +223,7 @@ func MoodProvisionDeficits(h MoodHistory) map[ConcernID]float64 {
 			continue
 		}
 		for _, p := range s.Provision {
-			counts[p.Goal]++
+			counts[p.Concern]++
 		}
 	}
 	if len(counts) == 0 {

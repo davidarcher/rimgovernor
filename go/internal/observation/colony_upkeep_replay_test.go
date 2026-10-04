@@ -114,7 +114,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal("incomplete native upkeep replay")
 	}
 	for _, need := range upkeep.Needs {
-		want, ok := fixture.Expected[need.Goal]
+		want, ok := fixture.Expected[need.Concern]
 		targets, known := need.Targets.Value()
 		metric, measured := need.Metric.Value()
 		if !ok || !known || !measured || !reflect.DeepEqual(targets, want.Targets) || metric != want.Metric || want.Need != domain.FindingUnmet || !need.Active {
@@ -137,7 +137,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(active.Goals) != 28 {
+	if len(active.Standards) != 28 {
 		t.Fatal("incomplete maintained goals")
 	}
 	medicalNeed := domain.FindingMet
@@ -161,18 +161,18 @@ func TestNativeUpkeepReplay(t *testing.T) {
 			animalNeeds[policy.MaintainAnimalFeed] = domain.FindingUnmet
 		}
 	}
-	for i, binding := range active.Review.Goals {
-		if want, ok := animalNeeds[binding.Need]; ok && active.Goals[i].Standard.Finding != want {
-			t.Fatal(active.Goals[i], want)
+	for i, binding := range active.Review.Standards {
+		if want, ok := animalNeeds[binding.Concern]; ok && active.Standards[i].Standard.Finding != want {
+			t.Fatal(active.Standards[i], want)
 		}
-		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
-			g, err := db.LoadStandard(ctx, binding.Goal)
+		if fixture.Medical != nil && binding.Concern == policy.MaintainMedicalReserves {
+			g, err := db.LoadStandard(ctx, binding.Standard)
 			if err != nil || g.Standard.Finding != medicalNeed {
 				t.Fatal(g, err)
 			}
 		}
-		if want, ok := fixture.Expected[binding.Need]; ok {
-			g := active.Goals[i].Standard
+		if want, ok := fixture.Expected[binding.Concern]; ok {
+			g := active.Standards[i].Standard
 			if g.Finding != want.Need || g.Priority != want.Priority {
 				t.Fatal(g, want)
 			}
@@ -195,21 +195,21 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil || retained.Enabled {
 		t.Fatal(retained, err)
 	}
-	for _, binding := range retained.Goals {
-		if want, ok := animalNeeds[binding.Need]; ok {
-			g, err := db.LoadStandard(ctx, binding.Goal)
+	for _, binding := range retained.Standards {
+		if want, ok := animalNeeds[binding.Concern]; ok {
+			g, err := db.LoadStandard(ctx, binding.Standard)
 			if err != nil || g.Standard.Finding != want || g.Standard.Status != domain.StandardVoided {
 				t.Fatal(g, want, err)
 			}
 		}
-		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
-			g, err := db.LoadStandard(ctx, binding.Goal)
+		if fixture.Medical != nil && binding.Concern == policy.MaintainMedicalReserves {
+			g, err := db.LoadStandard(ctx, binding.Standard)
 			if err != nil || g.Standard.Finding != medicalNeed {
 				t.Fatal(g, err)
 			}
 		}
-		if want, ok := fixture.Expected[binding.Need]; ok {
-			g, err := db.LoadStandard(ctx, binding.Goal)
+		if want, ok := fixture.Expected[binding.Concern]; ok {
+			g, err := db.LoadStandard(ctx, binding.Standard)
 			if err != nil || g.Standard.Finding != want.Need || g.Standard.Status != domain.StandardVoided {
 				t.Fatal(g, err)
 			}

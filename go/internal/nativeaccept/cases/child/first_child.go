@@ -31,7 +31,7 @@ const (
 func init() {
 	cases.Register(cases.Case{
 		Name: "child/first-child",
-		Scope: "Issue #1691: with no breastfeeder in the colony, the MaintainBabyFeeding goal has the colony cook baby-edible food " +
+		Scope: "Issue #1691: with no breastfeeder in the colony, the MaintainBabyFeeding standard has the colony cook baby-edible food " +
 			"and the baby is fed by it until it reaches the Child developmental stage. A Go snapshot over recorded facts cannot " +
 			"cover it: the chain is vanilla's own (bottle-feeding on Childcare work, the baby's food need, ageing and the " +
 			"stage change), asserted on the live pawn.",

@@ -17,7 +17,7 @@ func NewRoundsTemperaturePlanner(reviewer *Rounder, native RoundsBuildingSource)
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsTemperaturePlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureTemperatureSafety}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureTemperatureSafety}, nil
 }
 
 func (r *Rounder) temperatureEnabled() bool {

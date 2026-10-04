@@ -22,7 +22,7 @@ func TestDetectRoundsRecordsNoOpReasons(t *testing.T) {
 		if err := n.Reason.Validate(); err != nil {
 			t.Fatal(err)
 		}
-		reasons[n.Goal] = n.Reason
+		reasons[n.Concern] = n.Reason
 	}
 	// Unmeasured inputs are unknown, never satisfied.
 	if reasons[MaintainBabyFeeding] != NoOpInputsUnknown || reasons[MaintainPermits] != NoOpInputsUnknown {
@@ -37,7 +37,7 @@ func TestDetectRoundsRecordsNoOpReasons(t *testing.T) {
 		t.Error("defensive layout off", reasons[EnsureDefensiveLayout])
 	}
 	// A raised goal is not a no-op.
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if _, ok := reasons[g.ID]; ok {
 			t.Errorf("%s raised and recorded as a no-op", g.ID)
 		}

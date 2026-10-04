@@ -38,7 +38,7 @@ func TestRoundsWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if !selected[guidance.Spec.ID()] || !selected[method.Decision.Goal.Methods[0].Plan] || selected[root.Snapshot.Plan] {
+	if !selected[guidance.Spec.ID()] || !selected[method.Decision.Standard.Methods[0].Plan] || selected[root.Snapshot.Plan] {
 		t.Fatal(selected)
 	}
 	if base.State() != root {
@@ -51,7 +51,7 @@ func TestRoundsWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 	}
 	other := root.Snapshot
 	other.Map++
-	if _, err = db.ReviewStandard(ctx, method.Decision.Goal.Standard.ID, method.Decision.Goal.Revision, other, 0, domain.FindingUnmet); err != nil {
+	if _, err = db.ReviewStandard(ctx, method.Decision.Standard.Standard.ID, method.Decision.Standard.Revision, other, 0, domain.FindingUnmet); err != nil {
 		t.Fatal(err)
 	}
 	selected = map[domain.PlanID]bool{}

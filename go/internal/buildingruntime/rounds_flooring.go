@@ -29,7 +29,7 @@ func NewRoundsFlooringPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsFlooringPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainFlooring, definition: "WoodPlankFloor"}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainFlooring, definition: "WoodPlankFloor"}, nil
 }
 
 // SetFirebreakPave supplies the firebreak tier's cells: pave reports the

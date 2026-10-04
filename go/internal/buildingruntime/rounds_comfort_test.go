@@ -27,7 +27,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
-			planner.goal, planner.phase, planner.definition, planner.environment = policy.EnsureComfort, policy.ComfortRanked, "HorseshoesPin", policy.PlacementAnywhere
+			planner.concern, planner.phase, planner.definition, planner.environment = policy.EnsureComfort, policy.ComfortRanked, "HorseshoesPin", policy.PlacementAnywhere
 			native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
@@ -168,7 +168,7 @@ func TestComfortBuilderHonorsNativeSkill(t *testing.T) {
 
 func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	t.Parallel()
-	planner := &RoundsBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortRanked}
+	planner := &RoundsBuildingPlanner{concern: policy.EnsureComfort, phase: policy.ComfortRanked}
 	people := []policy.PawnID{"pawn"}
 	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin", Furniture: testDiningFurniture}
 	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuffed: true, StuffOptions: madeOf("WoodLog")}, {Name: "DiningChair", Stuffed: true, StuffOptions: madeOf("WoodLog")}}}
@@ -223,7 +223,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
-			planner.goal, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &dining
+			planner.concern, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &dining
 			native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
@@ -245,7 +245,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 			}
 		})
 	}
-	shell := &RoundsBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}
+	shell := &RoundsBuildingPlanner{concern: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}
 	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2))}}
 	if missing, method, reason := shell.selection(facts); missing != 32 || method != "comfort-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)

@@ -29,7 +29,7 @@ clean integration; a new main HEAD alone is not a reason to rerun tests.
 
 `native facts → policy or player intent → shared plan → Hands → native order → observed outcome`
 
-Policy selects work; the plan owns durable goals and progress; Hands owns
+Policy selects work; the plan owns durable concerns and progress; Hands owns
 automated writes and reconciliation. Runtime owns lifecycle and authority.
 Adapters handle transport, persistence and presentation. RimWorld owns simulation.
 Advisers cannot issue orders or own colony invariants.
@@ -39,7 +39,7 @@ checks, a registered Hands handler, observed postconditions, recovery and player
 feedback. Add these together or as explicitly gated prerequisites. A receipt
 cannot establish completed pawn work. Observe uncertain writes before retrying.
 Colony/map/load changes and tick rewinds invalidate pending work; Manual only
-suspends routine goals and their open work until control resumes.
+suspends routine concerns and their open work until control resumes.
 
 Give mutable state one owner. Keep domain logic independent of transport, database,
 web and model SDKs. Pass narrow typed inputs and interfaces; construct dependencies

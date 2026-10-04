@@ -20,7 +20,7 @@ func TestShrineDefersToRepairsOnlyWhenRepairsServed(t *testing.T) {
 		}
 		f.AvailableMethods = domain.Known(methods)
 		found := false
-		for _, g := range needs(t, f, RoundsLatches{}).Goals {
+		for _, g := range needs(t, f, RoundsLatches{}).Concerns {
 			if g.ID == ClearAncientShrine {
 				found = true
 				if g.MethodUnavailable != served {

@@ -2,11 +2,11 @@
 
 [Documentation](../../README.md) · [Plans and Hands](../architecture/plans-and-hands.md)
 
-`MaintainWaste` is a maintained priority-3 colony goal. Fresh native colony facts
+`MaintainWaste` is a maintained priority-3 colony concern. Fresh native colony facts
 activate it for exposed spoiled goods and rotten anonymous animal corpses. Emergency
-goals preempt it. Once the observed deficit clears, a later deficit reopens the goal..
+concerns preempt it. Once the observed deficit clears, a later deficit reopens the concern..
 
-The goal accepts two optional lists:
+The concern accepts two optional lists:
 
 | Field | Authority |
 | --- | --- |
@@ -15,7 +15,7 @@ The goal accepts two optional lists:
 
 Both lists are bounded to 64 identities. Admission reads native state and rejects
 missing or protected targets. Replacing policy requires observing or cancelling
-pending work. Explicitly renewing a blocked goal retains old receipts and starts a
+pending work. Explicitly renewing a blocked concern retains old receipts and starts a
 new method generation; it never silently retries an uncertain write.
 
 `Observations.ReadWaste` returns current-map item identities, native rot stage, protection

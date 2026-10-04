@@ -32,7 +32,7 @@ func init() {
 		Name: "farm/blight",
 		Scope: "Native blight responder: the blighted_plants census drives the live Go rounder/planner to open " +
 			"RemoveBlight and admit CutPlant designations on the blighted plants only; the colonists cut them within a " +
-			"stall-bounded window and the goal settles on the census emptying, confirmed by an independent native read (#245).",
+			"stall-bounded window and the standard settles on the census emptying, confirmed by an independent native read (#245).",
 		Start:   cases.Fixture{Op: "test/blight_prepare", On: cases.LabStart()},
 		Service: true,
 		Budget:  6 * time.Minute,
@@ -132,7 +132,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	reviewData, _ := json.Marshal(review)
-	report["routine_review_first"] = json.RawMessage(reviewData)
+	report["rounds_review_first"] = json.RawMessage(reviewData)
 
 	// The methods: each plan is CutPlant designations on fixture plants only,
 	// each plant once. Vanilla never cuts blight undesignated, yet on the lab
@@ -148,12 +148,12 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	var settled store.StandardState
 	for renewals := 0; len(plans) < 4; {
 		methodCtx, methodCancel := context.WithTimeout(ctx, 3*time.Minute)
-		goalID, method, goal, done, err := waitBlightMethodOrSettled(methodCtx, journal, service, previous)
+		concernID, method, goal, done, err := waitBlightMethodOrSettled(methodCtx, journal, service, previous)
 		methodCancel()
 		if err != nil {
 			return fmt.Errorf("blight method: %w", err)
 		}
-		report["goal_id"] = string(goalID)
+		report["concern_id"] = string(concernID)
 		if done {
 			settled = goal
 			break
@@ -216,7 +216,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 			return err
 		}
 	}
-	report["blight_goal"] = map[string]any{"status": string(settled.Standard.Status), "need": string(settled.Standard.Finding), "methods": len(settled.Methods)}
+	report["blight_standard"] = map[string]any{"status": string(settled.Standard.Status), "need": string(settled.Standard.Finding), "methods": len(settled.Methods)}
 	report["plants_designated"] = sortedKeys(seen)
 	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
@@ -397,16 +397,16 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 		if err != nil {
 			return "", false, err
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != policy.RemoveBlight {
+		for _, binding := range review.Standards {
+			if binding.Concern != policy.RemoveBlight {
 				continue
 			}
-			if goal, err = s.LoadStandard(ctx, binding.Goal); err != nil {
+			if goal, err = s.LoadStandard(ctx, binding.Standard); err != nil {
 				return "", false, err
 			}
 			methods := goal.Methods
 			if len(methods) == 0 {
-				if methods, err = s.LoadMethods(ctx, binding.Goal, goal.Standard.Episode); err != nil {
+				if methods, err = s.LoadMethods(ctx, binding.Standard, goal.Standard.Episode); err != nil {
 					return "", false, err
 				}
 			}
@@ -440,11 +440,11 @@ func waitBlightSettled(ctx context.Context, s *store.Store, service *na.ServiceP
 		if err != nil {
 			return "", false, err
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != policy.RemoveBlight {
+		for _, binding := range review.Standards {
+			if binding.Concern != policy.RemoveBlight {
 				continue
 			}
-			if goal, err = s.LoadStandard(ctx, binding.Goal); err != nil {
+			if goal, err = s.LoadStandard(ctx, binding.Standard); err != nil {
 				return "", false, err
 			}
 			if blightSettled(goal) {

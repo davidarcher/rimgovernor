@@ -121,7 +121,7 @@ func TestRoundsFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
 		t.Fatal(r)
 	}
 	f.Calendar = domain.Known(Calendar{GrowingDays: 61})
-	if _, err := DetectRounds(f, r.Latches, DefaultRoundsPolicy()); err == nil {
+	if _, err := InspectRounds(f, r.Latches, DefaultRoundsPolicy()); err == nil {
 		t.Fatal("invalid calendar accepted")
 	}
 }

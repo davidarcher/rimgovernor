@@ -139,7 +139,7 @@ func defenseTierMethodID(tier store.DefenseTierRecord) domain.MethodID {
 
 // defenseLayoutGoal finds the goal the planner serves: the review binding
 // for EnsureDefensiveLayout when the routine policy opts in.
-func defenseLayoutGoal(ctx context.Context, p *Player, review store.Rounds) (store.ProjectState, bool, error) {
+func defenseLayoutProject(ctx context.Context, p *Player, review store.Rounds) (store.ProjectState, bool, error) {
 	if id, bound := review.ProjectFor(policy.EnsureDefensiveLayout); bound {
 		project, err := p.journal.LoadProject(ctx, id)
 		return project, err == nil, err
@@ -164,7 +164,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
-	goal, found, err := defenseLayoutGoal(call, p, review)
+	goal, found, err := defenseLayoutProject(call, p, review)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
@@ -199,7 +199,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	// re-Selected, so an earlier check would refuse its own open work.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.EnsureDefensiveLayout && row.Selected
+		selected = selected || row.Concern == policy.EnsureDefensiveLayout && row.Selected
 	}
 	if !selected {
 		return RoundsDefenseLayoutResult{Verdict: awaitingSlot(string(policy.EnsureDefensiveLayout))}, nil
@@ -1126,11 +1126,11 @@ func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.Generatio
 			return nil, err
 		}
 		needs = policy.MedicineResourceNeeds(items, needs, review.MedicineTarget)
-		needs = policy.ResourceGoalTargets(needs, review.DependencyNeeds)
-		needs = policy.ResourceGoalTargets(needs, policy.WoodFloorNeeds(review.WoodFloor))
-		needs = policy.ResourceGoalTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
+		needs = policy.ResourceConcernTargets(needs, review.DependencyNeeds)
+		needs = policy.ResourceConcernTargets(needs, policy.WoodFloorNeeds(review.WoodFloor))
+		needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
 		if review.BrewingFinished {
-			needs = policy.ResourceGoalTargets(needs, policy.SocialDrugTargets(domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{"Brewing"}})))
+			needs = policy.ResourceConcernTargets(needs, policy.SocialDrugTargets(domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{"Brewing"}})))
 		}
 	}
 	return r.policy.EffectiveResourceTargets(stock, needs)
@@ -1256,8 +1256,8 @@ func (r *RoundsDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goa
 	if !ok {
 		return RoundsBuildingResult{}, false, nil
 	}
-	dig := &RoundsBuildingPlanner{reviewer: r.reviewer, goal: policy.EnsureDefensiveLayout, excavation: source}
-	step := excavationStep{state: state, review: review, goal: goal, facts: read.Projection, read: read.ColonyReading}
+	dig := &RoundsBuildingPlanner{reviewer: r.reviewer, concern: policy.EnsureDefensiveLayout, excavation: source}
+	step := excavationStep{state: state, review: review, owner: goal, facts: read.Projection, read: read.ColonyReading}
 	p := r.reviewer.player
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {

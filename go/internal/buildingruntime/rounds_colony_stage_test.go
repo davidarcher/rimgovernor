@@ -60,7 +60,7 @@ func TestRoundsStoneShellFollowsColonyStage(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, row := range review.Development.Rows {
-			if row.Goal == policy.MaintainStoneShell {
+			if row.Concern == policy.MaintainStoneShell {
 				return row, true
 			}
 		}

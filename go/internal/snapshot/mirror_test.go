@@ -84,7 +84,7 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 			t.Fatal(err)
 		}
 		var s Step
-		data, _ := Encode(Step{Recorded: "", Snapshot: v.Snapshot, Tick: v.Tick, Goal: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
+		data, _ := Encode(Step{Recorded: "", Snapshot: v.Snapshot, Tick: v.Tick, Concern: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
 		if err = Decode(data, &s); err != nil {
 			t.Fatal(err)
 		}

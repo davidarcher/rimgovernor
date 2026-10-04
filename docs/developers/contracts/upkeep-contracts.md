@@ -205,7 +205,7 @@ holding the line on the proven geometry. A missing building whose cell already
 carries a blueprint or frame (the game's own trap auto-rearm) is not placed
 again; the planner asks for a clock window so native construction finishes
 it. Defenders are undrafted by the undraft sweep once the recovered
-ActiveCombat goal stops authorizing the hold plan.
+ActiveCombat concern stops authorizing the hold plan.
 
 Combat holds the line only against an ordinary edge assault still in front
 of it: every live raider carries a walk-in assault lord and stands short of
@@ -236,19 +236,19 @@ native connector reach (six cells), and a turret with no route is dropped.
 A stored layout without turrets re-probes the gates once per game hour. A
 turret tier counts as built by the same census as the others (conduits by
 the power census, since they are not edifices); a standing turret without
-power is a deficit the goal keeps reporting (`unpowered` in the scheduler
+power is a deficit the concern keeps reporting (`unpowered` in the scheduler
 log) while its network is `EnsureBasicPower`'s and a lost tier conduit is
 re-placed like any missing building. Damage is `MaintainEssentialRepairs`'
 (turrets are home-area structures with repair priority 2). While every tier
-stands, the goal reports a known zero deficit to development arbitration so
-those upkeep goals take the free slot first; the periodic re-verification
+stands, the concern reports a known zero deficit to development arbitration so
+those upkeep concerns take the free slot first; the periodic re-verification
 still runs whenever a slot is free. The barrel (the mini turret's refuelable
 comp, fed with steel) is read from the same power census as the turret's
 power, since turrets are consumers: a turret observed out of fuel is a tier
 deficit like an unpowered one (`unfuelled` in the scheduler log; the game's
 own auto-refuel at half a barrel with steel in stock normally forestalls
 it). While a barrel is empty and one of its fuel definitions is in stock,
-the goal issues one forced refuel order per step (a `recovery_service`
+the concern issues one forced refuel order per step (a `recovery_service`
 action on the turret's census identity, carried by an available colonist
 whose Hauling work is not disabled, the highest-priority enabled hauler
 first; up to four attempts per turret and Episode), the same native
@@ -257,7 +257,7 @@ an idle hauling roster does not leave the line unarmed. When no fuel
 definition is in stock the record carries the barrels' fuel gap as a
 `FuelShortage` and the rounds raises it as a derived
 `MaintainResource` floor (`RoundsFacts.ResourceNeeds`, merged by
-`ResourceGoalTargets` without lowering an operator's floor), so the resource
+`ResourceConcernTargets` without lowering an operator's floor), so the resource
 policy sources steel (bench recipe, then native mineable sources) until the
 census sees it; the gap is counted in fuel units, an estimate of the steel
 (the native per-item multiplier is not observed). An unknown fuel state, or
@@ -339,35 +339,35 @@ cells and allow list; ordinary hauling then clears the stacks and the deficit
 recovers as soon as every chunk is stored or has a destination. Forbidden
 chunks are the supply safety policy's (#336).
 `ClearAncientShrine` (the `shrine` family, #458) is the sealed-shrine
-counterpart: it holds the clearance goal while it has work and is described
-under the breach goal in `controller-contracts.md`.
+counterpart: it holds the clearance concern while it has work and is described
+under the breach concern in `controller-contracts.md`.
 Unknown observations preserve the previous need. Recovery requires no eligible
-candidate and no unresolved issued action; recurrence keeps the goal identity.
+candidate and no unresolved issued action; recurrence keeps the concern identity.
 Native rechecks eligibility at apply; the action completes on its applied
 result and the census decides recovery. Native authority loss releases exact
 controller-owned designations. Salvage uses ordinary hauling and does not gate
-this goal.
+this concern.
 
 `MaintainEssentialRepairs`, `MaintainCleanFacilities` and
-`MaintainFireSafety` retain their goal identities across recovery and recurrence.
+`MaintainFireSafety` retain their concern identities across recovery and recurrence.
 Any observed target enters maintenance; recovery requires no remaining deficit
 and no unresolved issued action. Missing evidence retains active risk, while a
 first unavailable read creates an ordinary visible blocker rather than an invented
 emergency. Fire risk preempts development while the fire family is declared;
 without it the review records the fire need but does not suspend the other
-goals, since no method could clear a hold the clock would then never leave.
+concerns, since no method could clear a hold the clock would then never leave.
 Unknown or oversized fire intervention retains an emergency hold. A pending, never-issued repair is cancelled on
 the next repair step, before the need gate, once `MaintainEssentialRepairs`
 has recovered (the colonists mended every target themselves) or its hold
 says the structure is ineligible (already repaired, or gone), so the
-recovered goal never keeps its development commitment on work that can no
+recovered concern never keeps its development commitment on work that can no
 longer matter.
 
 The typed item census covers items in the home area, items
 in valid storage anywhere, and deteriorating, perishable or medicine stacks
 wherever they were dropped; a map's natural chunk and slag field outside the
 home area never enters it, since a whole-map census exceeded the bound on every
-real map and no upkeep goal may target that debris.
+real map and no upkeep concern may target that debris.
 
 Methods inspect at most eight targets and eight enabled, available workers in a
 review. Stable target and pawn IDs break ties. Medicine and rot deadlines rank
@@ -398,7 +398,7 @@ row until a usable bench carries the bill, so the bill precedes the first hunt r
 than waiting on the equip family. The butcher
 bill waits until that `butcher-spot-separated` method has been tried (admitted,
 completed or failed) and then prefers the separated bench, so a forever bill on
-the shared bench never holds the food-supply goal open. Methods preserve forbidden items, player work
+the shared bench never holds the food-supply concern open. Methods preserve forbidden items, player work
 overrides, schedules, drafts, existing player-forced jobs, storage filters and home
 areas. Native cleaning eligibility determines whether fresh filth can be worked;
 the controller does not encode a filth-age threshold. Cleaning admission uses
@@ -433,7 +433,7 @@ protection and quantity changes outside verified transfers remain explicit failu
 The first tick at which every tracked piece is spawned in covered valid storage
 records completed delivery, preserving that proof through later consumption.
 Controller completion requires the exact receipt ID, source, worker, original
-quantity and current load/direction. Unresolved issued work keeps the supply goal
+quantity and current load/direction. Unresolved issued work keeps the supply concern
 open even when the source ID disappears from the loose-item census. Records use
 saved string identities, never coordinate rebinding, with bounds of 512 orders and
 128 pieces per order. Missing identities and exhausted tracking capacity cannot
@@ -451,7 +451,7 @@ zones, committed geometry and reserved walkways, previews at most eight candidat
 and admits at most three such stockpiles. Filters allow only the observed target
 definitions. An atomic native guard rechecks roof, occupancy and zone ownership
 before creation. Exact geometry and filter readback complete the zone action;
-the supply goal still requires observed protected supplies. Missing covered space
+the supply concern still requires observed protected supplies. Missing covered space
 or repeated capacity failure remains a blocker. If no existing covered space fits,
 one 6×6 supply shell may be admitted through ordinary shared construction. At most
 three sites receive native footprint and projected-access previews. Existing
@@ -460,13 +460,13 @@ complete roofing must be observed before the filtered zone is created; the entra
 aisle stays free. The controller does not build duplicate rooms after interruption
 or change another stockpile's filters.
 
-`MaintainHousing` is one goal with three ordered phases, recorded as
+`MaintainHousing` is one concern with three ordered phases, recorded as
 `Latches.Housing`: `shelter` (the first sleeping places and roofed shell, at
 foothold priority), then `sleeping` (bed ownership and upgrades), then, from
 `StageReserves`, `expansion` (one spare indoor place). Only the planner for the
 current phase acts; the others return no deficit.
 
-The sleeping phase is declared by the `sleeping` family: with it enabled the goal
+The sleeping phase is declared by the `sleeping` family: with it enabled the concern
 is a method-available deficit ranked like any other development row; without it
 the deficit stays visible as method-unavailable. Each review re-derives the
 sleeping targets (colonists without an owned suitable bed, or without observed
@@ -526,7 +526,7 @@ request. Existing suitable pens are reused through ordinary native handling;
 Handling joins shared work allocation without overriding player-disabled work.
 If no suitable pen exists, one bounded 6×6 fence/gate enclosure and its pen marker
 can be constructed through the same native enclosure checks used for supply rooms.
-Built fences or a marker do not complete the goal: the animal must be observed
+Built fences or a marker do not complete the concern: the animal must be observed
 inside a suitable native pen. No breeding, bonding, master or removal setting is
 changed. Feed sufficiency is a separate observation and cannot be inferred from
 containment or grazing space.
@@ -548,7 +548,7 @@ Once the pen stands, `MaintainAnimalContainment` raises each barn and vet room
 pen or the colony core), then places `AnimalSleepingSpot`s in the barn (one per
 kept animal) and `AnimalBed`s in the vet room (`VetBeds`) one at a time
 (`policy.NextHerdStep`, `buildingruntime/rounds_herd_rooms.go`); the review
-holds the goal open while a step is due (`HerdRoomsOwed`). Both definitions are
+holds the concern open while a step is due (`HerdRoomsOwed`). Both definitions are
 read from the live native catalog; one the catalog lacks fails the review
 rather than being skipped. The barn also owes a climate slot (#1867): one
 heater (`RoomFurniture.Heater`, the cheapest buildable def with a temperature
@@ -581,7 +581,7 @@ nutrition per day, the stock is the unheld edible stock every animal of the grou
 can eat, and a group below target is a deficit sized by the missing nutrition
 (`policy.ReviewAnimalFeedReserve`). There is no per-animal trigger, hysteresis
 or latch: the reserve is topped up whenever it is short, and eating it down
-reopens the goal. Stock several races can eat (hay, raw meat) counts toward each
+reopens the concern. Stock several races can eat (hay, raw meat) counts toward each
 of them. Missing census, demand or access evidence leaves the review unknown and
 cannot clear it. The forecast supplies nutrition per day, and credits neither
 pasture nor future production. `HerdFeedShort`, which gates taming, is true
@@ -616,14 +616,14 @@ production work joins shared allocation. The method never changes diets, animal
 areas, breeding or removal settings. Adequate global stock with insufficient animal
 access or rot runway produces an explicit staging blocker rather than more bills.
 Production receipts do not prove either access or ingestion. Both animal needs
-rank for a development slot like every other optional goal: the declared
+rank for a development slot like every other optional concern: the declared
 `animal-feed`/`animal-containment` capability admits them and a known unfed or
 uncontained target is a full deficit. A kibble bill completes once native
 places it; while the feed deficit persists afterwards the planner asks
 for bounded clock windows (2500 ticks) so colonists keep working the standing
 bill instead of leaving the clock refused as `no_work`.
 
-Feed acceptance follows an unsuccessful production bill to the bounded goal
+Feed acceptance follows an unsuccessful production bill to the bounded concern
 recovery wait, then verifies native reachable feed. A changed bill remains an
 unsuccessful order; produced items alone neither complete it nor prove recovery.
 
@@ -639,7 +639,7 @@ The method prefers relocating at-risk stock into an existing covered/enclosed
 site with observed spare capacity, choosing deterministically among candidates;
 only once every known site is unusable or exhausted does it fall back to a
 StockTarget production bill for more preserved or non-perishable food, through
-the same source/bill method other resource goals use. Relocation and bill
+the same source/bill method other resource concerns use. Relocation and bill
 receipts never prove spoilage was averted; the census must observe the stock
 as stored, or the runway as recovered, before the deficit clears. Native code
 sets `FoodStock.roofed`, `temperature_c` and `room_id` per stock row; a stock
@@ -681,7 +681,7 @@ no setpoints. Its draw reaches `EnsureBasicPower`'s budget as every other
 consumer's does: as pending demand while the plan is open, as measured demand
 once built.
 
-A solar flare switches every powered building off for hours, so neither goal
+A solar flare switches every powered building off for hours, so neither concern
 answers it with a build: while a `SolarFlare` condition with a native
 remaining-duration read is observed (`policy.SolarFlareHold`) the review keeps
 `EnsureBasicPower` open with `method_unavailable` (suspended, never cancelled,
@@ -693,7 +693,7 @@ ends and the next review can tell an outage from a shortfall.
 
 `MaintainRefrigeration` keeps a method under the flare (#408): the warm
 at-risk stock the dark coolers cannot save is eaten first. The cook-ahead bill
-planner (`policy.CookAheadFood`, bound to the refrigeration goal, configured
+planner (`policy.CookAheadFood`, bound to the refrigeration concern, configured
 with the refrigeration family and bill plans) raises one `CookMealSimple`-first
 target bill on a bench native still reports usable -- a fuelled stove; the
 unpowered electric one is excluded by the same usable flag -- for the latched
@@ -722,7 +722,7 @@ from the latch on the next review. An unknown census preserves the previous
 latch. A cell whose room grows a plant native says dies to light
 (cave fungus, `WorkLightCell.light_sensitive`: any such plant standing in the
 room, or a growing zone set to one) is protected and never latches, however
-dark it measures -- lighting it would kill the crop. The goal ranks as an
+dark it measures -- lighting it would kill the crop. The concern ranks as an
 ordinary development project. Its method first looks for a fixture whose
 radius reaches the cell: one that is not lit defers to power, refuelling,
 repair or flicking (`lamp_power_needed`, `lamp_fuel_needed`,
@@ -753,7 +753,7 @@ dining, recreation) while any cell is natural ground. Barns, butcher rooms
 and every other role carry no requirement. There is no hysteresis: terrain
 does not flap. A cell whose floor is already ordered still counts as
 deficient, so the latch holds until the floor is laid, but it is never
-ordered twice; an unknown census preserves the previous latch. The goal ranks
+ordered twice; an unknown census preserves the previous latch. The concern ranks
 as an ordinary development project, clean workspaces before living rooms.
 Its method chooses from the policy's floor list the known-available terrain
 that meets the tier (non-negative cleanliness for clean, non-negative beauty
@@ -806,7 +806,7 @@ colonist and none reaches it; it latches by ID and releases only on a
 measured census that reads it reachable with no door still ordered on its
 border (a latched facility reachable through its door frame waits for the
 door, proposing no second breach), with no hysteresis because reachability
-is the game's own answer. The goal ranks as an ordinary
+is the game's own answer. The concern ranks as an ordinary
 development project. Its method serves storage and stockpiles first, then
 benches, dining, beds and defence, and opens the facility's room with a
 `Door` of `WoodLog` on one breach cell: the policy's nearest breaches are
@@ -828,14 +828,14 @@ the initial shelter's roof and sleeping gates hold it wants one eating surface,
 one adjacent seat and one recreation source that every colonist can reach, read
 from the same native census before the hosting-room filter, so the starter hut
 counts whatever room role it scores. Capacity alone recovers it; observed use is
-the `ranked` phase's concern (raised from `StageDevelopment`). While shelter is still owed the goal is
+the `ranked` phase's concern (raised from `StageDevelopment`). While shelter is still owed the concern is
 `method_unavailable` and its planner reports `awaiting_plan:initial_shelter`, so it
 never extends the startup hold nor competes with the shell. The table and chair
 preview indoors, the horseshoes pin anywhere with accessible watch cells; an
 existing facility nobody can reach stays a blocker rather than a duplicate.
 Methods are `basic-comfort-<definition>` under plans `routine-basic-comfort-*`.
 
-Once basic capacity holds, the same goal uses maintenance priority (3) for a
+Once basic capacity holds, the same concern uses maintenance priority (3) for a
 second reachable building-backed joy kind: colonies with multiple joy-needing
 colonists request it immediately; a lone colonist requests it when native boredom
 is set for the only accessible kind. Two kinds cap construction even if both are
@@ -859,7 +859,7 @@ Exceeding a bound omits the entire joy census; basic capacity remains observable
 while variety stays unknown and cannot certify recovery or schedule construction.
 The hosted-room comfort projection does not retain this unfiltered kind matrix.
 
-`EnsureComfort` maintains dining and recreation once every startup survival goal
+`EnsureComfort` maintains dining and recreation once every startup survival concern
 has a method on record or is monitoring-only.
 Its deficit remains visible during emergencies; admission waits rather than
 claiming the facilities complete. Sleeping upgrades belong to `MaintainHousing`.
@@ -879,7 +879,7 @@ The shared watchdog bounds waiting for use, independently of research progress.
 An `upkeep_target` action waits after the native job receipt. Hauling requires the
 same item identity and at least its original quantity in roofed valid storage;
 repair requires full observed target health; cleaning requires target absence
-from a complete census. The fire goal separately requires no remaining home fire.
+from a complete census. The fire concern separately requires no remaining home fire.
 Disappearing hauled items, including stack merges,
 remain explicit blockers. Partial delivery never proves complete protection.
 Load or player-direction changes invalidate ownership; uncertain writes are not

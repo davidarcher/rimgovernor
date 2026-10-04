@@ -210,7 +210,7 @@ func TestDetectRoundsRanksTrafficFlooringLast(t *testing.T) {
 	f.Upkeep.Flooring = domain.Known(v)
 	r := needs(t, f, RoundsLatches{})
 	found := false
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainFlooring {
 			found = true
 			// The lowest goal rank is 4; a traffic deficit must not overflow it.
@@ -220,6 +220,6 @@ func TestDetectRoundsRanksTrafficFlooringLast(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal(r.Goals)
+		t.Fatal(r.Concerns)
 	}
 }

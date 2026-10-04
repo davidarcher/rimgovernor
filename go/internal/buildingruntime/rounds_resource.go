@@ -140,7 +140,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoundsResourceResult{}, err
 	}
-	if len(targets) == 0 && !r.reviewer.policy.ResourceGoalConfigured() {
+	if len(targets) == 0 && !r.reviewer.policy.ResourceConcernConfigured() {
 		return RoundsResourceResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	review, err := p.journal.LoadRounds(call)
@@ -208,7 +208,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	// target's outcome stands, so its selected sources stay observable.
 	var first *RoundsResourceResult
 	for _, row := range ranked {
-		result, err := r.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, row.Resource, row.Target, stock, nil, started)
+		result, err := r.dispatchResourceConcern(call, epoch, state, goal, review.Tick, identity, row.Resource, row.Target, stock, nil, started)
 		if err != nil {
 			return RoundsResourceResult{}, err
 		}
@@ -225,7 +225,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	return *first, nil
 }
 
-// dispatchResourceGoal is the shared MaintainResource/MaintainAnimalFeed
+// dispatchResourceConcern is the shared MaintainResource/MaintainAnimalFeed
 // acquisition tail, once each goal's own selection has picked one
 // (resource, absolute stock floor) pair: bench/recipe production
 // (policy.SelectResourceMethod) and native mine sources
@@ -236,7 +236,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 // path to those bench IDs (the caller's delivery constraint: a bill's product
 // drops at its bench); an empty set refuses the production path outright
 // rather than producing where the product cannot be used.
-func (r *RoundsResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoundsResourceResult, error) {
+func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoundsResourceResult, error) {
 	if r.reviewer.policy.GearSpareTargets[resource] > 0 {
 		_, storage, _, err := r.native.ReadResourceSources(call, identity, string(resource))
 		if err != nil {
@@ -260,7 +260,7 @@ func (r *RoundsResourcePlanner) dispatchResourceGoal(call, epoch context.Context
 			return RoundsResourceResult{}, err
 		}
 		if items.Wort == "" {
-			return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: the catalog names no wort def", ErrControl)
+			return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceConcern: the catalog names no wort def", ErrControl)
 		}
 		resource = items.Wort
 	}
@@ -386,12 +386,12 @@ func (r *RoundsResourcePlanner) dispatchResourceGoal(call, epoch context.Context
 	}
 	_, ok := tokens[choice.Bench]
 	if !ok {
-		return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: !ok", ErrControl)
+		return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceConcern: !ok", ErrControl)
 	}
 	id := domain.MintPlanID()
 	targetCount := int32(choice.Target)
 	if int64(targetCount) != choice.Target {
-		return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: int64(targetCount) != choice.Target", ErrControl)
+		return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceConcern: int64(targetCount) != choice.Target", ErrControl)
 	}
 	mode := domain.StockTarget
 	if beer {
@@ -420,7 +420,7 @@ func (r *RoundsResourcePlanner) dispatchResourceGoal(call, epoch context.Context
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+		return RoundsResourceResult{}, fmt.Errorf("%w: dispatchResourceConcern: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoundsResourceResult{}, err
@@ -462,7 +462,7 @@ type sourceSelection struct {
 	designated bool
 }
 
-// acquireFromSources is the mine/harvest branch of dispatchResourceGoal:
+// acquireFromSources is the mine/harvest branch of dispatchResourceConcern:
 // select sources for the deficit (or use pre, already selected), build
 // storage when hauling them needs it, then dispatch a mine source.
 // dispatched is true when a zone or a mine method was admitted or refused.

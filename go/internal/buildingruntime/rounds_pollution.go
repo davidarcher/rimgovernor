@@ -60,7 +60,7 @@ func (r *RoundsPollutionPlanner) step(call, epoch context.Context, arbiter *step
 	// blight and the other priority>=3 autopilot goals.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.ManagePollution && row.Selected
+		selected = selected || row.Concern == policy.ManagePollution && row.Selected
 	}
 	if !selected {
 		return RoundsPollutionResult{Verdict: awaitingSlot(string(policy.ManagePollution))}, nil

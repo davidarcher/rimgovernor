@@ -91,7 +91,7 @@ func TestRoundsCapabilitiesValidateAtStartup(t *testing.T) {
 		*f.Enabled = true
 	}
 	thresholds, capabilities := roundsCapabilities(c)
-	if _, err := policy.DetectRounds(policy.RoundsFacts{AvailableMethods: domain.Known(capabilities.Methods)}, policy.RoundsLatches{}, thresholds); err != nil {
+	if _, err := policy.InspectRounds(policy.RoundsFacts{AvailableMethods: domain.Known(capabilities.Methods)}, policy.RoundsLatches{}, thresholds); err != nil {
 		t.Fatal(err)
 	}
 }

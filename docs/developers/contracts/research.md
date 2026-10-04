@@ -3,8 +3,8 @@
 [Documentation](../../README.md)
 
 `EnsureResearch` shares ColonyPlan, priority arbitration and Hands. Its target
-(`policy.ResearchGoal`) is, in order: the project a maintained production target's workshop ladder recorded as gating
-its bench (a *derived* need: the goal stays in deficit while the project is
+(`policy.ResearchConcern`) is, in order: the project a maintained production target's workshop ladder recorded as gating
+its bench (a *derived* need: the concern stays in deficit while the project is
 current, so the ladder is not left waiting); else the first unfinished rung of
 the research ladder (`RoundsPolicy.ResearchLadder`, `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
 Smithing, CarpetMaking, ComplexClothing, Machining, Gunsmithing). A rung is a deficit only while the
@@ -12,7 +12,7 @@ research tab is idle: any current project, the player's own included, recovers
 it and is never replaced, and the research planner lends the clock ticks until it
 finishes. The ladder is only walked under a known research census and skips
 rungs the installed game does not list; an empty ladder with no target disables
-the goal. Advisory goals cannot create research orders.
+the concern. Advisory concerns cannot create research orders.
 
 Anomaly knowledge (#1745): a knowledge-category project is selected through the same
 `ResearchIntent` into its category's slot (`ResearchManager.SetCurrentProject` picks the
@@ -23,15 +23,15 @@ research read lists every unfinished knowledge project with its lock reasons
 (`ResearchRead.Knowledge`); only the ordinary slot's project is the current project.
 An empty slot with a startable project of its own category is a deficit of
 `EnsureResearch` (knowledge that arrives for a category with no project is lost):
-the step fills it, before the ordinary slot is judged, with the head of the goal's
+the step fills it, before the ordinary slot is judged, with the head of the concern's
 prerequisite queue when that head is a knowledge project, else with the cheapest
 startable project of that category (`policy.KnowledgePick`, apparent cost then
 name). A filled slot is never replaced. Categories never substitute for each other:
 Advanced knowledge overflows into Basic, never the reverse
 (`ResearchManager.ApplyKnowledge`), so a Basic slot never stands in for an Advanced
-project. A disabled goal (no target, empty ladder) funds no slot.
+project. A disabled concern (no target, empty ladder) funds no slot.
 
-A goal whose only method is gated on research reports the project instead of
+A concern whose only method is gated on research reports the project instead of
 no method: `EnsureBasicPower` with every generator definition unavailable and
 `MaintainStoneShell` with no replacement material report
 `awaiting_plan:research:<project>` (`policy.ResearchGate`).
@@ -53,7 +53,7 @@ The current project is player-owned unless this load's controller recorded its
 verified selection. A cleared project, another project, changed player direction or
 changed load prevents taking ownership. Autonomous selection uses `expectedCurrent`
 (an empty string means an empty ordinary slot); the native main-thread write checks
-that value and the exact paused colony/load/map again. The runtime also rejects obsolete goals and invalidated preparation
+that value and the exact paused colony/load/map again. The runtime also rejects obsolete concerns and invalidated preparation
 before dispatch. Durable Hands receipts prevent automatic replay of uncertain writes.
 
 Research work coverage uses the existing deterministic work allocator, including
@@ -74,7 +74,7 @@ retain explicit blockers until their methods provide them.
 Dependent construction still uses normal native material and placement preflight;
 production still uses native recipe availability and persistent resource budgets.
 
-Selecting a project completes only the selection action. The research goal observes
+Selecting a project completes only the selection action. The research concern observes
 native points, finished projects and the capability's research readiness. No-progress
 holds use game ticks; renewed native progress can release the hold. Construction
 methods blocked on research resume only after fresh definition availability. A native

@@ -62,12 +62,12 @@ func init() {
 			deficit := false
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
-					Watch: roundsWindow, Goal: policy.TradeWithCaravan,
+					Watch: roundsWindow, Concern: policy.TradeWithCaravan,
 					// The goal recovering after a deficit is the trade
 					// settling (an accept, or the need gone); the census
 					// audit below says which.
 					Until: func(sample map[string]any) bool {
-						bound, _ := na.AsBool(sample["goal_bound"])
+						bound, _ := na.AsBool(sample["concern_bound"])
 						if !bound {
 							return false
 						}
@@ -84,7 +84,7 @@ func init() {
 						return err
 					}
 					defer journal.Close()
-					goal, err := sustainedfood.SampleGoal(ctx, journal, policy.TradeWithCaravan)
+					goal, err := sustainedfood.SampleStandard(ctx, journal, policy.TradeWithCaravan)
 					if err != nil {
 						return err
 					}

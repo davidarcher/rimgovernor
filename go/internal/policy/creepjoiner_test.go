@@ -149,7 +149,7 @@ func TestCreepJoinerOwedRaisesTheGoal(t *testing.T) {
 		r := stableRounds()
 		r.CreepJoinerOwed = f
 		res := needs(t, r, RoundsLatches{})
-		for _, g := range res.Goals {
+		for _, g := range res.Concerns {
 			if g.ID == ManageCreepJoiners {
 				return true
 			}

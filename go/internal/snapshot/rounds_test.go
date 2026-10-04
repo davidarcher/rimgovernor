@@ -28,8 +28,8 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 		t.Fatalf("latches %+v, recorded %+v", needs.Latches, r.Review.Latches)
 	}
 	bound := map[domain.ConcernID]bool{}
-	for _, g := range r.Review.Goals {
-		bound[g.Need] = true
+	for _, g := range r.Review.Standards {
+		bound[g.Concern] = true
 	}
 	for _, a := range needs.All() {
 		// MaintainSurgery (#1164), MaintainShelter (#1325), MaintainFirebreak (#1536) and MaintainButcherSpot, ManagePollution EnsureMechCharger and MaintainGeneBank are newer than the recording.
@@ -70,8 +70,8 @@ func TestRecordStreamsKeyframesAndPatches(t *testing.T) {
 		if i%3 == 1 {
 			v.Projection = nil
 		}
-		if i%4 == 2 && v.Review != nil && len(v.Review.Goals) > 0 {
-			v.Review.Goals = v.Review.Goals[:len(v.Review.Goals)-1]
+		if i%4 == 2 && v.Review != nil && len(v.Review.Standards) > 0 {
+			v.Review.Standards = v.Review.Standards[:len(v.Review.Standards)-1]
 		}
 		if err = Record(dir, v); err != nil {
 			t.Fatal(err)

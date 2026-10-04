@@ -23,7 +23,7 @@ EmergencySafeguard; a pause vetoes all of them through the PauseSafeguard (#1017
 Methods, blockers, provenance and progress evidence live in the existing SQLite-backed
 ColonyPlan.
 
-[Mood relief](mood-control.md) adds per-pawn corrective goals from native thresholds,
+[Mood relief](mood-control.md) adds per-pawn corrective concerns from native thresholds,
 thought pressure and needs. Active breaks hold routine execution; eligible relief
 uses ordinary native need jobs and completes only from observed need recovery.
 
@@ -61,19 +61,19 @@ ordered list of candidate patches one at a time: a zone preview reports refused
 ground as an evaluation that is not accepted, so a refused patch gives way to the
 next, while a stale map snapshot or an unresolvable configuration is a failure.
 
-Optional goals (priority class 3 and 4: basic equipment defense, wood, comfort,
+Optional concerns (priority class 3 and 4: basic equipment defense, wood, comfort,
 expansion, maintained research and resource targets) share a deterministic admission
 order. Scores combine a 0–100 observed deficit fraction, a 100-point player-target
 preference, one point per 1,000 waiting game ticks, a 20-point selection hysteresis
 bonus, a bottleneck penalty of up to 30 points and a risk penalty of up to 40 points
-(`policy.DefaultDevelopmentWeights`). Stable goal IDs break ties. These weights are
+(`policy.DefaultDevelopmentWeights`). Stable concern IDs break ties. These weights are
 policy ordering, not measured benefit or time estimates. Emergencies retain precedence,
-and comfort waits for startup-survival goals until each is served (a method on
+and comfort waits for startup-survival concerns until each is served (a method on
 record) or monitoring-only; a food latch that stays open while planted fields
 grow no longer holds a table back. The comfort shell rung waits like the
 workshop's while the initial shelter is still owed.
 
-The age weight is the starvation bound: an eligible optional goal overtakes any
+The age weight is the starvation bound: an eligible optional concern overtakes any
 persistently larger deficit within 100,000 waiting ticks (under two game days), and the
 gap is usually smaller because committed work resets the incumbent's waiting age. The
 bound is verified by replayed ranking simulations (`development_simulation_test.go`)
@@ -81,9 +81,9 @@ covering competing constant deficits, capacity loss and recovery, player interru
 uncertain cancelled writes and load/map/tick resets. Those replays establish bounded
 admission and retained waiting identities, not pawn progress or completion times.
 
-The bottleneck penalty is lead-time evidence: it scales with how contested a goal's
+The bottleneck penalty is lead-time evidence: it scales with how contested a concern's
 labor profile is (free pawns of its work types after commitments, against the eligible
-goals sharing those types), so an uncontested goal can be admitted ahead of one that
+concerns sharing those types), so an uncontested concern can be admitted ahead of one that
 would wait on the same scarce builder. Risk is observed exposure of outdoor work
 (construction, mining, plant cutting): an active cold or hot latch halves that work's
 priority weight, and an observed outdoor hazard condition such as toxic fallout defers
@@ -100,7 +100,7 @@ new project and never counts as recovery.
 `max_development_projects` defaults to two and accepts integer values from one through
 eight through the versioned player settings API. Available capacity is the smaller of
 that limit and the freshly observed undrafted, living, non-downed workers without a
-mental state whose work settings apply. Within that bound, each goal declares a labor
+mental state whose work settings apply. Within that bound, each concern declares a labor
 profile of native work types its methods put pawns to (construction for comfort,
 expansion, defense and repairs; research; mining, plant cutting or crafting for resource
 targets; hauling, cleaning, handling or firefighting for upkeep). The same pawns are
@@ -115,7 +115,7 @@ their slot. Falling capacity never deletes or rewrites accepted orders, and expl
 player work is not rejected by this optional-work limit. Native admission, material
 reservations and Hands dispatch guards still apply.
 
-A selected goal whose planner has no method left this review (its retry bound is spent
+A selected concern whose planner has no method left this review (its retry bound is spent
 or every fallback refused: MaintainCleanFacilities and
 EnsureDefensiveLayout report this) yields its admission slot to the next
 capacity-deferred candidate in the same review. The yield rewrites the review's rows
@@ -131,8 +131,8 @@ un-selects, so waiting ages survive it.
 The shared plan retains the ranking, observed worker and per-work-type labor counts and
 explicit deferral reasons in the rounds's development record. `GET /api/routines`
 returns that record under `development` (null until a review has ranked): reviewed tick,
-capacity, nullable worker count, sorted free-labor rows, committed goal IDs and one row
-per optional goal with score, nullable deficit and risk, `waitingSince`, selection and
+capacity, nullable worker count, sorted free-labor rows, committed concern IDs and one row
+per optional concern with score, nullable deficit and risk, `waitingSince`, selection and
 commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
 type. The launcher's Now tab renders it read-only as "Development priorities"; the
 panel hides itself when routine diagnostics are disabled. The same route returns the
@@ -148,27 +148,27 @@ reasons, stage hold on research and retained waiting ages above; pawn
 progress on the admitted projects is campaign evidence from the `sustained/matrix-*` cases,
 tracked in [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
 
-Every active goal also carries a progress record in the review (`policy.GoalProgress`,
+Every active concern also carries a progress record in the review (`policy.ConcernProgress`,
 #629): the method in play, the observable it should move, the tick native evidence
 last moved it, the tick the review inspects the blocker and the blocker itself. Progress
 is native outcome, never dispatch: a settled effect, observed construction or a shrinking
 deficit advances the clock; a dispatched designation with no capable available pawn in
 the labor census reads `blocked:no_worker`, a fresh native-ineligible hold
 `native_ineligible`, an order whose receipt is unknown `reconcile_write` (the review
-reconciles it by action identity before anything retries), and a goal with no open
+reconciles it by action identity before anything retries), and a concern with no open
 method `no_method`. The deadline (`DevelopmentStallTicks`; the hunt, haul and harvest
 stall contracts `RoundsPolicy.HuntProgress`/`HaulProgress`/`AcquisitionProgress` are
 instances of the same `ProgressContract`) keys the failed situation out for a bounded
 cooldown (`ProgressCooldownMax`, never a permanent ban) and the planners rotate the
 method or target: the acquisition planner records the source a stall cancelled under
 the review's revision (`Store.RecordProgressCooldown`) and passes it over until the
-cooldown lifts. The food goal walks acquire -> cook -> store -> grow and names
+cooldown lifts. The food concern walks acquire -> cook -> store -> grow and names
 `prerequisite:EnsureCooking` while the cooking gate is known missing (a known-missing
 storage gate names `MaintainFoodStorage` on the store rung); a record blocked on a
 foothold prerequisite withholds Construction from the same review's development ranking
 (`DevelopmentRequest.Withheld`), so optional projects read `labor_unavailable` instead
 of diverting the builder. `GET /api/routines` returns the records under `progress` and
-the Development priorities panel lists them as "Goal progress".
+the Development priorities panel lists them as "Concern progress".
 
 The review also derives the colony stage (`policy.ColonyStage`, #630), one ordered fact
 of what the colony has achieved by outcome: Foothold, Reserves, Stable, Development.
@@ -178,25 +178,25 @@ what it has. Each stage has explicit exit criteria, all read live from the revie
 facts through `StageColonyFacts`: Foothold exits with roofed sleeping for
 every colonist, an active meal bill, a food stockpile, the runway at `FootholdFoodDays`
 and two armed fighters; Reserves with the runway at `FoodTargetDays`, the growing field
-sown, the wood latch clear, a research bench built and no production goal blocked;
+sown, the wood latch clear, a research bench built and no production concern blocked;
 Stable with power online, the season's climate answered (no perishables latched warm in
 spring and summer, sleeping rooms warm in fall and winter), a doctor-capable pawn, the
-production goals (food ladder, cooking, storage, resources) unblocked on native evidence
+production concerns (food ladder, cooking, storage, resources) unblocked on native evidence
 for `StableTicks` (two days), Stable held `DevelopmentTicks` (three days) and the runway
 at twice the target. Every transition has a laxer exit than entry (`ColonyStagePolicy`:
 every stage above Foothold drops only under two thirds of `FootholdFoodDays`,
-Development only under the target, Stable only after a production goal stays blocked
+Development only under the target, Stable only after a production concern stays blocked
 `StableExitTicks`), the stage climbs one step per review and drops cascade, and unknown
 facts neither advance nor drop it, so a colony oscillating around a threshold keeps its
-stage. The stage also decides which goals the review raises at all
-(`policy.StageGoalAllowed`): expansion, research and non-emergency resource floors from
+stage. The stage also decides which concerns the review raises at all
+(`policy.StageConcernAllowed`): expansion, research and non-emergency resource floors from
 Reserves; the defensive layout, stone shell (with Stonecutting), equipment,
 refrigeration (earlier for a full spoiling emergency), cleaning, hospital beds and, with
-a tame animal, the animal goals from Stable; comfort, flooring and lighting at
+a tame animal, the animal concerns from Stable; comfort, flooring and lighting at
 Development. Emergencies and cross-stage monitors (tending, mood, fire, raids) are
 raised at every stage. The record (`ColonyStageRecord`: stage, since, the first unmet
 exit criterion as blocker + reason, held) persists on the review
-(`Rounds.Stage`) and sets the next review's budgets and goals
+(`Rounds.Stage`) and sets the next review's budgets and concerns
 (`policy.StageRoundsPolicy`): Development adds one to the development-project limit,
 the research ladder walks two rungs at Foothold, five at Reserves, eight at Stable and
 all at Development, and the food reserve and wood targets scale 1.5x at Stable and 2x
@@ -205,7 +205,7 @@ at Development. Foothold with the shelter unmet holds the comfort-class developm
 `stage_foothold`, after the labor check so a held project still names the labor it
 lacks) and the optional wave skips their planners. No new action kind or command
 stream: the stage only moves budgets the existing planners already read. The
-`routine_review` timeline event carries `stage`/`stage_blocker`/`stage_reason`/
+`rounds_review` timeline event carries `stage`/`stage_blocker`/`stage_reason`/
 `stage_held`, a `colony_stage` event records each change, `GET /api/routines` returns
 the record under `stage` and the Development priorities panel shows it. Both the
 record and the progress records also feed the spectator "now" panel
@@ -283,13 +283,13 @@ psycaster below level 6 (`policy.PsylinkLevelUps`, #1940; the hediff's
 faction (`PawnState.royalty.holdings[].title`: the title caps the psylink level),
 after colonists with no psylink. Level-ups never raise the stock floor: only
 neuroformers already held serve them. Psyfocus is kept at target by the
-meditation schedule, not by this goal.
+meditation schedule, not by this concern.
 
 Non-combat psycasts (#1612, `policy.SelectMoodCast`) are the mood relief
 planner's: for a colonist whose mood pressure is active and whose measured need
 relief is spent or absent (`no_measured_correctable_need`,
 `bounded_methods_exhausted`, `unowned_thought_pressure`; never while a facility
-goal owns the pressure), it commits an `Ability` action (psycast source, pawn
+concern owns the pressure), it commits an `Ability` action (psycast source, pawn
 target) on the pawn's mood incident. The caster is another available colonist
 whose royalty read lists `WordOfJoy` (matched case-insensitively) as a
 pawn-targeted psycast with read cost, neural heat and cooldown, and whose
@@ -324,10 +324,10 @@ review ranks every untaken permit of every titled colonist's holding
 class (aid and laborer calls first, then trade, then drop-pod and shuttle
 access, psycast permits ahead of trade once a colonist is a psycaster; a
 passive permit with no worker of its own is classed by def name), takeable
-before blocked (title, points). The goal is open while the best permit is
+before blocked (title, points). The concern is open while the best permit is
 takeable and worth something; the planner commits one `choose_permit`
-`PawnSettingsIntent` for it, so the plan on the goal's method is the intent the
-save carries. Using a permit is the `Ability` action's, not this goal's.
+`PawnSettingsIntent` for it, so the plan on the concern's method is the intent the
+save carries. Using a permit is the `Ability` action's, not this concern's.
 
 ### Environmental disruption
 
@@ -344,7 +344,7 @@ discards the old episode. Restored episodes do not absorb unrelated later shorta
 Food, production, shelter, sleeping, temperature, cooking, power and storage use
 the existing controller gates. Affected services and needed wood acquisition are
 promoted to survival priority without superseding combat or medical emergencies.
-This is coordination within the existing goals, not an additional executor.
+This is coordination within the existing concerns, not an additional executor.
 
 An unusable cooking bench permits one campfire construction method when no
 campfire already exists. Unusable benches receive no new cooking bills.
@@ -405,7 +405,7 @@ fastest crop is urgent — both prefer the fastest crop that can plant. Existing
 never re-cropped. Open hunting, foraging or a butcher-spot build under EnsureFoodSupply does
 not block a field batch and a sown field does not block acquisition (the store exempts each from the
 other's open work, mirroring the acquisition-over-bill exemption); a second field batch
-still waits for the first to resolve. The butcher spot and the goal's bills are exempt the
+still waits for the first to resolve. The butcher spot and the concern's bills are exempt the
 same way (#260): a spot waits only for a pending spot, a bill only for an open bill, and
 neither blocks the fields, foraging or hunts beside it. Each batch previews at most six patches inside the
 shared step budget. The field planner also requests `SunLamp`, `HydroponicsBasin` and
@@ -544,7 +544,7 @@ temperature; the lowest per-colonist runway drives the food gate. Invalid supply
 observations remain unknown. Future harvest, changing temperatures, job selection and
 food sharing are not guaranteed. Harvest ETA remains an optimistic lower bound.
 
-The maintained food goal budgets each crop's capacity from native daily demand and
+The maintained food concern budgets each crop's capacity from native daily demand and
 yield, covering consumption during its growth allowance plus the persisted food reserve.
 That reserve, the food latch's thresholds and the wood thresholds are seasonal: the
 colony read carries the tile's growing calendar (`policy.Calendar`: growing days per
@@ -570,7 +570,7 @@ preserved product; future grazing is not credited against this budget.
 Rice, potatoes and corn are ranked by native yield, soil response and remaining
 seasonal temperature window. A stock buffer shorter than the fastest crop's growth
 allowance prioritizes that faster crop. Expansion preserves existing zones and shelter access;
-unknown capacity cannot complete the goal. Projected yield never counts as stock.
+unknown capacity cannot complete the concern. Projected yield never counts as stock.
 When rot risk limits runway, available long-lived native recipes can receive a
 target-count bill. A bill receipt cannot certify preserved food. Food stockpiles
 use a distinct label from crop zones.
@@ -579,13 +579,13 @@ labor, medical, mood and power projections and their input limits.
 
 ## Progress, capacity and bootstrap dialogs
 
-Goals record selected methods, attempts, step IDs and observable progress.
+Concerns record selected methods, attempts, step IDs and observable progress.
 Native events or a pause arriving during method selection retain a pending
 review; neither a refusal nor a no-op acknowledges newer evidence from an old read.
 Invalid templates have a bounded alternative-site search; unknown or failed native actions
 become explicit blockers. A no-progress watchdog prevents silent indefinite waiting.
 Structured `GiveJobIntent` refusals from unapplied dry-run previews block the affected
-goal while subsequent reviews continue. Changed worker jobs, cargo, health, work
+concern while subsequent reviews continue. Changed worker jobs, cargo, health, work
 settings, equipment, stock or upkeep evidence permit a fresh selection; a
 2,500-tick window also rechecks routes. Unknown failures and dispatched writes
 retain their existing reconciliation requirements. This never retries an uncertain
@@ -613,10 +613,10 @@ Additional farm batches use native crop requirements and current usable capacity
 bounded to 32 disjoint patches per action. Controller fitting checks do not establish
 larger-colony gameplay acceptance. Watchdog holds retain their tick, reason and
 completed action identities. A newly observed completion of tracked work can release
-that exact hold and continue the existing goal without replacing methods or receipts.
+that exact hold and continue the existing concern without replacing methods or receipts.
 Unchanged state, rewinds, cancelled or failed actions, different blockers and Manual
 retain the hold; emergencies still suspend lower-priority work. The initial
-faction/settlement naming prompt is a maintained bootstrap goal. Its semantic native
+faction/settlement naming prompt is a maintained bootstrap concern. Its semantic native
 action validates the exact observed generated suggestions, uses the native naming
 callbacks and verifies the names and dialog closure. Other forced dialogs retain the
 normal hold behavior.
@@ -626,7 +626,7 @@ normal hold behavior.
 Autonomous hunting screens current wild-animal observations before compiling a
 designation. Harmless, undesignated prey must be within 100 cells of the colony anchor
 and more than 25 cells from live wild predators, using square-grid distance. Unknown
-predator flags or positions prevent selection. The food goal retains candidate IDs and
+predator flags or positions prevent selection. The food concern retains candidate IDs and
 predator rejection evidence. The hunting budget (two outstanding) is zero while the
 roster is known and no [hunter](work-assignment.md#situational-roles) (`HunterFor`:
 Shooting, a ranged primary, never a Brawler) is on it, for stock and pest hunts alike.
@@ -675,8 +675,8 @@ route, the two-outstanding-hunts bound still applies, and a pest in a mental sta
 (manhunter) is not offered, the defense family answers it instead. The pest planner
 admits one hunt per pest up to the hunting budget and the census count, under
 methods `pest-hunt-*` and plans `routine-pest-hunt-*`; the method id is salted
-with the goal's admission count so a re-plan of the same animal at the same cell
-is a fresh method. Unlike the stock goals, `ClearPests` plans animal by animal:
+with the concern's admission count so a re-plan of the same animal at the same cell
+is a fresh method. Unlike the stock concerns, `ClearPests` plans animal by animal:
 a hunt already dispatched holds its own animal and counts against the two
 outstanding hunts, but neither the planner nor the store's open-work rule holds
 the next animal's method behind it. A pending or prepared pest hunt whose animal the wild-animal
@@ -685,7 +685,7 @@ wandered off follows it (#321). A dispatched pest hunt is finished natively when
 the animal is dead (completed, its corpse the output in whatever state it lies)
 or has left the map (unsuccessful, nothing to show), not when a fresh unforbidden
 corpse is observed as a food hunt is. The hunt-stall rule never cancels a
-dispatched pest hunt (#455): the goal has no other prey to try for that animal,
+dispatched pest hunt (#455): the concern has no other prey to try for that animal,
 and withdrawing the designation only re-plans it. A withdrawal of a cancelled
 acquisition under a later same-world authority generation keeps the plan
 loadable: the dispatch admission agrees with the withdrawn progress on the
@@ -701,13 +701,13 @@ so a batch can exceed its remaining target by one plant's yield.
 Food and wood methods issue a `DesignateIntent` (`HARVEST_PLANT`) on the exact observed plant
 within the observed colony/load/map. Native eligibility is checked again
 before designation. A fresh regrowth observation can renew a confirmed completed
-designation under the same maintained goal; its prior action and receipt remain in
+designation under the same maintained concern; its prior action and receipt remain in
 history. Pending, uncertain and cancelled acquisition orders prevent renewal at
 their location. A new designation still does not certify harvesting or stored food.
 A harvest completes once its output landed spawned, unforbidden and unfogged on the
 map; a stack a colonist then eats or hauls away stays proven (#260), so a starving
 colony's forage never blocks the hunt that follows it. A hunt-only food plan is
-planned and admitted while the goal's plant harvests stay open; an open hunt still
+planned and admitted while the concern's plant harvests stay open; an open hunt still
 blocks the next hunt, and a second forage waits for the first.
 
 ## Raid-point awareness
@@ -776,7 +776,7 @@ listed building within `policy.DistantThreatCells` (50) of a colonist keeps the
 active-combat deficit open and holds the clock as an unsafe threat exactly like a
 hostile pawn: the fight is planned under the stopped clock and run under watched
 combat windows; one further out is neither a deficit nor a hold, only a squad
-target while the goal is open for something else (#340: a map-gen hive in a
+target while the concern is open for something else (#340: a map-gen hive in a
 cave held every window for good); the building's id is never
 acknowledged to the native watcher, which resolves every acknowledged id as a
 spawned pawn and only stops for unacknowledged hostile pawns, so a lone building
@@ -825,7 +825,7 @@ starve research indefinitely. Explicit work overrides retain authority.
 Breaching a sealed ancient shrine releases its guards at once, so
 `policy.ShrineBreachReadiness` judges the gate before any wall goes (#457).
 It is a decision, never an order: `ColonyStatus` reads it for
-`/api/player/colony`, and the breach goal (#458) will
+`/api/player/colony`, and the breach concern (#458) will
 re-read the facts before drafting anyone. Every hold is a reason, in this
 order: `not_sealed`, `no_breach_wall`, `emergency_active`,
 `squad_too_small` (fewer than two eligible armed colonists, one under
@@ -841,7 +841,7 @@ observed yet, so the Peaceful softening stays off. The colony status read
 fetches combat pawns, the emergency census and a 27x27 defense-site
 window around the wall only while a sealed shrine shows a breach wall.
 
-### Ancient shrine breach goal
+### Ancient shrine breach concern
 
 `ClearAncientShrine` (the `shrine` routine family, #458) owes work on every
 shrine whose room touches Home that is still sealed, or open with a guard
@@ -864,7 +864,7 @@ inspected against the shrine census, not the clearance census, and is
 eligible only while the shrine is still sealed; a wall that vanishes or
 changes definition is absent. The wall falling ends the method: the plan
 has no open work, the undraft sweep undrafts the squad and `ActiveCombat`
-answers the guards, which the goal then holds `guards_alive` until they are
+answers the guards, which the concern then holds `guards_alive` until they are
 dead or downed. Eight attempts per wall and Episode; Stop and Manual
 leave the squad drafted (the game's own auto-undraft applies once authority
 is inactive). Ranged breaching is not composed.
@@ -877,7 +877,7 @@ holds anything with no shrine decision, the gate's hold reason (below)
 for one it keeps sealed, `open` for one the gate opens, `claimed`
 for one already the player's, and `claim` for an empty unowned casket. An
 open, guard-free shrine touching Home with a `claim` casket is still the
-goal's target: before any readiness read the planner reads each such
+concern's target: before any readiness read the planner reads each such
 casket's claim token and admits one method of `claim_building` actions
 (BuildingPatchIntent claim, one per casket; a casket the fresh read already shows
 as the player's is skipped). The claim is a one-shot CAS write like a bed's
@@ -898,11 +898,11 @@ health 0.8 or better covers every filled casket (`lock_understaffed`,
 downed or bleeding (`open_emergency`), no hostile threat holds
 (`open_combat_active`), and raid points sit under the breach ceiling for the
 lock plus the backup (`open_threat_unknown`, `open_threat_too_high`). A held
-gate leaves the shrine off the goal's targets, so the goal finishes with the
+gate leaves the shrine off the concern's targets, so the concern finishes with the
 caskets sealed and re-arms the next review the gate holds; nothing is urgent.
 
 Once the gate holds, an open, guard-free shrine touching Home
-with a filled casket is the goal's target after any claims: the planner
+with a filled casket is the concern's target after any claims: the planner
 reads the squad and `policy.ShrineMeleeLock` staffs one violence-capable
 colonist whose primary is not a ranged weapon per filled casket,
 healthiest first, or holds `lock_understaffed`. The method is an owned
@@ -912,7 +912,7 @@ every draft and move; opening one casket ejects the whole group at the
 lockers' feet, where a drafted colonist's auto-attack answers a waking
 hostile. The plan has no further work: the worker releases the drafts once
 the opening resolves and `ActiveCombat` and the custody planner take the
-released ancients from there, the goal holding `guards_alive` while a
+released ancients from there, the concern holding `guards_alive` while a
 hostile stands. The census then lists each released humanlike or corpse as
 an occupant and `policy.OccupantDecision` names its `ShrineHolds` row:
 `bury` for a corpse (MaintainWaste), `fight` for a standing hostile

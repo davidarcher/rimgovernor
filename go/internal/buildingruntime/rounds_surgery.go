@@ -90,7 +90,7 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 			return RoundsSurgeryResult{}, err
 		}
 		for _, progress := range plan.Progress {
-			if s, ok := progress.Action().Surgery(); ok && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if s, ok := progress.Action().Surgery(); ok && domain.StandardWorkOpen([]domain.Progress{progress}) {
 				inFlight[policy.PawnID(s.Pawn())] = true
 			}
 		}

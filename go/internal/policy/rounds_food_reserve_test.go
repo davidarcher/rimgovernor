@@ -11,9 +11,9 @@ func TestReserveRefillIndependentOfFoodDeficit(t *testing.T) {
 	f.FoodReserve = domain.Known(FoodReserveReview{TargetNutrition: 5, DeficitNutrition: 5})
 	r := needs(t, f, RoundsLatches{})
 	if hasNeed(r, EnsureFoodSupply) || !hasNeed(r, MaintainFoodStorage) {
-		t.Fatal(r.Goals)
+		t.Fatal(r.Concerns)
 	}
-	for _, goal := range r.Goals {
+	for _, goal := range r.Concerns {
 		if goal.ID == MaintainFoodStorage && goal.MethodUnavailable {
 			t.Fatal(goal)
 		}
@@ -27,7 +27,7 @@ func TestReserveRefillIndependentOfFoodDeficit(t *testing.T) {
 func TestReserveReleaseBypassesDevelopmentQueue(t *testing.T) {
 	f := stableRounds()
 	f.FoodReserve = domain.Known(FoodReserveReview{Emergency: true, Release: []string{"reserve"}})
-	for _, goal := range needs(t, f, RoundsLatches{}).Goals {
+	for _, goal := range needs(t, f, RoundsLatches{}).Concerns {
 		if goal.ID == MaintainFoodStorage {
 			if goal.Priority != 2 || goal.MethodUnavailable {
 				t.Fatal(goal)

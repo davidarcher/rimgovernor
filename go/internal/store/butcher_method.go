@@ -14,7 +14,7 @@ const butcherSpotDefinition = "ButcherSpot"
 
 // foodGoal reports the routine EnsureFoodSupply goal; the routine goal id
 // ends in its need.
-func foodGoal(goal WorkOwner) bool {
+func foodConcern(goal WorkOwner) bool {
 	return roundsStandardOwns(domain.ConcernID(goal.OwnerID()), policy.EnsureFoodSupply)
 }
 
@@ -32,7 +32,7 @@ func butcherSpotBuilding(action domain.Action) bool {
 // butcher-spot placement; a plan made only of production bills only by an
 // open bill. Any other goal keeps the ordinary rule.
 func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
-	if len(plan.Actions()) == 0 || !foodGoal(goal) {
+	if len(plan.Actions()) == 0 || !foodConcern(goal) {
 		return false, nil
 	}
 	spot, bill := false, false
@@ -72,7 +72,7 @@ func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner,
 					}
 				}
 			}
-			if own && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if own && domain.StandardWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}
 		}

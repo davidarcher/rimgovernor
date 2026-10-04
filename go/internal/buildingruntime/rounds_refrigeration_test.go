@@ -100,7 +100,7 @@ func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Standard.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 1 {
 		t.Fatal(plan, err)
 	}
@@ -126,15 +126,15 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted || n.buildingReads != 2 || n.previews != 0 {
 		t.Fatal(result, err, n.buildingReads, n.previews)
 	}
-	goal, err := db.LoadStandard(context.Background(), result.Decision.Goal.Standard.ID)
+	goal, err := db.LoadStandard(context.Background(), result.Decision.Standard.Standard.ID)
 	if err != nil {
 		review, loadErr := db.LoadRounds(context.Background())
 		if loadErr != nil {
 			t.Fatal(loadErr)
 		}
-		for _, binding := range review.Goals {
-			if binding.Need == policy.MaintainRefrigeration {
-				goal, err = db.LoadStandard(context.Background(), binding.Goal)
+		for _, binding := range review.Standards {
+			if binding.Concern == policy.MaintainRefrigeration {
+				goal, err = db.LoadStandard(context.Background(), binding.Standard)
 			}
 		}
 		if err != nil {
@@ -215,9 +215,9 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 		t.Fatal(err)
 	}
 	var goal store.StandardState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainRefrigeration {
-			goal, err = db.LoadStandard(context.Background(), binding.Goal)
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainRefrigeration {
+			goal, err = db.LoadStandard(context.Background(), binding.Standard)
 		}
 	}
 	if err != nil || len(goal.Methods) != 1 {
@@ -307,9 +307,9 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 		t.Fatal(err)
 	}
 	var goal store.StandardState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainRefrigeration {
-			if goal, err = db.LoadStandard(ctx, binding.Goal); err != nil {
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainRefrigeration {
+			if goal, err = db.LoadStandard(ctx, binding.Standard); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -370,9 +370,9 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 		t.Fatal("epoch without a cooler method lent no native cooling time")
 	}
 	var goal store.StandardState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainRefrigeration {
-			if goal, err = db.LoadStandard(ctx, binding.Goal); err != nil {
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainRefrigeration {
+			if goal, err = db.LoadStandard(ctx, binding.Standard); err != nil {
 				t.Fatal(err)
 			}
 		}

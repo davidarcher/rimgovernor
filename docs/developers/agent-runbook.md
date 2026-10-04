@@ -174,7 +174,7 @@ What it produces:
   its `result.json` and `diagnosis.txt` beside it (`acceptance why
   <output>/<area>/<case>` reprints it, `-json` for the structure): the run
   binary's revision against `main`, the last native refusals, the routine
-  review's refused development rows and selected goals with no method,
+  review's refused development rows and selected concerns with no method,
   unsuccessful stages, native job failures, authority generation flips
   and pooled-job mismatches, each line naming its file and row (#278).
   Failed step receipts also identify the native tool and distinguish fixture
@@ -250,11 +250,10 @@ merges.
 
 "Goal" meant three things (a kind id, a Standard row, any owner of Methods),
 so the epic [#1964](https://github.com/davidarcher/rimgovernor/issues/1964)
-renames it everywhere. This table is the one source of truth: grep an old word
-here to find the new one. The "In code" column says whether the rename has
-landed; until a row reads "renamed", code, storage and logs still use the old
-word and the docs name both. Each rename child updates this column and the
-docs for the names it renames.
+renamed it everywhere. This table is the one source of truth: grep an old word
+here to find the new one. The rename is complete: code, storage, logs and
+docs use the new words, and the "In code" column records which child landed
+each row.
 
 The governor makes **Rounds**, running an **Inspection** on each **Concern**
 in its **Department**. A Concern takes one **Type**: a **Standard** (kept up),
@@ -268,7 +267,7 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `GoalDetector` | Inspection | Checks one Concern. | done (#1968) |
 | `GoalConcept`, "concept" | Type | Standard, Project or Incident. | done (#1968) |
 | `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | done (#1968) |
-| `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings. Log word "routine review" is now "rounds" (the `rounds ran` event keeps the `routine_review` event name; the SQLite table is `rounds` since #1976). The whole `Routine*` family is now `Rounds*` (bare `config.Routine` is `config.Rounds`; C# fixtures `Routine*Fixture` became `Rounds*Fixture`). | done (#1975, #1979) |
+| `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings. Log word "routine review" is now "rounds" (the `rounds ran` flight-recorder row and clock event are `rounds_review`, formerly `routine_review`; the SQLite table is `rounds` since #1976). The whole `Routine*` family is now `Rounds*` (bare `config.Routine` is `config.Rounds`; C# fixtures `Routine*Fixture` became `Rounds*Fixture`). | done (#1975, #1979) |
 | `Goal` row, `goals` table | Standard | `Open / Settled / Voided` (was `Cancelled` too; the player-goal path is deleted). | done #1972, #1976 (table `standards`, blob key `standard/<id>`, status words open / settled / voided) |
 | `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. | done #1972, #1976 (column and JSON key `episode`) |
 | `Project` | Project | `Open / Completed / Voided`. | done #1972 |

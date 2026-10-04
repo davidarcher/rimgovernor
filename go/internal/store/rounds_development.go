@@ -16,7 +16,7 @@ import (
 // player project) it serves.
 type roundsPlan struct {
 	state    PlanState
-	goal     domain.ConcernID
+	concern  domain.ConcernID
 	priority int
 }
 
@@ -24,27 +24,27 @@ type roundsPlan struct {
 // goal: routine plans to their bound need, player submissions to a
 // per-plan project id. Plans of another world, and plans with neither a
 // method nor a submission, are skipped.
-func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoundsGoal) ([]roundsPlan, error) {
+func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoundsStandard) ([]roundsPlan, error) {
 	plans, err := loadPlans(ctx, tx, 256)
 	if err != nil {
 		return nil, err
 	}
 	var result []roundsPlan
 	for _, plan := range plans {
-		var goalID domain.ConcernID
+		var concernID domain.ConcernID
 		priority := 3
 		world := World{}
 		admitted := 0
 		var kind, ownerID string
 		err = tx.QueryRowContext(ctx, "SELECT kind,owner_id,priority FROM plan_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&kind, &ownerID, &admitted)
-		goalID = domain.ConcernID(ownerID)
+		concernID = domain.ConcernID(ownerID)
 		if err == nil && kind == "project" {
 			// A Project's method serves its kind, which is its need.
 			p, e := loadProject(ctx, tx, domain.ProjectID(ownerID))
 			if e != nil {
 				return nil, e
 			}
-			goalID, priority = p.Project.Kind, admitted
+			concernID, priority = p.Project.Kind, admitted
 			world = World{Colony: p.Project.Snapshot.Colony, Load: p.Project.Snapshot.Load, Map: p.Project.Snapshot.Map}
 		} else if err == nil && kind == "incident" {
 			// An incident's method serves its Response kind (#1020).
@@ -52,10 +52,10 @@ func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnaps
 			if e != nil {
 				return nil, e
 			}
-			goalID, priority = i.Incident.Kind, admitted
+			concernID, priority = i.Incident.Kind, admitted
 			world = World{Colony: i.Incident.Snapshot.Colony, Load: i.Incident.Snapshot.Load, Map: i.Incident.Snapshot.Map}
 		} else if err == nil {
-			g, e := loadGoal(ctx, tx, goalID)
+			g, e := loadStandard(ctx, tx, concernID)
 			if e != nil {
 				return nil, e
 			}
@@ -66,8 +66,8 @@ func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnaps
 			priority = admitted
 			world = World{Colony: g.Standard.Snapshot.Colony, Load: g.Standard.Snapshot.Load, Map: g.Standard.Snapshot.Map}
 			for _, b := range bindings {
-				if goalID == b.Goal || roundsStandardOwns(goalID, b.Need) {
-					goalID = b.Need
+				if concernID == b.Standard || roundsStandardOwns(concernID, b.Concern) {
+					concernID = b.Concern
 					break
 				}
 			}
@@ -79,14 +79,14 @@ func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnaps
 			if err != nil {
 				return nil, err
 			}
-			goalID = domain.ConcernID(fmt.Sprintf("player-project-%x", sha256.Sum256([]byte(plan.Spec.ID()))))
+			concernID = domain.ConcernID(fmt.Sprintf("player-project-%x", sha256.Sum256([]byte(plan.Spec.ID()))))
 		} else {
 			return nil, err
 		}
 		if world != (World{Colony: current.Colony, Load: current.Load, Map: current.Map}) {
 			continue
 		}
-		result = append(result, roundsPlan{plan, goalID, priority})
+		result = append(result, roundsPlan{plan, concernID, priority})
 	}
 	return result, nil
 }
@@ -104,8 +104,8 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []roundsPlan) ([]polic
 		if open.View().Stage == "" || developmentExemptMethod(plan.state.Spec) {
 			continue
 		}
-		labor := policy.GoalLabor(plan.goal)
-		if labor == nil && strings.HasPrefix(string(plan.goal), "player-project-") {
+		labor := policy.ConcernLabor(plan.concern)
+		if labor == nil && strings.HasPrefix(string(plan.concern), "player-project-") {
 			labor = policy.LaborProfile{policy.WorkConstruction}
 		}
 		targets := domain.Unknown[policy.WorkTargets]()
@@ -114,7 +114,7 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []roundsPlan) ([]polic
 				targets = policy.ActionWorkTargets(a)
 			}
 		}
-		result = append(result, policy.Commitment{Goal: plan.goal, Priority: plan.priority, Progress: open, Labor: labor, Targets: targets})
+		result = append(result, policy.Commitment{Concern: plan.concern, Priority: plan.priority, Progress: open, Labor: labor, Targets: targets})
 	}
 	return result, nil
 }
@@ -123,10 +123,10 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []roundsPlan) ([]polic
 // plans: recorded beside the development rows, read by no admission.
 // Stage inputs (bill ingredients, crop readiness) are not observed here
 // yet, so staged work reads awaiting_observation rather than ready.
-func readyWorkOf(r RoundsRequest, plans []roundsPlan, goals []policy.DevelopmentGoal) policy.ReadyWorkReport {
+func readyWorkOf(r RoundsRequest, plans []roundsPlan, goals []policy.DevelopmentConcern) policy.ReadyWorkReport {
 	var ready []policy.ReadyPlan
 	for _, p := range plans {
-		ready = append(ready, policy.ReadyPlan{Goal: p.goal, Spec: p.state.Spec, Progress: p.state.Progress})
+		ready = append(ready, policy.ReadyPlan{Concern: p.concern, Spec: p.state.Spec, Progress: p.state.Progress})
 	}
 	var unserved []domain.ConcernID
 	for _, g := range goals {
@@ -138,9 +138,9 @@ func readyWorkOf(r RoundsRequest, plans []roundsPlan, goals []policy.Development
 }
 
 func rankRoundsDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, needs policy.RoundsFindings, states []WorkOwner, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
-	var bindings []RoundsGoal
+	var bindings []RoundsStandard
 	for i, n := range needs.Assessments {
-		bindings = append(bindings, RoundsGoal{Need: n.ID, Goal: domain.ConcernID(states[i].OwnerID())})
+		bindings = append(bindings, RoundsStandard{Concern: n.ID, Standard: domain.ConcernID(states[i].OwnerID())})
 	}
 	plans, err := roundsPlans(ctx, tx, r.Current, bindings)
 	if err != nil {
@@ -154,10 +154,10 @@ func rankRoundsDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, nee
 	if err != nil {
 		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 	}
-	goals := append([]policy.DevelopmentGoal(nil), needs.Goals...)
+	goals := append([]policy.DevelopmentConcern(nil), needs.Concerns...)
 	for i := range goals {
 		for j, b := range bindings {
-			if b.Need == goals[i].ID {
+			if b.Concern == goals[i].ID {
 				owner := states[j]
 				g, _ := SummarizeOwner(owner)
 				goals[i].Blocked = g.Status != domain.StandardOpen
@@ -171,7 +171,7 @@ func rankRoundsDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, nee
 			}
 		}
 	}
-	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Goals: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Dependencies: dependencies})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Concerns: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Dependencies: dependencies})
 	if err != nil {
 		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 	}
@@ -253,7 +253,7 @@ func admitRoundsDevelopment(ctx context.Context, tx *sql.Tx, g OwnerSummary, pla
 		return err
 	}
 	if review.Snapshot != g.Snapshot {
-		return fmt.Errorf("%w: goal %s reviewed under snapshot %+v, current review is %+v", ErrNotAdmitted, g.ID, g.Snapshot, review.Snapshot)
+		return fmt.Errorf("%w: standard %s reviewed under snapshot %+v, current review is %+v", ErrNotAdmitted, g.ID, g.Snapshot, review.Snapshot)
 	}
 	need, _ := review.needOf(g.ID)
 	if err := policy.AdmitDevelopment(review.Development.State(), need); err != nil {
@@ -277,7 +277,7 @@ func openPlanActions(plans []roundsPlan) map[domain.ConcernID]int {
 		}
 		for _, a := range p.state.Spec.Actions() {
 			if pr, started := byAction[a.ID()]; !started || ProgressOpen(p.state, pr) {
-				open[p.goal]++
+				open[p.concern]++
 			}
 		}
 	}

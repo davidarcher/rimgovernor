@@ -174,10 +174,10 @@ func TestPsylinkOwedRaisesMaintainPsylink(t *testing.T) {
 	f := stableRounds()
 	f.PsylinkOwed = domain.Known(true)
 	r := needs(t, f, RoundsLatches{})
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainPsylink {
 			return
 		}
 	}
-	t.Fatal("owed psylink use raised no MaintainPsylink goal", r.Goals)
+	t.Fatal("owed psylink use raised no MaintainPsylink goal", r.Concerns)
 }

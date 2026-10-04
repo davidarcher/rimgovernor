@@ -32,15 +32,15 @@ func (r NoOpReason) Validate() error {
 
 // NoOpRecord is one detector's recorded no-op in the review.
 type NoOpRecord struct {
-	Goal   ConcernID
-	Reason NoOpReason
+	Concern ConcernID
+	Reason  NoOpReason
 }
 
 // noOpOf classifies what a detector left on the run: it is a no-op when it
 // raised no goal and filed no deficit assessment for its goal. The reason
 // follows the assessments it filed: none is not_applicable, any unknown is
 // inputs_unknown, otherwise satisfied.
-func noOpOf(id ConcernID, goals []DevelopmentGoal, assessments []RoundsAssessment) (NoOpRecord, bool) {
+func noOpOf(id ConcernID, goals []DevelopmentConcern, assessments []RoundsAssessment) (NoOpRecord, bool) {
 	reason := NoOpNotApplicable
 	for _, g := range goals {
 		if g.ID == id {
@@ -62,5 +62,5 @@ func noOpOf(id ConcernID, goals []DevelopmentGoal, assessments []RoundsAssessmen
 			}
 		}
 	}
-	return NoOpRecord{Goal: id, Reason: reason}, true
+	return NoOpRecord{Concern: id, Reason: reason}, true
 }

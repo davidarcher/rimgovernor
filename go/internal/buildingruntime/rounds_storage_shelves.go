@@ -36,7 +36,7 @@ type RoundsStorageShelvesResult struct {
 // shelfGoals are the goals whose stockpiles get shelves: SecureSupplies'
 // general store and MaintainResource's earlier ingredient zones.
 // Food storage (meal shelves, freezers) is planned by its own goals.
-var shelfGoals = map[policy.ConcernID]bool{policy.MaintainResource: true}
+var shelfConcerns = map[policy.ConcernID]bool{policy.MaintainResource: true}
 
 // maxShelvesPerZone bounds the shelves a zone may ever be given.
 const maxShelvesPerZone = 8
@@ -74,10 +74,10 @@ func (r *RoundsStorageShelvesPlanner) step(call, epoch context.Context) (RoundsS
 		return RoundsStorageShelvesResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	selected := map[domain.ConcernID]policy.ConcernID{}
-	for _, binding := range review.Goals {
+	for _, binding := range review.Standards {
 		for _, row := range review.Development.Rows {
-			if row.Goal == binding.Need && row.Selected && shelfGoals[binding.Need] {
-				selected[binding.Goal] = binding.Need
+			if row.Concern == binding.Concern && row.Selected && shelfConcerns[binding.Concern] {
+				selected[binding.Standard] = binding.Concern
 			}
 		}
 	}
@@ -92,17 +92,17 @@ func (r *RoundsStorageShelvesPlanner) step(call, epoch context.Context) (RoundsS
 	goals := map[domain.ConcernID]store.StandardState{}
 	var zones []store.OwnedZone
 	for _, z := range owned {
-		if z.Kind != domain.StockpileZone || selected[z.Goal] == "" || z.Priority == domain.LowPriority {
+		if z.Kind != domain.StockpileZone || selected[z.Concern] == "" || z.Priority == domain.LowPriority {
 			continue
 		}
-		if _, loaded := goals[z.Goal]; !loaded {
-			g, err := p.journal.LoadStandard(call, z.Goal)
+		if _, loaded := goals[z.Concern]; !loaded {
+			g, err := p.journal.LoadStandard(call, z.Concern)
 			if err != nil {
 				return RoundsStorageShelvesResult{}, err
 			}
-			goals[z.Goal] = g
+			goals[z.Concern] = g
 		}
-		if g := goals[z.Goal].Standard; g.Status == domain.StandardOpen && g.Finding == domain.FindingUnmet {
+		if g := goals[z.Concern].Standard; g.Status == domain.StandardOpen && g.Finding == domain.FindingUnmet {
 			zones = append(zones, z)
 		}
 	}
@@ -142,7 +142,7 @@ func (r *RoundsStorageShelvesPlanner) step(call, epoch context.Context) (RoundsS
 		}
 		owner[z.ID] = z
 		request.Zones = append(request.Zones, policy.ShelfZone{Zone: z.ID, Cells: cells, Filter: z.Filter, Priority: z.Priority})
-		shelves, index, err := zoneShelves(call, p.journal, z.Goal, z.ID, facts.Facts.CurrentConstruction)
+		shelves, index, err := zoneShelves(call, p.journal, z.Concern, z.ID, facts.Facts.CurrentConstruction)
 		if err != nil {
 			return RoundsStorageShelvesResult{}, err
 		}
@@ -155,7 +155,7 @@ func (r *RoundsStorageShelvesPlanner) step(call, epoch context.Context) (RoundsS
 		if next[z.ID] >= maxShelvesPerZone {
 			return RoundsStorageShelvesResult{Verdict: refuse(RefusalRetriesSpent, "maxShelvesPerZone", "")}, nil
 		}
-		return r.build(call, epoch, state, review, goals[z.Goal], selected[z.Goal], reading, step, next[z.ID])
+		return r.build(call, epoch, state, review, goals[z.Concern], selected[z.Concern], reading, step, next[z.ID])
 	}
 	for _, shelf := range request.Shelves {
 		if shelf.Open {
@@ -240,7 +240,7 @@ func (r *RoundsStorageShelvesPlanner) build(call, epoch context.Context, state C
 		}
 		return nil
 	}
-	building := &RoundsBuildingPlanner{reviewer: r.reviewer, native: r.native, goal: need, definition: policy.ShelfDefinition}
+	building := &RoundsBuildingPlanner{reviewer: r.reviewer, native: r.native, concern: need, definition: policy.ShelfDefinition}
 	for _, piece := range step.Pieces {
 		if err := check(); err != nil {
 			return RoundsStorageShelvesResult{}, err
@@ -263,13 +263,13 @@ func (r *RoundsStorageShelvesPlanner) build(call, epoch context.Context, state C
 				return RoundsStorageShelvesResult{Verdict: rockNotDug(policy.ShelfDefinition, "no_open_cell_beside_footprint")}, nil
 			}
 			method := shelfMethod(step.Zone.Zone, index)
-			dug, handled, err := building.admitRockStep(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading}, planned, access, method, []domain.Building{value}, check)
+			dug, handled, err := building.admitRockStep(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, planned, access, method, []domain.Building{value}, check)
 			if err != nil {
 				return RoundsStorageShelvesResult{}, err
 			}
 			if handled {
 				out := RoundsStorageShelvesResult{Verdict: dug.Verdict}
-				for _, m := range dug.Decision.Goal.Methods {
+				for _, m := range dug.Decision.Standard.Methods {
 					if m.Method == method {
 						out.Plan = m.Plan
 					}
@@ -297,7 +297,7 @@ func (r *RoundsStorageShelvesPlanner) build(call, epoch context.Context, state C
 			return RoundsStorageShelvesResult{}, err
 		}
 		method := shelfMethod(step.Zone.Zone, index)
-		result, err := building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Rounds})
+		result, err := building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Rounds})
 		if err != nil || result.Verdict != BuildingReasonAdmitted {
 			return RoundsStorageShelvesResult{Verdict: result.Verdict}, err
 		}

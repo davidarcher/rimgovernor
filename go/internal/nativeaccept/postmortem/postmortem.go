@@ -538,7 +538,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 				Capacity  int
 				Committed []string
 				Rows      []struct {
-					Goal                string
+					Concern             string
 					Score               float64
 					Deficit             *float64
 					Selected, Committed bool
@@ -553,7 +553,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 			text := fmt.Sprintf("review revision %d at tick %d enabled=%t; development capacity %d committed=%v", review.Revision, review.Tick, review.Enabled, review.Development.Capacity, review.Development.Committed)
 			s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds"})
 			for _, row := range review.Development.Rows {
-				development[row.Goal] = !row.Selected
+				development[row.Concern] = !row.Selected
 				if row.Selected {
 					continue
 				}
@@ -561,12 +561,12 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 				if row.Deficit != nil {
 					deficit = strconv.FormatFloat(*row.Deficit, 'f', 2, 64)
 				}
-				text := fmt.Sprintf("%s not selected: %s (score %.2f deficit %s)", row.Goal, row.Reason, row.Score, deficit)
+				text := fmt.Sprintf("%s not selected: %s (score %.2f deficit %s)", row.Concern, row.Reason, row.Score, deficit)
 				if row.Bottleneck != "" {
 					text += " bottleneck " + row.Bottleneck
 				}
 				if len(s.Lines) < maxLines {
-					s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds Development.Rows[" + row.Goal + "]"})
+					s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds Development.Rows[" + row.Concern + "]"})
 				}
 			}
 		}
@@ -575,7 +575,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 	// live method: the "zero methods" symptom the rows above do not explain.
 	rows, err := db.QueryContext(ctx, "SELECT g.id, g.payload, (SELECT count(*) FROM standard_methods m JOIN plans p ON p.id=m.plan_id WHERE m.standard_id=g.id AND p.retired=0) FROM standards g WHERE g.retired=0")
 	if err != nil {
-		s.Lines = append(s.Lines, Line{Text: "goals: " + err.Error(), Evidence: "service.sqlite goals"})
+		s.Lines = append(s.Lines, Line{Text: "standards: " + err.Error(), Evidence: "service.sqlite standards"})
 		return s
 	}
 	defer rows.Close()
@@ -607,7 +607,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		if len(s.Lines) >= 2*maxLines {
 			continue
 		}
-		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("goal %s deficit/open priority %d episode %d: %d live methods", id, goal.Priority, goal.Episode, methods), Evidence: "service.sqlite standards#" + id})
+		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("standard %s deficit/open priority %d episode %d: %d live methods", id, goal.Priority, goal.Episode, methods), Evidence: "service.sqlite standards#" + id})
 	}
 	rows.Close()
 	// Projects (#1911) are their own rows: an open Project in deficit with
@@ -644,7 +644,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("project %s deficit/open priority %d: %d live methods", id, project.Priority, methods), Evidence: "service.sqlite projects#" + id})
 	}
 	if count == 0 && s.Note == "" {
-		s.Lines = append(s.Lines, Line{Text: "no selected goal in deficit", Evidence: "service.sqlite goals"})
+		s.Lines = append(s.Lines, Line{Text: "no selected standard in deficit", Evidence: "service.sqlite standards"})
 	}
 	return s
 }
@@ -652,12 +652,12 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 // needOf is the routine need a goal id names: routine goal ids are
 // "routine-<colony>-<Need>[-<subject>]", so the need is the third
 // dash-separated part; any other id is returned whole.
-func needOf(goalID string) string {
-	parts := strings.SplitN(goalID, "-", 4)
+func needOf(concernID string) string {
+	parts := strings.SplitN(concernID, "-", 4)
 	if len(parts) >= 3 && parts[0] == "routine" {
 		return parts[2]
 	}
-	return goalID
+	return concernID
 }
 
 // --- 4. unsuccessful stages (raw store) --------------------------------

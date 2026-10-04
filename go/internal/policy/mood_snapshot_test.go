@@ -61,7 +61,7 @@ func TestMoodProvisionDefersRecordedEnvironmentPressure(t *testing.T) {
 	staged := map[policy.ConcernID]bool{policy.EnsureComfort: true, policy.MaintainHousing: true}
 	owners := map[policy.ConcernID]bool{}
 	for _, p := range history.States[0].Provision {
-		owners[p.Goal] = true
+		owners[p.Concern] = true
 	}
 	for goal := range staged {
 		if !owners[goal] {
@@ -72,7 +72,7 @@ func TestMoodProvisionDefersRecordedEnvironmentPressure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Reason != policy.MoodProvisioned || !owners[proposal.Goal] {
+	if proposal.Reason != policy.MoodProvisioned || !owners[proposal.Concern] {
 		t.Fatalf("want a facility_provision proposal to an owner goal, got %+v", proposal)
 	}
 
@@ -87,15 +87,15 @@ func TestMoodProvisionDefersRecordedEnvironmentPressure(t *testing.T) {
 		t.Fatalf("want the fixture pawn's state alone, got %+v", history.States)
 	}
 	for _, p := range history.States[0].Provision {
-		if staged[p.Goal] {
-			t.Fatalf("cleared pressure still provisions %s", p.Goal)
+		if staged[p.Concern] {
+			t.Fatalf("cleared pressure still provisions %s", p.Concern)
 		}
 	}
 	proposal, err = policy.SelectMoodMethod(history.States[0], nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Reason == policy.MoodRelief || proposal.Reason == policy.MoodProvisioned && staged[proposal.Goal] {
+	if proposal.Reason == policy.MoodRelief || proposal.Reason == policy.MoodProvisioned && staged[proposal.Concern] {
 		t.Fatalf("pressure cleared but the review still proposes %+v", proposal)
 	}
 }

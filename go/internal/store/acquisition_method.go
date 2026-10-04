@@ -29,12 +29,12 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, 
 			return false, nil
 		}
 	}
-	pest := pestGoal(goal)
+	pest := pestConcern(goal)
 	// EnsureFoodSupply's hunt-only plan passes the goal's open plant
 	// harvests (#260): a forage batch runs for days and the hunt rows
 	// the butcher spot and bill were placed for would otherwise wait
 	// behind it. A hunt still open blocks the next hunt plan.
-	hunts := foodGoal(goal)
+	hunts := foodConcern(goal)
 	for _, action := range plan.Actions() {
 		hunts = hunts && huntAcquisition(action)
 	}
@@ -51,7 +51,7 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, 
 			if hunts && action.Kind() == domain.AcquisitionAction && !huntAcquisition(action) {
 				continue
 			}
-			if domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if domain.StandardWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}
 		}
@@ -69,7 +69,7 @@ func huntAcquisition(action domain.Action) bool {
 // pestGoal reports the routine ClearPests goal (#247), whose hunts are
 // planned animal by animal: a hunt still awaiting its kill never blocks
 // the next animal's method. The routine goal id names its need.
-func pestGoal(goal WorkOwner) bool {
+func pestConcern(goal WorkOwner) bool {
 	return roundsStandardOwns(domain.ConcernID(goal.OwnerID()), policy.ClearPests)
 }
 

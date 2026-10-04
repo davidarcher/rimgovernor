@@ -72,7 +72,7 @@ func disposal(ctx context.Context, s cases.Session) error {
 	// shells it.
 	var room policy.LayoutRoom
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Goal: policy.MaintainWaste, Until: func(sample map[string]any) bool { return methodCompleted(sample, "incinerator-shell-") }},
+		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainWaste, Until: func(sample map[string]any) bool { return methodCompleted(sample, "incinerator-shell-") }},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			var err error
 			if room, err = plannedIncinerator(ctx, s); err != nil {
@@ -96,7 +96,7 @@ func disposal(ctx context.Context, s cases.Session) error {
 	// Window two: a full room with a molotov on the ground and a standby.
 	var seeded []string
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Goal: policy.MaintainWaste, Until: func(sample map[string]any) bool { return methodCompleted(sample, "burn-ash-") }},
+		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainWaste, Until: func(sample map[string]any) bool { return methodCompleted(sample, "burn-ash-") }},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			cells := policy.RectangleCells(room.Interior)
 			if len(cells) < disposalSeeded {
@@ -392,7 +392,7 @@ func burnPlans(ctx context.Context, s cases.Session) (burnCounts, error) {
 		return out, fmt.Errorf("reopen journal: %w", err)
 	}
 	defer journal.Close()
-	goal, err := sustainedfood.SampleGoal(ctx, journal, policy.MaintainWaste)
+	goal, err := sustainedfood.SampleStandard(ctx, journal, policy.MaintainWaste)
 	if err != nil {
 		return out, err
 	}

@@ -161,7 +161,7 @@ type Counts struct {
 // the observed tick and the launch's wall TPS.
 type Input struct {
 	Stage          *policy.ColonyStageRecord
-	Progress       []policy.GoalProgress
+	Progress       []policy.ConcernProgress
 	ReviewsEnabled bool
 	// Holds are the clock holds awaiting review, by kind.
 	Holds []string
@@ -324,13 +324,13 @@ func stop(row bridge.TimelineRecord) *Stop {
 // concerns orders the progress records the way a watcher reads them: blocked
 // concerns first, then the nearest review deadline, then the concern id so the
 // order is stable; at most limit rows.
-func concerns(records []policy.GoalProgress, limit int) []Concern {
+func concerns(records []policy.ConcernProgress, limit int) []Concern {
 	if limit <= 0 {
 		limit = ConcernsShown
 	}
 	out := make([]Concern, 0, len(records))
 	for _, r := range records {
-		out = append(out, Concern{Concern: string(r.Goal), Method: r.Method, Expected: r.Expected, LastProgress: r.LastProgress,
+		out = append(out, Concern{Concern: string(r.Concern), Method: r.Method, Expected: r.Expected, LastProgress: r.LastProgress,
 			NextReview: r.NextReview, Blocked: string(r.Blocked), Prerequisite: string(r.Blocked.Prerequisite()), Observed: r.Observed})
 	}
 	sort.SliceStable(out, func(i, j int) bool {

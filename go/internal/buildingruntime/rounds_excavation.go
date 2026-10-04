@@ -158,7 +158,7 @@ func maxInt32(a, b int32) int32 {
 type excavationStep struct {
 	state  ControlState
 	review store.Rounds
-	goal   store.WorkOwner
+	owner  store.WorkOwner
 	facts  observation.ColonyProjection
 	read   observation.ColonyReading
 	target policy.ExcavationTarget
@@ -191,7 +191,7 @@ func excavationStates(site bridge.ExcavationSite) []policy.ExcavationCellState {
 func (r *RoundsBuildingPlanner) stepExcavation(call, epoch context.Context, s excavationStep) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	journal := p.journal
-	methods, err := journal.LoadOwnerMethods(call, s.goal)
+	methods, err := journal.LoadOwnerMethods(call, s.owner)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
@@ -367,7 +367,7 @@ func (r *RoundsBuildingPlanner) admitExcavation(call, epoch context.Context, s e
 	if latest.Revision != s.review.Revision || !latest.Enabled {
 		return RoundsBuildingResult{}, fmt.Errorf("%w: admitExcavation: latest.Revision != s.review.Revision || !latest.Enabled", ErrControl)
 	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: s.goal, Method: method, Plan: plan, Current: snapshot, Tick: s.facts.Identity.Tick, Bounds: domain.Known(s.facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Rounds})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: s.owner, Method: method, Plan: plan, Current: snapshot, Tick: s.facts.Identity.Tick, Bounds: domain.Known(s.facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Rounds})
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}

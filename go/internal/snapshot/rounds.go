@@ -132,7 +132,7 @@ func dropNativeGearCensus(f *policy.RoundsFacts) {
 
 // Detect replays the review's need detection over the recorded facts.
 func (r Rounds) Detect() (policy.RoundsFindings, error) {
-	return policy.DetectRounds(r.Facts, r.Latches, r.Policy)
+	return policy.InspectRounds(r.Facts, r.Latches, r.Policy)
 }
 
 // Assessment is the replayed review's assessment of one goal.

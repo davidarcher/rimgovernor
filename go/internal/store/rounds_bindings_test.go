@@ -16,7 +16,7 @@ func TestRoundsBindingsValidateAgainstTheStoredReview(t *testing.T) {
 	defer s.Close()
 	r := roundsRequest()
 	out := reviewRounds(t, s, &r)
-	if len(out.Review.Goals) < 2 {
+	if len(out.Review.Standards) < 2 {
 		t.Fatal("review binds too few goals")
 	}
 	store := func(review Rounds) {
@@ -30,13 +30,13 @@ func TestRoundsBindingsValidateAgainstTheStoredReview(t *testing.T) {
 		}
 	}
 	extra := out.Review
-	extra.Goals = append(append([]RoundsGoal{}, out.Review.Goals...), RoundsGoal{Need: "InventedNeed", Goal: "invented-goal"})
+	extra.Standards = append(append([]RoundsStandard{}, out.Review.Standards...), RoundsStandard{Concern: "InventedNeed", Standard: "invented-goal"})
 	store(extra)
 	if _, err := s.LoadRounds(context.Background()); err == nil {
 		t.Fatal("a binding naming no routine goal loaded")
 	}
 	short := out.Review
-	short.Goals = append([]RoundsGoal{}, out.Review.Goals[1:]...)
+	short.Standards = append([]RoundsStandard{}, out.Review.Standards[1:]...)
 	store(short)
 	if _, err := s.LoadRounds(context.Background()); err != nil {
 		t.Fatal("a review that assessed one goal fewer failed to load:", err)

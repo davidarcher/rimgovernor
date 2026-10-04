@@ -96,7 +96,7 @@ func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *testing.T) {
 	t.Parallel()
 	planner, session, native := workshopFixture(t)
-	planner.goal = policy.MaintainEquipment
+	planner.concern = policy.MaintainEquipment
 	planner.reviewer.policy.ResourceTargets = nil
 	setGearProductionNeed(native.reply.GetObserved())
 	native.finished = []string{}
@@ -109,7 +109,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	planner.workshop = selection
 	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "HandTailoringBench", Available: domain.Known(true), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}}}
 	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.Rounds{}, facts)
-	if err != nil || !reason.IsZero() || bench == nil || bench.goal != policy.MaintainEquipment || bench.definition != "HandTailoringBench" || !bench.facilityLadder() {
+	if err != nil || !reason.IsZero() || bench == nil || bench.concern != policy.MaintainEquipment || bench.definition != "HandTailoringBench" || !bench.facilityLadder() {
 		t.Fatal(bench, reason, err)
 	}
 	bench.shelter = false
@@ -124,7 +124,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	}
 	w := session.State().Snapshot
 	ladder, ok, err := planner.reviewer.player.journal.LoadProductionLadder(ctx, store.World{Colony: w.Colony, Load: w.Load, Map: w.Map})
-	if err != nil || !ok || ladder.Goal != policy.MaintainEquipment || len(ladder.Research) != 1 || ladder.Research[0] != "ComplexClothing" {
+	if err != nil || !ok || ladder.Concern != policy.MaintainEquipment || len(ladder.Research) != 1 || ladder.Research[0] != "ComplexClothing" {
 		t.Fatal(ladder, ok, err)
 	}
 	native.benches = []bridge.GearBenchRead{{Token: "bench", Bench: policy.GearBench{ID: "tailor", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}
@@ -285,7 +285,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
-			planner.goal, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "CraftingSpot", policy.PlacementIndoors, &workshop
+			planner.concern, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "CraftingSpot", policy.PlacementIndoors, &workshop
 			native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
@@ -307,12 +307,12 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 			}
 		})
 	}
-	shell := &RoundsBuildingPlanner{goal: policy.MaintainResource, definition: "Wall", shelter: true}
+	shell := &RoundsBuildingPlanner{concern: policy.MaintainResource, definition: "Wall", shelter: true}
 	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2))}}
 	if missing, method, reason := shell.selection(facts); missing != 32 || method != "workshop-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
-	bench := &RoundsBuildingPlanner{goal: policy.MaintainResource, definition: "CraftingSpot"}
+	bench := &RoundsBuildingPlanner{concern: policy.MaintainResource, definition: "CraftingSpot"}
 	if missing, method, reason := bench.selection(facts); missing != 1 || method != "workshop-CraftingSpot" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
@@ -339,7 +339,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	}
 	t.Run("bench turns east", func(t *testing.T) {
 		planner, _, session, _, native := sleepingFixture(t)
-		planner.goal, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
+		planner.concern, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
 		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
 		native.onPreview = rejectUnless(domain.East)
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
@@ -353,7 +353,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	})
 	t.Run("no facing fits", func(t *testing.T) {
 		planner, _, session, _, native := sleepingFixture(t)
-		planner.goal, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
+		planner.concern, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
 		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
 		native.onPreview = rejectUnless("")
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
@@ -363,7 +363,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	})
 	t.Run("comfort keeps north", func(t *testing.T) {
 		planner, _, session, _, native := sleepingFixture(t)
-		planner.goal, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &workshop
+		planner.concern, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &workshop
 		native.onPreview = rejectUnless(domain.East)
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
 		if err != nil || reason != noSpace("placement_site") || len(selected) != 0 || native.previews != 1 {
@@ -384,13 +384,13 @@ func TestWorkshopShellWaitsWhileInitialShelterIsOwed(t *testing.T) {
 	if err != nil || !owed {
 		t.Fatal("initial shelter deficit not seen as owed:", owed, err)
 	}
-	var others []store.RoundsGoal
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainHousing {
+	var others []store.RoundsStandard
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainHousing {
 			others = append(others, binding)
 		}
 	}
-	review.Goals = others
+	review.Standards = others
 	if owed, err = initialShelterOwed(context.Background(), r.reviewer.player, review); err != nil || owed {
 		t.Fatal("no shelter binding must not block a workshop shell:", owed, err)
 	}

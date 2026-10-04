@@ -73,7 +73,7 @@ func (EmergencySafeguard) Veto(c SafeguardContext, a Admission) string {
 	if p == nil || len(c.Emergency) == 0 || p.Priority < 2 || slices.Contains(c.Emergency, p.Need) {
 		return ""
 	}
-	return "emergency " + joinGoals(c.Emergency)
+	return "emergency " + joinConcerns(c.Emergency)
 }
 
 // UnsafeLootSafeguard refuses allowing an item the safety census reported unsafe.
@@ -125,7 +125,7 @@ func VetoProposal(c SafeguardContext, p SafeguardProposal) string {
 	return r.Reason
 }
 
-func joinGoals(ids []ConcernID) string {
+func joinConcerns(ids []ConcernID) string {
 	out := ""
 	for i, id := range ids {
 		if i > 0 {

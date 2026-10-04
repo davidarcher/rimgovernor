@@ -40,7 +40,7 @@ func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, o
 			return fmt.Errorf("%s: %w", key, err)
 		}
 		if string(b.Standard.ID) != strings.TrimPrefix(key, GovernorStandardKeyPrefix) {
-			return fmt.Errorf("%s: goal identity mismatch", key)
+			return fmt.Errorf("%s: standard identity mismatch", key)
 		}
 		goals[b.Standard.ID] = b
 	}
@@ -74,7 +74,7 @@ func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, o
 			return err
 		}
 	}
-	existing, err := goalIDs(ctx, tx)
+	existing, err := concernIDs(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func rebuildProjects(ctx context.Context, tx *sql.Tx, projects map[domain.Projec
 	return nil
 }
 
-func goalIDs(ctx context.Context, tx *sql.Tx) ([]domain.ConcernID, error) {
+func concernIDs(ctx context.Context, tx *sql.Tx) ([]domain.ConcernID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards ORDER BY id")
 	if err != nil {
 		return nil, err

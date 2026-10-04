@@ -18,7 +18,7 @@ func NewRoundsPowerPlanner(reviewer *Rounder, native RoundsBuildingSource) (*Rou
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsPowerPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureBasicPower}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureBasicPower}, nil
 }
 
 // selectPower maps the policy outcome onto the planner. pendingConsumers
@@ -309,7 +309,7 @@ func (r *RoundsBuildingPlanner) previewPowerSite(ctx context.Context, snapshot d
 		}
 	}
 	if made || len(footprint) == 0 || !legal || !safe {
-		clockSchedulerLog("%s: no site for %s on geyser %v: legal=%v safe=%v blockers=%v", r.goal, r.definition, r.power.Center, legal, safe, p.Blockers)
+		clockSchedulerLog("%s: no site for %s on geyser %v: legal=%v safe=%v blockers=%v", r.concern, r.definition, r.power.Center, legal, safe, p.Blockers)
 		return nil, stock, noSpace("geyser_site"), nil
 	}
 	if err = mergeRoundsStock(&stock, preview.Stock, true); err != nil {
@@ -346,7 +346,7 @@ func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapsho
 	}
 	sites := policy.PlannedPowerSites(plan, r.definition)
 	if len(sites) == 0 {
-		clockSchedulerLog("%s: the plan reserves no %s site", r.goal, r.definition)
+		clockSchedulerLog("%s: the plan reserves no %s site", r.concern, r.definition)
 		return nil, stock, false, nil
 	}
 	// refused names why each planned site was passed over, logged once when
@@ -452,7 +452,7 @@ func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapsho
 		}
 	}
 	if placed < missing {
-		clockSchedulerLog("%s: planned %s sites fit %d of %d missing: %v", r.goal, r.definition, placed, missing, refused)
+		clockSchedulerLog("%s: planned %s sites fit %d of %d missing: %v", r.concern, r.definition, placed, missing, refused)
 		return nil, stock, false, nil
 	}
 	return selected, stock, true, nil

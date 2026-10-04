@@ -69,7 +69,7 @@ func (s *Store) CreateProject(ctx context.Context, p domain.Project) error {
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	s.notifyGoalsWritten()
+	s.notifyStandardsWritten()
 	return nil
 }
 
@@ -204,7 +204,7 @@ func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision
 	if state.Revision != revision {
 		return ProjectState{}, ErrConflict
 	}
-	open, err := goalOpenWork(ctx, tx, state)
+	open, err := standardOpenWork(ctx, tx, state)
 	if err != nil {
 		return ProjectState{}, err
 	}
@@ -306,7 +306,7 @@ func retireProjects(ctx context.Context, tx *sql.Tx, retained map[domain.Project
 		if p.Project.Status != domain.ProjectVoided {
 			continue
 		}
-		open, err := goalOpenWork(ctx, tx, p)
+		open, err := standardOpenWork(ctx, tx, p)
 		if err != nil {
 			return err
 		}

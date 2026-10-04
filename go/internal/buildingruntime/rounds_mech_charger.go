@@ -80,7 +80,7 @@ func (r *RoundsMechChargerPlanner) step(call, epoch context.Context, arbiter *st
 	// other priority>=3 autopilot goals.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.EnsureMechCharger && row.Selected
+		selected = selected || row.Concern == policy.EnsureMechCharger && row.Selected
 	}
 	if !selected {
 		return RoundsBuildingResult{Verdict: awaitingSlot(string(policy.EnsureMechCharger))}, nil

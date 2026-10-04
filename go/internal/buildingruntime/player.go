@@ -96,7 +96,7 @@ type gateWait struct {
 const slowGateWait = 100 * time.Millisecond
 
 // enter takes the player gate for a caller named by label (clock_step,
-// routine_review, submit, manual, ...).
+// rounds_review, submit, manual, ...).
 func (p *Player) enter(ctx context.Context, label string, manual bool) (context.Context, context.Context, func(), error) {
 	call, epoch, done, _, err := p.enterTimed(ctx, label, manual)
 	return call, epoch, done, err

@@ -118,11 +118,11 @@ func TestNativeComfortCompletionBudgetCapture(t *testing.T) {
 		t.Fatal(err)
 	}
 	var ticks uint32
-	for _, binding := range review.Goals {
-		if binding.Need != policy.EnsureComfort {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.EnsureComfort {
 			continue
 		}
-		goal, err := db.LoadStandard(context.Background(), binding.Goal)
+		goal, err := db.LoadStandard(context.Background(), binding.Standard)
 		if err != nil {
 			t.Fatal(err)
 		}

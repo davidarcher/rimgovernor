@@ -2,7 +2,7 @@
 
 [Architecture](overview.md) · [Controller contracts](../contracts/controller-contracts.md)
 
-The controller observes needs, selects bounded work, advances supervised game time
+The controller observes the colony, selects bounded work, advances supervised game time
 and checks the outcome. Routine operation requires no model calls.
 
 ## Observe and prioritize
@@ -68,18 +68,16 @@ sleeping planner uses the existing bed-assignment operation for ordinary beds.
 
 ## Concerns and their forms
 
-The governor makes **Rounds** (the rounds): in each **Department** it
+The governor makes **Rounds**: in each **Department** it
 runs an **Inspection** on every **Concern**. A Concern is a kind the governor
 watches (`EnsureFoodSupply`, `ActiveCombat`); it takes one of three **Types**
 (epic #1012), and the Type says which lifecycle it follows. **Safeguards**
 veto unsafe Plans at Admission, and the chosen **Method** produces a **Plan**.
 The shared words and what each replaced are in the
 [vocabulary glossary](../agent-runbook.md#vocabulary-glossary-epic-1964);
-code and storage still carry the old words until the rename children of
-#1964 land, so a grep for `Rounds`
-finds Rounds.
+code, storage and logs use the new words throughout.
 
-An Incident is a `incidents` row and a Project is a `projects` row (#1926);
+An Incident is an `incidents` row and a Project is a `projects` row (#1926);
 Standards are the only `standards` rows. Incident and Project methods live in
 `standard_methods`, `project_methods` and `incident_methods` (a Project or Incident
 row has no episode), tied together by `plan_owner(plan_id, kind)` so a plan has
@@ -96,7 +94,7 @@ is ever a `standards` row.
 
 | Type | What it is | Lifecycle |
 | --- | --- | --- |
-| Standard | A measured target held over time. A chore is a Standard whose target is no outstanding work. | Keyed by world and Concern; its Inspection finds it Met, Unmet or Unclear. Rows are Open, Settled or Voided; it starts a new Episode (today `epoch`) when a settled target goes unmet again. |
+| Standard | A measured target held over time. A chore is a Standard whose target is no outstanding work. | Keyed by world and Concern; its Inspection finds it Met, Unmet or Unclear. Rows are Open, Settled or Voided; it starts a new Episode (`episode`) when a settled target goes unmet again. |
 | Project | A finite piece of work with a finished state and dependency links to other Projects. | One `projects` row per `project-<hex8 world digest>-<kind>-<gen>` id (`domain.Project`, no episode); Open, then Completed (or Voided with the world). A Completed Project that later breaks opens a new Project, never an Episode. The colony stage is derived from Completed foothold Projects. |
 | Incident | An occurrence triggered by an event, one row per occurrence (trigger, start, end). | Its Inspection reports a Situation: Active, Clear or Unclear. Opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident; they still go through the shared ColonyPlan and Admission. |
 
@@ -111,7 +109,7 @@ Every Concern id in `go/internal/policy` (`ConcernID` in code):
 
 | Type | Concern ids |
 | --- | --- |
-| Incident | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
+| Incident | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `EnsureMood(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
 | Project | `AllowStartingSupplies`, `EnsureCooking`, `MaintainButcherSpot`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
 | Standard (chore) | `MaintainWaste`, `RemoveBlight`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
 | Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainBabyFeeding`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMechs`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainPermits`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell` |
@@ -135,7 +133,7 @@ it never ranks Concerns or budgets labor.
 | Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch`, `MaintainMechs` |
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
 | Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainSurgery` |
-| People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainPermits`, `MaintainIdeoRoles`, `MaintainRituals`, `MoodGoal(pawn)`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment` |
+| People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainPermits`, `MaintainIdeoRoles`, `MaintainRituals`, `EnsureMood(pawn)`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment` |
 | Upkeep | `AllowStartingSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `TradeWithCaravan`, `MaintainWaste`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `TidyLayout`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainRoutes`, `RecoverDisasterServices` |
 | System (no panel section) | `AnswerDialog`, `ConfirmColonyNames` |
 

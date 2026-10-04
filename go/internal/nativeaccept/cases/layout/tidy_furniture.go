@@ -87,7 +87,7 @@ func tidyFurniture(ctx context.Context, s cases.Session) error {
 	var after furnitureRead
 	var role string
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: tidyFurnitureWindow, Goal: policy.TidyLayout, Until: furnitureMoved},
+		WatchConfig: sustainedfood.WatchConfig{Watch: tidyFurnitureWindow, Concern: policy.TidyLayout, Until: furnitureMoved},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			audit, err := h.Call(ctx, "hut-audit", gridAudit, map[string]any{})
 			if err != nil {

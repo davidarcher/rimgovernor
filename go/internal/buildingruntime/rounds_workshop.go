@@ -42,7 +42,7 @@ type workshopSelection struct {
 // targets. An admitted project or research prerequisite owns this step.
 func (r *RoundsBuildingPlanner) stepWorkshops(call, epoch context.Context, arbiter *stepArbiter) (RoundsBuildingResult, error) {
 	gear := *r
-	gear.goal = policy.MaintainEquipment
+	gear.concern = policy.MaintainEquipment
 	result, err := gear.step(call, epoch, arbiter)
 	if err != nil || result.Decision.Admitted || result.NativeWorkTicks > 0 || result.Verdict == BuildingWorkshopResearch {
 		return result, err
@@ -74,7 +74,7 @@ func NewRoundsWorkshopPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 	if _, ok := native.(RoundsWorkshopSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsWorkshopPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainResource, definition: "Wall", shelter: true}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainResource, definition: "Wall", shelter: true}, nil
 }
 
 // prepareWorkshop reads the deficit resource, the current bench census and
@@ -82,7 +82,7 @@ func NewRoundsWorkshopPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 // can describe exactly the candidate bench definitions. A non-empty reason
 // ends the step.
 func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.Rounds) (*workshopSelection, Verdict, error) {
-	if r.goal != policy.MaintainEquipment && !r.reviewer.policy.ResourceGoalConfigured() {
+	if r.concern != policy.MaintainEquipment && !r.reviewer.policy.ResourceConcernConfigured() {
 		targets, err := r.reviewer.resourceTargets(call, state.Snapshot, domain.Unknown[[]policy.Amount]())
 		if err != nil {
 			return nil, Verdict{}, err
@@ -96,7 +96,7 @@ func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state Cont
 		return nil, Verdict{}, fmt.Errorf("%w: prepareWorkshop: !ok", ErrControl)
 	}
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := source.ReadColonyFacts(call, identity, r.goal == policy.MaintainEquipment)
+	reply, _, err := source.ReadColonyFacts(call, identity, r.concern == policy.MaintainEquipment)
 	if err != nil {
 		return nil, Verdict{}, err
 	}
@@ -117,7 +117,7 @@ func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state Cont
 	}
 	var resource policy.Resource
 	var products []policy.Resource
-	if r.goal == policy.MaintainEquipment {
+	if r.concern == policy.MaintainEquipment {
 		gear := observed.GetPlanning().GetObserved().GetGear()
 		if gear == nil {
 			return nil, fieldUnavailable("gear_census"), nil
@@ -233,7 +233,7 @@ func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state Cont
 // rounds can raise EnsureResearch for a research-gated bench, or
 // clear that need once the bench is buildable or standing.
 func (r *RoundsBuildingPlanner) recordWorkshopLadder(call context.Context, state ControlState, review store.Rounds, resource policy.Resource, choice policy.WorkshopChoice) error {
-	record := store.ProductionLadderRecord{World: store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}, Tick: review.Tick, Resource: resource, Bench: choice.Definition, Recipe: choice.Recipe, Goal: r.goal}
+	record := store.ProductionLadderRecord{World: store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}, Tick: review.Tick, Resource: resource, Bench: choice.Definition, Recipe: choice.Recipe, Concern: r.concern}
 	if choice.Method == policy.WorkshopResearch {
 		record.Research = choice.Research
 	}

@@ -48,7 +48,7 @@ func laborCase() cases.Case {
 	return cases.Case{
 		Name: "startup/labor",
 		Scope: "Issue #639: the eight-colonist startup fixture (no shelter, mixed construction skill, reachable wood, an animal-feed deficit and scattered supplies) " +
-			"comes up on its declared preconditions, and the startup-labor diagnosis classifies every reviewed goal from evidence the run already holds.",
+			"comes up on its declared preconditions, and the startup-labor diagnosis classifies every reviewed standard from evidence the run already holds.",
 		Start: cases.Fixture{
 			Op:   "test/startup_labor_setup",
 			Args: map[string]any{"variant": variant()},
@@ -195,7 +195,7 @@ func observe(ctx context.Context, s cases.Session, variant string) (startuplabor
 			return "", false, err
 		}
 		for _, d := range rows {
-			key := fmt.Sprintf("%d/%s/%s", d.ReviewTick, d.Goal, d.Action)
+			key := fmt.Sprintf("%d/%s/%s", d.ReviewTick, d.Concern, d.Action)
 			if seen[key] {
 				continue
 			}
@@ -242,10 +242,10 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.Rounds) 
 			Selected: row.Selected, Committed: row.Committed, Idle: row.Idle,
 		}
 		subject := startuplabor.Subject{
-			World: world, ReviewTick: review.Development.Tick, Goal: row.Goal, Slot: &slot,
+			World: world, ReviewTick: review.Development.Tick, Concern: row.Concern, Slot: &slot,
 			ShelterBeds: domain.Unknown[bool](),
 		}
-		if methods, ok, err := ownerMethods(ctx, st, review, row.Goal); err != nil {
+		if methods, ok, err := ownerMethods(ctx, st, review, row.Concern); err != nil {
 			return nil, err
 		} else if ok {
 			method, action, progress, beds, err := openWork(ctx, st, methods)
@@ -253,7 +253,7 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.Rounds) 
 				return nil, err
 			}
 			subject.Method, subject.Action, subject.Progress = method, action, progress
-			if row.Goal == policy.MaintainHousing {
+			if row.Concern == policy.MaintainHousing {
 				subject.ShelterBeds = domain.Known(beds)
 			}
 		}
@@ -270,9 +270,9 @@ func ownerMethods(ctx context.Context, st *store.Store, review store.Rounds, nee
 	if id, ok := review.ProjectFor(need); ok {
 		owner, err = st.LoadProject(ctx, id)
 	} else {
-		for _, b := range review.Goals {
-			if b.Need == need {
-				owner, err = st.LoadStandard(ctx, b.Goal)
+		for _, b := range review.Standards {
+			if b.Concern == need {
+				owner, err = st.LoadStandard(ctx, b.Standard)
 			}
 		}
 	}
@@ -313,11 +313,11 @@ func shelterRecovery(ctx context.Context, st *store.Store, review store.Rounds, 
 	if _, ok := known.Value(); ok {
 		return known, nil
 	}
-	for _, b := range review.Goals {
-		if b.Need != policy.MaintainHousing {
+	for _, b := range review.Standards {
+		if b.Concern != policy.MaintainHousing {
 			continue
 		}
-		state, err := st.LoadStandard(ctx, b.Goal)
+		state, err := st.LoadStandard(ctx, b.Standard)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				return known, nil

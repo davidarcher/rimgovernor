@@ -27,8 +27,8 @@ func (s *Server) handleSpectator(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path != spectatorNowPath {
 		return false
 	}
-	if s.config.Routines == nil {
-		s.failure(w, r, 404, "not_found", "Routine diagnostics are not enabled")
+	if s.config.Rounds == nil {
+		s.failure(w, r, 404, "not_found", "Rounds diagnostics are not enabled")
 		return true
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -42,7 +42,7 @@ func (s *Server) handleSpectator(w http.ResponseWriter, r *http.Request) bool {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.ReadTimeout)
 	defer cancel()
-	status, err := s.config.Routines.RoundsStatus(ctx)
+	status, err := s.config.Rounds.RoundsStatus(ctx)
 	if err == nil {
 		err = ctx.Err()
 	}

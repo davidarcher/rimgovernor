@@ -100,12 +100,12 @@ func TestGoalWriteWakesMirror(t *testing.T) {
 	t.Parallel()
 	s, _, _ := goalFixture(t)
 	select {
-	case <-s.GoalsWritten():
+	case <-s.StandardsWritten():
 	default:
 	}
 	anotherGoal(t, s, "woken")
 	select {
-	case <-s.GoalsWritten():
+	case <-s.StandardsWritten():
 	default:
 		t.Fatal("create did not wake the mirror")
 	}

@@ -234,8 +234,8 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 	// re-acquisitions during the phase are hands on the colony.
 	c.record("acquire-"+label, false, map[string]any{"kind": "authority", "launch": c.launches, "restart": c.launches > 1})
 	cfg := opts.Watch
-	if cfg.Goal == "" {
-		cfg.Goal = policy.EnsureFoodSupply
+	if cfg.Concern == "" {
+		cfg.Concern = policy.EnsureFoodSupply
 	}
 	if cfg.Poll <= 0 {
 		cfg.Poll = 10 * time.Second

@@ -79,7 +79,7 @@ func init() {
 		Name: "review/colony-week",
 		Scope: "Review run, not a gate: the governor plays a " + v.Scenario + " map (seed " + seed + ", " + v.Biome +
 			") for " + strconv.FormatUint(days, 10) + " in-game days under the storyteller while " + RecorderTool +
-			" records an hourly colony screenshot into <output>/review beside the run timeline (colony census and goal states each in-game hour) for cmd/colonyreview. A " +
+			" records an hourly colony screenshot into <output>/review beside the run timeline (colony census and standard states each in-game hour) for cmd/colonyreview. A " +
 			"snapshot test cannot cover it: the point is what the colony looks like to a player after a season.",
 		Start:       cases.Scenario{Spec: v.Start()},
 		Keep:        []string{string(na.LiveNeeds)},
@@ -101,7 +101,7 @@ func init() {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
 					Watch: time.Duration(days*minutesPerDay) * time.Minute, Window: days * 60000, Poll: 30 * time.Second, PollTicks: 2500,
-					Goal: policy.EnsureFoodSupply, Extra: sustained.ColonyGoals,
+					Concern: policy.EnsureFoodSupply, Extra: sustained.ColonyConcerns,
 					// A review records whatever happens; nothing ends it early
 					// but a stalled clock.
 					FailFast:  sustainedfood.FailFast{Disabled: true},

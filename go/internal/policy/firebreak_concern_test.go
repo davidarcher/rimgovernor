@@ -11,12 +11,12 @@ func TestFirebreakOwedRaisesMaintainFirebreak(t *testing.T) {
 	f := stableRounds()
 	f.FirebreakOwed = domain.Known(true)
 	r := needs(t, f, RoundsLatches{})
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainFirebreak {
 			return
 		}
 	}
-	t.Fatal("owed firebreak raised no MaintainFirebreak goal", r.Goals)
+	t.Fatal("owed firebreak raised no MaintainFirebreak goal", r.Concerns)
 }
 
 // Only cut cells with a standing plant are owed; paved cells belong to

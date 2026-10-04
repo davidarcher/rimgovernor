@@ -174,7 +174,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	reviewData, _ := json.Marshal(review)
-	report["routine_review_first"] = json.RawMessage(reviewData)
+	report["rounds_review_first"] = json.RawMessage(reviewData)
 
 	// The review must latch refrigeration and bind MaintainRefrigeration.
 	waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Minute)
@@ -187,12 +187,12 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// The refrigeration method: a Cooler build on a wall cell.
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainRefrigeration, nil)
+	concernID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainRefrigeration, nil)
 	methodCancel()
 	if err != nil {
 		return fmt.Errorf("refrigeration method: %w", err)
 	}
-	report["goal_id"] = string(goalID)
+	report["concern_id"] = string(concernID)
 	var builtCell domain.Cell
 	for renewals := 0; ; renewals++ {
 		plan, err := journal.LoadPlan(ctx, method.Plan)
@@ -560,23 +560,23 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess) 
 			return "", false, err
 		}
 		review = r
-		if latchedWithGoal(r) {
+		if latchedWithConcern(r) {
 			return "", true, nil
 		}
-		return na.Signature(fmt.Sprintf("%+v", r.Latches), len(r.Goals)), false, nil
+		return na.Signature(fmt.Sprintf("%+v", r.Latches), len(r.Standards)), false, nil
 	})
 	if err != nil {
-		return review, fmt.Errorf("review never latched refrigeration with a bound goal (revision %d, latches %+v): %w", review.Revision, review.Latches, err)
+		return review, fmt.Errorf("review never latched refrigeration with a bound standard (revision %d, latches %+v): %w", review.Revision, review.Latches, err)
 	}
 	return review, nil
 }
 
-func latchedWithGoal(r store.Rounds) bool {
+func latchedWithConcern(r store.Rounds) bool {
 	if !r.Latches.Refrigeration {
 		return false
 	}
-	for _, binding := range r.Goals {
-		if binding.Need == policy.MaintainRefrigeration {
+	for _, binding := range r.Standards {
+		if binding.Concern == policy.MaintainRefrigeration {
 			return true
 		}
 	}
@@ -625,11 +625,11 @@ func refrigerationMethods(ctx context.Context, s *store.Store) ([]domain.Method,
 		return nil, err
 	}
 	var out []domain.Method
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainRefrigeration {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainRefrigeration {
 			continue
 		}
-		goal, err := s.LoadStandard(ctx, binding.Goal)
+		goal, err := s.LoadStandard(ctx, binding.Standard)
 		if err != nil {
 			return nil, err
 		}

@@ -8,8 +8,8 @@ pursues a role walks the same ladder. This page is the ladder and the matrix;
 
 ## The ladder
 
-Each rung is a separate deficit under an existing maintained goal, ranked by
-`RankDevelopment` like any other; nothing here adds a per-role goal.
+Each rung is a separate deficit under an existing maintained concern, ranked by
+`RankDevelopment` like any other; nothing here adds a per-role concern.
 
 1. **Reuse**: a room the game already scores as hosting the function, or an
    existing bench, bed or spot that already does the job. Reuse always wins
@@ -18,8 +18,8 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The
    next rounds read that record as the derived `EnsureResearch`
-   target (`policy.ResearchGoal`: the default research ladder follows when no need is
-   recorded, see [research](../contracts/research.md)), raises the goal, and
+   target (`policy.ResearchConcern`: the default research ladder follows when no need is
+   recorded, see [research](../contracts/research.md)), raises the concern, and
    adds Research to the work requirements so a researcher is assigned;
    `RoundsResearchPlanner` selects the prerequisite chain natively.
    Finishing the project clears the record on the next workshop step.
@@ -173,7 +173,7 @@ pollute-over-time or wastepack-producing comp, read natively) is sited by
 distance only (no wind term; no sourced rule). Farthest from the nearest field
 zone, bedroom, living-room or polluted cell first, then nearest the wastepack
 disposal (atomizer) cells, then by cell order. The function is pure: it holds no
-reservation and sets no threshold, so a goal (mech gestation, charging) takes the
+reservation and sets no threshold, so a concern (mech gestation, charging) takes the
 first ranked site its native placement preview accepts. Unknown or off-map input
 is an error, never a guess.
 
@@ -312,7 +312,7 @@ planner raises it under MaintainHousing, like the tomb:
    standing throne unowned (a throne built after the read waits for the next
    one; one owned by another colonist is left alone). The runtime sends the
    generic `assign` action (`AssignIntent`) with the holder's current throne
-   as the expected previous assignment, once per holder and throne per goal
+   as the expected previous assignment, once per holder and throne per concern
    epoch. The step holds MaintainHousing open until the read lists the holder
    as the throne's owner.
 5. The template plans every counted piece of the title in its own slot

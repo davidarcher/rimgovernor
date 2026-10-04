@@ -424,7 +424,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	if waitErr != nil {
 		if final, loadErr := journal.LoadRounds(ctx); loadErr == nil {
 			data, _ := json.Marshal(final)
-			report["routine_review_at_failure"] = json.RawMessage(data)
+			report["rounds_review_at_failure"] = json.RawMessage(data)
 		}
 		return outcome, fmt.Errorf("tick budget wait (start %d, last %d, want +%d): %w", startTick, lastTick, m.p.ticks, waitErr)
 	}
@@ -611,8 +611,8 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 	if err != nil {
 		return 0, 0, err
 	}
-	for _, binding := range review.Goals {
-		goal, err := s.LoadStandard(ctx, binding.Goal)
+	for _, binding := range review.Standards {
+		goal, err := s.LoadStandard(ctx, binding.Standard)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				continue
@@ -620,7 +620,7 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 			return 0, 0, err
 		}
 		methods := goal.Methods
-		if more, err := s.LoadMethods(ctx, binding.Goal, goal.Standard.Episode); err == nil {
+		if more, err := s.LoadMethods(ctx, binding.Standard, goal.Standard.Episode); err == nil {
 			methods = append(methods, more...)
 		}
 		for _, method := range methods {

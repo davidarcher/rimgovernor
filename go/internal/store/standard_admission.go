@@ -32,9 +32,9 @@ type BuildingMethodDecision struct {
 	Admitted bool
 	// Goal is the owning goal, Project the owning Project: the other is
 	// zero.
-	Goal    StandardState
-	Project ProjectState
-	Refused []policy.Refusal
+	Standard StandardState
+	Project  ProjectState
+	Refused  []policy.Refusal
 }
 
 // AdmitBuildingMethod applies the same pure resource/geometry policy as Hands
@@ -84,7 +84,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	}
 	old := owner.ownerSnapshot()
 	if old.Colony != r.Current.Colony || old.Map != r.Current.Map || r.Tick < ownerTick(owner) {
-		return BuildingMethodDecision{}, errors.New("method observation differs from reviewed goal")
+		return BuildingMethodDecision{}, errors.New("method observation differs from reviewed standard")
 	}
 	var candidates []policy.Candidate
 	for _, a := range actions {

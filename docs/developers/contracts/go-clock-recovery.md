@@ -244,7 +244,7 @@ durability as false. The admitted budget is finite and cannot overflow its tick
 deadline. Admission carries its snapshot and review revision for dispatch binding.
 
 A live, undowned hostile or hunting predator refuses the window (`unsafe_colony`)
-unless the facts say the ActiveCombat goal holds an admitted plan with open work;
+unless the facts say the ActiveCombat concern holds an admitted plan with open work;
 unknown plan evidence refuses as `unknown_facts`. A hostile building alone
 refuses only while the defense planner has not reported `no_worker:squad`
 for this stop (`ClockWindowFacts.SquadUnanswered`); reported, the building is
@@ -268,7 +268,7 @@ refrigeration planner lends its cooling allowance to `cooler_power_needed` as
 well as to `cooling`; a cooler still unpowered when the allowance runs out is a
 genuine hold for the power family. The allowance keys on the method's dispatch
 scope and world, not the native generation, which moves with every stopped
-window. A goal epoch with no cooler method of its own (a freezer that settled
+window. A concern episode with no cooler method of its own (a freezer that settled
 in an earlier epoch and re-latched when the season warmed, or a cooler the
 player set) lends the same allowance from the tick the refrigeration latch
 engaged (`RoundsLatches.RefrigerationSince`), so a second cooler is still
@@ -310,7 +310,7 @@ The internal `ClockScheduler.Step` uses the player's cancellation and serializat
 scope for one decision. Its explicit start configuration is colony watch mode
 without acknowledgement or medical suppression lists; the step derives a combat
 start (mode, acknowledged hostiles, combat budget) from the window decision when
-the current rounds binds an active ActiveCombat goal whose plan has open
+the current rounds binds an active ActiveCombat concern whose plan has open
 work, so a raid runs in short windows re-planned between them. It checks the shared profile,
 current plan work and complete attempt/epoch catalogs before collecting fresh native
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
@@ -323,7 +323,7 @@ commits nothing and is reported in `ClockSchedulerResult.PlannerFailures` (the
 clock worker logs each changed set once), but its peers finish and the window is
 still evaluated on what they committed, so one broken family cannot keep the
 clock from ever starting. Only the step's own context ending fails the wave.
-The wave admits planners in goal-priority order (naming and active combat, then
+The wave admits planners in concern-priority order (naming and active combat, then
 critical medicine and recovery, then foothold needs, then maintenance, then
 comfort and expansion), at most `bridge.MaxConcurrentCalls` at a time with a
 slot taken before the next planner starts, so a tight step budget is spent on
@@ -367,7 +367,7 @@ comfort-class planners and promotes the startup planners -- the shelter's
 own, `plannerEntry.startup` -- into the critical cycle for that step (#658).
 Siting a starter shell walks the bunk rungs and previews a ring, seconds of
 native round trips, so at the optional grace its work was discarded on every
-step and the shelter goal the whole stage waits for never took a method.
+step and the shelter concern the whole stage waits for never took a method.
 
 Migrated planners (#622) return proposals, and the coordinator arbitrates
 them after the cutoff by `(priority, urgency, id)` against the step's claim
@@ -630,18 +630,18 @@ construction and is rejected when filed; there is no catch-all kind, and routine
 outcome or kind, never on text. The subject names the real missing thing: the census
 a `field_unavailable` exit could not read (`acquisition_sources`, `colonists`), the plan,
 capacity, bench or source an `awaiting_plan` exit waits on (`food_plan:cooking-capacity`,
-`cooking_bench`, `resource_source:Steel`, `development_slot:<goal>` for a low-priority
-goal the development ranking has not selected), the placement a `no_space` exit failed to
+`cooking_bench`, `resource_source:Steel`, `development_slot:<concern>` for a low-priority
+concern the development ranking has not selected), the placement a `no_space` exit failed to
 site (`pen_enclosure`), and the claim a `waiting_on_claim` exit lost
 (`bench`). `Verdict.String` is the machine token
 (`kind[:subject[:detail]]`, no spaces) for the service log's `reason=` and snapshot names; `Verdict.Text` is the one plain-English sentence per outcome and
-kind, filed on `GoalProgress.Planner` for the status strip and the journal. A planner's catalog
-entry names the one goal it serves (`plannerEntry.goal`), and the wave files its verdict there:
+kind, filed on `ConcernProgress.Planner` for the status strip and the journal. A planner's catalog
+entry names the one concern it serves (`plannerEntry.concern`), and the wave files its verdict there:
 a refusal files as a block (`planner:` reason), a wait files as a wait (`waiting:` reason,
-`GoalProgress.PlannerWaiting`; shown without a warning), a disabled planner files the opt-out
-hold, a planner that found its earlier work still standing (`already_working_on_it`) waits on it, a planner whose fight is running orders (`combat_orders`: "combat orders are running") or fell back to squad defense (`hold_fallback`: "the hold line fell back to squad defense") files that sentence as a wait, since the fight is under way and nothing failed, and an admitted or nothing-to-do verdict clears the goal's refusal or wait.
-A verdict that says nothing about the goal (no review, a stale proposal) files nothing.
-Siblings on one goal keep the strongest note: refusal, then wait, then clear, then opt-out.
+`ConcernProgress.PlannerWaiting`; shown without a warning), a disabled planner files the opt-out
+hold, a planner that found its earlier work still standing (`already_working_on_it`) waits on it, a planner whose fight is running orders (`combat_orders`: "combat orders are running") or fell back to squad defense (`hold_fallback`: "the hold line fell back to squad defense") files that sentence as a wait, since the fight is under way and nothing failed, and an admitted or nothing-to-do verdict clears the concern's refusal or wait.
+A verdict that says nothing about the concern (no review, a stale proposal) files nothing.
+Siblings on one concern keep the strongest note: refusal, then wait, then clear, then opt-out.
 
 No window watches attempts: the `watched_attempts` policy field is retired
 (#856), since a building intent settles on its Apply receipt and the census

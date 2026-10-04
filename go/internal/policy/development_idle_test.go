@@ -11,13 +11,13 @@ import (
 // idle age but keeps its commitment past DevelopmentIdleTicks: work nobody
 // has picked up yet is still the goal's work. Work picked up clears the age.
 func TestIdleLaborRecordsButKeepsCommitmentAcrossReviews(t *testing.T) {
-	s := newDevelopmentSim(t, 1, simGoal("wood", 0.4, GoalLabor(MaintainResource)), simGoal("sleeping", 0.9, GoalLabor(MaintainHousing)))
+	s := newDevelopmentSim(t, 1, simGoal("wood", 0.4, ConcernLabor(MaintainResource)), simGoal("sleeping", 0.9, ConcernLabor(MaintainHousing)))
 	s.tick = 5000
 	c := s.commitment("wood", 4, true)
-	c.Labor = GoalLabor(MaintainResource)
+	c.Labor = ConcernLabor(MaintainResource)
 	idle := domain.Known(LaborUse{Busy: map[WorkType]int{WorkConstruction: 2}, Idle: map[WorkType]int{WorkPlantCutting: 2}})
 	busy := domain.Known(LaborUse{Busy: map[WorkType]int{WorkPlantCutting: 1, WorkConstruction: 1}, Idle: map[WorkType]int{WorkPlantCutting: 1}})
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: idle}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Concerns: s.goals, Commitments: []Commitment{c}, LaborUse: idle}
 	first := rank(t, r)
 	if row := s.row(first, "wood"); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || !reflect.DeepEqual(first.Committed, []ConcernID{"wood"}) {
 		t.Fatal("an idle review keeps the commitment and starts the idle age", row, first.Committed)

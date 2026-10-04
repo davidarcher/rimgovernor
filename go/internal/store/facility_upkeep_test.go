@@ -119,7 +119,7 @@ func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 	// A caller-supplied claim is replaced by the journal's; the census holds
 	// no building, so nothing is owned (#719 counts census buildings).
-	r.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "fake", Action: "fake", Goal: "fake", Identity: domain.ConstructionIdentity{Current: "wall"}, Building: b}})
+	r.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "fake", Action: "fake", Concern: "fake", Identity: domain.ConstructionIdentity{Current: "wall"}, Building: b}})
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
 	r.Facts.MapBounds = domain.Known(policy.Bounds{Width: 250, Height: 250})
 	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}}, Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)})

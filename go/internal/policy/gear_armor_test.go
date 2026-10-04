@@ -27,10 +27,10 @@ func TestArmorResearchLadderOrdering(t *testing.T) {
 		t.Fatal("disabled roadmap grew a ladder", got)
 	}
 	facts := domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity", "Smithing", "Batteries", "FlakArmor"}, Finished: []ResearchProjectID{"Stonecutting", "Electricity"}})
-	if target, _ := ResearchGoal(ArmorResearchPolicy(p, true), nil, facts); target != "Smithing" {
+	if target, _ := ResearchConcern(ArmorResearchPolicy(p, true), nil, facts); target != "Smithing" {
 		t.Fatal("soldier ladder target", target)
 	}
-	if target, _ := ResearchGoal(p, nil, facts); target != "Batteries" {
+	if target, _ := ResearchConcern(p, nil, facts); target != "Batteries" {
 		t.Fatal("civilian ladder target", target)
 	}
 }

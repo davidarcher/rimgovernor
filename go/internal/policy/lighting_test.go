@@ -156,7 +156,7 @@ func TestDetectRoundsRanksLightingFromMeasuredCensus(t *testing.T) {
 	if !hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 1 || r.Latches.Lighting[0] != "stove" || assessment(t, r, MaintainLighting) != domain.FindingUnmet {
 		t.Fatal(r.Latches, r.Assessments)
 	}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainLighting {
 			if g.Priority != lightingPriority || g.MethodUnavailable || len(g.Labor) != 1 || g.Labor[0] != WorkConstruction {
 				t.Fatal(g)

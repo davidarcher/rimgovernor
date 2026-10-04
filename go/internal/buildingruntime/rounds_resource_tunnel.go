@@ -77,7 +77,7 @@ func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, s
 		return RoundsResourceResult{}, false, nil
 	}
 	p := r.reviewer.player
-	dig := &RoundsBuildingPlanner{reviewer: r.reviewer, goal: policy.MaintainResource, excavation: source}
+	dig := &RoundsBuildingPlanner{reviewer: r.reviewer, concern: policy.MaintainResource, excavation: source}
 	review, err := p.journal.LoadRounds(call)
 	if err != nil {
 		return RoundsResourceResult{}, false, err
@@ -94,10 +94,10 @@ func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, s
 	if err != nil {
 		return RoundsResourceResult{}, false, err
 	}
-	step := excavationStep{state: state, review: review, goal: goal, facts: reading.Projection, read: reading}
+	step := excavationStep{state: state, review: review, owner: goal, facts: reading.Projection, read: reading}
 	finish := func(result RoundsBuildingResult) (RoundsResourceResult, bool, error) {
 		out := RoundsResourceResult{Verdict: result.Verdict}
-		for _, m := range result.Decision.Goal.Methods {
+		for _, m := range result.Decision.Standard.Methods {
 			if IsExcavationMethod(m.Method) {
 				out.Plan = m.Plan
 			}

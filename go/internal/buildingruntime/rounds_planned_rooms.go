@@ -20,14 +20,14 @@ import (
 // standing first; false when it needs none.
 func (r *RoundsBuildingPlanner) plannedRoomModule() (policy.ModuleRole, bool) {
 	switch {
-	case r.goal == policy.EnsureCooking && len(r.paste) == 0:
+	case r.concern == policy.EnsureCooking && len(r.paste) == 0:
 		return policy.ModuleKitchen, true
 	// The stand-in ButcherSpot is free and instant and gates hunting (#260): it
 	// stands outdoors now and never waits on the room being dug. Only the real
 	// table goes in the planned butchery.
-	case r.goal == policy.MaintainButcherSpot && r.definition == "TableButcher":
+	case r.concern == policy.MaintainButcherSpot && r.definition == "TableButcher":
 		return policy.ModuleButchery, true
-	case r.goal == policy.MaintainRefrigeration && r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild:
+	case r.concern == policy.MaintainRefrigeration && r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild:
 		return policy.ModuleFreezer, true
 	}
 	return "", false
@@ -102,7 +102,7 @@ func plannedRoomMethod(room policy.LayoutRoom) domain.MethodID {
 // after the walls, since the room is where they will stand anyway. done is
 // true when the ring's own step produced the result to return.
 func (r *RoundsBuildingPlanner) plannedDiningFurnishing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoundsBuildingPlanner, result RoundsBuildingResult, done bool, err error) {
-	if r.goal != policy.EnsureComfort || r.facility == nil || r.facility.Role != policy.RoomRoleDiningRoom || !comfortFurniture(facts).IsTable(r.definition) && !comfortFurniture(facts).IsChair(r.definition) {
+	if r.concern != policy.EnsureComfort || r.facility == nil || r.facility.Role != policy.RoomRoleDiningRoom || !comfortFurniture(facts).IsTable(r.definition) && !comfortFurniture(facts).IsChair(r.definition) {
 		return r, RoundsBuildingResult{}, false, nil
 	}
 	rooms, known := facts.Rooms.Value()

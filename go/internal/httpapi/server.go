@@ -191,11 +191,11 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		s.write(w, r, 200, result)
 	case "/api/routines":
-		if s.config.Routines == nil {
-			s.failure(w, r, 404, "not_found", "Routine diagnostics are not enabled")
+		if s.config.Rounds == nil {
+			s.failure(w, r, 404, "not_found", "Rounds diagnostics are not enabled")
 			return
 		}
-		status, err := s.config.Routines.RoundsStatus(ctx)
+		status, err := s.config.Rounds.RoundsStatus(ctx)
 		if err == nil {
 			err = ctx.Err()
 		}

@@ -37,7 +37,7 @@ type RoundsBuildingPlanner struct {
 	paste            []policy.SiteBuilding
 	reviewer         *Rounder
 	native           RoundsBuildingSource
-	goal             policy.ConcernID
+	concern          policy.ConcernID
 	definition       string
 	recreationPowerW float64
 	stuff            string
@@ -78,7 +78,7 @@ func NewRoundsSleepingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsSleepingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainHousing, phase: policy.HousingShelter, definition: "SleepingSpot"}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingShelter, definition: "SleepingSpot"}, nil
 }
 
 // step is also used by the scheduler already holding the same player gate.
@@ -91,7 +91,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			indoor.definition = ""
 		}
 		result, err := indoor.step(call, epoch, arbiter)
-		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.goal, result.Verdict, err)
+		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.concern, result.Verdict, err)
 		if err != nil || !result.Verdict.Is(RefusalNoSpace) && !result.Verdict.Is(WaitMethodUsed) && !result.Verdict.Is(WaitBunksOpen) {
 			return result, err
 		}
@@ -112,7 +112,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	goal, workable, err := p.journal.WorkableOwner(call, review, r.goal)
+	goal, workable, err := p.journal.WorkableOwner(call, review, r.concern)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
@@ -121,7 +121,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	// A phased goal walks its phases in order: only the planner for the
 	// phase the review left owed runs.
-	if r.phase != "" && review.Latches.Phase(r.goal) != r.phase {
+	if r.phase != "" && review.Latches.Phase(r.concern) != r.phase {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// A facility shell is the ladder's last rung. While the initial shelter
@@ -149,9 +149,9 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoundsBuildingResult{Verdict: BuildingShelterPending}, nil
 		}
 	}
-	if r.phase == policy.ComfortRanked || r.phase == policy.HousingExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) || r.phase == policy.HousingSleeping {
-		if !developmentSelects(review.Development.Rows, r.goal) {
-			return RoundsBuildingResult{Verdict: awaitingSlot(string(r.goal))}, nil
+	if r.phase == policy.ComfortRanked || r.phase == policy.HousingExpansion || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes || (r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment) || r.phase == policy.HousingSleeping {
+		if !developmentSelects(review.Development.Rows, r.concern) {
+			return RoundsBuildingResult{Verdict: awaitingSlot(string(r.concern))}, nil
 		}
 	}
 	bunksOpen := false
@@ -160,7 +160,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoundsBuildingResult{}, err
 		}
-		if r.goal == policy.MaintainButcherSpot {
+		if r.concern == policy.MaintainButcherSpot {
 			// Only a pending spot of this definition is the planner's own work (#260).
 			for _, progress := range plan.Progress {
 				if pendingFacility(progress, r.definition) || pendingFacility(progress, "TableButcher") {
@@ -204,12 +204,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		// ErrControl alone reads as a lost writer gate in the diagnosis
 		// (#662); name the boundary that actually failed.
-		clockSchedulerLog("%s: ErrControl identity boundary observed=%+v tick=%d review tick=%d snapshot=%+v", r.goal, expected, expected.Tick, review.Tick, state.Snapshot)
+		clockSchedulerLog("%s: ErrControl identity boundary observed=%+v tick=%d review tick=%d snapshot=%+v", r.concern, expected, expected.Tick, review.Tick, state.Snapshot)
 		return RoundsBuildingResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
+	if r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment {
 		var recorded func()
-		call, recorded = recordPlannerStep(call, r.goal, state.Snapshot, review.Tick)
+		call, recorded = recordPlannerStep(call, r.concern, state.Snapshot, review.Tick)
 		defer recorded()
 		selection, reason, err := r.prepareWorkshop(call, state, review)
 		if err != nil || !reason.IsZero() {
@@ -220,7 +220,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		r = &prepared
 	}
 	definitions := []string{r.definition}
-	if r.goal == policy.EnsureCooking {
+	if r.concern == policy.EnsureCooking {
 		definitions = []string{"Campfire", "NutrientPasteDispenser", "Hopper"}
 	}
 	var furniture policy.DiningFurniture
@@ -240,16 +240,16 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
-	if (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) && !r.shelter {
+	if (r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment) && !r.shelter {
 		definitions = r.workshop.candidates
 	}
-	if (r.goal == policy.MaintainMedicalReserves || r.phase == policy.HousingSleeping || r.goal == policy.EnsureResearch) && !r.shelter {
+	if (r.concern == policy.MaintainMedicalReserves || r.phase == policy.HousingSleeping || r.concern == policy.EnsureResearch) && !r.shelter {
 		// The beds and the research bench are the furniture rules', read
 		// with every catalog (observation.ColonyProjection.Shapes).
 		definitions = nil
 	}
 	var pendingConsumers []string
-	if r.goal == policy.EnsureBasicPower {
+	if r.concern == policy.EnsureBasicPower {
 		// The consumers other goals' admitted plans are about to build join
 		// the census request so the budget can price their draw.
 		held, err := p.journal.BuildingReservations(call, state.Snapshot)
@@ -259,19 +259,19 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		pendingConsumers = pendingBuildingDefinitions(held)
 		definitions = append(append([]string{"Wall", "Door"}, policy.PowerFamilyDefinitions()...), pendingConsumers...)
 	}
-	if r.goal == policy.EnsureTemperatureSafety {
+	if r.concern == policy.EnsureTemperatureSafety {
 		definitions = temperatureDefinitions
 	}
-	if r.goal == policy.MaintainRefrigeration {
+	if r.concern == policy.MaintainRefrigeration {
 		definitions = []string{"Cooler"}
 	}
-	if r.goal == policy.MaintainLighting {
+	if r.concern == policy.MaintainLighting {
 		definitions = r.lightingDefinitions()
 	}
-	if r.goal == policy.MaintainFlooring {
+	if r.concern == policy.MaintainFlooring {
 		definitions = r.flooringDefinitions()
 	}
-	if r.goal == policy.MaintainRoutes {
+	if r.concern == policy.MaintainRoutes {
 		definitions = r.routesDefinitions()
 	}
 	if r.shelter {
@@ -284,12 +284,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.shelter && r.phase == policy.HousingShelter {
 		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition, policy.SleepingBedrollDefinition)
 	}
-	if r.goal == policy.EnsureCooking || r.goal == policy.MaintainRefrigeration {
+	if r.concern == policy.EnsureCooking || r.concern == policy.MaintainRefrigeration {
 		// The planned kitchen or freezer is shelled first (#835).
 		observed = append(append([]string(nil), observed...), "Wall", "Door")
 	}
 	if r.shelter {
-		if r.goal == policy.MaintainButcherSpot {
+		if r.concern == policy.MaintainButcherSpot {
 			observed = append(append([]string(nil), observed...), "TableButcher")
 		}
 		// The door ladder proposes an Autodoor only once the read shows it
@@ -298,14 +298,14 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	var reading observation.ColonyReading
 	_, roundsSource := r.native.(observation.RoundsSource)
-	separation := (r.goal == policy.MaintainButcherSpot || r.goal == policy.EnsureCooking) && roundsSource
-	if r.goal == policy.EnsureTemperatureSafety || r.facilityLadder() || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || separation {
+	separation := (r.concern == policy.MaintainButcherSpot || r.concern == policy.EnsureCooking) && roundsSource
+	if r.concern == policy.EnsureTemperatureSafety || r.facilityLadder() || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
 		// rooms (issue #6 slice 2); without a census nothing is protected.
 		full, readErr := r.reviewer.observeRooms(call, r.native.(observation.RoundsSource), expected, domain.Unknown[[]policy.ConstructionClaim](), observed...)
 		reading, err = full.ColonyReading, readErr
-	} else if r.goal == policy.EnsureBasicPower || r.phase == policy.ComfortBasic {
+	} else if r.concern == policy.EnsureBasicPower || r.phase == policy.ComfortBasic {
 		full, readErr := r.reviewer.observeOwned(call, r.native.(observation.RoundsSource), expected, domain.Unknown[[]policy.ConstructionClaim](), observed...)
 		reading, err = full.ColonyReading, readErr
 	} else {
@@ -315,8 +315,8 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsBuildingResult{}, err
 	}
 	facts := reading.Projection
-	recordStepRead("building", r.goal, state.Snapshot, facts)
-	if r.goal == policy.EnsureCooking {
+	recordStepRead("building", r.concern, state.Snapshot, facts)
+	if r.concern == policy.EnsureCooking {
 		// A cooking campfire in a sleeping room, or one a stove kitchen
 		// supersedes, is deconstructed first (#1179).
 		claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
@@ -339,12 +339,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	var coolingAllowance uint32
 	var coolingLent bool
-	if r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
+	if r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
 		var resolved *RoundsBuildingPlanner
 		var reason Verdict
-		if r.goal == policy.EnsureTemperatureSafety {
+		if r.concern == policy.EnsureTemperatureSafety {
 			resolved, reason, err = r.selectTemperature(facts, review.Latches)
-		} else if r.goal == policy.MaintainRefrigeration {
+		} else if r.concern == policy.MaintainRefrigeration {
 			var exhausted bool
 			coolingAllowance, exhausted, coolingLent, err = refrigerationOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick, review.Latches.RefrigerationSince)
 			if err != nil {
@@ -360,19 +360,19 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 				}
 			}
 			resolved, reason, err = r.selectRefrigeration(call, facts, review.Latches, exhausted)
-		} else if r.goal == policy.EnsureBasicPower {
+		} else if r.concern == policy.EnsureBasicPower {
 			resolved, reason, err = r.selectPower(facts, pendingConsumers)
-		} else if r.goal == policy.MaintainLighting {
+		} else if r.concern == policy.MaintainLighting {
 			resolved, reason, err = r.selectLighting(facts, review.Latches)
-		} else if r.goal == policy.MaintainFlooring {
+		} else if r.concern == policy.MaintainFlooring {
 			resolved, reason, err = r.selectFlooring(call, state.Snapshot, facts, review.Latches)
-		} else if r.goal == policy.MaintainRoutes {
+		} else if r.concern == policy.MaintainRoutes {
 			resolved, reason, err = r.selectRoutes(facts, review.Latches)
-		} else if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
+		} else if r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment {
 			resolved, reason, err = r.selectWorkshop(call, state, review, facts)
-		} else if r.goal == policy.MaintainMedicalReserves {
+		} else if r.concern == policy.MaintainMedicalReserves {
 			resolved, reason, err = r.selectHospital(facts)
-		} else if r.goal == policy.EnsureResearch {
+		} else if r.concern == policy.EnsureResearch {
 			resolved, reason, err = r.selectResearchBench(facts)
 		} else if r.phase == policy.HousingSleeping {
 			resolved, reason, err = r.selectSleeping(facts, review)
@@ -386,11 +386,11 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 		if !reason.IsZero() {
 			result := RoundsBuildingResult{Verdict: reason}
-			if r.goal == policy.EnsureBasicPower && reason.Is(RefusalNoSpace) {
+			if r.concern == policy.EnsureBasicPower && reason.Is(RefusalNoSpace) {
 				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
 				return result, err
 			}
-			if r.goal == policy.EnsureBasicPower && reason == awaitingMethod(policy.PowerWaitFuel) {
+			if r.concern == policy.EnsureBasicPower && reason == awaitingMethod(policy.PowerWaitFuel) {
 				// An empty generator is refuelled by a native haul the
 				// census cannot see coming; like a stock refusal, the
 				// hold lends the window that haul needs rather than
@@ -404,13 +404,13 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			// cooler still unpowered when it runs out is a real hold (#66).
 			// Time lent from the latch alone does not cover it: with no
 			// method in the epoch there is no cooler still settling (#202).
-			powerSettling := r.goal == policy.MaintainRefrigeration && reason == awaitingMethod(policy.RefrigerationPowerNeeded) && !coolingLent
+			powerSettling := r.concern == policy.MaintainRefrigeration && reason == awaitingMethod(policy.RefrigerationPowerNeeded) && !coolingLent
 			if reason == BuildingComfortWait || reason == awaitingMethod(policy.PowerWaitOutput) || reason == BuildingTemperatureWait || reason == awaitingMethod(policy.RefrigerationWait) || powerSettling {
-				if r.goal == policy.EnsureTemperatureSafety {
+				if r.concern == policy.EnsureTemperatureSafety {
 					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
-				} else if r.goal == policy.MaintainRefrigeration {
+				} else if r.concern == policy.MaintainRefrigeration {
 					result.NativeWorkTicks = coolingAllowance
-				} else if r.goal == policy.EnsureBasicPower {
+				} else if r.concern == policy.EnsureBasicPower {
 					result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
 				} else {
 					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick, furniture)
@@ -511,7 +511,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	// The stand-in campfire is free and instant and the colony cooks on it
 	// while the kitchen is dug: it goes down outdoors now, and the ring is
 	// shelled once it stands (the existing-facility path above).
-	standIn := r.goal == policy.EnsureCooking && method == "campfire"
+	standIn := r.concern == policy.EnsureCooking && method == "campfire"
 	if module, ok := r.plannedRoomModule(); ok && !standIn {
 		// The planned room is raised and furnished together (#835): the
 		// ring is admitted, and the stove or cooler goes onto the room's
@@ -535,7 +535,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
-	if r.goal == policy.EnsureCooking {
+	if r.concern == policy.EnsureCooking {
 		definitions = []string{r.definition}
 		if len(r.paste) > 0 {
 			definitions = append(definitions, "Hopper")
@@ -550,7 +550,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
-	if r.definition == "TableButcher" || r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
+	if r.definition == "TableButcher" || r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
 		gate = comfortBuilderGate(facts, r.definition)
 		if r.power != nil && r.power.Method == policy.PowerGenerate {
 			// A generator no site accepts yields to the next ranked one a
@@ -605,7 +605,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		// native indoor capacity excludes) or lost must not leave a spent
 		// method holding the shelter gate failed. Spots that stand but are
 		// not yet counted (an open roof) keep the method used.
-		if r.phase == policy.HousingSleeping || r.goal == policy.EnsureCooking || r.phase == policy.HousingShelter && regularBedsShort(facts.Facts) {
+		if r.phase == policy.HousingSleeping || r.concern == policy.EnsureCooking || r.phase == policy.HousingShelter && regularBedsShort(facts.Facts) {
 			if method, err = r.nextSleepingBedMethod(call, goal, method, facts.Facts.CurrentConstruction); err != nil {
 				return RoundsBuildingResult{}, err
 			}
@@ -627,15 +627,15 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	if !r.shelter && (r.goal == policy.MaintainButcherSpot || r.goal == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.HousingExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes) {
+	if !r.shelter && (r.concern == policy.MaintainButcherSpot || r.concern == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.HousingExpansion || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes) {
 		pending := func(progress domain.Progress) bool {
-			if r.goal == policy.EnsureTemperatureSafety {
+			if r.concern == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {
 					return pendingFacility(progress, "Campfire") || pendingFacility(progress, "Heater")
 				}
 				return pendingFacility(progress, "PassiveCooler") || pendingFacility(progress, "Cooler")
 			}
-			if r.goal == policy.EnsureBasicPower {
+			if r.concern == policy.EnsureBasicPower {
 				for _, name := range policy.PowerFamilyDefinitions() {
 					if pendingFacility(progress, name) {
 						return true
@@ -643,7 +643,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 				}
 				return pendingFacility(progress, "PowerConduit") || pendingFacility(progress, "HiddenConduit") || pendingFacility(progress, "WaterproofConduit")
 			}
-			if r.phase == policy.HousingExpansion || r.goal == policy.MaintainMedicalReserves || r.phase == policy.HousingSleeping {
+			if r.phase == policy.HousingExpansion || r.concern == policy.MaintainMedicalReserves || r.phase == policy.HousingSleeping {
 				return pendingFacility(progress, "SleepingSpot") || pendingFacility(progress, "Bed") || pendingFacility(progress, "DoubleBed") || pendingFacility(progress, "RoyalBed")
 			}
 			return pendingFacility(progress, r.definition)
@@ -697,33 +697,33 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.shelter {
 		// The shelter's siting and dig decisions, recorded for replay (#745).
 		var finish func(domain.GenerationSnapshot, domain.Tick) error
-		call, finish = snap.StartPlanner(call, r.goal)
+		call, finish = snap.StartPlanner(call, r.concern)
 		defer func() {
 			if err := finish(snapshot, facts.Identity.Tick); err != nil {
-				clockSchedulerLog("%s: planner snapshot not recorded: %v", r.goal, err)
+				clockSchedulerLog("%s: planner snapshot not recorded: %v", r.concern, err)
 			}
 		}()
 	}
 	if r.shelter && r.phase != policy.HousingShelter {
-		if result, handled, err := r.prepareShellRoom(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
+		if result, handled, err := r.prepareShellRoom(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
 			return result, err
 		}
 	}
 	if r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild {
-		if result, handled, err := r.digExhaust(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, check); err != nil || handled {
+		if result, handled, err := r.digExhaust(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, check); err != nil || handled {
 			return result, err
 		}
 	}
-	if result, handled, err := r.digSky(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
+	if result, handled, err := r.digSky(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
 		return result, err
 	}
 	if r.power != nil && r.power.FixedSite() {
-		if result, handled, err := r.digGeothermal(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
+		if result, handled, err := r.digGeothermal(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
 			return result, err
 		}
 	}
 	if len(r.paste) > 0 {
-		if result, handled, err := r.digPaste(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
+		if result, handled, err := r.digPaste(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
 			return result, err
 		}
 	}
@@ -732,7 +732,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		// spots and then the beds are placed on the site first, each a rung
 		// under this goal, and the ring follows once the beds stand.
 		var handled *RoundsBuildingResult
-		selected, stock, reason, handled, err = r.stepShelterSite(call, epoch, shelterSite{state: state, review: review, goal: goal, facts: facts, read: reading, snapshot: snapshot, protected: protected, check: check})
+		selected, stock, reason, handled, err = r.stepShelterSite(call, epoch, shelterSite{state: state, review: review, owner: goal, facts: facts, read: reading, snapshot: snapshot, protected: protected, check: check})
 		if err != nil || handled != nil {
 			if handled == nil {
 				handled = &RoundsBuildingResult{}
@@ -742,7 +742,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	} else {
 		selected, stock, reason, err = r.previewMethod(call, snapshot, facts, protected, missing, check)
 		if err == nil && r.routes != nil && reason.Is(RefusalNoSpace) {
-			if result, handled, digErr := r.digBreach(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); digErr != nil || handled {
+			if result, handled, digErr := r.digBreach(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, protected, check); digErr != nil || handled {
 				return result, digErr
 			}
 		}
@@ -757,7 +757,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.shelter || r.power != nil && r.power.Method == policy.PowerShelter {
 		purpose = policy.Shelter
 	}
-	return r.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose})
+	return r.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose})
 }
 
 // roundsAdmission is what admitPreviews commits: the previews a method
@@ -765,7 +765,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 type roundsAdmission struct {
 	state  ControlState
 	review store.Rounds
-	goal   store.WorkOwner
+	owner  store.WorkOwner
 	facts  observation.ColonyProjection
 	method domain.MethodID
 	// reason is the planner's short why, stored with the method (#846).
@@ -795,7 +795,7 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: a.goal, Method: a.method, Reason: a.reason, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Previews: a.selected, Purpose: a.purpose})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: a.owner, Method: a.method, Reason: a.reason, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Previews: a.selected, Purpose: a.purpose})
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
@@ -808,7 +808,7 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 		// only while its actions stay open.
 		if a.purpose == policy.Shelter {
 			for _, resource := range previewResources(a.selected) {
-				if rec, short := store.ShortfallDependency(r.goal, decision.Goal.Standard, a.method, plan.ID(), a.selected, a.stock, resource, a.facts.Identity.Tick); short {
+				if rec, short := store.ShortfallDependency(r.concern, decision.Standard.Standard, a.method, plan.ID(), a.selected, a.stock, resource, a.facts.Identity.Tick); short {
 					if err = p.journal.RecordDependency(call, a.review.Revision, rec); err != nil && !errors.Is(err, store.ErrConflict) {
 						return RoundsBuildingResult{}, err
 					}
@@ -876,16 +876,16 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if r.shelter {
 		return r.previewShell(call, snapshot, facts, protected, check)
 	}
-	if r.goal == policy.MaintainHousing && r.facility == nil {
+	if r.concern == policy.MaintainHousing && r.facility == nil {
 		// Loose sleeping spots go to the starter shell or a bedroom, not into
 		// a standing kitchen, lab or other planned room: beds there make it a
 		// sleeping room and block the room's own furnishing.
 		protected = append(append([]domain.Cell(nil), protected...), nonSleepingPlannedCells(facts)...)
 	}
-	if r.definition == "ButcherSpot" || r.definition == "TableButcher" || r.goal == policy.EnsureCooking {
+	if r.definition == "ButcherSpot" || r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot" || r.definition == "TableButcher")...)
 	}
-	if r.goal == policy.EnsureCooking && r.definition == "Campfire" {
+	if r.concern == policy.EnsureCooking && r.definition == "Campfire" {
 		// The cooking campfire stands outdoors or in a non-sleeping room,
 		// never beside a bed or spot (#1179).
 		protected = append(append([]domain.Cell(nil), protected...), sleepingRoomCells(facts.Rooms)...)
@@ -918,7 +918,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				for _, room := range rooms.Rooms {
 					summary = append(summary, fmt.Sprintf("%s role=%v enclosed=%v cells=%d", room.ID, room.Role, room.Enclosed, len(room.Cells)))
 				}
-				clockSchedulerLog("%s: no room hosts the facility %+v; rooms=%v", r.goal, *r.facility, summary)
+				clockSchedulerLog("%s: no room hosts the facility %+v; rooms=%v", r.concern, *r.facility, summary)
 			}
 			return nil, policy.StockObservation{}, noSpace("hosting_room"), nil
 		}
@@ -966,7 +966,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
 	}
-	if r.goal == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" || r.definition == "TableButcher" {
+	if r.concern == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" || r.definition == "TableButcher" {
 		// The cooking campfire and the butcher spot stand by the base, not the landing
 		// centroid (#1534).
 		anchor := planCore(facts)
@@ -1181,7 +1181,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 					return nil, policy.StockObservation{}, reason, err
 				}
 				if ok && !overlaps(choice.choice) {
-					clockSchedulerLog("%s: %s takes interior slot %s at %d,%d %s", r.goal, r.definition, p.Slot, p.Anchor().X, p.Anchor().Z, p.Rot)
+					clockSchedulerLog("%s: %s takes interior slot %s at %d,%d %s", r.concern, r.definition, p.Slot, p.Anchor().X, p.Anchor().Z, p.Rot)
 					pending = &choice
 					if err := commit(); err != nil {
 						return nil, policy.StockObservation{}, Verdict{}, err
@@ -1210,7 +1210,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		if unknownWatch {
 			return nil, policy.StockObservation{}, fieldUnavailable("watch_cells_accessible"), nil
 		}
-		clockSchedulerLog("%s: no site for %s (%s): selected=%d missing=%d candidates=%d siteCells=%d roomCells=%d restricted=%v environment=%s", r.goal, r.definition, r.stuff, len(selected), missing, len(search.Candidates()), len(cells), len(roomCells), restricted, searchRequest.Environment)
+		clockSchedulerLog("%s: no site for %s (%s): selected=%d missing=%d candidates=%d siteCells=%d roomCells=%d restricted=%v environment=%s", r.concern, r.definition, r.stuff, len(selected), missing, len(search.Candidates()), len(cells), len(roomCells), restricted, searchRequest.Environment)
 		if clockDebug() && restricted {
 			blocked := map[domain.Cell]bool{}
 			for _, c := range searchRequest.Protected {
@@ -1223,7 +1223,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				indoors, _ := c.Indoors.Value()
 				rows = append(rows, fmt.Sprintf("%d,%d w=%v o=%v z=%v/%v i=%v p=%v", c.Cell.X, c.Cell.Z, c.Walkable, occupied, zone, zoneKnown, indoors, blocked[c.Cell]))
 			}
-			clockSchedulerLog("%s: site census %v", r.goal, rows)
+			clockSchedulerLog("%s: site census %v", r.concern, rows)
 		}
 		return nil, policy.StockObservation{}, noSpace("placement_site"), nil
 	}
@@ -1259,11 +1259,11 @@ func initialShelterOwed(ctx context.Context, p *Player, review store.Rounds) (bo
 	if review.Latches.Housing != policy.HousingShelter {
 		return false, nil
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainHousing {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainHousing {
 			continue
 		}
-		goal, err := p.journal.LoadStandard(ctx, binding.Goal)
+		goal, err := p.journal.LoadStandard(ctx, binding.Standard)
 		if err != nil {
 			return false, err
 		}
@@ -1378,7 +1378,7 @@ func regularBedsShort(f policy.RoundsFacts) bool {
 func developmentSelects(rows []store.RoundsDevelopmentRow, goal domain.ConcernID) bool {
 	for _, row := range rows {
 		held := row.Committed && (goal == policy.MaintainResource || goal == policy.MaintainEquipment)
-		if row.Goal == goal && (row.Selected || held) {
+		if row.Concern == goal && (row.Selected || held) {
 			return true
 		}
 	}

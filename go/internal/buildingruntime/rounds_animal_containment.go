@@ -35,7 +35,7 @@ func NewRoundsAnimalContainmentPlanner(reviewer *Rounder, native RoundsBuildingS
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsAnimalContainmentPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainAnimalContainment, definition: "Wall", shelter: true}
+	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainAnimalContainment, definition: "Wall", shelter: true}
 	return &RoundsAnimalContainmentPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 
@@ -220,7 +220,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.MaintainAnimalContainment && row.Selected
+		selected = selected || row.Concern == policy.MaintainAnimalContainment && row.Selected
 	}
 	shellStage := policy.ContainmentShellNone
 	markerAttempted := false
@@ -419,7 +419,7 @@ func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, s
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
-	step := excavationStep{state: state, review: review, goal: goal, facts: facts, read: read.ColonyReading}
+	step := excavationStep{state: state, review: review, owner: goal, facts: facts, read: read.ColonyReading}
 	check := func() error {
 		if err := r.reviewer.player.current(call, epoch); err != nil {
 			return err
@@ -476,7 +476,7 @@ func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, s
 			continue
 		}
 		out := RoundsAnimalContainmentResult{Verdict: result.Verdict}
-		for _, m := range result.Decision.Goal.Methods {
+		for _, m := range result.Decision.Standard.Methods {
 			if m.Method == animalShellMethod {
 				out.Plan = m.Plan
 			}

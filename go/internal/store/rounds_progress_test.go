@@ -10,9 +10,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func progressRecord(t *testing.T, r Rounds, id domain.ConcernID) policy.GoalProgress {
+func progressRecord(t *testing.T, r Rounds, id domain.ConcernID) policy.ConcernProgress {
 	t.Helper()
-	p, ok := r.GoalProgress(id)
+	p, ok := r.ConcernProgress(id)
 	if !ok {
 		t.Fatal("missing progress record", id, r.Progress)
 	}
@@ -49,9 +49,9 @@ func TestRoundsProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	if !developmentRow(t, first.Review, policy.MaintainResource).Selected {
 		t.Fatal(first.Review.Development.Rows)
 	}
-	for _, binding := range first.Review.Goals {
-		if _, ok := first.Review.GoalProgress(binding.Need); !ok && roundsGoal(t, first, binding.Need).Standard.Status == domain.StandardOpen {
-			t.Fatal("active goal without a progress record", binding.Need)
+	for _, binding := range first.Review.Standards {
+		if _, ok := first.Review.ConcernProgress(binding.Concern); !ok && roundsGoal(t, first, binding.Concern).Standard.Status == domain.StandardOpen {
+			t.Fatal("active goal without a progress record", binding.Concern)
 		}
 	}
 	s.Close()

@@ -21,7 +21,7 @@ func NewRoundsLightingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsLightingPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainLighting, definition: "TorchLamp"}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainLighting, definition: "TorchLamp"}, nil
 }
 
 // lightingDefinitions lists every lamp the policy may choose so the census

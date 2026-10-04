@@ -3,10 +3,10 @@
 [Architecture](overview.md) · [Go player API](../contracts/go-player-api.md)
 
 Player requests and routine automation share admission checks, resource accounting
-and completion tracking. The plan owns goals; Hands deterministically executes
-accepted work. Advisers cannot commit game orders. Each goal is a Standard,
+and completion tracking. The plan owns concerns; Hands deterministically executes
+accepted work. Advisers cannot commit game orders. Each concern is a Standard,
 Project or Response, and Safeguards veto proposals at admission; see
-[goal concepts](control-loop.md#goal-concepts).
+[Concerns and their forms](control-loop.md#concerns-and-their-forms).
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ after dispatch may conceal an accepted order: retain intent and inspect the game
 before retrying. Recovery preserves action identity and requires fresh context.
 See [sessions and recovery](sessions-and-recovery.md).
 
-Cancelling a goal stops pursuit while retaining issued game orders. Removing
+Cancelling a concern stops pursuit while retaining issued game orders. Removing
 construction is a separate explicit request against exact pending objects;
 completed buildings and neighboring or replacement objects remain protected.
 
@@ -48,6 +48,6 @@ write outstanding: when the native generation moves under it (a cancelled
 dispatch, a re-acquired lease) it is prepared again under the current authority
 rather than left stranded.
 
-Implementation: [go/internal/domain](../../../go/internal/domain) (plans/goals),
+Implementation: [go/internal/domain](../../../go/internal/domain) (plans/concerns),
 [go/internal/store](../../../go/internal/store) and
 [go/internal/executor](../../../go/internal/executor).

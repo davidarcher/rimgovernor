@@ -15,7 +15,7 @@ its current drain for under `ReserveMinDays` (one day), or whose known
 stored reserve is under the coming night's deficit (a solar-only network by
 day). Forbidden or switched-off consumers and producers are player intent
 (`player_disabled_power`); an out-of-fuel or broken producer whose installed
-capacity covers demand holds the goal (`waiting_for_refuel`,
+capacity covers demand holds the concern (`waiting_for_refuel`,
 `waiting_for_repair`), since refuelling and repair are ordinary pawn work;
 the refuel hold lends the clock the same bounded window a stock refusal
 does (`stockWaitTicks`), since only ticks land the haul. A
@@ -27,7 +27,7 @@ does (`stockWaitTicks`), since only ticks land the haul. A
 A draining network is sized by `ComputePowerBudget`, a 24 h balance built
 from the same-network census rows: demand is the sum of enabled consumer
 wattage plus the declared draw (`observation.PlanningDefinition.PowerW`, the def's power comp) of every
-building action still open in other goals' held reservations, so a
+building action still open in other concerns' held reservations, so a
 workbench about to be built is priced before it turns on; each producer's nominal wattage is spread over the day by its
 definition's profile (constant for fuel-burning, geothermal and watermill
 generators; a daylight curve for `SolarGenerator`, zero for a third of the

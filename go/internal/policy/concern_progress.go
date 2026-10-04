@@ -16,8 +16,8 @@ import (
 // measured from native outcomes (a settled effect, a deficit that shrank,
 // construction observed), never from dispatch: an order nobody can take is
 // blocked, not progressing.
-type GoalProgress struct {
-	Goal ConcernID
+type ConcernProgress struct {
+	Concern ConcernID
 	// Method is the goal's current method or ladder rung ("hunt", "cook").
 	Method string
 	// Expected is the observable the method is expected to move.
@@ -119,7 +119,7 @@ func (n PlannerNote) Blocked() BlockedReason {
 }
 
 // Planner is the record's filed planner note.
-func (p GoalProgress) PlannerNote() PlannerNote {
+func (p ConcernProgress) PlannerNote() PlannerNote {
 	return PlannerNote{Text: p.Planner, Waiting: p.PlannerWaiting}
 }
 
@@ -271,16 +271,16 @@ type ProgressEvidence struct {
 // A new record starts its clock at now. Progress resets the deadline;
 // blocked evidence leaves the clock running, so a method blocked past its
 // deadline rotates (ExpireGoalProgress). Expired cooldowns are dropped.
-func ReviewGoalProgress(previous GoalProgress, goal ConcernID, c ProgressContract, e ProgressEvidence, now domain.Tick) GoalProgress {
+func ReviewConcernProgress(previous ConcernProgress, goal ConcernID, c ProgressContract, e ProgressEvidence, now domain.Tick) ConcernProgress {
 	p := previous
-	p.Goal = goal
+	p.Concern = goal
 	// A new goal, a new method or a tick rewind starts the clock; cooldowns
 	// are keyed to situations, not methods, and outlive a method change.
-	fresh := previous.Goal != goal || previous.Method != c.Method || previous.LastProgress > now
+	fresh := previous.Concern != goal || previous.Method != c.Method || previous.LastProgress > now
 	if fresh {
 		p.LastProgress = now
 	}
-	if previous.Goal != goal || previous.LastProgress > now {
+	if previous.Concern != goal || previous.LastProgress > now {
 		p.Cooldowns = nil
 	}
 	p.Method, p.Expected = c.Method, c.Expected
@@ -340,7 +340,7 @@ func liveCooldowns(cooldowns []ProgressCooldown, now domain.Tick) []ProgressCool
 // Cooled reports whether the situation key is under a cooldown at now. A
 // key encodes the failed situation (method, target, blocker, season), so
 // a changed condition is a different key and lifts the cooldown by itself.
-func (p GoalProgress) Cooled(key string, now domain.Tick) bool {
+func (p ConcernProgress) Cooled(key string, now domain.Tick) bool {
 	for _, cd := range p.Cooldowns {
 		if cd.Key == key && cd.Until > now {
 			return true
@@ -361,7 +361,7 @@ func CooldownKey(parts ...string) string {
 // outcome is unknown is never rotated past: the action identity is
 // reconciled first (BlockedReconciling). With no free alternative the
 // method stays, blocked on cooldown, until one lifts.
-func ExpireGoalProgress(p GoalProgress, c ProgressContract, now domain.Tick, situation string, alternatives []ProgressContract) (GoalProgress, bool) {
+func ExpireConcernProgress(p ConcernProgress, c ProgressContract, now domain.Tick, situation string, alternatives []ProgressContract) (ConcernProgress, bool) {
 	if p.NextReview == 0 || now < p.NextReview || p.Blocked == BlockedReconciling {
 		return p, false
 	}
@@ -394,7 +394,7 @@ func ExpireGoalProgress(p GoalProgress, c ProgressContract, now domain.Tick, sit
 
 // AddProgressCooldown keys situation out until the given tick, bounded by
 // ProgressCooldownMax from now; a key already cooled takes the later bound.
-func AddProgressCooldown(p GoalProgress, key string, until, now domain.Tick) GoalProgress {
+func AddProgressCooldown(p ConcernProgress, key string, until, now domain.Tick) ConcernProgress {
 	until = min(until, now+ProgressCooldownMax)
 	live := liveCooldowns(p.Cooldowns, now)
 	p.Cooldowns = nil
@@ -413,16 +413,16 @@ func AddProgressCooldown(p GoalProgress, key string, until, now domain.Tick) Goa
 }
 
 // ValidateGoalProgress checks a persisted record against the review tick.
-func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
-	if !validResource(Resource(p.Goal)) || len(p.Method) > 64 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || p.Planner != "" && !printableReason(p.Planner) || p.Planner == "" && p.PlannerWaiting {
-		return errors.New("invalid goal progress")
+func ValidateConcernProgress(p ConcernProgress, tick domain.Tick) error {
+	if !validResource(Resource(p.Concern)) || len(p.Method) > 64 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || p.Planner != "" && !printableReason(p.Planner) || p.Planner == "" && p.PlannerWaiting {
+		return errors.New("invalid standard progress")
 	}
 	if p.Observed != nil && (*p.Observed < 0 || *p.Observed > 1) {
-		return errors.New("invalid goal progress")
+		return errors.New("invalid standard progress")
 	}
 	for _, cd := range p.Cooldowns {
 		if cd.Key == "" || cd.Until <= 0 || cd.Until > tick+ProgressCooldownMax {
-			return errors.New("invalid goal progress cooldown")
+			return errors.New("invalid standard progress cooldown")
 		}
 	}
 	return nil
@@ -448,7 +448,7 @@ func FoodProgress(f RoundsFacts, p RoundsPolicy, storageOpen bool) (ProgressCont
 	if owed(f.Cooking) {
 		prerequisite = EnsureCooking
 	}
-	deadline := domain.Tick(p.GoalStallTicks)
+	deadline := domain.Tick(p.ConcernStallTicks)
 	switch {
 	case HumanFoodPending(f.FoodPlan) || !positive(footholdFood(f, p)):
 		return ProgressContract{Method: "acquire", Expected: "food days rise toward the target", Deadline: deadline}, prerequisite, observed
@@ -463,13 +463,13 @@ func FoodProgress(f RoundsFacts, p RoundsPolicy, storageOpen bool) (ProgressCont
 
 // GoalProgressContract is the default contract for a goal's method: the
 // method id as the method, the goal's deficit as the observable,
-// RoundsPolicy.GoalStallTicks (scaled by colony stage) without progress as
+// RoundsPolicy.ConcernStallTicks (scaled by colony stage) without progress as
 // the deadline.
-func GoalProgressContract(method string, p RoundsPolicy) ProgressContract {
+func ConcernProgressContract(method string, p RoundsPolicy) ProgressContract {
 	if method == "" {
 		method = "assess"
 	}
-	return ProgressContract{Method: method, Expected: "deficit shrinks or the method's work settles", Deadline: domain.Tick(p.GoalStallTicks)}
+	return ProgressContract{Method: method, Expected: "deficit shrinks or the method's work settles", Deadline: domain.Tick(p.ConcernStallTicks)}
 }
 
 // WithheldLabor is the labor a blocked prerequisite keeps out of optional
@@ -479,12 +479,12 @@ func GoalProgressContract(method string, p RoundsPolicy) ProgressContract {
 // A prerequisite with no open method (its planner proposed nothing)
 // withholds nothing: holding the builder for work nobody placed would
 // idle construction forever.
-func WithheldLabor(progress []GoalProgress) LaborProfile {
+func WithheldLabor(progress []ConcernProgress) LaborProfile {
 	var withheld LaborProfile
 	seen := map[WorkType]bool{}
 	open := map[ConcernID]bool{}
 	for _, p := range progress {
-		open[p.Goal] = open[p.Goal] || p.Open
+		open[p.Concern] = open[p.Concern] || p.Open
 	}
 	for _, p := range progress {
 		switch pre := p.Blocked.Prerequisite(); pre {
@@ -507,12 +507,12 @@ const PlannerOptOut = "disabled"
 // should look at: an unavailable method, a planner the runtime left
 // disabled, a development row the ranking held (stage, labor, capacity,
 // emergency) or labor withheld for every work type the goal uses.
-func HoldProgress(progress []GoalProgress, rows []DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) []GoalProgress {
+func HoldProgress(progress []ConcernProgress, rows []DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) []ConcernProgress {
 	byGoal := map[ConcernID]DevelopmentRow{}
 	for _, row := range rows {
-		byGoal[row.Goal] = row
+		byGoal[row.Concern] = row
 	}
-	out := append([]GoalProgress(nil), progress...)
+	out := append([]ConcernProgress(nil), progress...)
 	for i := range out {
 		p := &out[i]
 		if !p.Blocked.Unmethoded() {
@@ -525,14 +525,14 @@ func HoldProgress(progress []GoalProgress, rows []DevelopmentRow, withheld Labor
 	return out
 }
 
-func heldReason(p GoalProgress, rows map[ConcernID]DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) BlockedReason {
-	if unavailable[p.Goal] {
+func heldReason(p ConcernProgress, rows map[ConcernID]DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) BlockedReason {
+	if unavailable[p.Concern] {
 		return HeldUnavailable
 	}
 	if p.Planner == PlannerOptOut {
 		return HeldOptIn
 	}
-	if row, ok := rows[p.Goal]; ok {
+	if row, ok := rows[p.Concern]; ok {
 		switch row.Reason {
 		case DevelopmentStage:
 			return HeldStage
@@ -552,7 +552,7 @@ func heldReason(p GoalProgress, rows map[ConcernID]DevelopmentRow, withheld Labo
 			}
 		}
 	}
-	if labor := GoalLabor(p.Goal); len(labor) > 0 && len(withheld) > 0 {
+	if labor := ConcernLabor(p.Concern); len(labor) > 0 && len(withheld) > 0 {
 		all := true
 		for _, w := range labor {
 			all = all && slices.Contains(withheld, w)

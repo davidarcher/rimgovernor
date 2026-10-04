@@ -540,7 +540,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	targets = policy.ResourceGoalTargets(targets, seasonal.ResourceTargets)
+	targets = policy.ResourceConcernTargets(targets, seasonal.ResourceTargets)
 	// Restore parts no bench can fabricate are bought (#1168).
 	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext())
 	if err != nil {
@@ -577,7 +577,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
-	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
+	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, policy.ResourceConcernTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)

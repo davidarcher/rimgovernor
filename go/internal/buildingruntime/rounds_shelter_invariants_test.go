@@ -56,7 +56,7 @@ func TestRoundsShelterShellInvariantsAcrossSites(t *testing.T) {
 			if err != nil || result.Verdict != BuildingReasonAdmitted {
 				t.Fatal(result, err)
 			}
-			plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
+			plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Standard).Plan)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -240,7 +240,7 @@ func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
+	plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Standard).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}

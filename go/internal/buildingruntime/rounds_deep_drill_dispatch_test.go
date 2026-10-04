@@ -80,9 +80,9 @@ func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrill
 		t.Fatal(err)
 	}
 	var goal store.StandardState
-	for _, binding := range review.Review.Goals {
-		if binding.Need == policy.MaintainResource {
-			goal, err = db.LoadStandard(context.Background(), binding.Goal)
+	for _, binding := range review.Review.Standards {
+		if binding.Concern == policy.MaintainResource {
+			goal, err = db.LoadStandard(context.Background(), binding.Standard)
 			if err != nil {
 				t.Fatal(err)
 			}

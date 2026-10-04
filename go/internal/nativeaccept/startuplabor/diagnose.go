@@ -67,7 +67,7 @@ type Slot struct {
 type Subject struct {
 	World      World
 	ReviewTick domain.Tick
-	Goal       domain.ConcernID
+	Concern    domain.ConcernID
 	Method     domain.MethodID
 	Action     domain.ActionID
 	// Slot is the ranking row, nil when the goal was not on the review.
@@ -88,7 +88,7 @@ type Diagnosis struct {
 	Colony, Load string
 	Map          int
 	ReviewTick   domain.Tick
-	Goal         domain.ConcernID
+	Concern      domain.ConcernID
 	Method       domain.MethodID
 	Action       domain.ActionID
 	Class        Class
@@ -147,7 +147,7 @@ var laborRefusals = map[policy.DevelopmentReason]bool{
 func Diagnose(s Subject) Diagnosis {
 	d := Diagnosis{
 		Colony: s.World.Colony, Load: s.World.Load, Map: s.World.Map,
-		ReviewTick: s.ReviewTick, Goal: s.Goal, Method: s.Method, Action: s.Action,
+		ReviewTick: s.ReviewTick, Concern: s.Concern, Method: s.Method, Action: s.Action,
 	}
 	if v, known := s.ShelterBeds.Value(); known {
 		d.ShelterBeds = &v
@@ -256,7 +256,7 @@ func classify(s Subject, d *Diagnosis) Class {
 func (d Diagnosis) Row() map[string]any {
 	row := map[string]any{
 		"colony": d.Colony, "load": d.Load, "map": d.Map,
-		"review_tick": d.ReviewTick, "goal": d.Goal, "class": d.Class,
+		"review_tick": d.ReviewTick, "concern": d.Concern, "class": d.Class,
 		"selected": d.Selected, "committed": d.Committed,
 	}
 	if d.Method != "" {

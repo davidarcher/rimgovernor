@@ -23,7 +23,7 @@ to its pawn. The planner owns every weapon decision: a pawn's weapon swaps for
 any loose weapon that scores strictly higher, and biocoded primaries stay
 pinned. A colonist held back from arms (`EquipCandidatePawn.NoArms`: a
 creepjoiner whose downside has not shown, see
-[population goals](population-contracts.md#creepjoiners)) scores zero for
+[population concerns](population-contracts.md#creepjoiners)) scores zero for
 every weapon, is not counted as an unarmed fighter and is never assigned,
 swapped or loaded out; when every colonist left is held back the equip step
 refuses with `no_worker` naming the colonist and

@@ -17,7 +17,7 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		}
 	}
 	for _, h := range s.Holds {
-		if h.Goal != "" && !validResource(Resource(h.Goal)) || !validLabor(h.Labor) {
+		if h.Concern != "" && !validResource(Resource(h.Concern)) || !validLabor(h.Labor) {
 			return errors.New("invalid development hold")
 		}
 	}
@@ -44,10 +44,10 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		if !validLaborEvidence(row.LaborEvidence) {
 			return errors.New("invalid development labor evidence")
 		}
-		if !validResource(Resource(row.Goal)) || seen[row.Goal] || row.WaitingSince < 0 || row.WaitingSince > s.Tick || math.IsNaN(row.Score) || math.IsInf(row.Score, 0) || row.Score < 0 || k && (math.IsNaN(deficit) || math.IsInf(deficit, 0) || deficit < 0 || deficit > 1) || row.Committed != committed[row.Goal] {
+		if !validResource(Resource(row.Concern)) || seen[row.Concern] || row.WaitingSince < 0 || row.WaitingSince > s.Tick || math.IsNaN(row.Score) || math.IsInf(row.Score, 0) || row.Score < 0 || k && (math.IsNaN(deficit) || math.IsInf(deficit, 0) || deficit < 0 || deficit > 1) || row.Committed != committed[row.Concern] {
 			return errors.New("invalid development row")
 		}
-		seen[row.Goal] = true
+		seen[row.Concern] = true
 		switch row.Reason {
 		case "", DevelopmentEmergency, DevelopmentStartup, DevelopmentBlocked, DevelopmentCommitted, DevelopmentLaborIdle, DevelopmentWorkersUnknown, DevelopmentNoWorkers, DevelopmentUnknown, DevelopmentCapacity, DevelopmentMethodUnavailable, DevelopmentRisk, DevelopmentDisabled, DevelopmentStage, DevelopmentOvercommitted:
 			if row.Bottleneck != "" {

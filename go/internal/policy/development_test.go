@@ -12,7 +12,7 @@ func developmentFixture() DevelopmentRequest {
 	return DevelopmentRequest{
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
 		Workers: domain.Known(3),
-		Goals: []DevelopmentGoal{
+		Concerns: []DevelopmentConcern{
 			{ID: "storage", Priority: 3, Deficit: domain.Known(1.0)},
 			{ID: "defense", Priority: 3, Deficit: domain.Known(.5)},
 			{ID: "wood", Priority: 3, Deficit: domain.Known(50.0 / 350)},
@@ -31,7 +31,7 @@ func selected(s DevelopmentState) []ConcernID {
 	var ids []ConcernID
 	for _, r := range s.Rows {
 		if r.Selected {
-			ids = append(ids, r.Goal)
+			ids = append(ids, r.Concern)
 		}
 	}
 	return ids
@@ -60,13 +60,13 @@ func TestDevelopmentCapacity(t *testing.T) {
 
 func TestUnavailableMethodDoesNotStarveExecutableDevelopment(t *testing.T) {
 	r := developmentFixture()
-	r.Goals[0].MethodUnavailable = true
+	r.Concerns[0].MethodUnavailable = true
 	s := rank(t, r)
 	requireSelected(t, s, "defense", "wood")
 	if s.Rows[0].Reason != DevelopmentMethodUnavailable || s.Rows[0].Deficit != domain.Known(1.0) {
 		t.Fatal(s)
 	}
-	r.Goals[0].MethodUnavailable = false
+	r.Concerns[0].MethodUnavailable = false
 	requireSelected(t, rank(t, r), "storage", "defense", "wood")
 }
 
@@ -74,14 +74,14 @@ func TestDevelopmentHolds(t *testing.T) {
 	for _, kind := range []string{"emergency", "unknown", "blocked"} {
 		t.Run(kind, func(t *testing.T) {
 			r := developmentFixture()
-			r.Goals = r.Goals[:1]
+			r.Concerns = r.Concerns[:1]
 			switch kind {
 			case "emergency":
 				r.Assessments = []RoundsAssessment{{ID: ActiveCombat, Priority: 0, Finding: domain.FindingUnmet}}
 			case "unknown":
-				r.Goals[0].Deficit = domain.Unknown[float64]()
+				r.Concerns[0].Deficit = domain.Unknown[float64]()
 			case "blocked":
-				r.Goals[0].Blocked = true
+				r.Concerns[0].Blocked = true
 			}
 			s := rank(t, r)
 			requireSelected(t, s)
@@ -95,12 +95,12 @@ func TestDevelopmentHolds(t *testing.T) {
 // A startup goal no longer holds comfort back: a comfort goal with work acts.
 func TestDevelopmentComfortActsBesideUnservedStartupGoals(t *testing.T) {
 	r := developmentFixture()
-	r.Goals = r.Goals[:1]
-	r.Goals[0].Comfort = true
-	r.Goals = append(r.Goals, DevelopmentGoal{ID: "cooking", Priority: 2})
+	r.Concerns = r.Concerns[:1]
+	r.Concerns[0].Comfort = true
+	r.Concerns = append(r.Concerns, DevelopmentConcern{ID: "cooking", Priority: 2})
 	s := rank(t, r)
 	for _, row := range s.Rows {
-		if row.Goal == "storage" && !row.Selected {
+		if row.Concern == "storage" && !row.Selected {
 			t.Fatal("comfort held behind an unserved startup goal", s.Rows)
 		}
 	}
@@ -122,7 +122,7 @@ func TestDevelopmentAgeAndReset(t *testing.T) {
 	r.Tick = 600000
 	r.Previous = s
 	// Committed work resets only its own waiting age.
-	r.Commitments = []Commitment{{Goal: "wood", Priority: 3, Progress: developmentProgress(t)}}
+	r.Commitments = []Commitment{{Concern: "wood", Priority: 3, Progress: developmentProgress(t)}}
 	s = rank(t, r)
 	requireSelected(t, s, "storage", "defense")
 	r.Previous = s
@@ -184,7 +184,7 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, p := range []domain.Progress{pending, prepared, dispatched, cancelled} {
-		r.Commitments = []Commitment{{Goal: "player-room", Priority: 3, Progress: p}}
+		r.Commitments = []Commitment{{Concern: "player-room", Priority: 3, Progress: p}}
 		s := rank(t, r)
 		requireSelected(t, s, "storage", "defense", "wood")
 		if !reflect.DeepEqual(s.Committed, []ConcernID{"player-room"}) {
@@ -195,10 +195,10 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 func TestDevelopmentRejectsInvalidInputs(t *testing.T) {
 	for _, mutate := range []func(*DevelopmentRequest){
 		func(r *DevelopmentRequest) { r.Tick = -1 }, func(r *DevelopmentRequest) { r.Workers = domain.Known(-1) },
-		func(r *DevelopmentRequest) { r.Goals[0].Deficit = domain.Known(math.NaN()) },
-		func(r *DevelopmentRequest) { r.Goals[0].Deficit = domain.Known(math.Inf(1)) },
-		func(r *DevelopmentRequest) { r.Goals[0].Deficit = domain.Known(1.1) },
-		func(r *DevelopmentRequest) { r.Goals = append(r.Goals, r.Goals[0]) },
+		func(r *DevelopmentRequest) { r.Concerns[0].Deficit = domain.Known(math.NaN()) },
+		func(r *DevelopmentRequest) { r.Concerns[0].Deficit = domain.Known(math.Inf(1)) },
+		func(r *DevelopmentRequest) { r.Concerns[0].Deficit = domain.Known(1.1) },
+		func(r *DevelopmentRequest) { r.Concerns = append(r.Concerns, r.Concerns[0]) },
 	} {
 		r := developmentFixture()
 		mutate(&r)
@@ -215,14 +215,14 @@ func TestDevelopmentRejectsInvalidInputs(t *testing.T) {
 func TestIdleTierOrderIsTotal(t *testing.T) {
 	r := developmentFixture()
 	r.Tick = 69054
-	goal := func(id ConcernID, risk float64, blocked bool) DevelopmentGoal {
-		g := DevelopmentGoal{ID: id, Priority: 3, Deficit: domain.Known(1.0), Blocked: blocked}
+	goal := func(id ConcernID, risk float64, blocked bool) DevelopmentConcern {
+		g := DevelopmentConcern{ID: id, Priority: 3, Deficit: domain.Known(1.0), Blocked: blocked}
 		if risk > 0 {
 			g.Risk = domain.Known(risk)
 		}
 		return g
 	}
-	r.Goals = []DevelopmentGoal{
+	r.Concerns = []DevelopmentConcern{
 		goal("EnsureDefensiveLayout", 0, false), goal("MaintainEquipment", 0, true), goal("EnsureComfort", 0.5, true),
 		goal("MaintainFlooring", 0.5, false), goal("MaintainAnimalFeed", 0, false), goal("MaintainLighting", 0, false),
 		goal("MaintainRoutes", 0, false), goal("MaintainHousing", 0.5, false),
@@ -230,8 +230,8 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 	}
 	since := map[ConcernID]domain.Tick{"MaintainFlooring": 6430, "MaintainLighting": 36769, "MaintainRoutes": 36769, "MaintainStoneShell": 33189}
 	previous := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick - 500, Capacity: 1}
-	for _, g := range r.Goals {
-		row := DevelopmentRow{Goal: g.ID, WaitingSince: 15, Idle: g.ID != "MaintainFlooring" && !g.Blocked}
+	for _, g := range r.Concerns {
+		row := DevelopmentRow{Concern: g.ID, WaitingSince: 15, Idle: g.ID != "MaintainFlooring" && !g.Blocked}
 		if v, ok := since[g.ID]; ok {
 			row.WaitingSince = v
 		}
@@ -242,8 +242,8 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 	s := rank(t, r)
 	for _, row := range s.Rows {
 		if row.Selected {
-			if row.Goal != "MaintainFlooring" {
-				t.Fatalf("first selected row %s, want MaintainFlooring: %+v", row.Goal, s.Rows)
+			if row.Concern != "MaintainFlooring" {
+				t.Fatalf("first selected row %s, want MaintainFlooring: %+v", row.Concern, s.Rows)
 			}
 			break
 		}

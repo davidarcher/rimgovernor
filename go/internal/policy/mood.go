@@ -312,7 +312,7 @@ type MoodProposal struct {
 	Pawn        PawnID
 	Need        MoodNeed
 	Reason      MoodMethodReason
-	Goal        ConcernID
+	Concern     ConcernID
 	Thought     string
 	Target      float64
 	NeedBenefit domain.Fact[float64]
@@ -355,7 +355,7 @@ func SelectMoodMethod(s MoodState, used []MoodNeed) (MoodProposal, error) {
 	}
 	if len(s.Provision) > 0 {
 		r.Reason = MoodProvisioned
-		r.Goal = s.Provision[0].Goal
+		r.Concern = s.Provision[0].Concern
 		return r, nil
 	}
 	r.Reason = MoodNoCause

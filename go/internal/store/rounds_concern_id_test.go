@@ -10,11 +10,11 @@ import (
 func roundsIDs(t *testing.T, out RoundsResult) map[domain.ConcernID]domain.ConcernID {
 	t.Helper()
 	ids := map[domain.ConcernID]domain.ConcernID{}
-	for _, b := range out.Review.Goals {
-		if !roundsStandardOwns(b.Goal, b.Need) {
-			t.Fatal("malformed routine goal id", b.Goal)
+	for _, b := range out.Review.Standards {
+		if !roundsStandardOwns(b.Standard, b.Concern) {
+			t.Fatal("malformed routine goal id", b.Standard)
 		}
-		ids[b.Need] = b.Goal
+		ids[b.Concern] = b.Standard
 	}
 	if len(ids) == 0 {
 		t.Fatal("no routine goals")

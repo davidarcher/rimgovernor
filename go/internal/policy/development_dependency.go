@@ -41,7 +41,7 @@ type DependencyCost struct {
 // Prerequisite supplies it.
 type DevelopmentDependency struct {
 	Dependent    ConcernID
-	Goal         domain.ConcernID // the dependent's goal identity
+	Concern      domain.ConcernID // the dependent's goal identity
 	Episode      uint64
 	Method       domain.MethodID
 	Prerequisite ConcernID
@@ -96,8 +96,8 @@ const (
 // Chains pass the most urgent origin along, MaxDependencyChain goals
 // long counting the origin; a
 // cycle donates nothing along it.
-func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (map[ConcernID]DevelopmentDonation, []DependencyBlocker) {
-	byID := map[ConcernID]DevelopmentGoal{}
+func ResolveDonations(goals []DevelopmentConcern, deps []DevelopmentDependency) (map[ConcernID]DevelopmentDonation, []DependencyBlocker) {
+	byID := map[ConcernID]DevelopmentConcern{}
 	for _, g := range goals {
 		byID[g.ID] = g
 	}
@@ -192,8 +192,8 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 	// Walk from every dependent that is not itself a prerequisite of a
 	// live edge's chain origin: each origin donates its own priority down
 	// its chain.
-	var walk func(origin DevelopmentGoal, at ConcernID, chain []ConcernID, seen map[ConcernID]bool)
-	walk = func(origin DevelopmentGoal, at ConcernID, chain []ConcernID, seen map[ConcernID]bool) {
+	var walk func(origin DevelopmentConcern, at ConcernID, chain []ConcernID, seen map[ConcernID]bool)
+	walk = func(origin DevelopmentConcern, at ConcernID, chain []ConcernID, seen map[ConcernID]bool) {
 		for _, d := range deps {
 			if d.Dependent != at || d.Dependent == d.Prerequisite || !open(d) {
 				continue

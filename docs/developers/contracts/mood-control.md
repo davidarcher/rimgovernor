@@ -3,7 +3,7 @@
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 `EnsureMood` is a Response: one incident per pawn, keyed by the pawn's Thing ID
-as its subject (#1078), never a goal row. It enters at the pawn's
+as its subject (#1078), never a concern row. It enters at the pawn's
 observed minor-break threshold, or when the native current thought target is below
 that threshold and falling relative to current mood. Recovery requires five mood
 points above the threshold and recovery of retained need deficits. Missing pawns,
@@ -31,14 +31,14 @@ drone's offset as a mood fraction, at most 0.15, and every need short of the
 before the drone alone crosses the threshold. Pawns without the thought keep
 the ordinary entry, whatever the condition census says.
 Native cached thoughts, cache validity, traits and other needs remain evidence.
-Food, shelter and temperature provisioning use the existing shared colony goals.
+Food, shelter and temperature provisioning use the existing shared colony concerns.
 
 ## Facility provisioning
 
 The routine pawn read carries each colonist's grouped thought rows (memories and
 the situational cache, the `social` block). The review keeps the rows that pull
-mood down and maps the removable environment thoughts to the upkeep goal whose
-facility removes them (a thought names every goal providing it): `AteWithoutTable` and `NeedJoy` to `EnsureComfort`,
+mood down and maps the removable environment thoughts to the upkeep concern whose
+facility removes them (a thought names every concern providing it): `AteWithoutTable` and `NeedJoy` to `EnsureComfort`,
 `SleptOutside`/`SleptOnGround` to `MaintainHousing`, `EnvironmentDark` to
 `MaintainLighting`, `EnvironmentCold`/`EnvironmentHot` to
 `EnsureTemperatureSafety`, `NeedBeauty` to `MaintainCleanFacilities` and
@@ -48,10 +48,10 @@ the pawn's negative thought offset, the pawn's mood state records the owners
 first owner instead of a relief job: `DetectRounds` raises each owner's
 development deficit to at least the fraction of reviewed pawns under it, and the
 owner's own census still decides whether it is active and what it builds. A
-recovered owner is never re-raised; when no owner goal is active with a deficit
+recovered owner is never re-raised; when no owner concern is active with a deficit
 the relief planner falls back to the measured need method. An unreadable social
 block keeps the previous provisioning; a readable one with no such pressure
-clears it. `SleptInBarracks` is removable environment pressure no goal owns
+clears it. `SleptInBarracks` is removable environment pressure no concern owns
 (nothing builds private bedrooms): when it dominates a pawn's negative offset the
 mood state records it instead (`Unowned`) and, once no measured need method
 remains, the proposal is the explicit `unowned_thought_pressure` blocker naming
@@ -74,7 +74,7 @@ native job givers and never changes schedules, policies, traits, ideology or nee
 In Auto, forced and queued work do not prohibit a fresh relief admission; current
 job identity and native interruptibility still guard the replacement.
 Recreation excludes ingestible joy; food relief requires an ordinary ingestion job
-and leaves resource acquisition to its own goal. Preview checks admission only and
+and leaves resource acquisition to its own concern. Preview checks admission only and
 does not run a job giver or reserve a target. Dispatch can still refuse when no
 eligible target exists. Jobs remain ordinary AI work, interruptible by subsequent
 player direction and timetable changes.
@@ -85,7 +85,7 @@ the persisted load and plan identities. A lost receipt can be resolved
 by observed recovery without replaying the order or fabricating a receipt. Active
 breaks and player orders interrupt recovery. Missing reads remain unverified, and
 the shared no-progress watchdog bounds issued work. Each need method is attempted
-once per goal activation; changed conditions can reopen admission blockers. Unchanged
+once per concern activation; changed conditions can reopen admission blockers. Unchanged
 blockers are rechecked at most once per 2,500-tick observation window, allowing new
 facilities or freed reservations to become eligible. The progress watchdog uses
 per-pawn need high-water marks so unrelated observations or falling needs cannot

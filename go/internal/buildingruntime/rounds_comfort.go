@@ -58,7 +58,7 @@ func NewRoundsComfortPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsComfortPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}, nil
 }
 
 // A definition needs one available pawn whose observed Construction setting
@@ -252,7 +252,7 @@ func NewRoundsBasicComfortPlanner(reviewer *Rounder, native RoundsBuildingSource
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsBasicComfortPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, phase: policy.ComfortBasic}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureComfort, phase: policy.ComfortBasic}, nil
 }
 
 // selectBasicComfort resolves the next foothold facility from the unfiltered

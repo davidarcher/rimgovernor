@@ -39,10 +39,10 @@ func BlockedTicks(diagnoses []Diagnosis, window, maxGap domain.Tick) map[Class]d
 	byGoal := map[domain.ConcernID][]Diagnosis{}
 	var goals []domain.ConcernID
 	for _, d := range diagnoses {
-		if _, seen := byGoal[d.Goal]; !seen {
-			goals = append(goals, d.Goal)
+		if _, seen := byGoal[d.Concern]; !seen {
+			goals = append(goals, d.Concern)
 		}
-		byGoal[d.Goal] = append(byGoal[d.Goal], d)
+		byGoal[d.Concern] = append(byGoal[d.Concern], d)
 	}
 	sort.Slice(goals, func(i, j int) bool { return goals[i] < goals[j] })
 	out := map[Class]domain.Tick{}

@@ -28,7 +28,7 @@ func roundsOpenActions(plans []store.PlanState, current domain.GenerationSnapsho
 			admissions[a.Action] = a.Admission.Snapshot
 		}
 		for _, progress := range plan.Progress {
-			if !domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if !domain.StandardWorkOpen([]domain.Progress{progress}) {
 				continue
 			}
 			v := progress.View()
@@ -277,7 +277,7 @@ func roundsResearchNeeds(ctx context.Context, journal *store.Store, p policy.Rou
 	if !ok {
 		return nil, nil
 	}
-	if ladder.Goal == policy.MaintainEquipment {
+	if ladder.Concern == policy.MaintainEquipment {
 		review, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return nil, err
@@ -285,9 +285,9 @@ func roundsResearchNeeds(ctx context.Context, journal *store.Store, p policy.Rou
 		if !review.Enabled || !review.Snapshot.Matches(snapshot) {
 			return nil, nil
 		}
-		for _, binding := range review.Goals {
-			if binding.Need == policy.MaintainEquipment {
-				goal, err := journal.LoadStandard(ctx, binding.Goal)
+		for _, binding := range review.Standards {
+			if binding.Concern == policy.MaintainEquipment {
+				goal, err := journal.LoadStandard(ctx, binding.Standard)
 				if err != nil {
 					return nil, err
 				}
@@ -309,7 +309,7 @@ func roundsResearchNeeds(ctx context.Context, journal *store.Store, p policy.Rou
 // Research unowned and the development rank reports labor_unavailable. Empty
 // when no target is owed or it is already finished.
 func roundsResearchWork(p policy.RoundsPolicy, needs []string, research domain.Fact[policy.ResearchFacts]) []policy.WorkRequirement {
-	target, _ := policy.ResearchGoal(p, needs, research)
+	target, _ := policy.ResearchConcern(p, needs, research)
 	if target == "" {
 		return nil
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 func TestCraftingSpotSelection(t *testing.T) {
-	r := &RoundsBuildingPlanner{goal: policy.EnsureBasicDefense, definition: craftingSpotDefinition}
+	r := &RoundsBuildingPlanner{concern: policy.EnsureBasicDefense, definition: craftingSpotDefinition}
 	f := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3))}}
 	if n, id, reason := r.selection(f); n != 1 || id != "crafting-spot" || !reason.IsZero() {
 		t.Fatal(n, id, reason)

@@ -102,7 +102,7 @@ func Pick(rec Recording, streams []string) (stream string, review Review, step s
 	if rec.Step != "" {
 		planner, goal, tick, ok := splitStep(rec.Step)
 		if !ok {
-			return "", Review{}, "", fmt.Errorf("%s: step %q is not step-<planner>-<goal>-<tick>-<seq>", rec.Out, rec.Step)
+			return "", Review{}, "", fmt.Errorf("%s: step %q is not step-<planner>-<standard>-<tick>-<seq>", rec.Out, rec.Step)
 		}
 		var cands []candidate
 		for _, s := range streams {
@@ -111,7 +111,7 @@ func Pick(rec Recording, streams []string) (stream string, review Review, step s
 				return "", Review{}, "", err
 			}
 			for _, r := range reads {
-				if r.Planner == planner && string(r.Goal) == goal {
+				if r.Planner == planner && string(r.Concern) == goal {
 					cands = append(cands, candidate{s, r.Tick, r.Seq, r.String()})
 				}
 			}

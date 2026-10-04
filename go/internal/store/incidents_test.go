@@ -116,7 +116,7 @@ func TestIncidentMethodCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	loaded, err := s.LoadPlan(ctx, p.ID())
-	if err != nil || domain.GoalWorkOpen(loaded.Progress) {
+	if err != nil || domain.StandardWorkOpen(loaded.Progress) {
 		t.Fatal("close left the method open", err)
 	}
 	if _, err = s.CommitIncidentMethod(ctx, id, "late", "", plan(t, "late", "late-action")); !errors.Is(err, ErrConflict) {
@@ -144,8 +144,8 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.CriticalPatients = domain.Known(int64(1))
 	out := reviewRounds(t, s, &r)
-	for _, b := range out.Review.Goals {
-		if policy.IsIncidentKind(b.Need) {
+	for _, b := range out.Review.Standards {
+		if policy.IsIncidentKind(b.Concern) {
 			t.Fatal("incident kind filed a goal", b)
 		}
 	}
@@ -200,7 +200,7 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	if out = reviewRounds(t, s, &r); len(out.Review.Incidents) != 0 {
 		t.Fatal("settled occurrence stayed open", out.Review.Incidents)
 	}
-	if loaded, err := s.LoadPlan(ctx, pending.ID()); err != nil || domain.GoalWorkOpen(loaded.Progress) {
+	if loaded, err := s.LoadPlan(ctx, pending.ID()); err != nil || domain.StandardWorkOpen(loaded.Progress) {
 		t.Fatal("recovery left undispatched work open", err)
 	}
 	r.Facts.CriticalPatients = domain.Known(int64(1))

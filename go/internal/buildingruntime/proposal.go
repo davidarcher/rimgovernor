@@ -68,7 +68,7 @@ type Proposal struct {
 	// tie between two proposals resolves the same way every time.
 	ID       string
 	Planner  string
-	Goal     domain.ConcernID
+	Concern  domain.ConcernID
 	Priority int
 	// Urgency is the goal's own priority class (domain.Standard.Priority):
 	// lower is more urgent, the same sense as Priority.
@@ -88,7 +88,7 @@ type Proposal struct {
 type ProposalOutcome struct {
 	Proposal string
 	Planner  string
-	Goal     domain.ConcernID
+	Concern  domain.ConcernID
 	Admitted bool
 	Plan     domain.PlanID
 	// Waiting names the claim that refused the proposal and who holds it.
@@ -331,7 +331,7 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 	// mutex: the wave has returned and nothing else claims now.
 	for _, arrival := range proposals {
 		p := arrival.result.Proposal
-		outcome := ProposalOutcome{Proposal: p.ID, Planner: arrival.planner, Goal: p.Goal}
+		outcome := ProposalOutcome{Proposal: p.ID, Planner: arrival.planner, Concern: p.Concern}
 		if stale := proposalStale(scope, p); stale != "" {
 			outcome.Stale, outcome.Verdict = stale, BuildingReasonExpired
 			if arrival.settle != nil {

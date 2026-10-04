@@ -3,7 +3,7 @@
 [Architecture](overview.md)
 
 Colony identity and map scope durable intent; a load token identifies the loaded
-instance. Reloading can preserve goals while invalidating old in-flight operations.
+instance. Reloading can preserve concerns while invalidating old in-flight operations.
 There is one author of orders, so no per-request direction counter or compare-and-swap
 exists: authority is the load token (which world instance), the native tick (no rewind)
 and the native order generation (no native order-history drift), plus a pause flag.
@@ -18,7 +18,7 @@ writes.
 ## Save, load and restart
 
 Saving (`POST /api/lifecycle/save`) is a plain pause-gated native save. The
-save carries goals and family plans in its `GovernorState` blobs, so loading
+save carries concerns and family plans in its `GovernorState` blobs, so loading
 it restores that timeline's intent; the SQLite session journal is not paired
 with it. Where each fact lives is in
 [persistence contracts](../contracts/persistence-contracts.md).
@@ -81,7 +81,7 @@ retained as uncertain and the game is inspected before any retry; ambiguous
 non-idempotent writes are never replayed automatically. A reload (new load
 token) or a tick rewind invalidates an interrupted attempt; completed or
 resumed work is observed without another order. Retired flags on plans and
-goals bound the working set (see
+concerns bound the working set (see
 [persistence contracts](../contracts/persistence-contracts.md)).
 
 Launch collisions (a live endpoint record) and endpoint-record faults permit a

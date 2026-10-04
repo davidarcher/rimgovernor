@@ -47,8 +47,8 @@ func TestReplayShelterOpensBesideResourceAndUpkeep(t *testing.T) {
 		}
 	}
 	bound := map[policy.ConcernID]bool{}
-	for _, g := range r.Review.Goals {
-		bound[g.Need] = true
+	for _, g := range r.Review.Standards {
+		bound[g.Concern] = true
 	}
 	if !bound[policy.MaintainHousing] || !bound[policy.MaintainResource] {
 		t.Fatalf("the review did not bind shelter and resource goals together: %v", bound)

@@ -131,7 +131,7 @@ func TestDisasterHistoryRejectsFalseRecoveryAndAliasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mutate := range []func(*DisasterHistory){func(h *DisasterHistory) { h.Phase = DisasterRestored }, func(h *DisasterHistory) { h.Services[0].Need = domain.FindingUnmet }, func(h *DisasterHistory) { h.Observed = 0 }, func(h *DisasterHistory) { h.Affected = []DisasterService{"invented"} }} {
+	for _, mutate := range []func(*DisasterHistory){func(h *DisasterHistory) { h.Phase = DisasterRestored }, func(h *DisasterHistory) { h.Services[0].Finding = domain.FindingUnmet }, func(h *DisasterHistory) { h.Observed = 0 }, func(h *DisasterHistory) { h.Affected = []DisasterService{"invented"} }} {
 		copy := cloneDisaster(h)
 		mutate(copy)
 		if copy.Validate() == nil {
@@ -145,7 +145,7 @@ func TestDisasterHistoryRejectsFalseRecoveryAndAliasing(t *testing.T) {
 
 func TestRoundsDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 	f := RoundsFacts{Colonists: domain.Known(int64(3)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), FoodDays: domain.Known(10.0), FieldCoverage: domain.Known(1.0), FoodStorage: domain.Known(true), Cooking: domain.Known(true), PowerRequired: domain.Known(false), DisabledConsumers: domain.Known(false), SleepingMin: domain.Known(0.0), SleepingMax: domain.Known(22.0), Wood: domain.Known(int64(0)), DisasterConditions: domain.Known([]DisasterCondition{{ID: "cold", Definition: "ColdSnap"}}), RecoveryBuildings: domain.Known([]RecoveryBuilding{}), DisasterTick: 10}
-	r, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
+	r, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil || r.Disaster.Phase != DisasterDisrupted {
 		t.Fatal(r.Disaster, err)
 	}
@@ -160,7 +160,7 @@ func TestRoundsDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 	}
 	calm := f
 	calm.DisasterConditions = domain.Known([]DisasterCondition{})
-	quiet, err := DetectRounds(calm, RoundsLatches{}, DefaultRoundsPolicy())
+	quiet, err := InspectRounds(calm, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestRoundsDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 	f.DisasterTick++
 	f.DisasterConditions = domain.Known([]DisasterCondition{})
 	f.SleepingMin = domain.Known(22.0)
-	r, err = DetectRounds(f, r.Latches, DefaultRoundsPolicy())
+	r, err = InspectRounds(f, r.Latches, DefaultRoundsPolicy())
 	if err != nil || r.Disaster.Phase != DisasterRestored || priority(r, MaintainResource) != 3 {
 		t.Fatal(r.Disaster, err)
 	}

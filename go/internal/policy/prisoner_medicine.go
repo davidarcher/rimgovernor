@@ -78,5 +78,5 @@ func PrisonerHerbalNeeds(needs map[Resource]int64, f RoundsFacts, silverShort do
 	if err != nil {
 		return needs
 	}
-	return ResourceGoalTargets(needs, map[Resource]int64{herbal: PrisonerSurgeryHerbal})
+	return ResourceConcernTargets(needs, map[Resource]int64{herbal: PrisonerSurgeryHerbal})
 }

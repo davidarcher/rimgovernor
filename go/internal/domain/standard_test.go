@@ -73,11 +73,11 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if !GoalWorkOpen([]Progress{progress}) {
+	if !StandardWorkOpen([]Progress{progress}) {
 		t.Fatal("issued work lost")
 	}
 	progress, e = progress.Cancel()
-	if e != nil || !GoalWorkOpen([]Progress{progress}) {
+	if e != nil || !StandardWorkOpen([]Progress{progress}) {
 		t.Fatal(e)
 	}
 	review, e := ReviewStandard(g, scope, 11, FindingMet, true)

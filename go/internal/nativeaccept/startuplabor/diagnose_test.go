@@ -166,7 +166,7 @@ func TestDiagnoseNeverInfersMissingFacts(t *testing.T) {
 func TestDiagnosisRowOmitsUnobservedFacts(t *testing.T) {
 	d := Diagnose(Subject{
 		World: World{Colony: "c", Load: "l", Map: 3}, ReviewTick: 42,
-		Goal: "routine-shelter", Method: "shelter-beds", Action: "act-1",
+		Concern: "routine-shelter", Method: "shelter-beds", Action: "act-1",
 		Slot: &Slot{Selected: true}, Progress: held(t, domain.HeldInsufficientStock),
 		ShelterBeds: domain.Known(true),
 	})

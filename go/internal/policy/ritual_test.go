@@ -230,7 +230,7 @@ func TestRitualPlansTakeEachPawnOnce(t *testing.T) {
 func TestRitualsOwedRaisesMaintainRituals(t *testing.T) {
 	f := stableRounds()
 	f.RitualsOwed = domain.Known(true)
-	for _, g := range needs(t, f, RoundsLatches{}).Goals {
+	for _, g := range needs(t, f, RoundsLatches{}).Concerns {
 		if g.ID == MaintainRituals {
 			return
 		}

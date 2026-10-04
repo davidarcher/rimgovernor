@@ -18,7 +18,7 @@ func shadowProjection() ForwardProjection {
 }
 
 func shadowRow(goal ConcernID, reason DevelopmentReason) DevelopmentRow {
-	return DevelopmentRow{Goal: goal, Reason: reason, Selected: reason == ""}
+	return DevelopmentRow{Concern: goal, Reason: reason, Selected: reason == ""}
 }
 
 func TestShadowRankOrdersByShortfallPerAction(t *testing.T) {
@@ -35,7 +35,7 @@ func TestShadowRankOrdersByShortfallPerAction(t *testing.T) {
 	got := ShadowRankOf(state, shadowProjection(), open)
 	var order []ConcernID
 	for _, e := range got.Ranked {
-		order = append(order, e.Goal)
+		order = append(order, e.Concern)
 	}
 	if want := []ConcernID{EnsureTemperatureSafety, MaintainRefrigeration, MaintainResource}; !reflect.DeepEqual(order, want) {
 		t.Fatal(order)
@@ -43,10 +43,10 @@ func TestShadowRankOrdersByShortfallPerAction(t *testing.T) {
 	if want := []ConcernID{MaintainRefrigeration, MaintainResource, EnsureTemperatureSafety}; !reflect.DeepEqual(got.Current, want) {
 		t.Fatal(got.Current)
 	}
-	if len(got.Unranked) != 2 || got.Unranked[0].Goal != EnsureBasicDefense || got.Unranked[1].Goal != MaintainFoodStorage {
+	if len(got.Unranked) != 2 || got.Unranked[0].Concern != EnsureBasicDefense || got.Unranked[1].Concern != MaintainFoodStorage {
 		t.Fatal(got.Unranked)
 	}
-	want := []ShadowDisagreement{{Goal: MaintainRefrigeration, Current: 1, Shadow: 2}, {Goal: MaintainResource, Current: 2, Shadow: 3}, {Goal: EnsureTemperatureSafety, Current: 3, Shadow: 1}}
+	want := []ShadowDisagreement{{Concern: MaintainRefrigeration, Current: 1, Shadow: 2}, {Concern: MaintainResource, Current: 2, Shadow: 3}, {Concern: EnsureTemperatureSafety, Current: 3, Shadow: 1}}
 	if !reflect.DeepEqual(got.Disagreements, want) {
 		t.Fatal(got.Disagreements)
 	}
@@ -74,10 +74,10 @@ func TestShadowRankAgreeingOrderLogsNoDisagreement(t *testing.T) {
 // admission reads (AdmitDevelopment) exactly as it was.
 func TestShadowRankLeavesAdmissionUnchanged(t *testing.T) {
 	state := DevelopmentState{Rows: []DevelopmentRow{
-		{Goal: MaintainRefrigeration, Selected: true, Score: 3},
-		{Goal: EnsureTemperatureSafety, Selected: true, Score: 1},
-		{Goal: MaintainResource, Reason: DevelopmentCapacity},
-	}, Committed: []ConcernID{MaintainWaste}, Holds: []DevelopmentHold{{Goal: MaintainWaste}}}
+		{Concern: MaintainRefrigeration, Selected: true, Score: 3},
+		{Concern: EnsureTemperatureSafety, Selected: true, Score: 1},
+		{Concern: MaintainResource, Reason: DevelopmentCapacity},
+	}, Committed: []ConcernID{MaintainWaste}, Holds: []DevelopmentHold{{Concern: MaintainWaste}}}
 	before := state
 	before.Rows = append([]DevelopmentRow(nil), state.Rows...)
 	admitted := func(s DevelopmentState) map[ConcernID]bool {

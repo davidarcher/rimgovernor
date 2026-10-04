@@ -25,7 +25,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		return fmt.Errorf("%w: bill method needs a current autopilot review and at most four actions", ErrConflict)
 	}
 	// Bills serve the cooking/food goals, the resource-target goals whose
-	// production path (RoundsResourcePlanner.dispatchResourceGoal) stages a
+	// production path (RoundsResourcePlanner.dispatchResourceConcern) stages a
 	// bench and then a StockTarget bill on it, the equipment goal whose
 	// replacement (RoundsGearPlanner, GearProduce) is a StockTarget bill on
 	// a standing bench (#233), and the refrigeration goal whose solar-flare

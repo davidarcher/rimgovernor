@@ -191,7 +191,7 @@ func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, poli
 // recordedPlanner is goal's building planner over the recording's policy,
 // with no native source: select* only read the projection.
 func recordedPlanner(r snapshot.Rounds, goal policy.ConcernID) *RoundsBuildingPlanner {
-	return &RoundsBuildingPlanner{reviewer: &Rounder{policy: r.Policy}, goal: goal}
+	return &RoundsBuildingPlanner{reviewer: &Rounder{policy: r.Policy}, concern: goal}
 }
 
 // loadStep loads testdata/<name>.json.gz, a planner step's own colony read
@@ -202,8 +202,8 @@ func loadStep(t *testing.T, name string, goal policy.ConcernID) snapshot.Step {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Goal != goal {
-		t.Fatalf("%s: recorded %s's step, want %s", name, s.Goal, goal)
+	if s.Concern != goal {
+		t.Fatalf("%s: recorded %s's step, want %s", name, s.Concern, goal)
 	}
 	recordedPowerRows(t)
 	s.Projection.Shapes = recordedPower.shapes
@@ -222,7 +222,7 @@ func TestSnapshotCleanSeparationAdmitsSeparatedSpot(t *testing.T) {
 	r := loadRecorded(t, "clean-separation-colocated")
 	step := loadStep(t, "clean-separation-step-butcher", policy.EnsureFoodSupply)
 	planner := recordedPlanner(r, policy.EnsureFoodSupply)
-	planner.goal, planner.definition = policy.MaintainButcherSpot, "ButcherSpot"
+	planner.concern, planner.definition = policy.MaintainButcherSpot, "ButcherSpot"
 	benches, known := step.Projection.ButcheringBenches.Value()
 	if !known || len(benches) == 0 || !butchersAllColocated(benches, step.Projection.Rooms) {
 		t.Fatalf("step read: benches %+v, want every butcher bench in the kitchen", benches)

@@ -9,7 +9,7 @@ import (
 
 // Retirement retains identities, methods and progress. Only invalidated
 // autopilot goals without observation or cleanup obligations leave capacity.
-func retireRoundsGoals(ctx context.Context, tx *sql.Tx, retained map[domain.ConcernID]bool) error {
+func retireRoundsStandards(ctx context.Context, tx *sql.Tx, retained map[domain.ConcernID]bool) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards WHERE retired=0 ORDER BY id LIMIT 257")
 	if err != nil {
 		return err
@@ -28,21 +28,21 @@ func retireRoundsGoals(ctx context.Context, tx *sql.Tx, retained map[domain.Conc
 	if err != nil {
 		return err
 	}
-	if len(ids) > maxActiveGoals {
+	if len(ids) > maxActiveStandards {
 		return ErrCapacity
 	}
 	for _, id := range ids {
 		if retained[id] {
 			continue
 		}
-		g, err := loadGoal(ctx, tx, id)
+		g, err := loadStandard(ctx, tx, id)
 		if err != nil {
 			return err
 		}
 		if g.Standard.Status != domain.StandardVoided {
 			continue
 		}
-		open, err := goalOpenWork(ctx, tx, g)
+		open, err := standardOpenWork(ctx, tx, g)
 		if err != nil {
 			return err
 		}

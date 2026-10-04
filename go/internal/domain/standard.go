@@ -160,7 +160,7 @@ func (m Method) Validate() error {
 	return nil
 }
 
-func GoalWorkOpen(progress []Progress) bool {
+func StandardWorkOpen(progress []Progress) bool {
 	for _, p := range progress {
 		v := p.View()
 		if v.Stage == "" || v.Unresolved || v.Stage == Pending || v.Stage == Prepared || v.Stage == Dispatched || v.Stage == AwaitingObservation {

@@ -56,7 +56,7 @@ func recovery() cases.Case {
 
 			// Settle: the foothold goals are running before anything breaks.
 			settled, err := c.play(ctx, "settle", playOptions{Watch: sustainedfood.WatchConfig{
-				Watch: 10 * time.Minute, Window: settle, PollTicks: 2500, Goal: policy.EnsureFoodSupply, Extra: campaignGoals,
+				Watch: 10 * time.Minute, Window: settle, PollTicks: 2500, Concern: policy.EnsureFoodSupply, Extra: campaignConcerns,
 				FailFast: sustainedfood.FailFast{Disabled: true},
 			}})
 			if err != nil {
@@ -77,11 +77,11 @@ func recovery() cases.Case {
 			var breachTick, restockTick uint64
 			breached := false
 			restocked, err := c.play(ctx, "restock", playOptions{Watch: sustainedfood.WatchConfig{
-				Watch: 25 * time.Minute, Window: breachWindow, PollTicks: 2500, Goal: policy.MaintainResource, Extra: campaignGoals,
+				Watch: 25 * time.Minute, Window: breachWindow, PollTicks: 2500, Concern: policy.MaintainResource, Extra: campaignConcerns,
 				FailFast: sustainedfood.FailFast{Disabled: true},
 				Until: func(sample map[string]any) bool {
 					tick, _ := sample["tick"].(uint64)
-					bound, _ := sample["goal_bound"].(bool)
+					bound, _ := sample["concern_bound"].(bool)
 					deficit, known := woodDeficit(sample)
 					if !breached {
 						if bound {
@@ -128,7 +128,7 @@ func recovery() cases.Case {
 			c.inject("raid", map[string]any{"points": raid["points"], "added": raid["added"], "group_maker_seed": raid["groupMakerSeed"], "applied": raid["applied"], "tick": restockTick})
 			c.milestone("raid_staged", restockTick)
 			fought, err := c.play(ctx, "raid", playOptions{Watch: sustainedfood.WatchConfig{
-				Watch: 15 * time.Minute, Window: raidWindow, PollTicks: 2500, Goal: policy.EnsureFoodSupply, Extra: campaignGoals,
+				Watch: 15 * time.Minute, Window: raidWindow, PollTicks: 2500, Concern: policy.EnsureFoodSupply, Extra: campaignConcerns,
 				FailFast: sustainedfood.FailFast{Disabled: true},
 			}})
 			if err != nil {

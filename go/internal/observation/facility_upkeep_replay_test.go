@@ -135,11 +135,11 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	assertNeeds := func(review store.Rounds, want domain.Finding) {
 		t.Helper()
 		count := 0
-		for _, binding := range review.Goals {
-			if binding.Need != policy.MaintainHomeCoverage && binding.Need != policy.MaintainStoneShell {
+		for _, binding := range review.Standards {
+			if binding.Concern != policy.MaintainHomeCoverage && binding.Concern != policy.MaintainStoneShell {
 				continue
 			}
-			g, err := db.LoadStandard(ctx, binding.Goal)
+			g, err := db.LoadStandard(ctx, binding.Standard)
 			if err != nil || g.Standard.Finding != want {
 				t.Fatal(g, want, err)
 			}

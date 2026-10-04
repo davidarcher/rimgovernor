@@ -59,7 +59,7 @@ func MedicineResourceNeeds(items ItemFacts, needs map[Resource]int64, target int
 	if target <= 0 || err != nil {
 		return needs
 	}
-	return ResourceGoalTargets(needs, map[Resource]int64{herbal: target})
+	return ResourceConcernTargets(needs, map[Resource]int64{herbal: target})
 }
 
 // ReviewMedicalReserve preserves the latch through unavailable reads. Equal entry

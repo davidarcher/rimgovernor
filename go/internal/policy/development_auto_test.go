@@ -31,7 +31,7 @@ func autoFixture() DevelopmentRequest {
 	return DevelopmentRequest{
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
 		Workers: domain.Known(5),
-		Goals: []DevelopmentGoal{
+		Concerns: []DevelopmentConcern{
 			{ID: "build", Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
 			{ID: "study", Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkResearch}},
 			{ID: "wood", Priority: 3, Deficit: domain.Known(.8), Labor: LaborProfile{WorkPlantCutting}},
@@ -43,7 +43,7 @@ func autoFixture() DevelopmentRequest {
 
 func rowOf(s DevelopmentState, goal ConcernID) DevelopmentRow {
 	for _, row := range s.Rows {
-		if row.Goal == goal {
+		if row.Concern == goal {
 			return row
 		}
 	}
@@ -55,8 +55,8 @@ func rowOf(s DevelopmentState, goal ConcernID) DevelopmentRow {
 func TestAutoDevelopmentAdmitsEveryGoal(t *testing.T) {
 	r := autoFixture()
 	r.Commitments = []Commitment{
-		{Goal: "keep-a", Priority: 3, Progress: actionProgress(t, "ka"), Labor: LaborProfile{WorkConstruction}},
-		{Goal: "keep-b", Priority: 4, Progress: actionProgress(t, "kb"), Labor: LaborProfile{WorkCooking}},
+		{Concern: "keep-a", Priority: 3, Progress: actionProgress(t, "ka"), Labor: LaborProfile{WorkConstruction}},
+		{Concern: "keep-b", Priority: 4, Progress: actionProgress(t, "kb"), Labor: LaborProfile{WorkCooking}},
 	}
 	requireSelected(t, rank(t, r), "build", "study", "wood", "haul", "shed")
 	r.Commitments = nil
@@ -66,7 +66,7 @@ func TestAutoDevelopmentAdmitsEveryGoal(t *testing.T) {
 // A goal with no method is not selected, but holds back no other.
 func TestAutoDevelopmentSkipsInfeasibleHighRank(t *testing.T) {
 	r := autoFixture()
-	r.Goals[0].MethodUnavailable = true
+	r.Concerns[0].MethodUnavailable = true
 	s := rank(t, r)
 	requireSelected(t, s, "study", "wood", "haul", "shed")
 	if row := rowOf(s, "build"); row.Reason != DevelopmentMethodUnavailable {
@@ -78,10 +78,10 @@ func TestAutoDevelopmentSkipsInfeasibleHighRank(t *testing.T) {
 func TestAutoDevelopmentStartupHoldsNoGoalBack(t *testing.T) {
 	r := autoFixture()
 	r.Workers = domain.Known(1)
-	r.Goals = r.Goals[:1]
+	r.Concerns = r.Concerns[:1]
 	r.Commitments = []Commitment{
-		{Goal: "shelter", Priority: 2, Progress: actionProgress(t, "s"), Labor: LaborProfile{WorkConstruction}},
-		{Goal: "beds", Priority: 2, Progress: actionProgress(t, "b"), Labor: LaborProfile{WorkConstruction}},
+		{Concern: "shelter", Priority: 2, Progress: actionProgress(t, "s"), Labor: LaborProfile{WorkConstruction}},
+		{Concern: "beds", Priority: 2, Progress: actionProgress(t, "b"), Labor: LaborProfile{WorkConstruction}},
 	}
 	requireSelected(t, rank(t, r), "build")
 }

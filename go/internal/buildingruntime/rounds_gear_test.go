@@ -82,11 +82,11 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 		t.Fatal(err)
 	}
 	pawns := map[domain.PawnID]bool{}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainEquipment {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainEquipment {
 			continue
 		}
-		goal, err := db.LoadStandard(context.Background(), binding.Goal)
+		goal, err := db.LoadStandard(context.Background(), binding.Standard)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,7 +215,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 			t.Fatal(err)
 		}
 		snapshot := session.State().Snapshot
-		ladder := store.ProductionLadderRecord{World: store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}, Resource: "Apparel_BasicShirt", Goal: policy.MaintainEquipment, Research: []string{"ComplexClothing"}}
+		ladder := store.ProductionLadderRecord{World: store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}, Resource: "Apparel_BasicShirt", Concern: policy.MaintainEquipment, Research: []string{"ComplexClothing"}}
 		if err := db.SaveProductionLadder(context.Background(), ladder); err != nil {
 			t.Fatal(err)
 		}
@@ -317,18 +317,18 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := false
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainEquipment {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainEquipment {
 			continue
 		}
-		g, err := db.LoadStandard(ctx, binding.Goal)
+		g, err := db.LoadStandard(ctx, binding.Standard)
 		if err != nil || g.Standard.Finding != domain.FindingUnmet || g.Standard.Status != domain.StandardOpen {
 			t.Fatal("MaintainEquipment is not an active deficit", g, err)
 		}
 		found = true
 	}
 	if !found {
-		t.Fatal("MaintainEquipment missing from the review", review.Goals)
+		t.Fatal("MaintainEquipment missing from the review", review.Standards)
 	}
 	planner, err := NewRoundsGearPlanner(reviewer, n)
 	if err != nil {

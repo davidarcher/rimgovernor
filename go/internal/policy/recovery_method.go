@@ -109,7 +109,7 @@ func RecoveryNeed(h *DisasterHistory) domain.Finding {
 	if h == nil || h.Phase == DisasterRestored {
 		return domain.FindingMet
 	}
-	return h.Services[len(h.Services)-1].Need
+	return h.Services[len(h.Services)-1].Finding
 }
 
 // SelectRecoveryMethods bounds the next admission batch to eight proposals.
@@ -238,7 +238,7 @@ func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain
 		out.Reason = RecoveryAdmissionRequired
 	case len(work) > 0:
 		out.Reason = RecoveryMethodsSeen
-	case h.Services[len(h.Services)-1].Need != domain.FindingMet:
+	case h.Services[len(h.Services)-1].Finding != domain.FindingMet:
 		out.Reason = RecoveryTrackedMissing
 	default:
 		out.Reason = RecoveryNoWork

@@ -13,7 +13,7 @@ func TestButcherSpotGoalIsOwedUntilABenchStandsApart(t *testing.T) {
 	f.ButcherBenches = domain.Known([]ButcherBench{})
 	r := needs(t, f, RoundsLatches{})
 	if !hasNeed(r, MaintainButcherSpot) {
-		t.Fatal("no butcher bench, goal not raised", r.Goals)
+		t.Fatal("no butcher bench, goal not raised", r.Concerns)
 	}
 	f.ButcherBenches = domain.Known([]ButcherBench{{ID: "spot"}})
 	if r = needs(t, f, RoundsLatches{}); hasNeed(r, MaintainButcherSpot) {

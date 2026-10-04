@@ -19,7 +19,7 @@ func init() {
 // campaignGoals are the goals every campaign sample reads beside
 // EnsureFoodSupply: the foothold gates and the wood stock the recovery
 // campaign breaches.
-var campaignGoals = []policy.ConcernID{
+var campaignConcerns = []policy.ConcernID{
 	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
 	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureBasicDefense,
@@ -46,7 +46,7 @@ func foothold() cases.Case {
 			}
 			c.setupDone()
 			p, err := c.play(ctx, "foothold", playOptions{Watch: sustainedfood.WatchConfig{
-				Watch: 35 * time.Minute, Window: window, PollTicks: 5000, Goal: policy.EnsureFoodSupply, Extra: campaignGoals,
+				Watch: 35 * time.Minute, Window: window, PollTicks: 5000, Concern: policy.EnsureFoodSupply, Extra: campaignConcerns,
 				FailFast: sustainedfood.FailFast{Disabled: true},
 			}})
 			if err != nil {

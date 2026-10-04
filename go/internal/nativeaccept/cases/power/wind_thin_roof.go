@@ -119,15 +119,15 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	reviewData, _ := json.Marshal(review)
-	report["routine_review_first"] = json.RawMessage(reviewData)
+	report["rounds_review_first"] = json.RawMessage(reviewData)
 
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.EnsureBasicPower, nil)
+	concernID, method, err := na.WaitMethod(methodCtx, journal, policy.EnsureBasicPower, nil)
 	methodCancel()
 	if err != nil {
 		return fmt.Errorf("first power method: %w", err)
 	}
-	report["goal_id"] = string(goalID)
+	report["concern_id"] = string(concernID)
 	sites, err := plannedTurbines(ctx, journal)
 	if err != nil {
 		return err

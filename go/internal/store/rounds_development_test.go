@@ -13,7 +13,7 @@ import (
 func developmentRow(t *testing.T, r Rounds, id domain.ConcernID) RoundsDevelopmentRow {
 	t.Helper()
 	for _, row := range r.Development.Rows {
-		if row.Goal == id {
+		if row.Concern == id {
 			return row
 		}
 	}
@@ -57,16 +57,16 @@ func TestRoundsDevelopmentPersistsAge(t *testing.T) {
 	}
 	for _, row := range stopped.Review.Development.Rows {
 		if row.Selected || row.Reason == "" {
-			t.Fatalf("disabled review left %s selected or unexplained", row.Goal)
+			t.Fatalf("disabled review left %s selected or unexplained", row.Concern)
 		}
 	}
 	r.Enabled = true
 	r.Tick += 500
 	resumed := reviewRounds(t, s, &r)
 	for _, want := range committed.Review.Development.Rows {
-		got := developmentRow(t, resumed.Review, want.Goal)
+		got := developmentRow(t, resumed.Review, want.Concern)
 		if !want.Committed && !got.Committed && got.WaitingSince != want.WaitingSince {
-			t.Fatalf("%s waiting age rewritten across a disabled review: %d -> %d", want.Goal, want.WaitingSince, got.WaitingSince)
+			t.Fatalf("%s waiting age rewritten across a disabled review: %d -> %d", want.Concern, want.WaitingSince, got.WaitingSince)
 		}
 	}
 }
@@ -111,7 +111,7 @@ func TestRoundsDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 					record.Development.Rows[i].Deficit = nil
 				}
 			case "goal":
-				record.Development.Rows[0].Goal = "not-a-routine-need"
+				record.Development.Rows[0].Concern = "not-a-routine-need"
 			case "scope":
 				record.Development.Snapshot.Load = "other"
 			}
@@ -137,7 +137,7 @@ func TestRoundsDevelopmentReloadsFoodStorageRow(t *testing.T) {
 	defer s.Close()
 	r := roundsRequest()
 	record := reviewRounds(t, s, &r).Review
-	record.Development.Rows[0].Goal = policy.MaintainFoodStorage
+	record.Development.Rows[0].Concern = policy.MaintainFoodStorage
 	payload, err := json.Marshal(record)
 	if err != nil {
 		t.Fatal(err)
@@ -214,12 +214,12 @@ func TestRoundsDevelopmentConfiguredTargets(t *testing.T) {
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 120}})
 	out = reviewRounds(t, s, &r)
 	if roundsProject(t, out, policy.EnsureResearch).Project.Finding != domain.FindingMet || roundsGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingMet {
-		t.Fatal(out.Goals)
+		t.Fatal(out.Standards)
 	}
 	r.Facts.Research, r.Facts.Resources = domain.Unknown[policy.ResearchFacts](), domain.Unknown[[]policy.Amount]()
 	out = reviewRounds(t, s, &r)
 	if roundsGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnclear {
-		t.Fatal(out.Goals)
+		t.Fatal(out.Standards)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 func admitMethod(ctx context.Context, journal *store.Store, r store.BuildingMethodRequest) (store.BuildingMethodDecision, error) {
 	decision, err := journal.AdmitBuildingMethod(ctx, r)
 	if err == nil && !decision.Admitted {
-		clockEvent(ctx, "clock-scheduler", "admission", "method admission refused", "goal", r.Owner.OwnerID(), "method", string(r.Method), "refused", refusalSummary(decision.Refused))
+		clockEvent(ctx, "clock-scheduler", "admission", "method admission refused", "concern", r.Owner.OwnerID(), "method", string(r.Method), "refused", refusalSummary(decision.Refused))
 	}
 	return decision, err
 }

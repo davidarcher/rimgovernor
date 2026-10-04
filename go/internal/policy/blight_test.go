@@ -20,7 +20,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 	if !hasNeed(r, RemoveBlight) {
 		t.Fatal("a designated but standing plant keeps the goal open", r)
 	}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == RemoveBlight {
 			if d, known := g.Deficit.Value(); !known || d != 1.0 || !g.MethodUnavailable {
 				t.Fatal("census deficit must be full and ungated methods unavailable", g)
@@ -29,7 +29,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 	}
 	f.AvailableMethods = domain.Known([]ConcernID{RemoveBlight})
 	r = needs(t, f, r.Latches)
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == RemoveBlight && g.MethodUnavailable {
 			t.Fatal("configured method must be available", g)
 		}

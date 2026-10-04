@@ -112,7 +112,7 @@ func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *planne
 		return
 	}
 	for goal, note := range s.plannerReasons.changed(notes) {
-		log := slog.Default().With(telemetry.ComponentKey, "clock-scheduler", "goal", string(goal))
+		log := slog.Default().With(telemetry.ComponentKey, "clock-scheduler", "concern", string(goal))
 		switch {
 		case note.Text == "":
 			log.Info("planner refusal cleared")

@@ -24,7 +24,7 @@ type RoundsDevelopment struct {
 	Blockers []policy.DependencyBlocker `json:",omitempty"`
 }
 type RoundsDevelopmentRow struct {
-	Goal                domain.ConcernID
+	Concern             domain.ConcernID
 	Score               float64
 	Deficit             *float64
 	WaitingSince        domain.Tick
@@ -53,7 +53,7 @@ func developmentRecord(s policy.DevelopmentState) RoundsDevelopment {
 		}
 	}
 	for _, row := range s.Rows {
-		v := RoundsDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
+		v := RoundsDevelopmentRow{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
 		if deficit, k := row.Deficit.Value(); k {
 			v.Deficit = &deficit
 		}
@@ -83,7 +83,7 @@ func (r RoundsDevelopment) State() policy.DevelopmentState {
 		s.Labor = domain.Known(labor)
 	}
 	for _, row := range r.Rows {
-		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
+		v := policy.DevelopmentRow{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
 		if row.Deficit != nil {
 			v.Deficit = domain.Known(*row.Deficit)
 		}

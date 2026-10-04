@@ -899,8 +899,8 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		}
 		sort.Strings(line)
 		out["defenders_on_firing_cells"] = line
-		out["combat_goal_bound"] = bound
-		out["combat_goal_need"] = need
+		out["combat_standard_bound"] = bound
+		out["combat_standard_need"] = need
 		out["resolved_tick"] = int64(review.Tick)
 		if combatWindows > 0 && (!bound || need == string(domain.FindingMet)) {
 			if len(line) == 0 {

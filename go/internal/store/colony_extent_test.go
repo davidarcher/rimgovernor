@@ -17,7 +17,7 @@ func extentWorld(colony, load string, native domain.NativeGeneration) domain.Gen
 func extentRegion(facility string, cells ...domain.Cell) policy.ExtentRegion {
 	region := policy.ExtentRegion{}
 	for _, c := range cells {
-		region.Cells = append(region.Cells, policy.ExtentCell{Cell: c, Provenance: []policy.ExtentProvenance{{Origin: policy.ExtentFacility, Facility: facility, Plan: "plan-1", Action: "act-1", Goal: "goal-1"}}})
+		region.Cells = append(region.Cells, policy.ExtentCell{Cell: c, Provenance: []policy.ExtentProvenance{{Origin: policy.ExtentFacility, Facility: facility, Plan: "plan-1", Action: "act-1", Concern: "goal-1"}}})
 	}
 	return region
 }

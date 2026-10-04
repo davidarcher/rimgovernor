@@ -64,7 +64,7 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	f := stableRounds()
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting"}})
 	f.Resources = domain.Known([]Amount{{Resource: "Steel", Count: 40}})
-	r, err := DetectRounds(f, RoundsLatches{}, p)
+	r, err := InspectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,13 +75,13 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	if assessed[EnsureResearch] != domain.FindingUnmet || assessed[MaintainResource] != domain.FindingUnmet {
 		t.Fatal(assessed)
 	}
-	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Goals: r.Goals})
+	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Concerns: r.Concerns})
 	if err != nil {
 		t.Fatal(err)
 	}
 	selected := map[ConcernID]DevelopmentRow{}
 	for _, row := range state.Rows {
-		selected[row.Goal] = row
+		selected[row.Concern] = row
 	}
 	if !selected[EnsureResearch].Selected || selected[EnsureResearch].Score != 100 {
 		t.Fatal(selected[EnsureResearch])
@@ -92,7 +92,7 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	// Missing native facts keep a configured resource target unknown, never
 	// recovered; the research ladder is not walked without a census.
 	f.Research, f.Resources = domain.Unknown[ResearchFacts](), domain.Unknown[[]Amount]()
-	r, err = DetectRounds(f, RoundsLatches{}, p)
+	r, err = InspectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,17 +114,17 @@ func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}})
 	f.Resources = domain.Known([]Amount{})
 	rank := func() map[ConcernID]DevelopmentRow {
-		r, err := DetectRounds(f, RoundsLatches{}, p)
+		r, err := InspectRounds(f, RoundsLatches{}, p)
 		if err != nil {
 			t.Fatal(err)
 		}
-		state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Goals: r.Goals})
+		state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Concerns: r.Concerns})
 		if err != nil {
 			t.Fatal(err)
 		}
 		rows := map[ConcernID]DevelopmentRow{}
 		for _, row := range state.Rows {
-			rows[row.Goal] = row
+			rows[row.Concern] = row
 		}
 		return rows
 	}
@@ -147,7 +147,7 @@ func TestDerivedResourceNeedOpensMaintainResource(t *testing.T) {
 	f := stableRounds()
 	f.ResourceNeeds = map[Resource]int64{"Steel": 60}
 	f.Resources = domain.Known([]Amount{{Resource: "WoodLog", Count: 400}})
-	r, err := DetectRounds(f, RoundsLatches{}, p)
+	r, err := InspectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestDerivedResourceNeedOpensMaintainResource(t *testing.T) {
 		t.Fatal("derived need did not open MaintainResource")
 	}
 	f.Resources = domain.Known([]Amount{{Resource: "Steel", Count: 60}})
-	if r, err = DetectRounds(f, RoundsLatches{}, p); err != nil || hasNeed(r, MaintainResource) {
+	if r, err = InspectRounds(f, RoundsLatches{}, p); err != nil || hasNeed(r, MaintainResource) {
 		t.Fatal("stocked derived need still a deficit", err)
 	}
 }

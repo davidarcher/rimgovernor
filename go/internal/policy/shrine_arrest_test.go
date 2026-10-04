@@ -64,7 +64,7 @@ func TestShrineArrestCreatesPopulationDeficitAndSelectsArmedPerformer(t *testing
 	capacity := joinerFacts(t, 2)
 	facts.Custody, facts.Sleeping, facts.FoodDays = capacity.Custody, capacity.Sleeping, capacity.FoodDays
 	facts.Upkeep.Shrines = domain.Known([]AncientShrine{{ID: "shrine", Occupants: []ShrineOccupant{{EntityID: "ancient", Faction: "Ancients"}}}})
-	needs, err := DetectRounds(facts, RoundsLatches{}, DefaultRoundsPolicy())
+	needs, err := InspectRounds(facts, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

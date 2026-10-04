@@ -94,9 +94,9 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 		t.Fatal(err)
 	}
 	var goal store.StandardState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainResource {
-			if goal, err = p.journal.LoadStandard(ctx, binding.Goal); err != nil {
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainResource {
+			if goal, err = p.journal.LoadStandard(ctx, binding.Standard); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -105,7 +105,7 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 		t.Fatal(goal)
 	}
 	base.reviewer.bids.bid(state.Snapshot, "Steel", bidTrade, 5, policy.AcquisitionTrade, review.Tick)
-	result, err := planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, boundary.Identity(state.Snapshot), "Steel", 200, resourceStockFacts(v), nil, base.reviewer.clock.Now())
+	result, err := planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, boundary.Identity(state.Snapshot), "Steel", 200, resourceStockFacts(v), nil, base.reviewer.clock.Now())
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}

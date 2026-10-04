@@ -19,15 +19,15 @@ import (
 // deficit the review measured. Records are keyed by need, the id the
 // dashboard names goals by; a goal that is recovered, cancelled or
 // invalidated drops its record.
-func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []WorkOwner) ([]policy.GoalProgress, error) {
-	old := map[domain.ConcernID]policy.GoalProgress{}
+func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []WorkOwner) ([]policy.ConcernProgress, error) {
+	old := map[domain.ConcernID]policy.ConcernProgress{}
 	if !reset {
 		for _, p := range previous.Progress {
-			old[p.Goal] = p
+			old[p.Concern] = p
 		}
 	}
 	deficits := map[domain.ConcernID]domain.Fact[float64]{}
-	for _, g := range needs.Goals {
+	for _, g := range needs.Concerns {
 		deficits[g.ID] = g.Deficit
 	}
 	storageOpen := false
@@ -35,13 +35,13 @@ func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, prev
 		if n.ID != policy.MaintainFoodStorage || !ownerActive(states[i]) {
 			continue
 		}
-		open, err := goalOpenWork(ctx, tx, states[i])
+		open, err := standardOpenWork(ctx, tx, states[i])
 		if err != nil {
 			return nil, err
 		}
 		storageOpen = storageOpen || open
 	}
-	var out []policy.GoalProgress
+	var out []policy.ConcernProgress
 	for i, n := range needs.Assessments {
 		g := states[i]
 		if !ownerActive(g) {
@@ -50,9 +50,9 @@ func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, prev
 		last := old[n.ID]
 		evidence := policy.ProgressEvidence{Observed: deficits[n.ID]}
 		var method domain.MethodID
-		labor := policy.GoalLabor(n.ID)
+		labor := policy.ConcernLabor(n.ID)
 		for _, m := range g.OwnerMethods() {
-			if m.Episode != g.OwnerEpoch() {
+			if m.Episode != g.OwnerEpisode() {
 				continue
 			}
 			plan, err := load(ctx, tx, m.Plan)
@@ -61,11 +61,11 @@ func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, prev
 			}
 			for _, p := range plan.Progress {
 				v := p.View()
-				if effect, known := v.Effect.Value(); known && (effect == domain.EffectCompleted || effect == domain.EffectAbsent) && v.Tick > last.LastProgress && last.Goal == n.ID {
+				if effect, known := v.Effect.Value(); known && (effect == domain.EffectCompleted || effect == domain.EffectAbsent) && v.Tick > last.LastProgress && last.Concern == n.ID {
 					evidence.Advanced = true
 				}
 				building := !plan.Retired && policy.AppliedBuildingOpen(p, request.Facts.CurrentConstruction)
-				if !building && !domain.GoalWorkOpen([]domain.Progress{p}) {
+				if !building && !domain.StandardWorkOpen([]domain.Progress{p}) {
 					continue
 				}
 				method = m.Method
@@ -93,18 +93,18 @@ func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, prev
 			}
 			evidence.WorkerAvailable = domain.Known(available)
 		}
-		contract := policy.GoalProgressContract(methodLabel(method), request.Policy)
+		contract := policy.ConcernProgressContract(methodLabel(method), request.Policy)
 		if n.ID == policy.EnsureFoodSupply {
 			contract, evidence.Prerequisite, evidence.Observed = policy.FoodProgress(request.Facts, request.Policy, storageOpen)
 		}
-		record := policy.ReviewGoalProgress(last, n.ID, contract, evidence, request.Tick)
+		record := policy.ReviewConcernProgress(last, n.ID, contract, evidence, request.Tick)
 		if !evidence.Advanced {
 			// A deadline that passed without native progress keys the
 			// failed situation out for a bounded cooldown; the planners
 			// rotate the method or target (stall cancels, attempt counts).
-			record, _ = policy.ExpireGoalProgress(record, contract, request.Tick, policy.CooldownKey(record.Method, string(record.Blocked)), nil)
+			record, _ = policy.ExpireConcernProgress(record, contract, request.Tick, policy.CooldownKey(record.Method, string(record.Blocked)), nil)
 		}
-		if err := policy.ValidateGoalProgress(record, request.Tick); err != nil {
+		if err := policy.ValidateConcernProgress(record, request.Tick); err != nil {
 			return nil, fmt.Errorf("%s: %w", n.ID, err)
 		}
 		out = append(out, record)
@@ -177,11 +177,11 @@ func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, nee
 	}
 	changed := false
 	for i := range review.Progress {
-		if review.Progress[i].Goal != need {
+		if review.Progress[i].Concern != need {
 			continue
 		}
 		review.Progress[i] = policy.AddProgressCooldown(review.Progress[i], key, until, review.Tick)
-		if err = policy.ValidateGoalProgress(review.Progress[i], review.Tick); err != nil {
+		if err = policy.ValidateConcernProgress(review.Progress[i], review.Tick); err != nil {
 			return Rounds{}, err
 		}
 		changed = true
@@ -203,13 +203,13 @@ func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, nee
 }
 
 // GoalProgress is need's progress record in the review, if it has one.
-func (r Rounds) GoalProgress(need domain.ConcernID) (policy.GoalProgress, bool) {
+func (r Rounds) ConcernProgress(need domain.ConcernID) (policy.ConcernProgress, bool) {
 	for _, p := range r.Progress {
-		if p.Goal == need {
+		if p.Concern == need {
 			return p, true
 		}
 	}
-	return policy.GoalProgress{}, false
+	return policy.ConcernProgress{}, false
 }
 
 // RecordPlannerReasons files each goal's latest planner refusal on its
@@ -234,7 +234,7 @@ func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.Con
 	changed := false
 	for i := range review.Progress {
 		p := &review.Progress[i]
-		note, ok := reasons[p.Goal]
+		note, ok := reasons[p.Concern]
 		if !ok || p.PlannerNote() == note {
 			continue
 		}
@@ -246,8 +246,8 @@ func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.Con
 				p.Blocked = note.Blocked()
 			}
 		}
-		if err = policy.ValidateGoalProgress(*p, review.Tick); err != nil {
-			return false, fmt.Errorf("%s: %w", p.Goal, err)
+		if err = policy.ValidateConcernProgress(*p, review.Tick); err != nil {
+			return false, fmt.Errorf("%s: %w", p.Concern, err)
 		}
 		changed = true
 	}

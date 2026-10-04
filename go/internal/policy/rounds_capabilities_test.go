@@ -15,7 +15,7 @@ func TestRoundsDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 	f.AvailableMethods = domain.Known([]ConcernID{MaintainHousing})
 	needs := needs(t, f, RoundsLatches{})
 	request := developmentFixture()
-	request.Goals = needs.Goals
+	request.Concerns = needs.Concerns
 	got := rank(t, request)
 	if !reflect.DeepEqual(selected(got), []ConcernID{MaintainHousing}) {
 		t.Fatal(got)
@@ -33,22 +33,22 @@ func TestRoundsDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 		t.Fatal("disabled method erased need")
 	}
 	for _, row := range got.Rows {
-		if row.Goal == EnsureComfort && row.Reason != DevelopmentMethodUnavailable {
+		if row.Concern == EnsureComfort && row.Reason != DevelopmentMethodUnavailable {
 			t.Fatal(row)
 		}
 	}
 	f.AvailableMethods = domain.Known([]ConcernID{})
-	empty, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
+	empty, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
-	request.Goals = empty.Goals
+	request.Concerns = empty.Concerns
 	if len(selected(rank(t, request))) != 0 {
 		t.Fatal("disabled methods admitted")
 	}
 	for _, bad := range [][]ConcernID{{EnsureComfort, EnsureComfort}, {"unknown-method"}} {
 		f.AvailableMethods = domain.Known(bad)
-		if _, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy()); err == nil {
+		if _, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy()); err == nil {
 			t.Fatal(bad)
 		}
 	}
@@ -60,7 +60,7 @@ func TestRoundsDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 // history exists, so it needs an explicit recognition.
 func TestRoundsComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
 	all := []ConcernID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
-	if _, err := DetectRounds(RoundsFacts{AvailableMethods: domain.Known(all)}, RoundsLatches{}, DefaultRoundsPolicy()); err != nil {
+	if _, err := InspectRounds(RoundsFacts{AvailableMethods: domain.Known(all)}, RoundsLatches{}, DefaultRoundsPolicy()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -79,7 +79,7 @@ func TestRoundsSleepingMethodFollowsDeclaredCapability(t *testing.T) {
 		f.AvailableMethods = domain.Known(methods)
 		needs := needs(t, f, RoundsLatches{})
 		found := false
-		for _, g := range needs.Goals {
+		for _, g := range needs.Concerns {
 			if g.ID != MaintainHousing {
 				continue
 			}
@@ -112,12 +112,12 @@ func TestRoundsAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
 			f.AvailableMethods = domain.Known([]ConcernID{MaintainAnimalFeed, MaintainAnimalContainment})
 		}
 		request := developmentFixture()
-		request.Goals = needs(t, f, RoundsLatches{}).Goals
+		request.Concerns = needs(t, f, RoundsLatches{}).Concerns
 		got := selected(rank(t, request))
 		if declared != (len(got) == 2) {
 			t.Fatalf("declared=%v selected=%v", declared, got)
 		}
-		for _, g := range request.Goals {
+		for _, g := range request.Concerns {
 			if (g.ID == MaintainAnimalFeed || g.ID == MaintainAnimalContainment) && g.MethodUnavailable == declared {
 				t.Fatalf("declared=%v goal=%+v", declared, g)
 			}

@@ -50,7 +50,7 @@ func shadowGovernorState(ctx context.Context, native governorStateNative, world 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-		case <-database.GoalsWritten():
+		case <-database.StandardsWritten():
 		}
 	}
 }
@@ -84,7 +84,7 @@ func currentGovernorWorld(reads httpapi.SnapshotProvider) func(context.Context) 
 }
 
 // worldRebuild is the per-world rebuild (#998/#1005/#1011): the save's
-// goals and families replace the store's and routine_review empties. The
+// goals and families replace the store's and rounds_review empties. The
 // clock worker and the shadow writer both call ensure before they act in a
 // world, so it runs once per world ahead of the first review (#1123).
 // orphans, when set, is the native the #1000 orphan pass sweeps.
@@ -123,19 +123,19 @@ func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native g
 		pass = orphanSweep(r.orphans, world, r.out)
 	}
 	if err = r.database.RebuildStandards(ctx, saved, pass); err != nil {
-		return fmt.Errorf("rebuild goals: %w", err)
+		return fmt.Errorf("rebuild standards: %w", err)
 	}
-	goals := time.Since(began) - read
+	standards := time.Since(began) - read
 	if err = r.database.RebuildFamilies(ctx, saved); err != nil {
 		return fmt.Errorf("rebuild families: %w", err)
 	}
-	families := time.Since(began) - read - goals
+	families := time.Since(began) - read - standards
 	if err = r.database.ResetRounds(ctx); err != nil {
 		return fmt.Errorf("reset rounds: %w", err)
 	}
 	r.world = world
 	r.count++
-	log.InfoContext(ctx, "world rebuild done", "keys", len(saved), "elapsed", time.Since(began).Round(time.Millisecond), "read", read.Round(time.Millisecond), "goals", goals.Round(time.Millisecond), "families", families.Round(time.Millisecond))
+	log.InfoContext(ctx, "world rebuild done", "keys", len(saved), "elapsed", time.Since(began).Round(time.Millisecond), "read", read.Round(time.Millisecond), "standards", standards.Round(time.Millisecond), "families", families.Round(time.Millisecond))
 	return nil
 }
 

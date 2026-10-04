@@ -40,7 +40,7 @@ func TestConstructionReadsTheFramesBuiltBuildings(t *testing.T) {
 			snapshot := &o.BuildingsSnapshot{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Buildings: []*o.BuildingState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 			s := &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoundsFrame{Buildings: bridge.BuildingCensusOf(snapshot)}}
 			b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
-			claims := domain.Known([]policy.ConstructionClaim{{Plan: "method", Action: "placed", Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint", Current: "wall"}, Building: b}})
+			claims := domain.Known([]policy.ConstructionClaim{{Plan: "method", Action: "placed", Concern: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint", Current: "wall"}, Building: b}})
 			clock := testkit.NewManualClock(time.Now())
 			switch phase {
 			case "absent":

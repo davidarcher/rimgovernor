@@ -69,7 +69,7 @@ func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) 
 // every production goal (createStandard).
 func (s *Store) SeedStandard(ctx context.Context, g domain.Standard) error {
 	if g.Status != domain.StandardOpen || g.Episode != 0 || g.Finding != domain.FindingUnclear || g.RecoveryObserved {
-		return errors.New("new goal must start without completion evidence")
+		return errors.New("new standard must start without completion evidence")
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
@@ -82,7 +82,7 @@ func (s *Store) SeedStandard(ctx context.Context, g domain.Standard) error {
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	s.notifyGoalsWritten()
+	s.notifyStandardsWritten()
 	return nil
 }
 

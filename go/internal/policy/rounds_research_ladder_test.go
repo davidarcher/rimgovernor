@@ -18,24 +18,24 @@ func TestResearchGoalWalksTheLadder(t *testing.T) {
 		t.Fatal(err)
 	}
 	census := domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity", "Batteries", "Smithing"}, Finished: []ResearchProjectID{"Stonecutting"}})
-	if target, derived := ResearchGoal(p, nil, census); target != "Electricity" || derived {
+	if target, derived := ResearchConcern(p, nil, census); target != "Electricity" || derived {
 		t.Fatal("first unfinished rung", target, derived)
 	}
-	if target, _ := ResearchGoal(p, nil, domain.Unknown[ResearchFacts]()); target != "" {
+	if target, _ := ResearchConcern(p, nil, domain.Unknown[ResearchFacts]()); target != "" {
 		t.Fatal("a ladder rung needs a known census", target)
 	}
-	if target, derived := ResearchGoal(p, []string{"Smithing"}, census); target != "Smithing" || !derived {
+	if target, derived := ResearchConcern(p, []string{"Smithing"}, census); target != "Smithing" || !derived {
 		t.Fatal("a workshop need precedes the ladder", target, derived)
 	}
-	if target, derived := ResearchGoal(p, []string{"Stonecutting"}, census); target != "Electricity" || derived {
+	if target, derived := ResearchConcern(p, []string{"Stonecutting"}, census); target != "Electricity" || derived {
 		t.Fatal("a finished need falls through to the ladder", target, derived)
 	}
 	p.ResearchLadder = []string{"Unlisted", "Batteries"}
-	if target, _ := ResearchGoal(p, nil, census); target != "Batteries" {
+	if target, _ := ResearchConcern(p, nil, census); target != "Batteries" {
 		t.Fatal("an unlisted rung is skipped", target)
 	}
 	p.ResearchLadder = nil
-	if target, _ := ResearchGoal(p, nil, census); target != "" {
+	if target, _ := ResearchConcern(p, nil, census); target != "" {
 		t.Fatal("no ladder, no target", target)
 	}
 	p.ResearchLadder = []string{" "}
@@ -54,7 +54,7 @@ func TestReviewMeasuresTheLadderAgainstTheCensus(t *testing.T) {
 	if assessment(t, r, EnsureResearch) != domain.FindingUnmet || !hasNeed(r, EnsureResearch) {
 		t.Fatal("idle tab with a rung remaining", r.Assessments)
 	}
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == EnsureResearch && g.Deficit != domain.Known(1.0) {
 			t.Fatal("ladder deficit", g)
 		}

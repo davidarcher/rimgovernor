@@ -101,15 +101,15 @@ func (r *RoundsMoodReliefPlanner) step(call, epoch context.Context, arbiter *ste
 	// Owner goals a provisioning proposal can defer to: bound by this review
 	// and still active with a deficit.
 	activeOwner := map[domain.ConcernID]bool{}
-	for _, binding := range review.Goals {
-		if !policy.MoodProvisionGoal(binding.Need) {
+	for _, binding := range review.Standards {
+		if !policy.MoodProvisionConcern(binding.Concern) {
 			continue
 		}
-		goal, err := p.journal.LoadStandard(call, binding.Goal)
+		goal, err := p.journal.LoadStandard(call, binding.Standard)
 		if err != nil {
 			return RoundsMoodReliefResult{}, err
 		}
-		activeOwner[binding.Need] = goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet
+		activeOwner[binding.Concern] = goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet
 	}
 	started := r.reviewer.clock.Now()
 	for _, binding := range review.SubjectIncidents(policy.EnsureMood) {
@@ -138,7 +138,7 @@ func (r *RoundsMoodReliefPlanner) step(call, epoch context.Context, arbiter *ste
 		}
 		provisioning := false
 		for _, owner := range policyState.Provision {
-			provisioning = provisioning || activeOwner[owner.Goal]
+			provisioning = provisioning || activeOwner[owner.Concern]
 		}
 		if proposal.Reason == policy.MoodProvisioned && !provisioning {
 			// No active upkeep goal owns any facility the pressure names

@@ -24,7 +24,7 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Reason != MoodProvisioned || proposal.Goal != EnsureComfort || proposal.Need != "" {
+	if proposal.Reason != MoodProvisioned || proposal.Concern != EnsureComfort || proposal.Need != "" {
 		t.Fatalf("provisioning did not defer to the owner: %+v", proposal)
 	}
 	proposal, err = SelectMoodMethod(s.WithoutProvision(), nil)
@@ -54,7 +54,7 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 	h = moodReview(t, p, MoodHistory{})
 	p.Thoughts = domain.Unknown[[]MoodThought]()
 	h = moodReview(t, p, h)
-	if len(h.States[0].Provision) != 1 || h.States[0].Provision[0].Goal != EnsureComfort {
+	if len(h.States[0].Provision) != 1 || h.States[0].Provision[0].Concern != EnsureComfort {
 		t.Fatal("unknown thoughts dropped the retained provisioning", h.States[0].Provision)
 	}
 	p.Thoughts = domain.Known([]MoodThought{})
@@ -88,7 +88,7 @@ func TestMoodProvisionValidation(t *testing.T) {
 			t.Fatal(def)
 		}
 		for _, goal := range owners {
-			if !MoodProvisionGoal(goal) {
+			if !MoodProvisionConcern(goal) {
 				t.Fatal(def, goal)
 			}
 		}
@@ -183,7 +183,7 @@ func TestDetectRoundsRaisesProvisionOwnerDeficit(t *testing.T) {
 	f.Mood = h
 	detected := needs(t, f, RoundsLatches{})
 	found := false
-	for _, g := range detected.Goals {
+	for _, g := range detected.Concerns {
 		if g.ID == EnsureComfort {
 			found = true
 			if d, k := g.Deficit.Value(); !k || d != 1 {
@@ -192,11 +192,11 @@ func TestDetectRoundsRaisesProvisionOwnerDeficit(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("EnsureComfort missing", detected.Goals)
+		t.Fatal("EnsureComfort missing", detected.Concerns)
 	}
 	// A recovered owner is not re-raised: the goal is simply absent.
 	f.ComfortRecovered, f.ComfortDeficit = domain.Known(true), domain.Known(0.0)
-	for _, g := range needs(t, f, RoundsLatches{}).Goals {
+	for _, g := range needs(t, f, RoundsLatches{}).Concerns {
 		if g.ID == EnsureComfort {
 			t.Fatal("recovered comfort re-raised by mood pressure")
 		}

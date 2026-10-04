@@ -18,7 +18,7 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   every in-game hour it renders the colony from above to
   `<case output>/review/colony-<tick>.jpg`, and once a day the whole map to
   `map-<tick>.jpg`. It records no colony facts: the run's timeline already
-  samples the colony census and every `sustained.ColonyGoals` goal each
+  samples the colony census and every `sustained.ColonyConcerns` concern each
   in-game hour. It needs a graphics device: the case sets
   `Graphics`, which drops `-nographics` from the headless profile (the
   camera renders on demand, no window opens, so it runs on hosted runners
@@ -30,10 +30,10 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
 - **Report** `go run ./cmd/colonyreview report -in <case output> -out <run dir>`
   reads `result.json`'s timeline and the screenshots and writes
   `index.html` (summary, trends, flagged hours, daily map shots, hourly
-  cards with each colonist's mood and food and every goal's state) and
+  cards with each colonist's mood and food and every concern's state) and
   `run.json`; `site -runs <dir> -out <site>` indexes run dirs. Flags point
   at hours worth a look (a colonist lost, food runway under two days, a
-  downed colonist, low mood, a goal in deficit twelve hours, a role's stockpile zone count falling, starting supplies still forbidden after a day); the
+  downed colonist, low mood, a concern in deficit twelve hours, a role's stockpile zone count falling, starting supplies still forbidden after a day); the
   storage section lists the final zone count per role from the census's
   `stockpiles` block (see [storage](../architecture/storage.md)). They gate
   nothing.

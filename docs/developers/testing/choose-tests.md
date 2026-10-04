@@ -164,7 +164,7 @@ and three traps. Preparation searches the map nearest-first for a reachable
 site on Heavy terrain outside existing buildings and zones, then clears natural
 rock, roofs, plants, items and fog across the room, trap lane and squad footprint.
 The cases observe drafting, breach completion, ActiveCombat
-handoff and goal recovery; claim additionally checks ClaimBuilding ownership
+handoff and concern recovery; claim additionally checks ClaimBuilding ownership
 and native salvage while the filled casket stays closed. Both are quiet,
 eight-minute cases in the clearance land selection and full tier.
 Build with `acceptance setup -rebuild -fixture ShrineFixture`; the existing
@@ -307,7 +307,7 @@ campaigns require to be zero. The disturbances a scenario stages are
 `injections`, `milestones` carry their ticks, and every gate is native end
 state (every initial colonist alive, malnutrition under 0.3, indoor
 sleeping capacity for the colony, a known food runway) plus an advancing
-goal progress record (#629), never a plan count.
+concern progress record (#629), never a plan count.
 
 `campaign/foothold` plays three game days (`RIMGOVERNOR_ACCEPT_CAMPAIGN_TICKS`
 overrides the window). `campaign/recovery` settles, takes every wood log
@@ -643,8 +643,8 @@ cases want (`Letters`). Only letters whose def pauses under the profile's
 `automaticPauseMode` (MajorThreat in the headless profile: ThreatBig only)
 ever reach the loop; the `letter/pause` case covers both modes through
 `test/letter_pause_mode` and `test/deliver_letter`. Under the serve process
-a threat letter's pause drops authority but only suspends routine goals
-(#65): the next enabled review reactivates the same goal with its plans
+a threat letter's pause drops authority but only suspends routine concerns
+(#65): the next enabled review reactivates the same concern with its plans
 still open and their held drafts still owned, so a case following a
 routine plan sees the same plan resume, not a successor. An informational
 letter's pause holds nothing there: the next step admits again (#228).
@@ -680,7 +680,7 @@ Bound waits by stall, not only by ceiling. A broken run stops changing long
 before its wall-clock budget runs out, so a poll loop goes through
 `na.WaitProgress(ctx, na.Wait{Ceiling, Stall, Terminal}, probe)`: the probe
 returns a progress signature (`na.Signature(...)` over whatever must move:
-plan stages, a goal binding, a method count) and the wait fails once it has
+plan stages, a concern binding, a method count) and the wait fails once it has
 not changed for the stall budget. Leave the game tick out of the signature
 unless the wait tolerates a plan that is not moving while the game runs.
 `Terminal` fails fast on a signal that nothing can recover from, typically
@@ -987,14 +987,14 @@ wall-clock duration is only ever a ceiling.
 
 The watch also fails fast on the journal instead of running out that
 ceiling (#268, `sustainedfood.FailFast`, on by default): an action of the
-watched goal's committed method ending `unsuccessful` for any reason but
-`interrupted`/`cancelled`; the goal left active/deficit with no method
+watched concern's committed method ending `unsuccessful` for any reason but
+`interrupted`/`cancelled`; the concern left active/deficit with no method
 through five consecutive reviews that handed its planner the slot (the
-development row's `Idle` flag -- a goal the review never selects, such as
+development row's `Idle` flag -- a concern the review never selects, such as
 `EnsureComfort` under `startup_survival`, is waiting, not refused); or the
 service's latest `scheduler_step` line carrying the same native refusal in
 `planner_failures` for six consecutive samples (#219's shape); or the
-watched goal vetoed by a Safeguard while the review names emergency needs
+watched concern vetoed by a Safeguard while the review names emergency needs
 (`Rounds.Emergency`) and the live tick has not moved for twelve
 consecutive samples (#319's park: a downed colonist no kept family can
 tend, the clock refusing every window as `no_work`). The verdict
@@ -1198,7 +1198,7 @@ report.
 | A threat response or layout decision of the defense planners: sapper bypass, breach fallback, siege, centre drop, hunting predator, hive, ship part, the turret tier, stocked turret scaling (#341) and raider cover clearance (#581) | `go test ./internal/buildingruntime -run TestDefenseReplay` from `go/`: snapshot replays of rounds recorded natively (#742, #744) | Fast and offline. The native end-to-end perimeter build, raid, hold-the-line and repair stay `defense/perimeter` (nightly). |
 | The armory epic's native outcomes (#1198, #1211): a camped siege answered by the colony mortar (`combat_mortar.go`, `liveBesiegers`), IEDs on the approach springing under a raid (`defense_ieds.go`), a threat-tier rise replacing a mini turret in place and arming a colonist a tier up (`defense_turrets.go` `TurretReplacement`, `armory.go`) | `acceptance run defense/siege-mortar` (lab, `DebugStartFixture,LetterFixture`; minutes); `acceptance run defense/ied-lane` and `defense/tier-upgrade` (tribal8 baseline, `DefenseFixture,GuardedConstructionFixture`; the perimeter campaign, up to 3 h) | `siege-mortar` passes on an applied `man_mortar` and a `counter_battery` `mortar_fire` at the camp in the fight's combat evidence. `ied-lane` fails, naming it, when the layout places no IED (colonist routes can legitimately cover the approach). `tier-upgrade` raises raid points by the difficulty threat scale (the quiet storyteller sits on the 35-point floor) and finishes Smithing, Machining and HeavyTurrets by fixture. |
 | The initial shelter on a fresh site is sleeping spots, then wooden beds, then the ring (#612): the `shelter-spots` rung is bound before any `routine-shell-*` plan, every bed of the `shelter-beds` rung is completed before the first wall, no bed cell lies on a ring corner (`policy.ShellCornerCells`) or outside the sited interior, and the roofed native room holds a bed per colonist | `acceptance run shelter/bunks-first` (with `-rimgovernor`) against a `HutShellFixture` build; `result.json` carries `spots`, `beds`, `shell`, `last_bed_tick`/`first_wall_tick`, `colonists`/`housed` and the native room census | Serve-driven on the tribal8 baseline, one run, no stage: 200 wood is dropped beside the spots once they are placed (the baseline's 500 covers the beds, not the ring after them). Rerun when `shelter_bunks.go`, `rounds_shelter_bunks.go` or the shell search change. |
-| Sustained colony upkeep on one colony (#99): a starving confined pet, a filthy kitchen, a medicine shortage with mature wild plants and an empty medicine-only shelf (ordinary hauling prevents outdoor deterioration), and a cold sleeping room staged in turn on one kept tribal8 world and one durable journal, each recovered by the routine families composed so far and audited natively, with no goal an earlier stage recovered reopening without recovery (a new Episode is recorded and must recover again within 90k ticks and before the stage ends), rebound or invalidated while the later ones are handled | `acceptance run upkeep/campaign -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` from `go/` against an `UpkeepFixture,ForecastFixture,RoundsSleepingFixture,CleanlinessFixture` build; `result.json` carries `timeline` (per stage: ticks, `wall_ms`, the recovered goal and its epoch), `stage_<name>` (the stage's own watch fields, `upkeep_before`/`upkeep_after`, `reopened`) and `closed_goals` | Serve-driven, one service launch per stage over the live map (never a reload, so the earlier goals survive on the journal); the calendar is not the property, a season being over an hour of Ultrafast wall time. 10-15 minutes. Rerun when `rounds_upkeep.go`, the cleanliness, animal-feed, medical-reserve or temperature reviews, `domain.ReviewStandard`'s epoch rule or the four fixtures change. |
+| Sustained colony upkeep on one colony (#99): a starving confined pet, a filthy kitchen, a medicine shortage with mature wild plants and an empty medicine-only shelf (ordinary hauling prevents outdoor deterioration), and a cold sleeping room staged in turn on one kept tribal8 world and one durable journal, each recovered by the routine families composed so far and audited natively, with no concern an earlier stage recovered reopening without recovery (a new Episode is recorded and must recover again within 90k ticks and before the stage ends), rebound or invalidated while the later ones are handled | `acceptance run upkeep/campaign -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` from `go/` against an `UpkeepFixture,ForecastFixture,RoundsSleepingFixture,CleanlinessFixture` build; `result.json` carries `timeline` (per stage: ticks, `wall_ms`, the recovered concern and its epoch), `stage_<name>` (the stage's own watch fields, `upkeep_before`/`upkeep_after`, `reopened`) and `closed_concerns` | Serve-driven, one service launch per stage over the live map (never a reload, so the earlier concerns survive on the journal); the calendar is not the property, a season being over an hour of Ultrafast wall time. 10-15 minutes. Rerun when `rounds_upkeep.go`, the cleanliness, animal-feed, medical-reserve or temperature reviews, `domain.ReviewStandard`'s epoch rule or the four fixtures change. |
 | Colony extent runtime and explicit expansion (#519, #580): complete geometry establishes history; the ready corridor is restored by Home maintenance; adding and removing an expansion area preserves every Home bit | `acceptance run upkeep/colony-extent -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` against `SleepingFixture,HomeCoverageFixture,UpkeepFixture,ForecastFixture,RoundsSleepingFixture`; `result.json` records extent cell counts and `home_mask_byte_identical` | Ready connected rooms with one missing corridor cell, no construction wait. The case exercises the authenticated expansion API across controller restarts and reads the entire native Home mask before, after growth and after removal. |
 | Connected autonomous Home (#452): two routine-built beds in roofed chambers joined by a walled corridor; actual corridor cells become Home while an outdoor cell does not; stale geometry/revision refuse writes; a removed corridor cell is restored across controller restarts and native Home survives save/load | `acceptance run upkeep/home-coverage -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` against `UpkeepFixture,ForecastFixture,RoundsSleepingFixture`; results include `beds_built`, `stage_home_0`, `stale_guards`, `removed`, `stage_home_1`, `save_recovery_home` | Ready connected-room fixture; controller builds both beds through ordinary pawn work. Bounded Home writes then run over the same journal. Pure native geometry probes cover disconnected/outdoor cells and three batches over 700 cells; Go tests cover ownership, recurrence and selection after blocked targets. Stockpile receipt ownership has no native case since #746 retired `upkeep/storage-missing`. |
 | Kept process between runs: a process that hosted a controller killed with its Auto grant and typed clock epoch still active (session dropped, then unload to the menu) must, for the next controller that prepares the profile again and attaches, still page its clock journal from cursor 0 with no gap and hold a fresh Auto grant for the whole 15s hold window (#119) | `go run ./internal/nativeaccept/cmd/acceptance run authority/warm -root <abs root> -output <fresh dir>` from `go/` against any fixture build; `result.json` records both phases, `clock_journal` (`newestCursor`, `lostCount`, `gap`) and `held_reads` | An `Owned`, `NoKeep` case: two sessions on one process it launches and retires itself; about a minute after the first start is cached. Rerun when `nativeaccept` profile preparation, `OpenGame`/`OpenSession`, `ClockEventJournal.cs` or the authority hooks change. |

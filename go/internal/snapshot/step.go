@@ -22,7 +22,7 @@ type Step struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
-	Goal     policy.ConcernID
+	Concern  policy.ConcernID
 	// Planner is "building", "bill", "hospital" or "deepdrill".
 	Planner string
 	// Projection is the step's reading with its Facts; its Zones and
@@ -37,7 +37,7 @@ type Step struct {
 // the mirror sections materialise is left to them, as in a review line.
 type stepFrame struct {
 	Planner string
-	Goal    policy.ConcernID
+	Concern policy.ConcernID
 	Patch   json.RawMessage
 }
 
@@ -45,13 +45,13 @@ type stepFrame struct {
 // named before #795 step 4: step-<planner>-<goal>-<tick>-<seq>.
 type StepRead struct {
 	Planner string
-	Goal    policy.ConcernID
+	Concern policy.ConcernID
 	Tick    domain.Tick
 	Seq     int
 }
 
 func (s StepRead) String() string {
-	return fmt.Sprintf("step-%s-%s-%d-%d", s.Planner, s.Goal, s.Tick, s.Seq)
+	return fmt.Sprintf("step-%s-%s-%d-%d", s.Planner, s.Concern, s.Tick, s.Seq)
 }
 
 // stepBase is the tree a step line patches: the review tree's projection
@@ -93,8 +93,8 @@ func RecordStep(dir, planner string, goal policy.ConcernID, current domain.Gener
 		reading.Cells = nil
 	}
 	data, err := Encode(Step{
-		Recorded: fmt.Sprintf("colony %s load %s map %d tick %d goal %s", current.Colony, current.Load, current.Map, tick, goal),
-		Snapshot: current, Tick: tick, Goal: goal, Planner: planner, Projection: reading,
+		Recorded: fmt.Sprintf("colony %s load %s map %d tick %d standard %s", current.Colony, current.Load, current.Map, tick, goal),
+		Snapshot: current, Tick: tick, Concern: goal, Planner: planner, Projection: reading,
 	})
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func RecordStep(dir, planner string, goal policy.ConcernID, current domain.Gener
 	if err != nil {
 		return err
 	}
-	line := streamLine{Tick: tick, Step: &stepFrame{Planner: planner, Goal: goal}}
+	line := streamLine{Tick: tick, Step: &stepFrame{Planner: planner, Concern: goal}}
 	tree, line.Mirror = elide(tree, rec.sections)
 	if cellsHeld {
 		if line.Mirror == nil {
@@ -118,7 +118,7 @@ func RecordStep(dir, planner string, goal policy.ConcernID, current domain.Gener
 	if line.Step.Patch, err = json.Marshal(patch); err != nil {
 		return err
 	}
-	name := StepRead{Planner: planner, Goal: goal, Tick: tick}.String()
+	name := StepRead{Planner: planner, Concern: goal, Tick: tick}.String()
 	line.Seq = rec.steps[name] + 1
 	if err = rec.append(line); err != nil {
 		return err
@@ -132,7 +132,7 @@ func Steps(path string) ([]StepRead, error) {
 	var out []StepRead
 	err := walk(path, func(line streamLine, _ *replayState) (bool, error) {
 		if line.Step != nil {
-			out = append(out, StepRead{Planner: line.Step.Planner, Goal: line.Step.Goal, Tick: line.Tick, Seq: line.Seq})
+			out = append(out, StepRead{Planner: line.Step.Planner, Concern: line.Step.Concern, Tick: line.Tick, Seq: line.Seq})
 		}
 		return true, nil
 	})
@@ -174,7 +174,7 @@ func LoadStreamStep(path, name string) (Step, error) {
 // visitStep materialises the step read name into out.
 func visitStep(name string, out *Step, found *bool) func(streamLine, *replayState) (bool, error) {
 	return func(line streamLine, st *replayState) (bool, error) {
-		if line.Step == nil || (StepRead{Planner: line.Step.Planner, Goal: line.Step.Goal, Tick: line.Tick, Seq: line.Seq}).String() != name {
+		if line.Step == nil || (StepRead{Planner: line.Step.Planner, Concern: line.Step.Concern, Tick: line.Tick, Seq: line.Seq}).String() != name {
 			return true, nil
 		}
 		node, err := parseTree(line.Step.Patch)

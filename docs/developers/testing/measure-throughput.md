@@ -76,8 +76,8 @@ the context; `rimgovernor phases` ignores them. The kinds:
   (WARN when the run failed): action, attempt, stage before and after,
   outcome text, error. `worker_dispatch` (the per-dispatch read tally)
   is published by the Worker's read tally as before.
-- `routine_review`: one per committed rounds: revision, tick,
-  goal count, the needs that declared an emergency, the food runway it
+- `rounds_review`: one per committed rounds: revision, tick,
+  concern count, the needs that declared an emergency, the food runway it
   read (`food_days`, when known) with the seasonal thresholds it held it
   to (`food_min_days`, `food_target_days`) and the growing calendar they
   came from (`season`, `day_of_year`, `growing_days_remaining`,

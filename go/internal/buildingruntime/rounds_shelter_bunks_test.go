@@ -52,7 +52,7 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted || n.previews != 32 {
 		t.Fatal(result, err, n.previews)
 	}
-	shell, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
+	shell, err := db.LoadPlan(ctx, shellMethod(result.Decision.Standard).Plan)
 	if err != nil || !IsShellMethod(shell.Method) || len(shell.Progress) != 32 {
 		t.Fatal(shell, err)
 	}
@@ -119,11 +119,11 @@ func TestRoundsShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	if err != nil || second.Verdict != BuildingReasonAdmitted || n.previews != 32 {
 		t.Fatal(second, err, n.previews)
 	}
-	plan, err := db.LoadPlan(ctx, shellMethod(second.Decision.Goal).Plan)
+	plan, err := db.LoadPlan(ctx, shellMethod(second.Decision.Standard).Plan)
 	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
-	for _, m := range second.Decision.Goal.Methods {
+	for _, m := range second.Decision.Standard.Methods {
 		if m.Method == shelterBedsMethod {
 			t.Fatal("beds admitted without a buildable Bed", m)
 		}
@@ -159,12 +159,12 @@ func TestRoundsShelterAdoptionSkipsBunks(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted || n.censuses == 0 {
 		t.Fatal(result, err, n.censuses)
 	}
-	for _, m := range result.Decision.Goal.Methods {
+	for _, m := range result.Decision.Standard.Methods {
 		if m.Method == shelterSpotsMethod || m.Method == shelterBedsMethod {
 			t.Fatal("bunk rung ran on an adopted shell", m)
 		}
 	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
 	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
@@ -198,7 +198,7 @@ func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
 	if err != nil || shell.Verdict != BuildingReasonAdmitted {
 		t.Fatal("stalled beds held the ring", shell, err)
 	}
-	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Goal).Plan)
+	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Standard).Plan)
 	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
@@ -218,7 +218,7 @@ func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
 	if err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
-	goal, err := db.LoadStandard(ctx, shell.Decision.Goal.Standard.ID)
+	goal, err := db.LoadStandard(ctx, shell.Decision.Standard.Standard.ID)
 	if err != nil || len(goal.Methods) != 3 {
 		t.Fatal("methods", goal.Methods, err)
 	}
@@ -245,11 +245,11 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	if err != nil || shell.Verdict != BuildingReasonAdmitted {
 		t.Fatal(shell, err)
 	}
-	record, err := restarted.shelterBunks(ctx, shell.Decision.Goal)
+	record, err := restarted.shelterBunks(ctx, shell.Decision.Standard)
 	if err != nil || len(record.spots) != 2 || len(record.beds) != 2 {
 		t.Fatal(record, err)
 	}
-	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Goal).Plan)
+	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Standard).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	if again, err := restarted.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
-	if goal, err := db.LoadStandard(ctx, shell.Decision.Goal.Standard.ID); err != nil || len(goal.Methods) != 3 {
+	if goal, err := db.LoadStandard(ctx, shell.Decision.Standard.Standard.ID); err != nil || len(goal.Methods) != 3 {
 		t.Fatal(goal.Methods, err)
 	}
 }

@@ -152,7 +152,7 @@ func TestProjectFinishInvalidateRetireAndOwnerKey(t *testing.T) {
 		t.Fatal(cancelled.Project, err)
 	}
 	loaded, err := s.LoadPlan(ctx, p.ID())
-	if err != nil || domain.GoalWorkOpen(loaded.Progress) {
+	if err != nil || domain.StandardWorkOpen(loaded.Progress) {
 		t.Fatal("invalidation left the method open", err)
 	}
 	if _, err = s.CommitProjectMethod(ctx, state.Project.ID, cancelled.Revision, "late", "", plan(t, "late", "late-0")); err == nil {

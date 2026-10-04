@@ -267,7 +267,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if err = admitRoundsSafeguards(ctx, tx, state); err != nil {
 		return IncidentState{}, err
 	}
-	open, err := goalOpenWork(ctx, tx, state)
+	open, err := standardOpenWork(ctx, tx, state)
 	if err == nil && open && fightWork {
 		open, err = planOpenWork(ctx, tx, state)
 	}

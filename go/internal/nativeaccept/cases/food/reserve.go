@@ -131,9 +131,9 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 			}
 			parked := r.Revision > 0 && time.Since(parkedSince) > 20*time.Second
 			bound := ""
-			for _, g := range r.Goals {
-				if g.Need == policy.MaintainFoodStorage {
-					bound = string(g.Goal)
+			for _, g := range r.Standards {
+				if g.Concern == policy.MaintainFoodStorage {
+					bound = string(g.Standard)
 				}
 			}
 			return na.Signature(r.Tick, len(r.ReserveSupplies), bound), len(r.ReserveSupplies) == 0 && (r.Tick >= start+reserveRoundTicks || parked), nil

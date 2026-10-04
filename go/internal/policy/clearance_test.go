@@ -65,7 +65,7 @@ func TestClearanceAdmissionFollowsRepairsAndPrecedesCleaning(t *testing.T) {
 	check := func(repair bool) {
 		r := needs(t, f, previous)
 		found := map[ConcernID]bool{}
-		for _, g := range r.Goals {
+		for _, g := range r.Concerns {
 			found[g.ID] = true
 			if g.ID == ClearHomeObstructions && g.MethodUnavailable != repair {
 				t.Fatal("clearance did not defer to repairs", g)

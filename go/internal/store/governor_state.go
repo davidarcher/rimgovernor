@@ -117,9 +117,9 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 		return nil, err
 	}
 	for _, id := range ids {
-		g, err := loadGoal(ctx, tx, id)
+		g, err := loadStandard(ctx, tx, id)
 		if err != nil {
-			return nil, fmt.Errorf("goal %s: %w", id, err)
+			return nil, fmt.Errorf("standard %s: %w", id, err)
 		}
 		if err = put(GovernorStandardKeyPrefix+string(id), GovernorStandardBlob{SchemaVersion: GovernorStateSchemaVersion, Standard: g.Standard, Revision: g.Revision}); err != nil {
 			return nil, err

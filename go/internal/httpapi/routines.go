@@ -40,7 +40,7 @@ type RoundsStatus struct {
 	// Progress is every active concern's progress record from the last review
 	// (#629): method, expected observable, last progress tick, next review
 	// tick and blocker.
-	Progress []policy.GoalProgress
+	Progress []policy.ConcernProgress
 	// Stage is the colony stage the last review derived (#630) with the
 	// first unmet condition of the next; nil until an enabled review
 	// filed one.
@@ -272,10 +272,10 @@ type progressCooldownDTO struct {
 	Until domain.Tick `json:"until"`
 }
 
-func concernProgress(records []policy.GoalProgress) []concernProgressDTO {
+func concernProgress(records []policy.ConcernProgress) []concernProgressDTO {
 	out := make([]concernProgressDTO, 0, len(records))
 	for _, p := range records {
-		dto := concernProgressDTO{Concern: p.Goal, Method: p.Method, Expected: p.Expected, LastProgress: p.LastProgress, NextReview: p.NextReview, Blocked: p.Blocked, Cooldowns: []progressCooldownDTO{}}
+		dto := concernProgressDTO{Concern: p.Concern, Method: p.Method, Expected: p.Expected, LastProgress: p.LastProgress, NextReview: p.NextReview, Blocked: p.Blocked, Cooldowns: []progressCooldownDTO{}}
 		for _, c := range p.Cooldowns {
 			dto.Cooldowns = append(dto.Cooldowns, progressCooldownDTO{Key: c.Key, Until: c.Until})
 		}
@@ -298,7 +298,7 @@ func roundsStatus(v RoundsStatus) roundsStatusDTO {
 	result.Progress = concernProgress(v.Progress)
 	result.NoOps = []noOpDTO{}
 	for _, n := range v.NoOps {
-		result.NoOps = append(result.NoOps, noOpDTO{Concern: n.Goal, Reason: n.Reason})
+		result.NoOps = append(result.NoOps, noOpDTO{Concern: n.Concern, Reason: n.Reason})
 	}
 	for _, section := range v.Sections {
 		result.Sections = append(result.Sections, roundsSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano)})
@@ -394,7 +394,7 @@ func roundsDevelopment(s policy.DevelopmentState) roundsDevelopmentDTO {
 	}
 	dto.Committed = append(dto.Committed, s.Committed...)
 	for _, row := range s.Rows {
-		v := roundsDevelopmentRowDTO{Concern: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
+		v := roundsDevelopmentRowDTO{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
 		if d, k := row.Deficit.Value(); k {
 			v.Deficit = &d
 		}

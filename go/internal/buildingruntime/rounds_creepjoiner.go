@@ -51,11 +51,11 @@ func creepJoinerRecord(ctx context.Context, journal *store.Store) (policy.CreepJ
 	if err != nil {
 		return policy.CreepJoinerRecord{}, err
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ManageCreepJoiners {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.ManageCreepJoiners {
 			continue
 		}
-		state, err := journal.LoadStandard(ctx, binding.Goal)
+		state, err := journal.LoadStandard(ctx, binding.Standard)
 		if err != nil {
 			return policy.CreepJoinerRecord{}, err
 		}

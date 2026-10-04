@@ -23,11 +23,11 @@ func TestRoundsLaborCountsEnabledWorkTypes(t *testing.T) {
 	if _, known := RoundsLabor([]WorkPawn{builder, emptyWork}).Value(); known {
 		t.Fatal("empty work list became labor evidence")
 	}
-	if GoalLabor(EnsureComfort)[0] != WorkConstruction || GoalLabor(EnsureResearch)[0] != WorkResearch || GoalLabor(ActiveCombat) != nil {
+	if ConcernLabor(EnsureComfort)[0] != WorkConstruction || ConcernLabor(EnsureResearch)[0] != WorkResearch || ConcernLabor(ActiveCombat) != nil {
 		t.Fatal("unexpected goal labor profiles")
 	}
 	// Feed is cooked and hauled, never handled (#311).
-	if feed := GoalLabor(MaintainAnimalFeed); len(feed) != 3 || feed[0] != WorkCooking || feed[1] != WorkHauling || feed[2] != WorkGrowing || GoalLabor(MaintainHerd)[0] != WorkHandling {
+	if feed := ConcernLabor(MaintainAnimalFeed); len(feed) != 3 || feed[0] != WorkCooking || feed[1] != WorkHauling || feed[2] != WorkGrowing || ConcernLabor(MaintainHerd)[0] != WorkHandling {
 		t.Fatal("unexpected animal labor profiles", feed)
 	}
 }
@@ -37,24 +37,24 @@ func TestRoundsLaborCountsEnabledWorkTypes(t *testing.T) {
 func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r := developmentFixture()
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
-	r.Goals = []DevelopmentGoal{
-		{ID: "comfort", Priority: 4, Deficit: domain.Known(0.9), Labor: GoalLabor(EnsureComfort)},
-		{ID: "expansion", Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(MaintainHousing)},
-		{ID: "research", Priority: 4, Deficit: domain.Known(0.3), Labor: GoalLabor(EnsureResearch)},
-		{ID: "resource", Priority: 4, Deficit: domain.Known(0.2), Labor: GoalLabor(MaintainResource)},
+	r.Concerns = []DevelopmentConcern{
+		{ID: "comfort", Priority: 4, Deficit: domain.Known(0.9), Labor: ConcernLabor(EnsureComfort)},
+		{ID: "expansion", Priority: 4, Deficit: domain.Known(0.6), Labor: ConcernLabor(MaintainHousing)},
+		{ID: "research", Priority: 4, Deficit: domain.Known(0.3), Labor: ConcernLabor(EnsureResearch)},
+		{ID: "resource", Priority: 4, Deficit: domain.Known(0.2), Labor: ConcernLabor(MaintainResource)},
 	}
 	s := rank(t, r)
 	requireSelected(t, s, "comfort", "expansion", "research", "resource")
 	rows := map[ConcernID]DevelopmentRow{}
 	for _, row := range s.Rows {
-		rows[row.Goal] = row
+		rows[row.Concern] = row
 	}
 	if err := ValidateDevelopmentState(s); err != nil {
 		t.Fatal(err)
 	}
 	// A committed player construction project occupies the only builder.
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1, WorkMining: 1})
-	r.Commitments = []Commitment{{Goal: "player-room", Priority: 3, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}
+	r.Commitments = []Commitment{{Concern: "player-room", Priority: 3, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}
 	s = rank(t, r)
 	requireSelected(t, s, "comfort", "expansion", "research", "resource")
 	// Unknown labor keeps only the coarse worker bound; an empty profile is
@@ -63,7 +63,7 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r.Labor = domain.Unknown[map[WorkType]int]()
 	requireSelected(t, rank(t, r), "comfort", "expansion", "research", "resource")
 	r.Labor = domain.Known(map[WorkType]int{})
-	r.Goals = append(r.Goals, DevelopmentGoal{ID: "monitor", Priority: 4, Deficit: domain.Known(0.1)})
+	r.Concerns = append(r.Concerns, DevelopmentConcern{ID: "monitor", Priority: 4, Deficit: domain.Known(0.1)})
 	s = rank(t, r)
 	requireSelected(t, s, "comfort", "expansion", "monitor", "research", "resource")
 	r.Labor = domain.Known(map[WorkType]int{WorkResearch: 1})
@@ -77,6 +77,6 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 func TestEquipmentDevelopmentCanUseBuilderBeforeTailoringExists(t *testing.T) {
 	r := developmentFixture()
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1})
-	r.Goals = []DevelopmentGoal{{ID: MaintainEquipment, Priority: 3, Deficit: domain.Known(1.0), Labor: GoalLabor(MaintainEquipment)}}
+	r.Concerns = []DevelopmentConcern{{ID: MaintainEquipment, Priority: 3, Deficit: domain.Known(1.0), Labor: ConcernLabor(MaintainEquipment)}}
 	requireSelected(t, rank(t, r), MaintainEquipment)
 }

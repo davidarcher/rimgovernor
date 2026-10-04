@@ -212,11 +212,11 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, 
 		if err != nil {
 			return "", false, err
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != need {
+		for _, binding := range review.Standards {
+			if binding.Concern != need {
 				continue
 			}
-			goal, err := journal.LoadStandard(ctx, binding.Goal)
+			goal, err := journal.LoadStandard(ctx, binding.Standard)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
@@ -262,11 +262,11 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 		if err != nil {
 			return false, err
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != need {
+		for _, binding := range review.Standards {
+			if binding.Concern != need {
 				continue
 			}
-			goal, err := journal.LoadStandard(ctx, binding.Goal)
+			goal, err := journal.LoadStandard(ctx, binding.Standard)
 			if err != nil {
 				if errors.Is(err, store.ErrNotFound) {
 					continue
@@ -281,7 +281,7 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 	}
 	deadline := time.Now().Add(10 * time.Minute)
 	for {
-		var goalID domain.ConcernID
+		var concernID domain.ConcernID
 		var method domain.Method
 		for {
 			if time.Now().After(deadline) {
@@ -289,7 +289,7 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 			}
 			methodCtx, methodCancel := context.WithTimeout(ctx, 15*time.Second)
 			var err error
-			goalID, method, err = na.WaitMethodExcluding(methodCtx, journal, need, seen)
+			concernID, method, err = na.WaitMethodExcluding(methodCtx, journal, need, seen)
 			methodCancel()
 			if err == nil {
 				break
@@ -329,7 +329,7 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 			}
 			continue
 		}
-		report[label+"_goal_id"] = string(goalID)
+		report[label+"_standard_id"] = string(concernID)
 		report[label+"_method"] = string(method.Method)
 		report[label+"_plan"] = string(method.Plan)
 		// The plan is followed to a terminal stage, but a need that recovers

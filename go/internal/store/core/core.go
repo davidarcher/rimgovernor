@@ -20,7 +20,7 @@ var ErrConflict = errors.New("plan or action identity already exists")
 // ErrNotAdmitted refuses a routine method that has no development slot
 // in the current review. It is a policy refusal, not an identity conflict:
 // the planner should wait for the next review rather than retry the write.
-var ErrNotAdmitted = errors.New("goal method not admitted")
+var ErrNotAdmitted = errors.New("standard method not admitted")
 var ErrNotFound = errors.New("plan or action not found")
 var ErrCapacity = errors.New("plan catalog capacity reached")
 

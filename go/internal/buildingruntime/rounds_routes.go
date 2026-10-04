@@ -21,7 +21,7 @@ func NewRoundsRoutesPlanner(reviewer *Rounder, native RoundsBuildingSource) (*Ro
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsRoutesPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainRoutes, definition: reviewer.policy.Routes.Door}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainRoutes, definition: reviewer.policy.Routes.Door}, nil
 }
 
 // routesDefinitions lists the door the policy opens breaches with so the

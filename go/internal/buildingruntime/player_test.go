@@ -614,7 +614,7 @@ func TestPlayerResumeRevokesOwnGrantAfterFailedObservation(t *testing.T) {
 // it had held the gate (#1267).
 func TestPlayerGateWaitNamesHolder(t *testing.T) {
 	p, _, _, _ := playerFixture(t)
-	_, _, done, err := p.enter(context.Background(), "routine_review", false)
+	_, _, done, err := p.enter(context.Background(), "rounds_review", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,8 +642,8 @@ func TestPlayerGateWaitNamesHolder(t *testing.T) {
 	if r.wait.wait <= slowGateWait {
 		t.Fatalf("wait = %s, want > %s", r.wait.wait, slowGateWait)
 	}
-	if r.wait.holder != "routine_review" {
-		t.Fatalf("holder = %q, want routine_review", r.wait.holder)
+	if r.wait.holder != "rounds_review" {
+		t.Fatalf("holder = %q, want rounds_review", r.wait.holder)
 	}
 	if r.wait.holderHeld < 150*time.Millisecond {
 		t.Fatalf("holder held %s, want >= 150ms", r.wait.holderHeld)

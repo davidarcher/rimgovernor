@@ -29,9 +29,9 @@ func TestSnapshotWorkshopClubRanksLastBehindReviewFloors(t *testing.T) {
 	// resourceTargets over the review, minus the defensive layout's needs
 	// (the recording's colony has no standing layout).
 	needs := policy.MedicineResourceNeeds(policy.CoreItemFacts(), nil, r.Review.MedicineTarget)
-	needs = policy.ResourceGoalTargets(needs, r.Review.DependencyNeeds)
-	needs = policy.ResourceGoalTargets(needs, policy.WoodFloorNeeds(r.Review.WoodFloor))
-	needs = policy.ResourceGoalTargets(needs, policy.ResourceRunwayTargets(r.Review.ResourceRunwayState()))
+	needs = policy.ResourceConcernTargets(needs, r.Review.DependencyNeeds)
+	needs = policy.ResourceConcernTargets(needs, policy.WoodFloorNeeds(r.Review.WoodFloor))
+	needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(r.Review.ResourceRunwayState()))
 	targets, err := r.Policy.EffectiveResourceTargets(r.Facts.Resources, needs)
 	if err != nil {
 		t.Fatal(err)

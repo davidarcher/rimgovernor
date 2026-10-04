@@ -225,16 +225,16 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 		if err != nil {
 			return na.Signature("no-review", err), false, nil
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != policy.MaintainHousing {
+		for _, binding := range review.Standards {
+			if binding.Concern != policy.MaintainHousing {
 				continue
 			}
 			// The latest binding in any epoch, retired or not: a bunk rung
 			// completes on its placement receipt and retires at once, so
 			// the goal's live methods no longer list it.
-			id, err := st.LatestMethodPlan(ctx, binding.Goal, method)
+			id, err := st.LatestMethodPlan(ctx, binding.Standard, method)
 			if errors.Is(err, store.ErrNotFound) {
-				return na.Signature(binding.Goal, "unbound"), false, nil
+				return na.Signature(binding.Standard, "unbound"), false, nil
 			}
 			if err != nil {
 				return "", false, err
@@ -260,12 +260,12 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 				return "", false, fmt.Errorf("%s admitted no bunk", method)
 			}
 			if complete && !done {
-				return na.Signature(binding.Goal, seen), false, nil
+				return na.Signature(binding.Standard, seen), false, nil
 			}
 			found = bunks
 			return "", true, nil
 		}
-		return na.Signature("unbound", len(review.Goals)), false, nil
+		return na.Signature("unbound", len(review.Standards)), false, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%s not admitted for MaintainHousing (last seen: %s): %w", method, seen, err)

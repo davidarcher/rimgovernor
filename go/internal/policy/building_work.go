@@ -11,7 +11,7 @@ func AppliedBuildingOpen(p domain.Progress, census domain.Fact[CurrentConstructi
 // PlanWorkOpen is GoalWorkOpen plus applied buildings still under
 // construction.
 func PlanWorkOpen(progress []domain.Progress, census domain.Fact[CurrentConstruction]) bool {
-	if domain.GoalWorkOpen(progress) {
+	if domain.StandardWorkOpen(progress) {
 		return true
 	}
 	for _, p := range progress {

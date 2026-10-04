@@ -105,7 +105,7 @@ func (g StandardState) ownerPlans() []domain.PlanID {
 	}
 	return out
 }
-func (g StandardState) ownerLabel() string { return "goal " + string(g.Standard.ID) }
+func (g StandardState) ownerLabel() string { return "standard " + string(g.Standard.ID) }
 
 // admitRoundsSafeguards is method admission's backstop for the Safeguards the
 // planner already asked: a vetoed proposal is ErrNotAdmitted with the

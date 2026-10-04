@@ -161,7 +161,7 @@ func MoodProvisionOwners(def string) []ConcernID {
 func WoodProposals(goal ConcernID, method domain.MethodID, definition string, trees []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal
 	for _, t := range trees {
-		out = append(out, ReadyProposal{Goal: goal, Method: method, Stage: "cut_plant:" + definition, Work: WorkPlantCutting, Claims: []ReadyClaim{{"thing", t}}, Eligible: eligible, Parallelism: 1})
+		out = append(out, ReadyProposal{Concern: goal, Method: method, Stage: "cut_plant:" + definition, Work: WorkPlantCutting, Claims: []ReadyClaim{{"thing", t}}, Eligible: eligible, Parallelism: 1})
 	}
 	return out
 }
@@ -171,7 +171,7 @@ func WoodProposals(goal ConcernID, method domain.MethodID, definition string, tr
 func SupplyHaulProposals(goal ConcernID, method domain.MethodID, definition string, things []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal
 	for _, t := range things {
-		out = append(out, ReadyProposal{Goal: goal, Method: method, Stage: "haul:" + definition, Work: WorkHauling, Claims: []ReadyClaim{{"thing", t}}, Eligible: eligible, Parallelism: 1})
+		out = append(out, ReadyProposal{Concern: goal, Method: method, Stage: "haul:" + definition, Work: WorkHauling, Claims: []ReadyClaim{{"thing", t}}, Eligible: eligible, Parallelism: 1})
 	}
 	return out
 }
@@ -185,17 +185,17 @@ func AnimalFeedProposals(goal ConcernID, m AnimalFeedMethod, ingredients domain.
 	var out []ReadyProposal
 	if m.Produced {
 		for _, b := range m.Benches {
-			out = append(out, ReadyProposal{Goal: goal, Method: "kibble", Stage: "bill:Make_Kibble", Work: WorkCooking, Claims: []ReadyClaim{{"bench", b}}, Alternative: group, Eligible: ingredients, Parallelism: 1})
+			out = append(out, ReadyProposal{Concern: goal, Method: "kibble", Stage: "bill:Make_Kibble", Work: WorkCooking, Claims: []ReadyClaim{{"bench", b}}, Alternative: group, Eligible: ingredients, Parallelism: 1})
 		}
 	} else if m.Resource != "" {
-		out = append(out, ReadyProposal{Goal: goal, Method: domain.MethodID("stock-" + string(m.Resource)), Stage: "haul:" + string(m.Resource), Work: WorkHauling, Alternative: group, Eligible: domain.Known(m.Delivered), Reason: reasonIf(!m.Delivered, string(domain.HeldStorageMissing)), Parallelism: 1})
+		out = append(out, ReadyProposal{Concern: goal, Method: domain.MethodID("stock-" + string(m.Resource)), Stage: "haul:" + string(m.Resource), Work: WorkHauling, Alternative: group, Eligible: domain.Known(m.Delivered), Reason: reasonIf(!m.Delivered, string(domain.HeldStorageMissing)), Parallelism: 1})
 	}
 	if len(hay) > 0 {
 		var claims []ReadyClaim
 		for _, c := range hay {
 			claims = append(claims, CellClaim(c))
 		}
-		out = append(out, ReadyProposal{Goal: goal, Method: "hay", Stage: "grow:Hay", Work: WorkGrowing, Claims: claims, Alternative: group, Eligible: domain.Known(true), Parallelism: 1})
+		out = append(out, ReadyProposal{Concern: goal, Method: "hay", Stage: "grow:Hay", Work: WorkGrowing, Claims: claims, Alternative: group, Eligible: domain.Known(true), Parallelism: 1})
 	}
 	return out
 }

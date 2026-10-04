@@ -35,13 +35,13 @@ documented radius in the test itself.
 
 The `startup/composed-*` cases were converted to colony snapshot tests (#745):
 `buildingruntime.TestShelterSitingSnapshots` replays each terrain's recorded
-starter search, and `snapshot.TestReplay*Shelter*` replays which goals open beside the
+starter search, and `snapshot.TestReplay*Shelter*` replays which concerns open beside the
 initial shelter. Shell adoption through a wood shortage is not replayed.
 
 ## Composition and the shortage fixture
 
 The shelter cases serve the `shelter,sleeping` families alone, which is what
-keeps them minutes long, so they cannot catch a competing-goal or
+keeps them minutes long, so they cannot catch a competing-concern or
 executor-wiring defect. `campaign/foothold` is the normal-composition
 evidence: every routine family on the player control path over three game
 days, asserting indoor sleeping capacity for every colonist. Keep that pair

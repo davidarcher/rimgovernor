@@ -45,7 +45,7 @@ func TestRecreationMaintenanceAssessmentSurvivesJournalRead(t *testing.T) {
 	// validation: this goal can be foothold or maintenance in the same save.
 	out = reviewRounds(t, s, &r)
 	row := developmentRow(t, out.Review, policy.EnsureComfort)
-	if row.Goal != policy.EnsureComfort {
+	if row.Concern != policy.EnsureComfort {
 		t.Fatal(row)
 	}
 	v.Joy.Pawns[0].Bored[0] = false

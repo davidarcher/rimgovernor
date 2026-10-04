@@ -76,11 +76,11 @@ type ReadyWorkID string
 
 type ReadyWork struct {
 	ID ReadyWorkID
-	// Goals served; more than one when shared work was deduplicated.
-	Goals  []ConcernID
-	Method domain.MethodID `json:",omitempty"`
-	Plan   domain.PlanID   `json:",omitempty"`
-	Action domain.ActionID `json:",omitempty"`
+	// Concerns served; more than one when shared work was deduplicated.
+	Concerns []ConcernID
+	Method   domain.MethodID `json:",omitempty"`
+	Plan     domain.PlanID   `json:",omitempty"`
+	Action   domain.ActionID `json:",omitempty"`
 	// Stage is the concrete method stage ("bill:Make_Kibble", "grow:Hay"),
 	// never the goal's broad profile.
 	Stage string
@@ -104,25 +104,25 @@ type ReadyWork struct {
 // ReadyBounds cap one projection pass.
 type ReadyBounds struct {
 	Candidates int // recorded candidates
-	PerGoal    int // lookahead per goal
+	PerConcern int // lookahead per goal
 	Discovery  int // inputs examined (plan actions + proposals)
 }
 
 func DefaultReadyBounds() ReadyBounds {
-	return ReadyBounds{Candidates: 64, PerGoal: 8, Discovery: 1024}
+	return ReadyBounds{Candidates: 64, PerConcern: 8, Discovery: 1024}
 }
 
 // Deferral reasons, deterministic when a bound cuts the pass.
 const (
-	ReadyDeferredDiscovery = "discovery_bound"
-	ReadyDeferredPerGoal   = "per_goal_bound"
-	ReadyDeferredCandidate = "candidate_bound"
+	ReadyDeferredDiscovery  = "discovery_bound"
+	ReadyDeferredPerConcern = "per_standard_bound"
+	ReadyDeferredCandidate  = "candidate_bound"
 )
 
 type ReadyDeferral struct {
-	Goal   ConcernID
-	Reason string
-	Count  int
+	Concern ConcernID
+	Reason  string
+	Count   int
 }
 
 type ReadyWorkReport struct {
@@ -170,7 +170,7 @@ func (r ReadyWorkReport) Demand() map[WorkType]int {
 
 // ReadyPlan is one existing plan with its progress.
 type ReadyPlan struct {
-	Goal     ConcernID
+	Concern  ConcernID
 	Method   domain.MethodID
 	Spec     domain.PlanSpec
 	Progress []domain.Progress
@@ -183,7 +183,7 @@ type ReadyPlan struct {
 // ReadyProposal is a not-yet-admitted stage from side-effect-free
 // discovery (the adapters below).
 type ReadyProposal struct {
-	Goal        ConcernID
+	Concern     ConcernID
 	Method      domain.MethodID
 	Stage       string
 	Work        WorkType
@@ -224,17 +224,17 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 	}
 	report := ReadyWorkReport{Colony: r.Snapshot.Colony, Map: r.Snapshot.Map, Load: r.Snapshot.Load, Tick: r.Tick}
 	deferred := map[[2]string]int{}
-	perGoal := map[ConcernID]int{}
+	perConcern := map[ConcernID]int{}
 	byID := map[ReadyWorkID]int{}
 	var out []ReadyWork
 	examined := 0
 	conservative := map[domain.ActionKind]bool{}
 	add := func(c ReadyWork) {
-		c.Goals = sortedGoals(c.Goals)
+		c.Concerns = sortedConcerns(c.Concerns)
 		c.Claims = sortedClaims(c.Claims)
 		c.ID = readyID(r.Snapshot, c)
 		if i, ok := byID[c.ID]; ok {
-			out[i].Goals = sortedGoals(append(out[i].Goals, c.Goals...))
+			out[i].Concerns = sortedConcerns(append(out[i].Concerns, c.Concerns...))
 			return
 		}
 		byID[c.ID] = len(out)
@@ -260,7 +260,7 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 		}
 		for _, a := range p.Spec.Actions() {
 			if !budget(string(p.Spec.ID()) + "/" + string(a.ID())) {
-				deferred[[2]string{string(p.Goal), ReadyDeferredDiscovery}]++
+				deferred[[2]string{string(p.Concern), ReadyDeferredDiscovery}]++
 				continue
 			}
 			c, ok := readyAction(p, a, byAction, r.Construction, r.Recipes)
@@ -276,8 +276,8 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 	proposals := append([]ReadyProposal(nil), r.Proposals...)
 	sort.SliceStable(proposals, func(i, j int) bool {
 		a, b := proposals[i], proposals[j]
-		if a.Goal != b.Goal {
-			return a.Goal < b.Goal
+		if a.Concern != b.Concern {
+			return a.Concern < b.Concern
 		}
 		if a.Method != b.Method {
 			return a.Method < b.Method
@@ -288,14 +288,14 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 		return fmt.Sprint(sortedClaims(a.Claims)) < fmt.Sprint(sortedClaims(b.Claims))
 	})
 	for _, p := range proposals {
-		if !budget(string(p.Goal) + "/" + string(p.Method) + "/" + p.Stage) {
-			deferred[[2]string{string(p.Goal), ReadyDeferredDiscovery}]++
+		if !budget(string(p.Concern) + "/" + string(p.Method) + "/" + p.Stage) {
+			deferred[[2]string{string(p.Concern), ReadyDeferredDiscovery}]++
 			continue
 		}
 		add(readyProposal(p))
 	}
 	for _, g := range r.Unserved {
-		add(ReadyWork{Goals: []ConcernID{g}, Stage: "none", State: ReadyNoMethod, Reason: "no plan or proposal", Adapter: ReadyMigrated})
+		add(ReadyWork{Concerns: []ConcernID{g}, Stage: "none", State: ReadyNoMethod, Reason: "no plan or proposal", Adapter: ReadyMigrated})
 	}
 
 	sort.SliceStable(out, func(i, j int) bool {
@@ -308,29 +308,29 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 	// depend on input order.
 	kept := out[:0]
 	for _, c := range out {
-		g := c.Goals[0]
-		if perGoal[g] >= b.PerGoal {
-			deferred[[2]string{string(g), ReadyDeferredPerGoal}]++
+		g := c.Concerns[0]
+		if perConcern[g] >= b.PerConcern {
+			deferred[[2]string{string(g), ReadyDeferredPerConcern}]++
 			continue
 		}
-		perGoal[g]++
+		perConcern[g]++
 		kept = append(kept, c)
 	}
 	out = kept
 	if len(out) > b.Candidates {
 		for _, c := range out[b.Candidates:] {
-			deferred[[2]string{string(c.Goals[0]), ReadyDeferredCandidate}]++
+			deferred[[2]string{string(c.Concerns[0]), ReadyDeferredCandidate}]++
 		}
 		out = out[:b.Candidates]
 	}
 	report.Candidates = out
 	for k, n := range deferred {
-		report.Deferred = append(report.Deferred, ReadyDeferral{Goal: ConcernID(k[0]), Reason: k[1], Count: n})
+		report.Deferred = append(report.Deferred, ReadyDeferral{Concern: ConcernID(k[0]), Reason: k[1], Count: n})
 	}
 	sort.Slice(report.Deferred, func(i, j int) bool {
 		a, b := report.Deferred[i], report.Deferred[j]
-		if a.Goal != b.Goal {
-			return a.Goal < b.Goal
+		if a.Concern != b.Concern {
+			return a.Concern < b.Concern
 		}
 		return a.Reason < b.Reason
 	})
@@ -408,7 +408,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 	if has && !blueprint && (v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled) && !v.Unresolved {
 		return ReadyWork{}, false
 	}
-	c := ReadyWork{Goals: []ConcernID{p.Goal}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID(), Adapter: ReadyMigrated}
+	c := ReadyWork{Concerns: []ConcernID{p.Concern}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID(), Adapter: ReadyMigrated}
 	st, migrated := readyActionStage(a, recipes)
 	if !migrated {
 		st = readyStage{stage: string(a.Kind())}
@@ -419,7 +419,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 	if st.work != "" {
 		c.Work = LaborProfile{st.work}
 	} else if !migrated {
-		c.Work = append(LaborProfile(nil), GoalLabor(p.Goal)...)
+		c.Work = append(LaborProfile(nil), ConcernLabor(p.Concern)...)
 	}
 	runnable := func(reason string) ReadyWork {
 		c.State = ReadyRunnable
@@ -489,7 +489,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 }
 
 func readyProposal(p ReadyProposal) ReadyWork {
-	c := ReadyWork{Goals: []ConcernID{p.Goal}, Method: p.Method, Stage: p.Stage, Claims: append([]ReadyClaim(nil), p.Claims...), Alternative: p.Alternative, Adapter: ReadyMigrated, Reason: p.Reason}
+	c := ReadyWork{Concerns: []ConcernID{p.Concern}, Method: p.Method, Stage: p.Stage, Claims: append([]ReadyClaim(nil), p.Claims...), Alternative: p.Alternative, Adapter: ReadyMigrated, Reason: p.Reason}
 	if p.Work != "" {
 		c.Work = LaborProfile{p.Work}
 	}
@@ -515,7 +515,7 @@ func readyProposal(p ReadyProposal) ReadyWork {
 	return c
 }
 
-func sortedGoals(goals []ConcernID) []ConcernID {
+func sortedConcerns(goals []ConcernID) []ConcernID {
 	seen := map[ConcernID]bool{}
 	var out []ConcernID
 	for _, g := range goals {
@@ -544,7 +544,7 @@ func readyID(s domain.GenerationSnapshot, c ReadyWork) ReadyWorkID {
 	fmt.Fprintf(h, "%v|%v|%v|%s|%v|%v|", s.Colony, s.Map, s.Load, c.Stage, c.Work, c.State == ReadyNoMethod)
 	if len(c.Claims) == 0 {
 		// Without claims the work is only identified by its origin.
-		fmt.Fprintf(h, "%v|%v|%v|%v|", c.Goals[0], c.Method, c.Plan, c.Action)
+		fmt.Fprintf(h, "%v|%v|%v|%v|", c.Concerns[0], c.Method, c.Plan, c.Action)
 	}
 	for _, k := range c.Claims {
 		fmt.Fprintf(h, "%s=%s;", k.Kind, k.Key)

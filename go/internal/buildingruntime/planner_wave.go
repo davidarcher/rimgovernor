@@ -79,7 +79,7 @@ type plannerWave struct {
 	// to tell a planner waiting on open work from one that is due (#625).
 	reasons map[string]Verdict
 	// goals is the goal each queued planner files its verdict on.
-	goals map[string]policy.ConcernID
+	concerns map[string]policy.ConcernID
 	// critical records the class each planner was queued under, which is
 	// the entry's own class or a startup promotion of it (#658).
 	critical map[string]bool
@@ -92,7 +92,7 @@ type plannerWave struct {
 
 func newPlannerWave(call context.Context) *plannerWave {
 	optional, cancel := context.WithCancel(call)
-	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]Verdict{}, goals: map[string]policy.ConcernID{}, critical: map[string]bool{}, began: map[string]time.Time{}, took: map[string]time.Duration{}}
+	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]Verdict{}, concerns: map[string]policy.ConcernID{}, critical: map[string]bool{}, began: map[string]time.Time{}, took: map[string]time.Duration{}}
 }
 
 // queue queues entry's run on the wave: a critical planner under the step
@@ -101,7 +101,7 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 	private := &ClockSchedulerResult{}
 	w.results[entry.name] = private
 	w.critical[entry.name] = entry.class == classCritical
-	w.goals[entry.name] = entry.goal
+	w.concerns[entry.name] = entry.concern
 	ctx := call
 	if entry.class != classCritical {
 		ctx = w.optional
@@ -168,7 +168,7 @@ func (w *plannerWave) filing(name string) (policy.ConcernID, Verdict, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	verdict, ok := w.reasons[name]
-	goal := w.goals[name]
+	goal := w.concerns[name]
 	return goal, verdict, ok && goal != ""
 }
 

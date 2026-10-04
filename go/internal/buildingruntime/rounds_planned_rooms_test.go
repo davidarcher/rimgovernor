@@ -59,13 +59,13 @@ func TestPlannedDiningFurnishingLeavesOtherPlansAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	table := &RoundsBuildingPlanner{goal: policy.EnsureComfort, facility: &dining, definition: "Table1x2c"}
+	table := &RoundsBuildingPlanner{concern: policy.EnsureComfort, facility: &dining, definition: "Table1x2c"}
 	facts := observation.ColonyProjection{}
 	for name, r := range map[string]*RoundsBuildingPlanner{
 		"rooms unread":  table,
-		"not a comfort": {goal: policy.EnsureCooking, facility: &dining, definition: "Table1x2c"},
-		"a recreation":  {goal: policy.EnsureComfort, facility: &dining, definition: "HorseshoesPin"},
-		"no facility":   {goal: policy.EnsureComfort, definition: "Table1x2c"},
+		"not a comfort": {concern: policy.EnsureCooking, facility: &dining, definition: "Table1x2c"},
+		"a recreation":  {concern: policy.EnsureComfort, facility: &dining, definition: "HorseshoesPin"},
+		"no facility":   {concern: policy.EnsureComfort, definition: "Table1x2c"},
 	} {
 		got, _, done, err := r.plannedDiningFurnishing(context.TODO(), context.TODO(), ControlState{}, store.Rounds{}, store.StandardState{}, observation.ColonyReading{}, facts)
 		if err != nil || done || got != r {

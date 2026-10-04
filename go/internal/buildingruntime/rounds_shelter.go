@@ -27,7 +27,7 @@ func NewRoundsShelterPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsShelterPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainHousing, phase: policy.HousingShelter, definition: "Wall", shelter: true}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingShelter, definition: "Wall", shelter: true}, nil
 }
 
 // Expansion reuses the same furnishing and whole-shell admission path to keep
@@ -36,7 +36,7 @@ func NewRoundsExpansionPlanner(reviewer *Rounder, native RoundsBuildingSource) (
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsExpansionPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainHousing, phase: policy.HousingExpansion, definition: "Wall", shelter: true}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingExpansion, definition: "Wall", shelter: true}, nil
 }
 
 // roomModule is the layout module this planner sites a shell as (#609): a
@@ -121,7 +121,7 @@ func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observa
 	rooms, shells := r.plannedRooms(facts)
 	if len(shells) == 0 {
 		_, known := facts.LayoutPlan.Value()
-		slog.Info(fmt.Sprintf("%s: no planned %s room in the layout plan (plan known=%v); the shell waits for one", r.goal, r.plannedRole(), known), telemetry.ComponentKey, "routine")
+		slog.Info(fmt.Sprintf("%s: no planned %s room in the layout plan (plan known=%v); the shell waits for one", r.concern, r.plannedRole(), known), telemetry.ComponentKey, "routine")
 		return policy.StarterLayout{}, policy.LayoutRoom{}, false, nil
 	}
 	cells, err := r.shellRuinHolds(call, facts, shellSiteCells(facts, free), check)
@@ -134,7 +134,7 @@ func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observa
 	if err != nil || !ok {
 		if err == nil {
 			b := shells[0].Bounds()
-			slog.Info(fmt.Sprintf("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned, first blockers %q); the shell waits for it", r.goal, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells), layout.Blocked), telemetry.ComponentKey, "routine")
+			slog.Info(fmt.Sprintf("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned, first blockers %q); the shell waits for it", r.concern, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells), layout.Blocked), telemetry.ComponentKey, "routine")
 		}
 		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
 	}
@@ -348,14 +348,14 @@ func (r *RoundsBuildingPlanner) previewFreshShell(ctx context.Context, snapshot 
 			if !rock[c] {
 				// Fogged or unobserved: native has not said it is rock, so the
 				// ring is not raised around it.
-				clockSchedulerLog("%s: planned room at %+v has unobserved cells to mine; the ring waits", r.goal, layout.Room)
+				clockSchedulerLog("%s: planned room at %+v has unobserved cells to mine; the ring waits", r.concern, layout.Room)
 				return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
 			}
 			waiting = append(waiting, c)
 		}
 		perimeter = unreused(perimeter, waiting)
 		if len(perimeter) == 0 {
-			clockSchedulerLog("%s: planned room at %+v has only rock cells left to mine; the ring waits", r.goal, layout.Room)
+			clockSchedulerLog("%s: planned room at %+v has only rock cells left to mine; the ring waits", r.concern, layout.Room)
 			return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
 		}
 		ids := make([]domain.ActionID, len(perimeter))
@@ -658,7 +658,7 @@ func (r *RoundsBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.
 // sleeping, laboratory), as opposed to the initial shelter and expansion,
 // whose shell is the deficit itself.
 func (r *RoundsBuildingPlanner) facilityLadder() bool {
-	switch r.goal {
+	switch r.concern {
 	case policy.MaintainResource, policy.MaintainEquipment, policy.MaintainMedicalReserves, policy.EnsureResearch:
 		return true
 	}

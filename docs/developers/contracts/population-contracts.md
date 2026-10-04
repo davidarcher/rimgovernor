@@ -7,7 +7,7 @@ player knob (#1032). The colony grows toward it only as fast as
 `policy.JoinerCapacity` allows: a spare colonist bed and a food runway at or above
 `policy.JoinerFoodFloorDays`, which rises linearly from 3 days for one hosted
 person to 15 days at 20 or more.
-The population goal is `Population-<pawn ID>` per observed candidate, run as ordinary Hands actions.
+The population concern is `Population-<pawn ID>` per observed candidate, run as ordinary Hands actions.
 The controller counts living free player colonists as admitted population. Guests,
 prisoners and accepted candidates consume reserved capacity but remain distinct from
 admitted colonists. Shared food and shelter methods can provision future capacity.
@@ -62,7 +62,7 @@ probability are never written.
 
 The `population-joiner` routine family (on in the autonomous default; selected by
 `RIMGOVERNOR_ROUTINE_FAMILIES` like every other family) lets the same
-goal answer joiner quests from population capacity. The rounds read the
+concern answer joiner quests from population capacity. The rounds read the
 visible quest census and accepts a not-yet-accepted `ThreatReward_*_Joiner` offer
 (a refugee chased by a threat; native checks `CanAcceptQuest` when it applies
 the `AcceptQuestIntent`) only when living admitted colonists plus guests and prisoners are below the
@@ -98,10 +98,10 @@ Anomaly block is no creepjoiner.
 
 - `ManageCreepJoiners` (People, priority 3, `policy.CreepJoinerDownsides.WeaponDrops`):
   each review reads the frame's colonist rows (complete roster only) and opens
-  the goal while an available colonist held back from arms holds a weapon. Its
+  the concern while an available colonist held back from arms holds a weapon. Its
   planner orders one `drop_equipment` action per such colonist in one plan
   (job token `DropWeapon`, [action contracts](action-contracts.md)); a drop is
-  development-exempt like an `Equip`. The goal recovers when the weapon is out
+  development-exempt like an `Equip`. The concern recovers when the weapon is out
   of the colonist's hands; the dropped weapon is then loose stock.
 - The equipment planner, the armory's weapon demand and the fight loadout set
   `EquipCandidatePawn.NoArms` from the same check
@@ -115,13 +115,13 @@ Anomaly block is no creepjoiner.
   hediff (60000 ticks) and a small surgical cut. A creepjoiner whose downside
   is unrevealed and who has no entry in the colony's own record is queued the
   inspection through the existing medical `ProductionBillIntent` (patient,
-  recipe, `part_index`) by the same goal: the recipe is the def mirror's
+  recipe, `part_index`) by the same concern: the recipe is the def mirror's
   `RecipeDef` whose `workerClass` is `Recipe_SurgicalInspection` (no def name
   in Go), on the operation the pawn's native surgery read offers (lowest part
   index) with an eligible doctor and its ingredients on the map; a creepjoiner
   that cannot be ordered one stays unordered and the reason is logged. The
-  record is `policy.CreepJoinerRecord` in the goal's `Record` (the
-  `GovernorState` goal blob, [persistence](persistence-contracts.md)): `ordered`
+  record is `policy.CreepJoinerRecord` in the concern's `Record` (the
+  `GovernorState` concern blob, [persistence](persistence-contracts.md)): `ordered`
   when the bill is queued with the plan (one transaction), `done` once the pawn
   has no inspection bill queued. A bill the player removes also reads as done:
   the colony cannot tell a finished bill from a removed one. Pawns that left the
@@ -187,7 +187,7 @@ to the available platform of highest containment strength and gives the carrier
 `CarryToEntityHolder`; the rule that decides it is in facilities.md. Standing neutral shrine ancients use the existing `Arrest` operation through the Capture action instead: the journal's `OccupantCapture` decision and known JoinerCapacity create a MaintainPopulation deficit. Its custody planner runs before routine work, wakes after casket opening, reserves an exact vacant prisoner bed and couples arrest to a plan-owned draft (#939): the open plan keeps the arrester out of the undraft sweep. Native completion requires living custody in that bed; no second Arrest order kind is defined. Rescue remains the
 existing ordinary rescue path. Unknown prerequisites block new commitments.
 
-An issued order is not successful custody. The population goal observes actual
+An issued order is not successful custody. The population concern observes actual
 prisoner status and bed occupancy; care requires observed food and tending state.
 Recruitment requires a native free-colonist read. Integration requires an owned indoor non-prisoner bed,
 active work allocation, equipment (or native incapability of violence), and current

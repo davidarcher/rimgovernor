@@ -25,7 +25,7 @@ type ProductionLadderRecord struct {
 	Bench    string
 	Recipe   string
 	Research []string
-	Goal     policy.ConcernID `json:",omitempty"`
+	Concern  policy.ConcernID `json:",omitempty"`
 }
 
 const maxProductionLadderBytes = 64 * 1024
@@ -34,8 +34,8 @@ func (r ProductionLadderRecord) Validate() error {
 	if err := r.World.Validate(); err != nil {
 		return err
 	}
-	if r.Goal != "" && r.Goal != policy.MaintainEquipment && r.Goal != policy.MaintainResource {
-		return errors.New("invalid production ladder goal")
+	if r.Concern != "" && r.Concern != policy.MaintainEquipment && r.Concern != policy.MaintainResource {
+		return errors.New("invalid production ladder standard")
 	}
 	if r.Tick < 0 || !validIdentity(string(r.Resource)) || r.Bench != "" && !validIdentity(r.Bench) || r.Recipe != "" && !validIdentity(r.Recipe) || len(r.Research) > 256 {
 		return errors.New("invalid production ladder record")

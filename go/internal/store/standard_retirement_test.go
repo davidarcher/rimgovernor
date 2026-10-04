@@ -22,7 +22,7 @@ func TestRoundsGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	for i := 0; i < 32; i++ {
 		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
 		out := reviewRounds(t, s, &r)
-		if len(out.Goals) != 43 {
+		if len(out.Standards) != 43 {
 			t.Fatal(out)
 		}
 	}
@@ -118,7 +118,7 @@ func TestRoundsGoalRetirementRollsBackWithReview(t *testing.T) {
 	if _, err := s.ReviewRounds(ctx, r); err == nil {
 		t.Fatal("injected failure ignored")
 	}
-	for _, old := range out.Goals {
+	for _, old := range out.Standards {
 		g, err := s.LoadStandard(ctx, old.Standard.ID)
 		if err != nil || g.Retired || g.Standard != old.Standard {
 			t.Fatal(g, err)

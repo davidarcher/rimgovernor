@@ -8,7 +8,7 @@ import (
 )
 
 func TestExtentEligibilityCurrentEvidence(t *testing.T) {
-	e := ColonyExtent{Regions: []ExtentRegion{{Cells: []ExtentCell{{Cell: domain.Cell{X: 1, Z: 1}, Provenance: []ExtentProvenance{{Origin: ExtentFacility, Facility: "bed", Plan: "plan", Action: "build", Goal: "sleep"}}}}}}}
+	e := ColonyExtent{Regions: []ExtentRegion{{Cells: []ExtentCell{{Cell: domain.Cell{X: 1, Z: 1}, Provenance: []ExtentProvenance{{Origin: ExtentFacility, Facility: "bed", Plan: "plan", Action: "build", Concern: "sleep"}}}}}}}
 	r := ExtentEligibilityRequest{Extent: domain.Known(e), Facilities: domain.Known([]string{"bed"}), Threat: domain.Known(false), Regions: map[int]ExtentRegionObservation{0: {RouteObservedPassable: domain.Known(true)}}}
 	for _, tt := range []struct {
 		name   string

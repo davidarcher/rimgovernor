@@ -67,7 +67,7 @@ func (r *RoundsBlightPlanner) step(call, epoch context.Context, arbiter *stepArb
 	// review's arbitration selected it.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.RemoveBlight && row.Selected
+		selected = selected || row.Concern == policy.RemoveBlight && row.Selected
 	}
 	if !selected {
 		return RoundsBlightResult{Verdict: awaitingSlot(string(policy.RemoveBlight))}, nil

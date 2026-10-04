@@ -11,7 +11,7 @@ func TestConstructionOwnershipRequiresUnchangedGeometry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	claim := ConstructionClaim{Plan: "method", Action: "action", Goal: "goal", Building: building}
+	claim := ConstructionClaim{Plan: "method", Action: "action", Concern: "goal", Building: building}
 	for _, kind := range []string{"same", "moved", "rotated", "material", "unknown"} {
 		cell, rotation, stuff := building.Cell(), building.Rotation(), building.Stuff()
 		switch kind {

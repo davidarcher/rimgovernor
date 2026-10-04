@@ -256,7 +256,7 @@ func NewRounder(player *Player, native observation.RoundsSource, clock observati
 	if len(capabilities) == 1 {
 		reviewerOverlay, undraftWriter = capabilities[0].LayoutOverlay, capabilities[0].Undraft
 		methods = domain.Known(append([]policy.ConcernID{}, capabilities[0].Methods...))
-		if _, err := policy.DetectRounds(policy.RoundsFacts{AvailableMethods: methods}, policy.RoundsLatches{}, thresholds); err != nil {
+		if _, err := policy.InspectRounds(policy.RoundsFacts{AvailableMethods: methods}, policy.RoundsLatches{}, thresholds); err != nil {
 			return nil, err
 		}
 	}
@@ -265,7 +265,7 @@ func NewRounder(player *Player, native observation.RoundsSource, clock observati
 }
 
 func (r *Rounder) Step(ctx context.Context) (store.RoundsResult, error) {
-	call, epoch, done, err := r.player.enter(ctx, "routine_review", false)
+	call, epoch, done, err := r.player.enter(ctx, "rounds_review", false)
 	if err != nil {
 		return store.RoundsResult{}, err
 	}
@@ -521,7 +521,7 @@ func (r *Rounder) step(ctx, epoch context.Context, arbiter *stepArbiter, partial
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
 		return store.RoundsResult{}, err
 	}
-	reading.Projection.Facts.ResourceNeeds = policy.ResourceGoalTargets(reading.Projection.Facts.ResourceNeeds, policy.SocialDrugTargets(reading.Projection.Facts.Research))
+	reading.Projection.Facts.ResourceNeeds = policy.ResourceConcernTargets(reading.Projection.Facts.ResourceNeeds, policy.SocialDrugTargets(reading.Projection.Facts.Research))
 	medicine, err := policy.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, r.policy.MedicalReserve)
 	if err != nil {
 		return store.RoundsResult{}, err
@@ -655,7 +655,7 @@ func (r *Rounder) step(ctx, epoch context.Context, arbiter *stepArbiter, partial
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRounds err=%v", err)
 	} else {
-		clockEvent(ctx, "routine", "routine_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawSafetyOverlay(ctx, state.Snapshot, &reading.Projection, reading.Emergency)

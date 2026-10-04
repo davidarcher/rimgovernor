@@ -12,7 +12,7 @@ import (
 // whose blueprint or frame may still stand (#856): only census-aware plan
 // retirement settles it.
 func pendingWork(progress domain.Progress) bool {
-	return domain.GoalWorkOpen([]domain.Progress{progress}) || policy.AppliedBuildingOpen(progress, domain.Unknown[policy.CurrentConstruction]())
+	return domain.StandardWorkOpen([]domain.Progress{progress}) || policy.AppliedBuildingOpen(progress, domain.Unknown[policy.CurrentConstruction]())
 }
 
 func pendingFacility(progress domain.Progress, definition string) bool {
@@ -24,7 +24,7 @@ func NewRoundsCookingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsCookingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureCooking, definition: "Campfire", environment: policy.PlacementAnywhere}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureCooking, definition: "Campfire", environment: policy.PlacementAnywhere}, nil
 }
 
 func NewRoundsButcherPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {
@@ -34,14 +34,14 @@ func NewRoundsButcherPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsButcherPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainButcherSpot, definition: "ButcherSpot", environment: policy.PlacementAnywhere}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainButcherSpot, definition: "ButcherSpot", environment: policy.PlacementAnywhere}, nil
 }
 func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (int64, domain.MethodID, Verdict) {
 	count, known := facts.Facts.Colonists.Value()
 	if !known || count <= 0 {
 		return 0, "", fieldUnavailable("colonists")
 	}
-	switch r.goal {
+	switch r.concern {
 	case policy.MaintainButcherSpot:
 		if r.definition != "ButcherSpot" {
 			return 0, "", fieldUnavailable("butcher_spot_definition")
@@ -225,7 +225,7 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		}
 		return 1, "campfire", Verdict{}
 	default:
-		return 0, "", fieldUnavailable("goal_selection")
+		return 0, "", fieldUnavailable("concern_selection")
 	}
 }
 

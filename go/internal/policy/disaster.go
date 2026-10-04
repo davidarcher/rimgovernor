@@ -140,7 +140,7 @@ func GrowthPauseDays(conditions domain.Fact[[]DisasterCondition]) float64 {
 
 type DisasterEvidence struct {
 	Service DisasterService
-	Need    domain.Finding
+	Finding domain.Finding
 }
 
 // History is observed disruption evidence. It grants neither orders nor recovery
@@ -284,7 +284,7 @@ func (h *DisasterHistory) Validate() error {
 		seen[id] = true
 	}
 	for i, e := range h.Services {
-		if e.Service != disasterServices[i] || (e.Need != domain.FindingUnclear && e.Need != domain.FindingUnmet && e.Need != domain.FindingMet) {
+		if e.Service != disasterServices[i] || (e.Finding != domain.FindingUnclear && e.Finding != domain.FindingUnmet && e.Finding != domain.FindingMet) {
 			return errors.New("invalid disaster service evidence")
 		}
 	}
@@ -297,9 +297,9 @@ func (h *DisasterHistory) Validate() error {
 	}
 	deficit, unknown := false, false
 	for _, e := range h.Services {
-		deficit = deficit || e.Need == domain.FindingUnmet
-		unknown = unknown || e.Need == domain.FindingUnclear
-		if e.Need == domain.FindingUnmet && !services[e.Service] {
+		deficit = deficit || e.Finding == domain.FindingUnmet
+		unknown = unknown || e.Finding == domain.FindingUnclear
+		if e.Finding == domain.FindingUnmet && !services[e.Service] {
 			return errors.New("untracked disaster deficit")
 		}
 	}
@@ -494,7 +494,7 @@ func (h *DisasterHistory) Promote(id ConcernID, priority int) int {
 		return priority
 	}
 	for _, e := range h.Services {
-		if e.Need != domain.FindingUnmet {
+		if e.Finding != domain.FindingUnmet {
 			continue
 		}
 		goal := map[DisasterService]ConcernID{DisasterFood: EnsureFoodSupply, DisasterProduction: EnsureFoodSupply, DisasterSleeping: MaintainHousing, DisasterShelter: MaintainHousing, DisasterTemperature: EnsureTemperatureSafety, DisasterCooking: EnsureCooking, DisasterPower: EnsureBasicPower, DisasterStorage: MaintainFoodStorage, DisasterInfrastructure: RecoverDisasterServices}[e.Service]

@@ -67,7 +67,7 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			if known != (change != "unknown-farm") || known && growing != 30 {
 				t.Fatal(f.GrowingCells)
 			}
-			needs, err := policy.DetectRounds(f, policy.RoundsLatches{}, policy.DefaultRoundsPolicy())
+			needs, err := policy.InspectRounds(f, policy.RoundsLatches{}, policy.DefaultRoundsPolicy())
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -19,7 +19,7 @@ import (
 //   - no method: the rounds handed the watched goal a development
 //     slot and its planner committed nothing (the row's Idle flag) for
 //     NoMethodReviews consecutive reviews while the goal stayed
-//     active/deficit with no method in flight;
+//     open/unmet with no method in flight;
 //   - unsuccessful: an action of one of the goal's committed methods ended
 //     unsuccessful for any reason but interrupted or cancelled (a pawn's
 //     own needs or a cancelled order are re-planned; a native failure,
@@ -39,7 +39,7 @@ type FailFast struct {
 	Disabled bool
 	// NoMethodReviews is how many consecutive reviews may leave the goal
 	// idle with nothing in flight before the watch fails (default 5). A
-	// review is one routine_review revision; unsampled revisions in
+	// review is one rounds_review revision; unsampled revisions in
 	// between do not count.
 	NoMethodReviews int
 	// RefusalSamples is how many consecutive samples the latest step may
@@ -88,9 +88,9 @@ func (v Verdict) Error() string { return "fail-fast (" + v.Shape + "): " + v.Rea
 // failFastState folds the samples of one watch; check returns a Verdict
 // the first time a shape completes.
 type failFastState struct {
-	cfg    FailFast
-	goal   policy.ConcernID
-	stderr string
+	cfg     FailFast
+	concern policy.ConcernID
+	stderr  string
 
 	lastRevision uint64
 	idleReviews  []uint64
@@ -112,7 +112,7 @@ func newFailFast(cfg FailFast, goal policy.ConcernID, stderrPath string) *failFa
 	if cfg.ParkSamples <= 0 {
 		cfg.ParkSamples = defaultParkSamples
 	}
-	return &failFastState{cfg: cfg, goal: goal, stderr: stderrPath}
+	return &failFastState{cfg: cfg, concern: goal, stderr: stderrPath}
 }
 
 // check folds one sample (SampleGoal's shape, without an error) and the
@@ -149,7 +149,7 @@ func (f *failFastState) unsuccessful(sample map[string]any) (Verdict, bool) {
 			}
 			return Verdict{
 				Shape:    "unsuccessful",
-				Reason:   fmt.Sprintf("goal %s plan %s action %s ended unsuccessful (%s)", f.goal, asString(plan["plan"]), asString(row["action"]), reason),
+				Reason:   fmt.Sprintf("standard %s plan %s action %s ended unsuccessful (%s)", f.concern, asString(plan["plan"]), asString(row["action"]), reason),
 				Evidence: row,
 			}, true
 		}
@@ -188,7 +188,7 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 	}
 	return Verdict{
 		Shape:    "no_method",
-		Reason:   fmt.Sprintf("goal %s stayed active/deficit with no method through %d reviews that handed its planner the slot (revisions %d..%d, development reason %q)", f.goal, len(f.idleReviews), f.idleReviews[0], revision, asString(development["reason"])),
+		Reason:   fmt.Sprintf("standard %s stayed open/unmet with no method through %d reviews that handed its planner the slot (revisions %d..%d, development reason %q)", f.concern, len(f.idleReviews), f.idleReviews[0], revision, asString(development["reason"])),
 		Evidence: map[string]any{"revisions": append([]uint64(nil), f.idleReviews...), "development": development},
 	}, true
 }
@@ -234,7 +234,7 @@ func (f *failFastState) emergencyPark(sample map[string]any) (Verdict, bool) {
 	}
 	return Verdict{
 		Shape:    "emergency_park",
-		Reason:   fmt.Sprintf("goal %s stayed vetoed while emergency %v with the live tick parked at %d for %d samples: nothing serves the emergency and the clock admits no work", f.goal, emergency, tick, f.parkSamples),
+		Reason:   fmt.Sprintf("standard %s stayed vetoed while emergency %v with the live tick parked at %d for %d samples: nothing serves the emergency and the clock admits no work", f.concern, emergency, tick, f.parkSamples),
 		Evidence: map[string]any{"tick": tick, "emergency": emergency, "review_revision": sample["review_revision"], "development": sample["development"]},
 	}, true
 }

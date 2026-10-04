@@ -16,7 +16,7 @@ control uses these routes.
 | GET | `/api/player/session` | Process token and `mode: "explicit-player"` |
 | GET | `/api/player/control` | Current control record and actual permission |
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
-| POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine goals and clean up owned work |
+| POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend rounds concerns and clean up owned work |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
 | GET | `/api/player/colony` | Live colony census: food nutrition and runway, colonists, workers, downed, mood mean, the living home roster (each colonist's `id`, `label`, `downed`, `mood`, `food` and the read-only personal wealth share `share`, what is attributed to them now `spent`, and `remaining`, #1846; null until a review has filed fresh colony facts, for a slave's spent and for any unread input), raid points and the wealth split (`raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`, `wealthPawns`; #395) and the ancient shrine census (`shrines`: id, `sealed`, `inHome`, `caskets`, `filledCaskets`, `guardsKnown`, `guardsAlive`, `breachWalls`; #456; with the breach judgement `ready`, `reason`, `wall`, `squad`, `traps`; #457) (unknown facts are null) |
 
@@ -117,16 +117,15 @@ Draft and undraft through the draft intent are Go native acceptance in
 ## Concern JSON names (epic #1964, #1977)
 
 The read routes name the watched kind a `concern` (a Concern id string such
-as `EnsureFoodSupply`; the id strings did not change). The old `goal` and
-`goals` keys are gone, with no compatibility alias.
+as `EnsureFoodSupply`; the id strings did not change).
 
-| Route | Field | Was |
-| --- | --- | --- |
-| `GET /api/routines` | `progress[].concern` | `progress[].goal` |
-| `GET /api/routines` | `noOps[].concern` | `noOps[].goal` |
-| `GET /api/routines` | `development.rows[].concern` (the development rows) | `...goal` |
-| `GET /api/spectator/now` | `concerns[]` (array) | `goals[]` |
-| `GET /api/spectator/now` | `concerns[].concern` | `goals[].goal` |
+| Route | Field |
+| --- | --- |
+| `GET /api/routines` | `progress[].concern` |
+| `GET /api/routines` | `noOps[].concern` |
+| `GET /api/routines` | `development.rows[].concern` (the development rows) |
+| `GET /api/spectator/now` | `concerns[]` (array) |
+| `GET /api/spectator/now` | `concerns[].concern` |
 
 Every other field of those shapes (`method`, `expected`, `lastProgress`,
 `nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) is unchanged.

@@ -63,7 +63,7 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 	f = stableRounds()
 	f.Colonists, f.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(3))
 	f.FoodPlan = domain.Known(FoodPlan{GapPerDay: 1})
-	for _, g := range needs(t, f, RoundsLatches{}).Goals {
+	for _, g := range needs(t, f, RoundsLatches{}).Concerns {
 		if g.ID == MaintainHousing && !g.Blocked {
 			t.Fatal(g)
 		}
@@ -73,7 +73,7 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 	f.Colonists, f.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(3))
 	p := DefaultRoundsPolicy()
 	p.ColonyStage = StageFoothold
-	r, err := DetectRounds(f, RoundsLatches{}, p)
+	r, err := InspectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}

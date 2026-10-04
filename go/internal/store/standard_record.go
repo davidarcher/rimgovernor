@@ -15,14 +15,14 @@ func (s *Store) RecordStandard(ctx context.Context, id domain.ConcernID, revisio
 		return StandardState{}, err
 	}
 	defer tx.Rollback()
-	state, err := loadGoal(ctx, tx, id)
+	state, err := loadStandard(ctx, tx, id)
 	if err != nil {
 		return StandardState{}, err
 	}
 	if state.Revision != revision {
 		return StandardState{}, ErrConflict
 	}
-	state, err = writeGoalRecord(ctx, tx, state, record)
+	state, err = writeStandardRecord(ctx, tx, state, record)
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -48,7 +48,7 @@ func (s *Store) CommitMethodRecord(ctx context.Context, id domain.ConcernID, rev
 	if err != nil {
 		return StandardState{}, err
 	}
-	if state, err = writeGoalRecord(ctx, tx, state, record); err != nil {
+	if state, err = writeStandardRecord(ctx, tx, state, record); err != nil {
 		return StandardState{}, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -57,7 +57,7 @@ func (s *Store) CommitMethodRecord(ctx context.Context, id domain.ConcernID, rev
 	return state, nil
 }
 
-func writeGoalRecord(ctx context.Context, tx *sql.Tx, state StandardState, record string) (StandardState, error) {
+func writeStandardRecord(ctx context.Context, tx *sql.Tx, state StandardState, record string) (StandardState, error) {
 	g := state.Standard
 	g.Record = record
 	return saveStandard(ctx, tx, state, g)

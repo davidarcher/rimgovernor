@@ -232,7 +232,7 @@ func TestColonyNativeCaptureReachesRounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out.Goals) != 16 {
+	if len(out.Standards) != 16 {
 		t.Fatal("native facts did not reach maintained goals")
 	}
 	for _, assessment := range out.Needs.Assessments {

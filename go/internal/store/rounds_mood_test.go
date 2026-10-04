@@ -37,8 +37,8 @@ func TestRoundsMoodDurableLifecycleAndRetirement(t *testing.T) {
 	p := moodPerson()
 	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{p})
 	out := reviewRounds(t, s, &r)
-	for _, b := range out.Review.Goals {
-		if b.Need == policy.EnsureMood {
+	for _, b := range out.Review.Standards {
+		if b.Concern == policy.EnsureMood {
 			t.Fatal("mood filed a goal row")
 		}
 	}
@@ -136,8 +136,8 @@ func TestRoundsMoodCompleteBoundedCohort(t *testing.T) {
 	}
 	r.Facts.MoodPawns = domain.Known(rows)
 	out := reviewRounds(t, s, &r)
-	if len(out.Review.Goals) != 43 || len(out.Review.SubjectIncidents(policy.EnsureMood)) != 256 {
-		t.Fatal(len(out.Review.Goals), len(out.Review.Incidents))
+	if len(out.Review.Standards) != 43 || len(out.Review.SubjectIncidents(policy.EnsureMood)) != 256 {
+		t.Fatal(len(out.Review.Standards), len(out.Review.Incidents))
 	}
 	if _, err := s.LoadRounds(context.Background()); err != nil {
 		t.Fatal(err)

@@ -40,12 +40,12 @@ func TestSafeAreaOwedRaisesMaintainShelter(t *testing.T) {
 	f := stableRounds()
 	f.SafeAreaOwed = domain.Known(true)
 	r := needs(t, f, RoundsLatches{})
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainShelter {
 			return
 		}
 	}
-	t.Fatal("owed safe area raised no MaintainShelter goal", r.Goals)
+	t.Fatal("owed safe area raised no MaintainShelter goal", r.Concerns)
 }
 
 // A threat raises an emergency that holds development; the owed Safe area
@@ -55,7 +55,7 @@ func TestSafeAreaOwedUnderThreatIsUrgent(t *testing.T) {
 	f.SafeAreaOwed = domain.Known(true)
 	f.Hostiles = domain.Known[int64](3)
 	r := needs(t, f, RoundsLatches{})
-	for _, g := range r.Goals {
+	for _, g := range r.Concerns {
 		if g.ID == MaintainShelter {
 			if g.Priority >= 3 {
 				t.Fatal("MaintainShelter under a threat stays a development goal", g)
@@ -63,7 +63,7 @@ func TestSafeAreaOwedUnderThreatIsUrgent(t *testing.T) {
 			return
 		}
 	}
-	t.Fatal("owed safe area raised no MaintainShelter goal", r.Goals)
+	t.Fatal("owed safe area raised no MaintainShelter goal", r.Concerns)
 }
 
 func TestPlanSafeAreaResetThenDiffs(t *testing.T) {

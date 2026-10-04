@@ -88,7 +88,7 @@ func (r *RoundsSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Conte
 		method := domain.MethodID(fmt.Sprintf("bedroom-shell-pack-%x", digest[:8]))
 		if m, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 			// Packing is under way: wait for it rather than build a second bed.
-			if prior, err := p.journal.LoadPlan(call, m.Plan); err == nil && domain.GoalWorkOpen(prior.Progress) {
+			if prior, err := p.journal.LoadPlan(call, m.Plan); err == nil && domain.StandardWorkOpen(prior.Progress) {
 				return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "shell_bed_pack")}, true, nil
 			}
 			continue

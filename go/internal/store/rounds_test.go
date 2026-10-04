@@ -33,9 +33,9 @@ func TestRoundsWithPollutionFactsLoads(t *testing.T) {
 
 func roundsGoal(t *testing.T, r RoundsResult, need domain.ConcernID) StandardState {
 	t.Helper()
-	for i, b := range r.Review.Goals {
-		if b.Need == need {
-			return r.Goals[i]
+	for i, b := range r.Review.Standards {
+		if b.Concern == need {
+			return r.Standards[i]
 		}
 	}
 	t.Fatal("missing routine goal", need)
@@ -208,7 +208,7 @@ func TestRoundsTransactionRollbackAndStaleCursor(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(out.Review, loaded) {
 		t.Fatal("review partially committed", loaded, err)
 	}
-	for _, before := range out.Goals {
+	for _, before := range out.Standards {
 		after, err := s.LoadStandard(ctx, before.Standard.ID)
 		if err != nil || !reflect.DeepEqual(before, after) {
 			t.Fatal("goal changed despite rollback", after, err)

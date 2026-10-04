@@ -31,7 +31,7 @@ corridor cells, same geometry rules as Home, and every census stockpile's
 whole `zone` footprint whoever zoned it, #719) into sorted
 four-neighbour regions. Every cell carries provenance: `facility`,
 `enclosed_interior`, `corridor` or `margin`, with the facility identity and,
-when known, the plan, action and goal that built it. A margin is an explicit
+when known, the plan, action and concern that built it. A margin is an explicit
 0–8 cell Chebyshev radius clipped to map bounds and belonging to its own
 region; overlapping margins never merge regions. No bounding rectangle or
 inferred path fills the gap between facilities: a wall fragment or a distant

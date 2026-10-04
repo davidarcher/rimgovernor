@@ -13,7 +13,7 @@ func facilityClaim(t *testing.T, id, def, stuff string) ConstructionClaim {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return ConstructionClaim{Plan: "method", Action: domain.ActionID(id), Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint-" + id, Current: id}, Building: b}
+	return ConstructionClaim{Plan: "method", Action: domain.ActionID(id), Concern: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint-" + id, Current: id}, Building: b}
 }
 
 // Every census target missing Home is listed, player-built ones included (#719).

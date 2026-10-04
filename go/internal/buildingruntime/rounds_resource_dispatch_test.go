@@ -110,7 +110,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	}
 	selected := false
 	for _, row := range got.Review.Development.Rows {
-		selected = selected || row.Goal == policy.MaintainResource && row.Selected
+		selected = selected || row.Concern == policy.MaintainResource && row.Selected
 	}
 	if !selected {
 		t.Fatal("MaintainResource holds no development slot", got.Review.Development.Rows)
@@ -187,9 +187,9 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 	var goal store.StandardState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainResource {
-			if goal, err = p.journal.LoadStandard(ctx, binding.Goal); err != nil {
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainResource {
+			if goal, err = p.journal.LoadStandard(ctx, binding.Standard); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -199,15 +199,15 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 	}
 	identity := boundary.Identity(state.Snapshot)
 	stock := resourceStockFacts(v)
-	result, err := planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{}, base.reviewer.clock.Now())
+	result, err := planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{}, base.reviewer.clock.Now())
 	if err != nil || result.Verdict != awaitingPlan("feed_bench", "within_reach_of_animals") || result.NativeWorkTicks != stockWaitTicks {
 		t.Fatal(result, err)
 	}
-	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_ButcherSpot9"}, base.reviewer.clock.Now())
+	result, err = planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_ButcherSpot9"}, base.reviewer.clock.Now())
 	if err != nil || result.Verdict != awaitingPlan("feed_bench", "within_reach_of_animals") {
 		t.Fatal(result, err)
 	}
-	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_CraftingSpot1"}, base.reviewer.clock.Now())
+	result, err = planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_CraftingSpot1"}, base.reviewer.clock.Now())
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}

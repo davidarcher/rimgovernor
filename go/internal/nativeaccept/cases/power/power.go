@@ -129,7 +129,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	reviewData, _ := json.Marshal(review)
-	report["routine_review_first"] = json.RawMessage(reviewData)
+	report["rounds_review_first"] = json.RawMessage(reviewData)
 
 	// Hold for a bounded window of Fast-speed simulation: the power goal
 	// may bind (the consumer is unpowered) but no method may be committed
@@ -157,7 +157,7 @@ func run(ctx context.Context, s cases.Session) error {
 		case <-time.After(3 * time.Second):
 		}
 	}
-	report["power_goal_bound"] = sawGoal
+	report["power_standard_bound"] = sawGoal
 	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}

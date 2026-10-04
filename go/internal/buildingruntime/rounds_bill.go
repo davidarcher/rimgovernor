@@ -85,7 +85,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if goal.OwnerPriority() >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
-			selected = selected || row.Goal == r.need && row.Selected
+			selected = selected || row.Concern == r.need && row.Selected
 		}
 		if !selected {
 			return RoundsBillResult{Verdict: awaitingSlot(string(r.need))}, nil
@@ -100,7 +100,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			// Fields, foraging and hunts share the goal and stay open for
 			// days; only an open bill is this planner's own work (#260).
 			for _, progress := range plan.Progress {
-				if progress.Action().Kind() == domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+				if progress.Action().Kind() == domain.ProductionBillAction && domain.StandardWorkOpen([]domain.Progress{progress}) {
 					if b, ok := progress.Action().ProductionBill(); ok && r.purpose == policy.ButcherFood && b.Mode() == domain.ButcherForever {
 						continue
 					}

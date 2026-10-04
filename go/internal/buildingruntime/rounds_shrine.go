@@ -130,7 +130,7 @@ func (r *RoundsShrinePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.ClearAncientShrine && (row.Selected || row.Committed)
+		selected = selected || row.Concern == policy.ClearAncientShrine && (row.Selected || row.Committed)
 	}
 	if !selected {
 		return RoundsShrineResult{Verdict: awaitingSlot(string(policy.ClearAncientShrine))}, nil

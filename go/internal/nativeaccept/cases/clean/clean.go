@@ -208,7 +208,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return err
 	}
 	reviewData, _ := json.Marshal(review)
-	report["routine_review_first"] = json.RawMessage(reviewData)
+	report["rounds_review_first"] = json.RawMessage(reviewData)
 
 	if err = runFilthy(ctx, journal, service, report, kitchenID, butcheryID, kitchenFilth, inKitchen, cleanliness); err != nil {
 		return err
@@ -283,7 +283,7 @@ func runFilthy(ctx context.Context, journal *store.Store, service *na.ServicePro
 	// rather than after it. Poll the journal until the first method.
 	methodCtx, methodCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer methodCancel()
-	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainCleanFacilities, nil)
+	concernID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainCleanFacilities, nil)
 	if err != nil {
 		return fmt.Errorf("first clean method: %w", err)
 	}
@@ -311,7 +311,7 @@ func runFilthy(ctx context.Context, journal *store.Store, service *na.ServicePro
 	if dispatchTick < 0 || dispatchTick >= since+p.GraceTicks {
 		return fmt.Errorf("clean order dispatched at tick %d, not inside the grace window ending at %d (latched %d + %d) although no cleaner existed", dispatchTick, since+p.GraceTicks, since, p.GraceTicks)
 	}
-	report["goal_id"] = string(goalID)
+	report["concern_id"] = string(concernID)
 	orders := 0
 	for renewals := 0; ; {
 		plan, err := journal.LoadPlan(ctx, method.Plan)

@@ -62,7 +62,7 @@ func runBuriedSteel(ctx context.Context, s cases.Session, besideFace bool) error
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 		// Three in-game days: a face deposit, a five-cell granite
 		// corridor and a second deposit for three lab colonists.
-		WatchConfig: sustainedfood.WatchConfig{Watch: 11 * time.Minute, Window: 180000, Goal: policy.MaintainResource},
+		WatchConfig: sustainedfood.WatchConfig{Watch: 11 * time.Minute, Window: 180000, Concern: policy.MaintainResource},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			before, err := h.Call(ctx, "audit-before", buriedSteelOp, map[string]any{"action": "audit"})
 			if err != nil {

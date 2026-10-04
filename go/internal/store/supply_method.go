@@ -138,8 +138,8 @@ func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner
 		return false, err
 	}
 	bound := false
-	for _, binding := range review.Goals {
-		bound = bound || string(binding.Goal) == goal.OwnerID() && binding.Need == policy.MaintainFoodStorage
+	for _, binding := range review.Standards {
+		bound = bound || string(binding.Standard) == goal.OwnerID() && binding.Concern == policy.MaintainFoodStorage
 	}
 	if !bound || len(review.ReserveSupplies) == 0 || len(plan.Actions()) == 0 {
 		return false, nil
@@ -163,7 +163,7 @@ func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner
 			return false, err
 		}
 		for _, progress := range existing.Progress {
-			if progress.Action().Kind() != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if progress.Action().Kind() != domain.ProductionBillAction && domain.StandardWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}
 		}

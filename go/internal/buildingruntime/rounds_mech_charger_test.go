@@ -112,7 +112,7 @@ func TestMechChargerPlannerAdmitsOneChargerWhenAllAreBusy(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err, d.review.Development.Rows)
 	}
-	plan, err := d.db.LoadPlan(context.Background(), result.Decision.Goal.Methods[len(result.Decision.Goal.Methods)-1].Plan)
+	plan, err := d.db.LoadPlan(context.Background(), result.Decision.Standard.Methods[len(result.Decision.Standard.Methods)-1].Plan)
 	if err != nil {
 		t.Fatal(err)
 	}

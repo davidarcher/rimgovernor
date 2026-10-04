@@ -53,22 +53,22 @@ func TestRoundsDevelopmentDeficitDefensiveLayoutFollowsOptIn(t *testing.T) {
 
 func TestResearchGoalTargetDerivesFromRecordedNeeds(t *testing.T) {
 	facts := domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Electricity", "Smithing"}, Finished: []ResearchProjectID{"Electricity"}})
-	if got := ResearchGoalTarget("Fabrication", []string{"Smithing"}, facts); got != "Fabrication" {
+	if got := ResearchConcernTarget("Fabrication", []string{"Smithing"}, facts); got != "Fabrication" {
 		t.Fatal("configured target must win", got)
 	}
-	if got := ResearchGoalTarget("", nil, facts); got != "" {
+	if got := ResearchConcernTarget("", nil, facts); got != "" {
 		t.Fatal(got)
 	}
-	if got := ResearchGoalTarget("", []string{"Electricity", "Smithing"}, facts); got != "Smithing" {
+	if got := ResearchConcernTarget("", []string{"Electricity", "Smithing"}, facts); got != "Smithing" {
 		t.Fatal("finished project chosen", got)
 	}
-	if got := ResearchGoalTarget("", []string{"Electricity", "Unlisted"}, facts); got != "" {
+	if got := ResearchConcernTarget("", []string{"Electricity", "Unlisted"}, facts); got != "" {
 		t.Fatal("unlisted project chosen", got)
 	}
-	if got := ResearchGoalTarget("", []string{"Smithing"}, domain.Unknown[ResearchFacts]()); got != "Smithing" {
+	if got := ResearchConcernTarget("", []string{"Smithing"}, domain.Unknown[ResearchFacts]()); got != "Smithing" {
 		t.Fatal("unknown facts must keep the need", got)
 	}
-	recovered, deficit := ResearchTargetNeed(ResearchGoalTarget("", []string{"Smithing"}, facts), true, facts)
+	recovered, deficit := ResearchTargetNeed(ResearchConcernTarget("", []string{"Smithing"}, facts), true, facts)
 	if v, _ := recovered.Value(); v {
 		t.Fatal(recovered, deficit)
 	}

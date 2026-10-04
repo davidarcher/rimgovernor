@@ -62,7 +62,7 @@ type WatchConfig struct {
 	Wake func(na.FlightRow) bool
 	// Goal is the maintained goal the timeline samples (default
 	// EnsureFoodSupply).
-	Goal policy.ConcernID
+	Concern policy.ConcernID
 	// Extra are further goals each sample also reads, under the goal id.
 	Extra []policy.ConcernID
 	// Until, when set, ends the window early once a sample satisfies it.
@@ -181,9 +181,9 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	var events []map[string]any
 	lastMethodCount := -1
 	lastNeed := domain.Finding("")
-	goalID := cfg.Goal
-	if goalID == "" {
-		goalID = policy.EnsureFoodSupply
+	concernID := cfg.Concern
+	if concernID == "" {
+		concernID = policy.EnsureFoodSupply
 	}
 	watchStarted := time.Now()
 	watchDeadline := watchStarted.Add(cfg.Watch)
@@ -194,7 +194,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	pending = append(pending, cfg.Checkpoints...)
 	var taken []map[string]any
 	stepped := false
-	failFast := newFailFast(cfg.FailFast, goalID, service.StderrPath())
+	failFast := newFailFast(cfg.FailFast, concernID, service.StderrPath())
 	tail := na.NewFlightTail(service.FlightPath)
 	stall := newTickStall(cfg.TickStall, time.Now())
 	cadence := map[string]any{"poll_ticks": cfg.PollTicks, "poll_ms": cfg.Poll.Milliseconds(), "wakes": 0, "tick_polls": 0, "wall_polls": 0}
@@ -205,7 +205,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		report["timeline_samples"] = len(timeline)
 	}()
 	for time.Now().Before(watchDeadline) {
-		sample, err := SampleGoal(ctx, verifyStore, goalID)
+		sample, err := SampleStandard(ctx, verifyStore, concernID)
 		if !stepped {
 			var stepErr error
 			if stepped, stepErr = service.StepAdmitted(ctx, watchStarted); stepErr != nil {
@@ -216,7 +216,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 			sample = map[string]any{"error": err.Error(), "at": time.Now().UTC().Format(time.RFC3339)}
 		}
 		for _, extra := range cfg.Extra {
-			also, err := SampleGoal(ctx, verifyStore, extra)
+			also, err := SampleStandard(ctx, verifyStore, extra)
 			if err != nil {
 				also = map[string]any{"error": err.Error()}
 			}
@@ -427,7 +427,7 @@ func liveTick(apiCall func(string, string, map[string]any, string) (map[string]a
 // committed methods' plan stages, mirroring exactly what a routine planner's
 // step itself reads: review.Goals for the Need, then that goal's
 // Status/Need/Priority/Methods.
-func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map[string]any, error) {
+func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) (map[string]any, error) {
 	sample := map[string]any{"at": time.Now().UTC().Format(time.RFC3339), "method_count": 0}
 	review, err := s.LoadRounds(ctx)
 	if err != nil {
@@ -448,22 +448,22 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	if policy.IsProjectKind(need) {
 		return sampleProject(ctx, s, review, need, sample)
 	}
-	var goalID domain.ConcernID
-	for _, binding := range review.Goals {
-		if binding.Need == need {
-			goalID = binding.Goal
+	var concernID domain.ConcernID
+	for _, binding := range review.Standards {
+		if binding.Concern == need {
+			concernID = binding.Standard
 			break
 		}
 	}
-	if goalID == "" {
-		sample["goal_bound"] = false
+	if concernID == "" {
+		sample["concern_bound"] = false
 		return sample, nil
 	}
-	sample["goal_bound"] = true
+	sample["concern_bound"] = true
 	// The review's ranking row (keyed by need) says why a deficit goal is
 	// or is not selected this review (startup_survival, capacity_committed...).
 	for _, row := range review.Development.Rows {
-		if row.Goal == need {
+		if row.Concern == need {
 			development := map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
 			if row.Deficit != nil {
 				development["deficit"] = *row.Deficit
@@ -477,7 +477,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	if pressure, ok := policy.MoodProvisionDeficits(review.MoodHistory())[need]; ok {
 		sample["mood_provision"] = pressure
 	}
-	goal, err := s.LoadStandard(ctx, goalID)
+	goal, err := s.LoadStandard(ctx, concernID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return sample, nil
@@ -503,7 +503,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	// A completed method leaves goal.Methods at the next review, so a
 	// "did the bench plan finish" question needs this epoch's history too.
 	var retired []map[string]any
-	if history, err := s.LoadMethods(ctx, goalID, goal.Standard.Episode); err == nil {
+	if history, err := s.LoadMethods(ctx, concernID, goal.Standard.Episode); err == nil {
 		for _, method := range history {
 			if !active[method.Plan] {
 				retired = append(retired, describe(method))
@@ -542,12 +542,12 @@ func describeMethod(ctx context.Context, s *store.Store, method domain.MethodID,
 // Project row for the kind, its status and need, and its plans.
 func sampleProject(ctx context.Context, s *store.Store, review store.Rounds, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
 	id, bound := review.ProjectFor(kind)
-	sample["goal_bound"] = bound
+	sample["concern_bound"] = bound
 	if !bound {
 		return sample, nil
 	}
 	for _, row := range review.Development.Rows {
-		if row.Goal == kind {
+		if row.Concern == kind {
 			development := map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
 			if row.Deficit != nil {
 				development["deficit"] = *row.Deficit
@@ -591,11 +591,11 @@ func sampleIncident(ctx context.Context, s *store.Store, review store.Rounds, ki
 	world := store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}
 	incident, ok, err := s.LatestIncident(ctx, world, kind)
 	if err != nil || !ok {
-		sample["goal_bound"] = false
+		sample["concern_bound"] = false
 		return sample, err
 	}
 	binding, bound := review.Incident(kind)
-	sample["goal_bound"] = bound
+	sample["concern_bound"] = bound
 	sample["incident"] = string(incident.Incident.ID)
 	sample["status"] = "closed"
 	if !incident.Incident.Closed {

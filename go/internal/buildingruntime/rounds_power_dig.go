@@ -160,7 +160,7 @@ func skyMethod(definition string, area policy.Rectangle) domain.MethodID {
 // forever (#1872). A site without a journaled sky method was not ours.
 func (r *RoundsBuildingPlanner) roofStalled(call context.Context, s excavationStep, method domain.MethodID) (bool, error) {
 	journal := r.reviewer.player.journal
-	prior, err := journal.LoadOwnerMethod(call, s.goal, method)
+	prior, err := journal.LoadOwnerMethod(call, s.owner, method)
 	if errors.Is(err, store.ErrNotFound) {
 		return false, nil
 	}

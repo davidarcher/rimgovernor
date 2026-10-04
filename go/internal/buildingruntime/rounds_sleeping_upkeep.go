@@ -35,7 +35,7 @@ func NewRoundsSleepingUpkeepPlanner(reviewer *Rounder, native RoundsBuildingSour
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsSleepingUpkeepPlanner: !ok", ErrControl)
 	}
-	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainHousing, phase: policy.HousingSleeping, definition: "Wall", shelter: true}
+	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingSleeping, definition: "Wall", shelter: true}
 	return &RoundsSleepingUpkeepPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 
@@ -485,7 +485,7 @@ func (r *RoundsSleepingUpkeepPlanner) assignMethod(call context.Context, goal st
 // sleepingAssignUnadmitted reports a settled plan whose every action ended
 // absent: native refused it, so nothing changed.
 func sleepingAssignUnadmitted(progress []domain.Progress) bool {
-	if len(progress) == 0 || domain.GoalWorkOpen(progress) {
+	if len(progress) == 0 || domain.StandardWorkOpen(progress) {
 		return false
 	}
 	for _, pr := range progress {

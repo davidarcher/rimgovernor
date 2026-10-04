@@ -17,7 +17,7 @@ import (
 
 func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 	t.Parallel()
-	r := &RoundsBuildingPlanner{goal: policy.MaintainHousing, phase: policy.HousingExpansion}
+	r := &RoundsBuildingPlanner{concern: policy.MaintainHousing, phase: policy.HousingExpansion}
 	f := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), HousingTarget: domain.Known(int64(20))}}
 	n, id, reason := r.selection(f)
 	if n != 1 || id != "expansion-indoor-sleeping-4-1" || !reason.IsZero() {
@@ -52,7 +52,7 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
-	plan, err := db.LoadPlan(ctx, got.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(ctx, got.Decision.Standard.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 1 || plan.Progress[0].View().Attempt != 0 {
 		t.Fatal(plan, err)
 	}
@@ -111,7 +111,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), got.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), got.Decision.Standard.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 32 || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(plan, err)
 	}
@@ -162,7 +162,7 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 		t.Fatal(got, err)
 	}
 	var claim *store.PlanState
-	for _, m := range got.Decision.Goal.Methods {
+	for _, m := range got.Decision.Standard.Methods {
 		if m.Method == shellClaimMethod(domain.Cell{}) {
 			plan, err := db.LoadPlan(context.Background(), m.Plan)
 			if err != nil {
@@ -172,7 +172,7 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 		}
 	}
 	if claim == nil {
-		t.Fatal("no shell-claim method admitted", got.Decision.Goal.Methods)
+		t.Fatal("no shell-claim method admitted", got.Decision.Standard.Methods)
 	}
 	actions := claim.Spec.Actions()
 	if len(actions) != 1 {

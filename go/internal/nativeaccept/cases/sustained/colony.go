@@ -40,7 +40,7 @@ func ColonyWindow() uint64 {
 // EnsureFoodSupply: the foothold gates and the first maintenance-tier
 // projects, so the timeline shows which one stalls, thrashes or starves the
 // others (#99).
-var ColonyGoals = []policy.ConcernID{
+var ColonyConcerns = []policy.ConcernID{
 	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
 	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureWorkAssignments, policy.EnsureBasicDefense, policy.EnsureResearch,
@@ -50,8 +50,8 @@ var ColonyGoals = []policy.ConcernID{
 func init() {
 	cases.Register(colony("sustained/colony", na.QuietRequired,
 		"Diagnostic: every routine family on the "+BaselineSave+" save under a quiet storyteller for "+
-			"ColonyWindowTicks game ticks, sampling the foothold and first maintenance goals together. "+
-			"Evidence for #99's sustained coverage: which goal stalls, thrashes or starves the others once "+
+			"ColonyWindowTicks game ticks, sampling the foothold and first maintenance standards together. "+
+			"Evidence for #99's sustained coverage: which standard stalls, thrashes or starves the others once "+
 			"all families share one step budget. Two gates only: keep-alive resumes cost one native generation each "+
 			"(#259) and no colonist ends the window past Malnutrition 0.3 (#260); otherwise it fails only when the "+
 			"harness itself cannot complete."))
@@ -79,7 +79,7 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
 					Watch: Window(), Window: ColonyWindow(), Poll: 10 * time.Second,
-					Goal: policy.EnsureFoodSupply, Extra: ColonyGoals,
+					Concern: policy.EnsureFoodSupply, Extra: ColonyConcerns,
 					// A diagnostic, not a gate: a refusal is part of what the
 					// long window records, never a reason to cut it short.
 					FailFast: sustainedfood.FailFast{Disabled: true},

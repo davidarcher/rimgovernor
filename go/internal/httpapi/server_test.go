@@ -105,7 +105,7 @@ func TestRoutinesRouteUnavailableWithoutProvider(t *testing.T) {
 }
 func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
 			return RoundsStatus{ReviewsEnabled: true, MethodsEnabled: true, ActiveFamilies: []string{"routine-sleeping-plans", "routine-bill-plans"}, LastReviewTick: domain.Tick(42), LastReviewKnown: true,
 				Sections: []facts.Status{{Section: facts.Colony, Family: bridge.FactColony, AsOf: 40, Complete: true, Source: "rimgovernor/observations_read_colony_facts", StoredAt: time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)}}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
@@ -129,7 +129,7 @@ func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 }
 func TestRoutinesRouteRejectsMutationAndUnknownReviewCursor(t *testing.T) {
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return RoundsStatus{}, nil })},
+		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return RoundsStatus{}, nil })},
 		snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -413,13 +413,13 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	risk := 1.0
 	development := policy.DevelopmentState{Tick: 500, Workers: domain.Known(3), Labor: domain.Known(map[policy.WorkType]int{policy.WorkResearch: 1, policy.WorkConstruction: 0}), Capacity: 2, Committed: []domain.ConcernID{"player-room"},
 		Rows: []policy.DevelopmentRow{
-			{Goal: "ensure-research", Score: 60, Deficit: domain.Known(0.6), WaitingSince: 100, Selected: true},
-			{Goal: "ensure-comfort", Score: 40, Deficit: domain.Known(0.5), WaitingSince: 100, Reason: policy.DevelopmentLabor, Bottleneck: policy.WorkConstruction},
-			{Goal: "maintain-wood", Score: 0, Deficit: domain.Known(0.3), Risk: domain.Known(risk), WaitingSince: 200, Reason: policy.DevelopmentRisk},
-			{Goal: "maintain-resource", WaitingSince: 300, Reason: policy.DevelopmentUnknown},
+			{Concern: "ensure-research", Score: 60, Deficit: domain.Known(0.6), WaitingSince: 100, Selected: true},
+			{Concern: "ensure-comfort", Score: 40, Deficit: domain.Known(0.5), WaitingSince: 100, Reason: policy.DevelopmentLabor, Bottleneck: policy.WorkConstruction},
+			{Concern: "maintain-wood", Score: 0, Deficit: domain.Known(0.3), Risk: domain.Known(risk), WaitingSince: 200, Reason: policy.DevelopmentRisk},
+			{Concern: "maintain-resource", WaitingSince: 300, Reason: policy.DevelopmentUnknown},
 		}}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
 			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Development: &development}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
@@ -457,12 +457,12 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 // method, expected observable, last progress tick, next review tick and
 // blocker, with its bounded cooldowns.
 func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
-	progress := []policy.GoalProgress{
-		{Goal: policy.EnsureFoodSupply, Method: "acquire", Expected: "food runway toward target", LastProgress: 100, NextReview: 100 + policy.DevelopmentStallTicks, Blocked: policy.BlockedPrerequisite(policy.EnsureCooking)},
-		{Goal: policy.MaintainResource, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
+	progress := []policy.ConcernProgress{
+		{Concern: policy.EnsureFoodSupply, Method: "acquire", Expected: "food runway toward target", LastProgress: 100, NextReview: 100 + policy.DevelopmentStallTicks, Blocked: policy.BlockedPrerequisite(policy.EnsureCooking)},
+		{Concern: policy.MaintainResource, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
 	}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
 			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Progress: progress, Stage: &policy.ColonyStageRecord{Stage: policy.StageReserves, Since: 400, Blocker: policy.StageBlockerSettling, Reason: "production clear 0.5 of 2.0 days"}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
@@ -496,7 +496,7 @@ func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 	}
 	// Without a review the list is empty, never null.
 	s2, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return RoundsStatus{}, nil })}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return RoundsStatus{}, nil })}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,7 +513,7 @@ func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
 	report := policy.WorkRosterReport{Tick: 500, Coverage: []policy.WorkCoverage{{Work: policy.WorkMining, Demand: 1, Owners: 1, Capable: 1}, {Work: policy.WorkDoctor, Demand: 1, Owners: 0, Capable: 0}},
 		Decaying: []policy.DecayingSkill{{Pawn: "b", Skill: "Mining", Level: 12}}, Profiles: []policy.PawnProfile{pyro, plain}}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
 			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Roster: &report}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {

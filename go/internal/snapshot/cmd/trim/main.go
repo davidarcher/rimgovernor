@@ -36,7 +36,7 @@ func main() {
 	keep := flag.Bool("keep-cells", false, "keep the planning window's site cells")
 	tick := flag.Int64("tick", -1, "the review's tick, in a stream")
 	seq := flag.Int("seq", 0, "the review's seq at -tick (default the last)")
-	step := flag.String("step", "", "a step read in a stream, step-<planner>-<goal>-<tick>-<seq>")
+	step := flag.String("step", "", "a step read in a stream, step-<planner>-<standard>-<tick>-<seq>")
 	list := flag.Bool("list", false, "list a stream's reviews as <tick>-<seq>, then its step reads")
 	combat := flag.String("combat", "", "promote a stream's fight to "+combatDir+"/<name>.json.gz")
 	plan := flag.String("plan", "", "with -combat, the fight's plan (default the first fight)")

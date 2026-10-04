@@ -174,7 +174,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 			if err != nil || result.Verdict != BuildingReasonAdmitted {
 				t.Fatal(result, err)
 			}
-			plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+			plan, err := db.LoadPlan(context.Background(), result.Decision.Standard.Methods[0].Plan)
 			if err != nil || len(plan.Progress) != 1 {
 				t.Fatal(plan, err)
 			}
@@ -183,7 +183,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 			if hot {
 				want = "PassiveCooler"
 			}
-			if b.Definition() != want || b.Cell().X > 1 || b.Cell().Z > 1 || plan.Progress[0].View().Attempt != 0 || result.Decision.Goal.Standard.Finding != domain.FindingUnmet {
+			if b.Definition() != want || b.Cell().X > 1 || b.Cell().Z > 1 || plan.Progress[0].View().Attempt != 0 || result.Decision.Standard.Standard.Finding != domain.FindingUnmet {
 				t.Fatal(b, plan.Progress, result)
 			}
 			if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 1 {
@@ -289,9 +289,9 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 					want = domain.FindingMet
 				}
 				found := false
-				for _, binding := range review.Review.Goals {
-					if binding.Need == policy.EnsureTemperatureSafety {
-						g, err := db.LoadStandard(context.Background(), binding.Goal)
+				for _, binding := range review.Review.Standards {
+					if binding.Concern == policy.EnsureTemperatureSafety {
+						g, err := db.LoadStandard(context.Background(), binding.Standard)
 						if err != nil || mode == "recovered" && g.Standard.Finding != want || mode == "unavailable" && g.Standard.Finding == domain.FindingMet {
 							t.Fatal(g, err)
 						}

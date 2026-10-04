@@ -5,7 +5,7 @@
 `CriticalMedical` selects native-approved doctor/patient pairs by bleeding deadline,
 native life-threatening state and stable identity. It preserves `NoCare`, player
 work overrides and self-tend policy. Completed treatments permit a later tend in the
-same goal episode. A later confirmed, completed autonomous treatment can admit a
+same concern episode. A later confirmed, completed autonomous treatment can admit a
 new step after fresh native eligibility; pending and uncertain work cannot. Prior
 actions and receipts remain retained across persistence and method archival.
 The current doctor's exact job target distinguishes treatment from tending somebody
@@ -38,10 +38,10 @@ results and changed native player orders do not authorize retries.
 ## Go planning
 
 The Go rounder keeps `CriticalMedicine` a priority-1 emergency, suspending
-every other goal, only while a critical patient is bleeding or downed with a tend
+every other concern, only while a critical patient is bleeding or downed with a tend
 outstanding, or that count is unknown (`policy.UrgentPatients`). A living colonist
 who merely needs tending, a chronic condition among them, or who is downed with
-nothing to tend (malnutrition, exhaustion, a tended wound) keeps the goal active
+nothing to tend (malnutrition, exhaustion, a tended wound) keeps the concern active
 at priority 2: the same tend and rescue methods serve them, but the colony's other
 work and its clock go on around it rather than parking behind a condition only a
 bed and ticks can clear (#66, #304). The executor's emergency gate
@@ -55,7 +55,7 @@ The reviewer also projects ongoing care into a separate priority-2
 maintained need. Its same-tick native census distinguishes chronic conditions from
 urgent tending. Tracked patient identities persist through Manual and restart;
 missing or dead patients and incomplete condition lists cannot certify recovery.
-World replacement and tick rewind clear that history. The shared goal retains
+World replacement and tick rewind clear that history. The shared concern retains
 cancellation and renewed-deficit semantics. Go care orders, detailed clinical
 evidence and monitoring composition remain in G01.07a/e.
 
@@ -67,8 +67,8 @@ ingredients are on the map (bionic, then prosthetic, then peg) that some eligibl
 doctor performs with a native failure chance of 20% or less; each patient queues
 its most valuable part (capacity weight times part tier) as one medical `ProductionBillIntent` (`patient` set),
 and no patient gets a second while a bill is queued or a surgery action is open.
-Otherwise the goal's reason names the want: `surgery_part_short` or
-`surgery_no_doctor`. The goal settles when the operation leaves the census (the
+Otherwise the concern's reason names the want: `surgery_part_short` or
+`surgery_no_doctor`. The concern settles when the operation leaves the census (the
 health change), never when the bill disappears.
 
 Chronic conditions (#1165) join the same ranking under the same 20% cap: a
@@ -92,7 +92,7 @@ time, and only for a concrete need:
   rough price plus the trade silver reserve) with no harvestable organ stocked.
   The gain is the organ's native market value; the routine trade sells a stocked
   organ as surplus while the deficit holds. A short silver runway with an
-  eligible prisoner holds the goal open.
+  eligible prisoner holds the concern open.
 
 The cost is in silver: `SilverPerMoodPoint` (20) times the vanilla thought
 magnitude times the colonists it reaches, plus `SilverPerGoodwillPoint` (5) times
@@ -126,7 +126,7 @@ fabricated and no served part purchase is pending, `policy.SurgeryPurchaseParts`
 adds its part to the trade part demand. `surgeryPartTargets` buys one unit
 (MaxBuy 1) under `surgeryPartPriceCeiling` and the trade-wide silver reserve; the
 share gate lives in `ChosenElective`, so an unaffordable elective demands nothing
-and the goal recovers. Served purchases are unchanged.
+and the concern recovers. Served purchases are unchanged.
 
 Elective part demand (#1844): `policy.ChosenElective(pawns, ctx)` is the one
 elective colony-wide whose part is missing: the best affordable elective
@@ -250,7 +250,7 @@ Stable downed patients may share survival priority while ordinary caregivers wor
 Native `stableRestEligible` requires a living, undrafted colonist in bed, above half
 health, without bleeding, a current tending need, a mental state, anesthesia or a
 life-threatening condition. The controller requests monitoring only from current
-health observations and an active medical-care goal. Native `medicalRestIds` windows
+health observations and an active medical-care concern. Native `medicalRestIds` windows
 are limited to 600 ticks and recheck each patient; changed eligibility stops the
 window for another review. Injury and death guards remain active. This permits
 feeding and rest without certifying recovery or satisfying the medical stability gate.

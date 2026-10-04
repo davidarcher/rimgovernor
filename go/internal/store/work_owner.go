@@ -20,8 +20,8 @@ type WorkOwner interface {
 	methodOwner
 	// OwnerID is the goal's or Project's row id.
 	OwnerID() string
-	// OwnerEpoch is the goal's current epoch, 0 for a Project.
-	OwnerEpoch() uint64
+	// OwnerEpisode is the goal's current epoch, 0 for a Project.
+	OwnerEpisode() uint64
 	// OwnerRevision is the local CAS token method commits are scoped to.
 	OwnerRevision() uint64
 	// bumpRevision advances the stored revision after a method commit.
@@ -38,12 +38,12 @@ type WorkOwner interface {
 }
 
 func (g StandardState) OwnerID() string               { return string(g.Standard.ID) }
-func (g StandardState) OwnerEpoch() uint64            { return g.Standard.Episode }
+func (g StandardState) OwnerEpisode() uint64          { return g.Standard.Episode }
 func (g StandardState) OwnerRevision() uint64         { return g.Revision }
 func (g StandardState) OwnerMethods() []domain.Method { return g.Methods }
 func (g StandardState) OwnerHistory() []domain.Method { return g.History }
 func (p ProjectState) OwnerID() string                { return string(p.Project.ID) }
-func (p ProjectState) OwnerEpoch() uint64             { return 0 }
+func (p ProjectState) OwnerEpisode() uint64           { return 0 }
 func (p ProjectState) OwnerRevision() uint64          { return p.Revision }
 func (p ProjectState) OwnerMethods() []domain.Method  { return p.domainMethods(p.Methods) }
 func (p ProjectState) OwnerHistory() []domain.Method  { return p.domainMethods(p.History) }
@@ -71,7 +71,7 @@ func (p ProjectState) domainMethods(rows []ProjectMethod) []domain.Method {
 // work it. The owner is returned whenever the review binds one.
 func (s *Store) WorkableOwner(ctx context.Context, r Rounds, need policy.ConcernID) (WorkOwner, bool, error) {
 	for _, binding := range r.Projects {
-		if binding.Need == need {
+		if binding.Concern == need {
 			p, ok, err := s.WorkableProject(ctx, r, need)
 			return p, ok, err
 		}
@@ -84,7 +84,7 @@ func (s *Store) WorkableOwner(ctx context.Context, r Rounds, need policy.Concern
 // whether a planner may work it: an open deficit the Safeguards admit (#1121).
 func (s *Store) WorkableProject(ctx context.Context, r Rounds, need policy.ConcernID) (ProjectState, bool, error) {
 	for _, binding := range r.Projects {
-		if binding.Need != need {
+		if binding.Concern != need {
 			continue
 		}
 		p, err := s.LoadProject(ctx, binding.Project)
@@ -117,7 +117,7 @@ func (r Rounds) VetoProject(p domain.Project) string {
 // ProjectFor returns the Project the review binds to need.
 func (r Rounds) ProjectFor(need policy.ConcernID) (domain.ProjectID, bool) {
 	for _, binding := range r.Projects {
-		if binding.Need == need {
+		if binding.Concern == need {
 			return binding.Project, true
 		}
 	}
@@ -175,7 +175,7 @@ func (s *Store) LoadOwnerMethods(ctx context.Context, owner WorkOwner) ([]domain
 func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, error) {
 	switch o := owner.(type) {
 	case StandardState:
-		return loadGoal(ctx, tx, o.Standard.ID)
+		return loadStandard(ctx, tx, o.Standard.ID)
 	case ProjectState:
 		return loadProject(ctx, tx, o.Project.ID)
 	}
@@ -209,7 +209,7 @@ func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecisio
 	d := BuildingMethodDecision{Refused: refused}
 	switch o := owner.(type) {
 	case StandardState:
-		d.Goal = o
+		d.Standard = o
 	case ProjectState:
 		d.Project = o
 	}
@@ -267,7 +267,7 @@ func loadOwner(ctx context.Context, tx *sql.Tx, id string) (WorkOwner, error) {
 	if isProjectID(id) {
 		return loadProject(ctx, tx, domain.ProjectID(id))
 	}
-	return loadGoal(ctx, tx, domain.ConcernID(id))
+	return loadStandard(ctx, tx, domain.ConcernID(id))
 }
 
 // Owner is the goal or Project the method was admitted for.
@@ -275,7 +275,7 @@ func (d BuildingMethodDecision) Owner() WorkOwner {
 	if d.Project.Project.ID != "" {
 		return d.Project
 	}
-	return d.Goal
+	return d.Standard
 }
 
 // ownerActive reports an owner that is active in the goal vocabulary: an open

@@ -43,7 +43,7 @@ func TestCampfireInSleepingRoomIsRetired(t *testing.T) {
 	if !owed || got.ID != "fire1" {
 		t.Fatalf("retirement = %v %v, want fire1", got, owed)
 	}
-	heat := []policy.ConstructionClaim{{Goal: policy.EnsureTemperatureSafety, Building: fire.Building, Cells: fire.Cells}}
+	heat := []policy.ConstructionClaim{{Concern: policy.EnsureTemperatureSafety, Building: fire.Building, Cells: fire.Cells}}
 	if _, owed := campfireRetirement(facts, heat); owed {
 		t.Fatal("a heat campfire the temperature family claimed was retired")
 	}
@@ -86,7 +86,7 @@ func TestHeatTemperatureOwed(t *testing.T) {
 	if got := heatCampfires(facts); len(got) != 0 || positiveFact(temperatureOwed(facts)) {
 		t.Fatalf("an unclaimed campfire counted as heat: %v", got)
 	}
-	facts.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Goal: policy.EnsureTemperatureSafety, Building: fire.Building, Cells: fire.Cells}})
+	facts.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Concern: policy.EnsureTemperatureSafety, Building: fire.Building, Cells: fire.Cells}})
 	if got := heatCampfires(facts); len(got) != 1 || got[0].ID != "fire1" || !positiveFact(temperatureOwed(facts)) {
 		t.Fatalf("heat campfires = %v, want fire1 owing its refuel switch", got)
 	}
@@ -113,8 +113,8 @@ func TestCookingSelectionCountsStandingCampfireBlueprint(t *testing.T) {
 	facts.Facts.Colonists = domain.Known(int64(3))
 	facts.Facts.Cooking = domain.Known(false)
 	facts.CookingBenches = domain.Known([]observation.CookingBench{})
-	facts.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "p1", Action: "p1-0", Goal: "g", Building: building}})
-	r := &RoundsBuildingPlanner{goal: policy.EnsureCooking, definition: "Campfire"}
+	facts.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "p1", Action: "p1-0", Concern: "g", Building: building}})
+	r := &RoundsBuildingPlanner{concern: policy.EnsureCooking, definition: "Campfire"}
 
 	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
 	if n, method, reason := r.selection(facts); n != 1 || method != "campfire" {
@@ -137,7 +137,7 @@ func TestCookingSelectionCountsBuiltCampfireMissingFromCensus(t *testing.T) {
 	facts.Facts.Cooking = domain.Known(false)
 	facts.CookingBenches = domain.Known([]observation.CookingBench{})
 	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{fire}})
-	r := &RoundsBuildingPlanner{goal: policy.EnsureCooking, definition: "Campfire"}
+	r := &RoundsBuildingPlanner{concern: policy.EnsureCooking, definition: "Campfire"}
 	if n, _, reason := r.selection(facts); n != 0 || reason != BuildingExistingFacility {
 		t.Fatal("built campfire missing from the census:", n, reason)
 	}

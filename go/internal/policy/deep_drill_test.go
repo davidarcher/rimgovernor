@@ -18,11 +18,11 @@ func TestDeepDrillingResearchRequiresMetalDeficit(t *testing.T) {
 				continue
 			}
 			facts := ResearchFacts{Projects: []ResearchProjectID{"DeepDrilling", "GroundPenetratingScanner"}}
-			if target, _ := ResearchGoal(DefaultRoundsPolicy(), needs, domain.Known(facts)); target != "DeepDrilling" {
+			if target, _ := ResearchConcern(DefaultRoundsPolicy(), needs, domain.Known(facts)); target != "DeepDrilling" {
 				t.Fatal(target)
 			}
 			facts.Finished = []ResearchProjectID{"DeepDrilling"}
-			if target, _ := ResearchGoal(DefaultRoundsPolicy(), needs, domain.Known(facts)); target != "GroundPenetratingScanner" {
+			if target, _ := ResearchConcern(DefaultRoundsPolicy(), needs, domain.Known(facts)); target != "GroundPenetratingScanner" {
 				t.Fatal(target)
 			}
 		}

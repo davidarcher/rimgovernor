@@ -176,7 +176,7 @@ func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanS
 	gap := plan.GapPerDay
 	for _, existing := range plans {
 		for _, progress := range existing.Progress {
-			if !domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if !domain.StandardWorkOpen([]domain.Progress{progress}) {
 				continue
 			}
 			crop, cells := "", 0

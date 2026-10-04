@@ -52,9 +52,9 @@ func (r *RoundsTidyPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	var goal store.StandardState
 	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.TidyLayout {
-			goal, err = p.journal.LoadStandard(call, binding.Goal)
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.TidyLayout {
+			goal, err = p.journal.LoadStandard(call, binding.Standard)
 			found = true
 			break
 		}

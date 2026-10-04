@@ -80,7 +80,7 @@ func TestRoundsShelterDigsADugPlannedStoreroom(t *testing.T) {
 			t.Fatal("not an exposed storeroom cell", cell)
 		}
 	}
-	for _, m := range result.Decision.Goal.Methods {
+	for _, m := range result.Decision.Standard.Methods {
 		if IsExcavationMethod(m.Method) {
 			t.Fatal("excavation site search ran", m.Method)
 		}

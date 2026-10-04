@@ -32,7 +32,7 @@ type ExtentProvenance struct {
 	Facility string
 	Plan     domain.PlanID
 	Action   domain.ActionID
-	Goal     domain.ConcernID
+	Concern  domain.ConcernID
 }
 
 type ExtentCell struct {
@@ -126,7 +126,7 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 		if !exists || !known || target.Blocker != "" {
 			return unknown, nil
 		}
-		p := ExtentProvenance{Origin: ExtentFacility, Facility: b.Identity.Current, Plan: b.Plan, Action: b.Action, Goal: b.Goal}
+		p := ExtentProvenance{Origin: ExtentFacility, Facility: b.Identity.Current, Plan: b.Plan, Action: b.Action, Concern: b.Concern}
 		local := map[domain.Cell]bool{}
 		for _, group := range []struct {
 			origin ExtentOrigin

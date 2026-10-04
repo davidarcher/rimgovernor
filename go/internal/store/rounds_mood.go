@@ -29,7 +29,7 @@ type RoundsMoodMethod struct {
 	Pawn                     policy.PawnID
 	Need                     policy.MoodNeed
 	Reason                   policy.MoodMethodReason
-	Goal                     policy.ConcernID `json:",omitempty"`
+	Concern                  policy.ConcernID `json:",omitempty"`
 	Thought                  string           `json:",omitempty"`
 	Target                   float64
 	NeedBenefit, MoodBenefit *float64
@@ -89,7 +89,7 @@ func moodProposals(h policy.MoodHistory) ([]RoundsMoodMethod, error) {
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, RoundsMoodMethod{Pawn: p.Pawn, Need: p.Need, Reason: p.Reason, Goal: p.Goal, Thought: p.Thought, Target: p.Target, NeedBenefit: moodValue(p.NeedBenefit), MoodBenefit: moodValue(p.MoodBenefit)})
+		result = append(result, RoundsMoodMethod{Pawn: p.Pawn, Need: p.Need, Reason: p.Reason, Concern: p.Concern, Thought: p.Thought, Target: p.Target, NeedBenefit: moodValue(p.NeedBenefit), MoodBenefit: moodValue(p.MoodBenefit)})
 	}
 	return result, nil
 }

@@ -93,7 +93,7 @@ so released stock is not immediately forbidden again.
 recipes, then pemmican. It subtracts observed reserve stock rather than promised
 bill output. Native target counts include existing units of the selected
 product; other reserve products reduce that target. Existing recipe bills keep
-their settings. The policy review proposes IDs only; the shared goal and Hands
+their settings. The policy review proposes IDs only; the shared concern and Hands
 integration owns holds, releases, replenishment timing and policy configuration.
 
 RoundsPolicy.FoodReserveDays (policy.DefaultFoodReserveDays, 5 days,
@@ -135,7 +135,7 @@ The recommendation identifies the network; it does not prove placement, physical
 connection, hopper availability or pawn feeding. Returning from paste requires
 recovery above the minimum margin and available cooking capacity.
 
-The cooking goal supplies the context each tick. Native raw-stock categories
+The cooking concern supplies the context each tick. Native raw-stock categories
 exclude prepared meals and reserves from its forecast, and only available pawns
 with an observed cooking priority contribute skill. Stock ingredient support
 rows carry accessible nutrition with zero production rate, preventing double
@@ -201,7 +201,7 @@ purchase has been selected. Unknown protection flags still refuse export;
 retained targets and economic floors take their maximum. No purchase budget
 means no protected crop sale.
 
-Routine goal review and fresh trade selection both use the shared per-tick food
+Rounds and fresh trade selection both use the shared per-tick food
 plan with seasonal runway thresholds. Active fine or lavish meal bills supply
 the desired ingredient slots; existing raw protein stock reduces the purchase
 quantity. Crop exports retain the maximum of the resource target and economic
@@ -228,7 +228,7 @@ On Core, Odyssey water and its fishing channels are absent.
 The shared tick food plan includes these rows. An admitted Open channel requests
 Fishing through EnsureResearch when needed; research lead is estimated from
 remaining native research work. The field family creates the selected fishing
-zone through the shared goal, admission and zone Hands path. Work allocation
+zone through the shared concern, admission and zone Hands path. Work allocation
 uses the native `Fishing` type and Animals skill. The proposed connected footprint
 has one safely reachable cell per available concurrent fisher; area never
 multiplies yield. Existing player zones are not reconfigured by the planner.

@@ -38,7 +38,7 @@ func TestWithdrawOpensFreshAttemptOfCancelledPendingDispatch(t *testing.T) {
 	if _, known := v.Effect.Value(); known {
 		t.Fatal("withdrawal kept the earlier effect")
 	}
-	if !GoalWorkOpen([]Progress{next}) {
+	if !StandardWorkOpen([]Progress{next}) {
 		t.Fatal("open withdrawal released the goal's work")
 	}
 	// The withdrawn designation's terminal effect settles the action.
@@ -50,7 +50,7 @@ func TestWithdrawOpensFreshAttemptOfCancelledPendingDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v = next.View(); v.Unresolved || v.Stage != Cancelled || GoalWorkOpen([]Progress{next}) {
+	if v = next.View(); v.Unresolved || v.Stage != Cancelled || StandardWorkOpen([]Progress{next}) {
 		t.Fatalf("withdrawn attempt did not settle: %+v", v)
 	}
 	// A refused withdrawal resolves as absent like any unadmitted attempt.

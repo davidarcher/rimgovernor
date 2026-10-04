@@ -67,7 +67,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.ClearHomeObstructions && row.Selected
+		selected = selected || row.Concern == policy.ClearHomeObstructions && row.Selected
 	}
 	if !selected {
 		return RoundsClearanceResult{Verdict: awaitingSlot(string(policy.ClearHomeObstructions))}, nil

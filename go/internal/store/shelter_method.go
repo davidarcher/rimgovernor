@@ -23,8 +23,8 @@ func shelterOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan
 		return false, err
 	}
 	bound := false
-	for _, b := range review.Goals {
-		bound = bound || string(b.Goal) == goal.OwnerID() && b.Need == policy.MaintainHousing
+	for _, b := range review.Standards {
+		bound = bound || string(b.Standard) == goal.OwnerID() && b.Concern == policy.MaintainHousing
 	}
 	if !bound || len(plan.Actions()) == 0 {
 		return false, nil

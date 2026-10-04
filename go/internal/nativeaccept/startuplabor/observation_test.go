@@ -8,11 +8,11 @@ import (
 
 func TestBlockedTicksCreditsEachDiagnosisUntilTheNextReview(t *testing.T) {
 	blocked := BlockedTicks([]Diagnosis{
-		{Goal: "shelter", ReviewTick: 0, Class: ClassSlotRefusal},
-		{Goal: "shelter", ReviewTick: 100, Class: ClassMaterialBlocker},
-		{Goal: "shelter", ReviewTick: 300, Class: ClassProgressing},
-		{Goal: "feed", ReviewTick: 0, Class: ClassSlotRefusal},
-		{Goal: "feed", ReviewTick: 50, Class: ClassSlotRefusal},
+		{Concern: "shelter", ReviewTick: 0, Class: ClassSlotRefusal},
+		{Concern: "shelter", ReviewTick: 100, Class: ClassMaterialBlocker},
+		{Concern: "shelter", ReviewTick: 300, Class: ClassProgressing},
+		{Concern: "feed", ReviewTick: 0, Class: ClassSlotRefusal},
+		{Concern: "feed", ReviewTick: 50, Class: ClassSlotRefusal},
 	}, 0, 1000)
 	if blocked[ClassSlotRefusal] != 150 || blocked[ClassMaterialBlocker] != 200 {
 		t.Fatalf("blocked = %v", blocked)
@@ -25,10 +25,10 @@ func TestBlockedTicksCreditsEachDiagnosisUntilTheNextReview(t *testing.T) {
 
 func TestBlockedTicksIgnoresRewindsAndBoundsGaps(t *testing.T) {
 	blocked := BlockedTicks([]Diagnosis{
-		{Goal: "shelter", ReviewTick: 500, Class: ClassSlotRefusal},
-		{Goal: "shelter", ReviewTick: 100, Class: ClassSlotRefusal},
-		{Goal: "shelter", ReviewTick: 100, Class: ClassSlotRefusal},
-		{Goal: "shelter", ReviewTick: 9000, Class: ClassProgressing},
+		{Concern: "shelter", ReviewTick: 500, Class: ClassSlotRefusal},
+		{Concern: "shelter", ReviewTick: 100, Class: ClassSlotRefusal},
+		{Concern: "shelter", ReviewTick: 100, Class: ClassSlotRefusal},
+		{Concern: "shelter", ReviewTick: 9000, Class: ClassProgressing},
 	}, 0, 1000)
 	if blocked[ClassSlotRefusal] != 1000 {
 		t.Fatalf("blocked = %v: a rewind, a repeat and an over-long gap must not inflate the total", blocked)

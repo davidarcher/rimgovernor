@@ -98,9 +98,9 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	var goal domain.Standard
-	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureFoodSupply {
-			g, err := db.LoadStandard(ctx, binding.Goal)
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.EnsureFoodSupply {
+			g, err := db.LoadStandard(ctx, binding.Standard)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -37,9 +37,9 @@ type roundsRun struct {
 }
 
 // raise appends an autopilot goal and returns it for the detector to adjust.
-func (c *roundsRun) raise(id ConcernID, priority int) *DevelopmentGoal {
-	c.r.Goals = append(c.r.Goals, DevelopmentGoal{ID: id, Priority: priority, Deficit: RoundsDevelopmentDeficit(id, c.f, c.p), Labor: GoalLabor(id), Risk: RoundsDevelopmentRisk(id, c.f, c.l)})
-	return &c.r.Goals[len(c.r.Goals)-1]
+func (c *roundsRun) raise(id ConcernID, priority int) *DevelopmentConcern {
+	c.r.Concerns = append(c.r.Concerns, DevelopmentConcern{ID: id, Priority: priority, Deficit: RoundsDevelopmentDeficit(id, c.f, c.p), Labor: ConcernLabor(id), Risk: RoundsDevelopmentRisk(id, c.f, c.l)})
+	return &c.r.Concerns[len(c.r.Concerns)-1]
 }
 
 // assess appends id's assessment and returns it for the detector to adjust.
@@ -74,7 +74,7 @@ func latchRecovered(active bool, observed domain.Fact[float64]) domain.Fact[bool
 	return measured(observed, func(float64) bool { return !active })
 }
 
-func detectColonyNames(c *roundsRun) error {
+func inspectColonyNames(c *roundsRun) error {
 	if positive(c.f.ColonyNaming) {
 		c.raise(ConfirmColonyNames, 0)
 	}
@@ -82,7 +82,7 @@ func detectColonyNames(c *roundsRun) error {
 	return nil
 }
 
-func detectAnswerDialog(c *roundsRun) error {
+func inspectAnswerDialog(c *roundsRun) error {
 	if positive(c.f.ChoiceDialog) {
 		c.raise(AnswerDialog, 0)
 	}
@@ -90,7 +90,7 @@ func detectAnswerDialog(c *roundsRun) error {
 	return nil
 }
 
-func detectActiveCombat(c *roundsRun) error {
+func inspectActiveCombat(c *roundsRun) error {
 	f := c.f
 	if !positive(combatCleared(f)) {
 		c.raise(ActiveCombat, 0)
@@ -102,7 +102,7 @@ func detectActiveCombat(c *roundsRun) error {
 	return nil
 }
 
-func detectCriticalMedicine(c *roundsRun) error {
+func inspectCriticalMedicine(c *roundsRun) error {
 	medicalMet := measured(c.f.CriticalPatients, func(v int64) bool { return v == 0 })
 	priority := criticalMedicinePriority(c.f)
 	if !positive(medicalMet) {
@@ -112,7 +112,7 @@ func detectCriticalMedicine(c *roundsRun) error {
 	return nil
 }
 
-func detectRestoreWorkers(c *roundsRun) error {
+func inspectRestoreWorkers(c *roundsRun) error {
 	f := c.f
 	if positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) && positive(f.CleanupPawns) {
 		c.raise(RestoreWorkers, 1)
@@ -121,7 +121,7 @@ func detectRestoreWorkers(c *roundsRun) error {
 	return nil
 }
 
-func detectAllowStartingSupplies(c *roundsRun) error {
+func inspectAllowStartingSupplies(c *roundsRun) error {
 	if positive(c.f.ForbiddenSupplies) {
 		c.raise(AllowStartingSupplies, 2)
 	}
@@ -129,7 +129,7 @@ func detectAllowStartingSupplies(c *roundsRun) error {
 	return nil
 }
 
-func detectManageSupplySafety(c *roundsRun) error {
+func inspectManageSupplySafety(c *roundsRun) error {
 	priority := supplySafetyPriority(c.f)
 	if positive(c.f.EventLootPending) {
 		c.raise(ManageSupplySafety, priority)
@@ -138,7 +138,7 @@ func detectManageSupplySafety(c *roundsRun) error {
 	return nil
 }
 
-func detectWorkAssignments(c *roundsRun) error {
+func inspectWorkAssignments(c *roundsRun) error {
 	f := c.f
 	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
 	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) || positive(f.MedicalCareOwed) {
@@ -151,7 +151,7 @@ func detectWorkAssignments(c *roundsRun) error {
 	return nil
 }
 
-func detectFoodSupply(c *roundsRun) error {
+func inspectFoodSupply(c *roundsRun) error {
 	f, l := c.f, c.l
 	foodMet, productionMet := footholdFood(f, c.p), footholdProduction(f)
 	fieldsCovered := measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })
@@ -162,7 +162,7 @@ func detectFoodSupply(c *roundsRun) error {
 	return nil
 }
 
-func detectHousing(c *roundsRun) error {
+func inspectHousing(c *roundsRun) error {
 	housing := reviewHousing(c.f, c.previous, c.p, c.sleepingActive)
 	c.r.Latches.Housing = housing.Phase
 	if housing.Phase != "" {
@@ -179,7 +179,7 @@ func detectHousing(c *roundsRun) error {
 	return nil
 }
 
-func detectTemperatureSafety(c *roundsRun) error {
+func inspectTemperatureSafety(c *roundsRun) error {
 	f, p, l := c.f, c.p, c.l
 	temperatureMet := footholdTemperature(f, p)
 	if positive(f.TemperatureOwed) {
@@ -194,7 +194,7 @@ func detectTemperatureSafety(c *roundsRun) error {
 	return nil
 }
 
-func detectCooking(c *roundsRun) error {
+func inspectCooking(c *roundsRun) error {
 	if !positive(cookingMet(c.f)) {
 		c.raise(EnsureCooking, 2)
 	}
@@ -202,7 +202,7 @@ func detectCooking(c *roundsRun) error {
 	return nil
 }
 
-func detectButcherSpot(c *roundsRun) error {
+func inspectButcherSpot(c *roundsRun) error {
 	if !positive(butcherSpotMet(c.f)) {
 		c.raise(MaintainButcherSpot, 2)
 	}
@@ -210,7 +210,7 @@ func detectButcherSpot(c *roundsRun) error {
 	return nil
 }
 
-func detectBasicPower(c *roundsRun) error {
+func inspectBasicPower(c *roundsRun) error {
 	powerMet := footholdPower(c.f)
 	if !positive(powerMet) {
 		// A solar flare with a known remaining duration switches every
@@ -225,7 +225,7 @@ func detectBasicPower(c *roundsRun) error {
 	return nil
 }
 
-func detectBasicDefense(c *roundsRun) error {
+func inspectBasicDefense(c *roundsRun) error {
 	f := c.f
 	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))
 	defense := basicDefenseRecovered(defenseMet, f.Unarmed)
@@ -245,7 +245,7 @@ func detectBasicDefense(c *roundsRun) error {
 	return nil
 }
 
-func detectComfort(c *roundsRun) error {
+func inspectComfort(c *roundsRun) error {
 	f := c.f
 	basicComfort, err := ReviewBasicComfort(f.BasicComfort)
 	if err != nil {
@@ -282,7 +282,7 @@ func detectComfort(c *roundsRun) error {
 	return nil
 }
 
-func detectPests(c *roundsRun) error {
+func inspectPests(c *roundsRun) error {
 	// A recognised pest on the map (an alphabeaver pack eating the trees,
 	// #247) is a foothold deficit answered by hunting, priority 2: it is
 	// not an emergency (the census never holds the clock for a docile
@@ -298,7 +298,7 @@ func detectPests(c *roundsRun) error {
 	return nil
 }
 
-func detectEquipment(c *roundsRun) error {
+func inspectEquipment(c *roundsRun) error {
 	f := c.f
 	gear, err := ReviewGear(f.Gear)
 	if err != nil {
@@ -320,10 +320,10 @@ func detectEquipment(c *roundsRun) error {
 // no target configured is certain recovery, a configured target with missing
 // facts is unknown, and RoundsResearchPlanner/RoundsResourcePlanner still
 // re-read native state immediately before proposing a method.
-func detectResearch(c *roundsRun) error {
+func inspectResearch(c *roundsRun) error {
 	f, p := c.f, c.p
 	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways)
-	researchTarget, researchDerived := ResearchGoal(ArmorResearchPolicy(p, c.l.Soldiers), researchNeeds, f.Research)
+	researchTarget, researchDerived := ResearchConcern(ArmorResearchPolicy(p, c.l.Soldiers), researchNeeds, f.Research)
 	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
 	// An empty Anomaly knowledge slot with a project to fund is a spending
 	// need of its own (#1745); a disabled goal (no target, empty ladder)
@@ -339,12 +339,12 @@ func detectResearch(c *roundsRun) error {
 	return nil
 }
 
-func detectResource(c *roundsRun) error {
+func inspectResource(c *roundsRun) error {
 	f, p, l := c.f, c.p, c.l
 	// The wood latch is a WoodLog floor on MaintainResource (#728): below
 	// WoodMin it asks for WoodTarget until the latch recovers.
 	c.r.WoodFloor = WoodFloor(l.Wood, p)
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceGoalTargets(ResourceGoalTargets(MedicineResourceNeeds(f.Items, ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(c.r.WoodFloor)))
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(ResourceConcernTargets(MedicineResourceNeeds(f.Items, ResourceConcernTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(c.r.WoodFloor)))
 	if err != nil {
 		return err
 	}
@@ -375,7 +375,7 @@ func detectResource(c *roundsRun) error {
 		// as gating the bench is unfinished, the goal has no method of its
 		// own and holds no slot, so EnsureResearch can take one (#4 M4).
 		// Wood and dependency floors are chopped or mined meanwhile.
-		g.MethodUnavailable = ResearchGoalTarget("", f.ResearchNeeds, f.Research) != "" && c.r.WoodFloor == 0 && len(DependencyResourceNeeds(f.Dependencies)) == 0
+		g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && c.r.WoodFloor == 0 && len(DependencyResourceNeeds(f.Dependencies)) == 0
 	}
 	c.assess(MaintainResource, priority, resourceRecovered)
 	return nil
@@ -386,7 +386,7 @@ func detectResource(c *roundsRun) error {
 // conversation, not a development slot, and recovers by itself when the
 // caravan leaves or nothing is left worth trading. Restore parts a bench
 // could make do not stand the goal (#1255).
-func detectTrade(c *roundsRun) error {
+func inspectTrade(c *roundsRun) error {
 	f, p := c.f, c.p
 	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items.Currency, c.medicine, f.Resources, p.ResourceTargets, RoundsTradeFloors(p, nil), f.Wealth, p.Trade, RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
 	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, p.ResourceTargets, RoundsTradeFloors(p, nil), p.Trade)
@@ -399,7 +399,7 @@ func detectTrade(c *roundsRun) error {
 // detectDefensiveLayout is config-only like EnsureResearch: opt-in activates
 // the goal at priority 3 (after the storage gate) and the planner reports no
 // work once every tier stands.
-func detectDefensiveLayout(c *roundsRun) error {
+func inspectDefensiveLayout(c *roundsRun) error {
 	recovered := domain.Known(!c.p.DefensiveLayout)
 	if !positive(recovered) {
 		c.raise(EnsureDefensiveLayout, 3)
@@ -410,10 +410,10 @@ func detectDefensiveLayout(c *roundsRun) error {
 
 // upkeepDetector serves one of the direct upkeep goals: ReviewUpkeepWith
 // files a need for each, and `hold` is the goal's extra method hold.
-func upkeepDetector(id ConcernID, hold func(c *roundsRun) bool) func(c *roundsRun) error {
+func upkeepInspection(id ConcernID, hold func(c *roundsRun) bool) func(c *roundsRun) error {
 	return func(c *roundsRun) error {
 		for _, n := range c.upkeep.Needs {
-			if n.Goal != id {
+			if n.Concern != id {
 				continue
 			}
 			recovered := domain.Unknown[bool]()
@@ -473,7 +473,7 @@ func holdCleaning(c *roundsRun) bool { return c.upkeep.History.Clearance }
 // upkeep goals. A confirmed deficit ranks at Known(1.0); an unknown census
 // stays DevelopmentUnknown. Method availability follows the composed
 // capability list, since both verticals dispatch.
-func facilityDetector(id ConcernID, priority int, recovered func(c *roundsRun) domain.Fact[bool], active func(c *roundsRun) bool) func(c *roundsRun) error {
+func facilityInspection(id ConcernID, priority int, recovered func(c *roundsRun) domain.Fact[bool], active func(c *roundsRun) bool) func(c *roundsRun) error {
 	return func(c *roundsRun) error {
 		recovered, priority := recovered(c), priority
 		if _, known := recovered.Value(); !known && !active(c) && !c.f.UpkeepIssued[id] {
@@ -493,21 +493,21 @@ func facilityDetector(id ConcernID, priority int, recovered func(c *roundsRun) d
 	}
 }
 
-var detectHomeCoverage = facilityDetector(MaintainHomeCoverage, 3, func(c *roundsRun) domain.Fact[bool] {
+var inspectHomeCoverage = facilityInspection(MaintainHomeCoverage, 3, func(c *roundsRun) domain.Fact[bool] {
 	if diff, known := c.home.Value(); known {
 		return domain.Known(diff.Empty())
 	}
 	return domain.Unknown[bool]()
 }, func(c *roundsRun) bool { return c.homeActive })
 
-var detectStoneShell = facilityDetector(MaintainStoneShell, 4, func(c *roundsRun) domain.Fact[bool] {
+var inspectStoneShell = facilityInspection(MaintainStoneShell, 4, func(c *roundsRun) domain.Fact[bool] {
 	if rows, known := c.stone.Value(); known {
 		return domain.Known(len(rows) == 0)
 	}
 	return domain.Unknown[bool]()
 }, func(c *roundsRun) bool { return c.stoneActive })
 
-func detectMedicalReserves(c *roundsRun) error {
+func inspectMedicalReserves(c *roundsRun) error {
 	f, medicine := c.f, c.medicine
 	// A plan issued for the care phase is not a medicine bill.
 	active := medicine.Active || f.UpkeepIssued[MaintainMedicalReserves] && c.previous.Medical != MedicalCare
@@ -544,7 +544,7 @@ func detectMedicalReserves(c *roundsRun) error {
 
 // detectSurgery (#1164): an operation the planner serves stands on a living
 // colonist until the health change removes it.
-func detectSurgery(c *roundsRun) error {
+func inspectSurgery(c *roundsRun) error {
 	f, p := c.f, c.p
 	// An actionable elective upgrade (#1167) keeps it open too.
 	recovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContext(), f.FabricableParts), func(owed bool) bool { return !owed }))
@@ -566,7 +566,7 @@ func detectSurgery(c *roundsRun) error {
 
 // detectBabyFeeding (#1681): owed while babies have no breastfeeder and too
 // little baby-edible food; unknown raises nothing.
-func detectBabyFeeding(c *roundsRun) error {
+func inspectBabyFeeding(c *roundsRun) error {
 	recovered := measured(c.f.BabyFeeding, func(b BabyFeeding) bool { return !b.Short })
 	c.assess(MaintainBabyFeeding, babyFeedingPriority, recovered)
 	if v, known := recovered.Value(); known && !v {
@@ -578,7 +578,7 @@ func detectBabyFeeding(c *roundsRun) error {
 // detectFoodStorage: MaintainFoodStorage is the one food storage goal: the
 // foothold food stockpile (the storage gate) first, then the larder, the
 // reserve and the stored-food upkeep.
-func detectFoodStorage(c *roundsRun) error {
+func inspectFoodStorage(c *roundsRun) error {
 	f := c.f
 	reserve, reserveKnown := f.FoodReserve.Value()
 	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
@@ -616,7 +616,7 @@ func detectFoodStorage(c *roundsRun) error {
 // development project: the review only latches on food inside SafeRotDays of
 // spoiling, and a cooler queued behind the project limit arrives after the
 // food is gone.
-func detectRefrigeration(c *roundsRun) error {
+func inspectRefrigeration(c *roundsRun) error {
 	f, refrigeration := c.f, c.refrigeration
 	recovered := domain.Unknown[bool]()
 	if _, known := refrigeration.WarmNutrition.Value(); known {
@@ -648,7 +648,7 @@ func detectRefrigeration(c *roundsRun) error {
 // detectLighting: a ranked development project: a dark bench costs work
 // speed and mood, not lives, so it competes for a project slot like the
 // other upkeep needs. The deficit is the measured dark fraction.
-func detectLighting(c *roundsRun) error {
+func inspectLighting(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
 	priority := lightingPriority
 	if c.lighting.Known {
@@ -668,7 +668,7 @@ func detectLighting(c *roundsRun) error {
 
 // detectFlooring is likewise a ranked project. A clean workspace on bare
 // ground ranks with lighting; living rooms alone rank one step lower.
-func detectFlooring(c *roundsRun) error {
+func inspectFlooring(c *roundsRun) error {
 	flooring := c.flooring
 	recovered := domain.Unknown[bool]()
 	priority := flooringPriority
@@ -692,7 +692,7 @@ func detectFlooring(c *roundsRun) error {
 
 // detectRoutes is likewise a ranked project: the deficit is the measured
 // fraction of facilities no colonist reaches.
-func detectRoutes(c *roundsRun) error {
+func inspectRoutes(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
 	priority := routesPriority
 	if c.routes.Known {
@@ -712,7 +712,7 @@ func detectRoutes(c *roundsRun) error {
 
 // detectArt is a ranked upkeep project too (#1190): owed only while a room
 // needs a sculpture and a qualifying artist exists; unknown raises nothing.
-func detectArt(c *roundsRun) error {
+func inspectArt(c *roundsRun) error {
 	f := c.f
 	recovered := domain.Unknown[bool]()
 	// An inspired artist holds it open without a room (#1192). Sale demand
@@ -735,7 +735,7 @@ func detectArt(c *roundsRun) error {
 // with the upkeep projects; unknown raises nothing. While a sheltering
 // trigger holds it is ShelterPriority, so a threat's emergency cannot veto
 // the Safe area that PlanSheltering moves pawns into.
-func detectShelter(c *roundsRun) error {
+func inspectShelter(c *roundsRun) error {
 	priority := 3
 	if trigger, _ := ShelterTriggerOf(c.f); trigger != ShelterNone {
 		priority = ShelterPriority(trigger)
@@ -745,36 +745,36 @@ func detectShelter(c *roundsRun) error {
 }
 
 // MaintainFirebreak (#1548): ring work is owed.
-func detectFirebreak(c *roundsRun) error {
+func inspectFirebreak(c *roundsRun) error {
 	c.owed(MaintainFirebreak, 3, c.f.FirebreakOwed)
 	return nil
 }
 
 // MaintainMechs (#1686): a mech is owed inside the bandwidth.
-func detectMechs(c *roundsRun) error {
+func inspectMechs(c *roundsRun) error {
 	c.owed(MaintainMechs, mechPriority, c.f.MechGestationOwed)
 	return nil
 }
 
 // MaintainPsylink (#1609): a held neuroformer waits for a willing colonist.
-func detectPsylink(c *roundsRun) error { c.owed(MaintainPsylink, 3, c.f.PsylinkOwed); return nil }
+func inspectPsylink(c *roundsRun) error { c.owed(MaintainPsylink, 3, c.f.PsylinkOwed); return nil }
 
 // MaintainIdeoRoles (#1661): a role place and a fitting believer.
-func detectIdeoRoles(c *roundsRun) error { c.owed(MaintainIdeoRoles, 3, c.f.RolesOwed); return nil }
+func inspectIdeoRoles(c *roundsRun) error { c.owed(MaintainIdeoRoles, 3, c.f.RolesOwed); return nil }
 
 // MaintainRituals (#1660): a ritual is due, calm and ready to begin.
-func detectRituals(c *roundsRun) error { c.owed(MaintainRituals, 3, c.f.RitualsOwed); return nil }
+func inspectRituals(c *roundsRun) error { c.owed(MaintainRituals, 3, c.f.RitualsOwed); return nil }
 
 // ManageCreepJoiners (#1740): a creepjoiner holds a weapon before its
 // downside has shown.
-func detectCreepJoiners(c *roundsRun) error {
+func inspectCreepJoiners(c *roundsRun) error {
 	c.owed(ManageCreepJoiners, 3, c.f.CreepJoinerOwed)
 	return nil
 }
 
 // detectPermits (#1606): a colonist holds permit points for a permit worth
 // taking. Unknown without the royalty read raises nothing.
-func detectPermits(c *roundsRun) error {
+func inspectPermits(c *roundsRun) error {
 	c.assess(MaintainPermits, 3, PermitsSpent(c.f.Royalty))
 	if _, owed := NextPermitOf(c.f.Royalty); owed {
 		c.raise(MaintainPermits, 3).Deficit = domain.Known(1.0)
@@ -782,7 +782,7 @@ func detectPermits(c *roundsRun) error {
 	return nil
 }
 
-func detectHerd(c *roundsRun) error {
+func inspectHerd(c *roundsRun) error {
 	f := c.f
 	herd := f.HerdPolicy()
 	recovered := domain.Unknown[bool]()
@@ -827,7 +827,7 @@ func detectHerd(c *roundsRun) error {
 // other optional sub-step fact -- only a known deficit, in either prisoner
 // recruitment or custody, blocks recovery. joinerDeficit likewise needs the
 // quest census (RoundsPopulationJoinerPlanner).
-func detectPopulation(c *roundsRun) error {
+func inspectPopulation(c *roundsRun) error {
 	f, p := c.f, c.p
 	recovered := domain.Unknown[bool]()
 	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.PrisonerColony, f.FoodDays, p.Prisoners()).Value()
@@ -859,7 +859,7 @@ func detectPopulation(c *roundsRun) error {
 // availability is gated through AvailableMethods like MaintainWaste. Like
 // waste, the deficit is census-driven: any uncontained or unfed target is a
 // full deficit, so a known need ranks for a development slot.
-func animalNeedDetector(id ConcernID, recovered func(c *roundsRun) domain.Fact[bool], active func(c *roundsRun) bool) func(c *roundsRun) error {
+func animalInspection(id ConcernID, recovered func(c *roundsRun) domain.Fact[bool], active func(c *roundsRun) bool) func(c *roundsRun) error {
 	return func(c *roundsRun) error {
 		recovered, priority := recovered(c), 3
 		if _, known := recovered.Value(); !known && !active(c) && !c.f.UpkeepIssued[id] {
@@ -879,7 +879,7 @@ func animalNeedDetector(id ConcernID, recovered func(c *roundsRun) domain.Fact[b
 	}
 }
 
-var detectAnimalContainment = animalNeedDetector(MaintainAnimalContainment, func(c *roundsRun) domain.Fact[bool] {
+var inspectAnimalContainment = animalInspection(MaintainAnimalContainment, func(c *roundsRun) domain.Fact[bool] {
 	recovered := domain.Unknown[bool]()
 	if targets, known := c.animals.Containment.Value(); known {
 		recovered = domain.Known(len(targets) == 0)
@@ -890,7 +890,7 @@ var detectAnimalContainment = animalNeedDetector(MaintainAnimalContainment, func
 	return recovered
 }, func(c *roundsRun) bool { return c.animals.History.Containment })
 
-var detectAnimalFeed = animalNeedDetector(MaintainAnimalFeed, func(c *roundsRun) domain.Fact[bool] {
+var inspectAnimalFeed = animalInspection(MaintainAnimalFeed, func(c *roundsRun) domain.Fact[bool] {
 	recovered := domain.Unknown[bool]()
 	if targets, known := c.animals.Feed.Value(); known {
 		recovered = domain.Known(len(targets) == 0)
@@ -904,7 +904,7 @@ var detectAnimalFeed = animalNeedDetector(MaintainAnimalFeed, func(c *roundsRun)
 // detectWaste: MaintainWaste dispatches a GiveJobIntent HaulWaste
 // (RoundsWastePlanner); availability is config-only, gated through
 // AvailableMethods like MaintainResource/EnsureResearch.
-func detectWaste(c *roundsRun) error {
+func inspectWaste(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
 	if items, known := c.f.Waste.Value(); known {
 		recovered = domain.Known(len(pendingWaste(items)) == 0)
@@ -921,7 +921,7 @@ func detectWaste(c *roundsRun) error {
 
 // detectBlight is census-driven like waste: any standing blighted plant is a
 // full deficit; availability is gated through AvailableMethods.
-func detectBlight(c *roundsRun) error {
+func inspectBlight(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
 	if deficit, known := BlightDeficit(c.f.Blight).Value(); known {
 		recovered = domain.Known(!deficit)
@@ -936,7 +936,7 @@ func detectBlight(c *roundsRun) error {
 // detectPollution (#1683): without the Biotech read the need is unknown and
 // raises no goal. It is always assessed so the stored bindings match the set
 // the review loader derives from empty facts.
-func detectPollution(c *roundsRun) error {
+func inspectPollution(c *roundsRun) error {
 	cleared := domain.Unknown[bool]()
 	if deficit, known := PollutionDeficit(c.f.Pollution).Value(); known {
 		cleared = domain.Known(!deficit)
@@ -950,7 +950,7 @@ func detectPollution(c *roundsRun) error {
 
 // detectMechCharger (#1688): unknown without the charger read, and then it
 // raises no goal. Always assessed, like ManagePollution.
-func detectMechCharger(c *roundsRun) error {
+func inspectMechCharger(c *roundsRun) error {
 	c.assess(EnsureMechCharger, 3, notFact(c.f.MechChargerOwed))
 	if owed, known := c.f.MechChargerOwed.Value(); known && owed {
 		c.raise(EnsureMechCharger, 3)
@@ -960,7 +960,7 @@ func detectMechCharger(c *roundsRun) error {
 
 // detectGeneBank (#1933): unknown without the gene-building read, and then
 // it raises no goal. Always assessed, like EnsureMechCharger.
-func detectGeneBank(c *roundsRun) error {
+func inspectGeneBank(c *roundsRun) error {
 	c.assess(MaintainGeneBank, 3, notFact(c.f.GeneBankOwed))
 	if owed, known := c.f.GeneBankOwed.Value(); known && owed {
 		c.raise(MaintainGeneBank, 3)
@@ -973,7 +973,7 @@ func detectGeneBank(c *roundsRun) error {
 // proposal only while the colony is idle; a standing proposal is the
 // deficit. It ranks last (tidyPriority, tidyDeficit), and its availability
 // is gated through AvailableMethods.
-func detectTidyLayout(c *roundsRun) error {
+func inspectTidyLayout(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
 	if tidy, known := c.f.LayoutTidy.Value(); known && tidy.Known {
 		recovered = domain.Known(!tidy.Active)
@@ -987,7 +987,7 @@ func detectTidyLayout(c *roundsRun) error {
 
 // detectStockpiles (#725): a standing stockpile edit is the deficit;
 // availability is gated through AvailableMethods.
-func detectStockpiles(c *roundsRun) error {
+func inspectStockpiles(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
 	if review, known := c.f.Stockpiles.Value(); known && review.Known {
 		recovered = domain.Known(!review.Active)
@@ -1002,7 +1002,7 @@ func detectStockpiles(c *roundsRun) error {
 // detectMood: a pawn's mood is an EnsureMood incident keyed by the pawn
 // (#1078), never a development goal. Its relief is optional and a mental
 // break ends only as ticks pass, so it never suspends other work.
-func detectMood(c *roundsRun) error {
+func inspectMood(c *roundsRun) error {
 	if err := c.f.Mood.Validate(); err != nil {
 		return err
 	}
@@ -1014,7 +1014,7 @@ func detectMood(c *roundsRun) error {
 
 // detectDisaster runs last: a disaster promotes every goal and assessment
 // filed before it.
-func detectDisaster(c *roundsRun) error {
+func inspectDisaster(c *roundsRun) error {
 	f, r := c.f, &c.r
 	var err error
 	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, c.p), f.Disaster, f.DisasterTick, f.ShortCircuitTick)
@@ -1033,8 +1033,8 @@ func detectDisaster(c *roundsRun) error {
 			priority = ShelterPriority(trigger)
 		}
 		r.Assessments = append(r.Assessments, RoundsAssessment{ID: RecoverDisasterServices, Priority: priority, Finding: need})
-		for i := range r.Goals {
-			r.Goals[i].Priority = r.Disaster.Promote(r.Goals[i].ID, r.Goals[i].Priority)
+		for i := range r.Concerns {
+			r.Concerns[i].Priority = r.Disaster.Promote(r.Concerns[i].ID, r.Concerns[i].Priority)
 		}
 		for i := range r.Assessments {
 			r.Assessments[i].Priority = r.Disaster.Promote(r.Assessments[i].ID, r.Assessments[i].Priority)

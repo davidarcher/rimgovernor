@@ -34,7 +34,7 @@ func init() {
 		_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 			WatchConfig: sustainedfood.WatchConfig{
 				Watch: watch, Window: colonyStableTicks, Poll: 10 * time.Second,
-				Goal: policy.EnsureFoodSupply, Extra: ColonyGoals,
+				Concern: policy.EnsureFoodSupply, Extra: ColonyConcerns,
 				FailFast: sustainedfood.FailFast{Disabled: true},
 			},
 			Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {

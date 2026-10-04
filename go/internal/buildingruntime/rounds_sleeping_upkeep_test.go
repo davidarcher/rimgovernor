@@ -94,16 +94,16 @@ func sleepingGoal(t *testing.T, db *store.Store) store.StandardState {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainHousing {
-			goal, err := db.LoadStandard(ctx, binding.Goal)
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainHousing {
+			goal, err := db.LoadStandard(ctx, binding.Standard)
 			if err != nil {
 				t.Fatal(err)
 			}
 			return goal
 		}
 	}
-	t.Fatal("sleeping goal not bound", review.Goals)
+	t.Fatal("sleeping goal not bound", review.Standards)
 	return store.StandardState{}
 }
 
@@ -280,8 +280,8 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews == 0 {
 		t.Fatal(result, err, native.previews)
 	}
-	if len(result.Decision.Goal.Methods) != 1 || result.Decision.Goal.Methods[0].Method != "sleeping-Bed-1" {
-		t.Fatal(result.Decision.Goal.Methods)
+	if len(result.Decision.Standard.Methods) != 1 || result.Decision.Standard.Methods[0].Method != "sleeping-Bed-1" {
+		t.Fatal(result.Decision.Standard.Methods)
 	}
 	// The staged bed completes but the census still owes one bed (the
 	// colonist it went to counted as housed already, or another bed turned

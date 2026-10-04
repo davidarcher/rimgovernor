@@ -52,7 +52,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 		if err != nil {
 			return err
 		}
-		if err = authorizeGoalPlan(ctx, tx, review, project, root, target); err != nil {
+		if err = authorizeStandardPlan(ctx, tx, review, project, root, target); err != nil {
 			return err
 		}
 		return tx.Commit()
@@ -63,11 +63,11 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 		}
 		return tx.Commit()
 	}
-	goal, err := loadGoal(ctx, tx, domain.ConcernID(ownerID))
+	goal, err := loadStandard(ctx, tx, domain.ConcernID(ownerID))
 	if err != nil {
 		return err
 	}
-	if err = authorizeGoalPlan(ctx, tx, review, goal, root, target); err != nil {
+	if err = authorizeStandardPlan(ctx, tx, review, goal, root, target); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -104,7 +104,7 @@ func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id do
 	return roundsActionsSupported(p.Spec)
 }
 
-func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
+func authorizeStandardPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
 	if _, bound := owner.ownerNeed(review); !bound {
 		return ErrConflict
 	}
@@ -114,7 +114,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner Wor
 	}
 	// A prepared plan does not dispatch while a Safeguard vetoes its goal.
 	if reason := review.VetoOwner(owner); reason != "" {
-		return fmt.Errorf("%w: %w: goal %s: %s", ErrConflict, ErrNotAdmitted, g.ID, reason)
+		return fmt.Errorf("%w: %w: standard %s: %s", ErrConflict, ErrNotAdmitted, g.ID, reason)
 	}
 	bound := false
 	for _, method := range owner.OwnerMethods() {
@@ -170,9 +170,9 @@ func roundsActionsSupported(spec domain.PlanSpec) error {
 
 // Need returns the routine need the review binds the goal to.
 func (r Rounds) Need(goal domain.ConcernID) (domain.ConcernID, bool) {
-	for _, binding := range r.Goals {
-		if binding.Goal == goal {
-			return binding.Need, true
+	for _, binding := range r.Standards {
+		if binding.Standard == goal {
+			return binding.Concern, true
 		}
 	}
 	return "", false
@@ -182,7 +182,7 @@ func (r Rounds) Need(goal domain.ConcernID) (domain.ConcernID, bool) {
 func (r Rounds) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
 	for _, binding := range r.Projects {
 		if binding.Project == project {
-			return binding.Need, true
+			return binding.Concern, true
 		}
 	}
 	return "", false
@@ -204,9 +204,9 @@ func (r Rounds) Veto(g domain.Standard) string {
 // is returned whenever the review binds one, workable or not.
 func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (StandardState, bool, error) {
 	id := domain.ConcernID("")
-	for _, binding := range r.Goals {
-		if binding.Need == need {
-			id = binding.Goal
+	for _, binding := range r.Standards {
+		if binding.Concern == need {
+			id = binding.Standard
 		}
 	}
 	if id == "" {

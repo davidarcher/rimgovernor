@@ -38,7 +38,7 @@ const (
 // shell is the shelter plan's geometry as recovered from the durable plan.
 type shell struct {
 	planID    domain.PlanID
-	goalID    domain.ConcernID
+	concernID domain.ConcernID
 	footprint domain.RoomFootprint
 	cells     map[domain.Cell]int // shell cell -> action index
 	shape     string
@@ -60,7 +60,7 @@ func (w waits) wait(ceiling time.Duration, service *na.ServiceProcess) na.Wait {
 // describe is the shell's geometry for the report.
 func (sh *shell) describe() map[string]any {
 	return map[string]any{
-		"plan": string(sh.planID), "goal": string(sh.goalID), "shape": sh.shape,
+		"plan": string(sh.planID), "concern": string(sh.concernID), "shape": sh.shape,
 		"door": sh.footprint.Door(), "entrance": string(sh.footprint.Entrance()),
 		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
 		"bounds": sh.footprint.Bounds(),
@@ -151,7 +151,7 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 			}
 			if v.Stage == domain.Completed {
 				l.completed[b.Cell()] = true
-			} else if !domain.GoalWorkOpen([]domain.Progress{plan.Progress[i]}) {
+			} else if !domain.StandardWorkOpen([]domain.Progress{plan.Progress[i]}) {
 				gap = true
 			}
 			if v.Attempt == 0 {
@@ -170,7 +170,7 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 		l.byID[plan.Spec.ID()] = plan
 		// A plan settled with a gap (a cell unsuccessful) is history: the
 		// repair that closes it is the live plan.
-		if !plan.Retired && !cancelled && !(gap && !domain.GoalWorkOpen(plan.Progress)) {
+		if !plan.Retired && !cancelled && !(gap && !domain.StandardWorkOpen(plan.Progress)) {
 			if l.live != nil {
 				return lineage{}, fmt.Errorf("two live shell plans: %s and %s", l.live.Spec.ID(), plan.Spec.ID())
 			}
@@ -234,20 +234,20 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 		if err != nil {
 			return na.Signature("no-review", err), false, nil
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != policy.MaintainHousing {
+		for _, binding := range review.Standards {
+			if binding.Concern != policy.MaintainHousing {
 				continue
 			}
-			goal, err := st.LoadStandard(ctx, binding.Goal)
+			goal, err := st.LoadStandard(ctx, binding.Standard)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
 			if errors.Is(err, store.ErrNotFound) {
-				return na.Signature(binding.Goal, "unbound"), false, nil
+				return na.Signature(binding.Standard, "unbound"), false, nil
 			}
 			// Retired bindings too: a shell plan completes on its placement
 			// receipts and retires at once, as the bunk rungs do (8221a21).
-			methods, err := st.LoadMethods(ctx, binding.Goal, goal.Standard.Episode)
+			methods, err := st.LoadMethods(ctx, binding.Standard, goal.Standard.Episode)
 			if err != nil {
 				return "", false, err
 			}
@@ -260,14 +260,14 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 				if err != nil {
 					return "", false, err
 				}
-				sh.planID, sh.goalID = m.Plan, binding.Goal
+				sh.planID, sh.concernID = m.Plan, binding.Standard
 				sh.seen = map[domain.PlanID]bool{m.Plan: true}
 				found = sh
 				return "", true, nil
 			}
-			return na.Signature(binding.Goal, len(methods)), false, nil
+			return na.Signature(binding.Standard, len(methods)), false, nil
 		}
-		return na.Signature("unbound", len(review.Goals)), false, nil
+		return na.Signature("unbound", len(review.Standards)), false, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("no shell plan admitted for MaintainHousing: %w", err)

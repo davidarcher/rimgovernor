@@ -1029,7 +1029,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24461",
       "Origin": "Thing_Blueprint_HiddenConduit24457"
@@ -1046,7 +1046,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24465",
       "Origin": "Thing_Blueprint_HiddenConduit24462"
@@ -1063,7 +1063,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24470",
       "Origin": "Thing_Blueprint_HiddenConduit24466"
@@ -1080,7 +1080,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24477",
       "Origin": "Thing_Blueprint_HiddenConduit24473"
@@ -1097,7 +1097,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24492",
       "Origin": "Thing_Blueprint_HiddenConduit24482"
@@ -1114,7 +1114,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24505",
       "Origin": "Thing_Blueprint_HiddenConduit24497"
@@ -1131,7 +1131,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24518",
       "Origin": "Thing_Blueprint_HiddenConduit24509"
@@ -1148,7 +1148,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24516",
       "Origin": "Thing_Blueprint_HiddenConduit24510"
@@ -1165,7 +1165,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24585",
       "Origin": "Thing_Blueprint_HiddenConduit24578"
@@ -1182,7 +1182,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24599",
       "Origin": "Thing_Blueprint_HiddenConduit24593"
@@ -1199,7 +1199,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24606",
       "Origin": "Thing_Blueprint_HiddenConduit24602"
@@ -1216,7 +1216,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24615",
       "Origin": "Thing_Blueprint_HiddenConduit24611"
@@ -1233,7 +1233,7 @@
       "definition": "HiddenConduit",
       "rotation": "north"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_HiddenConduit24623",
       "Origin": "Thing_Blueprint_HiddenConduit24618"
@@ -1251,7 +1251,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Door24322",
       "Origin": "Thing_Blueprint_Door24258"
@@ -1269,7 +1269,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24317",
       "Origin": "Thing_Blueprint_Wall24259"
@@ -1287,7 +1287,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24313",
       "Origin": "Thing_Blueprint_Wall24260"
@@ -1305,7 +1305,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24312",
       "Origin": "Thing_Blueprint_Wall24261"
@@ -1323,7 +1323,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24310",
       "Origin": "Thing_Blueprint_Wall24262"
@@ -1341,7 +1341,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24298",
       "Origin": "Thing_Blueprint_Wall24263"
@@ -1359,7 +1359,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24305",
       "Origin": "Thing_Blueprint_Wall24264"
@@ -1377,7 +1377,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24315",
       "Origin": "Thing_Blueprint_Wall24265"
@@ -1395,7 +1395,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24289",
       "Origin": "Thing_Blueprint_Wall24266"
@@ -1413,7 +1413,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24311",
       "Origin": "Thing_Blueprint_Wall24267"
@@ -1431,7 +1431,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24321",
       "Origin": "Thing_Blueprint_Wall24268"
@@ -1449,7 +1449,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24314",
       "Origin": "Thing_Blueprint_Wall24269"
@@ -1467,7 +1467,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24320",
       "Origin": "Thing_Blueprint_Wall24270"
@@ -1485,7 +1485,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24319",
       "Origin": "Thing_Blueprint_Wall24271"
@@ -1503,7 +1503,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24318",
       "Origin": "Thing_Blueprint_Wall24272"
@@ -1521,7 +1521,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24316",
       "Origin": "Thing_Blueprint_Wall24273"
@@ -1539,7 +1539,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24407",
       "Origin": "Thing_Blueprint_Wall24400"
@@ -1557,7 +1557,7 @@
       "rotation": "north",
       "stuff": "WoodLog"
      },
-     "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
+     "Concern": "routine-aa21352b1aef3b39-EnsureBasicPower",
      "Identity": {
       "Current": "Thing_Wall24418",
       "Origin": "Thing_Blueprint_Wall24413"
@@ -1575,7 +1575,7 @@
       "rotation": "north",
       "stuff": "BlocksGranite"
      },
-     "Goal": "routine-aa21352b1aef3b39-MaintainStoneShell",
+     "Concern": "routine-aa21352b1aef3b39-MaintainStoneShell",
      "Identity": {
       "Current": "Thing_Wall24697",
       "Origin": "Thing_Blueprint_Wall24680"
@@ -1593,7 +1593,7 @@
       "rotation": "north",
       "stuff": "BlocksGranite"
      },
-     "Goal": "routine-aa21352b1aef3b39-MaintainStoneShell",
+     "Concern": "routine-aa21352b1aef3b39-MaintainStoneShell",
      "Identity": {
       "Current": "Thing_Wall24703",
       "Origin": "Thing_Blueprint_Wall24681"
@@ -2372,39 +2372,39 @@
    "Phase": "disrupted",
    "Services": [
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "food"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "production"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "sleeping"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "shelter"
     },
     {
-     "Need": "unclear",
+     "Finding": "unclear",
      "Service": "temperature"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "cooking"
     },
     {
-     "Need": "met",
+     "Finding": "met",
      "Service": "power"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "storage"
     },
     {
-     "Need": "met",
+     "Finding": "met",
      "Service": "infrastructure"
     }
    ],
@@ -13174,7 +13174,7 @@
   },
   "FoodTargetDays": 7,
   "FootholdFoodDays": 3,
-  "GoalStallTicks": 2500,
+  "ConcernStallTicks": 2500,
   "HotEnter": 32,
   "HotExit": 28,
   "HuntStallTicks": 6000,
@@ -13218,7 +13218,7 @@
      ]
     },
     {
-     "Goal": "MaintainStoneShell",
+     "Concern": "MaintainStoneShell",
      "Labor": [
       "Construction"
      ],
@@ -13251,7 +13251,7 @@
     {
      "Committed": true,
      "Deficit": 1,
-     "Goal": "MaintainStoneShell",
+     "Concern": "MaintainStoneShell",
      "Labor": [
       "Construction"
      ],
@@ -13264,7 +13264,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "EnsureBasicDefense",
+     "Concern": "EnsureBasicDefense",
      "Labor": [
       "Construction"
      ],
@@ -13275,7 +13275,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "EnsureComfort",
+     "Concern": "EnsureComfort",
      "Labor": [
       "Construction"
      ],
@@ -13286,7 +13286,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "MaintainHousing",
+     "Concern": "MaintainHousing",
      "Labor": [
       "Construction"
      ],
@@ -13297,7 +13297,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "MaintainAnimalFeed",
+     "Concern": "MaintainAnimalFeed",
      "Labor": [
       "Cooking",
       "Hauling",
@@ -13310,7 +13310,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "MaintainEquipment",
+     "Concern": "MaintainEquipment",
      "Labor": [
       "Construction",
       "Tailoring",
@@ -13324,7 +13324,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "MaintainMedicalReserves",
+     "Concern": "MaintainMedicalReserves",
      "Labor": [
       "Crafting",
       "PlantCutting"
@@ -13336,7 +13336,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "MaintainFlooring",
+     "Concern": "MaintainFlooring",
      "Labor": [
       "Construction"
      ],
@@ -13346,7 +13346,7 @@
      "WaitingSince": 16227
     },
     {
-     "Goal": "ClearAncientShrine",
+     "Concern": "ClearAncientShrine",
      "Labor": [
       "Construction"
      ],
@@ -13356,7 +13356,7 @@
      "WaitingSince": 29
     },
     {
-     "Goal": "ClearHomeObstructions",
+     "Concern": "ClearHomeObstructions",
      "Labor": [
       "Construction"
      ],
@@ -13366,7 +13366,7 @@
      "WaitingSince": 29
     },
     {
-     "Goal": "MaintainHerd",
+     "Concern": "MaintainHerd",
      "Labor": [
       "Handling"
      ],
@@ -13376,7 +13376,7 @@
      "WaitingSince": 29
     },
     {
-     "Goal": "MaintainWaste",
+     "Concern": "MaintainWaste",
      "Labor": [
       "Hauling"
      ],
@@ -13386,7 +13386,7 @@
      "WaitingSince": 29
     },
     {
-     "Goal": "TidyLayout",
+     "Concern": "TidyLayout",
      "Labor": [
       "Growing",
       "Hauling",
@@ -13398,7 +13398,7 @@
      "WaitingSince": 29
     },
     {
-     "Goal": "MaintainCleanFacilities",
+     "Concern": "MaintainCleanFacilities",
      "Labor": [
       "Cleaning",
       "BasicWorker"
@@ -13441,39 +13441,39 @@
    "Phase": "disrupted",
    "Services": [
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "food"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "production"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "sleeping"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "shelter"
     },
     {
-     "Need": "unclear",
+     "Finding": "unclear",
      "Service": "temperature"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "cooking"
     },
     {
-     "Need": "met",
+     "Finding": "met",
      "Service": "power"
     },
     {
-     "Need": "unmet",
+     "Finding": "unmet",
      "Service": "storage"
     },
     {
-     "Need": "met",
+     "Finding": "met",
      "Service": "infrastructure"
     }
    ],
@@ -13918,174 +13918,174 @@
     }
    ]
   },
-  "Goals": [
+  "Standards": [
    {
-    "Goal": "routine-aa21352b1aef3b39-ConfirmColonyNames",
-    "Need": "ConfirmColonyNames"
+    "Standard": "routine-aa21352b1aef3b39-ConfirmColonyNames",
+    "Concern": "ConfirmColonyNames"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-AnswerDialog",
-    "Need": "AnswerDialog"
+    "Standard": "routine-aa21352b1aef3b39-AnswerDialog",
+    "Concern": "AnswerDialog"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-ActiveCombat",
-    "Need": "ActiveCombat"
+    "Standard": "routine-aa21352b1aef3b39-ActiveCombat",
+    "Concern": "ActiveCombat"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-CriticalMedical",
-    "Need": "CriticalMedical"
+    "Standard": "routine-aa21352b1aef3b39-CriticalMedical",
+    "Concern": "CriticalMedical"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-RestoreWorkers",
-    "Need": "RestoreWorkers"
+    "Standard": "routine-aa21352b1aef3b39-RestoreWorkers",
+    "Concern": "RestoreWorkers"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-AllowStartingSupplies",
-    "Need": "AllowStartingSupplies"
+    "Standard": "routine-aa21352b1aef3b39-AllowStartingSupplies",
+    "Concern": "AllowStartingSupplies"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-ManageSupplySafety",
-    "Need": "ManageSupplySafety"
+    "Standard": "routine-aa21352b1aef3b39-ManageSupplySafety",
+    "Concern": "ManageSupplySafety"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureWorkAssignments",
-    "Need": "EnsureWorkAssignments"
+    "Standard": "routine-aa21352b1aef3b39-EnsureWorkAssignments",
+    "Concern": "EnsureWorkAssignments"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureFoodSupply",
-    "Need": "EnsureFoodSupply"
+    "Standard": "routine-aa21352b1aef3b39-EnsureFoodSupply",
+    "Concern": "EnsureFoodSupply"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainHousing",
-    "Need": "MaintainHousing"
+    "Standard": "routine-aa21352b1aef3b39-MaintainHousing",
+    "Concern": "MaintainHousing"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureTemperatureSafety",
-    "Need": "EnsureTemperatureSafety"
+    "Standard": "routine-aa21352b1aef3b39-EnsureTemperatureSafety",
+    "Concern": "EnsureTemperatureSafety"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureCooking",
-    "Need": "EnsureCooking"
+    "Standard": "routine-aa21352b1aef3b39-EnsureCooking",
+    "Concern": "EnsureCooking"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureBasicPower",
-    "Need": "EnsureBasicPower"
+    "Standard": "routine-aa21352b1aef3b39-EnsureBasicPower",
+    "Concern": "EnsureBasicPower"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureBasicDefense",
-    "Need": "EnsureBasicDefense"
+    "Standard": "routine-aa21352b1aef3b39-EnsureBasicDefense",
+    "Concern": "EnsureBasicDefense"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainMedicalReserves",
-    "Need": "MaintainMedicalReserves"
+    "Standard": "routine-aa21352b1aef3b39-MaintainMedicalReserves",
+    "Concern": "MaintainMedicalReserves"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureComfort",
-    "Need": "EnsureComfort"
+    "Standard": "routine-aa21352b1aef3b39-EnsureComfort",
+    "Concern": "EnsureComfort"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-ClearPests",
-    "Need": "ClearPests"
+    "Standard": "routine-aa21352b1aef3b39-ClearPests",
+    "Concern": "ClearPests"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainEquipment",
-    "Need": "MaintainEquipment"
+    "Standard": "routine-aa21352b1aef3b39-MaintainEquipment",
+    "Concern": "MaintainEquipment"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureResearch",
-    "Need": "EnsureResearch"
+    "Standard": "routine-aa21352b1aef3b39-EnsureResearch",
+    "Concern": "EnsureResearch"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainResource",
-    "Need": "MaintainResource"
+    "Standard": "routine-aa21352b1aef3b39-MaintainResource",
+    "Concern": "MaintainResource"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-TradeWithCaravan",
-    "Need": "TradeWithCaravan"
+    "Standard": "routine-aa21352b1aef3b39-TradeWithCaravan",
+    "Concern": "TradeWithCaravan"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureDefensiveLayout",
-    "Need": "EnsureDefensiveLayout"
+    "Standard": "routine-aa21352b1aef3b39-EnsureDefensiveLayout",
+    "Concern": "EnsureDefensiveLayout"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainFireSafety",
-    "Need": "MaintainFireSafety"
+    "Standard": "routine-aa21352b1aef3b39-MaintainFireSafety",
+    "Concern": "MaintainFireSafety"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainEssentialRepairs",
-    "Need": "MaintainEssentialRepairs"
+    "Standard": "routine-aa21352b1aef3b39-MaintainEssentialRepairs",
+    "Concern": "MaintainEssentialRepairs"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainCleanFacilities",
-    "Need": "MaintainCleanFacilities"
+    "Standard": "routine-aa21352b1aef3b39-MaintainCleanFacilities",
+    "Concern": "MaintainCleanFacilities"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-ClearHomeObstructions",
-    "Need": "ClearHomeObstructions"
+    "Standard": "routine-aa21352b1aef3b39-ClearHomeObstructions",
+    "Concern": "ClearHomeObstructions"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-ClearAncientShrine",
-    "Need": "ClearAncientShrine"
+    "Standard": "routine-aa21352b1aef3b39-ClearAncientShrine",
+    "Concern": "ClearAncientShrine"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainHomeCoverage",
-    "Need": "MaintainHomeCoverage"
+    "Standard": "routine-aa21352b1aef3b39-MaintainHomeCoverage",
+    "Concern": "MaintainHomeCoverage"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainStoneShell",
-    "Need": "MaintainStoneShell"
+    "Standard": "routine-aa21352b1aef3b39-MaintainStoneShell",
+    "Concern": "MaintainStoneShell"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainFoodStorage",
-    "Need": "MaintainFoodStorage"
+    "Standard": "routine-aa21352b1aef3b39-MaintainFoodStorage",
+    "Concern": "MaintainFoodStorage"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainRefrigeration",
-    "Need": "MaintainRefrigeration"
+    "Standard": "routine-aa21352b1aef3b39-MaintainRefrigeration",
+    "Concern": "MaintainRefrigeration"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainLighting",
-    "Need": "MaintainLighting"
+    "Standard": "routine-aa21352b1aef3b39-MaintainLighting",
+    "Concern": "MaintainLighting"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainFlooring",
-    "Need": "MaintainFlooring"
+    "Standard": "routine-aa21352b1aef3b39-MaintainFlooring",
+    "Concern": "MaintainFlooring"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainRoutes",
-    "Need": "MaintainRoutes"
+    "Standard": "routine-aa21352b1aef3b39-MaintainRoutes",
+    "Concern": "MaintainRoutes"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainHerd",
-    "Need": "MaintainHerd"
+    "Standard": "routine-aa21352b1aef3b39-MaintainHerd",
+    "Concern": "MaintainHerd"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainPopulation",
-    "Need": "MaintainPopulation"
+    "Standard": "routine-aa21352b1aef3b39-MaintainPopulation",
+    "Concern": "MaintainPopulation"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainAnimalContainment",
-    "Need": "MaintainAnimalContainment"
+    "Standard": "routine-aa21352b1aef3b39-MaintainAnimalContainment",
+    "Concern": "MaintainAnimalContainment"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainAnimalFeed",
-    "Need": "MaintainAnimalFeed"
+    "Standard": "routine-aa21352b1aef3b39-MaintainAnimalFeed",
+    "Concern": "MaintainAnimalFeed"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-MaintainWaste",
-    "Need": "MaintainWaste"
+    "Standard": "routine-aa21352b1aef3b39-MaintainWaste",
+    "Concern": "MaintainWaste"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-RemoveBlight",
-    "Need": "RemoveBlight"
+    "Standard": "routine-aa21352b1aef3b39-RemoveBlight",
+    "Concern": "RemoveBlight"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-TidyLayout",
-    "Need": "TidyLayout"
+    "Standard": "routine-aa21352b1aef3b39-TidyLayout",
+    "Concern": "TidyLayout"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-RecoverDisasterServices",
-    "Need": "RecoverDisasterServices"
+    "Standard": "routine-aa21352b1aef3b39-RecoverDisasterServices",
+    "Concern": "RecoverDisasterServices"
    }
   ],
   "Latches": {
@@ -14115,7 +14115,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "AllowStartingSupplies",
+    "Concern": "AllowStartingSupplies",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14129,7 +14129,7 @@
      }
     ],
     "Expected": "food days rise toward the target",
-    "Goal": "EnsureFoodSupply",
+    "Concern": "EnsureFoodSupply",
     "LastProgress": 99820,
     "Method": "acquire",
     "NextReview": 102320,
@@ -14144,7 +14144,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainHousing",
+    "Concern": "MaintainHousing",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14158,7 +14158,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureTemperatureSafety",
+    "Concern": "EnsureTemperatureSafety",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14172,7 +14172,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureCooking",
+    "Concern": "EnsureCooking",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14186,7 +14186,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureBasicDefense",
+    "Concern": "EnsureBasicDefense",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14201,7 +14201,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureComfort",
+    "Concern": "EnsureComfort",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14216,7 +14216,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainEquipment",
+    "Concern": "MaintainEquipment",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14231,7 +14231,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainResource",
+    "Concern": "MaintainResource",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14246,7 +14246,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainCleanFacilities",
+    "Concern": "MaintainCleanFacilities",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14260,7 +14260,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "ClearHomeObstructions",
+    "Concern": "ClearHomeObstructions",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14274,14 +14274,14 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "ClearAncientShrine",
+    "Concern": "ClearAncientShrine",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
    },
    {
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainStoneShell",
+    "Concern": "MaintainStoneShell",
     "LastProgress": 99820,
     "Method": "wall",
     "NextReview": 102320,
@@ -14296,7 +14296,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalReserves",
+    "Concern": "MaintainMedicalReserves",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14311,7 +14311,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainFoodStorage",
+    "Concern": "MaintainFoodStorage",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14326,7 +14326,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainFlooring",
+    "Concern": "MaintainFlooring",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14341,7 +14341,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainHerd",
+    "Concern": "MaintainHerd",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14355,7 +14355,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainAnimalFeed",
+    "Concern": "MaintainAnimalFeed",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320,
@@ -14370,7 +14370,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainWaste",
+    "Concern": "MaintainWaste",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14384,7 +14384,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "TidyLayout",
+    "Concern": "TidyLayout",
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
@@ -14401,7 +14401,7 @@
        "Kind": "cell"
       }
      ],
-     "Goals": [
+     "Concerns": [
       "MaintainStoneShell"
      ],
      "ID": "6bd429e339ab223e",
@@ -14417,7 +14417,7 @@
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-demolish",
      "Adapter": "conservative",
-     "Goals": [
+     "Concerns": [
       "MaintainStoneShell"
      ],
      "ID": "7406cd290ff3fb69",
@@ -14432,7 +14432,7 @@
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-backup-remove-1",
      "Adapter": "conservative",
-     "Goals": [
+     "Concerns": [
       "MaintainStoneShell"
      ],
      "ID": "3991aa413c9e2a7b",
@@ -14456,7 +14456,7 @@
        "Kind": "cell"
       }
      ],
-     "Goals": [
+     "Concerns": [
       "MaintainStoneShell"
      ],
      "ID": "43fe2b0d26998c5d",
@@ -14474,7 +14474,7 @@
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-backup-remove-0",
      "Adapter": "conservative",
-     "Goals": [
+     "Concerns": [
       "MaintainStoneShell"
      ],
      "ID": "5c29e5027be198fd",
@@ -14492,7 +14492,7 @@
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-backup-remove-2",
      "Adapter": "conservative",
-     "Goals": [
+     "Concerns": [
       "MaintainStoneShell"
      ],
      "ID": "80ee6f916441e1ae",
@@ -14509,7 +14509,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [],
+     "Concerns": [],
      "ID": "0b655354e6a776f5",
      "Reason": "no plan or proposal",
      "Stage": "none",
@@ -14517,7 +14517,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainHousing"
      ],
      "ID": "0f4ad4413d2eeab1",
@@ -14527,7 +14527,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "EnsureComfort"
      ],
      "ID": "1ca76d7c706f01b6",
@@ -14537,7 +14537,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainHousing"
      ],
      "ID": "23c3ec76a8dcc673",
@@ -14547,7 +14547,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "EnsureBasicDefense"
      ],
      "ID": "413fcd4d0c88df59",
@@ -14557,7 +14557,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainHerd"
      ],
      "ID": "4c89fd53c2edf0d9",
@@ -14567,7 +14567,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainMedicalReserves"
      ],
      "ID": "593a794e5a20743c",
@@ -14577,7 +14577,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "EnsureComfort"
      ],
      "ID": "63cbca39512daaef",
@@ -14587,7 +14587,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainEquipment"
      ],
      "ID": "7efe53ec8536cb8c",
@@ -14597,7 +14597,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainFlooring"
      ],
      "ID": "87cb57dbff3aceba",
@@ -14607,7 +14607,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainCleanFacilities"
      ],
      "ID": "a24230ed07585bff",
@@ -14617,7 +14617,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainAnimalFeed"
      ],
      "ID": "ab93b28b43324137",
@@ -14627,7 +14627,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainFoodStorage"
      ],
      "ID": "ba5227263039fe6b",
@@ -14637,7 +14637,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
+     "Concerns": [
       "MaintainResource"
      ],
      "ID": "c06cf59748f7b957",
@@ -14647,7 +14647,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [],
+     "Concerns": [],
      "ID": "e282739688f43c2f",
      "Reason": "no plan or proposal",
      "Stage": "none",

@@ -420,12 +420,12 @@ func WaitReview(ctx context.Context, s *store.Store, w Wait, ready func(store.Ro
 		if ready(r) {
 			return "", true, nil
 		}
-		needs := make([]string, 0, len(r.Goals)+len(r.Projects))
-		for _, binding := range r.Goals {
-			needs = append(needs, string(binding.Need)+"="+string(binding.Goal))
+		needs := make([]string, 0, len(r.Standards)+len(r.Projects))
+		for _, binding := range r.Standards {
+			needs = append(needs, string(binding.Concern)+"="+string(binding.Standard))
 		}
 		for _, binding := range r.Projects {
-			needs = append(needs, string(binding.Need)+"="+string(binding.Project))
+			needs = append(needs, string(binding.Concern)+"="+string(binding.Project))
 		}
 		return Signature(fmt.Sprintf("%+v", r.Latches), needs), false, nil
 	})
@@ -513,36 +513,36 @@ func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.Concern
 			}
 			return Signature(id, len(project.History)), false, nil
 		}
-		var goalID domain.ConcernID
-		for _, binding := range review.Goals {
-			if binding.Need == need {
-				goalID = binding.Goal
+		var concernID domain.ConcernID
+		for _, binding := range review.Standards {
+			if binding.Concern == need {
+				concernID = binding.Standard
 				break
 			}
 		}
-		if goalID == "" {
+		if concernID == "" {
 			return Signature("unbound", review.Revision > 0), false, nil
 		}
-		goal, err := s.LoadStandard(ctx, goalID)
+		goal, err := s.LoadStandard(ctx, concernID)
 		if err != nil && !errors.Is(err, store.ErrNotFound) {
 			return "", false, err
 		}
 		methods := goal.Methods
 		if err == nil && len(methods) == 0 {
-			if methods, err = s.LoadMethods(ctx, goalID, goal.Standard.Episode); err != nil {
+			if methods, err = s.LoadMethods(ctx, concernID, goal.Standard.Episode); err != nil {
 				return "", false, err
 			}
 		}
 		for _, method := range methods {
 			if !seen[method.Plan] {
-				foundGoal, found = goalID, method
+				foundGoal, found = concernID, method
 				return "", true, nil
 			}
 		}
-		return Signature(goalID, len(methods)), false, nil
+		return Signature(concernID, len(methods)), false, nil
 	})
 	if err != nil {
-		return "", domain.Method{}, fmt.Errorf("goal method for %s: %w", need, err)
+		return "", domain.Method{}, fmt.Errorf("standard method for %s: %w", need, err)
 	}
 	return foundGoal, found, nil
 }

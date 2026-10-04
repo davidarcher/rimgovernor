@@ -30,13 +30,13 @@ type StandardState struct {
 	Retired bool
 }
 
-const maxActiveGoals = 512
+const maxActiveStandards = 512
 
 // initializeGoals creates the goal lifecycle tables. goals and rounds
 // are session caches (#1011): RebuildStandards refills goals and projects from the save and
 // ResetRounds empties rounds on every world change, and the
 // next review recomputes it. Goal-create request replay is in memory only.
-func initializeGoals(ctx context.Context, tx *sql.Tx) error {
+func initializeStandards(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE standards(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_standards ON standards(id) WHERE retired=0;
 CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload BLOB NOT NULL) STRICT;
@@ -63,7 +63,7 @@ func createStandard(ctx context.Context, tx *sql.Tx, g domain.Standard) error {
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM standards WHERE retired=0").Scan(&count); err != nil {
 		return err
 	}
-	if count >= maxActiveGoals {
+	if count >= maxActiveStandards {
 		return ErrCapacity
 	}
 	data, err := json.Marshal(g)
@@ -76,7 +76,7 @@ func createStandard(ctx context.Context, tx *sql.Tx, g domain.Standard) error {
 	return nil
 }
 
-func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardState, error) {
+func loadStandard(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardState, error) {
 	var out StandardState
 	var data []byte
 	var revision string
@@ -88,26 +88,26 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 	}
 	n, err := strconv.ParseUint(revision, 10, 64)
 	if err != nil || strconv.FormatUint(n, 10) != revision {
-		return out, errors.New("invalid goal revision")
+		return out, errors.New("invalid standard revision")
 	}
 	if len(data) > 8192 {
-		return out, errors.New("goal payload exceeds bound")
+		return out, errors.New("standard payload exceeds bound")
 	}
 	if err = json.Unmarshal(data, &out.Standard); err != nil {
 		return StandardState{}, err
 	}
 	canonical, err := json.Marshal(out.Standard)
 	if err != nil || !bytes.Equal(data, canonical) {
-		return StandardState{}, errors.New("noncanonical goal state")
+		return StandardState{}, errors.New("noncanonical standard state")
 	}
 	if err = out.Standard.Validate(); err != nil {
 		return StandardState{}, err
 	}
 	if out.Standard.ID != id {
-		return StandardState{}, errors.New("goal identity mismatch")
+		return StandardState{}, errors.New("standard identity mismatch")
 	}
 	if out.Retired && out.Standard.Status != domain.StandardVoided {
-		return StandardState{}, errors.New("invalid retired goal")
+		return StandardState{}, errors.New("invalid retired standard")
 	}
 	out.Revision = n
 	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM standard_methods WHERE standard_id=?", id).Scan(&out.Admitted); err != nil {
@@ -144,7 +144,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 		}
 		m.Episode, err = strconv.ParseUint(epoch, 10, 64)
 		if err != nil || strconv.FormatUint(m.Episode, 10) != epoch || m.Episode > out.Standard.Episode || m.Validate() != nil {
-			return StandardState{}, errors.New("invalid goal method record")
+			return StandardState{}, errors.New("invalid standard method record")
 		}
 		out.Methods = append(out.Methods, m)
 		if len(out.Methods) > 256 {
@@ -160,7 +160,7 @@ func (s *Store) LoadStandard(ctx context.Context, id domain.ConcernID) (Standard
 		return StandardState{}, err
 	}
 	defer tx.Rollback()
-	out, err := loadGoal(ctx, tx, id)
+	out, err := loadStandard(ctx, tx, id)
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -172,7 +172,7 @@ func (s *Store) LoadStandard(ctx context.Context, id domain.ConcernID) (Standard
 
 func saveStandard(ctx context.Context, tx *sql.Tx, previous StandardState, g domain.Standard) (StandardState, error) {
 	if previous.Retired {
-		return StandardState{}, errors.New("retired goal is read-only")
+		return StandardState{}, errors.New("retired standard is read-only")
 	}
 	if g == previous.Standard {
 		return previous, nil
@@ -196,7 +196,7 @@ func saveStandard(ctx context.Context, tx *sql.Tx, previous StandardState, g dom
 	return previous, nil
 }
 
-func goalOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, error) {
+func standardOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, error) {
 	open := false
 	for _, plan := range owner.ownerPlans() {
 		p, err := load(ctx, tx, plan)
@@ -232,14 +232,14 @@ func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revisio
 		return StandardState{}, err
 	}
 	defer tx.Rollback()
-	state, err := loadGoal(ctx, tx, id)
+	state, err := loadStandard(ctx, tx, id)
 	if err != nil {
 		return StandardState{}, err
 	}
 	if state.Revision != revision {
 		return StandardState{}, ErrConflict
 	}
-	open, err := goalOpenWork(ctx, tx, state)
+	open, err := standardOpenWork(ctx, tx, state)
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -276,7 +276,7 @@ func (s *Store) CommitMethodReason(ctx context.Context, id domain.ConcernID, rev
 		return StandardState{}, err
 	}
 	if len(plan.Actions()) == 0 {
-		return StandardState{}, errors.New("empty goal method")
+		return StandardState{}, errors.New("empty standard method")
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
@@ -294,14 +294,14 @@ func (s *Store) CommitMethodReason(ctx context.Context, id domain.ConcernID, rev
 }
 
 func commitMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
-	state, err := loadGoal(ctx, tx, id)
+	state, err := loadStandard(ctx, tx, id)
 	if err != nil {
 		return StandardState{}, err
 	}
 	if err = admitOwnerCommit(ctx, tx, state, revision, method, reason, plan); err != nil {
 		return StandardState{}, err
 	}
-	return loadGoal(ctx, tx, id)
+	return loadStandard(ctx, tx, id)
 }
 
 // admitOwnerCommit is the commit every method owner shares, a goal or a
@@ -315,7 +315,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrConflict, state.ownerLabel(), state.OwnerRevision(), revision)
 	}
 	if summary.Status != domain.StandardOpen || summary.Finding != domain.FindingUnmet {
-		return errors.New("goal does not admit a method")
+		return errors.New("standard does not admit a method")
 	}
 	if err := admitRoundsSafeguards(ctx, tx, state); err != nil {
 		return err
@@ -323,7 +323,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if err := admitRoundsDevelopment(ctx, tx, summary, plan); err != nil {
 		return err
 	}
-	open, err := goalOpenWork(ctx, tx, state)
+	open, err := standardOpenWork(ctx, tx, state)
 	if err != nil {
 		return err
 	}
@@ -396,7 +396,7 @@ func cancelUndispatchedMethods(ctx context.Context, tx *sql.Tx, owner methodOwne
 		if err != nil {
 			return err
 		}
-		if p.Retired || !domain.GoalWorkOpen(p.Progress) {
+		if p.Retired || !domain.StandardWorkOpen(p.Progress) {
 			continue
 		}
 		undispatched := true
@@ -443,7 +443,7 @@ func cancelMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
 	return nil
 }
 
-func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
+func guardStandardWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	var retired bool
 	if err := tx.QueryRowContext(ctx, "SELECT retired FROM plans WHERE id=?", plan).Scan(&retired); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -472,7 +472,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	case "project":
 		return guardProjectWork(ctx, tx, domain.ProjectID(ownerID), current, tick)
 	}
-	state, err := loadGoal(ctx, tx, domain.ConcernID(ownerID))
+	state, err := loadStandard(ctx, tx, domain.ConcernID(ownerID))
 	if err != nil {
 		return err
 	}
@@ -480,7 +480,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	s := g.Snapshot
 	if g.Status != domain.StandardOpen || g.Finding == domain.FindingUnclear || epoch.String != strconv.FormatUint(g.Episode, 10) ||
 		s.Colony != current.Colony || s.Map != current.Map || tick < g.Tick {
-		return errors.New("maintained goal does not admit current work")
+		return errors.New("maintained standard does not admit current work")
 	}
 	// A prepared plan does not prepare or dispatch while a Safeguard vetoes its
 	// goal (#1017).

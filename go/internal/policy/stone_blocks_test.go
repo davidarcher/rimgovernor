@@ -65,7 +65,7 @@ func TestEffectiveResourceTargetsMergesStoneBlocks(t *testing.T) {
 	if err != nil || targets["BlocksGranite"] != 5 || targets["Chemfuel"] != 30 {
 		t.Fatalf("operator floor should win and derived needs merge: %v %v", targets, err)
 	}
-	if !p.ResourceGoalConfigured() || !p.TracksResource(CoreItemFacts(), "BlocksSlate") || p.TracksResource(CoreItemFacts(), "Steel") {
+	if !p.ResourceConcernConfigured() || !p.TracksResource(CoreItemFacts(), "BlocksSlate") || p.TracksResource(CoreItemFacts(), "Steel") {
 		t.Fatalf("configuration predicates disagree")
 	}
 	if err := p.Validate(); err != nil {
@@ -84,7 +84,7 @@ func TestEffectiveResourceTargetsWithoutChunksIsTheOperatorMap(t *testing.T) {
 	if err != nil || len(targets) != 0 {
 		t.Fatalf("got %v %v", targets, err)
 	}
-	if p.ResourceTargets != nil || !p.ResourceGoalConfigured() {
+	if p.ResourceTargets != nil || !p.ResourceConcernConfigured() {
 		t.Fatalf("stone floor alone should still configure the goal")
 	}
 }

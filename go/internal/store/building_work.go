@@ -12,7 +12,7 @@ import (
 // done or gone.
 func PlanWorkOpen(p PlanState, census domain.Fact[policy.CurrentConstruction]) bool {
 	if p.Retired {
-		return domain.GoalWorkOpen(p.Progress)
+		return domain.StandardWorkOpen(p.Progress)
 	}
 	return policy.PlanWorkOpen(p.Progress, census)
 }
@@ -26,5 +26,5 @@ func PlanOpen(p PlanState) bool {
 
 // ProgressOpen is PlanOpen for one action of plan p.
 func ProgressOpen(p PlanState, progress domain.Progress) bool {
-	return domain.GoalWorkOpen([]domain.Progress{progress}) || !p.Retired && policy.AppliedBuildingOpen(progress, domain.Unknown[policy.CurrentConstruction]())
+	return domain.StandardWorkOpen([]domain.Progress{progress}) || !p.Retired && policy.AppliedBuildingOpen(progress, domain.Unknown[policy.CurrentConstruction]())
 }

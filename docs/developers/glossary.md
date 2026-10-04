@@ -4,18 +4,18 @@
 
 | Term | Meaning in RimGovernor |
 | --- | --- |
-| Colony identity | Native identity used to scope persistent goals, policies and history. |
+| Colony identity | Native identity used to scope persistent concerns, policies and history. |
 | Load token | Identity of the current loaded game context; old in-flight work cannot carry it into another load. |
 | Player direction | The intent supplied by the player. There is one author of orders, so no direction counter or compare-and-swap exists; authority is the load token, native tick, native order generation and a pause flag. |
-| Goal | A desired outcome, often maintained over time, such as sufficient food supply. |
-| Standard | A goal holding a measured target over time; a chore is a Standard whose target is no outstanding work. See [goal concepts](architecture/control-loop.md#goal-concepts). |
-| Project | A goal with a finite finished state and dependency links to other Projects. |
+| Concern | A desired outcome, often maintained over time, such as sufficient food supply. |
+| Standard | A concern holding a measured target over time; a chore is a Standard whose target is no outstanding work. See [Concerns and their forms](architecture/control-loop.md#concerns-and-their-forms). |
+| Project | A concern with a finite finished state and dependency links to other Projects. |
 | Response | An incident triggered by an event, one row per occurrence. |
 | Safeguard | An admission veto; it rejects proposals and pursues nothing. |
-| Domain | The colony area a goal serves (Food, Shelter, Industry, Military, Medical, People, Upkeep, plus a hidden System for game plumbing), like a Civ advisor. A grouping tag only; it never ranks goals or budgets labor. See [goal concepts](architecture/control-loop.md#goal-concepts). |
-| Method | A selected way to pursue a goal, retaining its attempts and step associations. |
+| Department | The colony area a concern serves (Food, Shelter, Industry, Military, Medical, People, Upkeep, plus a hidden System for game plumbing), like a Civ advisor. A grouping tag only; it never ranks concerns or budgets labor. See [Concerns and their forms](architecture/control-loop.md#concerns-and-their-forms). |
+| Method | A selected way to pursue a concern, retaining its attempts and step associations. |
 | Step / action | An accepted unit of work with a stable identity, specification and execution progress. Exact completion depends on its action contract. |
-| ColonyPlan | The shared persistent goal/action system used by player requests and routine control. |
+| ColonyPlan | The shared persistent concern/action system used by player requests and routine control. |
 | Hands | The deterministic executor that validates and issues accepted native work and retains execution evidence. |
 | Admission | Validation before accepting a proposal into the shared plan. |
 | Dispatch | The guarded attempt to issue a prepared operation to the native game. |

@@ -32,7 +32,7 @@ type LaborProfile []WorkType
 
 // GoalLabor names each routine need's labor profile. Goals not listed here
 // (emergencies, monitoring-only needs, configuration pushes) have no profile.
-func GoalLabor(id ConcernID) LaborProfile {
+func ConcernLabor(id ConcernID) LaborProfile {
 	switch id {
 	case ClearHomeObstructions, ClearAncientShrine, EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainEssentialRepairs, MaintainStoneShell, MaintainFoodStorage, MaintainButcherSpot, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank:
 		return LaborProfile{WorkConstruction}

@@ -53,7 +53,7 @@ func TestSchedulerCompilesSleepingAtTheReview(t *testing.T) {
 	if err != nil || result.Sleeping == nil || result.Sleeping.Verdict != BuildingReasonAdmitted || f.writes != 1 {
 		t.Fatal(result, err, f.writes)
 	}
-	plan, err := s.player.journal.LoadPlan(context.Background(), result.Sleeping.Decision.Goal.Methods[0].Plan)
+	plan, err := s.player.journal.LoadPlan(context.Background(), result.Sleeping.Decision.Standard.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 2 {
 		t.Fatal(plan, err)
 	}

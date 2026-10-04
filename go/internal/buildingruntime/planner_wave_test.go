@@ -191,7 +191,7 @@ func TestClockSchedulerRefusesLateProposalAgainstNewerSnapshot(t *testing.T) {
 	current := s.session.State().Snapshot
 	committed := 0
 	late := func(id string, snapshot domain.GenerationSnapshot, tick domain.Tick) *Proposal {
-		p := &Proposal{ID: id, Planner: "lighting", Goal: domain.ConcernID(id), Priority: plannerMaintenance, Snapshot: snapshot, ValidTick: tick}
+		p := &Proposal{ID: id, Planner: "lighting", Concern: domain.ConcernID(id), Priority: plannerMaintenance, Snapshot: snapshot, ValidTick: tick}
 		p.commit = func(context.Context) (domain.PlanID, Verdict, error) {
 			committed++
 			return domain.PlanID("plan-" + id), BuildingReasonAdmitted, nil

@@ -356,16 +356,16 @@ func ValidateColonyStage(r ColonyStageRecord, tick domain.Tick) error {
 // productionGoals are the goals whose blocked progress record holds the
 // colony out of Development: the food ladder, cooking, food storage and
 // the resource floors (wood among them).
-var productionGoals = []ConcernID{EnsureFoodSupply, EnsureCooking, MaintainFoodStorage, MaintainResource}
+var productionConcerns = []ConcernID{EnsureFoodSupply, EnsureCooking, MaintainFoodStorage, MaintainResource}
 
 // ProductionBlockedGoal is the first production goal whose progress record
 // is blocked on native evidence (no capable pawn, native refusal, every
 // alternative cooled, a prerequisite goal): a goal merely between methods
 // (no_method) or reconciling a write is not production stalled.
-func ProductionBlockedGoal(progress []GoalProgress) (ConcernID, BlockedReason) {
-	for _, goal := range productionGoals {
+func ProductionBlockedConcern(progress []ConcernProgress) (ConcernID, BlockedReason) {
+	for _, goal := range productionConcerns {
 		for _, p := range progress {
-			if p.Goal != goal {
+			if p.Concern != goal {
 				continue
 			}
 			switch {
@@ -381,7 +381,7 @@ func ProductionBlockedGoal(progress []GoalProgress) (ConcernID, BlockedReason) {
 // facts read live, the food runway, the wood latch, the built
 // research bench, the season, the doctors and the production goals'
 // progress records.
-func StageColonyFacts(needs RoundsFindings, f RoundsFacts, p RoundsPolicy, progress []GoalProgress) ColonyStageFacts {
+func StageColonyFacts(needs RoundsFindings, f RoundsFacts, p RoundsPolicy, progress []ConcernProgress) ColonyStageFacts {
 	facts := ColonyStageFacts{
 		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: f.FoodStorage, Armed: footholdArmed(f),
 		FoodDays:  f.FoodDays,
@@ -389,7 +389,7 @@ func StageColonyFacts(needs RoundsFindings, f RoundsFacts, p RoundsPolicy, progr
 		WoodShort: needs.Latches.Wood, ResearchBench: ResearchBenchBuilt(f.CurrentConstruction),
 		Power: footholdPower(f), Climate: SeasonalClimate(f.Calendar, footholdTemperature(f, p), needs.Latches.Refrigeration), Doctor: DoctorCapable(f.WorkProfiles),
 	}
-	facts.ProductionBlocked, facts.Blocked = ProductionBlockedGoal(progress)
+	facts.ProductionBlocked, facts.Blocked = ProductionBlockedConcern(progress)
 	return facts
 }
 
@@ -442,7 +442,7 @@ func DoctorCapable(profiles domain.Fact[[]PawnProfile]) domain.Fact[bool] {
 // tending, mood, fire, raids) is raised at every stage. A goal before its
 // stage is not raised at all, not merely held: it takes no slot and no
 // planner runs for it.
-var stageGoals = map[ConcernID]ColonyStage{
+var stageConcerns = map[ConcernID]ColonyStage{
 	EnsureResearch:            StageReserves,
 	MaintainResource:          StageReserves,
 	EnsureDefensiveLayout:     StageStable,
@@ -459,8 +459,8 @@ var stageGoals = map[ConcernID]ColonyStage{
 }
 
 // StageGoalAllowed reports whether the review raises the goal at the stage.
-func StageGoalAllowed(goal ConcernID, stage ColonyStage) bool {
-	first, staged := stageGoals[goal]
+func StageConcernAllowed(goal ConcernID, stage ColonyStage) bool {
+	first, staged := stageConcerns[goal]
 	return !staged || stage >= first
 }
 
@@ -483,13 +483,13 @@ func StageResearchLadder(stage ColonyStage, ladder []string) []string {
 	return ladder
 }
 
-// StageGoalStallScale is the factor GoalStallTicks shrinks by at a stage:
+// StageGoalStallScale is the factor ConcernStallTicks shrinks by at a stage:
 // six in-game hours (1/4 of the configured deadline, which defaults to one
 // day) at Foothold, so a stuck method rotates within the day while the
 // colony has no shelter or starvation runway yet, without churning methods
 // that are merely slow (one hour cooled them before a hauler arrived);
 // unchanged from Reserves on.
-func StageGoalStallScale(stage ColonyStage) float64 {
+func StageConcernStallScale(stage ColonyStage) float64 {
 	if stage == StageFoothold {
 		return 1.0 / 4
 	}
@@ -498,7 +498,7 @@ func StageGoalStallScale(stage ColonyStage) float64 {
 
 // StageRoundsPolicy is p with its budgets set by the stage: the research
 // ladder (StageResearchLadder) and the goal-progress stall
-// deadline (StageGoalStallScale over GoalStallTicks). A stage that has not
+// deadline (StageGoalStallScale over ConcernStallTicks). A stage that has not
 // been reviewed yet (the zero record) is Foothold.
 func StageRoundsPolicy(p RoundsPolicy, stage ColonyStage) RoundsPolicy {
 	if !stage.valid() {
@@ -509,8 +509,8 @@ func StageRoundsPolicy(p RoundsPolicy, stage ColonyStage) RoundsPolicy {
 	}
 	p.ColonyStage = stage
 	p.ResearchLadder = StageResearchLadder(stage, p.ResearchLadder)
-	if stallScale := StageGoalStallScale(stage); stallScale != 1 && p.GoalStallTicks > 0 {
-		p.GoalStallTicks = int64(math.Ceil(float64(p.GoalStallTicks) * stallScale))
+	if stallScale := StageConcernStallScale(stage); stallScale != 1 && p.ConcernStallTicks > 0 {
+		p.ConcernStallTicks = int64(math.Ceil(float64(p.ConcernStallTicks) * stallScale))
 	}
 	return p
 }

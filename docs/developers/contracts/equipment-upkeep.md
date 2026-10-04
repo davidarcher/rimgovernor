@@ -2,9 +2,9 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md) · [Apparel policy operation](apparel-policy.md) · [Weapon planner](weapon-planner.md)
 
-`MaintainEquipment` is a maintained development goal in the shared ColonyPlan.
+`MaintainEquipment` is a maintained development concern in the shared ColonyPlan.
 Emergencies suspend it. Hands issues its actions; neither the native read nor an
-adviser independently starts work. Missing observations remain unknown. The goal
+adviser independently starts work. Missing observations remain unknown. The concern
 ranks for an optional development slot like any other priority-3 need (labor
 profile Construction, Tailoring, Smithing or Crafting) and its methods are admitted only while
 it holds one. The [pawn profile](work-assignment.md#pawn-profile) exports the
@@ -34,7 +34,7 @@ best funded candidate, and the wear order's own census applies the same bound.
 The census candidates are apparel only; loose weapons are the equip family's
 (issue #339). A `gear_replace` whose candidate the fresh census no longer offers
 as apparel, or whose wear preview refuses `NOT_FOUND`, is cancelled rather than
-held, so the plan closes and the goal's development slot frees at the next
+held, so the plan closes and the concern's development slot frees at the next
 review, as haul and supply do for a thing that left its cell.
 
 ## Production and resource protection
@@ -52,7 +52,7 @@ bills replace their ingredient membership with the funded material set, retained
 through persistence and the applied intent. Native ingredient
 admission and consumption keep stock committed to construction and other
 pawns' bill jobs. Required work types feed the shared work-allocation method: while the
-goal is in deficit, every standing bench recipe that produces a reported
+concern is in deficit, every standing bench recipe that produces a reported
 replacement need contributes its work type to `EnsureWorkAssignments` before
 any bill exists, the same way a resource deficit covers its benches, because
 native bill admission refuses a bench nobody works.
@@ -73,8 +73,8 @@ and the fraction with a core group uncovered, derived from the same loadout read
 it is known only when every colonist's worn apparel was observed. With complete
 loadout-model inputs, condition and coverage contribute to scored gaps.
 Missing research, workshops, materials or suitable definitions remain explicit
-blockers. This goal does not invent a trade or bypass native apparel eligibility to obtain
-an item. Bench staging uses the equipment goal through the shared workshop ladder.
+blockers. This concern does not invent a trade or bypass native apparel eligibility to obtain
+an item. Bench staging uses the equipment concern through the shared workshop ladder.
 
 ## Loadout model
 

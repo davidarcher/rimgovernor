@@ -21,7 +21,7 @@ func roundsUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generati
 	for _, plan := range plans {
 		issued := false
 		for _, p := range plan.Progress {
-			issued = issued || p.View().Attempt != 0 && domain.GoalWorkOpen([]domain.Progress{p})
+			issued = issued || p.View().Attempt != 0 && domain.StandardWorkOpen([]domain.Progress{p})
 		}
 		if !issued {
 			continue
@@ -34,7 +34,7 @@ func roundsUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if err != nil {
 			return nil, err
 		}
-		g, err := loadGoal(ctx, tx, goal)
+		g, err := loadStandard(ctx, tx, goal)
 		if err != nil {
 			return nil, err
 		}

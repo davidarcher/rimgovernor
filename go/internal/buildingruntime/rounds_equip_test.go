@@ -296,18 +296,18 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := false
-	for _, binding := range review.Goals {
-		if binding.Need != policy.EnsureBasicDefense {
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.EnsureBasicDefense {
 			continue
 		}
-		g, err := db.LoadStandard(ctx, binding.Goal)
+		g, err := db.LoadStandard(ctx, binding.Standard)
 		if err != nil || g.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("EnsureBasicDefense is not in deficit", g, err)
 		}
 		found = true
 	}
 	if !found {
-		t.Fatal("EnsureBasicDefense missing from the review", review.Goals)
+		t.Fatal("EnsureBasicDefense missing from the review", review.Standards)
 	}
 	planner, err := NewRoundsEquipPlanner(reviewer, n)
 	if err != nil {

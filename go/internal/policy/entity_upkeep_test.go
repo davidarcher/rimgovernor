@@ -107,7 +107,7 @@ func TestHeldEntityNeedingTendIsTended(t *testing.T) {
 
 func populationNeed(t *testing.T, f RoundsFacts) domain.Finding {
 	t.Helper()
-	needs, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
+	needs, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

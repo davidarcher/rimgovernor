@@ -63,7 +63,7 @@ func NewRoundsResearchPlanner(reviewer *Rounder, native RoundsResearchSource) (*
 	planner := &RoundsResearchPlanner{reviewer: reviewer, native: native}
 	if source, ok := native.(RoundsBuildingSource); ok {
 		if _, rooms := native.(observation.RoundsSource); rooms {
-			planner.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, goal: policy.EnsureResearch, definition: "Wall", shelter: true}
+			planner.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, concern: policy.EnsureResearch, definition: "Wall", shelter: true}
 		}
 	}
 	return planner, nil
@@ -296,7 +296,7 @@ func researchNext(in snap.ResearchCall) (string, Verdict) {
 	for name := range read.Projects {
 		facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
 	}
-	target, _ := policy.ResearchGoal(in.Policy, in.Needs, domain.Known(facts))
+	target, _ := policy.ResearchConcern(in.Policy, in.Needs, domain.Known(facts))
 	if target == "" {
 		return "", BuildingReasonNoDeficit
 	}

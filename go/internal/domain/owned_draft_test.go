@@ -47,7 +47,7 @@ func TestOwnedDraftReceiptIsTerminal(t *testing.T) {
 	if p, err = p.RecordReceipt(1, ReceiptAccepted); err != nil || p.View().Stage != Completed || p.View().Unresolved {
 		t.Fatal(p.View(), err)
 	}
-	if GoalWorkOpen([]Progress{p}) {
+	if StandardWorkOpen([]Progress{p}) {
 		t.Fatal("completed draft left goal work open")
 	}
 }

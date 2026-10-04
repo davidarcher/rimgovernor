@@ -72,7 +72,7 @@ func TestRoundsWastePlannerSelectsAndCommitsMethod(t *testing.T) {
 	}
 	found := false
 	for _, row := range got.Review.Development.Rows {
-		if row.Goal == policy.MaintainWaste {
+		if row.Concern == policy.MaintainWaste {
 			found = row.Selected
 		}
 	}

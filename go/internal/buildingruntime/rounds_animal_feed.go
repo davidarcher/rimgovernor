@@ -20,7 +20,7 @@ import (
 // selection into the exact
 // same bench/recipe production and native mine/harvest acquisition pipeline
 // RoundsResourcePlanner already established for MaintainResource -- see
-// dispatchResourceGoal in rounds_resource.go. This was blocked on 05.5's
+// dispatchResourceConcern in rounds_resource.go. This was blocked on 05.5's
 // MaintainResource-* acquisition plumbing landing first; see docs/BACKLOG.md
 // 05.6.
 type RoundsAnimalFeedPlanner struct {
@@ -188,7 +188,7 @@ func (r *RoundsAnimalFeedPlanner) step(call, epoch context.Context, arbiter *ste
 			ingredients = policy.HumanCookingIngredients(combined, nil, read.Projection.Facts.FoodPlan, policy.HumanMeatFeed)
 		}
 	}
-	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, benches, started, ingredients...)
+	result, err := r.core.dispatchResourceConcern(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, benches, started, ingredients...)
 	if err != nil {
 		return result, err
 	}

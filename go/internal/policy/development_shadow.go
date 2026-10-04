@@ -52,7 +52,7 @@ func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
 }
 
 type ShadowEntry struct {
-	Goal          ConcernID
+	Concern       ConcernID
 	Domain        ShadowDomain
 	ShortfallDays float64
 	// OpenActions is the goal's open plan action count, the labor cost.
@@ -64,7 +64,7 @@ type ShadowEntry struct {
 // ShadowDisagreement is a ranked goal whose 1-based place among the ranked
 // goals differs between the live order and the shadow order.
 type ShadowDisagreement struct {
-	Goal    ConcernID
+	Concern ConcernID
 	Current int
 	Shadow  int
 	// Reason is the live row's reason (empty while it is selected).
@@ -72,8 +72,8 @@ type ShadowDisagreement struct {
 }
 
 type ShadowUnranked struct {
-	Goal   ConcernID
-	Reason string
+	Concern ConcernID
+	Reason  string
 }
 
 type ShadowRank struct {
@@ -130,38 +130,38 @@ func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions 
 		if !shadowCandidate(row) {
 			continue
 		}
-		d, mapped := shadowDomains[row.Goal]
+		d, mapped := shadowDomains[row.Concern]
 		if !mapped {
 			continue
 		}
-		rows[row.Goal] = row
+		rows[row.Concern] = row
 		days, why := shadowShortfall(projection, d)
-		if why == "" && openActions[row.Goal] <= 0 {
+		if why == "" && openActions[row.Concern] <= 0 {
 			why = "no open plan action"
 		}
 		if why != "" {
-			out.Unranked = append(out.Unranked, ShadowUnranked{Goal: row.Goal, Reason: why})
+			out.Unranked = append(out.Unranked, ShadowUnranked{Concern: row.Concern, Reason: why})
 			continue
 		}
-		n := openActions[row.Goal]
-		out.Ranked = append(out.Ranked, ShadowEntry{Goal: row.Goal, Domain: d, ShortfallDays: days, OpenActions: n, Score: math.RoundToEven(days/float64(n)*1000) / 1000})
-		current = append(current, row.Goal)
+		n := openActions[row.Concern]
+		out.Ranked = append(out.Ranked, ShadowEntry{Concern: row.Concern, Domain: d, ShortfallDays: days, OpenActions: n, Score: math.RoundToEven(days/float64(n)*1000) / 1000})
+		current = append(current, row.Concern)
 	}
 	sort.Slice(out.Ranked, func(i, j int) bool {
 		a, b := out.Ranked[i], out.Ranked[j]
 		if a.Score != b.Score {
 			return a.Score > b.Score
 		}
-		return a.Goal < b.Goal
+		return a.Concern < b.Concern
 	})
 	out.Current = current
 	shadow := map[ConcernID]int{}
 	for i, e := range out.Ranked {
-		shadow[e.Goal] = i + 1
+		shadow[e.Concern] = i + 1
 	}
 	for i, g := range current {
 		if shadow[g] != i+1 {
-			out.Disagreements = append(out.Disagreements, ShadowDisagreement{Goal: g, Current: i + 1, Shadow: shadow[g], Reason: rows[g].Reason})
+			out.Disagreements = append(out.Disagreements, ShadowDisagreement{Concern: g, Current: i + 1, Shadow: shadow[g], Reason: rows[g].Reason})
 		}
 	}
 	return out

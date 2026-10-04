@@ -93,5 +93,5 @@ func newCraftingSpotPlanner(reviewer *Rounder, native RoundsGearSource) *RoundsB
 	if !ok {
 		return nil
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: building, goal: policy.EnsureBasicDefense, definition: craftingSpotDefinition, environment: policy.PlacementAnywhere}
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: building, concern: policy.EnsureBasicDefense, definition: craftingSpotDefinition, environment: policy.PlacementAnywhere}
 }

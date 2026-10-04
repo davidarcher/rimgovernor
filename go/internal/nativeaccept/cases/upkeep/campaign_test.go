@@ -19,25 +19,25 @@ type campaignRestoreSession struct {
 }
 
 func TestCampaignRebindsGuardsOnlyToLoadedReview(t *testing.T) {
-	old := closedGoal{Stage: "kitchen", Need: policy.MaintainCleanFacilities, Goal: "old-kitchen", Episode: 7}
-	review := store.Rounds{Goals: []store.RoundsGoal{{Need: old.Need, Goal: "loaded-kitchen"}}}
+	old := closedStandard{Stage: "kitchen", Need: policy.MaintainCleanFacilities, Concern: "old-kitchen", Episode: 7}
+	review := store.Rounds{Standards: []store.RoundsStandard{{Concern: old.Need, Standard: "loaded-kitchen"}}}
 	for _, status := range []domain.StandardStatus{domain.StandardOpen, domain.StandardVoided} {
-		closed := []closedGoal{old}
-		err := rebindClosedGoals(context.Background(), closed, review, func(_ context.Context, id domain.ConcernID) (store.StandardState, error) {
+		closed := []closedStandard{old}
+		err := rebindClosedStandards(context.Background(), closed, review, func(_ context.Context, id domain.ConcernID) (store.StandardState, error) {
 			if id != "loaded-kitchen" {
 				t.Fatalf("loaded %s instead of current binding", id)
 			}
 			return store.StandardState{Standard: domain.Standard{ID: id, Episode: 2, Status: status}}, nil
 		})
 		if status == domain.StandardOpen {
-			if err != nil || closed[0].Goal != "loaded-kitchen" || closed[0].Episode != 2 || closed[0].Stage != old.Stage {
+			if err != nil || closed[0].Concern != "loaded-kitchen" || closed[0].Episode != 2 || closed[0].Stage != old.Stage {
 				t.Fatalf("loaded guard = %+v, %v", closed, err)
 			}
 		} else if err == nil {
 			t.Fatalf("accepted %s goal", status)
 		}
 	}
-	if err := rebindClosedGoals(context.Background(), []closedGoal{old}, store.Rounds{}, nil); err == nil {
+	if err := rebindClosedStandards(context.Background(), []closedStandard{old}, store.Rounds{}, nil); err == nil {
 		t.Fatal("accepted a missing loaded binding")
 	}
 }
@@ -59,7 +59,7 @@ func (s campaignRestoreSession) Resumed() (na.Checkpoint, bool) {
 func TestCampaignMedicineStateRestoresGuardIdentities(t *testing.T) {
 	want := campaignState{Timeline: []map[string]any{{"stage": "medicine", "tick_after": float64(12345)}}}
 	for i, st := range campaignStages()[:3] {
-		want.Closed = append(want.Closed, closedGoal{Stage: st.name, Need: st.needs[0], Goal: domain.ConcernID("goal-" + st.name), Episode: uint64(i + 7)})
+		want.Closed = append(want.Closed, closedStandard{Stage: st.name, Need: st.needs[0], Concern: domain.ConcernID("goal-" + st.name), Episode: uint64(i + 7)})
 	}
 	data, err := json.Marshal(want)
 	if err != nil {

@@ -83,15 +83,15 @@ func TestDefenseRearmTurretsReportsShortageAndUnknowns(t *testing.T) {
 func TestResourceGoalTargetsMergesDerivedFloors(t *testing.T) {
 	t.Parallel()
 	configured := map[Resource]int64{"WoodLog": 200, "Steel": 30}
-	if got := ResourceGoalTargets(configured, nil); !reflect.DeepEqual(got, configured) {
+	if got := ResourceConcernTargets(configured, nil); !reflect.DeepEqual(got, configured) {
 		t.Fatal(got)
 	}
-	got := ResourceGoalTargets(configured, map[Resource]int64{"Steel": 60, "WoodLog": 10, "ComponentIndustrial": 0, "Plasteel": 20000})
+	got := ResourceConcernTargets(configured, map[Resource]int64{"Steel": 60, "WoodLog": 10, "ComponentIndustrial": 0, "Plasteel": 20000})
 	want := map[Resource]int64{"WoodLog": 200, "Steel": 60}
 	if !reflect.DeepEqual(got, want) || configured["Steel"] != 30 {
 		t.Fatalf("%v (configured %v)", got, configured)
 	}
-	if got := ResourceGoalTargets(nil, map[Resource]int64{"Steel": 60}); !reflect.DeepEqual(got, map[Resource]int64{"Steel": 60}) {
+	if got := ResourceConcernTargets(nil, map[Resource]int64{"Steel": 60}); !reflect.DeepEqual(got, map[Resource]int64{"Steel": 60}) {
 		t.Fatal(got)
 	}
 }

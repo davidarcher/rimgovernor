@@ -15,11 +15,11 @@ func TestDevelopmentSelectsCommittedBenchGoals(t *testing.T) {
 		row  store.RoundsDevelopmentRow
 		want bool
 	}{
-		{"committed resource", policy.MaintainResource, store.RoundsDevelopmentRow{Goal: policy.MaintainResource, Committed: true}, true},
-		{"committed equipment", policy.MaintainEquipment, store.RoundsDevelopmentRow{Goal: policy.MaintainEquipment, Committed: true}, true},
-		{"committed sleeping", policy.MaintainHousing, store.RoundsDevelopmentRow{Goal: policy.MaintainHousing, Committed: true}, false},
-		{"selected sleeping", policy.MaintainHousing, store.RoundsDevelopmentRow{Goal: policy.MaintainHousing, Selected: true}, true},
-		{"other goal's row", policy.MaintainResource, store.RoundsDevelopmentRow{Goal: policy.MaintainEquipment, Committed: true}, false},
+		{"committed resource", policy.MaintainResource, store.RoundsDevelopmentRow{Concern: policy.MaintainResource, Committed: true}, true},
+		{"committed equipment", policy.MaintainEquipment, store.RoundsDevelopmentRow{Concern: policy.MaintainEquipment, Committed: true}, true},
+		{"committed sleeping", policy.MaintainHousing, store.RoundsDevelopmentRow{Concern: policy.MaintainHousing, Committed: true}, false},
+		{"selected sleeping", policy.MaintainHousing, store.RoundsDevelopmentRow{Concern: policy.MaintainHousing, Selected: true}, true},
+		{"other goal's row", policy.MaintainResource, store.RoundsDevelopmentRow{Concern: policy.MaintainEquipment, Committed: true}, false},
 	} {
 		if got := developmentSelects([]store.RoundsDevelopmentRow{tc.row}, tc.goal); got != tc.want {
 			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)

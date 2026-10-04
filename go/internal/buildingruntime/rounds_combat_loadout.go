@@ -202,7 +202,7 @@ func loadoutActions(plan domain.PlanID, orders []policy.LoadoutOrder) ([]domain.
 func loadoutPending(plan store.PlanState) map[domain.PawnID]bool {
 	out := map[domain.PawnID]bool{}
 	for _, progress := range plan.Progress {
-		if !domain.GoalWorkOpen([]domain.Progress{progress}) {
+		if !domain.StandardWorkOpen([]domain.Progress{progress}) {
 			continue
 		}
 		if equip, ok := progress.Action().Equip(); ok {

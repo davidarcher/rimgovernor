@@ -140,5 +140,5 @@ func (b *RoundsBuildingPlanner) placePiece(call, epoch context.Context, state Co
 	if err := mergeRoundsStock(&stock, preview.Stock, true); err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Shelter})
+	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Shelter})
 }

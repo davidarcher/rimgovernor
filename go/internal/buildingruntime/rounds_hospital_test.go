@@ -111,9 +111,9 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 		t.Fatal(err)
 	}
 	var goal store.StandardState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainMedicalReserves {
-			if goal, err = db.LoadStandard(ctx, binding.Goal); err != nil {
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainMedicalReserves {
+			if goal, err = db.LoadStandard(ctx, binding.Standard); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -177,14 +177,14 @@ func TestHospitalBuildsOnlyWhenNoHostedBedCanBeSpared(t *testing.T) {
 	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews == 0 {
 		t.Fatal(result, err, native.previews)
 	}
-	if len(result.Decision.Goal.Methods) != 1 || result.Decision.Goal.Methods[0].Method != "hospital-SleepingSpot" {
-		t.Fatal(result.Decision.Goal.Methods)
+	if len(result.Decision.Standard.Methods) != 1 || result.Decision.Standard.Methods[0].Method != "hospital-SleepingSpot" {
+		t.Fatal(result.Decision.Standard.Methods)
 	}
 }
 
 func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 	t.Parallel()
-	ladder := &RoundsBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "Wall", shelter: true}
+	ladder := &RoundsBuildingPlanner{concern: policy.MaintainMedicalReserves, definition: "Wall", shelter: true}
 	patient := policy.CarePawn{ID: "p", Dead: domain.Known(false), NeedsRest: domain.Known(true), NeedsTend: domain.Known(false), BadConditions: domain.Known(false)}
 	definition := func(name string, available bool) observation.PlanningDefinition {
 		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}
@@ -228,7 +228,7 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "hospital-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
-	spot := &RoundsBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "SleepingSpot"}
+	spot := &RoundsBuildingPlanner{concern: policy.MaintainMedicalReserves, definition: "SleepingSpot"}
 	if missing, method, reason := spot.selection(facts); missing != 1 || method != "hospital-SleepingSpot" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}

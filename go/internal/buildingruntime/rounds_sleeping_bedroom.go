@@ -236,7 +236,7 @@ func (b *RoundsBuildingPlanner) shellRoomOf(call, epoch context.Context, state C
 	}
 	// A room planned into rock is mined out before its ring (#836).
 	plan, _ := facts.LayoutPlan.Value()
-	if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, plan, room, check); err != nil || handled {
+	if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, plan, room, check); err != nil || handled {
 		return result, err
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
@@ -284,7 +284,7 @@ func (b *RoundsBuildingPlanner) shellRoomOf(call, epoch context.Context, state C
 	if len(selected) == 0 {
 		return RoundsBuildingResult{Verdict: noSpace("bedroom_ring")}, nil
 	}
-	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
+	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }
 
 // suitePressure orders the suite queue by the pawns' current bedroom,

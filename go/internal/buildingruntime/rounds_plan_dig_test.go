@@ -82,13 +82,13 @@ func rockCoolerStep(t *testing.T) (p *RoundsBuildingPlanner, db *store.Store, n 
 	if err != nil {
 		t.Fatal(err)
 	}
-	var goalID domain.ConcernID
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainRefrigeration {
-			goalID = binding.Goal
+	var concernID domain.ConcernID
+	for _, binding := range review.Standards {
+		if binding.Concern == policy.MaintainRefrigeration {
+			concernID = binding.Standard
 		}
 	}
-	goal, err := db.LoadStandard(ctx, goalID)
+	goal, err := db.LoadStandard(ctx, concernID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func rockCoolerStep(t *testing.T) (p *RoundsBuildingPlanner, db *store.Store, n 
 	if err != nil {
 		t.Fatal(err)
 	}
-	s = excavationStep{state: state, review: review, goal: goal, facts: reading.Projection, read: reading.ColonyReading}
+	s = excavationStep{state: state, review: review, owner: goal, facts: reading.Projection, read: reading.ColonyReading}
 	return p, db, n, s, site, shaft
 }
 
@@ -199,7 +199,7 @@ func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 	dig := func() RoundsBuildingResult {
 		t.Helper()
 		var err error
-		if s.goal, err = db.LoadOwner(ctx, s.goal.OwnerID()); err != nil {
+		if s.owner, err = db.LoadOwner(ctx, s.owner.OwnerID()); err != nil {
 			t.Fatal(err)
 		}
 		result, handled, err := p.digPlanned(ctx, ctx, s, []domain.Cell{shaft}, cold, "plan-dig-test", nil, func() error { return nil })
