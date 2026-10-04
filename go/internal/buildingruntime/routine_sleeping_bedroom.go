@@ -277,7 +277,7 @@ func (b *RoutineBuildingPlanner) shellRoomOf(call, epoch context.Context, state 
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
 			clockSchedulerLog("%s: %s %d,%d refused at %d,%d", goal.Goal.ID, method, room.Interior.X, room.Interior.Z, cell.X, cell.Z)
-			return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
+			return RoutineBuildingResult{Verdict: noSpace("bedroom_wall_cell")}, nil
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
 			return RoutineBuildingResult{}, err
@@ -285,7 +285,7 @@ func (b *RoutineBuildingPlanner) shellRoomOf(call, epoch context.Context, state 
 		selected = append(selected, v)
 	}
 	if len(selected) == 0 {
-		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineBuildingResult{Verdict: noSpace("bedroom_ring")}, nil
 	}
 	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }

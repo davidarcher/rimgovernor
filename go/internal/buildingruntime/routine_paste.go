@@ -68,11 +68,11 @@ func (r *RoutineBuildingPlanner) previewPaste(ctx context.Context, snapshot doma
 		safe, sk := v.SafeToPlace.Value()
 		cells, ck := v.Footprint.Value()
 		if !lk || !sk || !ck || !legal || !safe || len(cells) == 0 {
-			return nil, stock, BuildingReasonRefused, nil
+			return nil, stock, siteBlocked("paste_dispenser_site", "preview_refused"), nil
 		}
 		for _, cell := range cells {
 			if blocked[cell] {
-				return nil, stock, BuildingReasonRefused, nil
+				return nil, stock, siteBlocked("paste_dispenser_site", "footprints_overlap"), nil
 			}
 			blocked[cell] = true
 		}

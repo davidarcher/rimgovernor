@@ -287,7 +287,7 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 		selected = append(selected, v)
 	}
 	if len(selected) == 0 {
-		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineBuildingResult{Verdict: noSpace("bedroom_upgrade_site")}, nil
 	}
 	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.Goal.ID, u.Room, u.Def, len(selected), u.Weakest)
 	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})

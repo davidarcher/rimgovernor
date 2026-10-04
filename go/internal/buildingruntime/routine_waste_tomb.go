@@ -80,13 +80,13 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 		return RoutineBuildingResult{}, err
 	}
 	method := domain.MethodID(fmt.Sprintf("tomb-grave-%d", step.Graves))
-	result := RoutineBuildingResult{Verdict: BuildingReasonNoSpace}
+	result := RoutineBuildingResult{Verdict: noSpace("grave_site")}
 	for i, site := range sites {
 		if i == graveSiteTries {
 			break
 		}
 		piece := policy.NewInteriorPiece("grave", policy.GraveDefinition, domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: site.X, Z: site.Z})
-		if result, err = r.building.placePiece(call, epoch, state, review, goal, reading, piece, method); err != nil || result.Verdict != BuildingReasonNoSpace {
+		if result, err = r.building.placePiece(call, epoch, state, review, goal, reading, piece, method); err != nil || !result.Verdict.Is(RefusalNoSpace) {
 			return result, err
 		}
 	}
@@ -134,7 +134,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 	safe, sk := v.SafeToPlace.Value()
 	if !ck || !can || !sk || !safe {
 		clockSchedulerLog("%s: %s %s refused at %d,%d", goal.Goal.ID, piece.Def, piece.Slot, piece.Anchor().X, piece.Anchor().Z)
-		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineBuildingResult{Verdict: noSpace(piece.Slot)}, nil
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if err := mergeRoutineStock(&stock, preview.Stock, true); err != nil {

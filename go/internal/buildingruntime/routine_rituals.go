@@ -111,7 +111,7 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 				attendees = append(attendees, domain.PawnID(pawn))
 			}
 			if !arbiter.tryClaim(attendees) {
-				return RoutineRitualsResult{Verdict: BuildingReasonUsed}, nil
+				return RoutineRitualsResult{Verdict: claimHeld("attendees")}, nil
 			}
 			slots := make([]domain.RitualSlot, 0, len(plan.Slots))
 			for _, slot := range plan.Slots {

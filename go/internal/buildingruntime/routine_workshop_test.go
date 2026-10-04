@@ -277,7 +277,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 	}{
 		{"hosting room only", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
 		{"shared barracks", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
+		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), noSpace("hosting_room"), domain.Cell{}},
 		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -353,7 +353,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
 		native.onPreview = rejectUnless("")
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
-		if err != nil || reason != BuildingReasonNoSpace || len(selected) != 0 || native.previews != 4 {
+		if err != nil || reason != noSpace("placement_site") || len(selected) != 0 || native.previews != 4 {
 			t.Fatal(selected, reason, err, native.previews)
 		}
 	})
@@ -362,7 +362,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 		planner.goal, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &workshop
 		native.onPreview = rejectUnless(domain.East)
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
-		if err != nil || reason != BuildingReasonNoSpace || len(selected) != 0 || native.previews != 1 {
+		if err != nil || reason != noSpace("placement_site") || len(selected) != 0 || native.previews != 1 {
 			t.Fatal(selected, reason, err, native.previews)
 		}
 	})

@@ -296,9 +296,6 @@ func SelectRoutesMethod(review RoutesReview, facts RoutesFacts, p RoutesPolicy) 
 	if !review.Active {
 		return RoutesProposal{Method: RoutesNoMethod}, nil
 	}
-	if !review.Known {
-		return RoutesProposal{Method: RoutesUnknown}, nil
-	}
 	available, known := facts.DoorAvailable.Value()
 	if !known {
 		return RoutesProposal{Method: RoutesUnknown}, nil

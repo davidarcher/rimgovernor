@@ -416,7 +416,7 @@ var (
 	BuildingWorkshopResearch         = awaitingPlan("research", "workshop")
 	BuildingResearchBench            = awaitingPlan("research_bench", "")
 	BuildingResearchBenchUnavailable = awaitingPlan("research_bench", "unbuildable")
-	BuildingHospitalUnavailable      = noSpace("hospital_bed")
+	BuildingHospitalUnavailable      = awaitingPlan("buildable_bed", "hospital")
 	BuildingSleepingUnavailable      = awaitingPlan("buildable_bed", "")
 	BuildingNoWeaponBench            = awaitingPlan("weapon_bench", "")
 	// BuildingReasonDemand is a migrated planner's result when the step's

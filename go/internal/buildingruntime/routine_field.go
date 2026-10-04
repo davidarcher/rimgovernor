@@ -64,7 +64,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 			selected = selected || row.Goal == policy.EnsureFoodSupply && row.Selected
 		}
 		if !selected {
-			workable, idle = false, BuildingReasonRefused
+			workable, idle = false, awaitingSlot(string(policy.EnsureFoodSupply))
 		}
 	}
 	// Open field work is budgeted against the food plan below. Infrastructure

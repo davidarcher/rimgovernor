@@ -158,7 +158,7 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 	if missing != "" {
 		return nil, stock, fieldUnavailable(missing), nil
 	}
-	return nil, stock, BuildingReasonNoSpace, nil
+	return nil, stock, noSpace("breach_door_site"), nil
 }
 
 // firstUnknown names the first field whose known flag is false.

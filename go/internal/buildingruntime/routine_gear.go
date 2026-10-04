@@ -337,7 +337,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 			return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !ok", ErrControl)
 		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
-			return RoutineGearResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineGearResult{Verdict: claimHeld("colonist")}, nil
 		}
 		replace, err := domain.NewGearReplace(domain.PawnID(choice.Pawn), choice.Target, definition)
 		if err != nil {

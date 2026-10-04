@@ -20,7 +20,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 		previews int
 	}{
 		{"cramped then playable", []domain.Fact[bool]{domain.Known(false), domain.Known(true)}, Verdict{}, 2},
-		{"cramped", []domain.Fact[bool]{domain.Known(false), domain.Known(false)}, BuildingReasonNoSpace, 2},
+		{"cramped", []domain.Fact[bool]{domain.Known(false), domain.Known(false)}, noSpace("placement_site"), 2},
 		{"unavailable", []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)}, fieldUnavailable("watch_cells_accessible"), 2},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -214,7 +214,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 		cell   domain.Cell
 	}{
 		{"hosting room only", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "d", Role: domain.Known(policy.RoomRoleRecRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
+		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), noSpace("hosting_room"), domain.Cell{}},
 		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {

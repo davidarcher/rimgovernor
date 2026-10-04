@@ -157,7 +157,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	if r.phase == policy.ComfortRanked || r.phase == policy.HousingExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) || r.phase == policy.HousingSleeping {
 		if !developmentSelects(review.Development.Rows, r.goal) {
-			return RoutineBuildingResult{Verdict: BuildingReasonRefused}, nil
+			return RoutineBuildingResult{Verdict: awaitingSlot(string(r.goal))}, nil
 		}
 	}
 	bunksOpen := false
@@ -387,7 +387,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		if !reason.IsZero() {
 			result := RoutineBuildingResult{Verdict: reason}
-			if r.goal == policy.EnsureBasicPower && reason == BuildingReasonNoSpace {
+			if r.goal == policy.EnsureBasicPower && reason.Is(RefusalNoSpace) {
 				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				return result, err
 			}
@@ -742,7 +742,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	} else {
 		selected, stock, reason, err = r.previewMethod(call, snapshot, facts, protected, missing, check)
-		if err == nil && r.routes != nil && reason == BuildingReasonNoSpace {
+		if err == nil && r.routes != nil && reason.Is(RefusalNoSpace) {
 			if result, handled, digErr := r.digBreach(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); digErr != nil || handled {
 				return result, digErr
 			}
@@ -844,7 +844,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 		// turbine whose every catch zone is obstructed) yields to the next
 		// ranked definition under the same method.
 		for _, name := range r.power.Alternatives {
-			if err != nil || reason != BuildingReasonNoSpace {
+			if err != nil || !reason.Is(RefusalNoSpace) {
 				break
 			}
 			next := *r
@@ -921,7 +921,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 				}
 				clockSchedulerLog("%s: no room hosts the facility %+v; rooms=%v", r.goal, *r.facility, summary)
 			}
-			return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
+			return nil, policy.StockObservation{}, noSpace("hosting_room"), nil
 		}
 	}
 	if r.cells != nil {
@@ -939,7 +939,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			}
 		}
 		if len(roomCells) == 0 {
-			return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
+			return nil, policy.StockObservation{}, noSpace("layout_room_cells"), nil
 		}
 		// A layout room can stand past the colony-centred planning window
 		// (#838): read the room's own cells rather than find no site.
@@ -1235,7 +1235,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			}
 			clockSchedulerLog("%s: site census %v", r.goal, rows)
 		}
-		return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
+		return nil, policy.StockObservation{}, noSpace("placement_site"), nil
 	}
 	return selected, stock, Verdict{}, nil
 }

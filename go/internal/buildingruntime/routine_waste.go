@@ -129,11 +129,11 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		pawns = append(pawns, wasteCandidateFacts(pawn, row))
 	}
 	item, pawn, ok := policy.SelectWasteMethod(items, pawns)
-	if ok && !arbiter.tryClaim([]domain.PawnID{domain.PawnID(pawn)}, "waste-item:"+item.ID) {
-		ok = false
-	}
 	if !ok {
 		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
+	}
+	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(pawn)}, "waste-item:"+item.ID) {
+		return RoutineWasteResult{Verdict: claimHeld("colonist")}, nil
 	}
 	waste, err := domain.NewWaste(domain.PawnID(pawn), item.ID, item.Cell)
 	if err != nil {
