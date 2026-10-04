@@ -254,7 +254,49 @@ namespace HomeBridge.BridgeTools
                 }
             }
             catch (Exception ex) { row.Issues.Add(Failed("deathrest", ex)); }
+            try
+            {
+                var regrow = TicksLeft(pawn, HediffDefOf.XenogermReplicating);
+                var coma = TicksLeft(pawn, HediffDefOf.XenogerminationComa);
+                var inExtractor = pawn.ParentHolder is Building_GeneExtractor;
+                row.XenogermRegrowTicksLeft = regrow;
+                row.XenogermComaTicksLeft = coma;
+                row.InExtractor = inExtractor;
+            }
+            catch (Exception ex) { row.Issues.Add(Failed("gene_lifecycle", ex)); }
+            try { Extractable(pawn, row); }
+            catch (Exception ex) { row.ClearExtractable(); row.ClearExtractableReason(); row.Issues.Add(Failed("extractable", ex)); }
             return row;
+        }
+
+        // The hediff's HediffComp_Disappears.ticksToDisappear, 0 without the
+        // hediff; a hediff with no timer throws so the read is an issue, not 0.
+        private static int TicksLeft(Pawn pawn, HediffDef def)
+        {
+            var hediff = pawn.health?.hediffSet?.GetFirstHediffOfDef(def);
+            if (hediff == null) return 0;
+            var disappears = hediff.TryGetComp<HediffComp_Disappears>() ?? throw new InvalidOperationException(def.defName + " has no disappear timer");
+            return Math.Max(0, disappears.ticksToDisappear);
+        }
+
+        // The game's own Building_GeneExtractor.CanAcceptPawn verdict: true when
+        // any owned extractor of the pawn's map accepts, else the first refusal
+        // text. Absent for an unspawned or non-humanlike pawn or a map with no
+        // extractor.
+        private static void Extractable(Pawn pawn, Obs.PawnBiotech row)
+        {
+            if (!pawn.Spawned || pawn.Map == null || !pawn.RaceProps.Humanlike || pawn.genes == null) return;
+            var extractors = pawn.Map.listerBuildings.AllBuildingsColonistOfClass<Building_GeneExtractor>().OrderBy(e => e.thingIDNumber).ToList();
+            if (extractors.Count == 0) return;
+            string? reason = null;
+            foreach (var extractor in extractors)
+            {
+                var verdict = extractor.CanAcceptPawn(pawn);
+                if (verdict.Accepted) { row.Extractable = true; return; }
+                if (reason == null && !string.IsNullOrEmpty(verdict.Reason)) reason = verdict.Reason;
+            }
+            row.Extractable = false;
+            if (reason != null) row.ExtractableReason = PlacementPreviewOperation.Diagnostic(reason);
         }
     }
 }

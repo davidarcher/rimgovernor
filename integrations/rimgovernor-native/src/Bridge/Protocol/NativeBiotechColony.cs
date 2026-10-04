@@ -158,6 +158,13 @@ namespace HomeBridge.BridgeTools
                 Complexity = g.GeneSet.ComplexityTotal, Metabolism = g.GeneSet.MetabolismTotal, Archites = g.GeneSet.ArchitesTotal, Forbidden = g.IsForbidden(Faction.OfPlayer) };
             row.Genes.Add(Genes(g.GeneSet));
             if (XenogermTarget?.GetValue(g) is Pawn target) row.TargetPawnId = Id(target.GetUniqueLoadID());
+            // The pawns an implant may target (Xenogerm target rules): the game's
+            // own metabolism after implanting, per pawn.
+            if (g.Map != null)
+                foreach (var p in g.Map.mapPawns.AllPawnsSpawned.Where(p => p.genes != null && p.RaceProps.Humanlike && !p.IsQuestLodger()
+                    && (p.IsColonist || p.IsSlaveOfColony || p.IsPrisonerOfColony)).OrderBy(p => p.thingIDNumber))
+                    if (Id(p.GetUniqueLoadID()) is string pawnId)
+                        row.ImplantMetabolism.Add(new Obs.XenogermImplantMetabolism { PawnId = pawnId, MetabolismAfter = GeneUtility.MetabolismAfterImplanting(p, g.GeneSet) });
             return row;
         }
 

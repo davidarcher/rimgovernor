@@ -496,6 +496,17 @@ message PawnBiotech {
   repeated PawnGene genes = 5; optional string xenotype = 6; optional string xenotype_name = 7; optional bool hybrid = 8;
   PawnMechanitor mechanitor = 9; PawnMech mech = 10; PawnDeathrest deathrest = 11;
   repeated ReadIssue issues = 12;
+  // Gene lifecycle (#1931). xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
+  // HediffComp_Disappears.ticksToDisappear of XenogermReplicating and
+  // XenogerminationComa, 0 with no such hediff; in_extractor is a pawn held by a
+  // Building_GeneExtractor (all three failed together: ReadIssue gene_lifecycle).
+  // extractable is Building_GeneExtractor.CanAcceptPawn(pawn).Accepted on a spawned
+  // humanlike pawn of a map with an owned extractor (true if any accepts) and
+  // extractable_reason the game's refusal text, absent when no extractor gave one;
+  // the whole verdict is absent with no extractor, an unspawned pawn or a ReadIssue
+  // named extractable.
+  optional int32 xenogerm_regrow_ticks_left = 13; optional int32 xenogerm_coma_ticks_left = 14; optional bool in_extractor = 15;
+  optional bool extractable = 16; optional string extractable_reason = 17;
 }
 message PawnTendDoctor {
   // NativePawnControlState eligibility: a drafter exists, the pawn is spawned,
@@ -1610,7 +1621,12 @@ message XenogermState {
   optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3;
   repeated string genes = 4; optional string target_pawn_id = 5;
   optional int32 complexity = 6; optional int32 metabolism = 7; optional int32 archites = 8; optional bool forbidden = 9;
+  // implant_metabolism: GeneUtility.MetabolismAfterImplanting per colonist, slave or
+  // colony prisoner on the map (the game's number; the implant is refused below the
+  // biostat range minimum), sorted by pawn id.
+  repeated XenogermImplantMetabolism implant_metabolism = 10;
 }
+message XenogermImplantMetabolism { optional string pawn_id = 1; optional int32 metabolism_after = 2; }
 message PollutionTotals {
   optional int32 total_pollution = 1; optional uint32 pollutable_cells = 2;
   optional string clear_area_id = 3; optional int32 clear_area_cells = 4;

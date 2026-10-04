@@ -169,6 +169,13 @@ func validateGeneBuilding(f *o.BiotechColonyFacts, head func(id, def *string, at
 			r.TargetPawnId != nil && validID(r.GetTargetPawnId()) != nil {
 			return contract("invalid xenogerm")
 		}
+		pawns := map[string]bool{}
+		for _, m := range r.ImplantMetabolism {
+			if m == nil || m.PawnId == nil || m.MetabolismAfter == nil || validID(m.GetPawnId()) != nil || pawns[m.GetPawnId()] {
+				return contract("invalid xenogerm implant metabolism")
+			}
+			pawns[m.GetPawnId()] = true
+		}
 	}
 	return nil
 }

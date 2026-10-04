@@ -257,7 +257,24 @@ func validatePawnBiotech(b *o.PawnBiotech) error {
 			}
 		}
 	}
+	for _, n := range []*int32{b.XenogermRegrowTicksLeft, b.XenogermComaTicksLeft} {
+		if n != nil && *n < 0 {
+			return contract("negative xenogerm ticks left")
+		}
+	}
+	if b.ExtractableReason != nil && (b.Extractable == nil || b.GetExtractable() || len(b.GetExtractableReason()) > 512 || !asciiOnly(b.GetExtractableReason())) {
+		return contract("invalid extractable reason")
+	}
 	return pawnsIssues(b.Issues, b.ProtoReflect())
+}
+
+func asciiOnly(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 // PawnBiotech lifts a pawn row's Biotech block; unknown when the row carries
@@ -313,6 +330,12 @@ func PawnBiotech(b *o.PawnBiotech) domain.Fact[policy.PawnBiotech] {
 				DeathrestPercent: optionalFact(v.DeathrestPercent), Capacity: optionalInt(v.Capacity), BoundBuildings: optionalInt(v.BoundBuildings), AutoWake: optionalFact(v.AutoWake)}
 		}
 		r.Deathrest = domain.Known(d)
+	}
+	if field("gene_lifecycle") {
+		r.XenogermRegrowTicksLeft, r.XenogermComaTicksLeft, r.InExtractor = optionalInt(b.XenogermRegrowTicksLeft), optionalInt(b.XenogermComaTicksLeft), optionalFact(b.InExtractor)
+	}
+	if field("extractable") && b.Extractable != nil {
+		r.Extractable, r.ExtractableReason = domain.Known(b.GetExtractable()), domain.Known(b.GetExtractableReason())
 	}
 	return domain.Known(r)
 }

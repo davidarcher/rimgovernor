@@ -41,7 +41,8 @@ func TestBiotechGeneBuildingProjection(t *testing.T) {
 				HitPoints: proto.Int32(30), Complexity: proto.Int32(3), Metabolism: proto.Int32(-1), Archites: proto.Int32(0)},
 			{ThingId: proto.String("packB"), DefName: proto.String("Genepack"), Genes: []string{"Hardy"}, Position: cell(24, 10), Deteriorating: proto.Bool(true)}},
 		Xenogerms: []*o.XenogermState{{ThingId: proto.String("germ"), DefName: proto.String("Xenogerm"), Position: cell(25, 10), Genes: []string{"Robust"}, TargetPawnId: proto.String("pawn"),
-			Complexity: proto.Int32(2), Metabolism: proto.Int32(-1), Archites: proto.Int32(0)}},
+			Complexity: proto.Int32(2), Metabolism: proto.Int32(-1), Archites: proto.Int32(0),
+			ImplantMetabolism: []*o.XenogermImplantMetabolism{{PawnId: proto.String("pawn"), MetabolismAfter: proto.Int32(-3)}, {PawnId: proto.String("other"), MetabolismAfter: proto.Int32(0)}}}},
 	}
 	r.GetObserved().Biotech = &o.BiotechSection{Outcome: &o.BiotechSection_Observed{Observed: f}}
 	p, err := DecodeColony(r, id, bridge.Tables{})
@@ -77,6 +78,9 @@ func TestBiotechGeneBuildingProjection(t *testing.T) {
 	if v.Xenogerms[0].TargetPawnID != domain.Known("pawn") {
 		t.Fatalf("xenogerm %+v", v.Xenogerms[0])
 	}
+	if im := v.Xenogerms[0].ImplantMetabolism; len(im) != 2 || im[0].PawnID != "pawn" || im[0].Metabolism != domain.Known(int32(-3)) || im[1].Metabolism != domain.Known(int32(0)) {
+		t.Fatalf("implant metabolism %+v", im)
+	}
 	for name, change := range map[string]func(){
 		"duplicate bank":         func() { f.GeneBanks = append(f.GeneBanks, f.GeneBanks[0]) },
 		"overfull bank":          func() { f.GeneBanks[0].Capacity = proto.Int32(0) },
@@ -88,6 +92,8 @@ func TestBiotechGeneBuildingProjection(t *testing.T) {
 		"off map xenogerm":       func() { f.Xenogerms[0].Position = cell(-1, 0) },
 		"duplicate linked bank":  func() { f.GeneAssemblers[0].LinkedBankIds = []string{"bank", "bank"} },
 		"negative archites owed": func() { f.GeneAssemblers[0].ArchitesOwed = proto.Int32(-1) },
+		"duplicate implant pawn": func() { f.Xenogerms[0].ImplantMetabolism[1].PawnId = proto.String("pawn") },
+		"implant without number": func() { f.Xenogerms[0].ImplantMetabolism[0].MetabolismAfter = nil },
 	} {
 		saved := proto.Clone(f).(*o.BiotechColonyFacts)
 		change()

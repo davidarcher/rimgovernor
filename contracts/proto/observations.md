@@ -437,7 +437,17 @@ xenogene, active or overridden), xenotype, mechanitor bandwidth and controlled
 mechs, a mech's overseer, work mode and control group index, and deathrest
 state. An absent scalar is unknown, never zero; a failed sub-read leaves its
 fields absent and adds a `ReadIssue` named `life_stage`, `developmental_stage`,
-`learning`, `genes`, `mechanitor`, `mech` or `deathrest`. Go lifts the block into
+`learning`, `genes`, `mechanitor`, `mech`, `deathrest`, `gene_lifecycle` or
+`extractable`. Gene-lifecycle fields (#1931): `xenogerm_regrow_ticks_left` and
+`xenogerm_coma_ticks_left` are the `HediffComp_Disappears` timers of
+`XenogermReplicating` and `XenogerminationComa` (known 0 with no such hediff;
+a pawn with regrow ticks left dies if extracted again), `in_extractor` a pawn
+held by a gene extractor, and `extractable` the game's own
+`Building_GeneExtractor.CanAcceptPawn` verdict (true when any owned extractor of
+the pawn's map accepts) with `extractable_reason`, the first refusal text (ASCII,
+absent when the game gave none). `extractable` is absent for an unspawned or
+non-humanlike pawn and on a map with no extractor, so Go never reimplements the
+passOnDirectly, archite or coma rules. Go lifts the block into
 `policy.PawnBiotech` on the work pawn (`WorkPawn.Biotech`) and the pawn
 profile. `PawnProfile.Child` follows the developmental stage (Newborn, Baby,
 Child) the Biotech block names; a colony without Biotech has no block and no
@@ -635,7 +645,10 @@ cumulative power-cut ticks), `genepacks` (each pack held by a bank, with
 points, `Genepack.Deteriorating`, auto-load) and `xenogerms` (spawned items
 with genes and the pending implant target). Complexity, metabolism and archite
 totals on packs and xenogerms are the game's own `GeneSet` values, never
-summed in Go. Run facts are absent while idle, a banked pack has no cell, and
+summed in Go. Each xenogerm also carries `implant_metabolism` (#1931): the
+game's `GeneUtility.MetabolismAfterImplanting` for every colonist, slave or
+colony prisoner on its map (one row per pawn id; the implant is refused below
+the biostat range minimum). Run facts are absent while idle, a banked pack has no cell, and
 the xenogerm name is not on the wire (user text). Go validates unique ids per
 table, nonnegative counts, distinct gene ids and that a pack is in exactly
 one place, a bank listed in `gene_banks` or a cell

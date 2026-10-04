@@ -29,6 +29,18 @@ type PawnBiotech struct {
 	Mechanitor  domain.Fact[*PawnMechanitor]
 	Mech        domain.Fact[*PawnMech]
 	Deathrest   domain.Fact[*PawnDeathrest]
+	// XenogermRegrowTicksLeft and XenogermComaTicksLeft are the ticks left on
+	// the pawn's XenogermReplicating and XenogerminationComa hediffs, known 0
+	// with none (#1931). A pawn with regrow ticks left dies if extracted again.
+	XenogermRegrowTicksLeft, XenogermComaTicksLeft domain.Fact[int]
+	// InExtractor is a pawn held by a gene extractor.
+	InExtractor domain.Fact[bool]
+	// Extractable is the game's Building_GeneExtractor.CanAcceptPawn verdict
+	// (true when any owned extractor of the map accepts); ExtractableReason is
+	// the first refusal text, known "" when the game gave none. Unknown with no
+	// extractor, off the map or when the read failed.
+	Extractable       domain.Fact[bool]
+	ExtractableReason domain.Fact[string]
 }
 
 // PawnGene is one gene of a pawn; Active is false while another gene

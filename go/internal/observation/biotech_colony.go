@@ -83,6 +83,16 @@ type Xenogerm struct {
 	GeneTotals
 	TargetPawnID domain.Fact[string]
 	Forbidden    domain.Fact[bool]
+	// ImplantMetabolism is the game's metabolism after implanting this
+	// xenogerm, per pawn it may target (#1931), sorted by pawn id.
+	ImplantMetabolism []ImplantMetabolism
+}
+
+// ImplantMetabolism is GeneUtility.MetabolismAfterImplanting for one pawn;
+// the implant is refused below the biostat range minimum.
+type ImplantMetabolism struct {
+	PawnID     string
+	Metabolism domain.Fact[int32]
 }
 
 // BuildingRow heads every building row: the thing id, definition and cell.
@@ -209,8 +219,12 @@ func colonyBiotech(section *o.BiotechSection) domain.Fact[BiotechColony] {
 		r.Genepacks = append(r.Genepacks, p)
 	}
 	for _, x := range f.Xenogerms {
-		r.Xenogerms = append(r.Xenogerms, Xenogerm{BuildingRow: buildingRow(x.ThingId, x.DefName, x.Position), Genes: x.Genes,
-			GeneTotals: geneTotals(x.Complexity, x.Metabolism, x.Archites), TargetPawnID: optional(x.TargetPawnId), Forbidden: optional(x.Forbidden)})
+		g := Xenogerm{BuildingRow: buildingRow(x.ThingId, x.DefName, x.Position), Genes: x.Genes,
+			GeneTotals: geneTotals(x.Complexity, x.Metabolism, x.Archites), TargetPawnID: optional(x.TargetPawnId), Forbidden: optional(x.Forbidden)}
+		for _, m := range x.ImplantMetabolism {
+			g.ImplantMetabolism = append(g.ImplantMetabolism, ImplantMetabolism{PawnID: m.GetPawnId(), Metabolism: optional(m.MetabolismAfter)})
+		}
+		r.Xenogerms = append(r.Xenogerms, g)
 	}
 	return domain.Known(r)
 }
