@@ -37,6 +37,10 @@ var planWeights = struct {
 	// Expansion: per free core cell within ExpansionReach of the plan,
 	// at most ExpansionCap cells counted.
 	Expansion, ExpansionReach, ExpansionCap int
+	// ReplanGain is the score a replan's candidate must beat the saved
+	// plan's by before the unbuilt rooms are sited again (#1958): about a
+	// room's worth of plain soil, so near-equal layouts never flicker.
+	ReplanGain int
 }{
 	MissingRoom: 100000, BadRoutes: 100000,
 	Soil: 3, Rock: 1,
@@ -48,6 +52,7 @@ var planWeights = struct {
 	Edge: 3, EdgeClear: 50,
 	Killbox: 200, Approach: 100, Gap: 20,
 	Expansion: 1, ExpansionReach: 6, ExpansionCap: 300,
+	ReplanGain: 100,
 }
 
 // PlanScore is a plan's per-term values and tier verdict. The soft terms

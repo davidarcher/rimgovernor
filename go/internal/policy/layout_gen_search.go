@@ -71,7 +71,7 @@ func (g coreGrid) vary(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool) {
 	var ok bool
 	switch rng.intn(8) {
 	case 0:
-		out, ok = swapRooms(plan, rng)
+		out, ok = swapRooms(plan, rng, g.fixed)
 	case 1, 2:
 		out, ok = g.resiteWing(plan, rng)
 	default:
@@ -97,7 +97,7 @@ func searchRole(role ModuleRole) bool {
 // share no wall or door with a partner (besideRoles). The geometry stays,
 // so the hallways stay valid; CheckRoutes in the score rejects a swap that
 // makes a thoroughfare of a pass-through room.
-func swapRooms(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool) {
+func swapRooms(plan LayoutPlan, rng *searchRand, fixed map[Rectangle]bool) (LayoutPlan, bool) {
 	var idx []int
 	for i, r := range plan.Rooms {
 		_, key := besideRoles[r.Role]
@@ -105,7 +105,7 @@ func swapRooms(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool) {
 		for _, nb := range besideRoles {
 			partner = partner || nb == r.Role
 		}
-		if searchRole(r.Role) && !key && !partner && r.Link == nil {
+		if searchRole(r.Role) && !key && !partner && r.Link == nil && !fixed[r.Interior] {
 			idx = append(idx, i)
 		}
 	}
@@ -134,7 +134,7 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 	var roles []ModuleRole
 	seen := map[ModuleRole]bool{}
 	for _, r := range plan.Rooms {
-		if searchRole(r.Role) && !seen[r.Role] {
+		if searchRole(r.Role) && !seen[r.Role] && !g.fixed[r.Interior] {
 			seen[r.Role] = true
 			roles = append(roles, r.Role)
 		}
@@ -152,7 +152,7 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 		in[role] = true
 	}
 	for _, r := range plan.Rooms {
-		if in[r.Role] && !taken[r.Role] {
+		if in[r.Role] && !taken[r.Role] && !g.fixed[r.Interior] {
 			taken[r.Role] = true
 			if first == nil {
 				r := r
@@ -187,7 +187,12 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 // altogether (the mirrored wing). The new wing must hold at least as many
 // rooms.
 func (g coreGrid) resiteWing(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool) {
-	idx := bedroomWings(plan.Wings)
+	var idx []int
+	for _, i := range bedroomWings(plan.Wings) {
+		if !wingPinned(plan.Wings[i], g.fixed) {
+			idx = append(idx, i)
+		}
+	}
 	if len(idx) == 0 {
 		return plan, false
 	}

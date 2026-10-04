@@ -106,7 +106,14 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 	}
 	zones := Zone(s)
 	// With nothing kept this is a fresh plan, sited as DeriveLayoutPlan sites it (#1285).
-	next := SiteCore(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(zones, roomless), Reservations: kept}, s, pawns, tombs, tier)
+	seed := LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(zones, roomless), Reservations: kept}
+	var next LayoutPlan
+	if len(spine) > 0 {
+		// Around what is kept: the same generator as a replan, every kept room pinned.
+		next = newReplanner(seed, s, nil, pawns, tombs, tier, nil).site(seed, allPins(seed), 0)
+	} else {
+		next = SiteCore(seed, s, pawns, tombs, tier)
+	}
 	next.Zones = coreWithout(zones, blocked)
 	if len(next.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()

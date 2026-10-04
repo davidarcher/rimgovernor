@@ -234,8 +234,9 @@ func (g coreGrid) ringPath(a, b hallEnd, blocked, bands map[domain.Cell]bool) []
 // addSecondDoors gives every pass-through room a second door where it
 // touches a hallway other than the one its first door opens on, when that
 // shortens the weighted walk. Rooms that are noThroughfare never get one: a
-// second door makes a thoroughfare of them.
-func (p LayoutPlan) addSecondDoors() LayoutPlan {
+// second door makes a thoroughfare of them, and a fixed room (#1958) keeps
+// the doors it has.
+func (p LayoutPlan) addSecondDoors(fixed map[Rectangle]bool) LayoutPlan {
 	halls := p.Hallways()
 	bands := spineRects(halls)
 	hallAt := func(c domain.Cell) int {
@@ -250,7 +251,7 @@ func (p LayoutPlan) addSecondDoors() LayoutPlan {
 	p.Rooms = rooms
 	for i := range rooms {
 		r := rooms[i]
-		if noThroughfare[r.Role] {
+		if noThroughfare[r.Role] || fixed[r.Interior] {
 			continue
 		}
 		primary := -1

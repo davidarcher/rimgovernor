@@ -112,7 +112,7 @@ func TestAddSecondDoorsOnlyForPassThroughRooms(t *testing.T) {
 	for _, role := range []ModuleRole{ModuleDining, ModuleBedroom} {
 		p := bridgedHallways(role)
 		p.Rooms[0].Doors = nil
-		got := p.addSecondDoors()
+		got := p.addSecondDoors(nil)
 		doors := len(got.Rooms[0].Doors)
 		if role == ModuleDining && doors != 1 {
 			t.Fatal("dining touches two hallways and should take a second door", doors)

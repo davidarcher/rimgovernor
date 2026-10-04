@@ -38,15 +38,16 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 }
 
 // ReplanLayout grows plan for pawns colonists and tombs tomb rooms over a
-// fresh survey, with Grow's suites: rooms now on no-go ground are dropped,
-// the rest never move.
+// fresh survey, with the suites: rooms now on no-go ground are dropped, the
+// plan grows what it lacks, and the unbuilt rooms are sited again when that
+// scores clearly better (layout_replan.go, #1958); a room with anything of
+// ours on it never moves.
 // With the rooms unchanged the perimeter alone is replanned (#954), which
 // changes the plan when the ground on or near the ring did (ground a
 // moisture pump dried, a mined-out ring cell). It reports whether the plan
 // changed. An emptied Retiring wing (emptied, keyed by its corridor's
-// hallway cell) is dropped only when its ground lets Grow place a room or
-// wing it otherwise could not (dropEmptiedWings); else it stays as spare
-// beds.
+// hallway cell) is dropped only when a replan sited without it scores
+// clearly better; else it stays as spare beds.
 func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
 	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, pawns, tombs, tier, geysers, emptied, suites...)
 	return next, changed
@@ -77,8 +78,12 @@ type RoomGrowth struct {
 	InUse map[Rectangle]bool
 	// Fixed are the interiors of every planned room with anything of ours
 	// on it (FixedRooms, #1943), set on every replan once the census is
-	// known. Grow never moves a room, fixed or not.
+	// known (nil while it is not: every room is then kept). A replan
+	// re-sites only the rooms outside it (#1958).
 	Fixed map[Rectangle]bool
+	// Occupied are the cells of ours a new or re-sited room must stay off
+	// (the census, sites, claims and in-flight rooms' walls).
+	Occupied map[domain.Cell]bool
 }
 
 // ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,
@@ -113,8 +118,6 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	next := plan
 	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zones, vents)
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
-	next, freed := dropEmptiedWings(next, surveySoil(s), emptied, pawns, tombs, tier, suites...)
-	dropped = dropped || freed
 	if growth.Built != nil {
 		var retired bool
 		next, retired = retireSurplusRooms(next, growth, growth.Built)
@@ -122,6 +125,11 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	}
 	next, retired := retireAddOnRooms(next, growth)
 	dropped = dropped || retired
+	// Growth, then the unbuilt rooms sited again where that scores clearly
+	// better (layout_replan.go); an emptied Retiring wing is among them.
+	rp := newReplanner(next, s, blockedCells(next, growth.Occupied), pawns, tombs, tier, suites)
+	next, resited := rp.replanCore(next, replanPins(next, growth.Fixed, emptied, tier))
+	dropped = dropped || resited
 	var unplaced []error
 	next, throne, err := growThroneRoom(next, growth.ThroneArea)
 	dropped = dropped || throne
@@ -175,39 +183,27 @@ func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int) (LayoutPlan
 	return plan, true
 }
 
-// dropEmptiedWings grows plan, first dropping each emptied Retiring wing
-// whose ground lets a counterfactual Grow place more core rooms or active
-// wing rooms than the real Grow (#1249); the cleared wing's ground is then
-// clearance's to demolish. Rooms outside a dropped wing never move. It
-// reports whether a wing was dropped.
-func dropEmptiedWings(plan LayoutPlan, soil map[domain.Cell]int, emptied map[domain.Cell]bool, pawns, tombs int, tier BuildTier, suites ...float64) (LayoutPlan, bool) {
-	grown := growSoil(plan, soil, pawns, tombs, tier, suites...)
-	dropped := false
-	for i := 0; i < len(plan.Wings); i++ {
-		w := plan.Wings[i]
-		if !emptied[w.Corridor.From] || retireWings([]Wing{w}, tier)[0].Purpose != WingBedroomsRetiring {
-			continue
-		}
-		without := plan
-		without.Wings = append(append([]Wing(nil), plan.Wings[:i]...), plan.Wings[i+1:]...)
-		cf := growSoil(without, soil, pawns, tombs, tier, suites...)
-		if len(cf.Rooms) > len(grown.Rooms) || activeWingRooms(cf) > activeWingRooms(grown) {
-			plan, grown, dropped = without, cf, true
-			i--
+// blockedCells is the occupied cells a replan's rooms must stay off: all but
+// those under the walls of the plan's own rooms, which the plan already
+// keeps (an unfixed room has none, so a room sited again never lands on
+// something built).
+func blockedCells(plan LayoutPlan, occupied map[domain.Cell]bool) map[domain.Cell]bool {
+	if len(occupied) == 0 {
+		return nil
+	}
+	own := map[domain.Cell]bool{}
+	for _, r := range plan.AllRooms() {
+		for _, c := range rectCells(roomWalls(r)) {
+			own[c] = true
 		}
 	}
-	return grown, dropped
-}
-
-// activeWingRooms is the rooms in p's wings that are not Retiring.
-func activeWingRooms(p LayoutPlan) int {
-	n := 0
-	for _, w := range p.Wings {
-		if w.Purpose != WingBedroomsRetiring {
-			n += len(w.Rooms)
+	blocked := map[domain.Cell]bool{}
+	for c := range occupied {
+		if !own[c] {
+			blocked[c] = true
 		}
 	}
-	return n
+	return blocked
 }
 
 // sameInteriors reports whether a and b hold the same rooms in order: a

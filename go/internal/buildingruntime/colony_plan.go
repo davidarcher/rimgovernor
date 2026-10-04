@@ -92,14 +92,16 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	tomb = tomb && hourly
 	// A pawn owed a suite no planned suite answers (#1216) is planned a new
 	// suite block, sized at siting (#1951); suites already planned never
-	// change.
+	// change. No trigger of its own: the hourly terrain check re-reads the
+	// survey and the suites are in the replan's inputs key, so a new claim
+	// is planned within the hour (#1958).
 	var suites []float64
 	if haveLayout {
 		var claims []policy.SuiteClaim
 		suites, claims = suiteTargets(*projection, layout.Plan, r.stage)
 		r.logSuiteClaims(ctx, claims)
 	}
-	suite := haveLayout && len(suites) > layout.Plan.SuiteRooms() && hourly
+	suite := haveLayout && len(suites) > layout.Plan.SuiteRooms()
 	// A colonist who holds or can claim a title that asks for a throne room
 	// the plan lacks (#1601): grow one sized to the title's area.
 	var growth policy.RoomGrowth
@@ -132,12 +134,6 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			}
 		}
 	}
-	if haveLayout {
-		if occupied, ok := occupiedCells(*projection); ok {
-			rooms, _ := projection.Rooms.Value()
-			growth.Fixed = policy.FixedRooms(layout.Plan, rooms, occupied)
-		}
-	}
 	children := (len(growth.Child) > 0 || growth.Built != nil || growth.InUse != nil) && hourly
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
@@ -151,7 +147,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		growth.Incinerator = incineratorSite
 	}
 	incinerator := growth.Incinerator != (policy.IncineratorSite{}) && hourly
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || suite || throne || children || gear || incinerator) {
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || throne || children || gear || incinerator) {
 		replanned := false
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
@@ -162,7 +158,17 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals)
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
-				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, growth, animals), bounds: survey.Bounds, cells: survey.Cells}
+				// Fixed rooms are what the replan keeps (#1958): read here, with
+				// the journal's open plans, only once a replan is due. Nil while
+				// the census or the plan catalog is unknown keeps every room.
+				if occupied, ok := r.layoutOccupied(ctx, *projection, layout.Plan); ok {
+					rooms, _ := projection.Rooms.Value()
+					growth.Fixed, growth.Occupied = policy.FixedRooms(layout.Plan, rooms, occupied), occupied
+				}
+				// Every new building moves Occupied; the fixed rooms are its key.
+				keyed := growth
+				keyed.Occupied = nil
+				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
 					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "incinerator": incinerator})
 					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)

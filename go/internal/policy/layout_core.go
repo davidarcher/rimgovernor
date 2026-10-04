@@ -221,6 +221,9 @@ type coreGrid struct {
 	hasJunction bool
 	// soil is each surveyed cell's build cost (#1284); nil costs nothing.
 	soil map[domain.Cell]int
+	// fixed are the interiors of the rooms a replan must not move or change
+	// (#1958): the search operators and the second-door pass leave them be.
+	fixed map[Rectangle]bool
 }
 
 // Soil build costs per cell (#1279/#1284): rich soil costs more than

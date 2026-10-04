@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // The new generator (#1955, #1956, epic #1938): obstacles, clusters,
 // packing, housing blocks and corridors. It grows a fresh plan from one
@@ -24,15 +28,21 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 	open := g
 	g, base := open.clone(), open.clone()
 	spine := []SpineSegment{{From: seed, To: seed}}
+	if len(plan.Spine) > 0 {
+		// A replan keeps the hallways its fixed rooms open onto (#1958).
+		spine = slices.Clone(plan.Spine)
+	}
 	rooms := append([]LayoutRoom(nil), plan.Rooms...)
 	wings := retireWings(plan.Wings, tier)
 	// Other rooms stay off the wings' ground.
 	g.carveSuiteWings(wings)
 	base.carveSuiteWings(wings)
 	g.carveBedroomWings(wings)
-	if next, ok := g.addCrossing(spine, rooms); ok {
-		// The centre crossing is laid first so no room takes its column (#952).
-		spine = next
+	if len(spine) == 1 {
+		if next, ok := g.addCrossing(spine, rooms); ok {
+			// The centre crossing is laid first so no room takes its column (#952).
+			spine = next
+		}
 	}
 	have := map[ModuleRole]int{}
 	for _, r := range rooms {
@@ -94,5 +104,5 @@ func routedEntrances(plan LayoutPlan) LayoutPlan {
 
 // finish closes a base plan's hallway network: rings, then second doors.
 func (g coreGrid) finish(plan LayoutPlan) LayoutPlan {
-	return g.routeRings(plan).addSecondDoors()
+	return g.routeRings(plan).addSecondDoors(g.fixed)
 }

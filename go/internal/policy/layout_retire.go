@@ -50,6 +50,22 @@ func FixedRooms(plan LayoutPlan, rooms RoomObservation, occupied map[domain.Cell
 	return fixed
 }
 
+// InFlightRoomCells are the walls of the plan's rooms an open journal plan
+// is working on, keyed by the room's interior origin as the plan's method
+// ids are (#1958): added to the occupied cells, they make such a room fixed
+// before any building of it is accepted.
+func InFlightRoomCells(plan LayoutPlan, origins map[domain.Cell]bool) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, r := range plan.AllRooms() {
+		if origins[domain.Cell{X: r.Interior.X, Z: r.Interior.Z}] {
+			for _, c := range rectCells(roomWalls(r)) {
+				out[c] = true
+			}
+		}
+	}
+	return out
+}
+
 // DuplicateRooms is how many add-on rooms the plan holds beyond one per role.
 func DuplicateRooms(plan LayoutPlan) int {
 	n := 0
