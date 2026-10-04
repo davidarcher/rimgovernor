@@ -66,7 +66,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	barn, vet := plan.HerdRooms(ModuleBarn)[0], plan.HerdRooms(ModuleVetRoom)[0]
 	const animals = 12
 	step := NextHerdStep(plan, RoomObservation{Shapes: testShapes}, nil, nil, animals, testHerdFurniture)
-	if step.Kind != HerdShell || step.Room != barn {
+	if step.Kind != HerdShell || !step.Room.Same(barn) {
 		t.Fatal("barn shell first", step)
 	}
 	var built []CurrentBuilding
@@ -79,7 +79,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
 	}
 	step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-	if step.Kind != HerdShell || step.Room != vet {
+	if step.Kind != HerdShell || !step.Room.Same(vet) {
 		t.Fatal("vet room shell after the barn beds", step)
 	}
 	rooms = standing(barn, vet)
@@ -161,7 +161,7 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 		built = append(built, bedAt(t, p.Def, p))
 	}
 	step := NextHerdStep(grown, rooms, built, nil, 60, testHerdFurniture)
-	if step.Kind != HerdShell || step.Room != second {
+	if step.Kind != HerdShell || !step.Room.Same(second) {
 		t.Fatal("second barn shell once the first is full", step)
 	}
 }

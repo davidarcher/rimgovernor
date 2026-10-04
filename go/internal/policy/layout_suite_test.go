@@ -103,7 +103,7 @@ func TestSuiteGrowthGroundIsReserved(t *testing.T) {
 	g := Grow(p, 10, 2, BuildTierCamp, append(targets, ImpressivenessDecent)...)
 	after := testSuiteWing(t, g)
 	for i, r := range before.Rooms {
-		if after.Rooms[i] != r {
+		if !after.Rooms[i].Same(r) {
 			t.Fatal("suite moved", r, after.Rooms[i])
 		}
 	}

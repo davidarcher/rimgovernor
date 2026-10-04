@@ -58,13 +58,16 @@ func PlannedGround(plan LayoutPlan, rooms RoomObservation) []Rectangle {
 	return out
 }
 
-// PlannedDoors is every door cell the plan holds: each room's door and its
+// PlannedDoors is every door cell the plan holds: each room's doors and its
 // link door. A door standing on planned ground's wall ring anywhere else is
 // swapped for a wall.
 func PlannedDoors(plan LayoutPlan) map[domain.Cell]bool {
 	out := map[domain.Cell]bool{}
 	for _, r := range plan.AllRooms() {
 		out[r.Door] = true
+		for _, d := range r.Doors {
+			out[d.Cell] = true
+		}
 		if r.Link != nil {
 			out[*r.Link] = true
 		}

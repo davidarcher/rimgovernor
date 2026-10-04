@@ -83,7 +83,11 @@ func (r LayoutRoom) Footprint() (domain.RoomFootprint, error) {
 			cells = append(cells, domain.Cell{X: x, Z: z})
 		}
 	}
-	return domain.NewRoomFootprint(cells, r.Door, r.DoorRot)
+	var extra []domain.RoomDoor
+	for _, d := range r.Doors {
+		extra = append(extra, domain.RoomDoor{Cell: d.Cell, Entrance: d.Rot})
+	}
+	return domain.NewRoomFootprint(cells, r.Door, r.DoorRot, extra...)
 }
 
 // PlannedShells lists the plan's rooms for role as shells, in plan order;
@@ -121,10 +125,13 @@ func (p LayoutPlan) NextPlannedRoom(role ModuleRole, rooms RoomObservation) (Lay
 }
 
 // ShellDoors is the cells of r's ring that take a door rather than a
-// wall: its own door, its Link, and any other room's Link that lies in
+// wall: its own doors, its Link, and any other room's Link that lies in
 // r's ring (the kitchen's side of the freezer door, #835).
 func (p LayoutPlan) ShellDoors(r LayoutRoom) []domain.Cell {
 	doors := []domain.Cell{r.Door}
+	for _, d := range r.Doors {
+		doors = append(doors, d.Cell)
+	}
 	if r.Link != nil {
 		doors = append(doors, *r.Link)
 	}

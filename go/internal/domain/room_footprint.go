@@ -27,6 +27,16 @@ type RoomFootprint struct {
 	walls    []Cell
 	door     Cell
 	entrance Rotation
+	// extra are further boundary doors of a room that touches a second
+	// hallway, in the order given; nil for a single-door room.
+	extra []RoomDoor
+}
+
+// RoomDoor is one boundary door of a footprint: its wall cell and the side
+// it faces out of the room.
+type RoomDoor struct {
+	Cell     Cell
+	Entrance Rotation
 }
 
 // cellBefore orders cells z outer, x inner, the order RoomShell.Placements and
@@ -47,8 +57,9 @@ func neighbours8(c Cell) [8]Cell {
 // must be a wall cell whose inward neighbour (against the entrance side) is
 // interior and whose outward neighbour is neither interior nor wall, so the
 // door is a boundary facing out rather than an interior aisle. The wall ring
-// plus door must fit a committed plan: at most 255 placements.
-func NewRoomFootprint(interior []Cell, door Cell, entrance Rotation) (RoomFootprint, error) {
+// plus door must fit a committed plan: at most 255 placements. Each extra
+// door follows the same rule and must be distinct from the others.
+func NewRoomFootprint(interior []Cell, door Cell, entrance Rotation, extra ...RoomDoor) (RoomFootprint, error) {
 	var zero RoomFootprint
 	switch entrance {
 	case North, East, South, West:
@@ -79,11 +90,20 @@ func NewRoomFootprint(interior []Cell, door Cell, entrance Rotation) (RoomFootpr
 			}
 		}
 	}
-	step := entrance.outward()
-	in := Cell{X: door.X - step.X, Z: door.Z - step.Z}
-	out := Cell{X: door.X + step.X, Z: door.Z + step.Z}
-	if !wall[door] || !inside[in] || inside[out] || wall[out] {
-		return zero, errors.New("room door must be a wall cell facing outside")
+	seen := map[Cell]bool{}
+	for _, d := range append([]RoomDoor{{door, entrance}}, extra...) {
+		switch d.Entrance {
+		case North, East, South, West:
+		default:
+			return zero, errors.New("invalid room entrance side")
+		}
+		step := d.Entrance.outward()
+		in := Cell{X: d.Cell.X - step.X, Z: d.Cell.Z - step.Z}
+		out := Cell{X: d.Cell.X + step.X, Z: d.Cell.Z + step.Z}
+		if !wall[d.Cell] || !inside[in] || inside[out] || wall[out] || seen[d.Cell] {
+			return zero, errors.New("room door must be a wall cell facing outside")
+		}
+		seen[d.Cell] = true
 	}
 	if len(wall) > 255 {
 		return zero, errors.New("room wall ring exceeds the committed plan bound")
@@ -98,7 +118,7 @@ func NewRoomFootprint(interior []Cell, door Cell, entrance Rotation) (RoomFootpr
 		held = append(held, cell)
 	}
 	sort.Slice(held, func(i, j int) bool { return cellBefore(held[i], held[j]) })
-	return RoomFootprint{interior: held, walls: walls, door: door, entrance: entrance}, nil
+	return RoomFootprint{interior: held, walls: walls, door: door, entrance: entrance, extra: append([]RoomDoor(nil), extra...)}, nil
 }
 
 // RoofSupported reports whether every interior cell lies within maxDistance
@@ -128,11 +148,23 @@ func (f RoomFootprint) Set() bool          { return len(f.interior) > 0 }
 func (f RoomFootprint) Door() Cell         { return f.door }
 func (f RoomFootprint) Entrance() Rotation { return f.entrance }
 
+// ExtraDoors returns the doors beyond the primary one, nil for a single-door
+// room.
+func (f RoomFootprint) ExtraDoors() []RoomDoor { return append([]RoomDoor(nil), f.extra...) }
+
+// Doors returns every door, the primary first.
+func (f RoomFootprint) Doors() []RoomDoor {
+	return append([]RoomDoor{{f.door, f.entrance}}, f.extra...)
+}
+
 // Threshold is the cell straight outside the door, the ground the room is
 // entered from.
-func (f RoomFootprint) Threshold() Cell {
-	step := f.entrance.outward()
-	return Cell{X: f.door.X + step.X, Z: f.door.Z + step.Z}
+func (f RoomFootprint) Threshold() Cell { return RoomDoor{f.door, f.entrance}.Threshold() }
+
+// Threshold is the cell straight outside the door.
+func (d RoomDoor) Threshold() Cell {
+	step := d.Entrance.outward()
+	return Cell{X: d.Cell.X + step.X, Z: d.Cell.Z + step.Z}
 }
 
 // Interior and Walls return fresh copies in z-outer, x-inner order.
@@ -162,7 +194,7 @@ func (f RoomFootprint) Bounds() RoomBounds {
 
 // SameRoomFootprint reports whether two footprints hold identical geometry.
 func SameRoomFootprint(a, b RoomFootprint) bool {
-	if a.door != b.door || a.entrance != b.entrance || len(a.interior) != len(b.interior) || len(a.walls) != len(b.walls) {
+	if a.door != b.door || a.entrance != b.entrance || len(a.extra) != len(b.extra) || len(a.interior) != len(b.interior) || len(a.walls) != len(b.walls) {
 		return false
 	}
 	for i := range a.interior {
@@ -172,6 +204,11 @@ func SameRoomFootprint(a, b RoomFootprint) bool {
 	}
 	for i := range a.walls {
 		if a.walls[i] != b.walls[i] {
+			return false
+		}
+	}
+	for i := range a.extra {
+		if a.extra[i] != b.extra[i] {
 			return false
 		}
 	}
@@ -221,10 +258,19 @@ func (f RoomFootprint) StyledPlacements(style ShellStyle) []Building {
 	for _, cell := range f.walls {
 		ring[cell] = true
 	}
+	doors := map[Cell]bool{f.door: true}
 	placements := make([]Building, 0, len(f.walls))
 	placements = append(placements, first)
+	for _, d := range f.extra {
+		door, err := NewBuilding(style.DoorDef, d.Cell, d.Entrance, style.DoorStuff)
+		if err != nil {
+			return nil
+		}
+		doors[d.Cell] = true
+		placements = append(placements, door)
+	}
 	for _, cell := range f.walls {
-		if cell == f.door {
+		if doors[cell] {
 			continue
 		}
 		wall, err := NewBuilding(style.WallDef, cell, North, style.WallStuff(f.shellPart(cell, ring)))
@@ -244,6 +290,11 @@ func (f RoomFootprint) shellPart(cell Cell, ring map[Cell]bool) ShellPart {
 	for _, c := range n {
 		if c == f.door {
 			return ShellDoorFrame
+		}
+		for _, d := range f.extra {
+			if c == d.Cell {
+				return ShellDoorFrame
+			}
 		}
 	}
 	alongX := ring[n[0]] || ring[n[2]]

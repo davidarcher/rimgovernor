@@ -216,7 +216,10 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		claimed, playerWalls := map[domain.Cell]bool{}, map[domain.Cell]bool{}
 		var roles []RoleCell
 		buildable := true
-		door := shell.Door()
+		doors := map[domain.Cell]bool{}
+		for _, d := range shell.Doors() {
+			doors[d.Cell] = true
+		}
 		// fogged counts interior and door cells the census lacks: fogged mountain
 		// is dug like any rock (RockStep), so native says which are rock.
 		// foggedRing counts ring cells likewise; RockStep leaves them as rock.
@@ -231,7 +234,7 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		}
 		for _, p := range shell.Walls() {
 			switch {
-			case p == door:
+			case doors[p]:
 				roles = append(roles, RoleCell{p, RockNeedsFloor})
 				if missing(p) {
 					fogged++
@@ -263,11 +266,14 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		// The door opens onto the spine hallway, which the caller protects:
 		// its threshold need only be open ground; an unopened hallway cell of
 		// rock is dug.
-		if c, observed := cells[shell.Threshold()]; observed && !(positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))) {
-			if positive(c.NaturalRock) {
-				roles = append(roles, RoleCell{shell.Threshold(), RockNeedsFloor})
-			} else {
-				block(shell.Threshold(), "threshold")
+		for _, d := range shell.Doors() {
+			threshold := d.Threshold()
+			if c, observed := cells[threshold]; observed && !(positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))) {
+				if positive(c.NaturalRock) {
+					roles = append(roles, RoleCell{threshold, RockNeedsFloor})
+				} else {
+					block(threshold, "threshold")
+				}
 			}
 		}
 		if foggedRing > 0 && fogged == 0 {

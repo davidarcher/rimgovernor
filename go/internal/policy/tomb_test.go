@@ -33,7 +33,7 @@ func sarcophagus(t *testing.T, id string, p InteriorPiece) CurrentBuilding {
 func TestTombStepShellsThenPlacesForADeadColonist(t *testing.T) {
 	plan, room := tombFixture()
 	dead := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
-	if step := NextTombStep(plan, RoomObservation{Shapes: testShapes}, dead, nil, testShapes, true); step.Kind != TombShell || step.Room != room {
+	if step := NextTombStep(plan, RoomObservation{Shapes: testShapes}, dead, nil, testShapes, true); step.Kind != TombShell || !step.Room.Same(room) {
 		t.Fatalf("unbuilt tomb: %+v", step)
 	}
 	step := NextTombStep(plan, tombStanding(room), dead, nil, testShapes, true)
@@ -108,7 +108,7 @@ func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 	}
 	second := LayoutRoom{Role: ModuleTomb, Interior: Rectangle{X: 16, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 19}, DoorRot: domain.North}
 	plan.Rooms = append(plan.Rooms, second)
-	if step := NextTombStep(plan, tombStanding(room), waste, built, testShapes, true); step.Kind != TombShell || step.Room != second {
+	if step := NextTombStep(plan, tombStanding(room), waste, built, testShapes, true); step.Kind != TombShell || !step.Room.Same(second) {
 		t.Fatalf("second tomb: %+v", step)
 	}
 	if plan.TombRooms() != 2 {

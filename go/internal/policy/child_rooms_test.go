@@ -99,7 +99,7 @@ func TestDeathrestChamberFollowsDeathresters(t *testing.T) {
 	plan, room := childRoomFixture(ModuleDeathrestChamber)
 	defs := furnitureDefs(map[string]Bounds{"DeathrestCasket": {Width: 1, Height: 2}})
 	// The accelerator is optional: the catalog lacking one still furnishes caskets.
-	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || step.Room != room {
+	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) {
 		t.Fatalf("chamber shell: %+v", step)
 	}
 	rooms := tombStanding(room)
@@ -168,7 +168,7 @@ func TestNextChildRoomStepShellsThenFurnishesTheNursery(t *testing.T) {
 	plan, room := childRoomFixture(ModuleNursery)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn"), stagePawn("Newborn")})[:1]
 	defs := furnitureDefs(childDefs)
-	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || step.Room != room || !step.Owed() {
+	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) || !step.Owed() {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	rooms := tombStanding(room)
@@ -266,7 +266,7 @@ func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(base.Rooms), len(grown.Rooms))
 	}
 	for i := range base.Rooms {
-		if grown.Rooms[i] != base.Rooms[i] {
+		if !grown.Rooms[i].Same(base.Rooms[i]) {
 			t.Fatalf("room %d moved", i)
 		}
 	}

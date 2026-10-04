@@ -15,7 +15,7 @@ func morgueFixture() (LayoutPlan, LayoutRoom) {
 func TestMorgueShelledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
 	plan, room := morgueFixture()
 	fresh := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotFresh}}
-	if got, owed := MorgueRoomOwed(plan, RoomObservation{Shapes: testShapes}, fresh, true); !owed || got != room {
+	if got, owed := MorgueRoomOwed(plan, RoomObservation{Shapes: testShapes}, fresh, true); !owed || !got.Same(room) {
 		t.Fatalf("fresh stranger: %+v %v", got, owed)
 	}
 	if _, owed := MorgueRoomOwed(plan, RoomObservation{Shapes: testShapes}, fresh, false); owed {

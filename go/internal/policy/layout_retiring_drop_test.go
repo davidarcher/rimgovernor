@@ -33,7 +33,7 @@ func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
 			t.Fatal(tc.size, "retiring wing kept", kept, activeWingRooms(next))
 		}
 		for i, r := range camp.Rooms {
-			if next.Rooms[i] != r {
+			if !next.Rooms[i].Same(r) {
 				t.Fatal(tc.size, "a room moved", r, next.Rooms[i])
 			}
 		}

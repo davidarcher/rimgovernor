@@ -145,7 +145,7 @@ func TestThroneRoomMissingAPieceStaysOwedUntilFurnished(t *testing.T) {
 			short := facts
 			without(&short, c.def, 0)
 			step := throneStep(short)
-			if step.Kind != policy.ThronePlace || step.Piece.Def != c.def || step.Room != room {
+			if step.Kind != policy.ThronePlace || step.Piece.Def != c.def || !step.Room.Same(room) {
 				t.Fatalf("a room missing a %s plans it: %+v", c.missing, step)
 			}
 			if owed, known := bedroomsOwed(short, policy.StageReserves).Value(); !known || !owed {

@@ -25,7 +25,7 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 		t.Fatalf("retiring %+v, want the old wing", retiring)
 	}
 	for i, r := range old.Rooms {
-		if retiring[0].Rooms[i] != r {
+		if !retiring[0].Rooms[i].Same(r) {
 			t.Fatal("retired room moved", r)
 		}
 	}

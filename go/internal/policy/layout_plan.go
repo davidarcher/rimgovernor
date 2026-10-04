@@ -15,13 +15,24 @@ type SpineSegment struct {
 	From, To domain.Cell
 }
 
+// Door is one boundary door of a room: its wall cell and the side it faces.
+type Door struct {
+	Cell domain.Cell
+	Rot  domain.Rotation
+}
+
 // LayoutRoom is one planned room.
 type LayoutRoom struct {
 	Role ModuleRole
 	// Interior is the room's floor, walls excluded.
 	Interior Rectangle
-	Door     domain.Cell
-	DoorRot  domain.Rotation
+	// Door is the primary door: the one furniture frames and rock planning
+	// use.
+	Door    domain.Cell
+	DoorRot domain.Rotation
+	// Doors are further boundary doors of a room that touches a second
+	// hallway. Nil for a single-door room, never empty.
+	Doors []Door `json:",omitempty"`
 	// Link, when set, is a second door in a wall shared with a neighbour:
 	// the freezer's door into the kitchen (#819). Plans saved before it
 	// have none.
@@ -213,6 +224,20 @@ func RectUnion(rects ...Rectangle) (Rectangle, bool) {
 		out = Rectangle{X: minX, Z: minZ, Width: maxX - minX, Height: maxZ - minZ}
 	}
 	return out, found
+}
+
+// Same reports whether two rooms are identical, the comparison LayoutRoom's
+// slice of doors rules out for ==.
+func (r LayoutRoom) Same(o LayoutRoom) bool {
+	if (r.Link == nil) != (o.Link == nil) || r.Link != nil && *r.Link != *o.Link || len(r.Doors) != len(o.Doors) {
+		return false
+	}
+	for i := range r.Doors {
+		if r.Doors[i] != o.Doors[i] {
+			return false
+		}
+	}
+	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

@@ -34,7 +34,7 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 		t.Fatal(changed)
 	}
 	for i, r := range plan.Rooms {
-		if grown.Rooms[i] != r {
+		if !grown.Rooms[i].Same(r) {
 			t.Fatal("a grown plan moved a room", i)
 		}
 	}
@@ -72,7 +72,7 @@ func TestReplanPerimeterOnDriedGround(t *testing.T) {
 		t.Fatal("the opening moved", kb, was)
 	}
 	for i, r := range plan.Rooms {
-		if next.Rooms[i] != r {
+		if !next.Rooms[i].Same(r) {
 			t.Fatal("a perimeter replan moved a room", i)
 		}
 	}

@@ -51,7 +51,7 @@ func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(plan.Rooms), len(grown.Rooms))
 	}
 	for i := range plan.Rooms {
-		if grown.Rooms[i] != plan.Rooms[i] {
+		if !grown.Rooms[i].Same(plan.Rooms[i]) {
 			t.Fatalf("room %d moved", i)
 		}
 	}

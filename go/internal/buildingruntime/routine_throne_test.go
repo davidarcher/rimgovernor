@@ -51,7 +51,7 @@ func throneProjection(standing bool) (observation.ColonyProjection, policy.Layou
 // owes nothing.
 func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	facts, room := throneProjection(false)
-	if step := throneStep(facts); step.Kind != policy.ThroneShell || step.Room != room {
+	if step := throneStep(facts); step.Kind != policy.ThroneShell || !step.Room.Same(room) {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {

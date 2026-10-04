@@ -207,6 +207,20 @@ func transposeSet(s map[domain.Cell]bool) map[domain.Cell]bool {
 	return out
 }
 
+func transposeRot(rot domain.Rotation) domain.Rotation {
+	switch rot {
+	case domain.North:
+		return domain.East
+	case domain.East:
+		return domain.North
+	case domain.South:
+		return domain.West
+	case domain.West:
+		return domain.South
+	}
+	return rot
+}
+
 // transposeRoom swaps X and Z; a door facing its hallway to the south faces
 // it to the west once transposed, north to east, and back.
 func transposeRoom(r LayoutRoom) LayoutRoom {
@@ -217,15 +231,13 @@ func transposeRoom(r LayoutRoom) LayoutRoom {
 		l := transposeCell(*r.Link)
 		r.Link = &l
 	}
-	switch r.DoorRot {
-	case domain.North:
-		r.DoorRot = domain.East
-	case domain.East:
-		r.DoorRot = domain.North
-	case domain.South:
-		r.DoorRot = domain.West
-	case domain.West:
-		r.DoorRot = domain.South
+	r.DoorRot = transposeRot(r.DoorRot)
+	if len(r.Doors) > 0 {
+		doors := make([]Door, len(r.Doors))
+		for i, d := range r.Doors {
+			doors[i] = Door{Cell: transposeCell(d.Cell), Rot: transposeRot(d.Rot)}
+		}
+		r.Doors = doors
 	}
 	return r
 }

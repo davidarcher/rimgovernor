@@ -46,7 +46,7 @@ func TestMealClosetOwedThenCooled(t *testing.T) {
 		t.Fatal("closet owed before its dining room stands")
 	}
 	rooms := tombStanding(dining)
-	if got, owed := plan.MealClosetOwed(rooms); !owed || got != closet {
+	if got, owed := plan.MealClosetOwed(rooms); !owed || !got.Same(closet) {
 		t.Fatalf("closet not owed beside a standing dining room: %+v %v", got, owed)
 	}
 	standing := tombStanding(closet)

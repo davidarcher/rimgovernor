@@ -90,7 +90,7 @@ func TestPlayerRequestsReplanApplyDiscard(t *testing.T) {
 		t.Fatal("no Replan layout button", actions)
 	}
 	serve(panelReplanLayout)
-	if r.proposal == nil || slices.Contains(r.proposal.Plan.Rooms, stale) {
+	if r.proposal == nil || slices.ContainsFunc(r.proposal.Plan.Rooms, stale.Same) {
 		t.Fatal("no proposal dropping the stale room")
 	}
 	rows, actions := r.layoutPanel(&projection)

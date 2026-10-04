@@ -117,7 +117,7 @@ func standingThrone(t *testing.T, p InteriorPiece) CurrentBuilding {
 func TestThroneStepShellsPlacesThenAssigns(t *testing.T) {
 	plan, room, need := throneFixture()
 	defs := throneDefs(Bounds{Width: 1, Height: 1})
-	if step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, nil, need, defs, nil); step.Kind != ThroneShell || step.Room != room || !step.Owed() {
+	if step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, nil, need, defs, nil); step.Kind != ThroneShell || !step.Room.Same(room) || !step.Owed() {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	step := NextThroneStep(plan, tombStanding(room), nil, need, defs, nil)
@@ -253,7 +253,7 @@ func TestGrowThroneRoomAddsOneAndKeepsTheRest(t *testing.T) {
 		t.Fatalf("added=%v rooms %d -> %d", added, have, len(grown.Rooms))
 	}
 	for i := range base.Rooms {
-		if grown.Rooms[i] != base.Rooms[i] {
+		if !grown.Rooms[i].Same(base.Rooms[i]) {
 			t.Fatalf("room %d moved", i)
 		}
 	}

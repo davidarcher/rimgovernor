@@ -58,10 +58,10 @@ func TestReplanFreshKeepsBuiltRoomsAndRegrowsTheRest(t *testing.T) {
 	if !ok || !fresh.Valid() {
 		t.Fatal("no fresh plan", ok)
 	}
-	if !slices.Contains(fresh.Rooms, built) {
+	if !slices.ContainsFunc(fresh.Rooms, built.Same) {
 		t.Fatal("the built room moved or was dropped")
 	}
-	if slices.Contains(fresh.Rooms, stale) {
+	if slices.ContainsFunc(fresh.Rooms, stale.Same) {
 		t.Fatal("the unstarted stale room was kept")
 	}
 	opens := false
@@ -100,7 +100,7 @@ func TestReplanFreshKeepsNewRoomsOffBuiltGround(t *testing.T) {
 		t.Fatal("no fresh plan")
 	}
 	for _, r := range fresh.Rooms {
-		if r != plan.Rooms[0] && rectHits(r.Interior, cells) {
+		if !r.Same(plan.Rooms[0]) && rectHits(r.Interior, cells) {
 			t.Fatalf("a new %s stands on a built cell", r.Role)
 		}
 	}

@@ -70,7 +70,7 @@ func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
 			t.Fatal("wing changed", before.Corridor, after.Corridor)
 		}
 		for n, r := range before.Rooms {
-			if after.Rooms[n] != r {
+			if !after.Rooms[n].Same(r) {
 				t.Fatal("room moved", r)
 			}
 		}
@@ -154,12 +154,12 @@ func TestBedroomWingNeverGrows(t *testing.T) {
 		t.Fatal("wing changed", before.Corridor, after.Corridor)
 	}
 	for i, r := range before.Rooms {
-		if after.Rooms[i] != r {
+		if !after.Rooms[i].Same(r) {
 			t.Fatal("room moved", r, after.Rooms[i])
 		}
 	}
 	for i, r := range p.Rooms {
-		if g.Rooms[i] != r {
+		if !g.Rooms[i].Same(r) {
 			t.Fatal("spine room moved", r, g.Rooms[i])
 		}
 	}

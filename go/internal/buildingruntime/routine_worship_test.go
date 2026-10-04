@@ -42,7 +42,7 @@ func worshipProjection(standing bool) (observation.ColonyProjection, policy.Layo
 // an unknown ideoligion owes nothing.
 func TestWorshipRoomOwesHousingUntilTheBuildingsStand(t *testing.T) {
 	facts, room := worshipProjection(false)
-	if step := childRoomStep(facts); step.Kind != policy.ChildRoomShell || step.Room != room {
+	if step := childRoomStep(facts); step.Kind != policy.ChildRoomShell || !step.Room.Same(room) {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {

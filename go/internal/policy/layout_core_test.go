@@ -76,7 +76,7 @@ func TestGrowKeepsRooms(t *testing.T) {
 	g := Grow(p, 12, 1, BuildTierCamp)
 	checkCore(t, g, 12)
 	for i, r := range p.Rooms {
-		if g.Rooms[i] != r {
+		if !g.Rooms[i].Same(r) {
 			t.Fatal("moved", r, g.Rooms[i])
 		}
 	}
@@ -229,7 +229,7 @@ func TestGrowBranchesIntoCrossings(t *testing.T) {
 	for _, tombs := range []int{10, 20, 30} {
 		g := Grow(p, 3, tombs, BuildTierCamp)
 		for i, r := range p.Rooms {
-			if g.Rooms[i] != r {
+			if !g.Rooms[i].Same(r) {
 				t.Fatal("moved", r, g.Rooms[i])
 			}
 		}

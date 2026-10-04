@@ -247,3 +247,25 @@ func TestUnionFootprintConcaveAndConnector(t *testing.T) {
 		t.Fatal("empty composite accepted")
 	}
 }
+
+func TestNewRoomFootprintExtraDoors(t *testing.T) {
+	bounds := RoomBounds{X: 3, Z: 5, Width: 9, Height: 7}
+	one, err := RectangleFootprint(bounds, South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	north := RoomDoor{Cell: Cell{X: 7, Z: 11}, Entrance: North}
+	two, err := NewRoomFootprint(one.Interior(), one.Door(), South, north)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(two.Placements("Wall", "Door", "WoodLog")) != len(one.Placements("Wall", "Door", "WoodLog")) || SameRoomFootprint(one, two) || len(two.Doors()) != 2 || len(one.ExtraDoors()) != 0 {
+		t.Fatal("two-door footprint")
+	}
+	if _, err := NewRoomFootprint(one.Interior(), one.Door(), South, RoomDoor{Cell: one.Door(), Entrance: South}); err == nil {
+		t.Fatal("duplicate door accepted")
+	}
+	if _, err := NewRoomFootprint(one.Interior(), one.Door(), South, RoomDoor{Cell: Cell{X: 7, Z: 8}, Entrance: North}); err == nil {
+		t.Fatal("interior door accepted")
+	}
+}
