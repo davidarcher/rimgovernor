@@ -16,12 +16,9 @@ import (
 func newRepo(t *testing.T) (root, branchWT string) {
 	t.Helper()
 	root = filepath.Join(t.TempDir(), "repo")
-	mustGit(t, "", "init", "-q", "-b", "main", root)
-	mustGit(t, root, "config", "user.email", "t@example.com")
-	mustGit(t, root, "config", "user.name", "t")
-	write(t, filepath.Join(root, "a.txt"), "a\n")
-	mustGit(t, root, "add", ".")
-	mustGit(t, root, "commit", "-qm", "init")
+	if err := os.CopyFS(root, os.DirFS(templateRepo)); err != nil {
+		t.Fatal(err)
+	}
 	branchWT = filepath.Join(filepath.Dir(root), "wt")
 	mustGit(t, root, "worktree", "add", "-q", "-b", "task", branchWT, "main")
 	return root, branchWT
@@ -222,6 +219,7 @@ func TestCloseIssueReadsTheBranchName(t *testing.T) {
 }
 
 func TestLandRefusesABranchThatRevertsMainWork(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "b.txt"), "b\n")
 	mustGit(t, wt, "add", ".")
