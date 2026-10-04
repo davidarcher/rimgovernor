@@ -17,7 +17,7 @@ func TestGoalConceptCoversEveryGoalID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := 0
+	var ids []GoalID
 	for _, e := range entries {
 		n := e.Name()
 		if !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") {
@@ -43,22 +43,13 @@ func TestGoalConceptCoversEveryGoalID(t *testing.T) {
 						t.Fatalf("%s: GoalID %s is not a string literal", n, name.Name)
 					}
 					value, _ := strconv.Unquote(lit.Value)
-					found++
-					if GoalConcept(GoalID(value)) == ConceptUnknown {
-						t.Errorf("%s: GoalID %s (%q) has no concept", n, name.Name, value)
-					}
-					if GoalDomain(GoalID(value)) == DomainUnknown {
-						t.Errorf("%s: GoalID %s (%q) has no domain", n, name.Name, value)
-					}
+					ids = append(ids, GoalID(value))
 				}
 			}
 		}
 	}
-	if found != len(goalConcepts) {
-		t.Errorf("found %d GoalID constants, classified %d", found, len(goalConcepts))
-	}
-	if found != len(goalDomains) {
-		t.Errorf("found %d GoalID constants, tagged %d with a domain", found, len(goalDomains))
+	if err := ValidateGoalDetectors(goalDetectors, ids); err != nil {
+		t.Error(err)
 	}
 	if GoalDomain(EnsureMood) != DomainPeople || GoalDomain("NotAGoal") != DomainUnknown {
 		t.Error("GoalDomain misclassifies a mood goal or an unknown id")
@@ -75,5 +66,28 @@ func TestGoalConceptCoversEveryGoalID(t *testing.T) {
 		if got := GoalConcept(id); got != want {
 			t.Errorf("GoalConcept(%s) = %q, want %q", id, got, want)
 		}
+	}
+}
+
+func TestValidateGoalDetectorsRefusesFaults(t *testing.T) {
+	ok := GoalDetector{"A", ConceptStandard, DomainFood, []FactFamily{FactColony}}
+	for name, c := range map[string]struct {
+		ds  []GoalDetector
+		ids []GoalID
+	}{
+		"missing detector": {nil, []GoalID{"A"}},
+		"duplicate":        {[]GoalDetector{ok, ok}, []GoalID{"A"}},
+		"no inputs":        {[]GoalDetector{{"A", ConceptStandard, DomainFood, nil}}, []GoalID{"A"}},
+		"unknown input":    {[]GoalDetector{{"A", ConceptStandard, DomainFood, []FactFamily{"x"}}}, []GoalID{"A"}},
+		"no concept":       {[]GoalDetector{{"A", ConceptUnknown, DomainFood, []FactFamily{FactColony}}}, []GoalID{"A"}},
+		"no domain":        {[]GoalDetector{{"A", ConceptStandard, DomainUnknown, []FactFamily{FactColony}}}, []GoalID{"A"}},
+		"stray detector":   {[]GoalDetector{ok}, nil},
+	} {
+		if ValidateGoalDetectors(c.ds, c.ids) == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if err := ValidateGoalDetectors([]GoalDetector{ok}, []GoalID{"A"}); err != nil {
+		t.Error(err)
 	}
 }
