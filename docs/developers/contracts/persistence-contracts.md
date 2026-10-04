@@ -2,12 +2,14 @@
 
 [Documentation](../../README.md)
 
+Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names (`goals`, `goal/<id>`, `goal_methods`, `epoch`) stay until the schema bump (#1976).
+
 Every fact has exactly one home, chosen by what must happen to it when a
 save is reloaded. A second copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Go intent the world cannot show: goals (`goal/<id>`, a goal's own intent in its `Record`: ManageCreepJoiners' inspection record, #1740), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record, #1926), family plans (`family/*`) and the soldier squad (`family/soldier_squad`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
+| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`goal/<id>`, a Standard's own intent in its `Record`: ManageCreepJoiners' inspection record, #1740), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record, #1926), family plans (`family/*`) and the soldier squad (`family/soldier_squad`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
 | Native save, other components | Colony identity and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition, #1350, #1351; deep drilling; home coverage) | Follows the save |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
 | Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token, #1340) and the animal race catalog derived from its race rows (#1722); the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`, #1354); the `goals`, `projects`, `goal_methods` and family tables are such views of the save blobs (`RebuildGoals` rebuilds goals and projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
@@ -23,13 +25,13 @@ The rest of this page details the session journal.
   dispatch and settled by observation, never by transport replay. A reply
   lost after dispatch leaves the action uncertain; it is reconciled from the
   next observation, and its plan stays live until that happens.
-- **Request-ID replay.** Player submissions (goals, policies, decisions,
+- **Request-ID replay.** Player submissions (policies, decisions,
   building and research intents, control intents, clock acknowledgements,
   chat) are keyed by the caller's request ID within a world. Repeating an ID
   returns the recorded outcome; a changed body under the same ID is a
   conflict.
-- **The routine review cursor and policy inputs.** Latches, recovery
-  histories and the current goal bindings let the next review continue where
+- **The Rounds cursor and policy inputs.** Latches, recovery
+  histories and the current Standard bindings let the next Rounds continue where
   the last one stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.
 - **Clock inbox and source cursors.** Native clock reads journal fetched
@@ -58,24 +60,24 @@ The rest of this page details the session journal.
 
 ## What is re-derived
 
-Routine goals are re-derived from observation every review. A world change
+Routine Standards are re-derived from observation every Rounds. A world change
 (new load token, or a tick rewind in the same load) invalidates the previous
-bindings, cancels their pending work and starts a fresh review under the new
+bindings, cancels their pending work and starts fresh Rounds under the new
 world's root plan; only work already dispatched keeps its recovery
 requirement. A pause in the same world suspends the bindings and leaves
-their work open; the next enabled review reactivates the same goals. The
+their work open; the next enabled review reactivates the same Standards. The
 storage plan (`policy.PlanStorage`, the desired room-bound stockpile sites)
 is re-derived the same way every `MaintainStockpiles` pass; the standing
-zones are its only record. Durable goals come back from the save blobs, so nothing here needs a
+zones are its only record. Durable Standards come back from the save blobs, so nothing here needs a
 restore step.
 
 ## Bounded working set
 
-Settled autopilot plans and superseded invalidated goals are marked retired
+Settled autopilot plans and superseded invalidated Standards are marked retired
 rather than deleted: their IDs, methods and receipts stay readable for
-duplicate prevention (a method that completed in the current goal epoch is
-not proposed again; a deficit measured after the goal's recovery, once no
-plan's effects are open, starts a new epoch so the same method can repair a
+duplicate prevention (a method that completed in the current Episode is
+not proposed again; a deficit measured after the Standard's settling, once no
+plan's effects are open, starts a new Episode so the same Method can repair a
 regression such as a lamp removed behind a lit bench) and for
 `inspect`-style reads, but they leave active
 capacity and cannot be modified or reused. Retirement records a per-world

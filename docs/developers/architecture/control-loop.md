@@ -12,12 +12,12 @@ reads may span world changes; missing information stays unknown. Forecasts help
 choose work but cannot count projected harvests as stored food.
 
 Emergencies preempt development. Food, wood and temperature use separate entry and
-recovery thresholds to avoid replacing goals on small fluctuations. Goals retain
+recovery thresholds to avoid replacing Standards on small fluctuations. Concerns retain
 outcomes, methods retain approaches and steps identify executable work across reviews.
 
 Optional projects (comfort, research, production targets, defense, expansion)
 compete for bounded capacity based on measured deficits, player targets, waiting time,
-labor contention and observed outdoor risk. Each goal declares the native work types
+labor contention and observed outdoor risk. Each Concern declares the native work types
 that can serve it; admission is bounded by both the project limit and free pawns of
 those types. Accepted work keeps its identity as capacity changes; unavailable methods
 yield to other candidates.
@@ -31,15 +31,15 @@ method admission share one fit (`policy/development_capacity.go`): labor and the
 are checked before the slot count, and admission refits against commitments
 read inside its transaction, so a player project or another admission since the
 ranking is counted. The development record shows the mode, workers held by startup
-work and the limiting reason. A goal waiting on a measured shortfall lends its ordering to the goal that acquires it 
+work and the limiting reason. A Concern waiting on a measured shortfall lends its ordering to the Concern that acquires it 
 (`policy/development_dependency.go`, #651): a shelter shell admitted short of a resource 
-records a typed edge (goal epoch, method, each open action's cost per resource, the stock it 
+records a typed edge (Episode, Method, each open action's cost per resource, the stock it 
 was measured against), and while the open costs exceed current stock MaintainResource 
 ranks ahead of unrelated optional work for the next slot and worker. The donation is 
 ordering only: the declared priority, the startup/emergency classes and the clock are 
 unchanged, an explicit project limit still holds (the row reports `project_limit`), 
-shared actions count once, and the edge drops when its actions settle, the goal epoch 
-changes, the world changes or a day passes. Cycles, chains past four goals, unknown 
+shared actions count once, and the edge drops when its actions settle, the Episode
+changes, the world changes or a day passes. Cycles, chains past four Concerns, unknown 
 stock and a prerequisite without an executable method donate nothing and are listed 
 as blockers on the development record. Work displays the reason for deferral, including the
 bottleneck work type. Worker capacity is a scheduling bound, not a completion-time
@@ -66,56 +66,68 @@ bed-ownership operation. The hospital planner supplies medical beds (the storage
 planner sites their medicine zone), and the
 sleeping planner uses the existing bed-assignment operation for ordinary beds.
 
-## Goal concepts
+## Concerns and their forms
 
-Every goal the routine review raises is one of four concepts (epic #1012).
-A Response is an incident row and a Project is a `projects` row (#1926);
-Standards are the only goal rows. The concept says which lifecycle a goal
-follows. Incident and Project methods live in `goal_methods` beside the
-goals' ones, each row owned by exactly one of `goal_id`, `incident_id` or
-`project_id` (a Project's epoch is always `0`), and go through the same
-admission. A Project is saved as `project/<id>` (`GovernorProjectBlob`,
-`GovernorStateSchemaVersion` 3); its methods are re-planned after a load.
-The review binds Projects separately from Standards (`RoutineReview.Projects`,
-`RoutineReviewResult.Projects`): one row per world and kind, reused while it
-stands, invalidated with the world, and replaced by a new row when a finished
-Project is measured broken with no work open. A player activation that forces
-a deficit on a finished Project mints a new `project-player-<hex32>-<kind>`
-row the same way. No Project or Response kind is ever a goals row.
+The governor makes **Rounds** (the routine review): in each **Department** it
+runs an **Inspection** on every **Concern**. A Concern is a kind the governor
+watches (`EnsureFoodSupply`, `ActiveCombat`); it takes one of three **Forms**
+(epic #1012), and the Form says which lifecycle it follows. **Safeguards**
+veto unsafe Plans at Admission, and the chosen **Method** produces a **Plan**.
+The shared words and what each replaced are in the
+[vocabulary glossary](../agent-runbook.md#vocabulary-glossary-epic-1964);
+code and storage still carry the old words until the rename children of
+#1964 land, so a grep for `GoalID` finds the Concern ids and `RoutineReview`
+finds Rounds.
 
-| Concept | What it is | Lifecycle |
+An Incident is a `incidents` row and a Project is a `projects` row (#1926);
+Standards are the only `goals` rows. Incident and Project methods live in
+`goal_methods` beside the Standards' ones, each row owned by exactly one of
+`goal_id`, `incident_id` or `project_id` (a Project's epoch is always `0`),
+and go through the same admission. A Project is saved as `project/<id>`
+(`GovernorProjectBlob`, `GovernorStateSchemaVersion` 3); its methods are
+re-planned after a load. Rounds bind Projects separately from Standards
+(`RoutineReview.Projects`, `RoutineReviewResult.Projects`): one row per world
+and kind, reused while it stands, invalidated with the world, and replaced by
+a new row when a finished Project is measured broken with no work open. A
+player activation that forces a deficit on a finished Project mints a new
+`project-player-<hex32>-<kind>` row the same way. No Project or Incident kind
+is ever a `goals` row.
+
+| Form | What it is | Lifecycle |
 | --- | --- | --- |
-| Standard | A measured target held over time. A chore is a Standard whose target is no outstanding work. | Keyed by world and GoalID; re-arms with a new epoch when the target regresses. |
-| Project | A finite piece of work with a finished state and dependency links to other Projects. | One `projects` row per `project-<hex8 world digest>-<kind>-<gen>` id (`domain.Project`, no epoch); finishes once. A finished Project that later breaks opens a new Project, never an epoch bump. The colony stage is derived from finished foothold Projects. |
-| Response | An incident triggered by an event, one row per occurrence (trigger, start, end). | Opens on the event, closes when it is handled. Methods and plans still go through the shared ColonyPlan and Admission. |
-| Rule | An admission veto. It rejects proposals; it pursues nothing and owns no methods. | Evaluated at Admission. Suspending other work is a Rule's job, not a priority value. |
+| Standard | A measured target held over time. A chore is a Standard whose target is no outstanding work. | Keyed by world and Concern; its Inspection finds it Met, Unmet or Unclear. Rows are Open, Settled or Voided; it starts a new Episode (today `epoch`) when a settled target goes unmet again. |
+| Project | A finite piece of work with a finished state and dependency links to other Projects. | One `projects` row per `project-<hex8 world digest>-<kind>-<gen>` id (`domain.Project`, no episode); Open, then Completed (or Voided with the world). A Completed Project that later breaks opens a new Project, never an Episode. The colony stage is derived from Completed foothold Projects. |
+| Incident | An occurrence triggered by an event, one row per occurrence (trigger, start, end). | Its Inspection reports a Situation: Active, Clear or Unclear. Opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident; they still go through the shared ColonyPlan and Admission. |
 
-Rules carry no GoalID of their own: the emergency check (`EmergencyRule`) and
-the unsafe-item veto split from `ManageSupplySafety` are Rules, while
+A Safeguard is not a Form. It is an admission veto: it rejects proposals,
+pursues nothing and owns no Methods. It is evaluated at Admission, and
+suspending other work is a Safeguard's job, not a priority value. Safeguards
+carry no Concern id of their own: the emergency check (`EmergencyRule`) and
+the unsafe-item veto split from `ManageSupplySafety` are Safeguards, while
 `ManageSupplySafety` itself is the Standard doing the allow and forbid work.
 
-Every GoalID in `go/internal/policy`:
+Every Concern id in `go/internal/policy` (`GoalID` in code):
 
-| Concept | GoalIDs |
+| Form | Concern ids |
 | --- | --- |
-| Response | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
+| Incident | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
 | Project | `AllowStartingSupplies`, `EnsureCooking`, `MaintainButcherSpot`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
 | Standard (chore) | `MaintainWaste`, `RemoveBlight`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
 | Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainBabyFeeding`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMechs`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainPermits`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell` |
-| Rule | none (see above) |
+| Safeguard | none (see above) |
 
 `policy.GoalConcept` returns this classification, and a test fails on any
-unclassified GoalID. The foothold goals are Projects, except `EnsureFoodSupply`
+unclassified Concern id. The foothold Concerns are Projects, except `EnsureFoodSupply`
 and `EnsureBasicDefense`: food days and armed colonists are measured targets
 held over time, so they are Standards. `TradeWithCaravan` handles a caravan
-arrival, so it is a Response.
+arrival, so it is an Incident.
 
-A second axis, the domain, tags every GoalID with the colony area it serves,
-like a Civ advisor. `policy.GoalDomain` returns it and the same test fails on
-any untagged GoalID. A domain only groups goals in panels; it never ranks goals
-or budgets labor.
+A second axis, the Department, tags every Concern with the colony area it
+serves, like a Civ advisor. `policy.GoalDomain` returns it and the same test
+fails on any untagged Concern id. A Department only groups Concerns in panels;
+it never ranks Concerns or budgets labor.
 
-| Domain | GoalIDs |
+| Department | Concern ids |
 | --- | --- |
 | Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainButcherSpot`, `MaintainFoodStorage`, `MaintainRefrigeration`, `RemoveBlight` |
 | Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage` |
@@ -284,7 +296,7 @@ the permit calls' incident method, native owning the guards.
 
 Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
-rule. A pause or letter pause only suspends routine goals and their open
+rule. A pause or letter pause only suspends routine Concerns and their open
 work until control resumes in the same world (see the
 [overview](overview.md)): the drafts a suspended plan still holds
 (a completed draft with unfinished, unfailed work behind it, such as a
@@ -306,7 +318,7 @@ hold. Recorded colony snapshots (`internal/snapshot`, taken from the retired
 timetable or a restrictive saved diet reads as a work deficit
 (`EnsureWorkAssignments`), a removed Home cell opens `MaintainHomeCoverage`,
 saved allowed-area restrictions are cleared, a suspended feed bill and standing
-release/slaughter flags open their upkeep goals. `takeover/draft` still adopts
+release/slaughter flags open their upkeep Concerns. `takeover/draft` still adopts
 and releases a standing player draft natively.
 Resource and animal-feed production replace an inactive bill for the selected
 recipe using its native identity and the current bench snapshot. An active bill
@@ -333,15 +345,15 @@ Sustained coverage belongs in campaigns and
 [GitHub issues](https://github.com/davidarcher/rimgovernor/issues).
 
 The gated [Go routine components](../../../go/README.md#routine-policy-components)
-persist maintained goals, method reservations and action dependencies. Building
+persist maintained Standards, Method reservations and action dependencies. Building
 methods reserve all costs atomically against the shared journal; Hands rechecks
 native placement and observed predecessor completion before execution. Runtime
-composition for additional methods and method selection remain tracked in G01.05. Go routine reviews
-persist need assessments and hysteresis together; missing facts cannot recover
-goals. Manual cancels pending work independently of observation availability.
+composition for additional methods and method selection remain tracked in G01.05. Go Rounds
+persist Findings and hysteresis together; missing facts cannot settle
+Standards. Manual cancels pending work independently of observation availability.
 
 The opt-in Go routine building worker shares the selected player's direction and
-native lease. Its journal verifies each method's current review, goal, epoch and
+native lease. Its journal verifies each Method's current Rounds, Concern, Episode and
 world before dispatch; it cannot run arbitrary plans or acquire authority. Pending
 player work takes priority. Routine building work can keep finite clock windows
 eligible after the selected player plan settles. Uncertain effects still reconcile

@@ -255,7 +255,7 @@ component guide and contracts for the subsystem you change. Runtime: Go
 
 Non-negotiables: RimWorld owns simulation and normal game rules hold
 (discover native schemas; editor/cheat operations stay outside model
-execution). One shared goal/action system with deterministic Hands;
+execution). One shared Concern/action system with deterministic Hands;
 advisers never write game orders or own colony invariants. Local LM Studio
 models only, no silent paid-provider fallback. Typed contracts at
 boundaries; explicit component ownership; integrate through the existing
@@ -275,3 +275,23 @@ accounts of superseded approaches, in prose or in commit messages beyond
 the evidence. Organise for players and developers; link rather than
 repeat; keep the [documentation map](docs/README.md) current and update
 architecture and procedure docs when behaviour changes.
+
+## Vocabulary (epic #1964)
+
+The governor makes **Rounds**, running an **Inspection** on each **Concern**
+in its **Department**; a Concern takes one **Form**: **Standard**,
+**Project** or **Incident**. Code and storage still carry the old words
+until the rename children of
+[#1964](https://github.com/davidarcher/rimgovernor/issues/1964) land, so
+grep the old word to find the new one. Full table and per-rename status:
+[agent runbook glossary](docs/developers/agent-runbook.md#vocabulary-glossary-epic-1964).
+
+| Old | New |
+| --- | --- |
+| `GoalID` / `GoalDetector` / `GoalConcept` / `Domain` | Concern / Inspection / Form / Department |
+| `RoutineReview` (`Routine*`) | Rounds (`Rounds*`) |
+| `Goal` row, `Epoch` | Standard, Episode |
+| `Response` concept + `Incident` row | Incident (form and row); "Response" is prose |
+| `Rule` | Safeguard |
+| `NeedState` | Finding (Met / Unmet / Unclear), Situation (Active / Clear / Unclear) |
+| `GoalMethod`, `goal_methods` | Method, `methods` |
