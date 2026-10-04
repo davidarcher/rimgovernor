@@ -206,12 +206,18 @@ func (v Verdict) Validate() error {
 		if !slices.Contains(waitKinds, v.Refusal.Kind) {
 			return fmt.Errorf("wait without a known kind: %+v", v.Refusal)
 		}
+		if v.Refusal.Kind == WaitMethodUsed && v.Refusal.Subject == "" {
+			return fmt.Errorf("method-used wait without the work it names: %+v", v.Refusal)
+		}
 	case OutcomeRefused:
 		if !slices.Contains(refusalKinds, v.Refusal.Kind) {
 			return fmt.Errorf("refusal without a known kind: %+v", v.Refusal)
 		}
 		if v.Refusal.Kind == RefusalSharedAdmission && v.Refusal.Subject == "" {
 			return fmt.Errorf("shared admission refusal without the reason it names: %+v", v.Refusal)
+		}
+		if v.Refusal.Kind == RefusalRetriesSpent && v.Refusal.Subject == "" {
+			return fmt.Errorf("retry budget refusal without the step it names: %+v", v.Refusal)
 		}
 	default:
 		return fmt.Errorf("unknown outcome %q", v.Outcome)
@@ -386,7 +392,6 @@ var (
 	BuildingReasonNoDeficit    = Verdict{Outcome: OutcomeNothingToDo}
 	BuildingReasonExpired      = Verdict{Outcome: OutcomeExpired}
 	BuildingReasonExistingWork = waitOn(WaitExistingWork)
-	BuildingReasonUsed         = waitOn(WaitMethodUsed)
 	// BuildingBunksOpen: the initial shelter's indoor furnishing waits on
 	// its open bunk rungs, which do not hold the ring itself (#641).
 	BuildingBunksOpen          = waitOn(WaitBunksOpen)
@@ -410,7 +415,6 @@ var (
 	BuildingExistingFacility         = waitOn(WaitFacility)
 	BuildingHospitalConvert          = waitOn(WaitHospitalConvert)
 	BuildingSleepingUseNeeded        = waitOn(WaitSleepingUse)
-	BuildingReasonExhausted          = refuse(RefusalRetriesSpent, "", "")
 	BuildingReasonNoSquad            = noWorker("squad")
 	BuildingShellBlocked             = awaitingPlan("earlier_shell", "")
 	BuildingShelterPending           = awaitingPlan("initial_shelter", "")

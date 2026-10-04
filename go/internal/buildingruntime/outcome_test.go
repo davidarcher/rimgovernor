@@ -51,10 +51,10 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{comfortAccessWait(policy.ComfortCapacity), "existing_facility_access_blocked:dining", "a facility stands but some colonists cannot reach it (dining)"},
 		{noSpace("floor_cells"), "no_space:floor_cells", "no space found for it (floor cells)"},
 		{admissionRefused(store.BuildingMethodDecision{}), "shared_admission_refused:candidates_left_unadmitted", "the shared admission check turned the plan down (candidates left unadmitted)"},
-		{BuildingReasonExhausted, "retry_budget_spent", "tried as often as it may"},
+		{refuse(RefusalRetriesSpent, "gear_craft", ""), "retry_budget_spent:gear_craft", "tried as often as it may (gear craft)"},
 		{awaitingSlot("clear_ancient_shrine"), "awaiting_plan:development_slot:clear_ancient_shrine", "waiting on development slot (clear ancient shrine)"},
 		{noSpace("walkable_layout"), "no_space:walkable_layout", "no space found for it (walkable layout)"},
-		{BuildingReasonUsed, "method_already_used", "waiting for work it already started"},
+		{waitFor(WaitMethodUsed, "bill_method"), "method_already_used:bill_method", "waiting for work it already started (bill method)"},
 		{BuildingBunksOpen, "shelter_bunks_open", "waiting on the shelter's open bunks"},
 		{BuildingReasonHeld, "breach_held", "holding off on the ancient shrine breach"},
 		{BuildingComfortWait, "waiting_for_native_comfort_use", "waiting for colonists to use the comfort already provided"},
@@ -88,14 +88,14 @@ func TestEveryKindHasASentence(t *testing.T) {
 		}
 	}
 	for _, kind := range waitKinds {
-		if v := waitOn(kind); v.Text() == "" || v.Outcome != OutcomeWaiting {
+		if v := waitFor(kind, "subject"); v.Text() == "" || v.Outcome != OutcomeWaiting {
 			t.Fatalf("wait %s has no sentence", kind)
 		}
 	}
 }
 
 func TestEverySharedVerdictIsValid(t *testing.T) {
-	for _, v := range []Verdict{BuildingReasonAdmitted, BuildingReasonDisabled, BuildingReasonNoReview, BuildingReasonNoDeficit, BuildingReasonExpired, BuildingReasonExistingWork, BuildingReasonUsed, BuildingBunksOpen, BuildingReasonHoldFallback, BuildingReasonCombatOrders, BuildingReasonSeparation, BuildingReasonNotInteractive, BuildingReasonWaiting, BuildingReasonHeld, BuildingComfortWait, BuildingExistingFacility, BuildingHospitalConvert, BuildingSleepingUseNeeded, noSpace("floor_cells"), admissionRefused(store.BuildingMethodDecision{}), BuildingReasonExhausted, BuildingReasonNoSquad, BuildingShellBlocked, BuildingShelterPending, excavationBlocked("roof_unsupported"), BuildingSuiteStock, BuildingWorkshopUnavailable, BuildingWorkshopResearch, BuildingResearchBench, BuildingResearchBenchUnavailable, BuildingHospitalUnavailable, BuildingSleepingUnavailable, BuildingNoWeaponBench, BuildingReasonDemand, stoneShellUnstocked, defensePerimeterNoStone} {
+	for _, v := range []Verdict{BuildingReasonAdmitted, BuildingReasonDisabled, BuildingReasonNoReview, BuildingReasonNoDeficit, BuildingReasonExpired, BuildingReasonExistingWork, waitFor(WaitMethodUsed, "bill_method"), BuildingBunksOpen, BuildingReasonHoldFallback, BuildingReasonCombatOrders, BuildingReasonSeparation, BuildingReasonNotInteractive, BuildingReasonWaiting, BuildingReasonHeld, BuildingComfortWait, BuildingExistingFacility, BuildingHospitalConvert, BuildingSleepingUseNeeded, noSpace("floor_cells"), admissionRefused(store.BuildingMethodDecision{}), refuse(RefusalRetriesSpent, "gear_craft", ""), BuildingReasonNoSquad, BuildingShellBlocked, BuildingShelterPending, excavationBlocked("roof_unsupported"), BuildingSuiteStock, BuildingWorkshopUnavailable, BuildingWorkshopResearch, BuildingResearchBench, BuildingResearchBenchUnavailable, BuildingHospitalUnavailable, BuildingSleepingUnavailable, BuildingNoWeaponBench, BuildingReasonDemand, stoneShellUnstocked, defensePerimeterNoStone} {
 		if err := v.Validate(); err != nil || v.IsZero() {
 			t.Fatalf("%+v: %v", v, err)
 		}
@@ -114,6 +114,9 @@ func TestRefusalWithoutAKindIsRejected(t *testing.T) {
 		{Outcome: OutcomeNothingToDo, Refusal: Refusal{Kind: WaitClaim}},
 		{Refusal: Refusal{Kind: RefusalNoSpace}},
 		{Outcome: OutcomeRefused, Refusal: Refusal{Kind: RefusalSharedAdmission}},
+		{Outcome: OutcomeRefused, Refusal: Refusal{Kind: RefusalRetriesSpent}},
+		{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: WaitMethodUsed}},
+		{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: WaitMethodUsed, Detail: "x"}},
 		{Outcome: OutcomeRefused, Refusal: Refusal{Kind: RefusalSharedAdmission, Detail: "wood"}},
 	} {
 		if v.Validate() == nil {
@@ -129,10 +132,10 @@ func TestRefusalWithoutAKindIsRejected(t *testing.T) {
 }
 
 func TestIsMatchesOnlyRefusalsOfTheKind(t *testing.T) {
-	if !fieldUnavailable("x").Is(RefusalFieldUnavailable) || BuildingReasonUsed.Is(RefusalFieldUnavailable) || noSpace("x").Is(RefusalFieldUnavailable) {
+	if !fieldUnavailable("x").Is(RefusalFieldUnavailable) || waitFor(WaitMethodUsed, "x").Is(RefusalFieldUnavailable) || noSpace("x").Is(RefusalFieldUnavailable) {
 		t.Fatal("Is")
 	}
-	if !fieldUnavailable("x").skipsToPlacement() || !noSpace("floor_cells").skipsToPlacement() || !BuildingReasonUsed.skipsToPlacement() || admissionRefused(store.BuildingMethodDecision{}).skipsToPlacement() {
+	if !fieldUnavailable("x").skipsToPlacement() || !noSpace("floor_cells").skipsToPlacement() || !waitFor(WaitMethodUsed, "x").skipsToPlacement() || admissionRefused(store.BuildingMethodDecision{}).skipsToPlacement() {
 		t.Fatal("skipsToPlacement")
 	}
 }
