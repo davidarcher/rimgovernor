@@ -34,7 +34,7 @@ type AcquisitionSource struct {
 }
 
 // SelectAcquisition prefers forage, then downed prey and lower herd revenge cost.
-// Equal-cost sources retain native ordering. Pending yield and unresolved
+// Equal-cost hunts go meatiest first; otherwise native ordering holds. Pending yield and unresolved
 // sources prevent duplicate work but never count as recovered stock.
 func SelectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pending domain.Fact[float64], food bool, held map[string]bool, huntSlots ...domain.Fact[int]) ([]AcquisitionSource, error) {
 	accept := func(row AcquisitionSource) (float64, bool) {
@@ -97,7 +97,12 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 		if a.Downed != b.Downed {
 			return a.Downed
 		}
-		return a.HuntRevengeCost() < b.HuntRevengeCost()
+		if a.HuntRevengeCost() != b.HuntRevengeCost() {
+			return a.HuntRevengeCost() < b.HuntRevengeCost()
+		}
+		// Hunt slots are few: of equally safe prey the meatier goes first, so a
+		// squirrel does not take the slot a deer could.
+		return a.NutritionYield > b.NutritionYield
 	})
 	remaining := math.Max(0, need-outstanding)
 	selected := []AcquisitionSource{}

@@ -50,7 +50,7 @@ func TestAcquisitionFoodUsesNutritionAndPreservesOrdering(t *testing.T) {
 func TestAcquisitionHarvestPrecedesBoundedHunting(t *testing.T) {
 	rows := []AcquisitionSource{{ID: "deer", Resource: "Corpse_Deer", Token: "d", Food: true, Hunt: true, Yield: 1, NutritionYield: 10}, {ID: "berry", Resource: "RawBerries", Token: "b", Food: true, Yield: 10, NutritionYield: 0.5}, {ID: "elk", Resource: "Corpse_Elk", Token: "e", Food: true, Hunt: true, Yield: 1, NutritionYield: 20}}
 	selected, err := SelectAcquisition(domain.Known(rows), domain.Known(100.0), domain.Known(0.0), true, nil, domain.Known(1))
-	if err != nil || len(selected) != 2 || selected[0].ID != "berry" || selected[1].ID != "deer" || rows[0].ID != "deer" {
+	if err != nil || len(selected) != 2 || selected[0].ID != "berry" || selected[1].ID != "elk" || rows[0].ID != "deer" {
 		t.Fatal(selected, rows, err)
 	}
 	selected, err = SelectAcquisition(domain.Known(rows), domain.Known(0.5), domain.Known(0.0), true, nil, domain.Known(2))
