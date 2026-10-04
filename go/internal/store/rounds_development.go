@@ -208,9 +208,10 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 		return false
 	}
 	for _, action := range actions {
-		if building, isBuilding := action.Building(); isBuilding && building.Definition() == "ButcherSpot" {
+		if building, isBuilding := action.Building(); isBuilding && (building.Definition() == "ButcherSpot" || building.Definition() == "CraftingSpot") {
 			// Free and instant: no pawn labor to fund (the spot is the butcher
-			// bill's precondition).
+			// bill's precondition; the crafting spot is the armory's, so a
+			// hunter's bow is not queued behind the shelter dig).
 			continue
 		}
 		letter, isDialog := action.DialogAnswer()

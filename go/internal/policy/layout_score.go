@@ -43,7 +43,9 @@ var planWeights = struct {
 	ReplanGain int
 }{
 	MissingRoom: 100000, BadRoutes: 100000,
-	Soil: 3, Rock: 1,
+	// Rock is a dig, but its walls and floor come with it: a little dearer
+	// than the plain soil (Soil x soilCostNormal) a built room covers.
+	Soil: 3, Rock: 8,
 	// Walk is 0 until the replay harness (#1953) tunes it: weighted on, the
 	// base packs into the thin-roof lab's pocket and the first turbine has no
 	// rock to dig (TestThinRoofMountainLabPlansTurbineOnRockBesidePocket).
@@ -166,7 +168,7 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 			out.Footprint -= planWeights.Footprint
 		}
 	}
-	out.Edge = -sc.edgeCost(rooms)
+	out.Edge = -sc.edgeCost(rooms, under)
 	out.Expansion = sc.expansion(rooms, under)
 	return out
 }
@@ -273,20 +275,37 @@ func routeDist(walk map[domain.Cell]int, goal []domain.Cell) map[domain.Cell]int
 	return dist
 }
 
-// edgeCost charges every room cell planWeights.Edge per step of walking
+// edgeCost charges every cell of a room, its walls and door included,
+// planWeights.Edge per step of walking
 // distance (siteGround.walk) it stands closer to an open map edge cell than
 // EdgeClear, or a fifth of the map's short side on a small map. The ring
 // cannot be built in the edge margin and raiders arrive at the edge. Rock
-// and other blocked cells lengthen the path, so a core tucked into a
-// mountain is as far as a raider must walk around it; a cell no raider can
-// reach costs nothing.
-func (sc planScorer) edgeCost(rooms []LayoutRoom) int {
+// the plan digs (under) walks like open ground, so a room in a mountain pays
+// for every cell its dig or its walls expose to ground raiders can walk: a
+// mountain whose far face is open toward the spawn edge is no refuge. A cell
+// no raider can reach, natural rock left standing, costs nothing.
+func (sc planScorer) edgeCost(rooms []LayoutRoom, under map[domain.Cell]bool) int {
 	b := sc.s.Bounds
 	clear := min(planWeights.EdgeClear, int(min(b.Width, b.Height))/5)
 	cost := 0
+	dug := map[domain.Cell]bool{}
+	for c := range under {
+		if sc.g.rock[c] {
+			dug[c] = true
+		}
+	}
+	ground := sc.ground
+	if len(dug) > 0 {
+		ground.walk = ground.edgeWalk(dug)
+	}
+	seen := map[domain.Cell]bool{}
 	for _, r := range rooms {
-		for _, c := range rectCells(r.Interior) {
-			d := sc.ground.walkDist(c)
+		for _, c := range rectCells(pad(r.Interior, 1)) {
+			if seen[c] {
+				continue
+			}
+			seen[c] = true
+			d := ground.walkDist(c)
 			if d < 0 || d >= clear {
 				continue
 			}

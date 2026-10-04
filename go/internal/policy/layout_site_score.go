@@ -242,14 +242,16 @@ func newSiteGround(s MapSurvey) siteGround {
 		}
 	}
 	g := siteGround{w: w, h: h, blocked: b}
-	g.walk = g.edgeWalk()
+	g.walk = g.edgeWalk(nil)
 	return g
 }
 
 // edgeWalk is one multi-source BFS over unblocked cells (8-connected, as a
 // pawn walks) from every open cell on the map's outermost ring: raiders
-// spawn only on open edge cells.
-func (g siteGround) edgeWalk() []int32 {
+// spawn only on open edge cells. dug are blocked cells a plan digs out, which
+// then walk like open ground: a room in a mountain is as far from the edge as
+// the walk to its entrance.
+func (g siteGround) edgeWalk(dug map[domain.Cell]bool) []int32 {
 	walk := make([]int32, len(g.blocked))
 	var queue []int32
 	for i := range walk {
@@ -270,7 +272,7 @@ func (g siteGround) edgeWalk() []int32 {
 					continue
 				}
 				n := nz*g.w + nx
-				if g.blocked[n] || walk[n] >= 0 {
+				if walk[n] >= 0 || g.blocked[n] && !dug[domain.Cell{X: nx, Z: nz}] {
 					continue
 				}
 				walk[n] = walk[i] + 1

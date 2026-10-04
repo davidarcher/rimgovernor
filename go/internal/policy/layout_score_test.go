@@ -10,7 +10,7 @@ import (
 
 // edgeOf is the edge term's cost for plan p over ground.
 func edgeOf(p LayoutPlan, b Bounds, ground siteGround) int {
-	return planScorer{s: MapSurvey{Bounds: b}, ground: ground}.edgeCost(p.AllRooms())
+	return planScorer{s: MapSurvey{Bounds: b}, ground: ground}.edgeCost(p.AllRooms(), nil)
 }
 
 func plainScoreSurvey() MapSurvey {
@@ -150,5 +150,37 @@ func TestScoreSoilExpansionAndDefenseTerms(t *testing.T) {
 	onRock.g.rock[domain.Cell{X: p.Rooms[0].Interior.X, Z: p.Rooms[0].Interior.Z}] = true
 	if got := onRock.core(p).Soil; got >= sc.core(p).Soil {
 		t.Fatal("rock under a room did not lower the soil term:", got)
+	}
+}
+
+// A dug cell is dearer than a plain-soil one: rooms are not sited into a
+// mountain for being cheap while the colony waits on the excavation.
+func TestRockCostsMoreThanPlainSoil(t *testing.T) {
+	if planWeights.Rock <= planWeights.Soil*soilCostNormal {
+		t.Fatalf("rock %d per cell does not exceed plain soil %d", planWeights.Rock, planWeights.Soil*soilCostNormal)
+	}
+}
+
+// A room dug into rock is as far from the edge as the walk to its entrance:
+// opened to the near side it pays the edge term, opened to the far side it
+// does not.
+func TestEdgeWalkRunsThroughDugRock(t *testing.T) {
+	s := zoningSurvey(60, func(x, z int32) SurveyCell {
+		if x >= 20 && x < 40 && z >= 20 && z < 40 {
+			return SurveyCell{Rock: true}
+		}
+		return SurveyCell{Walkable: true, Fertility: 1}
+	})
+	g := newSiteGround(s)
+	cell := domain.Cell{X: 30, Z: 30}
+	if g.walkDist(cell) != -1 {
+		t.Fatal("sealed rock walks:", g.walkDist(cell))
+	}
+	dug := map[domain.Cell]bool{}
+	for z := int32(30); z < 40; z++ {
+		dug[domain.Cell{X: 30, Z: z}] = true
+	}
+	if d := g.edgeWalk(dug)[cell.Z*g.w+cell.X]; d < 0 {
+		t.Fatal("rock dug to open ground does not walk")
 	}
 }
