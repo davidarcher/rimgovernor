@@ -18,42 +18,32 @@ func setRoof(s *excavationStep, roof string, cells ...domain.Cell) {
 	}
 }
 
-// Thin-roof rock under an open-sky building is dug, the roof removed once
-// the digging is done, and only then the building placed, on exactly its
-// footprint (#1758).
-func TestAdmitRockStepDigsThenUnroofsThenBuilds(t *testing.T) {
+// Thin-roof rock under an open-sky site is dug and the roof removed once the
+// digging is done; the plan holds no building, which the ordinary preview
+// places when the site reads clear (#1758, #1896).
+func TestAdmitRockStepDigsThenUnroofsWithoutBuilding(t *testing.T) {
 	t.Parallel()
 	p, db, n, s, site, shaft := rockCoolerStep(t)
 	ctx := context.Background()
 	check := func() error { return nil }
 	cold := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}.Cold()
-	building, err := domain.NewBuilding("Cooler", site.Cell, site.Rotation, "")
-	if err != nil {
-		t.Fatal(err)
-	}
 	planned := []policy.RoleCell{{Cell: site.Cell, Role: policy.RockNeedsSky}, {Cell: shaft, Role: policy.RockNeedsSky}}
 
-	// A thick roof or a footprint the native preview does not match refuses.
+	// A thick roof refuses.
 	setRoof(&s, "RoofRockThick", shaft)
 	setRoof(&s, "RoofRockThin", site.Cell)
-	result, handled, err := p.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-sky-thick", []domain.Building{building}, check)
+	result, handled, err := p.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-sky-thick", nil, check)
 	if err != nil || !handled || !result.Verdict.Is(RefusalRockNotDug) {
 		t.Fatal("thick roof not refused", result, handled, err)
 	}
-	setRoof(&s, "RoofRockThin", shaft)
-	sky := *p
-	sky.exactFootprint = []domain.Cell{site.Cell, shaft}
-	result, handled, err = sky.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-sky-shape", []domain.Building{building}, check)
-	if err != nil || !handled || !result.Verdict.Is(RefusalNoSpace) {
-		t.Fatal("footprint mismatch not refused", result, handled, err)
-	}
 
-	result, handled, err = p.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-sky", []domain.Building{building}, check)
+	setRoof(&s, "RoofRockThin", shaft)
+	result, handled, err = p.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-sky", nil, check)
 	if err != nil || !handled || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, handled, err)
 	}
-	if n.overRock == 0 {
-		t.Fatal("not previewed over rock")
+	if n.overRock != 0 {
+		t.Fatal("a building was previewed", n.overRock)
 	}
 	plan, err := db.LoadPlan(ctx, methodPlan(t, result.Decision, "plan-dig-sky"))
 	if err != nil {
@@ -64,9 +54,10 @@ func TestAdmitRockStepDigsThenUnroofsThenBuilds(t *testing.T) {
 	for _, a := range plan.Spec.Actions() {
 		if _, ok := a.RemoveRoof(); ok {
 			roof = a
-		}
-		if _, ok := a.Excavation(); ok {
+		} else if _, ok := a.Excavation(); ok {
 			dug = append(dug, a.ID())
+		} else {
+			t.Fatal("unexpected action", a)
 		}
 	}
 	if len(dug) != 2 || roof.ID() == "" {
@@ -87,8 +78,5 @@ func TestAdmitRockStepDigsThenUnroofsThenBuilds(t *testing.T) {
 		if !waits[roof.ID()][id] {
 			t.Fatal("the roof does not wait on the dig", id)
 		}
-	}
-	if !waits[plan.Spec.Actions()[0].ID()][roof.ID()] {
-		t.Fatal("the building does not wait on the roof")
 	}
 }

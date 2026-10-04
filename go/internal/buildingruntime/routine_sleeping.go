@@ -46,16 +46,10 @@ type RoutineBuildingPlanner struct {
 	shelter          bool
 	excavation       RoutineExcavationSource
 	power            *policy.PowerProposal
-	// exactFootprint and windAllowance are set on a copy for one planned
-	// building (digSky): previewPlannedBuilding then requires the native
-	// footprint to be exactly that and at most windAllowance blocked wind
-	// cells (the catch cells the same plan clears).
-	exactFootprint []domain.Cell
-	windAllowance  int32
-	temperature    *policy.TemperatureProposal
-	refrigeration  *policy.RefrigerationProposal
-	lighting       *policy.LightingProposal
-	flooring       *policy.FlooringProposal
+	temperature      *policy.TemperatureProposal
+	refrigeration    *policy.RefrigerationProposal
+	lighting         *policy.LightingProposal
+	flooring         *policy.FlooringProposal
 	// firebreakPave supplies MaintainFlooring's firebreak tier: the ring's
 	// pave cells still natural ground with no floor ordered (#1549).
 	firebreakPave func() []domain.Cell

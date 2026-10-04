@@ -194,7 +194,7 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 		dug = append(dug, action.ID())
 		actions = append(actions, action)
 	}
-	if len(unroof) > 0 && len(buildings) > 0 {
+	if len(unroof) > 0 {
 		roof, err := domain.NewRemoveRoof(unroof)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err

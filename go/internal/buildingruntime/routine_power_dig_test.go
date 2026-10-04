@@ -41,7 +41,8 @@ func rockOn(s *excavationStep, cells ...domain.Cell) {
 	}
 }
 
-// A geothermal footprint on listed rock is dug and the generator waits on it.
+// A geothermal footprint on listed rock is dug; the generator is placed by
+// the ordinary preview once it reads open (#1896).
 func TestDigGeothermalMinesListedRockFootprint(t *testing.T) {
 	t.Parallel()
 	p, n, s := geothermalDigFixture(t)
@@ -55,8 +56,8 @@ func TestDigGeothermalMinesListedRockFootprint(t *testing.T) {
 	if err != nil || !handled || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, handled, err)
 	}
-	if n.overRock != 1 {
-		t.Fatal("generator not previewed over rock", n.overRock)
+	if n.overRock != 0 {
+		t.Fatal("generator previewed in the dig plan", n.overRock)
 	}
 }
 

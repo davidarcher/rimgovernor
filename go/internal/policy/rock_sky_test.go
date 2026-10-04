@@ -101,36 +101,6 @@ func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
 	}
 }
 
-// Only the zone cells the step digs or unroofs are allowed blocked: an open
-// cell under a blocker the step does not touch is not.
-func TestWindCellsToClearCountsOnlyClearedCells(t *testing.T) {
-	zone := TurbineWindCells(domain.Cell{X: 10, Z: 10}, domain.North)
-	var sites []SiteCell
-	for _, c := range zone {
-		sites = append(sites, openSite(c.X, c.Z))
-	}
-	sites[0] = thinRock(zone[0].X, zone[0].Z)
-	sites[1] = thinOpen(zone[1].X, zone[1].Z)
-	sites[2] = rockSite(zone[2].X, zone[2].Z) // thick: unfit, never cleared
-	var planned []RoleCell
-	for _, c := range zone {
-		planned = append(planned, RoleCell{Cell: c, Role: RockNeedsSky})
-	}
-	step, err := RockStepRoofs(planned, sites, testRoofs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Cell 0 is dug and unroofed, cell 1 only unroofed: two blocked cells are
-	// allowed; the thick rock at cell 2 is unfit, not cleared, and the open
-	// rest blocks nothing.
-	if n := WindCellsToClear(step, zone); n != 2 {
-		t.Fatal("allowance", n, step)
-	}
-	if n := WindCellsToClear(RockStepResult{}, zone); n != 0 {
-		t.Fatal("a clear zone allows no blocked cell", n)
-	}
-}
-
 // testRoofs are the rows of the game's roofs by their RoofDef flags: a thick
 // natural roof, a thin natural one and a constructed one.
 var testRoofs = RoofRules{"RoofRockThick": {Thick: true}, "RoofRockThin": {}, "RoofConstructed": {}}

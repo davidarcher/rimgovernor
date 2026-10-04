@@ -3,7 +3,6 @@ package policy
 import (
 	"log/slog"
 	"math"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -673,19 +672,6 @@ func TurbineWindCells(center domain.Cell, rot domain.Rotation) []domain.Cell {
 		}
 	}
 	return out
-}
-
-// WindCellsToClear counts the zone cells the rock step digs or unroofs: the
-// blocked cells the over-rock preview may report. A blocker the step does
-// not clear (a tree, a wall) pushes the native count past it.
-func WindCellsToClear(step RockStepResult, zone []domain.Cell) int32 {
-	n := int32(0)
-	for _, c := range zone {
-		if slices.Contains(step.Dig, c) || slices.Contains(step.Unroof, c) {
-			n++
-		}
-	}
-	return n
 }
 
 // inset reports r clear of siteInset around the map edge.

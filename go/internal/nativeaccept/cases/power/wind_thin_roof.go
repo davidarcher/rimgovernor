@@ -4,8 +4,9 @@ package power
 // is solid granite under thin mountain roof except a 30x30 pocket holding
 // one unpowered lamp. The layout plan's turbine pair stands on rock beside
 // the pocket, so the one plan the family admits digs the rock of the
-// turbine's wind path, removes the roof over it and places a WindTurbine;
-// a follow-up connects it. Confirmed natively: the turbine stands on a
+// turbine's wind path and removes the roof over it in dig waves holding no
+// building (#1896); the ordinary plan then places a WindTurbine once the
+// site reads clear, and a follow-up connects it. Confirmed natively: the turbine stands on a
 // planned site with no roofed or wind-blocking cell on its wind path and is
 // on the lamp's network.
 //
@@ -32,7 +33,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "power/wind-thin-roof",
 		Scope: "Issue #1873: on a lab of granite under thin mountain roof with one unpowered lamp in a pocket, the power family " +
-			"digs and unroofs the layout's turbine site and wind path in one plan, places a WindTurbine on the planned site, " +
+			"digs and unroofs the layout's turbine site and wind path in building-free waves, places a WindTurbine on the planned site, " +
 			"and connects it; an independent native read finds no roofed or wind-blocking cell on its wind path and the lamp " +
 			"powered while the wind blows. Native: the dig, roof removal and over-rock preview are native operations and the " +
 			"roof and wind are vanilla physics, so a snapshot test over recorded facts cannot cover it.",
@@ -135,36 +136,57 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["planned_turbines"] = sites
-	for renewals := 0; ; renewals++ {
+	// The sky dig and unroof waves come first (#1896), each its own plan
+	// holding no building; the turbine is the ordinary plan placed once the
+	// site reads clear. Walk the plans until the turbine's settles.
+	seen := map[domain.PlanID]bool{}
+	waves, renewals, sawDig, sawRoof := 0, 0, false, false
+	for turbinePlaced := false; !turbinePlaced; {
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
 			return err
 		}
-		digs, roofs, err := checkSkyPlan(plan.Spec.Actions())
+		digs, roofs, turbine, err := checkSkyPlan(plan.Spec.Actions())
 		if err != nil {
-			return fmt.Errorf("first power plan %s: %w", method.Plan, err)
+			return fmt.Errorf("power plan %s: %w", method.Plan, err)
 		}
-		report["first_plan_excavations"], report["first_plan_roof_cells"] = digs, roofs
+		sawDig, sawRoof = sawDig || digs > 0, sawRoof || roofs > 0
 		doneCtx, doneCancel := context.WithTimeout(ctx, 20*time.Minute)
-		state, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
+		_, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
 		doneCancel()
 		if err != nil {
-			return fmt.Errorf("first power plan: %w", err)
+			return fmt.Errorf("power plan %s: %w", method.Plan, err)
 		}
-		if !incidental {
-			report["first_plan"] = string(method.Plan)
-			report["first_completed_tick"] = int64(state.Progress[0].View().Tick)
-			report["incidental_renewals"] = renewals
-			break
-		}
+		seen[method.Plan] = true
 		renewCtx, renewCancel := context.WithTimeout(ctx, 5*time.Minute)
-		_, method, err = na.WaitGoalMethod(renewCtx, journal, policy.EnsureBasicPower, &method)
+		if incidental {
+			renewals++
+			_, method, err = na.WaitGoalMethodExcluding(renewCtx, journal, policy.EnsureBasicPower, seen)
+			renewCancel()
+			if err != nil {
+				return fmt.Errorf("renewed power method after incidental cancellation #%d: %w", renewals, err)
+			}
+			continue
+		}
+		if turbine {
+			turbinePlaced = true
+			renewCancel()
+			continue
+		}
+		waves++
+		report[fmt.Sprintf("dig_wave_%d", waves)] = map[string]any{"plan": string(method.Plan), "excavations": digs, "roof_cells": roofs}
+		_, method, err = na.WaitGoalMethodExcluding(renewCtx, journal, policy.EnsureBasicPower, seen)
 		renewCancel()
 		if err != nil {
-			return fmt.Errorf("renewed first power method after incidental cancellation #%d: %w", renewals+1, err)
+			return fmt.Errorf("power method after dig wave %d: %w", waves, err)
 		}
 	}
-	if err := followUps(ctx, journal, method.Plan, report); err != nil {
+	if !sawDig || !sawRoof {
+		return fmt.Errorf("the turbine was placed without digging (%v) and unroofing (%v) its site first", sawDig, sawRoof)
+	}
+	report["dig_waves"], report["incidental_renewals"], report["turbine_plan"] = waves, renewals, string(method.Plan)
+	seen[method.Plan] = true
+	if err := followUps(ctx, journal, seen, report); err != nil {
 		return err
 	}
 	if err := na.AssertRoutineRunning(service.Get); err != nil {
@@ -287,10 +309,10 @@ func plannedAt(sites []string, row map[string]any) bool {
 	return na.Contains(sites, fmt.Sprintf("%d,%d", int(na.AsNumber(row["x"])), int(na.AsNumber(row["z"]))))
 }
 
-// checkSkyPlan holds the first plan to the sky method: excavations and a
-// roof removal ahead of one WindTurbine build, and nothing else. It returns
+// checkSkyPlan classifies a plan of the sky method (#1896): a dig wave of excavations and a
+// roof removal, or the one WindTurbine build alone. It returns
 // the excavation count and the cells to unroof.
-func checkSkyPlan(actions []domain.Action) (excavations, roofCells int, err error) {
+func checkSkyPlan(actions []domain.Action) (excavations, roofCells int, turbine bool, err error) {
 	turbines := 0
 	for _, a := range actions {
 		if _, ok := a.Excavation(); ok {
@@ -303,25 +325,22 @@ func checkSkyPlan(actions []domain.Action) (excavations, roofCells int, err erro
 		}
 		b, ok := a.Building()
 		if !ok || b.Definition() != policy.WindTurbineDefinition {
-			return 0, 0, fmt.Errorf("unexpected action in the sky plan: %#v", a)
+			return 0, 0, false, fmt.Errorf("unexpected action in the sky plan: %#v", a)
 		}
 		turbines++
 	}
-	switch {
-	case turbines != 1:
-		return 0, 0, fmt.Errorf("expected one %s build, found %d in %d actions", policy.WindTurbineDefinition, turbines, len(actions))
-	case excavations == 0:
-		return 0, 0, errors.New("the plan digs no rock: the site was not over the mountain")
-	case roofCells == 0:
-		return 0, 0, errors.New("the plan removes no roof: the site was not under the thin roof")
+	if turbines > 1 || turbines == 1 && (excavations > 0 || roofCells > 0) {
+		return 0, 0, false, fmt.Errorf("a turbine plan holds %d turbines, %d digs, %d roof cells: the dig and the build are separate plans", turbines, excavations, roofCells)
 	}
-	return excavations, roofCells, nil
+	if turbines == 0 && excavations == 0 && roofCells == 0 {
+		return 0, 0, false, errors.New("an empty plan")
+	}
+	return excavations, roofCells, turbines == 1, nil
 }
 
 // followUps lets the family connect the new turbine: a bounded number of
 // conduit (or bank) plans, none of which may raise another generator.
-func followUps(ctx context.Context, journal *store.Store, first domain.PlanID, report na.Report) error {
-	seen := map[domain.PlanID]bool{first: true}
+func followUps(ctx context.Context, journal *store.Store, seen map[domain.PlanID]bool, report na.Report) error {
 	for n := 1; n <= 4; n++ {
 		waitCtx, waitCancel := context.WithTimeout(ctx, 2*time.Minute)
 		_, next, err := na.WaitGoalMethodExcluding(waitCtx, journal, policy.EnsureBasicPower, seen)

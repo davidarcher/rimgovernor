@@ -17,8 +17,8 @@ import (
 // every other power site is chosen over open ground and needs no dig. The
 // footprint is the native definition's, so it is read from a preview of the
 // generator on its geyser, then handed to the shared rock step
-// (admitRockStep), which admits the digs and the generator as one method
-// previewed over rock. Not handled when the footprint is open ground or the
+// (admitRockStep), which admits the digs alone (#1896); the ordinary site
+// preview places the generator once the footprint reads open. Not handled when the footprint is open ground or the
 // preview names none (the ordinary site preview reports that).
 func (r *RoutineBuildingPlanner) digGeothermal(call, epoch context.Context, s excavationStep, protected []domain.Cell, check func() error) (RoutineBuildingResult, bool, error) {
 	if r.power == nil || !r.power.FixedSite() {
@@ -60,7 +60,7 @@ func (r *RoutineBuildingPlanner) digGeothermal(call, epoch context.Context, s ex
 		return RoutineBuildingResult{Verdict: rockNotDug(r.definition, "no_open_cell_beside_footprint")}, true, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("plan-dig-geothermal-%d-%d", r.power.Center.X, r.power.Center.Z))
-	return r.admitRockStep(call, epoch, s, planned, access, method, []domain.Building{building}, check)
+	return r.admitRockStep(call, epoch, s, planned, access, method, nil, check)
 }
 
 // digSky mines and unroofs a wind turbine or solar site laid out over
@@ -71,9 +71,12 @@ func (r *RoutineBuildingPlanner) digGeothermal(call, epoch context.Context, s ex
 // wind path (policy.TurbineWindCells), and the over-rock preview may report
 // no more blocked cells than the step digs or unroofs there; once the work
 // is done the ordinary preview must report none. Otherwise the first untaken
-// site is handed to the shared rock step as one plan: dig, remove the
-// roof, build, the generator previewed over rock on exactly the planned
-// footprint. Not handled when no planned site needs the work.
+// site is handed to the shared rock step as a dig plus remove_roof wave and
+// nothing else (#1896): the plan's dependencies cannot wait on the rock
+// being mined, so the generator is not in it. The routine replans from the
+// live frame every cycle; once the site reads clear this returns unhandled
+// and the ordinary site preview places the generator. Not handled when no
+// planned site needs the work.
 func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavationStep, protected []domain.Cell, check func() error) (RoutineBuildingResult, bool, error) {
 	if r.power == nil || r.power.Method != policy.PowerGenerate || r.definition != policy.WindTurbineDefinition && r.definition != policy.SolarDefinition {
 		return RoutineBuildingResult{}, false, nil
@@ -99,7 +102,6 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 	}
 	var pick *policy.PlannedPowerSite
 	var pickCells []policy.RoleCell
-	var pickWind int32
 	for _, site := range policy.PlannedPowerSites(plan, r.definition) {
 		footprint := policy.RectangleCells(site.Area)
 		cells := make([]policy.RoleCell, 0, len(footprint))
@@ -128,7 +130,7 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 		}
 		if pick == nil && len(step.Unfit) == 0 {
 			site := site
-			pick, pickCells, pickWind = &site, cells, policy.WindCellsToClear(step, zone)
+			pick, pickCells = &site, cells
 		}
 	}
 	if pick == nil {
@@ -137,11 +139,6 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 	if err := check(); err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	building, err := domain.NewBuilding(r.definition, pick.Cell, pick.Rotation, r.stuff)
-	if err != nil {
-		return RoutineBuildingResult{}, false, err
-	}
-	footprint := policy.RectangleCells(pick.Area)
 	cells := make([]domain.Cell, len(pickCells))
 	for i, c := range pickCells {
 		cells[i] = c.Cell
@@ -150,9 +147,7 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 	if !ok {
 		return RoutineBuildingResult{Verdict: rockNotDug(r.definition, "no_open_cell_beside_site")}, true, nil
 	}
-	sky := *r
-	sky.exactFootprint, sky.windAllowance = footprint, pickWind
-	return sky.admitRockStep(call, epoch, s, pickCells, access, skyMethod(r.definition, pick.Area), []domain.Building{building}, check)
+	return r.admitRockStep(call, epoch, s, pickCells, access, skyMethod(r.definition, pick.Area), nil, check)
 }
 
 func skyMethod(definition string, area policy.Rectangle) domain.MethodID {
