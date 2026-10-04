@@ -62,7 +62,7 @@ func SuiteSize(target float64) (int32, int32) {
 // corridorTo is the corridor's floor out to the wall row v.
 func (f wingFrame) corridorTo(v int32) Rectangle {
 	z, h := f.span(2, v-1)
-	return Rectangle{X: f.cx - SpineWidth/2, Z: z, Width: SpineWidth, Height: h}
+	return f.orientRect(Rectangle{X: f.cx - SpineWidth/2, Z: z, Width: SpineWidth, Height: h})
 }
 
 // packSuites is one suite per target, sized by SuiteSize, packed outward
@@ -94,9 +94,10 @@ func suiteWingGround(w Wing) Rectangle {
 	f := frameOf(w)
 	depth := int32(0)
 	for _, r := range w.Rooms {
-		depth = max(depth, r.Interior.Width)
+		in := f.orientRoom(r).Interior
+		depth = max(depth, in.Width)
 	}
-	return f.ground(f.sign*(f.reach(w.Rooms).Z-f.z0)-1, depth)
+	return f.ground(f.reachV(w.Rooms)-1, depth)
 }
 
 // suiteWings is the indexes of the suite blocks, in siting order.

@@ -93,24 +93,70 @@ func (p LayoutPlan) Hallways() []SpineSegment {
 // wingFrame places a wing: v counts cells away from the main hallway's
 // centre row z0 (sign +1 north, -1 south) along the corridor at column cx.
 // size is a standard wing's room interior, as WingRoomSize.
+//
+// A wing runs along Z off an east-west hallway by default; horiz transposes
+// it (#1965): the corridor runs along X at row cx off a north-south hallway
+// at column z0, v counting cells east (sign +1) or west (-1). The geometry
+// is computed in the Z-axis frame and transposed, so the two are twins.
 type wingFrame struct {
 	cx, z0, sign int32
 	size         [2]int32
+	horiz        bool
 }
 
 // frameOf is w's frame; a standard wing's rooms keep the size of its first.
+// A wing is horizontal when its corridor runs along X.
 func frameOf(w Wing) wingFrame {
-	sign := int32(1)
-	if w.Corridor.To.Z < w.Corridor.From.Z {
-		sign = -1
-	}
-	size := WingRoomSize(BuildTierCamp)
+	c := w.Corridor
+	f := wingFrame{sign: 1, size: WingRoomSize(BuildTierCamp)}
 	if (w.Purpose == WingBedrooms || w.Purpose == WingBedroomsRetiring) && len(w.Rooms) > 0 {
 		in := w.Rooms[0].Interior
-		size = [2]int32{in.Height, in.Width}
+		f.size = [2]int32{in.Height, in.Width}
+		if c.From.X != c.To.X {
+			f.size = [2]int32{in.Width, in.Height}
+		}
 	}
-	return wingFrame{cx: w.Corridor.From.X, z0: w.Corridor.From.Z - 2*sign, sign: sign, size: size}
+	if c.From.X != c.To.X {
+		f.horiz = true
+		if c.To.X < c.From.X {
+			f.sign = -1
+		}
+		f.cx, f.z0 = c.From.Z, c.From.X-2*f.sign
+		return f
+	}
+	if c.To.Z < c.From.Z {
+		f.sign = -1
+	}
+	f.cx, f.z0 = c.From.X, c.From.Z-2*f.sign
+	return f
 }
+
+// orient moves a cell from the Z-axis frame to f's.
+func (f wingFrame) orient(c domain.Cell) domain.Cell {
+	if f.horiz {
+		return transposeCell(c)
+	}
+	return c
+}
+
+// orientRect moves a rectangle from the Z-axis frame to f's.
+func (f wingFrame) orientRect(r Rectangle) Rectangle {
+	if f.horiz {
+		return Rectangle{X: r.Z, Z: r.X, Width: r.Height, Height: r.Width}
+	}
+	return r
+}
+
+// orientRoom moves a room from the Z-axis frame to f's.
+func (f wingFrame) orientRoom(r LayoutRoom) LayoutRoom {
+	if f.horiz {
+		return transposeRoom(r)
+	}
+	return r
+}
+
+// cell is the cell at corridor row v on the corridor's axis.
+func (f wingFrame) cell(v int32) domain.Cell { return f.orient(domain.Cell{X: f.cx, Z: f.z(v)}) }
 
 func (f wingFrame) z(v int32) int32 { return f.z0 + f.sign*v }
 
@@ -144,11 +190,12 @@ func (f wingFrame) roomAt(east bool, v0, w, d int32, role ModuleRole) LayoutRoom
 		door.X, r.DoorRot = f.cx-2, domain.East
 	}
 	r.Door = door
-	return r
+	return f.orientRoom(r)
 }
 
 // along is r's first cell out along the corridor (v0) and its width there.
 func (f wingFrame) along(r LayoutRoom) (int32, int32) {
+	r = f.orientRoom(r)
 	if f.sign > 0 {
 		return r.Interior.Z - f.z0, r.Interior.Height
 	}
@@ -157,26 +204,28 @@ func (f wingFrame) along(r LayoutRoom) (int32, int32) {
 
 // reach is the corridor's open end serving rooms: the wall row past the
 // farthest one.
-func (f wingFrame) reach(rooms []LayoutRoom) domain.Cell {
+func (f wingFrame) reach(rooms []LayoutRoom) domain.Cell { return f.cell(f.reachV(rooms)) }
+
+// reachV is the wall row of reach, counted from the hallway.
+func (f wingFrame) reachV(rooms []LayoutRoom) int32 {
 	v := int32(2)
 	for _, r := range rooms {
 		v0, w := f.along(r)
 		v = max(v, v0+w)
 	}
-	return domain.Cell{X: f.cx, Z: f.z(v)}
+	return v
 }
 
 // ground is the wing's ground out to v=2+n-1 with rooms depth d each
 // side, walls included.
 func (f wingFrame) ground(n, d int32) Rectangle {
 	z, h := f.span(2, n)
-	return Rectangle{X: f.cx - 3 - d, Z: z, Width: 2*d + 7, Height: h}
+	return f.orientRect(Rectangle{X: f.cx - 3 - d, Z: z, Width: 2*d + 7, Height: h})
 }
 
 // corridor is the corridor's floor serving slots standard room pairs.
 func (f wingFrame) corridor(slots int32) Rectangle {
-	z, h := f.span(2, slots*(f.size[0]+1)+1)
-	return Rectangle{X: f.cx - SpineWidth/2, Z: z, Width: SpineWidth, Height: h}
+	return f.corridorTo(slots*(f.size[0]+1) + 2)
 }
 
 // wingReserve is the ground w keeps: a bedroom wing's rooms out to its end
@@ -186,7 +235,7 @@ func wingReserve(w Wing) Rectangle {
 		return suiteWingGround(w)
 	}
 	f := frameOf(w)
-	return f.ground(f.sign*(f.reach(w.Rooms).Z-f.z0)-1, f.size[1])
+	return f.ground(f.reachV(w.Rooms)-1, f.size[1])
 }
 
 // carve takes r out of the core candidates.
@@ -379,7 +428,7 @@ func openWing(spine []SpineSegment, f wingFrame) []SpineSegment {
 // planWing appends a wing framed f with up to wingMaxRooms standard rooms
 // to wings; the wing is left out when no room fits.
 func (g coreGrid) planWing(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, f wingFrame, fits func(wingFrame, int) bool) []Wing {
-	base := domain.Cell{X: f.cx, Z: f.z(2)}
+	base := f.cell(2)
 	w := Wing{Purpose: WingBedrooms, Corridor: SpineSegment{From: base, To: base}}
 	for k := 0; k < wingMaxRooms && fits(f, k); k++ {
 		r := f.room(k)

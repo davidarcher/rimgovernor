@@ -67,15 +67,21 @@ func (g coreGrid) siteBlock(spine []SpineSegment, rooms []LayoutRoom, near domai
 	var bestD int64
 	found := false
 	for i, s := range spine {
-		if !alongX(s) {
-			continue
-		}
-		z0 := s.From.Z
+		// horiz: a north-south hallway, whose wings run east and west.
+		horiz := !alongX(s)
+		hall := s.From.Z
 		lo, hi := min(s.From.X, s.To.X), max(s.From.X, s.To.X)
+		if horiz {
+			hall = s.From.X
+			lo, hi = min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z)
+		}
 		reaches := func(cx int32) bool {
-			for x := min(cx-1, lo); x <= max(cx+1, hi); x++ {
-				for dz := -SpineWidth / 2; dz <= SpineWidth/2; dz++ {
-					c := domain.Cell{X: x, Z: z0 + dz}
+			for u := min(cx-1, lo); u <= max(cx+1, hi); u++ {
+				for dv := -SpineWidth / 2; dv <= SpineWidth/2; dv++ {
+					c := domain.Cell{X: u, Z: hall + dv}
+					if horiz {
+						c = domain.Cell{X: hall + dv, Z: u}
+					}
 					if !g.core[c] || walls[c] {
 						return false
 					}
@@ -88,13 +94,12 @@ func (g coreGrid) siteBlock(spine []SpineSegment, rooms []LayoutRoom, near domai
 				continue
 			}
 			for _, sign := range []int32{1, -1} {
-				try := wingFrame{cx: cx, z0: z0, sign: sign}
+				try := wingFrame{cx: cx, z0: hall, sign: sign, horiz: horiz}
 				n := count(try)
 				if n == 0 {
 					continue
 				}
-				dx, dz := int64(cx-near.X), int64(try.z(2)-near.Z)
-				d := dx*dx + dz*dz
+				d := squaredDistance(try.cell(2), near)
 				cost := g.soilCost(try.ground(int32(n), coreMaxDepth))
 				if !found || n > best.n || n == best.n && (cost < bestCost || cost == bestCost && d < bestD) {
 					best, bestCost, bestD, found = blockSite{f: try, seg: i, n: n}, cost, d, true
@@ -109,8 +114,11 @@ func (g coreGrid) siteBlock(spine []SpineSegment, rooms []LayoutRoom, near domai
 func openBlock(spine []SpineSegment, seg int, f wingFrame) []SpineSegment {
 	spine = append([]SpineSegment(nil), spine...)
 	s := &spine[seg]
-	lo, hi := min(s.From.X, s.To.X, f.cx-1), max(s.From.X, s.To.X, f.cx+1)
-	s.From.X, s.To.X = lo, hi
+	if f.horiz {
+		s.From.Z, s.To.Z = min(s.From.Z, s.To.Z, f.cx-1), max(s.From.Z, s.To.Z, f.cx+1)
+		return spine
+	}
+	s.From.X, s.To.X = min(s.From.X, s.To.X, f.cx-1), max(s.From.X, s.To.X, f.cx+1)
 	return spine
 }
 
@@ -217,7 +225,7 @@ func (g coreGrid) siteSuiteBlocks(spine []SpineSegment, rooms []LayoutRoom, wing
 		}
 		f := site.f
 		grown := openBlock(spine, site.seg, f)
-		base := domain.Cell{X: f.cx, Z: f.z(2)}
+		base := f.cell(2)
 		w := Wing{Purpose: WingSuites, Corridor: SpineSegment{From: base, To: base}}
 		for _, r := range fitting(f) {
 			r.Dug = g.dug(r)

@@ -208,7 +208,7 @@ func (g coreGrid) resiteWing(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool
 	base.Wings = others
 	spine := trimSpine(base)
 	skip := func(f wingFrame) bool {
-		return f.sign == of.sign && (mirror || f.cx >= of.cx-radius && f.cx <= of.cx+radius)
+		return f.sign == of.sign && f.horiz == of.horiz && (mirror || f.cx >= of.cx-radius && f.cx <= of.cx+radius)
 	}
 	spine, wings, ok := g.siteBedWing(spine, plan.Rooms, others, of.size, skip)
 	if !ok || len(wings[len(wings)-1].Rooms) < len(old.Rooms) {
@@ -243,7 +243,7 @@ func trimSpine(plan LayoutPlan) []SpineSegment {
 		}
 		for _, w := range plan.Wings {
 			f := frameOf(w)
-			if f.z0 == s.From.Z && f.cx >= lo0 && f.cx <= hi0 {
+			if !f.horiz && f.z0 == s.From.Z && f.cx >= lo0 && f.cx <= hi0 {
 				reach(f.cx-1, f.cx+1)
 			}
 		}
