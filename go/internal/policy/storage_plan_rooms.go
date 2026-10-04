@@ -105,5 +105,5 @@ func growStorageRooms(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool, err
 	if len(plan.Hallways()) == 0 || StorageRoomsOwed(plan, demand) == 0 {
 		return plan, false, nil
 	}
-	return growModuleRoom(plan, ModuleStorage, [][2]int32{coreRoomSize[ModuleStorage]})
+	return SiteRoom(plan, ModuleStorage, coreRoomSize[ModuleStorage])
 }

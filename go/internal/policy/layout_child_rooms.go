@@ -130,7 +130,7 @@ func growChildRoom(plan LayoutPlan, s ChildRoomShape) (LayoutPlan, bool, error) 
 	if _, ok := plan.ChildRoomFor(s); ok {
 		return plan, false, nil
 	}
-	return growModuleRoom(plan, s.Module, ChildRoomSizes(s))
+	return SiteRoom(plan, s.Module, ChildRoomSizes(s)...)
 }
 
 // planChildRoom lays every slot for the piece being placed; the step takes

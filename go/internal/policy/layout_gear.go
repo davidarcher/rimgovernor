@@ -49,7 +49,7 @@ func growGearRooms(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool, error)
 	for _, role := range GearRoomsOwed(plan, demand) {
 		var added bool
 		var err error
-		if plan, added, err = growModuleRoom(plan, role, [][2]int32{coreRoomSize[role]}); added {
+		if plan, added, err = SiteRoom(plan, role, coreRoomSize[role]); added {
 			grew = true
 		} else if err != nil {
 			unplaced = append(unplaced, err)

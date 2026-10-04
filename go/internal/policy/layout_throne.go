@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"sort"
 )
 
@@ -69,34 +68,5 @@ func growThroneRoom(plan LayoutPlan, area int) (LayoutPlan, bool, error) {
 	if _, ok := plan.ThroneRoomFor(area); ok {
 		return plan, false, nil
 	}
-	return growModuleRoom(plan, ModuleThrone, ThroneRoomSizes(area))
-}
-
-// growModuleRoom adds a room of the role to plan at the nearest core slot,
-// trying sizes (interior width, depth) in order, like any other core room. A
-// plan with no core ground or no slot for any size is left as it is, with an
-// error naming the room that could not be placed and why (#1799).
-func growModuleRoom(plan LayoutPlan, role ModuleRole, sizes [][2]int32) (LayoutPlan, bool, error) {
-	g := newCoreGrid(plan.Zones, plan.Reservations)
-	if len(g.core) == 0 {
-		return plan, false, fmt.Errorf("the plan needs a %s room but the map survey left no core ground to place it on", role)
-	}
-	// Keep off the wings' ground, as Grow does.
-	g.carveSuiteWings(plan.Wings)
-	g.carveBedroomWings(plan.Wings)
-	clear := weaponClearance(plan, role)
-	for _, r := range clear {
-		g.carve(r)
-	}
-	for _, size := range sizes {
-		spine, rooms, placed, _ := g.placeRole(append([]SpineSegment(nil), plan.Spine...), append([]LayoutRoom(nil), plan.Rooms...), plan.Wings, role, size)
-		if placed {
-			plan.Spine, plan.Rooms = spine, rooms
-			return plan, true, nil
-		}
-	}
-	if len(clear) > 0 {
-		return plan, false, fmt.Errorf("the plan needs a %s room but no free core slot clear of the weapon clearance round the plan's armory and prisons fits one (interior sizes tried: %v)", role, sizes)
-	}
-	return plan, false, fmt.Errorf("the plan needs a %s room but no free core slot fits one (interior sizes tried: %v)", role, sizes)
+	return SiteRoom(plan, ModuleThrone, ThroneRoomSizes(area)...)
 }

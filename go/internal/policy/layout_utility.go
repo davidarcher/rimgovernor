@@ -106,26 +106,15 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		has = has || r.Role == ModuleBattery
 	}
 	if !has {
-		g := newCoreGrid(coreWithout(plan.Zones, geothermalCells(want.Geysers)), plan.Reservations)
-		for _, w := range plan.Wings {
-			g.carve(wingReserve(w))
-		}
 		// The battery room goes on the main hallway, or on a crossing when
-		// the main hallway is full (#1265; BatterySlots turns its rows).
-		placed := false
-		for i := range plan.Spine {
-			seg, room, ok := g.placeOn(plan.Spine, i, plan.Rooms, ModuleBattery, batteryRoomSize)
-			if !ok {
-				continue
-			}
-			plan.Rooms = append(plan.Rooms, room)
-			plan.Spine = append([]SpineSegment(nil), plan.Spine...)
-			plan.Spine[i] = seg
-			placed = true
-			break
-		}
-		if !placed {
-			slog.Warn("layout: no hallway has room for the battery room", "hallways", len(plan.Spine), "rooms", len(plan.Rooms))
+		// the main hallway is full (#1265; BatterySlots turns its rows), off
+		// the geysers' ground.
+		sited := plan
+		sited.Zones = coreWithout(plan.Zones, geothermalCells(want.Geysers))
+		if grown, ok, err := SiteRoom(sited, ModuleBattery, batteryRoomSize); ok {
+			plan.Spine, plan.Rooms = grown.Spine, grown.Rooms
+		} else {
+			slog.Warn("layout: no hallway has room for the battery room", "hallways", len(plan.Spine), "rooms", len(plan.Rooms), "err", err)
 		}
 	}
 	u := newUtilityGrid(plan)
