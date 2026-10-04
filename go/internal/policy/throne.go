@@ -73,6 +73,17 @@ type ThroneRequirements struct {
 	// ForbidAltars whether an ideology altar is forbidden too.
 	ForbiddenBuildingTags []string
 	ForbidAltars          bool
+	// ForbiddenDefs are the building definitions those tags (and altars,
+	// when forbidden) name in the def catalog (ThingDef.building.buildingTags,
+	// ThingDef.isAltar), sorted: the set the room may hold none of (#1865).
+	// Resolved with the ladder (bridge WithThroneRequirements), not read from
+	// the title row.
+	ForbiddenDefs []string
+}
+
+// Forbids reports whether def is a building the throne room may not hold.
+func (r ThroneRequirements) Forbids(def string) bool {
+	return slices.Contains(r.ForbiddenDefs, def)
 }
 
 // ThingAnyOfCount asks for Count buildings of any of Things.
@@ -180,6 +191,10 @@ const (
 	// ThroneAssign: the throne stands unowned; assign Throne to
 	// Need.Holder, replacing PreviousThrone (empty: none).
 	ThroneAssign ThroneStepKind = "assign"
+	// ThroneBlocked: the standing room holds buildings of a class the title
+	// forbids (Intruders). Planning moves nothing; the step names the
+	// failure (Detail) and is not Owed.
+	ThroneBlocked ThroneStepKind = "blocked"
 )
 
 // ThroneStep is one bounded step towards the title's throne room.
@@ -191,6 +206,41 @@ type ThroneStep struct {
 	// Throne is the standing throne to assign and PreviousThrone the
 	// throne the holder owns already, empty when none.
 	Throne, PreviousThrone string
+	// Intruders are the standing buildings of a forbidden class inside the
+	// room, for ThroneBlocked.
+	Intruders []CurrentBuilding
+}
+
+// Detail names a blocked step's failure: the title, the room and each
+// intruding building.
+func (s ThroneStep) Detail() string {
+	names := make([]string, 0, len(s.Intruders))
+	for _, b := range s.Intruders {
+		names = append(names, fmt.Sprintf("%s %s", b.Building.Definition(), b.ID))
+	}
+	return fmt.Sprintf("the %s throne room at (%d,%d) holds forbidden buildings: %s", s.Need.Title, s.Room.Interior.X, s.Room.Interior.Z, strings.Join(names, ", "))
+}
+
+// throneIntruders are the standing buildings of a class need forbids with a
+// cell inside room's interior, in census order.
+func throneIntruders(room LayoutRoom, need ThroneNeed, built []CurrentBuilding) []CurrentBuilding {
+	if len(need.ForbiddenDefs) == 0 {
+		return nil
+	}
+	inside := map[domain.Cell]bool{}
+	for _, c := range rectCells(room.Interior) {
+		inside[c] = true
+	}
+	var out []CurrentBuilding
+	for _, b := range built {
+		if !need.Forbids(b.Building.Definition()) {
+			continue
+		}
+		if slices.ContainsFunc(b.Cells, func(c domain.Cell) bool { return inside[c] }) {
+			out = append(out, b)
+		}
+	}
+	return out
 }
 
 // Owed reports whether the planner can act on the step now.
@@ -317,9 +367,15 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 	if !ok {
 		return ThroneStep{}
 	}
+	// A forbidden class is never planned: its definitions are not offered.
+	defs = slices.DeleteFunc(slices.Clone(defs), func(d FurnitureDefinition) bool { return need.Forbids(d.Name) })
 	step := ThroneStep{Room: room, Need: need}
 	if _, ok := PlannedRoomStanding(room, rooms); !ok {
 		step.Kind = ThroneShell
+		return step
+	}
+	if intruders := throneIntruders(room, need, built); len(intruders) > 0 {
+		step.Kind, step.Intruders = ThroneBlocked, intruders
 		return step
 	}
 	standing, stands := standingThroneIn(room, need, built)

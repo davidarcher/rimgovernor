@@ -144,3 +144,30 @@ func TestThroneForbiddenTagsMergeTheSet(t *testing.T) {
 		t.Fatalf("%+v %v", got, err)
 	}
 }
+
+// TestForbiddenDefsFollowBuildingTagsAndAltars: the defs a title forbids are
+// those whose building tags meet the requirement's tags, plus altars only
+// when altars are forbidden (#1865).
+func TestForbiddenDefsFollowBuildingTagsAndAltars(t *testing.T) {
+	building := func(tags ...string) *d.ThingDef {
+		return &d.ThingDef{Building: &d.BuildingProperties{BuildingTags: tags}}
+	}
+	catalog := &DefinitionCatalog{ThingDefs: map[string]*d.ThingDef{
+		"Bed":    building("Bed"),
+		"Bench":  building("Production", "Other"),
+		"Lamp":   building(),
+		"Shrine": {IsAltar: true},
+		"Wall":   {},
+	}}
+	req := policy.ThroneRequirements{ForbiddenBuildingTags: []string{"Bed", "Production"}}
+	if got := catalog.forbiddenDefs(req); !reflect.DeepEqual(got, []string{"Bed", "Bench"}) {
+		t.Errorf("tags only: %v", got)
+	}
+	req.ForbidAltars = true
+	if got := catalog.forbiddenDefs(req); !reflect.DeepEqual(got, []string{"Bed", "Bench", "Shrine"}) {
+		t.Errorf("with altars: %v", got)
+	}
+	if got := catalog.forbiddenDefs(policy.ThroneRequirements{}); got != nil {
+		t.Errorf("nothing forbidden: %v", got)
+	}
+}

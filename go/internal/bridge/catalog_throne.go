@@ -157,7 +157,30 @@ func (catalog *DefinitionCatalog) WithThroneRequirements(f policy.RoyaltyFacts) 
 		if err != nil {
 			return policy.RoyaltyFacts{}, err
 		}
+		req.ForbiddenDefs = catalog.forbiddenDefs(req)
 		f.Ladder[i].Throne = domain.Known(req)
 	}
 	return f, nil
+}
+
+// forbiddenDefs are the building defs req forbids: those whose
+// building.buildingTags meet ForbiddenBuildingTags (the game's
+// RoomRequirement_ForbiddenBuildings test) and, when altars are forbidden,
+// those with isAltar (RoomRequirement_ForbidAltars), sorted (#1865).
+func (catalog *DefinitionCatalog) forbiddenDefs(req policy.ThroneRequirements) []string {
+	if catalog == nil || len(req.ForbiddenBuildingTags) == 0 && !req.ForbidAltars {
+		return nil
+	}
+	var out []string
+	for name, def := range catalog.ThingDefs {
+		forbidden := req.ForbidAltars && def.GetIsAltar()
+		for _, tag := range def.GetBuilding().GetBuildingTags() {
+			forbidden = forbidden || slices.Contains(req.ForbiddenBuildingTags, tag)
+		}
+		if forbidden {
+			out = append(out, name)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
