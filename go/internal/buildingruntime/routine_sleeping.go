@@ -941,18 +941,6 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		if len(roomCells) == 0 {
 			return nil, policy.StockObservation{}, noSpace("layout_room_cells"), nil
 		}
-		// A layout room can stand past the colony-centred planning window
-		// (#838): read the room's own cells rather than find no site.
-		if source := observation.PlanningWindowFrom(call); source != nil && !windowHolds(facts.Cells, roomCells) {
-			held, err := source.PlanningWindow(call, boundary.Identity(snapshot), cellsBox(roomCells))
-			if err != nil {
-				return nil, policy.StockObservation{}, Verdict{}, err
-			}
-			if !held.Complete {
-				return nil, policy.StockObservation{}, fieldUnavailable("planning_window"), nil
-			}
-			facts.Cells = held.Value.Cells
-		}
 	}
 	for _, c := range facts.Cells {
 		if r.recreationPowerW > 0 && !poweredRecreationCell(facts, c.Cell, r.recreationPowerW) {
@@ -1341,17 +1329,6 @@ func previewResources(previews []policy.Preview) []policy.Resource {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
-}
-
-// windowHolds is whether every room cell is a row of the planning window.
-func windowHolds(cells []policy.SiteCell, room map[domain.Cell]bool) bool {
-	listed := 0
-	for _, c := range cells {
-		if room[c.Cell] {
-			listed++
-		}
-	}
-	return listed == len(room)
 }
 
 // cellsBox is the smallest rectangle holding every cell; cells is non-empty.
