@@ -43,13 +43,31 @@ type chargerDispatch struct {
 // Go code knows.
 func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor bool) chargerDispatch {
 	t.Helper()
-	base, db, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureMechCharger})
-	v := sleeping.reply.GetObserved()
-	v.Biotech = &o.BiotechSection{Outcome: &o.BiotechSection_Observed{Observed: &o.BiotechColonyFacts{Chargers: chargers}}}
 	charger := buildable("Recharger_Test", 0, 1, 2)
 	charger.MechCharger = true
-	sleeping.catalog = []bridge.FixtureDef{charger, buildable("Wall", 0, 1, 1)}
+	base, db, sleeping, source, review := biotechPlannerFixture(t, policy.EnsureMechCharger, &o.BiotechColonyFacts{Chargers: chargers}, charger, mechanitor)
+	planner, err := NewRoutineMechChargerPlanner(base.reviewer, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	call, epoch, done, err := base.reviewer.player.enter(context.Background(), "test", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(done)
+	return chargerDispatch{planner: planner, call: call, epoch: epoch, db: db, sleeping: sleeping, review: review}
+}
+
+// biotechPlannerFixture is a two-colonist colony with the given Biotech
+// colony facts and a catalog holding def (and a wall) under a name no Go
+// code knows; the first routine review has run with goal's method enabled.
+func biotechPlannerFixture(t *testing.T, goal policy.GoalID, facts *o.BiotechColonyFacts, def bridge.FixtureDef, mechanitor bool) (*RoutineBuildingPlanner, *store.Store, *sleepingNative, chargerNative, store.RoutineReview) {
+	t.Helper()
+	base, db, _, _, sleeping := sleepingFixture(t)
+	base.reviewer.methods = domain.Known([]policy.GoalID{goal})
+	v := sleeping.reply.GetObserved()
+	v.Biotech = &o.BiotechSection{Outcome: &o.BiotechSection_Observed{Observed: facts}}
+	sleeping.catalog = []bridge.FixtureDef{def, buildable("Wall", 0, 1, 1)}
 	for i := range sleeping.cells.Cells {
 		sleeping.cells.Cells[i].Doorway = domain.Known(false)
 	}
@@ -77,16 +95,7 @@ func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner, err := NewRoutineMechChargerPlanner(base.reviewer, source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	call, epoch, done, err := base.reviewer.player.enter(context.Background(), "test", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(done)
-	return chargerDispatch{planner: planner, call: call, epoch: epoch, db: db, sleeping: sleeping, review: review.Review}
+	return base, db, sleeping, source, review.Review
 }
 
 func busyCharger() *o.MechChargerState {

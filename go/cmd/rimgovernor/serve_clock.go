@@ -247,7 +247,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	fields, bills := sc.routineFieldPlans, sc.routineBillPlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	waste, moodRelief, naming, dialog, trade := sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
-	blight, pollution, mechCharger := sc.routineBlightPlans, sc.routinePollutionPlans, sc.routineMechChargerPlans
+	blight, pollution, mechCharger, geneBank := sc.routineBlightPlans, sc.routinePollutionPlans, sc.routineMechChargerPlans, sc.routineGeneBankPlans
 	armory := sc.routineArmoryPlans
 	clearance := sc.routineClearancePlans
 	shrine := sc.routineShrinePlans
@@ -278,7 +278,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -766,7 +766,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		if sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || refrigeration || lighting || flooring || routes || mechCharger {
+		if sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || refrigeration || lighting || flooring || routes || mechCharger || geneBank {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
 				return nil, errors.New("building plans require typed placement previews")
@@ -819,6 +819,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 			if mechCharger {
 				config.MechCharger, err = buildingruntime.NewRoutineMechChargerPlanner(reviewer, source)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if geneBank {
+				config.GeneBank, err = buildingruntime.NewRoutineGeneBankPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
@@ -992,6 +998,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineMechChargerPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureMechCharger)
+	}
+	if sc.routineGeneBankPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainGeneBank)
 	}
 	if sc.routineHomeCoveragePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHomeCoverage)

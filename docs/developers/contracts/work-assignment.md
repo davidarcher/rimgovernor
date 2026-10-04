@@ -232,6 +232,23 @@ open plan holds it. Powering the charger is the power goal's; emptying its waste
 `ManagePollution`'s. Biotech goals are bound only when assessed, so the store
 counts `policy.BiotechGoals` apart from the goals every colony has.
 
+`MaintainGeneBank` (`gene_bank_goal.go`, `routine_gene_bank.go`, #1933, epic
+#1693) keeps every genepack in a gene bank: a Genepack deteriorates unless it
+sits in a powered bank (4 packs each; design note on #1693). A Standard in the
+Upkeep domain over the Colony fact family, assessed from the keyed Biotech
+colony section (#1930): `GeneBankNeed` is unknown while the section, a bank's
+capacity or a pack's whereabouts (map position or bank id) are unread, and
+otherwise owed while more packs lie loose than the standing banks have free
+slots (`RoutineFacts.GeneBankOwed`; a pack with no bank at all owes one). Its
+one method builds the first available catalog bank (the def carrying
+`CompProperties_GenepackContainer`, `bridge.GeneBanks`, never a name) on the
+first free footprint native previews as legal, safe and reachable, searched
+outward from the first gene assembler (a bank links to an assembler within 12.9
+cells), else the first bank, else the production district. A bank blueprint,
+frame or open plan holds it. Powering it is the power goal's (a bank is a 40 W
+consumer wired like any other); harvesting, assembly and implanting are other
+goals (#1693).
+
 `policy.PlanMechGuards` orders every standing guard at the hostile nearest to it
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native
 `MechanitorUtility.InMechanitorCommandRange` stays authoritative) of its

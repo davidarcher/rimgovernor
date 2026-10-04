@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -11,33 +12,38 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoutineMechChargerPlanner composes EnsureMechCharger's method (#1688): one
-// mech charger, found by the catalog's mech_charger flag and sited by the
-// polluting-machine rule (policy.MechChargerSites over PollutionSites) on the
-// first footprint native previews as legal, safe and reachable. The goal
-// settles on the game's verdict (a charger stands idle), never on the plan.
-type RoutineMechChargerPlanner struct {
+// geneBankSiteTries bounds the free footprints a bank previews.
+const geneBankSiteTries = 8
+
+// RoutineGeneBankPlanner composes MaintainGeneBank's method (#1933): one gene
+// bank, found by the genepack container comp in the catalog and sited on the
+// free footprint nearest the colony's gene assemblers (a bank links to an
+// assembler within a dozen cells), else its other banks, else the production
+// district, on the first footprint native previews as legal, safe and
+// reachable. The goal settles on the game's verdict (every pack has a slot),
+// never on the plan; powering the bank is EnsureBasicPower's.
+type RoutineGeneBankPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineBuildingSource
 }
 
-func NewRoutineMechChargerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineMechChargerPlanner, error) {
-	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.EnsureMechCharger) {
-		return nil, fmt.Errorf("%w: NewRoutineMechChargerPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.EnsureMechCharger)", ErrControl)
+func NewRoutineGeneBankPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineGeneBankPlanner, error) {
+	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainGeneBank) {
+		return nil, fmt.Errorf("%w: NewRoutineGeneBankPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainGeneBank)", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, fmt.Errorf("%w: NewRoutineMechChargerPlanner: !ok", ErrControl)
+		return nil, fmt.Errorf("%w: NewRoutineGeneBankPlanner: !ok", ErrControl)
 	}
-	return &RoutineMechChargerPlanner{reviewer: reviewer, native: native}, nil
+	return &RoutineGeneBankPlanner{reviewer: reviewer, native: native}, nil
 }
 
-// mechChargerDefinitions are the available mech charger definitions in
-// catalog order (sorted by name), resolved into the projection.
-func mechChargerDefinitions(read *observation.RoutineReading) ([]observation.PlanningDefinition, error) {
+// geneBankDefinitions are the available gene bank definitions in catalog
+// order (sorted by name), resolved into the projection.
+func geneBankDefinitions(read *observation.RoutineReading) ([]observation.PlanningDefinition, error) {
 	if read.Frame.Catalog == nil {
 		return nil, nil
 	}
-	names, err := read.Frame.Catalog.MechChargers()
+	names, err := read.Frame.Catalog.GeneBanks()
 	if err != nil {
 		return nil, err
 	}
@@ -45,15 +51,27 @@ func mechChargerDefinitions(read *observation.RoutineReading) ([]observation.Pla
 		return nil, err
 	}
 	var out []observation.PlanningDefinition
-	for _, d := range observation.MechChargerDefs(read.Projection.Definitions) {
-		if available, ok := d.Available.Value(); ok && available {
+	for _, d := range read.Projection.Definitions {
+		if available, ok := d.Available.Value(); ok && available && slices.Contains(names, d.Name) {
 			out = append(out, d)
 		}
 	}
 	return out, nil
 }
 
-func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
+// geneBankAnchor is where the site search starts: beside a gene assembler,
+// else a standing bank, else the production district.
+func geneBankAnchor(facts observation.ColonyProjection, biotech observation.BiotechColony) domain.Cell {
+	if len(biotech.GeneAssemblers) > 0 {
+		return biotech.GeneAssemblers[0].Position
+	}
+	if len(biotech.GeneBanks) > 0 {
+		return biotech.GeneBanks[0].Position
+	}
+	return layoutAnchor(facts, policy.DistrictProduction)
+}
+
+func (r *RoutineGeneBankPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -69,21 +87,21 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineBuildingResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	goal, workable, err := p.journal.Workable(call, review, policy.EnsureMechCharger)
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainGeneBank)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if !workable {
 		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// The charger competes for the bounded development capacity like the
-	// other priority>=3 autopilot goals.
+	// The bank competes for the bounded development capacity like the other
+	// priority>=3 autopilot goals.
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.EnsureMechCharger && row.Selected
+		selected = selected || row.Goal == policy.MaintainGeneBank && row.Selected
 	}
 	if !selected {
-		return RoutineBuildingResult{Verdict: awaitingSlot(string(policy.EnsureMechCharger))}, nil
+		return RoutineBuildingResult{Verdict: awaitingSlot(string(policy.MaintainGeneBank))}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -111,9 +129,9 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineBuildingResult{}, err
 	}
 	f := read.Projection
-	owed, known := f.Facts.MechChargerOwed.Value()
+	owed, known := f.Facts.GeneBankOwed.Value()
 	if !known {
-		return RoutineBuildingResult{Verdict: fieldUnavailable("mech_chargers")}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("gene_banks")}, nil
 	}
 	if !owed {
 		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
@@ -122,24 +140,28 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 	if !biotechKnown {
 		return RoutineBuildingResult{Verdict: fieldUnavailable("biotech")}, nil
 	}
-	defs, err := mechChargerDefinitions(&read)
+	defs, err := geneBankDefinitions(&read)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if len(defs) == 0 {
-		return RoutineBuildingResult{Verdict: fieldUnavailable("mech_charger_definition")}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("gene_bank_definition")}, nil
 	}
 	definition := defs[0].Name
-	// A blueprint or frame a retired plan left standing is the charger
-	// still being built, not a charger to stage again.
+	// A blueprint or frame a retired plan left standing is the bank still
+	// being built, not a bank to stage again.
 	if definitionIntentStanding(defs, f.Facts.ConstructionClaims, f.Facts.CurrentConstruction) {
 		return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 	}
-	method := domain.MethodID(fmt.Sprintf("mech-charger-%s-%d", definition, len(biotech.Chargers)))
+	method := domain.MethodID(fmt.Sprintf("gene-bank-%s-%d", definition, len(biotech.GeneBanks)))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "mech_charger_method")}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "gene_bank_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
+	}
+	size, sizeKnown := defs[0].Size.Value()
+	if !sizeKnown || size.Width <= 0 || size.Height <= 0 {
+		return RoutineBuildingResult{Verdict: fieldUnavailable("gene_bank_size")}, nil
 	}
 	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
@@ -159,26 +181,16 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 		}
 		return got.Preview, got.Stock, action, nil
 	}
-	size, sizeKnown := defs[0].Size.Value()
-	if !sizeKnown || size.Width <= 0 || size.Height <= 0 {
-		return RoutineBuildingResult{Verdict: fieldUnavailable("mech_charger_size")}, nil
-	}
-	siteFacts := policy.MechChargerSiteFacts{Bounds: f.Bounds, Cells: f.Cells, FieldZones: map[string]bool{}, Rooms: f.Rooms}
-	if fields, ok := f.FoodFields.Value(); ok {
-		for _, field := range fields {
-			siteFacts.FieldZones[field.ID] = true
-		}
-	}
-	for _, atomizer := range biotech.Atomizers {
-		siteFacts.Disposal = append(siteFacts.Disposal, atomizer.Position)
-	}
-	sites, err := policy.MechChargerSites(siteFacts, size.Width, size.Height)
+	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: f.Bounds, Anchor: geneBankAnchor(f, biotech), Cells: f.Cells}, size.Width, size.Height)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	unknown := false
-	for _, site := range sites {
-		anchor := policy.AnchorForRect(site.Site, domain.Cell{X: size.Width, Z: size.Height}, domain.North)
+	for i, site := range sites {
+		if i == geneBankSiteTries {
+			break
+		}
+		anchor := policy.AnchorForRect(site, domain.Cell{X: size.Width, Z: size.Height}, domain.North)
 		pv, stock, action, err := preview(anchor)
 		if err != nil {
 			return RoutineBuildingResult{}, err
@@ -192,7 +204,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 			unknown = true
 			continue
 		}
-		if made || !legal || !safe || !reachable || !footprintIsRect(footprint, site.Site) {
+		if made || !legal || !safe || !reachable || !footprintIsRect(footprint, site) {
 			continue
 		}
 		plan, err := domain.NewPlan(planID, 1, []domain.Action{action})
@@ -216,41 +228,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineBuildingResult{Verdict: BuildingReasonAdmitted, Decision: decision}, nil
 	}
 	if unknown {
-		return RoutineBuildingResult{Verdict: fieldUnavailable("mech_charger_preview")}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("gene_bank_preview")}, nil
 	}
-	return RoutineBuildingResult{Verdict: noSpace("charger_cell")}, nil
-}
-
-// footprintIsRect reports whether the footprint is exactly the rectangle's cells.
-func footprintIsRect(footprint []domain.Cell, r policy.Rectangle) bool {
-	if int32(len(footprint)) != r.Width*r.Height {
-		return false
-	}
-	for _, c := range footprint {
-		if c.X < r.X || c.X >= r.X+r.Width || c.Z < r.Z || c.Z >= r.Z+r.Height {
-			return false
-		}
-	}
-	return true
-}
-
-// definitionIntentStanding is true when a complete census shows a blueprint
-// or frame of any def in defs placed by any recorded claim, or a standing
-// building the read has not yet counted (a mech charger, a gene bank).
-func definitionIntentStanding(defs []observation.PlanningDefinition, claims domain.Fact[[]policy.ConstructionClaim], observed domain.Fact[policy.CurrentConstruction]) bool {
-	census, known := observed.Value()
-	if !known || !census.Colony {
-		return false
-	}
-	charger := map[string]bool{}
-	for _, d := range defs {
-		charger[d.Name] = true
-	}
-	history, _ := claims.Value()
-	for _, claim := range history {
-		if charger[claim.Building.Definition()] && policy.WorkOpen(claim.Building, observed) == policy.BuildingOpen {
-			return true
-		}
-	}
-	return false
+	return RoutineBuildingResult{Verdict: noSpace("gene_bank_cell")}, nil
 }

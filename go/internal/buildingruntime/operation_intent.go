@@ -44,6 +44,7 @@ var goalLabels = map[policy.GoalID]string{
 	policy.RemoveBlight:             "Blight",
 	policy.ManagePollution:          "Pollution",
 	policy.EnsureMechCharger:        "Mech charger",
+	policy.MaintainGeneBank:         "Gene bank",
 	policy.MaintainHerd:             "Herd",
 	policy.MaintainAnimalFeed:       "Animal feed",
 	policy.MaintainPopulation:       "Population",

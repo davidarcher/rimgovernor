@@ -22,6 +22,7 @@ func TestRoutineReviewWithPollutionFactsLoads(t *testing.T) {
 	r := routineRequest()
 	r.Facts.Pollution = domain.Known(policy.PollutionFacts{UncoveredCells: domain.Known(uint32(0))})
 	r.Facts.MechChargerOwed = domain.Known(false)
+	r.Facts.GeneBankOwed = domain.Known(false)
 	out := reviewRoutine(t, s, &r)
 	loaded, err := s.LoadRoutineReview(context.Background())
 	if err != nil || !reflect.DeepEqual(out.Review, loaded) {

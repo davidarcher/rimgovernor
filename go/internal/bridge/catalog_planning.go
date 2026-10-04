@@ -17,15 +17,16 @@ const (
 
 // The CLR classes the planning views match by base class, never by name.
 const (
-	ClassPowerComp       = "RimWorld.CompProperties_Power"
-	ClassGlowerComp      = "RimWorld.CompProperties_Glower"
-	ClassExplosiveComp   = "RimWorld.CompProperties_Explosive"
-	ClassToxifierComp    = "RimWorld.CompProperties_Toxifier"
-	ClassPolluteComp     = "RimWorld.CompProperties_PolluteOverTime"
-	ClassWasteComp       = "RimWorld.CompProperties_WasteProducer"
-	ClassDeathrestComp   = "RimWorld.CompProperties_DeathrestBindable"
-	ClassMechChargerThng = "RimWorld.Building_MechCharger"
-	ClassBedThing        = "RimWorld.Building_Bed"
+	ClassPowerComp             = "RimWorld.CompProperties_Power"
+	ClassGlowerComp            = "RimWorld.CompProperties_Glower"
+	ClassExplosiveComp         = "RimWorld.CompProperties_Explosive"
+	ClassToxifierComp          = "RimWorld.CompProperties_Toxifier"
+	ClassPolluteComp           = "RimWorld.CompProperties_PolluteOverTime"
+	ClassWasteComp             = "RimWorld.CompProperties_WasteProducer"
+	ClassDeathrestComp         = "RimWorld.CompProperties_DeathrestBindable"
+	ClassMechChargerThng       = "RimWorld.Building_MechCharger"
+	ClassGenepackContainerComp = "RimWorld.CompProperties_GenepackContainer"
+	ClassBedThing              = "RimWorld.Building_Bed"
 )
 
 // Buildable is ThingDef.BuildableByPlayer: the def has a designation category.
@@ -146,6 +147,26 @@ func (catalog *DefinitionCatalog) MechChargers() ([]string, error) {
 			return nil, err
 		}
 		if charger {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names, nil
+}
+
+// GeneBanks are the names of the buildable defs carrying the genepack
+// container comp (the gene bank), sorted.
+func (catalog *DefinitionCatalog) GeneBanks() ([]string, error) {
+	var names []string
+	for name, row := range catalog.ThingDefs {
+		if !Buildable(row) {
+			continue
+		}
+		bank, err := catalog.HasComp(row, ClassGenepackContainerComp)
+		if err != nil {
+			return nil, err
+		}
+		if bank {
 			names = append(names, name)
 		}
 	}

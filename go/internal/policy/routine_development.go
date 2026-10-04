@@ -116,6 +116,16 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
+	case MaintainGeneBank:
+		// A bank owed is a full deficit, none owed none.
+		owed, known := f.GeneBankOwed.Value()
+		if !known {
+			return domain.Unknown[float64]()
+		}
+		if !owed {
+			return domain.Known(0.0)
+		}
+		return domain.Known(1.0)
 	case ManagePollution:
 		// Census-driven like blight: any exposed or forbidden wastepack, or
 		// polluted cell outside the clear area, is a full deficit.

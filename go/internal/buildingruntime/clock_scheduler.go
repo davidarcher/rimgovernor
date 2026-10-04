@@ -94,6 +94,7 @@ type ClockSchedulerConfig struct {
 	Blight              *RoutineBlightPlanner
 	Pollution           *RoutinePollutionPlanner
 	MechCharger         *RoutineMechChargerPlanner
+	GeneBank            *RoutineGeneBankPlanner
 	Armory              *RoutineArmoryPlanner
 	Clearance           *RoutineClearancePlanner
 	Shrine              *RoutineShrinePlanner
@@ -176,6 +177,7 @@ type ClockSchedulerResult struct {
 	Blight                       *RoutineBlightResult
 	Pollution                    *RoutinePollutionResult
 	MechCharger                  *RoutineBuildingResult
+	GeneBank                     *RoutineBuildingResult
 	Armory                       *RoutineArmoryResult
 	Clearance                    *RoutineClearanceResult
 	Shrine                       *RoutineShrineResult
@@ -446,6 +448,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.MechCharger != nil && (config.Routine == nil || config.MechCharger.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.MechCharger != nil && (config.Routine == nil || config.MechCharger.reviewer != config.Routine)", ErrControl)
+	}
+	if config.GeneBank != nil && (config.Routine == nil || config.GeneBank.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.GeneBank != nil && (config.Routine == nil || config.GeneBank.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sleeping.goal != policy.MaintainHousing || config.Sleeping.phase != policy.HousingShelter) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sl", ErrControl)
@@ -1281,7 +1286,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Clearance != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Clearance.NativeWorkTicks)
 	}
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.BasicComfort, out.Workshop, out.Hospital, out.SleepingUpkeep, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes, out.MechCharger} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.BasicComfort, out.Workshop, out.Hospital, out.SleepingUpkeep, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes, out.MechCharger, out.GeneBank} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}

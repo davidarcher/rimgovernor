@@ -97,6 +97,7 @@ var goalDetectors = []GoalDetector{
 	{RemoveBlight, ConceptStandard, DomainFood, []FactFamily{FactColony}, detectBlight},
 	{ManagePollution, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactWorld}, detectPollution},
 	{EnsureMechCharger, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactPawns}, detectMechCharger},
+	{MaintainGeneBank, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}, detectGeneBank},
 	{TidyLayout, ConceptStandard, DomainUpkeep, []FactFamily{FactRooms, FactColony}, detectTidyLayout},
 	{MaintainStockpiles, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}, detectStockpiles},
 	{EnsureMood, ConceptResponse, DomainPeople, []FactFamily{FactPawns}, detectMood},

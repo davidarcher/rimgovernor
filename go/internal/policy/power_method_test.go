@@ -122,6 +122,23 @@ func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
 	}
 }
 
+// A gene bank (#1933) is an ordinary 40 W consumer too: MaintainGeneBank
+// places it and the power planner wires it, with no gene-bank power goal.
+func TestPowerRouteWiresAnUnpoweredGeneBankLikeAnyConsumer(t *testing.T) {
+	bank := powerSite("bank", 1, -40, 0, "")
+	bank.Definition = "GeneBank"
+	v := PowerTopology{Buildings: []PowerSite{bank, powerSite("generator", 14, 1000, 1000, "b")}, Blackout: domain.Known(false)}
+	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
+	var cells []SiteCell
+	for x := int32(1); x <= 14; x++ {
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Occupied: domain.Known(true)})
+	}
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
+	if err != nil || p.Method != PowerConnect || len(p.Cells) == 0 {
+		t.Fatal(p, err)
+	}
+}
+
 func TestPowerMethodIdentityIgnoresOutputAndInputRejectsAmbiguity(t *testing.T) {
 	v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a"), powerSite("generator", 5, 100, 100, "a")}, Blackout: domain.Known(false)}
 	first, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, testPowerPlanning())

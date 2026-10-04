@@ -32,8 +32,8 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 		bound[g.Need] = true
 	}
 	for _, a := range needs.All() {
-		// MaintainSurgery (#1164), MaintainShelter (#1325), MaintainFirebreak (#1536) and MaintainButcherSpot, ManagePollution and EnsureMechCharger are newer than the recording.
-		if !bound[a.ID] && a.ID != policy.MaintainSurgery && a.ID != policy.MaintainShelter && a.ID != policy.MaintainFirebreak && a.ID != policy.MaintainPsylink && a.ID != policy.ManageCreepJoiners && a.ID != policy.MaintainPermits && a.ID != policy.MaintainIdeoRoles && a.ID != policy.MaintainRituals && a.ID != policy.MaintainBabyFeeding && a.ID != policy.MaintainMechs && a.ID != policy.MaintainButcherSpot && a.ID != policy.ManagePollution && a.ID != policy.EnsureMechCharger {
+		// MaintainSurgery (#1164), MaintainShelter (#1325), MaintainFirebreak (#1536) and MaintainButcherSpot, ManagePollution EnsureMechCharger and MaintainGeneBank are newer than the recording.
+		if !bound[a.ID] && a.ID != policy.MaintainSurgery && a.ID != policy.MaintainShelter && a.ID != policy.MaintainFirebreak && a.ID != policy.MaintainPsylink && a.ID != policy.ManageCreepJoiners && a.ID != policy.MaintainPermits && a.ID != policy.MaintainIdeoRoles && a.ID != policy.MaintainRituals && a.ID != policy.MaintainBabyFeeding && a.ID != policy.MaintainMechs && a.ID != policy.MaintainButcherSpot && a.ID != policy.ManagePollution && a.ID != policy.EnsureMechCharger && a.ID != policy.MaintainGeneBank {
 			t.Error("replay assessed unbound", a.ID)
 		}
 		delete(bound, a.ID)

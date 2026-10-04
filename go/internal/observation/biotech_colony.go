@@ -264,3 +264,36 @@ func MechChargerDefs(defs []PlanningDefinition) []PlanningDefinition {
 	}
 	return out
 }
+
+// GeneBankFacts are the section's banks and packs as MaintainGeneBank reads
+// them (#1933): a pack is loose when it has a map position, held when a bank
+// names it, unknown when it reports neither.
+func (b BiotechColony) GeneBankFacts() policy.GeneBankFacts {
+	var out policy.GeneBankFacts
+	for _, bank := range b.GeneBanks {
+		out.Banks = append(out.Banks, policy.GeneBankSlot{Capacity: bank.Capacity, Held: int32(len(bank.PackIDs))})
+	}
+	for _, pack := range b.Genepacks {
+		_, loose := pack.Position.Value()
+		_, held := pack.BankID.Value()
+		switch {
+		case loose:
+			out.Packs = append(out.Packs, domain.Known(true))
+		case held:
+			out.Packs = append(out.Packs, domain.Known(false))
+		default:
+			out.Packs = append(out.Packs, domain.Unknown[bool]())
+		}
+	}
+	return out
+}
+
+// geneBankFact is the section's gene-building rows as a fact, unknown with
+// the section.
+func geneBankFact(section domain.Fact[BiotechColony]) domain.Fact[policy.GeneBankFacts] {
+	b, known := section.Value()
+	if !known {
+		return domain.Unknown[policy.GeneBankFacts]()
+	}
+	return domain.Known(b.GeneBankFacts())
+}

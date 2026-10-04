@@ -42,6 +42,8 @@ type FixtureDef struct {
 	TempControlW *float32
 	// MechCharger gives the def a thing class derived from Building_MechCharger.
 	MechCharger bool
+	// GeneBank gives the def the genepack container comp.
+	GeneBank bool
 	// SowTag and GrowerFertility make the def a plant grower.
 	SowTag          string
 	GrowerFertility *float64
@@ -355,7 +357,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
 	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil, classVolumeGetter: nil, classNutritionGetter: nil}
-	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}, &d.CompProperties_Facility{}, &d.CompProperties_AffectedByFacilities{}, &d.CompProperties_TempControl{}} {
+	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}, &d.CompProperties_Facility{}, &d.CompProperties_AffectedByFacilities{}, &d.CompProperties_TempControl{}, &d.CompProperties_GenepackContainer{}} {
 		class, _ := proto.GetExtension(message.ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)
 		chains[class] = nil
 	}
@@ -479,6 +481,9 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		}
 		if def.PowerW != nil {
 			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{BasePowerConsumption: float32(*def.PowerW)}}})
+		}
+		if def.GeneBank {
+			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_GenepackContainer{CompProperties_GenepackContainer: &d.CompProperties_GenepackContainer{MaxCapacity: 4}}})
 		}
 		if def.TempControlW != nil {
 			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_TempControl{CompProperties_TempControl: &d.CompProperties_TempControl{EnergyPerSecond: *def.TempControlW}}})

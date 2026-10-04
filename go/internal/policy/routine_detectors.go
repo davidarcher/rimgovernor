@@ -955,6 +955,16 @@ func detectMechCharger(c *routineRun) error {
 	return nil
 }
 
+// detectGeneBank (#1933): unknown without the gene-building read, and then
+// it raises no goal. Always assessed, like EnsureMechCharger.
+func detectGeneBank(c *routineRun) error {
+	c.assess(MaintainGeneBank, 3, notFact(c.f.GeneBankOwed))
+	if owed, known := c.f.GeneBankOwed.Value(); known && owed {
+		c.raise(MaintainGeneBank, 3)
+	}
+	return nil
+}
+
 // detectTidyLayout (#611) is census-driven too: the layout review measures
 // off-plan furniture against each room's interior plan and stands a
 // proposal only while the colony is idle; a standing proposal is the

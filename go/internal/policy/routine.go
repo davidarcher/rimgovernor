@@ -434,6 +434,11 @@ type RoutineFacts struct {
 	// (MechChargerNeed, #1688); unknown without Biotech, mechs or chargers
 	// read, and then the EnsureMechCharger need is unknown.
 	MechChargerOwed domain.Fact[bool]
+	// GeneBankOwed is whether more genepacks lie loose than the standing
+	// gene banks have room for (GeneBankNeed, #1933); unknown without
+	// Biotech or a complete gene-building read, and then MaintainGeneBank
+	// has no assessment.
+	GeneBankOwed domain.Fact[bool]
 	// LayoutTidy is the layout tidying review (#611) the reviewer measures
 	// from the room census against each room's derived interior plan;
 	// unknown without a tier.
