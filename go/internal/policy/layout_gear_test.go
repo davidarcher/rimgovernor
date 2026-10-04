@@ -82,8 +82,8 @@ func TestGearRoomRolesAreRegistered(t *testing.T) {
 		if _, ok := coreRoomSize[role]; !ok {
 			t.Errorf("%s has no size", role)
 		}
-		if moduleRoomRoles[role] != RoomRoleStoreroom || roomDistricts[role] != DistrictStorage {
-			t.Errorf("%s role %v district %v", role, moduleRoomRoles[role], roomDistricts[role])
+		if moduleRoomRoles[role] != RoomRoleStoreroom {
+			t.Errorf("%s role %v", role, moduleRoomRoles[role])
 		}
 		if _, ok := roomOverlay[role]; !ok {
 			t.Errorf("%s has no overlay style", role)

@@ -82,7 +82,7 @@ func TestWorshipRoomRoleTables(t *testing.T) {
 	if role, ok := LayoutModule(RoomRoleWorshipRoom); !ok || role != ModuleWorship {
 		t.Fatal("the WorshipRoom role has no layout module")
 	}
-	if moduleRoomRoles[ModuleWorship] != RoomRoleWorshipRoom || roomDistricts[ModuleWorship] != DistrictPlaza {
+	if moduleRoomRoles[ModuleWorship] != RoomRoleWorshipRoom {
 		t.Fatal("worship room tables")
 	}
 	if _, ok := InteriorTemplateFor(RoomRoleWorshipRoom); !ok {

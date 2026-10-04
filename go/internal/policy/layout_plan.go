@@ -214,3 +214,45 @@ func RectUnion(rects ...Rectangle) (Rectangle, bool) {
 	}
 	return out, found
 }
+
+// NearestAnchor is the interior centre of the free planned room of role want
+// nearest to point to (squared distance, plan order on ties); free filters
+// out occupied rooms (every room when nil). With no free room of that role it
+// falls back to the nearest free reserve room; false means the plan holds no
+// slot.
+func (p LayoutPlan) NearestAnchor(want ModuleRole, to domain.Cell, free func(room Rectangle) bool) (domain.Cell, bool) {
+	for _, role := range []ModuleRole{want, ModuleReserve} {
+		best, bestD, found := domain.Cell{}, int64(0), false
+		for _, r := range p.AllRooms() {
+			if r.Role != role || free != nil && !free(r.Interior) {
+				continue
+			}
+			c := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
+			dx, dz := int64(c.X-to.X), int64(c.Z-to.Z)
+			if d := dx*dx + dz*dz; !found || d < bestD {
+				best, bestD, found = c, d, true
+			}
+		}
+		if found {
+			return best, true
+		}
+	}
+	return domain.Cell{}, false
+}
+
+// FieldAnchor is the middle of the first field-zone run whose middle cell
+// free accepts (every run when nil); false means no such run.
+func (p LayoutPlan) FieldAnchor(free func(Rectangle) bool) (domain.Cell, bool) {
+	for _, z := range p.Zones {
+		if z.Kind != ZoneField {
+			continue
+		}
+		for _, run := range z.Runs {
+			c := domain.Cell{X: run.X + run.Length/2, Z: run.Z}
+			if free == nil || free(Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}) {
+				return c, true
+			}
+		}
+	}
+	return domain.Cell{}, false
+}

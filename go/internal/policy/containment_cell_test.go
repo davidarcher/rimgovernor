@@ -171,7 +171,7 @@ func TestContainmentCellRoleTables(t *testing.T) {
 	if role, ok := LayoutModule(RoomRoleContainmentCell); !ok || role != ModuleContainmentCell {
 		t.Fatal("the ContainmentCell role has no layout module")
 	}
-	if moduleRoomRoles[ModuleContainmentCell] != RoomRoleContainmentCell || roomDistricts[ModuleContainmentCell] != DistrictHousing {
+	if moduleRoomRoles[ModuleContainmentCell] != RoomRoleContainmentCell {
 		t.Fatal("containment cell tables")
 	}
 	if _, ok := InteriorTemplateFor(RoomRoleContainmentCell); !ok {

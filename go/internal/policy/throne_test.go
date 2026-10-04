@@ -279,7 +279,7 @@ func TestThroneRoomRoleTables(t *testing.T) {
 	if role, ok := LayoutModule(RoomRoleThroneRoom); !ok || role != ModuleThrone {
 		t.Fatal("the ThroneRoom role has no layout module")
 	}
-	if moduleRoomRoles[ModuleThrone] != RoomRoleThroneRoom || roomDistricts[ModuleThrone] != DistrictHousing {
+	if moduleRoomRoles[ModuleThrone] != RoomRoleThroneRoom {
 		t.Fatal("throne room tables")
 	}
 	if f, err := Facility(RoomRoleThroneRoom); err != nil || f.Status != FacilityImplemented {

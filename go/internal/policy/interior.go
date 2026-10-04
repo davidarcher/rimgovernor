@@ -571,3 +571,18 @@ func InteriorSnapAnchors(room InteriorRoom, occupied []domain.Cell) []domain.Cel
 	sort.Slice(out, func(i, j int) bool { return cellLess(out[i], out[j]) })
 	return out
 }
+
+// ModuleRoleOf is the layout module a census room role is planned as, the
+// inverse of moduleRoomRoles; Storeroom is the plain storage module. False
+// means no planned room carries the role.
+func ModuleRoleOf(role RoomRole) (ModuleRole, bool) {
+	if role == RoomRoleStoreroom {
+		return ModuleStorage, true
+	}
+	for m, r := range moduleRoomRoles {
+		if r == role {
+			return m, true
+		}
+	}
+	return "", false
+}

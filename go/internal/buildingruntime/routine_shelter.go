@@ -39,11 +39,11 @@ func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildin
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainHousing, phase: policy.HousingExpansion, definition: "Wall", shelter: true}, nil
 }
 
-// district is the district this planner sites a shell in (#609): a
+// roomModule is the layout module this planner sites a shell as (#609): a
 // facility ladder's room role names it, the shelter and expansion
-// planners raise housing.
-func (r *RoutineBuildingPlanner) district() policy.District {
-	return policy.RoomDistrict(r.roomRole())
+// planners raise barracks.
+func (r *RoutineBuildingPlanner) roomModule() (policy.ModuleRole, bool) {
+	return policy.ModuleRoleOf(r.roomRole())
 }
 
 // roomRole is the room role a planner sites for (#637): a facility

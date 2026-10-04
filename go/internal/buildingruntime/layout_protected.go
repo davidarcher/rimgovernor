@@ -17,17 +17,34 @@ func planCore(facts observation.ColonyProjection) domain.Cell {
 	return facts.Center
 }
 
-// layoutAnchor is the cell a routine anchors its site search on. It reads the
-// v2 layout plan first (#785): the centre of the district's planned room (or
-// field zone run) whose cells are all observed open ground and free of player
-// buildings. Without a plan, or with no such slot, it falls back to the
-// colony centre. The plan is read at every build tier: gating it on Masonry
-// stacked the pens, barn and turbines of a Camp colony on the map centre.
-func layoutAnchor(facts observation.ColonyProjection, district policy.District) domain.Cell {
-	plan, planned := facts.LayoutPlan.Value()
-	if !planned {
-		return facts.Center
+// fieldAnchor is where pens, barns, fields, tombs and waste start their site
+// search: the middle of the first free field-zone run of the layout plan, else
+// the colony centre (no plan, or no free run). The plan is read at every build
+// tier: gating it on Masonry stacked the pens, barn and turbines of a Camp
+// colony on the map centre.
+func fieldAnchor(facts observation.ColonyProjection) domain.Cell {
+	if plan, ok := facts.LayoutPlan.Value(); ok {
+		if anchor, ok := plan.FieldAnchor(layoutFree(facts)); ok {
+			return anchor
+		}
 	}
+	return facts.Center
+}
+
+// roomAnchor is the centre of the nearest free planned room of the role to the
+// point to (reserve rooms when none is free), else the colony centre.
+func roomAnchor(facts observation.ColonyProjection, role policy.ModuleRole, to domain.Cell) domain.Cell {
+	if plan, ok := facts.LayoutPlan.Value(); ok {
+		if anchor, ok := plan.NearestAnchor(role, to, layoutFree(facts)); ok {
+			return anchor
+		}
+	}
+	return facts.Center
+}
+
+// layoutFree reports whether a rectangle is observed open ground free of
+// player buildings and zones (#785).
+func layoutFree(facts observation.ColonyProjection) func(policy.Rectangle) bool {
 	cells := make(map[domain.Cell]policy.SiteCell, len(facts.Cells))
 	for _, c := range facts.Cells {
 		cells[c.Cell] = c
@@ -50,7 +67,7 @@ func layoutAnchor(facts observation.ColonyProjection, district policy.District) 
 		zone, zk := c.Zone.Value()
 		return wk && walkable && ok && !occupied && zk && !zone
 	}
-	free := func(module policy.Rectangle) bool {
+	return func(module policy.Rectangle) bool {
 		for x := module.X; x < module.X+module.Width; x++ {
 			for z := module.Z; z < module.Z+module.Height; z++ {
 				if !open(domain.Cell{X: x, Z: z}) {
@@ -60,8 +77,4 @@ func layoutAnchor(facts observation.ColonyProjection, district policy.District) 
 		}
 		return true
 	}
-	if anchor, ok := plan.DistrictAnchor(district, free); ok {
-		return anchor
-	}
-	return facts.Center
 }

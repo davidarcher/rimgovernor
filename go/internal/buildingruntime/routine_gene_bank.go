@@ -60,7 +60,7 @@ func geneBankDefinitions(read *observation.RoutineReading) ([]observation.Planni
 }
 
 // geneBankAnchor is where the site search starts: beside a gene assembler,
-// else a standing bank, else the production district.
+// else a standing bank, else the nearest free workshop room.
 func geneBankAnchor(facts observation.ColonyProjection, biotech observation.BiotechColony) domain.Cell {
 	if len(biotech.GeneAssemblers) > 0 {
 		return biotech.GeneAssemblers[0].Position
@@ -68,7 +68,7 @@ func geneBankAnchor(facts observation.ColonyProjection, biotech observation.Biot
 	if len(biotech.GeneBanks) > 0 {
 		return biotech.GeneBanks[0].Position
 	}
-	return layoutAnchor(facts, policy.DistrictProduction)
+	return roomAnchor(facts, policy.ModuleWorkshop, facts.Center)
 }
 
 func (r *RoutineGeneBankPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
