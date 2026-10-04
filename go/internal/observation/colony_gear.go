@@ -133,7 +133,7 @@ func gearLoadoutOption(x *o.GearLoadoutOption, catalog *bridge.DefinitionCatalog
 		return policy.GearOption{}, false, nil
 	}
 	option := policy.GearOption{ID: x.GetId(), Definition: policy.Resource(x.GetDefName()), Stuff: policy.Resource(x.GetStuff()), Quality: int(x.GetQuality()), Slot: slot, Layers: layers, Groups: groups, Source: policy.GearSource(x.GetSource()), Condition: x.GetCondition(),
-		MoveSpeed: float64(statOffset(row, statMoveSpeed)), Tainted: x.GetTainted(), Locked: x.GetLocked(), Shield: hasShield(row), Psychic: statOffset(row, statPsychic) < 0, Smokepop: x.GetSmokepop(), Research: append([]string{}, x.GetResearch()...)}
+		MoveSpeed: float64(statOffset(row, statMoveSpeed)), Tainted: x.GetTainted(), SlaveOnly: apparel.GetSlaveApparel(), Locked: x.GetLocked(), Shield: hasShield(row), Psychic: statOffset(row, statPsychic) < 0, Smokepop: x.GetSmokepop(), Research: append([]string{}, x.GetResearch()...)}
 	for stat, into := range map[string]*float64{statArmorSharp: &option.Sharp, statArmorBlunt: &option.Blunt, statInsulationCold: &option.Cold, statInsulationHeat: &option.Heat, statMarketValue: &option.Cost} {
 		value, err := optionStat(catalog, x.GetDefName(), x.GetStuff(), stat, stat == statMarketValue)
 		if err != nil {

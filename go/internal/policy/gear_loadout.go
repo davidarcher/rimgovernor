@@ -33,14 +33,18 @@ const (
 	GearIndoor       GearRole = "crafter/indoor"
 	GearChild        GearRole = "child"
 	GearSlave        GearRole = "slave"
+	GearPrisoner     GearRole = "prisoner"
 	GearNonCombatant GearRole = "non-combatant"
 )
 
 // GearRoleInput reuses the work planner's priorities, skills and trait facts.
 // Explicit social/developmental status and squad membership take precedence.
+// Prisoner and UnrevealedCreepjoiner (a creepjoiner whose downside is not yet
+// revealed) dress under the same constraint mode as a slave (#1859).
 type GearRoleInput struct {
 	Work                                            WorkPawn
 	Child, Slave, IncapableOfViolence, DraftedSquad bool
+	Prisoner, UnrevealedCreepjoiner                 bool
 }
 
 func DeriveGearRole(p GearRoleInput) GearRole {
@@ -49,6 +53,9 @@ func DeriveGearRole(p GearRoleInput) GearRole {
 	}
 	if p.Slave {
 		return GearSlave
+	}
+	if p.Prisoner || p.UnrevealedCreepjoiner {
+		return GearPrisoner
 	}
 	incapable, _ := p.Work.Incapable.Value()
 	for _, w := range incapable {
@@ -145,6 +152,8 @@ type GearOption struct {
 	Source                                                      GearSource
 	Condition, Sharp, Blunt, Cold, Heat, MoveSpeed, Cost, Range float64
 	Tainted, Locked, Shield, Ranged                             bool
+	// SlaveOnly is the def's slaveApparel flag: only a slave may wear it.
+	SlaveOnly bool
 	// Psychic marks a psychic foil helmet, Smokepop a smokepop belt: utility
 	// gear the model plans only on evidence (a psychic-drone letter) or never.
 	Psychic, Smokepop bool
@@ -214,12 +223,29 @@ func GearGapThreshold(role GearRole) float64 {
 		return .05
 	case GearHunter:
 		return .1
-	case GearSlave:
+	case GearSlave, GearPrisoner:
 		return .5
 	default:
 		return .2
 	}
 }
+
+// gearConstrained is the constraint mode for pawns whose downside or standing
+// the bot does not weigh: slaves, prisoners and unrevealed creepjoiners (#1859).
+// The pick covers legs and torso, meets min(thermal need, item capacity), then
+// takes the lowest cost; see gearConstrainedScore.
+func gearConstrained(role GearRole) bool {
+	return role == GearSlave || role == GearPrisoner
+}
+
+// Constraint tiers, each dominating the one below it and any sum of costs:
+// coverage, then mood (a tainted garment the wearer minds), then degrees of
+// unmet thermal need.
+const (
+	gearCoveragePenalty = 1e9
+	gearMoodPenalty     = 1e8
+	gearThermalPenalty  = 1e6
+)
 
 func gearMelee(p GearLoadoutInput) bool {
 	traits, _ := p.Role.Work.Traits.Value()
@@ -281,8 +307,15 @@ func gearEligible(p GearLoadoutInput, o GearOption) bool {
 		return false
 	}
 	// A shield belt stops the wearer shooting: melee soldiers and the medic.
-	if o.Shield && !(role == GearSoldier && gearMelee(p) || role != GearSoldier && role != GearChild && role != GearSlave && gearMedic(p)) {
+	if o.Shield && !(role == GearSoldier && gearMelee(p) || role != GearSoldier && role != GearChild && !gearConstrained(role) && gearMedic(p)) {
 		return false
+	}
+	if gearConstrained(role) {
+		// Apparel that hurts the wearer's mood: read from the def's flags and
+		// the item's corpse history, never a name list.
+		if o.Tainted && !p.TaintFree || o.SlaveOnly && role != GearSlave || o.Slot == GearPrimary {
+			return false
+		}
 	}
 	if o.Smokepop || o.Psychic && !p.PsychicDrone {
 		return false
@@ -345,6 +378,17 @@ func GearConflicts(a, b GearOption) bool {
 func gearItemScore(p GearLoadoutInput, o GearOption) float64 {
 	a, i := GearQualityMultipliers(o.Quality)
 	role := DeriveGearRole(p.Role)
+	if gearConstrained(role) {
+		// Cost of acquiring the item; a worn garment is already paid for.
+		score := 0.0
+		if o.Source != GearWorn {
+			score = -o.Cost
+		}
+		if o.Condition <= GearTatteredCondition {
+			score -= 20
+		}
+		return score
+	}
 	armor := (o.Sharp*2 + o.Blunt) * a * o.Condition
 	low, high := p.Climate.TemperatureRange(p.Ambient)
 	thermal := math.Min(math.Max(0, p.ComfortableMin-low), o.Cold*i) + math.Min(math.Max(0, high-p.ComfortableMax), o.Heat*i)
@@ -367,8 +411,6 @@ func gearItemScore(p GearLoadoutInput, o GearOption) float64 {
 		}
 	case GearIndoor:
 		score -= thermal * .8
-	case GearSlave:
-		score = -o.Cost + thermal*.01
 	}
 	if o.Condition <= GearTatteredCondition {
 		score -= 20
@@ -387,7 +429,51 @@ func gearCoverage(items []GearOption) (legs, chest bool) {
 	return legs, chest
 }
 
+// gearConstrainedScore ranks an ensemble for the constraint mode: minus its
+// acquisition cost, minus a tiered penalty for uncovered legs or torso, worn
+// tainted gear, and degrees of thermal need the items' insulation does not
+// meet. The need is the comfort band against the seasonal temperature range, so
+// an ensemble that reaches the most insulation the options allow, up to the
+// need, outranks any cheaper one, and cost decides among those that tie.
+func gearConstrainedScore(p GearLoadoutInput, items []GearOption) float64 {
+	score, tainted := 0.0, 0
+	dressed := false
+	var cold, heat float64
+	for _, o := range items {
+		score += gearItemScore(p, o)
+		_, i := GearQualityMultipliers(o.Quality)
+		cold += o.Cold * i
+		heat += o.Heat * i
+		if o.Tainted {
+			tainted++
+		}
+		dressed = dressed || o.Slot != GearBelt && o.Slot != GearHeadgear
+	}
+	if p.Nudist {
+		if dressed {
+			score -= 30
+		}
+		return score
+	}
+	legs, chest := gearCoverage(items)
+	if !legs {
+		score -= gearCoveragePenalty
+	}
+	if !chest {
+		score -= gearCoveragePenalty
+	}
+	if !p.TaintFree {
+		score -= gearMoodPenalty * float64(tainted)
+	}
+	low, high := p.Climate.TemperatureRange(p.Ambient)
+	score -= gearThermalPenalty * (math.Max(0, math.Max(0, p.ComfortableMin-low)-cold) + math.Max(0, math.Max(0, high-p.ComfortableMax)-heat))
+	return score
+}
+
 func gearEnsembleScore(p GearLoadoutInput, items []GearOption) float64 {
+	if gearConstrained(DeriveGearRole(p.Role)) {
+		return gearConstrainedScore(p, items)
+	}
 	score, tainted := 0.0, 0
 	dressed := false
 	legs, chest := gearCoverage(items)

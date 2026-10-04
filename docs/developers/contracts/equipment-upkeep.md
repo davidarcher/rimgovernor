@@ -132,13 +132,18 @@ Taint costs 5/8/11/14 points for one/two/three/four-or-more items, except for
 Bloodlust and Inhuman. Replacements cannot assume a separate strip order.
 
 Roles use existing work priorities, skills and trait facts plus explicit child,
-slave, incapable-of-violence and drafted-squad status. Precedence is child,
-slave, non-combatant, soldier, then highest-priority work (stable role-name tie
+slave, prisoner, unrevealed-creepjoiner, incapable-of-violence and drafted-squad
+status. Precedence is child, slave, prisoner, non-combatant, soldier, then highest-priority work (stable role-name tie
 break). Hunters require ranged range at least 25 and favor warm outerwear;
 workers reject movement penalties, indoor workers reduce thermal weight,
 soldiers favor sharp then blunt armor with helmets gated by Smithing and
 shields restricted to melee, children select Kid/Apparel_Kid definitions, and
-slaves favor low cost. Garment stats and conflict metadata determine combinations
+slaves, prisoners and unrevealed creepjoiners take the constraint mode (#1859):
+cover legs and torso, meet min(thermal need, item capacity) from the comfort
+band against the seasonal range, then pick minimum acquisition cost (worn gear
+is free). Tainted (dead-man) apparel is excluded unless the wearer is
+taint-free, slave-only apparel (the def's `slaveApparel`) goes only to slaves,
+and weapons are never planned. Garment stats and conflict metadata determine combinations
 such as a flak vest beneath a duster; definitions are not hard-coded.
 
 Armor ladder (#470). An option carries its recipe's research and ingredients;
@@ -162,7 +167,7 @@ after Electricity for every EnsureResearch reading.
 Each target purchase produces a gap with slot, exact product, source
 (loose/stored/bill) and marginal ensemble gain against the current worn slot.
 Gaps sort by descending gain then slot. Recovery means no gap above the role
-threshold: soldier 0.05, hunter 0.1, slave 0.5, others 0.2. Equal scores retain
+threshold: soldier 0.05, hunter 0.1, slave and prisoner 0.5, others 0.2. Equal scores retain
 worn gear and minimize purchases; otherwise supply preference is loose, stored,
 then bill, with stable item IDs. `PlanColonyGear` visits pawn IDs in order and
 allocates each physical supply once. `GearProductionDemand` sums only actionable
