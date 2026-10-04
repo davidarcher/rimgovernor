@@ -388,11 +388,3 @@ drives the ladder, and the case requires live native evidence for every rung:
 Fabrication finished, a fabrication bench in a Workshop-hosting room carrying
 the component bill, an allow-list stockpile for steel in that room, and the
 stored component count above the pre-service baseline.
-
-The `production/stone` case (`acceptance run production/stone`) runs the
-same baseline under the default stone-block floor (150): the fixture
-stages the same hut and research bench, the table's steel and Stonecutting at
-97% through `test/production_stone_prepare`, and the audit requires Stonecutting
-finished, a stonecutter's table in a Workshop-hosting room carrying the
-derived stone's `Make_StoneBlocks` bill, and the live block count above the
-pre-service baseline — the chunks are the map's own (#231).

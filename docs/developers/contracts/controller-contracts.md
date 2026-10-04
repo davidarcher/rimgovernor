@@ -445,11 +445,11 @@ step ranks every observed grower that can sow (`policy.PlanGrowerCrops`: the ava
 edible crops carrying the grower's sow tag by nutrition rate over its fertility, the
 fastest first under urgency) and commits a one-shot `grower_crop` patch
 (BuildingPatchIntent `plant_def`) for a grower not
-on the winner, once per grower per Episode. The `farm/select-*` cases
-assert the traced selection kind/crop, the winner's term breakdown and every loser's
-reason; `farm/select-greenhouse` and `farm/select-hydroponics` stage a lit, heated room under a cold
-snap through `FarmEnvironmentFixture` and audits the zones or basin placements inside
-it, and `-environment hydroponics -unavailable-crops Plant_Rice -expect-crop
+on the winner, once per grower per Episode. Outdoor and
+greenhouse selection (kind, crop, term breakdown, every loser's reason) are snapshot
+tests in `internal/policy/site_type_test.go`; `farm/select-hydroponics` stages a lit,
+heated room under a cold snap through `FarmEnvironmentFixture` and audits the basin
+placements inside it, and `-environment hydroponics -unavailable-crops Plant_Rice -expect-crop
 Plant_Potato` proves a built basin re-cropped to the winner. `farm/calendar` holds the typed read's growing
 calendar to `Observations.ReadStatus` and `Observations.ReadWorld` and records the seasonal thresholds a review derives from it.
 Expansion also charges native harvest work per nutrition against the observed

@@ -7,14 +7,14 @@
 // unplantable candidate states its reason. Zone or building receipts are
 // not the evidence: the explained choice is.
 //
-// farm/select-greenhouse and farm/select-hydroponics stage the
-// controlled-environment precondition through the private
-// test/farm_environment_prepare fixture (FarmEnvironmentFixture.cs): a
-// roofed room with a running sun lamp on its own generators under a cold
-// snap that closes the outdoor season, floored with soil (greenhouse-reuse)
-// or concrete plus basin research and stock (hydroponics). The audit then
-// reads the zones or basin placements inside the fixture room so the
-// selection is shown enacted, not only traced. The hydroponics case gates
+// farm/select-hydroponics stages the controlled-environment precondition
+// through the private test/farm_environment_prepare fixture
+// (FarmEnvironmentFixture.cs): a roofed room with a running sun lamp on its
+// own generators under a cold snap that closes the outdoor season, floored
+// with concrete plus basin research and stock. The audit then reads the
+// basin placements inside the fixture room so the selection is shown
+// enacted, not only traced. Outdoor and greenhouse selection are Go
+// snapshot tests in internal/policy (site_type_test.go). The hydroponics case gates
 // rice behind unfinished research and expects potatoes, proving the basin
 // candidate scores every Hydroponic crop and that a built basin is
 // re-cropped from its default rice to the winner through the grower-crop
@@ -54,8 +54,6 @@ type selection struct {
 
 func init() {
 	for name, sel := range map[string]selection{
-		"outdoor":     {expect: farmselect.Expectation{Kind: "outdoor", MinCells: 1, Terms: []string{"yield", "travel"}}},
-		"greenhouse":  {environment: "greenhouse", expect: farmselect.Expectation{Kind: "greenhouse-reuse", MinCells: 1, Terms: []string{"yield", "travel", "risk-frost"}}},
 		"hydroponics": {environment: "hydroponics", unavailableCrops: "Plant_Rice,Plant_Strawberry", expect: farmselect.Expectation{Kind: "hydroponics", Crop: "Plant_Potato", MinCells: 1, Terms: []string{"risk-frost"}}},
 	} {
 		cases.Register(sel.register("farm/select-" + name))
@@ -116,10 +114,6 @@ func (sel selection) register(name string) cases.Case {
 					}
 					report["enacted"] = observed
 					switch sel.environment {
-					case "greenhouse":
-						if len(na.AsSlice(observed["zones"])) == 0 {
-							return fmt.Errorf("no growing zone inside the fixture greenhouse after the watch: %#v", observed)
-						}
 					case "hydroponics":
 						if len(na.AsSlice(observed["basins"])) == 0 {
 							return fmt.Errorf("no hydroponics basin placed inside the fixture room after the watch: %#v", observed)

@@ -340,3 +340,19 @@ func TestPlanSiteTypeDefaultWeightsFollowNativePrices(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanSiteTypeHydroponicsFallsBackWhenRiceIsUnavailable(t *testing.T) {
+	r := siteFixture(0.1)
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
+	for i := range r.Field.Site.Cells {
+		if c := &r.Field.Site.Cells[i]; c.Cell.X < 12 && c.Cell.Z < 12 {
+			c.Fertility = domain.Known(0.0)
+		}
+	}
+	r.Field.Choices[0].Available = domain.Known(false)
+	r.Environment = domain.Known(siteEnv(21, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
+	plan, ok := PlanSiteType(r)
+	if !ok || plan.Kind != SiteHydroponics || plan.Crop.Name != "Plant_Potato" {
+		t.Fatal(plan.Explain())
+	}
+}

@@ -954,7 +954,7 @@ three). A case that composes several routine families in one service
 (`sustained/food` and `sustained/matrix-*` run EnsureFoodSupply's
 whole pipeline by default) shares one 30s step across all of them, and
 under three peer games that step admits nothing: pass `-families <family>`
-to keep the budget for the family under test (`farm/select-*` declare
+to keep the budget for the family under test (`farm/select-hydroponics` declares
 `field` alone), or let the default `-step-stall 90s` fail the run as soon as
 the first window has not been admitted instead of watching an idle service
 for twenty minutes (#103). The watch itself is a tick window, not a flat
