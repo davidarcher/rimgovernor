@@ -389,6 +389,7 @@ func detectResource(c *routineRun) error {
 func detectTrade(c *routineRun) error {
 	f, p := c.f, c.p
 	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items.Currency, c.medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
+	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), p.Trade)
 	c.assess(TradeWithCaravan, 3, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))))
 	return nil
 }

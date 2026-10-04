@@ -396,17 +396,26 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
-	selection := policy.SelectTrade(economic, facts)
-	if len(economic.Targets) == 0 && len(facts.SaleArt)+len(facts.SaleAnimals)+len(facts.SaleGear) == 0 {
+	var selection policy.TradeSelection
+	switch {
+	case facts.Favor:
+		// The tribute collector pays favor: only gold sells, with no silver
+		// budget, reserve or purchase (#1939).
+		selection = policy.SelectFavorSale(facts, facts.FavorKeep)
+	case len(economic.Targets) == 0 && len(facts.SaleArt)+len(facts.SaleAnimals)+len(facts.SaleGear) == 0:
 		// Nothing to buy or sell by the resource catalog: only a pawn
 		// purchase can still stage, against the same silver reserve.
 		currency, _ := policy.TradeCurrency(facts.Rows)
 		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors[currency])}
+	default:
+		selection = policy.SelectTrade(economic, facts)
 	}
 	clockSchedulerLog("trade selection: phase=%v sale_art=%v refused=%v reason=%q selected=%+v evidence=%+v trader_silver=%d", phase, facts.SaleArt, selection.Refused, selection.Reason, selection.Selected, selection.Evidence, facts.TraderSilver)
-	r.bid(state, trader, selection, facts.Rows, review.Tick)
+	if !facts.Favor {
+		r.bid(state, trader, selection, facts.Rows, review.Tick)
+	}
 	// A pawn buy is its own line beside the resource lines (#1037).
-	if !selection.Refused && facts.SilverKnown {
+	if !selection.Refused && facts.SilverKnown && !facts.Favor {
 		if pawn, ok := policy.SelectPawnPurchase(capacity, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected); ok {
 			selection.Selected = append(selection.Selected, pawn)
 		}
@@ -439,14 +448,14 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	// Lines are staged: re-run the same selection over the live sheet and
 	// require an exact match, then native's affordability and the silver
 	// reserve, before accepting. Any drift cancels.
-	if selection.Refused || !sameTradeLines(tradeLinesOf(selection), staged) || !sheet.BalanceKnown || !sheet.ColonyCanAfford || !sheet.TraderHasSilver || sheet.DealSignature == "" {
+	if selection.Refused || !sameTradeLines(tradeLinesOf(selection), staged) || !sheet.ColonyCanAfford || !sheet.TraderHasSilver || sheet.DealSignature == "" || !facts.Favor && !sheet.BalanceKnown {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
-	if float64(facts.ColonySilver)+sheet.Balance < float64(selection.SilverReserve) {
+	if !facts.Favor && float64(facts.ColonySilver)+sheet.Balance < float64(selection.SilverReserve) {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
 	currency, _ := policy.TradeCurrency(facts.Rows)
-	floors := tradeAcceptFloors(economic, selection, currency)
+	floors := tradeAcceptFloors(economic, selection, currency, facts.Favor)
 	value, err := domain.NewTradeAccept(trader, negotiator, sheet.DealSignature, floors, tradeExportThings(selection, facts), false, false)
 	if err != nil {
 		return RoutineTradeResult{}, err
@@ -572,6 +581,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
+	facts.Favor, facts.FavorKeep = sheet.FavorCurrency, policy.FavorGoldKeep(targets, floors, seasonal.Trade)
 	facts.SaleArt = saleArt
 	// Worn-dump gear above the incinerator's cap sells (#1831).
 	claims, err := r.reviewer.player.journal.ZoneClaims(call, state.Snapshot, projection.Identity.Tick)
@@ -753,9 +763,9 @@ func tradeExportThings(selection policy.TradeSelection, facts policy.TradeSelect
 }
 
 // tradeAcceptFloors builds AcceptTrade's reserve guards: every sold
-// definition's retained target, plus the silver reserve. Native checks
+// definition's retained target, plus the silver reserve (none in a favor session). Native checks
 // floors only on rows the colony gives, so purchases carry none.
-func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelection, currency string) []domain.TradeEconomicFloor {
+func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelection, currency string, favor bool) []domain.TradeEconomicFloor {
 	stock := map[string]int64{}
 	for _, target := range p.Targets {
 		stock[target.Item] = target.Stock
@@ -773,6 +783,10 @@ func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelec
 			floored[line.DefName] = true
 			out = append(out, domain.TradeEconomicFloor{DefName: line.DefName, Count: int32(stock[line.DefName])})
 		}
+	}
+	if favor {
+		// A favor session has no silver and native exempts its currency rows.
+		return out
 	}
 	return append(out, domain.TradeEconomicFloor{DefName: currency, Count: int32(selection.SilverReserve)})
 }

@@ -99,6 +99,11 @@ type TradeSelectionFacts struct {
 	// HerdWants are the animals the herd plan lacks (HerdWants, #1636),
 	// best first: the pawn-purchase line buys the first affordable one.
 	HerdWants []HerdWant
+
+	// Favor marks a favor-currency session (the tribute collector, #1939):
+	// SelectFavorSale decides it, selling gold above FavorKeep.
+	Favor     bool
+	FavorKeep int64
 }
 
 // TradeCurrency is the definition of the sheet's currency row
