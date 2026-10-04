@@ -85,7 +85,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		standingBill = standingBill || completedBillPlan(plan)
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

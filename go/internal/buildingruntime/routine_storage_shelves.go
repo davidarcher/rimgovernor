@@ -109,7 +109,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	if len(zones) == 0 {
 		return RoutineStorageShelvesResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineStorageShelvesResult{}, err
 	}

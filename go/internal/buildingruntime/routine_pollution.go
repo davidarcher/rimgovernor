@@ -83,7 +83,7 @@ func (r *RoutinePollutionPlanner) step(call, epoch context.Context, arbiter *ste
 		}
 	}
 	started := r.reviewer.clock.Now()
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutinePollutionResult{}, err
 	}

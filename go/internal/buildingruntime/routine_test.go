@@ -813,3 +813,11 @@ func extentCells(v *o.RoomsSnapshot) map[string][]domain.Cell {
 	}
 	return out
 }
+
+func (n *routineNative) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
+	reply, raw, err := n.Identity(ctx)
+	if err != nil {
+		return nil, raw, err
+	}
+	return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: reply.GetLoaded().Context, Paused: reply.GetLoaded().Paused}}}, raw, nil
+}

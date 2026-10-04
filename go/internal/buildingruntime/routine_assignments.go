@@ -103,7 +103,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}

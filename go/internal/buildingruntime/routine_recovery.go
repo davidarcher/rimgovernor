@@ -82,7 +82,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 			open = append(open, plan)
 		}
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineRecoveryResult{}, err
 	}

@@ -15,6 +15,7 @@ import (
 // identity a planner observes before it plans; ObserveColony itself reads
 // only the facts and validates them by their ObservationContext.
 type ColonySource interface {
+	Source
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	// FrameTables are the keyed tables the facts' references resolve

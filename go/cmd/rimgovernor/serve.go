@@ -101,7 +101,6 @@ type serveConfig struct {
 	routineResourcePlans            bool
 	routineAnimalFeedPlans          bool
 	routineMethods                  bool
-	worldEvaluation                 bool
 	refresh                         time.Duration
 	clockTestAcceleration           bool
 	clockBlindTicks                 uint
@@ -171,7 +170,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 		}
 	} else {
 		c.playerControl, c.clockControl, c.routineReviews, c.routineMethods = true, true, true, true
-		c.worldEvaluation = true
 		c.chat = c.chatModel != ""
 		if err := c.selectRoutineFamilies(lookupEnv(routineFamiliesEnv)); err != nil {
 			return c, err
@@ -480,8 +478,10 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 		return err
 	}
 	_ = snapshots.Refresh(ctx)
-	presentation, _ := client.(httpapi.PresentationReader)
-	notifications, _ := client.(httpapi.NotificationReader)
+	presentation, notifications, err := requirePresentationReaders(client)
+	if err != nil {
+		return err
+	}
 	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
 	if err != nil {
 		return err

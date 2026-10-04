@@ -74,7 +74,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 			return RoutinePrisonerInteractionResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}

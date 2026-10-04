@@ -142,3 +142,8 @@ func TestColonyBoundariesIgnoreTickDistance(t *testing.T) {
 		}
 	}
 }
+
+func (s *colonySource) Tick(context.Context) (*l.TickReply, bridge.Result, error) {
+	s.identities++
+	return nil, bridge.Result{}, errors.New("tick read inside ObserveColony")
+}

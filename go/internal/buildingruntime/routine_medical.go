@@ -377,7 +377,7 @@ func (r *RoutineMedicalPlanner) planAmputation(call, epoch context.Context, stat
 	if err != nil || !found {
 		return RoutineMedicalResult{}, err
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: planAmputation: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}

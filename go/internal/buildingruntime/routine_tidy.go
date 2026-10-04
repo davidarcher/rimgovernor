@@ -65,7 +65,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !found || goal.Goal.Status != domain.GoalActive || review.Veto(goal.Goal) != "" {
 		return RoutineTidyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}

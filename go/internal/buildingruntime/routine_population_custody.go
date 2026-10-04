@@ -71,7 +71,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}

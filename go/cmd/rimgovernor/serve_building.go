@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"io"
 	"net"
 	"time"
@@ -39,6 +38,7 @@ type buildingServiceBridge struct {
 	trade             *buildingruntime.TradeCapabilities
 	presentationMedia *bridge.PresentationMedia
 	lifecycle         lifecycleCapability
+	attention         httpapi.AttentionAcknowledger
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -97,7 +97,8 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		presentationMedia: presentationMedia,
-		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
+		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad},
+		attention:         attentionAcknowledger{client}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -205,6 +206,10 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if client.native == nil || client.authority == nil || client.writes == nil {
 		return errors.New("player service requires complete building capabilities")
 	}
+	natives, err := requireServeNatives(client)
+	if err != nil {
+		return err
+	}
 	started, err := client.reads.GamesStart(lifetime)
 	if err != nil {
 		return err
@@ -227,9 +232,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	var movementCapabilities *buildingruntime.MovementCapabilities
 	if config.routineDefensePlans {
-		if client.movement == nil {
-			return errors.New("defense plans require typed movement capabilities")
-		}
 		movementCapabilities = client.movement
 	}
 	var haulCapabilities *haul.HaulCapabilities
@@ -241,9 +243,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	var tradeCapabilities *buildingruntime.TradeCapabilities
 	if config.routineTradePlans {
-		if client.trade == nil {
-			return errors.New("trade plans require typed capabilities")
-		}
 		tradeCapabilities = client.trade
 	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
@@ -282,19 +281,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	var validity func() (domain.ReadValidity, bool)
 	// The per-world store rebuild (#1123): the clock worker and the shadow
 	// writer share it, so it runs before either acts in a new world.
-	stateNative, shadowed := client.reads.(governorStateNative)
-	var rebuild *worldRebuild
-	var worldReady func(context.Context, *c.ObservationContext) (bool, error)
-	if shadowed {
-		rebuild = &worldRebuild{database: database, out: out}
-		if client.trade != nil && client.trade.Native != nil && client.trade.Writer != nil {
-			rebuild.orphans = struct {
-				buildingruntime.TradeNative
-				boundary.ActionsWriter
-			}{client.trade.Native, client.trade.Writer}
-		}
-		worldReady = rebuild.workerGate(stateNative)
-	}
+	stateNative := natives.state
+	rebuild := &worldRebuild{database: database, out: out, orphans: struct {
+		buildingruntime.TradeNative
+		boundary.ActionsWriter
+	}{client.trade.Native, client.trade.Writer}}
+	worldReady := rebuild.workerGate(stateNative)
 	if config.clockControl {
 		sections = factsstore.NewStore()
 		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, sections, worldReady)
@@ -303,19 +295,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		advanced, windowRunning, stepTrace, validity = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace, clockWorker.Validity
 	}
-	breakSource, _ := client.reads.(buildingruntime.BreakResponseSource)
-	pawns, _ := client.reads.(buildingruntime.ArrivalPawns)
-	var flush func(context.Context) error
-	if flusher, ok := client.reads.(interface{ FlushSnapshot(context.Context) error }); ok {
-		flush = flusher.FlushSnapshot
-	}
-	arrival := buildingruntime.WorkerConfig{Pawns: pawns}
-	if client.movement != nil {
-		arrival.Moves = client.movement.Writer
-	}
-	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Pawns: arrival.Pawns, Moves: arrival.Moves, RoutineMethods: config.routineMethods,
+	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: natives.breaks, Pawns: natives.breaks, Moves: client.movement.Writer, RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity, Flush: flush,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity, Flush: natives.flush.FlushSnapshot,
 	}, player, session)
 	if err != nil {
 		return err
@@ -330,8 +312,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	_ = reads.Refresh(lifetime)
-	presentation, _ := client.reads.(httpapi.PresentationReader)
-	notifications, _ := client.reads.(httpapi.NotificationReader)
 	var clockReview httpapi.ClockReview
 	var routines httpapi.RoutineProvider
 	if config.clockControl {
@@ -340,29 +320,16 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if config.routineReviews {
 		routines = serviceRoutineDiagnostics{journal: database, reviewsEnabled: config.routineReviews, methodsEnabled: config.routineMethods, families: config.activeRoutineFamilies(), sections: sections}
 	}
-	var worldEvaluation httpapi.WorldEvaluation
-	if config.worldEvaluation {
-		worldNative, ok := client.native.(buildingruntime.WorldEvaluationNative)
-		if !ok {
-			return errors.New("world evaluation requires typed world progression and colony fact observations")
-		}
-		if worldEvaluation, err = buildingruntime.NewWorldEvaluation(player, worldNative, policy.WorldEvaluationPolicy{TravelFoodMarginDays: worldEvaluationFoodMarginDays}); err != nil {
-			return err
-		}
+	worldEvaluation, err := buildingruntime.NewWorldEvaluation(player, natives.world, policy.WorldEvaluationPolicy{TravelFoodMarginDays: worldEvaluationFoodMarginDays})
+	if err != nil {
+		return err
 	}
-	// The live colony census route is a plain read every serve exposes when
-	// the native client carries the typed reads it composes (#261).
-	var colonyStatus httpapi.ColonyStatus
-	if colonyNative, ok := client.native.(buildingruntime.ColonyStatusNative); ok {
-		if colonyStatus, err = buildingruntime.NewColonyStatus(player, colonyNative, sections); err != nil {
-			return err
-		}
+	// The live colony census route is a plain read every serve exposes (#261).
+	colonyStatus, err := buildingruntime.NewColonyStatus(player, natives.colony, sections)
+	if err != nil {
+		return err
 	}
-	var attention httpapi.AttentionAcknowledger
-	if raw, ok := client.reads.(*bridge.Client); ok {
-		attention = attentionAcknowledger{raw}
-	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, ColonyStatus: colonyStatus, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, ColonyStatus: colonyStatus, Notifications: natives.notifications, Presentation: natives.presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: client.attention, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}
@@ -388,14 +355,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	superviseDone := make(chan struct{})
 	defer func() { <-superviseDone }()
 	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out, cancel) }()
-	if shadowed {
-		shadowDone := make(chan struct{})
-		defer func() { <-shadowDone }()
-		go func() {
-			defer close(shadowDone)
-			shadowGovernorState(lifetime, stateNative, currentGovernorWorld(reads), database, rebuild, config.refresh, out)
-		}()
-	}
+	shadowDone := make(chan struct{})
+	defer func() { <-shadowDone }()
+	go func() {
+		defer close(shadowDone)
+		shadowGovernorState(lifetime, stateNative, currentGovernorWorld(reads), database, rebuild, config.refresh, out)
+	}()
 	if config.resume {
 		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, database, out)
 		if err != nil {
@@ -409,4 +374,66 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	return server.Serve(lifetime, listener)
+}
+
+// serveNatives are the typed capabilities the player service cannot run
+// without (#1670): each is asserted once at startup so a client missing one
+// fails serve with the capability's name instead of a route that quietly
+// does not exist.
+type serveNatives struct {
+	flush         interface{ FlushSnapshot(context.Context) error }
+	state         governorStateNative
+	breaks        buildingruntime.BreakResponseSource
+	presentation  httpapi.PresentationReader
+	notifications httpapi.NotificationReader
+	world         buildingruntime.WorldEvaluationNative
+	colony        buildingruntime.ColonyStatusNative
+}
+
+// requireNative asserts that source implements T, naming the missing
+// capability when it does not.
+func requireNative[T any](source any, name string) (T, error) {
+	native, ok := source.(T)
+	if !ok {
+		return native, fmt.Errorf("serve requires %s: the native client does not provide it", name)
+	}
+	return native, nil
+}
+
+func requireServeNatives(client buildingServiceBridge) (natives serveNatives, err error) {
+	if natives.presentation, natives.notifications, err = requirePresentationReaders(client.reads); err != nil {
+		return natives, err
+	}
+	if client.attention == nil {
+		return natives, errors.New("serve requires the attention acknowledger: the native client does not provide it")
+	}
+	if client.movement == nil || client.movement.Writer == nil {
+		return natives, errors.New("serve requires typed movement capabilities: the native client does not provide them")
+	}
+	if client.trade == nil || client.trade.Native == nil || client.trade.Writer == nil {
+		return natives, errors.New("serve requires typed trade capabilities: the native client does not provide them")
+	}
+	if natives.flush, err = requireNative[interface{ FlushSnapshot(context.Context) error }](client.reads, "the snapshot flush (FlushSnapshot)"); err != nil {
+		return natives, err
+	}
+	if natives.state, err = requireNative[governorStateNative](client.reads, "the governor state component (GovernorState, PutGovernorState)"); err != nil {
+		return natives, err
+	}
+	if natives.breaks, err = requireNative[buildingruntime.BreakResponseSource](client.reads, "the break response reads (ReadEmergency, ReadCombatPawns; also the arrival hold reads)"); err != nil {
+		return natives, err
+	}
+	if natives.world, err = requireNative[buildingruntime.WorldEvaluationNative](client.native, "the world evaluation reads (ReadWorldProgression, ReadColonyFacts)"); err != nil {
+		return natives, err
+	}
+	natives.colony, err = requireNative[buildingruntime.ColonyStatusNative](client.native, "the colony census reads (ReadColonyFacts, ReadHomeColonists)")
+	return natives, err
+}
+
+func requirePresentationReaders(source any) (httpapi.PresentationReader, httpapi.NotificationReader, error) {
+	presentation, err := requireNative[httpapi.PresentationReader](source, "the presentation reader (ReadCamera, ReadSelection, ReadColonistRoster, ReadRenderState)")
+	if err != nil {
+		return nil, nil, err
+	}
+	notifications, err := requireNative[httpapi.NotificationReader](source, "the notification reader (ReadNotifications)")
+	return presentation, notifications, err
 }

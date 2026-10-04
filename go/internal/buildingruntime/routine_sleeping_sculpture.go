@@ -129,7 +129,7 @@ func (r *RoutineTradePlanner) saleArt(call context.Context, identity *c.Identity
 	if !ok {
 		return nil, nil
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return nil, err
 	}

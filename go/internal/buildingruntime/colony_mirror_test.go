@@ -88,3 +88,8 @@ func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 		t.Fatalf("invalidated census served colony facts: reads=%d err=%v", native.reads, err)
 	}
 }
+
+func (n *colonyCountingNative) Tick(context.Context) (*l.TickReply, bridge.Result, error) {
+	id := &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("l"), MapId: proto.Int32(1)}
+	return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: n.context(id)}}}, bridge.Result{}, nil
+}

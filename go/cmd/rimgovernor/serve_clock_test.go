@@ -114,7 +114,9 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
+			b := completeBuildingBridge(reads, caps)
+			b.clock, b.clockReads = &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clock
+			return b, nil
 		})
 	}()
 	select {

@@ -63,7 +63,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutinePermitsResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutinePermitsResult{}, err
 	}

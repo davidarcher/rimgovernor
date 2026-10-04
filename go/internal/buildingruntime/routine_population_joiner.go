@@ -67,7 +67,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 			return RoutinePopulationJoinerResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}

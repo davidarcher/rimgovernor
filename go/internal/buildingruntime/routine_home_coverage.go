@@ -60,7 +60,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 		}
 	}
 	started := r.reviewer.clock.Now()
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}

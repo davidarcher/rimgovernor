@@ -46,7 +46,7 @@ func (r *RoutineDefensePlanner) postFightEntities(call, epoch context.Context, s
 	if len(downed) == 0 {
 		return RoutineDefenseResult{}, false, nil
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineDefenseResult{}, false, err
 	}

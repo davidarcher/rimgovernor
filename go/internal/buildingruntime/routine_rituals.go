@@ -81,7 +81,7 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineRitualsResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineRitualsResult{}, err
 	}

@@ -51,7 +51,7 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineArmoryResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineArmoryResult{}, err
 	}

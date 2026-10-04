@@ -58,7 +58,7 @@ func (r *RoutineDefenseLayoutPlanner) fight(call, epoch context.Context, goal st
 // the same tick, keyed by visible cell.
 func (r *RoutineDefenseLayoutPlanner) fightCensus(call context.Context, state ControlState, region bridge.CellRect) (observation.RoutineReading, map[domain.Cell]policy.WaitDoorCell, error) {
 	p := r.reviewer.player
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return observation.RoutineReading{}, nil, err
 	}

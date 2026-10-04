@@ -219,3 +219,7 @@ func TestClockSchedulerLendsWindowToPlannerRefusedNatively(t *testing.T) {
 		})
 	}
 }
+
+func (f failingBuildingSource) Tick(context.Context) (*l.TickReply, bridge.Result, error) {
+	return nil, bridge.Result{}, f.err
+}

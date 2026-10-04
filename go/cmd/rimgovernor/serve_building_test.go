@@ -94,7 +94,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps}, nil
+			return completeBuildingBridge(fake, caps), nil
 		})
 	}()
 	var address string

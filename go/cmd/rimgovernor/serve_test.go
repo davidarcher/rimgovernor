@@ -327,16 +327,13 @@ func (w presentationAddressWriter) Write(data []byte) (int, error) {
 	}
 	return len(data), nil
 }
-func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
+func TestServePresentationReadsUseTheAttachedClient(t *testing.T) {
 	for _, building := range []bool{false, true} {
-		for _, available := range []bool{false, true} {
-			t.Run(fmt.Sprintf("building=%v/presentation=%v", building, available), func(t *testing.T) {
+		{
+			t.Run(fmt.Sprintf("building=%v", building), func(t *testing.T) {
 				dir := t.TempDir()
 				fake := &servicePresentationFake{buildingReadFake: &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 1)}}}
-				var reads serviceBridge = fake.buildingReadFake
-				if available {
-					reads = fake
-				}
+				var reads serviceBridge = fake
 				config := serveConfig{playerControl: building, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -344,9 +341,8 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 				done := make(chan error, 1)
 				go func() {
 					if building {
-						caps := unusedBuildingCapabilities{}
 						done <- serveBuildingWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-							return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps}, nil
+							return completeBuildingBridge(reads, unusedBuildingCapabilities{}), nil
 						})
 					} else {
 						done <- serveWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (serviceBridge, error) { return reads, nil })
@@ -370,12 +366,7 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				expected := 404
-				calls := int32(0)
-				if available {
-					expected = 200
-					calls = 1
-				}
+				expected, calls := 200, int32(1)
 				if reply.StatusCode != expected || fake.presentationCalls.Load() != calls {
 					t.Fatal(reply.StatusCode, string(body), fake.presentationCalls.Load())
 				}

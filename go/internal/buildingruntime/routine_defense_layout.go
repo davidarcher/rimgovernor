@@ -254,7 +254,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	if stored && record.Complete && !defenseReverifyDue(record, review.Tick, combat) {
 		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
@@ -1394,7 +1394,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	if p.session.State() != state {
 		return RoutineDefenseLayoutResult{}, defenseControlErr(358)
 	}
-	actual, err := routineScope(call, r.reviewer.native)
+	actual, err := stepScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
 		return RoutineDefenseLayoutResult{}, defenseControlErr(366)
 	}

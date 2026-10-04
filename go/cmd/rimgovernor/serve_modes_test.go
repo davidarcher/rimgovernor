@@ -38,7 +38,7 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.playerControl || !c.clockControl || !c.routineReviews || !c.routineMethods || !c.worldEvaluation || c.chat {
+	if !c.playerControl || !c.clockControl || !c.routineReviews || !c.routineMethods || c.chat {
 		t.Fatalf("autonomous composition: %+v", c)
 	}
 	families := routineFamilies(&c)

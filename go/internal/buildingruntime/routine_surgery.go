@@ -58,7 +58,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineSurgeryResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}

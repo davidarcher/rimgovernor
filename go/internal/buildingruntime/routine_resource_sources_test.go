@@ -189,3 +189,7 @@ func TestResourceIngredientNamesFundOnlyTheProducingRecipes(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func (f *fakeResourceSourceNative) Tick(context.Context) (*l.TickReply, bridge.Result, error) {
+	panic("unused")
+}

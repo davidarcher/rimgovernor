@@ -76,7 +76,7 @@ func (r *RoutineReviewer) mirroredColony(ctx context.Context, identity *c.Identi
 	if census == nil || census.colony == nil || census.generation != generation {
 		return nil, false
 	}
-	expected, err := routineScope(ctx, r.native)
+	expected, err := stepScope(ctx, r.native)
 	if err != nil || string(expected.Colony) != identity.GetColonyId() || string(expected.Load) != identity.GetLoadToken() || int32(expected.Map) != identity.GetMapId() {
 		return nil, false
 	}

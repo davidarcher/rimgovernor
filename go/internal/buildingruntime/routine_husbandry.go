@@ -54,7 +54,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	// Read before the goal check: an open animal-product channel lends
 	// game time whether or not the herd goal is in deficit.
-	expected, err := routineScope(call, r.reviewer.native)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}

@@ -95,7 +95,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 		}
 	}
 	started := r.reviewer.clock.Now()
-	expected, err := routineScope(call, r.native)
+	expected, err := stepScope(call, r.native)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
