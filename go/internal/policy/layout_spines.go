@@ -1,6 +1,8 @@
 package policy
 
 import (
+	"maps"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -44,9 +46,9 @@ func (g coreGrid) segmentGrid(spine []SpineSegment, i int, rooms []LayoutRoom) (
 		}
 		return c.X >= own.From.X-SpineWidth/2 && c.X <= own.From.X+SpineWidth/2
 	}
-	local := coreGrid{core: make(map[domain.Cell]bool, len(g.core)), rock: g.rock, maxLen: spineMaxLen}
-	for c := range g.core {
-		local.core[c] = true
+	local := coreGrid{core: maps.Clone(g.core), rock: g.rock, maxLen: spineMaxLen}
+	if local.core == nil {
+		local.core = map[domain.Cell]bool{}
 	}
 	take := func(r Rectangle, keepLine bool) {
 		for x := r.X; x < r.X+r.Width; x++ {
