@@ -21,7 +21,7 @@ import (
 // #1280 baseline fixture one generate takes ~40-50 ms; the map is paused while
 // the first plan is sited, so ~780 seeds (the fixture yields that many) over the
 // worker pool take ~4 s (32 threads), inside siteBudget.
-const siteCandidates = 1000
+var siteCandidates = 1000
 
 // siteBudget is the wall time the whole fresh-siting pass should stay
 // under on the #1280 fixture (BenchmarkLayoutSiteCore checks it).
