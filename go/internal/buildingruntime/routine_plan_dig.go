@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -262,6 +263,15 @@ func exposedFirst(excavations []domain.Excavation, cells []policy.SiteCell) []do
 // digMethod is the per-epoch method that mines what for room (#836).
 func digMethod(what string, room policy.LayoutRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("plan-dig-%s-%s-%d-%d", what, room.Role, room.Interior.X, room.Interior.Z))
+}
+
+// roomDigMethodPrefix starts every digMethod("room", ...) id.
+const roomDigMethodPrefix = "plan-dig-room-"
+
+// isRoomDigMethod reports whether method is a planned room's dig. The ring
+// is raised beside it, so an open room dig never holds the shell planner.
+func isRoomDigMethod(method domain.MethodID) bool {
+	return strings.HasPrefix(string(method), roomDigMethodPrefix)
 }
 
 // digPlannedRoom mines a planned room's interior and door ahead of its

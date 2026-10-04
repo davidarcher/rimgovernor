@@ -150,7 +150,10 @@ func (r *RoutineBuildingPlanner) prepareShell(call, epoch context.Context, s exc
 	if len(layout.Mined) > 0 {
 		plan, _ := s.facts.LayoutPlan.Value()
 		result, handled, err := r.digPlannedRoom(call, epoch, s, plan, room, check)
-		if err != nil || handled {
+		// A dig still in flight does not hold the ring: walls are built
+		// beside the mining, not after it.
+		inFlight := handled && (result.Verdict.Is(WaitMethodUsed) || result.Verdict == BuildingReasonExistingWork)
+		if err != nil || handled && !inFlight {
 			return result, handled, err
 		}
 	}
@@ -175,10 +178,6 @@ func (r *RoutineBuildingPlanner) prepareShellRoom(call, epoch context.Context, s
 // still holding rock plan dig could not mine now is refused: a ring
 // cannot stand on it.
 func (r *RoutineBuildingPlanner) previewPlannedRing(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, layout policy.StarterLayout, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
-	if len(layout.Mined) > 0 {
-		clockSchedulerLog("%s: planned room at %+v still holds %d rock cells plan dig cannot mine now; the ring waits", r.goal, layout.Room, len(layout.Mined))
-		return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
-	}
 	return r.previewFreshShell(call, snapshot, facts, []policy.StarterLayout{layout}, check)
 }
 
@@ -337,7 +336,28 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 		if len(perimeter) == 0 {
 			return nil, policy.StockObservation{}, Verdict{}, fmt.Errorf("%w: previewFreshShell: len(perimeter) == 0", ErrControl)
 		}
-		perimeter = unreused(perimeter, append(append([]domain.Cell(nil), layout.Reused...), layout.Claimed...))
+		// A door still in rock waits for the dig; the rest of the ring goes
+		// up now, and the door follows once its cell is open (standing walls
+		// are Reused by the next siting).
+		rock := make(map[domain.Cell]bool, len(facts.Cells))
+		for _, c := range facts.Cells {
+			rock[c.Cell] = positiveFact(c.NaturalRock)
+		}
+		waiting := append(append([]domain.Cell(nil), layout.Reused...), layout.Claimed...)
+		for _, c := range layout.Mined {
+			if !rock[c] {
+				// Fogged or unobserved: native has not said it is rock, so the
+				// ring is not raised around it.
+				clockSchedulerLog("%s: planned room at %+v has unobserved cells to mine; the ring waits", r.goal, layout.Room)
+				return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
+			}
+			waiting = append(waiting, c)
+		}
+		perimeter = unreused(perimeter, waiting)
+		if len(perimeter) == 0 {
+			clockSchedulerLog("%s: planned room at %+v has only rock cells left to mine; the ring waits", r.goal, layout.Room)
+			return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
+		}
 		ids := make([]domain.ActionID, len(perimeter))
 		for i := range perimeter {
 			ids[i] = domain.ActionID(fmt.Sprintf("%s-%d-%d", snapshot.Plan, candidate, i))

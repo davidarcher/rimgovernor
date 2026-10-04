@@ -181,6 +181,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 			continue
 		}
+		if r.shelter && isRoomDigMethod(m.Method) {
+			// Mining is separate work from the ring: prepareShell reads the
+			// dig's own state and the ring goes up beside it.
+			continue
+		}
 		if store.PlanOpen(plan) {
 			return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 		}
