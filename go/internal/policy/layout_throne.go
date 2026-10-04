@@ -63,7 +63,7 @@ func (p LayoutPlan) ThroneRoomFor(area int) (LayoutRoom, bool) {
 // supersedes it. It reports whether a room was added; a plan with no
 // core ground or no slot for any shape is left as it is, with the error.
 func growThroneRoom(plan LayoutPlan, area int) (LayoutPlan, bool, error) {
-	if area <= 0 || len(plan.Spine) == 0 {
+	if area <= 0 || len(plan.Hallways()) == 0 {
 		return plan, false, nil
 	}
 	if _, ok := plan.ThroneRoomFor(area); ok {

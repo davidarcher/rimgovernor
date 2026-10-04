@@ -124,7 +124,7 @@ func frameDims(r LayoutRoom) (width, depth int32) {
 // in layout_retire.go; none moves or resizes. It reports whether a room was
 // added.
 func growChildRoom(plan LayoutPlan, s ChildRoomShape) (LayoutPlan, bool, error) {
-	if len(s.Pieces) == 0 || len(plan.Spine) == 0 {
+	if len(s.Pieces) == 0 || len(plan.Hallways()) == 0 {
 		return plan, false, nil
 	}
 	if _, ok := plan.ChildRoomFor(s); ok {

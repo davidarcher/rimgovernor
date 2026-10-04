@@ -95,7 +95,7 @@ func squareSide(n int) (w, h int32) {
 // PlanUtilities adds a battery room, cooler exhausts and the wanted
 // generator sites to plan. Sites that do not fit are left out.
 func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
-	if len(plan.Spine) == 0 {
+	if len(plan.Hallways()) == 0 {
 		return plan
 	}
 	plan.Rooms = append([]LayoutRoom(nil), plan.Rooms...)
@@ -418,14 +418,14 @@ func RectangleCells(r Rectangle) []domain.Cell {
 
 // utilityGrid marks the cells a utility site may not take.
 type utilityGrid struct {
-	w, h           int32
-	ok, rock       []bool // core candidate; natural rock
-	field          []bool // planned farmland: sites avoid it
-	thick          map[domain.Cell]bool
-	keepOut        []bool // the core ring and the clearance the outer ring needs
-	used           []bool // planned rooms, spine, reservations
-	bandLo, bandHi int32  // the core's cross-section rows
-	cx, cz         int32  // the spine's centre
+	w, h     int32
+	ok, rock []bool // core candidate; natural rock
+	field    []bool // planned farmland: sites avoid it
+	thick    map[domain.Cell]bool
+	keepOut  []bool // the core ring and the clearance the outer ring needs
+	used     []bool // planned rooms, spine, reservations
+	clear    []bool // the hallways and a clearance ring: no site stands here
+	cx, cz   int32  // the plan core (LayoutPlan.Core)
 }
 
 func newUtilityGrid(plan LayoutPlan) *utilityGrid {
@@ -467,10 +467,18 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 		u.mark(r.Area)
 	}
 	u.keepOut = outerKeepOut(plan, u.w, u.h)
-	seg := plan.Spine[0]
-	half := SpineWidth/2 + coreMaxDepth + 2
-	u.bandLo, u.bandHi = seg.From.Z-half, seg.From.Z+half
-	u.cx, u.cz = (seg.From.X+seg.To.X)/2, seg.From.Z
+	u.clear = make([]bool, n)
+	ring := SpineWidth/2 + coreMaxDepth + 2
+	for _, r := range spineRects(plan.Hallways()) {
+		for z := max(r.Z-ring, 0); z < min(r.Z+r.Height+ring, u.h); z++ {
+			for x := max(r.X-ring, 0); x < min(r.X+r.Width+ring, u.w); x++ {
+				u.clear[z*u.w+x] = true
+			}
+		}
+	}
+	if c, ok := plan.Core(); ok {
+		u.cx, u.cz = c.X, c.Z
+	}
 	return u
 }
 
@@ -502,18 +510,15 @@ func (u *utilityGrid) reserve(plan *LayoutPlan, r LayoutReservation) {
 const siteInset = LayoutEdgeMargin + perimeterThick + 1
 
 // free reports every cell of r on unplanned core candidates, off the core
-// band; rockOK lets it cross natural rock.
+// hallway clearance; rockOK lets it cross natural rock.
 func (u *utilityGrid) free(r Rectangle, rockOK bool) bool {
-	if r.Z+r.Height > u.bandLo && r.Z <= u.bandHi {
-		return false
-	}
 	for z := r.Z; z < r.Z+r.Height; z++ {
 		for x := r.X; x < r.X+r.Width; x++ {
 			if !u.in(x, z) {
 				return false
 			}
 			i := z*u.w + x
-			if !u.ok[i] || u.used[i] || u.rock[i] && !rockOK {
+			if !u.ok[i] || u.used[i] || u.clear[i] || u.rock[i] && !rockOK {
 				return false
 			}
 		}

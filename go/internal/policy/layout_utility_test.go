@@ -338,8 +338,8 @@ func TestPlanUtilitiesPen(t *testing.T) {
 		}
 	}
 	u := newUtilityGrid(core)
-	if pen.Area.Z+pen.Area.Height > u.bandLo && pen.Area.Z <= u.bandHi {
-		t.Fatal("pen in the core band", pen.Area)
+	if !u.free(pen.Area, true) {
+		t.Fatal("pen in the hallway clearance", pen.Area)
 	}
 	// The site search follows the centre it is given.
 	w, h := penSide(30)

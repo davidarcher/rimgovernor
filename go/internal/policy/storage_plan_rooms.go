@@ -102,7 +102,7 @@ func StorageRoomsOwed(plan LayoutPlan, demand RoomDemand) int {
 // retired by the reconcile steps in layout_retire.go; none moves or resizes.
 // It reports whether a room was added.
 func growStorageRooms(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool, error) {
-	if len(plan.Spine) == 0 || StorageRoomsOwed(plan, demand) == 0 {
+	if len(plan.Hallways()) == 0 || StorageRoomsOwed(plan, demand) == 0 {
 		return plan, false, nil
 	}
 	return growModuleRoom(plan, ModuleStorage, [][2]int32{coreRoomSize[ModuleStorage]})

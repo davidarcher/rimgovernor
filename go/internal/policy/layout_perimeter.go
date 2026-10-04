@@ -315,10 +315,11 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		site.cells[c.Cell] = row
 	}
-	mid := plan.Rooms[0].Door
-	if len(plan.Spine) > 0 {
-		sg := plan.Spine[0]
-		mid = domain.Cell{X: (sg.From.X + sg.To.X) / 2, Z: (sg.From.Z + sg.To.Z) / 2}
+	var mid domain.Cell
+	if c, ok := plan.Core(); ok {
+		mid = c
+	} else if len(plan.Rooms) > 0 {
+		mid = plan.Rooms[0].Door
 	}
 	origin, found := mid, false
 	for x := enc.bbox.X; x < enc.bbox.X+enc.bbox.Width; x++ {

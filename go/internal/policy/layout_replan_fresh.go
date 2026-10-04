@@ -30,13 +30,14 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 	}
 	wings := keepWingRooms(plan.Wings, func(r LayoutRoom) bool { return rectHits(roomWalls(r), built) })
 	var spine []SpineSegment
+	main := trunk(plan.Spine)
 	for i, sg := range plan.Spine {
-		if i == 0 && len(wings) > 0 {
+		if i == main && len(wings) > 0 {
 			spine = append(spine, sg)
 			continue
 		}
 		for _, r := range rooms {
-			if i == 0 || onSegment(r, sg) {
+			if i == main || onSegment(r, sg) {
 				spine = append(spine, sg)
 				break
 			}

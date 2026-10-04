@@ -41,7 +41,7 @@ func GearRoomsOwed(plan LayoutPlan, demand RoomDemand) []ModuleRole {
 // core room. It reports whether a room was added and the rooms it could not
 // place.
 func growGearRooms(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool, error) {
-	if len(plan.Spine) == 0 {
+	if len(plan.Hallways()) == 0 {
 		return plan, false, nil
 	}
 	grew := false

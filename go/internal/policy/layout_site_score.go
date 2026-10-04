@@ -47,7 +47,7 @@ type siteScore struct {
 // rooms. A plan with no spine yet is sited: grown from each candidate
 // seed over s, keeping the best-scoring result.
 func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) LayoutPlan {
-	if len(plan.Spine) > 0 {
+	if len(plan.Hallways()) > 0 {
 		return Grow(plan, pawns, tombs, tier)
 	}
 	g := newCoreGrid(plan.Zones, plan.Reservations).withSoil(s)

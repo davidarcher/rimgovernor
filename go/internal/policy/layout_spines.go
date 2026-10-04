@@ -16,9 +16,9 @@ func wingAnchor(rooms []LayoutRoom) (domain.Cell, bool) {
 	return domain.Cell{}, false
 }
 
-// Spines and crossings (#952). Spine[0] is the main east-west hallway; every
-// later segment is a north-south crossing laid through it, so the core grows
-// from a line into a + and then an H (a crossing at each end of the main
+// Spines and crossings (#952). The old generator lays Spine[0] as the main
+// east-west hallway (nothing else may assume it, #1947); every later segment
+// is a north-south crossing laid through it, so the core grows from a line into a + and then an H (a crossing at each end of the main
 // hallway). A crossing always runs out on both sides of the main hallway,
 // never one, so no branch turns into an L or U. The line beyond each
 // hallway's ends stays clear of the other hallways' rooms, so it can still
@@ -31,6 +31,26 @@ const spineMaxLen int32 = 64
 const maxCrossings = 3
 
 func alongX(s SpineSegment) bool { return s.From.Z == s.To.Z }
+
+// trunk is the index of the segment touching the most others, the first on a
+// tie: the hallway a crossing-shaped plan hangs off, found from the geometry
+// rather than the slice order (#1947). -1 for no segments.
+func trunk(spine []SpineSegment) int {
+	rects := spineRects(spine)
+	best, bestN := -1, -1
+	for i := range rects {
+		n := 0
+		for j := range rects {
+			if i != j && rectsOverlap(rects[i], rects[j]) {
+				n++
+			}
+		}
+		if n > bestN {
+			best, bestN = i, n
+		}
+	}
+	return best
+}
 
 // onSegment reports r's door opening onto s's hallway.
 func onSegment(r LayoutRoom, s SpineSegment) bool {

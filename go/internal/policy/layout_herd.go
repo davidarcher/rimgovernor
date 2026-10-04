@@ -69,7 +69,7 @@ func walledSide(w, h int32) (int32, int32) { return w + 2, h + 2 }
 // ones cannot hold. Nothing placed moves; sites that do not fit
 // are left out. Zero animals plans nothing. plan holds its core zones.
 func PlanHerdSites(plan LayoutPlan, animals int) LayoutPlan {
-	if animals <= 0 || len(plan.Spine) == 0 {
+	if animals <= 0 || len(plan.Hallways()) == 0 {
 		return plan
 	}
 	plan.Reservations = slices.Clone(plan.Reservations)
