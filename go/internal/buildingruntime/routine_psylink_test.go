@@ -49,11 +49,11 @@ func TestPsylinkReviewOwesAUseOnlyForAHeldItem(t *testing.T) {
 	if v, known := owed.Value(); !known || !v {
 		t.Fatal("held neuroformer and a candidate owe a use", owed)
 	}
-	candidates, items, ok := m.take(stockpileWorld(snapshot), 120)
-	if !ok || !slices.Equal(candidates, []policy.PawnID{"amy"}) || !slices.Equal(items, []string{"PsychicAmplifier3"}) {
+	candidates, levelUps, items, ok := m.take(stockpileWorld(snapshot), 120)
+	if !ok || len(levelUps) != 0 || !slices.Equal(candidates, []policy.PawnID{"amy"}) || !slices.Equal(items, []string{"PsychicAmplifier3"}) {
 		t.Fatal(candidates, items, ok)
 	}
-	if _, _, ok := m.take(stockpileWorld(snapshot), 121); ok {
+	if _, _, _, ok := m.take(stockpileWorld(snapshot), 121); ok {
 		t.Fatal("a later tick took the review's memory")
 	}
 
@@ -74,9 +74,41 @@ func TestPsylinkReviewOwesAUseOnlyForAHeldItem(t *testing.T) {
 	// No willing colonist, no read.
 	source.err, source.reads = nil, 0
 	psycaster := bareColonist("zed")
-	psycaster.PsylinkLevel = domain.Known(1)
+	psycaster.PsylinkLevel = domain.Known(policy.MaxPsylinkLevel)
 	_, owed = m.review(context.Background(), nil, snapshot, psylinkProjection(1, psycaster))
 	if v, known := owed.Value(); !known || v || source.reads != 0 {
-		t.Fatal("a psycaster is no candidate", owed, source.reads)
+		t.Fatal("a maxed psycaster is no candidate", owed, source.reads)
+	}
+}
+
+// A colonist who already holds a psylink is a level-up: a held neuroformer owes
+// a use, but the candidates the resource needs read stay empty, so the colony
+// never buys a neuroformer for a level-up (#1940).
+func TestPsylinkReviewLevelsUpWithoutRaisingTheAcquisitionTarget(t *testing.T) {
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0}
+	source := &fakePsylinkSource{items: []string{"PsychicAmplifier3"}}
+	m := &psylinkMemory{native: source, who: domain.Unknown[[]policy.PawnID]()}
+	psycaster := bareColonist("zed")
+	psycaster.PsylinkLevel = domain.Known(2)
+
+	who, owed := m.review(context.Background(), nil, snapshot, psylinkProjection(1, psycaster))
+	if got, _ := who.Value(); len(got) != 0 {
+		t.Fatal("a level-up joined the acquisition candidates", got)
+	}
+	if v, known := owed.Value(); !known || !v {
+		t.Fatal("a held neuroformer and a level-up owe a use", owed)
+	}
+	if _, levelUps, items, ok := m.take(stockpileWorld(snapshot), 120); !ok || !slices.Equal(levelUps, []policy.PawnID{"zed"}) || len(items) != 1 {
+		t.Fatal(levelUps, items, ok)
+	}
+
+	// No stock: the level-up raises no neuroformer floor even though it waits.
+	empty := psylinkProjection(0, psycaster)
+	who, owed = m.review(context.Background(), nil, snapshot, empty)
+	if needs := policy.NeuroformerNeeds(nil, empty.Royalty, who); len(needs) != 0 {
+		t.Fatal("a level-up raised the neuroformer target", needs)
+	}
+	if v, known := owed.Value(); !known || v {
+		t.Fatal("no stock owes nothing", owed)
 	}
 }

@@ -58,6 +58,40 @@ func TestPsylinkCandidatesUnknownAndAbsent(t *testing.T) {
 	}
 }
 
+func TestPsylinkLevelUpsAreUntitledPsycastersBelowTheCap(t *testing.T) {
+	royalty := RoyaltyFacts{
+		Neuroformers: map[string]Neuroformer{PsylinkNeuroformer: {Def: PsylinkNeuroformer}},
+		Holders: map[PawnID][]RoyalHolding{
+			"knight":  {{FactionDef: "Empire", Title: "Knight"}},
+			"favored": {{FactionDef: "Empire"}},
+		},
+	}
+	pawns := domain.Known([]WorkPawn{
+		psylinkPawn("zed", true, true, 2),
+		psylinkPawn("amy", true, true, 5),
+		psylinkPawn("favored", true, true, 1),
+		psylinkPawn("knight", true, true, 1),
+		psylinkPawn("maxed", true, true, MaxPsylinkLevel),
+		psylinkPawn("none", true, true, 0),
+		psylinkPawn("downed", false, true, 2),
+		psylinkPawn("unread", true, false, 2),
+	})
+	got, known := PsylinkLevelUps(domain.Known(royalty), pawns).Value()
+	if !known || !slices.Equal(got, []PawnID{"amy", "favored", "zed"}) {
+		t.Fatal(got, known)
+	}
+	if _, known := PsylinkLevelUps(domain.Unknown[RoyaltyFacts](), pawns).Value(); known {
+		t.Fatal("level-ups known without the royalty read")
+	}
+	if _, known := PsylinkLevelUps(domain.Known(royalty), domain.Unknown[[]WorkPawn]()).Value(); known {
+		t.Fatal("level-ups known without pawn rows")
+	}
+	noDef := domain.Known(RoyaltyFacts{Neuroformers: map[string]Neuroformer{}})
+	if got, known := PsylinkLevelUps(noDef, pawns).Value(); !known || len(got) != 0 {
+		t.Fatal(got, known)
+	}
+}
+
 func TestNeuroformerNeedsAskForOneWhileACandidateWaitsAndNoneIsHeld(t *testing.T) {
 	waiting := domain.Known([]PawnID{"amy"})
 	for name, c := range map[string]struct {
@@ -90,33 +124,46 @@ func TestNeuroformerNeedsAskForOneWhileACandidateWaitsAndNoneIsHeld(t *testing.T
 }
 
 func TestNextPsylinkUseIsDeterministic(t *testing.T) {
-	use, ok := NextPsylinkUse([]PawnID{"zed", "amy"}, []string{"PsychicAmplifier9", "PsychicAmplifier2"})
+	use, ok := NextPsylinkUse([]PawnID{"zed", "amy"}, nil, []string{"PsychicAmplifier9", "PsychicAmplifier2"})
 	if !ok || use != (PsylinkUse{Pawn: "amy", Item: "PsychicAmplifier2"}) {
 		t.Fatal(use, ok)
 	}
-	if _, ok := NextPsylinkUse(nil, []string{"i"}); ok {
+	// A colonist with no psylink is served before a level-up.
+	use, ok = NextPsylinkUse([]PawnID{"zed"}, []PawnID{"amy"}, []string{"i"})
+	if !ok || use.Pawn != "zed" {
+		t.Fatal(use, ok)
+	}
+	use, ok = NextPsylinkUse(nil, []PawnID{"zed", "amy"}, []string{"i"})
+	if !ok || use.Pawn != "amy" {
+		t.Fatal(use, ok)
+	}
+	if _, ok := NextPsylinkUse(nil, nil, []string{"i"}); ok {
 		t.Fatal("use without a candidate")
 	}
-	if _, ok := NextPsylinkUse([]PawnID{"amy"}, nil); ok {
+	if _, ok := NextPsylinkUse([]PawnID{"amy"}, []PawnID{"zed"}, nil); ok {
 		t.Fatal("use without an item")
 	}
 }
 
 func TestPsylinkOwedIsMeasuredNotAssumed(t *testing.T) {
 	waiting, items := domain.Known([]PawnID{"amy"}), domain.Known([]string{"PsychicAmplifier2"})
+	none := domain.Known([]PawnID{})
 	for name, c := range map[string]struct {
 		who   domain.Fact[[]PawnID]
+		up    domain.Fact[[]PawnID]
 		items domain.Fact[[]string]
 		known bool
 		owed  bool
 	}{
-		"use ready":    {waiting, items, true, true},
-		"no item":      {waiting, domain.Known([]string{}), true, false},
-		"item unread":  {waiting, domain.Unknown[[]string](), false, false},
-		"no candidate": {domain.Known([]PawnID{}), domain.Unknown[[]string](), true, false},
-		"unknown":      {domain.Unknown[[]PawnID](), items, false, false},
+		"use ready":     {waiting, none, items, true, true},
+		"level-up":      {none, waiting, items, true, true},
+		"no item":       {waiting, none, domain.Known([]string{}), true, false},
+		"item unread":   {waiting, none, domain.Unknown[[]string](), false, false},
+		"no candidate":  {none, none, domain.Unknown[[]string](), true, false},
+		"unknown":       {domain.Unknown[[]PawnID](), none, items, false, false},
+		"unknown level": {none, domain.Unknown[[]PawnID](), items, false, false},
 	} {
-		owed, known := PsylinkOwed(c.who, c.items).Value()
+		owed, known := PsylinkOwed(c.who, c.up, c.items).Value()
 		if known != c.known || owed != c.owed {
 			t.Fatal(name, owed, known)
 		}

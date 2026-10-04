@@ -15,11 +15,13 @@ import (
 )
 
 // MaintainPsylink (#1609, epic #1598): each review finds the willing
-// colonists with no psylink (policy.PsylinkCandidates) and, while one waits,
+// colonists with no psylink (policy.PsylinkCandidates) and the untitled ones
+// below the level cap (policy.PsylinkLevelUps, #1940) and, while one waits,
 // reads the held neuroformer items. The planner orders one colonist to use
-// one neuroformer on itself (UseItem with the pawn as its own target). The
-// neuroformer itself is acquired by MaintainResource: the review adds
-// policy.NeuroformerNeeds to the resource needs, which the resource ladder
+// one neuroformer on itself (UseItem with the pawn as its own target),
+// colonists with no psylink first. The neuroformer itself is acquired by
+// MaintainResource: the review adds policy.NeuroformerNeeds, for the
+// no-psylink colonists only, to the resource needs, which the resource ladder
 // meets with a production bill or a trade. At most maxPsylinkAttempts uses
 // are ordered per colonist per goal epoch, so a colonist native refuses
 // does not block the others or loop.
@@ -33,25 +35,29 @@ type RoutinePsylinkSource interface {
 	ReadNeuroformerItems(context.Context, *c.Identity, string) ([]string, bridge.Result, error)
 }
 
-// psylinkMemory is the latest review's candidates and held neuroformer items
-// for one world, in memory only.
+// psylinkMemory is the latest review's candidates, level-up colonists and held
+// neuroformer items for one world, in memory only.
 type psylinkMemory struct {
 	native RoutinePsylinkSource
 	mu     sync.Mutex
 	world  string
 	tick   domain.Tick
 	who    domain.Fact[[]policy.PawnID]
+	up     []policy.PawnID
 	items  []string
 }
 
-// review finds the candidates and, while one waits and the royalty read
-// counts a held neuroformer, the held item ids; it returns the candidates (for
-// the resource needs) and whether a use is owed. A failed item read leaves the
+// review finds the candidates and level-up colonists and, while one waits and
+// the royalty read counts a held neuroformer, the held item ids; it returns the
+// candidates (for the resource needs) and whether a use is owed. A failed item read leaves the
 // use unknown rather than failing the review.
 func (m *psylinkMemory) review(ctx context.Context, identity *c.Identity, current domain.GenerationSnapshot, projection observation.ColonyProjection) (domain.Fact[[]policy.PawnID], domain.Fact[bool]) {
 	candidates := policy.PsylinkCandidates(projection.Royalty, projection.WorkPawns)
+	levelUps := policy.PsylinkLevelUps(projection.Royalty, projection.WorkPawns)
 	items := domain.Unknown[[]string]()
-	if who, ok := candidates.Value(); ok && len(who) > 0 {
+	first, ok1 := candidates.Value()
+	up, ok2 := levelUps.Value()
+	if ok1 && ok2 && len(first)+len(up) > 0 {
 		royalty, _ := projection.Royalty.Value()
 		if held, known := royalty.Neuroformers[policy.PsylinkNeuroformer].Held.Value(); known && held == 0 {
 			items = domain.Known([]string{})
@@ -67,19 +73,20 @@ func (m *psylinkMemory) review(ctx context.Context, identity *c.Identity, curren
 	held, _ := items.Value()
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.world, m.tick, m.who, m.items = stockpileWorld(current), projection.Identity.Tick, candidates, slices.Clone(held)
-	return candidates, policy.PsylinkOwed(candidates, items)
+	m.world, m.tick, m.who, m.up, m.items = stockpileWorld(current), projection.Identity.Tick, candidates, slices.Clone(up), slices.Clone(held)
+	return candidates, policy.PsylinkOwed(candidates, levelUps, items)
 }
 
-// take returns the candidates and items the review at tick left for world.
-func (m *psylinkMemory) take(world string, tick domain.Tick) ([]policy.PawnID, []string, bool) {
+// take returns the candidates, level-up colonists and items the review at tick
+// left for world.
+func (m *psylinkMemory) take(world string, tick domain.Tick) ([]policy.PawnID, []policy.PawnID, []string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	who, known := m.who.Value()
 	if m.world != world || m.tick != tick || !known {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
-	return slices.Clone(who), slices.Clone(m.items), true
+	return slices.Clone(who), slices.Clone(m.up), slices.Clone(m.items), true
 }
 
 // RoutinePsylinkPlanner is MaintainPsylink's planner.
@@ -134,7 +141,7 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutinePsylinkResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	candidates, items, ok := r.memory.take(stockpileWorld(state.Snapshot), review.Tick)
+	candidates, levelUps, items, ok := r.memory.take(stockpileWorld(state.Snapshot), review.Tick)
 	if !ok {
 		return RoutinePsylinkResult{Verdict: BuildingReasonNoReview}, nil
 	}
@@ -142,15 +149,18 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutinePsylinkResult{}, err
 	}
-	var willing []policy.PawnID
-	for _, pawn := range candidates {
-		if medicalAttemptCount(history, goal.Goal.Epoch, fmt.Sprintf("%s%s-", psylinkPrefix, pawn)) < maxPsylinkAttempts {
-			willing = append(willing, pawn)
+	willingOf := func(who []policy.PawnID) []policy.PawnID {
+		var out []policy.PawnID
+		for _, pawn := range who {
+			if medicalAttemptCount(history, goal.Goal.Epoch, fmt.Sprintf("%s%s-", psylinkPrefix, pawn)) < maxPsylinkAttempts {
+				out = append(out, pawn)
+			}
 		}
+		return out
 	}
-	choice, owed := policy.NextPsylinkUse(willing, items)
+	choice, owed := policy.NextPsylinkUse(willingOf(candidates), willingOf(levelUps), items)
 	if !owed {
-		if len(candidates) > 0 && len(items) > 0 {
+		if len(candidates)+len(levelUps) > 0 && len(items) > 0 {
 			return RoutinePsylinkResult{Verdict: refuse(RefusalRetriesSpent, "maxPsylinkAttempts", "")}, nil
 		}
 		return RoutinePsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_item")}, nil

@@ -283,7 +283,12 @@ candidate waits, none is held and the royalty read marks it `craftable` or
 `tradeable`, so the resource ladder bills or buys it. With one held (a live
 `observations_list_supplies` read names the item ids; the royalty count lags
 it) the planner orders `UseItem` with the colonist as its own target, at most
-twice per colonist per goal epoch. Psyfocus is kept at target by the
+twice per colonist per goal epoch. The same use levels up an available
+psycaster below level 6 (`policy.PsylinkLevelUps`, #1940; the hediff's
+`maxSeverity`, the game's `CanBeUsedBy` cap) who holds no royal title with any
+faction (`PawnState.royalty.holdings[].title`: the title caps the psylink level),
+after colonists with no psylink. Level-ups never raise the stock floor: only
+neuroformers already held serve them. Psyfocus is kept at target by the
 meditation schedule, not by this goal.
 
 Non-combat psycasts (#1612, `policy.SelectMoodCast`) are the mood relief
