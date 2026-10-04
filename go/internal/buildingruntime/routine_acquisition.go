@@ -308,7 +308,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineAcquisitionResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineAcquisitionResult{Verdict: waitFor(WaitMethodUsed, "acquisition_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineAcquisitionResult{}, err
 	}

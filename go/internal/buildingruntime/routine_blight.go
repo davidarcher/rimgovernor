@@ -105,7 +105,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	targets := policy.SelectBlightCuts(census, claimed, 8)
 	if len(targets) == 0 {
-		return RoutineBlightResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBlightResult{Verdict: waitFor(WaitMethodUsed, "blight_cut_targets")}, nil
 	}
 	hash := sha256.New()
 	for _, plant := range targets {

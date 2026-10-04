@@ -95,7 +95,7 @@ func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state Co
 	}
 	choice, ok := policy.SelectShellBill(benches, targets, stock, holds)
 	if !ok {
-		return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineArmoryResult{Verdict: waitFor(WaitMethodUsed, "shell_bill_choice")}, nil
 	}
 	id := domain.MintPlanID()
 	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.StockTarget, int32(min(choice.Target, 10000)))

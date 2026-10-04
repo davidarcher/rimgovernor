@@ -237,7 +237,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		}
 		method := domain.MethodID(fmt.Sprintf("deep-drill-%s-%d-%d", site.Definition, site.Centre.X, site.Centre.Z))
 		if _, err := r.reviewer.player.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-			return RoutineResourceResult{Verdict: BuildingReasonUsed}, true, nil
+			return RoutineResourceResult{Verdict: waitFor(WaitMethodUsed, "deep_drill_method")}, true, nil
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineResourceResult{}, true, err
 		}

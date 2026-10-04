@@ -294,13 +294,13 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 			if _, err = p.journal.RecordGoal(call, goal.Goal.ID, goal.Revision, ordered.Encode()); err != nil {
 				return RoutineCreepJoinerResult{}, err
 			}
-			return RoutineCreepJoinerResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order_recorded")}, nil
 		}
 		if len(work.inspections.Waiting) > 0 {
 			clockSchedulerLog("%s: %s", goal.Goal.ID, work.inspections.Waiting[0])
 			return RoutineCreepJoinerResult{Verdict: awaitingPlan("creepjoiner_inspection", "")}, nil
 		}
-		return RoutineCreepJoinerResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order")}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {

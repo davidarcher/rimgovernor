@@ -99,13 +99,13 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 		// Every option is disabled, a hyperlink or opens another window:
 		// nothing the controller can activate answers this dialog, so the
 		// hold stays with the player.
-		return RoutineDialogResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineDialogResult{Verdict: refuse(RefusalRetriesSpent, "no_selectable_dialog_option", "")}, nil
 	}
 	windowID := dialog.GetWindowId()
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%d/%s", windowID, chosen.Index, chosen.Label)))
 	method := domain.MethodID(fmt.Sprintf("dialog-%x", digestNext[:16]))
 	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
-		return RoutineDialogResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineDialogResult{Verdict: waitFor(WaitMethodUsed, "dialog_method")}, nil
 	}
 	id := domain.MintPlanID()
 	value, err := domain.NewDialogAnswer(windowID, chosen.Index, chosen.Label)

@@ -32,7 +32,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 		}
 	case "haul":
 		if !arbiter.tryClaim([]domain.PawnID{choice.Handling.Hauler}, "haul-item:"+choice.Stock.ID) {
-			return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineFoodStorageUpkeepResult{Verdict: waitFor(WaitMethodUsed, "haul_item_claim")}, nil
 		}
 		var haul domain.Haul
 		haul, err = domain.NewHaul(choice.Handling.Hauler, choice.Stock.ID, string(choice.Stock.DefName), choice.Handling.Cell)

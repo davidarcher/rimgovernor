@@ -378,7 +378,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	// Finite batches expire (store.checkBillMethod): a claim from an earlier
 	// batch does not bar the next one.
 	if claimed && selected.Replace == "" && selected.Mode != domain.GearBatch {
-		return RoutineBillResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBillResult{Verdict: waitFor(WaitMethodUsed, "bill_claim")}, nil
 	}
 	// The bill planners of one step run concurrently and read the same
 	// bench token; the second bill on a bench would hold forever on the
@@ -402,7 +402,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	}
 	method := domain.MethodID(fmt.Sprintf("bill-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBillResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBillResult{Verdict: waitFor(WaitMethodUsed, "bill_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBillResult{}, err
 	}

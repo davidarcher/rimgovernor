@@ -221,7 +221,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	review, reason, door := excavationNext(s.target, site)
 	clockSchedulerLog("excavation stage %d for %s: next=%v kept=%v remaining=%d unknown=%v complete=%v corridor=%v support=%d (%s) collapse=%v worker=%v access=%v", stage, s.target.Key(), review.Stage, review.Kept, review.Remaining, review.Unknown, review.Complete, review.Corridor, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable, site.AccessReachable)
 	if door {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "excavation_door")}, nil
 	}
 	if !reason.IsZero() {
 		return RoutineBuildingResult{Verdict: reason}, nil

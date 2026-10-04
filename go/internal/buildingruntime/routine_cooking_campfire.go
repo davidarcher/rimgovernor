@@ -124,7 +124,7 @@ func (r *RoutineBuildingPlanner) commitCampfireRefuel(call context.Context, goal
 		return RoutineBuildingResult{}, fmt.Errorf("%w: commitCampfireRefuel: not a refuel proposal", ErrControl)
 	}
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, proposal.Key); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "campfire_refuel_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -177,7 +177,7 @@ func (r *RoutineBuildingPlanner) retireBuilding(call, epoch context.Context, sta
 	sum := sha256.Sum256([]byte(campfire.ID))
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, sum[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "building_retire_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}

@@ -28,7 +28,7 @@ func nextAreaChange(changes []policy.AllowedAreaChange, admitted int) (policy.Al
 func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, arbiter *stepArbiter, snapshot domain.GenerationSnapshot, incident store.IncidentState, changes []policy.AllowedAreaChange, workers []policy.WorkPawn, started time.Time) (RoutineRecoveryResult, error) {
 	change, method := nextAreaChange(changes, len(incident.Methods))
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(change.Pawn)}) {
-		return RoutineRecoveryResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRecoveryResult{Verdict: waitFor(WaitMethodUsed, "area_change_pawn_claim")}, nil
 	}
 	id := domain.MintPlanID()
 	actionID := domain.ActionID(fmt.Sprintf("%s-0", id))

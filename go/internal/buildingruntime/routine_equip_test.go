@@ -179,12 +179,11 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 			}
 			n.weapons = []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_AssaultRifle"}}
 			next, err := planner.Step(ctx)
-			want := BuildingReasonAdmitted
-			if tc.coded {
-				want = BuildingReasonUsed
-			}
-			if err != nil || next.Verdict != want {
+			if err != nil {
 				t.Fatal(next, err)
+			}
+			if tc.coded && !next.Verdict.Is(WaitMethodUsed) || !tc.coded && next.Verdict != BuildingReasonAdmitted {
+				t.Fatal(next)
 			}
 		})
 	}

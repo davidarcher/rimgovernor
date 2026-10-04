@@ -104,7 +104,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	census, known := read.Value()
 	if !known {
-		return RoutineClearanceResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineClearanceResult{Verdict: waitFor(WaitMethodUsed, "clearance_census_unknown")}, nil
 	}
 	// The review admitted at most one remote ruin by reach and demand from
 	// its complete facts; the planner executes that choice against the fresh
@@ -137,7 +137,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineClearanceResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineClearanceResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	plan, err := domain.NewPlan(id, 1, actions)
@@ -317,13 +317,13 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 		chunks = append(chunks, chunk)
 	}
 	if len(chunks) == 0 && waiting {
-		return RoutineClearanceResult{Verdict: BuildingReasonUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
+		return RoutineClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_ordered"), NativeWorkTicks: chunkHaulWorkTicks}, nil
 	}
 	if len(chunks) > maxChunkHaulBatch {
 		chunks = chunks[:maxChunkHaulBatch]
 	}
 	if len(chunks) == 0 {
-		return RoutineClearanceResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_chunks")}, nil
 	}
 	var key strings.Builder
 	for _, chunk := range chunks {
@@ -335,7 +335,7 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 	// designations land, and re-committing the same method is a conflict.
 	for _, m := range goal.History {
 		if m.Method == method {
-			return RoutineClearanceResult{Verdict: BuildingReasonUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
+			return RoutineClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_method"), NativeWorkTicks: chunkHaulWorkTicks}, nil
 		}
 	}
 	id := domain.MintPlanID()

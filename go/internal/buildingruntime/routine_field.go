@@ -323,7 +323,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 	fmt.Fprintf(hash, "%s/%s/%v/%v", candidate.Kind, crop.Name, candidate.Sites.Patches, candidate.Buildings)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, true, nil
+		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "field_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
@@ -477,7 +477,7 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 	fmt.Fprintf(hash, "block/%s/%s/%v", edit.Zone, edit.Crop, edit.Cells)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, true, nil
+		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "field_block_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
@@ -554,7 +554,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	p := r.reviewer.player
 	method := domain.MethodID("fields-recrop-" + choice.Grower)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "recrop_method"), NativeWorkTicks: wait}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
@@ -576,7 +576,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	// Native checks the grower and crop live when the BuildingPatchIntent
 	// applies (#940); a refusal comes back on the plan, not here.
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
-		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "grower_claim"), NativeWorkTicks: wait}, false, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewGrowerCropAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)

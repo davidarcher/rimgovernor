@@ -369,7 +369,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 				return RoutineDefenseLayoutResult{}, err
 			}
-			return RoutineDefenseLayoutResult{Verdict: BuildingReasonExhausted, Tier: name}, nil
+			return RoutineDefenseLayoutResult{Verdict: refuse(RefusalRetriesSpent, "maxDefenseTierAttempts", ""), Tier: name}, nil
 		}
 		if tier.Remove {
 			return r.remove(call, epoch, goal, state, read, record, tier, census)
@@ -480,10 +480,10 @@ func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal st
 	}
 	if defenseRearmAttempts(history, order.Turret, tick) >= maxDefenseRearmAttempts {
 		clockSchedulerLog("defense-layout: rearm of %s at %v exhausted", order.Turret, order.Cell)
-		return RoutineDefenseLayoutResult{Verdict: BuildingReasonExhausted, Tier: policy.TierTurrets}, nil
+		return RoutineDefenseLayoutResult{Verdict: refuse(RefusalRetriesSpent, "maxDefenseRearmAttempts", ""), Tier: policy.TierTurrets}, nil
 	}
 	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(order.Pawn)}, "defense-rearm:"+order.Turret) {
-		return RoutineDefenseLayoutResult{Verdict: BuildingReasonUsed, Tier: policy.TierTurrets}, nil
+		return RoutineDefenseLayoutResult{Verdict: waitFor(WaitMethodUsed, "defense_rearm_claim"), Tier: policy.TierTurrets}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseRearmPrefix(order.Turret), tick))
 	id := domain.MintPlanID()

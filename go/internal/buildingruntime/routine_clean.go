@@ -117,7 +117,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 	}
 	if len(targetIDs) == 0 {
-		return RoutineCleanResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineCleanResult{Verdict: waitFor(WaitMethodUsed, "clean_targets")}, nil
 	}
 	byID := map[string]policy.UpkeepFilth{}
 	if rows, known := reading.Projection.Facts.Upkeep.Filth.Value(); known {
@@ -144,7 +144,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineCleanResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineCleanResult{Verdict: waitFor(WaitMethodUsed, "colonist_census_incomplete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -180,7 +180,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		ok = false
 	}
 	if !ok {
-		return RoutineCleanResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineCleanResult{Verdict: waitFor(WaitMethodUsed, "clean_target_claim")}, nil
 	}
 	clean, err := domain.NewClean(pawn, target.ID, target.Cell)
 	if err != nil {
@@ -191,7 +191,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	prefix := fmt.Sprintf("clean-%s-", target.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineCleanResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineCleanResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

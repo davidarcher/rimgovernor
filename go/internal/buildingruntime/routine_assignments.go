@@ -341,7 +341,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineWorkResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineWorkResult{Verdict: waitFor(WaitMethodUsed, "work_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineWorkResult{}, err
 	}

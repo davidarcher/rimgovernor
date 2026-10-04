@@ -63,7 +63,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 	}
 	gear := observed.GetPlanning().GetObserved().GetGear()
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
-		return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineArmoryResult{Verdict: waitFor(WaitMethodUsed, "gear_census_incomplete")}, nil
 	}
 	things, err := frameThings(call, r.native, identity)
 	if err != nil {
@@ -87,7 +87,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 		}
 		if len(available) > 0 {
 			// Gear wears an existing item before anything is crafted.
-			return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineArmoryResult{Verdict: waitFor(WaitMethodUsed, "existing_gear_item")}, nil
 		}
 		observation.Pawns[i].Candidates = domain.Known(available)
 	}
@@ -137,7 +137,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 		}
 	}
 	if choice.Kind != policy.GearProduce {
-		return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineArmoryResult{Verdict: waitFor(WaitMethodUsed, "armory_craft_not_needed")}, nil
 	}
 	if _, ok := tokens[choice.Bench]; !ok {
 		return RoutineArmoryResult{}, fmt.Errorf("%w: craftWeapons: unknown bench %q", ErrControl, choice.Bench)

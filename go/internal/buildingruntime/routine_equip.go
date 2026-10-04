@@ -110,7 +110,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineEquipResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineEquipResult{Verdict: waitFor(WaitMethodUsed, "colonist_census_incomplete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -219,7 +219,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	arbiter.mu.Unlock()
 	if len(assignments) == 0 {
 		if exhausted {
-			return RoutineEquipResult{Verdict: BuildingReasonExhausted}, nil
+			return RoutineEquipResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
 		// Every colonist left is held back from arms (a creepjoiner whose
 		// downside has not shown, #1740): no weapon is owed until it does.
@@ -228,7 +228,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		// No loose weapon fits an unarmed fighter: the armory crafts one
 		// (#1204).
-		return RoutineEquipResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineEquipResult{Verdict: waitFor(WaitMethodUsed, "armory_crafts_weapon")}, nil
 	}
 	// A single plan contains independent equip actions: no pawn waits for a
 	// preceding pawn's native postcondition before its order can dispatch.
