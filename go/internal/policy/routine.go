@@ -671,6 +671,9 @@ type RoutineNeeds struct {
 	// Incidents are the incident kinds' assessments (#1020, #1121).
 	Assessments []RoutineAssessment
 	Incidents   []RoutineAssessment
+	// NoOps is every detector that raised nothing, with the typed reason
+	// (#1909), in registry order.
+	NoOps []NoOpRecord `json:",omitempty"`
 	// WoodFloor is the WoodLog stock floor the wood latch asks of
 	// MaintainResource, 0 while the latch is off (#728).
 	WoodFloor int64
@@ -870,8 +873,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	c.r = RoutineNeeds{Latches: c.l}
 	for _, d := range goalDetectors {
+		goals, assessments := len(c.r.Goals), len(c.r.Assessments)
 		if err := d.Detect(c); err != nil {
 			return RoutineNeeds{}, err
+		}
+		if n, noOp := noOpOf(d.Goal, c.r.Goals[goals:], c.r.Assessments[assessments:]); noOp {
+			c.r.NoOps = append(c.r.NoOps, n)
 		}
 	}
 	r := c.r

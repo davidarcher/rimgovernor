@@ -52,6 +52,9 @@ type RoutineStatus struct {
 	// re-site with its explanation, or why none stands.
 	LayoutTidy *policy.TidyReview
 	Sections   []facts.Status
+	// NoOps are the goal detectors that raised nothing in the last enabled
+	// review, with the typed reason (#1909).
+	NoOps []policy.NoOpRecord
 	// LootHolds are the safe forbidden stacks the last review's reach stage
 	// or demand kept forbidden, with reasons (#522).
 	LootHolds []policy.LootHold
@@ -72,7 +75,14 @@ type routineStatusDTO struct {
 	Roster            *routineRosterDTO            `json:"roster"`
 	LayoutTidy        *layoutTidyDTO               `json:"layoutTidy"`
 	Sections          []routineSectionDTO          `json:"sections"`
+	NoOps             []noOpDTO                    `json:"noOps"`
 	LootHolds         []lootHoldDTO                `json:"lootHolds"`
+}
+
+// noOpDTO is one detector that raised nothing and why.
+type noOpDTO struct {
+	Goal   domain.GoalID     `json:"goal"`
+	Reason policy.NoOpReason `json:"reason"`
 }
 
 // layoutTidyDTO is the TidyLayout review for the development panel: the
@@ -286,6 +296,10 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	result.ExtentEligibility = policy.ExtentEligibility(v.ExtentEligibility)
 	result.LootHolds = lootHolds(v.LootHolds)
 	result.Progress = goalProgress(v.Progress)
+	result.NoOps = []noOpDTO{}
+	for _, n := range v.NoOps {
+		result.NoOps = append(result.NoOps, noOpDTO{Goal: n.Goal, Reason: n.Reason})
+	}
 	for _, section := range v.Sections {
 		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano)})
 	}

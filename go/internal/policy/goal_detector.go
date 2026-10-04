@@ -41,8 +41,7 @@ type GoalDetector struct {
 
 // goalDetectors lists every detector in evaluation order. Inputs name the
 // fact families the detector's body reads (traced in #1908); a goal that
-// reads only configuration still declares the families its stored review
-// facts come from.
+// reads only configuration declares an explicit empty list.
 var goalDetectors = []GoalDetector{
 	{ConfirmColonyNames, ConceptResponse, DomainSystem, []FactFamily{FactIdentity}, detectColonyNames},
 	{AnswerDialog, ConceptResponse, DomainSystem, []FactFamily{FactEmergency}, detectAnswerDialog},
@@ -65,7 +64,7 @@ var goalDetectors = []GoalDetector{
 	{EnsureResearch, ConceptProject, DomainIndustry, []FactFamily{FactResearch, FactPawns, FactColony}, detectResearch},
 	{MaintainResource, ConceptStandard, DomainIndustry, []FactFamily{FactColony, FactDefinitions, FactResearch, FactPawns}, detectResource},
 	{TradeWithCaravan, ConceptResponse, DomainUpkeep, []FactFamily{FactWorld, FactColony, FactDefinitions, FactPawns}, detectTrade},
-	{EnsureDefensiveLayout, ConceptProject, DomainMilitary, []FactFamily{FactColony, FactWorld}, detectDefensiveLayout},
+	{EnsureDefensiveLayout, ConceptProject, DomainMilitary, []FactFamily{}, detectDefensiveLayout},
 	{MaintainFireSafety, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactEmergency}, upkeepDetector(MaintainFireSafety, holdFireSafety)},
 	{MaintainEssentialRepairs, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}, upkeepDetector(MaintainEssentialRepairs, nil)},
 	{MaintainCleanFacilities, ConceptStandard, DomainUpkeep, []FactFamily{FactRooms, FactColony}, upkeepDetector(MaintainCleanFacilities, holdCleaning)},
@@ -124,8 +123,9 @@ func DetectorFor(id GoalID) (GoalDetector, bool) {
 
 // ValidateGoalDetectors reports the first registry fault: a GoalID in ids
 // without exactly one detector, a detector for no listed GoalID, or a
-// detector with no concept, no domain, no detect function, no inputs or an
-// unknown input family.
+// detector with no concept, no domain, no detect function, a nil input list
+// (a config-only goal declares an explicit empty one) or an unknown input
+// family.
 func ValidateGoalDetectors(detectors []GoalDetector, ids []GoalID) error {
 	count := map[GoalID]int{}
 	known := map[FactFamily]bool{}
@@ -141,8 +141,8 @@ func ValidateGoalDetectors(detectors []GoalDetector, ids []GoalID) error {
 			return fmt.Errorf("goal detector %s: no domain", d.Goal)
 		case d.Detect == nil:
 			return fmt.Errorf("goal detector %s: no detect function", d.Goal)
-		case len(d.Inputs) == 0:
-			return fmt.Errorf("goal detector %s: declares no input fact families", d.Goal)
+		case d.Inputs == nil:
+			return fmt.Errorf("goal detector %s: declares no input fact families (use an explicit empty list for a config-only goal)", d.Goal)
 		}
 		for _, in := range d.Inputs {
 			if !known[in] {

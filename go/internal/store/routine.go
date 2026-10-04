@@ -111,6 +111,9 @@ type RoutineReview struct {
 	// Dependencies are the live shortfall edges (#651) planners recorded
 	// (RecordDependency); each review drops the settled or stale ones.
 	Dependencies []DependencyRecord `json:",omitempty"`
+	// NoOps is every goal detector that raised nothing in the last enabled
+	// review, with its typed reason (#1909); a disabled review keeps the last.
+	NoOps []policy.NoOpRecord `json:",omitempty"`
 }
 
 type RoutineReviewRequest struct {
@@ -666,6 +669,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			r.Progress = previous.Progress
 			r.Stage = previous.Stage
 			r.Dependencies = previous.Dependencies
+			r.NoOps = previous.NoOps
 		}
 		for i := range r.Development.Rows {
 			if row := &r.Development.Rows[i]; row.Selected || row.Reason == "" {
@@ -684,6 +688,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			}
 		}
 		result.Emergency = r.Emergency
+		for _, n := range needs.NoOps {
+			if err = n.Reason.Validate(); err != nil {
+				return RoutineReviewResult{}, err
+			}
+		}
+		r.NoOps = needs.NoOps
 		if r.Incidents, result.Incidents, err = reviewIncidents(ctx, tx, needs.Incidents, b, request.Tick); err != nil {
 			return RoutineReviewResult{}, err
 		}

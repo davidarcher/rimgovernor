@@ -109,6 +109,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 		development := review.Development.State()
 		status.Development = &development
 		status.Progress = review.Progress
+		status.NoOps = review.NoOps
 		status.Stage = review.Stage
 		status.Roster = review.Roster
 		status.LayoutTidy = review.Layout
