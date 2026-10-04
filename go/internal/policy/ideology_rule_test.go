@@ -43,7 +43,7 @@ func TestActionStanceFamilies(t *testing.T) {
 		PreceptDef{Name: "Butcher_Abhorrent", Effects: []PreceptEffect{unwilling("ButcherHuman", nil, "Psychopath")}},
 		PreceptDef{Name: "Slavery_Abhorrent", Effects: []PreceptEffect{took("Enslave", -6), unwilling("Enslave", &half)}},
 		PreceptDef{Name: "OrganUse_Horrible", Effects: []PreceptEffect{saw("OrganUse", -4), took("OrganUse", -15)}},
-		PreceptDef{Name: "Apparel_Req", Effects: []PreceptEffect{{Kind: EffectApparel, CompClass: "PreceptComp_Apparel"}}},
+		PreceptDef{Name: "Apparel_Req", Effects: []PreceptEffect{{Kind: EffectApparel}}},
 	)
 	tests := []struct {
 		name           string

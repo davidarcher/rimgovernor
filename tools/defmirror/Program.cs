@@ -249,7 +249,7 @@ internal sealed class Generator
         if (!t.IsGenericType && !t.IsValueType && ScalarOf(t) == null && !DefAssemblies.Contains(t.Assembly.GetName().Name)) return t;
         // A class the loader cannot build, or one named in RuntimeClasses: not def data.
         if (!t.IsGenericType && !IsDef(t) && (InDefAssembly(t) && !Loadable(t) || InRuntimeClasses(t))) return t;
-        if (t.FullName == "Verse.ILoadReferenceable" || t.GetInterfaces().Any(i => i.FullName == "Verse.ILoadReferenceable")) return t;
+        if (!InDataClasses(t) && (t.FullName == "Verse.ILoadReferenceable" || t.GetInterfaces().Any(i => i.FullName == "Verse.ILoadReferenceable"))) return t;
         if (t.IsGenericType)
             foreach (var a in t.GetGenericArguments())
                 if (RuntimeState(a) is { } inner) return inner;
@@ -278,6 +278,20 @@ internal sealed class Generator
         ["Verse.PawnRenderSubWorker"] = "worker built from PawnRenderNodeProperties.subworkerClasses; no data of its own",
         ["Verse.Room"] = "a computed map room; no def data",
     };
+
+    // Classes (and their subclasses) that implement Verse.ILoadReferenceable and are def
+    // data anyway: XML builds them, the interface only lets a lord job save its copy.
+    private static readonly SortedDictionary<string, string> DataClasses = new(StringComparer.Ordinal)
+    {
+        ["RimWorld.RitualRole"] = "the role slots XML names in RitualBehaviorDef.roles; ILoadReferenceable only so a ritual's lord job can save its copy",
+    };
+
+    private static bool InDataClasses(Type t)
+    {
+        for (var b = t; b != null; b = b.BaseType)
+            if (b.FullName != null && DataClasses.ContainsKey(b.FullName)) return true;
+        return false;
+    }
 
     private bool Loadable(Type t)
     {
@@ -628,11 +642,15 @@ internal sealed class Generator
         L("// RuntimeClasses table; a field of one is skipped like any other runtime state:");
         foreach (var (name, reason) in RuntimeClasses) L("//   " + name + ": " + reason);
         L("//");
+        L("// Classes that implement Verse.ILoadReferenceable and are def data anyway (with their subclasses),");
+        L("// the generator's DataClasses table:");
+        foreach (var (name, reason) in DataClasses) L("//   " + name + ": " + reason);
+        L("//");
         L("// Abstract classes without fields or concrete subclass (empty messages):");
         foreach (var t in emptyAbstract.OrderBy(t => t.FullName, StringComparer.Ordinal)) L("//   " + t.FullName);
         L("//");
         L("// Fields skipped (runtime state, not def data): a type deriving from Verse.Entity or");
-        L("// UnityEngine.Object, implementing Verse.ILoadReferenceable, a delegate, an interface or System.Object (untyped),");
+        L("// UnityEngine.Object, implementing Verse.ILoadReferenceable (but a DataClasses class), a delegate, an interface or System.Object (untyped),");
         L("// alone or as a collection element or generic argument; a class the loader cannot build, one in the");
         L("// RuntimeClasses table, or a lazily built instance of a class family held by a non-public field.");
         foreach (var s in skipped) L("//   " + s);

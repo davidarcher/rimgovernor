@@ -28,7 +28,7 @@ const (
 )
 
 // RitualSlot is the pawns that fill one role slot of the ritual's behavior,
-// named by the slot id the definition catalog lists (RitualRoleSlot.id).
+// named by the slot id the definition catalog lists (RitualRole.id of the behavior's roles).
 type RitualSlot struct {
 	Slot  string
 	Pawns []PawnID

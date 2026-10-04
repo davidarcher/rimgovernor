@@ -1795,8 +1795,10 @@ message SnapshotStreamRequest {
 message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated ResearchProject research = 3;
   // Biotech defs (#1678); absent without Biotech.
   BiotechCatalog biotech = 4;
-  // The Ideology definitions (#1654); absent without Ideology.
-  IdeologyCatalog ideology = 5;
+  // The Ideology defs are rows of `defs` (MemeDef, PreceptDef, RitualPatternDef,
+  // RitualBehaviorDef); field 5 carried the hand-written IdeologyCatalog.
+  reserved 5;
+  reserved "ideology";
   // The Odyssey defs (#1708); absent without Odyssey.
   OdysseyCatalog odyssey = 6;
   // The Anomaly defs (#1737); absent without Anomaly.
@@ -1916,69 +1918,9 @@ message CatalogConstants {
   // intermediate without typing it.
   string wort_def = 10;
 }
-// The static Ideology definitions (#1654), each a game def read natively,
-// sorted by name, fixed for a load: memes, precepts (every PreceptDef but a
-// role's), role precepts and ritual patterns. A def name is the key every
-// other Ideology message refers by.
-message IdeologyCatalog { repeated MemeDefinition memes = 1; repeated PreceptDefinition precepts = 2; repeated RoleDefinition roles = 3; repeated RitualDefinition rituals = 4; }
-// MemeDef: category (MemeCategory name), impact, exclusion tags, the rituals
-// it requires with the building each needs (requiredRituals), its consumable
-// buildings and the ritual seats it requires one of (requireAnyRitualSeat).
-message MemeDefinition { optional string def_name = 1; optional string category = 2; optional int32 impact = 3; repeated string exclusion_tags = 4;
-  repeated RequiredRitual required_rituals = 5; repeated string consumable_buildings = 6; repeated string ritual_seats = 7; }
-// MemeDef.requiredRituals: the ritual precept def, its ritual pattern and the
-// building the meme requires for it; each may be absent.
-message RequiredRitual { optional string precept = 1; optional string pattern = 2; optional string building = 3; }
-// PreceptDef. The def is the precept's degree of its issue (Slavery_Abhorrent
-// to Slavery_Honorable are PreceptDefs of the Slavery issue); the game has no
-// separate degree field. flags names, by game member, each action rule the
-// def switches on (approvesOfSlavery, approvesOfCharity, approvesOfBlindness,
-// approvesOfRaiding, disallowLoggingCamps, disallowMiningCamps,
-// disallowHuntingCamps, disallowFarmingCamps). effects is every PreceptComp
-// of the def. buildings are the ThingDefs a building precept of the def may
-// take (buildingDefChances) and ritual_pattern its ritualPatternBase.
-message PreceptDefinition { optional string def_name = 1; optional string issue = 2; optional bool issue_allows_multiple = 3; optional string impact = 4; optional string precept_class = 5;
-  repeated string required_memes = 6; repeated string conflicting_memes = 7; repeated string associated_memes = 8; repeated string exclusion_tags = 9;
-  repeated string flags = 10; repeated PreceptEffect effects = 11; repeated PreceptBuilding buildings = 12; optional string ritual_pattern = 13; optional int32 max_count = 14; }
-message PreceptBuilding { optional string building = 1; optional double chance = 2; }
-// What a PreceptComp does, computed natively. A thought comp (self took
-// action, witnessed, situational, bed) carries its ThoughtDef and the
-// baseMoodEffect of each stage in stage order (negative penalises); an event
-// comp the HistoryEventDef it reacts to; an unwilling comp the event the
-// member refuses and the traits and hediffs that cancel it. comp_class is
-// the comp's class name and is always set; a comp of a class this contract
-// does not type is OTHER with nothing else.
-enum PreceptEffectKind {
-  PRECEPT_EFFECT_KIND_UNSPECIFIED = 0; PRECEPT_EFFECT_KIND_SELF_TOOK_ACTION = 1; PRECEPT_EFFECT_KIND_WITNESSED_ACTION = 2;
-  PRECEPT_EFFECT_KIND_SITUATIONAL = 3; PRECEPT_EFFECT_KIND_BED = 4; PRECEPT_EFFECT_KIND_UNWILLING = 5; PRECEPT_EFFECT_KIND_APPAREL = 6;
-  PRECEPT_EFFECT_KIND_MENTAL_BREAK = 7; PRECEPT_EFFECT_KIND_DEVELOPMENT_POINTS = 8; PRECEPT_EFFECT_KIND_GOODWILL_SITUATION = 9; PRECEPT_EFFECT_KIND_OTHER = 10;
-}
-message PreceptEffect { optional PreceptEffectKind kind = 1; optional string comp_class = 2; optional string history_event = 3; optional string thought = 4; repeated double stage_moods = 5;
-  optional bool only_for_non_slaves = 6; repeated string nullifying_traits = 7; repeated string nullifying_hediffs = 8; optional double chance = 9; optional string gender = 10;
-  optional string building = 11; optional string mental_break = 12; optional string goodwill_situation = 13; }
-// A role precept's def (PreceptDef of class Precept_Role): who may hold it
-// (requirements), what it does (effects), the work it disables or requires
-// (WorkTags names) and the abilities it grants.
-message RoleDefinition { optional string def_name = 1; optional bool leader = 2; optional int32 max_count = 3; optional int32 activation_believer_count = 4; optional int32 deactivation_believer_count = 5;
-  repeated string disabled_work_tags = 6; repeated string required_work_tags = 7; repeated string required_work_tag_any = 8;
-  repeated RoleRequirementFact requirements = 9; repeated RoleEffectFact effects = 10; repeated string granted_abilities = 11; repeated string tags = 12; }
-message RoleRequirementFact { optional string requirement_class = 1; repeated SkillRequirementFact skills = 2; }
-message SkillRequirementFact { optional string skill = 1; optional int32 min_level = 2; }
-message RoleEffectFact { optional string effect_class = 1; optional bool bad = 2; optional string stat = 3; optional double modifier = 4; }
-// RitualPatternDef: cadence (ritualFreeStartIntervalDaysRange), the obligation
-// trigger classes, the buildings its obligation target filter accepts
-// (required_buildings), its target filter def, behavior def with role slots,
-// and when it may start.
-message RitualDefinition { optional string def_name = 1; optional double interval_days_min = 2; optional double interval_days_max = 3; repeated string obligation_triggers = 4;
-  optional string obligation_target_filter = 5; repeated string required_buildings = 6; optional string target_filter = 7; optional string behavior = 8; repeated RitualRoleSlot roles = 9;
-  optional bool can_start_anytime = 10; optional bool always_start_anytime = 11; optional bool ideo_members_only = 12; optional string min_tech_level = 13; optional string max_tech_level = 14; }
-// RitualBehaviorDef.roles: the slot id, the role precept def it takes its
-// pawn from (absent for an unassigned slot), its maxCount and whether it is
-// required.
-message RitualRoleSlot { optional string id = 1; optional string precept = 2; optional int32 max_count = 3; optional bool required = 4; }
 // The player faction's primary ideoligion (#1654): FactionIdeosTracker.PrimaryIdeo.
-// Precept ids are Precept.GetUniqueLoadID(); every def name resolves in the
-// IdeologyCatalog.
+// Precept ids are Precept.GetUniqueLoadID(); every def name resolves to a
+// catalog def row (PreceptDef, MemeDef, RitualPatternDef).
 message IdeologySnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional string ideo_id = 2; repeated string memes = 3;
   repeated IdeoPrecept precepts = 4; repeated IdeoRole roles = 5; repeated IdeoRitual rituals = 6; repeated IdeoBuilding buildings = 7;
   // Ideo.ObligationsActive, Ideo.ColonistBelieverCountCached and

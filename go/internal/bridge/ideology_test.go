@@ -5,37 +5,10 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
-
-// ideologyCatalog is a small Ideology catalog: a slavery-issue precept that
-// penalises and forbids, a role, a ritual pattern with an altar, a ritual
-// precept and a building precept.
-func ideologyCatalog() *o.IdeologyCatalog {
-	return &o.IdeologyCatalog{
-		Memes: []*o.MemeDefinition{{DefName: proto.String("Structure_Animist"), Category: proto.String("Structure"), Impact: proto.Int32(3),
-			RequiredRituals: []*o.RequiredRitual{{Precept: proto.String("Ritual_Sermon"), Pattern: proto.String("Sermon"), Building: proto.String("Altar")}}}},
-		Precepts: []*o.PreceptDefinition{
-			{DefName: proto.String("Slavery_Abhorrent"), Issue: proto.String("Slavery"), Impact: proto.String("Medium"), PreceptClass: proto.String("Precept"), Flags: []string{"disallowMiningCamps"},
-				Effects: []*o.PreceptEffect{
-					{Kind: o.PreceptEffectKind_PRECEPT_EFFECT_KIND_SELF_TOOK_ACTION.Enum(), CompClass: proto.String("PreceptComp_SelfTookMemoryThought"), HistoryEvent: proto.String("EnslavedPawn"), Thought: proto.String("Enslaved_Abhorrent"), StageMoods: []float64{-6}},
-					{Kind: o.PreceptEffectKind_PRECEPT_EFFECT_KIND_UNWILLING.Enum(), CompClass: proto.String("PreceptComp_UnwillingToDo_Chance"), HistoryEvent: proto.String("SoldSlave"), Chance: proto.Float64(0.5), NullifyingTraits: []string{"Psychopath"}},
-					{Kind: o.PreceptEffectKind_PRECEPT_EFFECT_KIND_OTHER.Enum(), CompClass: proto.String("PreceptComp_Mystery")},
-				}},
-			{DefName: proto.String("Ritual_Sermon"), Impact: proto.String("Low"), PreceptClass: proto.String("Precept_Ritual"), RitualPattern: proto.String("Sermon")},
-			{DefName: proto.String("IdeoBuilding_Altar"), Impact: proto.String("Low"), PreceptClass: proto.String("Precept_Building"), Buildings: []*o.PreceptBuilding{{Building: proto.String("Altar"), Chance: proto.Float64(1)}}},
-		},
-		Roles: []*o.RoleDefinition{{DefName: proto.String("IdeoRole_Moral"), MaxCount: proto.Int32(1), ActivationBelieverCount: proto.Int32(3), DeactivationBelieverCount: proto.Int32(2),
-			DisabledWorkTags: []string{"Violent"}, Requirements: []*o.RoleRequirementFact{{RequirementClass: proto.String("RoleRequirement_MinSkillAny"), Skills: []*o.SkillRequirementFact{{Skill: proto.String("Social"), MinLevel: proto.Int32(6)}}}},
-			Effects: []*o.RoleEffectFact{{EffectClass: proto.String("RoleEffect_PawnStatOffset"), Bad: proto.Bool(false), Stat: proto.String("SocialImpact"), Modifier: proto.Float64(0.2)}}}},
-		Rituals: []*o.RitualDefinition{{DefName: proto.String("Sermon"), IntervalDaysMin: proto.Float64(5), IntervalDaysMax: proto.Float64(10), ObligationTargetFilter: proto.String("AltarFilter"), RequiredBuildings: []string{"Altar"},
-			Behavior: proto.String("SermonBehavior"), Roles: []*o.RitualRoleSlot{{Id: proto.String("preacher"), Precept: proto.String("IdeoRole_Moral"), MaxCount: proto.Int32(1), Required: proto.Bool(true)}},
-			CanStartAnytime: proto.Bool(true), AlwaysStartAnytime: proto.Bool(false), IdeoMembersOnly: proto.Bool(true), MinTechLevel: proto.String("Neolithic"), MaxTechLevel: proto.String("Archotech")}},
-	}
-}
 
 func ideologySnapshot() *o.IdeologySnapshot {
 	return &o.IdeologySnapshot{Context: pbContext(), IdeoId: proto.String("Ideo_1"), Memes: []string{"Structure_Animist"},
@@ -46,83 +19,11 @@ func ideologySnapshot() *o.IdeologySnapshot {
 		ObligationsActive: proto.Bool(true), Believers: proto.Int32(4), MinBelieversForObligations: proto.Int32(3)}
 }
 
-func ideologyDefs(t *testing.T) *policy.IdeologyDefs {
-	t.Helper()
-	defs, err := DecodeIdeologyCatalog(ideologyCatalog())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return defs
-}
-
-// TestIdeologyCatalogDecodesTypedEffects (#1654): the catalog's precept
-// effects, roles and ritual cadence reach policy as the native computed them.
-func TestIdeologyCatalogDecodesTypedEffects(t *testing.T) {
-	defs := ideologyDefs(t)
-	slavery := defs.Precepts["Slavery_Abhorrent"]
-	if slavery.Issue != "Slavery" || !slavery.HasFlag("disallowMiningCamps") || slavery.HasFlag("approvesOfSlavery") || len(slavery.Effects) != 3 {
-		t.Fatalf("%+v", slavery)
-	}
-	took, unwilling, other := slavery.Effects[0], slavery.Effects[1], slavery.Effects[2]
-	if !took.Penalises() || took.Approves() || took.Forbids() || took.HistoryEvent != "EnslavedPawn" || took.StageMoods[0] != -6 {
-		t.Fatalf("%+v", took)
-	}
-	if chance, known := unwilling.Chance.Value(); !unwilling.Forbids() || !known || chance != 0.5 || unwilling.NullifyingTraits[0] != "Psychopath" {
-		t.Fatalf("%+v", unwilling)
-	}
-	if other.Kind != policy.EffectOther || other.CompClass != "PreceptComp_Mystery" || other.Penalises() {
-		t.Fatalf("%+v", other)
-	}
-	role := defs.Roles["IdeoRole_Moral"]
-	if role.ActivationBelievers != 3 || role.Requirements[0].Skills[0] != (policy.SkillRequirement{Skill: "Social", MinLevel: 6}) || role.DisabledWorkTags[0] != "Violent" {
-		t.Fatalf("%+v", role)
-	}
-	if modifier, known := role.Effects[0].Modifier.Value(); !known || modifier != 0.2 {
-		t.Fatalf("%+v", role.Effects)
-	}
-	ritual := defs.Rituals["Sermon"]
-	if ritual.IntervalDaysMin != 5 || ritual.IntervalDaysMax != 10 || ritual.RequiredBuildings[0] != "Altar" || ritual.Roles[0].Precept != "IdeoRole_Moral" || !ritual.Roles[0].Required {
-		t.Fatalf("%+v", ritual)
-	}
-	if got := defs.Memes["Structure_Animist"].RequiredRituals; len(got) != 1 || got[0].Building != "Altar" {
-		t.Fatalf("%+v", got)
-	}
-}
-
-// TestIdeologyCatalogRefusesMalformedRows: a def that is not valid fails the
-// catalog; nothing is skipped.
-func TestIdeologyCatalogRefusesMalformedRows(t *testing.T) {
-	for name, change := range map[string]func(*o.IdeologyCatalog){
-		"duplicate-precept": func(v *o.IdeologyCatalog) { v.Precepts = append(v.Precepts, v.Precepts[0]) },
-		"role-as-precept":   func(v *o.IdeologyCatalog) { v.Roles[0].DefName = v.Precepts[0].DefName },
-		"unspecified-kind":  func(v *o.IdeologyCatalog) { v.Precepts[0].Effects[0].Kind = nil },
-		"no-comp-class":     func(v *o.IdeologyCatalog) { v.Precepts[0].Effects[0].CompClass = nil },
-		"nan-mood":          func(v *o.IdeologyCatalog) { v.Precepts[0].Effects[0].StageMoods[0] = math.NaN() },
-		"no-impact":         func(v *o.IdeologyCatalog) { v.Precepts[0].Impact = nil },
-		"empty-flag":        func(v *o.IdeologyCatalog) { v.Precepts[0].Flags = []string{""} },
-		"inverted-cadence":  func(v *o.IdeologyCatalog) { v.Rituals[0].IntervalDaysMin = proto.Float64(11) },
-		"duplicate-slot":    func(v *o.IdeologyCatalog) { v.Rituals[0].Roles = append(v.Rituals[0].Roles, v.Rituals[0].Roles[0]) },
-		"role-no-count":     func(v *o.IdeologyCatalog) { v.Roles[0].MaxCount = nil },
-		"meme-no-impact":    func(v *o.IdeologyCatalog) { v.Memes[0].Impact = nil },
-		"skill-no-level":    func(v *o.IdeologyCatalog) { v.Roles[0].Requirements[0].Skills[0].MinLevel = nil },
-	} {
-		t.Run(name, func(t *testing.T) {
-			v := ideologyCatalog()
-			change(v)
-			if _, err := DecodeIdeologyCatalog(v); err == nil {
-				t.Fatal("malformed ideology catalog accepted")
-			}
-		})
-	}
-	if defs, err := DecodeIdeologyCatalog(nil); err != nil || defs != nil {
-		t.Fatalf("absent catalog: %v %v", defs, err)
-	}
-}
 
 // TestIdeologySectionDecodesAgainstCatalog (#1654): the held precepts, roles,
 // rituals and buildings resolve in the catalog and reach policy as facts.
 func TestIdeologySectionDecodesAgainstCatalog(t *testing.T) {
-	ideology, err := DecodeIdeology(ideologySnapshot(), pbIdentity(), ideologyDefs(t))
+	ideology, err := DecodeIdeology(ideologySnapshot(), pbIdentity(), ideologyCatalogRows())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +41,7 @@ func TestIdeologySectionDecodesAgainstCatalog(t *testing.T) {
 	if len(effects) != 3 || effects[0].Precept.Name != "Slavery_Abhorrent" || !effects[0].Effect.Penalises() {
 		t.Fatalf("%+v", effects)
 	}
-	if got := ideology.RequiredBuildings(); len(got) != 1 || got[0] != "Altar" {
+	if got := ideology.RequiredBuildings(); len(got) != 2 || got[0] != "Altar" {
 		t.Fatalf("required buildings %v", got)
 	}
 }
@@ -165,7 +66,7 @@ func TestIdeologySectionRefusesWhatTheCatalogLacks(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			v := ideologySnapshot()
 			change(v)
-			if _, err := DecodeIdeology(v, pbIdentity(), ideologyDefs(t)); err == nil {
+			if _, err := DecodeIdeology(v, pbIdentity(), ideologyCatalogRows()); err == nil {
 				t.Fatal("bad ideology section accepted")
 			}
 		})
@@ -179,7 +80,7 @@ func TestIdeologySectionRefusesWhatTheCatalogLacks(t *testing.T) {
 // decodes it against the load's catalog; a frame without one leaves it nil
 // (unknown), and a section whose catalog has no Ideology defs fails.
 func TestRoutineFrameCarriesTheIdeology(t *testing.T) {
-	catalog := &DefinitionCatalog{Ideology: ideologyDefs(t)}
+	catalog := ideologyCatalogRows()
 	frame := &o.BundleSnapshot{Context: pbContext(), Ideology: ideologySnapshot()}
 	got, err := DecodeRoutineFrame(frame, catalog)
 	if err != nil || got.Ideology == nil || got.Ideology.Facts.IdeoID != "Ideo_1" {

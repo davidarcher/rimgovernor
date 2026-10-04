@@ -14,7 +14,7 @@ const ritualDay = 60000
 func ritualFixture(edit func(*Ideoligion)) domain.Fact[Ideoligion] {
 	ideo := Ideoligion{
 		Defs: IdeologyDefs{Rituals: map[string]RitualDef{
-			"Sermon": {Name: "Sermon", IntervalDaysMin: 5, IntervalDaysMax: 10, CanStartAnytime: true, RequiredBuildings: []string{"Lectern"},
+			"Sermon": {Name: "Sermon", IntervalDaysMin: 5, CanStartAnytime: true, RequiredBuildings: []string{"Lectern"},
 				Roles: []RitualRoleSlot{
 					{ID: "preacher", Precept: "IdeoRole_Moral", MaxCount: 1, Required: true},
 					{ID: "reader", MaxCount: 1, Required: true},

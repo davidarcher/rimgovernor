@@ -15,8 +15,8 @@ func rolePawn(id string, ideo, role string, certainty float64, skills ...WorkSki
 func roleIdeology(roles ...HeldRole) domain.Fact[Ideoligion] {
 	return domain.Known(Ideoligion{
 		Defs: IdeologyDefs{Roles: map[string]RoleDef{
-			"Leader":  {Name: "Leader", MaxCount: 1, Requirements: []RoleRequirement{{Class: "any", Skills: []SkillRequirement{{Skill: "Social", MinLevel: 6}}}}},
-			"Shooter": {Name: "Shooter", MaxCount: 2, Requirements: []RoleRequirement{{Class: "other"}}},
+			"Leader":  {Name: "Leader", MaxCount: 1, Requirements: []RoleRequirement{{Skills: []SkillRequirement{{Skill: "Social", MinLevel: 6}}}}},
+			"Shooter": {Name: "Shooter", MaxCount: 2, Requirements: []RoleRequirement{{}}},
 		}},
 		Facts: IdeoligionFacts{IdeoID: "Ideo_1", Roles: roles},
 	})

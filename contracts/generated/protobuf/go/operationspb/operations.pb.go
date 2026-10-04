@@ -6990,7 +6990,7 @@ func (x *AcceptQuestIntent) GetRewardChoice() int32 {
 // ideology read's ritual id), pawn_id the organizer, spot the ritual's target
 // cell (the game's spotOverride; native takes the target the precept's filters
 // accept there). roles are the exact assignments, one entry per
-// RitualBehaviorDef role slot id (the catalog's RitualRoleSlot.id) with the
+// RitualBehaviorDef role slot id (RitualBehaviorDef.roles, RitualRole.id in the catalog's def rows) with the
 // pawns that fill it, and spectator_pawn_ids the pawns that attend without a
 // role (RitualRoleAssignments.assignedRoles and spectators). Native applies
 // the game's own gizmo, assignment and blocking-issue checks and refuses with

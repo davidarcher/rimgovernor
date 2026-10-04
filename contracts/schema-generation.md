@@ -113,7 +113,9 @@ field skipped as runtime state:
 
 - A field whose type, collection element or generic argument derives from
   `Verse.Entity` or `UnityEngine.Object` (`Material`, `Texture`, ...), implements
-  `Verse.ILoadReferenceable`, is a delegate, is an interface, is `System.Object`
+  `Verse.ILoadReferenceable` (unless it is a class of the generator's `DataClasses`
+  table, which XML builds: `RitualRole`, the slots of `RitualBehaviorDef.roles`),
+  is a delegate, is an interface, is `System.Object`
   (untyped: no message can hold it, `ThingSetMakerParams.custom`) or is any other
   class outside the game's def assemblies (BCL, Unity and Steam classes such as
   `MaterialPropertyBlock`: def data never uses one).

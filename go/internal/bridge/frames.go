@@ -592,11 +592,7 @@ func decodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog, tables 
 		out.Quests = &quests
 	}
 	if v.Ideology != nil {
-		var defs *policy.IdeologyDefs
-		if catalog != nil {
-			defs = catalog.Ideology
-		}
-		ideology, err := DecodeIdeology(v.Ideology, identity, defs)
+		ideology, err := DecodeIdeology(v.Ideology, identity, catalog)
 		if err != nil {
 			return RoutineFrame{}, err
 		}

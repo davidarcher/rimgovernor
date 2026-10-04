@@ -33,12 +33,16 @@
 //   Verse.PawnRenderSubWorker: worker built from PawnRenderNodeProperties.subworkerClasses; no data of its own
 //   Verse.Room: a computed map room; no def data
 //
+// Classes that implement Verse.ILoadReferenceable and are def data anyway (with their subclasses),
+// the generator's DataClasses table:
+//   RimWorld.RitualRole: the role slots XML names in RitualBehaviorDef.roles; ILoadReferenceable only so a ritual's lord job can save its copy
+//
 // Abstract classes without fields or concrete subclass (empty messages):
 //   Verse.DefModExtension
 //   Verse.ResearchMod
 //
 // Fields skipped (runtime state, not def data): a type deriving from Verse.Entity or
-// UnityEngine.Object, implementing Verse.ILoadReferenceable, a delegate, an interface or System.Object (untyped),
+// UnityEngine.Object, implementing Verse.ILoadReferenceable (but a DataClasses class), a delegate, an interface or System.Object (untyped),
 // alone or as a collection element or generic argument; a class the loader cannot build, one in the
 // RuntimeClasses table, or a lazily built instance of a class family held by a non-public field.
 //   RimWorld.AbilityDef.cachedTooltipPawn: Verse.Pawn (runtime state Verse.Pawn)
@@ -107,7 +111,6 @@
 //   RimWorld.RaidAgeRestrictionDef.workerInt: RimWorld.RaidAgeRestrictionWorker (runtime state: a lazily built instance of a class family)
 //   RimWorld.RaidStrategyDef.workerInt: RimWorld.RaidStrategyWorker (runtime state: a lazily built instance of a class family)
 //   RimWorld.RitualAttachableOutcomeEffectDef.workerInstance: RimWorld.RitualAttachableOutcomeEffectWorker (runtime state: a lazily built instance of a class family)
-//   RimWorld.RitualBehaviorDef.roles: System.Collections.Generic.List<RimWorld.RitualRole> (runtime state RimWorld.RitualRole)
 //   RimWorld.RitualOutcomeEffectDef+ExtraOutcomeChanceDescription.qualityToValue: System.Func<System.Single, System.Single> (runtime state System.Func<System.Single, System.Single>)
 //   RimWorld.RitualPatternDef.icon: UnityEngine.Texture2D (runtime state UnityEngine.Texture2D)
 //   RimWorld.RoomPartDef.cachedWorker: RimWorld.RoomPartWorker (runtime state RimWorld.RoomPartWorker)
@@ -24893,22 +24896,23 @@ message RitualBehaviorDef {
   bool ignoreIllegalLabelCharacterConfigError = 6;
   repeated .rimgovernor.defs.v1.Opt_DefModExtension modExtensions = 7;
   string workerClass = 8;
-  repeated .rimgovernor.defs.v1.Opt_RitualStageAny stages = 9;
-  .rimgovernor.defs.v1.IntRange durationTicks = 10;
-  repeated .rimgovernor.defs.v1.Opt_PreceptRequirementAny preceptRequirements = 11;
-  repeated .rimgovernor.defs.v1.Opt_RitualCancellationTriggerAny cancellationTriggers = 12;
-  bool displayCompletedMessage = 13;
-  string useVisualEffectsFromRoleIdIdeo = 14;
-  int32 displayOrder = 15;
-  string letterTitle = 16;
-  string letterText = 17;
-  string spectatorsLabel = 18;
-  string spectatorGerund = 19;
-  bool spectatorsIgnoreBleeding = 20;
-  repeated string soundDefsPerEnhancerCount = 21;
-  int32 maxEnhancerDistance = 22;
-  .rimgovernor.defs.v1.RitualSpectatorFilterAny spectatorFilter = 23;
-  optional string modPackageId = 24 [(clr_path) = "modContentPack.PackageId"];
+  repeated .rimgovernor.defs.v1.Opt_RitualRoleAny roles = 9;
+  repeated .rimgovernor.defs.v1.Opt_RitualStageAny stages = 10;
+  .rimgovernor.defs.v1.IntRange durationTicks = 11;
+  repeated .rimgovernor.defs.v1.Opt_PreceptRequirementAny preceptRequirements = 12;
+  repeated .rimgovernor.defs.v1.Opt_RitualCancellationTriggerAny cancellationTriggers = 13;
+  bool displayCompletedMessage = 14;
+  string useVisualEffectsFromRoleIdIdeo = 15;
+  int32 displayOrder = 16;
+  string letterTitle = 17;
+  string letterText = 18;
+  string spectatorsLabel = 19;
+  string spectatorGerund = 20;
+  bool spectatorsIgnoreBleeding = 21;
+  repeated string soundDefsPerEnhancerCount = 22;
+  int32 maxEnhancerDistance = 23;
+  .rimgovernor.defs.v1.RitualSpectatorFilterAny spectatorFilter = 24;
+  optional string modPackageId = 25 [(clr_path) = "modContentPack.PackageId"];
 }
 
 // RimWorld.RitualCancellationTrigger
@@ -25506,6 +25510,100 @@ message RitualPosition_VerticalThingCenter {
   .rimgovernor.defs.v1.IntVec3 offset = 2;
 }
 
+// RimWorld.RitualRole
+message RitualRole {
+  option (clr_type) = "RimWorld.RitualRole";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRoleAnimaLinker
+message RitualRoleAnimaLinker {
+  option (clr_type) = "RimWorld.RitualRoleAnimaLinker";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRoleAnimal
+message RitualRoleAnimal {
+  option (clr_type) = "RimWorld.RitualRoleAnimal";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+  float minBodySize = 27;
+}
+
 // RimWorld.RitualRoleBehavior
 message RitualRoleBehavior {
   option (clr_type) = "RimWorld.RitualRoleBehavior";
@@ -25514,6 +25612,418 @@ message RitualRoleBehavior {
   string jobReportOverride = 3;
   repeated .rimgovernor.defs.v1.Opt_RitualPositionAny customPositions = 4;
   string speakerInteraction = 5;
+}
+
+// RimWorld.RitualRoleBlindingTarget
+message RitualRoleBlindingTarget {
+  option (clr_type) = "RimWorld.RitualRoleBlindingTarget";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRoleColonist
+message RitualRoleColonist {
+  option (clr_type) = "RimWorld.RitualRoleColonist";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+  string requiredWorkType = 27;
+  string usedSkill = 28;
+  string usedStat = 29;
+}
+
+// RimWorld.RitualRoleColonistConnectable
+message RitualRoleColonistConnectable {
+  option (clr_type) = "RimWorld.RitualRoleColonistConnectable";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+  string requiredWorkType = 27;
+  string usedSkill = 28;
+  string usedStat = 29;
+}
+
+// RimWorld.RitualRoleConvertee
+message RitualRoleConvertee {
+  option (clr_type) = "RimWorld.RitualRoleConvertee";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRoleForced
+message RitualRoleForced {
+  option (clr_type) = "RimWorld.RitualRoleForced";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRoleIdeoRoleChanger
+message RitualRoleIdeoRoleChanger {
+  option (clr_type) = "RimWorld.RitualRoleIdeoRoleChanger";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRoleOrganizer
+message RitualRoleOrganizer {
+  option (clr_type) = "RimWorld.RitualRoleOrganizer";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRolePrisoner
+message RitualRolePrisoner {
+  option (clr_type) = "RimWorld.RitualRolePrisoner";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRolePrisonerOrSlave
+message RitualRolePrisonerOrSlave {
+  option (clr_type) = "RimWorld.RitualRolePrisonerOrSlave";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+  bool mustBeCapableToFight = 27;
+  bool disallowWildManPrisoner = 28;
+}
+
+// RimWorld.RitualRoleScarificationTarget
+message RitualRoleScarificationTarget {
+  option (clr_type) = "RimWorld.RitualRoleScarificationTarget";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRoleTag
+message RitualRoleTag {
+  option (clr_type) = "RimWorld.RitualRoleTag";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+  string tag = 27;
+}
+
+// RimWorld.RitualRoleWarden
+message RitualRoleWarden {
+  option (clr_type) = "RimWorld.RitualRoleWarden";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
+}
+
+// RimWorld.RitualRole_Mother
+message RitualRole_Mother {
+  option (clr_type) = "RimWorld.RitualRole_Mother";
+  string label = 1;
+  string categoryLabel = 2;
+  string missingDesc = 3;
+  string noCandidatesGizmoDesc = 4;
+  string customChildDisallowMessage = 5;
+  string id = 6;
+  string precept = 7;
+  int32 maxCount = 8;
+  string mergeId = 9;
+  bool required = 10;
+  bool substitutable = 11;
+  bool ignoreBleeding = 12;
+  bool countsAsParticipant = 13;
+  bool addToLord = 14;
+  bool allowNonAggroMentalState = 15;
+  bool defaultForSelectedColonist = 16;
+  bool allowOtherIdeos = 17;
+  bool allowDowned = 18;
+  bool allowKeepLayingDown = 19;
+  bool allowChild = 20;
+  bool allowBaby = 21;
+  bool removeFromAssignmentsOnDeath = 22;
+  bool endJobOnRitualCleanup = 23;
+  bool mustBeAbleToReachTarget = 24;
+  bool blocksSocialInteraction = 25;
+  int32 loadID = 26;
 }
 
 // RimWorld.RitualSpectatorFilter
@@ -34762,6 +35272,11 @@ message Opt_RitualPositionAny {
   .rimgovernor.defs.v1.RitualPositionAny value = 1;
 }
 
+message Opt_RitualRoleAny {
+  option (clr_synthetic) = "optional";
+  .rimgovernor.defs.v1.RitualRoleAny value = 1;
+}
+
 message Opt_RitualRoleBehavior {
   option (clr_synthetic) = "optional";
   .rimgovernor.defs.v1.RitualRoleBehavior value = 1;
@@ -37478,6 +37993,43 @@ message RitualPosition_VerticalThingCenterAny {
   oneof value {
     .rimgovernor.defs.v1.RitualPosition_BehindThingCenter RitualPosition_BehindThingCenter = 1;
     .rimgovernor.defs.v1.RitualPosition_InFrontThingCenter RitualPosition_InFrontThingCenter = 2;
+  }
+}
+
+// One RimWorld.RitualRole or a concrete subclass.
+message RitualRoleAny {
+  oneof value {
+    .rimgovernor.defs.v1.RitualRoleAnimaLinker RitualRoleAnimaLinker = 1;
+    .rimgovernor.defs.v1.RitualRoleAnimal RitualRoleAnimal = 2;
+    .rimgovernor.defs.v1.RitualRoleBlindingTarget RitualRoleBlindingTarget = 3;
+    .rimgovernor.defs.v1.RitualRoleColonist RitualRoleColonist = 4;
+    .rimgovernor.defs.v1.RitualRoleColonistConnectable RitualRoleColonistConnectable = 5;
+    .rimgovernor.defs.v1.RitualRoleConvertee RitualRoleConvertee = 6;
+    .rimgovernor.defs.v1.RitualRoleForced RitualRoleForced = 7;
+    .rimgovernor.defs.v1.RitualRoleIdeoRoleChanger RitualRoleIdeoRoleChanger = 8;
+    .rimgovernor.defs.v1.RitualRoleOrganizer RitualRoleOrganizer = 9;
+    .rimgovernor.defs.v1.RitualRolePrisoner RitualRolePrisoner = 10;
+    .rimgovernor.defs.v1.RitualRolePrisonerOrSlave RitualRolePrisonerOrSlave = 11;
+    .rimgovernor.defs.v1.RitualRoleScarificationTarget RitualRoleScarificationTarget = 12;
+    .rimgovernor.defs.v1.RitualRoleTag RitualRoleTag = 13;
+    .rimgovernor.defs.v1.RitualRoleWarden RitualRoleWarden = 14;
+    .rimgovernor.defs.v1.RitualRole_Mother RitualRole_Mother = 15;
+  }
+}
+
+// One RimWorld.RitualRoleColonist or a concrete subclass.
+message RitualRoleColonistAny {
+  oneof value {
+    .rimgovernor.defs.v1.RitualRoleColonist RitualRoleColonist = 1;
+    .rimgovernor.defs.v1.RitualRoleColonistConnectable RitualRoleColonistConnectable = 2;
+  }
+}
+
+// One RimWorld.RitualRoleForced or a concrete subclass.
+message RitualRoleForcedAny {
+  oneof value {
+    .rimgovernor.defs.v1.RitualRoleForced RitualRoleForced = 1;
+    .rimgovernor.defs.v1.RitualRole_Mother RitualRole_Mother = 2;
   }
 }
 

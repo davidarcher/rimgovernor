@@ -36,8 +36,6 @@ type DefinitionCatalog struct {
 	Odyssey *OdysseyCatalog
 	// Anomaly is the Anomaly defs (#1737); nil without Anomaly.
 	Anomaly *AnomalyCatalog
-	// Ideology is the Ideology defs (#1654); nil without Ideology.
-	Ideology *policy.IdeologyDefs
 	// ThingDefs and TerrainDefs are every def with all its fields (#1730)
 	// by defName: the generated messages of defs.proto, unfiltered.
 	ThingDefs   map[string]*d.ThingDef
@@ -81,6 +79,10 @@ type DefinitionCatalog struct {
 	racesOnce sync.Once
 	races     policy.AnimalRaceCatalog
 	racesErr  error
+	// ideology is IdeologyDefs, built once on first use.
+	ideologyOnce sync.Once
+	ideology     *policy.IdeologyDefs
+	ideologyErr  error
 	// disarm is CreepJoinerDisarm, built once on first use.
 	disarmOnce sync.Once
 	disarm     policy.CreepJoinerDisarm
@@ -390,9 +392,6 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		}
 		out.Research[name] = policy.ResearchProjectFacts{Name: policy.ResearchProjectID(name), Hidden: domain.Known(false), KnowledgeCategory: row.GetCategory(), Cost: row.GetApparentCost(),
 			Prerequisites: domain.Known(toProjectIDs(row.GetPrerequisites())), HiddenPrerequisites: domain.Known(toProjectIDs(row.GetHiddenPrerequisites())), RequiredBuilding: row.GetRequiredBuilding()}
-	}
-	if out.Ideology, err = DecodeIdeologyCatalog(v.Ideology); err != nil {
-		return nil, err
 	}
 	return out, nil
 }

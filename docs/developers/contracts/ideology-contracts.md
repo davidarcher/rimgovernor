@@ -7,40 +7,49 @@ concept is modelled once, and there is no Ideology read tool.
 
 | Fact | Where it rides | Go |
 | --- | --- | --- |
-| Static defs: memes, precepts with typed effects, role precepts, ritual patterns | `DefinitionCatalog.ideology` (`IdeologyCatalog`), read once per load token | `bridge.DefinitionCatalog.Ideology` (`policy.IdeologyDefs`) |
+| Static defs: memes, precepts with their comps, role precepts, ritual patterns and behaviors | Rows of the catalog's generated def mirror (`DefinitionCatalog.defs`: `MemeDef`, `PreceptDef`, `RitualPatternDef`, `RitualBehaviorDef`, `RitualObligationTargetFilterDef`, `ThoughtDef`), read once per load token | `bridge.DefinitionCatalog.IdeologyDefs()` (`policy.IdeologyDefs`) |
 | Per-pawn: ideoligion id, held role, certainty | Pawn row's `policy_inputs` (`ideo_id`, `ideo_role`, `ideo_certainty`) | `policy.PawnPolicyInputs` |
 | Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` (#1347) | `bridge.RoutineFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
 
 Native names are from the game's reference assemblies (`PreceptDef`,
 `PreceptComp`, `MemeDef`, `RitualPatternDef`, `Ideo`, `Precept_Role`,
 `Precept_Ritual`, `Precept_Building`, `Pawn_IdeoTracker.Certainty`); the
-writer is `NativeIdeologyObservation.cs`.
+section writer is `NativeIdeologyObservation.cs`, the defs are filled by the
+def mirror's protobuf reflection ([schema generation](../../../contracts/schema-generation.md#def-mirror)).
 
 ## Static defs
 
-Every def is read from the game; no Go code lists a def name.
+The catalog mirrors every Ideology def with all of its fields (a mod's
+included, `modPackageId` says whose), so a fact the planners do not read yet
+is already in the rows: burial and apparel requirements and per-race meat
+comps (`PreceptComp_*`, `buildingRoomRequirements`, `roleApparelRequirements`),
+role trait and gender requirements (`roleRequirements`), ritual outcome and
+spectator filters (`RitualBehaviorDef`, `RitualOutcomeEffectDef`). No Go code
+lists a def name; `policy.IdeologyDefs` is a view over the rows, built once
+per load, and a row a def names that the catalog lacks is an error.
 
 - A precept def is the degree of its issue: `Slavery_Abhorrent` through
   `Slavery_Honorable` are `PreceptDef`s of the Slavery issue. The game has no
-  separate degree field.
-- `PreceptDefinition.effects` is one row per `PreceptComp`, typed by
-  `PreceptEffectKind`. A thought comp carries its thought and each stage's
-  `baseMoodEffect` (negative penalises, positive approves). An event comp
-  carries the `HistoryEventDef` it reacts to. An unwilling comp is what the
-  member refuses (forbids), with the traits and hediffs that cancel it. A
-  comp class the contract does not type is `OTHER` with its `comp_class`
-  only. `policy.PreceptEffect` exposes `Penalises`, `Approves` and `Forbids`.
-- `PreceptDefinition.flags` names the action rules a def switches on, by
-  game member: `approvesOfSlavery`, `approvesOfCharity`, `approvesOfBlindness`,
-  `approvesOfRaiding` and the four `disallow*Camps`.
-- A role precept def is a `RoleDefinition` (requirements, effects, disabled
-  and required work tags, believer thresholds); it is not repeated in
-  `precepts`.
-- A `RitualDefinition` is a `RitualPatternDef`: cadence
-  (`ritualFreeStartIntervalDaysRange`), the obligation target filter's
-  buildings (`required_buildings`), the behavior's role slots and when it may
-  start. Required buildings also come from `PreceptDefinition.buildings`
-  (`buildingDefChances`) and `MemeDefinition.required_rituals`.
+  separate degree field. A def whose `preceptClass` is or derives from
+  `RimWorld.Precept_Role` (by the catalog's class chains) is a role, not a
+  plain precept.
+- `policy.PreceptDef.Effects` is one effect per `PreceptComp`, typed by the
+  comp class the mirror filled (`PreceptCompAny`). A thought comp carries each
+  stage's `baseMoodEffect` of its `ThoughtDef` row (negative penalises,
+  positive approves). An event comp carries the history event it reacts to. An
+  `UnwillingToDo` comp is what the member refuses (forbids), with the traits and
+  hediffs that cancel it and, for the `_Chance` class, its chance.
+  `policy.PreceptEffect` exposes `Penalises`, `Approves` and `Forbids`.
+- `policy.RoleDef` is a role precept def: `maxCount` and the skills of each
+  `RoleRequirement_MinSkillAny`.
+- `policy.RitualDef` is a `RitualPatternDef`: cadence
+  (`ritualFreeStartIntervalDaysRange`), when it may start, the obligation
+  target filter's `thingDefs` (`RequiredBuildings`) and the role slots of its
+  `RitualBehaviorDef.roles` (`RitualRole`: id, role precept, `maxCount`,
+  `required`). The generator mirrors `RitualRole` although it implements
+  `ILoadReferenceable` (its `DataClasses` table): XML builds it.
+  Required buildings also come from `PreceptDef.buildingDefChances` and
+  `MemeDef.requiredRituals`.
 
 ## Colony section
 
@@ -52,8 +61,8 @@ penalty flag and whether a lord job of it runs (`running`, #1660), and each
 building precept's ThingDef. The section is absent, with no watermark, without Ideology or a primary ideoligion; Go then holds
 `Facts.Ideology` unknown.
 
-`bridge.DecodeIdeology` resolves every def name against the catalog and fails
-the frame on a name the catalog lacks, a repeated precept id, a missing field
+`bridge.DecodeIdeology` resolves every def name against the catalog rows and
+fails the frame on a name the catalog lacks, a repeated precept id, a missing field
 or a section whose load has no Ideology defs. `lastFinishedTick` is passed
 through as read: Go interprets no never-performed sentinel.
 
@@ -70,8 +79,8 @@ allow, approve, penalise or forbid an action, for the colony or one pawn. The ac
 `Apparel`. The verdict carries the stance, the doer's and witnesses' mood cost (worst stage of each
 penalising thought), the refusal chance of unwilling effects (cancelled by the pawn's nullifying
 traits and hediffs) and the effects behind it. An unread ideoligion, or an `APPAREL` effect (no
-payload on the wire), is `unknown`: callers hold. There is no `required` stance: no effect kind types
-a requirement.
+payload on the wire), is `unknown`: callers hold. There is no `required` stance yet: the apparel, burial and room comps are
+in the rows, no stance reads them.
 
 Consumers (#1656): slavery (`EnslavedPrisoner`), organ harvest and sale
 (`HarvestedOrgan`, `SoldOrgan`; the doer's cost once, witnesses' on every
@@ -152,7 +161,7 @@ routine family.
 
 The Ritual `begin` verb (#1659,
 [action contracts](action-contracts.md)) names a held ritual by its
-`IdeoRitual.id` and fills the role slots the catalog's `RitualRoleSlot`s list.
+`IdeoRitual.id` and fills the role slots of the behavior's `RitualRole`s.
 Building and room planning (#1658)
 consumes `RequiredBuildings`:
 [worship room](../architecture/facilities.md#worship-room-ideology).

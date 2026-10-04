@@ -72,7 +72,6 @@ namespace HomeBridge.BridgeTools
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
                 catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
             catalog.Biotech = NativeBiotechFacts.Catalog();
-            catalog.Ideology = NativeIdeologyObservation.Catalog();
             catalog.Odyssey = NativeOdysseyFacts.Catalog();
             catalog.Anomaly = NativeAnomalyFacts.Catalog();
             return catalog;
