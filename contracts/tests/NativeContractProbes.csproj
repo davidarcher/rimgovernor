@@ -9,9 +9,11 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-native/src</NativeSourceRoot>
   </PropertyGroup>
-  <!-- Keep the Windows restore graph stable across SDK versions and preserve output paths. -->
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+  <!-- Windows infers RuntimeIdentifier win7-x86 for a net472 Exe; pin it on every OS so the
+       locked restore graph is identical everywhere (same as tools/protobuf). -->
+  <PropertyGroup>
     <UseRidGraph>true</UseRidGraph>
+    <RuntimeIdentifiers>win7-x86</RuntimeIdentifiers>
   </PropertyGroup>
 
   <!-- This build compiles production sources against fakes, with no game and no Harmony to
