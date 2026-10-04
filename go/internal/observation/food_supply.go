@@ -90,9 +90,7 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *b
 				continue
 			}
 		}
-		if stock.Corpse {
-			stock.Forbidden = optional(row.Forbidden)
-		}
+		stock.Forbidden = optional(row.Forbidden)
 		stock.MeatAmount = optional(row.MeatAmount)
 		stock.BodySize = optional(row.BodySize)
 		stock.TileFootprint = optional(row.TileFootprint)

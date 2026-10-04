@@ -185,17 +185,40 @@ func TestFoodStorageSelectRecovered(t *testing.T) {
 	}
 }
 
-func TestFoodStorageSelectRelocatePicksLowestIDWithCapacity(t *testing.T) {
-	r := foodStorageFixture()
-	method, err := SelectFoodStorageMethod(r)
-	if err != nil || method.Kind != FoodStorageRelocate || method.Site != "cellar-a" || method.Amount != 20 {
+func TestFoodStorageSelectStuckWhenASiteHasRoom(t *testing.T) {
+	method, err := SelectFoodStorageMethod(foodStorageFixture())
+	if err != nil || method.Kind != FoodStorageStuck {
 		t.Fatal(method, err)
 	}
-	// Once seen, that relocation is skipped in favor of the next candidate.
-	r.Seen = []domain.MethodID{method.ID}
-	method2, err := SelectFoodStorageMethod(r)
-	if err != nil || method2.Kind != FoodStorageRelocate || method2.Site != "cellar-b" || method2.Amount != 5 {
-		t.Fatal(method2, err)
+}
+
+func stuckObservation(forbidden domain.Fact[bool]) FoodStorageObservation {
+	stock := riskyStock("meat", 10, false)
+	stock.Stock.Forbidden = forbidden
+	return FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{stock})}
+}
+
+func TestFoodStorageStuckReasons(t *testing.T) {
+	one := domain.Known([]PawnID{"p1"})
+	none := domain.Known([]PawnID{})
+	p := DefaultFoodStoragePolicy()
+	cases := []struct {
+		name    string
+		obs     FoodStorageObservation
+		haulers domain.Fact[[]PawnID]
+		want    FoodStuckReason
+	}{
+		{"forbidden", stuckObservation(domain.Known(true)), one, FoodStuckForbidden},
+		{"forbidden beats no hauler", stuckObservation(domain.Known(true)), none, FoodStuckForbidden},
+		{"no hauler", stuckObservation(domain.Known(false)), none, FoodStuckNoHauler},
+		{"both ruled out", stuckObservation(domain.Known(false)), one, FoodStuckUnestablished},
+		{"forbidden unread, hauler present", stuckObservation(domain.Unknown[bool]()), one, FoodStuckUnestablished},
+		{"work census unread", stuckObservation(domain.Known(false)), domain.Unknown[[]PawnID](), FoodStuckUnestablished},
+	}
+	for _, c := range cases {
+		if got := FoodStorageStuckReason(c.obs, p, c.haulers); got != c.want {
+			t.Fatalf("%s: got %q want %q", c.name, got, c.want)
+		}
 	}
 }
 

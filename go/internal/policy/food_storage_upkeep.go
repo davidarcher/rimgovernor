@@ -227,9 +227,11 @@ type FoodStorageMethodKind string
 const (
 	FoodStorageUnknown   FoodStorageMethodKind = "unknown"
 	FoodStorageRecovered FoodStorageMethodKind = "recovered"
-	FoodStorageRelocate  FoodStorageMethodKind = "relocate"
-	FoodStorageProduce   FoodStorageMethodKind = "produce"
-	FoodStorageBlocked   FoodStorageMethodKind = "no_eligible_method"
+	// FoodStorageStuck: a covered site already has room, so the stock is
+	// unstored for a reason FoodStorageStuckReason names, not for lack of space.
+	FoodStorageStuck   FoodStorageMethodKind = "stuck"
+	FoodStorageProduce FoodStorageMethodKind = "produce"
+	FoodStorageBlocked FoodStorageMethodKind = "no_eligible_method"
 )
 
 // FoodStorageSite is a candidate covered/enclosed stockpile SelectFoodStorageMethod
@@ -240,17 +242,15 @@ type FoodStorageSite struct {
 	Capacity domain.Fact[int64]
 }
 
-// FoodStorageMethod is the tri-state (plus Recovered/Blocked) outcome
-// SelectFoodStorageMethod proposes: relocate at-risk stock into an existing
-// covered/enclosed site, or -- when no site has room -- fall back to a
-// StockTarget-style production bill request for more preserved/non-perishable
+// FoodStorageMethod is the outcome SelectFoodStorageMethod proposes: Stuck
+// when a covered/enclosed site already has room (no order is planned; vanilla
+// hauling owns the move), or -- when no site has room -- a StockTarget-style
+// production bill request for more preserved/non-perishable
 // food (Resource/Target only; bench and recipe selection is the routine
 // planner's job, the same deferral GearProduce/MaintainResource already use).
 type FoodStorageMethod struct {
 	Kind     FoodStorageMethodKind
 	ID       domain.MethodID
-	Site     string
-	Amount   float64
 	Resource Resource
 	Target   int64
 }
@@ -277,10 +277,9 @@ func foodStorageMethodID(kind string, value any) domain.MethodID {
 // SelectFoodStorageMethod issues no game orders and reserves nothing; the
 // shared method admission must recheck site capacity and production costs
 // against concurrent plans before committing. With the deficit active, the
-// lowest-ID candidate site (by deterministic sort, matching SelectMedicineMethod's
-// bench ordering) with known spare capacity wins a Relocate; a duplicate
-// relocation already in Seen is skipped rather than repeated. Only once every
-// site is unusable or exhausted does it fall back to Produce.
+// first candidate site (by deterministic sort) with known spare capacity makes
+// the outcome Stuck. Only once every site is exhausted does it fall back to
+// Produce.
 func SelectFoodStorageMethod(r FoodStoragePlanningRequest) (FoodStorageMethod, error) {
 	if !r.Review.Active {
 		return FoodStorageMethod{Kind: FoodStorageRecovered}, nil
@@ -328,12 +327,7 @@ func SelectFoodStorageMethod(r FoodStoragePlanningRequest) (FoodStorageMethod, e
 		if capacity <= 0 {
 			continue
 		}
-		id := foodStorageMethodID("relocate", site.ID)
-		if seen[id] {
-			continue
-		}
-		amount := math.Min(deficit, float64(capacity))
-		return FoodStorageMethod{Kind: FoodStorageRelocate, ID: id, Site: site.ID, Amount: amount}, nil
+		return FoodStorageMethod{Kind: FoodStorageStuck}, nil
 	}
 	if sawUnknownCapacity {
 		return FoodStorageMethod{Kind: FoodStorageUnknown}, nil

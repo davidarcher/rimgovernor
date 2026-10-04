@@ -219,18 +219,10 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
-	if choice.Kind == policy.FoodStorageRelocate {
-		// Relocating already-observed unstored stock into an existing
-		// covered site needs a concrete pawn/thing/destination-cell triple
-		// (domain.NewHaulAction's own requirement) or an equivalent
-		// hauling-to-zone native action; policy.FoodStorageMethod's Relocate
-		// outcome only carries {Site: defName, Amount}, with no such native
-		// evidence, and no existing domain/native machinery already expresses
-		// "haul stock of definition X into covered storage" generically.
-		// Dispatching Relocate is therefore a follow-on slice needing new
-		// native hauling-to-covered-storage wiring; this slice only acts on
-		// the Produce fallback below.
-		return RoutineFoodStorageUpkeepResult{Verdict: awaitingPlan("stock_relocation", "not_automated")}, nil
+	if choice.Kind == policy.FoodStorageStuck {
+		// Vanilla hauling already carries loose food to covered storage, so no
+		// haul is planned: the verdict names what blocks it.
+		return RoutineFoodStorageUpkeepResult{Verdict: foodNotStoredVerdict(policy.FoodStorageStuckReason(facts, r.reviewer.policy.FoodStorage, policy.DangerHaulers(reading.Projection.WorkPawns)))}, nil
 	}
 	if choice.Kind != policy.FoodStorageProduce {
 		return RoutineFoodStorageUpkeepResult{Verdict: foodStorageChoiceVerdict(choice.Kind)}, nil
@@ -308,6 +300,12 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+}
+
+// foodNotStoredVerdict is the verdict naming why food is unstored though a
+// covered site has room.
+func foodNotStoredVerdict(reason policy.FoodStuckReason) Verdict {
+	return awaitingPlan("food_not_stored", string(reason))
 }
 
 // foodStorageChoiceVerdict is the verdict of a food-storage method choice that
