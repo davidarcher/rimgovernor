@@ -1098,4 +1098,4 @@ passed to `NextRoomUpgrade`, `NextBeautyUpgrade` and, through
   stay ungated; `RoomQualityTargets` Min is still the tier ceiling.
 - The sculpture install (`NextSculpture`) charges the packed item's `MarketValue`
   against the room owners' combined share. `SculptureRoomsOwed`, `NewArtDemand`
-  and the art sale (`WealthBudget`) are unchanged.
+  and the art sale are unchanged.

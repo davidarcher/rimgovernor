@@ -2,9 +2,9 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Art for sale (#1193, epic #1172): while the defense affords more wealth
-// and the colony wants silver it lacks, MaintainArt's artists sculpt for
-// sale. "Wants silver" is stock and need combined: a purchase need exists
+// Art for sale (#1193, epic #1172): while the colony wants silver it lacks,
+// MaintainArt's artists sculpt for sale; no raid-headroom gate applies (#1849:
+// raid points follow what the colony holds and sold art leaves). "Wants silver" is stock and need combined: a purchase need exists
 // (food, medicine, components or a MaintainResource shortfall) and the
 // silver on hand is below that need's rough price plus the trade silver
 // reserve. The sculpture sells through SelectTrade like any surplus.
@@ -86,11 +86,10 @@ func SilverShort(items ItemFacts, need domain.Fact[TradeNeed], silver, colonists
 	return domain.Known(any && float64(s) < price+float64(reserve))
 }
 
-// ArtSaleWanted reports whether sale sculpting runs: known positive wealth
-// headroom and a known SilverShort. Anything unknown wants nothing.
-func ArtSaleWanted(items ItemFacts, headroom domain.Fact[float64], need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) bool {
-	h, hk := headroom.Value()
-	return hk && finite(h) && h > 0 && positive(SilverShort(items, need, silver, colonists))
+// ArtSaleWanted reports whether sale sculpting runs: a known SilverShort.
+// Anything unknown wants nothing.
+func ArtSaleWanted(items ItemFacts, need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) bool {
+	return positive(SilverShort(items, need, silver, colonists))
 }
 
 // reviewSilverShort is SilverShort over the review's trade need.
@@ -101,8 +100,7 @@ func reviewSilverShort(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveR
 
 // artForSale is ArtSaleWanted over the review's trade need.
 func artForSale(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveReview) bool {
-	h, hk := f.WealthBudget().Value()
-	return hk && finite(h) && h > 0 && positive(reviewSilverShort(f, p, medicine))
+	return positive(reviewSilverShort(f, p, medicine))
 }
 
 // RoutineSilverShort is the review's silver runway deficit recomputed by a
@@ -122,8 +120,7 @@ func RoutineSilverShort(f RoutineFacts, p RoutinePolicy, medicineActive bool) do
 // RoutineArtForSale is the review's sale decision recomputed by the art
 // bill planner from its own read.
 func RoutineArtForSale(f RoutineFacts, p RoutinePolicy, medicineActive bool) bool {
-	h, hk := f.WealthBudget().Value()
-	return hk && finite(h) && h > 0 && positive(RoutineSilverShort(f, p, medicineActive))
+	return positive(RoutineSilverShort(f, p, medicineActive))
 }
 
 // valuePerWorkTick is the market value a work tick adds

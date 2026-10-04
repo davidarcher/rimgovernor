@@ -733,6 +733,11 @@ Unknown wealth or a zero share setting adds no wealth-driven surplus. Existing
 target surplus takes precedence and dispatch preserves economic floors;
 The snapshot test `TestReplaySteelHoardSellsDownToTheFloor` replays the recorded
 review of a 2000-steel hoard and requires exactly 1500 sold above the 500 floor.
+
+Art is the colony's renewable income (#1849): artists sculpt for sale whenever
+the silver runway is short, with no wealth-headroom gate, because the sculpture
+sells on completion and raid points follow what the colony holds. Unreserved art
+still sheds (`shed_art`) while `WealthBudget` headroom is negative.
 [Joiner admission](population-contracts.md) uses its separate optional raid threshold.
 
 ## Bounded combat response

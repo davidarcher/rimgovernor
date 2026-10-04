@@ -10,21 +10,17 @@ func TestArtSaleWanted(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10}) // 180 silver
 	colonists := domain.Known[int64](3)                    // reserve 300
 	for _, tc := range []struct {
-		name     string
-		headroom domain.Fact[float64]
-		need     domain.Fact[TradeNeed]
-		silver   int64
-		want     bool
+		name   string
+		need   domain.Fact[TradeNeed]
+		silver int64
+		want   bool
 	}{
-		{"headroom and a silver need", domain.Known(500.0), need, 100, true},
-		{"negative headroom", domain.Known(-1.0), need, 100, false},
-		{"zero headroom", domain.Known(0.0), need, 100, false},
-		{"unknown headroom", domain.Unknown[float64](), need, 100, false},
-		{"silver covers price plus reserve", domain.Known(500.0), need, 480, false},
-		{"surplus only is no purchase", domain.Known(500.0), domain.Known(TradeNeed{Surplus: []Amount{{Resource: "Steel", Count: 9}}}), 0, false},
-		{"shortfall counts", domain.Known(500.0), domain.Known(TradeNeed{Shortfall: []Amount{{Resource: "Steel", Count: 100}}}), 400, true},
+		{"a silver need", need, 100, true},
+		{"silver covers price plus reserve", need, 480, false},
+		{"surplus only is no purchase", domain.Known(TradeNeed{Surplus: []Amount{{Resource: "Steel", Count: 9}}}), 0, false},
+		{"shortfall counts", domain.Known(TradeNeed{Shortfall: []Amount{{Resource: "Steel", Count: 100}}}), 400, true},
 	} {
-		if got := ArtSaleWanted(CoreItemFacts(), tc.headroom, tc.need, domain.Known(tc.silver), colonists); got != tc.want {
+		if got := ArtSaleWanted(CoreItemFacts(), tc.need, domain.Known(tc.silver), colonists); got != tc.want {
 			t.Errorf("%s: got %v", tc.name, got)
 		}
 	}
@@ -40,10 +36,9 @@ func TestSaleArtBills(t *testing.T) {
 	if len(got) != 2 || got[0].Recipe != "Make_SculptureLarge" || got[0].Ingredients[0] != "Gold" || got[1].Recipe != SculptureRecipe || got[1].Ingredients[0] != "Gold" {
 		t.Fatalf("sale bills = %+v", got)
 	}
-	// Negative headroom: the review asks for no sale.
+	// Raid headroom does not gate sale art (#1849): a silver shortfall alone wants it.
 	needFacts := domain.Known(TradeNeed{ComponentShortfall: 5})
-	demand.Sale = ArtSaleWanted(CoreItemFacts(), domain.Known(-10.0), needFacts, domain.Known[int64](0), domain.Known[int64](2))
-	if demand.Sale {
-		t.Fatal("negative headroom wants a sale")
+	if !ArtSaleWanted(CoreItemFacts(), needFacts, domain.Known[int64](0), domain.Known[int64](2)) {
+		t.Fatal("silver shortfall wants no sale")
 	}
 }
