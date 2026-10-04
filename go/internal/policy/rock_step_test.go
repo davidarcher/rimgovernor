@@ -14,7 +14,7 @@ func rockSite(x, z int32) SiteCell {
 
 func openSite(x, z int32) SiteCell {
 	return SiteCell{Cell: domain.Cell{X: x, Z: z},
-		Occupied: domain.Known(false), Walkable: domain.Known(true), Roof: domain.Known("")}
+		Occupied: domain.Known(false), Walkable: domain.Known(true), Roofed: domain.Known(false)}
 }
 
 func TestRockStep(t *testing.T) {

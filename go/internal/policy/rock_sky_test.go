@@ -18,7 +18,7 @@ func thinRock(x, z int32) SiteCell {
 
 func thinOpen(x, z int32) SiteCell {
 	c := openSite(x, z)
-	c.Roof = domain.Known("RoofRockThin")
+	c.Roofed, c.Roof = domain.Known(true), domain.Known("RoofRockThin")
 	return c
 }
 
@@ -142,7 +142,7 @@ func TestRockStepRoofRules(t *testing.T) {
 	cell := func(x, z int32) domain.Cell { return domain.Cell{X: x, Z: z} }
 	roofed := func(x, z int32, roof string) SiteCell {
 		c := openSite(x, z)
-		c.Roof = domain.Known(roof)
+		c.Roofed, c.Roof = domain.Known(roof != ""), domain.Known(roof)
 		return c
 	}
 	sites := []SiteCell{roofed(0, 0, "RoofRockThick"), roofed(1, 0, "RoofRockThin"), roofed(2, 0, "RoofConstructed"), roofed(3, 0, ""), roofed(4, 0, "RoofMystery")}

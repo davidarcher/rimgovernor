@@ -32,6 +32,14 @@ namespace HomeBridge.BridgeTools
     //                 Electricity and Batteries researched and no wood in
     //                 stock. EnsureBasicPower must add a WindTurbine whose
     //                 catch zone is clear, then connect it.
+    //   mountain   -- the wind scenario inside a thin-roofed granite mountain
+    //                 (#1873): the lab is solid rock under RoofRockThin except
+    //                 a 30x30 pocket at the map centre holding one lamp on a
+    //                 conduit line, with Stonecutting, Electricity and
+    //                 Batteries researched and no wood in stock. The layout's
+    //                 turbine pair lands on rock beside the pocket, so
+    //                 EnsureBasicPower must dig and unroof the turbine's wind
+    //                 path, raise a WindTurbine on it, then connect it.
     //   geothermal -- no generator, no bank: one lamp on a conduit line and a
     //                 free steam geyser a dozen cells away, with
     //                 GeothermalPower researched. EnsureBasicPower must build
@@ -42,9 +50,9 @@ namespace HomeBridge.BridgeTools
     // behalf.
     public sealed class PowerFixture
     {
-        private static readonly string[] Scenarios = { "fuel", "reserve", "battery", "rain", "wind", "geothermal" };
+        private static readonly string[] Scenarios = { "fuel", "reserve", "battery", "rain", "wind", "geothermal", "mountain" };
 
-        [Tool("test/power_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: scenario 'fuel' spawns a drained generator, conduits, one consumer and wood; 'reserve' a fuelled generator, a partly charged battery and consumers overdrawing it; 'battery' a solar generator and a lamp in a roofed room with no bank; 'rain' a fuelled generator, a full battery left unroofed and ordinary conduits ahead of forced rain; 'wind' a lamp in a cleared field with no generator; 'geothermal' a lamp and a free steam geyser with no generator.")]
+        [Tool("test/power_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: scenario 'fuel' spawns a drained generator, conduits, one consumer and wood; 'reserve' a fuelled generator, a partly charged battery and consumers overdrawing it; 'battery' a solar generator and a lamp in a roofed room with no bank; 'rain' a fuelled generator, a full battery left unroofed and ordinary conduits ahead of forced rain; 'wind' a lamp in a cleared field with no generator; 'geothermal' a lamp and a free steam geyser with no generator; 'mountain' a lamp in a pocket of a thin-roofed granite mountain filling the lab.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "fuel")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -67,7 +75,9 @@ namespace HomeBridge.BridgeTools
                     builder.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                 Finish(DefDatabase<ResearchProjectDef>.GetNamed("Electricity"));
                 if (scenario == "battery") { Finish(DefDatabase<ResearchProjectDef>.GetNamed("Batteries")); Finish(DefDatabase<ResearchProjectDef>.GetNamed("SolarPanels")); }
-                if (scenario == "wind") Finish(DefDatabase<ResearchProjectDef>.GetNamed("Batteries"));
+                if (scenario == "wind" || scenario == "mountain") Finish(DefDatabase<ResearchProjectDef>.GetNamed("Batteries"));
+                // The layout reads the Masonry tier before it plans a turbine site.
+                if (scenario == "mountain") Finish(DefDatabase<ResearchProjectDef>.GetNamed("Stonecutting"));
                 if (scenario == "geothermal") Finish(DefDatabase<ResearchProjectDef>.GetNamed("GeothermalPower"));
                 var generatorDef = DefDatabase<ThingDef>.GetNamedSilentFail("WoodFiredGenerator");
                 var solarDef = DefDatabase<ThingDef>.GetNamedSilentFail("SolarGenerator");
@@ -91,7 +101,14 @@ namespace HomeBridge.BridgeTools
                 int width = 14, height = 8;
                 if (scenario == "wind") { width = 30; height = 30; }
                 if (scenario == "geothermal") { width = 24; height = 10; }
-                var open = scenario == "wind" || scenario == "geothermal";
+                // The pocket is the 30x30 at the map centre of the 100x100 lab: the
+                // layout's turbine site (MountainPocket in the case) depends on it.
+                if (scenario == "mountain")
+                {
+                    if (map.Size.x != 100 || map.Size.z != 100) return Refuse("The mountain scenario needs the 100x100 lab map.");
+                    width = 30; height = 30;
+                }
+                var open = scenario == "wind" || scenario == "geothermal" || scenario == "mountain";
                 // Any open, unfogged, buildable-passability ground will do: plants
                 // and loose items are cleared below and the terrain is paved to
                 // concrete so wall/cooler heavy-affordance never depends on the
@@ -99,13 +116,15 @@ namespace HomeBridge.BridgeTools
                 // natural rock and roof in the clearing but never a built
                 // structure: levelling an ancient danger's walls released its
                 // dormant mechanoids onto the colony (live 2026-09-19).
-                var origin = GenRadial.RadialCellsAround(builder.Position, 75, true).FirstOrDefault(c =>
+                var origin = scenario == "mountain" ? new IntVec3(map.Center.x - 15, 0, map.Center.z - 15) : GenRadial.RadialCellsAround(builder.Position, 75, true).FirstOrDefault(c =>
                     new CellRect(c.x, c.z, width, height).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
                         && cell.GetZone(map) == null
                         && cell.GetTerrain(map).passability != Traversability.Impassable && !cell.GetTerrain(map).IsWater
                         && !cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Pawn
                             || t.def.category == ThingCategory.Building && !(open && t.def.building != null && t.def.building.isNaturalRock)))
                     && builder.CanReach(c, Verse.AI.PathEndMode.Touch, Danger.None));
+                if (scenario == "mountain" && map.mapPawns.FreeColonistsSpawned.Any(p => !new CellRect(origin.x, origin.z, width, height).Contains(p.Position)))
+                    return Refuse("A colonist stands outside the mountain pocket.");
                 if (origin == default) return Refuse("No open reachable " + width + "x" + height + " area for the fixture network.");
                 var clearing = new CellRect(origin.x, origin.z, width, height);
                 foreach (var cell in clearing.Cells)
@@ -115,6 +134,28 @@ namespace HomeBridge.BridgeTools
                     if (open && map.roofGrid.Roofed(cell)) map.roofGrid.SetRoof(cell, null);
                     map.terrainGrid.SetTerrain(cell, TerrainDefOf.Concrete);
                     map.areaManager.Home[cell] = true;
+                }
+                // Everything outside the pocket is granite under thin mountain
+                // roof, unfogged so the layout survey reads it as rock rather
+                // than as unseen thick-roofed stone.
+                var rockCells = 0;
+                if (scenario == "mountain")
+                {
+                    var granite = DefDatabase<ThingDef>.GetNamed("Granite");
+                    foreach (var cell in CellRect.WholeMap(map).Cells.Where(c => !clearing.Contains(c)))
+                    {
+                        foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item || t.def.category == ThingCategory.Filth).ToList()) thing.Destroy();
+                        if (!cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Building && t.def.building != null && t.def.building.isNaturalRock))
+                            GenSpawn.Spawn(ThingMaker.MakeThing(granite), cell, map);
+                        map.roofGrid.SetRoof(cell, RoofDefOf.RoofRockThin);
+                        rockCells++;
+                    }
+                    map.fogGrid.ClearAllFog();
+                    foreach (var p in map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead))
+                    {
+                        if (p.workSettings != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Mining)) p.workSettings.SetPriority(WorkTypeDefOf.Mining, 1);
+                        if (p.workSettings != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                    }
                 }
                 IntVec3 At(int x, int z) => new IntVec3(origin.x + x, 0, origin.z + z);
                 Thing Spawn(ThingDef def, IntVec3 cell)
@@ -212,6 +253,18 @@ namespace HomeBridge.BridgeTools
                         Stock("Steel", 200);
                         Stock("ComponentIndustrial", 6);
                         break;
+                    case "mountain":
+                        // The lamp and its conduit line sit in the pocket's
+                        // north-west corner: the layout's first turbine
+                        // (centre (45,34) facing east) has its footprint's
+                        // southern six cells in the pocket and its wind path
+                        // four rows deep in rock, so the conduit route to it
+                        // crosses open ground only.
+                        for (var x = 0; x <= 3; x++) Spawn(conduitDef, At(x, 1));
+                        consumers.Add(Spawn(standingLampDef, At(3, 2)).GetUniqueLoadID());
+                        Stock("Steel", 200);
+                        Stock("ComponentIndustrial", 6);
+                        break;
                     case "geothermal":
                         // Conduit line along z=4 from the lamp at (2,4); the
                         // geyser (2x2) at (14,4) leaves the 6x6 generator's
@@ -255,7 +308,7 @@ namespace HomeBridge.BridgeTools
                     generator = generator?.GetUniqueLoadID(), fuel = fuel?.Fuel, fuelCapacity = fuel?.Props.fuelCapacity,
                     battery = battery?.GetUniqueLoadID(), storedWattDays = battery?.TryGetComp<CompPowerBattery>().StoredEnergy,
                     geyser = geyser?.GetUniqueLoadID(), geyserCell = geyser == null ? null : new { x = geyser.Position.x, z = geyser.Position.z },
-                    consumers, spareCell = new { x = At(width - 1, 0).x, z = At(width - 1, 0).z },
+                    rockCells, consumers, spareCell = new { x = At(width - 1, 0).x, z = At(width - 1, 0).z },
                     skyGlow = map.skyManager.CurSkyGlow, hour = GenLocalDate.HourOfDay(map),
                     setup = "Test-only single power network; refuelling, generator construction and reconnection remain the controller's and native colonists' own work.",
                 };
@@ -316,8 +369,17 @@ namespace HomeBridge.BridgeTools
                 var field = typeof(CompPowerPlantWind).GetField("windPathBlockedCells", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 windBlocked = (field?.GetValue(wind) as List<IntVec3>)?.Count;
             }
+            // The wind path read independently of the native preview: roofed
+            // cells and cells holding a wind-blocking thing (natural rock).
+            int? windRoofed = null, windBlockers = null;
+            if (wind != null)
+            {
+                var path = WindTurbineUtility.CalculateWindCells(thing.Position, thing.Rotation, thing.def.size).ToList();
+                windRoofed = path.Count(c => c.InBounds(thing.Map) && thing.Map.roofGrid.Roofed(c));
+                windBlockers = path.Count(c => c.InBounds(thing.Map) && thing.Map.thingGrid.ThingsListAtFast(c).Any(t => t.def.blockWind));
+            }
             return new {
-                id = thing.GetUniqueLoadID(), defName = thing.def.defName,
+                id = thing.GetUniqueLoadID(), defName = thing.def.defName, windPathRoofed = windRoofed, windPathBlockers = windBlockers,
                 x = thing.Position.x, z = thing.Position.z,
                 connected = power?.PowerNet != null, powerNetId = power?.PowerNet?.GetHashCode().ToString(),
                 powerOn = trader?.PowerOn, powerOutputW = trader?.PowerOutput,

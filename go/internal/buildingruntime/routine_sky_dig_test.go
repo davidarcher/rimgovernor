@@ -12,7 +12,7 @@ func setRoof(s *excavationStep, roof string, cells ...domain.Cell) {
 	for i, c := range s.facts.Cells {
 		for _, r := range cells {
 			if c.Cell == r {
-				s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof, s.facts.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known(roof), domain.Known(true)
+				s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof, s.facts.Cells[i].Roofed, s.facts.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known(roof), domain.Known(roof != ""), domain.Known(true)
 			}
 		}
 	}

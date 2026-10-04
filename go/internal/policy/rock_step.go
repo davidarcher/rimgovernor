@@ -104,7 +104,12 @@ func RockStepRoofs(planned []RoleCell, cells []SiteCell, roofs RoofRules) (RockS
 	for _, cell := range order {
 		c, listed := site[cell]
 		if role[cell] == RockNeedsSky {
+			// The native grid names a roof only where one stands: an unroofed
+			// cell reads Roofed=false with the roof name unknown.
 			roof, known := c.Roof.Value()
+			if roofed, ok := c.Roofed.Value(); ok && !roofed {
+				roof, known = "", true
+			}
 			if !listed || !known {
 				out.Unfit = append(out.Unfit, cell)
 				continue
