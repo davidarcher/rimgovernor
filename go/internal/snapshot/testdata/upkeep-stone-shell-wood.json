@@ -8616,6 +8616,9 @@
   "OutdoorTemperature": {
    "v": 18.82843780517578
   },
+  "OutdoorsDark": {
+   "v": false
+  },
   "PenGrazing": {
    "v": null
   },

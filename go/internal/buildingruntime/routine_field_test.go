@@ -31,6 +31,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	v := n.reply.GetObserved()
 	foodPlanFixture(v)
 	v.Farms = nil
+	v.Biome = proto.String("FixtureLitBiome")
 	v.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(60), GrowingDaysRemaining: proto.Float64(60), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(0), SowingNow: proto.Bool(true)}
 	issues := v.Issues[:0]
 	for _, i := range v.Issues {

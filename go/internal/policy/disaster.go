@@ -116,10 +116,14 @@ func EclipseHold(conditions domain.Fact[[]DisasterCondition]) bool {
 
 // SkyDarkHold reports that the sky gives no light by day: an eclipse (see
 // EclipseHold) or a biome whose map conditions black the sky out for good
-// (outdoorsDark, #1712). An unknown outdoorsDark counts as lit.
-func SkyDarkHold(conditions domain.Fact[[]DisasterCondition], outdoorsDark domain.Fact[bool]) bool {
-	dark, _ := outdoorsDark.Value()
-	return dark || EclipseHold(conditions)
+// (outdoorsDark, #1712). It is unknown while outdoorsDark is: an unread biome
+// is never assumed lit.
+func SkyDarkHold(conditions domain.Fact[[]DisasterCondition], outdoorsDark domain.Fact[bool]) domain.Fact[bool] {
+	dark, known := outdoorsDark.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(dark || EclipseHold(conditions))
 }
 
 // GrowthPauseDays is the observed remaining duration, in game days, of the

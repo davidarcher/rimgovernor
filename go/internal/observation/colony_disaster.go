@@ -1,6 +1,8 @@
 package observation
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -31,11 +33,15 @@ func colonyConditions(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalo
 }
 
 // colonyOutdoorsDark is whether the frame's biome keeps the sky dark for good
-// (its map conditions' class family, #1712); unknown without a biome read or
-// a catalog, an error for a biome the catalog has no row for.
+// (its map conditions' class family, #1712). A frame with no biome, or no
+// catalog to read its conditions from, is an error naming which is missing, as
+// is a biome the catalog has no row for: lit is never assumed.
 func colonyOutdoorsDark(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[bool], error) {
-	if catalog == nil || v.Biome == nil {
-		return domain.Unknown[bool](), nil
+	if v.Biome == nil {
+		return domain.Unknown[bool](), fmt.Errorf("%w: the colony frame carried no biome", policy.ErrOutdoorsDarkUnknown)
+	}
+	if catalog == nil {
+		return domain.Unknown[bool](), fmt.Errorf("%w: no definition catalog was loaded", policy.ErrOutdoorsDarkUnknown)
 	}
 	dark, err := catalog.OutdoorsPermanentlyDark(v.GetBiome())
 	if err != nil {

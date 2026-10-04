@@ -67,7 +67,7 @@ func TestSiteMergeRectsCoversSetOnce(t *testing.T) {
 // sites inside the indoor room.
 func TestPlanSiteTypeHydroponicsBasinSitesIndoors(t *testing.T) {
 	r := siteFixture(0.1)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	r.Environment = domain.Known(siteEnv(21, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
 	c := siteCandidateOf(mustSitePlan(t, r), SiteHydroponics, "Plant_Rice")
 	if len(c.Buildings) == 0 {

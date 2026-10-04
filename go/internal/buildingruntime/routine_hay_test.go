@@ -15,7 +15,7 @@ func penHayProjection(cal domain.Fact[policy.Calendar], demand domain.Fact[float
 	p.Facts.Calendar = cal
 	p.Facts.PenGrazing = domain.Known([]policy.PenGrazing{{ID: "pen", DemandPerDay: demand, PasturePerDay: domain.Known(0.0), StoredNutrition: domain.Known(0.0)}})
 	p.Definitions = []observation.PlanningDefinition{{Name: "Plant_Haygrass", Available: domain.Known(true), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.5)}}
-	p.CropClimate = policy.CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0)}
+	p.CropClimate = policy.CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0), OutdoorsDark: domain.Known(false)}
 	return p
 }
 

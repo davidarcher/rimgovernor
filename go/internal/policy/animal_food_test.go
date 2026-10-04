@@ -21,7 +21,7 @@ func TestHayOnlyForNegativeSeasonalGrazingBalance(t *testing.T) {
 				t.Fatal(need)
 			}
 			crop := CropChoice{Name: "Plant_Haygrass", Available: domain.Known(true), Edible: domain.Known(false), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.5)}
-			plan, ok := PlanHayField(need, crop, CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0)})
+			plan, ok := PlanHayField(need, crop, CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0), OutdoorsDark: domain.Known(false)})
 			if ok != (tc.want > 0) || ok && plan.Needed != int(tc.want*2) {
 				t.Fatal(plan, ok)
 			}

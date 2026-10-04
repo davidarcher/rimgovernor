@@ -20,7 +20,7 @@ func TestSocialDrugsRequireResearch(t *testing.T) {
 
 func TestSocialCropBoundedAndNotFood(t *testing.T) {
 	crop := CropChoice{Name: "Plant_Hops", Available: domain.Known(true), Edible: domain.Known(false), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.0), FertilityMin: domain.Known(0.7), FertilitySensitivity: domain.Known(1.0)}
-	climate := CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0)}
+	climate := CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0), OutdoorsDark: domain.Known(false)}
 	got := PlanSocialCrop(crop, climate, 4)
 	if got != 5 {
 		t.Fatal(got)

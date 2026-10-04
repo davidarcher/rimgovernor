@@ -369,17 +369,14 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			}
 		}
 	}
-	// The biome's permanent darkness is its map conditions' (#1712); unknown
-	// without a biome read or a catalog.
-	outdoorsDark, err := colonyOutdoorsDark(v, tables.Catalog)
-	if err != nil {
-		return ColonyProjection{}, err
-	}
+	// The biome's permanent darkness is its map conditions' (#1712), read
+	// only where something decides on it (sowing climate, a lighting census):
+	// there a frame without a biome read or a catalog fails, never counts as lit.
+	var outdoorsDark domain.Fact[bool]
 	r.Biotech = colonyBiotech(v.Biotech)
 	r.Odyssey = colonyOdyssey(v.Odyssey)
 	r.Anomaly = colonyAnomaly(v.Anomaly)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
-	r.Facts.OutdoorsDark = outdoorsDark
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)
 	r.Facts.NoKillboxArea = allowedAreaID(r.Policies, policy.NoKillboxAreaLabel)
@@ -479,6 +476,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 	}
 	if climate := v.FoodClimate; climate != nil && !hasIssue(v.Issues, "food_climate") {
+		var err error
+		if outdoorsDark, err = colonyOutdoorsDark(v, tables.Catalog); err != nil {
+			return ColonyProjection{}, err
+		}
 		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining), OutdoorsDark: outdoorsDark}
 		r.Facts.Calendar = colonyCalendar(climate)
 	}
@@ -534,6 +535,15 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	if r.Facts.Upkeep, upkeepErr = colonyUpkeep(v, tables); upkeepErr != nil {
 		return ColonyProjection{}, upkeepErr
 	}
+	if _, lit := r.Facts.Upkeep.Lighting.Value(); lit {
+		if _, read := outdoorsDark.Value(); !read {
+			var err error
+			if outdoorsDark, err = colonyOutdoorsDark(v, tables.Catalog); err != nil {
+				return ColonyProjection{}, err
+			}
+		}
+	}
+	r.Facts.OutdoorsDark = outdoorsDark
 	if r.Facts.MedicalReserve, medicalErr = ColonyMedicalReserve(v, tables); medicalErr != nil {
 		return ColonyProjection{}, medicalErr
 	}

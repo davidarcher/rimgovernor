@@ -104,7 +104,7 @@ func TestPlanSiteTypeInSeasonOutdoorBeatsControlledSites(t *testing.T) {
 
 func TestPlanSiteTypeWinterReusesGreenhouseBeforeBuilding(t *testing.T) {
 	r := siteFixture(1.0)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	// Basins are not researched, so the lit soil is the only controlled site.
 	r.Basin = domain.Unknown[Infrastructure]()
 	r.Environment = domain.Known(siteEnv(21, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
@@ -150,7 +150,7 @@ func TestPlanSiteTypeWinterReusesGreenhouseBeforeBuilding(t *testing.T) {
 
 func TestPlanSiteTypeWinterHeatingAndOutage(t *testing.T) {
 	r := siteFixture(1.0)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	r.Basin = domain.Unknown[Infrastructure]()
 	// A cold greenhouse is heated on the night headroom.
 	r.Environment = domain.Known(siteEnv(-5, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
@@ -172,7 +172,7 @@ func TestPlanSiteTypeWinterHeatingAndOutage(t *testing.T) {
 	}
 	// Night headroom too small for the heater (all generation is solar).
 	r = siteFixture(1.0)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	r.Basin = domain.Unknown[Infrastructure]()
 	env := siteEnv(-5, siteLamp(domain.Cell{X: 6, Z: 6}, true))
 	env.Networks = []PowerHeadroom{siteNetwork(1700, 1700, 100)}
@@ -198,7 +198,7 @@ func TestPlanSiteTypeWinterHeatingAndOutage(t *testing.T) {
 
 func TestPlanSiteTypeHydroponicsScoresEveryHydroponicCrop(t *testing.T) {
 	r := siteFixture(0.1)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	// The room floor has no soil: only basins can use the lit cells.
 	for i := range r.Field.Site.Cells {
 		if c := &r.Field.Site.Cells[i]; c.Cell.X < 12 && c.Cell.Z < 12 {
@@ -249,7 +249,7 @@ func TestPlanSiteTypeHydroponicsScoresEveryHydroponicCrop(t *testing.T) {
 
 func TestPlanSiteTypeDarkRoomOnlyForDarkCrops(t *testing.T) {
 	r := siteFixture(0.1)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	env := siteEnv(21)
 	env.Networks = nil
 	r.Environment = domain.Known(env)
@@ -294,7 +294,7 @@ func TestPlanSiteTypeDarkRoomOnlyForDarkCrops(t *testing.T) {
 // rice, which gains from its fertility, but not for potatoes on lit soil.
 func TestPlanSiteTypeDefaultWeightsFollowNativePrices(t *testing.T) {
 	r := siteFixture(1.0)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	r.Basin = domain.Unknown[Infrastructure]()
 	env := siteEnv(21)
 	env.Networks = []PowerHeadroom{siteNetwork(4000, 1700, 600)}
@@ -314,7 +314,7 @@ func TestPlanSiteTypeDefaultWeightsFollowNativePrices(t *testing.T) {
 	// Lit soil with basins researched: rice builds basins, potatoes plant
 	// the soil.
 	r = siteFixture(1.0)
-	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64](), OutdoorsDark: domain.Known(false)}
 	r.Environment = domain.Known(siteEnv(21, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
 	plan, ok = PlanSiteType(r)
 	if !ok || plan.Kind != SiteHydroponics || plan.Crop.Name != "Plant_Rice" {

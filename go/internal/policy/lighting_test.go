@@ -29,25 +29,25 @@ func lightingSite() LightingFacts {
 
 func TestReviewLightingMeasuresRoofedWorkCells(t *testing.T) {
 	p := DefaultLightingPolicy()
-	r, err := ReviewLighting(domain.Known(lightingCensus()), nil, p, false)
+	r, err := ReviewLighting(domain.Known(lightingCensus()), nil, p, domain.Known(false))
 	if err != nil || !r.Known || !r.Active || len(r.Dark) != 1 || r.Dark[0] != "stove" {
 		t.Fatal(r, err)
 	}
 	// An unknown census keeps the previous latch instead of asserting light.
-	r, err = ReviewLighting(domain.Unknown[LightingObservation](), r.Dark, p, false)
+	r, err = ReviewLighting(domain.Unknown[LightingObservation](), r.Dark, p, domain.Known(false))
 	if err != nil || r.Known || !r.Active || len(r.Dark) != 1 {
 		t.Fatal(r, err)
 	}
 	lit := lightingCensus()
 	lit.WorkCells[0].Glow = 0.6
-	r, err = ReviewLighting(domain.Known(lit), r.Dark, p, false)
+	r, err = ReviewLighting(domain.Known(lit), r.Dark, p, domain.Known(false))
 	if err != nil || !r.Known || r.Active || len(r.Dark) != 0 {
 		t.Fatal(r, err)
 	}
 	// A protected fungus room is never dark: lighting it kills the crop.
 	fungus := lightingCensus()
 	fungus.WorkCells[0].LightSensitive = true
-	r, err = ReviewLighting(domain.Known(fungus), []string{"stove"}, p, false)
+	r, err = ReviewLighting(domain.Known(fungus), []string{"stove"}, p, domain.Known(false))
 	if err != nil || !r.Known || r.Active || len(r.Dark) != 0 {
 		t.Fatal(r, err)
 	}
@@ -56,7 +56,7 @@ func TestReviewLightingMeasuresRoofedWorkCells(t *testing.T) {
 func TestSelectLightingBuildsAffordableLampBesideDarkCell(t *testing.T) {
 	p := DefaultLightingPolicy()
 	census := domain.Known(lightingCensus())
-	review, _ := ReviewLighting(census, nil, p, false)
+	review, _ := ReviewLighting(census, nil, p, domain.Known(false))
 	site := lightingSite()
 	proposal, err := SelectLightingMethod(review, census, site, p)
 	if err != nil || proposal.Method != LightingBuild || proposal.Definition != "TorchLamp" || proposal.Bench != "stove" || proposal.Key == "" {
@@ -125,7 +125,7 @@ func TestSelectLightingDefersToUnservicedLampInRange(t *testing.T) {
 		v := lightingCensus()
 		v.Lamps = []Lamp{tc.lamp}
 		census := domain.Known(v)
-		review, _ := ReviewLighting(census, nil, p, false)
+		review, _ := ReviewLighting(census, nil, p, domain.Known(false))
 		proposal, err := SelectLightingMethod(review, census, site, p)
 		if err != nil || proposal.Method != tc.want {
 			t.Fatal(tc.lamp, proposal, err)
@@ -184,7 +184,7 @@ func TestReviewLightingMeasuresUnroofedWorkCellsUnderEclipse(t *testing.T) {
 	// beside it like any roofed bench.
 	p := DefaultLightingPolicy()
 	census := domain.Known(lightingCensus())
-	r, err := ReviewLighting(census, nil, p, true)
+	r, err := ReviewLighting(census, nil, p, domain.Known(true))
 	if err != nil || !r.SkyDark || len(r.Dark) != 2 || r.Dark[0] != "bench" || r.Dark[1] != "stove" {
 		t.Fatal(r, err)
 	}
@@ -201,7 +201,7 @@ func TestReviewLightingMeasuresUnroofedWorkCellsUnderEclipse(t *testing.T) {
 	// The eclipse ending drops the outdoor bench from the latch on the
 	// next review; a stale outdoor entry in the latch is skipped by the
 	// method rather than served.
-	after, err := ReviewLighting(census, r.Dark, p, false)
+	after, err := ReviewLighting(census, r.Dark, p, domain.Known(false))
 	if err != nil || after.SkyDark || len(after.Dark) != 1 || after.Dark[0] != "stove" {
 		t.Fatal(after, err)
 	}

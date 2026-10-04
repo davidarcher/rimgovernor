@@ -121,16 +121,22 @@ type LightingReview struct {
 // permanently dark biome, #1712), when the day is as dark as the night and
 // every work cell is measured. A light-sensitive
 // cell (its room grows cave fungus) is never dark: lighting it would kill
-// the crop. An unknown census keeps the previous dark set.
-func ReviewLighting(fact domain.Fact[LightingObservation], previous []string, p LightingPolicy, skyDark bool) (LightingReview, error) {
+// the crop. An unknown census keeps the previous dark set. An unknown sky
+// (the biome was not read) is an error once a census is measured, never
+// assumed lit.
+func ReviewLighting(fact domain.Fact[LightingObservation], previous []string, p LightingPolicy, skyDarkFact domain.Fact[bool]) (LightingReview, error) {
 	if !p.valid() {
 		return LightingReview{}, errors.New("invalid lighting policy")
 	}
+	skyDark, skyKnown := skyDarkFact.Value()
 	v, known := fact.Value()
 	if !known {
 		dark := append([]string(nil), previous...)
 		sort.Strings(dark)
 		return LightingReview{Active: len(dark) > 0, Dark: dark, SkyDark: skyDark}, nil
+	}
+	if !skyKnown {
+		return LightingReview{}, ErrOutdoorsDarkUnknown
 	}
 	if err := v.Validate(); err != nil {
 		return LightingReview{}, err

@@ -199,9 +199,11 @@ func PlanSiteType(r SiteTypeRequest) (SiteTypePlan, bool) {
 	plan := SiteTypePlan{}
 	field, ok := PlanField(r.Field)
 	sowing, sk := r.Field.Climate.SowingOutdoors().Value()
-	dark, _ := r.Field.Climate.OutdoorsDark.Value()
+	dark, darkKnown := r.Field.Climate.OutdoorsDark.Value()
 	notPossible := "outdoor sowing not possible"
-	if dark {
+	if !darkKnown {
+		notPossible = "outdoors darkness unknown"
+	} else if dark {
 		notPossible = "outdoors permanently dark"
 	}
 	for _, c := range field.Candidates {

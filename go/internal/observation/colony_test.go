@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -67,8 +68,10 @@ func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	r.GetObserved().Biome = proto.String("FixtureLitBiome")
 	r.GetObserved().FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(22), SowingNow: proto.Bool(true), DayOfYear: proto.Int32(35), Season: proto.String("Fall")}
-	p, err := DecodeColony(r, expected, bridge.Tables{})
+	tables := bridge.Tables{Catalog: decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}, StatValues: &o.DefStatTable{}})}
+	p, err := DecodeColony(r, expected, tables)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +88,7 @@ func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
 	for _, drop := range []func(*o.FoodClimate){func(c *o.FoodClimate) { c.GrowingDaysUntil = nil }, func(c *o.FoodClimate) { c.NonGrowingDays = nil }} {
 		climate := proto.Clone(r.GetObserved().FoodClimate).(*o.FoodClimate)
 		drop(r.GetObserved().FoodClimate)
-		if p, err = DecodeColony(r, expected, bridge.Tables{}); err != nil {
+		if p, err = DecodeColony(r, expected, tables); err != nil {
 			t.Fatal(err)
 		}
 		if _, known := p.Facts.Calendar.Value(); known {

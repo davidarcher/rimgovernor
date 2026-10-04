@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -9,19 +10,28 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// ErrOutdoorsDarkUnknown refuses a decision that needs the biome's darkness
+// when it was not read (#1712): lit is never assumed.
+var ErrOutdoorsDarkUnknown = errors.New("cannot tell whether the biome keeps the sky dark: the colony frame carried no biome or no definition catalog was loaded")
+
 type CropClimate struct {
 	Sowing        domain.Fact[bool]
 	DaysRemaining domain.Fact[float64]
 	// OutdoorsDark is the biome's permanent darkness (#1712): the sky never
 	// lights the ground, so no crop that needs light grows outdoors whatever
-	// the season says. Unknown counts as lit.
+	// the season says. Unknown refuses: nothing is sown outdoors on a guess.
 	OutdoorsDark domain.Fact[bool]
 }
 
 // SowingOutdoors is whether a crop that needs light can be sown outdoors
-// now: the native season read, false in a permanently dark biome.
+// now: the native season read, false in a permanently dark biome, unknown
+// while the darkness is unknown.
 func (c CropClimate) SowingOutdoors() domain.Fact[bool] {
-	if dark, _ := c.OutdoorsDark.Value(); dark {
+	dark, known := c.OutdoorsDark.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	if dark {
 		return domain.Known(false)
 	}
 	return c.Sowing

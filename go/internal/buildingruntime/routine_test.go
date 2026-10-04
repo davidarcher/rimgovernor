@@ -168,6 +168,7 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 	for row := range n.buildings.Values() {
 		plain(row.GetBuilding().GetDefName())
 	}
+	bridge.FixtureEnvironmentDefs(v)
 	catalog, err := bridge.DecodeDefinitionCatalog(v, id)
 	if err != nil {
 		panic(err)

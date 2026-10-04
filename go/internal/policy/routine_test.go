@@ -14,6 +14,7 @@ func stableRoutine() RoutineFacts {
 	}
 	return RoutineFacts{
 		BabyFeeding:         domain.Known(BabyFeeding{}),
+		OutdoorsDark:        domain.Known(false),
 		Pollution:           domain.Known(PollutionFacts{UncoveredCells: domain.Known(uint32(0))}),
 		ButcherBenches:      domain.Known([]ButcherBench{{ID: "bench"}}),
 		CurrentConstruction: domain.Known(CurrentConstruction{Colony: true}),
