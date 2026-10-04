@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             Func<ThingDef, bool> humanFood = d => d != null && d.IsNutritionGivingIngestible && !d.IsDrug
                 && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
-                && people.All(p => p.WillEat(d));
+                && NativeFoodPolicy.EatenByAll(people, d);
             // A food stockpile is food storage wherever it stands: a perishable the
             // colonists eat is allowed in it. Roofing it is a later upgrade.
             row.FoodStorage = zone is Zone_Stockpile storage && storage.GetStoreSettings()?.filter != null

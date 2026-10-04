@@ -21,6 +21,20 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool IsFood(ThingDef d) => d.IsNutritionGivingIngestible && d.ingestible != null && !d.IsDrug && !d.IsCorpse;
 
+        // The colonists that can ever eat a food, judged per eater class (#1752):
+        // a baby is an eater only of a food that babiesCanIngest (the game's
+        // FoodUtility.FoodIsSuitable), so a colony with a baby still has meal
+        // eaters. A food is human food when every such eater WillEat it and
+        // there is at least one.
+        internal static List<Pawn> Eaters(IEnumerable<Pawn> people, ThingDef d) =>
+            people.Where(p => !p.DevelopmentalStage.Baby() || d.ingestible.babiesCanIngest).ToList();
+
+        internal static bool EatenByAll(IEnumerable<Pawn> people, ThingDef d)
+        {
+            var eaters = Eaters(people, d);
+            return eaters.Count > 0 && eaters.All(p => p.WillEat(d));
+        }
+
         internal static IEnumerable<ThingDef> Foods() =>
             DefDatabase<ThingDef>.AllDefsListForReading.Where(IsFood).OrderBy(d => d.defName, StringComparer.Ordinal);
 

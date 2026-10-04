@@ -160,6 +160,10 @@ baby) is under the game's low-baby-food alert level per baby
 standing target-count bill for the baby-edible recipe (bulk first) through
 `ProductionBillIntent`, sized to the babies' native nutrition per day over
 the seasonal food target days, less other baby foods in stock.
+Native's human-food test (ColonyFacts census, cooking recipes, food storage
+zones; #1752) judges each food per eater class: a baby is an eater only of a
+`babiesCanIngest` food (the game's `FoodIsSuitable`), so a baby in the colony does
+not remove meals from the human food census.
 
 ### Polluting-machine siting (Biotech)
 

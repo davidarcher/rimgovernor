@@ -98,7 +98,7 @@ namespace HomeBridge.BridgeTools
                 if (d == null) return false;
                 if (edible.TryGetValue(d, out var known)) return known;
                 return edible[d] = NativeFoodPolicy.IsFood(d) && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
-                    && people.All(p => p.WillEat(d));
+                    && NativeFoodPolicy.EatenByAll(people, d);
             };
             var items = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
                 && !t.IsForbidden(player) && reachable(t)).ToList();
@@ -110,8 +110,8 @@ namespace HomeBridge.BridgeTools
                 && !b.GetRoom().PsychologicallyOutdoors && b.GetRoom().OpenRoofCount == 0).ToList();
             var temperatures = indoorBeds.Select(b => Finite(b.GetRoom().Temperature)).ToList();
             Span("cf.beds");
-            var nutrition = items.Where(t => humanFood(t.def) && t.IngestibleNow && people.All(p => p.WillEat(t)))
-                .Sum(t => (double)t.stackCount * people.Min(p => FoodUtility.NutritionForEater(p, t)));
+            var nutrition = items.Where(t => humanFood(t.def) && t.IngestibleNow && NativeFoodPolicy.Eaters(people, t.def).All(p => p.WillEat(t)))
+                .Sum(t => (double)t.stackCount * NativeFoodPolicy.Eaters(people, t.def).Min(p => FoodUtility.NutritionForEater(p, t)));
             // Raw native demand/runway remains distinct from the controller's
             // diet, held-food, rot and competing-animal forecast.
             var demand = people.Sum(p => p.needs?.food == null ? 0.0 : GameTime.PerDay((double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
