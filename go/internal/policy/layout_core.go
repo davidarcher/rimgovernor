@@ -80,8 +80,14 @@ func PlanCore(zones []LayoutZone, pawns int, tier BuildTier) LayoutPlan {
 // SuiteTargets builds it from the pawns SuiteClaims finds (#1216), and none
 // keeps the plan's suites as they are. A suite never grows.
 func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
+	return growSoil(plan, nil, pawns, tombs, tier, suites...)
+}
+
+// growSoil is Grow over the build cost of each surveyed cell (surveySoil;
+// nil costs nothing), so a replan tells rich soil from plain (#1955).
+func growSoil(plan LayoutPlan, soil map[domain.Cell]int, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
-	g.soil = fieldSoil(plan.Zones)
+	g.soil = soil
 	if len(g.core) == 0 {
 		return plan
 	}
@@ -112,6 +118,7 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	wings := retireWings(plan.Wings, tier)
 	// Other rooms stay off the suite blocks' ground.
 	base := newCoreGrid(plan.Zones, plan.Reservations)
+	base.soil = soil
 	g.carveSuiteWings(wings)
 	base.carveSuiteWings(wings)
 	g.carveBedroomWings(wings)
@@ -229,36 +236,23 @@ const (
 
 // withSoil gives g a per-cell build cost from the survey's fertility.
 func (g coreGrid) withSoil(s MapSurvey) coreGrid {
-	g.soil = make(map[domain.Cell]int, len(s.Cells))
-	for _, c := range s.Cells {
-		switch {
-		case c.Rock:
-			g.soil[c.Cell] = soilCostOther
-		case c.Fertility > zoneRichFertility:
-			g.soil[c.Cell] = soilCostRich
-		case c.Fertility >= zoneFieldFertility:
-			g.soil[c.Cell] = soilCostNormal
-		default:
-			g.soil[c.Cell] = soilCostOther
-		}
-	}
+	g.soil = surveySoil(s)
 	return g
 }
 
-// fieldSoil is the soil cost Grow reads off a saved plan, which carries no
-// survey: every cell of a field zone is soil worth farming (plain or rich,
-// which the zone does not tell apart), so it costs soilCostNormal. Wings
-// keep off it when other ground fits as many rooms.
-func fieldSoil(zones []LayoutZone) map[domain.Cell]int {
-	soil := map[domain.Cell]int{}
-	for _, z := range zones {
-		if z.Kind != ZoneField {
-			continue
-		}
-		for _, r := range z.Runs {
-			for x := r.X; x < r.X+r.Length; x++ {
-				soil[domain.Cell{X: x, Z: r.Z}] = soilCostNormal
-			}
+// surveySoil is each surveyed cell's build cost.
+func surveySoil(s MapSurvey) map[domain.Cell]int {
+	soil := make(map[domain.Cell]int, len(s.Cells))
+	for _, c := range s.Cells {
+		switch {
+		case c.Rock:
+			soil[c.Cell] = soilCostOther
+		case c.Fertility > zoneRichFertility:
+			soil[c.Cell] = soilCostRich
+		case c.Fertility >= zoneFieldFertility:
+			soil[c.Cell] = soilCostNormal
+		default:
+			soil[c.Cell] = soilCostOther
 		}
 	}
 	return soil

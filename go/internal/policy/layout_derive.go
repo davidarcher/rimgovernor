@@ -113,7 +113,7 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	next := plan
 	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zones, vents)
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
-	next, freed := dropEmptiedWings(next, emptied, pawns, tombs, tier, suites...)
+	next, freed := dropEmptiedWings(next, surveySoil(s), emptied, pawns, tombs, tier, suites...)
 	dropped = dropped || freed
 	if growth.Built != nil {
 		var retired bool
@@ -180,8 +180,8 @@ func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int) (LayoutPlan
 // wing rooms than the real Grow (#1249); the cleared wing's ground is then
 // clearance's to demolish. Rooms outside a dropped wing never move. It
 // reports whether a wing was dropped.
-func dropEmptiedWings(plan LayoutPlan, emptied map[domain.Cell]bool, pawns, tombs int, tier BuildTier, suites ...float64) (LayoutPlan, bool) {
-	grown := Grow(plan, pawns, tombs, tier, suites...)
+func dropEmptiedWings(plan LayoutPlan, soil map[domain.Cell]int, emptied map[domain.Cell]bool, pawns, tombs int, tier BuildTier, suites ...float64) (LayoutPlan, bool) {
+	grown := growSoil(plan, soil, pawns, tombs, tier, suites...)
 	dropped := false
 	for i := 0; i < len(plan.Wings); i++ {
 		w := plan.Wings[i]
@@ -190,7 +190,7 @@ func dropEmptiedWings(plan LayoutPlan, emptied map[domain.Cell]bool, pawns, tomb
 		}
 		without := plan
 		without.Wings = append(append([]Wing(nil), plan.Wings[:i]...), plan.Wings[i+1:]...)
-		cf := Grow(without, pawns, tombs, tier, suites...)
+		cf := growSoil(without, soil, pawns, tombs, tier, suites...)
 		if len(cf.Rooms) > len(grown.Rooms) || activeWingRooms(cf) > activeWingRooms(grown) {
 			plan, grown, dropped = without, cf, true
 			i--

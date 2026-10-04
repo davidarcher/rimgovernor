@@ -39,25 +39,38 @@ type siteScore struct {
 // seed over s, keeping the best-scoring result.
 func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) LayoutPlan {
 	if len(plan.Hallways()) > 0 {
-		return Grow(plan, pawns, tombs, tier)
+		return growSoil(plan, surveySoil(s), pawns, tombs, tier)
 	}
 	g := newCoreGrid(plan.Zones, plan.Reservations).withSoil(s)
 	if len(g.core) == 0 {
 		return plan
 	}
-	seeds := g.siteSeeds(siteCandidates)
-	if len(seeds) == 0 {
+	scorer := planScorer{g: g, s: s, ground: newSiteGround(s)}
+	var scores []siteScore
+	var used obstacleLevel
+	// Each obstacle level sites every seed over the ground left once its
+	// obstacles are out; a level holds only if some plan places every base
+	// room, routes and houses every colonist, else the next, looser level
+	// runs, the last with no obstacle (rich soil at cost, #1921).
+	for _, level := range obstacleLevels {
+		scores, used = siteLevel(g, scorer, plan, level, pawns, tombs, tier), level
+		if level == obstacleNone {
+			break
+		}
+		var held []siteScore
+		for _, sc := range scores {
+			if sc.score.Passes() && !sc.plan.LayoutOutgrown(pawns) {
+				held = append(held, sc)
+			}
+		}
+		if len(held) > 0 {
+			scores = held
+			break
+		}
+	}
+	if len(scores) == 0 {
 		return plan
 	}
-	scores := make([]siteScore, len(seeds))
-	scorer := planScorer{g: g, s: s, ground: newSiteGround(s)}
-	eachParallel(len(seeds), func(i int) {
-		p := plan
-		p.Spine = []SpineSegment{{From: seeds[i], To: seeds[i]}}
-		p = Grow(p, pawns, tombs, tier)
-		scores[i] = siteScore{seed: seeds[i], score: scorer.core(p), plan: p}
-	})
-	rankSites(scores)
 	// The wall terms (#1288) need PlanPerimeter, far dearer than Grow, so
 	// only the best siteWallCandidates by core score are walled and reranked.
 	walled := scores[:min(siteWallCandidates, len(scores))]
@@ -69,8 +82,26 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) La
 	for _, sc := range scores[:min(3, len(scores))] {
 		top = append(top, fmt.Sprintf("(%d,%d)=%d", sc.seed.X, sc.seed.Z, sc.score.Total()))
 	}
-	slog.Info("[layout] site scores top 3: "+strings.Join(top, " "), "candidates", len(seeds))
+	slog.Info("[layout] site scores top 3: "+strings.Join(top, " "), "candidates", len(scores), "obstacles", used)
 	return scores[0].plan
+}
+
+// siteLevel generates and scores a plan from each seed of the ground g
+// leaves at level, best first. A level whose obstacles leave no seed
+// returns none.
+func siteLevel(g coreGrid, scorer planScorer, plan LayoutPlan, level obstacleLevel, pawns, tombs int, tier BuildTier) []siteScore {
+	lg := g.withObstacles(g.coreObstacles(plan.Zones, level))
+	if len(lg.core) == 0 {
+		return nil
+	}
+	seeds := lg.siteSeeds(siteCandidates)
+	scores := make([]siteScore, len(seeds))
+	eachParallel(len(seeds), func(i int) {
+		p := lg.generate(plan, seeds[i], pawns, tombs, tier)
+		scores[i] = siteScore{seed: seeds[i], score: scorer.core(p), plan: p}
+	})
+	rankSites(scores)
+	return scores
 }
 
 // siteSeeds is the candidate set, at most n seeds, every one passing

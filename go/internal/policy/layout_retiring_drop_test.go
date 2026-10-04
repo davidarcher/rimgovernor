@@ -18,10 +18,10 @@ func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
 		camp := PlanCore(zones, 3, BuildTierCamp)
 		camp.Wings = retireWings(camp.Wings, BuildTierSpacer)
 		old := camp.Wings[0]
-		if _, dropped := dropEmptiedWings(camp, nil, 6, 1, BuildTierSpacer); dropped {
+		if _, dropped := dropEmptiedWings(camp, nil, nil, 6, 1, BuildTierSpacer); dropped {
 			t.Fatal(tc.size, "a wing with owned beds dropped")
 		}
-		next, dropped := dropEmptiedWings(camp, map[domain.Cell]bool{old.Corridor.From: true}, 6, 1, BuildTierSpacer)
+		next, dropped := dropEmptiedWings(camp, nil, map[domain.Cell]bool{old.Corridor.From: true}, 6, 1, BuildTierSpacer)
 		if dropped != tc.drop {
 			t.Fatal(tc.size, "dropped", dropped)
 		}

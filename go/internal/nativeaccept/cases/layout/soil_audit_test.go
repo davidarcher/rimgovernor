@@ -39,13 +39,13 @@ func TestRichSoilBaselinePlan(t *testing.T) {
 			t.Fatal("no plan")
 		}
 		a := auditSoil(plan, s, nil)
-		t.Logf("%+v outgrown(+1)=%v", a, plan.LayoutOutgrown(pawns+1))
+		t.Logf("%+v", a)
 		t.Logf("rich overlap: %s", a.richOverlap())
 		if err := a.err(); err != nil {
 			t.Fatal(err)
 		}
-		if !plan.LayoutOutgrown(pawns + 1) {
-			t.Fatal("one more colonist does not outgrow the plan")
+		if plan.LayoutOutgrown(pawns) {
+			t.Fatal("the plan does not house the colony")
 		}
 		if a.RichCells == 0 || a.Patches == 0 || a.WallCells == 0 {
 			t.Fatalf("baseline lacks rich soil, patches or a ring: %+v", a)
