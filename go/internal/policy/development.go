@@ -180,21 +180,15 @@ type DevelopmentState struct {
 	// planners a wake named, so a selected goal whose planner did not run
 	// is not judged idle by the next review.
 	Partial bool
-	// Census is the worker census the ranking matched distinct workers
-	// from (development_capacity.go), unknown when unobserved (the
-	// per-type Labor headcount then decides).
-	Census domain.Fact[[]DevelopmentWorker]
 	// Holds is the labor open work and withheld prerequisites held ahead
 	// of the ranked rows (CommitmentHolds).
 	Holds []DevelopmentHold
 	// StageHold: the Foothold hold (#630) held the comfort-class goals
 	// (StageDevelopmentGoal) at this ranking.
 	StageHold bool
-	// Unused is the census workers no hold or selection took (automatic
-	// mode with a known census); Limiting is the reason the first eligible
-	// goal left unselected reads, empty when every eligible goal was
-	// selected or none was eligible.
-	Unused   domain.Fact[int]
+	// Limiting is the reason the first eligible goal left unselected
+	// reads, empty when every eligible goal was selected or none was
+	// eligible.
 	Limiting DevelopmentReason
 	// Blockers are dependency edges that donated nothing, and why.
 	Blockers []DependencyBlocker `json:",omitempty"`
@@ -226,9 +220,6 @@ type DevelopmentRequest struct {
 	// (ReviewColonyStage); its Foothold hold refuses the comfort-class
 	// development with DevelopmentStage.
 	Stage ColonyStageRecord
-	// Census is the distinct workers admission matches; the
-	// slot count is the worker count.
-	Census domain.Fact[[]DevelopmentWorker]
 	// Dependencies are the live prerequisite edges (#651); a prerequisite
 	// row with an open shortfall ranks ahead of undonated rows
 	// (ResolveDonations) without changing its priority.
@@ -272,7 +263,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			}
 		}
 	}
-	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: workers, Census: r.Census, StageHold: r.Stage.HoldsDevelopment()}
+	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: workers, StageHold: r.Stage.HoldsDevelopment()}
 	result.Partial = r.Partial
 	if !validLabor(r.Withheld) {
 		return DevelopmentState{}, errors.New("invalid withheld labor")
@@ -515,9 +506,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	return result, nil
 }
 
-// summarizeDevelopment records the diagnostics the rows imply: the first
-// limiting reason and, in automatic mode with a known census, the workers
-// no hold or selection took.
+// summarizeDevelopment records the first limiting reason the rows imply.
 func summarizeDevelopment(s *DevelopmentState) {
 	s.Limiting = ""
 	for _, row := range s.Rows {
@@ -528,26 +517,4 @@ func summarizeDevelopment(s *DevelopmentState) {
 			}
 		}
 	}
-	s.Unused = domain.Unknown[int]()
-	census, known := s.Census.Value()
-	if !known {
-		return
-	}
-	var demands []LaborProfile
-	for _, h := range s.Holds {
-		demands = append(demands, h.Labor)
-	}
-	for _, row := range s.Rows {
-		if row.Selected {
-			demands = append(demands, row.Labor)
-		}
-	}
-	fits, _ := developmentFit(s.Census, s.Labor, demands)
-	used := 0
-	for i, d := range demands {
-		if fits[i] && len(d) > 0 {
-			used++
-		}
-	}
-	s.Unused = domain.Known(max(0, len(census)-used))
 }

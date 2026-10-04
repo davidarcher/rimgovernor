@@ -34000,13 +34000,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human262"
-    }
-   ]
-  },
   "Workers": {
    "v": 1
   }
@@ -34114,11 +34107,6 @@
  "Review": {
   "Development": {
    "Capacity": 1,
-   "Census": [
-    {
-     "ID": "Thing_Human262"
-    }
-   ],
    "Holds": [
     {
      "Labor": [
@@ -34277,7 +34265,6 @@
     "Revision": 1
    },
    "Tick": 32,
-   "Unused": 1,
    "Workers": 1
   },
   "Enabled": true,

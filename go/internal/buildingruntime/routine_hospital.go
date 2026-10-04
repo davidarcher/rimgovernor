@@ -190,31 +190,50 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
 		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
-	id := domain.MintPlanID()
-	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
+	err = p.commitBedPatch(call, epoch, state, goal, method, patch, func() error {
+		if elapsed := r.reviewer.clock.Now().Sub(started); elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return fmt.Errorf("%w: step: elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+		}
+		latest, err := p.journal.LoadRoutineReview(call)
+		if err != nil {
+			return err
+		}
+		if latest.Revision != review.Revision || !latest.Enabled {
+			return fmt.Errorf("%w: step: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
+		}
+		return nil
+	})
 	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineBuildingResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
-	}
-	latest, err := p.journal.LoadRoutineReview(call)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if latest.Revision != review.Revision || !latest.Enabled {
-		return RoutineBuildingResult{}, fmt.Errorf("%w: step: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
-	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
+}
+
+// commitBedPatch commits one CAS-gated BedUse patch as the goal's method:
+// the single copy of the tail the hospital convert, the vet-room medical
+// bed and the jail bed share. guard, when set, runs after the session and
+// epoch checks, last before the commit.
+func (p *Player) commitBedPatch(call, epoch context.Context, state ControlState, goal store.GoalState, method domain.MethodID, patch domain.BedUse, guard func() error) error {
+	id := domain.MintPlanID()
+	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
+	if err != nil {
+		return err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return err
+	}
+	if p.session.State() != state {
+		return fmt.Errorf("%w: commitBedPatch: p.session.State() != state", ErrControl)
+	}
+	if guard != nil {
+		if err = guard(); err != nil {
+			return err
+		}
+	}
+	_, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan)
+	return err
 }

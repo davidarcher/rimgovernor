@@ -19731,60 +19731,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human780",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Doctor",
-      "Firefighter",
-      "Growing",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human786",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Firefighter",
-      "Handling",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human829",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Crafting",
-      "Firefighter",
-      "Hauling",
-      "Hunting",
-      "Patient",
-      "PatientBedRest",
-      "Research",
-      "Smithing",
-      "Tailoring"
-     ]
-    }
-   ]
-  },
   "Workers": {
    "v": 3
   }
@@ -19892,58 +19838,6 @@
  "Review": {
   "Development": {
    "Capacity": 3,
-   "Census": [
-    {
-     "ID": "Thing_Human780",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Doctor",
-      "Firefighter",
-      "Growing",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human786",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Firefighter",
-      "Handling",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human829",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Crafting",
-      "Firefighter",
-      "Hauling",
-      "Hunting",
-      "Patient",
-      "PatientBedRest",
-      "Research",
-      "Smithing",
-      "Tailoring"
-     ]
-    }
-   ],
    "Committed": [
     "player-project-91f7f0f6382dcd8302baf6274de9e080c79103740787782ed5d5ac53f318dc2c"
    ],
@@ -20144,7 +20038,6 @@
    },
    "StageHold": true,
    "Tick": 26565,
-   "Unused": 2,
    "Workers": 3
   },
   "Enabled": true,

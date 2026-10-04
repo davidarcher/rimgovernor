@@ -7321,9 +7321,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": null
-  },
   "Workers": {
    "v": 0
   }
@@ -7430,7 +7427,6 @@
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load fef25851f0c446a28eec54980a648bab map 0 tick 15",
  "Review": {
   "Development": {
-   "Census": [],
    "Holds": [
     {
      "Labor": [
@@ -7571,7 +7567,6 @@
    },
    "StageHold": true,
    "Tick": 15,
-   "Unused": 0,
    "Workers": 0
   },
   "Enabled": true,

@@ -24,12 +24,6 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Workers = domain.Known(4)
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkResearch: 1, policy.WorkPlantCutting: 1})
-	r.Facts.WorkerCensus = domain.Known([]policy.DevelopmentWorker{
-		{ID: "builder", Work: []policy.WorkType{policy.WorkConstruction}},
-		{ID: "cutter", Work: []policy.WorkType{policy.WorkPlantCutting}},
-		{ID: "hauler", Work: []policy.WorkType{policy.WorkHauling}},
-		{ID: "scholar", Work: []policy.WorkType{policy.WorkResearch}},
-	})
 	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(3)), domain.Known(int64(3))
 	first := reviewRoutine(t, s, &r)
 	d := first.Review.Development
@@ -38,7 +32,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 			t.Fatal(need, d.Rows)
 		}
 	}
-	if d.Census == nil || len(*d.Census) != 4 || d.Unused == nil || *d.Unused != 1 || d.Capacity != 4 {
+	if d.Capacity != 4 {
 		t.Fatalf("%+v", d)
 	}
 	s.Close()

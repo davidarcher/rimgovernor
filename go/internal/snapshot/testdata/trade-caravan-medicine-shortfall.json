@@ -6440,57 +6440,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human195",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Firefighter",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human209",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Firefighter",
-      "Hauling",
-      "Hunting",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "Research"
-     ]
-    },
-    {
-     "ID": "Thing_Human231",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Crafting",
-      "Doctor",
-      "Firefighter",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Smithing",
-      "Tailoring"
-     ]
-    }
-   ]
-  },
   "Workers": {
    "v": 3
   }
@@ -6611,55 +6560,6 @@
  "Review": {
   "Development": {
    "Capacity": 3,
-   "Census": [
-    {
-     "ID": "Thing_Human195",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Firefighter",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human209",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Firefighter",
-      "Hauling",
-      "Hunting",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "Research"
-     ]
-    },
-    {
-     "ID": "Thing_Human231",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Crafting",
-      "Doctor",
-      "Firefighter",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Smithing",
-      "Tailoring"
-     ]
-    }
-   ],
    "Holds": [
     {
      "Labor": [
@@ -6843,7 +6743,6 @@
    },
    "StageHold": true,
    "Tick": 7521,
-   "Unused": 2,
    "Workers": 3
   },
   "Enabled": true,

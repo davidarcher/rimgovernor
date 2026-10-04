@@ -12556,75 +12556,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human229",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Crafting",
-      "Doctor",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human232",
-     "Work": [
-      "BasicWorker",
-      "Construction",
-      "Crafting",
-      "Firefighter",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human259",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Crafting",
-      "Firefighter",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    }
-   ]
-  },
   "Workers": {
    "v": 3
   }
@@ -12747,73 +12678,6 @@
  "Review": {
   "Development": {
    "Capacity": 3,
-   "Census": [
-    {
-     "ID": "Thing_Human229",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Crafting",
-      "Doctor",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human232",
-     "Work": [
-      "BasicWorker",
-      "Construction",
-      "Crafting",
-      "Firefighter",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human259",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Cooking",
-      "Crafting",
-      "Firefighter",
-      "Growing",
-      "Handling",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    }
-   ],
    "Holds": [
     {
      "Labor": [
@@ -13009,7 +12873,6 @@
    },
    "StageHold": true,
    "Tick": 95332,
-   "Unused": 1,
    "Workers": 3
   },
   "Disaster": {

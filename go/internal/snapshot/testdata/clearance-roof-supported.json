@@ -9728,65 +9728,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human724",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human726",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human728",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human730",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human735",
-     "Work": [
-      "Construction"
-     ]
-    },
-    {
-     "ID": "Thing_Human737",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human743",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human745",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    }
-   ]
-  },
   "Workers": {
    "v": 8
   }
@@ -10035,63 +9976,6 @@
   ],
   "Development": {
    "Capacity": 8,
-   "Census": [
-    {
-     "ID": "Thing_Human724",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human726",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human728",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human730",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human735",
-     "Work": [
-      "Construction"
-     ]
-    },
-    {
-     "ID": "Thing_Human737",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human743",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human745",
-     "Work": [
-      "Construction",
-      "Hauling"
-     ]
-    }
-   ],
    "Holds": [
     {
      "Labor": [
@@ -10261,7 +10145,6 @@
    },
    "StageHold": true,
    "Tick": 615,
-   "Unused": 6,
    "Workers": 8
   },
   "Enabled": true,

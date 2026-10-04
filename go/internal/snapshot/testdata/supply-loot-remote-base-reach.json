@@ -5588,55 +5588,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human277",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Doctor",
-      "Firefighter",
-      "Growing",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting"
-     ]
-    },
-    {
-     "ID": "Thing_Human280",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Crafting",
-      "Firefighter",
-      "Handling",
-      "Hunting",
-      "Patient",
-      "PatientBedRest",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human283",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Patient",
-      "PatientBedRest",
-      "Research",
-      "Warden"
-     ]
-    }
-   ]
-  },
   "Workers": {
    "v": 3
   }
@@ -5747,53 +5698,6 @@
  "Review": {
   "Development": {
    "Capacity": 3,
-   "Census": [
-    {
-     "ID": "Thing_Human277",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Doctor",
-      "Firefighter",
-      "Growing",
-      "Hauling",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting"
-     ]
-    },
-    {
-     "ID": "Thing_Human280",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Crafting",
-      "Firefighter",
-      "Handling",
-      "Hunting",
-      "Patient",
-      "PatientBedRest",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human283",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Patient",
-      "PatientBedRest",
-      "Research",
-      "Warden"
-     ]
-    }
-   ],
    "Holds": [
     {
      "Labor": [
@@ -5976,7 +5880,6 @@
    },
    "StageHold": true,
    "Tick": 21,
-   "Unused": 1,
    "Workers": 3
   },
   "Enabled": true,

@@ -165,7 +165,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			}
 		}
 	}
-	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Goals: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Census: r.Facts.WorkerCensus, Dependencies: dependencies})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Goals: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Dependencies: dependencies})
 	if err != nil {
 		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}

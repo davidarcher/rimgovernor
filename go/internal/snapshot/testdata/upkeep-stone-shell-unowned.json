@@ -7111,58 +7111,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human229",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Doctor",
-      "Growing",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human232",
-     "Work": [
-      "BasicWorker",
-      "Construction",
-      "Crafting",
-      "Firefighter",
-      "Handling",
-      "Hauling",
-      "Hunting",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human259",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Firefighter",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "Warden"
-     ]
-    }
-   ]
-  },
   "Workers": {
    "v": 3
   }
@@ -7282,56 +7230,6 @@
  "Review": {
   "Development": {
    "Capacity": 3,
-   "Census": [
-    {
-     "ID": "Thing_Human229",
-     "Work": [
-      "BasicWorker",
-      "Cleaning",
-      "Construction",
-      "Cooking",
-      "Doctor",
-      "Growing",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "PlantCutting",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human232",
-     "Work": [
-      "BasicWorker",
-      "Construction",
-      "Crafting",
-      "Firefighter",
-      "Handling",
-      "Hauling",
-      "Hunting",
-      "Mining",
-      "Patient",
-      "PatientBedRest",
-      "Research",
-      "Smithing",
-      "Tailoring",
-      "Warden"
-     ]
-    },
-    {
-     "ID": "Thing_Human259",
-     "Work": [
-      "Art",
-      "BasicWorker",
-      "Cleaning",
-      "Firefighter",
-      "Hauling",
-      "Patient",
-      "PatientBedRest",
-      "Warden"
-     ]
-    }
-   ],
    "Holds": [
     {
      "Labor": [
@@ -7498,7 +7396,6 @@
    },
    "StageHold": true,
    "Tick": 29,
-   "Unused": 2,
    "Workers": 3
   },
   "Disaster": {

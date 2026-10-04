@@ -32,7 +32,6 @@ func woodShortage() DevelopmentRequest {
 	return DevelopmentRequest{
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
 		Workers: domain.Known(1),
-		Census:  census(worker("a", WorkPlantCutting, WorkCooking, WorkHauling)),
 		Goals: []DevelopmentGoal{
 			{ID: MaintainHousing, Source: AutopilotGoal, Priority: 2, Served: true},
 			{ID: MaintainAnimalFeed, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},

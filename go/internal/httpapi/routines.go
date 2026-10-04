@@ -207,12 +207,10 @@ type routineDevelopmentDTO struct {
 	Rows      []routineDevelopmentRowDTO `json:"rows"`
 	// Capacity bounds planner cost; distinct observed workers decide
 	// admission. HeldWorkers is labor open startup work and withheld prerequisites
-	// hold without a slot; UnusedWorkers the auto census workers nothing
-	// took (null with an unknown census); Limiting the
+	// hold without a slot; Limiting the
 	// first reason an eligible goal was left unselected.
-	HeldWorkers   int                      `json:"heldWorkers"`
-	UnusedWorkers *int                     `json:"unusedWorkers"`
-	Limiting      policy.DevelopmentReason `json:"limiting"`
+	HeldWorkers int                      `json:"heldWorkers"`
+	Limiting    policy.DevelopmentReason `json:"limiting"`
 }
 type routineLaborDTO struct {
 	Work policy.WorkType `json:"work"`
@@ -370,9 +368,6 @@ func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {
 		if !h.Slot && len(h.Labor) > 0 {
 			dto.HeldWorkers++
 		}
-	}
-	if v, k := s.Unused.Value(); k {
-		dto.UnusedWorkers = &v
 	}
 	if v, k := s.Workers.Value(); k {
 		dto.Workers = &v

@@ -21,13 +21,6 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 			return errors.New("invalid development hold")
 		}
 	}
-	if census, known := s.Census.Value(); known {
-		for _, w := range census {
-			if w.ID == "" || !validLabor(LaborProfile(w.Work)) {
-				return errors.New("invalid development census")
-			}
-		}
-	}
 	workers, known := s.Workers.Value()
 	if known && (workers < 0 || workers > 4096 || s.Capacity > workers) || !known && s.Capacity != 0 {
 		return errors.New("invalid development worker capacity")

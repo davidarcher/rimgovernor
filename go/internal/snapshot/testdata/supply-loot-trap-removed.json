@@ -7657,46 +7657,6 @@
     }
    ]
   },
-  "WorkerCensus": {
-   "v": [
-    {
-     "ID": "Thing_Human277",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human280",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human283",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human9443",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human9446",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human9449",
-     "Work": [
-      "Hauling"
-     ]
-    }
-   ]
-  },
   "Workers": {
    "v": 6
   }
@@ -7821,44 +7781,6 @@
  "Review": {
   "Development": {
    "Capacity": 6,
-   "Census": [
-    {
-     "ID": "Thing_Human277",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human280",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human283",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human9443",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human9446",
-     "Work": [
-      "Hauling"
-     ]
-    },
-    {
-     "ID": "Thing_Human9449",
-     "Work": [
-      "Hauling"
-     ]
-    }
-   ],
    "Holds": [
     {
      "Labor": [
@@ -8012,7 +7934,6 @@
    },
    "StageHold": true,
    "Tick": 21,
-   "Unused": 6,
    "Workers": 6
   },
   "Enabled": true,

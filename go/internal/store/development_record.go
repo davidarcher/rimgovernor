@@ -17,11 +17,9 @@ type RoutineDevelopment struct {
 	Partial   bool `json:",omitempty"`
 	// The fields below (#649) are absent from records written before
 	// automatic admission existed.
-	Census    *[]policy.DevelopmentWorker `json:",omitempty"`
-	Holds     []policy.DevelopmentHold    `json:",omitempty"`
-	StageHold bool                        `json:",omitempty"`
-	Unused    *int                        `json:",omitempty"`
-	Limiting  policy.DevelopmentReason    `json:",omitempty"`
+	Holds     []policy.DevelopmentHold `json:",omitempty"`
+	StageHold bool                     `json:",omitempty"`
+	Limiting  policy.DevelopmentReason `json:",omitempty"`
 	// Blockers are the dependency edges that donated nothing (#651).
 	Blockers []policy.DependencyBlocker `json:",omitempty"`
 }
@@ -47,13 +45,6 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 		Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Limiting: s.Limiting, Blockers: append([]policy.DependencyBlocker(nil), s.Blockers...)}
 	if v, k := s.Workers.Value(); k {
 		r.Workers = &v
-	}
-	if v, k := s.Census.Value(); k {
-		census := append([]policy.DevelopmentWorker{}, v...)
-		r.Census = &census
-	}
-	if v, k := s.Unused.Value(); k {
-		r.Unused = &v
 	}
 	if labor, k := s.Labor.Value(); k {
 		r.Labor = map[policy.WorkType]int{}
@@ -83,12 +74,6 @@ func (r RoutineDevelopment) State() policy.DevelopmentState {
 		Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Limiting: r.Limiting, Blockers: append([]policy.DependencyBlocker(nil), r.Blockers...)}
 	if r.Workers != nil {
 		s.Workers = domain.Known(*r.Workers)
-	}
-	if r.Census != nil {
-		s.Census = domain.Known(append([]policy.DevelopmentWorker{}, (*r.Census)...))
-	}
-	if r.Unused != nil {
-		s.Unused = domain.Known(*r.Unused)
 	}
 	if r.Labor != nil {
 		labor := map[policy.WorkType]int{}

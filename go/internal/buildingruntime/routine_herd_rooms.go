@@ -167,22 +167,7 @@ func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	id := domain.MintPlanID()
-	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if p.session.State() != state {
-		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: p.session.State() != state", ErrControl)
-	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if err = p.commitBedPatch(call, epoch, state, goal, method, patch, nil); err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil

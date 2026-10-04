@@ -470,9 +470,6 @@ type RoutineFacts struct {
 	// LaborUse is what those pawns are doing (RoutineLaborUse): the evidence
 	// RankDevelopment releases an idle commitment's slot on.
 	LaborUse domain.Fact[LaborUse]
-	// WorkerCensus is the distinct-worker census of the same pawns
-	// (DevelopmentCensus), matched in automatic development mode.
-	WorkerCensus domain.Fact[[]DevelopmentWorker]
 	// WorkRoster is the planner's per-work-type coverage (PlanWork): the
 	// owners each type wanted and found and the pawns capable of it, so a
 	// goal can name a missing capability instead of stalling.

@@ -143,11 +143,15 @@ func TestPrioritizeSlaughterChoice(t *testing.T) {
 	}
 }
 
-// A bonded animal is never the removal pick: the unbonded animal of the same
-// race goes instead, by every removal path (#1645).
+// A bonded animal is never the removal pick: native refuses it for slaughter
+// and release (SafeToSlaughter, SafeToRelease read false), so the unbonded
+// animal of the same race goes instead (#1645). The sale and prioritized
+// slaughter paths keep their own bonded check, which native does not apply
+// for them (a player-designated slaughter).
 func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	bonded := bondedAs(planAnimal("a1", "Cow", "None"), true)
 	bonded.BondedPawns = []string{"p1"}
+	bonded.SafeToSlaughter, bonded.SafeToRelease = domain.Known(false), domain.Known(false)
 	free := bondedAs(planAnimal("a2", "Cow", "None"), false)
 	limits := map[Resource]int64{"Cow": 1}
 	got, unknown := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, nil)
@@ -155,7 +159,6 @@ func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 		t.Fatalf("surplus pick = %+v, want a2", got)
 	}
 	free.SafeToSlaughter, free.SafeToRelease = domain.Known(false), domain.Known(true)
-	bonded.SafeToRelease = domain.Known(true)
 	if got, _ := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, nil); len(got) != 1 || got[0].animal.ID != "a2" || got[0].method != domain.HusbandryRelease {
 		t.Fatalf("release pick = %+v, want a2", got)
 	}
