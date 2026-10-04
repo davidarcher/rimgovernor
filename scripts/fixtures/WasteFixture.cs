@@ -281,9 +281,7 @@ namespace HomeBridge.BridgeTools
                     {
                         var request = new RimGovernor.Protocol.Observations.ColonyFactsRequest {
                             Scope = new RimGovernor.Protocol.Observations.ReadScope { ExpectedIdentity = context.Identity.Clone() }, Planning = true };
-                        if (!NativeColonyObservationTools.TryRead(map, request, context, out var snapshot))
-                            throw new System.InvalidOperationException("ColonyFacts read failed.");
-                        return snapshot;
+                        return NativeColonyObservationTools.Read(map, request, context);
                     }
                     finally { NativeUpkeepFacts.SharedPass = previous; }
                 }
