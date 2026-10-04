@@ -87,6 +87,7 @@ type Summary struct {
 	Zones             []Stockpile `json:"zones,omitempty"`
 	ZoneDrops         int         `json:"zone_drops"`
 	SuppliesForbidden bool        `json:"supplies_forbidden"`
+	Score             Score       `json:"score"`
 	Thumb             string      `json:"thumb"`
 	Error             string      `json:"error,omitempty"`
 }
@@ -237,6 +238,7 @@ func Derive(rows []Row, meta map[string]string) Summary {
 			}
 		}
 	}
+	s.Score = ComputeScore(rows)
 	return s
 }
 

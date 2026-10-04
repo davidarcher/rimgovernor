@@ -37,6 +37,24 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   storage section lists the final zone count per role from the census's
   `stockpiles` block (see [storage](../architecture/storage.md)). They gate
   nothing.
+- **Score** (#1934, epic #1852) `run.json` carries `score`: a vector of
+  `components` computed from the timeline plus a weighted `scalar` (0-100)
+  for ranking. Signal only, it gates nothing. Each component has a `value`
+  in its unit, a `score` (the value mapped to 0-1, 1 best, clamped) and a
+  `weight`. A component the timeline cannot supply has a null `value` and
+  `score` and is left out of the scalar (the scalar is the weighted mean of
+  the known scores, never a zero for a missing one); no known component
+  gives a null scalar. Components (`go/cmd/colonyreview/score.go`):
+
+  | component | value | score 1 at | weight |
+  | --- | --- | --- | --- |
+  | `wealth_growth` | last wealth / first - 1 | +100% | 3 |
+  | `mean_mood` | mean of the hourly colony mood mean | 1.0 | 2 |
+  | `min_food_runway` | lowest food runway, days | 10 days | 3 |
+  | `deaths` | colonists lost between readings | none lost (0 at all lost) | 4 |
+  | `downed_time` | fraction of readings with a colonist downed | never | 1 |
+  | `stage_days:<tier>` | days to the first reading of each build tier reached | day 0 (0 at 15 days) | 3 shared evenly by the tiers reached |
+  | `raid_damage` | unknown: the timeline records none yet | | 2 |
 - **Workflow** `.github/workflows/colony-review.yml`: nightly and on
   demand (`seed`, `days` inputs; defaults the pinned seed and 15 days), on the remote-acceptance runner setup.
   The report is rendered from whatever was recorded, uploaded as the
