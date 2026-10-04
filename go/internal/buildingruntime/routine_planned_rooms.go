@@ -22,7 +22,10 @@ func (r *RoutineBuildingPlanner) plannedRoomModule() (policy.ModuleRole, bool) {
 	switch {
 	case r.goal == policy.EnsureCooking && len(r.paste) == 0:
 		return policy.ModuleKitchen, true
-	case r.goal == policy.MaintainButcherSpot && (r.definition == "ButcherSpot" || r.definition == "TableButcher"):
+	// The stand-in ButcherSpot is free and instant and gates hunting (#260): it
+	// stands outdoors now and never waits on the room being dug. Only the real
+	// table goes in the planned butchery.
+	case r.goal == policy.MaintainButcherSpot && r.definition == "TableButcher":
 		return policy.ModuleButchery, true
 	case r.goal == policy.MaintainRefrigeration && r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild:
 		return policy.ModuleFreezer, true
