@@ -67,8 +67,18 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	}
 	growth.Built = map[Rectangle]bool{worship[0].Interior: true}
 	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 1, BuildTierCamp, nil, nil)
+	// The sited core may legitimately plan another room over the spot.
+	planned := map[Rectangle]bool{}
+	for _, r := range next.AllRooms() {
+		if r.Role != ModuleWorship {
+			planned[pad(r.Interior, 1)] = true
+		}
+	}
 	standing := RoomObservation{}
 	for _, g := range PlannedGround(next, standing) {
+		if planned[g] {
+			continue
+		}
 		if g.X <= built.Interior.X && built.Interior.X < g.X+g.Width && g.Z <= built.Interior.Z && built.Interior.Z < g.Z+g.Height {
 			t.Fatal("a dropped room is still planned ground", g)
 		}

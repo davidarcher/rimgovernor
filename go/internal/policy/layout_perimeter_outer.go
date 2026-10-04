@@ -96,7 +96,7 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 		case ReserveTurbine, ReserveTurbineLane:
 			// The core ring walls a turbine pair in; none stands outside.
 		default:
-			if outerEnclosed[r.Kind] {
+			if outerEnclosed[r.Kind] && !coreTakesIn(plan, r) {
 				take(rectCells(r.Area))
 			}
 		}
@@ -249,8 +249,20 @@ func pitchGates(gates, stepGates []Rectangle) []Rectangle {
 }
 
 // coreBox is the core ring's box: the rooms with their walls and the
-// hallways, grown over the pen, barn, vet room and turbine pairs beside them.
+// hallways, grown over the pen, barn, vet room and turbine pairs beside them,
+// and over any outer-ring unit crowding them (coreTakesIn).
 func coreBox(plan LayoutPlan) Rectangle {
+	core := coreBase(plan)
+	for _, r := range plan.Reservations {
+		if outerEnclosed[r.Kind] && crowdsCore(core, r.Area) {
+			core = unionRect(core, pad(r.Area, 1))
+		}
+	}
+	return core
+}
+
+// coreBase is coreBox before any outer-ring unit is taken in.
+func coreBase(plan LayoutPlan) Rectangle {
 	var core Rectangle
 	for _, r := range plan.AllRooms() {
 		core = unionRect(core, pad(r.Interior, 1))
@@ -264,6 +276,21 @@ func coreBox(plan LayoutPlan) Rectangle {
 		}
 	}
 	return core
+}
+
+// outerClear is how far the outer ring needs a unit to stand off the core
+// box: the core ring's yard, its thickness, the gap and the outer ring's thickness.
+const outerClear = perimeterGap + perimeterThick + perimeterOuterGap + perimeterThick
+
+// crowdsCore reports whether area stands within outerClear of the core box.
+// The outer ring cannot wall such a unit whole, so the core ring takes it in.
+func crowdsCore(core, area Rectangle) bool {
+	return core.Width > 0 && rectsOverlap(pad(core, outerClear), area)
+}
+
+// coreTakesIn reports whether the core ring walls the outer-ring unit r in.
+func coreTakesIn(plan LayoutPlan, r LayoutReservation) bool {
+	return crowdsCore(coreBase(plan), r.Area)
 }
 
 // outerKeepOut marks the cells of a w x h map the core ring will occupy or

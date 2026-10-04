@@ -18,13 +18,14 @@ import (
 // Replans extend the saved plan and never re-site.
 
 // siteCandidates is N, the most seeds a fresh siting pass grows. On the
-// #1280 baseline fixture one Grow takes ~40-50 ms, so 96 seeds over the
-// worker pool stay well inside siteBudget.
-const siteCandidates = 96
+// #1280 baseline fixture one Grow takes ~40-50 ms; the map is paused while
+// the first plan is sited, so ~780 seeds (the fixture yields that many) over the
+// worker pool take ~4 s (32 threads), inside siteBudget.
+const siteCandidates = 1000
 
 // siteBudget is the wall time the whole fresh-siting pass should stay
 // under on the #1280 fixture (BenchmarkLayoutSiteCore checks it).
-const siteBudget = 2 * time.Second
+const siteBudget = 10 * time.Second
 
 // Score weights. Soil under rooms and hallways is a loss (by soilCost),
 // rock under them a dig cost, and a base
@@ -123,7 +124,7 @@ func (g coreGrid) siteSeeds(n int) []domain.Cell {
 }
 
 // siteGridStep is the coarse grid's spacing in cells.
-const siteGridStep = 8
+const siteGridStep = 2
 
 // siteEdgeGap is how far outside a rich patch an edge seed may sit.
 const siteEdgeGap = 3
@@ -237,9 +238,9 @@ func siteEdgeCost(p LayoutPlan, b Bounds, ground siteGround) int {
 // siteWallCandidates is K, how many of the best sites by core score are
 // walled with PlanPerimeter and rescored (#1288). One PlanPerimeter call
 // on the #1280 fixture costs ~250-300 ms and ~250 MB; walling 8 in
-// parallel took the whole pass from ~0.5 s to ~0.86 s (32 threads,
+// parallel took the whole pass from ~0.5 s to ~0.86 s at 96 seeds (32 threads,
 // quiet box), inside siteBudget.
-const siteWallCandidates = 8
+const siteWallCandidates = 16
 
 // siteWallWeight is the cost of each built wall cell (#1288, #1594): the
 // main site signal. Ring edge backed by rock is not built, so a
