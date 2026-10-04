@@ -67,9 +67,14 @@ namespace HomeBridge.BridgeTools
             void Span(string name) { var now = System.Diagnostics.Stopwatch.GetTimestamp(); ObservationWork.Detail(name, now - mark); mark = now; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction unavailable.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).ToList();
-            if (people.Count == 0) throw new InvalidOperationException("No colony anchor.");
             var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
-            var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
+            // With no colonist spawned (the last one kidnapped or away) the colony
+            // is still there: anchor on its buildings, else the map's middle.
+            var anchors = people.Select(p => p.Position).ToList();
+            if (anchors.Count == 0) anchors = map.listerBuildings.allBuildingsColonist.Select(b => b.Position).ToList();
+            var center = anchors.Count > 0
+                ? new IntVec3((int)anchors.Average(c => c.x), 0, (int)anchors.Average(c => c.z))
+                : new IntVec3(map.Size.x / 2, 0, map.Size.z / 2);
             var things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
             Span("cf.things");
             // One read asks the same thing or def many times (items, beds,

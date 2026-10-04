@@ -26,11 +26,11 @@ namespace HomeBridge.BridgeTools
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood)
         {
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
-            // The candidate pool is every eligible plant within 35 cells; pending yield below covers all designations.
+            // The candidate pool is every eligible plant on the map; pending yield below covers all designations.
             // Medicine-yielding wild plants (healroot) join trees and food so MaintainMedicalReserves can harvest.
             // YieldNow rounds randomly, so one sample per plant decides both eligibility and the row: a plant
             // whose sample is zero (below harvest growth, or a fractional yield rounded down) is not a source.
-            var selected = plants.Where(p => p.Position.DistanceTo(center) <= 35 && (p.def.plant.IsTree || humanFood(p.def.plant.harvestedThingDef) || p.def.plant.harvestedThingDef.IsMedicine) && Eligible(p))
+            var selected = plants.Where(p => (p.def.plant.IsTree || humanFood(p.def.plant.harvestedThingDef) || p.def.plant.harvestedThingDef.IsMedicine) && Eligible(p))
                 .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber)
                 .Select(p => (plant: p, yield: p.YieldNow())).Where(s => s.yield > 0).ToArray();
             foreach (var (plant, yield) in selected)
