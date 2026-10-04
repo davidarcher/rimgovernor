@@ -465,14 +465,6 @@ message AuthorityChanged {
   optional string reason = 3;
   optional bool active = 4;
 }
-// The player pressed a button on the in-game RimGovernor panel (#957):
-// action is the PanelAction id the controller offered, request_id is unique
-// per press. Observed with or without an epoch, so like AuthorityChanged its
-// Event.owner may be absent. Both are identifiers (printable ASCII).
-message PlayerRequest {
-  optional string action = 1;
-  optional string request_id = 2;
-}
 message WatchLatched {
   OperationOutcome outcome = 1;
   optional int64 tick_deadline = 2;
@@ -560,8 +552,7 @@ message ForcePauseCleared {
 }
 message Event {
   optional int64 cursor = 1;
-  // Absent only for an AuthorityChanged event observed outside any epoch
-  // and a PlayerRequest.
+  // Absent only for an AuthorityChanged event observed outside any epoch.
   EpochOwner owner = 2;
   rimgovernor.common.v1.ObservationContext context = 3;
   optional int64 observed_at_unix_ms = 4;
@@ -580,7 +571,6 @@ message Event {
     OperationOutcome operation_outcome = 16;
     AuthorityChanged authority_changed = 17;
     ObservationInvalidated observation_invalidated = 18;
-    PlayerRequest player_request = 20;
   }
   // How long ago, on native's own clock, this event was observed when the
   // page carrying it was composed: the unobserved time a stop sat in native

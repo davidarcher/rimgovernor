@@ -397,15 +397,6 @@ namespace HomeBridge.BridgeTools
                         { "reason", snapshot.Reason.ToString() }, { "active", snapshot.Active } });
             }
         }
-        // A button press on the status panel (#957): an ownerless event the
-        // controller's poll hands to its reviewer. Game thread (OnGUI).
-        internal static void PublishPlayerRequest(string action)
-        {
-            if (!NativeClockEventProjection.IsPanelId(action)) return;
-            var id = Guid.NewGuid().ToString("N");
-            Publish("player_request", "Player pressed " + action + ".",
-                new Dictionary<string, object?> { { "action", action }, { "requestId", id } });
-        }
         // Epoch-less rows carry no owner and take their context from the
         // current map. False means no complete context exists to publish under.
         private static bool AttachOwnerlessEvent(Dictionary<string, object?> row, string kind, string? detail, Dictionary<string, object?>? payload)
@@ -477,11 +468,10 @@ namespace HomeBridge.BridgeTools
                 || !value.Context.HasNativeGeneration || value.Context.NativeGeneration == 0
                 || !value.HasObservedAtUnixMs || value.ObservedAtUnixMs < 0
                 || value.EventCase == Clock.Event.EventOneofCase.None) return false;
-            if (value.Owner == null ? value.AuthorityChanged == null && value.PlayerRequest == null
+            if (value.Owner == null ? value.AuthorityChanged == null
                 : !value.Owner.HasControllerSessionId || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId) || !value.Owner.HasEpoch || value.Owner.Epoch <= 0) return false;
             if (value.AuthorityChanged != null) return value.AuthorityChanged.HasGeneration && value.AuthorityChanged.Generation > 0
                 && (!value.AuthorityChanged.HasPreviousGeneration || value.AuthorityChanged.PreviousGeneration < value.AuthorityChanged.Generation);
-            if (value.PlayerRequest != null) return NativeClockEventProjection.IsPanelId(value.PlayerRequest.Action) && NativeClockEventProjection.IsPanelId(value.PlayerRequest.RequestId);
             if (value.OperationOutcome != null) return ValidStoredOutcome(value.OperationOutcome);
             if (value.Stopped != null) return ValidStoredStop(value.Stopped);
             if (value.PauseFailed != null) return value.PauseFailed.Pending != null && ValidStoredStop(value.PauseFailed.Pending);

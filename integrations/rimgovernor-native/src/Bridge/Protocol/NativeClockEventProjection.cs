@@ -106,10 +106,9 @@ namespace HomeBridge.BridgeTools
         {
             Dictionary<string, object?> P() => payload ?? throw new InvalidOperationException("Missing clock evidence for " + kind);
             var result = new Clock.Event { Cursor = cursor, Context = context.Clone(), ObservedAtUnixMs = observedAt, Detail = Text(detail) };
-            // Only an authority change observed outside an epoch and a player
-            // request have no owner.
+            // Only an authority change observed outside an epoch has no owner.
             if (owner != null) result.Owner = owner.Clone();
-            else if (kind != "authority_changed" && kind != "player_request") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
+            else if (kind != "authority_changed") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
             switch (kind)
             {
                 case "authority_changed":
@@ -117,9 +116,6 @@ namespace HomeBridge.BridgeTools
                     object? previous, reason;
                     if (P().TryGetValue("previousGeneration", out previous) && previous != null) result.AuthorityChanged.PreviousGeneration = checked((ulong)Convert.ToInt64(previous));
                     if (P().TryGetValue("reason", out reason) && reason != null) result.AuthorityChanged.Reason = Text((string)reason);
-                    break;
-                case "player_request":
-                    result.PlayerRequest = new Clock.PlayerRequest { Action = PanelId(String(P(), "action")), RequestId = PanelId(String(P(), "requestId")) };
                     break;
                 case "observation_invalidated":
                     result.ObservationInvalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")) };
@@ -181,11 +177,6 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        // A panel action or request id (#957): 1-64 printable ASCII
-        // characters, as Go's bridge.PanelID reads it.
-        internal static bool IsPanelId(string? id) => id != null && id.Length >= 1 && id.Length <= 64 && id.All(ch => ch >= 0x21 && ch <= 0x7e);
-        private static string PanelId(string id)
-        { if (!IsPanelId(id)) throw new InvalidOperationException("Invalid panel id"); return id; }
         // Fact family names as Go spells them (bridge.FactFamily).
         internal static Clock.FactFamily Family(string name)
         {
