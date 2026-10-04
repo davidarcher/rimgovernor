@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	pol "github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-const RecoverDisasterServices GoalID = "RecoverDisasterServices"
+const RecoverDisasterServices ConcernID = "RecoverDisasterServices"
 
 type DisasterPhase string
 
@@ -489,7 +489,7 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 	return h, h.Validate()
 }
 
-func (h *DisasterHistory) Promote(id GoalID, priority int) int {
+func (h *DisasterHistory) Promote(id ConcernID, priority int) int {
 	if h == nil || h.Phase != DisasterDisrupted && h.Phase != DisasterRecovering {
 		return priority
 	}
@@ -497,7 +497,7 @@ func (h *DisasterHistory) Promote(id GoalID, priority int) int {
 		if e.Need != domain.NeedDeficit {
 			continue
 		}
-		goal := map[DisasterService]GoalID{DisasterFood: EnsureFoodSupply, DisasterProduction: EnsureFoodSupply, DisasterSleeping: MaintainHousing, DisasterShelter: MaintainHousing, DisasterTemperature: EnsureTemperatureSafety, DisasterCooking: EnsureCooking, DisasterPower: EnsureBasicPower, DisasterStorage: MaintainFoodStorage, DisasterInfrastructure: RecoverDisasterServices}[e.Service]
+		goal := map[DisasterService]ConcernID{DisasterFood: EnsureFoodSupply, DisasterProduction: EnsureFoodSupply, DisasterSleeping: MaintainHousing, DisasterShelter: MaintainHousing, DisasterTemperature: EnsureTemperatureSafety, DisasterCooking: EnsureCooking, DisasterPower: EnsureBasicPower, DisasterStorage: MaintainFoodStorage, DisasterInfrastructure: RecoverDisasterServices}[e.Service]
 		if goal == id || id == MaintainResource && (e.Service == DisasterTemperature || e.Service == DisasterCooking) {
 			return min(priority, 2)
 		}

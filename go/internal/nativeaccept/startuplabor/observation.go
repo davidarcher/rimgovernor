@@ -36,8 +36,8 @@ func BlockedTicks(diagnoses []Diagnosis, window, maxGap domain.Tick) map[Class]d
 	if maxGap <= 0 {
 		maxGap = DefaultMaxGap
 	}
-	byGoal := map[domain.GoalID][]Diagnosis{}
-	var goals []domain.GoalID
+	byGoal := map[domain.ConcernID][]Diagnosis{}
+	var goals []domain.ConcernID
 	for _, d := range diagnoses {
 		if _, seen := byGoal[d.Goal]; !seen {
 			goals = append(goals, d.Goal)

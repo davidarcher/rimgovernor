@@ -10,7 +10,7 @@ import (
 // touches Home is a deficit until it is open and its guards are down. The
 // goal drafts the readiness squad behind the trap line, deconstructs the
 // chosen wall in place and lets ActiveCombat fight what pops.
-const ClearAncientShrine GoalID = "ClearAncientShrine"
+const ClearAncientShrine ConcernID = "ClearAncientShrine"
 
 // ShrineHold is one shrine's judgement as the review journals it: Reason
 // is a ShrineHold* constant, ShrineHoldGuardsAlive after the breach, or

@@ -20,7 +20,7 @@ import (
 // with a door on one of the breach cells native lists for it: a player wall
 // on the facility room's border whose outer neighbour some colonist can
 // stand on. Nothing here flood-fills or measures straight lines.
-const MaintainRoutes GoalID = "MaintainRoutes"
+const MaintainRoutes ConcernID = "MaintainRoutes"
 
 type RoutesPolicy struct {
 	// Door is the definition admitted on a breach cell, Stuff its material.

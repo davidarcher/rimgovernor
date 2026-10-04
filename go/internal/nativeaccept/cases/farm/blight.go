@@ -388,7 +388,7 @@ func blightSettled(goal store.GoalState) bool {
 // binding and either a committed method on it other than previous (the
 // goal's live methods, then the epoch's bounded history) or the goal
 // settled: recovered and satisfied on the emptied census.
-func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess, previous *domain.GoalMethod) (domain.GoalID, domain.GoalMethod, store.GoalState, bool, error) {
+func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, store.GoalState, bool, error) {
 	var goal store.GoalState
 	var found domain.GoalMethod
 	settled := false

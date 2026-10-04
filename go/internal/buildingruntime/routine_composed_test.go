@@ -76,7 +76,7 @@ func composedRoutineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *play
 	}
 	composedRoutineFacts(t, native)
 	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	// A player switched the only builder's Construction off; the work
 	// planner switches it back on (#719), which gives that family a plan.
 	native.pawnReply.GetObserved().Pawns[0].Settings.Work[0].Priority = proto.Int32(0)
@@ -317,7 +317,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 		t.Fatal(err)
 	}
 	r1.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n1}}
-	r1.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
+	r1.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	if _, err = r1.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +389,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 		t.Fatal(err)
 	}
 	r2.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n2}}
-	r2.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
+	r2.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	if _, err = r2.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

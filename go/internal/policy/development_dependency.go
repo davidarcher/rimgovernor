@@ -23,7 +23,7 @@ import (
 
 // ResourcePrerequisite is the goal that acquires resource: MaintainResource
 // for every definition (#728).
-func ResourcePrerequisite(resource Resource) (GoalID, bool) {
+func ResourcePrerequisite(resource Resource) (ConcernID, bool) {
 	if validResource(resource) {
 		return MaintainResource, true
 	}
@@ -40,11 +40,11 @@ type DependencyCost struct {
 // Resource (or, with no resource, Prerequisite's work outright) and
 // Prerequisite supplies it.
 type DevelopmentDependency struct {
-	Dependent    GoalID
-	Goal         domain.GoalID // the dependent's goal identity
+	Dependent    ConcernID
+	Goal         domain.ConcernID // the dependent's goal identity
 	Epoch        uint64
 	Method       domain.MethodID
-	Prerequisite GoalID
+	Prerequisite ConcernID
 	Resource     Resource `json:",omitempty"`
 	// Costs are the dependent's still-open actions' costs in Resource.
 	Costs []DependencyCost `json:",omitempty"`
@@ -61,7 +61,7 @@ type DevelopmentDonation struct {
 	// declared priority. The goal's own priority is unchanged.
 	Priority int
 	// Chain is the dependency chain from the originating goal to this one.
-	Chain    []GoalID
+	Chain    []ConcernID
 	Resource Resource `json:",omitempty"`
 	// Shortfall is the bounded demand: open dependent costs, each action
 	// once, minus usable stock.
@@ -73,8 +73,8 @@ type DevelopmentDonation struct {
 
 // DependencyBlocker is an edge that donates nothing, and why.
 type DependencyBlocker struct {
-	Dependent    GoalID
-	Prerequisite GoalID
+	Dependent    ConcernID
+	Prerequisite ConcernID
 	Reason       string
 }
 
@@ -96,8 +96,8 @@ const (
 // Chains pass the most urgent origin along, MaxDependencyChain goals
 // long counting the origin; a
 // cycle donates nothing along it.
-func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (map[GoalID]DevelopmentDonation, []DependencyBlocker) {
-	byID := map[GoalID]DevelopmentGoal{}
+func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (map[ConcernID]DevelopmentDonation, []DependencyBlocker) {
+	byID := map[ConcernID]DevelopmentGoal{}
 	for _, g := range goals {
 		byID[g.ID] = g
 	}
@@ -115,7 +115,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 	}
 	demands := map[[2]string]*demand{}
 	// live edges: dependent -> prerequisite
-	edges := map[GoalID]map[GoalID]bool{}
+	edges := map[ConcernID]map[ConcernID]bool{}
 	for i, d := range deps {
 		if i >= MaxDevelopmentDependencies {
 			break
@@ -146,7 +146,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 			}
 		}
 		if edges[d.Dependent] == nil {
-			edges[d.Dependent] = map[GoalID]bool{}
+			edges[d.Dependent] = map[ConcernID]bool{}
 		}
 		edges[d.Dependent][d.Prerequisite] = true
 	}
@@ -164,9 +164,9 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 		return d.Resource == "" || shortfall[[2]string{string(d.Prerequisite), string(d.Resource)}] > 0
 	}
 	// reaches: whether from can reach to over live edges (bounded search).
-	reaches := func(from, to GoalID) bool {
-		seen := map[GoalID]bool{from: true}
-		queue := []GoalID{from}
+	reaches := func(from, to ConcernID) bool {
+		seen := map[ConcernID]bool{from: true}
+		queue := []ConcernID{from}
 		for len(queue) > 0 && len(seen) <= MaxDevelopmentDependencies {
 			at := queue[0]
 			queue = queue[1:]
@@ -182,18 +182,18 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 		}
 		return false
 	}
-	executable := func(g GoalID) bool {
+	executable := func(g ConcernID) bool {
 		v, ok := byID[g]
 		return ok && !v.Blocked && !v.MethodUnavailable
 	}
 
-	donations := map[GoalID]DevelopmentDonation{}
-	blocked := map[[2]GoalID]bool{}
+	donations := map[ConcernID]DevelopmentDonation{}
+	blocked := map[[2]ConcernID]bool{}
 	// Walk from every dependent that is not itself a prerequisite of a
 	// live edge's chain origin: each origin donates its own priority down
 	// its chain.
-	var walk func(origin DevelopmentGoal, at GoalID, chain []GoalID, seen map[GoalID]bool)
-	walk = func(origin DevelopmentGoal, at GoalID, chain []GoalID, seen map[GoalID]bool) {
+	var walk func(origin DevelopmentGoal, at ConcernID, chain []ConcernID, seen map[ConcernID]bool)
+	walk = func(origin DevelopmentGoal, at ConcernID, chain []ConcernID, seen map[ConcernID]bool) {
 		for _, d := range deps {
 			if d.Dependent != at || d.Dependent == d.Prerequisite || !open(d) {
 				continue
@@ -201,7 +201,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 			if _, known := d.Available.Value(); d.Resource != "" && !known {
 				continue
 			}
-			pair := [2]GoalID{d.Dependent, d.Prerequisite}
+			pair := [2]ConcernID{d.Dependent, d.Prerequisite}
 			switch {
 			case seen[d.Prerequisite] || reaches(d.Prerequisite, d.Dependent):
 				if !blocked[pair] {
@@ -223,7 +223,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 				continue
 			}
 			pre := byID[d.Prerequisite]
-			next := append(append([]GoalID(nil), chain...), d.Prerequisite)
+			next := append(append([]ConcernID(nil), chain...), d.Prerequisite)
 			// A structural edge (no resource) orders its prerequisite first
 			// at equal priority too: the dependent cannot act until it lands.
 			if origin.Priority > pre.Priority || origin.Priority == pre.Priority && d.Resource != "" {
@@ -238,7 +238,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 				}
 				donations[pre.ID] = don
 			}
-			seen2 := map[GoalID]bool{}
+			seen2 := map[ConcernID]bool{}
 			for k := range seen {
 				seen2[k] = true
 			}
@@ -246,7 +246,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 			walk(origin, d.Prerequisite, next, seen2)
 		}
 	}
-	origins := make([]GoalID, 0, len(edges))
+	origins := make([]ConcernID, 0, len(edges))
 	for g := range edges {
 		origins = append(origins, g)
 	}
@@ -256,7 +256,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 		if !ok {
 			continue
 		}
-		walk(origin, g, []GoalID{g}, map[GoalID]bool{g: true})
+		walk(origin, g, []ConcernID{g}, map[ConcernID]bool{g: true})
 	}
 	sort.Slice(blockers, func(i, j int) bool {
 		a, b := blockers[i], blockers[j]
@@ -319,7 +319,7 @@ type dependencyDemand struct{ need, available int64 }
 // dependencyDemands is ResolveDonations' shared demand for one
 // prerequisite: per resource, each open action's cost once against the
 // freshest known stock. Edges with unknown stock add nothing.
-func dependencyDemands(deps []DevelopmentDependency, prerequisite GoalID) map[Resource]dependencyDemand {
+func dependencyDemands(deps []DevelopmentDependency, prerequisite ConcernID) map[Resource]dependencyDemand {
 	type acc struct {
 		costs     map[domain.ActionID]int64
 		available int64

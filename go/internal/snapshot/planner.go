@@ -23,7 +23,7 @@ type Planner struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
-	Goal     policy.GoalID
+	Goal     policy.ConcernID
 	// Shelter is every starter search the step ran, in order.
 	Shelter []policy.StarterRequest
 	// Excavation is the tunnel corridor search the step ran, if any.
@@ -82,7 +82,7 @@ type plannerRecorder struct {
 // StartPlanner returns ctx carrying a recorder for one planner step when
 // DirEnv is set; finish writes what the step recorded (nothing when it
 // recorded nothing) and reports a failed write.
-func StartPlanner(ctx context.Context, goal policy.GoalID) (context.Context, func(domain.GenerationSnapshot, domain.Tick) error) {
+func StartPlanner(ctx context.Context, goal policy.ConcernID) (context.Context, func(domain.GenerationSnapshot, domain.Tick) error) {
 	dir := os.Getenv(DirEnv)
 	if dir == "" {
 		return ctx, func(domain.GenerationSnapshot, domain.Tick) error { return nil }

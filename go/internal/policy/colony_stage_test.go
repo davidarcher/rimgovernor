@@ -230,15 +230,15 @@ func TestStageRoutinePolicyBudgets(t *testing.T) {
 // stone shell without Stonecutting, animal goals with no tame animal).
 func TestRaisedAtStage(t *testing.T) {
 	t.Parallel()
-	ids := func(goals []DevelopmentGoal) map[GoalID]bool {
-		out := map[GoalID]bool{}
+	ids := func(goals []DevelopmentGoal) map[ConcernID]bool {
+		out := map[ConcernID]bool{}
 		for _, g := range goals {
 			out[g.ID] = !g.Staged
 		}
 		return out
 	}
-	raised := func(goals []DevelopmentGoal) map[GoalID]bool {
-		out := map[GoalID]bool{}
+	raised := func(goals []DevelopmentGoal) map[ConcernID]bool {
+		out := map[ConcernID]bool{}
 		for id, ok := range ids(goals) {
 			if ok {
 				out[id] = true
@@ -248,7 +248,7 @@ func TestRaisedAtStage(t *testing.T) {
 	}
 	all := func() []DevelopmentGoal {
 		var goals []DevelopmentGoal
-		for _, id := range []GoalID{CriticalMedicine, EnsureFoodSupply, EnsureResearch, MaintainResource, MaintainStoneShell, MaintainRefrigeration, MaintainHerd, MaintainFlooring, MaintainLighting} {
+		for _, id := range []ConcernID{CriticalMedicine, EnsureFoodSupply, EnsureResearch, MaintainResource, MaintainStoneShell, MaintainRefrigeration, MaintainHerd, MaintainFlooring, MaintainLighting} {
 			goals = append(goals, DevelopmentGoal{ID: id, Deficit: domain.Known(0.5)})
 		}
 		return goals

@@ -68,7 +68,7 @@ type Proposal struct {
 	// tie between two proposals resolves the same way every time.
 	ID       string
 	Planner  string
-	Goal     domain.GoalID
+	Goal     domain.ConcernID
 	Priority int
 	// Urgency is the goal's own priority class (domain.Goal.Priority):
 	// lower is more urgent, the same sense as Priority.
@@ -88,7 +88,7 @@ type Proposal struct {
 type ProposalOutcome struct {
 	Proposal string
 	Planner  string
-	Goal     domain.GoalID
+	Goal     domain.ConcernID
 	Admitted bool
 	Plan     domain.PlanID
 	// Waiting names the claim that refused the proposal and who holds it.

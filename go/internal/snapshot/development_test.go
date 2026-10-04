@@ -67,7 +67,7 @@ func TestDevelopmentSurvivesRestart(t *testing.T) {
 	if after.Tick < before.Tick {
 		t.Fatal("restart rewound the review tick", before.Tick, after.Tick)
 	}
-	prior := map[policy.GoalID]store.RoutineDevelopmentRow{}
+	prior := map[policy.ConcernID]store.RoutineDevelopmentRow{}
 	for _, row := range before.Rows {
 		prior[row.Goal] = row
 	}

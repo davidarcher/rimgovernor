@@ -128,7 +128,7 @@ type ColonyStageFacts struct {
 	Power, Climate, Doctor domain.Fact[bool]
 	// ProductionBlocked names the production goal whose record is blocked
 	// (ProductionBlockedGoal), "" when none; Blocked is its reason.
-	ProductionBlocked GoalID
+	ProductionBlocked ConcernID
 	Blocked           BlockedReason
 }
 
@@ -356,13 +356,13 @@ func ValidateColonyStage(r ColonyStageRecord, tick domain.Tick) error {
 // productionGoals are the goals whose blocked progress record holds the
 // colony out of Development: the food ladder, cooking, food storage and
 // the resource floors (wood among them).
-var productionGoals = []GoalID{EnsureFoodSupply, EnsureCooking, MaintainFoodStorage, MaintainResource}
+var productionGoals = []ConcernID{EnsureFoodSupply, EnsureCooking, MaintainFoodStorage, MaintainResource}
 
 // ProductionBlockedGoal is the first production goal whose progress record
 // is blocked on native evidence (no capable pawn, native refusal, every
 // alternative cooled, a prerequisite goal): a goal merely between methods
 // (no_method) or reconciling a write is not production stalled.
-func ProductionBlockedGoal(progress []GoalProgress) (GoalID, BlockedReason) {
+func ProductionBlockedGoal(progress []GoalProgress) (ConcernID, BlockedReason) {
 	for _, goal := range productionGoals {
 		for _, p := range progress {
 			if p.Goal != goal {
@@ -442,7 +442,7 @@ func DoctorCapable(profiles domain.Fact[[]PawnProfile]) domain.Fact[bool] {
 // tending, mood, fire, raids) is raised at every stage. A goal before its
 // stage is not raised at all, not merely held: it takes no slot and no
 // planner runs for it.
-var stageGoals = map[GoalID]ColonyStage{
+var stageGoals = map[ConcernID]ColonyStage{
 	EnsureResearch:            StageReserves,
 	MaintainResource:          StageReserves,
 	EnsureDefensiveLayout:     StageStable,
@@ -459,7 +459,7 @@ var stageGoals = map[GoalID]ColonyStage{
 }
 
 // StageGoalAllowed reports whether the review raises the goal at the stage.
-func StageGoalAllowed(goal GoalID, stage ColonyStage) bool {
+func StageGoalAllowed(goal ConcernID, stage ColonyStage) bool {
 	first, staged := stageGoals[goal]
 	return !staged || stage >= first
 }

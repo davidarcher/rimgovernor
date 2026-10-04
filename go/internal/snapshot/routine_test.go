@@ -27,7 +27,7 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 	if !reflect.DeepEqual(needs.Latches, r.Review.Latches) {
 		t.Fatalf("latches %+v, recorded %+v", needs.Latches, r.Review.Latches)
 	}
-	bound := map[domain.GoalID]bool{}
+	bound := map[domain.ConcernID]bool{}
 	for _, g := range r.Review.Goals {
 		bound[g.Need] = true
 	}

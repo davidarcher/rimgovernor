@@ -11,7 +11,7 @@ import (
 // own drop job (domain.DropEquipment), and the equipment planner arms it only
 // once the downside is revealed (EquipCandidatePawn.NoArms). A creepjoiner's
 // downside is hidden at arrival, so an armed one is a risk until it shows.
-const ManageCreepJoiners GoalID = "ManageCreepJoiners"
+const ManageCreepJoiners ConcernID = "ManageCreepJoiners"
 
 // CreepJoinerDownsides is what the game's creepjoiner downside defs add to
 // the colonist who has one: the trait and hediff def names, over every

@@ -14,7 +14,7 @@ import (
 
 type RoutineAcquisitionPlanner struct {
 	reviewer *RoutineReviewer
-	need     policy.GoalID
+	need     policy.ConcernID
 }
 
 type RoutineAcquisitionResult struct {
@@ -28,7 +28,7 @@ type RoutineAcquisitionResult struct {
 // hunt method per admission, until none remain; MaintainResource chops,
 // forages and hunts toward its ranked floors through the acquisition
 // catalog (#728), beside RoutineResourcePlanner's bills and mines.
-func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.GoalID) (*RoutineAcquisitionPlanner, error) {
+func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.ConcernID) (*RoutineAcquisitionPlanner, error) {
 	if reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.MaintainResource) {
 		return nil, fmt.Errorf("%w: NewRoutineAcquisitionPlanner: reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.Maintain", ErrControl)
 	}
@@ -573,7 +573,7 @@ func acquisitionReason(food, pest bool, runway domain.Fact[float64], selected []
 // noAcquisition says why the selection chose no source although the goal is
 // owed: a pest hunt waits for a ranged hunter or has every pest already
 // hunted, food in flight already covers the deficit, or no source stands.
-func noAcquisition(need policy.GoalID, noHunter bool, deficit, pending domain.Fact[float64]) Verdict {
+func noAcquisition(need policy.ConcernID, noHunter bool, deficit, pending domain.Fact[float64]) Verdict {
 	if need == policy.ClearPests {
 		if noHunter {
 			return noWorker("hunter")

@@ -18,7 +18,7 @@ import (
 // It is a Standard whose target is no outstanding work, like RemoveBlight.
 // The existing toxic-fallout shelter and crop-pollution handling are
 // separate and untouched.
-const ManagePollution GoalID = "ManagePollution"
+const ManagePollution ConcernID = "ManagePollution"
 
 // Wastepack is one spawned wastepack stack with the game's own verdicts
 // (CompDissolution.IsFrozen, InAtomizer, the item's forbidden flag). An

@@ -64,7 +64,7 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	}}}}
 	settleGearPolicies(t, native)
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	ctx := context.Background()
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)

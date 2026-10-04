@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	MaintainHomeCoverage GoalID = "MaintainHomeCoverage"
-	MaintainStoneShell   GoalID = "MaintainStoneShell"
+	MaintainHomeCoverage ConcernID = "MaintainHomeCoverage"
+	MaintainStoneShell   ConcernID = "MaintainStoneShell"
 )
 
 type HomeCoverageTarget struct {

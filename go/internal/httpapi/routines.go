@@ -52,7 +52,7 @@ type RoutineStatus struct {
 	// re-site with its explanation, or why none stands.
 	LayoutTidy *policy.TidyReview
 	Sections   []facts.Status
-	// NoOps are the goal detectors that raised nothing in the last enabled
+	// NoOps are the inspections that raised nothing in the last enabled
 	// review, with the typed reason (#1909).
 	NoOps []policy.NoOpRecord
 	// LootHolds are the safe forbidden stacks the last review's reach stage
@@ -81,7 +81,7 @@ type routineStatusDTO struct {
 
 // noOpDTO is one detector that raised nothing and why.
 type noOpDTO struct {
-	Goal   domain.GoalID     `json:"goal"`
+	Goal   domain.ConcernID  `json:"goal"`
 	Reason policy.NoOpReason `json:"reason"`
 }
 
@@ -213,7 +213,7 @@ type routineDevelopmentDTO struct {
 	Workers   *int                       `json:"workers"`
 	Labor     []routineLaborDTO          `json:"labor"`
 	Capacity  int                        `json:"capacity"`
-	Committed []domain.GoalID            `json:"committed"`
+	Committed []domain.ConcernID         `json:"committed"`
 	Rows      []routineDevelopmentRowDTO `json:"rows"`
 	// Capacity bounds planner cost; distinct observed workers decide
 	// admission. HeldWorkers is labor open startup work and withheld prerequisites
@@ -227,7 +227,7 @@ type routineLaborDTO struct {
 	Free int             `json:"free"`
 }
 type routineDevelopmentRowDTO struct {
-	Goal         domain.GoalID            `json:"goal"`
+	Goal         domain.ConcernID         `json:"goal"`
 	Score        float64                  `json:"score"`
 	Deficit      *float64                 `json:"deficit"`
 	Risk         *float64                 `json:"risk"`
@@ -246,11 +246,11 @@ type routineDevelopmentRowDTO struct {
 // shortfall is the bounded demand, conflict names an operator ceiling that
 // kept the row from a slot.
 type routineDonationDTO struct {
-	Priority  int             `json:"priority"`
-	Chain     []domain.GoalID `json:"chain"`
-	Resource  policy.Resource `json:"resource,omitempty"`
-	Shortfall int64           `json:"shortfall,omitempty"`
-	Conflict  string          `json:"conflict,omitempty"`
+	Priority  int                `json:"priority"`
+	Chain     []domain.ConcernID `json:"chain"`
+	Resource  policy.Resource    `json:"resource,omitempty"`
+	Shortfall int64              `json:"shortfall,omitempty"`
+	Conflict  string             `json:"conflict,omitempty"`
 }
 
 // goalProgressDTO is one goal's progress record on the wire (#629): the
@@ -258,7 +258,7 @@ type routineDonationDTO struct {
 // out. lastProgress and nextReview are ticks; blocked is empty when the
 // goal is not blocked.
 type goalProgressDTO struct {
-	Goal         domain.GoalID         `json:"goal"`
+	Goal         domain.ConcernID      `json:"goal"`
 	Method       string                `json:"method"`
 	Expected     string                `json:"expected"`
 	LastProgress domain.Tick           `json:"lastProgress"`
@@ -377,7 +377,7 @@ func routineRosterPawn(p policy.PawnProfile) routineRosterPawnDTO {
 }
 
 func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {
-	dto := routineDevelopmentDTO{Tick: s.Tick, Capacity: s.Capacity, Labor: []routineLaborDTO{}, Committed: []domain.GoalID{}, Rows: []routineDevelopmentRowDTO{}, Limiting: s.Limiting}
+	dto := routineDevelopmentDTO{Tick: s.Tick, Capacity: s.Capacity, Labor: []routineLaborDTO{}, Committed: []domain.ConcernID{}, Rows: []routineDevelopmentRowDTO{}, Limiting: s.Limiting}
 	for _, h := range s.Holds {
 		if !h.Slot && len(h.Labor) > 0 {
 			dto.HeldWorkers++
@@ -402,7 +402,7 @@ func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {
 			v.Risk = &r
 		}
 		if d := row.Donation; d != nil {
-			v.Donation = &routineDonationDTO{Priority: d.Priority, Chain: append([]domain.GoalID{}, d.Chain...), Resource: d.Resource, Shortfall: d.Shortfall, Conflict: d.Conflict}
+			v.Donation = &routineDonationDTO{Priority: d.Priority, Chain: append([]domain.ConcernID{}, d.Chain...), Resource: d.Resource, Shortfall: d.Shortfall, Conflict: d.Conflict}
 		}
 		dto.Rows = append(dto.Rows, v)
 	}

@@ -48,7 +48,7 @@ func TestClearanceRecoveryUnknownAndIssued(t *testing.T) {
 		{domain.Known([]ClearanceTarget{}), false, false},
 		{domain.Known([]ClearanceTarget{row}), false, true},
 	} {
-		r, err := ReviewUpkeep(UpkeepObservation{Clearance: step.rows}, previous, map[GoalID]bool{ClearHomeObstructions: step.issued})
+		r, err := ReviewUpkeep(UpkeepObservation{Clearance: step.rows}, previous, map[ConcernID]bool{ClearHomeObstructions: step.issued})
 		if err != nil || r.History.Clearance != step.active {
 			t.Fatal(r, err)
 		}
@@ -64,7 +64,7 @@ func TestClearanceAdmissionFollowsRepairsAndPrecedesCleaning(t *testing.T) {
 	previous := RoutineLatches{Upkeep: UpkeepHistory{Cleaning: true}}
 	check := func(repair bool) {
 		r := needs(t, f, previous)
-		found := map[GoalID]bool{}
+		found := map[ConcernID]bool{}
 		for _, g := range r.Goals {
 			found[g.ID] = true
 			if g.ID == ClearHomeObstructions && g.MethodUnavailable != repair {

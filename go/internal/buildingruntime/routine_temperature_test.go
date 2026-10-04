@@ -36,7 +36,7 @@ func TestTemperatureBracketRejectsLateResults(t *testing.T) {
 			defer cancel()
 			switch mode {
 			case "disabled":
-				p.reviewer.methods = domain.Known([]policy.GoalID{})
+				p.reviewer.methods = domain.Known([]policy.ConcernID{})
 			case "expired":
 				n.onRooms = func() { p.reviewer.clock.(*testkit.ManualClock).Advance(time.Minute) }
 			case "cancelled":
@@ -151,7 +151,7 @@ func temperatureFixture(t *testing.T, hot bool) (*RoutineBuildingPlanner, *store
 		n.putCatalog(buildable(name, 4, 1, 1))
 	}
 	base.reviewer.native = n
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureTemperatureSafety})
+	base.reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureTemperatureSafety})
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

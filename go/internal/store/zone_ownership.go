@@ -19,7 +19,7 @@ type OwnedZone struct {
 	Role  string
 	// Goal is the goal whose method created the zone; Filter and Priority
 	// are the stockpile settings it was created with.
-	Goal     domain.GoalID
+	Goal     domain.ConcernID
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 }
@@ -39,7 +39,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 	}
 	type link struct {
 		plan domain.PlanID
-		goal domain.GoalID
+		goal domain.ConcernID
 	}
 	links := []link{}
 	for rows.Next() {
@@ -56,7 +56,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 		return unknown, err
 	}
 	result := []OwnedZone{}
-	goals := map[domain.GoalID]OwnerSummary{}
+	goals := map[domain.ConcernID]OwnerSummary{}
 	for _, link := range links {
 		g, cached := goals[link.goal]
 		if !cached {

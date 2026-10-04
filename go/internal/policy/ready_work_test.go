@@ -88,7 +88,7 @@ func byStage(r ReadyWorkReport) map[string]ReadyWork {
 }
 
 func TestReadyWorkStatesNeverClaimReadinessFromMissingFacts(t *testing.T) {
-	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap(""), Unserved: []GoalID{"G"}, Proposals: []ReadyProposal{
+	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap(""), Unserved: []ConcernID{"G"}, Proposals: []ReadyProposal{
 		{Goal: "A", Stage: "haul:Steel", Work: WorkHauling, Eligible: domain.Unknown[bool]()},
 		{Goal: "B", Stage: "cut_plant:TreeOak", Work: WorkPlantCutting, Eligible: domain.Known(false)},
 		{Goal: "C", Stage: "building:Wall", Work: WorkConstruction, Eligible: domain.Known(true), Parallelism: 9},
@@ -188,7 +188,7 @@ func TestReadyWorkFeedAlternativesAndSharedHaulsDeduplicate(t *testing.T) {
 		}
 		if c.Stage == "haul:Steel" {
 			hauls++
-			if c.Claims[0].Key == "s2" && !reflect.DeepEqual(c.Goals, []GoalID{"GoalA", "GoalB"}) {
+			if c.Claims[0].Key == "s2" && !reflect.DeepEqual(c.Goals, []ConcernID{"GoalA", "GoalB"}) {
 				t.Fatalf("shared haul %+v", c)
 			}
 		}

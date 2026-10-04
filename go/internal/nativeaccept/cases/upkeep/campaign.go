@@ -55,7 +55,7 @@ type stage struct {
 	families []string
 	// needs are the goals the stage must recover; every later stage asserts
 	// they never reopen without recovering again.
-	needs   []policy.GoalID
+	needs   []policy.ConcernID
 	prepare func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error)
 	watch   func(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error
 	verify  func(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error
@@ -64,10 +64,10 @@ type stage struct {
 // closedGoal is a goal an earlier stage recovered, pinned by identity and
 // method epoch.
 type closedGoal struct {
-	Stage string        `json:"stage"`
-	Need  policy.GoalID `json:"need"`
-	Goal  domain.GoalID `json:"goal"`
-	Epoch uint64        `json:"epoch"`
+	Stage string           `json:"stage"`
+	Need  policy.ConcernID `json:"need"`
+	Goal  domain.ConcernID `json:"goal"`
+	Epoch uint64           `json:"epoch"`
 }
 
 const campaignBudget = 25 * time.Minute
@@ -97,13 +97,13 @@ func restoreCampaignState(s cases.Session) (campaignState, error) {
 
 func campaignStages() []stage {
 	all := scenarios()
-	fromScenario := func(sc *scenario, needs ...policy.GoalID) stage {
+	fromScenario := func(sc *scenario, needs ...policy.ConcernID) stage {
 		return stage{name: sc.name, fixture: sc.fixture, families: sc.families, needs: needs,
 			prepare: sc.prepare, watch: sc.watch, verify: sc.verify}
 	}
 	stages := []stage{
 		{name: "kitchen", fixture: "test/cleanliness_prepare", families: []string{"clean"},
-			needs:   []policy.GoalID{policy.MaintainCleanFacilities},
+			needs:   []policy.ConcernID{policy.MaintainCleanFacilities},
 			prepare: prepareKitchen, watch: watchKitchen, verify: verifyKitchen},
 		fromScenario(all["feed"], policy.MaintainAnimalFeed),
 		fromScenario(all["medicine"], policy.MaintainMedicalReserves),
@@ -341,8 +341,8 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 
 // Only a bundle load may rebind the guards, once at the first live review.
 // Subsequent reviews and every stage of a fresh run retain the strict IDs.
-func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.RoutineReview, load func(context.Context, domain.GoalID) (store.GoalState, error)) error {
-	bound := map[policy.GoalID]domain.GoalID{}
+func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.RoutineReview, load func(context.Context, domain.ConcernID) (store.GoalState, error)) error {
+	bound := map[policy.ConcernID]domain.ConcernID{}
 	for _, binding := range review.Goals {
 		bound[binding.Need] = binding.Goal
 	}
@@ -381,12 +381,12 @@ const recoveredWait = 4 * time.Minute
 // invalidated.
 type closedTracker struct {
 	closed       []closedGoal
-	deficitSince map[domain.GoalID]domain.Tick
+	deficitSince map[domain.ConcernID]domain.Tick
 	reopens      []map[string]any
 }
 
 func newClosedTracker(closed []closedGoal) *closedTracker {
-	return &closedTracker{closed: closed, deficitSince: map[domain.GoalID]domain.Tick{}, reopens: []map[string]any{}}
+	return &closedTracker{closed: closed, deficitSince: map[domain.ConcernID]domain.Tick{}, reopens: []map[string]any{}}
 }
 
 // check reads the journal once and reports which closed goals are in
@@ -402,7 +402,7 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 		}
 		return nil, err
 	}
-	bound := map[policy.GoalID]domain.GoalID{}
+	bound := map[policy.ConcernID]domain.ConcernID{}
 	for _, binding := range review.Goals {
 		bound[binding.Need] = binding.Goal
 	}

@@ -9,14 +9,14 @@ import (
 
 // Retirement retains identities, methods and progress. Only invalidated
 // autopilot goals without observation or cleanup obligations leave capacity.
-func retireRoutineGoals(ctx context.Context, tx *sql.Tx, retained map[domain.GoalID]bool) error {
+func retireRoutineGoals(ctx context.Context, tx *sql.Tx, retained map[domain.ConcernID]bool) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM goals WHERE retired=0 ORDER BY id LIMIT 257")
 	if err != nil {
 		return err
 	}
-	var ids []domain.GoalID
+	var ids []domain.ConcernID
 	for rows.Next() {
-		var id domain.GoalID
+		var id domain.ConcernID
 		if err = rows.Scan(&id); err != nil {
 			rows.Close()
 			return err

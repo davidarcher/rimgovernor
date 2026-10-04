@@ -136,7 +136,7 @@ func (r Routine) Detect() (policy.RoutineNeeds, error) {
 }
 
 // Assessment is the replayed review's assessment of one goal.
-func (r Routine) Assessment(id policy.GoalID) (policy.RoutineAssessment, error) {
+func (r Routine) Assessment(id policy.ConcernID) (policy.RoutineAssessment, error) {
 	needs, err := r.Detect()
 	if err != nil {
 		return policy.RoutineAssessment{}, err

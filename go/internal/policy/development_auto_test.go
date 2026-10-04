@@ -41,7 +41,7 @@ func autoFixture() DevelopmentRequest {
 	}
 }
 
-func rowOf(s DevelopmentState, goal GoalID) DevelopmentRow {
+func rowOf(s DevelopmentState, goal ConcernID) DevelopmentRow {
 	for _, row := range s.Rows {
 		if row.Goal == goal {
 			return row
@@ -90,7 +90,7 @@ func TestAutoDevelopmentStartupHoldsNoGoalBack(t *testing.T) {
 func TestAdmitDevelopmentAgreesWithRank(t *testing.T) {
 	r := autoFixture()
 	s := rank(t, r)
-	for _, g := range []GoalID{"build", "study", "wood", "haul", "shed"} {
+	for _, g := range []ConcernID{"build", "study", "wood", "haul", "shed"} {
 		if err := AdmitDevelopment(s, g); err != nil {
 			t.Fatal(g, err)
 		}

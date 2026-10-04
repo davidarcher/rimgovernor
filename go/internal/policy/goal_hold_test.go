@@ -103,7 +103,7 @@ func TestHoldProgressNamesIntentionalHolds(t *testing.T) {
 		{Goal: ManagePollution, Blocked: BlockedNoMethod},
 	}
 	rows := []DevelopmentRow{{Goal: EnsureComfort, Reason: DevelopmentStage}, {Goal: EnsureResearch, Reason: DevelopmentLabor, Bottleneck: WorkResearch}, {Goal: MaintainHousing, Reason: DevelopmentCapacity}}
-	got := HoldProgress(progress, rows, LaborProfile{WorkConstruction}, map[GoalID]bool{MaintainFireSafety: true})
+	got := HoldProgress(progress, rows, LaborProfile{WorkConstruction}, map[ConcernID]bool{MaintainFireSafety: true})
 	want := []BlockedReason{HeldStage, HeldLabor(WorkResearch), HeldLabor(WorkConstruction), HeldOptIn, HeldUnavailable, HeldCapacity, BlockedNoWorker, BlockedNoMethod}
 	for i, w := range want {
 		if got[i].Blocked != w || ValidateGoalProgress(got[i], 0) != nil {

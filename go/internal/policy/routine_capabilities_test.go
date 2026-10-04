@@ -12,12 +12,12 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 	f.IndoorCapacity = domain.Known(int64(3))
 	f.ComfortRecovered = domain.Known(false)
 	f.ComfortDeficit = domain.Known(.8)
-	f.AvailableMethods = domain.Known([]GoalID{MaintainHousing})
+	f.AvailableMethods = domain.Known([]ConcernID{MaintainHousing})
 	needs := needs(t, f, RoutineLatches{})
 	request := developmentFixture()
 	request.Goals = needs.Goals
 	got := rank(t, request)
-	if !reflect.DeepEqual(selected(got), []GoalID{MaintainHousing}) {
+	if !reflect.DeepEqual(selected(got), []ConcernID{MaintainHousing}) {
 		t.Fatal(got)
 	}
 	found := false
@@ -37,7 +37,7 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 			t.Fatal(row)
 		}
 	}
-	f.AvailableMethods = domain.Known([]GoalID{})
+	f.AvailableMethods = domain.Known([]ConcernID{})
 	empty, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +46,7 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 	if len(selected(rank(t, request))) != 0 {
 		t.Fatal("disabled methods admitted")
 	}
-	for _, bad := range [][]GoalID{{EnsureComfort, EnsureComfort}, {"unknown-method"}} {
+	for _, bad := range [][]ConcernID{{EnsureComfort, EnsureComfort}, {"unknown-method"}} {
 		f.AvailableMethods = domain.Known(bad)
 		if _, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy()); err == nil {
 			t.Fatal(bad)
@@ -59,7 +59,7 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 // native read. RecoverDisasterServices is only assessed once a disaster
 // history exists, so it needs an explicit recognition.
 func TestRoutineComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
-	all := []GoalID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
+	all := []ConcernID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
 	if _, err := DetectRoutine(RoutineFacts{AvailableMethods: domain.Known(all)}, RoutineLatches{}, DefaultRoutinePolicy()); err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestRoutineSleepingMethodFollowsDeclaredCapability(t *testing.T) {
 	f := stableRoutine()
 	f.SleepingRecovered = domain.Known(false)
 	for _, declared := range []bool{false, true} {
-		methods := []GoalID{}
+		methods := []ConcernID{}
 		if declared {
 			methods = append(methods, MaintainHousing)
 		}
@@ -105,11 +105,11 @@ func TestRoutineAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
 	// A census that knows of no tame animal raises no animal goal; this one
 	// does not know.
 	f.AnimalUpkeep.Animals = domain.Unknown[[]UpkeepAnimal]()
-	f.UpkeepIssued = map[GoalID]bool{MaintainAnimalFeed: true, MaintainAnimalContainment: true}
+	f.UpkeepIssued = map[ConcernID]bool{MaintainAnimalFeed: true, MaintainAnimalContainment: true}
 	for _, declared := range []bool{true, false} {
-		f.AvailableMethods = domain.Known([]GoalID{})
+		f.AvailableMethods = domain.Known([]ConcernID{})
 		if declared {
-			f.AvailableMethods = domain.Known([]GoalID{MaintainAnimalFeed, MaintainAnimalContainment})
+			f.AvailableMethods = domain.Known([]ConcernID{MaintainAnimalFeed, MaintainAnimalContainment})
 		}
 		request := developmentFixture()
 		request.Goals = needs(t, f, RoutineLatches{}).Goals
@@ -134,12 +134,12 @@ func TestRoutineFireEmergencyFollowsDeclaredCapability(t *testing.T) {
 	f.Upkeep.Fires = domain.Known([]UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 	for _, tc := range []struct {
 		name        string
-		methods     domain.Fact[[]GoalID]
+		methods     domain.Fact[[]ConcernID]
 		unavailable bool
 	}{
-		{"unknown", domain.Unknown[[]GoalID](), false},
-		{"declared", domain.Known([]GoalID{MaintainFireSafety}), false},
-		{"undeclared", domain.Known([]GoalID{}), true},
+		{"unknown", domain.Unknown[[]ConcernID](), false},
+		{"declared", domain.Known([]ConcernID{MaintainFireSafety}), false},
+		{"undeclared", domain.Known([]ConcernID{}), true},
 	} {
 		f.AvailableMethods = tc.methods
 		found := false

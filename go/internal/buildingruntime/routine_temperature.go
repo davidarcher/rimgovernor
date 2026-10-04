@@ -35,7 +35,7 @@ func (r *RoutineReviewer) roomsEnabled() bool {
 	return r.temperatureEnabled() || r.methodEnabled(policy.MaintainShelter) || r.methodEnabled(policy.MaintainHousing) || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities) || r.methodEnabled(policy.MaintainLighting) || r.methodEnabled(policy.MaintainFlooring) || r.methodEnabled(policy.MaintainRoutes) || r.methodEnabled(policy.MaintainWaste) || r.methodEnabled(policy.MaintainStockpiles)
 }
 
-func (r *RoutineReviewer) methodEnabled(goal policy.GoalID) bool {
+func (r *RoutineReviewer) methodEnabled(goal policy.ConcernID) bool {
 	methods, _ := r.methods.Value()
 	for _, method := range methods {
 		if method == goal {

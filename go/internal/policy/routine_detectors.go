@@ -10,7 +10,7 @@ import (
 // every detector may read (run once, before any detector, because the
 // latches are built from them) and the needs the detectors append to. The
 // registry runs the detectors in order; an assessment lands where its
-// detector sits, so the order of goalDetectors is the order of
+// detector sits, so the order of inspections is the order of
 // RoutineNeeds.Assessments (the stored bindings are index-aligned).
 type routineRun struct {
 	f        RoutineFacts
@@ -37,13 +37,13 @@ type routineRun struct {
 }
 
 // raise appends an autopilot goal and returns it for the detector to adjust.
-func (c *routineRun) raise(id GoalID, priority int) *DevelopmentGoal {
+func (c *routineRun) raise(id ConcernID, priority int) *DevelopmentGoal {
 	c.r.Goals = append(c.r.Goals, DevelopmentGoal{ID: id, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, c.f, c.p), Labor: GoalLabor(id), Risk: RoutineDevelopmentRisk(id, c.f, c.l)})
 	return &c.r.Goals[len(c.r.Goals)-1]
 }
 
 // assess appends id's assessment and returns it for the detector to adjust.
-func (c *routineRun) assess(id GoalID, priority int, recovered domain.Fact[bool]) *RoutineAssessment {
+func (c *routineRun) assess(id ConcernID, priority int, recovered domain.Fact[bool]) *RoutineAssessment {
 	need := domain.NeedUnknown
 	if value, known := recovered.Value(); known {
 		need = domain.NeedDeficit
@@ -57,7 +57,7 @@ func (c *routineRun) assess(id GoalID, priority int, recovered domain.Fact[bool]
 
 // owed assesses a goal that is recovered unless its fact says a step is
 // owed; unknown raises nothing. A known deficit is a full one.
-func (c *routineRun) owed(id GoalID, priority int, owed domain.Fact[bool]) {
+func (c *routineRun) owed(id ConcernID, priority int, owed domain.Fact[bool]) {
 	c.assess(id, priority, notFact(owed))
 	if v, known := owed.Value(); known && v {
 		c.raise(id, priority).Deficit = domain.Known(1.0)
@@ -410,7 +410,7 @@ func detectDefensiveLayout(c *routineRun) error {
 
 // upkeepDetector serves one of the direct upkeep goals: ReviewUpkeepWith
 // files a need for each, and `hold` is the goal's extra method hold.
-func upkeepDetector(id GoalID, hold func(c *routineRun) bool) func(c *routineRun) error {
+func upkeepDetector(id ConcernID, hold func(c *routineRun) bool) func(c *routineRun) error {
 	return func(c *routineRun) error {
 		for _, n := range c.upkeep.Needs {
 			if n.Goal != id {
@@ -473,7 +473,7 @@ func holdCleaning(c *routineRun) bool { return c.upkeep.History.Clearance }
 // upkeep goals. A confirmed deficit ranks at Known(1.0); an unknown census
 // stays DevelopmentUnknown. Method availability follows the composed
 // capability list, since both verticals dispatch.
-func facilityDetector(id GoalID, priority int, recovered func(c *routineRun) domain.Fact[bool], active func(c *routineRun) bool) func(c *routineRun) error {
+func facilityDetector(id ConcernID, priority int, recovered func(c *routineRun) domain.Fact[bool], active func(c *routineRun) bool) func(c *routineRun) error {
 	return func(c *routineRun) error {
 		recovered, priority := recovered(c), priority
 		if _, known := recovered.Value(); !known && !active(c) && !c.f.UpkeepIssued[id] {
@@ -859,7 +859,7 @@ func detectPopulation(c *routineRun) error {
 // availability is gated through AvailableMethods like MaintainWaste. Like
 // waste, the deficit is census-driven: any uncontained or unfed target is a
 // full deficit, so a known need ranks for a development slot.
-func animalNeedDetector(id GoalID, recovered func(c *routineRun) domain.Fact[bool], active func(c *routineRun) bool) func(c *routineRun) error {
+func animalNeedDetector(id ConcernID, recovered func(c *routineRun) domain.Fact[bool], active func(c *routineRun) bool) func(c *routineRun) error {
 	return func(c *routineRun) error {
 		recovered, priority := recovered(c), 3
 		if _, known := recovered.Value(); !known && !active(c) && !c.f.UpkeepIssued[id] {

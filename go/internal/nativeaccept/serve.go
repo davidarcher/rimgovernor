@@ -594,7 +594,7 @@ func (p *ServiceProcess) WaitPlan(ctx context.Context, w Wait, planID domain.Pla
 }
 
 // WaitGoalMethod is WaitGoalMethod on this service's store, ended by its exit.
-func (p *ServiceProcess) WaitGoalMethod(ctx context.Context, need policy.GoalID, previous *domain.GoalMethod) (domain.GoalID, domain.GoalMethod, error) {
+func (p *ServiceProcess) WaitGoalMethod(ctx context.Context, need policy.ConcernID, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, error) {
 	var seen map[domain.PlanID]bool
 	if previous != nil {
 		seen = map[domain.PlanID]bool{previous.Plan: true}
@@ -604,7 +604,7 @@ func (p *ServiceProcess) WaitGoalMethod(ctx context.Context, need policy.GoalID,
 
 // WaitGoalMethodExcluding is WaitGoalMethodExcluding on this service's
 // store, ended by its exit.
-func (p *ServiceProcess) WaitGoalMethodExcluding(ctx context.Context, need policy.GoalID, seen map[domain.PlanID]bool) (domain.GoalID, domain.GoalMethod, error) {
+func (p *ServiceProcess) WaitGoalMethodExcluding(ctx context.Context, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.GoalMethod, error) {
 	s, err := p.Store(ctx)
 	if err != nil {
 		return "", domain.GoalMethod{}, err

@@ -52,7 +52,7 @@ type MoodHistory struct{ States []MoodState }
 
 // EnsureMood is the per-pawn mood Response: one incident per pawn, keyed
 // by the pawn as its subject (#1078).
-const EnsureMood GoalID = "EnsureMood"
+const EnsureMood ConcernID = "EnsureMood"
 
 func moodNumber(f domain.Fact[float64]) bool {
 	v, known := f.Value()
@@ -312,7 +312,7 @@ type MoodProposal struct {
 	Pawn        PawnID
 	Need        MoodNeed
 	Reason      MoodMethodReason
-	Goal        GoalID
+	Goal        ConcernID
 	Thought     string
 	Target      float64
 	NeedBenefit domain.Fact[float64]

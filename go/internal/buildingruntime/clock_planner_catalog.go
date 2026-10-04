@@ -19,7 +19,7 @@ type plannerEntry struct {
 	// goal is the single goal the planner serves: the record its refusal is
 	// filed on (GoalProgress.Planner). Planners serving several goals or
 	// none leave it empty and file nothing.
-	goal policy.GoalID
+	goal policy.ConcernID
 	// class says whether the admission cycle waits on the planner (#623):
 	// critical for the preempt and critical priority classes and the
 	// emergency evidence (fire safety), optional for the development

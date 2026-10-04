@@ -69,7 +69,7 @@ func TestDevelopmentRiskPenalisesAndDefers(t *testing.T) {
 		{ID: "unmeasured", Priority: 4, Deficit: domain.Known(0.3)},
 	}
 	s := rank(t, r)
-	rows := map[GoalID]DevelopmentRow{}
+	rows := map[ConcernID]DevelopmentRow{}
 	for _, row := range s.Rows {
 		rows[row.Goal] = row
 	}

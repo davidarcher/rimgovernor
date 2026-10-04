@@ -27,7 +27,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(3)), domain.Known(int64(3))
 	first := reviewRoutine(t, s, &r)
 	d := first.Review.Development
-	for _, need := range []domain.GoalID{policy.MaintainHousing, policy.EnsureResearch, policy.MaintainResource} {
+	for _, need := range []domain.ConcernID{policy.MaintainHousing, policy.EnsureResearch, policy.MaintainResource} {
 		if !developmentRow(t, first.Review, need).Selected {
 			t.Fatal(need, d.Rows)
 		}

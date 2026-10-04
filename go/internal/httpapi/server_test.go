@@ -411,7 +411,7 @@ func TestServeShutdownCancelsActiveProvider(t *testing.T) {
 
 func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	risk := 1.0
-	development := policy.DevelopmentState{Tick: 500, Workers: domain.Known(3), Labor: domain.Known(map[policy.WorkType]int{policy.WorkResearch: 1, policy.WorkConstruction: 0}), Capacity: 2, Committed: []domain.GoalID{"player-room"},
+	development := policy.DevelopmentState{Tick: 500, Workers: domain.Known(3), Labor: domain.Known(map[policy.WorkType]int{policy.WorkResearch: 1, policy.WorkConstruction: 0}), Capacity: 2, Committed: []domain.ConcernID{"player-room"},
 		Rows: []policy.DevelopmentRow{
 			{Goal: "ensure-research", Score: 60, Deficit: domain.Known(0.6), WaitingSince: 100, Selected: true},
 			{Goal: "ensure-comfort", Score: 40, Deficit: domain.Known(0.5), WaitingSince: 100, Reason: policy.DevelopmentLabor, Bottleneck: policy.WorkConstruction},

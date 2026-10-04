@@ -48,7 +48,7 @@ func (r *RoutineReviewer) combatDrug(ctx context.Context, snapshot domain.Genera
 }
 
 type RoutineReviewer struct {
-	methods domain.Fact[[]policy.GoalID]
+	methods domain.Fact[[]policy.ConcernID]
 	player  *Player
 	native  observation.RoutineSource
 	clock   observation.Clock
@@ -244,7 +244,7 @@ func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame brid
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
 // it leaves availability unspecified for callers that compose methods themselves.
 type RoutineCapabilities struct {
-	Methods []policy.GoalID
+	Methods []policy.ConcernID
 	// LayoutOverlay draws the layout plan as a native overlay layer
 	// (#726, serve --layout-overlay).
 	LayoutOverlay bool
@@ -260,7 +260,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 	if _, ok := native.(RoutineWorkBenchSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoutineReviewer: native lacks the bench census read", ErrControl)
 	}
-	methods := domain.Unknown[[]policy.GoalID]()
+	methods := domain.Unknown[[]policy.ConcernID]()
 	reviewerOverlay := false
 	var undraftWriter boundary.ActionsWriter
 	if len(capabilities) > 1 {
@@ -268,7 +268,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 	}
 	if len(capabilities) == 1 {
 		reviewerOverlay, undraftWriter = capabilities[0].LayoutOverlay, capabilities[0].Undraft
-		methods = domain.Known(append([]policy.GoalID{}, capabilities[0].Methods...))
+		methods = domain.Known(append([]policy.ConcernID{}, capabilities[0].Methods...))
 		if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: methods}, policy.RoutineLatches{}, thresholds); err != nil {
 			return nil, err
 		}
@@ -713,7 +713,7 @@ func routineFoodAttrs(f policy.RoutineFacts, seasonal policy.RoutinePolicy) []an
 // including when a stale browser request stops a different observed world.
 // routineEmergencyNames renders the needs that suspended the review's
 // goals for an event attr.
-func routineEmergencyNames(ids []policy.GoalID) []string {
+func routineEmergencyNames(ids []policy.ConcernID) []string {
 	out := make([]string, 0, len(ids))
 	for _, id := range ids {
 		out = append(out, string(id))

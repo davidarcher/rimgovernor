@@ -111,7 +111,7 @@ func TestAcquisitionReasonsNameTheMissingThing(t *testing.T) {
 	covered, owed := domain.Known(2.0), domain.Known(1.5)
 	for _, test := range []struct {
 		name     string
-		need     policy.GoalID
+		need     policy.ConcernID
 		noHunter bool
 		deficit  domain.Fact[float64]
 		pending  domain.Fact[float64]

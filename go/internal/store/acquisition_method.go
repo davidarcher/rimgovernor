@@ -70,7 +70,7 @@ func huntAcquisition(action domain.Action) bool {
 // planned animal by animal: a hunt still awaiting its kill never blocks
 // the next animal's method. The routine goal id names its need.
 func pestGoal(goal WorkOwner) bool {
-	return routineGoalOwns(domain.GoalID(goal.OwnerID()), policy.ClearPests)
+	return routineStandardOwns(domain.ConcernID(goal.OwnerID()), policy.ClearPests)
 }
 
 // acquisitionIndependentWork reports the action kinds whose open progress does

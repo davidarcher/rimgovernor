@@ -55,11 +55,11 @@ func init() {
 // joinerAnswer is what the durable journal proves for the offer: the
 // MaintainPopulation method whose plan carries a QuestAccept for it.
 type joinerAnswer struct {
-	Goal   domain.GoalID `json:"goal"`
-	Epoch  uint64        `json:"epoch"`
-	Plan   domain.PlanID `json:"plan"`
-	Reward int32         `json:"reward_choice"`
-	Stage  string        `json:"stage"`
+	Goal   domain.ConcernID `json:"goal"`
+	Epoch  uint64           `json:"epoch"`
+	Plan   domain.PlanID    `json:"plan"`
+	Reward int32            `json:"reward_choice"`
+	Stage  string           `json:"stage"`
 }
 
 // joinerAnswers lists every QuestAccept plan MaintainPopulation has ever

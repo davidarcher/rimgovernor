@@ -20,13 +20,13 @@ import (
 // dashboard names goals by; a goal that is recovered, cancelled or
 // invalidated drops its record.
 func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest, previous RoutineReview, reset bool, needs policy.RoutineNeeds, states []WorkOwner) ([]policy.GoalProgress, error) {
-	old := map[domain.GoalID]policy.GoalProgress{}
+	old := map[domain.ConcernID]policy.GoalProgress{}
 	if !reset {
 		for _, p := range previous.Progress {
 			old[p.Goal] = p
 		}
 	}
-	deficits := map[domain.GoalID]domain.Fact[float64]{}
+	deficits := map[domain.ConcernID]domain.Fact[float64]{}
 	for _, g := range needs.Goals {
 		deficits[g.ID] = g.Deficit
 	}
@@ -162,7 +162,7 @@ func methodLabel(id domain.MethodID) string {
 // selection passes that target over until the cooldown lifts. A review
 // that has moved past revision is ErrConflict; a need without a record is
 // a no-op.
-func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, need domain.GoalID, key string, until domain.Tick) (RoutineReview, error) {
+func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, need domain.ConcernID, key string, until domain.Tick) (RoutineReview, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return RoutineReview{}, err
@@ -203,7 +203,7 @@ func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, nee
 }
 
 // GoalProgress is need's progress record in the review, if it has one.
-func (r RoutineReview) GoalProgress(need domain.GoalID) (policy.GoalProgress, bool) {
+func (r RoutineReview) GoalProgress(need domain.ConcernID) (policy.GoalProgress, bool) {
 	for _, p := range r.Progress {
 		if p.Goal == need {
 			return p, true
@@ -218,7 +218,7 @@ func (r RoutineReview) GoalProgress(need domain.GoalID) (policy.GoalProgress, bo
 // naming a planner refusal or wait, is relabelled at once so the strip names the reason
 // before the next review; held records keep their hold. Goals without a
 // record are skipped. It reports whether anything changed.
-func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.GoalID]policy.PlannerNote) (bool, error) {
+func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.ConcernID]policy.PlannerNote) (bool, error) {
 	if len(reasons) == 0 {
 		return false, nil
 	}

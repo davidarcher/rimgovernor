@@ -286,7 +286,7 @@ architecture and procedure docs when behaviour changes.
 ## Vocabulary (epic #1964)
 
 The governor makes **Rounds**, running an **Inspection** on each **Concern**
-in its **Department**; a Concern takes one **Form**: **Standard**,
+in its **Department**; a Concern takes one **Type**: **Standard**,
 **Project** or **Incident**. Code and storage still carry the old words
 until the rename children of
 [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) land, so
@@ -295,10 +295,10 @@ grep the old word to find the new one. Full table and per-rename status:
 
 | Old | New |
 | --- | --- |
-| `GoalID` / `GoalDetector` / `GoalConcept` / `Domain` | Concern / Inspection / Form / Department |
+| `GoalID` / `GoalDetector` / `GoalConcept` / `Domain` | Concern / Inspection / Type / Department |
 | `RoutineReview` (`Routine*`) | Rounds (`Rounds*`) |
 | `Goal` row, `Epoch` | Standard, Episode |
-| `Response` concept + `Incident` row | Incident (form and row); "Response" is prose |
+| `Response` concept + `Incident` row | Incident (type and row); "Response" is prose |
 | `Rule` | Safeguard |
 | `NeedState` | Finding (Met / Unmet / Unclear), Situation (Active / Clear / Unclear) |
 | `GoalMethod`, `goal_methods` | Method, `methods` |

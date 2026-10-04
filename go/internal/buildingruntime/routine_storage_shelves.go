@@ -36,7 +36,7 @@ type RoutineStorageShelvesResult struct {
 // shelfGoals are the goals whose stockpiles get shelves: SecureSupplies'
 // general store and MaintainResource's earlier ingredient zones.
 // Food storage (meal shelves, freezers) is planned by its own goals.
-var shelfGoals = map[policy.GoalID]bool{policy.MaintainResource: true}
+var shelfGoals = map[policy.ConcernID]bool{policy.MaintainResource: true}
 
 // maxShelvesPerZone bounds the shelves a zone may ever be given.
 const maxShelvesPerZone = 8
@@ -73,7 +73,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineStorageShelvesResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	selected := map[domain.GoalID]policy.GoalID{}
+	selected := map[domain.ConcernID]policy.ConcernID{}
 	for _, binding := range review.Goals {
 		for _, row := range review.Development.Rows {
 			if row.Goal == binding.Need && row.Selected && shelfGoals[binding.Need] {
@@ -89,7 +89,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	if !known {
 		return RoutineStorageShelvesResult{Verdict: fieldUnavailable("shelf_claims")}, nil
 	}
-	goals := map[domain.GoalID]store.GoalState{}
+	goals := map[domain.ConcernID]store.GoalState{}
 	var zones []store.OwnedZone
 	for _, z := range owned {
 		if z.Kind != domain.StockpileZone || selected[z.Goal] == "" || z.Priority == domain.LowPriority {
@@ -170,7 +170,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 
 // zoneShelves reads back the zone's shelf plans in index order: the
 // shelves built or in flight, and the next free index.
-func zoneShelves(ctx context.Context, journal *store.Store, goal domain.GoalID, zone string, census domain.Fact[policy.CurrentConstruction]) ([]policy.ShelfRecord, int, error) {
+func zoneShelves(ctx context.Context, journal *store.Store, goal domain.ConcernID, zone string, census domain.Fact[policy.CurrentConstruction]) ([]policy.ShelfRecord, int, error) {
 	var out []policy.ShelfRecord
 	for index := 0; index < maxShelvesPerZone; index++ {
 		id, err := journal.LatestMethodPlan(ctx, goal, shelfMethod(zone, index))
@@ -224,7 +224,7 @@ func zoneShelves(ctx context.Context, journal *store.Store, goal domain.GoalID, 
 
 // build previews the step's candidate sites in turn and admits the first
 // native accepts as the zone's next shelf.
-func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, need policy.GoalID, reading observation.RoutineReading, step policy.ShelfStep, index int) (RoutineStorageShelvesResult, error) {
+func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.WorkOwner, need policy.ConcernID, reading observation.RoutineReading, step policy.ShelfStep, index int) (RoutineStorageShelvesResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
 	stuff := facts.BuildStuff(policy.ShelfDefinition)

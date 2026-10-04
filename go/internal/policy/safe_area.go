@@ -7,7 +7,7 @@ import (
 // MaintainShelter is the standing goal that keeps the colony's shelter
 // settings current (#1294): the bot-owned "Safe" allowed area (#1325), and
 // later sheltering pawns in it (#1326) and the killbox restriction (#1327).
-const MaintainShelter GoalID = "MaintainShelter"
+const MaintainShelter ConcernID = "MaintainShelter"
 
 // SafeAreaKey is the bot area key of the Safe allowed area.
 const SafeAreaKey = "Safe"

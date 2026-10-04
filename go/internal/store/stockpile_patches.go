@@ -52,7 +52,7 @@ func stockpilePatches(ctx context.Context, tx *sql.Tx, current domain.Generation
 	var plans []domain.PlanID
 	for rows.Next() {
 		var plan domain.PlanID
-		var goal domain.GoalID
+		var goal domain.ConcernID
 		if err = rows.Scan(&plan, &goal); err != nil {
 			rows.Close()
 			return nil, err

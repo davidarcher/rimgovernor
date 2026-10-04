@@ -47,7 +47,7 @@ func needs(t *testing.T, f RoutineFacts, l RoutineLatches) RoutineNeeds {
 	}
 	return r
 }
-func hasNeed(r RoutineNeeds, id GoalID) bool {
+func hasNeed(r RoutineNeeds, id ConcernID) bool {
 	for _, g := range r.Goals {
 		if g.ID == id {
 			return true
@@ -58,7 +58,7 @@ func hasNeed(r RoutineNeeds, id GoalID) bool {
 
 // assessedDeficit reports an unrecovered assessment of id: a Response
 // (#1078) is assessed, never filed as a development goal.
-func assessedDeficit(r RoutineNeeds, id GoalID) bool {
+func assessedDeficit(r RoutineNeeds, id ConcernID) bool {
 	for _, a := range r.All() {
 		if a.ID == id && a.Need != domain.NeedRecovered {
 			return true
@@ -215,7 +215,7 @@ func TestRoutineRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
 	f.Upkeep.Structures = domain.Known([]UpkeepStructure{{ID: "wall", Home: true, HitPoints: 1, MaxHitPoints: 2}})
 	f.Upkeep.Filth = domain.Known([]UpkeepFilth{{ID: "dirt", Home: true}})
 	r := needs(t, f, RoutineLatches{})
-	for _, id := range []GoalID{MaintainEssentialRepairs, MaintainCleanFacilities} {
+	for _, id := range []ConcernID{MaintainEssentialRepairs, MaintainCleanFacilities} {
 		found := false
 		for _, g := range r.Goals {
 			if g.ID == id {
@@ -258,7 +258,7 @@ func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 	f := stableRoutine()
 	f.PowerRequired, f.PowerHeadroom = domain.Known(true), domain.Known(-100.0)
 	f.FoodStorageUpkeep = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 20, 20)})}
-	method := func(r RoutineNeeds, id GoalID) (open, unavailable bool) {
+	method := func(r RoutineNeeds, id ConcernID) (open, unavailable bool) {
 		for _, g := range r.Goals {
 			if g.ID == id {
 				return true, g.MethodUnavailable
@@ -267,7 +267,7 @@ func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 		return false, false
 	}
 	r := needs(t, f, RoutineLatches{})
-	for _, id := range []GoalID{EnsureBasicPower, MaintainRefrigeration} {
+	for _, id := range []ConcernID{EnsureBasicPower, MaintainRefrigeration} {
 		if open, unavailable := method(r, id); !open || unavailable {
 			t.Fatal(id, open, unavailable)
 		}
@@ -291,7 +291,7 @@ func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 	// A flare without a remaining-duration read is not planned against.
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "f", Definition: "SolarFlare", DisablesPower: true}})
 	r = needs(t, f, r.Latches)
-	for _, id := range []GoalID{EnsureBasicPower, MaintainRefrigeration} {
+	for _, id := range []ConcernID{EnsureBasicPower, MaintainRefrigeration} {
 		if open, unavailable := method(r, id); !open || unavailable {
 			t.Fatal(id, open, unavailable)
 		}

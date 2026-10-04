@@ -12,14 +12,14 @@ import (
 // to haul (fire, trap, hostile line of sight).
 type SafeguardContext struct {
 	Enabled   bool
-	Emergency []GoalID
+	Emergency []ConcernID
 	Unsafe    []string
 }
 
 // SafeguardProposal is the routine goal a proposal would serve: its need and its
 // current priority.
 type SafeguardProposal struct {
-	Need     GoalID
+	Need     ConcernID
 	Priority int
 }
 
@@ -125,7 +125,7 @@ func VetoProposal(c SafeguardContext, p SafeguardProposal) string {
 	return r.Reason
 }
 
-func joinGoals(ids []GoalID) string {
+func joinGoals(ids []ConcernID) string {
 	out := ""
 	for i, id := range ids {
 		if i > 0 {

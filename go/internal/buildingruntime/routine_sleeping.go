@@ -37,7 +37,7 @@ type RoutineBuildingPlanner struct {
 	paste            []policy.SiteBuilding
 	reviewer         *RoutineReviewer
 	native           RoutineBuildingSource
-	goal             policy.GoalID
+	goal             policy.ConcernID
 	definition       string
 	recreationPowerW float64
 	stuff            string
@@ -1375,7 +1375,7 @@ func regularBedsShort(f policy.RoutineFacts) bool {
 // developmentSelects reports whether the development rows let goal build.
 // A resource or equipment goal held on an existing commitment keeps
 // building its prerequisite bench (#981).
-func developmentSelects(rows []store.RoutineDevelopmentRow, goal domain.GoalID) bool {
+func developmentSelects(rows []store.RoutineDevelopmentRow, goal domain.ConcernID) bool {
 	for _, row := range rows {
 		held := row.Committed && (goal == policy.MaintainResource || goal == policy.MaintainEquipment)
 		if row.Goal == goal && (row.Selected || held) {

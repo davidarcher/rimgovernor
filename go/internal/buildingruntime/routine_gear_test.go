@@ -24,7 +24,7 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 	gear.Pawns[0].ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas"), PawnName: proto.String("Ann"), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false)}
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	if _, err := reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 	}
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	if _, err := reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 		n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 		settleGearPolicies(t, native)
 		reviewer.native = n
-		reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+		reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 		if _, err := reviewer.Step(context.Background()); err != nil {
 			t.Fatal(err)
 		}
@@ -305,7 +305,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
 	settleGearPolicies(t, native)
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +380,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	settleGearPolicies(t, native)
 	reviewer.native = n
 	reviewer.policy.Stage.Floor = policy.StageStable // MaintainEquipment is raised from Stable
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -409,7 +409,7 @@ func TestGearPlannerWaitsWhileTheGoalIsNotRaised(t *testing.T) {
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 	settleGearPolicies(t, native)
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

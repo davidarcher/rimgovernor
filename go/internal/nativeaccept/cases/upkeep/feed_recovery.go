@@ -10,7 +10,7 @@ import (
 // (the herd feed reserve is still short).
 // This only hands off to watchFeed's bounded NeedRecovered wait and verifyFeed's
 // native reachable-stock check; it does not credit production or complete a plan.
-func feedBillNeedsRecovery(need policy.GoalID, state store.PlanState) bool {
+func feedBillNeedsRecovery(need policy.ConcernID, state store.PlanState) bool {
 	if need != policy.MaintainAnimalFeed || len(state.Spec.Actions()) != 1 || len(state.Progress) != 1 {
 		return false
 	}

@@ -123,7 +123,7 @@ func TestRoutineShrineJournalsTheShrineTheStepHeldOn(t *testing.T) {
 	source := &routineShrineNative{routineBlightNative: &routineBlightNative{routineNative: native}}
 	source.shrines = []*o.AncientShrine{shrineTestRow("shrine", true)}
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearAncientShrine})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearAncientShrine})
 	far := shrineTestRow("AncientShrineGroup_0", true)
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	far.Room = &o.Rectangle{Minimum: cell(70, 70), Maximum: cell(80, 80)}
@@ -188,7 +188,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	source := &routineShrineNative{routineBlightNative: &routineBlightNative{routineNative: native}}
 	source.shrines = []*o.AncientShrine{shrineTestRow("shrine", true)}
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearAncientShrine})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearAncientShrine})
 	ctx := context.Background()
 
 	// No trap line: the review journals the hold and the planner holds.
@@ -363,7 +363,7 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	opened.Caskets = []*o.ShrineCasket{casket("casket-b", 34), casket("casket-a", 33)}
 	source.shrines = []*o.AncientShrine{opened}
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearAncientShrine})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearAncientShrine})
 	ctx := context.Background()
 	review, err := reviewer.Step(ctx)
 	if err != nil {

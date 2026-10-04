@@ -22,7 +22,7 @@ func validStatusKey(k string) bool {
 // Every key the bridge sends must pass the native 1-32 printable rule (#1263).
 func TestStatusKeyAlwaysNativeValid(t *testing.T) {
 	long := "goal.clearance_shrine_breach_repair_family_1234"
-	id := GoalID("clearance.shrine-breach.repair.wall.12.34")
+	id := ConcernID("clearance.shrine-breach.repair.wall.12.34")
 	rows := StatusRows(StatusInput{Progress: []GoalProgress{{Goal: id}}})
 	keys := []string{"", "food", "goal held", "incident.é", long, long + "x"}
 	for _, r := range rows {
@@ -48,7 +48,7 @@ func TestStatusRowsSeverityAndOrder(t *testing.T) {
 		FoodDays:  domain.Known(1.5),
 		Wood:      domain.Known(int64(40)),
 		WoodFloor: 100,
-		Emergency: []GoalID{"ManageSupplySafety"},
+		Emergency: []ConcernID{"ManageSupplySafety"},
 		Refusals:  []RefusalMarker{{Label: "Building no_path", Cell: domain.Cell{X: 4, Z: 5}, Tick: 10}},
 	})
 	want := []struct {
@@ -167,7 +167,7 @@ func TestStatusRowsGoalTargetCells(t *testing.T) {
 	cell := domain.Cell{X: 7, Z: 9}
 	rows := StatusRows(StatusInput{
 		Progress:  []GoalProgress{{Goal: "EnsureShelter", Method: "build"}, {Goal: "MaintainFood", Method: "hunt"}},
-		GoalCells: map[GoalID]domain.Cell{"EnsureShelter": cell},
+		GoalCells: map[ConcernID]domain.Cell{"EnsureShelter": cell},
 	})
 	for _, key := range []string{"goal", "goal.EnsureShelter"} {
 		r, _ := statusRow(rows, key)
@@ -180,7 +180,7 @@ func TestStatusRowsGoalTargetCells(t *testing.T) {
 	}
 }
 
-// Detail rows sit under their domain's heading with their concept; open
+// Detail rows sit under their department's heading with their concern type; open
 // incidents get incident.<id> rows; System and closed incidents get none.
 func TestStatusRowsGroupDetailByDomain(t *testing.T) {
 	rows := StatusRows(StatusInput{

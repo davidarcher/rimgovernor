@@ -20,7 +20,7 @@ import (
 // merged but never retargeted or deleted. Edits are rate-limited by the haul
 // jobs each would trigger, not by how rarely the routine acts. It is a
 // Standard whose target is no outstanding work: no zone edit due (#1024).
-const MaintainStockpiles GoalID = "MaintainStockpiles"
+const MaintainStockpiles ConcernID = "MaintainStockpiles"
 
 // stockpilePriority ranks MaintainStockpiles with the other upkeep goals.
 const stockpilePriority = 3

@@ -24,7 +24,7 @@ const MaxProjectRecord = 4096
 // and no RecoveryObserved, unlike a Standard goal.
 type Project struct {
 	ID       ProjectID
-	Kind     GoalID // the Project's GoalID (the routine need it serves)
+	Kind     ConcernID // the Project's ConcernID (the routine need it serves)
 	Priority int
 	Snapshot GenerationSnapshot
 	Tick     Tick
@@ -34,7 +34,7 @@ type Project struct {
 	Record string `json:",omitempty"`
 }
 
-func NewProject(id ProjectID, kind GoalID, priority int, snapshot GenerationSnapshot, tick Tick) (Project, error) {
+func NewProject(id ProjectID, kind ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Project, error) {
 	p := Project{ID: id, Kind: kind, Priority: priority, Snapshot: snapshot, Tick: tick, Status: ProjectOpen, Need: NeedUnknown}
 	return p, p.Validate()
 }

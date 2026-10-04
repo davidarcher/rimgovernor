@@ -11,7 +11,7 @@ import (
 // sit in the open, unlike MaintainCleanFacilities' upkeep filth or
 // MaintainAnimalContainment's herd containment. It is a Standard whose
 // target is no outstanding work: no exposed eligible waste (#1024).
-const MaintainWaste GoalID = "MaintainWaste"
+const MaintainWaste ConcernID = "MaintainWaste"
 
 // WasteState mirrors the native WasteLocation the wire carries for one item:
 // exposed (a containment candidate), relocated (already hauled to a

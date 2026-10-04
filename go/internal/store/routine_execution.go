@@ -63,7 +63,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		}
 		return tx.Commit()
 	}
-	goal, err := loadGoal(ctx, tx, domain.GoalID(goalID.String))
+	goal, err := loadGoal(ctx, tx, domain.ConcernID(goalID.String))
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func routineActionsSupported(spec domain.PlanSpec) error {
 }
 
 // Need returns the routine need the review binds the goal to.
-func (r RoutineReview) Need(goal domain.GoalID) (domain.GoalID, bool) {
+func (r RoutineReview) Need(goal domain.ConcernID) (domain.ConcernID, bool) {
 	for _, binding := range r.Goals {
 		if binding.Goal == goal {
 			return binding.Need, true
@@ -179,7 +179,7 @@ func (r RoutineReview) Need(goal domain.GoalID) (domain.GoalID, bool) {
 }
 
 // projectNeed returns the routine need the review binds the Project to.
-func (r RoutineReview) projectNeed(project domain.ProjectID) (domain.GoalID, bool) {
+func (r RoutineReview) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
 	for _, binding := range r.Projects {
 		if binding.Project == project {
 			return binding.Need, true
@@ -202,8 +202,8 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 // Workable loads the Standard goal the review binds to need and reports whether a
 // planner may work it: an active deficit the Safeguards admit (#1121). The goal
 // is returned whenever the review binds one, workable or not.
-func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.GoalID) (GoalState, bool, error) {
-	id := domain.GoalID("")
+func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.ConcernID) (GoalState, bool, error) {
+	id := domain.ConcernID("")
 	for _, binding := range r.Goals {
 		if binding.Need == need {
 			id = binding.Goal
@@ -233,9 +233,9 @@ func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
 }
 
 // needOf is the need the review binds the goal or Project row id to.
-func (r RoutineReview) needOf(id string) (domain.GoalID, bool) {
+func (r RoutineReview) needOf(id string) (domain.ConcernID, bool) {
 	if isProjectID(id) {
 		return r.projectNeed(domain.ProjectID(id))
 	}
-	return r.Need(domain.GoalID(id))
+	return r.Need(domain.ConcernID(id))
 }

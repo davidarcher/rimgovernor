@@ -43,7 +43,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 			Stock, Entry, Recovery, Replenish int64
 		}
 		Colony   json.RawMessage
-		Expected map[policy.GoalID]struct {
+		Expected map[policy.ConcernID]struct {
 			Need     domain.NeedState
 			Priority int
 			Targets  []string
@@ -144,7 +144,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if fixture.Medical != nil && fixture.Medical["initial"].Active {
 		medicalNeed = domain.NeedDeficit
 	}
-	animalNeeds := map[policy.GoalID]domain.NeedState{}
+	animalNeeds := map[policy.ConcernID]domain.NeedState{}
 	if fixture.Sleeping != nil {
 		animalNeeds[policy.MaintainHousing] = domain.NeedRecovered
 		if len(fixture.Sleeping.Targets) > 0 {

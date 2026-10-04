@@ -59,7 +59,7 @@ func TestUpkeepUnknownRetainsRiskAndIssuedWork(t *testing.T) {
 	if !reflect.DeepEqual(r.History, history) || r.Needs[0].Priority != 1 || r.Needs[1].Priority != 3 {
 		t.Fatal(r)
 	}
-	r, err = ReviewUpkeep(emptyUpkeep(), history, map[GoalID]bool{MaintainEssentialRepairs: true})
+	r, err = ReviewUpkeep(emptyUpkeep(), history, map[ConcernID]bool{MaintainEssentialRepairs: true})
 	if err != nil {
 		t.Fatal(err)
 	}

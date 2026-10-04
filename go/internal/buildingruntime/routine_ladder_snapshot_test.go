@@ -19,7 +19,7 @@ import (
 
 // loadPlannerStep loads testdata/<name>.json.gz, a planner step's recorded
 // policy inputs (snapshot.Planner), and checks it is goal's.
-func loadPlannerStep(t *testing.T, name string, goal policy.GoalID) snapshot.Planner {
+func loadPlannerStep(t *testing.T, name string, goal policy.ConcernID) snapshot.Planner {
 	t.Helper()
 	p, err := snapshot.LoadPlanner("testdata/" + name + ".json.gz")
 	if err != nil {

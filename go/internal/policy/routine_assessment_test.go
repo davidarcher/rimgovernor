@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func assessment(t *testing.T, r RoutineNeeds, id GoalID) domain.NeedState {
+func assessment(t *testing.T, r RoutineNeeds, id ConcernID) domain.NeedState {
 	t.Helper()
 	for _, n := range r.All() {
 		if n.ID == id {

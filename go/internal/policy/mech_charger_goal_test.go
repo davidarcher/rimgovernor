@@ -14,7 +14,7 @@ func TestEnsureMechChargerRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	if hasNeed(r, EnsureMechCharger) || assessment(t, r, EnsureMechCharger) != domain.NeedUnknown {
 		t.Fatal("no charger fact: an unknown assessment and no goal", r)
 	}
-	f.AvailableMethods = domain.Known([]GoalID{EnsureMechCharger})
+	f.AvailableMethods = domain.Known([]ConcernID{EnsureMechCharger})
 	f.MechChargerOwed = domain.Known(true)
 	r = needs(t, f, r.Latches)
 	if !hasNeed(r, EnsureMechCharger) {

@@ -21,9 +21,9 @@ func TestRoutineUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		s := open(t, memoryPath(t))
 		r := routineRequest()
 		r.Current.Native = 3
-		r.Facts.AvailableMethods = domain.Known([]policy.GoalID{policy.EnsureBasicPower})
+		r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{policy.EnsureBasicPower})
 		if declared {
-			r.Facts.AvailableMethods = domain.Known([]policy.GoalID{policy.EnsureBasicPower, policy.MaintainFireSafety})
+			r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{policy.EnsureBasicPower, policy.MaintainFireSafety})
 		}
 		r.Facts.PowerRequired = domain.Known(true)
 		r.Facts.PowerHeadroom = domain.Known(-100.0)

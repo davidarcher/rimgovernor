@@ -19,7 +19,7 @@ const (
 	shelterRecovered = "testdata/startup-shelter-recovered.json.gz"
 )
 
-func deficits(t *testing.T, path string) (Routine, map[policy.GoalID]bool) {
+func deficits(t *testing.T, path string) (Routine, map[policy.ConcernID]bool) {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {
@@ -29,7 +29,7 @@ func deficits(t *testing.T, path string) (Routine, map[policy.GoalID]bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	open := map[policy.GoalID]bool{}
+	open := map[policy.ConcernID]bool{}
 	for _, a := range needs.Assessments {
 		if a.Need == domain.NeedDeficit {
 			open[a.ID] = true
@@ -41,12 +41,12 @@ func deficits(t *testing.T, path string) (Routine, map[policy.GoalID]bool) {
 func TestReplayShelterOpensBesideResourceAndUpkeep(t *testing.T) {
 	t.Parallel()
 	r, open := deficits(t, shelterOpen)
-	for _, id := range []policy.GoalID{policy.MaintainHousing, policy.MaintainResource, policy.MaintainFoodStorage, policy.EnsureFoodSupply} {
+	for _, id := range []policy.ConcernID{policy.MaintainHousing, policy.MaintainResource, policy.MaintainFoodStorage, policy.EnsureFoodSupply} {
 		if !open[id] {
 			t.Errorf("%s not open beside the initial shelter: %v", id, open)
 		}
 	}
-	bound := map[policy.GoalID]bool{}
+	bound := map[policy.ConcernID]bool{}
 	for _, g := range r.Review.Goals {
 		bound[g.Need] = true
 	}
@@ -61,7 +61,7 @@ func TestReplayUpkeepOutlivesTheRecoveredShelter(t *testing.T) {
 	if needs, err := r.Detect(); err != nil || needs.Latches.Housing == policy.HousingShelter {
 		t.Fatal("the initial shelter is still owed after it recovered")
 	}
-	for _, id := range []policy.GoalID{policy.MaintainResource, policy.MaintainFoodStorage} {
+	for _, id := range []policy.ConcernID{policy.MaintainResource, policy.MaintainFoodStorage} {
 		if !open[id] {
 			t.Errorf("%s closed with the shelter: %v", id, open)
 		}
@@ -92,7 +92,7 @@ func TestReplayWoodShortageKeepsTheShelterOwed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	open := map[policy.GoalID]bool{}
+	open := map[policy.ConcernID]bool{}
 	for _, a := range needs.Assessments {
 		open[a.ID] = a.Need == domain.NeedDeficit
 	}

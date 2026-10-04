@@ -17,7 +17,7 @@ import (
 // slaughter is refused and SafeToRelease allows it, and never breaks the last
 // breeding pair. Native checks eligibility again when the HusbandryIntent
 // applies.
-const MaintainHerd GoalID = "MaintainHerd"
+const MaintainHerd ConcernID = "MaintainHerd"
 
 // HerdPolicy is the per-race population band MaintainHerd plans from.
 // PopulationMin drives tame designations on wild animals; PopulationMax

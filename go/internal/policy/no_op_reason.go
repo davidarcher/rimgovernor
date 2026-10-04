@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// NoOpReason says why a goal detector raised nothing in a review: a closed
+// NoOpReason says why a inspection raised nothing in a review: a closed
 // vocabulary, so a silent no-op is never read as "satisfied" (#1909).
 type NoOpReason string
 
@@ -32,7 +32,7 @@ func (r NoOpReason) Validate() error {
 
 // NoOpRecord is one detector's recorded no-op in the review.
 type NoOpRecord struct {
-	Goal   GoalID
+	Goal   ConcernID
 	Reason NoOpReason
 }
 
@@ -40,7 +40,7 @@ type NoOpRecord struct {
 // raised no goal and filed no deficit assessment for its goal. The reason
 // follows the assessments it filed: none is not_applicable, any unknown is
 // inputs_unknown, otherwise satisfied.
-func noOpOf(id GoalID, goals []DevelopmentGoal, assessments []RoutineAssessment) (NoOpRecord, bool) {
+func noOpOf(id ConcernID, goals []DevelopmentGoal, assessments []RoutineAssessment) (NoOpRecord, bool) {
 	reason := NoOpNotApplicable
 	for _, g := range goals {
 		if g.ID == id {

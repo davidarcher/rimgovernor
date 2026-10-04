@@ -33,7 +33,7 @@ func creepJoinerRow(row *o.PawnState, triggered bool, weapon string) {
 	}
 }
 
-func creepJoinerFixture(t *testing.T, edit func(*o.PawnState), goal policy.GoalID) (*RoutineReviewer, *equipTestNative) {
+func creepJoinerFixture(t *testing.T, edit func(*o.PawnState), goal policy.ConcernID) (*RoutineReviewer, *equipTestNative) {
 	t.Helper()
 	reviewer, _, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
@@ -49,7 +49,7 @@ func creepJoinerFixture(t *testing.T, edit func(*o.PawnState), goal policy.GoalI
 		{Thing: "bow2", Definition: "Bow_Short"},
 	}}
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{goal})
+	reviewer.methods = domain.Known([]policy.ConcernID{goal})
 	return reviewer, n
 }
 

@@ -103,9 +103,9 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 	if err != nil {
 		return nil, err
 	}
-	var ids []domain.GoalID
+	var ids []domain.ConcernID
 	for rows.Next() {
-		var id domain.GoalID
+		var id domain.ConcernID
 		if err = rows.Scan(&id); err != nil {
 			rows.Close()
 			return nil, err

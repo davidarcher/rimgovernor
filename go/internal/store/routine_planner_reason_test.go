@@ -19,11 +19,11 @@ func TestRecordPlannerReasonsNamesTheRefusal(t *testing.T) {
 	r := routineRequest()
 	reviewRoutine(t, s, &r)
 	refusal := policy.PlannerNote{Text: spaceText}
-	changed, err := s.RecordPlannerReasons(ctx, map[policy.GoalID]policy.PlannerNote{policy.MaintainResource: refusal})
+	changed, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: refusal})
 	if err != nil || !changed {
 		t.Fatal(changed, err)
 	}
-	if changed, err = s.RecordPlannerReasons(ctx, map[policy.GoalID]policy.PlannerNote{policy.MaintainResource: refusal}); err != nil || changed {
+	if changed, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: refusal}); err != nil || changed {
 		t.Fatal("unchanged reason rewrote the review", err)
 	}
 	second := reviewRoutine(t, s, &r)
@@ -31,7 +31,7 @@ func TestRecordPlannerReasonsNamesTheRefusal(t *testing.T) {
 	if wood.Planner != spaceText || wood.Blocked != policy.BlockedPlanner(spaceText) || !wood.Blocked.Actionable() {
 		t.Fatalf("wood record %+v", wood)
 	}
-	if _, err = s.RecordPlannerReasons(ctx, map[policy.GoalID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
+	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
 		t.Fatal(err)
 	}
 	review, err := s.LoadRoutineReview(ctx)
@@ -54,14 +54,14 @@ func TestRecordPlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	reviewRoutine(t, s, &r)
 	const waitText = "waiting on the shelter's open bunks"
 	wait := policy.PlannerNote{Text: waitText, Waiting: true}
-	if changed, err := s.RecordPlannerReasons(ctx, map[policy.GoalID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil || !changed {
+	if changed, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil || !changed {
 		t.Fatal(changed, err)
 	}
 	wood := progressRecord(t, reviewRoutine(t, s, &r).Review, policy.MaintainResource)
 	if wood.Planner != waitText || !wood.PlannerWaiting || wood.Blocked != policy.BlockedWaiting(waitText) || wood.Blocked.Actionable() || !wood.Blocked.Waiting() {
 		t.Fatalf("waiting wood record %+v", wood)
 	}
-	if _, err := s.RecordPlannerReasons(ctx, map[policy.GoalID]policy.PlannerNote{policy.MaintainResource: {Text: spaceText}}); err != nil {
+	if _, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {Text: spaceText}}); err != nil {
 		t.Fatal(err)
 	}
 	review, err := s.LoadRoutineReview(ctx)
@@ -71,10 +71,10 @@ func TestRecordPlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	if wood = progressRecord(t, review, policy.MaintainResource); wood.PlannerWaiting || wood.Blocked != policy.BlockedPlanner(spaceText) {
 		t.Fatalf("refused wood record %+v", wood)
 	}
-	if _, err = s.RecordPlannerReasons(ctx, map[policy.GoalID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil {
+	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordPlannerReasons(ctx, map[policy.GoalID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
+	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
 		t.Fatal(err)
 	}
 	if review, err = s.LoadRoutineReview(ctx); err != nil {

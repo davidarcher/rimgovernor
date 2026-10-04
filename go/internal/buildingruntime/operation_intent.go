@@ -15,7 +15,7 @@ import (
 
 // goalLabels are the in-game names of goal kinds whose split identifier
 // reads poorly; every other kind falls back to its words (#822).
-var goalLabels = map[policy.GoalID]string{
+var goalLabels = map[policy.ConcernID]string{
 	policy.EnsureFoodSupply:         "Food supply",
 	policy.MaintainFoodStorage:      "Food storage",
 	policy.MaintainResource:         "Resource",
@@ -52,12 +52,12 @@ var goalLabels = map[policy.GoalID]string{
 
 // GoalLabel is the readable name of a stored goal id. Routine and player ids
 // end in "-<kind>"; the kind picks the label.
-func GoalLabel(goal domain.GoalID) string {
+func GoalLabel(goal domain.ConcernID) string {
 	kind := string(goal)
 	if i := strings.LastIndexByte(kind, '-'); i >= 0 {
 		kind = kind[i+1:]
 	}
-	if label, ok := goalLabels[policy.GoalID(kind)]; ok {
+	if label, ok := goalLabels[policy.ConcernID(kind)]; ok {
 		return label
 	}
 	return splitWords(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(kind, "Maintain"), "Ensure"), "Manage"))

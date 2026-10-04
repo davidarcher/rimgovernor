@@ -36,6 +36,7 @@ func (n *shrineTestNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, i
 	}
 	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Pawns: rows, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
 }
+
 // weapon puts a 25.9-cell gun or a club in the frame's things table and
 // returns the reference a gear item carries to it.
 func (n *shrineTestNative) weapon(id string, ranged bool) *c.Ref {

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func routineProject(t *testing.T, r RoutineReviewResult, need domain.GoalID) ProjectState {
+func routineProject(t *testing.T, r RoutineReviewResult, need domain.ConcernID) ProjectState {
 	t.Helper()
 	for i, b := range r.Review.Projects {
 		if b.Need == need {
@@ -58,13 +58,13 @@ func TestProjectAndResponseKindsNeverMintGoalRows(t *testing.T) {
 	// The review binds Standards as goals and Projects as Projects; no
 	// Response is bound as either (Responses are incidents).
 	for _, b := range out.Review.Goals {
-		if c := policy.GoalConcept(b.Need); c != policy.ConceptStandard {
+		if c := policy.ConcernTypeOf(b.Need); c != policy.StandardConcern {
 			t.Fatalf("goal binding %s is a %s kind", b.Need, c)
 		}
 	}
 	for _, b := range out.Review.Projects {
 		if !policy.IsProjectKind(b.Need) {
-			t.Fatalf("project binding %s is a %s kind", b.Need, policy.GoalConcept(b.Need))
+			t.Fatalf("project binding %s is a %s kind", b.Need, policy.ConcernTypeOf(b.Need))
 		}
 	}
 	if len(out.Review.Projects) == 0 {
@@ -80,12 +80,12 @@ func TestProjectAndResponseKindsNeverMintGoalRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, id := range ids {
-		for _, d := range policy.GoalDetectors() {
-			if d.Concept == policy.ConceptStandard {
+		for _, d := range policy.AllInspections() {
+			if d.Type == policy.StandardConcern {
 				continue
 			}
-			if k := string(d.Goal); strings.Contains(string(id), "-"+k+"-") || strings.HasSuffix(string(id), "-"+k) {
-				t.Fatalf("goal row %s is a %s kind %s", id, d.Concept, k)
+			if k := string(d.Concern); strings.Contains(string(id), "-"+k+"-") || strings.HasSuffix(string(id), "-"+k) {
+				t.Fatalf("goal row %s is a %s kind %s", id, d.Type, k)
 			}
 		}
 	}

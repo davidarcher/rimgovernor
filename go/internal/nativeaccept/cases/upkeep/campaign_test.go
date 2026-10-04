@@ -23,7 +23,7 @@ func TestCampaignRebindsGuardsOnlyToLoadedReview(t *testing.T) {
 	review := store.RoutineReview{Goals: []store.RoutineGoal{{Need: old.Need, Goal: "loaded-kitchen"}}}
 	for _, status := range []domain.GoalStatus{domain.GoalActive, domain.GoalInvalidated} {
 		closed := []closedGoal{old}
-		err := rebindClosedGoals(context.Background(), closed, review, func(_ context.Context, id domain.GoalID) (store.GoalState, error) {
+		err := rebindClosedGoals(context.Background(), closed, review, func(_ context.Context, id domain.ConcernID) (store.GoalState, error) {
 			if id != "loaded-kitchen" {
 				t.Fatalf("loaded %s instead of current binding", id)
 			}
@@ -59,7 +59,7 @@ func (s campaignRestoreSession) Resumed() (na.Checkpoint, bool) {
 func TestCampaignMedicineStateRestoresGuardIdentities(t *testing.T) {
 	want := campaignState{Timeline: []map[string]any{{"stage": "medicine", "tick_after": float64(12345)}}}
 	for i, st := range campaignStages()[:3] {
-		want.Closed = append(want.Closed, closedGoal{Stage: st.name, Need: st.needs[0], Goal: domain.GoalID("goal-" + st.name), Epoch: uint64(i + 7)})
+		want.Closed = append(want.Closed, closedGoal{Stage: st.name, Need: st.needs[0], Goal: domain.ConcernID("goal-" + st.name), Epoch: uint64(i + 7)})
 	}
 	data, err := json.Marshal(want)
 	if err != nil {

@@ -620,7 +620,7 @@ func TestRoutineReviewerPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Goals {
-		if binding.Need == domain.GoalID(policy.EnsureFoodSupply) {
+		if binding.Need == domain.ConcernID(policy.EnsureFoodSupply) {
 			g, err := db.LoadGoal(context.Background(), binding.Goal)
 			if err != nil || g.Goal.Need != domain.NeedUnknown {
 				t.Fatal("raw food became recovery", g, err)

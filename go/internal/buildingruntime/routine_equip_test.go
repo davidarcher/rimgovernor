@@ -91,7 +91,7 @@ func TestEquipPlannerBiocodeOwnerOnly(t *testing.T) {
 			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
 			v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 			reviewer.native = n
-			reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
+			reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicDefense})
 			if _, err := reviewer.Step(ctx); err != nil {
 				t.Fatal(err)
 			}
@@ -141,7 +141,7 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
 			v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 			reviewer.native = n
-			reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
+			reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicDefense})
 			if _, err := reviewer.Step(ctx); err != nil {
 				t.Fatal(err)
 			}
@@ -221,7 +221,7 @@ func TestEquipPlannerOneWave(t *testing.T) {
 		{Thing: "bow3", Definition: "Bow_Short"},
 	}}
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicDefense})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	n := &equipTestNative{routineNative: native, ids: []string{"a", "b"}}
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicDefense})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

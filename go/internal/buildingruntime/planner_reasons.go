@@ -65,15 +65,15 @@ func noteRank(n policy.PlannerNote) int {
 // names each goal's refusal or wait once per change. Only the step goroutine
 // touches it (recordWave).
 type plannerReasonLog struct {
-	last map[policy.GoalID]policy.PlannerNote
+	last map[policy.ConcernID]policy.PlannerNote
 }
 
 // changed files notes and returns those that differ from the last seen.
-func (l *plannerReasonLog) changed(notes map[policy.GoalID]policy.PlannerNote) map[policy.GoalID]policy.PlannerNote {
+func (l *plannerReasonLog) changed(notes map[policy.ConcernID]policy.PlannerNote) map[policy.ConcernID]policy.PlannerNote {
 	if l.last == nil {
-		l.last = map[policy.GoalID]policy.PlannerNote{}
+		l.last = map[policy.ConcernID]policy.PlannerNote{}
 	}
-	out := map[policy.GoalID]policy.PlannerNote{}
+	out := map[policy.ConcernID]policy.PlannerNote{}
 	for goal, note := range notes {
 		if prior, seen := l.last[goal]; !seen || prior != note {
 			l.last[goal] = note
@@ -85,8 +85,8 @@ func (l *plannerReasonLog) changed(notes map[policy.GoalID]policy.PlannerNote) m
 
 // wavePlannerReasons collects the goal notes of the planners that returned;
 // siblings on one goal keep the highest-ranked note (noteRank).
-func wavePlannerReasons(names []string, filing func(string) (policy.GoalID, Verdict, bool)) map[policy.GoalID]policy.PlannerNote {
-	out := map[policy.GoalID]policy.PlannerNote{}
+func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, Verdict, bool)) map[policy.ConcernID]policy.PlannerNote {
+	out := map[policy.ConcernID]policy.PlannerNote{}
 	for _, name := range names {
 		goal, verdict, ok := filing(name)
 		if !ok {

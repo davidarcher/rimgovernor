@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	MaintainFireSafety       GoalID = "MaintainFireSafety"
-	MaintainEssentialRepairs GoalID = "MaintainEssentialRepairs"
-	MaintainCleanFacilities  GoalID = "MaintainCleanFacilities"
+	MaintainFireSafety       ConcernID = "MaintainFireSafety"
+	MaintainEssentialRepairs ConcernID = "MaintainEssentialRepairs"
+	MaintainCleanFacilities  ConcernID = "MaintainCleanFacilities"
 )
 
 // Each fact is a complete native section. An unavailable section cannot prove
@@ -84,7 +84,7 @@ type UpkeepHistory struct {
 	DirtyRooms []DirtyRoom `json:",omitempty"`
 }
 type UpkeepNeed struct {
-	Goal     GoalID
+	Goal     ConcernID
 	Priority int
 	Active   bool
 	Targets  domain.Fact[[]string]
@@ -99,13 +99,13 @@ type UpkeepReview struct {
 // ReviewUpkeep ports the five direct native upkeep contracts. Issued work is
 // supplied by the shared journal, never inferred from a receipt or target loss.
 // Cleaning uses the default CleanlinessPolicy; ReviewUpkeepWith takes one.
-func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID]bool) (UpkeepReview, error) {
+func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[ConcernID]bool) (UpkeepReview, error) {
 	return ReviewUpkeepWith(v, previous, issued, DefaultCleanlinessPolicy())
 }
 
-func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID]bool, cleanliness CleanlinessPolicy) (UpkeepReview, error) {
+func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[ConcernID]bool, cleanliness CleanlinessPolicy) (UpkeepReview, error) {
 	r := UpkeepReview{}
-	add := func(goal GoalID, priority int, active bool, targets domain.Fact[[]string], metric domain.Fact[float64], unsafe bool) bool {
+	add := func(goal ConcernID, priority int, active bool, targets domain.Fact[[]string], metric domain.Fact[float64], unsafe bool) bool {
 		if rows, known := targets.Value(); known {
 			active = len(rows) > 0
 		}

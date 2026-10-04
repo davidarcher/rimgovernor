@@ -15,7 +15,7 @@ import (
 
 type RoutineBillPlanner struct {
 	reviewer *RoutineReviewer
-	need     policy.GoalID
+	need     policy.ConcernID
 	purpose  policy.BillPurpose
 	native   BillPlannerNative
 }

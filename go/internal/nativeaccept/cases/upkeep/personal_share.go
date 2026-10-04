@@ -86,7 +86,7 @@ func runPersonalShare(ctx context.Context, s cases.Session, wealth string) error
 	journal, err := serveStage(ctx, service, report)
 	if err == nil {
 		recoverCtx, cancel := context.WithTimeout(ctx, 25*time.Minute)
-		for _, need := range []policy.GoalID{policy.MaintainHousing, policy.MaintainEquipment} {
+		for _, need := range []policy.ConcernID{policy.MaintainHousing, policy.MaintainEquipment} {
 			g, werr := waitNeed(recoverCtx, journal, need, domain.NeedRecovered)
 			if werr != nil {
 				err = werr

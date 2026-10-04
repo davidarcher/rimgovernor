@@ -80,7 +80,7 @@ func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	r.Facts.Colonists = domain.Known(int64(3))
 	r.Facts.BedCapacity = domain.Known(int64(3))
 	r.Facts.IndoorCapacity = domain.Known(int64(3))
-	r.Facts.AvailableMethods = domain.Known([]policy.GoalID{policy.MaintainHousing})
+	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{policy.MaintainHousing})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainHousing)
 	if !developmentRow(t, out.Review, policy.MaintainHousing).Selected {
@@ -89,7 +89,7 @@ func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
 		t.Fatal(err)
 	}
-	r.Facts.AvailableMethods = domain.Known([]policy.GoalID{})
+	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{})
 	out = reviewRoutine(t, s, &r)
 	row := developmentRow(t, out.Review, policy.MaintainHousing)
 	if row.Selected || !row.Committed || row.Reason != policy.DevelopmentCommitted {

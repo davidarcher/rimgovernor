@@ -9,7 +9,7 @@ import (
 
 // RecordGoal replaces the goal's durable record (domain.Goal.Record) at the
 // goal's revision. The record rides in the goal's GovernorState blob.
-func (s *Store) RecordGoal(ctx context.Context, id domain.GoalID, revision uint64, record string) (GoalState, error) {
+func (s *Store) RecordGoal(ctx context.Context, id domain.ConcernID, revision uint64, record string) (GoalState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return GoalState{}, err
@@ -35,7 +35,7 @@ func (s *Store) RecordGoal(ctx context.Context, id domain.GoalID, revision uint6
 // CommitGoalMethodRecord is CommitGoalMethodReason that also replaces the
 // goal's record in the same transaction, so a method and the intent it
 // carries are saved together or not at all.
-func (s *Store) CommitGoalMethodRecord(ctx context.Context, id domain.GoalID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec, record string) (GoalState, error) {
+func (s *Store) CommitGoalMethodRecord(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec, record string) (GoalState, error) {
 	if err := plan.Validate(); err != nil {
 		return GoalState{}, err
 	}

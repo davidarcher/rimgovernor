@@ -68,7 +68,7 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assessed := map[GoalID]domain.NeedState{}
+	assessed := map[ConcernID]domain.NeedState{}
 	for _, a := range r.Assessments {
 		assessed[a.ID] = a.Need
 	}
@@ -79,7 +79,7 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	selected := map[GoalID]DevelopmentRow{}
+	selected := map[ConcernID]DevelopmentRow{}
 	for _, row := range state.Rows {
 		selected[row.Goal] = row
 	}
@@ -113,7 +113,7 @@ func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
 	f.ResearchNeeds = []string{"Smithing"}
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}})
 	f.Resources = domain.Known([]Amount{})
-	rank := func() map[GoalID]DevelopmentRow {
+	rank := func() map[ConcernID]DevelopmentRow {
 		r, err := DetectRoutine(f, RoutineLatches{}, p)
 		if err != nil {
 			t.Fatal(err)
@@ -122,7 +122,7 @@ func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		rows := map[GoalID]DevelopmentRow{}
+		rows := map[ConcernID]DevelopmentRow{}
 		for _, row := range state.Rows {
 			rows[row.Goal] = row
 		}

@@ -10,7 +10,7 @@ import (
 // MaintainSurgery is the medical-operation goal (#1160). It restores missing
 // or destroyed parts (#1164); later kinds (cure, amputation, electives) add
 // their own candidates to SelectSurgery.
-const MaintainSurgery GoalID = "MaintainSurgery"
+const MaintainSurgery ConcernID = "MaintainSurgery"
 
 // surgeryPriority keeps MaintainSurgery out of development arbitration: a
 // queued bill is doctor work native assigns, not a reserved labor slot.

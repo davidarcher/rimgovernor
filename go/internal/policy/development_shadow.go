@@ -27,7 +27,7 @@ const (
 
 // shadowDomains is the goal-to-domain table (David, #1913 comment). A goal
 // outside it is left out of the ranking, never defaulted.
-var shadowDomains = map[GoalID]ShadowDomain{
+var shadowDomains = map[ConcernID]ShadowDomain{
 	MaintainResource:        ShadowFood,
 	MaintainFoodStorage:     ShadowFood,
 	MaintainRefrigeration:   ShadowPower,
@@ -52,7 +52,7 @@ func ForwardInputsOf(f RoutineFacts, p RoutinePolicy) ForwardInputs {
 }
 
 type ShadowEntry struct {
-	Goal          GoalID
+	Goal          ConcernID
 	Domain        ShadowDomain
 	ShortfallDays float64
 	// OpenActions is the goal's open plan action count, the labor cost.
@@ -64,7 +64,7 @@ type ShadowEntry struct {
 // ShadowDisagreement is a ranked goal whose 1-based place among the ranked
 // goals differs between the live order and the shadow order.
 type ShadowDisagreement struct {
-	Goal    GoalID
+	Goal    ConcernID
 	Current int
 	Shadow  int
 	// Reason is the live row's reason (empty while it is selected).
@@ -72,7 +72,7 @@ type ShadowDisagreement struct {
 }
 
 type ShadowUnranked struct {
-	Goal   GoalID
+	Goal   ConcernID
 	Reason string
 }
 
@@ -81,7 +81,7 @@ type ShadowRank struct {
 	// Ranked is the shadow order, best first.
 	Ranked []ShadowEntry `json:",omitempty"`
 	// Current is the live order of the same goals.
-	Current       []GoalID             `json:",omitempty"`
+	Current       []ConcernID          `json:",omitempty"`
 	Disagreements []ShadowDisagreement `json:",omitempty"`
 	Unranked      []ShadowUnranked     `json:",omitempty"`
 }
@@ -122,10 +122,10 @@ func shadowShortfall(p ForwardProjection, d ShadowDomain) (float64, string) {
 
 // ShadowRankOf ranks the state's candidate rows by projected shortfall per
 // open action. openActions is each goal's open plan action count.
-func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions map[GoalID]int) ShadowRank {
+func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions map[ConcernID]int) ShadowRank {
 	out := ShadowRank{HorizonDays: projection.HorizonDays}
-	var current []GoalID
-	rows := map[GoalID]DevelopmentRow{}
+	var current []ConcernID
+	rows := map[ConcernID]DevelopmentRow{}
 	for _, row := range s.Rows {
 		if !shadowCandidate(row) {
 			continue
@@ -155,7 +155,7 @@ func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions 
 		return a.Goal < b.Goal
 	})
 	out.Current = current
-	shadow := map[GoalID]int{}
+	shadow := map[ConcernID]int{}
 	for i, e := range out.Ranked {
 		shadow[e.Goal] = i + 1
 	}

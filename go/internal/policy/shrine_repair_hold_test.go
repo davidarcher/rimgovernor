@@ -14,7 +14,7 @@ func TestShrineDefersToRepairsOnlyWhenRepairsServed(t *testing.T) {
 	f.Upkeep.Shrines = domain.Known([]AncientShrine{{ID: "shrine", InHome: true, Sealed: true}})
 	f.Upkeep.Structures = domain.Known([]UpkeepStructure{{ID: "door", Home: true, HitPoints: 50, MaxHitPoints: 100}})
 	for _, served := range []bool{true, false} {
-		methods := []GoalID{ClearAncientShrine}
+		methods := []ConcernID{ClearAncientShrine}
 		if served {
 			methods = append(methods, MaintainEssentialRepairs)
 		}

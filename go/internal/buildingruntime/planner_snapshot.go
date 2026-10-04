@@ -24,7 +24,7 @@ func recordTables(store *facts.Store) {
 // recordStepRead appends a planner step's own colony read (planner is
 // "building", "bill", "hospital" or "deepdrill") to the serve's snapshot stream for replay
 // (#794) when snapshot recording is on; a failed write is logged.
-func recordStepRead(planner string, goal policy.GoalID, current domain.GenerationSnapshot, reading observation.ColonyProjection) {
+func recordStepRead(planner string, goal policy.ConcernID, current domain.GenerationSnapshot, reading observation.ColonyProjection) {
 	dir := os.Getenv(snap.DirEnv)
 	if dir == "" {
 		return
@@ -39,7 +39,7 @@ func recordStepRead(planner string, goal policy.GoalID, current domain.Generatio
 // recordPlannerStep starts recording one planner step's policy inputs for
 // replay (#745, #746) when snapshot recording is on; the returned func
 // writes them, logging a failed write rather than failing the step.
-func recordPlannerStep(call context.Context, goal policy.GoalID, current domain.GenerationSnapshot, tick domain.Tick) (context.Context, func()) {
+func recordPlannerStep(call context.Context, goal policy.ConcernID, current domain.GenerationSnapshot, tick domain.Tick) (context.Context, func()) {
 	call, finish := snap.StartPlanner(call, goal)
 	return call, func() {
 		if err := finish(current, tick); err != nil {

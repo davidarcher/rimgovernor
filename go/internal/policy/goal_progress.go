@@ -17,7 +17,7 @@ import (
 // construction observed), never from dispatch: an order nobody can take is
 // blocked, not progressing.
 type GoalProgress struct {
-	Goal GoalID
+	Goal ConcernID
 	// Method is the goal's current method or ladder rung ("hunt", "cook").
 	Method string
 	// Expected is the observable the method is expected to move.
@@ -161,14 +161,14 @@ func printableReason(s string) bool {
 }
 
 // BlockedPrerequisite blocks on another goal that must be served first.
-func BlockedPrerequisite(goal GoalID) BlockedReason {
+func BlockedPrerequisite(goal ConcernID) BlockedReason {
 	return BlockedReason(blockedPrerequisite + string(goal))
 }
 
 // Prerequisite is the goal a prerequisite reason waits on, else "".
-func (r BlockedReason) Prerequisite() GoalID {
+func (r BlockedReason) Prerequisite() ConcernID {
 	if strings.HasPrefix(string(r), blockedPrerequisite) {
-		return GoalID(strings.TrimPrefix(string(r), blockedPrerequisite))
+		return ConcernID(strings.TrimPrefix(string(r), blockedPrerequisite))
 	}
 	return ""
 }
@@ -262,7 +262,7 @@ type ProgressEvidence struct {
 	NativeIneligible bool
 	// Prerequisite is a goal that must be served before this method can
 	// advance; "" when none.
-	Prerequisite GoalID
+	Prerequisite ConcernID
 	// Observed is the deficit fraction this review measured.
 	Observed domain.Fact[float64]
 }
@@ -271,7 +271,7 @@ type ProgressEvidence struct {
 // A new record starts its clock at now. Progress resets the deadline;
 // blocked evidence leaves the clock running, so a method blocked past its
 // deadline rotates (ExpireGoalProgress). Expired cooldowns are dropped.
-func ReviewGoalProgress(previous GoalProgress, goal GoalID, c ProgressContract, e ProgressEvidence, now domain.Tick) GoalProgress {
+func ReviewGoalProgress(previous GoalProgress, goal ConcernID, c ProgressContract, e ProgressEvidence, now domain.Tick) GoalProgress {
 	p := previous
 	p.Goal = goal
 	// A new goal, a new method or a tick rewind starts the clock; cooldowns
@@ -438,13 +438,13 @@ func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
 // unknown gate is no evidence of a missing bench and blocks nothing. The
 // observable is the food runway's shortfall against FoodTargetDays, so a
 // day of food gained reads as progress whichever rung is current.
-func FoodProgress(f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressContract, GoalID, domain.Fact[float64]) {
+func FoodProgress(f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressContract, ConcernID, domain.Fact[float64]) {
 	owed := func(v domain.Fact[bool]) bool { b, k := v.Value(); return k && !b }
 	observed := domain.Unknown[float64]()
 	if days, known := f.FoodDays.Value(); known && p.FoodTargetDays > 0 {
 		observed = domain.Known(max(0, min(1, 1-days/p.FoodTargetDays)))
 	}
-	var prerequisite GoalID
+	var prerequisite ConcernID
 	if owed(f.Cooking) {
 		prerequisite = EnsureCooking
 	}
@@ -482,7 +482,7 @@ func GoalProgressContract(method string, p RoutinePolicy) ProgressContract {
 func WithheldLabor(progress []GoalProgress) LaborProfile {
 	var withheld LaborProfile
 	seen := map[WorkType]bool{}
-	open := map[GoalID]bool{}
+	open := map[ConcernID]bool{}
 	for _, p := range progress {
 		open[p.Goal] = open[p.Goal] || p.Open
 	}
@@ -507,8 +507,8 @@ const PlannerOptOut = "disabled"
 // should look at: an unavailable method, a planner the runtime left
 // disabled, a development row the ranking held (stage, labor, capacity,
 // emergency) or labor withheld for every work type the goal uses.
-func HoldProgress(progress []GoalProgress, rows []DevelopmentRow, withheld LaborProfile, unavailable map[GoalID]bool) []GoalProgress {
-	byGoal := map[GoalID]DevelopmentRow{}
+func HoldProgress(progress []GoalProgress, rows []DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) []GoalProgress {
+	byGoal := map[ConcernID]DevelopmentRow{}
 	for _, row := range rows {
 		byGoal[row.Goal] = row
 	}
@@ -525,7 +525,7 @@ func HoldProgress(progress []GoalProgress, rows []DevelopmentRow, withheld Labor
 	return out
 }
 
-func heldReason(p GoalProgress, rows map[GoalID]DevelopmentRow, withheld LaborProfile, unavailable map[GoalID]bool) BlockedReason {
+func heldReason(p GoalProgress, rows map[ConcernID]DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) BlockedReason {
 	if unavailable[p.Goal] {
 		return HeldUnavailable
 	}

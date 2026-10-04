@@ -62,9 +62,9 @@ type WatchConfig struct {
 	Wake func(na.FlightRow) bool
 	// Goal is the maintained goal the timeline samples (default
 	// EnsureFoodSupply).
-	Goal policy.GoalID
+	Goal policy.ConcernID
 	// Extra are further goals each sample also reads, under the goal id.
-	Extra []policy.GoalID
+	Extra []policy.ConcernID
 	// Until, when set, ends the window early once a sample satisfies it.
 	Until func(sample map[string]any) bool
 	// Checkpoint, when set, saves the live game the first time a sample
@@ -427,7 +427,7 @@ func liveTick(apiCall func(string, string, map[string]any, string) (map[string]a
 // committed methods' plan stages, mirroring exactly what a routine planner's
 // step itself reads: review.Goals for the Need, then that goal's
 // Status/Need/Priority/Methods.
-func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[string]any, error) {
+func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map[string]any, error) {
 	sample := map[string]any{"at": time.Now().UTC().Format(time.RFC3339), "method_count": 0}
 	review, err := s.LoadRoutineReview(ctx)
 	if err != nil {
@@ -448,7 +448,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	if policy.IsProjectKind(need) {
 		return sampleProject(ctx, s, review, need, sample)
 	}
-	var goalID domain.GoalID
+	var goalID domain.ConcernID
 	for _, binding := range review.Goals {
 		if binding.Need == need {
 			goalID = binding.Goal
@@ -540,7 +540,7 @@ func describeMethod(ctx context.Context, s *store.Store, method domain.MethodID,
 
 // sampleProject is SampleGoal for a Project (#1911): the review's current
 // Project row for the kind, its status and need, and its plans.
-func sampleProject(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.GoalID, sample map[string]any) (map[string]any, error) {
+func sampleProject(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
 	id, bound := review.ProjectFor(kind)
 	sample["goal_bound"] = bound
 	if !bound {
@@ -587,7 +587,7 @@ func sampleProject(ctx context.Context, s *store.Store, review store.RoutineRevi
 // sampleIncident is SampleGoal for a Response whose occurrences are
 // incidents (#1020): the latest occurrence in the review's world, open or
 // closed, with the need the review binds it at and its plans.
-func sampleIncident(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.GoalID, sample map[string]any) (map[string]any, error) {
+func sampleIncident(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
 	world := store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}
 	incident, ok, err := s.LatestIncident(ctx, world, kind)
 	if err != nil || !ok {

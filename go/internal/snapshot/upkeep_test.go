@@ -14,7 +14,7 @@ import (
 // recovery, the review that closed it.
 
 // assess replays path and returns its assessment of goal.
-func assess(t *testing.T, path string, goal policy.GoalID) policy.RoutineAssessment {
+func assess(t *testing.T, path string, goal policy.ConcernID) policy.RoutineAssessment {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {
@@ -29,7 +29,7 @@ func assess(t *testing.T, path string, goal policy.GoalID) policy.RoutineAssessm
 
 // transition asserts goal is an actionable deficit in open and recovered
 // in closed.
-func transition(t *testing.T, open, closed string, goal policy.GoalID) {
+func transition(t *testing.T, open, closed string, goal policy.ConcernID) {
 	t.Helper()
 	if a := assess(t, open, goal); a.Need != domain.NeedDeficit || a.MethodUnavailable {
 		t.Errorf("%s: %s %+v, want an actionable deficit", open, goal, a)
@@ -66,7 +66,7 @@ func TestReplayHomeFireIsAnEmergencyUntilOut(t *testing.T) {
 // walled off from every worker. Both deficits stay visible rather than
 // being dropped as unreachable.
 func TestReplayUnreachableUpkeepStaysInDeficit(t *testing.T) {
-	for _, goal := range []policy.GoalID{policy.MaintainEssentialRepairs} {
+	for _, goal := range []policy.ConcernID{policy.MaintainEssentialRepairs} {
 		if a := assess(t, "testdata/upkeep-blocked.json", goal); a.Need != domain.NeedDeficit {
 			t.Errorf("%s %+v, want deficit", goal, a)
 		}

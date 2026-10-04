@@ -19,7 +19,7 @@ func RoutineWorkers(pawns []WorkPawn) domain.Fact[int] {
 	return domain.Known(count)
 }
 
-func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domain.Fact[float64] {
+func RoutineDevelopmentDeficit(id ConcernID, f RoutineFacts, p RoutinePolicy) domain.Fact[float64] {
 	var stock, target int64
 	var known bool
 	switch id {
@@ -334,7 +334,7 @@ var outdoorHazards = map[string]bool{"ToxicFallout": true}
 // risk 0.5 while a cold or hot latch is active; everything else is 0. It is
 // ordering evidence for admission, not a safety guard: native danger checks
 // and Hands dispatch guards still apply.
-func RoutineDevelopmentRisk(id GoalID, f RoutineFacts, l RoutineLatches) domain.Fact[float64] {
+func RoutineDevelopmentRisk(id ConcernID, f RoutineFacts, l RoutineLatches) domain.Fact[float64] {
 	outdoor := false
 	for _, w := range GoalLabor(id) {
 		outdoor = outdoor || w == WorkConstruction || w == WorkMining || w == WorkPlantCutting

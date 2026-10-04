@@ -13,7 +13,7 @@ import (
 // a colonist is a psycaster). The choice is a pure ranking over the royalty
 // read; the goal commits it as a choose_permit pawn setting, and the plan
 // recorded on the goal (in the save with the goal) is the persisted intent.
-const MaintainPermits GoalID = "MaintainPermits"
+const MaintainPermits ConcernID = "MaintainPermits"
 
 // PermitCategory groups permits by what they give the colony.
 type PermitCategory string

@@ -12,7 +12,7 @@ type RoutineDevelopment struct {
 	Workers   *int
 	Labor     map[policy.WorkType]int `json:",omitempty"`
 	Capacity  int
-	Committed []domain.GoalID
+	Committed []domain.ConcernID
 	Rows      []RoutineDevelopmentRow
 	Partial   bool `json:",omitempty"`
 	// The fields below (#649) are absent from records written before
@@ -24,7 +24,7 @@ type RoutineDevelopment struct {
 	Blockers []policy.DependencyBlocker `json:",omitempty"`
 }
 type RoutineDevelopmentRow struct {
-	Goal                domain.GoalID
+	Goal                domain.ConcernID
 	Score               float64
 	Deficit             *float64
 	WaitingSince        domain.Tick
@@ -41,7 +41,7 @@ type RoutineDevelopmentRow struct {
 }
 
 func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
-	r := RoutineDevelopment{Snapshot: s.Snapshot, Tick: s.Tick, Capacity: s.Capacity, Committed: append([]domain.GoalID(nil), s.Committed...), Partial: s.Partial,
+	r := RoutineDevelopment{Snapshot: s.Snapshot, Tick: s.Tick, Capacity: s.Capacity, Committed: append([]domain.ConcernID(nil), s.Committed...), Partial: s.Partial,
 		Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Limiting: s.Limiting, Blockers: append([]policy.DependencyBlocker(nil), s.Blockers...)}
 	if v, k := s.Workers.Value(); k {
 		r.Workers = &v
@@ -70,7 +70,7 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 
 // State rebuilds the policy ranking this record persisted.
 func (r RoutineDevelopment) State() policy.DevelopmentState {
-	s := policy.DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Capacity: r.Capacity, Committed: append([]domain.GoalID(nil), r.Committed...), Partial: r.Partial,
+	s := policy.DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Capacity: r.Capacity, Committed: append([]domain.ConcernID(nil), r.Committed...), Partial: r.Partial,
 		Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Limiting: r.Limiting, Blockers: append([]policy.DependencyBlocker(nil), r.Blockers...)}
 	if r.Workers != nil {
 		s.Workers = domain.Known(*r.Workers)
@@ -103,6 +103,6 @@ func cloneDonation(d *policy.DevelopmentDonation) *policy.DevelopmentDonation {
 		return nil
 	}
 	c := *d
-	c.Chain = append([]domain.GoalID(nil), d.Chain...)
+	c.Chain = append([]domain.ConcernID(nil), d.Chain...)
 	return &c
 }

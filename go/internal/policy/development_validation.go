@@ -25,14 +25,14 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 	if known && (workers < 0 || workers > 4096 || s.Capacity > workers) || !known && s.Capacity != 0 {
 		return errors.New("invalid development worker capacity")
 	}
-	committed := map[GoalID]bool{}
+	committed := map[ConcernID]bool{}
 	for _, id := range s.Committed {
 		if !validResource(Resource(id)) || committed[id] {
 			return errors.New("invalid development commitments")
 		}
 		committed[id] = true
 	}
-	seen := map[GoalID]bool{}
+	seen := map[ConcernID]bool{}
 	for _, row := range s.Rows {
 		deficit, k := row.Deficit.Value()
 		if risk, rk := row.Risk.Value(); rk && (math.IsNaN(risk) || risk < 0 || risk > 1) {

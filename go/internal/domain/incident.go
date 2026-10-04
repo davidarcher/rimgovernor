@@ -21,8 +21,8 @@ func MintIncidentID() IncidentID {
 // and Snapshot and keeps the Trigger it opened with.
 type Incident struct {
 	ID       IncidentID
-	Kind     GoalID // the Response's GoalID
-	Subject  PawnID // the pawn for per-pawn kinds (mood, medical), empty otherwise
+	Kind     ConcernID // the Response's ConcernID
+	Subject  PawnID    // the pawn for per-pawn kinds (mood, medical), empty otherwise
 	Trigger  string
 	Priority int // from the latest assessment
 	Snapshot GenerationSnapshot

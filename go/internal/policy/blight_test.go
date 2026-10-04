@@ -15,7 +15,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 		t.Fatal("unknown census must not count as recovered", r)
 	}
 	f.Blight = domain.Known([]BlightedPlant{{ID: "Plant_Rice1", Designated: true}})
-	f.AvailableMethods = domain.Known([]GoalID{})
+	f.AvailableMethods = domain.Known([]ConcernID{})
 	r = needs(t, f, r.Latches)
 	if !hasNeed(r, RemoveBlight) {
 		t.Fatal("a designated but standing plant keeps the goal open", r)
@@ -27,7 +27,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 			}
 		}
 	}
-	f.AvailableMethods = domain.Known([]GoalID{RemoveBlight})
+	f.AvailableMethods = domain.Known([]ConcernID{RemoveBlight})
 	r = needs(t, f, r.Latches)
 	for _, g := range r.Goals {
 		if g.ID == RemoveBlight && g.MethodUnavailable {

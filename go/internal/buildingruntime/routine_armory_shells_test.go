@@ -39,7 +39,7 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 	n := &shellBenchNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}}}}
 	settleGearPolicies(t, native)
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	ctx := context.Background()
 	armory, err := NewRoutineArmoryPlanner(reviewer, n)
 	if err != nil {

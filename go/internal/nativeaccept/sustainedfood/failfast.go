@@ -89,7 +89,7 @@ func (v Verdict) Error() string { return "fail-fast (" + v.Shape + "): " + v.Rea
 // the first time a shape completes.
 type failFastState struct {
 	cfg    FailFast
-	goal   policy.GoalID
+	goal   policy.ConcernID
 	stderr string
 
 	lastRevision uint64
@@ -102,7 +102,7 @@ type failFastState struct {
 	parkSamples int
 }
 
-func newFailFast(cfg FailFast, goal policy.GoalID, stderrPath string) *failFastState {
+func newFailFast(cfg FailFast, goal policy.ConcernID, stderrPath string) *failFastState {
 	if cfg.NoMethodReviews <= 0 {
 		cfg.NoMethodReviews = defaultNoMethodReviews
 	}

@@ -32,7 +32,7 @@ type ExtentProvenance struct {
 	Facility string
 	Plan     domain.PlanID
 	Action   domain.ActionID
-	Goal     domain.GoalID
+	Goal     domain.ConcernID
 }
 
 type ExtentCell struct {

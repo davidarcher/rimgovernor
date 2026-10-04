@@ -1133,7 +1133,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	elsewhere.Cells = []domain.Cell{{X: 1, Z: 1}}
 	for _, test := range []struct {
 		name    string
-		goal    policy.GoalID
+		goal    policy.ConcernID
 		rooms   domain.Fact[policy.RoomObservation]
 		adopted bool
 	}{
@@ -1168,7 +1168,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	roomed := facts
 	roomed.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}})
 	for _, test := range []struct {
-		goal    policy.GoalID
+		goal    policy.ConcernID
 		adopted bool
 	}{{policy.MaintainHousing, true}, {policy.MaintainResource, false}} {
 		planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: gap, goal: test.goal, definition: "Wall", shelter: true}

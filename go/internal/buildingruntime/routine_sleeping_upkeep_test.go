@@ -75,7 +75,7 @@ func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.
 		Beds:    []*o.UpkeepBed{upkeepBed(bed), upkeepBed(otherBed, "other")},
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
 	base.reviewer.native = native
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainHousing})
+	base.reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainHousing})
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

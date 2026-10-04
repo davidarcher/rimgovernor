@@ -29,7 +29,7 @@ import (
 // tier style when it can be laid, else the cheapest zero-path-cost floor),
 // then cells are kept cheapest payback first up to the first that does not
 // pay.
-const MaintainFlooring GoalID = "MaintainFlooring"
+const MaintainFlooring ConcernID = "MaintainFlooring"
 
 // FloorTier is the role-driven requirement a room's floor is measured
 // against.

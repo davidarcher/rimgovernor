@@ -77,7 +77,7 @@ type ReadyWorkID string
 type ReadyWork struct {
 	ID ReadyWorkID
 	// Goals served; more than one when shared work was deduplicated.
-	Goals  []GoalID
+	Goals  []ConcernID
 	Method domain.MethodID `json:",omitempty"`
 	Plan   domain.PlanID   `json:",omitempty"`
 	Action domain.ActionID `json:",omitempty"`
@@ -120,7 +120,7 @@ const (
 )
 
 type ReadyDeferral struct {
-	Goal   GoalID
+	Goal   ConcernID
 	Reason string
 	Count  int
 }
@@ -170,7 +170,7 @@ func (r ReadyWorkReport) Demand() map[WorkType]int {
 
 // ReadyPlan is one existing plan with its progress.
 type ReadyPlan struct {
-	Goal     GoalID
+	Goal     ConcernID
 	Method   domain.MethodID
 	Spec     domain.PlanSpec
 	Progress []domain.Progress
@@ -183,7 +183,7 @@ type ReadyPlan struct {
 // ReadyProposal is a not-yet-admitted stage from side-effect-free
 // discovery (the adapters below).
 type ReadyProposal struct {
-	Goal        GoalID
+	Goal        ConcernID
 	Method      domain.MethodID
 	Stage       string
 	Work        WorkType
@@ -202,7 +202,7 @@ type ReadyRequest struct {
 	Plans     []ReadyPlan
 	Proposals []ReadyProposal
 	// Unserved goals have neither; each reads no_method.
-	Unserved []GoalID
+	Unserved []ConcernID
 	Bounds   ReadyBounds
 	// Construction is the building census: an applied building intent stays
 	// open, and its dependents wait, until a built row carries its key (#856).
@@ -224,7 +224,7 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 	}
 	report := ReadyWorkReport{Colony: r.Snapshot.Colony, Map: r.Snapshot.Map, Load: r.Snapshot.Load, Tick: r.Tick}
 	deferred := map[[2]string]int{}
-	perGoal := map[GoalID]int{}
+	perGoal := map[ConcernID]int{}
 	byID := map[ReadyWorkID]int{}
 	var out []ReadyWork
 	examined := 0
@@ -295,7 +295,7 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 		add(readyProposal(p))
 	}
 	for _, g := range r.Unserved {
-		add(ReadyWork{Goals: []GoalID{g}, Stage: "none", State: ReadyNoMethod, Reason: "no plan or proposal", Adapter: ReadyMigrated})
+		add(ReadyWork{Goals: []ConcernID{g}, Stage: "none", State: ReadyNoMethod, Reason: "no plan or proposal", Adapter: ReadyMigrated})
 	}
 
 	sort.SliceStable(out, func(i, j int) bool {
@@ -325,7 +325,7 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 	}
 	report.Candidates = out
 	for k, n := range deferred {
-		report.Deferred = append(report.Deferred, ReadyDeferral{Goal: GoalID(k[0]), Reason: k[1], Count: n})
+		report.Deferred = append(report.Deferred, ReadyDeferral{Goal: ConcernID(k[0]), Reason: k[1], Count: n})
 	}
 	sort.Slice(report.Deferred, func(i, j int) bool {
 		a, b := report.Deferred[i], report.Deferred[j]
@@ -408,7 +408,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 	if has && !blueprint && (v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled) && !v.Unresolved {
 		return ReadyWork{}, false
 	}
-	c := ReadyWork{Goals: []GoalID{p.Goal}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID(), Adapter: ReadyMigrated}
+	c := ReadyWork{Goals: []ConcernID{p.Goal}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID(), Adapter: ReadyMigrated}
 	st, migrated := readyActionStage(a, recipes)
 	if !migrated {
 		st = readyStage{stage: string(a.Kind())}
@@ -489,7 +489,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 }
 
 func readyProposal(p ReadyProposal) ReadyWork {
-	c := ReadyWork{Goals: []GoalID{p.Goal}, Method: p.Method, Stage: p.Stage, Claims: append([]ReadyClaim(nil), p.Claims...), Alternative: p.Alternative, Adapter: ReadyMigrated, Reason: p.Reason}
+	c := ReadyWork{Goals: []ConcernID{p.Goal}, Method: p.Method, Stage: p.Stage, Claims: append([]ReadyClaim(nil), p.Claims...), Alternative: p.Alternative, Adapter: ReadyMigrated, Reason: p.Reason}
 	if p.Work != "" {
 		c.Work = LaborProfile{p.Work}
 	}
@@ -515,9 +515,9 @@ func readyProposal(p ReadyProposal) ReadyWork {
 	return c
 }
 
-func sortedGoals(goals []GoalID) []GoalID {
-	seen := map[GoalID]bool{}
-	var out []GoalID
+func sortedGoals(goals []ConcernID) []ConcernID {
+	seen := map[ConcernID]bool{}
+	var out []ConcernID
 	for _, g := range goals {
 		if !seen[g] {
 			seen[g] = true

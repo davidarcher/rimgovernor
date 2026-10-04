@@ -11,7 +11,7 @@ import (
 // stat is beauty. Each qualifying artist gets their own fixed-count bill,
 // pinned to them, at an art bench; the finished sculpture is installed by
 // the bedroom upkeep's sculpture step.
-const MaintainArt GoalID = "MaintainArt"
+const MaintainArt ConcernID = "MaintainArt"
 
 // artPriority ranks MaintainArt with the other upkeep projects.
 const artPriority = 3

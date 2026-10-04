@@ -14,7 +14,7 @@ import (
 // Ritual `begin` verb (#1659). Cadence, cooldown, required buildings and role
 // slots are the catalog's ritual defs (IdeologyDefs.Rituals); no ritual,
 // building or role name is listed here.
-const MaintainRituals GoalID = "MaintainRituals"
+const MaintainRituals ConcernID = "MaintainRituals"
 
 // RitualSite is a finished building a ritual may be held at: its ThingDef
 // and the cell the game addresses it by.

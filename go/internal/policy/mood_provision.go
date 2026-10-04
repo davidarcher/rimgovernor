@@ -20,7 +20,7 @@ type MoodThought struct {
 // observed environment thought pressure, with the summed offset of the
 // thoughts it owns (most negative first in MoodState.Provision).
 type MoodProvision struct {
-	Goal   GoalID
+	Goal   ConcernID
 	Offset float64
 }
 
@@ -30,7 +30,7 @@ type MoodProvision struct {
 // hosted-room one both remove the dining and recreation thoughts), and
 // each active one is raised. Everything else (ugly apparel, social
 // memories) is left to native relief and the pawn's own recovery.
-var moodProvisionOwners = map[string][]GoalID{
+var moodProvisionOwners = map[string][]ConcernID{
 	"HighExpectations":    {EnsureCooking},
 	"SkyHighExpectations": {EnsureCooking},
 	"AteRawFood":          {EnsureCooking},
@@ -58,7 +58,7 @@ var moodUnownedThoughts = map[string]bool{
 }
 
 // MoodProvisionGoal reports whether the catalog can name the goal as an owner.
-func MoodProvisionGoal(goal GoalID) bool {
+func MoodProvisionGoal(goal ConcernID) bool {
 	for _, owners := range moodProvisionOwners {
 		for _, owner := range owners {
 			if owner == goal {
@@ -129,7 +129,7 @@ func validateMoodProvision(rows []MoodProvision) error {
 	if len(rows) > 8 {
 		return errors.New("mood provision exceeds bound")
 	}
-	seen := map[GoalID]bool{}
+	seen := map[ConcernID]bool{}
 	for i, p := range rows {
 		if p.Goal == "" || seen[p.Goal] || math.IsNaN(p.Offset) || math.IsInf(p.Offset, 0) || p.Offset >= 0 {
 			return errors.New("invalid mood provision")
@@ -152,7 +152,7 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 		return nil
 	}
 	total, owned := 0.0, 0.0
-	byGoal := map[GoalID]float64{}
+	byGoal := map[ConcernID]float64{}
 	for _, t := range rows {
 		total += t.Offset
 		owners := moodProvisionOwners[t.Def]
@@ -213,11 +213,11 @@ func moodUnowned(f domain.Fact[[]MoodThought]) []MoodThought {
 // MoodProvisionDeficits reports, per owner goal, the fraction of reviewed
 // pawns whose dominant thought pressure that goal's facility would remove.
 // DetectRoutine raises the owner's development deficit to at least this.
-func MoodProvisionDeficits(h MoodHistory) map[GoalID]float64 {
+func MoodProvisionDeficits(h MoodHistory) map[ConcernID]float64 {
 	if len(h.States) == 0 {
 		return nil
 	}
-	counts := map[GoalID]int{}
+	counts := map[ConcernID]int{}
 	for _, s := range h.States {
 		if !s.Active || s.Missing {
 			continue
@@ -229,7 +229,7 @@ func MoodProvisionDeficits(h MoodHistory) map[GoalID]float64 {
 	if len(counts) == 0 {
 		return nil
 	}
-	result := make(map[GoalID]float64, len(counts))
+	result := make(map[ConcernID]float64, len(counts))
 	for goal, n := range counts {
 		result[goal] = float64(n) / float64(len(h.States))
 	}

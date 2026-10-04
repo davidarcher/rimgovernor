@@ -20,7 +20,7 @@ func TestManagePollutionRaisesGoalOnlyWithBiotechFacts(t *testing.T) {
 		Wastepacks:     []Wastepack{{ID: "Wastepack1", Frozen: yes(false), InAtomizer: yes(false), Forbidden: yes(false)}},
 		UncoveredCells: domain.Known(uint32(0)),
 	})
-	f.AvailableMethods = domain.Known([]GoalID{ManagePollution})
+	f.AvailableMethods = domain.Known([]ConcernID{ManagePollution})
 	r = needs(t, f, r.Latches)
 	if !hasNeed(r, ManagePollution) {
 		t.Fatal("an exposed wastepack opens the goal", r)

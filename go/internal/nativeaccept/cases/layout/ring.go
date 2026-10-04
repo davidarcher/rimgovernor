@@ -47,7 +47,7 @@ func ring(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	report["fixture"] = s.Prepared()
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 2 * time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(sample map[string]any) bool {
+		WatchConfig: sustainedfood.WatchConfig{Watch: 2 * time.Minute, Extra: []policy.ConcernID{policy.MaintainHousing}, Until: func(sample map[string]any) bool {
 			goal, _ := sample[string(policy.MaintainHousing)].(map[string]any)
 			return planned(goal, func(m domain.MethodID) bool { return strings.HasPrefix(string(m), expansionMethod) }, true)
 		}},

@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	MaintainAnimalContainment GoalID = "MaintainAnimalContainment"
-	MaintainAnimalFeed        GoalID = "MaintainAnimalFeed"
+	MaintainAnimalContainment ConcernID = "MaintainAnimalContainment"
+	MaintainAnimalFeed        ConcernID = "MaintainAnimalFeed"
 )
 
 type UpkeepAnimal struct {

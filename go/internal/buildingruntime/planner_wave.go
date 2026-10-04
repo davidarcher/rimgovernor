@@ -79,7 +79,7 @@ type plannerWave struct {
 	// to tell a planner waiting on open work from one that is due (#625).
 	reasons map[string]Verdict
 	// goals is the goal each queued planner files its verdict on.
-	goals map[string]policy.GoalID
+	goals map[string]policy.ConcernID
 	// critical records the class each planner was queued under, which is
 	// the entry's own class or a startup promotion of it (#658).
 	critical map[string]bool
@@ -92,7 +92,7 @@ type plannerWave struct {
 
 func newPlannerWave(call context.Context) *plannerWave {
 	optional, cancel := context.WithCancel(call)
-	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]Verdict{}, goals: map[string]policy.GoalID{}, critical: map[string]bool{}, began: map[string]time.Time{}, took: map[string]time.Duration{}}
+	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]Verdict{}, goals: map[string]policy.ConcernID{}, critical: map[string]bool{}, began: map[string]time.Time{}, took: map[string]time.Duration{}}
 }
 
 // queue queues entry's run on the wave: a critical planner under the step
@@ -164,7 +164,7 @@ func (w *plannerWave) reason(name string) (Verdict, bool) {
 // filing is the goal and verdict a returned planner files on: the goal comes
 // with the result. False for a planner that serves no single goal, failed or
 // missed the cutoff.
-func (w *plannerWave) filing(name string) (policy.GoalID, Verdict, bool) {
+func (w *plannerWave) filing(name string) (policy.ConcernID, Verdict, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	verdict, ok := w.reasons[name]

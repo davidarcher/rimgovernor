@@ -14,7 +14,7 @@ func TestMaintainGeneBankRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	if hasNeed(r, MaintainGeneBank) || assessment(t, r, MaintainGeneBank) != domain.NeedUnknown {
 		t.Fatal("no gene-bank fact: an unknown assessment and no goal", r)
 	}
-	f.AvailableMethods = domain.Known([]GoalID{MaintainGeneBank})
+	f.AvailableMethods = domain.Known([]ConcernID{MaintainGeneBank})
 	f.GeneBankOwed = domain.Known(true)
 	r = needs(t, f, r.Latches)
 	if !hasNeed(r, MaintainGeneBank) {

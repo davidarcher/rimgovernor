@@ -86,7 +86,7 @@ func sleepingHousing(sleeping domain.Fact[bool], priority int) HousingReview {
 
 // Phase is goal's latched phase; empty for an unphased goal or once the goal
 // recovered.
-func (l RoutineLatches) Phase(goal GoalID) Phase {
+func (l RoutineLatches) Phase(goal ConcernID) Phase {
 	switch goal {
 	case MaintainHousing:
 		return l.Housing

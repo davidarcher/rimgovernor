@@ -81,7 +81,7 @@ func hospitalFixture(t *testing.T) (*RoutineHospitalPlanner, *store.Store, *hosp
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
 	native.target = bridge.BedUseTarget{Context: proto.Clone(v.Context).(*c.ObservationContext), Thing: "bed"}
 	base.reviewer.native = native
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainMedicalReserves})
+	base.reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainMedicalReserves})
 	base.reviewer.policy.Stage.Floor = policy.StageStable // MaintainMedicalReserves' care phase
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)

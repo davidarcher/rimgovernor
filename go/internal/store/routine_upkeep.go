@@ -12,12 +12,12 @@ import (
 
 // Only the journal may retain an issued upkeep obligation. Review callers cannot
 // invent a pending order, and retired observed methods need no fresh hold.
-func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot) (map[policy.GoalID]bool, error) {
+func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot) (map[policy.ConcernID]bool, error) {
 	plans, err := loadPlans(ctx, tx, 256)
 	if err != nil {
 		return nil, err
 	}
-	result := map[policy.GoalID]bool{}
+	result := map[policy.ConcernID]bool{}
 	for _, plan := range plans {
 		issued := false
 		for _, p := range plan.Progress {
@@ -26,7 +26,7 @@ func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generat
 		if !issued {
 			continue
 		}
-		var goal domain.GoalID
+		var goal domain.ConcernID
 		err := tx.QueryRowContext(ctx, "SELECT goal_id FROM goal_methods WHERE plan_id=? AND goal_id IS NOT NULL", plan.Spec.ID()).Scan(&goal)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
@@ -44,8 +44,8 @@ func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generat
 		}
 		// Invalidated methods keep their original goal binding while new routine
 		// goals replace the current review. Their unresolved effects still count.
-		for _, need := range []policy.GoalID{policy.ClearHomeObstructions, policy.MaintainFireSafety, policy.MaintainEssentialRepairs, policy.MaintainCleanFacilities, policy.MaintainMedicalReserves, policy.MaintainFoodStorage, policy.MaintainAnimalContainment, policy.MaintainAnimalFeed, policy.MaintainHousing, policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
-			if routineGoalOwns(goal, need) {
+		for _, need := range []policy.ConcernID{policy.ClearHomeObstructions, policy.MaintainFireSafety, policy.MaintainEssentialRepairs, policy.MaintainCleanFacilities, policy.MaintainMedicalReserves, policy.MaintainFoodStorage, policy.MaintainAnimalContainment, policy.MaintainAnimalFeed, policy.MaintainHousing, policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
+			if routineStandardOwns(goal, need) {
 				result[need] = true
 			}
 		}

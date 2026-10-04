@@ -190,13 +190,13 @@ func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, poli
 
 // recordedPlanner is goal's building planner over the recording's policy,
 // with no native source: select* only read the projection.
-func recordedPlanner(r snapshot.Routine, goal policy.GoalID) *RoutineBuildingPlanner {
+func recordedPlanner(r snapshot.Routine, goal policy.ConcernID) *RoutineBuildingPlanner {
 	return &RoutineBuildingPlanner{reviewer: &RoutineReviewer{policy: r.Policy}, goal: goal}
 }
 
 // loadStep loads testdata/<name>.json.gz, a planner step's own colony read
 // (#794), for a test to replay a select* over in place of the review's.
-func loadStep(t *testing.T, name string, goal policy.GoalID) snapshot.Step {
+func loadStep(t *testing.T, name string, goal policy.ConcernID) snapshot.Step {
 	t.Helper()
 	s, err := snapshot.LoadStep("testdata/" + name + ".json.gz")
 	if err != nil {

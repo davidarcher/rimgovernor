@@ -173,7 +173,7 @@ func TestGestationGoalRaisedOnlyWhenOwed(t *testing.T) {
 	if o, _ := owed.Value(); !o {
 		t.Fatal("idle gestator, free bandwidth and clear waste is owed")
 	}
-	if got := GoalConcept(MaintainMechs); got != ConceptStandard {
+	if got := ConcernTypeOf(MaintainMechs); got != StandardConcern {
 		t.Fatalf("concept %v", got)
 	}
 }

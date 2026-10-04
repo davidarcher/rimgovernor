@@ -7,7 +7,7 @@ import (
 
 func TestSafeguardsVetoByPauseAndEmergency(t *testing.T) {
 	calm := SafeguardContext{Enabled: true}
-	fire := SafeguardContext{Enabled: true, Emergency: []GoalID{MaintainFireSafety}}
+	fire := SafeguardContext{Enabled: true, Emergency: []ConcernID{MaintainFireSafety}}
 	for _, c := range []struct {
 		name string
 		ctx  SafeguardContext

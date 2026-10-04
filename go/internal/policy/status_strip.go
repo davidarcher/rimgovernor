@@ -70,7 +70,7 @@ type StatusInput struct {
 	Wood      domain.Fact[int64]
 	WoodFloor int64
 	// Emergency names the needs that suspended the review's goals.
-	Emergency []GoalID
+	Emergency []ConcernID
 	// Refusals are the live native refusals, newest first.
 	Refusals []RefusalMarker
 	// Pause is who stopped the clock and why (#847); zero while the clock
@@ -81,7 +81,7 @@ type StatusInput struct {
 	Medicine       domain.Fact[int64]
 	MedicineTarget int64
 	// GoalCells are the cells the goals' active plans target (#847).
-	GoalCells map[GoalID]domain.Cell
+	GoalCells map[ConcernID]domain.Cell
 	// Outlook is the storyteller's population and capture outlook (#1033);
 	// each unknown fact renders as "?".
 	Outlook PopulationOutlook
@@ -217,7 +217,7 @@ func StatusRows(in StatusInput) []StatusRow {
 // panelDomains are the status panel's sections in order (#1025). System
 // goals are game plumbing and get no section; goals with no domain fall
 // under "Other".
-var panelDomains = []Domain{DomainFood, DomainShelter, DomainIndustry, DomainMilitary, DomainMedical, DomainPeople, DomainUpkeep, DomainUnknown}
+var panelDomains = []Department{DepartmentFood, DepartmentShelter, DepartmentIndustry, DepartmentMilitary, DepartmentMedical, DepartmentPeople, DepartmentUpkeep, DepartmentUnknown}
 
 // detailRows groups the expanded panel's rows under one heading row (key
 // "domain.<name>") per domain that has any. Each row names its concept.
@@ -228,7 +228,7 @@ func detailRows(in StatusInput) []StatusRow {
 		var body []StatusRow
 		for _, pass := range []int{0, 1} {
 			for _, g := range in.Progress {
-				if GoalDomain(g.Goal) != d {
+				if DepartmentOf(g.Goal) != d {
 					continue
 				}
 				actionable := g.Blocked.Actionable()
@@ -242,7 +242,7 @@ func detailRows(in StatusInput) []StatusRow {
 					continue
 				}
 				text := string(g.Goal)
-				if c := GoalConcept(g.Goal); c != ConceptUnknown {
+				if c := ConcernTypeOf(g.Goal); c != UnknownConcern {
 					text = string(c) + " " + text
 				}
 				if method := statusMethod(g); method != "" {
@@ -259,7 +259,7 @@ func detailRows(in StatusInput) []StatusRow {
 			}
 		}
 		for _, inc := range in.Incidents {
-			if inc.Closed || GoalDomain(inc.Kind) != d {
+			if inc.Closed || DepartmentOf(inc.Kind) != d {
 				continue
 			}
 			text := "Incident " + string(inc.Kind)
@@ -269,7 +269,7 @@ func detailRows(in StatusInput) []StatusRow {
 			body = append(body, StatusRow{Key: "incident." + string(inc.ID), Text: text, Severity: StatusInfo, Target: goalCell(in.GoalCells, inc.Kind), Detail: true})
 		}
 		name := string(d)
-		if d == DomainUnknown {
+		if d == DepartmentUnknown {
 			name = "Other"
 		}
 		if len(held) > 0 {
@@ -326,7 +326,7 @@ func statusReason(b BlockedReason) string {
 }
 
 // goalCell is goal's target cell, unknown when its plans name none.
-func goalCell(cells map[GoalID]domain.Cell, goal GoalID) domain.Fact[domain.Cell] {
+func goalCell(cells map[ConcernID]domain.Cell, goal ConcernID) domain.Fact[domain.Cell] {
 	if cell, ok := cells[goal]; ok {
 		return domain.Known(cell)
 	}

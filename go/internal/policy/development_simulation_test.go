@@ -20,19 +20,19 @@ type developmentSim struct {
 	limit    int
 	goals    []DevelopmentGoal
 	// open holds committed work: goal -> tick it completes.
-	open     map[GoalID]domain.Tick
+	open     map[ConcernID]domain.Tick
 	duration domain.Tick
 	state    DevelopmentState
 	// wait counts consecutive reviews each goal was eligible but not selected.
-	wait, maxWait map[GoalID]int
-	selections    map[GoalID]int
+	wait, maxWait map[ConcernID]int
+	selections    map[ConcernID]int
 }
 
 func newDevelopmentSim(t *testing.T, limit int, goals ...DevelopmentGoal) *developmentSim {
-	return &developmentSim{t: t, snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, tick: 100, step: 2500, workers: domain.Known(4), limit: limit, goals: goals, open: map[GoalID]domain.Tick{}, duration: 5000, wait: map[GoalID]int{}, maxWait: map[GoalID]int{}, selections: map[GoalID]int{}}
+	return &developmentSim{t: t, snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, tick: 100, step: 2500, workers: domain.Known(4), limit: limit, goals: goals, open: map[ConcernID]domain.Tick{}, duration: 5000, wait: map[ConcernID]int{}, maxWait: map[ConcernID]int{}, selections: map[ConcernID]int{}}
 }
 
-func (s *developmentSim) commitment(goal GoalID, priority int, dispatched bool) Commitment {
+func (s *developmentSim) commitment(goal ConcernID, priority int, dispatched bool) Commitment {
 	s.t.Helper()
 	// An observed (non-intent) kind: commitments follow per-attempt effects.
 	cut, err := domain.NewAcquisition("plant", "WoodLog", domain.Cell{X: 1, Z: 2})
@@ -107,7 +107,7 @@ func (s *developmentSim) run(reviews int) {
 	}
 }
 
-func (s *developmentSim) row(state DevelopmentState, id GoalID) DevelopmentRow {
+func (s *developmentSim) row(state DevelopmentState, id ConcernID) DevelopmentRow {
 	s.t.Helper()
 	for _, row := range state.Rows {
 		if row.Goal == id {
@@ -118,7 +118,7 @@ func (s *developmentSim) row(state DevelopmentState, id GoalID) DevelopmentRow {
 	return DevelopmentRow{}
 }
 
-func simGoal(id GoalID, deficit float64, labor LaborProfile) DevelopmentGoal {
+func simGoal(id ConcernID, deficit float64, labor LaborProfile) DevelopmentGoal {
 	return DevelopmentGoal{ID: id, Priority: 4, Deficit: domain.Known(deficit), Labor: labor}
 }
 
@@ -170,7 +170,7 @@ func TestDevelopmentSimulationCapacityLossAndRecovery(t *testing.T) {
 		t.Fatal(unknown)
 	}
 	s.workers = domain.Known(4)
-	s.open = map[GoalID]domain.Tick{}
+	s.open = map[ConcernID]domain.Tick{}
 	requireSelected(t, s.review(), "comfort", "research", "wood")
 }
 
@@ -179,7 +179,7 @@ func TestDevelopmentSimulationCapacityLossAndRecovery(t *testing.T) {
 func TestDevelopmentSimulationContextResets(t *testing.T) {
 	s := newDevelopmentSim(t, 1, simGoal("comfort", 0.5, nil), simGoal("research", 0.5, nil))
 	s.review()
-	s.open = map[GoalID]domain.Tick{}
+	s.open = map[ConcernID]domain.Tick{}
 	aged := s.review()
 	// Both goals act; their waiting age carries from the first review.
 	if s.row(aged, "research").WaitingSince != 100 || s.row(aged, "comfort").WaitingSince != 100 {
@@ -192,7 +192,7 @@ func TestDevelopmentSimulationContextResets(t *testing.T) {
 	} {
 		before := s.snapshot
 		change()
-		s.open = map[GoalID]domain.Tick{}
+		s.open = map[ConcernID]domain.Tick{}
 		reset := s.review()
 		for _, row := range reset.Rows {
 			if row.WaitingSince != reset.Tick || row.Score != 50 {

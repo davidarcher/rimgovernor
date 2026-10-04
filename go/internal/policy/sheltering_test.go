@@ -226,8 +226,8 @@ func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
 	f.ShelterCombatants = domain.Known([]PawnID{})
 	f.SafeAreaOwed = domain.Known(true)
 	r := needs(t, f, RoutineLatches{})
-	rule := SafeguardContext{Enabled: true, Emergency: []GoalID{ActiveCombat}}
-	seen := map[GoalID]bool{}
+	rule := SafeguardContext{Enabled: true, Emergency: []ConcernID{ActiveCombat}}
+	seen := map[ConcernID]bool{}
 	for _, g := range r.Goals {
 		if g.ID == MaintainShelter {
 			seen[g.ID] = true

@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func progressRecord(t *testing.T, r RoutineReview, id domain.GoalID) policy.GoalProgress {
+func progressRecord(t *testing.T, r RoutineReview, id domain.ConcernID) policy.GoalProgress {
 	t.Helper()
 	p, ok := r.GoalProgress(id)
 	if !ok {

@@ -67,7 +67,7 @@ func TestShelterWoodShortfallOrdersWoodFirst(t *testing.T) {
 	if !wood.Selected || wood.Donation == nil || s.Rows[0].Goal != MaintainResource {
 		t.Fatalf("wood should take the worker: %+v", s.Rows)
 	}
-	want := DevelopmentDonation{Priority: 2, Chain: []GoalID{MaintainHousing, MaintainResource}, Resource: "WoodLog", Shortfall: 80}
+	want := DevelopmentDonation{Priority: 2, Chain: []ConcernID{MaintainHousing, MaintainResource}, Resource: "WoodLog", Shortfall: 80}
 	if !reflect.DeepEqual(*wood.Donation, want) {
 		t.Fatalf("donation %+v, want %+v", *wood.Donation, want)
 	}
@@ -133,7 +133,7 @@ func TestDependencyCyclesDepthAndInactiveBlock(t *testing.T) {
 	var chain []DevelopmentDependency
 	long := []DevelopmentGoal{{ID: "G0", Priority: 1}}
 	for i := 1; i <= MaxDependencyChain+2; i++ {
-		id := GoalID("G" + string(rune('0'+i)))
+		id := ConcernID("G" + string(rune('0'+i)))
 		long = append(long, DevelopmentGoal{ID: id, Priority: 3})
 		chain = append(chain, DevelopmentDependency{Dependent: long[i-1].ID, Prerequisite: id})
 	}

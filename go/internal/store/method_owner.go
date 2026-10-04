@@ -19,7 +19,7 @@ type methodOwner interface {
 	ownerSnapshot() domain.GenerationSnapshot
 	// ownerNeed is the routine need the owner serves under this review:
 	// a goal's review binding, an incident's Kind.
-	ownerNeed(RoutineReview) (domain.GoalID, bool)
+	ownerNeed(RoutineReview) (domain.ConcernID, bool)
 	ownerPriority() int
 	ownerPlans() []domain.PlanID
 	ownerLabel() string
@@ -33,7 +33,7 @@ func (g GoalState) ownerKey() (string, string, string) {
 }
 
 func (g GoalState) ownerSnapshot() domain.GenerationSnapshot { return g.Goal.Snapshot }
-func (g GoalState) ownerNeed(r RoutineReview) (domain.GoalID, bool) {
+func (g GoalState) ownerNeed(r RoutineReview) (domain.ConcernID, bool) {
 	return r.Need(g.Goal.ID)
 }
 func (g GoalState) ownerPriority() int { return g.Goal.Priority }
@@ -104,11 +104,11 @@ func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method 
 	return err
 }
 
-func (r RoutineReview) refuseNeed(need domain.GoalID, priority int) (policy.SafeguardRefusal, bool) {
+func (r RoutineReview) refuseNeed(need domain.ConcernID, priority int) (policy.SafeguardRefusal, bool) {
 	return policy.RefuseProposal(policy.SafeguardContext{Enabled: r.Enabled, Emergency: r.Emergency, Unsafe: r.Unsafe}, policy.SafeguardProposal{Need: need, Priority: priority})
 }
 
-func (r RoutineReview) vetoNeed(need domain.GoalID, priority int) string {
+func (r RoutineReview) vetoNeed(need domain.ConcernID, priority int) string {
 	ref, _ := r.refuseNeed(need, priority)
 	return ref.Reason
 }

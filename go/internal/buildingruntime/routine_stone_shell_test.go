@@ -134,7 +134,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Construction"), Priority: proto.Int32(1), Disabled: proto.Bool(false)})
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: count(1)}}}
 	base.reviewer.native = n
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainStoneShell})
+	base.reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainStoneShell})
 	// The stone shell is a Stable goal; the fixture has not climbed there.
 	base.reviewer.policy.Stage.Floor = policy.StageStable
 	if _, err = base.reviewer.Step(ctx); err != nil {
@@ -222,7 +222,7 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 		Targets:  []*o.HomeCoverageTarget{{Id: proto.String("wall-1"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{{X: proto.Int32(4), Z: proto.Int32(4)}}, ExtentGeometry: &o.HomeExtentGeometry{}}},
 	}}}
 	v.Upkeep.GetObserved().AutoHomeArea = proto.Bool(true)
-	stone.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainHomeCoverage})
+	stone.reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainHomeCoverage})
 	if _, err := stone.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

@@ -51,7 +51,7 @@ func TestMedicalReserveRetainsHistoryAcrossManualUnknownAndRestart(t *testing.T)
 		t.Fatal(g)
 	}
 	set(9)
-	r.Facts.UpkeepIssued = map[policy.GoalID]bool{policy.MaintainMedicalReserves: true}
+	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainMedicalReserves: true}
 	out = reviewRoutine(t, s, &r)
 	recovered := routineGoal(t, out, policy.MaintainMedicalReserves)
 	if recovered.Goal.Need != domain.NeedRecovered || out.Review.Latches.MedicalReserve {

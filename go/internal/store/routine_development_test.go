@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func developmentRow(t *testing.T, r RoutineReview, id domain.GoalID) RoutineDevelopmentRow {
+func developmentRow(t *testing.T, r RoutineReview, id domain.ConcernID) RoutineDevelopmentRow {
 	t.Helper()
 	for _, row := range r.Development.Rows {
 		if row.Goal == id {

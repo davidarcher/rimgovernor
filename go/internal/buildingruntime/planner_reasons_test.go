@@ -8,8 +8,8 @@ import (
 
 // filingOf serves wavePlannerReasons from a name -> (goal, verdict) table the
 // way a finished wave does: the goal comes with the verdict.
-func filingOf(goals map[string]policy.GoalID, verdicts map[string]Verdict) func(string) (policy.GoalID, Verdict, bool) {
-	return func(name string) (policy.GoalID, Verdict, bool) {
+func filingOf(goals map[string]policy.ConcernID, verdicts map[string]Verdict) func(string) (policy.ConcernID, Verdict, bool) {
+	return func(name string) (policy.ConcernID, Verdict, bool) {
 		verdict, ok := verdicts[name]
 		goal := goals[name]
 		return goal, verdict, ok && goal != ""
@@ -17,7 +17,7 @@ func filingOf(goals map[string]policy.GoalID, verdicts map[string]Verdict) func(
 }
 
 func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
-	goals := map[string]policy.GoalID{"power": policy.EnsureBasicPower, "equip": policy.MaintainEquipment, "gear": policy.MaintainEquipment, "research": policy.EnsureResearch, "clean": policy.MaintainCleanFacilities}
+	goals := map[string]policy.ConcernID{"power": policy.EnsureBasicPower, "equip": policy.MaintainEquipment, "gear": policy.MaintainEquipment, "research": policy.EnsureResearch, "clean": policy.MaintainCleanFacilities}
 	verdicts := map[string]Verdict{
 		"power":    noSpace("power_route"),
 		"equip":    BuildingReasonAdmitted,
@@ -27,7 +27,7 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 		"naming":   refuse(RefusalSharedAdmission, "no_development_slot", "wood"),
 	}
 	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
-	want := map[policy.GoalID]policy.PlannerNote{
+	want := map[policy.ConcernID]policy.PlannerNote{
 		policy.EnsureBasicPower:        {Text: "no space found for it (power route)"},
 		policy.MaintainEquipment:       {Text: "tried as often as it may (gear craft)"},
 		policy.MaintainCleanFacilities: {Text: "already working on it", Waiting: true},
@@ -47,7 +47,7 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 }
 
 func TestWavePlannerReasonsFilesSleepingRefusalOnHousing(t *testing.T) {
-	goals := map[string]policy.GoalID{"expansion": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing}
+	goals := map[string]policy.ConcernID{"expansion": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing}
 	verdicts := map[string]Verdict{"expansion": BuildingReasonNoDeficit, "sleepingUpkeep": BuildingSleepingUnavailable}
 	got := wavePlannerReasons([]string{"expansion", "sleepingUpkeep"}, filingOf(goals, verdicts))
 	if got[policy.MaintainHousing].Text != "waiting on buildable bed" || got[policy.MaintainHousing].Waiting {
@@ -59,7 +59,7 @@ func TestWavePlannerReasonsFilesSleepingRefusalOnHousing(t *testing.T) {
 // beats a sibling's idle clear, and clears when the planner admits or finds no
 // deficit.
 func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
-	goals := map[string]policy.GoalID{"shelter": policy.MaintainShelter, "housing": policy.MaintainHousing, "sibling": policy.MaintainHousing, "comfort": policy.EnsureComfort, "off": policy.MaintainFireSafety, "on": policy.MaintainFireSafety}
+	goals := map[string]policy.ConcernID{"shelter": policy.MaintainShelter, "housing": policy.MaintainHousing, "sibling": policy.MaintainHousing, "comfort": policy.EnsureComfort, "off": policy.MaintainFireSafety, "on": policy.MaintainFireSafety}
 	verdicts := map[string]Verdict{
 		"shelter": BuildingBunksOpen,
 		"housing": BuildingSleepingUseNeeded, "sibling": BuildingReasonNoDeficit,
@@ -68,7 +68,7 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	}
 	names := []string{"shelter", "housing", "sibling", "comfort", "off", "on"}
 	got := wavePlannerReasons(names, filingOf(goals, verdicts))
-	want := map[policy.GoalID]policy.PlannerNote{
+	want := map[policy.ConcernID]policy.PlannerNote{
 		policy.MaintainShelter:    {Text: "waiting on the shelter's open bunks", Waiting: true},
 		policy.MaintainHousing:    {Text: "waiting for colonists to use the beds provided", Waiting: true},
 		policy.EnsureComfort:      {Text: "waiting for colonists to use the comfort already provided", Waiting: true},

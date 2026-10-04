@@ -153,12 +153,12 @@ func MoodUnownedThought(def string) bool { return moodUnownedThoughts[def] }
 
 // MoodProvisionOwners names the goals whose facility removes the thought,
 // if the catalog knows any.
-func MoodProvisionOwners(def string) []GoalID {
-	return append([]GoalID(nil), moodProvisionOwners[def]...)
+func MoodProvisionOwners(def string) []ConcernID {
+	return append([]ConcernID(nil), moodProvisionOwners[def]...)
 }
 
 // WoodProposals: each designatable tree is one cut.
-func WoodProposals(goal GoalID, method domain.MethodID, definition string, trees []string, eligible domain.Fact[bool]) []ReadyProposal {
+func WoodProposals(goal ConcernID, method domain.MethodID, definition string, trees []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal
 	for _, t := range trees {
 		out = append(out, ReadyProposal{Goal: goal, Method: method, Stage: "cut_plant:" + definition, Work: WorkPlantCutting, Claims: []ReadyClaim{{"thing", t}}, Eligible: eligible, Parallelism: 1})
@@ -168,7 +168,7 @@ func WoodProposals(goal GoalID, method domain.MethodID, definition string, trees
 
 // SupplyHaulProposals: each loose stack is one haul; two goals naming the
 // same stack project one candidate.
-func SupplyHaulProposals(goal GoalID, method domain.MethodID, definition string, things []string, eligible domain.Fact[bool]) []ReadyProposal {
+func SupplyHaulProposals(goal ConcernID, method domain.MethodID, definition string, things []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal
 	for _, t := range things {
 		out = append(out, ReadyProposal{Goal: goal, Method: method, Stage: "haul:" + definition, Work: WorkHauling, Claims: []ReadyClaim{{"thing", t}}, Eligible: eligible, Parallelism: 1})
@@ -180,7 +180,7 @@ func SupplyHaulProposals(goal GoalID, method domain.MethodID, definition string,
 // group. A stock-sourced method is a haul; kibble is a bill on any of the
 // shared benches (each bench an alternative) that can run only when its
 // ingredients are observed; a hay field is growing on its cells.
-func AnimalFeedProposals(goal GoalID, m AnimalFeedMethod, ingredients domain.Fact[bool], hay []domain.Cell) []ReadyProposal {
+func AnimalFeedProposals(goal ConcernID, m AnimalFeedMethod, ingredients domain.Fact[bool], hay []domain.Cell) []ReadyProposal {
 	group := string(goal) + "/feed"
 	var out []ReadyProposal
 	if m.Produced {

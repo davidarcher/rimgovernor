@@ -8,7 +8,7 @@ import (
 
 // ClearHomeObstructions is a Standard whose target is no outstanding work
 // (#1024): no obstruction left standing on home ground.
-const ClearHomeObstructions GoalID = "ClearHomeObstructions"
+const ClearHomeObstructions ConcernID = "ClearHomeObstructions"
 
 // ClearanceTarget is a complete native building observation. Admission remains
 // subject to a fresh observation and the native counterfactual roof check.

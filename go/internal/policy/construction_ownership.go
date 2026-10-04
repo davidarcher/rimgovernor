@@ -16,7 +16,7 @@ import (
 type ConstructionClaim struct {
 	Plan     domain.PlanID
 	Action   domain.ActionID
-	Goal     domain.GoalID
+	Goal     domain.ConcernID
 	Identity domain.ConstructionIdentity
 	Building domain.Building
 	Cells    []domain.Cell

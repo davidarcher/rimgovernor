@@ -14,7 +14,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 //
 // A bank is found by its CompProperties_GenepackContainer comp, never by a
 // definition name. Harvesting, assembly and implanting are other goals.
-const MaintainGeneBank GoalID = "MaintainGeneBank"
+const MaintainGeneBank ConcernID = "MaintainGeneBank"
 
 // GeneBankSlot is one standing bank: its capacity as the game reports it and
 // how many packs it already holds.

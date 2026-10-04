@@ -16,7 +16,7 @@ import (
 // player project) it serves.
 type routinePlan struct {
 	state    PlanState
-	goal     domain.GoalID
+	goal     domain.ConcernID
 	priority int
 }
 
@@ -31,13 +31,13 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 	}
 	var result []routinePlan
 	for _, plan := range plans {
-		var goalID domain.GoalID
+		var goalID domain.ConcernID
 		priority := 3
 		world := World{}
 		admitted := 0
 		var owner, incident, project sql.NullString
 		err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &project, &admitted)
-		goalID = domain.GoalID(owner.String)
+		goalID = domain.ConcernID(owner.String)
 		if err == nil && project.Valid {
 			// A Project's method serves its kind, which is its need.
 			p, e := loadProject(ctx, tx, domain.ProjectID(project.String))
@@ -66,7 +66,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 			priority = admitted
 			world = World{Colony: g.Goal.Snapshot.Colony, Load: g.Goal.Snapshot.Load, Map: g.Goal.Snapshot.Map}
 			for _, b := range bindings {
-				if goalID == b.Goal || routineGoalOwns(goalID, b.Need) {
+				if goalID == b.Goal || routineStandardOwns(goalID, b.Need) {
 					goalID = b.Need
 					break
 				}
@@ -79,7 +79,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 			if err != nil {
 				return nil, err
 			}
-			goalID = domain.GoalID(fmt.Sprintf("player-project-%x", sha256.Sum256([]byte(plan.Spec.ID()))))
+			goalID = domain.ConcernID(fmt.Sprintf("player-project-%x", sha256.Sum256([]byte(plan.Spec.ID()))))
 		} else {
 			return nil, err
 		}
@@ -128,7 +128,7 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 	for _, p := range plans {
 		ready = append(ready, policy.ReadyPlan{Goal: p.goal, Spec: p.state.Spec, Progress: p.state.Progress})
 	}
-	var unserved []domain.GoalID
+	var unserved []domain.ConcernID
 	for _, g := range goals {
 		if !g.Served && !g.Blocked && g.Labor != nil {
 			unserved = append(unserved, g.ID)
@@ -140,7 +140,7 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []WorkOwner, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
 	var bindings []RoutineGoal
 	for i, n := range needs.Assessments {
-		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: domain.GoalID(states[i].OwnerID())})
+		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: domain.ConcernID(states[i].OwnerID())})
 	}
 	plans, err := routinePlans(ctx, tx, r.Current, bindings)
 	if err != nil {
@@ -266,8 +266,8 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g OwnerSummary, pl
 // openPlanActions counts, per goal, the actions of its live plans that are
 // not finished: the shadow ranker's labor cost (#1913). An action with no
 // progress record has not started, so it is open.
-func openPlanActions(plans []routinePlan) map[domain.GoalID]int {
-	open := map[domain.GoalID]int{}
+func openPlanActions(plans []routinePlan) map[domain.ConcernID]int {
+	open := map[domain.ConcernID]int{}
 	for _, p := range plans {
 		if p.state.Retired {
 			continue

@@ -47,7 +47,7 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 	r.Previous, r.Tick = first, first.Tick+DevelopmentIdleTicks/2
 	// A repeated review with no new evidence keeps the original deadline.
 	again := rank(t, r)
-	for _, id := range []GoalID{"supplies", "feed"} {
+	for _, id := range []ConcernID{"supplies", "feed"} {
 		if row := s.row(again, id); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || row.LaborEvidence != LaborUnattributed {
 			t.Fatal("a repeat review moved the deadline", row)
 		}
@@ -55,7 +55,7 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 	r.Previous, r.Tick = again, first.Tick+DevelopmentIdleTicks
 	released := rank(t, r)
 	requireSelected(t, released, "storage")
-	for _, id := range []GoalID{"supplies", "feed"} {
+	for _, id := range []ConcernID{"supplies", "feed"} {
 		if row := s.row(released, id); row.Reason != DevelopmentCommitted || !row.Committed || row.LaborEvidence != LaborUnattributed || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) {
 			t.Fatal("idle labor past the bound must keep the commitment and its idle age", row)
 		}

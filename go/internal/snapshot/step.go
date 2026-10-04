@@ -22,7 +22,7 @@ type Step struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
-	Goal     policy.GoalID
+	Goal     policy.ConcernID
 	// Planner is "building", "bill", "hospital" or "deepdrill".
 	Planner string
 	// Projection is the step's reading with its Facts; its Zones and
@@ -37,7 +37,7 @@ type Step struct {
 // the mirror sections materialise is left to them, as in a review line.
 type stepFrame struct {
 	Planner string
-	Goal    policy.GoalID
+	Goal    policy.ConcernID
 	Patch   json.RawMessage
 }
 
@@ -45,7 +45,7 @@ type stepFrame struct {
 // named before #795 step 4: step-<planner>-<goal>-<tick>-<seq>.
 type StepRead struct {
 	Planner string
-	Goal    policy.GoalID
+	Goal    policy.ConcernID
 	Tick    domain.Tick
 	Seq     int
 }
@@ -74,7 +74,7 @@ func stepBase(review any) any {
 
 // RecordStep appends goal's step read to this process's stream in dir,
 // numbered from 1 per planner, goal and tick.
-func RecordStep(dir, planner string, goal policy.GoalID, current domain.GenerationSnapshot, reading observation.ColonyProjection) error {
+func RecordStep(dir, planner string, goal policy.ConcernID, current domain.GenerationSnapshot, reading observation.ColonyProjection) error {
 	var none observation.ColonyProjection
 	reading.Zones, reading.Window = none.Zones, none.Window
 	tick := reading.Identity.Tick

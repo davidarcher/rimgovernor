@@ -20,8 +20,8 @@ import (
 // ranking recomputes the shortfall from the actions still open and the
 // current stock (routineDependencies).
 type DependencyRecord struct {
-	Need     domain.GoalID
-	Goal     domain.GoalID
+	Need     domain.ConcernID
+	Goal     domain.ConcernID
 	Epoch    uint64
 	Method   domain.MethodID
 	Plan     domain.PlanID
@@ -54,7 +54,7 @@ func (d DependencyRecord) validate() error {
 // covers them (or the resource has no prerequisite goal): a shelter shell
 // is admitted without a stock check (#602), and its frames then wait for
 // the difference.
-func ShortfallDependency(need domain.GoalID, goal domain.Goal, method domain.MethodID, plan domain.PlanID, previews []policy.Preview, stock policy.StockObservation, resource policy.Resource, tick domain.Tick) (DependencyRecord, bool) {
+func ShortfallDependency(need domain.ConcernID, goal domain.Goal, method domain.MethodID, plan domain.PlanID, previews []policy.Preview, stock policy.StockObservation, resource policy.Resource, tick domain.Tick) (DependencyRecord, bool) {
 	if _, ok := policy.ResourcePrerequisite(resource); !ok {
 		return DependencyRecord{}, false
 	}
@@ -150,7 +150,7 @@ func sortDependencies(d []DependencyRecord) {
 // still open against the current stock, so wood gained since admission
 // shrinks the donation; unknown stock keeps the record but donates nothing.
 func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoutineGoal, states []WorkOwner, facts policy.RoutineFacts, tick domain.Tick) ([]DependencyRecord, []policy.DevelopmentDependency, error) {
-	active := map[domain.GoalID]WorkOwner{}
+	active := map[domain.ConcernID]WorkOwner{}
 	for i, b := range bindings {
 		active[b.Need] = states[i]
 	}
@@ -158,7 +158,7 @@ func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRe
 	var edges []policy.DevelopmentDependency
 	for _, rec := range records {
 		g, ok := active[rec.Need]
-		if !ok || domain.GoalID(g.OwnerID()) != rec.Goal || g.OwnerEpoch() != rec.Epoch || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
+		if !ok || domain.ConcernID(g.OwnerID()) != rec.Goal || g.OwnerEpoch() != rec.Epoch || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
 			continue
 		}
 		prerequisite, ok := policy.ResourcePrerequisite(rec.Resource)
@@ -242,7 +242,7 @@ func priorDependencies(ctx context.Context, tx *sql.Tx, previous RoutineReview, 
 		if err != nil {
 			return nil, err
 		}
-		bindings, states = append(bindings, RoutineGoal{Need: b.Need, Goal: domain.GoalID(b.Project)}), append(states, g)
+		bindings, states = append(bindings, RoutineGoal{Need: b.Need, Goal: domain.ConcernID(b.Project)}), append(states, g)
 	}
 	_, edges, err := routineDependencies(ctx, tx, previous.Dependencies, bindings, states, facts, tick)
 	return edges, err

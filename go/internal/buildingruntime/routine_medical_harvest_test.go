@@ -61,7 +61,7 @@ func TestMedicalPlannerHarvestsWildHealrootWithoutBench(t *testing.T) {
 	}
 	source := &benchlessMedicalNative{&healthyWorkNative{&routineMedicalNative{routineNative: native}}}
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainMedicalReserves})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainMedicalReserves})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

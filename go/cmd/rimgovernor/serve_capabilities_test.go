@@ -16,7 +16,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		family string
-		goal   policy.GoalID
+		goal   policy.ConcernID
 	}{
 		{"repair", policy.MaintainEssentialRepairs},
 		{"fire", policy.MaintainFireSafety},
@@ -72,7 +72,7 @@ func TestRoutineCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 		*f.Enabled = true
 	}
 	_, capabilities := routineCapabilities(c)
-	seen := map[policy.GoalID]bool{}
+	seen := map[policy.ConcernID]bool{}
 	for _, goal := range capabilities.Methods {
 		if seen[goal] {
 			t.Error("declared twice:", goal)

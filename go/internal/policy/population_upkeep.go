@@ -15,7 +15,7 @@ import (
 // barred from the mode, Ideology for Enslave/Convert) is re-validated by
 // native when it applies the intent; this only decides which
 // already-observed prisoner gets which write.
-const MaintainPopulation GoalID = "MaintainPopulation"
+const MaintainPopulation ConcernID = "MaintainPopulation"
 
 // PrisonerPolicy is the slice of RoutinePolicy MaintainPopulation plans
 // from. ReleaseAfterDays is how long a prisoner the colony has no use for

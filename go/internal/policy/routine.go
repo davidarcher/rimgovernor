@@ -9,31 +9,31 @@ import (
 )
 
 const (
-	ConfirmColonyNames      GoalID = "ConfirmColonyNames"
-	AnswerDialog            GoalID = "AnswerDialog"
-	ActiveCombat            GoalID = "ActiveCombat"
-	CriticalMedicine        GoalID = "CriticalMedical"
-	RestoreWorkers          GoalID = "RestoreWorkers"
-	AllowStartingSupplies   GoalID = "AllowStartingSupplies"
-	ManageSupplySafety      GoalID = "ManageSupplySafety"
-	EnsureWorkAssignments   GoalID = "EnsureWorkAssignments"
-	EnsureFoodSupply        GoalID = "EnsureFoodSupply"
-	MaintainHousing         GoalID = "MaintainHousing"
-	EnsureTemperatureSafety GoalID = "EnsureTemperatureSafety"
-	EnsureCooking           GoalID = "EnsureCooking"
-	MaintainButcherSpot     GoalID = "MaintainButcherSpot"
-	EnsureBasicPower        GoalID = "EnsureBasicPower"
-	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
-	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
-	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
-	MaintainRefrigeration   GoalID = "MaintainRefrigeration"
-	EnsureComfort           GoalID = "EnsureComfort"
-	ClearPests              GoalID = "ClearPests"
-	MaintainEquipment       GoalID = "MaintainEquipment"
-	EnsureResearch          GoalID = "EnsureResearch"
-	MaintainResource        GoalID = "MaintainResource"
-	EnsureDefensiveLayout   GoalID = "EnsureDefensiveLayout"
-	TradeWithCaravan        GoalID = "TradeWithCaravan"
+	ConfirmColonyNames      ConcernID = "ConfirmColonyNames"
+	AnswerDialog            ConcernID = "AnswerDialog"
+	ActiveCombat            ConcernID = "ActiveCombat"
+	CriticalMedicine        ConcernID = "CriticalMedical"
+	RestoreWorkers          ConcernID = "RestoreWorkers"
+	AllowStartingSupplies   ConcernID = "AllowStartingSupplies"
+	ManageSupplySafety      ConcernID = "ManageSupplySafety"
+	EnsureWorkAssignments   ConcernID = "EnsureWorkAssignments"
+	EnsureFoodSupply        ConcernID = "EnsureFoodSupply"
+	MaintainHousing         ConcernID = "MaintainHousing"
+	EnsureTemperatureSafety ConcernID = "EnsureTemperatureSafety"
+	EnsureCooking           ConcernID = "EnsureCooking"
+	MaintainButcherSpot     ConcernID = "MaintainButcherSpot"
+	EnsureBasicPower        ConcernID = "EnsureBasicPower"
+	EnsureBasicDefense      ConcernID = "EnsureBasicDefense"
+	MaintainMedicalReserves ConcernID = "MaintainMedicalReserves"
+	MaintainFoodStorage     ConcernID = "MaintainFoodStorage"
+	MaintainRefrigeration   ConcernID = "MaintainRefrigeration"
+	EnsureComfort           ConcernID = "EnsureComfort"
+	ClearPests              ConcernID = "ClearPests"
+	MaintainEquipment       ConcernID = "MaintainEquipment"
+	EnsureResearch          ConcernID = "EnsureResearch"
+	MaintainResource        ConcernID = "MaintainResource"
+	EnsureDefensiveLayout   ConcernID = "EnsureDefensiveLayout"
+	TradeWithCaravan        ConcernID = "TradeWithCaravan"
 )
 
 // foodStorageUpkeepPriority is MaintainFoodStorage's entry development
@@ -447,13 +447,13 @@ type RoutineFacts struct {
 	// stockpile edits within the haul budget, or why none stands.
 	Stockpiles domain.Fact[StockpileReview]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
-	AvailableMethods domain.Fact[[]GoalID]
+	AvailableMethods domain.Fact[[]ConcernID]
 	Upkeep           UpkeepObservation
 	// ShrineHolds is each Upkeep.Shrines row's breach judgement (#458) as
 	// the reviewer read it, journalled beside the review; empty while the
 	// census is unknown.
 	ShrineHolds  []ShrineHold
-	UpkeepIssued map[GoalID]bool
+	UpkeepIssued map[ConcernID]bool
 	Gear         domain.Fact[GearObservation]
 	Comfort      domain.Fact[ComfortObservation]
 	// BasicComfort is the same census before the hosting-room filter: every
@@ -694,7 +694,7 @@ type RoutineNeeds struct {
 // Assessments cover recovered and unknown needs as well as actionable deficits.
 // Absence from the scheduling list is never evidence of recovery.
 type RoutineAssessment struct {
-	ID GoalID
+	ID ConcernID
 	// Subject is the pawn a per-pawn Response (EnsureMood) is assessed
 	// for; empty otherwise. (ID, Subject) keys its incident (#1019).
 	Subject  domain.PawnID `json:",omitempty"`
@@ -781,7 +781,7 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals: it reviews the facts once, then runs every registered
-// goal detector in registry order (goalDetectors). Family-specific needs
+// inspection in registry order (inspections). Family-specific needs
 // join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
 	if c, known := f.Calendar.Value(); known && !c.Valid() {
@@ -880,12 +880,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
 	}
 	c.r = RoutineNeeds{Latches: c.l}
-	for _, d := range goalDetectors {
+	for _, d := range inspections {
 		goals, assessments := len(c.r.Goals), len(c.r.Assessments)
-		if err := d.Detect(c); err != nil {
+		if err := d.Inspect(c); err != nil {
 			return RoutineNeeds{}, err
 		}
-		if n, noOp := noOpOf(d.Goal, c.r.Goals[goals:], c.r.Assessments[assessments:]); noOp {
+		if n, noOp := noOpOf(d.Concern, c.r.Goals[goals:], c.r.Assessments[assessments:]); noOp {
 			c.r.NoOps = append(c.r.NoOps, n)
 		}
 	}
@@ -906,8 +906,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	r.Goals = raisedAtStage(r.Goals, f, p, c.l)
 	if methods, known := f.AvailableMethods.Value(); known {
-		available := map[GoalID]bool{}
-		recognized := map[GoalID]bool{}
+		available := map[ConcernID]bool{}
+		recognized := map[ConcernID]bool{}
 		for _, assessment := range r.Assessments {
 			recognized[assessment.ID] = true
 		}
@@ -928,7 +928,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 		// Each upkeep need's method is its own serve family; an undeclared
 		// one at emergency priority is recorded without the suspension.
-		declarable := map[GoalID]bool{}
+		declarable := map[ConcernID]bool{}
 		for _, n := range c.upkeep.Needs {
 			declarable[n.Goal] = true
 		}

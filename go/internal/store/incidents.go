@@ -27,7 +27,7 @@ type IncidentMethod struct {
 // (Snapshot's world, Kind, Subject), the Trigger it opens with and the
 // Priority the assessment ranks it at.
 type IncidentAssessment struct {
-	Kind     domain.GoalID
+	Kind     domain.ConcernID
 	Subject  domain.PawnID
 	Trigger  string
 	Priority int
@@ -37,7 +37,7 @@ type IncidentAssessment struct {
 }
 
 func (i IncidentState) ownerSnapshot() domain.GenerationSnapshot { return i.Incident.Snapshot }
-func (i IncidentState) ownerNeed(RoutineReview) (domain.GoalID, bool) {
+func (i IncidentState) ownerNeed(RoutineReview) (domain.ConcernID, bool) {
 	return i.Incident.Kind, true
 }
 func (i IncidentState) ownerPriority() int { return i.Incident.Priority }
@@ -280,7 +280,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if open {
 		return IncidentState{}, errors.New("existing method requires observation")
 	}
-	if err = (domain.GoalMethod{Goal: domain.GoalID(id), Method: method, Plan: plan.ID()}).Validate(); err != nil {
+	if err = (domain.GoalMethod{Goal: domain.ConcernID(id), Method: method, Plan: plan.ID()}).Validate(); err != nil {
 		return IncidentState{}, err
 	}
 	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {

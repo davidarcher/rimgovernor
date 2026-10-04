@@ -76,10 +76,10 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// or stockpile per method (routine_tidy.go, #611: refused here on the
 	// first live run until bound).
 	limit := 32
-	needs := []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource, policy.TidyLayout}
+	needs := []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource, policy.TidyLayout}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
+		needs = []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
 	}
 	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() {
 		return ErrConflict

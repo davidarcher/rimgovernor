@@ -29,8 +29,8 @@ type RoutineMoodMethod struct {
 	Pawn                     policy.PawnID
 	Need                     policy.MoodNeed
 	Reason                   policy.MoodMethodReason
-	Goal                     policy.GoalID `json:",omitempty"`
-	Thought                  string        `json:",omitempty"`
+	Goal                     policy.ConcernID `json:",omitempty"`
+	Thought                  string           `json:",omitempty"`
 	Target                   float64
 	NeedBenefit, MoodBenefit *float64
 }

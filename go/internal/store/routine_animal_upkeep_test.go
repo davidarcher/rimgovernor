@@ -21,7 +21,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	}
 	set(1, false)
 	out := reviewRoutine(t, s, &r)
-	for _, id := range []policy.GoalID{policy.MaintainAnimalContainment, policy.MaintainAnimalFeed} {
+	for _, id := range []policy.ConcernID{policy.MaintainAnimalContainment, policy.MaintainAnimalFeed} {
 		if g := routineGoal(t, out, id); g.Goal.Need != domain.NeedDeficit || g.Goal.Priority != 3 {
 			t.Fatal(g)
 		}
@@ -30,7 +30,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	out = reviewRoutine(t, s, &r)
 	// Containment keeps its latch across an unknown census; the feed reserve
 	// has none, so an unread herd ranks as any other unknown optional need.
-	for id, priority := range map[policy.GoalID]int{policy.MaintainAnimalContainment: 3, policy.MaintainAnimalFeed: 4} {
+	for id, priority := range map[policy.ConcernID]int{policy.MaintainAnimalContainment: 3, policy.MaintainAnimalFeed: 4} {
 		if g := routineGoal(t, out, id); g.Goal.Need != domain.NeedUnknown || g.Goal.Priority != priority {
 			t.Fatal(g)
 		}
@@ -56,7 +56,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 		t.Fatal(g)
 	}
 	set(5, true)
-	r.Facts.UpkeepIssued = map[policy.GoalID]bool{policy.MaintainAnimalFeed: true}
+	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainAnimalFeed: true}
 	out = reviewRoutine(t, s, &r)
 	recovered := routineGoal(t, out, policy.MaintainAnimalFeed)
 	if recovered.Goal.Need != domain.NeedRecovered {

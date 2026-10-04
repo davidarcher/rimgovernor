@@ -38,7 +38,7 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 	}
 	return r
 }
-func anotherGoal(t *testing.T, s *Store, id domain.GoalID) GoalState {
+func anotherGoal(t *testing.T, s *Store, id domain.ConcernID) GoalState {
 	t.Helper()
 	ctx := context.Background()
 	g, e := domain.NewGoal(id, 3, scope(), 10)

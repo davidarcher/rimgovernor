@@ -13,7 +13,7 @@ import (
 // (#725), never re-sited here. It is a Standard whose target is no
 // outstanding work: no untidied item (#1024); the idle-only proposal gate
 // stays.
-const TidyLayout GoalID = "TidyLayout"
+const TidyLayout ConcernID = "TidyLayout"
 
 // tidyPriority ranks TidyLayout last: the lowest goal rank, with no deficit
 // so it never outscores a deficit-bearing goal for a slot.

@@ -38,7 +38,7 @@ const (
 // shell is the shelter plan's geometry as recovered from the durable plan.
 type shell struct {
 	planID    domain.PlanID
-	goalID    domain.GoalID
+	goalID    domain.ConcernID
 	footprint domain.RoomFootprint
 	cells     map[domain.Cell]int // shell cell -> action index
 	shape     string

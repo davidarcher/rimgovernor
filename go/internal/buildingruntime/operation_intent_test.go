@@ -11,7 +11,7 @@ import (
 
 func TestOperationIntentLabelsGoalMethod(t *testing.T) {
 	for _, c := range []struct {
-		goal   domain.GoalID
+		goal   domain.ConcernID
 		method domain.MethodID
 		reason string
 		want   string

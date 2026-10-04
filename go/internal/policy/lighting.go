@@ -18,7 +18,7 @@ import (
 // defers to power/refuel/repair work when that lamp is merely unserviced;
 // otherwise it places an affordable lamp beside the cell and lets the next
 // measured census release the latch.
-const MaintainLighting GoalID = "MaintainLighting"
+const MaintainLighting ConcernID = "MaintainLighting"
 
 type LightingPolicy struct {
 	// LitGlow is the ground glow at or above which a cell counts as lit;

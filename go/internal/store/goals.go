@@ -75,7 +75,7 @@ func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
 	return nil
 }
 
-func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, error) {
+func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (GoalState, error) {
 	var out GoalState
 	var data []byte
 	var revision string
@@ -153,7 +153,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, err
 	return out, rows.Err()
 }
 
-func (s *Store) LoadGoal(ctx context.Context, id domain.GoalID) (GoalState, error) {
+func (s *Store) LoadGoal(ctx context.Context, id domain.ConcernID) (GoalState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return GoalState{}, err
@@ -225,7 +225,7 @@ func planOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, err
 	return false, nil
 }
 
-func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (GoalState, error) {
+func (s *Store) ReviewGoal(ctx context.Context, id domain.ConcernID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (GoalState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return GoalState{}, err
@@ -263,14 +263,14 @@ func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint6
 
 // CommitGoalMethod stores the method and its shared plan atomically. Admission
 // and dispatch still belong to existing policy/Hands; this grants no authority.
-func (s *Store) CommitGoalMethod(ctx context.Context, id domain.GoalID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (GoalState, error) {
+func (s *Store) CommitGoalMethod(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (GoalState, error) {
 	return s.CommitGoalMethodReason(ctx, id, revision, method, "", plan)
 }
 
 // CommitGoalMethodReason is CommitGoalMethod with the planner's short reason
 // for admitting it (runway, deficit, target); the dispatcher appends it to
 // Operation.intent (#846). Empty stores none.
-func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.GoalID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (GoalState, error) {
+func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (GoalState, error) {
 	if err := plan.Validate(); err != nil {
 		return GoalState{}, err
 	}
@@ -292,7 +292,7 @@ func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.GoalID, re
 	return state, nil
 }
 
-func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (GoalState, error) {
+func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (GoalState, error) {
 	state, err := loadGoal(ctx, tx, id)
 	if err != nil {
 		return GoalState{}, err
@@ -368,7 +368,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			return errors.New("existing method requires observation")
 		}
 	}
-	m := domain.GoalMethod{Goal: domain.GoalID(summary.ID), Epoch: summary.Epoch, Method: method, Plan: plan.ID()}
+	m := domain.GoalMethod{Goal: domain.ConcernID(summary.ID), Epoch: summary.Epoch, Method: method, Plan: plan.ID()}
 	if err = m.Validate(); err != nil {
 		return err
 	}
@@ -477,7 +477,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	if project.Valid {
 		return guardProjectWork(ctx, tx, domain.ProjectID(project.String), current, tick)
 	}
-	state, err := loadGoal(ctx, tx, domain.GoalID(id.String))
+	state, err := loadGoal(ctx, tx, domain.ConcernID(id.String))
 	if err != nil {
 		return err
 	}

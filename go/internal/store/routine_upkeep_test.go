@@ -57,7 +57,7 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 		t.Fatal("renewed fire not reopened", g)
 	}
 	// Caller-supplied pending work is not trusted as a native obligation.
-	r.Facts.UpkeepIssued = map[policy.GoalID]bool{policy.MaintainFireSafety: true}
+	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainFireSafety: true}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
 	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Goal.Need != domain.NeedRecovered {
 		t.Fatal(g)

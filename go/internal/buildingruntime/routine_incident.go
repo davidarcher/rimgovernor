@@ -12,7 +12,7 @@ import (
 // routineIncident is the review's open occurrence of a Response kind
 // (#1020) and the need the review assessed it at; ok is false when the
 // review binds none.
-func routineIncident(call context.Context, journal *store.Store, review store.RoutineReview, kind policy.GoalID) (state store.IncidentState, need domain.NeedState, ok bool, err error) {
+func routineIncident(call context.Context, journal *store.Store, review store.RoutineReview, kind policy.ConcernID) (state store.IncidentState, need domain.NeedState, ok bool, err error) {
 	binding, bound := review.Incident(kind)
 	if !bound {
 		return store.IncidentState{}, "", false, nil
@@ -26,7 +26,7 @@ func routineIncident(call context.Context, journal *store.Store, review store.Ro
 
 // incidentDeficit is routineIncident narrowed to what a planner may
 // commit to: an occurrence in deficit that no Safeguard vetoes.
-func incidentDeficit(call context.Context, journal *store.Store, review store.RoutineReview, kind policy.GoalID) (store.IncidentState, bool, error) {
+func incidentDeficit(call context.Context, journal *store.Store, review store.RoutineReview, kind policy.ConcernID) (store.IncidentState, bool, error) {
 	state, need, ok, err := routineIncident(call, journal, review, kind)
 	if err != nil || !ok || need != domain.NeedDeficit || review.VetoIncident(state.Incident) != "" {
 		return store.IncidentState{}, false, err

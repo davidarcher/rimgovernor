@@ -100,7 +100,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	// Owner goals a provisioning proposal can defer to: bound by this review
 	// and still active with a deficit.
-	activeOwner := map[domain.GoalID]bool{}
+	activeOwner := map[domain.ConcernID]bool{}
 	for _, binding := range review.Goals {
 		if !policy.MoodProvisionGoal(binding.Need) {
 			continue

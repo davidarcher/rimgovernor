@@ -84,7 +84,7 @@ func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *s
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	addPest(native, v, "beaver-1", 7, 7)
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearPests})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearPests})
 	if _, err := reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

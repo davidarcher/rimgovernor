@@ -16,7 +16,7 @@ import (
 // breastfeeder and too little baby-edible stock, the goal places a standing
 // target-count bill for a baby-edible recipe through the existing production
 // bill write. No other write is owed; beds and play are the nursery's (#1680).
-const MaintainBabyFeeding GoalID = "MaintainBabyFeeding"
+const MaintainBabyFeeding ConcernID = "MaintainBabyFeeding"
 
 // BabyFoodBill is MaintainBabyFeeding's bill purpose.
 const BabyFoodBill BillPurpose = "baby_food"

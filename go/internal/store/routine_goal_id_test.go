@@ -7,11 +7,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func routineIDs(t *testing.T, out RoutineReviewResult) map[domain.GoalID]domain.GoalID {
+func routineIDs(t *testing.T, out RoutineReviewResult) map[domain.ConcernID]domain.ConcernID {
 	t.Helper()
-	ids := map[domain.GoalID]domain.GoalID{}
+	ids := map[domain.ConcernID]domain.ConcernID{}
 	for _, b := range out.Review.Goals {
-		if !routineGoalOwns(b.Goal, b.Need) {
+		if !routineStandardOwns(b.Goal, b.Need) {
 			t.Fatal("malformed routine goal id", b.Goal)
 		}
 		ids[b.Need] = b.Goal
@@ -92,7 +92,7 @@ func TestRoutineGoalIdentityRewindBumpsGeneration(t *testing.T) {
 
 func TestRoutineGoalOwnsShape(t *testing.T) {
 	t.Parallel()
-	for id, want := range map[domain.GoalID]bool{
+	for id, want := range map[domain.ConcernID]bool{
 		"routine-0123456789abcdef-need-0":  true,
 		"routine-0123456789abcdef-need-12": true,
 		"routine-0123456789abcdef-need":    false,
@@ -101,7 +101,7 @@ func TestRoutineGoalOwnsShape(t *testing.T) {
 		"routine-0123456789abcdef-other-0": false,
 		"player-0123456789abcdef-need-0":   false,
 	} {
-		if routineGoalOwns(id, "need") != want {
+		if routineStandardOwns(id, "need") != want {
 			t.Error(id, want)
 		}
 	}

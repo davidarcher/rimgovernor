@@ -41,7 +41,7 @@ func (p ProjectState) ownerKey() (string, string, string) {
 	return "project_id", string(p.Project.ID), "0"
 }
 func (p ProjectState) ownerSnapshot() domain.GenerationSnapshot { return p.Project.Snapshot }
-func (p ProjectState) ownerNeed(r RoutineReview) (domain.GoalID, bool) {
+func (p ProjectState) ownerNeed(r RoutineReview) (domain.ConcernID, bool) {
 	return r.projectNeed(p.Project.ID)
 }
 func (p ProjectState) ownerPriority() int { return p.Project.Priority }

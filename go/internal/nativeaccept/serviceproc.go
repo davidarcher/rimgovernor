@@ -470,7 +470,7 @@ func PlanSignature(state store.PlanState) string {
 // live Methods, so the current epoch's bounded history is consulted too.
 // The wait stalls (StallBudget) when the binding and its method count stop
 // changing.
-func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, previous *domain.GoalMethod) (domain.GoalID, domain.GoalMethod, error) {
+func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.ConcernID, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, error) {
 	var seen map[domain.PlanID]bool
 	if previous != nil {
 		seen = map[domain.PlanID]bool{previous.Plan: true}
@@ -482,13 +482,13 @@ func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, pre
 // plans: a goal whose history holds several settled methods (retired attempts
 // stay in LoadGoalMethods) would otherwise hand the same old plan back on
 // every call that names only the last one.
-func WaitGoalMethodExcluding(ctx context.Context, s *store.Store, need policy.GoalID, seen map[domain.PlanID]bool) (domain.GoalID, domain.GoalMethod, error) {
+func WaitGoalMethodExcluding(ctx context.Context, s *store.Store, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.GoalMethod, error) {
 	return waitGoalMethod(ctx, s, Wait{Stall: StallBudget(), Interval: time.Second}, need, seen)
 }
 
 // waitGoalMethod is WaitGoalMethodExcluding under an explicit Wait.
-func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.GoalID, seen map[domain.PlanID]bool) (domain.GoalID, domain.GoalMethod, error) {
-	var foundGoal domain.GoalID
+func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.GoalMethod, error) {
+	var foundGoal domain.ConcernID
 	var found domain.GoalMethod
 	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
@@ -496,7 +496,7 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Goa
 			return "", false, err
 		}
 		if policy.IsProjectKind(need) {
-			// A Project's methods; the owner id comes back as the GoalID.
+			// A Project's methods; the owner id comes back as the ConcernID.
 			id, bound := review.ProjectFor(need)
 			if !bound {
 				return Signature("unbound", review.Revision > 0), false, nil
@@ -507,13 +507,13 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Goa
 			}
 			for _, method := range project.History {
 				if !seen[method.Plan] {
-					foundGoal, found = domain.GoalID(id), domain.GoalMethod{Goal: domain.GoalID(id), Method: method.Method, Plan: method.Plan}
+					foundGoal, found = domain.ConcernID(id), domain.GoalMethod{Goal: domain.ConcernID(id), Method: method.Method, Plan: method.Plan}
 					return "", true, nil
 				}
 			}
 			return Signature(id, len(project.History)), false, nil
 		}
-		var goalID domain.GoalID
+		var goalID domain.ConcernID
 		for _, binding := range review.Goals {
 			if binding.Need == need {
 				goalID = binding.Goal

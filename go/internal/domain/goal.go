@@ -2,7 +2,7 @@ package domain
 
 import "errors"
 
-type GoalID string
+type ConcernID string
 type MethodID string
 type GoalStatus string
 
@@ -23,7 +23,7 @@ const (
 // Goal records a maintained outcome. Executable methods reference ordinary shared
 // plans; their receipts, progress and uncertainty stay in those plans.
 type Goal struct {
-	ID               GoalID
+	ID               ConcernID
 	Priority         int
 	Snapshot         GenerationSnapshot
 	Tick             Tick
@@ -40,7 +40,7 @@ type Goal struct {
 // MaxGoalRecord bounds Goal.Record in bytes.
 const MaxGoalRecord = 4096
 
-func NewGoal(id GoalID, priority int, snapshot GenerationSnapshot, tick Tick) (Goal, error) {
+func NewGoal(id ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Goal, error) {
 	g := Goal{ID: id, Priority: priority, Snapshot: snapshot, Tick: tick, Status: GoalActive, Need: NeedUnknown}
 	return g, g.Validate()
 }
@@ -127,7 +127,7 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, o
 // GoalMethod binds a selected method to its original epoch and executable plan.
 // Renewed deficits get a new epoch; the old plan remains available for readback.
 type GoalMethod struct {
-	Goal   GoalID
+	Goal   ConcernID
 	Epoch  uint64
 	Method MethodID
 	Plan   PlanID

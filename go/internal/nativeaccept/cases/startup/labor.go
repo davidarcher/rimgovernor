@@ -264,7 +264,7 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.RoutineR
 
 // ownerMethods is the open methods of the goal or Project the review binds to
 // need; ok is false when it binds none or the row is gone.
-func ownerMethods(ctx context.Context, st *store.Store, review store.RoutineReview, need domain.GoalID) ([]domain.GoalMethod, bool, error) {
+func ownerMethods(ctx context.Context, st *store.Store, review store.RoutineReview, need domain.ConcernID) ([]domain.GoalMethod, bool, error) {
 	var owner store.WorkOwner
 	var err error
 	if id, ok := review.ProjectFor(need); ok {

@@ -125,7 +125,7 @@ func TestRoutineReviewCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}}, Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	out := reviewRoutine(t, s, &r)
-	for _, id := range []domain.GoalID{policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
+	for _, id := range []domain.ConcernID{policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
 		if got := routineGoal(t, out, id).Goal.Need; got != domain.NeedRecovered {
 			t.Fatal(id, got)
 		}

@@ -29,7 +29,7 @@ func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.Generati
 	}
 	type link struct {
 		plan domain.PlanID
-		goal domain.GoalID
+		goal domain.ConcernID
 	}
 	links := []link{}
 	for rows.Next() {
@@ -49,7 +49,7 @@ func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.Generati
 		return unknown, nil
 	}
 	result := []policy.ConstructionClaim{}
-	goals := map[domain.GoalID]OwnerSummary{}
+	goals := map[domain.ConcernID]OwnerSummary{}
 	for _, link := range links {
 		g, cached := goals[link.goal]
 		if !cached {

@@ -35,9 +35,9 @@ func (s *Store) PlanGoalMethod(ctx context.Context, plan domain.PlanID) (method 
 	if err != nil {
 		return PlanMethod{}, false, err
 	}
-	method.Goal, method.Incident, method.Project = domain.GoalID(goal.String), domain.IncidentID(incident.String), domain.ProjectID(project.String)
+	method.Goal, method.Incident, method.Project = domain.ConcernID(goal.String), domain.IncidentID(incident.String), domain.ProjectID(project.String)
 	if incident.Valid {
-		method.Goal = domain.GoalID(kind.String)
+		method.Goal = domain.ConcernID(kind.String)
 	}
 	if project.Valid {
 		var raw []byte

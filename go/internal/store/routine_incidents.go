@@ -17,7 +17,7 @@ import (
 // need the review measured for it. A recovered occurrence stays bound, and
 // open, while its dispatched work (a fight's drafts) settles.
 type RoutineIncident struct {
-	Kind     domain.GoalID
+	Kind     domain.ConcernID
 	Subject  domain.PawnID `json:",omitempty"`
 	Incident domain.IncidentID
 	Need     domain.NeedState
@@ -40,7 +40,7 @@ func HuntPrey(i domain.Incident) []domain.PawnID {
 }
 
 // Incident is the review's binding for kind's colony-wide occurrence.
-func (r RoutineReview) Incident(kind domain.GoalID) (RoutineIncident, bool) {
+func (r RoutineReview) Incident(kind domain.ConcernID) (RoutineIncident, bool) {
 	for _, b := range r.Incidents {
 		if b.Kind == kind && b.Subject == "" {
 			return b, true
@@ -51,7 +51,7 @@ func (r RoutineReview) Incident(kind domain.GoalID) (RoutineIncident, bool) {
 
 // SubjectIncidents are the review's bindings for kind's per-subject
 // occurrences (EnsureMood: one per pawn), in assessment order.
-func (r RoutineReview) SubjectIncidents(kind domain.GoalID) []RoutineIncident {
+func (r RoutineReview) SubjectIncidents(kind domain.ConcernID) []RoutineIncident {
 	var out []RoutineIncident
 	for _, b := range r.Incidents {
 		if b.Kind == kind && b.Subject != "" {
@@ -77,7 +77,7 @@ func (r RoutineReview) VetoIncident(i domain.Incident) string {
 	return r.vetoNeed(i.Kind, i.Priority)
 }
 
-func openIncidentID(ctx context.Context, tx *sql.Tx, world domain.GenerationSnapshot, kind domain.GoalID, subject domain.PawnID) (domain.IncidentID, bool, error) {
+func openIncidentID(ctx context.Context, tx *sql.Tx, world domain.GenerationSnapshot, kind domain.ConcernID, subject domain.PawnID) (domain.IncidentID, bool, error) {
 	var id domain.IncidentID
 	err := tx.QueryRowContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND kind=? AND subject=? AND ended_tick IS NULL", world.Colony, world.Load, world.Map, kind, subject).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -186,7 +186,7 @@ func openIncidentIDs(ctx context.Context, tx *sql.Tx, world World) ([]domain.Inc
 }
 
 // LatestIncident is kind's newest occurrence in world, open or closed.
-func (s *Store) LatestIncident(ctx context.Context, world World, kind domain.GoalID) (IncidentState, bool, error) {
+func (s *Store) LatestIncident(ctx context.Context, world World, kind domain.ConcernID) (IncidentState, bool, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return IncidentState{}, false, err
@@ -206,7 +206,7 @@ func (s *Store) LatestIncident(ctx context.Context, world World, kind domain.Goa
 
 // IncidentHistory is every occurrence of kind in world, open or closed,
 // oldest first.
-func (s *Store) IncidentHistory(ctx context.Context, world World, kind domain.GoalID) ([]IncidentState, error) {
+func (s *Store) IncidentHistory(ctx context.Context, world World, kind domain.ConcernID) ([]IncidentState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return nil, err

@@ -205,7 +205,7 @@ func readUpkeep(ctx context.Context, h *na.Harness, identity map[string]any, lab
 
 // waitNeed polls until need's goal binding reports state (deficit or
 // recovered) and returns the goal.
-func waitNeed(ctx context.Context, journal *store.Store, need policy.GoalID, state domain.NeedState) (store.GoalState, error) {
+func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, state domain.NeedState) (store.GoalState, error) {
 	var found store.GoalState
 	err := na.WaitProgress(ctx, na.Wait{Stall: needStall, Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRoutineReview(ctx)
@@ -248,14 +248,14 @@ const needStall = 3 * time.Minute
 // plan; that counts as recovery too and is recorded as
 // <label>_recovered_by=ordinary_work instead of <label>_completed_tick. Either
 // way the scenario's verify step confirms the postcondition natively.
-func followMethods(ctx context.Context, journal *store.Store, need policy.GoalID, label string, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
+func followMethods(ctx context.Context, journal *store.Store, need policy.ConcernID, label string, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
 	return followMethodsExcluding(ctx, journal, need, label, map[domain.PlanID]bool{}, accept, report)
 }
 
 // followMethodsExcluding is followMethods over a caller-owned seen set, so a
 // goal whose deficit needs two successive methods (a bed built, then that
 // bed assigned) is followed method by method without revisiting the first.
-func followMethodsExcluding(ctx context.Context, journal *store.Store, need policy.GoalID, label string, seen map[domain.PlanID]bool, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
+func followMethodsExcluding(ctx context.Context, journal *store.Store, need policy.ConcernID, label string, seen map[domain.PlanID]bool, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
 	renewals, rejected := 0, 0
 	recovered := func() (bool, error) {
 		review, err := journal.LoadRoutineReview(ctx)
@@ -281,7 +281,7 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 	}
 	deadline := time.Now().Add(10 * time.Minute)
 	for {
-		var goalID domain.GoalID
+		var goalID domain.ConcernID
 		var method domain.GoalMethod
 		for {
 			if time.Now().After(deadline) {

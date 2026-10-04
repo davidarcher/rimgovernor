@@ -59,7 +59,7 @@ func (p ProjectState) OwnerDeficit() bool {
 func (p ProjectState) goalMethods(rows []ProjectMethod) []domain.GoalMethod {
 	var out []domain.GoalMethod
 	for _, m := range rows {
-		out = append(out, domain.GoalMethod{Goal: domain.GoalID(p.Project.ID), Method: m.Method, Plan: m.Plan})
+		out = append(out, domain.GoalMethod{Goal: domain.ConcernID(p.Project.ID), Method: m.Method, Plan: m.Plan})
 	}
 	return out
 }
@@ -67,7 +67,7 @@ func (p ProjectState) goalMethods(rows []ProjectMethod) []domain.GoalMethod {
 // WorkableOwner is Workable for a need that may be a Project's: it loads the
 // goal or Project the review binds to need and reports whether a planner may
 // work it. The owner is returned whenever the review binds one.
-func (s *Store) WorkableOwner(ctx context.Context, r RoutineReview, need policy.GoalID) (WorkOwner, bool, error) {
+func (s *Store) WorkableOwner(ctx context.Context, r RoutineReview, need policy.ConcernID) (WorkOwner, bool, error) {
 	for _, binding := range r.Projects {
 		if binding.Need == need {
 			p, ok, err := s.WorkableProject(ctx, r, need)
@@ -80,7 +80,7 @@ func (s *Store) WorkableOwner(ctx context.Context, r RoutineReview, need policy.
 
 // WorkableProject loads the Project the review binds to need and reports
 // whether a planner may work it: an open deficit the Safeguards admit (#1121).
-func (s *Store) WorkableProject(ctx context.Context, r RoutineReview, need policy.GoalID) (ProjectState, bool, error) {
+func (s *Store) WorkableProject(ctx context.Context, r RoutineReview, need policy.ConcernID) (ProjectState, bool, error) {
 	for _, binding := range r.Projects {
 		if binding.Need != need {
 			continue
@@ -113,7 +113,7 @@ func (r RoutineReview) VetoProject(p domain.Project) string {
 }
 
 // ProjectFor returns the Project the review binds to need.
-func (r RoutineReview) ProjectFor(need policy.GoalID) (domain.ProjectID, bool) {
+func (r RoutineReview) ProjectFor(need policy.ConcernID) (domain.ProjectID, bool) {
 	for _, binding := range r.Projects {
 		if binding.Need == need {
 			return binding.Project, true
@@ -148,7 +148,7 @@ func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method dom
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.GoalMethod{}, ErrNotFound
 		}
-		return domain.GoalMethod{Goal: domain.GoalID(o.Project.ID), Method: method, Plan: plan}, err
+		return domain.GoalMethod{Goal: domain.ConcernID(o.Project.ID), Method: method, Plan: plan}, err
 	}
 	return domain.GoalMethod{}, fmt.Errorf("unsupported method owner %T", owner)
 }
@@ -257,7 +257,7 @@ func (s *Store) LoadOwner(ctx context.Context, id string) (WorkOwner, error) {
 	if isProjectID(id) {
 		return s.LoadProject(ctx, domain.ProjectID(id))
 	}
-	return s.LoadGoal(ctx, domain.GoalID(id))
+	return s.LoadGoal(ctx, domain.ConcernID(id))
 }
 
 // loadOwner is LoadOwner inside tx.
@@ -265,7 +265,7 @@ func loadOwner(ctx context.Context, tx *sql.Tx, id string) (WorkOwner, error) {
 	if isProjectID(id) {
 		return loadProject(ctx, tx, domain.ProjectID(id))
 	}
-	return loadGoal(ctx, tx, domain.GoalID(id))
+	return loadGoal(ctx, tx, domain.ConcernID(id))
 }
 
 // Owner is the goal or Project the method was admitted for.

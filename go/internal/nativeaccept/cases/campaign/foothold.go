@@ -19,7 +19,7 @@ func init() {
 // campaignGoals are the goals every campaign sample reads beside
 // EnsureFoodSupply: the foothold gates and the wood stock the recovery
 // campaign breaches.
-var campaignGoals = []policy.GoalID{
+var campaignGoals = []policy.ConcernID{
 	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
 	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureBasicDefense,

@@ -46,7 +46,7 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 	r, journal, _, _, native := routineFixture(t)
 	composedRoutineFacts(t, native)
 	r.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
-	r.methods = domain.Known([]policy.GoalID{policy.RecoverDisasterServices})
+	r.methods = domain.Known([]policy.ConcernID{policy.RecoverDisasterServices})
 	v := native.reply.GetObserved()
 	entity := &o.EntityRef{Id: proto.String("patient"), DefName: proto.String("Human"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell)}
 	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{

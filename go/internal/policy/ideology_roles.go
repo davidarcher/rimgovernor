@@ -14,7 +14,7 @@ import (
 // takes and when it is active are the catalog's role defs
 // (IdeologyDefs.Roles); no role or skill name is listed here. A pawn that
 // already holds a role is never moved.
-const MaintainIdeoRoles GoalID = "MaintainIdeoRoles"
+const MaintainIdeoRoles ConcernID = "MaintainIdeoRoles"
 
 // RoleAssignment is one pawn taking one role precept.
 type RoleAssignment struct {

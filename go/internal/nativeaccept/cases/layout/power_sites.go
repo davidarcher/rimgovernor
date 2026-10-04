@@ -41,8 +41,8 @@ func init() {
 
 func powerSites(ctx context.Context, s cases.Session) error {
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(sample map[string]any) bool {
-			for _, goal := range []policy.GoalID{policy.MaintainHousing} {
+		WatchConfig: sustainedfood.WatchConfig{Watch: time.Minute, Extra: []policy.ConcernID{policy.MaintainHousing}, Until: func(sample map[string]any) bool {
+			for _, goal := range []policy.ConcernID{policy.MaintainHousing} {
 				capacity, _ := sample[string(goal)].(map[string]any)
 				if planned(capacity, buildingruntime.IsShellMethod, false) {
 					return true

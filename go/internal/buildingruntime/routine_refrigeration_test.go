@@ -76,7 +76,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 		preview.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 	}
 	base.reviewer.native = n
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainRefrigeration})
+	base.reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainRefrigeration})
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

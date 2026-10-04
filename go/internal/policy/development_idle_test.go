@@ -19,13 +19,13 @@ func TestIdleLaborRecordsButKeepsCommitmentAcrossReviews(t *testing.T) {
 	busy := domain.Known(LaborUse{Busy: map[WorkType]int{WorkPlantCutting: 1, WorkConstruction: 1}, Idle: map[WorkType]int{WorkPlantCutting: 1}})
 	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: idle}
 	first := rank(t, r)
-	if row := s.row(first, "wood"); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || !reflect.DeepEqual(first.Committed, []GoalID{"wood"}) {
+	if row := s.row(first, "wood"); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || !reflect.DeepEqual(first.Committed, []ConcernID{"wood"}) {
 		t.Fatal("an idle review keeps the commitment and starts the idle age", row, first.Committed)
 	}
 	r.Tick += 2 * DevelopmentIdleTicks
 	r.Previous = first
 	held := rank(t, r)
-	if row := s.row(held, "wood"); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || !reflect.DeepEqual(held.Committed, []GoalID{"wood"}) {
+	if row := s.row(held, "wood"); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || !reflect.DeepEqual(held.Committed, []ConcernID{"wood"}) {
 		t.Fatal("idle past the bound must not release", row)
 	}
 	r.Tick += 100

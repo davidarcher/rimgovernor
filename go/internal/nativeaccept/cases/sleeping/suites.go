@@ -181,7 +181,7 @@ func suites(ctx context.Context, s cases.Session) error {
 		}
 	}()
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 16 * time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(map[string]any) bool {
+		WatchConfig: sustainedfood.WatchConfig{Watch: 16 * time.Minute, Extra: []policy.ConcernID{policy.MaintainHousing}, Until: func(map[string]any) bool {
 			if live == nil {
 				j, err := store.Open(ctx, path)
 				if err != nil {
@@ -223,7 +223,7 @@ func suites(ctx context.Context, s cases.Session) error {
 	// Phase two: the title raises the target; a second suite is planned and
 	// shelled, and the first one is left as it is (#1951).
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 8 * time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(map[string]any) bool {
+		WatchConfig: sustainedfood.WatchConfig{Watch: 8 * time.Minute, Extra: []policy.ConcernID{policy.MaintainHousing}, Until: func(map[string]any) bool {
 			if live == nil {
 				j, err := store.Open(ctx, path)
 				if err != nil {

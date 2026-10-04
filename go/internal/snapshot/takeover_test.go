@@ -22,7 +22,7 @@ func load(t *testing.T, path string) Routine {
 	return r
 }
 
-func deficit(t *testing.T, r Routine, id policy.GoalID) {
+func deficit(t *testing.T, r Routine, id policy.ConcernID) {
 	t.Helper()
 	a, err := r.Assessment(id)
 	if err != nil || a.Need != domain.NeedDeficit || a.MethodUnavailable {

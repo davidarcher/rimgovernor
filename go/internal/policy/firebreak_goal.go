@@ -6,7 +6,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // free of standing plants and its wooden ruins taken down. The goal is in
 // deficit while FirebreakOwed finds work; an order is the method, so the
 // goal settles on the census, never on a receipt.
-const MaintainFirebreak GoalID = "MaintainFirebreak"
+const MaintainFirebreak ConcernID = "MaintainFirebreak"
 
 // FirebreakWork is what the ring owes now: the cut cells where an
 // undesignated plant stands and the wooden ruins with no deconstruction

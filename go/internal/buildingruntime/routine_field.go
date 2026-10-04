@@ -243,7 +243,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 // with open work waits for it.
 func (r *RoutineFieldPlanner) otherFieldShortfalls(call context.Context, review store.RoutineReview, projection observation.ColonyProjection) ([]fieldShortfall, error) {
 	p := r.reviewer.player
-	ready := func(kind policy.GoalID) (store.GoalState, bool, error) {
+	ready := func(kind policy.ConcernID) (store.GoalState, bool, error) {
 		goal, workable, err := p.journal.Workable(call, review, kind)
 		if err != nil || !workable {
 			return goal, false, err

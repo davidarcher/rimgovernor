@@ -30,7 +30,7 @@ func TestRoutineReviewWithPollutionFactsLoads(t *testing.T) {
 	}
 }
 
-func routineGoal(t *testing.T, r RoutineReviewResult, need domain.GoalID) GoalState {
+func routineGoal(t *testing.T, r RoutineReviewResult, need domain.ConcernID) GoalState {
 	t.Helper()
 	for i, b := range r.Review.Goals {
 		if b.Need == need {
@@ -42,7 +42,7 @@ func routineGoal(t *testing.T, r RoutineReviewResult, need domain.GoalID) GoalSt
 }
 
 // routineIncident is the review's open colony-wide occurrence of kind.
-func routineIncident(t *testing.T, r RoutineReviewResult, kind domain.GoalID) IncidentState {
+func routineIncident(t *testing.T, r RoutineReviewResult, kind domain.ConcernID) IncidentState {
 	t.Helper()
 	for i, b := range r.Review.Incidents {
 		if b.Kind == kind && b.Subject == "" {
@@ -54,7 +54,7 @@ func routineIncident(t *testing.T, r RoutineReviewResult, kind domain.GoalID) In
 }
 
 // routineIncidentNeed is the need the review bound kind's occurrence at.
-func routineIncidentNeed(t *testing.T, r RoutineReviewResult, kind domain.GoalID) domain.NeedState {
+func routineIncidentNeed(t *testing.T, r RoutineReviewResult, kind domain.ConcernID) domain.NeedState {
 	t.Helper()
 	b, ok := r.Review.Incident(kind)
 	if !ok {

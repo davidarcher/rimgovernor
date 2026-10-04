@@ -9,7 +9,7 @@ import (
 func TestRoutineDevelopmentNativeFractionsAndWorkers(t *testing.T) {
 	p := DefaultRoutinePolicy()
 	f := RoutineFacts{Colonists: domain.Known(int64(3)), Armed: domain.Known(int64(1)), Wood: domain.Known(int64(175))}
-	for _, id := range []GoalID{EnsureBasicDefense} {
+	for _, id := range []ConcernID{EnsureBasicDefense} {
 		v, k := RoutineDevelopmentDeficit(id, f, p).Value()
 		if !k || v != .5 {
 			t.Fatal(id, v, k)

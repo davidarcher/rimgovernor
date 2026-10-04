@@ -83,7 +83,7 @@ func TestShadowGovernorStateRereadsSaveOnWorldChange(t *testing.T) {
 	}
 }
 
-func governorGoalBlob(t *testing.T, id domain.GoalID, colony domain.ColonyID, revision uint64) string {
+func governorGoalBlob(t *testing.T, id domain.ConcernID, colony domain.ColonyID, revision uint64) string {
 	t.Helper()
 	g, err := domain.NewGoal(id, 1, domain.GenerationSnapshot{Colony: colony, Load: "l", Plan: "p"}, 0)
 	if err != nil {

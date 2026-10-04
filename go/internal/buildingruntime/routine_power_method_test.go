@@ -73,7 +73,7 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 	}
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{person}, Completeness: count(1)}}}
 	base.reviewer.native = n
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicPower})
+	base.reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicPower})
 	if _, err = base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

@@ -45,7 +45,7 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	}
 	s := rank(t, r)
 	requireSelected(t, s, "comfort", "expansion", "research", "resource")
-	rows := map[GoalID]DevelopmentRow{}
+	rows := map[ConcernID]DevelopmentRow{}
 	for _, row := range s.Rows {
 		rows[row.Goal] = row
 	}

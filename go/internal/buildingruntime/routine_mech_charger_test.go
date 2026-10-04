@@ -61,10 +61,10 @@ func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor
 // biotechPlannerFixture is a two-colonist colony with the given Biotech
 // colony facts and a catalog holding def (and a wall) under a name no Go
 // code knows; the first routine review has run with goal's method enabled.
-func biotechPlannerFixture(t *testing.T, goal policy.GoalID, facts *o.BiotechColonyFacts, def bridge.FixtureDef, mechanitor bool) (*RoutineBuildingPlanner, *store.Store, *sleepingNative, chargerNative, store.RoutineReview) {
+func biotechPlannerFixture(t *testing.T, goal policy.ConcernID, facts *o.BiotechColonyFacts, def bridge.FixtureDef, mechanitor bool) (*RoutineBuildingPlanner, *store.Store, *sleepingNative, chargerNative, store.RoutineReview) {
 	t.Helper()
 	base, db, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.methods = domain.Known([]policy.GoalID{goal})
+	base.reviewer.methods = domain.Known([]policy.ConcernID{goal})
 	v := sleeping.reply.GetObserved()
 	v.Biotech = &o.BiotechSection{Outcome: &o.BiotechSection_Observed{Observed: facts}}
 	sleeping.catalog = []bridge.FixtureDef{def, buildable("Wall", 0, 1, 1)}

@@ -25,7 +25,7 @@ type ProductionLadderRecord struct {
 	Bench    string
 	Recipe   string
 	Research []string
-	Goal     policy.GoalID `json:",omitempty"`
+	Goal     policy.ConcernID `json:",omitempty"`
 }
 
 const maxProductionLadderBytes = 64 * 1024

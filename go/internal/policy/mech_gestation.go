@@ -11,7 +11,7 @@ import (
 // MaintainMechs is the mech gestation goal (#1686, epic #1667): a mechanitor
 // with bandwidth to spare, an idle mech gestator and no waste left lying
 // about is owed one more mech, queued as a Bill_Mech on the gestator.
-const MaintainMechs GoalID = "MaintainMechs"
+const MaintainMechs ConcernID = "MaintainMechs"
 
 // mechPriority ranks MaintainMechs with the other upkeep projects.
 const mechPriority = 3

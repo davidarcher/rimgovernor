@@ -117,7 +117,7 @@ func TestProjectPacingReasons(t *testing.T) {
 func TestProjectGoalBoundAndPrerequisite(t *testing.T) {
 	progress := []policy.GoalProgress{{Goal: "MaintainResource-Steel", Method: "mine", Expected: "steel in storage", Blocked: policy.BlockedPrerequisite("MaintainFoodStorage")}}
 	for i := 0; i < 10; i++ {
-		progress = append(progress, policy.GoalProgress{Goal: policy.GoalID(string(rune('a' + i))), Method: "m", Expected: "e", NextReview: 100})
+		progress = append(progress, policy.GoalProgress{Goal: policy.ConcernID(string(rune('a' + i))), Method: "m", Expected: "e", NextReview: 100})
 	}
 	now := Project(nil, Input{Progress: progress, ReviewsEnabled: true})
 	if len(now.Goals) != GoalsShown {

@@ -56,7 +56,7 @@ func TestRoutineClearanceAdmitsNearestSingleTargetAndJournalsHolds(t *testing.T)
 	roof.RoofBlocker = proto.String("unsafe")
 	source.rows = append(source.rows, roof)
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearHomeObstructions})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearHomeObstructions})
 	ctx := context.Background()
 	review, err := reviewer.Step(ctx)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 	source := &routineClearanceNative{routineBlightNative: &routineBlightNative{routineNative: native}}
 	source.chunks = []*o.ClearanceChunk{clearanceChunk("forbidden", 40, 40, true, false, true), clearanceChunk("stored", 41, 40, false, true, false)}
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearHomeObstructions})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearHomeObstructions})
 	ctx := context.Background()
 	review, err := reviewer.Step(ctx)
 	if err != nil {
@@ -187,7 +187,7 @@ func TestRoutineClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
 	source := &routineClearanceNative{routineBlightNative: &routineBlightNative{routineNative: native}}
 	source.chunks = []*o.ClearanceChunk{clearanceChunk("haulable", 42, 40, false, false, true)}
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearHomeObstructions})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearHomeObstructions})
 	ctx := context.Background()
 	review, err := reviewer.Step(ctx)
 	if err != nil {
@@ -251,7 +251,7 @@ func TestRoutineClearanceNextChunkBatchSkipsOrderedChunks(t *testing.T) {
 		source.chunks = append(source.chunks, clearanceChunk(fmt.Sprintf("chunk%d", i), 40+i, 40, false, false, true))
 	}
 	reviewer.native = source
-	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearHomeObstructions})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearHomeObstructions})
 	ctx := context.Background()
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)

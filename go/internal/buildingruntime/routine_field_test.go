@@ -27,7 +27,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	ctx := context.Background()
 	base, db, session, _, n := sleepingFixture(t)
 	reviewer := base.reviewer
-	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureFoodSupply})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureFoodSupply})
 	v := n.reply.GetObserved()
 	foodPlanFixture(v)
 	v.Farms = nil

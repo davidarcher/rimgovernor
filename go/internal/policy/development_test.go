@@ -27,8 +27,8 @@ func rank(t *testing.T, r DevelopmentRequest) DevelopmentState {
 	}
 	return s
 }
-func selected(s DevelopmentState) []GoalID {
-	var ids []GoalID
+func selected(s DevelopmentState) []ConcernID {
+	var ids []ConcernID
 	for _, r := range s.Rows {
 		if r.Selected {
 			ids = append(ids, r.Goal)
@@ -36,7 +36,7 @@ func selected(s DevelopmentState) []GoalID {
 	}
 	return ids
 }
-func requireSelected(t *testing.T, s DevelopmentState, ids ...GoalID) {
+func requireSelected(t *testing.T, s DevelopmentState, ids ...ConcernID) {
 	t.Helper()
 	if !reflect.DeepEqual(selected(s), ids) {
 		t.Fatalf("selected %v, want %v: %+v", selected(s), ids, s.Rows)
@@ -187,7 +187,7 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 		r.Commitments = []Commitment{{Goal: "player-room", Priority: 3, Progress: p}}
 		s := rank(t, r)
 		requireSelected(t, s, "storage", "defense", "wood")
-		if !reflect.DeepEqual(s.Committed, []GoalID{"player-room"}) {
+		if !reflect.DeepEqual(s.Committed, []ConcernID{"player-room"}) {
 			t.Fatal(s)
 		}
 	}
@@ -215,7 +215,7 @@ func TestDevelopmentRejectsInvalidInputs(t *testing.T) {
 func TestIdleTierOrderIsTotal(t *testing.T) {
 	r := developmentFixture()
 	r.Tick = 69054
-	goal := func(id GoalID, risk float64, blocked bool) DevelopmentGoal {
+	goal := func(id ConcernID, risk float64, blocked bool) DevelopmentGoal {
 		g := DevelopmentGoal{ID: id, Priority: 3, Deficit: domain.Known(1.0), Blocked: blocked}
 		if risk > 0 {
 			g.Risk = domain.Known(risk)
@@ -228,7 +228,7 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 		goal("MaintainRoutes", 0, false), goal("MaintainHousing", 0.5, false),
 		goal("MaintainStoneShell", 0.5, false), goal("MaintainWaste", 0, true),
 	}
-	since := map[GoalID]domain.Tick{"MaintainFlooring": 6430, "MaintainLighting": 36769, "MaintainRoutes": 36769, "MaintainStoneShell": 33189}
+	since := map[ConcernID]domain.Tick{"MaintainFlooring": 6430, "MaintainLighting": 36769, "MaintainRoutes": 36769, "MaintainStoneShell": 33189}
 	previous := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick - 500, Capacity: 1}
 	for _, g := range r.Goals {
 		row := DevelopmentRow{Goal: g.ID, WaitingSince: 15, Idle: g.ID != "MaintainFlooring" && !g.Blocked}

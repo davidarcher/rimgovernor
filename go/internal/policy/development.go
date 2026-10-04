@@ -8,11 +8,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// GoalID identifies a maintained need, independently of any one executable plan.
-type GoalID = domain.GoalID
+// ConcernID identifies a maintained need, independently of any one executable plan.
+type ConcernID = domain.ConcernID
 
 type DevelopmentGoal struct {
-	ID                GoalID
+	ID                ConcernID
 	Priority          int
 	Deficit           domain.Fact[float64]
 	Blocked, Comfort  bool
@@ -64,7 +64,7 @@ func (w DevelopmentWeights) valid() bool {
 // Commitment refers to existing shared action progress, never a receipt-derived
 // claim of completion. All accepted player projects consume optional capacity.
 type Commitment struct {
-	Goal     GoalID
+	Goal     ConcernID
 	Priority int
 	Progress domain.Progress
 	// Labor is the work the open commitment already occupies (GoalLabor for
@@ -123,7 +123,7 @@ const (
 )
 
 type DevelopmentRow struct {
-	Goal                GoalID
+	Goal                ConcernID
 	Score               float64
 	Deficit             domain.Fact[float64]
 	WaitingSince        domain.Tick
@@ -163,7 +163,7 @@ type DevelopmentState struct {
 	// unknown labor falls back to the coarse worker bound alone.
 	Labor     domain.Fact[map[WorkType]int]
 	Capacity  int
-	Committed []GoalID
+	Committed []ConcernID
 	Rows      []DevelopmentRow
 	// Partial: the planner pass that followed this review ran only the
 	// planners a wake named, so a selected goal whose planner did not run
@@ -224,7 +224,7 @@ func donatedOrder(row DevelopmentRow) int {
 	return 5
 }
 
-func validGoal(id GoalID, priority int) bool {
+func validGoal(id ConcernID, priority int) bool {
 	return validResource(Resource(id)) && priority >= 0 && priority <= 4
 }
 
@@ -261,7 +261,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	for _, w := range r.Withheld {
 		ledger.take(LaborProfile{w})
 	}
-	old := map[GoalID]DevelopmentRow{}
+	old := map[ConcernID]DevelopmentRow{}
 	if sameWorld(r.Previous.Snapshot, r.Snapshot) && r.Tick >= r.Previous.Tick {
 		for _, row := range r.Previous.Rows {
 			if row.WaitingSince < 0 || row.WaitingSince > r.Previous.Tick {
@@ -273,10 +273,10 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			old[row.Goal] = row
 		}
 	}
-	committed := map[GoalID]bool{}
-	released := map[GoalID]bool{}
-	idleSince := map[GoalID]domain.Tick{}
-	evidence := map[GoalID]LaborEvidence{}
+	committed := map[ConcernID]bool{}
+	released := map[ConcernID]bool{}
+	idleSince := map[ConcernID]domain.Tick{}
+	evidence := map[ConcernID]LaborEvidence{}
 	seenActions := map[domain.ActionID]bool{}
 	for _, c := range r.Commitments {
 		v := c.Progress.View()
@@ -328,7 +328,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	result.Holds = CommitmentHolds(r.Commitments, r.Tick, released, r.Withheld)
 	sort.Slice(result.Committed, func(i, j int) bool { return result.Committed[i] < result.Committed[j] })
 	emergency := false
-	seen := map[GoalID]bool{}
+	seen := map[ConcernID]bool{}
 	for _, g := range r.Goals {
 		fraction, known := g.Deficit.Value()
 		risk, riskKnown := g.Risk.Value()
@@ -401,7 +401,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		result.Rows = append(result.Rows, row)
 	}
-	profiles := map[GoalID]LaborProfile{}
+	profiles := map[ConcernID]LaborProfile{}
 	for _, g := range r.Goals {
 		profiles[g.ID] = g.Labor
 	}

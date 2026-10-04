@@ -24,7 +24,7 @@ type GoalOrphanPass func(context.Context, []PlanState) error
 // save without goal blobs leaves no goals (D5), without project blobs no
 // projects. An incident's method rows are not touched.
 func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orphans GoalOrphanPass) error {
-	goals := map[domain.GoalID]GovernorGoalBlob{}
+	goals := map[domain.ConcernID]GovernorGoalBlob{}
 	for key, blob := range saved {
 		if !strings.HasPrefix(key, GovernorGoalKeyPrefix) {
 			continue
@@ -203,15 +203,15 @@ func rebuildProjects(ctx context.Context, tx *sql.Tx, projects map[domain.Projec
 	return nil
 }
 
-func goalIDs(ctx context.Context, tx *sql.Tx) ([]domain.GoalID, error) {
+func goalIDs(ctx context.Context, tx *sql.Tx) ([]domain.ConcernID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM goals ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []domain.GoalID
+	var out []domain.ConcernID
 	for rows.Next() {
-		var id domain.GoalID
+		var id domain.ConcernID
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}

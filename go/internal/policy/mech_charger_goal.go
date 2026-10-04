@@ -17,7 +17,7 @@ import (
 // The charger is a building that produces wastepacks, so it is sited by the
 // polluting-machine rule (PollutionSites, #1684) over free ground, never by a
 // definition name: the catalog's mech_charger flag finds the definition.
-const EnsureMechCharger GoalID = "EnsureMechCharger"
+const EnsureMechCharger ConcernID = "EnsureMechCharger"
 
 // MechChargerNeed is RoutineFacts.MechChargerOwed's value: whether the colony
 // owes one more charger, unknown while the mechs or the charger list are

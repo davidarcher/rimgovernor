@@ -40,7 +40,7 @@ func ColonyWindow() uint64 {
 // EnsureFoodSupply: the foothold gates and the first maintenance-tier
 // projects, so the timeline shows which one stalls, thrashes or starves the
 // others (#99).
-var ColonyGoals = []policy.GoalID{
+var ColonyGoals = []policy.ConcernID{
 	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
 	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureWorkAssignments, policy.EnsureBasicDefense, policy.EnsureResearch,

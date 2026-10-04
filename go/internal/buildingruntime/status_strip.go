@@ -129,21 +129,21 @@ func openIncidents(states []store.IncidentState) []domain.Incident {
 // when its plan retires or the action leaves Pending), and each goal's
 // target, the cell of its first open action that names one (#847). A plan
 // that does not load is skipped.
-func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState, projects []store.ProjectState, incidents []store.IncidentState) ([]policy.RefusalMarker, map[policy.GoalID]domain.Cell) {
+func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState, projects []store.ProjectState, incidents []store.IncidentState) ([]policy.RefusalMarker, map[policy.ConcernID]domain.Cell) {
 	type owner struct {
-		id    policy.GoalID
+		id    policy.ConcernID
 		plans []domain.PlanID
 	}
 	var owners []owner
 	for _, goal := range goals {
-		o := owner{id: policy.GoalID(goal.Goal.ID)}
+		o := owner{id: policy.ConcernID(goal.Goal.ID)}
 		for _, method := range goal.Methods {
 			o.plans = append(o.plans, method.Plan)
 		}
 		owners = append(owners, o)
 	}
 	for _, project := range projects {
-		o := owner{id: policy.GoalID(project.Project.ID)}
+		o := owner{id: policy.ConcernID(project.Project.ID)}
 		for _, method := range project.Methods {
 			o.plans = append(o.plans, method.Plan)
 		}
@@ -157,7 +157,7 @@ func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState
 		owners = append(owners, o)
 	}
 	var out []policy.RefusalMarker
-	cells := map[policy.GoalID]domain.Cell{}
+	cells := map[policy.ConcernID]domain.Cell{}
 	for _, o := range owners {
 		for _, planID := range o.plans {
 			plan, err := r.player.journal.LoadPlan(ctx, planID)

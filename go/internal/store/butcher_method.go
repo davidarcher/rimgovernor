@@ -15,7 +15,7 @@ const butcherSpotDefinition = "ButcherSpot"
 // foodGoal reports the routine EnsureFoodSupply goal; the routine goal id
 // ends in its need.
 func foodGoal(goal WorkOwner) bool {
-	return routineGoalOwns(domain.GoalID(goal.OwnerID()), policy.EnsureFoodSupply)
+	return routineStandardOwns(domain.ConcernID(goal.OwnerID()), policy.EnsureFoodSupply)
 }
 
 // butcherSpotBuilding reports a building action placing the butcher spot.

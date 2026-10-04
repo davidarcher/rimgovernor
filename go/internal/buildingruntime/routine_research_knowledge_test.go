@@ -31,7 +31,7 @@ func TestRoutineResearchFillsAnEmptyKnowledgeSlot(t *testing.T) {
 	}
 	base.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: pawns}}
 	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureResearch})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureResearch})
 	if _, err := reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

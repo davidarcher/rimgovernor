@@ -15,7 +15,7 @@ import (
 // meets with a production bill when the recipe is available and a trade buy
 // when a trader sells it. Psyfocus is kept at target by the meditation
 // schedule (PlanSchedulesHeld, #1316), not by this goal.
-const MaintainPsylink GoalID = "MaintainPsylink"
+const MaintainPsylink ConcernID = "MaintainPsylink"
 
 // PsylinkNeuroformer is the ThingDef that grants a psylink (or a level) to
 // the colonist who uses it; psycast neurotrainers teach one psycast and need

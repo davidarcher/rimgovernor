@@ -52,7 +52,7 @@ func empAdapted(m CombatMemory, id domain.PawnID) bool {
 // aims at any cell whose blast still reaches such a scyther. Otherwise it
 // is GrenadeTarget.
 func grenadeAim(view CombatView, m CombatMemory, carrier CombatPawnState, hostiles []CombatPawnState, colonists []domain.Cell) (domain.Cell, bool) {
-	if !carrier.WeaponFacts.EMP ||!slices.ContainsFunc(hostiles, isMech) {
+	if !carrier.WeaponFacts.EMP || !slices.ContainsFunc(hostiles, isMech) {
 		return GrenadeTarget(carrier, hostiles, colonists)
 	}
 	layout, ok := view.Layout.Value()

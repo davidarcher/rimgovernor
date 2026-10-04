@@ -67,7 +67,7 @@ type Slot struct {
 type Subject struct {
 	World      World
 	ReviewTick domain.Tick
-	Goal       domain.GoalID
+	Goal       domain.ConcernID
 	Method     domain.MethodID
 	Action     domain.ActionID
 	// Slot is the ranking row, nil when the goal was not on the review.
@@ -88,7 +88,7 @@ type Diagnosis struct {
 	Colony, Load string
 	Map          int
 	ReviewTick   domain.Tick
-	Goal         domain.GoalID
+	Goal         domain.ConcernID
 	Method       domain.MethodID
 	Action       domain.ActionID
 	Class        Class

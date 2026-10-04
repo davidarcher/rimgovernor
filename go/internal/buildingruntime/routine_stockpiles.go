@@ -233,7 +233,7 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	for _, row := range census {
 		benches[row.Bench.ID] = true
 	}
-	zoneGoal := map[string]domain.GoalID{}
+	zoneGoal := map[string]domain.ConcernID{}
 	for _, z := range owned {
 		zoneGoal[z.ID] = z.Goal
 	}

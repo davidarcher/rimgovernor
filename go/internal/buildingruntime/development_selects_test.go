@@ -11,7 +11,7 @@ import (
 func TestDevelopmentSelectsCommittedBenchGoals(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		goal domain.GoalID
+		goal domain.ConcernID
 		row  store.RoutineDevelopmentRow
 		want bool
 	}{

@@ -70,13 +70,13 @@ sleeping planner uses the existing bed-assignment operation for ordinary beds.
 
 The governor makes **Rounds** (the routine review): in each **Department** it
 runs an **Inspection** on every **Concern**. A Concern is a kind the governor
-watches (`EnsureFoodSupply`, `ActiveCombat`); it takes one of three **Forms**
-(epic #1012), and the Form says which lifecycle it follows. **Safeguards**
+watches (`EnsureFoodSupply`, `ActiveCombat`); it takes one of three **Types**
+(epic #1012), and the Type says which lifecycle it follows. **Safeguards**
 veto unsafe Plans at Admission, and the chosen **Method** produces a **Plan**.
 The shared words and what each replaced are in the
 [vocabulary glossary](../agent-runbook.md#vocabulary-glossary-epic-1964);
 code and storage still carry the old words until the rename children of
-#1964 land, so a grep for `GoalID` finds the Concern ids and `RoutineReview`
+#1964 land, so a grep for `RoutineReview`
 finds Rounds.
 
 An Incident is a `incidents` row and a Project is a `projects` row (#1926);
@@ -93,22 +93,22 @@ player activation that forces a deficit on a finished Project mints a new
 `project-player-<hex32>-<kind>` row the same way. No Project or Incident kind
 is ever a `goals` row.
 
-| Form | What it is | Lifecycle |
+| Type | What it is | Lifecycle |
 | --- | --- | --- |
 | Standard | A measured target held over time. A chore is a Standard whose target is no outstanding work. | Keyed by world and Concern; its Inspection finds it Met, Unmet or Unclear. Rows are Open, Settled or Voided; it starts a new Episode (today `epoch`) when a settled target goes unmet again. |
 | Project | A finite piece of work with a finished state and dependency links to other Projects. | One `projects` row per `project-<hex8 world digest>-<kind>-<gen>` id (`domain.Project`, no episode); Open, then Completed (or Voided with the world). A Completed Project that later breaks opens a new Project, never an Episode. The colony stage is derived from Completed foothold Projects. |
 | Incident | An occurrence triggered by an event, one row per occurrence (trigger, start, end). | Its Inspection reports a Situation: Active, Clear or Unclear. Opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident; they still go through the shared ColonyPlan and Admission. |
 
-A Safeguard is not a Form. It is an admission veto: it rejects proposals,
+A Safeguard is not a Type. It is an admission veto: it rejects proposals,
 pursues nothing and owns no Methods. It is evaluated at Admission, and
 suspending other work is a Safeguard's job, not a priority value. Safeguards
 carry no Concern id of their own: the emergency check (`EmergencySafeguard`) and
 the unsafe-item veto split from `ManageSupplySafety` are Safeguards, while
 `ManageSupplySafety` itself is the Standard doing the allow and forbid work.
 
-Every Concern id in `go/internal/policy` (`GoalID` in code):
+Every Concern id in `go/internal/policy` (`ConcernID` in code):
 
-| Form | Concern ids |
+| Type | Concern ids |
 | --- | --- |
 | Incident | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
 | Project | `AllowStartingSupplies`, `EnsureCooking`, `MaintainButcherSpot`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
@@ -116,14 +116,14 @@ Every Concern id in `go/internal/policy` (`GoalID` in code):
 | Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainBabyFeeding`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMechs`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainPermits`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell` |
 | Safeguard | none (see above) |
 
-`policy.GoalConcept` returns this classification, and a test fails on any
+`policy.ConcernTypeOf` returns this classification, and a test fails on any
 unclassified Concern id. The foothold Concerns are Projects, except `EnsureFoodSupply`
 and `EnsureBasicDefense`: food days and armed colonists are measured targets
 held over time, so they are Standards. `TradeWithCaravan` handles a caravan
 arrival, so it is an Incident.
 
 A second axis, the Department, tags every Concern with the colony area it
-serves, like a Civ advisor. `policy.GoalDomain` returns it and the same test
+serves, like a Civ advisor. `policy.DepartmentOf` returns it and the same test
 fails on any untagged Concern id. A Department only groups Concerns in panels;
 it never ranks Concerns or budgets labor.
 

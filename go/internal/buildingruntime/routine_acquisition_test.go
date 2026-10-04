@@ -28,7 +28,7 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.PendingWoodUnits = proto.Float64(0)
 	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	v.ColonistCount = proto.Uint32(1)
 	v.WorkerCount = proto.Uint32(1)
 	missing := func(field string) *o.ReadIssue {
@@ -141,7 +141,7 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.PendingWoodUnits = proto.Float64(0)
 	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	v.ColonistCount = proto.Uint32(1)
 	v.WorkerCount = proto.Uint32(1)
 	missing := func(field string) *o.ReadIssue {

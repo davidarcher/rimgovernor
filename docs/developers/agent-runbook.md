@@ -253,23 +253,23 @@ word and the docs name both. Each rename child updates this column and the
 docs for the names it renames.
 
 The governor makes **Rounds**, running an **Inspection** on each **Concern**
-in its **Department**. A Concern takes one **Form**: a **Standard** (kept up),
+in its **Department**. A Concern takes one **Type**: a **Standard** (kept up),
 a **Project** (built once) or an **Incident** (handled when it happens).
 **Safeguards** veto unsafe Plans, and the chosen **Method** produces a
 **Plan**.
 
 | Old word | New word | Meaning | In code |
 | --- | --- | --- | --- |
-| `GoalID` (e.g. `EnsureFoodSupply`) | Concern | A kind the governor watches. The id strings do not change. | pending #1968 |
-| `GoalDetector` | Inspection | Checks one Concern. | pending #1968 |
-| `GoalConcept`, "concept" | Form | Standard, Project or Incident. | pending #1968 |
-| `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | pending #1968 |
+| `GoalID` (e.g. `EnsureFoodSupply`) | Concern | A kind the governor watches. The id strings do not change. | done (#1968) |
+| `GoalDetector` | Inspection | Checks one Concern. | done (#1968) |
+| `GoalConcept`, "concept" | Type | Standard, Project or Incident. | done (#1968) |
+| `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | done (#1968) |
 | `RoutineReview` | Rounds | The routine review. The `Routine*` family follows as `Rounds*`. | pending #1975, then #1979 |
 | `Goal` row, `goals` table | Standard | `Open / Settled / Voided` (was `Cancelled` too; the player-goal path is deleted). | pending #1972, #1976 |
 | `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. | pending #1972 |
 | `Project` | Project | `Open / Completed / Voided`. | pending #1972 |
-| `Response` concept, `Incident` row | Incident | Both the Form and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | pending #1972 |
-| `Rule` | Safeguard | An admission veto; not a Form. | pending #1970 |
+| `Response` concept, `Incident` row | Incident | Both the Type and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | pending #1972 |
+| `Rule` | Safeguard | An admission veto; not a Type. | done (#1970) |
 | `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | pending #1973 |
 | `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); the table is renamed in place, then split per owner. | pending #1974, #1976, #1980 |
 | player goals (`GoalSource`, `GoalKind`, `CreateGoal`, `CancelPlayerGoal`, `PlayerGoals`, `/goals`) | deleted | Play is autonomous (#719). | done (#1967) |

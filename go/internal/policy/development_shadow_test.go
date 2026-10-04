@@ -17,7 +17,7 @@ func shadowProjection() ForwardProjection {
 	}
 }
 
-func shadowRow(goal GoalID, reason DevelopmentReason) DevelopmentRow {
+func shadowRow(goal ConcernID, reason DevelopmentReason) DevelopmentRow {
 	return DevelopmentRow{Goal: goal, Reason: reason, Selected: reason == ""}
 }
 
@@ -31,16 +31,16 @@ func TestShadowRankOrdersByShortfallPerAction(t *testing.T) {
 		shadowRow(MaintainHousing, ""),                 // unmapped: left out
 		shadowRow(MaintainWaste, DevelopmentCommitted), // already under way: left out
 	}}
-	open := map[GoalID]int{MaintainRefrigeration: 1, MaintainResource: 4, EnsureTemperatureSafety: 1, EnsureBasicDefense: 2}
+	open := map[ConcernID]int{MaintainRefrigeration: 1, MaintainResource: 4, EnsureTemperatureSafety: 1, EnsureBasicDefense: 2}
 	got := ShadowRankOf(state, shadowProjection(), open)
-	var order []GoalID
+	var order []ConcernID
 	for _, e := range got.Ranked {
 		order = append(order, e.Goal)
 	}
-	if want := []GoalID{EnsureTemperatureSafety, MaintainRefrigeration, MaintainResource}; !reflect.DeepEqual(order, want) {
+	if want := []ConcernID{EnsureTemperatureSafety, MaintainRefrigeration, MaintainResource}; !reflect.DeepEqual(order, want) {
 		t.Fatal(order)
 	}
-	if want := []GoalID{MaintainRefrigeration, MaintainResource, EnsureTemperatureSafety}; !reflect.DeepEqual(got.Current, want) {
+	if want := []ConcernID{MaintainRefrigeration, MaintainResource, EnsureTemperatureSafety}; !reflect.DeepEqual(got.Current, want) {
 		t.Fatal(got.Current)
 	}
 	if len(got.Unranked) != 2 || got.Unranked[0].Goal != EnsureBasicDefense || got.Unranked[1].Goal != MaintainFoodStorage {
@@ -56,7 +56,7 @@ func TestShadowRankUnknownProjectionIsLeftOut(t *testing.T) {
 	state := DevelopmentState{Rows: []DevelopmentRow{shadowRow(MaintainResource, DevelopmentCapacity)}}
 	p := shadowProjection()
 	p.Food = domain.Unknown[FoodProjection]()
-	got := ShadowRankOf(state, p, map[GoalID]int{MaintainResource: 1})
+	got := ShadowRankOf(state, p, map[ConcernID]int{MaintainResource: 1})
 	if len(got.Ranked) != 0 || len(got.Unranked) != 1 || len(got.Disagreements) != 0 {
 		t.Fatal(got)
 	}
@@ -64,7 +64,7 @@ func TestShadowRankUnknownProjectionIsLeftOut(t *testing.T) {
 
 func TestShadowRankAgreeingOrderLogsNoDisagreement(t *testing.T) {
 	state := DevelopmentState{Rows: []DevelopmentRow{shadowRow(EnsureTemperatureSafety, ""), shadowRow(MaintainRefrigeration, "")}}
-	got := ShadowRankOf(state, shadowProjection(), map[GoalID]int{EnsureTemperatureSafety: 1, MaintainRefrigeration: 1})
+	got := ShadowRankOf(state, shadowProjection(), map[ConcernID]int{EnsureTemperatureSafety: 1, MaintainRefrigeration: 1})
 	if len(got.Disagreements) != 0 || len(got.Ranked) != 2 {
 		t.Fatal(got)
 	}
@@ -77,18 +77,18 @@ func TestShadowRankLeavesAdmissionUnchanged(t *testing.T) {
 		{Goal: MaintainRefrigeration, Selected: true, Score: 3},
 		{Goal: EnsureTemperatureSafety, Selected: true, Score: 1},
 		{Goal: MaintainResource, Reason: DevelopmentCapacity},
-	}, Committed: []GoalID{MaintainWaste}, Holds: []DevelopmentHold{{Goal: MaintainWaste}}}
+	}, Committed: []ConcernID{MaintainWaste}, Holds: []DevelopmentHold{{Goal: MaintainWaste}}}
 	before := state
 	before.Rows = append([]DevelopmentRow(nil), state.Rows...)
-	admitted := func(s DevelopmentState) map[GoalID]bool {
-		out := map[GoalID]bool{}
-		for _, id := range []GoalID{MaintainRefrigeration, EnsureTemperatureSafety, MaintainResource, MaintainFoodStorage} {
+	admitted := func(s DevelopmentState) map[ConcernID]bool {
+		out := map[ConcernID]bool{}
+		for _, id := range []ConcernID{MaintainRefrigeration, EnsureTemperatureSafety, MaintainResource, MaintainFoodStorage} {
 			out[id] = AdmitDevelopment(s, id) == nil
 		}
 		return out
 	}
 	want := admitted(state)
-	ShadowRankOf(state, shadowProjection(), map[GoalID]int{MaintainRefrigeration: 1, EnsureTemperatureSafety: 1, MaintainResource: 1})
+	ShadowRankOf(state, shadowProjection(), map[ConcernID]int{MaintainRefrigeration: 1, EnsureTemperatureSafety: 1, MaintainResource: 1})
 	if !reflect.DeepEqual(state, before) || !reflect.DeepEqual(admitted(state), want) {
 		t.Fatal("shadow ranker changed the development state")
 	}
