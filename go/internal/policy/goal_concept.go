@@ -5,15 +5,15 @@ package policy
 type Concept string
 
 const (
-	ConceptUnknown  Concept = ""
-	ConceptStandard Concept = "Standard"
-	ConceptProject  Concept = "Project"
-	ConceptResponse Concept = "Response"
-	ConceptRule     Concept = "Rule"
+	ConceptUnknown   Concept = ""
+	ConceptStandard  Concept = "Standard"
+	ConceptProject   Concept = "Project"
+	ConceptResponse  Concept = "Response"
+	ConceptSafeguard Concept = "Safeguard"
 )
 
-// GoalConcept classifies id from the detector registry. Rules carry no GoalID, so no id maps to
-// ConceptRule; an unknown id is ConceptUnknown.
+// GoalConcept classifies id from the detector registry. Safeguards carry no GoalID, so no id maps to
+// ConceptSafeguard; an unknown id is ConceptUnknown.
 func GoalConcept(id GoalID) Concept { return goalDetectorIndex[id].Concept }
 
 // IsIncidentKind reports whether id is a Response, whose occurrences are

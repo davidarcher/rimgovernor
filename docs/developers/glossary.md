@@ -11,7 +11,7 @@
 | Standard | A goal holding a measured target over time; a chore is a Standard whose target is no outstanding work. See [goal concepts](architecture/control-loop.md#goal-concepts). |
 | Project | A goal with a finite finished state and dependency links to other Projects. |
 | Response | An incident triggered by an event, one row per occurrence. |
-| Rule | An admission veto; it rejects proposals and pursues nothing. |
+| Safeguard | An admission veto; it rejects proposals and pursues nothing. |
 | Domain | The colony area a goal serves (Food, Shelter, Industry, Military, Medical, People, Upkeep, plus a hidden System for game plumbing), like a Civ advisor. A grouping tag only; it never ranks goals or budgets labor. See [goal concepts](architecture/control-loop.md#goal-concepts). |
 | Method | A selected way to pursue a goal, retaining its attempts and step associations. |
 | Step / action | An accepted unit of work with a stable identity, specification and execution progress. Exact completion depends on its action contract. |

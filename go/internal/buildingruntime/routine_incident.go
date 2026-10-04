@@ -25,7 +25,7 @@ func routineIncident(call context.Context, journal *store.Store, review store.Ro
 }
 
 // incidentDeficit is routineIncident narrowed to what a planner may
-// commit to: an occurrence in deficit that no Rule vetoes.
+// commit to: an occurrence in deficit that no Safeguard vetoes.
 func incidentDeficit(call context.Context, journal *store.Store, review store.RoutineReview, kind policy.GoalID) (store.IncidentState, bool, error) {
 	state, need, ok, err := routineIncident(call, journal, review, kind)
 	if err != nil || !ok || need != domain.NeedDeficit || review.VetoIncident(state.Incident) != "" {

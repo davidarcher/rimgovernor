@@ -71,7 +71,7 @@ func (r RoutineReview) incidentBinding(id domain.IncidentID) (RoutineIncident, b
 	return RoutineIncident{}, false
 }
 
-// VetoIncident asks the Rules whether this review admits a proposal for
+// VetoIncident asks the Safeguards whether this review admits a proposal for
 // the incident, returning the veto's reason or "".
 func (r RoutineReview) VetoIncident(i domain.Incident) string {
 	return r.vetoNeed(i.Kind, i.Priority)

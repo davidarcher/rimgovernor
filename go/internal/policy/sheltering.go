@@ -117,7 +117,7 @@ func NoDangerCells(home, killbox, seeds []domain.Cell) []domain.Cell {
 
 // ShelterPriority is the priority of sheltering work (the Safe area and the
 // moves into it) while trigger holds. A threat is itself the ActiveCombat
-// emergency and EmergencyRule vetoes priority 2 and above, so under a threat
+// emergency and EmergencySafeguard vetoes priority 2 and above, so under a threat
 // sheltering is an emergency need too (priority 1); development is already
 // held. Fallout and weather raise no emergency and keep priority 2.
 func ShelterPriority(trigger ShelterTrigger) int {

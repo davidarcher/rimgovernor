@@ -48,11 +48,11 @@ func (g GoalState) ownerPlans() []domain.PlanID {
 }
 func (g GoalState) ownerLabel() string { return "goal " + string(g.Goal.ID) }
 
-// admitRoutineRules is method admission's backstop for the Rules the
+// admitRoutineSafeguards is method admission's backstop for the Safeguards the
 // planner already asked: a vetoed proposal is ErrNotAdmitted with the
-// Rule's reason. An owner the review does not bind (a player goal) is
-// outside the routine Rules.
-func admitRoutineRules(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+// Safeguard's reason. An owner the review does not bind (a player goal) is
+// outside the routine Safeguards.
+func admitRoutineSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
 	review, err := loadRoutine(ctx, tx)
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func admitRoutineRules(ctx context.Context, tx *sql.Tx, owner methodOwner) error
 		return nil
 	}
 	if ref, vetoed := review.refuseNeed(need, owner.ownerPriority()); vetoed {
-		return fmt.Errorf("%w: %s: %s: %s", ErrNotAdmitted, owner.ownerLabel(), ref.Rule, ref.Reason)
+		return fmt.Errorf("%w: %s: %s: %s", ErrNotAdmitted, owner.ownerLabel(), ref.Safeguard, ref.Reason)
 	}
 	return nil
 }
@@ -106,8 +106,8 @@ func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method 
 	return err
 }
 
-func (r RoutineReview) refuseNeed(need domain.GoalID, priority int) (policy.RuleRefusal, bool) {
-	return policy.RefuseProposal(policy.RuleContext{Enabled: r.Enabled, Emergency: r.Emergency, Unsafe: r.Unsafe}, policy.RuleProposal{Need: need, Priority: priority})
+func (r RoutineReview) refuseNeed(need domain.GoalID, priority int) (policy.SafeguardRefusal, bool) {
+	return policy.RefuseProposal(policy.SafeguardContext{Enabled: r.Enabled, Emergency: r.Emergency, Unsafe: r.Unsafe}, policy.SafeguardProposal{Need: need, Priority: priority})
 }
 
 func (r RoutineReview) vetoNeed(need domain.GoalID, priority int) string {

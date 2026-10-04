@@ -10,10 +10,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The Rules veto method admission during an emergency and a pause, with
-// the Rule's reason, and admit once the emergency clears (#1017). The goal
+// The Safeguards veto method admission during an emergency and a pause, with
+// the Safeguard's reason, and admit once the emergency clears (#1017). The goal
 // itself stays active throughout: priority orders work only.
-func TestRoutineRulesVetoAdmissionUntilEmergencyClears(t *testing.T) {
+func TestRoutineSafeguardsVetoAdmissionUntilEmergencyClears(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))

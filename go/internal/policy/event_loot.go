@@ -76,7 +76,7 @@ func ReviewEventLoot(observed domain.Fact[[]LootItem], previous EventLootHistory
 	return next, domain.Known(len(next.Pending) > 0), nil
 }
 
-// supplySafetyPriority is a Standard's: UnsafeLootRule refuses allowing
+// supplySafetyPriority is a Standard's: UnsafeLootSafeguard refuses allowing
 // unsafe loot at dispatch, so unsafe loot raises no emergency (#1018).
 func supplySafetyPriority(f RoutineFacts) int {
 	if _, known := f.EventLoot.Value(); known {

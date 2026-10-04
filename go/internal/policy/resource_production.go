@@ -398,7 +398,7 @@ type ResourceMethod struct {
 // target SelectResourceMethod should fund a bill for, plus the same generic
 // bench/recipe census GearProduce/MaintainMedicalReserves already read
 // (policy.GearBench/GearRecipe via bridge.ReadGearBenches/ReadSupplyStock).
-// Like MedicinePlanningRequest, no Rules or Holds are threaded through yet —
+// Like MedicinePlanningRequest, no Safeguards or Holds are threaded through yet —
 // the same disclosed no-cross-goal-ingredient-reservation gap GearProduce
 // and MaintainMedicalReserves already carry applies here too.
 type ResourceMethodRequest struct {

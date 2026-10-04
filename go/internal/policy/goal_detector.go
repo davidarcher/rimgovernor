@@ -136,7 +136,7 @@ func ValidateGoalDetectors(detectors []GoalDetector, ids []GoalID) error {
 	for _, d := range detectors {
 		count[d.Goal]++
 		switch {
-		case d.Concept == ConceptUnknown || d.Concept == ConceptRule:
+		case d.Concept == ConceptUnknown || d.Concept == ConceptSafeguard:
 			return fmt.Errorf("goal detector %s: no concept", d.Goal)
 		case d.Domain == DomainUnknown:
 			return fmt.Errorf("goal detector %s: no domain", d.Goal)

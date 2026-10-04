@@ -237,7 +237,7 @@ func loadIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID) (Incide
 }
 
 // CommitIncidentMethod stores a method for an open incident and its shared
-// plan atomically, through the Rules and per-family admission a goal's
+// plan atomically, through the Safeguards and per-family admission a goal's
 // method takes. Like CommitGoalMethod it grants no authority to dispatch.
 func (s *Store) CommitIncidentMethod(ctx context.Context, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec) (IncidentState, error) {
 	if err := plan.Validate(); err != nil {
@@ -268,7 +268,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if state.Incident.Closed {
 		return IncidentState{}, fmt.Errorf("%w: incident %s is closed", ErrConflict, id)
 	}
-	if err = admitRoutineRules(ctx, tx, state); err != nil {
+	if err = admitRoutineSafeguards(ctx, tx, state); err != nil {
 		return IncidentState{}, err
 	}
 	open, err := goalOpenWork(ctx, tx, state)
@@ -291,7 +291,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 }
 
 // guardIncidentWork is guardGoalWork for an incident's plan: the occurrence
-// is open in the current world and no Rule vetoes it.
+// is open in the current world and no Safeguard vetoes it.
 func guardIncidentWork(ctx context.Context, tx *sql.Tx, id domain.IncidentID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
@@ -301,5 +301,5 @@ func guardIncidentWork(ctx context.Context, tx *sql.Tx, id domain.IncidentID, cu
 	if i.Closed || !i.Snapshot.SameWorld(current) || tick < i.Started {
 		return errors.New("incident does not admit current work")
 	}
-	return admitRoutineRules(ctx, tx, state)
+	return admitRoutineSafeguards(ctx, tx, state)
 }

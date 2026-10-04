@@ -5,7 +5,7 @@
 Player requests and routine automation share admission checks, resource accounting
 and completion tracking. The plan owns goals; Hands deterministically executes
 accepted work. Advisers cannot commit game orders. Each goal is a Standard,
-Project or Response, and Rules veto proposals at admission; see
+Project or Response, and Safeguards veto proposals at admission; see
 [goal concepts](control-loop.md#goal-concepts).
 
 ```mermaid

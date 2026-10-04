@@ -79,7 +79,7 @@ func (s *Store) WorkableOwner(ctx context.Context, r RoutineReview, need policy.
 }
 
 // WorkableProject loads the Project the review binds to need and reports
-// whether a planner may work it: an open deficit the Rules admit (#1121).
+// whether a planner may work it: an open deficit the Safeguards admit (#1121).
 func (s *Store) WorkableProject(ctx context.Context, r RoutineReview, need policy.GoalID) (ProjectState, bool, error) {
 	for _, binding := range r.Projects {
 		if binding.Need != need {

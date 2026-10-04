@@ -36,7 +36,7 @@ const applicationID = 0x52474f31
 var ErrConflict = core.ErrConflict
 var ErrNotAdmitted = core.ErrNotAdmitted
 
-// ErrActionVetoed is an action Rule's dispatch refusal (#1018).
+// ErrActionVetoed is an action Safeguard's dispatch refusal (#1018).
 var ErrActionVetoed = errors.New("action vetoed")
 var ErrNotFound = core.ErrNotFound
 

@@ -178,7 +178,7 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 	}
 	// An emergency (a dialog pause, an injury) holds every development row
 	// idle without handing any planner the slot; those reviews are neutral
-	// too, and a goal its Rule vetoes is the park verdict's.
+	// too, and a goal its Safeguard vetoes is the park verdict's.
 	if reason == string(policy.DevelopmentEmergency) {
 		return Verdict{}, false
 	}
@@ -212,7 +212,7 @@ func (f *failFastState) refusal(step na.SchedulerStep) (Verdict, bool) {
 	}, true
 }
 
-// emergencyPark counts consecutive samples in which the Rules veto the
+// emergencyPark counts consecutive samples in which the Safeguards veto the
 // watched goal, the review names emergency needs (sample["emergency"]), and
 // the live tick is where the previous sample left it. Any of the three
 // changing resets the count: a moving tick means something is serving the

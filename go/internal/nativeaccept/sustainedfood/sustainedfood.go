@@ -436,7 +436,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	sample["review_revision"] = review.Revision
 	sample["review_tick"] = uint64(review.Tick)
 	sample["latch_food"] = review.Latches.Food
-	// The emergency needs whose EmergencyRule vetoes other work (#1017).
+	// The emergency needs whose EmergencySafeguard vetoes other work (#1017).
 	emergency := []string{}
 	for _, id := range review.Emergency {
 		emergency = append(emergency, string(id))

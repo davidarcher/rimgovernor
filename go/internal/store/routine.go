@@ -36,10 +36,10 @@ type ReserveSupply struct {
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
 	// Emergency names the assessed needs policy.EmergencyNeed found in this
-	// enabled review; the EmergencyRule vetoes other work from them (#1017).
+	// enabled review; the EmergencySafeguard vetoes other work from them (#1017).
 	Emergency []policy.GoalID `json:",omitempty"`
 	// Unsafe lists the loose things the last known safety census reported
-	// unsafe to haul; policy.UnsafeLootRule refuses allowing them at
+	// unsafe to haul; policy.UnsafeLootSafeguard refuses allowing them at
 	// dispatch (#1018).
 	Unsafe          []string                `json:",omitempty"`
 	BrewingFinished bool                    `json:",omitempty"`
@@ -147,7 +147,7 @@ type RoutineReviewResult struct {
 	Projects []ProjectState
 	// Incidents are the occurrences Review.Incidents binds (#1020).
 	Incidents []IncidentState
-	// Emergency names the assessed needs whose EmergencyRule vetoes every
+	// Emergency names the assessed needs whose EmergencySafeguard vetoes every
 	// priority>=2 proposal in this review (a home fire, live hostiles, a critical patient);
 	// empty when nothing did. The development rows only say "emergency", so
 	// this is the log's answer to which need held the colony (#221).
@@ -566,7 +566,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 				}
 			}
 		}
-		// Paused control keeps its goals active: the PauseRule vetoes new
+		// Paused control keeps its goals active: the PauseSafeguard vetoes new
 		// work, native designations already issued keep progressing and the
 		// resumed goal adopts the result.
 		old[binding.Need] = g
@@ -741,7 +741,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			result.Projects = append(result.Projects, oldProjects[binding.Need])
 		}
 	} else {
-		// The review records the emergency needs; the EmergencyRule vetoes
+		// The review records the emergency needs; the EmergencySafeguard vetoes
 		// other work from them at admission and dispatch (#1017).
 		for _, n := range needs.All() {
 			if policy.EmergencyNeed(n) {

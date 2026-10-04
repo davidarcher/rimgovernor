@@ -243,7 +243,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 	for j, r := range dispatched {
 		i, a := ready[j], readyAttempts[j]
 		if errors.Is(r.Err, store.ErrActionVetoed) {
-			// An action Rule refused only this action (#1018); record why.
+			// An action Safeguard refused only this action (#1018); record why.
 			if held, holdErr := e.journal.Hold(ctx, a.Plan, a.Action, []domain.HeldReason{domain.HeldUnsafeItem}, a.Tick); holdErr == nil {
 				out[i].Result.Progress = held
 			}

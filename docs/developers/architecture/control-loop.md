@@ -102,7 +102,7 @@ is ever a `goals` row.
 A Safeguard is not a Form. It is an admission veto: it rejects proposals,
 pursues nothing and owns no Methods. It is evaluated at Admission, and
 suspending other work is a Safeguard's job, not a priority value. Safeguards
-carry no Concern id of their own: the emergency check (`EmergencyRule`) and
+carry no Concern id of their own: the emergency check (`EmergencySafeguard`) and
 the unsafe-item veto split from `ManageSupplySafety` are Safeguards, while
 `ManageSupplySafety` itself is the Standard doing the allow and forbid work.
 

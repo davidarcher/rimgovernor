@@ -217,7 +217,7 @@ func TestDangerSeedsAreLiveHostilesAndEveryHive(t *testing.T) {
 	}
 }
 
-// A threat is itself the ActiveCombat emergency, and EmergencyRule vetoes
+// A threat is itself the ActiveCombat emergency, and EmergencySafeguard vetoes
 // priority 2 and above: the Safe area and the moves into it must sit below
 // that floor, or a manhunter pack shelters no one (#1560).
 func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
@@ -226,12 +226,12 @@ func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
 	f.ShelterCombatants = domain.Known([]PawnID{})
 	f.SafeAreaOwed = domain.Known(true)
 	r := needs(t, f, RoutineLatches{})
-	rule := RuleContext{Enabled: true, Emergency: []GoalID{ActiveCombat}}
+	rule := SafeguardContext{Enabled: true, Emergency: []GoalID{ActiveCombat}}
 	seen := map[GoalID]bool{}
 	for _, g := range r.Goals {
 		if g.ID == MaintainShelter {
 			seen[g.ID] = true
-			if reason := VetoProposal(rule, RuleProposal{Need: g.ID, Priority: g.Priority}); reason != "" {
+			if reason := VetoProposal(rule, SafeguardProposal{Need: g.ID, Priority: g.Priority}); reason != "" {
 				t.Fatal("MaintainShelter vetoed under a threat:", reason)
 			}
 		}
@@ -239,7 +239,7 @@ func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
 	for _, a := range r.All() {
 		if a.ID == RecoverDisasterServices && a.Need == domain.NeedDeficit {
 			seen[a.ID] = true
-			if reason := VetoProposal(rule, RuleProposal{Need: a.ID, Priority: a.Priority}); reason != "" {
+			if reason := VetoProposal(rule, SafeguardProposal{Need: a.ID, Priority: a.Priority}); reason != "" {
 				t.Fatal("sheltering vetoed under a threat:", reason)
 			}
 		}

@@ -99,7 +99,7 @@ func TestSafetyForbidPersistsAsDistinctAction(t *testing.T) {
 	}
 }
 
-// An action Rule refuses allowing an item the safety census reported unsafe,
+// An action Safeguard refuses allowing an item the safety census reported unsafe,
 // whichever planner proposed it (#1018); only that action is refused and
 // the rest of the plan dispatches. Unsafe loot raises no emergency.
 func TestUnsafeItemAllowVetoedAtDispatchOnly(t *testing.T) {

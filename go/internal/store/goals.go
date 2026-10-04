@@ -326,7 +326,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 }
 
 // admitOwnerCommit is the commit every method owner shares, a goal or a
-// Project: the revision CAS, the open-deficit check, the Rules and development
+// Project: the revision CAS, the open-deficit check, the Safeguards and development
 // admission, the open-work check with its exemptions, then the family
 // admission, the goal_methods row and the revision bump. The caller reloads
 // the owner.
@@ -338,7 +338,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if summary.Status != domain.GoalActive || summary.Need != domain.NeedDeficit {
 		return errors.New("goal does not admit a method")
 	}
-	if err := admitRoutineRules(ctx, tx, state); err != nil {
+	if err := admitRoutineSafeguards(ctx, tx, state); err != nil {
 		return err
 	}
 	if err := admitRoutineDevelopment(ctx, tx, summary, plan); err != nil {
@@ -550,7 +550,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 		s.Colony != current.Colony || s.Map != current.Map || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}
-	// A prepared plan does not prepare or dispatch while a Rule vetoes its
+	// A prepared plan does not prepare or dispatch while a Safeguard vetoes its
 	// goal (#1017).
-	return admitRoutineRules(ctx, tx, state)
+	return admitRoutineSafeguards(ctx, tx, state)
 }

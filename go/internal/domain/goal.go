@@ -89,7 +89,7 @@ func (g Goal) Validate() error {
 // measured it while a plan's effects were still unresolved and the world has
 // regressed since (a lamp removed behind a lit bench), so the settled
 // epoch's methods may be proposed again. Priority orders work only: an
-// emergency or a pause vetoes proposals through the policy Rules (#1017).
+// emergency or a pause vetoes proposals through the policy Safeguards (#1017).
 // Projects are not goals (Project, ReviewProject).
 func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Goal, error) {
 	original := g

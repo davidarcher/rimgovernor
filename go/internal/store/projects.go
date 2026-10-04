@@ -258,7 +258,7 @@ func (s *Store) CancelProject(ctx context.Context, id domain.ProjectID, revision
 }
 
 // CommitProjectMethod stores a method for an open project and its shared plan
-// atomically, through the Rules and per-family admission a goal's method
+// atomically, through the Safeguards and per-family admission a goal's method
 // takes. Like CommitGoalMethod it grants no authority to dispatch.
 func (s *Store) CommitProjectMethod(ctx context.Context, id domain.ProjectID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (ProjectState, error) {
 	if err := plan.Validate(); err != nil {
@@ -291,7 +291,7 @@ func commitProjectMethod(ctx context.Context, tx *sql.Tx, id domain.ProjectID, r
 }
 
 // guardProjectWork is guardGoalWork for a project's plan: the project is open
-// in the current world and no Rule vetoes it.
+// in the current world and no Safeguard vetoes it.
 func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	state, err := loadProject(ctx, tx, id)
 	if err != nil {
@@ -301,7 +301,7 @@ func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, curr
 	if p.Status != domain.ProjectOpen || p.Need == domain.NeedUnknown || !p.Snapshot.SameWorld(current) || tick < p.Tick {
 		return errors.New("project does not admit current work")
 	}
-	return admitRoutineRules(ctx, tx, state)
+	return admitRoutineSafeguards(ctx, tx, state)
 }
 
 // retireProjects takes invalidated autopilot projects without open work out of

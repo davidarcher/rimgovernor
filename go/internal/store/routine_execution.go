@@ -74,7 +74,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 }
 
 // authorizeIncidentPlan is AuthorizeRoutinePlan for an incident's method
-// (#1020): the review binds the open occurrence in deficit, no Rule vetoes
+// (#1020): the review binds the open occurrence in deficit, no Safeguard vetoes
 // it and the plan is its unretired method.
 func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
 	binding, bound := review.incidentBinding(id)
@@ -112,7 +112,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, ow
 	if g.Retired || g.Source != domain.AutopilotGoal || g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || !sameRoot(g.Snapshot, root) {
 		return ErrConflict
 	}
-	// A prepared plan does not dispatch while a Rule vetoes its goal.
+	// A prepared plan does not dispatch while a Safeguard vetoes its goal.
 	if reason := review.VetoOwner(owner); reason != "" {
 		return fmt.Errorf("%w: %w: goal %s: %s", ErrConflict, ErrNotAdmitted, g.ID, reason)
 	}
@@ -188,9 +188,9 @@ func (r RoutineReview) projectNeed(project domain.ProjectID) (domain.GoalID, boo
 	return "", false
 }
 
-// Veto asks the policy Rules (#1017) whether this review admits a proposal
+// Veto asks the policy Safeguards (#1017) whether this review admits a proposal
 // for the goal, returning the veto's reason or "". A goal the review does
-// not bind (a player goal) is outside the routine Rules.
+// not bind (a player goal) is outside the routine Safeguards.
 func (r RoutineReview) Veto(g domain.Goal) string {
 	need, bound := r.Need(g.ID)
 	if !bound {
@@ -200,7 +200,7 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 }
 
 // Workable loads the Standard goal the review binds to need and reports whether a
-// planner may work it: an active deficit the Rules admit (#1121). The goal
+// planner may work it: an active deficit the Safeguards admit (#1121). The goal
 // is returned whenever the review binds one, workable or not.
 func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.GoalID) (GoalState, bool, error) {
 	id := domain.GoalID("")
@@ -219,15 +219,15 @@ func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.GoalI
 	return goal, goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit && r.Veto(goal.Goal) == "", nil
 }
 
-// vetoAction asks the action Rules (#1018) at dispatch: a vetoed action is
-// ErrActionVetoed with the Rule's reason and only that action is refused.
+// vetoAction asks the action Safeguards (#1018) at dispatch: a vetoed action is
+// ErrActionVetoed with the Safeguard's reason and only that action is refused.
 func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
 	review, err := loadRoutine(ctx, tx)
 	if err != nil {
 		return err
 	}
-	if ref, vetoed := policy.RefuseAction(policy.RuleContext{Enabled: review.Enabled, Emergency: review.Emergency, Unsafe: review.Unsafe}, a); vetoed {
-		return fmt.Errorf("%w: action %s: %s: %s", ErrActionVetoed, a.ID(), ref.Rule, ref.Reason)
+	if ref, vetoed := policy.RefuseAction(policy.SafeguardContext{Enabled: review.Enabled, Emergency: review.Emergency, Unsafe: review.Unsafe}, a); vetoed {
+		return fmt.Errorf("%w: action %s: %s: %s", ErrActionVetoed, a.ID(), ref.Safeguard, ref.Reason)
 	}
 	return nil
 }

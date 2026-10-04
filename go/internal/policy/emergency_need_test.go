@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// One EmergencyNeed answers both the EmergencyRule veto and the
+// One EmergencyNeed answers both the EmergencySafeguard veto and the
 // development freeze, so the two agree for every exclusion (#1014).
 func TestEmergencyNeedExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
 	for _, c := range []struct {

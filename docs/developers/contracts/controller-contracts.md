@@ -25,7 +25,7 @@ deterministic operation can continue.
 The priority tree evaluates combat, critical medicine, food, shelter, temperature,
 cooking, work coverage, power, storage, defense, wood and [equipment upkeep](equipment-upkeep.md). Food, wood and temperature use
 separate entry/recovery thresholds. An emergency need vetoes every priority>=2 routine proposal through the
-EmergencyRule; a pause vetoes all of them through the PauseRule (#1017).
+EmergencySafeguard; a pause vetoes all of them through the PauseSafeguard (#1017).
 Methods, blockers, provenance and progress evidence live in the existing SQLite-backed
 ColonyPlan.
 

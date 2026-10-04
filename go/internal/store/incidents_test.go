@@ -77,7 +77,7 @@ func TestIncidentMethodCommit(t *testing.T) {
 	}
 	id := state.Incident.ID
 	p := plan(t, "incident-plan", "incident-action")
-	// The Rules veto an incident's method as they do a goal's (#1017).
+	// The Safeguards veto an incident's method as they do a goal's (#1017).
 	if _, err = s.CommitIncidentMethod(ctx, id, "fight", "", p); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("pause admitted an incident method", err)
 	}

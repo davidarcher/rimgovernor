@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // EmergencyNeed reports whether a routine assessment is an emergency the
-// EmergencyRule vetoes other work for: the rule and the development freeze both
+// EmergencySafeguard vetoes other work for: the rule and the development freeze both
 // ask it, so they cannot drift (#1014). Only an unrecovered need below
 // priority 2 qualifies, and not when it:
 //   - is a colony-naming or choice dialog (answered by one native write),
