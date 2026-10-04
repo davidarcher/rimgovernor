@@ -122,9 +122,14 @@ func TestIncidentMethodCommit(t *testing.T) {
 	if _, err = s.CommitIncidentMethod(ctx, id, "late", "", plan(t, "late", "late-action")); !errors.Is(err, ErrConflict) {
 		t.Fatal("closed incident admitted a method", err)
 	}
-	// methods rows bind exactly one owner.
-	if _, err = s.db.ExecContext(ctx, "INSERT INTO methods(episode,method_id,plan_id,priority) VALUES('0','orphan','incident-plan',1)"); err == nil {
-		t.Fatal("ownerless methods row accepted")
+	// A method row needs a plan_owner row of its kind, and the plan's
+	// lookup names the incident.
+	if _, err = s.db.ExecContext(ctx, "INSERT INTO incident_methods(incident_id,method_id,plan_id,priority) VALUES(?,'orphan','nowhere',1)", id); err == nil {
+		t.Fatal("incident method without a plan_owner row accepted")
+	}
+	var kind, owner string
+	if err = s.db.QueryRowContext(ctx, "SELECT kind,owner_id FROM plan_methods WHERE plan_id=?", p.ID()).Scan(&kind, &owner); err != nil || kind != "incident" || owner != string(id) {
+		t.Fatal("incident plan lookup", kind, owner, err)
 	}
 }
 

@@ -49,9 +49,6 @@ func (i IncidentState) ownerPlans() []domain.PlanID {
 	return out
 }
 func (i IncidentState) ownerLabel() string { return "incident " + string(i.Incident.ID) }
-func (i IncidentState) ownerKey() (string, string, string) {
-	return "incident_id", string(i.Incident.ID), "0"
-}
 
 // OpenIncident opens the occurrence the assessment asserts, or, when one is
 // already open under its key, refreshes that row's Priority, Snapshot and
@@ -220,7 +217,7 @@ func loadIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID) (Incide
 	if out.Incident.ID != id {
 		return IncidentState{}, errors.New("incident identity mismatch")
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM methods WHERE incident_id=? ORDER BY method_id LIMIT 257", id)
+	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM incident_methods WHERE incident_id=? ORDER BY method_id LIMIT 257", id)
 	if err != nil {
 		return IncidentState{}, err
 	}

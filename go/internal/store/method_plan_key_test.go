@@ -34,7 +34,10 @@ func TestMethodPlanKey(t *testing.T) {
 		if e = s.CreatePlan(ctx, plan(t, id, domain.ActionID(id+"-0"))); e != nil {
 			t.Fatal(e)
 		}
-		if _, e = s.db.ExecContext(ctx, "INSERT INTO methods(standard_id,episode,method_id,plan_id,priority) VALUES(?,?,?,?,?)", g.Standard.ID, epoch, "shell", id, 1); e != nil {
+		if _, e = s.db.ExecContext(ctx, "INSERT INTO plan_owner(plan_id,kind) VALUES(?,?)", id, "standard"); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = s.db.ExecContext(ctx, "INSERT INTO standard_methods(standard_id,episode,method_id,plan_id,priority) VALUES(?,?,?,?,?)", g.Standard.ID, epoch, "shell", id, 1); e != nil {
 			t.Fatal(e)
 		}
 		latest = id

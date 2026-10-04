@@ -35,20 +35,20 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		priority := 3
 		world := World{}
 		admitted := 0
-		var owner, incident, project sql.NullString
-		err = tx.QueryRowContext(ctx, "SELECT standard_id,incident_id,project_id,priority FROM methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &project, &admitted)
-		goalID = domain.ConcernID(owner.String)
-		if err == nil && project.Valid {
+		var kind, ownerID string
+		err = tx.QueryRowContext(ctx, "SELECT kind,owner_id,priority FROM plan_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&kind, &ownerID, &admitted)
+		goalID = domain.ConcernID(ownerID)
+		if err == nil && kind == "project" {
 			// A Project's method serves its kind, which is its need.
-			p, e := loadProject(ctx, tx, domain.ProjectID(project.String))
+			p, e := loadProject(ctx, tx, domain.ProjectID(ownerID))
 			if e != nil {
 				return nil, e
 			}
 			goalID, priority = p.Project.Kind, admitted
 			world = World{Colony: p.Project.Snapshot.Colony, Load: p.Project.Snapshot.Load, Map: p.Project.Snapshot.Map}
-		} else if err == nil && incident.Valid {
+		} else if err == nil && kind == "incident" {
 			// An incident's method serves its Response kind (#1020).
-			i, e := loadIncident(ctx, tx, domain.IncidentID(incident.String))
+			i, e := loadIncident(ctx, tx, domain.IncidentID(ownerID))
 			if e != nil {
 				return nil, e
 			}
@@ -163,9 +163,8 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, ne
 				goals[i].Blocked = g.Status != domain.StandardOpen
 				// Served counts retired methods too: a startup goal whose
 				// campfire plan completed and retired is served, not owed.
-				var served int
-				column, id, epoch := owner.ownerKey()
-				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM methods WHERE "+column+"=? AND episode=?", id, epoch).Scan(&served); err != nil {
+				served, err := owner.servedCount(ctx, tx)
+				if err != nil {
 					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 				}
 				goals[i].Served = served > 0

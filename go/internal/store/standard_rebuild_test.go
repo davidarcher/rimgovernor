@@ -28,7 +28,7 @@ func TestRebuildStandardsHandsOldPlansToOrphanPass(t *testing.T) {
 	saved := map[string]string{GovernorStandardKeyPrefix + string(g.Standard.ID): string(blob)}
 	state := func() (methods, retired int) {
 		t.Helper()
-		if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM methods WHERE plan_id=?", id).Scan(&methods); err != nil {
+		if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM plan_methods WHERE plan_id=?", id).Scan(&methods); err != nil {
 			t.Fatal(err)
 		}
 		if err := s.db.QueryRowContext(ctx, "SELECT retired FROM plans WHERE id=?", id).Scan(&retired); err != nil {

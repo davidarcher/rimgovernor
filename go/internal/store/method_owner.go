@@ -23,13 +23,74 @@ type methodOwner interface {
 	ownerPriority() int
 	ownerPlans() []domain.PlanID
 	ownerLabel() string
-	// ownerKey is the methods owner column and id, and the epoch the
-	// row is keyed under ("0" for owners without epochs).
-	ownerKey() (column, id, epoch string)
+	// boundPlan is the plan the owner binds method to in its current
+	// episode (sql.ErrNoRows when it binds none), retired plans included.
+	boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (domain.PlanID, error)
+	// bindMethod writes the owner's methods row and the plan_owner row that
+	// keeps plan_id unique across the three owner tables.
+	bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error
+	// servedCount counts the owner's methods in its current episode,
+	// retired plans included.
+	servedCount(ctx context.Context, tx *sql.Tx) (int, error)
 }
 
-func (g StandardState) ownerKey() (string, string, string) {
-	return "standard_id", string(g.Standard.ID), strconv.FormatUint(g.Standard.Episode, 10)
+func insertPlanOwner(ctx context.Context, tx *sql.Tx, plan domain.PlanID, kind string) error {
+	_, err := tx.ExecContext(ctx, "INSERT INTO plan_owner(plan_id,kind) VALUES(?,?)", plan, kind)
+	return err
+}
+
+func (g StandardState) boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (plan domain.PlanID, err error) {
+	err = tx.QueryRowContext(ctx, "SELECT plan_id FROM standard_methods WHERE standard_id=? AND episode=? AND method_id=?", g.Standard.ID, strconv.FormatUint(g.Standard.Episode, 10), method).Scan(&plan)
+	return plan, err
+}
+
+func (g StandardState) bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
+	if err := insertPlanOwner(ctx, tx, plan, "standard"); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, "INSERT INTO standard_methods(standard_id,episode,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?,?)", g.Standard.ID, strconv.FormatUint(g.Standard.Episode, 10), method, plan, g.Standard.Priority, sql.NullString{String: reason, Valid: reason != ""})
+	return err
+}
+
+func (g StandardState) servedCount(ctx context.Context, tx *sql.Tx) (n int, err error) {
+	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM standard_methods WHERE standard_id=? AND episode=?", g.Standard.ID, strconv.FormatUint(g.Standard.Episode, 10)).Scan(&n)
+	return n, err
+}
+
+func (p ProjectState) boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (plan domain.PlanID, err error) {
+	err = tx.QueryRowContext(ctx, "SELECT plan_id FROM project_methods WHERE project_id=? AND method_id=?", p.Project.ID, method).Scan(&plan)
+	return plan, err
+}
+
+func (p ProjectState) bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
+	if err := insertPlanOwner(ctx, tx, plan, "project"); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, "INSERT INTO project_methods(project_id,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?)", p.Project.ID, method, plan, p.Project.Priority, sql.NullString{String: reason, Valid: reason != ""})
+	return err
+}
+
+func (p ProjectState) servedCount(ctx context.Context, tx *sql.Tx) (n int, err error) {
+	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM project_methods WHERE project_id=?", p.Project.ID).Scan(&n)
+	return n, err
+}
+
+func (i IncidentState) boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (plan domain.PlanID, err error) {
+	err = tx.QueryRowContext(ctx, "SELECT plan_id FROM incident_methods WHERE incident_id=? AND method_id=?", i.Incident.ID, method).Scan(&plan)
+	return plan, err
+}
+
+func (i IncidentState) bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
+	if err := insertPlanOwner(ctx, tx, plan, "incident"); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, "INSERT INTO incident_methods(incident_id,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?)", i.Incident.ID, method, plan, i.Incident.Priority, sql.NullString{String: reason, Valid: reason != ""})
+	return err
+}
+
+func (i IncidentState) servedCount(ctx context.Context, tx *sql.Tx) (n int, err error) {
+	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM incident_methods WHERE incident_id=?", i.Incident.ID).Scan(&n)
+	return n, err
 }
 
 func (g StandardState) ownerSnapshot() domain.GenerationSnapshot { return g.Standard.Snapshot }
@@ -81,11 +142,9 @@ func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan d
 // admission and store the plan, then write the methods row and name the
 // plan's method.
 func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
-	column, id, epoch := owner.ownerKey()
 	// Plan ids are minted (#985); the real double-admission key is the
-	// methods unique index (owner, epoch, method).
-	var bound string
-	switch err := tx.QueryRowContext(ctx, "SELECT plan_id FROM methods WHERE "+column+"=? AND episode=? AND method_id=?", id, epoch, method).Scan(&bound); {
+	// owner table's primary key (owner, [episode,] method).
+	switch bound, err := owner.boundPlan(ctx, tx, method); {
 	case err == nil:
 		return fmt.Errorf("%w: %s already binds method %s to plan %s", ErrConflict, owner.ownerLabel(), method, bound)
 	case !errors.Is(err, sql.ErrNoRows):
@@ -97,10 +156,20 @@ func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method 
 	if err := admitOwnerMethod(ctx, tx, owner, plan); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO methods("+column+",episode,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?,?)", id, epoch, method, plan.ID(), owner.ownerPriority(), sql.NullString{String: reason, Valid: reason != ""}); err != nil {
+	if err := owner.bindMethod(ctx, tx, method, plan.ID(), reason); err != nil {
 		return conflict(err)
 	}
 	_, err := tx.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", method, plan.ID())
+	return err
+}
+
+func (g StandardState) bumpRevision(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, "UPDATE standards SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), g.Standard.ID)
+	return err
+}
+
+func (p ProjectState) bumpRevision(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, "UPDATE projects SET revision=? WHERE id=?", strconv.FormatUint(p.Revision+1, 10), p.Project.ID)
 	return err
 }
 

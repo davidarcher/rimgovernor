@@ -411,7 +411,7 @@ func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
 	if len(out.Review.Development.Committed) != 1 || !developmentRow(t, out.Review, policy.EnsureBasicDefense).Selected {
 		t.Fatal("slot work admitted at priority 3 holds the slot", out.Review.Development)
 	}
-	if _, err := s.db.ExecContext(ctx, "UPDATE methods SET priority=2 WHERE plan_id='wood'"); err != nil {
+	if _, err := s.db.ExecContext(ctx, "UPDATE standard_methods SET priority=2 WHERE plan_id='wood'"); err != nil {
 		t.Fatal(err)
 	}
 	out = reviewRoutine(t, s, &r)

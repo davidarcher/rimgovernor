@@ -24,6 +24,8 @@ type WorkOwner interface {
 	OwnerEpoch() uint64
 	// OwnerRevision is the local CAS token method commits are scoped to.
 	OwnerRevision() uint64
+	// bumpRevision advances the stored revision after a method commit.
+	bumpRevision(ctx context.Context, tx *sql.Tx) error
 	// OwnerMethods lists the open methods; OwnerHistory every method of
 	// the current epoch, retired plans included.
 	OwnerMethods() []domain.Method
@@ -144,7 +146,7 @@ func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method dom
 		return s.LoadMethod(ctx, o.Standard.ID, o.Standard.Episode, method)
 	case ProjectState:
 		var plan domain.PlanID
-		err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM methods WHERE project_id=? AND method_id=?", o.Project.ID, method).Scan(&plan)
+		err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM project_methods WHERE project_id=? AND method_id=?", o.Project.ID, method).Scan(&plan)
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.Method{}, ErrNotFound
 		}

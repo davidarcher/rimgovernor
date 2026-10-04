@@ -65,8 +65,10 @@ func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, o
 	}
 	defer tx.Rollback()
 	for _, statement := range []string{
-		"UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM methods WHERE standard_id IS NOT NULL OR project_id IS NOT NULL)",
-		"DELETE FROM methods WHERE standard_id IS NOT NULL OR project_id IS NOT NULL",
+		"UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM plan_owner WHERE kind IN ('standard','project'))",
+		"DELETE FROM standard_methods",
+		"DELETE FROM project_methods",
+		"DELETE FROM plan_owner WHERE kind IN ('standard','project')",
 	} {
 		if _, err = tx.ExecContext(ctx, statement); err != nil {
 			return err
@@ -110,7 +112,7 @@ func (s *Store) methodPlans(ctx context.Context) ([]PlanState, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM methods WHERE standard_id IS NOT NULL OR project_id IS NOT NULL ORDER BY plan_id")
+	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM plan_owner WHERE kind IN ('standard','project') ORDER BY plan_id")
 	if err != nil {
 		return nil, err
 	}

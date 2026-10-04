@@ -573,7 +573,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 	}
 	// Goals in deficit that development selected (or never ranked) with no
 	// live method: the "zero methods" symptom the rows above do not explain.
-	rows, err := db.QueryContext(ctx, "SELECT g.id, g.payload, (SELECT count(*) FROM methods m JOIN plans p ON p.id=m.plan_id WHERE m.standard_id=g.id AND p.retired=0) FROM standards g WHERE g.retired=0")
+	rows, err := db.QueryContext(ctx, "SELECT g.id, g.payload, (SELECT count(*) FROM standard_methods m JOIN plans p ON p.id=m.plan_id WHERE m.standard_id=g.id AND p.retired=0) FROM standards g WHERE g.retired=0")
 	if err != nil {
 		s.Lines = append(s.Lines, Line{Text: "goals: " + err.Error(), Evidence: "service.sqlite goals"})
 		return s
@@ -612,7 +612,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 	rows.Close()
 	// Projects (#1911) are their own rows: an open Project in deficit with
 	// no live method is the same symptom.
-	projects, err := db.QueryContext(ctx, "SELECT p.id, p.payload, (SELECT count(*) FROM methods m JOIN plans pl ON pl.id=m.plan_id WHERE m.project_id=p.id AND pl.retired=0) FROM projects p WHERE p.retired=0")
+	projects, err := db.QueryContext(ctx, "SELECT p.id, p.payload, (SELECT count(*) FROM project_methods m JOIN plans pl ON pl.id=m.plan_id WHERE m.project_id=p.id AND pl.retired=0) FROM projects p WHERE p.retired=0")
 	if err != nil {
 		s.Lines = append(s.Lines, Line{Text: "projects: " + err.Error(), Evidence: "service.sqlite projects"})
 		return s

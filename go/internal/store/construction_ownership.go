@@ -19,7 +19,7 @@ import (
 // review (#84).
 func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.ConstructionClaim], error) {
 	unknown := domain.Unknown[[]policy.ConstructionClaim]()
-	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,COALESCE(m.standard_id,m.project_id) FROM methods m LEFT JOIN standards g ON g.id=m.standard_id LEFT JOIN projects pr ON pr.id=m.project_id
+	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.owner_id FROM plan_methods m LEFT JOIN standards g ON g.id=m.owner_id AND m.kind='standard' LEFT JOIN projects pr ON pr.id=m.owner_id AND m.kind='project'
  WHERE json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Colony')=?
  AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Load')=? AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Map')=?
  AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='building' AND json_extract(t.payload,'$.Kind')='receipt' AND json_extract(t.payload,'$.Receipt')='accepted')

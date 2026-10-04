@@ -43,12 +43,12 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 	if !review.Enabled || !sameRoot(review.Snapshot, root) {
 		return ErrConflict
 	}
-	var goalID, incidentID, projectID sql.NullString
-	if err = tx.QueryRowContext(ctx, "SELECT standard_id,incident_id,project_id FROM methods WHERE plan_id=?", target.Plan).Scan(&goalID, &incidentID, &projectID); err != nil {
+	var kind, ownerID string
+	if err = tx.QueryRowContext(ctx, "SELECT kind,owner_id FROM plan_methods WHERE plan_id=?", target.Plan).Scan(&kind, &ownerID); err != nil {
 		return err
 	}
-	if projectID.Valid {
-		project, err := loadProject(ctx, tx, domain.ProjectID(projectID.String))
+	if kind == "project" {
+		project, err := loadProject(ctx, tx, domain.ProjectID(ownerID))
 		if err != nil {
 			return err
 		}
@@ -57,13 +57,13 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		}
 		return tx.Commit()
 	}
-	if incidentID.Valid {
-		if err = authorizeIncidentPlan(ctx, tx, review, domain.IncidentID(incidentID.String), root, target); err != nil {
+	if kind == "incident" {
+		if err = authorizeIncidentPlan(ctx, tx, review, domain.IncidentID(ownerID), root, target); err != nil {
 			return err
 		}
 		return tx.Commit()
 	}
-	goal, err := loadGoal(ctx, tx, domain.ConcernID(goalID.String))
+	goal, err := loadGoal(ctx, tx, domain.ConcernID(ownerID))
 	if err != nil {
 		return err
 	}

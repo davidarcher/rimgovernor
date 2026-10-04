@@ -273,7 +273,7 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `Response` concept, `Incident` row | Incident | Both the Type and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | done #1972 |
 | `Rule` | Safeguard | An admission veto; not a Type. | done (#1970) |
 | `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | done #1973, #1976 (JSON keys `Finding` / `Situation`), #2002 (values unclear / unmet / met; Situation unclear / active / clear) |
-| `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); the table is renamed in place, then split per owner. | done #1974 (`domain.Method`, field `Owner`); table is `methods` since #1976, split #1980 |
+| `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); one table per owner (`standard_methods`, `project_methods`, `incident_methods`) plus `plan_owner` and the `plan_methods` view. | done #1974 (`domain.Method`, field `Owner`); tables since #1976; split per owner #1980 |
 | player goals (`GoalSource`, `GoalKind`, `CreateGoal`, `CancelPlayerGoal`, `PlayerGoals`, `/goals`) | deleted | Play is autonomous (#719). | done (#1967) |
 | `Goal*` types in `httpapi`, `interpreter`, `spectator`, `colonyreview`, dashboard, native panel, player docs | the new words | Player-visible surfaces take the same words. | Go JSON shapes done (#1977: `concern`, `concerns`); native non-panel comments and player docs done #1978; native panel keys left to #1983 |
 

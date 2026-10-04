@@ -68,6 +68,16 @@ is re-derived the same way every `MaintainStockpiles` pass; the standing
 zones are its only record. Durable Standards come back from the save blobs, so nothing here needs a
 restore step.
 
+## Method ownership
+
+A Method binds one Plan to one owner in `standard_methods` (keyed by Standard,
+Episode and MethodID), `project_methods` or `incident_methods` (keyed by owner
+and MethodID). `plan_owner(plan_id PRIMARY KEY, kind)` holds one row per bound
+plan and each method table references it by `(plan_id, kind)` with a constant
+`kind`, so a plan has at most one owner across the three tables. Plan-to-owner
+lookups read the `plan_methods` view (plan_id, kind, owner_id, episode,
+method_id, priority, reason; episode is NULL outside Standards).
+
 ## Bounded working set
 
 Settled autopilot plans and superseded invalidated Standards are marked retired

@@ -27,7 +27,7 @@ func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generat
 			continue
 		}
 		var goal domain.ConcernID
-		err := tx.QueryRowContext(ctx, "SELECT standard_id FROM methods WHERE plan_id=? AND standard_id IS NOT NULL", plan.Spec.ID()).Scan(&goal)
+		err := tx.QueryRowContext(ctx, "SELECT owner_id FROM plan_methods WHERE plan_id=? AND kind='standard'", plan.Spec.ID()).Scan(&goal)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}

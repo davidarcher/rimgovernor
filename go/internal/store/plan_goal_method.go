@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -31,22 +32,31 @@ type PlanMethod struct {
 // submission). An incident's method names its Response kind as Concern and
 // the incident as Incident (#1020).
 func (s *Store) PlanMethod(ctx context.Context, plan domain.PlanID) (method PlanMethod, ok bool, err error) {
-	var reason, goal sql.NullString
-	var incident, project, kind sql.NullString
-	err = s.db.QueryRowContext(ctx, "SELECT m.standard_id, m.incident_id, m.project_id, i.kind, m.episode, m.method_id, m.reason FROM methods m LEFT JOIN incidents i ON i.id=m.incident_id WHERE m.plan_id=?", plan).Scan(&goal, &incident, &project, &kind, &method.Episode, &method.Method, &reason)
+	var reason, episode, incidentKind sql.NullString
+	var kind, owner string
+	err = s.db.QueryRowContext(ctx, "SELECT m.kind, m.owner_id, i.kind, m.episode, m.method_id, m.reason FROM plan_methods m LEFT JOIN incidents i ON m.kind='incident' AND i.id=m.owner_id WHERE m.plan_id=?", plan).Scan(&kind, &owner, &incidentKind, &episode, &method.Method, &reason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return PlanMethod{}, false, nil
 	}
 	if err != nil {
 		return PlanMethod{}, false, err
 	}
-	method.Concern, method.Incident, method.Project = domain.ConcernID(goal.String), domain.IncidentID(incident.String), domain.ProjectID(project.String)
-	if incident.Valid {
-		method.Concern = domain.ConcernID(kind.String)
+	if episode.Valid {
+		if method.Episode, err = strconv.ParseUint(episode.String, 10, 64); err != nil {
+			return PlanMethod{}, false, err
+		}
 	}
-	if project.Valid {
+	switch kind {
+	case "standard":
+		method.Concern = domain.ConcernID(owner)
+	case "incident":
+		method.Incident, method.Concern = domain.IncidentID(owner), domain.ConcernID(incidentKind.String)
+	case "project":
+		method.Project = domain.ProjectID(owner)
+	}
+	if kind == "project" {
 		var raw []byte
-		if err = s.db.QueryRowContext(ctx, "SELECT payload FROM projects WHERE id=?", project.String).Scan(&raw); err != nil {
+		if err = s.db.QueryRowContext(ctx, "SELECT payload FROM projects WHERE id=?", owner).Scan(&raw); err != nil {
 			return PlanMethod{}, false, err
 		}
 		var p domain.Project

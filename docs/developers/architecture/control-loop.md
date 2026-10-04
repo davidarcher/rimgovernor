@@ -81,8 +81,9 @@ finds Rounds.
 
 An Incident is a `incidents` row and a Project is a `projects` row (#1926);
 Standards are the only `standards` rows. Incident and Project methods live in
-`methods` beside the Standards' ones, each row owned by exactly one of
-`standard_id`, `incident_id` or `project_id` (a Project's episode is always `0`),
+`standard_methods`, `project_methods` and `incident_methods` (a Project or Incident
+row has no episode), tied together by `plan_owner(plan_id, kind)` so a plan has
+one owner; the read-only `plan_methods` view serves plan-to-owner lookups (#1980),
 and go through the same admission. A Project is saved as `project/<id>`
 (`GovernorProjectBlob`, `GovernorStateSchemaVersion` 3); its methods are
 re-planned after a load. Rounds bind Projects separately from Standards

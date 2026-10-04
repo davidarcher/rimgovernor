@@ -43,10 +43,11 @@ CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEX
 CREATE UNIQUE INDEX open_incidents ON incidents(colony,load_token,map_id,kind,subject) WHERE ended_tick IS NULL;
 CREATE TABLE projects(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_projects ON projects(id) WHERE retired=0;
-CREATE TABLE methods(standard_id TEXT REFERENCES standards(id), incident_id TEXT REFERENCES incidents(id), project_id TEXT REFERENCES projects(id), episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, reason TEXT, CHECK((standard_id IS NOT NULL) + (incident_id IS NOT NULL) + (project_id IS NOT NULL) = 1), CHECK(project_id IS NULL OR episode='0')) STRICT;
-CREATE UNIQUE INDEX standard_method_keys ON methods(standard_id,episode,method_id) WHERE standard_id IS NOT NULL;
-CREATE UNIQUE INDEX incident_method_keys ON methods(incident_id,method_id) WHERE incident_id IS NOT NULL;
-CREATE UNIQUE INDEX project_method_keys ON methods(project_id,method_id) WHERE project_id IS NOT NULL;
+CREATE TABLE plan_owner(plan_id TEXT PRIMARY KEY REFERENCES plans(id), kind TEXT NOT NULL CHECK(kind IN ('standard','project','incident')), UNIQUE(plan_id,kind)) STRICT;
+CREATE TABLE standard_methods(standard_id TEXT NOT NULL REFERENCES standards(id), episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'standard' CHECK(kind='standard'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(standard_id,episode,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
+CREATE TABLE project_methods(project_id TEXT NOT NULL REFERENCES projects(id), method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'project' CHECK(kind='project'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(project_id,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
+CREATE TABLE incident_methods(incident_id TEXT NOT NULL REFERENCES incidents(id), method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'incident' CHECK(kind='incident'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(incident_id,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
+CREATE VIEW plan_methods AS SELECT plan_id,kind,standard_id AS owner_id,episode,method_id,priority,reason FROM standard_methods UNION ALL SELECT plan_id,kind,project_id,NULL,method_id,priority,reason FROM project_methods UNION ALL SELECT plan_id,kind,incident_id,NULL,method_id,priority,reason FROM incident_methods;
 CREATE TABLE rounds(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
@@ -109,10 +110,10 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 		return StandardState{}, errors.New("invalid retired goal")
 	}
 	out.Revision = n
-	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM methods WHERE standard_id=?", id).Scan(&out.Admitted); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM standard_methods WHERE standard_id=?", id).Scan(&out.Admitted); err != nil {
 		return StandardState{}, err
 	}
-	history, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM methods WHERE standard_id=? AND episode=? ORDER BY method_id", id, strconv.FormatUint(out.Standard.Episode, 10))
+	history, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM standard_methods WHERE standard_id=? AND episode=? ORDER BY method_id", id, strconv.FormatUint(out.Standard.Episode, 10))
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -129,7 +130,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 	if err != nil {
 		return StandardState{}, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT m.episode,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.standard_id=? ORDER BY length(m.episode),m.episode,m.method_id", id)
+	rows, err := tx.QueryContext(ctx, "SELECT m.episode,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN standard_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.standard_id=? ORDER BY length(m.episode),m.episode,m.method_id", id)
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -378,12 +379,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {
 		return err
 	}
-	table := "standards"
-	if column, _, _ := state.ownerKey(); column == "project_id" {
-		table = "projects"
-	}
-	_, err = tx.ExecContext(ctx, "UPDATE "+table+" SET revision=? WHERE id=?", strconv.FormatUint(state.OwnerRevision()+1, 10), summary.ID)
-	return err
+	return state.bumpRevision(ctx, tx)
 }
 
 // cancelUndispatchedMethods cancels every open method of the goal that
@@ -461,29 +457,28 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	if err := floors.guard(current, tick); err != nil {
 		return err
 	}
-	var id sql.NullString
-	var incident, project sql.NullString
-	var epoch string
-	err := tx.QueryRowContext(ctx, "SELECT standard_id,incident_id,project_id,episode FROM methods WHERE plan_id=?", plan).Scan(&id, &incident, &project, &epoch)
+	var kind, ownerID string
+	var epoch sql.NullString
+	err := tx.QueryRowContext(ctx, "SELECT kind,owner_id,episode FROM plan_methods WHERE plan_id=?", plan).Scan(&kind, &ownerID, &epoch)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	if incident.Valid {
-		return guardIncidentWork(ctx, tx, domain.IncidentID(incident.String), current, tick)
+	switch kind {
+	case "incident":
+		return guardIncidentWork(ctx, tx, domain.IncidentID(ownerID), current, tick)
+	case "project":
+		return guardProjectWork(ctx, tx, domain.ProjectID(ownerID), current, tick)
 	}
-	if project.Valid {
-		return guardProjectWork(ctx, tx, domain.ProjectID(project.String), current, tick)
-	}
-	state, err := loadGoal(ctx, tx, domain.ConcernID(id.String))
+	state, err := loadGoal(ctx, tx, domain.ConcernID(ownerID))
 	if err != nil {
 		return err
 	}
 	g := state.Standard
 	s := g.Snapshot
-	if g.Status != domain.StandardOpen || g.Finding == domain.FindingUnclear || epoch != strconv.FormatUint(g.Episode, 10) ||
+	if g.Status != domain.StandardOpen || g.Finding == domain.FindingUnclear || epoch.String != strconv.FormatUint(g.Episode, 10) ||
 		s.Colony != current.Colony || s.Map != current.Map || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}

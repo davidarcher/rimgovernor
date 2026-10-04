@@ -61,7 +61,7 @@ func fixture(t *testing.T) string {
 	exec(`CREATE TABLE rounds(singleton INTEGER PRIMARY KEY, payload BLOB NOT NULL)`)
 	exec(`CREATE TABLE standards(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0)`)
 	exec(`CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, retired INTEGER NOT NULL DEFAULT 0)`)
-	exec(`CREATE TABLE methods(standard_id TEXT NOT NULL, episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL)`)
+	exec(`CREATE TABLE standard_methods(standard_id TEXT NOT NULL, episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL)`)
 	exec(`CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL, payload BLOB NOT NULL)`)
 	review := map[string]any{"Revision": 7, "Tick": 1200, "Enabled": true, "Development": map[string]any{"Capacity": 2, "Rows": []map[string]any{
 		{"Goal": "EnsureComfort", "Score": 10, "Selected": false, "Reason": "startup_survival"},

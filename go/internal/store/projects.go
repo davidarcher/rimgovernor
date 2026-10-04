@@ -37,9 +37,6 @@ type ProjectMethod struct {
 	Plan   domain.PlanID
 }
 
-func (p ProjectState) ownerKey() (string, string, string) {
-	return "project_id", string(p.Project.ID), "0"
-}
 func (p ProjectState) ownerSnapshot() domain.GenerationSnapshot { return p.Project.Snapshot }
 func (p ProjectState) ownerNeed(r Rounds) (domain.ConcernID, bool) {
 	return r.projectNeed(p.Project.ID)
@@ -140,7 +137,7 @@ func loadProject(ctx context.Context, tx *sql.Tx, id domain.ProjectID) (ProjectS
 		return ProjectState{}, errors.New("invalid retired project")
 	}
 	out.Revision = n
-	rows, err := tx.QueryContext(ctx, "SELECT m.method_id,m.plan_id,p.retired FROM methods m JOIN plans p ON p.id=m.plan_id WHERE m.project_id=? ORDER BY m.method_id LIMIT 257", id)
+	rows, err := tx.QueryContext(ctx, "SELECT m.method_id,m.plan_id,p.retired FROM project_methods m JOIN plans p ON p.id=m.plan_id WHERE m.project_id=? ORDER BY m.method_id LIMIT 257", id)
 	if err != nil {
 		return ProjectState{}, err
 	}

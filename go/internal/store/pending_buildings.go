@@ -28,7 +28,7 @@ func (s *Store) PendingBuildingAnchors(ctx context.Context, current domain.Gener
 		return nil, err
 	}
 	methods := map[domain.PlanID]bool{}
-	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM methods")
+	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM plan_owner")
 	if err != nil {
 		return nil, err
 	}

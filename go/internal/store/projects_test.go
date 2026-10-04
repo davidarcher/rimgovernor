@@ -97,7 +97,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 		t.Fatal("orphan pass", passes, seen)
 	}
 	var rows, live int
-	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM methods").Scan(&rows); err != nil || rows != 0 {
+	if err = s.db.QueryRowContext(ctx, "SELECT (SELECT COUNT(*) FROM plan_methods)+(SELECT COUNT(*) FROM plan_owner)").Scan(&rows); err != nil || rows != 0 {
 		t.Fatal("method rows survived the rebuild", rows, err)
 	}
 	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM plans WHERE retired=0").Scan(&live); err != nil || live != 0 {
@@ -125,17 +125,22 @@ func TestProjectFinishInvalidateRetireAndOwnerKey(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, state := projectFixture(t)
-	// A method row binds exactly one owner, and a project row's epoch is 0.
-	if _, err := s.db.ExecContext(ctx, "INSERT INTO methods(standard_id,project_id,episode,method_id,plan_id,priority) VALUES('a','b','0','m','p',1)"); err == nil {
-		t.Fatal("two-owner row accepted")
-	}
 	p := plan(t, "project-plan", "project-action")
 	state, err := s.CommitProjectMethod(ctx, state.Project.ID, state.Revision, "stove", "", p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.ExecContext(ctx, "INSERT INTO methods(project_id,episode,method_id,plan_id,priority) VALUES(?,'1','m','project-plan',1)", state.Project.ID); err == nil {
-		t.Fatal("project row with epoch 1 accepted")
+	// A plan has exactly one owner: a second owner table cannot claim it.
+	if _, err = s.db.ExecContext(ctx, "INSERT INTO standard_methods(standard_id,episode,method_id,plan_id,priority) VALUES('a','0','m','project-plan',1)"); err == nil {
+		t.Fatal("second owner kind accepted for a bound plan")
+	}
+	if _, err = s.db.ExecContext(ctx, "INSERT INTO plan_owner(plan_id,kind) VALUES('project-plan','standard')"); err == nil {
+		t.Fatal("plan_owner accepted a second row for a plan")
+	}
+	// The plan-to-owner lookup names the project.
+	var kind, owner string
+	if err = s.db.QueryRowContext(ctx, "SELECT kind,owner_id FROM plan_methods WHERE plan_id='project-plan'").Scan(&kind, &owner); err != nil || kind != "project" || owner != string(state.Project.ID) {
+		t.Fatal("project plan lookup", kind, owner, err)
 	}
 	// A world change invalidates the project, cancelling its work; the row
 	// stays at the new revision.
