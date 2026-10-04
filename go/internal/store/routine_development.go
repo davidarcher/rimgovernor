@@ -131,22 +131,22 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction, Recipes: r.Facts.Recipes})
 }
 
-func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {
+func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
 	var bindings []RoutineGoal
 	for i, n := range needs.Assessments {
 		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: states[i].Goal.ID})
 	}
 	plans, err := routinePlans(ctx, tx, r.Current, bindings)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 	}
 	commitments, err := commitmentsOf(ctx, tx, plans)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 	}
 	kept, dependencies, err := routineDependencies(ctx, tx, records, bindings, states, r.Facts, r.Tick)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 	}
 	goals := append([]policy.DevelopmentGoal(nil), needs.Goals...)
 	for i := range goals {
@@ -159,7 +159,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 				// campfire plan completed and retired is served, not owed.
 				var served int
 				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE goal_id=? AND epoch=?", g.ID, strconv.FormatUint(g.Epoch, 10)).Scan(&served); err != nil {
-					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
+					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 				}
 				goals[i].Served = served > 0
 			}
@@ -167,9 +167,9 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 	}
 	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Goals: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Dependencies: dependencies})
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 	}
-	return state, readyWorkOf(r, plans, goals), kept, nil
+	return state, readyWorkOf(r, plans, goals), policy.ShadowRankOf(state, policy.ProjectForward(policy.ForwardInputsOf(r.Facts, r.Policy)), openPlanActions(plans)), kept, nil
 }
 
 // developmentExemptMethod reports a method that is no development project:
@@ -260,4 +260,26 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 		return fmt.Errorf("%w: %v", ErrNotAdmitted, err)
 	}
 	return nil
+}
+
+// openPlanActions counts, per goal, the actions of its live plans that are
+// not finished: the shadow ranker's labor cost (#1913). An action with no
+// progress record has not started, so it is open.
+func openPlanActions(plans []routinePlan) map[domain.GoalID]int {
+	open := map[domain.GoalID]int{}
+	for _, p := range plans {
+		if p.state.Retired {
+			continue
+		}
+		byAction := map[domain.ActionID]domain.Progress{}
+		for _, pr := range p.state.Progress {
+			byAction[pr.View().Action] = pr
+		}
+		for _, a := range p.state.Spec.Actions() {
+			if pr, started := byAction[a.ID()]; !started || ProgressOpen(p.state, pr) {
+				open[p.goal]++
+			}
+		}
+	}
+	return open
 }

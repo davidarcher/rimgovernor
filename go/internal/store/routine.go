@@ -92,6 +92,10 @@ type RoutineReview struct {
 	// enabled review's plans and unserved goals, bounded by
 	// policy.DefaultReadyBounds. Diagnostics only: no admission reads it.
 	ReadyWork *policy.ReadyWorkReport `json:",omitempty"`
+	// ShadowRank is the shadow project ranker (#1913): candidate goals scored
+	// by projected shortfall per open action, and where that order disagrees
+	// with Development. Diagnostics only: no admission reads it.
+	ShadowRank *policy.ShadowRank `json:",omitempty"`
 	// Built is every live building action standing built, by geometry, in the
 	// last complete construction census (builtActions, #1355), sorted; a review without a
 	// complete census keeps the last one. Admission reads it for building
@@ -745,11 +749,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.Stage = &stage
 		var development policy.DevelopmentState
 		var ready policy.ReadyWorkReport
+		var shadow policy.ShadowRank
 		var records []DependencyRecord
 		if !reset {
 			records = previous.Dependencies
 		}
-		development, ready, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
+		development, ready, shadow, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
@@ -760,6 +765,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.Progress = policy.HoldProgress(r.Progress, development.Rows, policy.WithheldLabor(r.Progress), unavailable)
 		r.Development = developmentRecord(development)
 		r.ReadyWork = &ready
+		r.ShadowRank = &shadow
 		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r, request.Tick)
 		if err != nil {
 			return RoutineReviewResult{}, err

@@ -493,7 +493,9 @@ type RoutineFacts struct {
 	// an unknown calendar keeps the configured flat targets.
 	Calendar                                                    domain.Fact[Calendar]
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom domain.Fact[float64]
-	Wood                                                        domain.Fact[int64]
+	// Forward are the shadow projector inputs the facts above lack (#1913).
+	Forward ForwardObserved `json:",omitzero"`
+	Wood    domain.Fact[int64]
 	// Dependencies are the live typed shortfall edges (#651) carried from the
 	// last review: an open shortfall raises a MaintainResource floor for
 	// the bounded difference (#711, #728).

@@ -134,6 +134,10 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		}
 	}
 	p.Facts.BillReservations = BillReservations(frame.Bills)
+	if topology, known := p.PowerPlanning.Value(); known {
+		p.Facts.Forward.Power = topology.Networks
+	}
+	p.Facts.Forward.Turrets = p.DefenseTurrets
 	pawns, err := routinePawns(frame, id)
 	if err != nil {
 		return RoutineReading{}, err
