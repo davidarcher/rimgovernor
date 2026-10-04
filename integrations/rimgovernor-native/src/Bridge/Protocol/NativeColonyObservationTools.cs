@@ -52,22 +52,14 @@ namespace HomeBridge.BridgeTools
             return ProtoBoundary.Encode(reply, compact: true);
         }
 
-        // The colony facts as a bundle section (issue #180): the same facts the
-        // tool answers, or false for any read failure the bundle then omits.
-        internal static bool TryRead(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.ColonyFactsSnapshot? snapshot)
-        {
-            snapshot = null;
-            try { snapshot = Read(map, request, context); return true; }
-            catch (Exception error) { Log.Error(ObservationWork.Failed("colonyFacts", error)); return false; }
-        }
-
         internal static bool Validate(Obs.ColonyFactsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity required.");
             return request?.Scope?.ExpectedIdentity != null;
         }
 
-        private static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context)
+        // The colony facts as a frame section: a read that throws fails the frame (#1905).
+        internal static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
             // Each span below names where the read's game-thread time went
             // in a slow snapshot capture line (#1273).

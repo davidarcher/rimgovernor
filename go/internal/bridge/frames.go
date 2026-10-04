@@ -202,7 +202,10 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 		if ok {
 			after = frame.Number
 			if frame.Writes >= needs {
-				payload, world, found, carries, decoded := s.lookup(frame, key, reply != nil, pick)
+				payload, world, found, carries, decoded, refusal := s.lookup(frame, key, reply != nil, pick)
+				if refusal != nil {
+					return miss("section failed", refusal)
+				}
 				if decoded["gap"] == true {
 					caller.frameReader(ctx) // asks for the keyframe now
 				}
@@ -241,7 +244,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 // frame's size and cost (#858), one native_frame row per frame the
 // controller consumed. skipped counts the frames published since the last
 // one consumed and never read.
-func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey, wantPayload bool, pick func(*frameStream)) (payload []byte, world *c.Identity, ok, carries bool, decoded map[string]any) {
+func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey, wantPayload bool, pick func(*frameStream)) (payload []byte, world *c.Identity, ok, carries bool, decoded map[string]any, refusal *Refusal) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if frame.Number != s.number {
@@ -264,7 +267,9 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey, wantPayl
 		}
 		if err != nil {
 			decoded["error"] = err.Error()
-			return nil, nil, false, false, decoded
+			var refused *Refusal
+			errors.As(err, &refused)
+			return nil, nil, false, false, decoded, refused
 		}
 		s.number, s.table, s.identity, s.context, s.held = frame.Number, table, identity, context, tables
 		if grid.grid != nil {
@@ -283,7 +288,7 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey, wantPayl
 	for held := range s.table {
 		carries = carries || held.method == key.method
 	}
-	return payload, s.identity, ok, carries, decoded
+	return payload, s.identity, ok, carries, decoded, nil
 }
 
 // frameTable decodes one frame, its omitted sections filled from the
@@ -294,6 +299,11 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey]*frameR
 	v := &o.BundleSnapshot{}
 	if err := proto.Unmarshal(payload, v); err != nil {
 		return nil, nil, nil, heldTables{}, 0, false, frameGrid{}, "", err
+	}
+	// A frame carrying a Failure is native's account that a section read
+	// threw (#1905): a refusal naming the section, never a frame without it.
+	if f := v.GetFailure(); f != nil {
+		return nil, nil, nil, heldTables{}, 0, false, frameGrid{}, "", &Refusal{Tool: "snapshot_frame", Cause: f.GetDetail()}
 	}
 	if err := ValidateContext(v.Context); err != nil {
 		return nil, nil, nil, heldTables{}, 0, false, frameGrid{}, "", err

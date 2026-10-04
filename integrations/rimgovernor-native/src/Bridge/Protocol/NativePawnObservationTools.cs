@@ -51,15 +51,6 @@ namespace HomeBridge.BridgeTools
             return ProtoBoundary.Encode(reply);
         }
 
-        // The pawn list as a frame section (issue #180): the same rows the
-        // tool answers, or false for any read failure the frame then omits.
-        internal static bool TryRead(Map map, Obs.ListPawnsRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.PawnSnapshot? snapshot)
-        {
-            snapshot = null;
-            try { snapshot = Read(map, request, context); return true; }
-            catch (Exception error) { Log.Error(ObservationWork.Failed("pawns", error)); return false; }
-        }
-
         // On the main thread.
         private static Obs.PawnSnapshot Read(Map map, Obs.ListPawnsRequest parsed, Common.ObservationContext context)
         {

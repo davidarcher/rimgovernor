@@ -1734,6 +1734,11 @@ message BundleSnapshot {
   // Omittable like the singleton sections above (watermark "ideology");
   // absent, with no watermark, without Ideology or a primary ideoligion.
   IdeologySnapshot ideology = 37;
+  // A frame whose section read threw (#1905): the frame carries only this,
+  // with the section name, exception type and message in detail. A reader
+  // refuses the read naming the section; the frame is never carried on
+  // with the section omitted.
+  optional rimgovernor.common.v1.Failure failure = 38;
 }
 // seq counts a section's changes since the stream opened; captured_tick is
 // the tick of the frame that last carried it.

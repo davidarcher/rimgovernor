@@ -18,6 +18,29 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class SnapshotFrames
     {
+        /// A frame section's read threw (#1905). The stream publishes a frame
+        /// carrying only the Failure, never the frame with the section omitted.
+        internal sealed class SnapshotSectionException : System.Exception
+        {
+            internal readonly string Section;
+            private SnapshotSectionException(string section, System.Exception inner) : base(section + ": " + inner.GetType().Name + ": " + inner.Message, inner) { Section = section; }
+
+            internal static T Read<T>(string section, System.Func<T> read)
+            {
+                try { return read(); }
+                catch (System.Exception ex)
+                {
+                    Log.Error(ObservationWork.Failed(section, ex));
+                    throw new SnapshotSectionException(section, ex);
+                }
+            }
+
+            internal Obs.BundleSnapshot Frame() => new Obs.BundleSnapshot
+            {
+                Failure = new Common.Failure { Code = Common.FailureCode.NativeFailure, Detail = "snapshot section " + Message },
+            };
+        }
+
         private static long Now() { return System.Diagnostics.Stopwatch.GetTimestamp(); }
 
         // On the main thread: one snapshot stream frame (#858), every state
@@ -155,31 +178,29 @@ namespace HomeBridge.BridgeTools
         }
 
         // On the main thread. Adds the census families to observed, each
-        // keyed as its dedicated read, omitting any that fails.
+        // keyed as its dedicated read. A section that throws fails the frame
+        // (SnapshotSectionException, #1905); none is omitted.
         private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
             {
                 var began = Now();
-                var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, out var colony);
-                ObservationWork.Captured("colonyFacts", Now() - began, read ? colony!.Resources.Count : 0);
-                if (read) { observed.ColonyFacts = colony; }
+                observed.ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context));
+                ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts.Resources.Count);
             }
             {
                 var began = Now();
-                var read = NativePopulationObservation.TryRead(map, new Obs.PopulationRequest { Scope = Scope() }, context, out var population);
-                ObservationWork.Captured("population", Now() - began, read ? population!.Persons.Count : 0);
-                if (read) { observed.Population = population; }
+                observed.Population = SnapshotSectionException.Read("population", () => NativePopulationObservation.Population(map, new Obs.PopulationRequest { Scope = Scope() }, context));
+                ObservationWork.Captured("population", Now() - began, observed.Population.Persons.Count);
             }
             {
                 var began = Now();
-                var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), ProgressOnly = true }, context, out var research);
-                ObservationWork.Captured("research", Now() - began, read ? research!.Projects.Count : 0);
-                if (read) { observed.Research = research; }
+                observed.Research = SnapshotSectionException.Read("research", () => NativeResearchObservationTools.Section(map, new Obs.ResearchRequest { Scope = Scope(), ProgressOnly = true }, context));
+                ObservationWork.Captured("research", Now() - began, observed.Research.Projects.Count);
             }
             {
                 var began = Now();
-                try { observed.Pawns = NativePawnObservationTools.Table(map, context, CombatSet(observed.Emergency)); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("pawns", ex)); }
+                observed.Pawns = SnapshotSectionException.Read("pawns", () => NativePawnObservationTools.Table(map, context, CombatSet(observed.Emergency)));
                 ObservationWork.Captured("pawns", Now() - began, observed.Pawns != null ? observed.Pawns.Pawns.Count : 0);
             }
         }

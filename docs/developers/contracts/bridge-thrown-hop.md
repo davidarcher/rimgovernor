@@ -75,6 +75,14 @@ receipt.
 - A rethrow costs the caller the typed reply (no `Failure` message, only the
   exception text), and the stack trace rides in every such reply, so keep
   rethrow for faults, not for expected game states.
+- A frame section that throws fails the frame (#1905). The snapshot stream
+  is not a tool hop, so a rethrow would only skip the frame and leave Go on
+  a stale one. Native instead publishes a frame carrying only
+  `BundleSnapshot.failure` (`NATIVE_FAILURE`, detail `snapshot section
+  <name>: <ExceptionType>: <message>`) for `colonyFacts`, `population`,
+  `research` and `pawns`, and `bridge/frames.go` turns it into a
+  `*Refusal` (tool `snapshot_frame`) whose cause names the section. No
+  omit-and-fall-back-to-GABP path remains for those four.
 - A catch stays only where the game itself throws on legitimate input; give
   it a one-line reason.
 - Not covered: exceptions outside a tool call (Harmony hooks such as

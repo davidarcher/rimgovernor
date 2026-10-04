@@ -41,20 +41,13 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // The research state as a frame section (issue #180): the same page
-        // the tool answers, or false for any read failure the frame then omits.
-        internal static bool TryRead(Map map, Obs.ResearchRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.ResearchSnapshot? snapshot)
+        // The research state as a frame section: a read that throws fails the frame (#1905).
+        internal static Obs.ResearchSnapshot Section(Map map, Obs.ResearchRequest request, Common.ObservationContext context)
         {
-            snapshot = null;
-            try
-            {
-                var manager = Find.ResearchManager;
-                var player = Faction.OfPlayerSilentFail;
-                if (manager == null || player?.def == null) return false;
-                snapshot = Read(request, context, map, manager, player);
-                return true;
-            }
-            catch (Exception error) { Log.Error(ObservationWork.Failed("research", error)); return false; }
+            var manager = Find.ResearchManager;
+            var player = Faction.OfPlayerSilentFail;
+            if (manager == null || player?.def == null) throw new InvalidOperationException("Research manager or player faction unavailable.");
+            return Read(request, context, map, manager, player);
         }
 
         internal static bool Validate(Obs.ResearchRequest request, out Common.Failure failure)

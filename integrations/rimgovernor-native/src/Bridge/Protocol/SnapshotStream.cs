@@ -196,7 +196,14 @@ namespace HomeBridge.BridgeTools
             lock (Gate) shape = subscription;
             var captureStarted = Stopwatch.GetTimestamp();
             var account = ObservationWork.BeginCapture();
+            var failed = false;
             try { frame = SnapshotFrames.Capture(map, shape, out grid); }
+            catch (SnapshotFrames.SnapshotSectionException e)
+            {
+                // A section threw (#1905): the frame is the failure alone, so the
+                // reader refuses its reads with the section named.
+                frame = e.Frame(); grid = null; failed = true;
+            }
             catch (Exception e)
             {
                 Interlocked.Exchange(ref pending, 0);
@@ -210,10 +217,14 @@ namespace HomeBridge.BridgeTools
             if (w == Interlocked.Read(ref writes)) deferredAt = 0;
             capturedAt = Stopwatch.GetTimestamp(); lastCaptureMicros = captureMicros;
             if (frame == null) { Interlocked.Exchange(ref pending, 0); return; }
-            var keyframe = Interlocked.Exchange(ref keyframeDue, 0) == 1;
+            var keyframe = !failed && Interlocked.Exchange(ref keyframeDue, 0) == 1;
             Task.Factory.StartNew(() =>
             {
-                try { SnapshotSections.Elide(frame, keyframe); CellGridEncoder.Attach(frame, grid, keyframe); r.Publish(frame, w, captureMicros); }
+                try
+                {
+                    if (!failed) { SnapshotSections.Elide(frame, keyframe); CellGridEncoder.Attach(frame, grid, keyframe); }
+                    r.Publish(frame, w, captureMicros);
+                }
                 catch (Exception e) { Log.WarningOnce("[RimGovernor] snapshot frame publish failed: " + e.Message, 0x5e859); }
                 finally { Interlocked.Exchange(ref pending, 0); }
             }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);

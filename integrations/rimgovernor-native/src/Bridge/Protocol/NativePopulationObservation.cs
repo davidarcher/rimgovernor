@@ -41,22 +41,14 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // The population as a frame section (issue #180): the same rows the
-        // tool answers, or false for any read failure the frame then omits.
-        internal static bool TryRead(Map map, Obs.PopulationRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.PopulationSnapshot? snapshot)
-        {
-            snapshot = null;
-            try { snapshot = Population(map, request, context); return true; }
-            catch (Exception error) { Log.Error(ObservationWork.Failed("population", error)); return false; }
-        }
-
         internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope is required.");
             return request?.Scope?.ExpectedIdentity != null;
         }
 
-        private static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context)
+        // The population as a frame section: a read that throws fails the frame (#1905).
+        internal static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context)
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Humanlike).OrderBy(p => p.thingIDNumber).ToList();

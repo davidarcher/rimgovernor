@@ -316,6 +316,30 @@ func TestFramesServeTheStateFamilies(t *testing.T) {
 	}
 }
 
+// TestFrameSectionFailureIsANamedRefusal (#1905): a frame that carries only
+// native's Failure for a section that threw refuses the read with the
+// section named, instead of serving a frame with the section missing.
+func TestFrameSectionFailureIsANamedRefusal(t *testing.T) {
+	client, server, ring := frameClient(t)
+	ring.publish(t, server.snapshot, 0)
+	if _, _, err := client.ReadResearch(context.Background(), pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	failure := &c.Failure{Code: c.FailureCode_FAILURE_CODE_NATIVE_FAILURE.Enum(), Detail: proto.String("snapshot section research: System.InvalidOperationException: boom")}
+	ring.publish(t, &o.BundleSnapshot{Failure: failure}, 0)
+	_, _, err := client.ReadResearch(context.Background(), pbIdentity())
+	var refusal *Refusal
+	if !errors.As(err, &refusal) || !errors.Is(err, ErrRefused) {
+		t.Fatalf("section failure: %v, want a refusal", err)
+	}
+	if !strings.Contains(refusal.Cause, "research") || !strings.Contains(refusal.Cause, "InvalidOperationException: boom") {
+		t.Fatalf("refusal cause %q does not name the section and exception", refusal.Cause)
+	}
+	if n := server.familyCalls(); n != 0 {
+		t.Fatalf("%d native family reads, want 0 (no GABP fallback)", n)
+	}
+}
+
 // TestFramesServeColonyFactsWithoutPlanning (#984): a colony facts read
 // without planning (acquisition, blight, resource, trade) is served from the
 // frame with the planning section unrequested, never a native hop.
