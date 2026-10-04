@@ -102,6 +102,7 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 	if entry.class != classCritical {
 		ctx = w.optional
 	}
+	ctx = entry.auditReads(ctx)
 	w.group.Go(entry.name, entry.class, entry.priority, func() error {
 		var reason Verdict
 		run := s.config.Faults.plannerFault(entry.name, ctx, func() (err error) {

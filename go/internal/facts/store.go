@@ -7,6 +7,7 @@
 package facts
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -188,6 +189,15 @@ func Get[T any](s *Store, section Section) (Held[T], bool) {
 		return Held[T]{}, false
 	}
 	return Held[T]{Value: value, AsOf: r.asOf, Complete: r.complete, Source: r.source, Region: r.region}, true
+}
+
+// Read is Get for a planner's read: it notes the section's family on the
+// context's read note (bridge.NoteRead) whether or not a section is held,
+// so a read served from the store counts the same as one served by a native
+// call (#1916).
+func Read[T any](ctx context.Context, s *Store, section Section) (Held[T], bool) {
+	bridge.NoteRead(ctx, section.Family(), "held:"+string(section))
+	return Get[T](s, section)
 }
 
 // Scope is the scope the held rows belong to.

@@ -219,6 +219,7 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 	if !nativeReadMethod(name) {
 		return Result{}, contract("unreviewed native read")
 	}
+	noteNativeRead(ctx, name)
 	if served, err := caller.frameRead(ctx, name, request, reply); served {
 		return Result{}, err
 	}

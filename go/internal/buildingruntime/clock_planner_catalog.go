@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -86,6 +87,14 @@ var (
 	// sectionsArmory is the bills and threat sets plus the research census
 	// the armory tier is capped by (#1201).
 	sectionsArmory = []facts.Section{facts.Colony, facts.Bills, facts.Pawns, facts.Emergency, facts.Research}
+)
+
+// The sectionless families planners declare beside their sections
+// (plannerEntry.families): the emergency status read for a planner whose
+// census sections do not carry it, and the world read of the caravan trade.
+var (
+	familiesEmergency = []bridge.FactFamily{bridge.FactEmergency}
+	familiesWorld     = []bridge.FactFamily{bridge.FactWorld}
 )
 
 // Review cadences, in game ticks (2500 an hour): how long a planner's last
@@ -486,7 +495,7 @@ var plannerCatalog = []plannerEntry{
 			out.Rescue = &method
 			return method.Verdict, nil
 		}},
-	{name: "equip", goal: policy.MaintainEquipment, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction}, sections: sectionsMedical,
+	{name: "equip", goal: policy.MaintainEquipment, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction}, sections: sectionsMedical, families: familiesEmergency,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Equip != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Equip.step(ctx, epoch, arbiter)
@@ -496,7 +505,7 @@ var plannerCatalog = []plannerEntry{
 			out.Equip = &method
 			return method.Verdict, nil
 		}},
-	{name: "repair", goal: policy.MaintainEssentialRepairs, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RepairAction}, sections: sectionsBuilding,
+	{name: "repair", goal: policy.MaintainEssentialRepairs, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RepairAction}, sections: sectionsBuilding, families: familiesEmergency,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Repair != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Repair.step(ctx, epoch, arbiter)
@@ -537,7 +546,7 @@ var plannerCatalog = []plannerEntry{
 			out.Shrine = &method
 			return method.Verdict, nil
 		}},
-	{name: "clean", goal: policy.MaintainCleanFacilities, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CleanAction}, sections: sectionsBuilding,
+	{name: "clean", goal: policy.MaintainCleanFacilities, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CleanAction}, sections: sectionsBuilding, families: familiesEmergency,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Clean != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Clean.step(ctx, epoch, arbiter)
@@ -587,7 +596,7 @@ var plannerCatalog = []plannerEntry{
 			out.Armory = &method
 			return method.Verdict, nil
 		}},
-	{name: "waste", goal: policy.MaintainWaste, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction, domain.EquipAction, domain.OwnedDraftAction, domain.IgniteAction, domain.CleanAction}, sections: sectionsBuilding,
+	{name: "waste", goal: policy.MaintainWaste, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction, domain.EquipAction, domain.OwnedDraftAction, domain.IgniteAction, domain.CleanAction}, sections: sectionsBuilding, families: familiesEmergency,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Waste != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Waste.step(ctx, epoch, arbiter)
@@ -729,7 +738,7 @@ var plannerCatalog = []plannerEntry{
 			out.Dialog = &method
 			return method.Verdict, nil
 		}},
-	{name: "trade", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.TradeAction}, sections: sectionsColony,
+	{name: "trade", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.TradeAction}, sections: sectionsColony, families: familiesWorld,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Trade != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Trade.step(ctx, epoch, arbiter)
@@ -901,4 +910,52 @@ func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *planner
 		wave.queue(s, ctx, epoch, arbiter, entry)
 	}
 	return queued
+}
+
+// declared is the fact families the planner may read: the family of each
+// census section it consumes plus its sectionless families (#1916). The
+// wake step re-runs a planner on exactly these invalidations, so a read
+// outside them would plan on facts nothing wakes it for. Two families are
+// ambient and declared by no one: definitions (the load's catalog, fixed
+// until a new load replaces the whole world) and identity (the world
+// identity every planner checks its step against).
+func (e plannerEntry) declared() map[bridge.FactFamily]bool {
+	out := map[bridge.FactFamily]bool{bridge.FactDefinitions: true, bridge.FactIdentity: true}
+	for _, section := range e.sections {
+		out[section.Family()] = true
+	}
+	for _, family := range e.families {
+		out[family] = true
+	}
+	return out
+}
+
+// plannerReadAudit is called for every fact family a catalog planner reads
+// that its entry does not declare (the recording facts reader,
+// bridge.ReadNote). Production logs each planner/family pair once to the
+// service log; the buildingruntime test binary replaces it in TestMain with
+// a collector that fails the run.
+var plannerReadAudit = logUndeclaredRead
+
+var loggedUndeclaredReads sync.Map
+
+func logUndeclaredRead(planner string, family bridge.FactFamily, source string) {
+	if _, seen := loggedUndeclaredReads.LoadOrStore(planner+"/"+string(family), true); !seen {
+		clockSchedulerLog("planner %s read undeclared fact family %s (%s)", planner, family, source)
+	}
+}
+
+// auditReads returns ctx carrying the planner's read note when an audit is
+// installed.
+func (e plannerEntry) auditReads(ctx context.Context) context.Context {
+	audit := plannerReadAudit
+	if audit == nil {
+		return ctx
+	}
+	declared := e.declared()
+	return bridge.WithReadNote(ctx, func(family bridge.FactFamily, source string) {
+		if !declared[family] {
+			audit(e.name, family, source)
+		}
+	})
 }

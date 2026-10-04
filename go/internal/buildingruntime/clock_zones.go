@@ -24,7 +24,7 @@ type zoneRefresher struct {
 }
 
 func (p *zoneRefresher) Zones(ctx context.Context, id *c.Identity) (facts.Held[bridge.ZonesRead], error) {
-	held, ok := facts.Get[bridge.ZonesRead](p.store, facts.Zones)
+	held, ok := facts.Read[bridge.ZonesRead](ctx, p.store, facts.Zones)
 	ok = ok && p.store.Scope() == p.scope && held.Value.Context.GetIdentity().GetColonyId() == id.GetColonyId() && held.Value.Context.GetIdentity().GetMapId() == id.GetMapId()
 	if ok && (p.refreshed || !p.review) {
 		return held, nil

@@ -159,6 +159,7 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
 	}
+	noteNativeRead(ctx, methodDefinitionCatalog)
 	if held := caller.heldCatalog(identity); held != nil {
 		return held, nil
 	}
