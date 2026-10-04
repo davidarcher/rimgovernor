@@ -12,7 +12,7 @@ import (
 func outerPlan(t *testing.T, width int32) (p LayoutPlan, units map[domain.Cell]bool) {
 	t.Helper()
 	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }
-	plan := PlanCore(Zone(zoningSurvey(200, ground)), 3, BuildTierCamp)
+	plan := corePlan(Zone(zoningSurvey(200, ground)), 3, BuildTierCamp)
 	core := footprintBox(plan, 200, 200)
 	// The patch lies north of the core, the geothermal enclosure south.
 	end := core.Z - perimeterGap - perimeterThick - 12

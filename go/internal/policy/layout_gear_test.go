@@ -8,7 +8,7 @@ import (
 )
 
 func gearTestPlan() LayoutPlan {
-	return Grow(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	return growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
 }
 
 func roomOf(p LayoutPlan, role ModuleRole) (LayoutRoom, bool) {
@@ -43,9 +43,25 @@ func TestGearRoomsNeedDemand(t *testing.T) {
 	}
 }
 
+// gearBesidePlan is a hallway with a barracks and a workshop on it and free
+// ground either side of each: a generated base packs its rooms, so whether
+// an anchor has a free side depends on its layout, not on the gear siting.
+func gearBesidePlan() LayoutPlan {
+	spine := []SpineSegment{{From: domain.Cell{X: 30, Z: 59}, To: domain.Cell{X: 88, Z: 59}}}
+	return LayoutPlan{
+		Zones:     coreTestZones(),
+		Spine:     spine,
+		Entrances: spineEntrances(spine),
+		Rooms: []LayoutRoom{
+			coreRoom(ModuleBarracks, 40, 59, 7, 5, false),
+			coreRoom(ModuleWorkshop, 70, 59, 7, 5, false),
+		},
+	}
+}
+
 func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 	t.Parallel()
-	plan := gearTestPlan()
+	plan := gearBesidePlan()
 	grown, added, _ := growGearRooms(plan, RoomDemand{Armory: true, Wardrobe: true})
 	if !added || len(grown.Rooms) != len(plan.Rooms)+2 {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(plan.Rooms), len(grown.Rooms))

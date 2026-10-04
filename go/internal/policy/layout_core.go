@@ -61,103 +61,6 @@ var coreBaseRooms = []ModuleRole{
 // coreMaxDepth is the deepest interior, which bounds the core's cross-section.
 const coreMaxDepth int32 = 7
 
-// PlanCore lays a fresh spine through the core candidates in zones and
-// rooms for pawns colonists.
-func PlanCore(zones []LayoutZone, pawns int, tier BuildTier) LayoutPlan {
-	return Grow(LayoutPlan{Zones: zones}, pawns, 1, tier)
-}
-
-// Grow adds whatever rooms plan lacks for pawns colonists (the base set,
-// then the bedroom wing to one room each, then tomb rooms up to tombs, #857) by extending the
-// spine, and a meal closet behind the dining room when no freezer opens
-// into it (#936); existing rooms never move.
-// A plan with no spine gets one near the core candidates' centre. Rooms
-// that no longer fit are left out. A new bedroom wing takes tier's room
-// size (#1214).
-// suites are the impressiveness targets of the suites wanted, in order;
-// its entries past the suites the plan holds site suite blocks of up to
-// suiteMaxRooms suites each, sized by SuiteSize at siting (#1951);
-// SuiteTargets builds it from the pawns SuiteClaims finds (#1216), and none
-// keeps the plan's suites as they are. A suite never grows.
-func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
-	return growSoil(plan, nil, pawns, tombs, tier, suites...)
-}
-
-// growSoil is Grow over the build cost of each surveyed cell (surveySoil;
-// nil costs nothing), so a replan tells rich soil from plain (#1955).
-func growSoil(plan LayoutPlan, soil map[domain.Cell]int, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
-	g := newCoreGrid(plan.Zones, plan.Reservations)
-	g.soil = soil
-	if len(g.core) == 0 {
-		return plan
-	}
-	if len(plan.Spine) == 0 {
-		start, ok := g.seed()
-		if !ok {
-			return plan
-		}
-		plan.Spine = []SpineSegment{{From: start, To: start}}
-	}
-	have := map[ModuleRole]int{}
-	for _, r := range plan.Rooms {
-		have[r.Role]++
-	}
-	// The bedroom wing is sited right behind the storage room, so it takes
-	// the ground beside it before the later base rooms do (#1178).
-	var want []ModuleRole
-	for _, role := range coreBaseRooms {
-		if have[role] == 0 || role == ModuleStorage {
-			want = append(want, role)
-		}
-	}
-	for i := max(have[ModuleTomb], 1); i < tombs; i++ {
-		want = append(want, ModuleTomb)
-	}
-	rooms := append([]LayoutRoom(nil), plan.Rooms...)
-	spine := append([]SpineSegment(nil), plan.Spine...)
-	wings := retireWings(plan.Wings, tier)
-	// Other rooms stay off the suite blocks' ground.
-	base := newCoreGrid(plan.Zones, plan.Reservations)
-	base.soil = soil
-	g.carveSuiteWings(wings)
-	base.carveSuiteWings(wings)
-	g.carveBedroomWings(wings)
-	if len(spine) == 1 {
-		// The centre crossing is laid first so no room takes its column (#952).
-		if next, ok := g.addCrossing(spine, rooms); ok {
-			spine = next
-		}
-	}
-	for _, role := range want {
-		if role == ModuleStorage && have[role] > 0 {
-			spine, wings = growWing(g, base, spine, rooms, wings, pawns, tier)
-			continue
-		}
-		var fit bool
-		spine, rooms, _, fit = g.placeRole(spine, rooms, wings, role, coreRoomSize[role])
-		if !fit {
-			break
-		}
-		if role == ModuleStorage {
-			spine, wings = growWing(g, base, spine, rooms, wings, pawns, tier)
-		}
-	}
-	if closet, ok := g.mealCloset(rooms); ok {
-		trial := append(append([]LayoutRoom(nil), rooms...), closet)
-		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: trial, Wings: wings}); err == nil {
-			rooms = trial
-		}
-	}
-	// New suite blocks take whatever no other room or wing claimed.
-	sg := newCoreGrid(plan.Zones, plan.Reservations)
-	sg.carveBedroomWings(wings)
-	sg.carveSuiteWings(wings)
-	spine, wings = sg.growSuites(spine, rooms, wings, suites)
-	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
-	plan.Entrances = spineEntrances(spine)
-	return plan
-}
-
 // placeRole places one room of role on the nearest free slot, trying every
 // hallway and adding a crossing while no slot fits. fit reports that some
 // slot fit the role (a room that makes a thoroughfare, #780, still counts
@@ -201,14 +104,6 @@ func (g coreGrid) placeRole(spine []SpineSegment, rooms []LayoutRoom, wings []Wi
 		spine = next
 	}
 	return spine, rooms, placed, fit
-}
-
-// growWing grows the bedroom wings over base (the core with no bedroom
-// wing ground carved out) and carves their ground out of g.
-func growWing(g, base coreGrid, spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
-	spine, wings = base.growWings(spine, rooms, wings, pawns, tier)
-	g.carveBedroomWings(wings)
-	return spine, wings
 }
 
 type coreGrid struct {

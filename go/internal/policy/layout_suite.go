@@ -1,9 +1,5 @@
 package policy
 
-import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-)
-
 // Suite blocks (#1215, #1951, epic #1938): a block is a wing off the main
 // hallway whose rooms are sized per owner at siting. Each side packs its
 // suites outward along the corridor, sharing walls. A block is planned at
@@ -116,60 +112,4 @@ func (g coreGrid) carveSuiteWings(wings []Wing) {
 	for _, i := range suiteWings(wings) {
 		g.carve(wingReserve(wings[i]))
 	}
-}
-
-// growSuites sites suite blocks off the main hallway for the targets past
-// the suites the plan holds (index-aligned with plan.AllRooms' suites),
-// each block of at most suiteMaxRooms suites sized by SuiteSize at siting.
-// Existing suites never move or change. Suites that do not fit are left
-// out.
-func (g coreGrid) growSuites(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, targets []float64) ([]SpineSegment, []Wing) {
-	if len(spine) == 0 || !alongX(spine[0]) {
-		return spine, wings
-	}
-	have := 0
-	for _, i := range suiteWings(wings) {
-		have += len(wings[i].Rooms)
-	}
-	wings = append([]Wing(nil), wings...)
-	for have < len(targets) {
-		chunk := targets[have:min(have+suiteMaxRooms, len(targets))]
-		free := g.wingGround(spine, rooms)
-		fitting := func(f wingFrame) []LayoutRoom {
-			var placed []LayoutRoom
-			for _, r := range packSuites(f, chunk) {
-				v0, w := f.along(r)
-				if !free(roomWalls(r)) || !free(f.corridorTo(v0+w)) {
-					break
-				}
-				placed = append(placed, r)
-			}
-			return placed
-		}
-		f, ok := g.siteWing(spine, rooms, func(try wingFrame) int { return len(fitting(try)) })
-		if !ok {
-			break
-		}
-		grown := openWing(spine, f)
-		base := domain.Cell{X: f.cx, Z: f.z(2)}
-		w := Wing{Purpose: WingSuites, Corridor: SpineSegment{From: base, To: base}}
-		for _, r := range fitting(f) {
-			r.Dug = g.dug(r)
-			trial := w
-			trial.Rooms = append(append([]LayoutRoom(nil), w.Rooms...), r)
-			trial.Corridor.To = f.reach(trial.Rooms)
-			next := append(append([]Wing(nil), wings...), trial)
-			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Entrances: spineEntrances(grown), Rooms: rooms, Wings: next}); err != nil {
-				break
-			}
-			w = trial
-		}
-		if len(w.Rooms) == 0 {
-			break
-		}
-		spine, wings = grown, append(wings, w)
-		g.carve(wingReserve(w))
-		have += len(w.Rooms)
-	}
-	return spine, wings
 }

@@ -17,7 +17,7 @@ import (
 //   - a stone enclosure around each geyser's generator;
 //   - an exhaust cell (or dug shaft) behind each room that needs cooling.
 // Turbine, solar and geothermal sites stay out of the core's cross-section
-// band so the spine can keep growing along it, and Grow never builds over
+// band so the spine can keep growing along it, and the generator never builds over
 // a reservation.
 
 // ModuleBattery is the battery room: 5 wide, a 1-cell walkway from the

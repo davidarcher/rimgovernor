@@ -51,7 +51,7 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 	return policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
 }
 
-// suiteTargets is the suites Grow keeps and adds for plan (#1216) and the
+// suiteTargets is the suites the generator keeps and adds for plan (#1216) and the
 // claims behind them; nil while the room, sleeping or work census is
 // unknown.
 func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan, stage policy.ColonyStage) ([]float64, []policy.SuiteClaim) {

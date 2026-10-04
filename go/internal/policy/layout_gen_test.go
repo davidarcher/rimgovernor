@@ -154,7 +154,7 @@ func TestGenerateHopsRichPatchFromTheEdge(t *testing.T) {
 			t.Fatalf("seed %v: %v", seed, sc)
 		}
 		linksKeepWall(t, p)
-		old := Grow(LayoutPlan{Zones: zones, Spine: []SpineSegment{{From: seed, To: seed}}}, 3, 1, BuildTierCamp)
+		old := growPlan(LayoutPlan{Zones: zones, Spine: []SpineSegment{{From: seed, To: seed}}}, 3, 1, BuildTierCamp)
 		over += scorer.core(old).RichCells
 	}
 	if over == 0 {

@@ -89,7 +89,7 @@ func containsSelector(rows []domain.FilterSelector, s domain.FilterSelector) boo
 }
 
 func TestCoreGrowPlansAMorgueBesideTheTomb(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, BuildTierCamp)
 	var morgue, tomb *LayoutRoom
 	for i, r := range p.Rooms {
 		switch r.Role {

@@ -29,7 +29,7 @@ func wingCounts(p LayoutPlan) []int {
 // A plan for N pawns holds ceil(N/10) bedroom wings, each planned at full
 // size when sited; one more pawn sites a new wing and moves nothing (#1950).
 func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
-	p := PlanCore(coreTestZones(), 25, BuildTierCamp)
+	p := corePlan(coreTestZones(), 25, BuildTierCamp)
 	if got := wingCounts(p); len(got) != 3 || got[0] != 10 || got[1] != 10 || got[2] != 10 {
 		t.Fatalf("wings %v, want [10 10 10]", got)
 	}
@@ -60,7 +60,7 @@ func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
 	}
 	// One pawn past capacity sites a fourth wing and leaves every existing
 	// wing, room and corridor exactly as it was.
-	g := Grow(p, 31, 1, BuildTierCamp)
+	g := growPlan(p, 31, 1, BuildTierCamp)
 	if got := wingCounts(g); len(got) != 4 {
 		t.Fatalf("grown wings %v, want 4 wings", got)
 	}
@@ -130,7 +130,7 @@ func checkWing(t *testing.T, p LayoutPlan) Wing {
 
 func TestBedroomWingHousesEachPawn(t *testing.T) {
 	for _, pawns := range []int{1, 3, 6, 10} {
-		p := PlanCore(coreTestZones(), pawns, BuildTierCamp)
+		p := corePlan(coreTestZones(), pawns, BuildTierCamp)
 		checkWing(t, p)
 		if got := wingCounts(p); len(got) != 1 {
 			t.Fatalf("%d pawns: wings %v, want one", pawns, got)
@@ -146,9 +146,9 @@ func TestBedroomWingHousesEachPawn(t *testing.T) {
 // Growing within a wing's capacity changes nothing; the corridor length is
 // fixed at siting.
 func TestBedroomWingNeverGrows(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, BuildTierCamp)
 	before := checkWing(t, p)
-	g := Grow(p, 7, 1, BuildTierCamp)
+	g := growPlan(p, 7, 1, BuildTierCamp)
 	after := checkWing(t, g)
 	if len(wingCounts(g)) != 1 || after.Corridor != before.Corridor {
 		t.Fatal("wing changed", before.Corridor, after.Corridor)
@@ -177,12 +177,12 @@ func TestBedroomWingRoomSizeByTier(t *testing.T) {
 		}
 	}
 	for _, tier := range []BuildTier{BuildTierCamp, BuildTierPowered, BuildTierSpacer} {
-		p := PlanCore(coreTestZones(), 4, tier)
+		p := corePlan(coreTestZones(), 4, tier)
 		size(t, checkWing(t, p), WingRoomSize(tier))
 	}
-	camp := PlanCore(coreTestZones(), 3, BuildTierCamp)
+	camp := corePlan(coreTestZones(), 3, BuildTierCamp)
 	// A later tier retires the smaller wing and sites a new one (#1219).
-	grown := Grow(camp, 6, 1, BuildTierSpacer)
+	grown := growPlan(camp, 6, 1, BuildTierSpacer)
 	size(t, grown.Wings[0], WingRoomSize(BuildTierCamp))
 	if grown.Wings[0].Purpose != WingBedroomsRetiring {
 		t.Fatal("camp wing not retiring", grown.Wings[0].Purpose)
@@ -194,7 +194,7 @@ func TestBedroomWingRoomSizeByTier(t *testing.T) {
 // A room the survey drops shortens the corridor; the wing's other rooms
 // stay put and the wing is not refilled.
 func TestKeepWingRoomsTrimsTheCorridor(t *testing.T) {
-	p := PlanCore(coreTestZones(), 6, BuildTierCamp)
+	p := corePlan(coreTestZones(), 6, BuildTierCamp)
 	w := testBedroomWing(t, p)
 	last := w.Rooms[len(w.Rooms)-1]
 	kept := keepWingRooms(p.Wings, func(r LayoutRoom) bool {
@@ -204,7 +204,7 @@ func TestKeepWingRoomsTrimsTheCorridor(t *testing.T) {
 		t.Fatalf("kept %+v", kept)
 	}
 	p.Wings = kept
-	g := Grow(p, 6, 1, BuildTierCamp)
+	g := growPlan(p, 6, 1, BuildTierCamp)
 	first := g.Wings[bedroomWings(g.Wings)[0]]
 	if len(first.Rooms) != 8 || first.Corridor != kept[0].Corridor {
 		t.Fatalf("trimmed wing %d rooms, corridor %+v", len(first.Rooms), first.Corridor)
@@ -217,7 +217,7 @@ const bedroomWingReach = 20
 
 func TestBedroomsClusterNearStorage(t *testing.T) {
 	for _, pawns := range []int{3, 5, 8} {
-		p := PlanCore(coreTestZones(), pawns, BuildTierCamp)
+		p := corePlan(coreTestZones(), pawns, BuildTierCamp)
 		w := checkWing(t, p)
 		var store *LayoutRoom
 		for i, r := range p.Rooms {

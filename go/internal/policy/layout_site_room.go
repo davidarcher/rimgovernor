@@ -14,7 +14,7 @@ func SiteRoom(plan LayoutPlan, role ModuleRole, sizes ...[2]int32) (LayoutPlan, 
 	if len(g.core) == 0 {
 		return plan, false, fmt.Errorf("the plan needs a %s room but the map survey left no core ground to place it on", role)
 	}
-	// Keep off the wings' ground, as Grow does.
+	// Keep off the wings' ground, as the generator does.
 	g.carveSuiteWings(plan.Wings)
 	g.carveBedroomWings(plan.Wings)
 	clear := weaponClearance(plan, role)

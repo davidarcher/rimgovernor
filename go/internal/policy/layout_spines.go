@@ -4,19 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// wingAnchor is the storage room's door, which the bedroom wing hugs: the
-// starter shell stands on the storage slot, so the first bedrooms are a
-// short walk from camp (#1178).
-func wingAnchor(rooms []LayoutRoom) (domain.Cell, bool) {
-	for _, r := range rooms {
-		if r.Role == ModuleStorage {
-			return r.Door, true
-		}
-	}
-	return domain.Cell{}, false
-}
-
-// Spines and crossings (#952). The old generator lays Spine[0] as the main
+// Spines and crossings (#952). The generator lays Spine[0] as the main
 // east-west hallway (nothing else may assume it, #1947); every later segment
 // is a north-south crossing laid through it, so the core grows from a line into a + and then an H (a crossing at each end of the main
 // hallway). A crossing always runs out on both sides of the main hallway,

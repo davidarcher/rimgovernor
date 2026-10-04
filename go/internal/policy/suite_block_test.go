@@ -11,7 +11,7 @@ import (
 // and a target of 50 its floor cannot meet.
 func suiteOwnerCase(t *testing.T) (LayoutPlan, RoomObservation, SleepingObservation, map[string]RoomTarget) {
 	t.Helper()
-	plan := Grow(PlanCore(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, 0.1)
+	plan := growPlan(corePlan(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, 0.1)
 	i := wingOf(plan.Wings, WingSuites)
 	if i < 0 {
 		t.Fatal("no suite wing")
@@ -30,9 +30,9 @@ func suiteOwnerCase(t *testing.T) (LayoutPlan, RoomObservation, SleepingObservat
 // takes a block's ground.
 func TestSitedSuiteBlockStaysPutAndKeepsItsGround(t *testing.T) {
 	targets := []float64{ImpressivenessDull, ImpressivenessDull}
-	p := Grow(PlanCore(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, targets...)
+	p := growPlan(corePlan(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, targets...)
 	before := testSuiteWing(t, p)
-	g := Grow(p, 10, 2, BuildTierCamp, append(targets, ImpressivenessDecent)...)
+	g := growPlan(p, 10, 2, BuildTierCamp, append(targets, ImpressivenessDecent)...)
 	after := g.Wings[wingOf(g.Wings, WingSuites)]
 	for i, r := range before.Rooms {
 		if !after.Rooms[i].Same(r) {
@@ -70,7 +70,7 @@ func TestRisingTargetSitesANewSuiteAndKeepsTheBuiltOne(t *testing.T) {
 	if !slices.Equal(suites, []float64{0, 50}) {
 		t.Fatalf("suite targets = %v, want the kept suite and a new one at 50", suites)
 	}
-	grown := Grow(plan, 2, 1, BuildTierCamp, suites...)
+	grown := growPlan(plan, 2, 1, BuildTierCamp, suites...)
 	if grown.SuiteRooms() != 2 {
 		t.Fatalf("suites = %d, want 2", grown.SuiteRooms())
 	}
@@ -105,7 +105,7 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 	for i := 0; i < suiteMaxRooms+3; i++ {
 		targets = append(targets, ImpressivenessDull)
 	}
-	p := Grow(PlanCore(coreTestZones(), 4, BuildTierCamp), 4, 1, BuildTierCamp, targets...)
+	p := growPlan(corePlan(coreTestZones(), 4, BuildTierCamp), 4, 1, BuildTierCamp, targets...)
 	blocks := suiteWings(p.Wings)
 	if p.SuiteRooms() != len(targets) {
 		t.Skipf("only %d of %d suites fit the test core", p.SuiteRooms(), len(targets))
@@ -114,16 +114,19 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 		t.Fatalf("blocks = %d, want %d", len(blocks), want)
 	}
 	// Index alignment: plan order across blocks is the targets' order.
+	// Each suite is sized along its block's corridor, whichever way it runs.
 	var suites []LayoutRoom
 	for _, i := range blocks {
 		if n := len(p.Wings[i].Rooms); n > suiteMaxRooms {
 			t.Fatalf("block of %d suites, cap %d", n, suiteMaxRooms)
 		}
-		suites = append(suites, p.Wings[i].Rooms...)
-	}
-	for i, r := range suites {
-		if w, d := SuiteSize(targets[i]); r.Interior.Height != w || r.Interior.Width != d {
-			t.Fatalf("suite %d is %dx%d, want %dx%d", i, r.Interior.Height, r.Interior.Width, w, d)
+		f := frameOf(p.Wings[i])
+		for _, r := range p.Wings[i].Rooms {
+			w, d := SuiteSize(targets[len(suites)])
+			if in := f.orientRoom(r).Interior; in.Height != w || in.Width != d {
+				t.Fatalf("suite %d is %dx%d, want %dx%d", len(suites), in.Height, in.Width, w, d)
+			}
+			suites = append(suites, r)
 		}
 	}
 	for n, i := range blocks {
@@ -133,9 +136,17 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 				t.Fatal("suite blocks overlap", i, j)
 			}
 		}
+		// A block's suites and corridor stand clear of every other room.
+		f := frameOf(p.Wings[i])
+		corridor := f.corridorTo(f.reachV(p.Wings[i].Rooms))
 		for _, o := range p.Rooms {
-			if rectsOverlap(ground, o.Interior) {
-				t.Fatal("block ground taken by", o.Role, o.Interior)
+			if rectsOverlap(corridor, roomWalls(o)) {
+				t.Fatal("block corridor taken by", o.Role, o.Interior)
+			}
+			for _, s := range p.Wings[i].Rooms {
+				if rectsOverlap(roomWalls(s), o.Interior) {
+					t.Fatal("suite on", o.Role, o.Interior)
+				}
 			}
 		}
 	}
@@ -143,7 +154,7 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 		t.Fatal("routes:", err)
 	}
 	// A later claim sites a new block and leaves every sited suite alone.
-	more := Grow(p, 4, 1, BuildTierCamp, append(append([]float64(nil), make([]float64, len(targets))...), ImpressivenessDecent)...)
+	more := growPlan(p, 4, 1, BuildTierCamp, append(append([]float64(nil), make([]float64, len(targets))...), ImpressivenessDecent)...)
 	if more.SuiteRooms() == len(targets)+1 {
 		for _, r := range suites {
 			if !slices.ContainsFunc(more.AllRooms(), r.Same) {

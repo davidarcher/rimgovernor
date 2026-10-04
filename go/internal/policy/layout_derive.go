@@ -12,7 +12,7 @@ import (
 
 // Derive and replan v2 (#783, B1). The plan is built from the survey once
 // and afterwards only grown: a replan re-zones the map, drops rooms the
-// terrain no longer carries, and calls Grow. The core candidates are a
+// terrain no longer carries, and sites what it lacks. The core candidates are a
 // planning input, not part of the saved plan.
 
 // layoutUtilities is what a fresh plan reserves beside its core; the pens,
@@ -35,22 +35,6 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
 	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s), s)
 	return domain.Known(withoutCore(plan))
-}
-
-// ReplanLayout grows plan for pawns colonists and tombs tomb rooms over a
-// fresh survey, with the suites: rooms now on no-go ground are dropped, the
-// plan grows what it lacks, and the unbuilt rooms are sited again when that
-// scores clearly better (layout_replan.go, #1958); a room with anything of
-// ours on it never moves.
-// With the rooms unchanged the perimeter alone is replanned (#954), which
-// changes the plan when the ground on or near the ring did (ground a
-// moisture pump dried, a mined-out ring cell). It reports whether the plan
-// changed. An emptied Retiring wing (emptied, keyed by its corridor's
-// hallway cell) is dropped only when a replan sited without it scores
-// clearly better; else it stays as spare beds.
-func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
-	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, pawns, tombs, tier, geysers, emptied, suites...)
-	return next, changed
 }
 
 // RoomGrowth is the rooms the plan is asked to add beyond the core: a throne
@@ -86,9 +70,18 @@ type RoomGrowth struct {
 	Occupied map[domain.Cell]bool
 }
 
-// ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,
-// added after the rest of the rooms and before the perimeter is replanned
-// around them. A herd of
+// ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
+// over a fresh survey, with the suites: rooms now on no-go ground are
+// dropped, the plan grows what it lacks, and the unbuilt rooms are sited
+// again when that scores clearly better (layout_replan.go, #1958); a room
+// with anything of ours on it never moves. With the rooms unchanged the
+// perimeter alone is replanned (#954), which changes the plan when the
+// ground on or near the ring did (ground a moisture pump dried, a mined-out
+// ring cell). It reports whether the plan changed. An emptied Retiring wing
+// (emptied, keyed by its corridor's hallway cell) is dropped only when a
+// beds. It also keeps the rooms of growth, added after the rest of the
+// rooms and before the perimeter is replanned around them. A herd of
+// animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
 // animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
 // the pens, barn and vet room it lacks (PlanHerdSites, #1633). The error
 // joins the rooms growth asked for that no core slot took (#1799); the plan

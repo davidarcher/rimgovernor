@@ -18,7 +18,7 @@ import (
 // Replans extend the saved plan and never re-site.
 
 // siteCandidates is N, the most seeds a fresh siting pass grows. On the
-// #1280 baseline fixture one Grow takes ~40-50 ms; the map is paused while
+// #1280 baseline fixture one generate takes ~40-50 ms; the map is paused while
 // the first plan is sited, so ~780 seeds (the fixture yields that many) over the
 // worker pool take ~4 s (32 threads), inside siteBudget.
 const siteCandidates = 1000
@@ -48,9 +48,8 @@ type siteScore struct {
 	plan  LayoutPlan
 }
 
-// SiteCore grows plan as Grow does, for pawns colonists and tombs tomb
-// rooms. A plan with no spine yet is sited: grown from each candidate
-// seed over s, keeping the best-scoring result.
+// SiteCore sites a fresh plan for pawns colonists and tombs tomb rooms: grown
+// from each candidate seed over s, keeping the best-scoring result.
 func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) LayoutPlan {
 	return siteCore(plan, s, pawns, tombs, tier, siteSearchIters)
 }
@@ -58,9 +57,6 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) La
 // siteCore is SiteCore with searchIters local-search operators per searched
 // site (0 skips the search: the replay harness's unsearched baseline).
 func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, searchIters int) LayoutPlan {
-	if len(plan.Hallways()) > 0 {
-		return growSoil(plan, surveySoil(s), pawns, tombs, tier)
-	}
 	g := newCoreGrid(plan.Zones, plan.Reservations).withSoil(s)
 	if len(g.core) == 0 {
 		return plan
@@ -93,7 +89,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 	if len(scores) == 0 {
 		return plan
 	}
-	// The wall terms (#1288) need PlanPerimeter, far dearer than Grow, so
+	// The wall terms (#1288) need PlanPerimeter, far dearer than generate, so
 	// only the best siteWallCandidates by core score are walled and reranked.
 	// The best sites by core score are searched (layout_gen_search.go); the
 	// searched plans join the walled pool beside the unsearched ones, so the

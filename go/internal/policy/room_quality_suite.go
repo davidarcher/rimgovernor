@@ -9,7 +9,7 @@ import (
 // Suites for qualifying pawns (#1216, epic #1200). Where the gap closer
 // and the bed ladder skip a room whose weakest stat is space, the pawn is
 // given a suite instead: the plan sites a suite block holding one suite
-// sized for the pawn's target (SuiteTargets into Grow), the bedroom ladder
+// sized for the pawn's target (SuiteTargets into the suite blocks), the bedroom ladder
 // shells and furnishes it and moves the pawn in (NextBedroomStep), and
 // the standard room left behind is vacant for the next unhoused pawn. No
 // claim is stored: a pawn qualifies while it holds a standard room its
@@ -197,7 +197,7 @@ func (p LayoutPlan) SuiteRooms() int {
 	return n
 }
 
-// SuiteTargets is Grow's suites argument: one entry per suite the plan
+// SuiteTargets is the generator's suites argument: one entry per suite the plan
 // holds, in plan order across its suite blocks and zero (kept as it is,
 // a suite never grows), then the target of each claim no vacant suite
 // answers.

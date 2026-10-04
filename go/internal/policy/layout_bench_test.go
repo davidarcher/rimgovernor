@@ -61,7 +61,7 @@ func BenchmarkLayoutPlanCore(b *testing.B) {
 	for _, pawns := range []int{3, 8} {
 		b.Run(fmt.Sprintf("pawns=%d", pawns), func(b *testing.B) {
 			for b.Loop() {
-				PlanCore(zones, pawns, BuildTierCamp)
+				corePlan(zones, pawns, BuildTierCamp)
 			}
 		})
 	}
@@ -85,7 +85,7 @@ func BenchmarkLayoutSiteCore(b *testing.B) {
 
 func BenchmarkLayoutPlanPerimeter(b *testing.B) {
 	s := loadSurvey(b, baselineSurveyPath)
-	plan := PlanCore(Zone(s), 3, BuildTierCamp)
+	plan := corePlan(Zone(s), 3, BuildTierCamp)
 	b.ResetTimer()
 	for b.Loop() {
 		PlanPerimeter(plan, s)

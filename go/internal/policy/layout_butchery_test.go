@@ -5,7 +5,7 @@ import "testing"
 // TestPlanCorePlansButcheryApartFromKitchen: the plan holds a butcher room
 // that does not crowd the kitchen.
 func TestPlanCorePlansButcheryApartFromKitchen(t *testing.T) {
-	p := PlanCore(coreTestZones(), 0, BuildTierCamp)
+	p := corePlan(coreTestZones(), 0, BuildTierCamp)
 	var butchery, kitchen *LayoutRoom
 	for i, r := range p.Rooms {
 		switch r.Role {

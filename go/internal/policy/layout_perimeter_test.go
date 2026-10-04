@@ -8,8 +8,20 @@ import (
 
 func perimeterPlan(t *testing.T, cell func(x, z int32) SurveyCell) LayoutPlan {
 	t.Helper()
+	return perimeterPlanAt(t, nil, cell)
+}
+
+// perimeterPlanAt is perimeterPlan with the plan generated from seed (the
+// core candidates' centroid when nil), so a fixture can set where the base
+// stands in its valley.
+func perimeterPlanAt(t *testing.T, seed *domain.Cell, cell func(x, z int32) SurveyCell) LayoutPlan {
+	t.Helper()
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
+	plan := corePlan(Zone(s), 3, BuildTierCamp)
+	if seed != nil {
+		plan = newCoreGrid(Zone(s), nil).generate(LayoutPlan{Zones: Zone(s)}, *seed, 3, 1, BuildTierCamp)
+	}
+	p := PlanPerimeter(plan, s)
 	if !p.Valid() {
 		t.Fatal("invalid plan")
 	}
@@ -112,7 +124,10 @@ func TestPerimeterKillboxWhereApproachesConverge(t *testing.T) {
 		return SurveyCell{Rock: true}
 	})
 	kb := checkPerimeter(t, p)
-	if c := kb.X + kb.Width/2; c < 90 || c > 110 {
+	// Raiders drift sideways crossing the valley floor between the mouth
+	// (z 40) and the wall, so the killbox may sit that far off it.
+	drift := kb.Z - 40
+	if c := kb.X + kb.Width/2; c < 95-drift || c > 105+drift {
 		t.Fatal("killbox off the mouth", kb)
 	}
 	app := reserved(p, ReserveKillboxApproach)
@@ -189,7 +204,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 		return SurveyCell{Walkable: true, Fertility: 0.7}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
+	p := PlanPerimeter(corePlan(Zone(s), 3, BuildTierCamp), s)
 	if !p.Valid() {
 		t.Fatal("invalid plan")
 	}
@@ -409,7 +424,7 @@ func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
 		return SurveyCell{Walkable: true, Fertility: 1}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
+	p := PlanPerimeter(corePlan(Zone(s), 3, BuildTierCamp), s)
 	if len(reserved(p, ReservePerimeterGap)) == 0 {
 		t.Fatal("ground nothing closes is flagged")
 	}
@@ -480,7 +495,7 @@ func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
 func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }
 	s := zoningSurvey(200, ground)
-	plan := PlanCore(Zone(s), 3, BuildTierCamp)
+	plan := corePlan(Zone(s), 3, BuildTierCamp)
 	core := footprintBox(plan, 200, 200)
 	right, top := core.X+core.Width-1, core.Z+core.Height-1
 	off := perimeterGap + perimeterThick + 3
@@ -568,8 +583,10 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 // the killbox stays whole across its opening there, not clipped sideways
 // off the approach.
 func TestPerimeterKillboxWholeAtACorner(t *testing.T) {
+	// The base stands near the valley's corner, so its ring reaches it.
+	seed := domain.Cell{X: 70, Z: 80}
 	for _, mouth := range []int32{0, 2, 4, 6, 8, 10, 14} {
-		p := perimeterPlan(t, func(x, z int32) SurveyCell {
+		p := perimeterPlanAt(t, &seed, func(x, z int32) SurveyCell {
 			open := x >= 30 && x < 170 && z >= 40 && z < 170 || x >= 30+mouth && x <= 36+mouth && z < 40
 			if open {
 				return SurveyCell{Walkable: true, Fertility: 1}

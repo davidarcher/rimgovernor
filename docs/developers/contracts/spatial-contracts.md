@@ -171,6 +171,31 @@ the layout plan's sectors (`LayoutPlan.District`, `DistrictAnchor`);
 site search on its district (`layoutAnchor`) and on the colony centre when
 the plan has no free cell there.
 
+### Layout generator
+
+`policy.SiteCore` sites a fresh plan (epic #1938, `go/internal/policy/layout_gen*.go`):
+
+- **Obstacles.** The core candidates lose their obstacle cells first (rich
+  soil, ore rock, field zones), level by level; a level holds only if some plan places
+  every base room and houses every colonist, else the next, looser level runs.
+- **Clusters.** The base rooms are grouped by affinity (the weighted trip
+  table plus the `besideRoles` pairs) and each cluster is placed as a unit on
+  the hallways, packed on shared walls with Link doors.
+- **Housing blocks.** Bedrooms go in wings and suites in suite blocks: each a
+  straight corridor off a hallway, in either orientation, sited whole (a wing
+  at most 10 rooms, a suite block at most 6, sized when sited) and never grown.
+- **Rings.** Hallway ends are joined into rings where the ground allows, rooms
+  get second doors, and the plan's entrances are the hallway ends that reach
+  outside the base; `CheckRoutes` proves every trip routes.
+- **Search.** The best sites by score get a deterministic, iteration-bounded
+  local search (swap rooms, move a cluster, re-site a wing); wall time is
+  only a hang guard.
+- **Replan.** A replan is two-stage: the same generator runs with every room
+  that has anything of ours on it (built, a blueprint or frame, an in-flight
+  journal plan or claim) fixed, and the result replaces the saved plan only
+  when it houses as many colonists and scores clearly better
+  (`planWeights.ReplanGain`, `layout_replan.go`).
+
 ### Layout tidy
 
 `TidyLayout` (#611, #809) re-sites a settled colony's off-plan furniture

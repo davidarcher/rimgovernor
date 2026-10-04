@@ -34,7 +34,7 @@ func TestSiteCoreLandsOffCentreRichPatch(t *testing.T) {
 	s := centreRichSurvey()
 	zones := Zone(s)
 	g := newCoreGrid(zones, nil).withSoil(s)
-	centroid := PlanCore(zones, 3, BuildTierCamp)
+	centroid := corePlan(zones, 3, BuildTierCamp)
 	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
 	if len(sited.Rooms) == 0 {
 		t.Fatal("no rooms")
@@ -50,7 +50,7 @@ func TestSiteCoreLandsOffCentreRichPatch(t *testing.T) {
 func TestSiteCoreBaselineScoresNoBelowCentroid(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
 	zones := Zone(s)
-	centroid := PlanCore(zones, 3, BuildTierCamp)
+	centroid := corePlan(zones, 3, BuildTierCamp)
 	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
 	if Score(centroid, s).Better(Score(sited, s)) {
 		t.Fatal("sited plan scores below the centroid plan")
@@ -127,7 +127,7 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 		return c
 	})
 	sited := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
-	grown := Grow(sited, 8, 1, BuildTierCamp)
+	grown := growPlan(sited, 8, 1, BuildTierCamp)
 	for name, p := range map[string]LayoutPlan{"sited": sited, "grown": grown} {
 		if len(p.AllRooms()) == 0 {
 			t.Fatal(name, "no rooms")
@@ -204,7 +204,7 @@ func mountainSideSurvey() MapSurvey {
 func TestSiteCorePrefersMountainSide(t *testing.T) {
 	s := mountainSideSurvey()
 	zones := Zone(s)
-	centroid := PlanCore(zones, 3, BuildTierCamp)
+	centroid := corePlan(zones, 3, BuildTierCamp)
 	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
 	if len(sited.Rooms) == 0 || len(centroid.Rooms) == 0 {
 		t.Fatal("no rooms")

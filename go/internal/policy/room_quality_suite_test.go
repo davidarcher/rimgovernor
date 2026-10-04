@@ -122,7 +122,7 @@ func TestSuiteTargetsAddOnlyUnansweredClaims(t *testing.T) {
 	if got := SuiteTargets(plan, rooms, sleeping, claims); !slices.Equal(got, []float64{50, 60}) {
 		t.Fatalf("no suite wing targets = %v", got)
 	}
-	grown := Grow(PlanCore(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, 50)
+	grown := growPlan(corePlan(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, 50)
 	if grown.SuiteRooms() != 1 {
 		t.Fatalf("grown suites = %d, want 1", grown.SuiteRooms())
 	}

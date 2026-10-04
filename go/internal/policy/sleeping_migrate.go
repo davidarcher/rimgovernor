@@ -43,7 +43,7 @@ func retiringBeds(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 }
 
 // EmptiedRetiringWings is the Retiring wings no pawn owns a bed in, keyed
-// by their corridor's hallway cell (ReplanLayout's emptied): every room
+// by their corridor's hallway cell (ReplanLayoutWithRooms's emptied): every room
 // of the wing is unbuilt or holds only unowned beds. None while the census
 // or sleeping read is unknown.
 func EmptiedRetiringWings(plan LayoutPlan, rooms domain.Fact[RoomObservation], sleeping domain.Fact[SleepingObservation]) map[domain.Cell]bool {

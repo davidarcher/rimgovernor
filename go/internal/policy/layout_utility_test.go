@@ -18,7 +18,7 @@ func utilityTestZones() []LayoutZone {
 }
 
 func TestPlannedPowerSites(t *testing.T) {
-	p := PlanUtilities(PlanCore(utilityTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1, Solar: 1})
+	p := PlanUtilities(corePlan(utilityTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1, Solar: 1})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
 		t.Fatal(batteries)
@@ -53,7 +53,7 @@ func TestPlannedPowerSites(t *testing.T) {
 // hallway the battery room still gets a site, on a crossing when needed,
 // its slots nearest the door first and every block beside its battery.
 func TestBatteryRoomOnCrossing(t *testing.T) {
-	p := PlanUtilities(PlanCore(coreTestZones(), 12, BuildTierCamp), UtilityWants{})
+	p := PlanUtilities(corePlan(coreTestZones(), 12, BuildTierCamp), UtilityWants{})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 {
 		t.Fatal(batteries)
@@ -101,7 +101,7 @@ func TestBatterySlotsCrossing(t *testing.T) {
 // with the cold side in the room and the hot side on the exhaust (#791),
 // on either hallway (#952): the freezer and the soil tomb both get one.
 func TestPlannedCoolerSites(t *testing.T) {
-	p := PlanUtilities(PlanCore(coreTestZones(), 0, BuildTierCamp), UtilityWants{})
+	p := PlanUtilities(corePlan(coreTestZones(), 0, BuildTierCamp), UtilityWants{})
 	sites := PlannedCoolerSites(p)
 	if len(sites) != 2 {
 		t.Fatal(sites)
@@ -211,7 +211,7 @@ func TestTurbineWindCells(t *testing.T) {
 
 func TestPlanUtilities(t *testing.T) {
 	zones := utilityTestZones()
-	core := PlanCore(zones, 0, BuildTierCamp)
+	core := corePlan(zones, 0, BuildTierCamp)
 	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
 	if !p.Valid() {
 		t.Fatal("invalid")
@@ -297,8 +297,8 @@ func TestPlanUtilities(t *testing.T) {
 			t.Fatal("wind cells outside lanes", inLane)
 		}
 	}
-	// Grow never builds over a reservation.
-	grown := Grow(p, 20, 1, BuildTierCamp)
+	// The generator never builds over a reservation.
+	grown := growPlan(p, 20, 1, BuildTierCamp)
 	for _, r := range grown.Rooms {
 		for _, res := range p.Reservations {
 			w := roomWalls(r)
@@ -310,7 +310,7 @@ func TestPlanUtilities(t *testing.T) {
 }
 
 func TestPlanUtilitiesPen(t *testing.T) {
-	core := PlanCore(utilityTestZones(), 3, BuildTierCamp)
+	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
 	p := PlanUtilities(core, UtilityWants{Solar: 1, PenAnimals: 30})
 	var pen *LayoutReservation
 	for i, r := range p.Reservations {

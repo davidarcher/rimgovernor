@@ -37,7 +37,7 @@ var noThroughfare = map[ModuleRole]bool{
 	ModuleKitchen: true, ModuleHospital: true, ModuleLab: true, ModuleThrone: true,
 }
 
-// spineEntrances are the cells the old generator enters the base from: the
+// spineEntrances are the cells a plan may be entered from at worst: the
 // end slabs of every spine segment (a wing corridor is a dead end).
 func spineEntrances(spine []SpineSegment) []domain.Cell {
 	var out []domain.Cell

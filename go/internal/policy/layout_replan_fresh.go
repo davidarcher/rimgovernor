@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The player's Replan layout action (#957). Unlike ReplanLayout, which only
+// The player's Replan layout action (#957). Unlike ReplanLayoutWithRooms, which only
 // grows the saved plan, ReplanFresh lays the plan out again around what the
 // colony has already built; the result is a proposal the player applies or
 // discards from the in-game panel.
