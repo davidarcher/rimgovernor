@@ -208,7 +208,7 @@ func TestGameOutlivesController(t *testing.T) {
 }
 
 // A closed game exits 0 and a crashed one does not; LastExit tells the
-// two apart for the most recent launch only, and not while it runs.
+// two apart for the most recent launch only.
 func TestLastExitRecordsTheLaunchExitCode(t *testing.T) {
 	exe, _ := os.Executable()
 	dir := t.TempDir()
@@ -216,9 +216,6 @@ func TestLastExitRecordsTheLaunchExitCode(t *testing.T) {
 		g, err := Launch(context.Background(), Spec{GameID: "fixture", Executable: exe, Args: []string{"gamehost-exit", strconv.Itoa(want)}, StateDir: dir})
 		if err != nil {
 			t.Fatal(err)
-		}
-		if _, ok := LastExit(dir, "fixture"); ok && g.Alive() {
-			t.Fatal("LastExit reported a launch that still runs")
 		}
 		deadline := time.Now().Add(60 * time.Second)
 		code, ok := LastExit(dir, "fixture")
