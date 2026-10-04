@@ -141,7 +141,7 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 	if _, err = db.Cancel(ctx, plan.Spec.ID(), plan.Progress[0].Action().ID()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
+	if result, err = planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) {
 		t.Fatal(result, err)
 	}
 }
@@ -195,7 +195,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		}
 		settle(method, domain.ReceiptRefused)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != 0 {
+	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != 0 {
 		t.Fatal("fourth attempt", result, err)
 	}
 	// A completed (admitted) attempt is final for the epoch even when the
@@ -211,7 +211,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	// Only observed sleep completes the goal, so the completed assignment
 	// earns a bounded clock window; the refused attempts above earned
 	// none.
-	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != sleepingObservationSlice {
+	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal(result, err)
 	}
 	// The next review retires the settled plan from the goal's active
@@ -223,7 +223,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if goal := sleepingGoal(t, db); len(goal.Methods) != 0 {
 		t.Fatal("completed assignment still active", goal.Methods)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != sleepingObservationSlice {
+	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal("after retirement", result, err)
 	}
 }

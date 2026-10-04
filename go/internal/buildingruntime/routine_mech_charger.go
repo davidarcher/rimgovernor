@@ -211,7 +211,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 			return RoutineBuildingResult{}, err
 		}
 		if !decision.Admitted {
-			return RoutineBuildingResult{Verdict: BuildingReasonRefused, Decision: decision}, nil
+			return RoutineBuildingResult{Verdict: admissionRefused(decision), Decision: decision}, nil
 		}
 		return RoutineBuildingResult{Verdict: BuildingReasonAdmitted, Decision: decision}, nil
 	}

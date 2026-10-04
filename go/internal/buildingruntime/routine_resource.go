@@ -767,7 +767,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 		return RoutineResourceResult{}, err
 	}
 	if !decision.Admitted {
-		return RoutineResourceResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineResourceResult{Verdict: admissionRefused(decision)}, nil
 	}
 	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

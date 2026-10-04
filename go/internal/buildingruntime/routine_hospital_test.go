@@ -135,7 +135,7 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	if _, err = db.Cancel(ctx, plan.Spec.ID(), plan.Progress[0].Action().ID()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
+	if result, err = planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) {
 		t.Fatal(result, err)
 	}
 }

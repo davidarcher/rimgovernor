@@ -98,10 +98,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		result, err := indoor.step(call, epoch, arbiter)
 		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.goal, result.Verdict, err)
-		if err != nil || result.Verdict != BuildingReasonNoSpace && result.Verdict != BuildingReasonUsed && result.Verdict != BuildingBunksOpen {
+		if err != nil || !result.Verdict.Is(RefusalNoSpace) && !result.Verdict.Is(WaitMethodUsed) && !result.Verdict.Is(WaitBunksOpen) {
 			return result, err
 		}
-		roofingOnly = result.Verdict == BuildingReasonUsed
+		roofingOnly = result.Verdict.Is(WaitMethodUsed)
 	}
 	p := r.reviewer.player
 	state := p.session.State()
@@ -327,7 +327,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if known, ok := claims.Value(); ok {
 			if campfire, owed := campfireRetirement(facts, known); owed {
 				result, err := r.retireCampfire(call, epoch, state, review, goal, reading, campfire)
-				if err != nil || result.Verdict != BuildingReasonUsed {
+				if err != nil || !result.Verdict.Is(WaitMethodUsed) {
 					return result, err
 				}
 			}
@@ -474,7 +474,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// on tick advance), so the same patch is proposed again and found
 		// used. Lend the cooling allowance anyway: the clock then runs, the
 		// census refreshes and the room cools.
-		if err == nil && result.Verdict == BuildingReasonUsed {
+		if err == nil && result.Verdict.Is(WaitMethodUsed) {
 			result.NativeWorkTicks = coolingAllowance
 		}
 		return result, err
@@ -500,7 +500,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if module, ok := r.plannedRoomModule(); ok {
 			if room, owed := plannedRoomOwed(facts, module); owed {
 				result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
-				if err != nil || result.Verdict == BuildingReasonUsed {
+				if err != nil || result.Verdict.Is(WaitMethodUsed) {
 					return result, err
 				}
 			}
@@ -800,7 +800,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	reason := BuildingReasonRefused
+	reason := admissionRefused(decision)
 	if decision.Admitted {
 		reason = BuildingReasonAdmitted
 		// A shell admitted short of a material (#602) records each

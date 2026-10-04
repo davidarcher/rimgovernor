@@ -225,7 +225,7 @@ func TestRoutineClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
 		t.Fatal("the ordered batch should retire", plan.Retired, err)
 	}
 	next, err := planner.Step(ctx)
-	if err != nil || next.Verdict != BuildingReasonUsed || next.NativeWorkTicks != chunkHaulWorkTicks {
+	if err != nil || !next.Verdict.Is(WaitMethodUsed) || next.NativeWorkTicks != chunkHaulWorkTicks {
 		t.Fatal(next, err)
 	}
 }

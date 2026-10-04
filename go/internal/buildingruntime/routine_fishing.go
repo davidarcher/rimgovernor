@@ -144,7 +144,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 				return RoutineFieldResult{}, false, err
 			}
 			if !decision.Admitted {
-				return RoutineFieldResult{Verdict: BuildingReasonRefused}, true, nil
+				return RoutineFieldResult{Verdict: admissionRefused(decision)}, true, nil
 			}
 			return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 		}

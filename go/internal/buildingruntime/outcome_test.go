@@ -7,7 +7,21 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
+
+// TestAdmissionRefusedCarriesReason: a refused decision keeps the
+// shared_admission_refused kind and names its first refusal (#1880).
+func TestAdmissionRefusedCarriesReason(t *testing.T) {
+	t.Parallel()
+	got := admissionRefused(store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: policy.NoDevelopmentSlot, Resource: "wood"}}})
+	if !got.Is(RefusalSharedAdmission) || got.String() != "shared_admission_refused:no_development_slot:wood" || got.Text() != "the shared admission check turned the plan down (no development slot: wood)" {
+		t.Fatal(got.String(), got.Text())
+	}
+	if bare := admissionRefused(store.BuildingMethodDecision{}); bare.String() != "shared_admission_refused" {
+		t.Fatal(bare)
+	}
+}
 
 func TestVerdictRendersPerKind(t *testing.T) {
 	for _, test := range []struct {

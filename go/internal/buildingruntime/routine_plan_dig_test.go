@@ -204,7 +204,7 @@ func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 	if first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first.Verdict)
 	}
-	if again := dig(); again.Verdict != BuildingReasonUsed {
+	if again := dig(); !again.Verdict.Is(WaitMethodUsed) {
 		t.Fatal("the open dig plan must be waited on, not doubled", again.Verdict)
 	}
 	completeRoutineBuildingMethod(t, db, first)

@@ -164,7 +164,7 @@ func (r *RoutineDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Conte
 	}
 	if !decision.Admitted {
 		clockSchedulerLog("defense-layout.%s: refused=%+v", tier, decision.Refused)
-		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused, Plan: id, Tier: tier}, nil
+		return RoutineDefenseLayoutResult{Verdict: admissionRefused(decision), Plan: id, Tier: tier}, nil
 	}
 	clockSchedulerLog("defense-layout.%s: %d builds (%s)", tier, len(actions), method)
 	return RoutineDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id, Tier: tier}, nil

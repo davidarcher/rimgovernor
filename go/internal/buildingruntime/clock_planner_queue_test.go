@@ -179,6 +179,15 @@ func TestPlannerQueueRanRecordsCadenceAndWaits(t *testing.T) {
 // again, its cadence tick being unreachable too (#692).
 func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
 	t.Parallel()
+	// The verdict may carry the admission decision's real reason (#1880):
+	// recovery keys on the kind, not the whole verdict.
+	for _, refused := range []Verdict{BuildingReasonRefused, refuse(RefusalSharedAdmission, "no_development_slot", "wood")} {
+		t.Run(refused.String(), func(t *testing.T) { stoppedClockRecovers(t, refused) })
+	}
+}
+
+func stoppedClockRecovers(t *testing.T, refused Verdict) {
+	t.Helper()
 	s, _ := schedulerFixture(t)
 	s.queue.catalog = func() []plannerEntry {
 		return []plannerEntry{quickPlanner("defense", classCritical), quickPlanner("defenseLayout", classOptional)}
@@ -186,7 +195,7 @@ func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
 	s.queue.configured = nil
 	ctx := context.Background()
 	// defenseLayout was refused admission and is due only at a later tick.
-	reasons := map[string]Verdict{"defenseLayout": BuildingReasonRefused}
+	reasons := map[string]Verdict{"defenseLayout": refused}
 	s.queue.ran(plannerSelectionResult{planners: true, pick: func(plannerEntry) bool { return true }}, []string{"defenseLayout"}, func(name string) (Verdict, bool) {
 		reason, ok := reasons[name]
 		return reason, ok

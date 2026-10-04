@@ -465,7 +465,7 @@ func (r *RoutineStockpilePlanner) shell(call, epoch context.Context, state Contr
 	}
 	result, err := r.building.shellRoom(call, epoch, state, review, goal, read.ColonyReading, room, plannedRoomMethod(room), "storage-planner room")
 	clockEvent(call, "layout", "stockpiles", "stockpile edit: "+edit.Explanation, "role", edit.Role, "verdict", fmt.Sprint(result.Verdict))
-	if err != nil || result.Verdict == BuildingReasonUsed || result.Verdict == BuildingReasonNoSpace || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict == BuildingReasonRefused {
+	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
 		return RoutineStockpileResult{Verdict: result.Verdict}, false, err
 	}
 	return RoutineStockpileResult{Verdict: result.Verdict}, true, nil
@@ -706,7 +706,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		return RoutineStockpileResult{}, err
 	}
 	if !decision.Admitted {
-		return RoutineStockpileResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineStockpileResult{Verdict: admissionRefused(decision)}, nil
 	}
 	for _, e := range admitted {
 		clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "role", e.Role, "kind", string(e.Kind), "plan", string(id))

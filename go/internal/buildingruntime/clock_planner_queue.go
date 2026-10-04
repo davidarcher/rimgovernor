@@ -269,7 +269,7 @@ func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf 
 			delete(q.dirty, name)
 		}
 		reason, finished := reasonOf(name)
-		if finished && reason == BuildingReasonRefused {
+		if finished && reason.Is(RefusalSharedAdmission) {
 			q.refused[name] = true
 		} else {
 			delete(q.refused, name)

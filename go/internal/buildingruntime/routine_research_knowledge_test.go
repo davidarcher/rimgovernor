@@ -72,7 +72,7 @@ func TestResearchKnowledgeNextFollowsTheQueueHead(t *testing.T) {
 		t.Fatal("the prerequisite is the head", got, reason)
 	}
 	in.Read.Knowledge = []policy.KnowledgeSlot{{Category: "Basic", Current: "BioferriteExtraction"}}
-	if got, reason := researchKnowledgeNext(in); got != "" || reason != BuildingReasonUsed {
+	if got, reason := researchKnowledgeNext(in); got != "" || !reason.Is(WaitMethodUsed) {
 		t.Fatal("a held slot is never replaced", got, reason)
 	}
 	locked := in.Read.Projects["BioferriteExtraction"]

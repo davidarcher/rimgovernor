@@ -111,7 +111,7 @@ func TestRoutineDialogPlannerHoldsWithoutSelectableOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonExhausted {
+	if err != nil || !result.Verdict.Is(RefusalRetriesSpent) {
 		t.Fatal(result, err)
 	}
 }

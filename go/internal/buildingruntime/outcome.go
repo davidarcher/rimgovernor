@@ -369,7 +369,7 @@ func words(identifier string) string {
 // skipsToPlacement reports a shell attempt that leaves the usual placement to
 // go on: its method already used, no verified space, or a fact it needs unknown.
 func (v Verdict) skipsToPlacement() bool {
-	return v == BuildingReasonUsed || v == BuildingReasonNoSpace || v.Is(RefusalFieldUnavailable)
+	return v.Is(WaitMethodUsed) || v.Is(RefusalNoSpace) || v.Is(RefusalFieldUnavailable)
 }
 
 // The shared verdicts. Exits that need a more specific refusal build one

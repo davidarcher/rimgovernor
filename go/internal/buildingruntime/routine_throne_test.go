@@ -228,7 +228,7 @@ func TestAssignThroneCommitsOneGenericAssign(t *testing.T) {
 	if !ok || assign.Pawn() != "Alice" || assign.Thing() != "t1" || assign.Previous().ID() != "t0" || assign.Swap() {
 		t.Fatal(plan.Progress[0].Action())
 	}
-	if result, err = planner.assignThrone(ctx, epoch, state, review, goal, step); err != nil || result.Verdict != BuildingReasonUsed && result.Verdict != BuildingReasonExistingWork {
+	if result, err = planner.assignThrone(ctx, epoch, state, review, goal, step); err != nil || !result.Verdict.Is(WaitMethodUsed) && result.Verdict != BuildingReasonExistingWork {
 		t.Fatal("assigned twice in one epoch", result, err)
 	}
 }

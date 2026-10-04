@@ -194,7 +194,7 @@ func TestRoutineSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	}
 	// No census shows the spots gone: they may stand uncounted (an open
 	// roof), so the method stays used.
-	if held, err := r.Step(context.Background()); err != nil || held.Verdict != BuildingReasonUsed {
+	if held, err := r.Step(context.Background()); err != nil || !held.Verdict.Is(WaitMethodUsed) {
 		t.Fatal(held, err)
 	}
 	// Three colonists, three spots, two of them converted to medical beds.

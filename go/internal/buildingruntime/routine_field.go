@@ -455,7 +455,7 @@ func (r *RoutineFieldPlanner) admit(call, epoch context.Context, state ControlSt
 	}
 	if !decision.Admitted {
 		clockSchedulerLog("Fields: %s not admitted: %+v", what, decision.Refused)
-		return RoutineFieldResult{Verdict: BuildingReasonRefused, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: admissionRefused(decision), NativeWorkTicks: wait}, false, nil
 	}
 	return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }

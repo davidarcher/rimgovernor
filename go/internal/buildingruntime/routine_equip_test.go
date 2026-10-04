@@ -104,7 +104,7 @@ func TestEquipPlannerBiocodeOwnerOnly(t *testing.T) {
 				t.Fatal(err)
 			}
 			if tc.want == "" {
-				if result.Verdict != BuildingReasonUsed {
+				if !result.Verdict.Is(WaitMethodUsed) {
 					t.Fatal(result)
 				}
 				return

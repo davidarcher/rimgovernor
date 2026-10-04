@@ -117,7 +117,7 @@ func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != researchNativeWorkTicks {
+	if err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != researchNativeWorkTicks {
 		t.Fatal(result, err)
 	}
 	// An empty ladder with no target composes nothing.

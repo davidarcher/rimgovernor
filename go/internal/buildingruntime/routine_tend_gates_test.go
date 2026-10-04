@@ -124,7 +124,7 @@ func TestRoutineTendRequiresTheNativeDoctorGates(t *testing.T) {
 				}
 				return
 			}
-			if result.Verdict != BuildingReasonUsed || result.Plan != "" || result.NativeWorkTicks != medicalWaitTicks {
+			if !result.Verdict.Is(WaitMethodUsed) || result.Plan != "" || result.NativeWorkTicks != medicalWaitTicks {
 				t.Fatal(result)
 			}
 		})

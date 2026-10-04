@@ -1406,7 +1406,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	reason := BuildingReasonRefused
+	reason := admissionRefused(decision)
 	if decision.Admitted {
 		reason = BuildingReasonAdmitted
 		tier.Attempts++

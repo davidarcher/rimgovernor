@@ -302,7 +302,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			return RoutineResourceResult{}, true, err
 		}
 		if !decision.Admitted {
-			return RoutineResourceResult{Verdict: BuildingReasonRefused}, true, nil
+			return RoutineResourceResult{Verdict: admissionRefused(decision)}, true, nil
 		}
 		return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: planID}, true, nil
 	}

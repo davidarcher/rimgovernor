@@ -111,7 +111,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		return result, result.Verdict == BuildingReasonUsed || result.Verdict.Is(RefusalSiteBlocked), nil
+		return result, result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalSiteBlocked), nil
 	}
 	project, err := dig.excavationProject(call, goal)
 	if err != nil {

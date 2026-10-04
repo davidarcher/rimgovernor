@@ -371,7 +371,7 @@ func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s 
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	reason := BuildingReasonRefused
+	reason := admissionRefused(decision)
 	if decision.Admitted {
 		reason = BuildingReasonAdmitted
 	}

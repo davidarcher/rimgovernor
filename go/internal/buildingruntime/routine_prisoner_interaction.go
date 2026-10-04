@@ -159,7 +159,7 @@ func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Contex
 		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
 	}
 	clockSchedulerLog("%s: jail %s (held %d, beds %d) reason=%v", goal.Goal.ID, step.Kind, step.Held, step.Beds, result.Verdict)
-	if err != nil || result.Verdict == BuildingReasonUsed || result.Verdict == BuildingReasonNoSpace || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict == BuildingReasonRefused {
+	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
 		return RoutinePrisonerInteractionResult{}, false, err
 	}
 	return RoutinePrisonerInteractionResult{Verdict: result.Verdict}, true, nil

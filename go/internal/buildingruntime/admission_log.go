@@ -39,3 +39,15 @@ func refusalSummary(refused []policy.Refusal) string {
 	}
 	return fmt.Sprintf("[%s]", strings.Join(parts, " "))
 }
+
+// admissionRefused is the verdict of a method the shared admission check
+// turned down: it keeps the shared_admission_refused kind and carries the
+// decision's first refusal, reason as the subject and resource as the
+// detail, so the status line and the journal name why (#1880).
+func admissionRefused(decision store.BuildingMethodDecision) Verdict {
+	if len(decision.Refused) == 0 {
+		return BuildingReasonRefused
+	}
+	first := decision.Refused[0]
+	return refuse(RefusalSharedAdmission, string(first.Reason), string(first.Resource))
+}

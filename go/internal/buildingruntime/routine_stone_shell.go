@@ -323,7 +323,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	if err != nil {
 		return RoutineStoneShellResult{}, false, err
 	}
-	reason := BuildingReasonRefused
+	reason := admissionRefused(decision)
 	if decision.Admitted {
 		reason = BuildingReasonAdmitted
 	}

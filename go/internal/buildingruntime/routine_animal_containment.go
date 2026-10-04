@@ -380,7 +380,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
 		}
-		outcome := BuildingReasonRefused
+		outcome := admissionRefused(decision)
 		if decision.Admitted {
 			outcome = BuildingReasonAdmitted
 		}
@@ -631,7 +631,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	outcome := BuildingReasonRefused
+	outcome := admissionRefused(decision)
 	if decision.Admitted {
 		outcome = BuildingReasonAdmitted
 	}
