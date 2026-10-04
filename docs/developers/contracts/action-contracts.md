@@ -144,7 +144,12 @@ In a favor session only, the secure, non-downed prisoners the game lists
 `protected_export`, and accept admits them (a silver session and slaves stay
 protected). A pawn row carries `guest_status`, `prisoner_secure`,
 `pawn_downed` and the `extra_home_faction` / `extra_host_faction` refs; selling
-a prisoner with either faction costs goodwill (`MemberSold`).
+a prisoner with either faction costs goodwill (`MemberSold`). The controller sells
+only surplus prisoners (`RoutineFacts.SurplusPrisoners`, #1971): not recruit-wanted,
+creepjoiner, slated for enslaving, mid-surgery or an organ-harvest or part-recovery
+candidate, with the row secure, not downed, no extra faction and a known positive
+favor price; unknown facts hold. The staged line's definition (the human race) gets
+the accept floor of 0.
 Trade is an intent-mode kind (`domain.ActionKind.IntentMode`): an
 applied receipt completes the action with no observation phase, a refused
 one fails it, and a lost receipt sends the intent again. An accept whose

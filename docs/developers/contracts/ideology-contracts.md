@@ -94,7 +94,10 @@ typed rows on the pawn.
 
 Consumers: human butchery (`policy.SelectHumanButcher`, #1657) skips a worker the rule forbids for
 `HistoryEventDefOf.ButcheredHuman`, or cannot answer for (#1922): an unread ideoligion with Ideology
-installed holds. The native disposition still gates the worker.
+installed holds. The native disposition still gates the worker. Selling a surplus prisoner to the
+tribute collector (`policy.FavorPrisonersHeld`, #1971) asks the rule about `SoldPrisoner` for the
+colony and sells only when it is allowed or approved: a mood cost, a refusal or an unread ideoligion
+with Ideology installed holds; without Ideology it sells.
 
 `BundleSnapshot.ideology_active` (#1922, `ModsConfig.IdeologyActive`, carried on every frame) is the
 distinct DLC-absent signal: an absent ideology section alone is unread, never absent. `false` is

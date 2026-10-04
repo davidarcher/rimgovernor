@@ -57,6 +57,16 @@ type TradeSheetRowFact struct {
 	// PawnGender is a pawn row's gender ("Male"/"Female"), as an animal's
 	// census gender: what a purchase of a founder's missing sex matches.
 	PawnGender string
+
+	// A prisoner row's sale facts (#1969): guest status, the secure and downed
+	// tests, and the extra home / host faction ids a sale angers.
+	GuestStatus         string
+	PrisonerSecure      bool
+	PrisonerSecureKnown bool
+	PawnDowned          bool
+	PawnDownedKnown     bool
+	ExtraHomeFaction    string
+	ExtraHostFaction    string
 }
 
 // TradeSelectionFacts is everything SelectTrade reads: the complete unfiltered
@@ -104,6 +114,9 @@ type TradeSelectionFacts struct {
 	// SelectFavorSale decides it, selling gold above FavorKeep.
 	Favor     bool
 	FavorKeep int64
+	// FavorPrisoners are the surplus prisoners (RoutineFacts.SurplusPrisoners,
+	// by pawn id) a favor session sells (#1971).
+	FavorPrisoners map[string]bool
 }
 
 // TradeCurrency is the definition of the sheet's currency row

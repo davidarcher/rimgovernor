@@ -176,6 +176,9 @@ type TradeNeed struct {
 	// FavorGold is the gold stock above FavorGoldKeep while a tribute collector
 	// is present (#1939): sold for royal favor.
 	FavorGold int64
+	// FavorPrisoners is the count of surplus prisoners (SurplusPrisoners)
+	// while a tribute collector is present (#1971): sold for royal favor.
+	FavorPrisoners int64
 }
 
 // ShedArtNeed adds the shed_art reason to the need: known negative wealth
@@ -192,7 +195,7 @@ func ShedArtNeed(need domain.Fact[TradeNeed], headroom domain.Fact[float64], sal
 }
 
 func (n TradeNeed) Any() bool {
-	return n.FavorGold > 0 || n.ShedArt > 0 || n.SurplusAnimals > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
+	return n.FavorGold > 0 || n.FavorPrisoners > 0 || n.ShedArt > 0 || n.SurplusAnimals > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other

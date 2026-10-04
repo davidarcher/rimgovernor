@@ -583,6 +583,11 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
 	facts.Favor, facts.FavorKeep = sheet.FavorCurrency, policy.FavorGoldKeep(targets, floors, seasonal.Trade)
 	facts.SaleArt = saleArt
+	if facts.Favor {
+		if facts.FavorPrisoners, err = r.favorPrisoners(call, state, review); err != nil {
+			return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+		}
+	}
 	// Worn-dump gear above the incinerator's cap sells (#1831).
 	claims, err := r.reviewer.player.journal.ZoneClaims(call, state.Snapshot, projection.Identity.Tick)
 	if err != nil {
@@ -607,6 +612,25 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts.ArtFirst = hk && h < 0
 	capacity, _ := policy.JoinerCapacity(projection.Facts.JoinerCapacity()).Value()
 	return economic, facts, capacity, nil
+}
+
+// favorPrisoners reads the prisoner census through the routine reading (the
+// one the negotiator choice uses) and returns the surplus prisoners a favor
+// session sells (#1971).
+func (r *RoutineTradePlanner) favorPrisoners(call context.Context, state ControlState, review store.RoutineReview) (map[string]bool, error) {
+	expected, err := stepScope(call, r.reviewer.native)
+	if err != nil {
+		return nil, err
+	}
+	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return nil, fmt.Errorf("%w: favorPrisoners: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+	}
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
+	if err != nil {
+		return nil, err
+	}
+	short, _ := policy.RoutineSilverShort(read.Projection.Facts, r.reviewer.policy, review.Latches.MedicalReserve).Value()
+	return read.Projection.Facts.SurplusPrisoners(short), nil
 }
 
 func (r *RoutineTradePlanner) cancel(call, epoch context.Context, state ControlState, incident store.IncidentState, trader string, negotiator domain.PawnID, started time.Time) (RoutineTradeResult, error) {
@@ -680,6 +704,8 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow, catalog *bridge.DefinitionC
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
 			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
+			GuestStatus: row.GuestStatus, PrisonerSecure: row.PrisonerSecure, PrisonerSecureKnown: row.PrisonerSecureKnown, PawnDowned: row.PawnDowned, PawnDownedKnown: row.PawnDownedKnown,
+			ExtraHomeFaction: row.ExtraHomeFaction, ExtraHostFaction: row.ExtraHostFaction,
 		})
 	}
 	return out, nil
