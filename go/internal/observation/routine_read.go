@@ -174,6 +174,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p.Facts.Traders = frameTraders(frame.Traders)
 	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map, frame.Catalog)
 	p.Facts.Ideology = frameIdeology(frame.Ideology)
+	p.Facts.IdeologyInstalled = frame.IdeologyActive
 	p.Facts.RitualSites = ritualSites(frame.Buildings, p.Facts.Ideology)
 	ideologyDefs, err := frame.Catalog.IdeologyDefs()
 	if err != nil {

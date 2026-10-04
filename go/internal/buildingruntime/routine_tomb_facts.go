@@ -59,7 +59,7 @@ func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool 
 // strangerButchery is whether the human butchery would take a fresh stranger
 // corpse now (#1811); unread benches mean no.
 func strangerButchery(facts observation.ColonyProjection) bool {
-	return policy.HumanButcheryOpen(facts.ProductionBenches, facts.Facts.Ideology)
+	return policy.HumanButcheryOpen(facts.ProductionBenches, facts.Facts.IdeologyRead())
 }
 
 // plannedMorgue is the planned morgue a waiting fresh stranger corpse owes

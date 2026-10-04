@@ -399,6 +399,9 @@ type RoutineFacts struct {
 	// section with the catalog's defs; unknown when the frame carries no
 	// section (no Ideology, or no primary ideoligion).
 	Ideology domain.Fact[Ideoligion]
+	// IdeologyInstalled is whether the Ideology expansion is active (#1922);
+	// unknown when the frame does not say.
+	IdeologyInstalled domain.Fact[bool]
 	// TitleClaimQuests are the bestowing-ceremony quests the title claim
 	// gate allows to accept now (ClaimQuests, #1605); the review fills it
 	// once the plan, rooms and royalty read are known.

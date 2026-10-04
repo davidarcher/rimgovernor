@@ -9,7 +9,7 @@ import (
 
 // HumanFoodChannel routes finite stocks. It deliberately contributes no new
 // nutrition/day: the forecast already owns stock, and butchery is conversion.
-func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []PawnID, targetDays float64, ideology domain.Fact[Ideoligion]) (FoodChannel, bool) {
+func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []PawnID, targetDays float64, ideology IdeologyRead) (FoodChannel, bool) {
 	if !foodNumber(targetDays) || targetDays <= 0 {
 		return FoodChannel{}, false
 	}

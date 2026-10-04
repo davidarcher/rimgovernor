@@ -35668,9 +35668,13 @@ type BundleSnapshot struct {
 	// with the section name, exception type and message in detail. A reader
 	// refuses the read naming the section; the frame is never carried on
 	// with the section omitted.
-	Failure       *commonpb.Failure `protobuf:"bytes,38,opt,name=failure,proto3,oneof" json:"failure,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Failure *commonpb.Failure `protobuf:"bytes,38,opt,name=failure,proto3,oneof" json:"failure,omitempty"`
+	// ModsConfig.IdeologyActive (#1922), carried on every frame: false means the
+	// Ideology expansion is not installed, so an absent ideology section is not
+	// an unread ideoligion. Absent stays unknown (unread).
+	IdeologyActive *bool `protobuf:"varint,39,opt,name=ideology_active,json=ideologyActive,proto3,oneof" json:"ideology_active,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *BundleSnapshot) Reset() {
@@ -35897,6 +35901,13 @@ func (x *BundleSnapshot) GetFailure() *commonpb.Failure {
 		return x.Failure
 	}
 	return nil
+}
+
+func (x *BundleSnapshot) GetIdeologyActive() bool {
+	if x != nil && x.IdeologyActive != nil {
+		return *x.IdeologyActive
+	}
+	return false
 }
 
 // seq counts a section's changes since the stream opened; captured_tick is
@@ -47039,7 +47050,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2+.rimgovernor.observations.v1.StatusSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x8c\x10\n" +
+	"\aoutcome\"\xce\x10\n" +
 	"\x0eBundleSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1b\n" +
 	"\x06paused\x18\x02 \x01(\bH\x00R\x06paused\x88\x01\x01\x12?\n" +
@@ -47073,13 +47084,15 @@ const file_observations_proto_rawDesc = "" +
 	"\fkeyframe_seq\x18! \x01(\x04H\x02R\vkeyframeSeq\x88\x01\x01\x12\x1e\n" +
 	"\bsky_glow\x18\" \x01(\x01H\x03R\askyGlow\x88\x01\x01\x12I\n" +
 	"\bideology\x18% \x01(\v2-.rimgovernor.observations.v1.IdeologySnapshotR\bideology\x12=\n" +
-	"\afailure\x18& \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x04R\afailure\x88\x01\x01B\t\n" +
+	"\afailure\x18& \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x04R\afailure\x88\x01\x01\x12,\n" +
+	"\x0fideology_active\x18' \x01(\bH\x05R\x0eideologyActive\x88\x01\x01B\t\n" +
 	"\a_pausedB\x1c\n" +
 	"\x1a_combat_hive_temperature_cB\x0f\n" +
 	"\r_keyframe_seqB\v\n" +
 	"\t_sky_glowB\n" +
 	"\n" +
-	"\b_failure\"\xea\x01\n" +
+	"\b_failureB\x12\n" +
+	"\x10_ideology_active\"\xea\x01\n" +
 	"\x10SectionWatermark\x12\x1d\n" +
 	"\asection\x18\x01 \x01(\tH\x00R\asection\x88\x01\x01\x12\x15\n" +
 	"\x03seq\x18\x02 \x01(\x04H\x01R\x03seq\x88\x01\x01\x12(\n" +

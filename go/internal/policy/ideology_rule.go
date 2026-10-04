@@ -67,6 +67,35 @@ type PreceptVerdict struct {
 	Reason          string
 }
 
+// IdeologyRead is what the frame says about Ideology (#1922): the primary
+// ideoligion fact, and whether the expansion is installed. An unread
+// ideoligion with the expansion installed (or unknown) is unread; with the
+// expansion absent there are no precepts, so nothing is forbidden.
+type IdeologyRead struct {
+	Ideology  domain.Fact[Ideoligion]
+	Installed domain.Fact[bool]
+}
+
+// IdeologyRead is the facts' Ideology reading.
+func (f RoutineFacts) IdeologyRead() IdeologyRead {
+	return IdeologyRead{Ideology: f.Ideology, Installed: f.IdeologyInstalled}
+}
+
+// Absent reports that the Ideology expansion is known not to be installed.
+func (r IdeologyRead) Absent() bool {
+	installed, known := r.Installed.Value()
+	return known && !installed
+}
+
+// ActionStance is the stance under the read: allowed without the expansion,
+// else the ideoligion's (unknown when unread).
+func (r IdeologyRead) ActionStance(action PreceptAction, subject PreceptSubject) PreceptVerdict {
+	if r.Absent() {
+		return PreceptVerdict{Stance: PreceptAllowed, Reason: "Ideology not installed"}
+	}
+	return ActionStance(r.Ideology, action, subject)
+}
+
 // ActionStance evaluates the action under the ideoligion fact; the verdict
 // is PreceptUnknown when the ideoligion is unread.
 func ActionStance(ideology domain.Fact[Ideoligion], action PreceptAction, subject PreceptSubject) PreceptVerdict {

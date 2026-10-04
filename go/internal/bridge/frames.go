@@ -436,7 +436,7 @@ func frameRepliesWith(v *o.BundleSnapshot, emergency EmergencyObservation, held 
 	seedLazy(combatFrameMethod, nil, func() proto.Message { return combatFrameHeld(v, held) })
 	seedLazy(routineFrameMethod, nil, func() proto.Message {
 		routine := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
-			Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression, Ideology: v.Ideology, Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)}
+			Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression, Ideology: v.Ideology, IdeologyActive: v.IdeologyActive, Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)}
 		if held == nil {
 			// A whole bundle carries its tables; the stream's routine frame
 			// takes them from the hold (ReadRoutineFrame).
@@ -470,6 +470,9 @@ type RoutineFrame struct {
 	// Ideology is the primary ideoligion with the catalog's defs (#1654);
 	// nil when the frame carries no ideology section.
 	Ideology *policy.Ideoligion
+	// IdeologyActive is whether the Ideology expansion is installed (#1922);
+	// unknown when the frame does not say.
+	IdeologyActive domain.Fact[bool]
 	// Buildings is the frame's all-status player building table, whose
 	// blueprint and frame rows carry their undelivered material; nil when
 	// the frame carries none.
@@ -607,6 +610,12 @@ func decodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog, tables 
 			return RoutineFrame{}, err
 		}
 		out.Ideology = ideology
+		if v.IdeologyActive != nil && !v.GetIdeologyActive() {
+			return RoutineFrame{}, contract("ideology section without the Ideology expansion")
+		}
+	}
+	if v.IdeologyActive != nil {
+		out.IdeologyActive = domain.Known(v.GetIdeologyActive())
 	}
 	if v.Zones != nil {
 		zones, err := decodeZones(v.Zones, identity)

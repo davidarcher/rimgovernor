@@ -93,8 +93,15 @@ one. Apparel stays native: the nudity requirement is the game's
 typed rows on the pawn.
 
 Consumers: human butchery (`policy.SelectHumanButcher`, #1657) skips a worker the rule forbids for
-`HistoryEventDefOf.ButcheredHuman`; an unread ideoligion forbids nothing there, and the native
-disposition still gates the worker. The game raises no history event for burying, entombing or
+`HistoryEventDefOf.ButcheredHuman`, or cannot answer for (#1922): an unread ideoligion with Ideology
+installed holds. The native disposition still gates the worker.
+
+`BundleSnapshot.ideology_active` (#1922, `ModsConfig.IdeologyActive`, carried on every frame) is the
+distinct DLC-absent signal: an absent ideology section alone is unread, never absent. `false` is
+`policy.IdeologyRead.Absent`: the rule answers `allowed` ("Ideology not installed") and butchery
+falls through; unknown or `true` with no section stays unread and holds. An ideology section with
+`ideology_active` false fails the frame. Only butchery reads the signal so far
+(`RoutineFacts.IdeologyInstalled`, `IdeologyRead`). The game raises no history event for burying, entombing or
 burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing to bind to.
 
 ## Role assignment

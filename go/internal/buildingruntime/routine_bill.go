@@ -277,7 +277,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if r.purpose == policy.ButcherFood {
-		if human, ok := policy.SelectHumanButcher(benches, projection.Facts.Ideology); ok {
+		if human, ok := policy.SelectHumanButcher(benches, projection.Facts.IdeologyRead()); ok {
 			if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCorpse, "human-butchery") {
 				return RoutineBillResult{Verdict: awaitingFoodPlan("human-butchery")}, nil
 			}

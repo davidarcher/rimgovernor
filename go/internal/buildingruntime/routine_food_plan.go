@@ -79,7 +79,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 			for _, c := range human.Consumers {
 				ids = append(ids, c.ID)
 			}
-			if channel, ok := policy.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.Ideology); ok {
+			if channel, ok := policy.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead()); ok {
 				channels = append(channels, channel)
 			}
 		}

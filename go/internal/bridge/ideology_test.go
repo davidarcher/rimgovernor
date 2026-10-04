@@ -19,7 +19,6 @@ func ideologySnapshot() *o.IdeologySnapshot {
 		ObligationsActive: proto.Bool(true), Believers: proto.Int32(4), MinBelieversForObligations: proto.Int32(3)}
 }
 
-
 // TestIdeologySectionDecodesAgainstCatalog (#1654): the held precepts, roles,
 // rituals and buildings resolve in the catalog and reach policy as facts.
 func TestIdeologySectionDecodesAgainstCatalog(t *testing.T) {
@@ -93,6 +92,31 @@ func TestRoutineFrameCarriesTheIdeology(t *testing.T) {
 	frame.Ideology = ideologySnapshot()
 	if _, err = DecodeRoutineFrame(frame, &DefinitionCatalog{}); err == nil {
 		t.Fatal("ideology section accepted without catalog defs")
+	}
+}
+
+// TestRoutineFrameSaysWhetherIdeologyIsInstalled (#1922): the frame's
+// ideology_active is its own fact, unknown when absent, and an ideology
+// section from a colony without the expansion is a contract failure.
+func TestRoutineFrameSaysWhetherIdeologyIsInstalled(t *testing.T) {
+	frame := &o.BundleSnapshot{Context: pbContext()}
+	got, err := DecodeRoutineFrame(frame, nil)
+	if _, known := got.IdeologyActive.Value(); err != nil || known {
+		t.Fatalf("absent field read as known: %v", err)
+	}
+	frame.IdeologyActive = proto.Bool(false)
+	if got, err = DecodeRoutineFrame(frame, nil); err != nil {
+		t.Fatal(err)
+	} else if active, known := got.IdeologyActive.Value(); !known || active {
+		t.Fatal("absent expansion not read")
+	}
+	frame.Ideology = ideologySnapshot()
+	if _, err = DecodeRoutineFrame(frame, ideologyCatalogRows()); err == nil {
+		t.Fatal("ideology section without the expansion accepted")
+	}
+	frame.IdeologyActive = proto.Bool(true)
+	if _, err = DecodeRoutineFrame(frame, ideologyCatalogRows()); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -1739,6 +1739,10 @@ message BundleSnapshot {
   // refuses the read naming the section; the frame is never carried on
   // with the section omitted.
   optional rimgovernor.common.v1.Failure failure = 38;
+  // ModsConfig.IdeologyActive (#1922), carried on every frame: false means the
+  // Ideology expansion is not installed, so an absent ideology section is not
+  // an unread ideoligion. Absent stays unknown (unread).
+  optional bool ideology_active = 39;
 }
 // seq counts a section's changes since the stream opened; captured_tick is
 // the tick of the frame that last carried it.
