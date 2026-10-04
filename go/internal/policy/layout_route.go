@@ -7,8 +7,8 @@ import (
 )
 
 // Route check and traffic (#780, A4). Pawns walk the planned core: spine
-// hallways, room floors and doors; walls block. The entrances are the
-// hallway ends. Every trip pair gets a shortest path, and a path through a
+// hallways, room floors and doors; walls block. The entrances are the plan's
+// Entrances. Every trip pair gets a shortest path, and a path through a
 // private or clean room that is not one of its ends rejects the layout.
 
 // routeTrips are the room pairs pawns travel between; ModuleRole("") is
@@ -29,14 +29,41 @@ var noThroughfare = map[ModuleRole]bool{
 	ModuleKitchen: true, ModuleHospital: true, ModuleLab: true, ModuleThrone: true,
 }
 
+// spineEntrances are the cells the old generator enters the base from: the
+// end slabs of every spine segment (a wing corridor is a dead end).
+func spineEntrances(spine []SpineSegment) []domain.Cell {
+	var out []domain.Cell
+	for _, s := range spine {
+		lo, hi := s.From, s.To
+		if lo.X > hi.X || lo.Z > hi.Z {
+			lo, hi = hi, lo
+		}
+		alongX := lo.Z == hi.Z
+		for x := lo.X; x <= hi.X; x++ {
+			for z := lo.Z; z <= hi.Z; z++ {
+				if alongX && x != lo.X && x != hi.X || !alongX && z != lo.Z && z != hi.Z {
+					continue
+				}
+				for d := -SpineWidth / 2; d <= SpineWidth/2; d++ {
+					if alongX {
+						out = append(out, domain.Cell{X: x, Z: z + d})
+					} else {
+						out = append(out, domain.Cell{X: x + d, Z: z})
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
 // CheckRoutes paths every trip over p and returns how many paths cross each
 // cell (for the overlay). A thoroughfare or an unreachable trip is an error.
 // Trips whose rooms the plan lacks are skipped.
 func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 	walk := map[domain.Cell]int{} // cell -> room index, -1 for hallway/door
-	var entrance []domain.Cell
 	rooms := p.AllRooms()
-	for i, s := range p.Hallways() {
+	for _, s := range p.Hallways() {
 		lo, hi := s.From, s.To
 		if lo.X > hi.X || lo.Z > hi.Z {
 			lo, hi = hi, lo
@@ -50,10 +77,6 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 						c = domain.Cell{X: x + d, Z: z}
 					}
 					walk[c] = -1
-					// A wing corridor is a dead end, not an entrance.
-					if i < len(p.Spine) && (alongX && (x == lo.X || x == hi.X) || !alongX && (z == lo.Z || z == hi.Z)) {
-						entrance = append(entrance, c)
-					}
 				}
 			}
 		}
@@ -76,10 +99,10 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 	}
 	cells := func(role ModuleRole) [][]domain.Cell {
 		if role == "" {
-			if len(entrance) == 0 {
+			if len(p.Entrances) == 0 {
 				return nil
 			}
-			return [][]domain.Cell{entrance}
+			return [][]domain.Cell{p.Entrances}
 		}
 		var out [][]domain.Cell
 		for _, r := range rooms {
@@ -91,11 +114,14 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 	}
 	traffic := map[domain.Cell]int{}
 	for _, trip := range routeTrips {
-		to := cells(trip[1])
+		to, froms := cells(trip[1]), cells(trip[0])
+		if len(p.Entrances) == 0 && (trip[0] == "" && len(to) > 0 || trip[1] == "" && len(froms) > 0) {
+			return nil, fmt.Errorf("no entrances for trip %s -> %s", trip[0], trip[1])
+		}
 		if len(to) == 0 {
 			continue
 		}
-		for _, from := range cells(trip[0]) {
+		for _, from := range froms {
 			path := routePath(walk, from, to[0])
 			if path == nil {
 				return nil, fmt.Errorf("no route %s -> %s", trip[0], trip[1])

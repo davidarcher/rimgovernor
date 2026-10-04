@@ -450,7 +450,7 @@ func (g coreGrid) fillWing(spine []SpineSegment, rooms []LayoutRoom, wings []Win
 		trial.Corridor.To = f.reach(trial.Rooms)
 		next := append([]Wing(nil), wings...)
 		next[idx] = trial
-		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Rooms: rooms, Wings: next}); err != nil {
+		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: rooms, Wings: next}); err != nil {
 			break
 		}
 		w = trial

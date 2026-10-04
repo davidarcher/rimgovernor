@@ -83,6 +83,9 @@ type LayoutReservation struct {
 // LayoutPlan is the v2 colony layout.
 type LayoutPlan struct {
 	Spine []SpineSegment
+	// Entrances are the hallway cells traffic enters the base from; empty
+	// until the plan is grown (#1946).
+	Entrances []domain.Cell `json:",omitempty"`
 	// Rooms are the rooms hung off the spine; a wing holds its own (#1213).
 	Rooms        []LayoutRoom
 	Wings        []Wing `json:",omitempty"`
@@ -136,6 +139,16 @@ func (p LayoutPlan) Valid() bool {
 	}
 	for _, s := range p.Hallways() {
 		if s.From.X != s.To.X && s.From.Z != s.To.Z {
+			return false
+		}
+	}
+	halls := spineRects(p.Hallways())
+	for _, c := range p.Entrances {
+		on := false
+		for _, h := range halls {
+			on = on || contains(h, c)
+		}
+		if !on {
 			return false
 		}
 	}

@@ -139,7 +139,7 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	}
 	if closet, ok := g.mealCloset(rooms); ok {
 		trial := append(append([]LayoutRoom(nil), rooms...), closet)
-		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Rooms: trial, Wings: wings}); err == nil {
+		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: trial, Wings: wings}); err == nil {
 			rooms = trial
 		}
 	}
@@ -150,6 +150,7 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	wings = growSuitesOutward(plan, wings, suites)
 	spine, wings = sg.growSuites(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
+	plan.Entrances = spineEntrances(spine)
 	return plan
 }
 
@@ -180,7 +181,7 @@ func (g coreGrid) placeRole(spine []SpineSegment, rooms []LayoutRoom, wings []Wi
 			trial := append(append([]LayoutRoom(nil), rooms...), room)
 			grown := append([]SpineSegment(nil), spine...)
 			grown[i] = next
-			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Rooms: trial, Wings: wings}); err != nil {
+			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Entrances: spineEntrances(grown), Rooms: trial, Wings: wings}); err != nil {
 				continue
 			}
 			spine, rooms, placed = grown, trial, true
