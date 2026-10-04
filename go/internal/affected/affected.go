@@ -721,7 +721,7 @@ func test(repo string, changed []string, base ...string) error {
 			return err
 		}
 		fmt.Println("tests: go.mod/go.sum changed, testing ./... (a package prints only when it finishes; silence is normal)")
-		return timed("tests", func() error { return goRun(goDir, testArgs("./...")...) })
+		return timed("tests", func() error { return goTestShort(goDir, "./...") })
 	case len(sel.Packages) == 0:
 		fmt.Println("tests: no Go files changed, nothing to test")
 		return nil
@@ -730,7 +730,7 @@ func test(repo string, changed []string, base ...string) error {
 		return err
 	}
 	fmt.Println("tests:", len(sel.Packages), "affected package(s) (a package prints only when it finishes; silence is normal)")
-	return timed("tests", func() error { return goRun(goDir, testArgs(sel.Packages...)...) })
+	return timed("tests", func() error { return goTestShort(goDir, sel.Packages...) })
 }
 
 // Full runs the slow tests too (go test without -short). The default loop
@@ -803,10 +803,13 @@ const heartbeatEvery = 30 * time.Second
 
 // run streams a command's output so failures are visible, and prints a
 // heartbeat while it is quiet so a slow command reads as running, not stuck.
-func run(dir, name string, args ...string) error {
+func run(dir, name string, args ...string) error { return runOut(dir, os.Stdout, name, args...) }
+
+// runOut is run with the command's stdout sent to out.
+func runOut(dir string, out io.Writer, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
 	label := name
 	if len(args) > 0 {
