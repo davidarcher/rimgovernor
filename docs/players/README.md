@@ -6,18 +6,18 @@ RimGovernor helps run a colony under normal RimWorld rules. You can let Autopilo
 handle routine needs, or take control yourself.
 It is still a development build; setup requires a prepared game profile and save.
 
-Open **Help** in the dashboard to read this guide without leaving your colony.
+The launcher shows the address of this guide on its Launch tab.
 
 1. [Set up the game and controller](setup.md).
 2. [Launch your prepared colony](launch.md).
-3. [Use the dashboard and controls](controls.md).
+3. [Use the launcher and controls](controls.md).
 4. [Save and resume together](save-and-resume.md).
 
 ## When something stops
 
-- **Manual:** routine automation is off. Choose Automate when ready to resume.
-- **Work is blocked:** inspect the concern in Work and its reason before changing
-  priorities. Issued orders still depend on available pawns, materials and access.
+- **Paused:** routine automation is off. Choose Resume on the Launch tab when ready.
+- **A concern is blocked:** inspect it and its reason on the Now tab. Issued orders
+  still depend on available pawns, materials and access.
 - **No game image:** a headless session supplies colony data only.
 - **Launch fails:** check the [setup prerequisites](setup.md).
   Setup does not download the game or the required baseline save.

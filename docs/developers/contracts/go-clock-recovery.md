@@ -634,8 +634,7 @@ capacity, bench or source an `awaiting_plan` exit waits on (`food_plan:cooking-c
 goal the development ranking has not selected), the placement a `no_space` exit failed to
 site (`pen_enclosure`), and the claim a `waiting_on_claim` exit lost
 (`bench`). `Verdict.String` is the machine token
-(`kind[:subject[:detail]]`, no spaces) for the service log's `reason=` (the dashboard timeline
-parses it) and snapshot names; `Verdict.Text` is the one plain-English sentence per outcome and
+(`kind[:subject[:detail]]`, no spaces) for the service log's `reason=` and snapshot names; `Verdict.Text` is the one plain-English sentence per outcome and
 kind, filed on `GoalProgress.Planner` for the status strip and the journal. A planner's catalog
 entry names the one goal it serves (`plannerEntry.goal`), and the wave files its verdict there:
 a refusal files as a block (`planner:` reason), a wait files as a wait (`waiting:` reason,
@@ -689,7 +688,7 @@ requires the player session token, an explicit request ID, expectedRevision and
 throughCursor. Counters use canonical decimal strings. A changed revision returns
 a conflict; exact acknowledgement replay uses the retained request ID. This only
 acknowledges inspected evidence and never acquires authority or resumes time.
-The dashboard preserves its last review during refresh failures and offers an
+The launcher preserves its last review during refresh failures and offers an
 explicit retry of the same acknowledgement after an uncertain response.
 
 ### Zone policy section

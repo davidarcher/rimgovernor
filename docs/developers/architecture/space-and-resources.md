@@ -92,8 +92,8 @@ an existing active component bill prevents a duplicate.
 
 The durable review retains both materials' stock, ore, rate, window, reserve,
 target and deficit. `/api/routines` exposes them as `resourceRunways`, with
-unknown values represented as null. The API is independent of dashboard
-refreshes; React presentation is a separate change. History is scoped to the
+unknown values represented as null. The API is independent of launcher
+refreshes. History is scoped to the
 colony, load and map, includes retired/player plans, ignores future events,
 and counts each placement or completed bill only once.
 

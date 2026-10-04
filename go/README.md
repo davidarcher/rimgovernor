@@ -2,7 +2,7 @@
 
 `go/` is the RimGovernor runtime: it observes the colony over
 GABP from RimBridgeServer, runs deterministic routine policy, executes admitted work
-through Hands, and serves the dashboard and player API. The launcher
+through Hands, and serves the player API. The launcher
 (`cmd/launcher`, built as `RimGovernorLauncher.exe`) starts this binary
 directly. Start from the [source map](../docs/developers/source-map.md) and
 [architecture overview](../docs/developers/architecture/overview.md); this page
@@ -38,8 +38,8 @@ go build -ldflags -H=windowsgui -o ..\RimGovernorLauncher.exe ./cmd/launcher
 ..\RimGovernorLauncher.exe   # or double-click it
 ```
 
-The launcher rebuilds the controller, the production native mod, the dashboard
-(`dashboard/dist`, with `pnpm`) and the game layout when stale, then
+The launcher rebuilds the controller, the production native mod and the game
+layout when stale, then
 starts `serve` with the settings it keeps in `.rimgovernor/launcher.json`
 ([setup](../docs/players/setup.md)). The controller launches RimWorld itself
 and talks GABP to RimBridgeServer directly.
@@ -59,10 +59,10 @@ and talks GABP to RimBridgeServer directly.
 | --- | --- |
 | `--config`, `--game`, `--state` | Absolute game configuration directory and state path and the configured game ID (both modes). |
 | `--profile` | Absolute shared game profile; required for autonomous play. |
-| `--assets`, `--listen`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
+| `--listen`, `--timeout` | Loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
 | `--clock-test-acceleration` | Acceptance only: every window at boosted Ultrafast. Otherwise each window runs at the speed the player last chose in game (Ultrafast under player pacing when none was chosen, #875). |
 | `--routine-resource-*` | Routine tuning: resource reserves/stops (MaintainResource keeps the default floors: Steel 200, ComponentIndustrial 10, stone blocks 150; trade buys components toward the same floor). |
-| `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
+| `--resume` | Run the bot for the observed world at startup and after every native load, without a launcher Resume. |
 | `--flight-recorder <path>` | Where the flight recorder ring lives (default `<profile>/flight/flight.jsonl`; none under `--observe`) (see [Native request diagnostics](#native-request-diagnostics)). |
 
 **Configuration sources and precedence.** `serve` reads exactly two sources,
@@ -90,25 +90,17 @@ initialize: ...`). That failure, `go build`, `go vet` and `go test ./cmd/...` ar
 
 ## Player API
 
-The dashboard detects the Go backend (`GET /api/health` reports
-`backend: "go"`) and renders `ObservationDashboard`/`PlayerControls`. The
-structured player endpoints are listed in
+The launcher ([launcher doc](../docs/developers/architecture/launcher.md)) reads
+this API from the Go side. The structured player endpoints are listed in
 [the player API contract](../docs/developers/contracts/go-player-api.md). The player
-surface is guidance, not per-pawn orders: one building placement and one
-research selection remain as typed plan submissions, and everything else is
-colony configuration (goals, expedition policy) or control (resume/pause, clock
-acknowledgement). Per-command player slices for tend, rescue,
-draft, husbandry, recovery service, bed assignment, movement, building
-temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
-room shells were removed in
-[issue #54](https://github.com/davidarcher/rimgovernor/issues/54); those
-families are reached only through the routine planners. 
-
-One player command is configuration rather than a plan of native actions and
-lives outside the plan/action tables, with request-ID replay safety and one
-current value per colony/load/map: expedition policy (`/api/player/expedition-policy/update`, a
-partial patch merged over the limits in force, validated as a whole). The population
-target and production policy (reserves and spending) belong to the autopilot alone.
+surface is control, not orders: session, control (resume/pause), clock
+(acknowledge) and colony reads. Per-command player slices for tend, rescue,
+draft, husbandry, recovery service, bed assignment, movement, building,
+research, temperature, surgery, caravans, quests, settlement gifts, trade, zone
+edits and room shells were removed
+([issue #54](https://github.com/davidarcher/rimgovernor/issues/54), #1983); those
+families are reached only through the routine planners. The population target
+and production policy (reserves and spending) belong to the autopilot alone.
 
 Multi-instance colony directory serving (`--colonies`) does not exist in Go
 ([issue #47](https://github.com/davidarcher/rimgovernor/issues/47)).
@@ -765,8 +757,7 @@ advancement and construction.
 
 Build the executable above, then use `rimgovernor serve --observe` with absolute
 `--config` and `--state` paths plus the configured `--game` ID. It attaches
-over GABP to the running game and opens a fresh Go SQLite database. An optional
-absolute `--assets` directory serves a built dashboard containing `index.html`.
+over GABP to the running game and opens a fresh Go SQLite database.
 `--listen` defaults to `127.0.0.1:0`; startup prints the selected local URL. Only
 loopback IP addresses and numeric ports are accepted.
 
@@ -789,9 +780,7 @@ responses preserve the canonical `NotificationsReply` sections, including a
 section's explicit unavailable outcome. Viewing a notification does not
 acknowledge it, dismiss it or resume play.
 
-The dashboard displays these sections independently, retaining last-good data
-with a stale indicator during failed refreshes. A changed world or session excludes
-old results. Native notification production still requires game-level acceptance.
+Native notification production still requires game-level acceptance.
 
 ### Native request diagnostics
 
@@ -816,16 +805,13 @@ unbounded. See `bridge.FlightRecorder` for the writer and `bridge.ReadTimeline` 
 
 `rimgovernor serve --profile <absolute-game-profile>` (autonomous play) includes
 the building service. Supply the same `--config`, `--game`, `--state`,
-`--listen` and optional `--assets` arguments as the observation service. The profile
+and `--listen` arguments as the observation service. The profile
 must be the shared game profile, so another controller cannot acquire its process
 lock. The service starts paused; it never restores a live lease from SQLite.
 
-With built dashboard assets, player controls accept a building definition,
-material, map coordinates and rotation. Submitting stores guidance; **Resume**
-runs the bot for the observed world and **Pause** stops it, and Pause remains
-available while a resume is pending. The building form shares current
-permission and control history. Form drafts and request IDs survive background
-refreshes, and result checks only read the recorded request.
+The launcher's **Resume** runs the bot for the observed world and **Pause**
+stops it, and Pause remains available while a resume is pending. Request IDs
+survive background refreshes, and result checks only read the recorded request.
 Player controls are hidden when the service runs read-only.
 
 Resume uses

@@ -6,9 +6,8 @@ RimGovernor uses the following names across its deployment boundary.
 
 | Surface | Identifier |
 | --- | --- |
-| Product and dashboard | `RimGovernor` |
+| Product and launcher | `RimGovernor` |
 | Controller binary and CLI | `rimgovernor` |
-| Dashboard package | `rimgovernor-dashboard` |
 | Default runtime data directory | `.rimgovernor/` |
 | Environment variable prefix | `RIMGOVERNOR_` |
 | Mutating HTTP request header | `X-RimGovernor: 1` |
@@ -19,7 +18,7 @@ RimGovernor uses the following names across its deployment boundary.
 | Committed baseline save | `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws` |
 
 Deployment names are an exact contract, with no alternate product-name aliases.
-Build the controller binary, dashboard, companion DLLs and container images
+Build the controller binary, launcher, companion DLLs and container images
 from the same checkout. Prepared profiles must enable the matching companion
 package and use the baseline filename above. Keep upstream package IDs and namespaces
 as supplied by their authors.

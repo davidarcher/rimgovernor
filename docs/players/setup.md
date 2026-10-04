@@ -4,8 +4,8 @@
 
 A clean checkout needs:
 
-- Go (`go/.go-version`), Node.js 22+, pnpm and the .NET SDK (for the native
-  mod and the shared Protobuf contracts), all on `PATH`.
+- Go (`go/.go-version`) and the .NET SDK (for the native
+  mod and the shared Protobuf contracts), both on `PATH`.
 - RimWorld 1.6 with Harmony and RimBridgeServer from Steam (the launcher finds
   them through Steam's libraries).
 - The Microsoft Edge WebView2 Runtime (preinstalled on Windows 11).
@@ -30,6 +30,5 @@ showing its output in the Log panel:
   rebuilt when its sources change. It is never replaced while the private game
   copy runs; close the game and press **Check again**.
 - **Go controller**: `.rimgovernor/go/rimgovernor.exe`, rebuilt every open.
-- **Dashboard**: `dashboard/dist`, rebuilt with pnpm when its sources are newer.
 
 Continue with [launch](launch.md).

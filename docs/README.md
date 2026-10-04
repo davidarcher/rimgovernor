@@ -2,11 +2,11 @@
 
 ## For players
 
-[Player guide](players/README.md): set up a colony, use the dashboard, direct
+[Player guide](players/README.md): set up a colony, use the launcher, direct
 automation and save your session.
 
 - [Setup](players/setup.md) and [launch options](players/launch.md)
-- [Dashboard and controls](players/controls.md)
+- [Launcher and controls](players/controls.md)
 - [Save and resume](players/save-and-resume.md)
 
 ## For developers
@@ -32,7 +32,7 @@ its contracts and run the relevant checks.
   [shelter coverage map](developers/testing/shelter-coverage.md) (which check owns which claim),
   [colony snapshots](developers/testing/colony-snapshots.md) (record a review's facts natively, replay planners in `go test`),
   [colony review](developers/testing/colony-review.md) (nightly week on a random map, hourly screenshots published to Pages) and
-  [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, `rimgovernor trace`, speed matrix, the case timeline page)
+  [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, `rimgovernor trace`, speed matrix)
 - [Go controller development](../go/README.md), including its testing pyramid;
   native acceptance tooling is tracked in
   [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)

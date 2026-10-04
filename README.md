@@ -1,15 +1,15 @@
 # RimGovernor
 
 A local RimWorld colony controller. Autopilot handles routine colony needs and
-building/draft/routine player control. The dashboard shows priorities, plans
-and colonists while RimWorld runs the simulation.
+routine player control. The launcher shows what the colony is doing and what
+is going wrong while RimWorld runs the simulation.
 
 ## Play
 
 Double-click `RimGovernor.cmd` and press Play (see [setup](docs/players/setup.md)).
 
-Open [the dashboard](http://127.0.0.1:8787). It starts in Manual; choose Automate
-to enable routine control. Autopilot needs no model.
+The controller starts paused; choose Resume in the launcher to enable routine
+control. Autopilot needs no model.
 
 This is a development setup requiring licensed RimWorld files, native mods
 and a prepared save. See the [player guide](docs/players/README.md) for
@@ -20,7 +20,7 @@ controls, saving and troubleshooting. Broader survival coverage remains tracked 
 
 Use the [developer guide](docs/developers/README.md) to find the architecture,
 source and checks for your change. Go runs the production controller
-(started by `RimGovernorLauncher.exe`, built from `go/cmd/launcher`); React/TypeScript runs the dashboard, and C#
+(started by `RimGovernorLauncher.exe`, built from `go/cmd/launcher`, which is also the player UI), and C#
 supplies native game tools through RimBridgeServer over GABP. See
 [the Go module guide](go/README.md) for building, running and testing it.
 

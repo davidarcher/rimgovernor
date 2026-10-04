@@ -216,8 +216,7 @@ commit, not a file-by-file narrative.
   owes) against a real headless RimWorld.
   Before a slow check, say what changed behaviour it verifies and why the
   cheaper check is insufficient.
-- `task build && task test` runs every project's gates (dashboard,
-  protobuf, C#); use it when the change touches those, not for Go-only
+- `task build && task test` runs every project's gates (protobuf, C#); use it when the change touches those, not for Go-only
   work.
 - A receipt does not prove pawn work completed: assert the native
   postcondition. Distinguish compilation/protocol checks from gameplay
@@ -266,7 +265,7 @@ Start with the [documentation map](docs/README.md), the
 [system overview](docs/developers/architecture/overview.md) and the
 [development process](docs/developers/development-process.md); read the
 component guide and contracts for the subsystem you change. Runtime: Go
-(`go/`), React (`dashboard/`), RimBridgeServer (over GABP) and
+(`go/`, including the launcher), RimBridgeServer (over GABP) and
 `integrations/rimgovernor-native`; native acceptance tooling is Go.
 
 Non-negotiables: RimWorld owns simulation and normal game rules hold

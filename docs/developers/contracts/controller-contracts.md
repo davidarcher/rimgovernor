@@ -134,7 +134,7 @@ returns that record under `development` (null until a review has ranked): review
 capacity, nullable worker count, sorted free-labor rows, committed goal IDs and one row
 per optional goal with score, nullable deficit and risk, `waitingSince`, selection and
 commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
-type. The dashboard's Work view renders it read-only as "Development priorities"; the
+type. The launcher's Now tab renders it read-only as "Development priorities"; the
 panel hides itself when routine diagnostics are disabled. The same route returns the
 roster planner's last report under `roster` (`policy.WorkRosterReport`, null until an
 enabled review planned work; a disabled review or an unknown census keeps the last one):
@@ -714,7 +714,7 @@ blocks the next hunt, and a second forage waits for the first.
 
 The native threat section supplies the wealth split, storyteller wealth, current
 raid points, adaptation and difficulty scale; absent or invalid readings remain
-unknown. The colony API and dashboard expose the observed values. These are native
+unknown. The colony API exposes the observed values. These are native
 storyteller inputs, not a prediction of the next raid.
 
 Defense feeds observed raid points into the turret budget: unknown or below 300
@@ -825,7 +825,7 @@ starve research indefinitely. Explicit work overrides retain authority.
 Breaching a sealed ancient shrine releases its guards at once, so
 `policy.ShrineBreachReadiness` judges the gate before any wall goes (#457).
 It is a decision, never an order: `ColonyStatus` reads it for
-`/api/player/colony` and the dashboard, and the breach goal (#458) will
+`/api/player/colony`, and the breach goal (#458) will
 re-read the facts before drafting anyone. Every hold is a reason, in this
 order: `not_sealed`, `no_breach_wall`, `emergency_active`,
 `squad_too_small` (fewer than two eligible armed colonists, one under

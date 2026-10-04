@@ -134,8 +134,8 @@ replacement identities cannot inherit its provenance. Regional safety and routes
 must be observed; missing evidence never grants permission. A map-wide threat
 conservatively holds every region. Recovery clears current holds, not history.
 
-The routines API's `extentEligibility` and the dashboard's Colony extent view
-show established stage, origins, active facilities and hold reasons separately
+The routines API's `extentEligibility`
+shows established stage, origins, active facilities and hold reasons separately
 from `resourceReach`. The service reads the current timeline's stored history and
 fresh held colony census without writing either. Route evidence remains unknown
 until a producer supplies it. The acceptance harness records `/api/routines`

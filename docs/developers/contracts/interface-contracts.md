@@ -1,18 +1,13 @@
-# Dashboard contracts
+# Interface contracts
 
 [Documentation](../../README.md)
 
-Outpost is the dashboard display name. These are its control, presentation and transport
-contracts.
-
-Outpost is the dashboard display name; runtime and package names remain RimGovernor. Watch
-keeps chat beside the current game snapshots. Priorities explains actual priority
-classes, selected methods, blockers and observed foothold gates; targets edit the same
-controller policy. Work separates unfinished orders from optional history. Colony groups
-people and field notes. Raw IDs, receipts and tool details stay behind closed diagnostic
-disclosures. Mounted views preserve drafts across navigation, and background refreshes
-preserve the last good data.
-
+These are the control, presentation and transport contracts the launcher and other
+clients rely on. The launcher is the only player surface ([launcher](../architecture/launcher.md));
+the standalone browser dashboard, its chat, its viewer lease and its building, draft
+and camera-input surfaces were removed (#1983). Sections below that describe those
+surfaces record the native and transport contracts behind them, not routes that
+`serve` still offers; [the player API](go-player-api.md) lists the surviving routes.
 
 Scenario workers expose a separate observation-only app at `/scenario`, attached to
 the existing runtime on its event loop. `/api/state` returns retained public state
@@ -20,11 +15,11 @@ with `observationOnly: true`; unavailable/stopped runtimes return 503. Only the 
 runtime is observed after replacement. `/api/camera?session_id=...` returns a retained
 frame and rejects changed sessions with 409. No native reads or capture demand are
 triggered. HTTP mutations return 403, and no player-control or WebSocket routes exist.
-The normal controller dashboard keeps its existing interactive contracts.
+The normal controller keeps its existing interactive contracts.
 
 ## Time, camera and player control
 
-The dashboard adds session-bound player time and camera endpoints. Time
+The player surface once added session-bound time and camera endpoints. Time
 controls enter Manual, invalidate pending execution, and verify a native pause (drafted pawns stay
 drafted, #939) before requesting Normal, Fast or Superfast through the existing
 supervisor. An in-flight review must finish before a play request; Pause remains
@@ -82,7 +77,7 @@ doubling per fresh wave, and never
 releases to full speed while any evidence is stale; a new window starts at
 the earned ceiling. `Epoch.pacing_reason`/`paced_ticks_per_second` and
 `Status.effective_ticks_per_second` feed the clock_step row and the
-dashboard's Now panel. `speedmatrix/observations`' `player` row checks the
+launcher's Now tab. `speedmatrix/observations`' `player` row checks the
 hazard gaps, the over-budget frame share (the manual-command dispatch bound)
 and `speed_changes` per 6000 ticks.
 
@@ -187,5 +182,5 @@ can resolve such a concern. Reports never authorize construction or corrective o
 
 ## Related reading
 
-Read [the dashboard and game view](../architecture/dashboard.md) before using this as a
+Read [the launcher](../architecture/launcher.md) before using this as a
 protocol checklist.

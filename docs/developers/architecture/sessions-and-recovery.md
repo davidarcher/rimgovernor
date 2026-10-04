@@ -31,7 +31,7 @@ recovery requirement. A restarted controller does the same with an empty
 database, and reclaims Auto authority a killed controller left in native
 (one revoke at the observed generation, then a fresh grant) because the
 profile lock makes it the only author. With `serve --resume` the bot runs for the observed world at
-startup and again after every load without a dashboard click; otherwise it
+startup and again after every load without a launcher click; otherwise it
 waits for **Resume**. Attached sessions have a separate unchanged-game
 reconnect contract.
 

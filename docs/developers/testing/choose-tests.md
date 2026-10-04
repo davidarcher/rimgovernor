@@ -1192,7 +1192,7 @@ report.
 | What changed / what you need to establish | Available support | Requirements and limits |
 | --- | --- | --- |
 | Go controller logic, contracts, persistence | From `go/`: `go run ./cmd/test` (`-short`, ~30 s; `-full` at the end of an epic; not `go test ./...`), `go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor` (also run together, with staticcheck and the test-time budget, by `task go:build && task go:test` from the [root Taskfile](../../../Taskfile.yml)) | Pin Go via [go/.go-version](../../../go/.go-version); `CGO_ENABLED=0`. Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks below. See [go/README.md](../../../go/README.md). |
-| Dashboard behavior and build | `task dashboard:build` runs `pnpm run typecheck`, `pnpm run lint` and `pnpm run build`; `task dashboard:test` runs `pnpm test` (Vitest) | Local pnpm and dashboard dependencies; native UI acceptance is separate. |
+| Launcher behavior | `go test ./cmd/launcher` from `go/` (view models, serve client, controls, recorder feed; Windows-only files build only on Windows) | No game needed; the WebView2 page itself has no automated check. |
 | Shared Protobuf contracts | Official C#/Go generation `--check` for both languages (`task protobuf:build`, ~20 s) | [Generation commands](../../../contracts/schema-generation.md); native adapters additionally need gameplay acceptance. The drift check and the `tools/protobuf/go` module tests are not in the landing loop; the nightly `race` job runs both so a schema edit landed without regeneration is caught there. The C#/Go/C# exchange proof (`task protobuf:test`) proves the pinned runtime and stays manual. |
 | Completed pawn work, recovery or another live-game invariant | A registered case through the shared runner, `go run ./internal/nativeaccept/cmd/acceptance run <area>/<case> -root <abs root> -output <fresh dir>` from `go/` (`acceptance list` prints the registry: the synchronous typed-op cases `bed/assign`, `bills/census`, `caravan/departure`, `lifecycle/checkpoint`, `lifecycle/load`, `mapscope/isolation`, `pawn/reads`, `quest/accept`, `research/reads`, `rooms/reads`, `supplies/reads`, `trade/open`; the Loud cases `combat/melee`, `combat/ranged`, `combat/explosive`, `movement/arrival`, `authority/disconnect`; the lifecycle cases `lifecycle/shutdown`, `lifecycle/runtime-fault`, `lifecycle/reuse`, `lifecycle/headless-soak` (off-tier); the serve-driven `dialog/pause` (#156: a force-pausing choice dialog the game opens is answered and the clock runs again); every other area is listed there too, so trust `acceptance list` over this row) | Disposable prepared colony, matching native DLLs and a real headless RimWorld instance. Never replace installed DLLs while any RimWorld instance is running, including another worktree's tests. Isolated tests must restore temporarily swapped DLLs. Never kill `RimWorldWin64.exe` by image name — that ends every concurrent worktree's game (seen there as the bridge session dropping); stop your own via `gamesstop -root` or kill only pids whose command line contains your `-root`. A receipt alone does not prove pawn work completed — verify the observed postcondition. |
 | A threat response or layout decision of the defense planners: sapper bypass, breach fallback, siege, centre drop, hunting predator, hive, ship part, the turret tier, stocked turret scaling (#341) and raider cover clearance (#581) | `go test ./internal/buildingruntime -run TestDefenseReplay` from `go/`: snapshot replays of rounds recorded natively (#742, #744) | Fast and offline. The native end-to-end perimeter build, raid, hold-the-line and repair stay `defense/perimeter` (nightly). |
@@ -1242,7 +1242,7 @@ plus staticcheck on the affected packages, the gates `task go:build`
 applies to the whole module (#334). The individual acceptance lines from
 `cmd/affected` explain selection; use the single land-tier command printed
 by `cmd/test` for milestone validation. Run `cmd/test` once before landing;
-do not follow it with `go test ./...`. Changes touching dashboard, C# or
+do not follow it with `go test ./...`. Changes touching C# or
 shared Protobuf contracts use `task build && task test` for their project
 gates and generation checks. Reuse a successful run when
 relevant code, dependencies, inputs and environment are unchanged, even if main has
@@ -1253,7 +1253,7 @@ verification, not a new game session. Do not mark acceptance work complete from
 unit tests, compilation or native receipts alone — verify the observed outcome.
 
 Use an isolated task worktree when peers may be active. A worktree does not inherit
-the main checkout's build artifacts; run `go test`/`go build` and `pnpm install`
+the main checkout's build artifacts; run `go test`/`go build`
 there for local checks.
 
 Native acceptance tooling is Go-only; see

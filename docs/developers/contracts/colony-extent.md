@@ -67,8 +67,8 @@ origins, recorded and active facility identities and every hold:
 `provenance_unknown`, `route_unknown`, `route_impassable`, `extent_empty`.
 A map-wide threat holds every region; a replacement facility cannot inherit
 a lost one's provenance; missing evidence is a hold, never a grant. The
-routines API `extentEligibility` and the dashboard's Colony extent view
-render it; the acceptance harness records it for `acceptance why` and
+routines API `extentEligibility`
+renders it; the acceptance harness records it for `acceptance why` and
 postmortems.
 
 ## Consumer contract

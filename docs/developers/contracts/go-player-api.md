@@ -95,17 +95,14 @@ The Go player surface (`httpapi.PlayerControl`) is
 have their own narrow interfaces. Production service composition supplies the
 same Player and store used by the worker.
 
-## Dashboard behavior
+## Launcher behavior
 
-The building form shares token bootstrap, current permission and
-the Resume/Pause history. Submissions are guidance: the forms no longer enable
-a plan; the heading's Resume runs the bot for the observed world and Pause
-stops it. An unresolved Resume (pending or uncertain) blocks another Resume
-until a later journaled Pause supersedes it; Pause remains available
-regardless. Background refresh
-preserves both forms, request IDs and last-good data. Session/world changes
-exclude stale permission and responses without silently resubmitting either
-intent.
+The launcher's Resume runs the bot for the observed world and Pause stops it
+([launcher](../architecture/launcher.md)). An unresolved Resume (pending or
+uncertain) blocks another Resume until a later journaled Pause supersedes it;
+Pause remains available regardless. Background refresh preserves request IDs
+and last-good data. Session/world changes exclude stale permission and
+responses without silently resubmitting either intent.
 
 A routine-produced `owned_draft` action is plan-owned: the undraft sweep
 undrafts its pawn once no live plan needs it (#939); it is not a persistent

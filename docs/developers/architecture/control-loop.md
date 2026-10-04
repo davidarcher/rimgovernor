@@ -154,7 +154,7 @@ one tick-consistent bundle and bind their facts to its tick, and the worker
 dispatches every routine kind live; only the window itself is admitted at
 the stop.
 
-The scheduler runs independently of dashboard refreshes. Only one review or
+The scheduler runs independently of launcher refreshes. Only one review or
 execution task runs at a time. Hands yields at its operation budget and requests
 continuation. Idle/blocked work and autosave refusals use a two-second retry
 backoff; lease renewal and periodic observation remain independent of task

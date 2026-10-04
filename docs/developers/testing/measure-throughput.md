@@ -94,7 +94,7 @@ share its id, and the stderr line for a kinded record ends in
 leaves (`worker_dispatch`, `worker_outcome`, its native calls) join the
 trace of the step that admitted the window it ran in. A poll and a
 renewal are traces of their own; a row written outside any traced unit of
-work (the coverage row, a dashboard read) gets a single-row trace, so no
+work (the coverage row, a player API read) gets a single-row trace, so no
 row is unaddressable. Typed bridge calls send `trace` (`<trace_id>/<span_id>`)
 beside `request`, and the companion echoes it as `timing.trace`, recorded
 as `native_trace` in the response row's timing, so `queueMs`/`executeMs`
@@ -257,34 +257,6 @@ the clock block (`native_paused_ms`, `paused_fraction_native`) and in
   `observation_ms` is most of its `interval_ms` was blocked by that hop, and
   its `trace` names the request; an interval with little observation work is
   the game or the renderer, and the observation path is not the cause.
-
-## Case timeline
-
-`dashboard/timeline.html` draws one acceptance case's output directory on
-a single axis: the clock windows (`started` to `stopped`, with the stop
-reason and the paused strip between status samples), the scheduler steps
-with their elapsed time and the stop→step latency of a woken step, the
-admissions and refusals (`clock_start`/`clock_renew` receipts, the
-`EvaluateClockWindow` refusals and pause-bound holds from the aligned
-stderr blocks, worker dispatches), the native events at the companion's
-own stamp with a dashed connector to the reply that delivered them, every
-native round trip as a span (a held long poll is the outlined bar), and the
-case's `started_at`/`finished_at`/boot from `result.json`. A restarted
-service (`service-2/`) is a second launch on the same axis.
-
-```bash
-pnpm --dir dashboard dev
-# open http://127.0.0.1:5173/timeline.html and pick the case directory
-```
-
-The built page ships with the dashboard assets (`dist/timeline.html`, served
-by `serve` at `/timeline.html`). It reads the picked files in the browser
-and uploads nothing. Switch the axis to *ticks advanced* to collapse paused
-wall time and compare windows by game time; hover shows the row, click
-pins it. Harness evidence (`NNNN-*.json` and `service*/http-NNNN.json`,
-one run-wide sequence) is placed by its `observed_at` stamp; a file
-without one is listed beside the plot. The parsers live in
-`dashboard/src/features/timeline/`.
 
 ## Profile
 

@@ -17,7 +17,7 @@ flowchart LR
 | Component | Owns |
 | --- | --- |
 | Go controller | Observations, goals, resource accounting, execution, recovery and local API. |
-| React dashboard | Player direction and views of controller state; drafts and last good data survive refreshes. |
+| Launcher | The player UI: starts and stops the controller and game, shows controller state and offers Resume, Pause and Acknowledge; last good data survives refreshes. |
 | RimBridgeServer (GABP) | Game-side tool server; the controller launches the game and calls its tools over GABP directly. |
 | Native colony bridge | Colony-specific observations, guarded operations and saved identity. |
 | RimWorld | Simulation, legal placement and ordinary pawn work. |

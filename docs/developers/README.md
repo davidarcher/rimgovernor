@@ -34,5 +34,5 @@ the multi-instance colony directory.
 - [Facilities](architecture/facilities.md): the room-function ladder and per-role matrix.
 - [Storage](architecture/storage.md): the storage planner and the warehouse, yard, workstation and gear stockpiles.
 - [Sessions and recovery](architecture/sessions-and-recovery.md): authority, checkpoints and cleanup.
-- [Dashboard](architecture/dashboard.md): presentation and input ownership.
+- [Launcher](architecture/launcher.md): the player UI, its serve client and controls.
 - [World progression](architecture/world-progression.md): caravans, quests and world outcomes.

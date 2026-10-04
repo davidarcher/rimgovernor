@@ -51,7 +51,6 @@ Make cancellation, concurrency and resource cleanup explicit.
 | Surface | Standard |
 | --- | --- |
 | Go | Concrete structs, distinct IDs, explicit variants and small interfaces. Keep `map[string]any`, reflection dispatch and unchecked assertions out of domain logic. Test handler coverage. |
-| TypeScript | Keep `strict`; use discriminated unions and typed API models. Validate external `unknown` values. Avoid `any`, double casts and assertions that hide missing contracts. |
 | C# | Concrete DTOs and typed operations with explicit null/error handling compatible with `net472` and installed Unity/Mono. |
 
 Distinguish unknown from zero/false, absent from null, and refusal from an uncertain
@@ -67,7 +66,7 @@ escapes inside a documented adapter with a boundary test; no blanket suppression
 
 `go run ./cmd/test` from `go/` runs the affected Go checks. Use
 `task build && task test` from the repository root when the change touches
-dashboard, protobuf or C# projects. There is no
+protobuf or C# projects. There is no
 hosted CI: checks run on the developer's machine before work lands on
 `main`. Whole-module race checks and repeated package-wide race stress runs
 belong in nightly validation, not the local landing loop. The nightly
@@ -83,7 +82,7 @@ allow at least 5s for unavoidable wall-clock deadlines.
 `Taskfile.yml` pins `GOTOOLCHAIN`, `GOWORK=off` and `CGO_ENABLED=0` and
 includes every project; each project directory ships its own `Taskfile.yml`
 with `build` (compilation plus the static gates that fail a build) and `test`
-(tests only), so `task go:build`, `task dashboard:test` and so on run one
+(tests only), so `task go:build`, `task protobuf:build` and so on run one
 project. Projects with nothing to test say so. Projects that need
 machine-local inputs (the game's managed assemblies, Harmony, the
 RimBridgeServer SDK) report `unavailable` naming the missing path instead of
@@ -98,8 +97,6 @@ table fails the gate; everything in the second is reviewed by hand.
 | Go toolchain pinned to `go/.go-version` and the root `GOTOOLCHAIN`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go`, `wire` (`contracts/generated/protobuf/go`), `protobuf-go` (`tools/protobuf/go`) |
 | Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go` (`go tool staticcheck`, pinned in `go/go.mod`) |
 | Go tests under a 60 s per-test hang guard (`-race` is opt-in via `task go:test:race`) | `go` (`checktesttimes`) |
-| TypeScript `strict`; no `any`, `@ts-ignore`, `@ts-nocheck`, unsafe `any` flow, unnecessary or object-literal assertions, or `as unknown as` double casts; `@ts-expect-error` only with a description | `dashboard` (`dashboard/eslint.config.js`, typescript-eslint type-checked, plus `tsc --noEmit`) |
-| Dashboard dependencies locked | `dashboard` (`pnpm install --frozen-lockfile`) |
 | Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` (`tools/protobuf`) |
 | C# `TreatWarningsAsErrors` and `RestoreLockedMode` on Bridge, Runtime, contract probes and both fixture projects; nullable reference types on Runtime | `native`, `probes` (`contracts/tests`, ungated probes only), `fixtures` (`scripts/fixtures`) |
 
@@ -114,7 +111,7 @@ Use the [testing pyramid and evidence rules](testing/choose-tests.md#testing-bud
 Run `go run ./cmd/test` from `go/` before landing. It checks affected Go
 packages and their importers; test-only edits check their owning package.
 Do not follow it with a full Go suite. Use `task build && task test` for
-changes touching dashboard, protobuf or C# projects. Reuse successful
+changes touching protobuf or C# projects. Reuse successful
 results when the relevant source and environment are unchanged.
 
 Test behavior at its owning boundary: pure policy with fixtures, wire formats
