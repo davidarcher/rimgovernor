@@ -79,7 +79,11 @@ Mapping, with no allow-list and no name lists:
   (`ThingDef.verbs`, `SimpleCurve.points`) is def data; the only exclusions are
   `[Unsaved]` and runtime state, below. (Stated from the loader's behaviour as
   known; the reference assemblies carry no method bodies, so the generator
-  cannot check it.)
+  cannot check it. Confirmed from the decompiled game, #1794:
+  `XmlToObjectUtils.SearchTypeHierarchy` uses `GetField(name, Instance | Public
+  | NonPublic)` up the base chain, and `DirectXmlToObject.ObjectFromXml`
+  builds with `Activator.CreateInstance(type)`, so a class with no public
+  parameterless constructor cannot be loaded.)
 - Every `Verse.Def` message ends with the derived field `modPackageId`, an
   `optional string` whose `clr_path` field option names the member path native
   reads from the mirrored object, `modContentPack.PackageId`:
