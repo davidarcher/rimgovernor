@@ -101,8 +101,8 @@ type Pacing struct {
 	// Detail is the reason's evidence in the row's own words: the refusal
 	// reasons, the stop reason, the holds.
 	Detail string `json:"detail"`
-	// EffectiveTPS is the wall ticks per second the launch has actually
-	// achieved, paused time included.
+	// EffectiveTPS is the wall ticks per second the newest clock_step
+	// recorded, paused time included; 0 until the launch has one.
 	EffectiveTPS float64 `json:"effectiveTps"`
 	// WindowTicks is the tick budget of the last window the scheduler sized,
 	// 0 when it admitted none.
@@ -145,7 +145,7 @@ type Counts struct {
 
 // Input is the already-read state the projection composes: the last
 // review's stage and progress records, whether reviews are enabled at all,
-// the observed tick and the launch's wall TPS.
+// and the observed tick.
 type Input struct {
 	Stage          *policy.ColonyStageRecord
 	Progress       []policy.ConcernProgress
@@ -153,7 +153,6 @@ type Input struct {
 	// Holds are the clock holds awaiting review, by kind.
 	Holds []string
 	Tick  *int64
-	TPS   float64
 	// Concerns bounds the concern rows; 0 uses ConcernsShown.
 	Concerns int
 }
@@ -165,7 +164,7 @@ const ConcernsShown = 6
 // first, as the recorder wrote them) and the already-read state. It reads
 // nothing else: no native call, no journal write, no speed request.
 func Project(rows []bridge.TimelineRecord, in Input) Now {
-	out := Now{Tick: in.Tick, Concerns: concerns(in.Progress, in.Concerns), Pacing: Pacing{Reason: ReasonUnknown, EffectiveTPS: in.TPS}}
+	out := Now{Tick: in.Tick, Concerns: concerns(in.Progress, in.Concerns), Pacing: Pacing{Reason: ReasonUnknown}}
 	if in.Stage != nil {
 		out.Stage = &Stage{Stage: in.Stage.Stage.String(), Since: in.Stage.Since, Blocker: string(in.Stage.Blocker), Reason: in.Stage.Reason, Held: in.Stage.Held}
 	}

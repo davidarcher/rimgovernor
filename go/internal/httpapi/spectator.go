@@ -80,7 +80,6 @@ func (s *Server) handleSpectator(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		rows = currentRun(all)
-		in.TPS = bridge.SummarizePhases(rows).Clock.WallTPS
 	}
 	if err = ctx.Err(); err != nil {
 		s.readFailure(w, r, err)

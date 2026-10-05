@@ -44,9 +44,9 @@ func TestProjectStageConcernsAndStop(t *testing.T) {
 	rows := []bridge.TimelineRecord{
 		workerStep(1, map[string]any{"admitted": true, "running": true, "window_ticks": float64(2500)}),
 		stopRow(2, "STOP_REASON_COLONIST_HEALTH", map[string]any{"detected_tick": float64(5030), "stop_ticks": float64(10), "occurrence_tick": float64(5000), "detect_ticks": float64(30), "age_at_reply_ms": float64(12)}),
-		clockStep(3, map[string]any{"stop": true, "stop_latency_ms": float64(40), "stop_pause_s": float64(0.5)}),
+		clockStep(3, map[string]any{"stop": true, "stop_latency_ms": float64(40), "stop_pause_s": float64(0.5), "effective_tps": float64(820)}),
 	}
-	now := Project(rows, Input{Stage: stage, Progress: progress, ReviewsEnabled: true, Tick: &tick, TPS: 820})
+	now := Project(rows, Input{Stage: stage, Progress: progress, ReviewsEnabled: true, Tick: &tick})
 
 	if now.Tick == nil || *now.Tick != 5050 {
 		t.Fatal(now.Tick)
@@ -174,7 +174,7 @@ func TestProjectPlayerPacing(t *testing.T) {
 		clockStep(1, map[string]any{"pacing_reason": "frame_budget", "paced_tps": float64(4200), "effective_tps": float64(3900.5), "player_pacing": true}),
 		workerStep(2, map[string]any{"admitted": false, "running": true}),
 	}
-	now := Project(rows, Input{ReviewsEnabled: true, TPS: 820})
+	now := Project(rows, Input{ReviewsEnabled: true})
 	if now.Pacing.Reason != ReasonFrameBudget || now.Pacing.PacedTPS != 4200 || now.Pacing.EffectiveTPS != 3900.5 || now.Pacing.Detail == "" {
 		t.Fatalf("pacing %+v", now.Pacing)
 	}
