@@ -257,6 +257,20 @@ func (e Entry) Line() string {
 	if e.Component != "" {
 		fmt.Fprintf(&b, "[%s] ", e.Component)
 	}
+	b.WriteString(e.Words())
+	if e.Count > 1 {
+		fmt.Fprintf(&b, "  x %d", e.Count)
+		if e.FirstTick != nil && e.LastTick != nil {
+			fmt.Fprintf(&b, ", first/last tick %d/%d", *e.FirstTick, *e.LastTick)
+		}
+	}
+	return b.String()
+}
+
+// Words is the entry's kind with what it says: a decision's verdict, reason
+// and target (and its duration when it ran once), any other row's payload.
+func (e Entry) Words() string {
+	var b strings.Builder
 	b.WriteString(e.Kind)
 	if e.Decision {
 		for _, part := range []string{e.Verdict, e.Reason, e.Target} {
@@ -269,12 +283,6 @@ func (e Entry) Line() string {
 		}
 	} else if text := compactPayload(e.Payload); text != "" {
 		b.WriteString(" " + text)
-	}
-	if e.Count > 1 {
-		fmt.Fprintf(&b, "  x %d", e.Count)
-		if e.FirstTick != nil && e.LastTick != nil {
-			fmt.Fprintf(&b, ", first/last tick %d/%d", *e.FirstTick, *e.LastTick)
-		}
 	}
 	return b.String()
 }

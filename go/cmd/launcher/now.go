@@ -90,7 +90,6 @@ var pacingLabels = map[spectator.PacingReason]string{
 	spectator.ReasonRunning:        "Running",
 	spectator.ReasonBudget:         "Between windows: the last one spent its tick budget",
 	spectator.ReasonStopped:        "Stopped",
-	spectator.ReasonCinematic:      "Cinematic: an interesting moment is slowed on purpose",
 	spectator.ReasonAccelerated:    "Accelerated",
 	spectator.ReasonFrameBudget:    "Frame-paced",
 	spectator.ReasonForcedSlowdown: "Slowed by the game",

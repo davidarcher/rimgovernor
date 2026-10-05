@@ -120,6 +120,19 @@ reach. A new emission adds its kind here with a reader, or it is not added.
 |---|---|
 | `bridge` phases, `cmd/launcher` problems and Log tab, spectator `now`, `TimelineReader` consumers | #2054 |
 | `rimgovernor log` | #2053 |
+
+The #2054 readers (`bridge/flightrows.go`) accept a kind under its legacy name and its v2 name until the
+producer piece lands. Each legacy branch is deleted by the piece that moves its producer:
+
+| Legacy name read | v2 name | Deleted by |
+|---|---|---|
+| `native_response`, `native_error`, `native_decode`, `native_frame_hit` | `native_call`, `native_frame` (`outcome`) | #2057 (the `native_error`/`native_response` names stay until #2065) |
+| `clock_step` legacy payload | `clock_step` decision (`StepFields`) | #2063 |
+| `scheduler_step` (spectator `now`, trace roots) | `planner_step` (attrs `admitted`, `running`, `window_ticks`) | #2064 (worker step; the #2063 planner_step rows are per planner and do not carry them) |
+| `worker_dispatch`, `worker_outcome` | `dispatch` | #2064 |
+| `scheduler_stop`, `authority_change` | `clock_stop`, `authority` | #2064 |
+| `layout_replan` (acceptance `rich_soil`) | `layout_plan` verdict `replanned` | #2066 |
+| Log panel INFO kinds `combat_stops`, `hold_refused`, `animal_clear`, `entity_kill`, `entity_capture_refused`, `authority_lost`, `clock_retaken` | `combat_summary`, `defense_action`, `authority` | #2064, #2067 |
 | acceptance `stepevent`, `stepstall`, `failfast` | #2061 |
 | acceptance `farm/select`, `combatlab` metrics | #2062 |
 | postmortem, `acceptance why` | #2065 |

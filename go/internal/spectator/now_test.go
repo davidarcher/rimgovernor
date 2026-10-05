@@ -74,7 +74,7 @@ func TestProjectStageConcernsAndStop(t *testing.T) {
 		t.Fatal(now.Stops)
 	}
 	// A reactive stop with nothing admitted since is the pacing reason.
-	if now.Pacing.Reason != ReasonStopped || now.Pacing.Detail != "STOP_REASON_COLONIST_HEALTH" || now.Pacing.Mode != ModeAutonomous {
+	if now.Pacing.Reason != ReasonStopped || now.Pacing.Detail != "STOP_REASON_COLONIST_HEALTH" {
 		t.Fatal(now.Pacing)
 	}
 	if now.Pacing.EffectiveTPS != 820 || now.Pacing.WindowTicks != 2500 {
@@ -84,7 +84,7 @@ func TestProjectStageConcernsAndStop(t *testing.T) {
 
 func TestProjectPacingReasons(t *testing.T) {
 	running := row("scheduler_step", 1, map[string]any{"admitted": true, "running": true, "window_ticks": float64(1000)})
-	refused := row("admission_refused", 2, map[string]any{"refused": []any{"stale_facts", "combat_plan"}, "held_by": []any{"draft"}})
+	refused := row("admission", 2, map[string]any{"verdict": "refused", "reason": "stale_facts", "target": "window", "attrs": map[string]any{"refused": []any{"stale_facts", "combat_plan"}, "held_by": []any{"draft"}}})
 	budget := stopRow(3, "STOP_REASON_TICK_BUDGET", nil)
 	for _, c := range []struct {
 		name   string
@@ -100,7 +100,8 @@ func TestProjectPacingReasons(t *testing.T) {
 		{"refused", []bridge.TimelineRecord{running, refused}, Input{ReviewsEnabled: true}, ReasonRefused, "stale_facts, combat_plan, held by draft"},
 		{"readmitted after a refusal", []bridge.TimelineRecord{refused, running}, Input{ReviewsEnabled: true}, ReasonRunning, ""},
 		{"budget stop", []bridge.TimelineRecord{running, budget}, Input{ReviewsEnabled: true}, ReasonBudget, "the window spent its tick budget"},
-		{"cinematic", []bridge.TimelineRecord{running, row("pacing_mode", 4, map[string]any{"mode": "cinematic"})}, Input{ReviewsEnabled: true}, ReasonCinematic, "cinematic"},
+		{"a method refusal is not the window", []bridge.TimelineRecord{running, row("admission", 2, map[string]any{"verdict": "refused", "reason": "no_worker", "target": "build", "attrs": map[string]any{}})}, Input{ReviewsEnabled: true}, ReasonRunning, ""},
+		{"clock_stop budget", []bridge.TimelineRecord{running, row("clock_stop", 3, map[string]any{"reason": "STOP_REASON_TICK_BUDGET"})}, Input{ReviewsEnabled: true}, ReasonBudget, "the window spent its tick budget"},
 	} {
 		now := Project(c.rows, c.in)
 		if now.Pacing.Reason != c.reason || now.Pacing.Detail != c.detail {
@@ -151,7 +152,7 @@ func TestProjectWireShapeWithoutAReview(t *testing.T) {
 		t.Fatal(wire["concerns"])
 	}
 	pacing, ok := wire["pacing"].(map[string]any)
-	if !ok || pacing["reason"] != "unknown" || pacing["mode"] != ModeAutonomous || pacing["effectiveTps"] != float64(0) {
+	if !ok || pacing["reason"] != "unknown" || pacing["effectiveTps"] != float64(0) {
 		t.Fatal(wire["pacing"])
 	}
 }

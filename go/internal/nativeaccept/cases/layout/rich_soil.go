@@ -105,7 +105,7 @@ func richSoil(ctx context.Context, s cases.Session) error {
 	_, err = service.WaitReview(ctx, na.Wait{Ceiling: 4 * time.Minute}, func(r store.Rounds) bool {
 		rows, _ := na.ReadFlight(service.FlightPath)
 		for i := range rows {
-			if rows[i].Kind == "layout_replan" && int64(na.AsNumber(rows[i].Payload["colonists"])) == pawns+1 {
+			if isReplan(rows[i]) && int64(na.AsNumber(rows[i].Fields()["colonists"])) == pawns+1 {
 				replan = &rows[i]
 				return true
 			}
@@ -184,4 +184,10 @@ func cropZones(ctx context.Context, s cases.Session, h *na.Harness) ([][]domain.
 		out = append(out, zones[na.AsString(row["id"])])
 	}
 	return out, nil
+}
+
+// isReplan reports a layout replan row: the legacy layout_replan kind (#2066
+// deletes it) or the v2 layout_plan decision with verdict replanned.
+func isReplan(row na.FlightRow) bool {
+	return row.Kind == "layout_replan" || (row.Kind == "layout_plan" && na.AsString(row.Fields()["verdict"]) == "replanned")
 }

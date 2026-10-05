@@ -169,7 +169,7 @@ func LastPacingReason(rows []bridge.TimelineRecord) string {
 		if rows[i].Kind != "clock_step" {
 			continue
 		}
-		if reason, ok := rows[i].Payload["pacing_reason"].(string); ok && reason != "" {
+		if reason, ok := bridge.StepFields(rows[i])["pacing_reason"].(string); ok && reason != "" {
 			return reason
 		}
 	}
@@ -312,7 +312,7 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 	carried := map[int]float64{}
 	var starts []float64
 	for _, row := range rows {
-		if row.Kind != "native_response" {
+		if !bridge.IsNativeReply(row.Kind) || bridge.NativeReplyFailed(row) {
 			continue
 		}
 		tool, _ := row.Payload["native_tool"].(string)

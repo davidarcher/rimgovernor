@@ -365,10 +365,11 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			summary.LastWall = row.WallTime
 		}
 		switch row.Kind {
-		case "native_response", "native_error":
+		case "native_response", "native_error", "native_call":
 			key, entry := phaseEntry(tools, row)
 			entry.Calls++
-			if row.Kind == "native_error" {
+			failed := NativeReplyFailed(row)
+			if failed {
 				entry.Errors++
 			}
 			if request, ok := number(row.Payload["request"]); ok {
@@ -383,6 +384,9 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				entry.DecodeMs += field(timing, "decode_ms")
 				entry.TotalMs += field(timing, "total_ms")
 				entry.ResponseBytes += uint64(field(timing, "response_bytes"))
+				// v2 native_call carries the decode time the legacy
+				// native_decode row did (#2057 deletes the legacy branch).
+				entry.ProtoDecodeMs += field(timing, "proto_decode_ms")
 				if queue, ok := number(timing["native_queue_ms"]); ok {
 					entry.NativeTimed++
 					entry.NativeQueueMs += queue
@@ -406,7 +410,7 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					frames.sample(account)
 				}
 			}
-			if row.Kind != "native_response" || entry.Wrapper != "games_call_tool" {
+			if failed || entry.Wrapper != "games_call_tool" {
 				continue
 			}
 			tick, paused, hasTick, hasPaused, pause, hasPause := replyClock(row.Payload)
@@ -449,28 +453,38 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			_, entry := phaseEntry(tools, row)
 			entry.CacheHits++
 		case "native_frame":
-			summary.Snapshots.add(row.Payload)
+			// The v2 native_frame carries an outcome; the legacy row is a
+			// decoded frame (#2057 deletes native_frame_hit above).
+			switch outcome, _ := row.Payload["outcome"].(string); outcome {
+			case "hit":
+				_, entry := phaseEntry(tools, row)
+				entry.CacheHits++
+			case "miss":
+			default:
+				summary.Snapshots.add(row.Payload)
+			}
 		case "clock_step":
+			payload := StepFields(row)
 			steps := &summary.Steps
 			steps.Steps++
-			reads := uint64(field(row.Payload, "reads"))
+			reads := uint64(field(payload, "reads"))
 			steps.Reads += reads
 			steps.MaxReads = max(steps.MaxReads, reads)
-			if ticks := uint64(field(row.Payload, "window_ticks")); ticks > 0 {
+			if ticks := uint64(field(payload, "window_ticks")); ticks > 0 {
 				steps.Windows++
 				steps.WindowTicks += ticks
 				steps.MaxWindowTicks = max(steps.MaxWindowTicks, ticks)
 			}
-			if journal := field(row.Payload, "journal_ms"); journal > 0 {
+			if journal := field(payload, "journal_ms"); journal > 0 {
 				steps.JournalMs += journal
 				steps.MaxJournalMs = math.Max(steps.MaxJournalMs, journal)
 			}
-			if pause := field(row.Payload, "stop_pause_s"); pause > 0 {
+			if pause := field(payload, "stop_pause_s"); pause > 0 {
 				steps.Pauses++
 				steps.PauseSecs += pause
 				steps.MaxPauseSecs = math.Max(steps.MaxPauseSecs, pause)
 			}
-			if tools, ok := row.Payload["tools"].(map[string]any); ok {
+			if tools, ok := payload["tools"].(map[string]any); ok {
 				if steps.Tools == nil {
 					steps.Tools = map[string]uint64{}
 				}
@@ -478,14 +492,14 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					steps.Tools[tool] += uint64(field(tools, tool))
 				}
 			}
-			elapsed := field(row.Payload, "elapsed_ms")
+			elapsed := field(payload, "elapsed_ms")
 			steps.ElapsedMs += elapsed
 			steps.MaxElapsedMs = math.Max(steps.MaxElapsedMs, elapsed)
-			if gate := field(row.Payload, "gate_wait_ms"); gate > 0 {
+			if gate := field(payload, "gate_wait_ms"); gate > 0 {
 				steps.GateWaitMs += gate
 				steps.MaxGateWaitMs = math.Max(steps.MaxGateWaitMs, gate)
 			}
-			if reason, ok := row.Payload["reason"].(string); ok && reason != "" {
+			if reason, ok := payload["reason"].(string); ok && reason != "" {
 				if steps.Reasons == nil {
 					steps.Reasons = map[string]uint64{}
 				}
@@ -501,29 +515,30 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					steps.MaxLiveElapsedMs = math.Max(steps.MaxLiveElapsedMs, elapsed)
 				}
 			}
-			if orders := uint64(field(row.Payload, "coupled_orders")); orders > 0 {
+			if orders := uint64(field(payload, "coupled_orders")); orders > 0 {
 				steps.Stops.Orders += orders
-				if coupled, _ := row.Payload["coupled_stop"].(bool); coupled {
+				if coupled, _ := payload["coupled_stop"].(bool); coupled {
 					steps.Stops.Coupled++
 				}
 			}
-			if stop, _ := row.Payload["stop"].(bool); stop {
+			if stop, _ := payload["stop"].(bool); stop {
 				steps.Stops.Count++
-				if latency, ok := number(row.Payload["stop_latency_ms"]); ok && latency >= 0 {
+				if latency, ok := number(payload["stop_latency_ms"]); ok && latency >= 0 {
 					steps.Stops.LatencySamples++
 					stopLatencyMs += latency
 					steps.Stops.MaxLatencyMs = math.Max(steps.Stops.MaxLatencyMs, latency)
 				}
 			}
-		case "worker_dispatch":
+		case "worker_dispatch", "dispatch":
+			payload := RowFields(row)
 			d := &summary.Dispatch
 			d.Calls++
-			running, _ := row.Payload["running"].(bool)
-			receipt, _ := row.Payload["receipt"].(string)
+			running, _ := payload["running"].(bool)
+			receipt, _ := payload["receipt"].(string)
 			if running {
 				d.Live++
 			}
-			if stale, _ := row.Payload["stale"].(bool); stale {
+			if stale, _ := payload["stale"].(bool); stale {
 				d.StaleHolds++
 			}
 			if receipt == "refused" {

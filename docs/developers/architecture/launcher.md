@@ -67,8 +67,8 @@ them by concern name.
 
 The Problems tab ([problems.go](../../../go/cmd/launcher/problems.go)) reads the
 flight recorder directly, so it still shows the last session after the
-controller crashed or stopped. It hides decode rows by default; the controller's
-own log and the build output are on the Log tab. See
+controller crashed or stopped. It hides decode rows by default. The Log tab shows the
+newest run's flight rows through [logview](../../../go/internal/logview): WARN and ERROR rows and an explicit set of INFO event kinds, repeats collapsed. See
 [measure throughput](../testing/measure-throughput.md) for what the rows carry.
 
 ## New colony panel

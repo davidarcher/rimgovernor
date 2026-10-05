@@ -203,11 +203,11 @@ func computeHealth(rows []bridge.TimelineRecord) ProblemHealth {
 			}
 		}
 		if !gotStep && r.Kind == "clock_step" {
-			if ms, ok := r.Payload["elapsed_ms"].(float64); ok {
+			if ms, ok := bridge.StepFields(r)["elapsed_ms"].(float64); ok {
 				h.LastStepMs, gotStep = ms, true
 			}
 		}
-		if !gotAuthority && r.Kind == "authority_change" {
+		if !gotAuthority && bridge.IsAuthorityKind(r.Kind) {
 			if g, ok := r.Payload["generation"]; ok {
 				h.Authority, gotAuthority = "native generation "+scalarText(g), true
 			}
@@ -248,7 +248,7 @@ func problemEvent(r bridge.TimelineRecord) ProblemEvent {
 	e := ProblemEvent{Seq: r.Sequence, Kind: r.Kind, Wall: r.WallTime, Trace: traceOf(r), Summary: eventSummary(r)}
 	e.Tick, e.HasTick = tickOf(r)
 	level, _ := r.Context["level"].(string)
-	e.Problem = r.Kind == "native_error" || r.Kind == "recording_gap" || level == "WARN" || level == "ERROR"
+	e.Problem = bridge.NativeReplyFailed(r) || r.Kind == "recording_gap" || level == "WARN" || level == "ERROR"
 	var b strings.Builder
 	if r.HasSeq {
 		fmt.Fprintf(&b, "#%d ", r.Sequence)
@@ -276,7 +276,7 @@ func problemEvent(r bridge.TimelineRecord) ProblemEvent {
 // gave it.
 func eventSummary(r bridge.TimelineRecord) string {
 	switch r.Kind {
-	case "native_request", "native_response", "native_error", "native_cache_hit", "native_decode":
+	case "native_request", "native_response", "native_error", "native_call", "native_decode":
 		s := toolOf(r.Payload)
 		if e, ok := r.Payload["error"].(string); ok && e != "" {
 			s += " - " + e
@@ -284,6 +284,15 @@ func eventSummary(r bridge.TimelineRecord) string {
 		return s
 	case "recording_gap":
 		return fmt.Sprintf("%s %d..%d", orDefault(r.Reason, "gap"), r.Before, r.After)
+	}
+	if bridge.IsDecisionRow(r) {
+		var words []string
+		for _, key := range []string{"verdict", "reason", "target"} {
+			if s, _ := r.Payload[key].(string); s != "" {
+				words = append(words, s)
+			}
+		}
+		return strings.Join(words, " ")
 	}
 	var parts []string
 	if msg, ok := r.Payload["msg"].(string); ok && msg != "" {

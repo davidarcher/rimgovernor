@@ -1,12 +1,13 @@
 package main
 
 import (
-	"io"
-	"os"
-	"path/filepath"
+	"encoding/json"
+	"fmt"
+	"sort"
 	"sync"
 
-	"github.com/davidarcher/RimGovernor/go/internal/logdigest"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/logview"
 )
 
 // LogRow is one row of the Log panel.
@@ -24,62 +25,94 @@ type LogRow struct {
 	Text      string // the whole row, as the Copy button puts it on the clipboard
 }
 
-// logTail follows the newest controller log in dir and keeps its digest,
-// reading only what was appended since the last call.
-type logTail struct {
-	mu     sync.Mutex
-	dir    string
-	path   string
-	offset int64
-	rest   []byte // a line the file has not finished yet
-	digest *logdigest.Digest
+// infoLogKinds are the INFO kinds the Log panel shows beside every WARN and
+// ERROR row and recording gap: the events a player reads (combat, the colony
+// changing stage, the clock's authority changing). Every other INFO row stays
+// in the Problems feed and `rimgovernor log`. The legacy names go when the
+// producer piece moves (#2064 authority and combat summary, #2066 stage and
+// tier, #2067 defense).
+var infoLogKinds = map[string]bool{
+	"combat_summary": true, "combat_stops": true,
+	"defense_action": true, "hold_refused": true, "animal_clear": true, "entity_kill": true, "entity_capture_refused": true,
+	"colony_stage": true, "build_tier": true,
+	"authority": true, "authority_change": true, "authority_lost": true, "clock_retaken": true,
 }
 
-// rows is the digest of the newest controller log; empty without one.
+// logWorthy is the Log panel's level-and-kind rule: WARN and ERROR always,
+// INFO only for the explicit kinds above.
+func logWorthy(rec bridge.TimelineRecord) bool {
+	if rec.Kind == "recording_gap" {
+		return true
+	}
+	switch logview.Level(rec) {
+	case "WARN", "ERROR":
+		return true
+	}
+	return infoLogKinds[rec.Kind]
+}
+
+// logTail is the Log panel: the newest run's flight rows read through the
+// recorder tail and collapsed by logview, recomputed only when the
+// recording grew.
+type logTail struct {
+	mu       sync.Mutex
+	recorder *recorderTail
+	key      string
+	cached   []LogRow
+}
+
+// rows is the collapsed entries of the newest run, the one seen most
+// recently first; empty without a recording.
 func (t *logTail) rows() []LogRow {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	logs, _ := filepath.Glob(filepath.Join(t.dir, "controller-*.err.log"))
-	if len(logs) == 0 {
+	if t.recorder == nil {
 		return []LogRow{}
 	}
-	newest := logs[0] // names carry their start stamp, so the last sorts newest
-	for _, l := range logs {
-		if l > newest {
-			newest = l
+	records, err := t.recorder.read()
+	if err != nil || len(records) == 0 {
+		t.key, t.cached = "", nil
+		return []LogRow{}
+	}
+	last := records[len(records)-1]
+	key := fmt.Sprintf("%d/%d/%g", len(records), last.Sequence, last.WallTime)
+	if t.key == key && t.cached != nil {
+		return t.cached
+	}
+	kept := logview.Filter{SinceRun: true}.Apply(records)
+	var worthy []bridge.TimelineRecord
+	for _, rec := range kept {
+		if logWorthy(rec) {
+			worthy = append(worthy, rec)
 		}
 	}
-	f, err := os.Open(newest)
-	if err != nil {
-		return []LogRow{}
+	entries := logview.Collapse(worthy)
+	sort.SliceStable(entries, func(i, j int) bool { return entries[i].LastAt > entries[j].LastAt })
+	out := make([]LogRow, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, logRow(e))
 	}
-	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		return []LogRow{}
-	}
-	if newest != t.path || st.Size() < t.offset || t.digest == nil {
-		t.path, t.offset, t.rest, t.digest = newest, 0, nil, logdigest.New()
-	}
-	if _, err := f.Seek(t.offset, io.SeekStart); err == nil {
-		if data, err := io.ReadAll(f); err == nil {
-			t.offset += int64(len(data))
-			data = append(t.rest, data...)
-			start := 0
-			for i, b := range data {
-				if b == '\n' {
-					t.digest.Feed(string(data[start:i]))
-					start = i + 1
-				}
-			}
-			t.rest = append([]byte(nil), data[start:]...)
-		}
-	}
-	out := []LogRow{}
-	for _, r := range t.digest.Rows() {
-		out = append(out, LogRow{Level: r.Level, Component: r.Component, Message: r.Message, Count: r.Count,
-			FirstTime: r.FirstTime, LastTime: r.LastTime, FirstTick: r.FirstTick, LastTick: r.LastTick,
-			Detail: r.Detail, Problem: r.Problem, Text: r.Text()})
-	}
+	t.key, t.cached = key, out
 	return out
+}
+
+func logRow(e logview.Entry) LogRow {
+	row := LogRow{Level: e.Level, Component: e.Component, Message: e.Words(), Count: e.Count,
+		FirstTime: e.FirstAt, LastTime: e.LastAt, Problem: e.Level == "WARN" || e.Level == "ERROR"}
+	if e.FirstTick != nil {
+		row.FirstTick = *e.FirstTick
+	}
+	if e.LastTick != nil {
+		row.LastTick = *e.LastTick
+	}
+	if len(e.Payload) > 0 {
+		if p, err := json.Marshal(e.Payload); err == nil {
+			row.Detail = string(p)
+		}
+	}
+	row.Text = e.Line()
+	if row.Detail != "" {
+		row.Text += "\n" + row.Detail
+	}
+	return row
 }

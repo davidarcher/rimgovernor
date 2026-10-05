@@ -16,10 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// PacingReason says why the clock runs as fast as it does right now. It is
-// the one field a cinematic mode has to move: slowing an interesting moment
-// is opt-in and shows up here as ReasonCinematic, never as a silent change
-// of speed.
+// PacingReason says why the clock runs as fast as it does right now.
 type PacingReason string
 
 const (
@@ -42,9 +39,6 @@ const (
 	// ReasonStopped: something interrupted the window (a hazard, a letter,
 	// a requested pause) and Detail names the stop reason.
 	ReasonStopped PacingReason = "stopped"
-	// ReasonCinematic: a cinematic mode is slowing an interesting moment on
-	// purpose (#627 sets the mode; the panel only shows it).
-	ReasonCinematic PacingReason = "cinematic"
 	// The reasons a running player-accelerated window (#627) holds the
 	// rate it does, from native's pacing reason on the step's status:
 	// full acceleration, the frame budget keeping input and rendering
@@ -56,10 +50,6 @@ const (
 	ReasonRegulated      PacingReason = "regulated"
 	ReasonBackoff        PacingReason = "backoff"
 )
-
-// ModeAutonomous is the default pacing mode: the colony plays on without a
-// viewer. A pacing_mode row naming another mode (cinematic) replaces it.
-const ModeAutonomous = "autonomous"
 
 // Now is the spectator panel.
 type Now struct {
@@ -111,9 +101,6 @@ type Pacing struct {
 	// Detail is the reason's evidence in the row's own words: the refusal
 	// reasons, the stop reason, the holds.
 	Detail string `json:"detail"`
-	// Mode is the pacing mode in force (ModeAutonomous, or a cinematic mode
-	// a pacing_mode row declared).
-	Mode string `json:"mode"`
 	// EffectiveTPS is the wall ticks per second the launch has actually
 	// achieved, paused time included.
 	EffectiveTPS float64 `json:"effectiveTps"`
@@ -178,7 +165,7 @@ const ConcernsShown = 6
 // first, as the recorder wrote them) and the already-read state. It reads
 // nothing else: no native call, no journal write, no speed request.
 func Project(rows []bridge.TimelineRecord, in Input) Now {
-	out := Now{Tick: in.Tick, Concerns: concerns(in.Progress, in.Concerns), Pacing: Pacing{Reason: ReasonUnknown, Mode: ModeAutonomous, EffectiveTPS: in.TPS}}
+	out := Now{Tick: in.Tick, Concerns: concerns(in.Progress, in.Concerns), Pacing: Pacing{Reason: ReasonUnknown, EffectiveTPS: in.TPS}}
 	if in.Stage != nil {
 		out.Stage = &Stage{Stage: in.Stage.Stage.String(), Since: in.Stage.Since, Blocker: string(in.Stage.Blocker), Reason: in.Stage.Reason, Held: in.Stage.Held}
 	}
@@ -186,19 +173,19 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 	var admitted, haveStep bool
 	var running bool
 	for _, row := range rows {
-		switch row.Kind {
-		case "pacing_mode":
-			// #627's opt-in mode declares itself here; a cinematic mode is
-			// visible as a pacing reason rather than an unexplained speed.
-			if mode, ok := row.Payload["mode"].(string); ok && mode != "" {
-				out.Pacing.Mode = mode
+		// A kind is read under its legacy name and its v2 name until the
+		// producer piece moves (bridge/flightrows.go).
+		fields := bridge.RowFields(row)
+		switch {
+		case bridge.WindowRefusal(row):
+			refused, admitted, haveStep = strings.Join(stringList(fields["refused"]), ", "), false, true
+			if refused == "" {
+				refused, _ = fields["reason"].(string)
 			}
-		case "admission_refused":
-			refused, admitted, haveStep = strings.Join(stringList(row.Payload["refused"]), ", "), false, true
-			if held := stringList(row.Payload["held_by"]); len(held) > 0 {
-				refused = strings.Join(append(stringList(row.Payload["refused"]), "held by "+strings.Join(held, ", ")), ", ")
+			if held := stringList(fields["held_by"]); len(held) > 0 {
+				refused = strings.Join(append(stringList(fields["refused"]), "held by "+strings.Join(held, ", ")), ", ")
 			}
-		case "scheduler_step":
+		case row.Kind == "scheduler_step":
 			haveStep = true
 			admitted, _ = row.Payload["admitted"].(bool)
 			running, _ = row.Payload["running"].(bool)
@@ -208,7 +195,7 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 			if ticks, ok := number(row.Payload["window_ticks"]); ok {
 				out.Pacing.WindowTicks = int64(ticks)
 			}
-		case "scheduler_stop":
+		case bridge.IsClockStopKind(row.Kind):
 			out.LastStop = stop(row)
 			out.Stops.Stops++
 			if out.LastStop.Reason == "STOP_REASON_TICK_BUDGET" {
@@ -218,27 +205,28 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 			}
 			running, admitted, haveStep = false, false, true
 			native, out.Pacing.PacedTPS = "", 0
-		case "clock_step":
+		case row.Kind == "clock_step":
+			step := bridge.StepFields(row)
 			// The step's clock status: native's pacing reason and rate
 			// under a running window, and its effective speed.
-			if tps, ok := number(row.Payload["effective_tps"]); ok && tps > 0 {
+			if tps, ok := number(step["effective_tps"]); ok && tps > 0 {
 				out.Pacing.EffectiveTPS = tps
 			}
-			native, _ = row.Payload["pacing_reason"].(string)
-			out.Pacing.PacedTPS, _ = number(row.Payload["paced_tps"])
+			native, _ = step["pacing_reason"].(string)
+			out.Pacing.PacedTPS, _ = number(step["paced_tps"])
 			// The step that acted on the stop closes its wall legs: the
 			// latency from the native stamp to this step, and the pause the
 			// readmission ended.
 			if out.LastStop == nil {
 				continue
 			}
-			if stopped, _ := row.Payload["stop"].(bool); !stopped {
+			if stopped, _ := step["stop"].(bool); !stopped {
 				continue
 			}
-			if acted, ok := number(row.Payload["stop_latency_ms"]); ok && acted >= 0 && out.LastStop.ActedMs == nil {
+			if acted, ok := number(step["stop_latency_ms"]); ok && acted >= 0 && out.LastStop.ActedMs == nil {
 				out.LastStop.ActedMs = &acted
 			}
-			if paused, ok := number(row.Payload["stop_pause_s"]); ok && paused >= 0 && out.LastStop.ReadmitMs == nil {
+			if paused, ok := number(step["stop_pause_s"]); ok && paused >= 0 && out.LastStop.ReadmitMs == nil {
 				readmit := paused * 1000
 				out.LastStop.ReadmitMs = &readmit
 			}
@@ -251,13 +239,11 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 	return out
 }
 
-// pacing picks the reason the panel shows, most binding first: a declared
-// cinematic mode, the governor being off, a hold awaiting review, a refused
+// pacing picks the reason the panel shows, most binding first:
+// the governor being off, a hold awaiting review, a refused
 // window, a running window, then the last stop's own reason.
 func pacing(in Input, out Now, refused string, admitted, running, haveStep bool) (PacingReason, string) {
 	switch {
-	case out.Pacing.Mode != ModeAutonomous:
-		return ReasonCinematic, out.Pacing.Mode
 	case !in.ReviewsEnabled:
 		return ReasonGovernorOff, "rounds are disabled"
 	case len(in.Holds) > 0:

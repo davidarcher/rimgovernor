@@ -3,10 +3,11 @@ package nativeaccept
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"os"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
 // FlightRow is one flight-recorder row a FlightTail read: the service's
@@ -95,23 +96,29 @@ func parseFlightRow(line []byte) (FlightRow, bool) {
 	if len(bytes.TrimSpace(line)) == 0 {
 		return FlightRow{}, false
 	}
-	var raw struct {
-		Sequence *uint64        `json:"sequence"`
-		Kind     *string        `json:"kind"`
-		Context  map[string]any `json:"context"`
-		Payload  map[string]any `json:"payload"`
-	}
-	if err := json.Unmarshal(line, &raw); err != nil || raw.Sequence == nil || raw.Kind == nil {
+	record, ok := bridge.DecodeFlightLine(line)
+	if !ok {
 		return FlightRow{}, false
 	}
-	row := FlightRow{Sequence: *raw.Sequence, Kind: *raw.Kind, Context: raw.Context, Payload: raw.Payload}
-	if tick, ok := raw.Context["tick"].(float64); ok {
+	row := FlightRow{Sequence: record.Sequence, Kind: record.Kind, Context: record.Context, Payload: record.Payload}
+	if tick, ok := row.Context["tick"].(float64); ok {
 		row.Tick, row.HasTick = int64(tick), true
 	}
 	return row, true
 }
 
-// WorkerOutcome reports whether row is a worker_outcome row: the service
-// reconciled an action to a new outcome (a stage change, a completion, a
-// failure), the moment a watch's sample is most likely to have changed.
-func WorkerOutcome(row FlightRow) bool { return row.Kind == "worker_outcome" }
+// Record is the row as the bridge's timeline reader holds it, for the
+// kind helpers in package bridge (flightrows.go).
+func (r FlightRow) Record() bridge.TimelineRecord {
+	return bridge.TimelineRecord{Kind: r.Kind, Sequence: r.Sequence, HasSeq: true, Context: r.Context, Payload: r.Payload}
+}
+
+// Fields is the row's data as one flat map (bridge.RowFields): a decision
+// row's attrs with its verdict, reason, target and dur_ms.
+func (r FlightRow) Fields() map[string]any { return bridge.RowFields(r.Record()) }
+
+// WorkerOutcome reports whether row is a worker_outcome row (the v2
+// dispatch row once #2064 moves it): the service reconciled an action to a
+// new outcome (a stage change, a completion, a failure), the moment a
+// watch's sample is most likely to have changed.
+func WorkerOutcome(row FlightRow) bool { return row.Kind == "worker_outcome" || row.Kind == "dispatch" }

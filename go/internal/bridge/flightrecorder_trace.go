@@ -69,11 +69,14 @@ func SummarizeTraces(records []TimelineRecord) []TraceSummary {
 // message (the step's outcome), else the last worker_outcome, else the
 // last other kinded row, else the native tool it called.
 func traceRoot(rows []TimelineRecord) string {
-	for _, kind := range []string{"scheduler_step", "worker_outcome"} {
+	for _, kind := range []string{"scheduler_step", "worker_outcome", "planner_step", "dispatch"} {
 		for i := len(rows) - 1; i >= 0; i-- {
 			if rows[i].Kind == kind {
 				if msg, _ := rows[i].Payload["msg"].(string); msg != "" {
 					return kind + ": " + msg
+				}
+				if IsDecisionRow(rows[i]) {
+					return kind + ":" + decisionWords(rows[i])
 				}
 				return kind
 			}
@@ -172,7 +175,7 @@ func traceLines(t TraceSummary) []traceLine {
 	// the call reads as one line with its phases.
 	replies := map[uint64]TimelineRecord{}
 	for _, row := range t.Rows {
-		if row.Kind == "native_response" || row.Kind == "native_error" {
+		if IsNativeReply(row.Kind) {
 			if seq, ok := number(row.Payload["request"]); ok {
 				replies[uint64(seq)] = row
 			}
@@ -185,7 +188,7 @@ func traceLines(t TraceSummary) []traceLine {
 		span, _ := row.Context[telemetry.SpanIDKey].(string)
 		line := traceLine{offsetMs: (row.WallTime - origin) * 1000, span: shortID(span), depth: depths[span]}
 		switch row.Kind {
-		case "native_response", "native_error":
+		case "native_response", "native_error", "native_call":
 			if _, joined := number(row.Payload["request"]); joined {
 				continue
 			}
@@ -216,7 +219,7 @@ func traceLines(t TraceSummary) []traceLine {
 					line.text += " echoed " + echoed
 				}
 			}
-			if reply.Kind == "native_error" {
+			if NativeReplyFailed(reply) {
 				if text, _ := reply.Payload["error"].(string); text != "" {
 					line.text += "  error: " + text
 				}
@@ -290,6 +293,17 @@ func payloadAttrs(payload map[string]any) string {
 	var b strings.Builder
 	for _, key := range keys {
 		fmt.Fprintf(&b, " %s=%v", key, payload[key])
+	}
+	return b.String()
+}
+
+// decisionWords is a decision row's verdict, reason and target, each preceded by a space.
+func decisionWords(row TimelineRecord) string {
+	var b strings.Builder
+	for _, key := range []string{telemetry.VerdictKey, telemetry.ReasonKey, telemetry.TargetKey} {
+		if s, _ := row.Payload[key].(string); s != "" {
+			b.WriteString(" " + s)
+		}
 	}
 	return b.String()
 }

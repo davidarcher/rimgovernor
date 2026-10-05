@@ -390,7 +390,7 @@ func idleAccount(flightPath string) startuplabor.Account {
 	}
 	var samples []startuplabor.PawnSample
 	for _, row := range rows {
-		if row.Kind != "native_response" || na.AsString(row.Payload["tool"]) != "rimgovernor/observations_list_pawns" {
+		if !bridge.IsNativeReply(row.Kind) || bridge.NativeReplyFailed(row.Record()) || na.AsString(row.Payload["tool"]) != "rimgovernor/observations_list_pawns" {
 			continue
 		}
 		if !row.HasTick {

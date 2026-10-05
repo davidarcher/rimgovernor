@@ -3,7 +3,6 @@ package bridge
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -297,25 +296,17 @@ func (s *timelineSegment) decodeLines(data []byte, commit bool) []TimelineRecord
 			continue
 		}
 		var record TimelineRecord
-		var raw struct {
-			Run      string         `json:"run"`
-			Sequence *uint64        `json:"sequence"`
-			WallTime float64        `json:"wall_time"`
-			Kind     *string        `json:"kind"`
-			Context  map[string]any `json:"context"`
-			Payload  map[string]any `json:"payload"`
-		}
-		if err := json.Unmarshal(line, &raw); err != nil || raw.Sequence == nil || raw.Kind == nil || raw.Payload == nil || raw.Context == nil {
+		if decoded, ok := DecodeFlightLine(line); !ok || decoded.Payload == nil || decoded.Context == nil {
 			record = TimelineRecord{Kind: "recording_gap", File: s.file, Line: number, Reason: "Incomplete or corrupt record"}
 		} else {
-			sequence := *raw.Sequence
+			sequence := decoded.Sequence
 			if hasLast && sequence != last+1 {
 				pending = append(pending, TimelineRecord{Kind: "recording_gap", Reason: "Retention or sequence discontinuity", Before: sequence, After: last})
 			} else if !hasLast && commit {
 				s.first, s.hasFirst, s.lead = sequence, true, len(s.records)+len(pending)
 			}
 			last, hasLast = sequence, true
-			record = TimelineRecord{Kind: *raw.Kind, Sequence: sequence, HasSeq: true, Run: raw.Run, WallTime: raw.WallTime, Context: raw.Context, Payload: raw.Payload}
+			record = decoded
 		}
 		pending = append(pending, record)
 	}

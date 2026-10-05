@@ -294,6 +294,37 @@ func TestSummarizePhasesNativePauseAccount(t *testing.T) {
 // The step sample splits the live steps out of the timeline with their own
 // reads and wall, and carries the player-gate wait a step spent queued
 // behind the Worker's dispatch step (#593).
+// The v2 kinds read the same as the legacy ones they replace: a clock_step
+// decision row, a dispatch decision row, a native_call event row and a
+// native_frame outcome row.
+func TestSummarizePhasesReadsV2Kinds(t *testing.T) {
+	rows := []TimelineRecord{
+		{Kind: "clock_step", WallTime: 1, Payload: map[string]any{"verdict": "admitted", "reason": "", "target": "live", "dur_ms": 300.0,
+			"attrs": map[string]any{"reads": 2.0, "gate_wait_ms": 400.0}}},
+		{Kind: "dispatch", WallTime: 2, Payload: map[string]any{"verdict": "refused", "target": "build", "attrs": map[string]any{"receipt": "refused", "running": true}}},
+		{Kind: "native_call", WallTime: 3, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/a", "ok": true,
+			"timing": map[string]any{"total_ms": 5.0, "proto_decode_ms": 1.5}}},
+		{Kind: "native_call", WallTime: 4, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/a", "ok": false, "error": "boom",
+			"timing": map[string]any{"total_ms": 7.0}}},
+		{Kind: "native_frame", WallTime: 5, Payload: map[string]any{"outcome": "hit", "tool": "games_call_tool", "native_tool": "rimgovernor/a"}},
+	}
+	summary := SummarizePhases(rows)
+	steps := summary.Steps
+	if steps.Steps != 1 || steps.LiveSteps != 1 || steps.Reads != 2 || steps.ElapsedMs != 300 || steps.GateWaitMs != 400 {
+		t.Fatalf("v2 step: %+v", steps)
+	}
+	if d := summary.Dispatch; d.Calls != 1 || d.Refused != 1 || d.LiveRefused != 1 {
+		t.Fatalf("v2 dispatch: %+v", d)
+	}
+	if len(summary.Tools) != 1 {
+		t.Fatalf("tools: %+v", summary.Tools)
+	}
+	tool := summary.Tools[0]
+	if tool.Calls != 2 || tool.Errors != 1 || tool.CacheHits != 1 || tool.ProtoDecodeMs != 1.5 {
+		t.Fatalf("v2 native_call: %+v", tool)
+	}
+}
+
 func TestSummarizePhasesLiveStepCost(t *testing.T) {
 	rows := []TimelineRecord{
 		{Kind: "clock_step", WallTime: 1, Payload: map[string]any{"reads": 11.0, "reason": "full", "elapsed_ms": 900.0}},
