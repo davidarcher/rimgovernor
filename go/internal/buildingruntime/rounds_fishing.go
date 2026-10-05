@@ -88,8 +88,11 @@ func (r *RoundsFieldPlanner) fishing(call, epoch context.Context, state ControlS
 			if entry.Channel.ID != policy.FishingRegionID(region.Root) {
 				continue
 			}
+			// An open zone is fished by the game; it must not hold the rest of the
+			// field planner, or crops are never planned while the fish run down to
+			// their population floor.
 			if open, known := region.Delivering.Value(); known && open {
-				return RoundsFieldResult{Verdict: waitFor(WaitMethodUsed, "fishing_region"), NativeWorkTicks: 2500}, true, nil
+				continue
 			}
 			zoned, zk := region.Zoned.Value()
 			if entry.Decision != policy.FoodPlanOpen || !zk || zoned || len(region.ProposedCells) == 0 {
