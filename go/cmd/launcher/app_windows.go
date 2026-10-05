@@ -79,6 +79,7 @@ type app struct {
 	tail       *logTail      // the Log panel: the newest run's collapsed flight rows
 	recorder   *recorderTail // the Problems tab's reader of the flight recorder
 	colony     *colonyRunner // new-colony generation (#2025)
+	loading    loadSlot      // the save load in flight (one at a time)
 }
 
 func newApp(repo string) *app {

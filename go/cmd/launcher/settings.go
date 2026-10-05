@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -253,6 +254,39 @@ func LatestColonySave(savesDir, colony string) (string, error) {
 		best, bestTime = strings.TrimSuffix(filepath.Base(path), ".rws"), info.ModTime()
 	}
 	return best, nil
+}
+
+// loadSlot holds the one save load in flight. Two loads on the same game
+// each carry their own request id, and native answers a load with a different
+// id by superseding the first and loading again, so a stale retry loop left
+// over from an earlier start (the controller restarted under it) would reload
+// the save for as long as it ran.
+type loadSlot struct {
+	mu     sync.Mutex
+	cancel context.CancelFunc
+}
+
+// begin cancels the load in flight and returns the context of the next one;
+// done releases it.
+func (l *loadSlot) begin(parent context.Context, limit time.Duration) (context.Context, func()) {
+	ctx, cancel := context.WithTimeout(parent, limit)
+	l.mu.Lock()
+	if l.cancel != nil {
+		l.cancel()
+	}
+	l.cancel = cancel
+	l.mu.Unlock()
+	return ctx, cancel
+}
+
+// stop cancels the load in flight, if any.
+func (l *loadSlot) stop() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.cancel != nil {
+		l.cancel()
+		l.cancel = nil
+	}
 }
 
 // ReloadSave asks the controller at baseURL to load save through the

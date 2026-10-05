@@ -213,6 +213,24 @@ func TestLatestColonySave(t *testing.T) {
 	}
 }
 
+func TestLoadSlotKeepsOnlyTheNewestLoad(t *testing.T) {
+	var slot loadSlot
+	first, doneFirst := slot.begin(context.Background(), time.Minute)
+	defer doneFirst()
+	second, doneSecond := slot.begin(context.Background(), time.Minute)
+	defer doneSecond()
+	if first.Err() == nil {
+		t.Fatal("the earlier load keeps retrying beside the newer one")
+	}
+	if second.Err() != nil {
+		t.Fatal("the newest load was cancelled")
+	}
+	slot.stop()
+	if second.Err() == nil {
+		t.Fatal("stop left the load running")
+	}
+}
+
 func TestReloadSave(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	var loads []map[string]any

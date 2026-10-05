@@ -252,8 +252,8 @@ func (a *app) reload(url, state, saves string) {
 // load asks the controller to load the named save and logs the outcome.
 func (a *app) load(url, save string) {
 	a.logf("reload: loading %s", save)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
+	ctx, done := a.loading.begin(context.Background(), 5*time.Minute)
+	defer done()
 	if err := ReloadSave(ctx, url, save); err != nil {
 		a.logf("reload: %v", err)
 		return
@@ -263,6 +263,7 @@ func (a *app) load(url, save string) {
 
 // stop ends the controller this launcher started (never the game).
 func (a *app) stop() {
+	a.loading.stop()
 	a.mu.Lock()
 	cmd := a.cmd
 	a.cmd = nil
