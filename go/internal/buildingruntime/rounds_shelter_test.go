@@ -1266,3 +1266,27 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 		}
 	}
 }
+
+// Previews of one bundle are sequential native reads: a resource whose
+// Available moved between them funds the bundle at the lowest value seen.
+func TestMergeRoundsStockTakesTheLowestAvailable(t *testing.T) {
+	row := func(n int64) policy.StockObservation {
+		return policy.StockObservation{Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(n)}}}
+	}
+	var stock policy.StockObservation
+	for i, n := range []int64{120, 90, 140} {
+		if err := mergeRoundsStock(&stock, row(n), i == 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, _ := stock.Values[0].Available.Value(); got != 90 || len(stock.Values) != 1 {
+		t.Fatal(stock.Values)
+	}
+	unknown := policy.StockObservation{Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Unknown[int64]()}}}
+	if err := mergeRoundsStock(&stock, unknown, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, known := stock.Values[0].Available.Value(); known {
+		t.Fatal("an unknown preview must leave the resource unknown")
+	}
+}

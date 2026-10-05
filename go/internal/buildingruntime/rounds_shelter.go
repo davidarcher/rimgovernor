@@ -728,16 +728,20 @@ func squaredDistance(a, b domain.Cell) int64 {
 	return dx*dx + dz*dz
 }
 
-// Every preview in a paused project must agree on each shared stock value.
+// mergeRoundsStock folds one more preview's stock into a bundle's. Previews
+// of one bundle are native calls made one after another, and an Available
+// count can differ between them (it is net of the native blueprint census
+// and moves as colonists haul); the bundle is funded from the lowest value
+// any preview saw, and an unknown one leaves the resource unknown.
 func mergeRoundsStock(stock *policy.StockObservation, next policy.StockObservation, first bool) error {
 	if first {
 		stock.NativeConstruction = next.NativeConstruction
 	} else {
 		stock.NativeConstruction = stock.NativeConstruction && next.NativeConstruction
 	}
-	values := make(map[policy.Resource]domain.Fact[int64], len(stock.Values))
-	for _, v := range stock.Values {
-		values[v.Resource] = v.Available
+	index := make(map[policy.Resource]int, len(stock.Values))
+	for i, v := range stock.Values {
+		index[v.Resource] = i
 	}
 	seen := map[policy.Resource]bool{}
 	for _, v := range next.Values {
@@ -745,16 +749,23 @@ func mergeRoundsStock(stock *policy.StockObservation, next policy.StockObservati
 			return fmt.Errorf("%w: mergeRoundsStock: seen[v.Resource]", ErrControl)
 		}
 		seen[v.Resource] = true
-		if old, exists := values[v.Resource]; exists {
-			if old != v.Available {
-				return fmt.Errorf("%w: mergeRoundsStock: old != v.Available", ErrControl)
-			}
+		if i, exists := index[v.Resource]; exists {
+			stock.Values[i].Available = lowerStock(stock.Values[i].Available, v.Available)
 		} else {
 			stock.Values = append(stock.Values, v)
-			values[v.Resource] = v.Available
+			index[v.Resource] = len(stock.Values) - 1
 		}
 	}
 	return nil
+}
+
+func lowerStock(a, b domain.Fact[int64]) domain.Fact[int64] {
+	x, xk := a.Value()
+	y, yk := b.Value()
+	if !xk || !yk {
+		return domain.Unknown[int64]()
+	}
+	return domain.Known(min(x, y))
 }
 
 // shellRepairLimit bounds how many times one shell is repaired under one
