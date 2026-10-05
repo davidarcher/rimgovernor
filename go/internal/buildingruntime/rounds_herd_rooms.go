@@ -13,8 +13,8 @@ import (
 )
 
 // The barn and vet room (#1633): once the pen stands, MaintainAnimalContainment
-// raises each planned herd room, places its animal beds one at a time and
-// flags the vet room's beds medical (policy.NextHerdStep). The review holds the goal open while a step is due
+// reconciles each planned herd room (ring, door, animal beds; policy.NextHerdStep
+// over reconcileRoom) and flags the vet room's beds medical. The review holds the goal open while a step is due
 // (HerdRoomsOwed), so a herd that outgrows its beds is topped up.
 
 // herdDefinitions are the definitions the herd steps read availability,
@@ -84,7 +84,11 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 	if err != nil || !usable {
 		return policy.HerdStep{}, false, err
 	}
-	return policy.NextHerdStep(plan, rooms, census.Buildings, sleeping.Beds, len(animals), furniture), true, nil
+	ground, gk := colonyGround(facts)
+	if !gk {
+		return policy.HerdStep{}, false, nil
+	}
+	return policy.NextHerdStep(plan, rooms, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, sleeping.Beds, len(animals), furniture), true, nil
 }
 
 // vetRoomReady is VetRoom.Ready: known once the plan, room census,
@@ -110,19 +114,11 @@ func herdRoomsOwed(facts observation.ColonyProjection) (domain.Fact[bool], error
 	return domain.Known(step.Owed()), nil
 }
 
-// herdMethod names a herd step's method: the shell once per room, each bed
-// slot once, per Episode.
-func herdMethod(step policy.HerdStep) domain.MethodID {
-	in := step.Room.Interior
-	if step.Kind == policy.HerdPlace {
-		return domain.MethodID(fmt.Sprintf("herd-place-%d-%d-%s", in.X, in.Z, step.Piece.Slot))
-	}
-	return domain.MethodID(fmt.Sprintf("herd-shell-%d-%d", in.X, in.Z))
-}
-
-// stageHerdRooms answers the due herd step: the room's shell through
-// shellRoom, a bed through placePiece. It reads the room census itself, the
-// pen steps before it did not need it.
+// stageHerdRooms answers the due herd step: the room through the shared build
+// side (reconcileRoom: the ring, door and beds the plan and the template still
+// owe, installed from packed stock first; a lost wall is rebuilt like a first
+// shell) or a vet bed's medical flag. It reads the room census itself, the pen
+// steps before it did not need it.
 func (r *RoundsAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim]) (RoundsAnimalContainmentResult, error) {
 	reading, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, claims, herdDefinitions...)
 	if err != nil {
@@ -140,12 +136,15 @@ func (r *RoundsAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Cont
 	}
 	var result RoundsBuildingResult
 	switch step.Kind {
-	case policy.HerdShell:
-		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, herdMethod(step), string(step.Role))
 	case policy.HerdMedical:
 		result, err = r.markHerdBedMedical(call, epoch, state, goal, reading.Projection, step.Bed)
 	default:
-		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, herdMethod(step))
+		in := step.Room.Interior
+		stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
+		result, err = r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
+			room: step.Room, template: step.Template,
+			name: fmt.Sprintf("herd-%d-%d", in.X, in.Z), reason: string(step.Role),
+		})
 	}
 	return RoundsAnimalContainmentResult{Verdict: result.Verdict}, err
 }

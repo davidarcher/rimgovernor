@@ -369,12 +369,15 @@ the outer ring; a herd the rooms cannot hold gets an extra reservation, never a 
 The vet room is outside animal areas (animals enter when carried or via the bot-owned
 `VetRoom` allowed area, `VetRoomAreaKey`).
 
-- Once the pen stands, containment raises each barn and vet room (`policy.HerdRooms`), then
-  places `AnimalSleepingSpot`s and `AnimalBed`s one at a time (`policy.NextHerdStep`,
-  `buildingruntime/rounds_herd_rooms.go`); the concern stays open while a step is due
+- Once the pen stands, containment reconciles each barn and vet room (`policy.HerdRooms`)
+  through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
+  template: the `AnimalSleepingSpot`s or `AnimalBed`s and the barn's heater;
+  `buildingruntime/rounds_herd_rooms.go` calls `reconcileRoom`), so a lost wall is rebuilt
+  like a first shell and the beds are installed from packed stock first; the concern stays
+  open while a step is due
   (`HerdRoomsOwed`). A definition the live catalog lacks fails the review.
 - The barn owes one optional powered heater (`RoomFurniture.Heater`, planned by `planBarn`
-  on the floor furthest from the door once beds stand); `TemperatureCooling.Conditioned`
+  on the floor furthest from the door, wanted beside the beds); `TemperatureCooling.Conditioned`
   counts a room with one as heated. No barn cooler is planned.
 - The barn interior is the bot-owned `Barn` allowed area (`BarnAreaKey`) that pen animals
   enter while exposure endangers their race ([husbandry contracts](husbandry-contracts.md)).

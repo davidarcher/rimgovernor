@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -11,9 +12,10 @@ import (
 // ReserveVetRoom reservation is a walled room: its interior is the
 // reservation without the ring, its door faces the pen (barn) or the colony
 // core (vet room). The room is derived from the reservation, never stored
-// (HerdRooms). The animal-bed planner (NextHerdStep) shells each room, then
-// places animal sleeping spots in the barn, up to one per kept animal, and
-// animal beds in the vet room, VetBeds per herd, nearest the door first. A
+// (HerdRooms). The animal-bed planner (NextHerdStep) reconciles each room: its
+// ring and door, then animal sleeping spots in the barn, up to one per kept animal, and
+// animal beds in the vet room, VetBeds per herd, nearest the door first, through
+// the build-side reconciler (ReconcileRoom, #2114). A
 // herd the rooms cannot hold gets another reservation of the same kind
 // (PlanHerdSites); a placed room never moves or shrinks.
 //
@@ -190,6 +192,12 @@ func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
 	return out
 }
 
+// roomsWithHerd is AllRooms and the barns and vet rooms the reservations hold:
+// the rooms whose doors and links a ring is matched against.
+func (p LayoutPlan) roomsWithHerd() []PlannedRoom {
+	return append(append(slices.Clone(p.AllRooms()), p.HerdRooms(PlannedBarn)...), p.HerdRooms(PlannedVetRoom)...)
+}
+
 // herdRoom is the room a barn or vet room reservation holds: the door in
 // the middle of the wall facing the first pen (barn) or the colony core
 // (vet room; the barn's centre when the plan has no core).
@@ -354,36 +362,41 @@ type HerdStepKind string
 const (
 	// HerdNone: nothing is due, or a fact is unknown.
 	HerdNone HerdStepKind = ""
-	// HerdShell: raise the walls and door of Room.
-	HerdShell HerdStepKind = "shell"
-	// HerdPlace: place Piece, a bed or the barn's heater, in Room.
-	HerdPlace HerdStepKind = "place"
+	// HerdReconcile: Room differs from the plan or from Template (the animal
+	// beds, and the barn's heater): the build side reconciles it
+	// (ReconcileRoom). The room's state is whatever the diff leaves; there is
+	// no shell or place step (#2114).
+	HerdReconcile HerdStepKind = "reconcile"
 	// HerdMedical: flag Bed, a standing vet room bed, medical.
 	HerdMedical HerdStepKind = "medical"
 )
 
 // HerdStep is one bounded step towards the barn and vet room.
 type HerdStep struct {
-	Kind  HerdStepKind
-	Role  PlannedRole
-	Room  PlannedRoom
-	Piece InteriorPiece
+	Kind HerdStepKind
+	Role PlannedRole
+	Room PlannedRoom
+	// Template is a HerdReconcile's wanted furniture: standing beds where
+	// they stand, the missing ones in their template slots, the barn's heater.
+	Template []WantedPiece
 	// Bed is the census id of the bed a HerdMedical step flags.
 	Bed string
 }
 
 // Owed reports whether the planner can act on the step now.
 func (s HerdStep) Owed() bool {
-	return s.Kind == HerdShell || s.Kind == HerdPlace || s.Kind == HerdMedical
+	return s.Kind == HerdReconcile || s.Kind == HerdMedical
 }
 
 // NextHerdStep picks the next barn or vet room step for a herd of animals
 // kept animals: the barn holds one sleeping spot per animal and the vet
-// room VetBeds of them, filled room by room in plan order, each room walled
-// before it is furnished and each vet bed flagged medical (sleeping's Medical
-// fact says which are) before the next is placed. None for no animals or
-// once every bed stands and is flagged.
-func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, sleeping []SleepingBed, animals int, f HerdFurniture) HerdStep {
+// room VetBeds of them, filled room by room in plan order. A room is
+// reconciled while its ring or doors differ from the plan (a lost wall is
+// rebuilt the same way as a first shell) or a bed of its quota or the barn's
+// heater is missing; each vet bed is flagged medical (sleeping's Medical
+// fact says which are) first. None for no animals or once every room matches
+// and every bed stands and is flagged.
+func NextHerdStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus, built []CurrentBuilding, sleeping []SleepingBed, animals int, f HerdFurniture) HerdStep {
 	if animals <= 0 {
 		return HerdStep{}
 	}
@@ -414,64 +427,72 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 			beds := herdBedPieces(layout.Pieces)
 			quota := min(want, len(beds))
 			want -= quota
-			if _, standing := CensusRoomIn(room, rooms); !standing {
-				return HerdStep{Kind: HerdShell, Role: site.role, Room: room}
-			}
 			if site.role == PlannedVetRoom {
 				if bed, due := unflaggedVetBed(room, built, sleeping, site.def.Def); due {
 					return HerdStep{Kind: HerdMedical, Role: site.role, Room: room, Bed: bed}
 				}
 			}
-			have := 0
-			for _, b := range built {
-				if b.Building.Definition() == site.def.Def && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) {
-					have++
-				}
-			}
-			if have >= quota {
-				if p, due := barnHeater(site.role, f.Heater, layout.Pieces, room, built, taken); due {
-					return HerdStep{Kind: HerdPlace, Role: site.role, Room: room, Piece: p}
-				}
-				continue
-			}
-			for _, p := range beds {
-				free := true
-				for _, c := range rectCells(p.Rect) {
-					free = free && !taken[c]
-				}
-				if free {
-					return HerdStep{Kind: HerdPlace, Role: site.role, Room: room, Piece: p}
-				}
+			template, absent := herdTemplate(site.role, site.def, f.Heater, layout.Pieces, quota, room, built, taken)
+			if absent || !plan.GroundMatches(room, ground) {
+				return HerdStep{Kind: HerdReconcile, Role: site.role, Room: room, Template: template}
 			}
 		}
 	}
 	return HerdStep{}
 }
 
-// barnHeater is the climate piece a barn owes once its beds stand: the
-// planned heater slot while no heater of def stands in the room and its cells
-// are free. A catalog heater that is not buildable yet owes nothing.
-func barnHeater(role PlannedRole, def InteriorPieceDef, pieces []InteriorPiece, room PlannedRoom, built []CurrentBuilding, taken map[domain.Cell]bool) (InteriorPiece, bool) {
-	if role != PlannedBarn || def.Def == "" {
-		return InteriorPiece{}, false
+// herdTemplate is a barn or vet room's wanted furniture: the beds of def
+// standing in the room (up to quota) where they stand, the missing ones in
+// the first free planned bed slots, and the barn's heater (standing, else its
+// planned slot when free). absent reports a planned piece the room lacks. A
+// heater that is not buildable yet (no def) is no part of the template.
+func herdTemplate(role PlannedRole, def, heater InteriorPieceDef, pieces []InteriorPiece, quota int, room PlannedRoom, built []CurrentBuilding, taken map[domain.Cell]bool) (template []WantedPiece, absent bool) {
+	inside := func(b CurrentBuilding, name string) bool {
+		return b.Building.Definition() == name && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells))
+	}
+	standing := func(b CurrentBuilding) WantedPiece {
+		r := cellsRectangle(b.Cells)
+		return WantedPiece{DefName: b.Building.Definition(), Minimum: domain.Cell{X: r.X, Z: r.Z}, Maximum: domain.Cell{X: r.X + r.Width - 1, Z: r.Z + r.Height - 1}}
+	}
+	planned := func(p InteriorPiece) WantedPiece {
+		return WantedPiece{DefName: p.Def, Minimum: domain.Cell{X: p.Rect.X, Z: p.Rect.Z}, Maximum: domain.Cell{X: p.Rect.X + p.Rect.Width - 1, Z: p.Rect.Z + p.Rect.Height - 1}, Slot: p.Slot, Size: p.Size, Rot: p.Rot}
+	}
+	free := func(p InteriorPiece) bool {
+		for _, c := range rectCells(p.Rect) {
+			if taken[c] {
+				return false
+			}
+		}
+		return true
+	}
+	have := 0
+	for _, b := range built {
+		if have < quota && inside(b, def.Def) {
+			template = append(template, standing(b))
+			have++
+		}
+	}
+	for _, p := range herdBedPieces(pieces) {
+		if have < quota && free(p) {
+			template = append(template, planned(p))
+			absent = true
+			have++
+		}
+	}
+	if role != PlannedBarn || heater.Def == "" {
+		return template, absent
 	}
 	for _, b := range built {
-		if b.Building.Definition() == def.Def && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) {
-			return InteriorPiece{}, false
+		if inside(b, heater.Def) {
+			return append(template, standing(b)), absent
 		}
 	}
 	for _, p := range pieces {
-		if p.Slot != herdHeaterSlot || p.Def != def.Def {
-			continue
+		if p.Slot == herdHeaterSlot && p.Def == heater.Def && free(p) {
+			return append(template, planned(p)), true
 		}
-		for _, c := range rectCells(p.Rect) {
-			if taken[c] {
-				return InteriorPiece{}, false
-			}
-		}
-		return p, true
 	}
-	return InteriorPiece{}, false
+	return template, absent
 }
 
 // unflaggedVetBed is the first standing bed of def in room whose census row

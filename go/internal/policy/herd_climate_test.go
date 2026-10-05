@@ -41,9 +41,10 @@ func TestBarnPlanIncludesTheClimateHeater(t *testing.T) {
 	}
 }
 
-// The heater is the barn's last step: placed once the beds stand, never
-// twice, and the beds never wait for a heater that is not buildable yet.
-func TestHerdStepPlacesTheBarnHeaterAfterTheBeds(t *testing.T) {
+// The heater is part of the barn's template: wanted in its climate slot beside
+// the beds, never twice, and the beds never wait for a heater that is not
+// buildable yet.
+func TestHerdStepWantsTheBarnHeaterInItsSlot(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	barn := plan.HerdRooms(PlannedBarn)[0]
 	const animals = 12
@@ -51,24 +52,35 @@ func TestHerdStepPlacesTheBarnHeaterAfterTheBeds(t *testing.T) {
 	furniture.Heater = InteriorPieceDef{Def: "Heater", Size: domain.Cell{X: 1, Z: 1}}
 	rooms := standing(barn)
 	rooms.Shapes = testShapes
-	var built []CurrentBuilding
-	for i := 0; i < animals; i++ {
-		step := NextHerdStep(plan, rooms, built, nil, animals, furniture)
-		if step.Kind != HerdPlace || step.Piece.Def != testAnimalSpot {
-			t.Fatal("beds before the heater", i, step)
-		}
-		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
+	ground := herdGround(plan, barn)
+	step := NextHerdStep(plan, rooms, ground, nil, nil, animals, furniture)
+	if step.Kind != HerdReconcile || herdTemplateCount(step, testAnimalSpot) != animals || herdTemplateCount(step, "Heater") != 1 {
+		t.Fatal("beds and heater wanted", step)
 	}
-	step := NextHerdStep(plan, rooms, built, nil, animals, furniture)
-	if step.Kind != HerdPlace || step.Role != PlannedBarn || step.Piece.Def != "Heater" || step.Piece.Slot != herdHeaterSlot || !rectInside(barn.Interior, step.Piece.Rect) {
+	var heater WantedPiece
+	var built []CurrentBuilding
+	for _, p := range step.Template {
+		piece := InteriorPiece{Slot: p.Slot, Def: p.DefName, Size: p.Size, Rot: p.Rot, Rect: Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: 1, Height: 1}}
+		if p.DefName == "Heater" {
+			heater = p
+			continue
+		}
+		built = append(built, bedAt(t, p.DefName, piece))
+	}
+	if heater.Slot != herdHeaterSlot || !rectInside(barn.Interior, Rectangle{X: heater.Minimum.X, Z: heater.Minimum.Z, Width: 1, Height: 1}) {
+		t.Fatal("heater in the climate slot", heater)
+	}
+	// The beds stand: only the heater is owed.
+	step = NextHerdStep(plan, rooms, ground, built, nil, animals, furniture)
+	if step.Kind != HerdReconcile || herdTemplateCount(step, "Heater") != 1 {
 		t.Fatal("heater after the beds", step)
 	}
-	built = append(built, bedAt(t, "Heater", step.Piece))
-	if step = NextHerdStep(plan, rooms, built, nil, animals, furniture); step.Kind == HerdPlace && step.Role == PlannedBarn {
+	built = append(built, bedAt(t, "Heater", InteriorPiece{Slot: heater.Slot, Def: "Heater", Size: heater.Size, Rot: heater.Rot, Rect: Rectangle{X: heater.Minimum.X, Z: heater.Minimum.Z, Width: 1, Height: 1}}))
+	if step = NextHerdStep(plan, rooms, ground, built, nil, animals, furniture); step.Kind == HerdReconcile && step.Role == PlannedBarn {
 		t.Fatal("one heater per barn", step)
 	}
-	if step = NextHerdStep(plan, rooms, built[:animals], nil, animals, testHerdFurniture); step.Kind == HerdPlace && step.Role == PlannedBarn {
-		t.Fatal("no heater step while the heater is not buildable", step)
+	if step = NextHerdStep(plan, rooms, ground, built[:animals], nil, animals, testHerdFurniture); step.Kind == HerdReconcile && step.Role == PlannedBarn {
+		t.Fatal("no heater wanted while the heater is not buildable", step)
 	}
 }
 

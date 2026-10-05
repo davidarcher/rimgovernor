@@ -179,7 +179,8 @@ func (p LayoutPlan) NextPlannedRoom(role PlannedRole, ground GroundCensus) (Plan
 
 // ShellDoors is the cells of r's ring that take a door rather than a
 // wall: its own doors, its Link, and any other room's Link that lies in
-// r's ring (the kitchen's side of the freezer door, #835).
+// r's ring (the kitchen's side of the freezer door, #835; the barn's side of the
+// vet room's, which is no AllRooms room, #2114).
 func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 	doors := []domain.Cell{r.Door}
 	for _, d := range r.Doors {
@@ -189,7 +190,7 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 		doors = append(doors, *r.Link)
 	}
 	in := r.Interior
-	for _, o := range p.AllRooms() {
+	for _, o := range p.roomsWithHerd() {
 		if o.Link == nil || o.Interior == in {
 			continue
 		}

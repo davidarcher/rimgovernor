@@ -64,44 +64,132 @@ func TestHerdRoomsHaveADoorAndHoldTheirBeds(t *testing.T) {
 	}
 }
 
-func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
+// herdGround is the walls and doors standing on every room's ring.
+func herdGround(plan LayoutPlan, rooms ...PlannedRoom) GroundCensus {
+	out := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}}
+	for _, r := range rooms {
+		g := ringWalls(plan, r)
+		for c := range g.walls {
+			out.walls[c] = true
+		}
+		for c := range g.doors {
+			out.doors[c] = true
+		}
+	}
+	return out
+}
+
+// herdTemplateCount is the pieces of def a HerdReconcile's template wants.
+func herdTemplateCount(step HerdStep, def string) int {
+	n := 0
+	for _, p := range step.Template {
+		if p.DefName == def {
+			n++
+		}
+	}
+	return n
+}
+
+func TestHerdStepReconcilesBarnThenVetRoom(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	barn, vet := plan.HerdRooms(PlannedBarn)[0], plan.HerdRooms(PlannedVetRoom)[0]
 	const animals = 12
-	step := NextHerdStep(plan, RoomObservation{Shapes: testShapes}, nil, nil, animals, testHerdFurniture)
-	if step.Kind != HerdShell || !step.Room.Same(barn) {
-		t.Fatal("barn shell first", step)
+	shapes := RoomObservation{Shapes: testShapes}
+	// Shell: no ring stands, and the template already wants every spot.
+	step := NextHerdStep(plan, shapes, GroundCensus{}, nil, nil, animals, testHerdFurniture)
+	if step.Kind != HerdReconcile || !step.Room.Same(barn) || herdTemplateCount(step, testAnimalSpot) != animals {
+		t.Fatal("barn reconcile first", step)
+	}
+	// The ring stands: the reconciler builds the spots on site, installs them from stock.
+	ground := herdGround(plan, barn)
+	step = NextHerdStep(plan, standing(barn), ground, nil, nil, animals, testHerdFurniture)
+	if step.Kind != HerdReconcile || step.Role != PlannedBarn || herdTemplateCount(step, testAnimalSpot) != animals {
+		t.Fatal("barn sleeping spots", step)
+	}
+	for _, p := range step.Template {
+		if !rectInside(barn.Interior, Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: 1, Height: 1}) {
+			t.Fatal("spot outside the barn", p)
+		}
+	}
+	in := ReconcileInput{Plan: plan, Room: barn, Ground: ground, Rooms: standing(barn), Furniture: step.Template}
+	if ops := ReconcileRoom(in); len(ops) != 1 || ops[0].Kind != OpBuild || len(ops[0].Pieces) != animals {
+		t.Fatal("build on site", ops)
+	}
+	in.Stock = map[string]int{testAnimalSpot: 2}
+	if ops := ReconcileRoom(in); len(ops) != 2 || ops[0].Kind != OpInstall || len(ops[0].Pieces) != 2 || ops[1].Kind != OpBuild || len(ops[1].Pieces) != animals-2 {
+		t.Fatal("stock first", ops)
 	}
 	var built []CurrentBuilding
-	rooms := standing(barn)
-	for i := 0; i < animals; i++ {
-		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-		if step.Kind != HerdPlace || step.Role != PlannedBarn || step.Piece.Def != testAnimalSpot || !rectInside(barn.Interior, step.Piece.Rect) {
-			t.Fatal("barn sleeping spot", i, step)
-		}
-		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
+	for _, p := range step.Template {
+		built = append(built, bedAt(t, p.DefName, InteriorPiece{Slot: p.Slot, Def: p.DefName, Size: p.Size, Rot: p.Rot, Rect: Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: 1, Height: 1}}))
 	}
-	step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-	if step.Kind != HerdShell || !step.Room.Same(vet) {
-		t.Fatal("vet room shell after the barn beds", step)
+	step = NextHerdStep(plan, standing(barn), ground, built, nil, animals, testHerdFurniture)
+	if step.Kind != HerdReconcile || !step.Room.Same(vet) {
+		t.Fatal("vet room after the barn beds", step)
 	}
-	rooms = standing(barn, vet)
-	for i := 0; i < VetBeds(animals); i++ {
-		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-		if step.Kind != HerdPlace || step.Role != PlannedVetRoom || step.Piece.Def != testAnimalBed || !rectInside(vet.Interior, step.Piece.Rect) {
-			t.Fatal("vet animal bed", i, step)
-		}
-		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
+	rooms := standing(barn, vet)
+	ground = herdGround(plan, barn, vet)
+	step = NextHerdStep(plan, rooms, ground, built, nil, animals, testHerdFurniture)
+	if step.Kind != HerdReconcile || step.Role != PlannedVetRoom || herdTemplateCount(step, testAnimalBed) != VetBeds(animals) || !rectInside(vet.Interior, Rectangle{X: step.Template[0].Minimum.X, Z: step.Template[0].Minimum.Z, Width: 1, Height: 1}) {
+		t.Fatal("vet animal beds", step)
 	}
-	if step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture); step.Kind != HerdNone {
+	for _, p := range step.Template {
+		built = append(built, bedAt(t, p.DefName, InteriorPiece{Slot: p.Slot, Def: p.DefName, Size: p.Size, Rot: p.Rot, Rect: Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: 1, Height: 1}}))
+	}
+	if step = NextHerdStep(plan, rooms, ground, built, nil, animals, testHerdFurniture); step.Kind != HerdNone {
 		t.Fatal("every bed stands", step)
 	}
-	// The herd grows: the beds are topped up in the standing rooms.
-	if step = NextHerdStep(plan, rooms, built, nil, animals+3, testHerdFurniture); step.Kind != HerdPlace || step.Role != PlannedBarn {
+	// The herd grows: the barn is topped up with the new spots only.
+	if step = NextHerdStep(plan, rooms, ground, built, nil, animals+3, testHerdFurniture); step.Kind != HerdReconcile || step.Role != PlannedBarn || herdTemplateCount(step, testAnimalSpot) != animals+3 {
 		t.Fatal("barn topped up", step)
 	}
-	if step = NextHerdStep(plan, rooms, nil, nil, 0, testHerdFurniture); step.Kind != HerdNone {
+	if step = NextHerdStep(plan, rooms, ground, nil, nil, 0, testHerdFurniture); step.Kind != HerdNone {
 		t.Fatal("no animals owe no room", step)
+	}
+}
+
+// A ring that lost a wall after the room stood is rebuilt by the same diff that
+// raised it: no dedicated lost-shell step (#2114).
+func TestHerdStepRebuildsALostWall(t *testing.T) {
+	plan := herdTestPlan(t, 20)
+	barn := plan.HerdRooms(PlannedBarn)[0]
+	const animals = 4
+	// The barn alone: the vet room's own reconcile is not under test.
+	var kept []LayoutReservation
+	for _, r := range plan.Reservations {
+		if r.Kind != ReserveVetRoom {
+			kept = append(kept, r)
+		}
+	}
+	plan.Reservations = kept
+	layout, ok := PlanInterior(mustInterior(t, barn), testHerdFurniture.Spot)
+	if !ok {
+		t.Fatal("no barn layout")
+	}
+	var built []CurrentBuilding
+	for _, p := range layout.Pieces[:animals] {
+		built = append(built, bedAt(t, p.Def, p))
+	}
+	ground := herdGround(plan, barn)
+	if step := NextHerdStep(plan, standing(barn), ground, built, nil, animals, testHerdFurniture); step.Kind != HerdNone {
+		t.Fatal("a matching room owes nothing", step)
+	}
+	var lost domain.Cell
+	for c := range ground.walls {
+		lost = c
+		break
+	}
+	delete(ground.walls, lost)
+	step := NextHerdStep(plan, standing(barn), ground, built, nil, animals, testHerdFurniture)
+	if step.Kind != HerdReconcile || !step.Room.Same(barn) || herdTemplateCount(step, testAnimalSpot) != animals {
+		t.Fatal("lost wall reconciled", step)
+	}
+	in := ReconcileInput{Plan: plan, Room: barn, Ground: ground, Rooms: standing(barn), Furniture: step.Template}
+	for _, b := range built {
+		in.Rows = append(in.Rows, ClearanceTarget{EntityID: b.ID, DefName: b.Building.Definition(), Minimum: b.Cells[0], Maximum: b.Cells[0], Player: true})
+	}
+	if ops := ReconcileRoom(in); len(ops) != 1 || ops[0].Kind != OpWallIn || len(ops[0].Cells) != 1 || ops[0].Cells[0] != lost {
+		t.Fatal("only the lost wall is raised", ops)
 	}
 }
 
@@ -124,12 +212,13 @@ func TestHerdStepFlagsEachStandingVetBedMedical(t *testing.T) {
 			only.Reservations = append(only.Reservations, r)
 		}
 	}
-	step := NextHerdStep(only, standing(vet), []CurrentBuilding{bed}, census(domain.Known(false)), 1, testHerdFurniture)
+	ground := herdGround(only, vet)
+	step := NextHerdStep(only, standing(vet), ground, []CurrentBuilding{bed}, census(domain.Known(false)), 1, testHerdFurniture)
 	if step.Kind != HerdMedical || step.Bed != bed.ID {
 		t.Fatal("flag the standing vet bed", step)
 	}
 	for _, medical := range []domain.Fact[bool]{domain.Known(true), domain.Unknown[bool]()} {
-		if step = NextHerdStep(only, standing(vet), []CurrentBuilding{bed}, census(medical), 1, testHerdFurniture); step.Kind == HerdMedical {
+		if step = NextHerdStep(only, standing(vet), ground, []CurrentBuilding{bed}, census(medical), 1, testHerdFurniture); step.Kind == HerdMedical {
 			t.Fatal("a flagged or unread bed is not flagged again", step)
 		}
 	}
@@ -163,9 +252,9 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 	for _, p := range layout.Pieces {
 		built = append(built, bedAt(t, p.Def, p))
 	}
-	step := NextHerdStep(grown, rooms, built, nil, 60, testHerdFurniture)
-	if step.Kind != HerdShell || !step.Room.Same(second) {
-		t.Fatal("second barn shell once the first is full", step)
+	step := NextHerdStep(grown, rooms, herdGround(grown, first), built, nil, 60, testHerdFurniture)
+	if step.Kind != HerdReconcile || !step.Room.Same(second) {
+		t.Fatal("second barn reconciled once the first is full", step)
 	}
 }
 

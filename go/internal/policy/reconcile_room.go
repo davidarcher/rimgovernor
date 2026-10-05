@@ -53,7 +53,7 @@ func OwnRows(rows []ClearanceTarget, template []WantedPiece, forbidden func(def 
 // it stands (#836) and is no wall to raise.
 func (p LayoutPlan) GroundWithRock(g GroundCensus, rock []domain.Cell) GroundCensus {
 	doors := map[domain.Cell]bool{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.roomsWithHerd() {
 		for _, d := range p.ShellDoors(r) {
 			doors[d] = true
 		}
