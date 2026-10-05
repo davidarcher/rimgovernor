@@ -661,12 +661,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	return scheduler, nil
 }
 
-// clockDebug reports whether the service logger keeps debug records (serve
-// --debug): the clock trace is built only then.
-func clockDebug() bool {
-	return slog.Default().Enabled(context.Background(), slog.LevelDebug)
-}
-
 // WindowRunning reports whether the last evidence the scheduler saw had a
 // window it admitted still running. It is a hint for the poll cadence, not
 // authority: a stale true costs one held poll before the next step or page
@@ -696,18 +690,6 @@ func (s *ClockScheduler) readValidity(snapshot domain.GenerationSnapshot, tick i
 // what a step expects the tick to have moved by since its predecessor.
 func (s *ClockScheduler) drift() domain.Tick {
 	return domain.Tick(s.livePaceTicks * s.config.MaxAge.Seconds())
-}
-
-// clockSchedulerLog is the clock trace (serve --debug): which Step()
-// branch was taken, what each planner decided, what a routine refused and
-// why. It is a debug record on the service logger, so the stderr line
-// carries the same time and tick stamp as every other; it never becomes a
-// flight row. Typed events (a step's outcome, an admission
-// refusal, a stop, a worker outcome) log through clockEvent instead.
-func clockSchedulerLog(format string, args ...any) {
-	if clockDebug() {
-		slog.Default().Debug(fmt.Sprintf(format, args...), telemetry.ComponentKey, "clock-scheduler")
-	}
 }
 
 // clockEvent logs one typed service event: an Info record that the
