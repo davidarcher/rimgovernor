@@ -112,7 +112,7 @@ func stopReason(reason string) string {
 // prerequisite names the concern that must land first.
 func blockedLabel(blocked string) string {
 	if rest, ok := strings.CutPrefix(blocked, "prerequisite:"); ok {
-		return "Needs " + rest + " first"
+		return "Needs " + concernLabel(rest) + " first"
 	}
 	if rest, ok := strings.CutPrefix(blocked, "planner:"); ok {
 		return "Planner refused: " + rest
@@ -331,9 +331,9 @@ func reportView(nr Reading[spectator.Now], dr Reading[DevelopmentView]) ReportVi
 		}
 	default:
 		c := n.Concerns[0]
-		text := c.Concern + ": no method in play"
+		text := concernLabel(c.Concern) + ": no method in play"
 		if c.Method != "" {
-			text = c.Concern + ": " + c.Method
+			text = concernLabel(c.Concern) + ": " + c.Method
 			if c.Expected != "" {
 				text += ", to move " + c.Expected + " (" + movedAgo(c.LastProgress, n.Tick) + ")"
 			}
@@ -396,7 +396,7 @@ func reportView(nr Reading[spectator.Now], dr Reading[DevelopmentView]) ReportVi
 				if row.Selected {
 					status = "selected"
 				}
-				pursuing.Lines = append(pursuing.Lines, ReportLine{Text: fmt.Sprintf("%d. %s - %s - %s", i+1, row.Concern, status, facts)})
+				pursuing.Lines = append(pursuing.Lines, ReportLine{Text: fmt.Sprintf("%d. %s - %s - %s", i+1, concernLabel(row.Concern), status, facts)})
 				pursued++
 			default:
 				why := reasonLabel(row.Reason)
@@ -406,7 +406,7 @@ func reportView(nr Reading[spectator.Now], dr Reading[DevelopmentView]) ReportVi
 				if row.Bottleneck != "" {
 					why += " (" + row.Bottleneck + ")"
 				}
-				text := fmt.Sprintf("%d. %s - %s - %s", i+1, row.Concern, why, facts)
+				text := fmt.Sprintf("%d. %s - %s - %s", i+1, concernLabel(row.Concern), why, facts)
 				if row.WaitingSince > 0 && n.Tick != nil {
 					text += ", waiting " + span(*n.Tick-row.WaitingSince)
 				}
@@ -440,7 +440,7 @@ func reportView(nr Reading[spectator.Now], dr Reading[DevelopmentView]) ReportVi
 		if method == "" {
 			method = "no method"
 		}
-		text := fmt.Sprintf("%s - %s - %s", c.Concern, method, blockedLabel(c.Blocked))
+		text := fmt.Sprintf("%s - %s - %s", concernLabel(c.Concern), method, blockedLabel(c.Blocked))
 		if c.Observed != nil {
 			text += fmt.Sprintf(" - deficit %d%%", int(math.Round(*c.Observed*100)))
 		}
