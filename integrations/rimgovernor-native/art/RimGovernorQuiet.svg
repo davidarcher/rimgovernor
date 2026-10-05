@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <!-- RimGovernorQuiet storyteller portrait: a librarian shushing, finger to lips. -->
+  <!-- stack of books -->
+  <rect x="196" y="236" width="96" height="20" rx="3" fill="#2f6f8f" stroke="#2b1d12" stroke-width="4"/>
+  <rect x="204" y="216" width="82" height="20" rx="3" fill="#a8432f" stroke="#2b1d12" stroke-width="4"/>
+  <rect x="190" y="196" width="90" height="20" rx="3" fill="#5c8a3c" stroke="#2b1d12" stroke-width="4"/>
+  <rect x="198" y="256" width="80" height="0" fill="none"/>
+  <!-- shoulders / cardigan -->
+  <path d="M 30 300 Q 40 236 108 224 L 192 224 Q 260 236 270 300 Z" fill="#7a4e8c" stroke="#2b1d12" stroke-width="5"/>
+  <path d="M 128 224 L 150 262 L 172 224 Z" fill="#f4ecd8" stroke="#2b1d12" stroke-width="4"/>
+  <!-- bun and hair back -->
+  <circle cx="150" cy="34" r="30" fill="#8a5a3a" stroke="#2b1d12" stroke-width="5"/>
+  <ellipse cx="150" cy="116" rx="94" ry="100" fill="#8a5a3a" stroke="#2b1d12" stroke-width="5"/>
+  <!-- face -->
+  <ellipse cx="150" cy="134" rx="70" ry="84" fill="#f6d2b0" stroke="#2b1d12" stroke-width="5"/>
+  <!-- fringe -->
+  <path d="M 80 112 Q 92 58 150 54 Q 208 58 220 112 Q 190 82 150 84 Q 110 82 80 112 Z" fill="#8a5a3a" stroke="#2b1d12" stroke-width="4" stroke-linejoin="round"/>
+  <!-- glasses -->
+  <circle cx="118" cy="132" r="26" fill="#ffffff" fill-opacity="0.55" stroke="#2b1d12" stroke-width="5"/>
+  <circle cx="182" cy="132" r="26" fill="#ffffff" fill-opacity="0.55" stroke="#2b1d12" stroke-width="5"/>
+  <path d="M 144 130 Q 150 124 156 130" fill="none" stroke="#2b1d12" stroke-width="5"/>
+  <!-- eyes: stern, looking right at you -->
+  <circle cx="118" cy="134" r="7" fill="#2b1d12"/>
+  <circle cx="182" cy="134" r="7" fill="#2b1d12"/>
+  <path d="M 90 100 L 138 112 M 210 100 L 162 112" stroke="#2b1d12" stroke-width="6" stroke-linecap="round"/>
+  <!-- nose -->
+  <path d="M 150 148 Q 142 166 154 168" fill="none" stroke="#2b1d12" stroke-width="4" stroke-linecap="round"/>
+  <!-- pursed lips -->
+  <ellipse cx="150" cy="190" rx="14" ry="8" fill="#c8504a" stroke="#2b1d12" stroke-width="3"/>
+  <!-- hand with finger to lips -->
+  <path d="M 136 300 Q 120 250 140 216 L 148 176 Q 152 168 160 172 L 160 214 Q 190 226 184 300 Z" fill="#f6d2b0" stroke="#2b1d12" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M 160 214 Q 172 224 176 250" fill="none" stroke="#2b1d12" stroke-width="3"/>
+</svg>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!--
+    RimGovernorQuiet (#2023): a storyteller with no comps, so nothing fires:
+    no raids, no weather or condition events, no visitors, no quests. RimWorld
+    rebuilds the storyteller from this def by defName on load, so a colony
+    started with it stays quiet across save and load without a patch or a
+    Custom-difficulty marker.
+
+    Known residuals, which are not storyteller incidents and still happen:
+    pawn inspirations, random social fights, and what map generation places
+    (wandering strangers, animals, insect hives). The acceptance harness keeps
+    its test/quiet_storyteller fixture op for those.
+
+    listVisible is false: the new-colony op resolves storytellers from
+    DefDatabase by defName, so the def needs no entry in vanilla's selection
+    list. It inherits BaseStoryteller for the population and adapt-days
+    curves the game reads even when no comp uses them.
+  -->
+  <StorytellerDef ParentName="BaseStoryteller">
+    <defName>RimGovernorQuiet</defName>
+    <label>Quiet (no incidents)</label>
+    <description>A librarian who asks for quiet. No raids, no weather events, no visitors and no quests: nothing happens unless you make it happen. Pawn inspirations, social fights and whatever the map generator placed at the start can still happen.</description>
+    <portraitLarge>UI/HeroArt/Storytellers/RimGovernorQuiet</portraitLarge>
+    <portraitTiny>UI/HeroArt/Storytellers/RimGovernorQuietTiny</portraitTiny>
+    <listOrder>1000</listOrder>
+    <listVisible>false</listVisible>
+    <comps />
+  </StorytellerDef>
+
+</Defs>
