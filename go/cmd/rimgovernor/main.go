@@ -14,7 +14,7 @@ import (
 
 func runContext(ctx context.Context, args []string, out, errors io.Writer) int {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help")) {
-		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --profile PATH --config PATH --game ID --state PATH [--listen IP:PORT]   autonomous play\n       rimgovernor serve --observe --config PATH --game ID --state PATH [--listen IP:PORT]   observation only, no writes\nSee serve -h for tuning flags; RIMGOVERNOR_ROUTINE_FAMILIES narrows the composed routine families.")
+		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor log (--profile PATH | <flight.jsonl>) [--kind K] [--component C] [--level L] [--tick a..b] [--trace ID] [--since-run] [--follow] [--json]   read the diagnostic stream\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --profile PATH --config PATH --game ID --state PATH [--listen IP:PORT]   autonomous play\n       rimgovernor serve --observe --config PATH --game ID --state PATH [--listen IP:PORT]   observation only, no writes\nSee serve -h for tuning flags; RIMGOVERNOR_ROUTINE_FAMILIES narrows the composed routine families.")
 		return 0
 	}
 	if len(args) == 1 && args[0] == "version" {
@@ -29,6 +29,9 @@ func runContext(ctx context.Context, args []string, out, errors io.Writer) int {
 	}
 	if args[0] == "trace" {
 		return trace(args[1:], out, errors)
+	}
+	if args[0] == "log" {
+		return logCommand(ctx, args[1:], out, errors)
 	}
 	if args[0] == "replay" {
 		if len(args) != 3 {

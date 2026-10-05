@@ -67,6 +67,22 @@ Without an id it lists traces (find the step that took 4 s); with one it
 renders a waterfall of rows with offsets, spans and per-call phases (`gate`,
 `call`, `decode`, native `queue`/`exec`).
 
+## Reading the rows
+
+```bash
+go run ./cmd/rimgovernor log --profile C:\path\to\profile --level WARN --since-run
+go run ./cmd/rimgovernor log [--kind K] [--component C] [--tick a..b] [--trace ID] [--follow] [--json] C:\path\to\flight.jsonl
+```
+
+`rimgovernor log` prints the diagnostic stream (`--profile` resolves
+`<profile>/flight/flight.jsonl`; rotated segments are read oldest first and a
+`recording_gap` always shows). `--level` is a minimum, `--since-run` keeps the
+newest launch. Decision rows (`verdict`, `reason`, `target`) that repeat collapse
+into one line, `x N, first/last tick a/b`, keyed on (kind, component, verdict,
+reason, target); other rows print one line each. `--follow` streams new rows
+uncollapsed. `--json` is one entry object per line. The reader library is
+`internal/logview`; [flight rows](../contracts/flight-rows.md) is the contract.
+
 ## Report
 
 ```bash
