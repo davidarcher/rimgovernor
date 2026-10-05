@@ -57,6 +57,20 @@ controller crashed or stopped. It hides decode rows by default; the controller's
 own log and the build output stay on the Launch tab. See
 [measure throughput](../testing/measure-throughput.md) for what the rows carry.
 
+## New colony panel
+
+The Launch tab's New colony panel renders `getNewColony()` (`NewColonyView` in
+[newcolony.go](../../../go/cmd/launcher/newcolony.go)) verbatim: option lists
+with their labels, order and `requires` DLC, ranges, defaults, the last spec and
+the generation progress. The page fills the form once from `spec`, calls
+`generateNewColony(spec)` / `cancelNewColony()` and never filters or reorders an
+option. It polls only while the Launch tab shows and skips a tick while a call is
+in flight. `progress.elapsedMs` is the launcher's own clock; the page anchors on
+each poll and ticks its timer locally, so the panel keeps moving while native is
+busy. A failed poll marks the last good values stale. When a run goes from
+active to completed while the page watches, the page selects the new save in the
+Saved game picker (and so persists it as the load setting).
+
 ## ControlsThe launcher has no bot or clock controls. In Autopilot it passes `serve --resume`, so thebot runs on every load, and serve runs every window at Ultrafast whatever speedthe native controls show; `--follow-player-speed` (acceptance harnesses) opts backinto the player's own speed (#875). Clock holds are not acknowledged from thelauncher. The player has no other control surface, and player edits get noexemption from the autopilot.
 ## Help
 

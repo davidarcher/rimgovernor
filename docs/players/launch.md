@@ -19,6 +19,23 @@ Play stops an earlier controller from this checkout first. The controller
 starts at port 8787 and moves up past ports another checkout is using.
 Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`.
 
+## New colony
+
+The **New colony** panel on the Launch tab generates a fresh colony without
+touching the RimWorld menus: pick the scenario, colonist count, seed (blank is
+random; **Random** fills one in), biomes, difficulty, storyteller (including
+Quiet), an optional temperature band, world temperature, map size, planet
+coverage, flat tile and a save name, then press **Generate**. Options marked
+"needs <DLC>" require that expansion; the game refuses one it lacks.
+
+Generation closes the running game and controller, restarts them, builds the
+world and saves the colony, so it needs Autopilot (Observe only shows a notice
+instead). The panel shows the state, the current phase, a timer, the reroll
+count and, if the controller stops answering, the last values marked as stale.
+**Cancel** closes the game and reports cancelled. When it completes, the save is
+selected in **Saved game**; press **Play** to load it. See [save and
+resume](save-and-resume.md#new-colony-saves).
+
 ## Settings
 
 Settings persist to `.rimgovernor/launcher.json`.

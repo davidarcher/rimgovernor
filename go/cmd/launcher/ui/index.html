@@ -117,6 +117,28 @@
   .nowtable thead th { color: var(--muted); font-weight: 400; border-top: none; }
   .nowtable tr.blocked td:last-child, .nowtable tr.sel td:nth-child(2) { color: var(--warn); }
   .nowtable tr.sel td:nth-child(2) { color: var(--ok); }
+
+  section.colony { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  section.colony h2 { font-size: 15px; margin: 0 0 10px; }
+  section.colony fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
+  section.colony .field select, section.colony .field input[type=text], section.colony .field input[type=number] { width: 200px; }
+  section.colony .field input[type=number].short { width: 90px; }
+  .ncbiomes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin: 4px 0 8px; }
+  .ncbiomes .check { margin: 2px 0; }
+  .ncseed { display: flex; gap: 6px; }
+  section.colony .ncseed input { width: 130px; }
+  .ncband { display: flex; gap: 6px; align-items: center; }
+  .ncactions { display: flex; gap: 8px; margin-top: 12px; }
+  .ncactions button { flex: 1; }
+  .ncactions .primary { font-size: 15px; padding: 10px; }
+  .ncactions [hidden] { display: none; }
+  .ncprogress { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); user-select: text; overflow-wrap: anywhere; }
+  .ncprogress[hidden], .ncnotice[hidden] { display: none; }
+  .ncprogress.stale { border-color: var(--warn); }
+  .ncprogress.failed { border-color: #6d3a33; color: #f3d2cc; }
+  .ncprogress .row { display: flex; justify-content: space-between; gap: 8px; }
+  .ncnotice { color: var(--warn); font-size: 13px; margin: 0 0 8px; overflow-wrap: anywhere; }
+  .ncok { color: var(--ok); }
 </style>
 </head>
 <body>
@@ -189,6 +211,41 @@
     <ul class="status" id="status" aria-label="Components"></ul>
     <p class="note">Player guide: <code>https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md</code> (or <code>docs/players/README.md</code> in this checkout)</p>
   </div>
+
+  <section class="colony" id="newColony" aria-label="New colony">
+    <h2>New colony</h2>
+    <div class="ncnotice" id="ncUnavailable" role="status" hidden></div>
+    <fieldset id="ncForm">
+      <div class="field"><label for="ncScenario">Scenario</label><select id="ncScenario"></select></div>
+      <div class="field"><label for="ncColonists">Colonists</label><input type="number" class="short" id="ncColonists"></div>
+      <div class="field"><label for="ncSeed">Seed</label>
+        <span class="ncseed"><input type="text" id="ncSeed" spellcheck="false" placeholder="random"><button type="button" id="ncRandom" title="Fill in a random seed">Random</button></span></div>
+      <div class="note" style="margin-bottom:2px">Biomes</div>
+      <div class="ncbiomes" id="ncBiomes"></div>
+      <div class="field"><label for="ncDifficulty">Difficulty</label><select id="ncDifficulty"></select></div>
+      <div class="field"><label for="ncStoryteller">Storyteller</label><select id="ncStoryteller"></select></div>
+      <div class="field"><label for="ncMinTemp">Temperature band</label>
+        <span class="ncband"><input type="number" class="short" id="ncMinTemp" placeholder="min"><input type="number" class="short" id="ncMaxTemp" placeholder="max"></span></div>
+      <div class="field"><label for="ncWorldTemp">World temperature</label><select id="ncWorldTemp"></select></div>
+      <div class="field"><label for="ncMapSize">Map size</label><input type="number" class="short" id="ncMapSize"></div>
+      <div class="field"><label for="ncCoverage">Planet coverage</label><input type="number" class="short" id="ncCoverage" step="0.05"></div>
+      <div class="check"><input type="checkbox" id="ncFlat"><label for="ncFlat">Flat tile</label></div>
+      <div class="field"><label for="ncSaveName">Save name</label><input type="text" id="ncSaveName" spellcheck="false"></div>
+    </fieldset>
+    <div class="ncactions">
+      <button class="primary" id="ncGenerate">Generate</button>
+      <button id="ncCancel" hidden>Cancel</button>
+    </div>
+    <div class="ncprogress" id="ncProgress" role="status" hidden>
+      <div class="row"><b id="ncState"></b><span id="ncTimer"></span></div>
+      <div id="ncPhase"></div>
+      <div class="detail" id="ncDetail"></div>
+      <div class="detail" id="ncReroll"></div>
+      <div class="detail" id="ncStale"></div>
+      <div id="ncResult"></div>
+    </div>
+    <div class="err" id="ncErr" role="alert"></div>
+  </section>
 
   <section class="events" id="events" hidden aria-label="Log">
     <div class="evbar">
@@ -530,6 +587,139 @@ function everyWhileNow(poll, ms) {
 everyWhileNow(pollNowHeader, 1500);
 everyWhileNow(pollNowPanel, 2000);
 everyWhileNow(pollNowDevelopment, 3000);
+
+// New colony panel (#2026): renders getNewColony() verbatim; the Go view model
+// owns every label, order, default and range. The page polls only while the
+// Launch tab is showing, skips a tick while a call is in flight, and ticks the
+// timer from its own clock between polls (anchored on progress.elapsedMs).
+const nc = { ready: false, prev: null, view: null, anchor: null, shown: 0, rid: '', sending: false };
+const ncActive = st => st === 'restarting' || st === 'connecting' || st === 'generating';
+const ncOpt = o => `<option value="${esc(o.value)}">${esc(o.label)}${o.requires ? ' (needs ' + esc(o.requires) + ')' : ''}</option>`;
+function ncFill(v) {
+  const o = v.options, sp = v.spec, r = v.ranges;
+  $('ncScenario').innerHTML = o.scenarios.map(ncOpt).join('');
+  $('ncDifficulty').innerHTML = o.difficulties.map(ncOpt).join('');
+  $('ncStoryteller').innerHTML = o.storytellers.map(ncOpt).join('');
+  $('ncWorldTemp').innerHTML = o.worldTemperatures.map(ncOpt).join('');
+  $('ncBiomes').innerHTML = o.biomes.map(b =>
+    `<div class="check"><input type="checkbox" data-biome="${esc(b.value)}" id="ncb-${esc(b.value)}"><label for="ncb-${esc(b.value)}">${esc(b.label)}${b.requires ? ' (needs ' + esc(b.requires) + ')' : ''}</label></div>`).join('');
+  $('ncColonists').min = r.colonistsMin; $('ncColonists').max = r.colonistsMax;
+  $('ncMapSize').min = r.mapSizeMin; $('ncMapSize').max = r.mapSizeMax;
+  $('ncCoverage').min = r.coverageMin; $('ncCoverage').max = r.coverageMax;
+  $('ncMinTemp').min = $('ncMaxTemp').min = -r.temperatureAbs;
+  $('ncMinTemp').max = $('ncMaxTemp').max = r.temperatureAbs;
+  $('ncScenario').value = sp.scenario;
+  $('ncColonists').value = sp.colonistCount;
+  $('ncSeed').value = sp.seed || '';
+  document.querySelectorAll('#ncBiomes [data-biome]').forEach(c => c.checked = (sp.biomes || []).includes(c.dataset.biome));
+  $('ncDifficulty').value = sp.difficulty;
+  $('ncStoryteller').value = sp.storyteller;
+  $('ncMinTemp').value = sp.minTemperature ?? '';
+  $('ncMaxTemp').value = sp.maxTemperature ?? '';
+  $('ncWorldTemp').value = sp.worldTemperature;
+  $('ncMapSize').value = sp.mapSize;
+  $('ncCoverage').value = sp.planetCoverage;
+  $('ncFlat').checked = !!sp.flatTile;
+  $('ncSaveName').value = sp.saveName;
+}
+function ncSpec() {
+  const band = id => $(id).value.trim() === '' ? null : Number($(id).value);
+  const spec = {
+    scenario: $('ncScenario').value, colonistCount: Number($('ncColonists').value), seed: $('ncSeed').value.trim(),
+    biomes: [...document.querySelectorAll('#ncBiomes [data-biome]:checked')].map(c => c.dataset.biome),
+    flatTile: $('ncFlat').checked, difficulty: $('ncDifficulty').value, storyteller: $('ncStoryteller').value,
+    worldTemperature: $('ncWorldTemp').value, mapSize: Number($('ncMapSize').value),
+    planetCoverage: Number($('ncCoverage').value), saveName: $('ncSaveName').value.trim(),
+  };
+  const lo = band('ncMinTemp'), hi = band('ncMaxTemp');
+  if (lo !== null) spec.minTemperature = lo;
+  if (hi !== null) spec.maxTemperature = hi;
+  return spec;
+}
+const ncClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function ncTimer() {
+  const p = nc.view && nc.view.progress;
+  if (!p || p.state === 'idle') return;
+  let ms = nc.anchor.ms;
+  if (ncActive(p.state)) ms += performance.now() - nc.anchor.at;
+  nc.shown = Math.max(nc.shown, ms);
+  $('ncTimer').textContent = ncClock(nc.shown);
+}
+function ncSelectSave(name) {
+  const sel = $('loadSave');
+  if (![...sel.options].some(o => o.value === name)) sel.add(new Option(name, name));
+  sel.value = name;
+  save();
+}
+function ncRender(v) {
+  if (!nc.ready) { ncFill(v); nc.ready = true; }
+  nc.view = v;
+  const p = v.progress, active = ncActive(p.state);
+  if (p.requestId !== nc.rid) { nc.rid = p.requestId; nc.shown = 0; }
+  nc.anchor = { ms: p.elapsedMs, at: performance.now() };
+  $('ncUnavailable').hidden = !v.unavailable;
+  $('ncUnavailable').textContent = v.unavailable || '';
+  $('ncForm').disabled = active;
+  $('ncGenerate').disabled = active || !!v.unavailable || nc.sending;
+  $('ncGenerate').hidden = active;
+  $('ncCancel').hidden = !active;
+  const box = $('ncProgress');
+  box.hidden = p.state === 'idle';
+  box.className = 'ncprogress ' + p.state + (p.stale ? ' stale' : '');
+  $('ncState').textContent = p.state;
+  $('ncPhase').textContent = p.phase || '';
+  $('ncDetail').textContent = p.detail || '';
+  $('ncReroll').textContent = p.rerollCount ? 'rerolls: ' + p.rerollCount : '';
+  $('ncStale').textContent = p.stale ? 'Last update failed (showing the last good values): ' + (p.staleError || '') : '';
+  let result = '';
+  if (p.state === 'completed') result = `<span class="ncok">Saved as ${esc(p.saveName)}</span>${p.seed ? ' (seed ' + esc(p.seed) + ')' : ''}. It is selected in Saved game; press Play to load it.`;
+  else if (p.state === 'failed') result = esc(p.error || 'Generation failed.');
+  else if (p.state === 'cancelled') result = 'Cancelled. The game was closed.';
+  $('ncResult').innerHTML = result;
+  ncTimer();
+  // A run that finishes while this page watches selects its save once; a page
+  // opened after the fact leaves the player's own pick alone.
+  if (p.state === 'completed' && nc.prev && ncActive(nc.prev) && p.saveName) ncSelectSave(p.saveName);
+  nc.prev = p.state;
+}
+async function pollNewColony() {
+  try { ncRender(await getNewColony()); }
+  catch (e) {
+    if (nc.view && nc.view.progress.state !== 'idle') {
+      $('ncProgress').classList.add('stale');
+      $('ncStale').textContent = 'Last update failed (showing the last good values): ' + String(e.message || e);
+    }
+  }
+}
+function everyWhileLaunch(poll, ms) {
+  let busy = false;
+  const run = async () => {
+    if ($('view-launch').hidden || busy) return;
+    busy = true;
+    try { await poll(); } finally { busy = false; }
+  };
+  setInterval(run, ms);
+  document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
+  run();
+}
+everyWhileLaunch(pollNewColony, 1000);
+setInterval(ncTimer, 250);
+$('ncRandom').onclick = () => {
+  const b = new Uint8Array(6); crypto.getRandomValues(b);
+  $('ncSeed').value = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+};
+$('ncGenerate').onclick = async () => {
+  $('ncErr').textContent = '';
+  nc.sending = true; $('ncGenerate').disabled = true;
+  try { await generateNewColony(ncSpec()); }
+  catch (e) { $('ncErr').textContent = String(e.message || e); }
+  finally { nc.sending = false; }
+  await pollNewColony();
+};
+$('ncCancel').onclick = async () => {
+  $('ncCancel').disabled = true;
+  try { await cancelNewColony(); } finally { $('ncCancel').disabled = false; pollNewColony(); }
+};
 window.addEventListener('focus', () => focused());
 setInterval(refresh, 600);
 refresh().then(() => $('primary').focus());

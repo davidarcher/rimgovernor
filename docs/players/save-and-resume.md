@@ -7,6 +7,13 @@ The launcher's **Saved game** picker loads a normal RimWorld save
 state (standards, projects, incidents and progress) lives separately, in the Go controller's own
 SQLite database under `.rimgovernor/go/`.
 
+## New colony saves
+
+The launcher's [New colony](launch.md#new-colony) panel writes its colony as an
+ordinary save named by the form (letters, digits, `_` and `-`, up to 64) and
+selects it in the picker when generation finishes. The seed it used is shown in
+the completion notice; the same spec and seed regenerate the same world.
+
 ## Restart a session
 
 Press **Stop** (or **Restart**) in the launcher, then **Play**. With the State
