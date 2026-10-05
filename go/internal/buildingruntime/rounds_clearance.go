@@ -133,8 +133,8 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 			prefix = fmt.Sprintf("deconstruct-%s-x%d-", selection.Targets[0].EntityID, len(selection.Targets))
 		}
 		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: selection.Targets}, nil)
-	} else if step, ok := policy.PlannedGroundStep(stampPacking(player, colony.Projection), census.Floors, ground, plannedDoors(colony.Projection), colonyRooms(colony.Projection), retiredGround(colony.Projection)); ok {
-		prefix, actions, err = groundStepMethod(id, step, ground)
+	} else if step, ok := plannedGroundStep(colony.Projection, stampPacking(player, colony.Projection), census.Floors); ok {
+		prefix, actions, err = groundStepMethod(id, step)
 	} else {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)
 	}
@@ -163,9 +163,34 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	return RoundsClearanceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
-// maxGroundFloorBatch bounds one floor-removal method; the next review
-// designates the rest.
-const maxGroundFloorBatch = 64
+// plannedGroundStep is the next clearance method over the recorded plan and
+// ground census; none while either is unknown, so nothing of the colony's comes
+// down on a guess.
+func plannedGroundStep(colony observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor) (policy.GroundStep, bool) {
+	plan, known := colony.LayoutPlan.Value()
+	if !known {
+		return policy.GroundStep{}, false
+	}
+	ground, known := colonyGround(colony)
+	if !known {
+		return policy.GroundStep{}, false
+	}
+	return policy.PlannedGroundStep(plan, ground, player, floors, colonyRooms(colony), retiredGround(colony))
+}
+
+// plannedGroundWork is the clearance deficit over the same plan and census;
+// none while either is unknown.
+func plannedGroundWork(colony observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor) []string {
+	plan, known := colony.LayoutPlan.Value()
+	if !known {
+		return nil
+	}
+	ground, known := colonyGround(colony)
+	if !known {
+		return nil
+	}
+	return policy.PlannedGroundWork(plan, ground, player, floors, colonyRooms(colony), retiredGround(colony))
+}
 
 // stampPacking marks the player rows that pack instead of deconstruct and the
 // ones in use (#2103): packable from the def mirror, in use as an owned bed or
@@ -199,41 +224,45 @@ func colonyRooms(colony observation.ColonyProjection) policy.RoomObservation {
 	return rooms
 }
 
-// groundStepMethod is a planned-ground step's method prefix and actions.
-// Furniture comes down one building per method, as home clearance does, so
-// removals cannot jointly invalidate the observed roof support; a room's
-// walls and doors go in one method on the whole cleared ground behind
-// remove_roof over the rooms they enclose (#1366); floors in batches.
-func groundStepMethod(id domain.PlanID, step policy.GroundStep, ground []policy.Rectangle) (string, []domain.Action, error) {
+// groundStepMethod is a clearance step's method prefix and actions. Furniture
+// comes down one building per method, as home clearance does, so removals
+// cannot jointly invalidate the observed roof support; packing, floors and the
+// ready walls of every room go in one batch each, the roof first (#1366). A
+// door is swapped in place, one per method: no cleared ground, so the native
+// enclosure and roof-wait rules see a door that stays a wall.
+func groundStepMethod(id domain.PlanID, step policy.GroundStep) (string, []domain.Action, error) {
+	var cleared []domain.GroundRect
+	var prefix string
 	switch step.Phase {
 	case policy.GroundFurniture:
-		step.Targets = step.Targets[:1]
-		actions, err := groundActions(id, step, nil)
-		return fmt.Sprintf("deconstruct-%s-", step.Targets[0].EntityID), actions, err
+		prefix = fmt.Sprintf("deconstruct-%s-", step.Targets[0].EntityID)
 	case policy.GroundPack:
-		// Packing leaves the roof's support alone, so a room's packable
-		// furniture goes in one batch (#2103).
-		actions, err := groundActions(id, step, nil)
-		prefix := fmt.Sprintf("pack-%s-", step.Targets[0].EntityID)
-		if len(step.Targets) > 1 {
-			prefix = fmt.Sprintf("pack-%s-x%d-", step.Targets[0].EntityID, len(step.Targets))
-		}
-		return prefix, actions, err
+		prefix = batchPrefix("pack", step.Targets[0].EntityID, len(step.Targets))
 	case policy.GroundDoors:
-		// One door per method, swapped in place: no cleared ground, so the
-		// native enclosure and roof-wait rules see a door that stays a wall.
-		step.Targets = step.Targets[:1]
-		actions, err := groundActions(id, step, nil)
-		return fmt.Sprintf("swap-door-%s-", step.Targets[0].EntityID), actions, err
+		prefix = fmt.Sprintf("swap-door-%s-", step.Targets[0].EntityID)
 	case policy.GroundWalls:
-		actions, err := groundActions(id, step, policy.GroundRects(ground))
-		return fmt.Sprintf("ground-walls-%d-%d-", step.Ground.X, step.Ground.Z), actions, err
+		switch {
+		case len(step.Roof) > 0 && len(step.Targets) == 0:
+			prefix = fmt.Sprintf("roof-off-%d-%d-x%d-", step.Roof[0].X, step.Roof[0].Z, len(step.Roof))
+		case step.Ground != (policy.Rectangle{}):
+			prefix = fmt.Sprintf("ground-walls-%d-%d-", step.Ground.X, step.Ground.Z)
+		default:
+			prefix = batchPrefix("ground-walls", step.Targets[0].EntityID, len(step.Targets))
+		}
+		cleared = policy.GroundRects(step.Cleared)
+	default:
+		c := step.Floors[0].Cell
+		prefix = fmt.Sprintf("ground-floors-%d-%d-x%d-", c.X, c.Z, len(step.Floors))
 	}
-	if len(step.Floors) > maxGroundFloorBatch {
-		step.Floors = step.Floors[:maxGroundFloorBatch]
+	actions, err := groundActions(id, step, cleared)
+	return prefix, actions, err
+}
+
+func batchPrefix(kind, first string, n int) string {
+	if n > 1 {
+		return fmt.Sprintf("%s-%s-x%d-", kind, first, n)
 	}
-	actions, err := groundActions(id, step, nil)
-	return fmt.Sprintf("ground-floors-%d-%d-", step.Ground.X, step.Ground.Z), actions, err
+	return fmt.Sprintf("%s-%s-", kind, first)
 }
 
 // groundActions is the step's intents in order: remove_roof first, then

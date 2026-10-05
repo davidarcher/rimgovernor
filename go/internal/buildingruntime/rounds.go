@@ -640,7 +640,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 			others, player := policy.SplitGroundRows(census.Targets)
 			reading.Projection.Facts.Upkeep.Clearance = domain.Known(others)
 			reading.Projection.Facts.Upkeep.Chunks = domain.Known(census.Chunks)
-			reading.Projection.Facts.Upkeep.Ground = domain.Known(policy.PlannedGroundWork(player, census.Floors, ground, plannedDoors(reading.Projection), retiredGround(reading.Projection)))
+			reading.Projection.Facts.Upkeep.Ground = domain.Known(plannedGroundWork(reading.Projection, player, census.Floors))
 			if err := r.dropClearedRetiredGround(ctx, state.Snapshot, &reading.Projection, player, census.Floors); err != nil {
 				return store.RoundsResult{}, err
 			}
@@ -786,13 +786,6 @@ func (r *Rounder) dropClearedRetiredGround(ctx context.Context, snapshot domain.
 	}
 	projection.LayoutPlan = domain.Known(next)
 	return nil
-}
-
-// plannedDoors is the recorded plan's door cells; none while it is unknown
-// (then there is no planned ground either).
-func plannedDoors(colony observation.ColonyProjection) map[domain.Cell]bool {
-	plan, _ := colony.LayoutPlan.Value()
-	return policy.PlannedDoors(plan)
 }
 
 // roundsDevelopmentAttrs is the review row's development ranking: each row's

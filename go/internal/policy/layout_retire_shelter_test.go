@@ -189,17 +189,16 @@ func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	wall := playerRow("wall", "Wall", "ancient_wall_door", domain.Cell{X: ground.X, Z: ground.Z}, domain.Cell{X: ground.X, Z: ground.Z}, true)
 	floors := []ClearanceFloor{{Cell: domain.Cell{X: in.X, Z: in.Z + 2}, DefName: "WoodPlankFloor"}}
 	rooms := RoomObservation{Shapes: testShapes}
-	grounds := PlannedGround(next, GroundCensus{})
 	rg := RetiredGroundOf(next)
 	stepOf := func(rows ...ClearanceTarget) (GroundStep, bool) {
-		return PlannedGroundStep(rows, floors, grounds, PlannedDoors(next), rooms, rg)
+		return PlannedGroundStep(next, GroundCensus{}, rows, floors, rooms, rg)
 	}
 
 	// The table holds the whole ground: nothing comes down and the entry stays.
 	if step, ok := stepOf(spot, craft, table, wall); ok && step.Ground == ground {
 		t.Fatalf("clearance moved on a standing research table: %+v", step)
 	}
-	if work := PlannedGroundWork([]ClearanceTarget{spot, craft, table, wall}, floors, grounds, PlannedDoors(next), rg); len(work) != 0 {
+	if work := PlannedGroundWork(next, GroundCensus{}, []ClearanceTarget{spot, craft, table, wall}, floors, rooms, rg); len(work) != 0 {
 		t.Fatalf("a waiting ground owes work: %v", work)
 	}
 	if len(RetiredGroundDone(next, []ClearanceTarget{table}, nil)) != 0 {
@@ -228,7 +227,7 @@ func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	keeper := next
 	keeper.Rooms = append(append([]PlannedRoom(nil), next.Rooms...), PlannedRoom{Role: PlannedReserve, Interior: Rectangle{X: in.X - 4, Z: in.Z, Width: 3, Height: 3}, DoorRot: domain.North})
 	heldWall := playerRow("held", "Wall", "ancient_wall_door", shared, shared, true)
-	if work := PlannedGroundWork([]ClearanceTarget{heldWall}, nil, grounds, nil, RetiredGroundOf(keeper)); len(work) != 0 {
+	if work := PlannedGroundWork(keeper, GroundCensus{}, []ClearanceTarget{heldWall}, nil, rooms, RetiredGroundOf(keeper)); len(work) != 0 {
 		t.Fatalf("a kept room's wall is demolition work: %v", work)
 	}
 }

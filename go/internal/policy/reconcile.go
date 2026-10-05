@@ -16,9 +16,10 @@ import (
 // The dependency table is fixed, per cell where cells interact:
 //
 //	roof off -> wall out -> door in
-//	shell (wall or door, in or out) -> floor in
-//	pack or furniture out on a cell -> floor out, floor in, install, build there
+//	pack or furniture out on a cell -> wall in, floor out, floor in, install, build there
 //	floor out -> floor in -> install, build, on the same cells
+//
+// A floor in waits on its own cell's clearing only, never on the ring.
 //
 // Furniture standing as wanted is no operation and orders against nothing, and
 // the floor under it is left. In-use pieces are packed after every other
@@ -120,8 +121,25 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	rows := append([]ClearanceTarget(nil), in.Rows...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].EntityID < rows[j].EntityID })
 	var removedRows []ClearanceTarget
+	ground := roomGround(interior)
+	var innerWalls []ClearanceTarget
+	cover := func(row ClearanceTarget) {
+		for _, c := range rectCells(Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}) {
+			covered[c] = true
+		}
+	}
 	for _, row := range rows {
-		if !row.Player || !overlaps(row, interior) || row.Class == "ancient_wall_door" || strings.HasPrefix(row.DefName, "Frame_") || standInBed(row) {
+		if !row.Player || !overlaps(row, ground) {
+			continue
+		}
+		if row.Class == "ancient_wall_door" {
+			if overlaps(row, interior) {
+				innerWalls = append(innerWalls, row)
+			}
+			continue
+		}
+		if strings.HasPrefix(row.DefName, "Frame_") || standInBed(row) {
+			cover(row)
 			continue
 		}
 		hit := -1
@@ -189,7 +207,8 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	if closed {
 		wallOutCells = wallOutCells[:min(len(wallOutCells), max(0, 1-gaps))]
 	}
-	var wallTargets []ClearanceTarget
+	// Walls standing inside the interior are no part of the ring and come down.
+	wallTargets := slices.Clone(innerWalls)
 	for _, c := range wallOutCells {
 		wallTargets = append(wallTargets, ringTarget(rows, c, "Wall"))
 	}
@@ -199,6 +218,9 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	}
 	for _, c := range allWallOut {
 		add(reconcileItem{kind: OpWallOut, cell: c, target: ringTarget(rows, c, "Wall"), ready: len(roof) == 0 && slices.Contains(wallOutCells, c)})
+	}
+	for _, w := range innerWalls {
+		add(reconcileItem{kind: OpWallOut, cell: w.Minimum, target: w, ready: len(roof) == 0})
 	}
 	for _, c := range roof {
 		add(reconcileItem{kind: OpRoofOff, cell: c, ready: true})
@@ -264,7 +286,6 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		return false
 	}
 	shellOut := owed(OpDoorOut, OpWallOut, OpRoofOff)
-	shellAny := shellOut || owed(OpWallIn, OpDoorIn)
 	otherRemoval := owed(OpPack, OpFurnitureOut)
 	packOwed := owed(OpPack, OpPackInUse)
 	floorOutCells, floorInCells := map[domain.Cell]bool{}, map[domain.Cell]bool{}
@@ -279,7 +300,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		case OpDoorOut:
 			it.ready = true
 		case OpWallIn:
-			it.ready = true
+			it.ready = !removalCells[it.cell]
 		case OpDoorIn:
 			it.ready = !in.Ground.walls[it.cell]
 		case OpPack, OpFurnitureOut:
@@ -289,7 +310,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		case OpFloorOut:
 			it.ready = !shellOut && !removalCells[it.cell]
 		case OpFloorIn:
-			it.ready = !shellAny && !removalCells[it.cell] && !floorOutCells[it.cell]
+			it.ready = !removalCells[it.cell] && !floorOutCells[it.cell]
 		case OpInstall, OpBuild:
 			ready := true
 			for _, c := range it.piece.cells() {

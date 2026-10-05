@@ -53,9 +53,10 @@ func TestReconcileEmptyGroundWavesRingFloorFurniture(t *testing.T) {
 	in.WantedFloor = func(domain.Cell) string { return "WoodPlankFloor" }
 	bed := WantedPiece{DefName: "Bed", Minimum: domain.Cell{X: 10, Z: 10}, Maximum: domain.Cell{X: 10, Z: 11}}
 	in.Furniture = []WantedPiece{bed}
-	// Wave 1: the ring (16 cells: 15 walls and the door), nothing else.
+	// Wave 1: the ring (16 cells: 15 walls and the door) and, per cell, the
+	// floors: a floor in waits on its own cell only, never on the ring.
 	rec := Reconcile(in)
-	if k := readyKinds(rec); !kindsEqual(k, OpWallIn, OpDoorIn) {
+	if k := readyKinds(rec); !kindsEqual(k, OpWallIn, OpDoorIn, OpFloorIn) || len(readyOp(t, rec, OpFloorIn).Floors) != 9 {
 		t.Fatalf("wave 1 = %v", k)
 	}
 	if n := len(readyOp(t, rec, OpWallIn).Cells); n != 15 {
@@ -64,7 +65,7 @@ func TestReconcileEmptyGroundWavesRingFloorFurniture(t *testing.T) {
 	if len(rec.Owed) != 4 {
 		t.Fatalf("owed = %v", rec.Owed)
 	}
-	// Wave 2: the ring stands; every floor cell in one batch.
+	// Wave 2: the ring stands; the floors are still the one batch.
 	in.Ground = ringWalls(in.Plan, in.Room)
 	rec = Reconcile(in)
 	if k := readyKinds(rec); !kindsEqual(k, OpFloorIn) || len(rec.Ready[0].Floors) != 9 {
@@ -202,5 +203,36 @@ func TestReconcileStandingRoomKeepsItsRing(t *testing.T) {
 	}
 	if op := readyOp(t, rec, OpDoorIn); len(op.Cells) != 0 {
 		t.Fatalf("a door waits for its wall to come out: %+v", op)
+	}
+}
+
+// A floor in waits on its own cell's clearing only: the cell whose floor is
+// wrong or whose furniture is coming out waits, its neighbours lay at once.
+func TestReconcileFloorInIsPerCell(t *testing.T) {
+	in, _ := reconFixture()
+	in.WantedFloor = func(domain.Cell) string { return "StoneTile" }
+	wrong := domain.Cell{X: 10, Z: 10}
+	packed := domain.Cell{X: 12, Z: 12}
+	in.Floors = []ClearanceFloor{{Cell: wrong, DefName: "WoodPlankFloor"}}
+	// A wall is missing from the ring: the floors still do not wait for it.
+	in.Ground.walls[domain.Cell{X: 9, Z: 12}] = false
+	chair := playerRow("chair", "Armchair", "other", packed, packed, false)
+	chair.Packable = true
+	in.Rows = []ClearanceTarget{chair}
+	rec := Reconcile(in)
+	laid := readyOp(t, rec, OpFloorIn)
+	if len(laid.Floors) != 7 {
+		t.Fatalf("seven neighbours lay at once: %+v", rec.Ready)
+	}
+	for _, f := range laid.Floors {
+		if f.Cell == wrong || f.Cell == packed {
+			t.Fatalf("%v waits on its own clearing: %+v", f.Cell, laid)
+		}
+	}
+	if out := readyOp(t, rec, OpFloorOut); len(out.Cells) != 1 || out.Cells[0] != wrong {
+		t.Fatalf("the wrong floor comes out meanwhile: %+v", out)
+	}
+	if pack := readyOp(t, rec, OpPack); len(pack.Targets) != 1 {
+		t.Fatalf("the chair packs meanwhile: %+v", rec.Ready)
 	}
 }
