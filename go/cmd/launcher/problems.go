@@ -20,6 +20,10 @@ import (
 const (
 	problemsFeedLength = 200 // newest matching rows shown
 	searchTextLimit    = 16384
+	// launcherRingFiles is how many of the ring's files (32 MiB each) the
+	// launcher decodes and holds. The whole ring is up to 512 MiB of JSON,
+	// which decodes to several GiB of maps and was re-walked every poll.
+	launcherRingFiles = 2
 )
 
 // ProblemEvent is one recorder row of the feed.
@@ -79,7 +83,7 @@ type recorderTail struct {
 }
 
 func newRecorderTail(path string) *recorderTail {
-	return &recorderTail{path: path, reader: bridge.NewTimelineReader(path)}
+	return &recorderTail{path: path, reader: bridge.NewTailTimelineReader(path, launcherRingFiles)}
 }
 
 // read returns the ring's rows, oldest first.

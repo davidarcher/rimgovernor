@@ -57,6 +57,12 @@ func ReadTimeline(path string) ([]TimelineRecord, error) {
 // Safe for concurrent use; concurrent reads serialize.
 type TimelineReader struct {
 	path string
+	// keep, when positive, bounds the reader to the newest keep files of the
+	// ring (the active file counts as one): older segments are never
+	// decoded, so a long-lived reader's memory stays bounded by keep
+	// segments instead of the whole retained ring. The rows before the
+	// oldest kept file open no retention gap.
+	keep int
 
 	mu      sync.Mutex
 	rotated map[string]*timelineSegment // by file name
@@ -92,6 +98,14 @@ func NewTimelineReader(path string) *TimelineReader {
 	return &TimelineReader{path: path, rotated: map[string]*timelineSegment{}}
 }
 
+// NewTailTimelineReader is NewTimelineReader limited to the newest keep
+// files of the ring, for a reader that lives as long as a UI does.
+func NewTailTimelineReader(path string, keep int) *TimelineReader {
+	r := NewTimelineReader(path)
+	r.keep = keep
+	return r
+}
+
 // Read returns the ring's rows, oldest first, as ReadTimeline would.
 func (r *TimelineReader) Read() ([]TimelineRecord, error) {
 	r.mu.Lock()
@@ -99,6 +113,9 @@ func (r *TimelineReader) Read() ([]TimelineRecord, error) {
 	files, err := timelineFiles(r.path)
 	if err != nil {
 		return nil, err
+	}
+	if r.keep > 0 && len(files) > r.keep {
+		files = files[len(files)-r.keep:]
 	}
 	segments := make([]*timelineSegment, 0, len(files))
 	seen := map[string]bool{}
@@ -336,7 +353,7 @@ func (r *TimelineReader) assemble(segments []*timelineSegment, tail []TimelineRe
 			out = append(out, s.records...)
 			continue
 		}
-		if (!havePrevious && s.first != 1) || (havePrevious && s.first != previous+1) {
+		if (!havePrevious && s.first != 1 && r.keep == 0) || (havePrevious && s.first != previous+1) {
 			out = append(out, s.records[:s.lead]...)
 			out = append(out, TimelineRecord{Kind: "recording_gap", Reason: "Retention or sequence discontinuity", Before: s.first, After: previous})
 			out = append(out, s.records[s.lead:]...)
@@ -353,7 +370,7 @@ func (r *TimelineReader) assemble(segments []*timelineSegment, tail []TimelineRe
 		if last := segments[len(segments)-1]; !last.hasLast {
 			for i, row := range tail {
 				if row.HasSeq {
-					if (!havePrevious && row.Sequence != 1) || (havePrevious && row.Sequence != previous+1) {
+					if (!havePrevious && row.Sequence != 1 && r.keep == 0) || (havePrevious && row.Sequence != previous+1) {
 						lead = i
 					}
 					break

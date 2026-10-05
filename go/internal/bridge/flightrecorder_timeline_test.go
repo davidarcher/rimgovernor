@@ -147,6 +147,43 @@ func TestTimelineReaderKeepsGapsAcrossRotation(t *testing.T) {
 	}
 }
 
+// A tail reader holds only the newest files, opens no gap at the cut, and
+// follows the ring through rotations without growing.
+func TestTailTimelineReaderHoldsOnlyTheNewestFiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "timeline.jsonl")
+	r := timelineRecorder(t, path, 6)
+	writeRows(t, r, 60)
+	if r.FlightRecorderStats().Rotations < 3 {
+		t.Fatalf("fixture rotated %d times, want 3+", r.FlightRecorderStats().Rotations)
+	}
+	full, err := ReadTimeline(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := NewTailTimelineReader(path, 2)
+	for i := 0; i < 4; i++ {
+		rows, err := reader.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) == 0 || len(rows) >= len(full) {
+			t.Fatalf("pass %d: tail holds %d rows of %d", i, len(rows), len(full))
+		}
+		for _, row := range rows {
+			if row.Kind == "recording_gap" {
+				t.Fatalf("pass %d: tail opened a gap at the cut: %v", i, summarizeRows(rows))
+			}
+		}
+		if last := rows[len(rows)-1].Sequence; last != r.FlightRecorderStats().Records {
+			t.Fatalf("pass %d: last row %d, recorder at %d", i, last, r.FlightRecorderStats().Records)
+		}
+		if len(reader.rotated) > 1 {
+			t.Fatalf("pass %d: %d rotated segments cached, want at most 1", i, len(reader.rotated))
+		}
+		writeRows(t, r, 20)
+	}
+}
+
 // A row the recorder is mid-write (no newline yet) reads as it would
 // fresh, and is decoded again once complete.
 func TestTimelineReaderRereadsAPartialRow(t *testing.T) {
