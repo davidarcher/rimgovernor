@@ -72,6 +72,11 @@ type RoundsBuildingPlanner struct {
 	// planner serves; the review's latched phase decides which one runs.
 	// Empty for every other goal.
 	phase policy.Phase
+	// benchUnlocked marks a research step whose project the native census
+	// does not lock for lack of a bench: a standing bench then leaves nothing
+	// to build, and none standing is still owed (nobody researches without
+	// one).
+	benchUnlocked bool
 }
 
 func NewRoundsSleepingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {

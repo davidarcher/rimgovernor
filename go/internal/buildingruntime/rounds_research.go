@@ -104,11 +104,13 @@ func (r *RoundsBuildingPlanner) selectResearchBench(facts observation.ColonyProj
 
 // bench walks the building ladder for the research bench, or reports the
 // hold when none is composed.
-func (r *RoundsResearchPlanner) bench(call, epoch context.Context, arbiter *stepArbiter) (RoundsResearchResult, error) {
+func (r *RoundsResearchPlanner) bench(call, epoch context.Context, arbiter *stepArbiter, unlocked bool) (RoundsResearchResult, error) {
 	if r.building == nil {
 		return RoundsResearchResult{Verdict: BuildingResearchBench}, nil
 	}
-	result, err := r.building.step(call, epoch, arbiter)
+	building := *r.building
+	building.benchUnlocked = unlocked
+	result, err := building.step(call, epoch, arbiter)
 	if err != nil {
 		return RoundsResearchResult{}, err
 	}
@@ -194,7 +196,16 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 		// that names no bench be selected, but nobody progresses it, so the
 		// bench is owed first (#254).
 		if deficit && policy.ResearchBenchNeeded(read.Projects[read.CurrentProject]) {
-			return r.bench(call, epoch, arbiter)
+			return r.bench(call, epoch, arbiter, false)
+		}
+		// Native locks a project only when it names a bench, yet none is
+		// researched without one: with no bench standing the bench is owed
+		// whatever the project; a standing bench is the ordinary wait.
+		if deficit && r.building != nil {
+			result, err := r.bench(call, epoch, arbiter, true)
+			if err != nil || result.Verdict != BuildingReasonNoDeficit {
+				return result, err
+			}
 		}
 		return RoundsResearchResult{Verdict: waitFor(WaitMethodUsed, "current_research_project"), NativeWorkTicks: researchNativeWorkTicks}, nil
 	}
@@ -210,7 +221,7 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 	// (#254). The ladder's plans are this goal's methods, so an open bench
 	// build reads as existing work above and the selection follows it.
 	if policy.ResearchBenchNeeded(read.Projects[next]) {
-		return r.bench(call, epoch, arbiter)
+		return r.bench(call, epoch, arbiter, false)
 	}
 	return r.admit(call, epoch, state, goal, next)
 }
