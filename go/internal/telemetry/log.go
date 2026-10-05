@@ -131,8 +131,15 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		return true
 	})
 	var kind, component string
+	var decision *Decision
 	rest := attrs[:0:0]
 	for _, a := range attrs {
+		if a.Key == DecisionKey {
+			if d, ok := a.Value.Resolve().Any().(Decision); ok {
+				decision = &d
+				continue
+			}
+		}
 		switch a.Key {
 		case KindKey:
 			kind = a.Value.String()
@@ -188,9 +195,14 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 			rowContext[ComponentKey] = component
 		}
 		trace.Stamp(rowContext)
-		payload := map[string]any{"msg": r.Message}
-		for _, a := range rest {
-			payload[a.Key] = jsonValue(a.Value)
+		var payload map[string]any
+		if decision != nil {
+			payload = decision.Payload()
+		} else {
+			payload = map[string]any{"msg": r.Message}
+			for _, a := range rest {
+				payload[a.Key] = jsonValue(a.Value)
+			}
 		}
 		if _, rowErr := h.recorder.Event(kind, rowContext, false, payload); rowErr != nil && err == nil {
 			err = rowErr

@@ -21,6 +21,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Material extraction contracts](mining-contracts.md)
 - [Mood relief contracts](mood-control.md)
 - [Persistence contracts](persistence-contracts.md)
+- [Flight rows (schema v2)](flight-rows.md)
 - [Durable policy and Auto control](durable-policy.md)
 - [Population commitments](population-contracts.md)
 - [Power contracts](power-contracts.md)

@@ -210,6 +210,19 @@ table in [persistence contracts](docs/developers/contracts/persistence-contracts
 telemetry in `flight.jsonl`); a second copy of a fact or a new store amends that
 table first. Manual control: [control loop guide](docs/developers/architecture/control-loop.md#manual-control).
 
+## Logging
+
+`flight.jsonl` is the only log ([flight rows](docs/developers/contracts/flight-rows.md),
+schema v2, epic #2038). Log a thing that happened (a planner ran, a method was
+chosen, a window was admitted or refused, an action was dispatched, a call
+finished), not a trace of how the code got there: no per-step chatter, no
+"entering X". A decision is one row in the fixed shape `verdict`, `reason`,
+`target`, `dur_ms` plus an `attrs` object, emitted with `telemetry.Decide`.
+Add rows, not free text: put the data in `attrs`, keep `reason` a stable word so
+repeats collapse, and never format a sentence. A fresh emission needs a kind in
+the flight-rows table and a reader that uses it, or it is deleted; an unkinded
+`slog` call is not a way to log.
+
 ## Docs and comments
 
 Concise and forward-looking: current behaviour, contracts, constraints, useful

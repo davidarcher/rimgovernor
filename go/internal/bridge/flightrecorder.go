@@ -20,6 +20,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
+// FlightSchemaVersion is the envelope version every row is written with.
+// v2 (#2050) keeps the v1 field names; what changed is the context contract
+// (level, at, tick when known, component, trace_id and span_id on every row)
+// and the decision-row payload shape. Readers never gate on the version: a
+// v1 row decodes as before, and the kind and the contract in
+// docs/developers/contracts/flight-rows.md say which payload shape a row has.
+const FlightSchemaVersion = 2
+
 const (
 	minSegmentBytes = 1024
 	minSegments     = 2
@@ -132,7 +140,7 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 			"sha256":         hex.EncodeToString(sum[:]),
 			"preview":        string(encoded[:r.payloadBytes]),
 		}
-		for _, key := range []string{"request", "tool", "native_tool", "category", "timing"} {
+		for _, key := range []string{"request", "tool", "native_tool", "category", "timing", telemetry.VerdictKey, telemetry.ReasonKey, telemetry.TargetKey, telemetry.DurMsKey} {
 			if value, ok := payload[key]; ok && flightCorrelatable(value) {
 				correlated[key] = value
 			}
@@ -145,14 +153,7 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 	}
 	r.sequence++
 	sequence := r.sequence
-	if _, traced := context[telemetry.TraceIDKey]; !traced {
-		stamped := make(map[string]any, len(context)+2)
-		for k, v := range context {
-			stamped[k] = v
-		}
-		telemetry.NewTrace().Stamp(stamped)
-		context = stamped
-	}
+	context = stampFlightContext(context, began)
 	row := struct {
 		Version  int             `json:"version"`
 		Run      string          `json:"run"`
@@ -161,7 +162,7 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 		Kind     string          `json:"kind"`
 		Context  map[string]any  `json:"context"`
 		Payload  json.RawMessage `json:"payload"`
-	}{1, r.run, sequence, float64(began.UnixNano()) / 1e9, kind, context, encoded}
+	}{FlightSchemaVersion, r.run, sequence, float64(began.UnixNano()) / 1e9, kind, context, encoded}
 	line, err := json.Marshal(row)
 	if err != nil {
 		return 0, fmt.Errorf("flightrecorder: encode record: %w", err)
@@ -189,6 +190,39 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 	r.records++
 	r.elapsed += time.Since(began)
 	return sequence, nil
+}
+
+// defaultFlightComponent names the writer of a row whose context names none:
+// the recorder's own bridge layer. Producers that know better pass component.
+const defaultFlightComponent = "bridge"
+
+// stampFlightContext returns context with the v2 envelope guarantees filled
+// in: level (Info), at, tick (when the service has observed one), component
+// and the trace ids (a fresh single-row trace when the caller named none).
+// Keys the caller set win. The caller's map is never modified.
+func stampFlightContext(context map[string]any, now time.Time) map[string]any {
+	stamped := make(map[string]any, len(context)+6)
+	for k, v := range context {
+		stamped[k] = v
+	}
+	if _, ok := stamped["level"]; !ok {
+		stamped["level"] = "INFO"
+	}
+	if _, ok := stamped["at"]; !ok {
+		stamped["at"] = now.UTC().Format(time.RFC3339Nano)
+	}
+	if _, ok := stamped["tick"]; !ok {
+		if tick, known := telemetry.Tick(); known {
+			stamped["tick"] = tick
+		}
+	}
+	if _, ok := stamped[telemetry.ComponentKey]; !ok {
+		stamped[telemetry.ComponentKey] = defaultFlightComponent
+	}
+	if _, traced := stamped[telemetry.TraceIDKey]; !traced {
+		telemetry.NewTrace().Stamp(stamped)
+	}
+	return stamped
 }
 
 // flightCorrelatable admits the small scalar keys (and one flat map of them,

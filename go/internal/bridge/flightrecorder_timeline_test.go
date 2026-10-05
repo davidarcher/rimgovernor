@@ -89,8 +89,8 @@ func TestTimelineReaderDecodesNewBytesOnly(t *testing.T) {
 		if rows[len(rows)-1].Sequence != r.FlightRecorderStats().Records {
 			t.Fatalf("batch %d: last row %d, recorder at %d", batch, rows[len(rows)-1].Sequence, r.FlightRecorderStats().Records)
 		}
-		// Five rows of ~200 bytes; well under one 1 KiB segment.
-		if decoded := reader.decoded - before; decoded > 2*minSegmentBytes {
+		// Five rows of ~350 bytes (v2 context); a few 1 KiB segments at most.
+		if decoded := reader.decoded - before; decoded > 3*minSegmentBytes {
 			t.Fatalf("batch %d decoded %d bytes for five rows", batch, decoded)
 		}
 	}
@@ -166,8 +166,8 @@ func TestTimelineReaderRereadsAPartialRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows := expectSameAsFresh(t, reader, path)
-	if last := rows[len(rows)-1]; last.Kind != "recording_gap" || last.Line != 5 {
-		t.Fatalf("expected the partial row as a corrupt-line gap on line 5, got %+v", last)
+	if last := rows[len(rows)-1]; last.Kind != "recording_gap" || last.Line != 2 {
+		t.Fatalf("expected the partial row as a corrupt-line gap on line 2 of the rotated-to active file, got %+v", last)
 	}
 	if _, err = file.WriteString(line[20:] + "\n"); err != nil {
 		t.Fatal(err)
