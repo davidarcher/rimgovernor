@@ -662,6 +662,47 @@ func TestDefenseLayoutFunnelHasNoSealedFrames(t *testing.T) {
 	}
 }
 
+// A funnel wall cell whose terrain cannot carry the wall (native: "requires
+// terrain that supports: Light") is not sited: the layout leaves it open (or
+// refuses at siting when that opens a route), never asks native to place it
+// (#2119).
+func TestDefenseLayoutFunnelSkipsUnsupportedTerrain(t *testing.T) {
+	base, err := DefenseLayouts(defenseFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	funnel, _ := base.Tier(TierFunnel)
+	skipped := 0
+	for _, b := range funnel.Buildings {
+		if b.Definition() != "Wall" {
+			continue
+		}
+		r := defenseFixture()
+		for i := range r.Cells {
+			if r.Cells[i].Cell == b.Cell() {
+				r.Cells[i].WallSupport = domain.Known(false)
+			}
+		}
+		layout, err := DefenseLayouts(r)
+		if err != nil {
+			continue // the gap opened a raider route: refused at siting
+		}
+		skipped++
+		got, _ := layout.Tier(TierFunnel)
+		for _, w := range got.Buildings {
+			if w.Cell() == b.Cell() {
+				t.Fatalf("funnel still sites a wall on unsupported terrain at %v", b.Cell())
+			}
+		}
+		if len(got.Buildings) != len(funnel.Buildings)-1 {
+			t.Fatalf("funnel has %d buildings, want %d", len(got.Buildings), len(funnel.Buildings)-1)
+		}
+	}
+	if skipped == 0 {
+		t.Fatal("no unsupported wall cell produced a layout")
+	}
+}
+
 func TestDefenseLayoutRejectsInvalidRequests(t *testing.T) {
 	for name, edit := range map[string]func(*DefenseRequest){
 		"region outside bounds": func(r *DefenseRequest) { r.Region.Width = 300 },

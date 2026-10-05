@@ -20,6 +20,9 @@ type BuildingPreview struct {
 	// the cell next (the game's own auto-rebuild of a destroyed building,
 	// a trap's auto-rearm blueprint, an earlier order still in progress).
 	NativeWorkPending bool
+	// Reason is the native refusal text of the first orientation (empty
+	// when accepted), so a refused cell is logged in the game's own words.
+	Reason string
 }
 
 // PreviewBuilding binds a single native evaluation to the exact immutable action
@@ -111,7 +114,7 @@ func (caller *Client) previewBuildings(ctx context.Context, actions []domain.Act
 func buildingPreviewRow(action domain.Action, snapshot domain.GenerationSnapshot, tick domain.Tick, evaluation *p.PlacementEvaluated) (BuildingPreview, error) {
 	b, _ := action.Building()
 	orientation := evaluation.Rotations[0]
-	out := BuildingPreview{Preview: policy.Preview{Action: action, Snapshot: snapshot, Tick: tick}, Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}}
+	out := BuildingPreview{Preview: policy.Preview{Action: action, Snapshot: snapshot, Tick: tick}, Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Reason: orientation.GetReason()}
 	out.Preview.CanPlace = domain.Known(evaluation.GetCanPlace() && orientation.GetAccepted() && evaluation.GetResearchFinished() && evaluation.GetBuildableByPlayer())
 	out.Preview.MadeFromStuff = domain.Known(evaluation.GetMadeFromStuff())
 	if orientation.WatchCellsAccessible != nil {

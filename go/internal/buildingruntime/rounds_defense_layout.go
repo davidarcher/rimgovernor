@@ -1181,6 +1181,9 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 	request.Definitions = policy.DefenseCoverChoice(projection.Facts.Items, request.Definitions, stock, stockKnown,
 		defenseDefinitionAvailable(read, policy.DefenseSandbags), defenseDefinitionAvailable(read, policy.DefenseEmbrasure), defenders)
 	defenseIEDRequest(read, &request)
+	if err = r.markWallSupport(call, identity, &request, site.Cells); err != nil {
+		return policy.DefenseLayout{}, nil, Verdict{}, false, err
+	}
 	// Rock on the corridor and the defenders' ground is mined first through
 	// the shared rock step (#1701, #1588); the layout waits on that dig.
 	if rock, digErr := policy.DefenseRockCells(request); digErr == nil {
@@ -1297,6 +1300,8 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 			continue
 		}
 		if !ok {
+			cell := building.Cell()
+			defenseAction(call, "defense-layout", slog.LevelWarn, "refused", "placement_preview_refused", string(tier.Name), map[string]any{"definition": building.Definition(), "x": cell.X, "z": cell.Z, "native_reason": evaluated[i].Reason})
 			return RoundsDefenseLayoutResult{Verdict: fieldUnavailable("placement_preview"), Tier: tier.Name}, nil
 		}
 		actions = append(actions, action)

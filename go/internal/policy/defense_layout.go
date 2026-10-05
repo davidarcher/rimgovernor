@@ -17,9 +17,13 @@ type DefenseCell struct {
 	HomeArea, Door                                                           domain.Fact[bool]
 	// Roofed is the cell under any roof; the mortar tier needs it known
 	// false (#1206).
-	Roofed    domain.Fact[bool]
-	CoverFill domain.Fact[float64]
-	Edifice   string
+	Roofed domain.Fact[bool]
+	// WallSupport is whether the cell's terrain carries the funnel wall's
+	// affordance (a wooden wall needs Light, which water and marsh lack).
+	// Unknown leaves the cell sited; the native preview is the backstop.
+	WallSupport domain.Fact[bool]
+	CoverFill   domain.Fact[float64]
+	Edifice     string
 }
 
 // DefenseLine is one observations_read_lines_of_fire row: whether a firing
@@ -601,6 +605,12 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		// mass is skipped; the mass stays closed to pathing.
 		if s.enclosed(c, func(n domain.Cell) bool { return candidates[n] || costs.closed[n] }) {
 			costs.closed[c] = true
+			continue
+		}
+		// Terrain that cannot carry the wall is left open, not closed: the
+		// raider route check below refuses the layout if the gap lets them
+		// round the corridor, instead of the native preview holding it (#2119).
+		if supported, known := s.cells[c].WallSupport.Value(); known && !supported {
 			continue
 		}
 		if err := build(&funnel, r.Definitions.Wall, r.Definitions.WallStuff, c, "wall"); err != nil {
