@@ -105,13 +105,6 @@ func (s PlanScore) String() string {
 		s.Passes(), s.Total(), len(s.Missing), s.RoutesErr, s.RichCells, s.Soil, s.Footprint, s.Wall, s.Edge, s.Centre, s.Defense, s.Expansion)
 }
 
-// Score scores plan over the survey s: every term, the wall and defense
-// terms included (PlanPerimeter walls a copy). Deterministic.
-func Score(plan LayoutPlan, s MapSurvey) PlanScore {
-	sc := newPlanScorer(plan.Zones, plan.Reservations, s)
-	return sc.walled(plan, sc.core(plan))
-}
-
 // planScorer holds the per-survey state every candidate's score shares.
 type planScorer struct {
 	g      coreGrid

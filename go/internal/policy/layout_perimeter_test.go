@@ -541,7 +541,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 		t.Fatal("no ring read back")
 	}
 	for c := range patch {
-		if wi.inside(c) {
+		if i, ok := wi.at(c); ok && wi.in[i] {
 			t.Fatal("patch cell inside the ring", c)
 		}
 	}

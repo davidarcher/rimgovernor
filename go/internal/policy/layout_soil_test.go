@@ -18,17 +18,6 @@ func soilSurvey() MapSurvey {
 	})
 }
 
-func TestFieldRichCells(t *testing.T) {
-	s := soilSurvey()
-	rich := FieldRichCells(s, Zone(s))
-	// One field over x < 40 inside the edge margin; its rich part is x < 20.
-	e := int32(LayoutEdgeMargin)
-	want := int((20 - e) * (70 - 2*e))
-	if len(rich) != 1 || rich[0] != want {
-		t.Fatal("rich cells per field", rich, want)
-	}
-}
-
 func TestSoilCostOrdersRichNormalBare(t *testing.T) {
 	s := soilSurvey()
 	g := newCoreGrid(Zone(s), nil).withSoil(s)

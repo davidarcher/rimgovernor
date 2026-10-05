@@ -8,6 +8,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// Score scores plan over the survey s: every term, the wall and defense
+// terms included (PlanPerimeter walls a copy). Deterministic.
+func Score(plan LayoutPlan, s MapSurvey) PlanScore {
+	sc := newPlanScorer(plan.Zones, plan.Reservations, s)
+	return sc.walled(plan, sc.core(plan))
+}
+
 // edgeOf is the edge term's cost for plan p over ground.
 func edgeOf(p LayoutPlan, b Bounds, ground siteGround) int {
 	return planScorer{s: MapSurvey{Bounds: b}, ground: ground}.edgeCost(p.AllRooms(), nil)

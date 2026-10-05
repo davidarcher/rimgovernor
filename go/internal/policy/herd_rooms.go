@@ -167,11 +167,6 @@ func herdSide(beds int) (w, h int32) {
 	return w, h
 }
 
-// VetRoomBeds is the animal beds a vet room reservation holds.
-func VetRoomBeds(area Rectangle) int {
-	return herdGridBeds(max(area.Width-2, 0), max(area.Height-2, 0))
-}
-
 // herdRole is the plan role of a herd reservation kind.
 func herdRole(kind ReservationKind) (ModuleRole, bool) {
 	switch kind {

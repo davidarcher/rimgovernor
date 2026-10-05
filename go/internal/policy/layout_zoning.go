@@ -140,34 +140,6 @@ func zoneRuns(w, h int32, in func(int32) bool) []RowRun {
 // zoneRichFertility is the fertility above which soil is rich (#1284).
 const zoneRichFertility = 1.0
 
-// FieldRichCells counts the rich-soil cells (Fertility > 1.0) of each field
-// zone, in field-zone order. It reads the survey instead of storing a count
-// on LayoutZone, so the persisted plan is unchanged.
-func FieldRichCells(s MapSurvey, zones []LayoutZone) []int {
-	rich := map[domain.Cell]bool{}
-	for _, c := range s.Cells {
-		if c.Fertility > zoneRichFertility {
-			rich[c.Cell] = true
-		}
-	}
-	var out []int
-	for _, z := range zones {
-		if z.Kind != ZoneField {
-			continue
-		}
-		n := 0
-		for _, r := range z.Runs {
-			for x := r.X; x < r.X+r.Length; x++ {
-				if rich[domain.Cell{X: x, Z: r.Z}] {
-					n++
-				}
-			}
-		}
-		out = append(out, n)
-	}
-	return out
-}
-
 // FieldCells is every cell of the plan's field zones (turbine lanes
 // included, since they are zoned as fields).
 func (p LayoutPlan) FieldCells() map[domain.Cell]bool {

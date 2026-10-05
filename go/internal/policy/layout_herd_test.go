@@ -2,6 +2,11 @@ package policy
 
 import "testing"
 
+// VetRoomBeds is the animal beds a vet room reservation holds.
+func VetRoomBeds(area Rectangle) int {
+	return herdGridBeds(max(area.Width-2, 0), max(area.Height-2, 0))
+}
+
 func herdReservations(p LayoutPlan, kind ReservationKind) []LayoutReservation {
 	var out []LayoutReservation
 	for _, r := range p.Reservations {

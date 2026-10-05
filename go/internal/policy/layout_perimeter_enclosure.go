@@ -293,12 +293,6 @@ func (wi wallInterior) at(c domain.Cell) (int, bool) {
 	return int((c.Z-wi.box.Z)*wi.box.Width + c.X - wi.box.X), true
 }
 
-// inside reports whether c lies strictly inside the ring.
-func (wi wallInterior) inside(c domain.Cell) bool {
-	i, ok := wi.at(c)
-	return ok && wi.in[i]
-}
-
 // cells lists the inside row by row.
 func (wi wallInterior) cells() []domain.Cell {
 	var out []domain.Cell
