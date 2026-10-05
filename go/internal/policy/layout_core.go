@@ -127,6 +127,9 @@ type coreGrid struct {
 	fixed map[Rectangle]bool
 	// skip are the room interiors fits refuses: the slots SiteRoom has scored.
 	skip map[Rectangle]bool
+	// noShelter keeps the generator from siting a shelter: a replan never
+	// regrows one a retirement (#2046) dropped.
+	noShelter bool
 }
 
 // Soil build costs per cell (#1279/#1284): rich soil costs more than

@@ -55,7 +55,7 @@ func newReplanner(plan LayoutPlan, s MapSurvey, blocked map[domain.Cell]bool, pa
 // returned as it is.
 func (rp replanner) site(plan LayoutPlan, pins map[Rectangle]bool, iters int) LayoutPlan {
 	g := rp.g
-	g.fixed = pins
+	g.fixed, g.noShelter = pins, true
 	var seed domain.Cell
 	if len(plan.Spine) > 0 {
 		seed = plan.Spine[0].From

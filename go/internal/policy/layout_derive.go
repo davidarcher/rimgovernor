@@ -73,6 +73,11 @@ type RoomGrowth struct {
 	// Occupied are the cells of ours a new or re-sited room must stay off
 	// (the census, sites, claims and in-flight rooms' walls).
 	Occupied map[domain.Cell]bool
+	// RetireShelter is ShelterRetirable at this review (#2046); InFlight are
+	// the planned rooms an open journal plan works on, which a retirement
+	// leaves in the plan.
+	RetireShelter bool
+	InFlight      map[Rectangle]bool
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
@@ -122,6 +127,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 		dropped = dropped || retired
 	}
 	next, retired := retireAddOnRooms(next, growth)
+	dropped = dropped || retired
+	next, retired = retireShelter(next, growth)
 	dropped = dropped || retired
 	// Growth, then the unbuilt rooms sited again where that scores clearly
 	// better (layout_replan.go); an emptied Retiring wing is among them.

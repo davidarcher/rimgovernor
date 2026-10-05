@@ -77,6 +77,9 @@ func ShelterSizes(colonists, campfires int) [][2]int32 {
 // delayed by a site that cannot be had. g is the core ground the rest of the
 // plan left; seed is the base's centre, the shelter's door faces it.
 func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, seed domain.Cell, colonists int) ([]SpineSegment, []LayoutRoom) {
+	if g.noShelter {
+		return spine, rooms
+	}
 	for _, r := range rooms {
 		if r.Role == ModuleShelter {
 			return spine, rooms

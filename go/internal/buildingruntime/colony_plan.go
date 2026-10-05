@@ -135,6 +135,15 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 		}
 	}
 	children := (len(growth.Child) > 0 || growth.Built != nil || growth.InUse != nil) && hourly
+	// Bedrooms, workshop and laboratory stand and every colonist is housed:
+	// the shelter leaves the plan (#2046). Re-read every review, no latch.
+	if haveLayout {
+		census, rk := projection.Rooms.Value()
+		sleeping, sk := projection.Facts.Sleeping.Value()
+		construction, ck := projection.Facts.CurrentConstruction.Value()
+		growth.RetireShelter = rk && sk && ck && construction.Colony && policy.ShelterRetirable(layout.Plan, census, sleeping, construction.Buildings)
+	}
+	retireShelter := growth.RetireShelter && hourly
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
 	if haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
@@ -153,7 +162,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 		growth.Incinerator = incineratorSite
 	}
 	incinerator := growth.Incinerator != (policy.IncineratorSite{}) && hourly
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || throne || children || gear || core || incinerator) {
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || incinerator) {
 		replanned := false
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
@@ -167,9 +176,13 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				// Fixed rooms are what the replan keeps (#1958): read here, with
 				// the journal's open plans, only once a replan is due. Nil while
 				// the census or the plan catalog is unknown keeps every room.
-				if occupied, ok := r.layoutOccupied(ctx, *projection, layout.Plan); ok {
+				if occupied, origins, ok := r.layoutOccupied(ctx, *projection, layout.Plan); ok {
 					rooms, _ := projection.Rooms.Value()
 					growth.Fixed, growth.Occupied = policy.FixedRooms(layout.Plan, rooms, occupied), occupied
+					growth.InFlight = policy.InFlightRooms(layout.Plan, origins)
+				} else {
+					// Open plans unknown: no shelter is dropped over work in flight.
+					growth.RetireShelter = false
 				}
 				// Every new building moves Occupied; the fixed rooms are its key.
 				keyed := growth

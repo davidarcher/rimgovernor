@@ -13,21 +13,23 @@ import (
 
 // layoutOccupied is occupiedCells plus the walls of the planned rooms an
 // open journal plan is working on (roomMethodOrigins, #1958). Unknown when
-// the census or the plan catalog is.
-func (r *Rounder) layoutOccupied(ctx context.Context, projection observation.ColonyProjection, plan policy.LayoutPlan) (map[domain.Cell]bool, bool) {
+// the census or the plan catalog is. It also returns the interior origins of
+// those rooms.
+func (r *Rounder) layoutOccupied(ctx context.Context, projection observation.ColonyProjection, plan policy.LayoutPlan) (map[domain.Cell]bool, map[domain.Cell]bool, bool) {
 	cells, known := occupiedCells(projection)
 	if !known {
-		return nil, false
+		return nil, nil, false
 	}
 	plans, err := r.player.journal.LoadPlans(ctx, 256)
 	if err != nil {
 		clockSchedulerLog("layout occupancy unknown, plan catalog: %v", err)
-		return nil, false
+		return nil, nil, false
 	}
-	for c := range policy.InFlightRoomCells(plan, roomMethodOrigins(plans)) {
+	origins := roomMethodOrigins(plans)
+	for c := range policy.InFlightRoomCells(plan, origins) {
 		cells[c] = true
 	}
-	return cells, true
+	return cells, origins, true
 }
 
 // roomMethodPattern matches the method ids of the plans keyed by a planned
