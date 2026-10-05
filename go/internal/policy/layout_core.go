@@ -15,9 +15,12 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 const (
 	ModuleBedroom  ModuleRole = "bedroom"
 	ModuleBarracks ModuleRole = "barracks"
-	ModuleDining   ModuleRole = "dining"
-	ModuleRec      ModuleRole = "rec"
-	ModuleLab      ModuleRole = "lab"
+	// ModuleShelter is the temporary starter room (#2037), sited apart from the
+	// core (layout_shelter.go) so its ground frees cleanly once it is demolished.
+	ModuleShelter ModuleRole = "shelter"
+	ModuleDining  ModuleRole = "dining"
+	ModuleRec     ModuleRole = "rec"
+	ModuleLab     ModuleRole = "lab"
 	// ModuleTomb is the sarcophagus room (#832), shelled only once a
 	// colonist lies dead.
 	ModuleTomb ModuleRole = "tomb"

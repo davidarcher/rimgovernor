@@ -46,7 +46,7 @@ func (f TrafficFinding) String() string {
 	return fmt.Sprintf("%s room=%s role=%s layer=%s steps=%d", f.Kind, f.Room, f.Role, f.Layer, f.Steps)
 }
 
-var thoroughfareRoles = map[RoomRole]bool{RoomRoleBedroom: true, RoomRoleBarracks: true, RoomRoleKitchen: true, RoomRoleHospital: true, RoomRoleLaboratory: true, RoomRolePrisonCell: true, RoomRolePrisonBarracks: true}
+var thoroughfareRoles = map[RoomRole]bool{RoomRoleBedroom: true, RoomRoleBarracks: true, RoomRoleShelter: true, RoomRoleKitchen: true, RoomRoleHospital: true, RoomRoleLaboratory: true, RoomRolePrisonCell: true, RoomRolePrisonBarracks: true}
 
 // TrafficFindings flags the census's rooms against the traffic layers, one
 // finding per room, kind and layer, in room order.

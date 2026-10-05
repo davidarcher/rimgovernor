@@ -14,17 +14,20 @@ import (
 type RoomRole string
 
 const (
-	RoomRoleNone           RoomRole = "None"
-	RoomRoleRoom           RoomRole = "Room"
-	RoomRoleBedroom        RoomRole = "Bedroom"
-	RoomRolePrisonCell     RoomRole = "PrisonCell"
-	RoomRoleDiningRoom     RoomRole = "DiningRoom"
-	RoomRoleRecRoom        RoomRole = "RecRoom"
-	RoomRoleHospital       RoomRole = "Hospital"
-	RoomRoleLaboratory     RoomRole = "Laboratory"
-	RoomRoleWorkshop       RoomRole = "Workshop"
-	RoomRoleStoreroom      RoomRole = "Storeroom"
-	RoomRoleBarracks       RoomRole = "Barracks"
+	RoomRoleNone       RoomRole = "None"
+	RoomRoleRoom       RoomRole = "Room"
+	RoomRoleBedroom    RoomRole = "Bedroom"
+	RoomRolePrisonCell RoomRole = "PrisonCell"
+	RoomRoleDiningRoom RoomRole = "DiningRoom"
+	RoomRoleRecRoom    RoomRole = "RecRoom"
+	RoomRoleHospital   RoomRole = "Hospital"
+	RoomRoleLaboratory RoomRole = "Laboratory"
+	RoomRoleWorkshop   RoomRole = "Workshop"
+	RoomRoleStoreroom  RoomRole = "Storeroom"
+	RoomRoleBarracks   RoomRole = "Barracks"
+	// RoomRoleShelter is a plan role only (#2041): the temporary starter room,
+	// scored by the game as whatever its furniture makes it.
+	RoomRoleShelter        RoomRole = "Shelter"
 	RoomRolePrisonBarracks RoomRole = "PrisonBarracks"
 	RoomRoleKitchen        RoomRole = "Kitchen"
 	RoomRoleTomb           RoomRole = "Tomb"
@@ -210,6 +213,7 @@ func FacilityCatalog() []FacilityRequirement {
 		// assigns it; the game scores the room Bedroom or Barracks by count.
 		{Role: RoomRoleBedroom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		{Role: RoomRoleBarracks, Status: FacilityPending},
+		{Role: RoomRoleShelter, Status: FacilityPending},
 		// A jail is its own planned room (#880): MaintainPopulation shells it
 		// while a prisoner is held and keeps a prisoner bed per prisoner.
 		{Role: RoomRolePrisonCell, Status: FacilityImplemented, FurnitureFromGame: true},

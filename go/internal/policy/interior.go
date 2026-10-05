@@ -230,6 +230,7 @@ var moduleRoomRoles = map[ModuleRole]RoomRole{
 	ModuleBedroom:          RoomRoleBedroom,
 	ModuleSuite:            RoomRoleSuite,
 	ModuleBarracks:         RoomRoleBarracks,
+	ModuleShelter:          RoomRoleShelter,
 	ModuleDining:           RoomRoleDiningRoom,
 	ModuleRec:              RoomRoleRecRoom,
 	ModuleLab:              RoomRoleLaboratory,

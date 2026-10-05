@@ -292,6 +292,7 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
 		{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}},
 		{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
+		{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3}},
 	}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	cells := map[domain.Cell]bool{}
@@ -303,5 +304,8 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 	}
 	if cells[domain.Cell{X: 31, Z: 31}] {
 		t.Error("the starter shell (barracks) is closed to loose spots")
+	}
+	if cells[domain.Cell{X: 51, Z: 51}] {
+		t.Error("the shelter is closed to loose spots")
 	}
 }
