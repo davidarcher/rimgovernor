@@ -52,6 +52,17 @@ const (
 type WantedPiece struct {
 	DefName          string
 	Minimum, Maximum domain.Cell
+	// Slot, Size and Rot place a piece the room does not hold yet: its template
+	// slot, the def's native size at rotation North and its rotation. A piece
+	// that stands needs none.
+	Slot string
+	Size domain.Cell
+	Rot  domain.Rotation
+}
+
+// Anchor is the cell a native order names for the piece's footprint.
+func (p WantedPiece) Anchor() domain.Cell {
+	return AnchorForRect(Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: p.Maximum.X - p.Minimum.X + 1, Height: p.Maximum.Z - p.Minimum.Z + 1}, p.Size, p.Rot)
 }
 
 func (p WantedPiece) cells() []domain.Cell {
@@ -85,6 +96,10 @@ type ReconcileInput struct {
 	// interior cell ("" leaves the cell's floor alone).
 	Furniture   []WantedPiece
 	WantedFloor func(domain.Cell) string
+	// FloorKept says an existing constructed floor stands in for the wanted
+	// one (FloorKept, #2109); nil keeps only the exact def. A floor that stands
+	// in is no operation: no tear-up for a different adequate floor.
+	FloorKept func(have, want string) bool
 	// Stock counts the packed pieces in storage by def (#2104).
 	Stock map[string]int
 }
@@ -236,7 +251,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		for _, c := range rectCells(interior) {
 			want := in.WantedFloor(c)
 			have, has := actual[c]
-			if want == "" || covered[c] || has && have == want {
+			if want == "" || covered[c] || has && (have == want || in.FloorKept != nil && in.FloorKept(have, want)) {
 				continue
 			}
 			if has {

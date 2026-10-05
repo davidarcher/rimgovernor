@@ -184,20 +184,17 @@ type ThroneStepKind string
 const (
 	// ThroneNone: nothing is due, or a fact is unknown.
 	ThroneNone ThroneStepKind = ""
-	// ThroneShell: raise the walls and door of Room.
-	ThroneShell ThroneStepKind = "shell"
-	// ThronePlace: place Piece, a throne, in Room.
-	ThronePlace ThroneStepKind = "place"
+	// ThroneReconcile: the room differs from the plan and the title's
+	// template (Template: the throne and the required furniture): the build
+	// side reconciles it (ReconcileRoom). The room's state is whatever the
+	// diff leaves; there is no shell, place or blocked step.
+	ThroneReconcile ThroneStepKind = "reconcile"
 	// ThroneAssign: the throne stands unowned; assign Throne to
 	// Need.Holder, replacing PreviousThrone (empty: none).
 	ThroneAssign ThroneStepKind = "assign"
 	// ThroneRefuel: the room's unlit light Lamp is out of fuel; order Pawn
 	// to refuel it.
 	ThroneRefuel ThroneStepKind = "refuel"
-	// ThroneBlocked: the standing room holds buildings of a class the title
-	// forbids (Intruders). Planning moves nothing; the step names the
-	// failure (Detail) and is not Owed.
-	ThroneBlocked ThroneStepKind = "blocked"
 	// ThroneUnavailable: a requirement still unmet has no definition the
 	// catalog makes available with a known size (Missing). The step names the
 	// failure (Detail) and is not Owed (#1874).
@@ -206,40 +203,31 @@ const (
 
 // ThroneStep is one bounded step towards the title's throne room.
 type ThroneStep struct {
-	Kind  ThroneStepKind
-	Room  PlannedRoom
-	Piece InteriorPiece
-	Need  ThroneNeed
+	Kind ThroneStepKind
+	Room PlannedRoom
+	Need ThroneNeed
+	// Template is a ThroneReconcile's wanted furniture: the throne and each
+	// required piece, standing ones where they stand, missing ones in their
+	// template slot.
+	Template []WantedPiece
 	// Throne is the standing throne to assign and PreviousThrone the
 	// throne the holder owns already, empty when none.
 	Throne, PreviousThrone string
 	// Lamp and Pawn are a ThroneRefuel's light and hauler.
 	Lamp string
 	Pawn PawnID
-	// Intruders are the standing buildings of a forbidden class inside the
-	// room, for ThroneBlocked.
-	Intruders []CurrentBuilding
 	// Missing are the unmet requirements no available definition serves, each
 	// the any-of list of definition names, for ThroneUnavailable.
 	Missing []string
 }
 
 // Failed reports whether the step is a named failure planning cannot clear.
-func (s ThroneStep) Failed() bool {
-	return s.Kind == ThroneBlocked || s.Kind == ThroneUnavailable
-}
+func (s ThroneStep) Failed() bool { return s.Kind == ThroneUnavailable }
 
-// Detail names a failed step: the title, the room and each intruding building
-// or each requirement without an available definition.
+// Detail names a failed step: the title, the room and each requirement without
+// an available definition.
 func (s ThroneStep) Detail() string {
-	if s.Kind == ThroneUnavailable {
-		return fmt.Sprintf("the %s throne room at (%d,%d) needs definitions the catalog does not make available with a known size: %s", s.Need.Title, s.Room.Interior.X, s.Room.Interior.Z, strings.Join(s.Missing, "; "))
-	}
-	names := make([]string, 0, len(s.Intruders))
-	for _, b := range s.Intruders {
-		names = append(names, fmt.Sprintf("%s %s", b.Building.Definition(), b.ID))
-	}
-	return fmt.Sprintf("the %s throne room at (%d,%d) holds forbidden buildings: %s", s.Need.Title, s.Room.Interior.X, s.Room.Interior.Z, strings.Join(names, ", "))
+	return fmt.Sprintf("the %s throne room at (%d,%d) needs definitions the catalog does not make available with a known size: %s", s.Need.Title, s.Room.Interior.X, s.Room.Interior.Z, strings.Join(s.Missing, "; "))
 }
 
 // throneIntruders are the standing buildings of a class need forbids with a
@@ -266,7 +254,7 @@ func throneIntruders(room PlannedRoom, need ThroneNeed, built []CurrentBuilding)
 
 // Owed reports whether the planner can act on the step now.
 func (s ThroneStep) Owed() bool {
-	return s.Kind == ThroneShell || s.Kind == ThronePlace || s.Kind == ThroneAssign || s.Kind == ThroneRefuel
+	return s.Kind == ThroneReconcile || s.Kind == ThroneAssign || s.Kind == ThroneRefuel
 }
 
 // throneDefinition is the first of need's throne definitions the catalog
@@ -378,12 +366,15 @@ func throneAssignment(step ThroneStep, throne CurrentBuilding, thrones []RoyalTh
 	return step
 }
 
-// NextThroneStep picks the next throne step for need from the plan, the
-// room census, the colony's buildings and the throne definitions. None
-// while the plan holds no room of the title's area (the layout review owes
-// it), and once the throne stands and is assigned (or cannot be yet). An
-// unmet requirement with no available definition is ThroneUnavailable.
-func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, need ThroneNeed, defs []FurnitureDefinition, thrones []RoyalThrone) ThroneStep {
+// NextThroneStep picks the next throne step for need from the plan, the room
+// census, the colony's walls and doors, buildings and the throne definitions.
+// None while the plan holds no room of the title's area (the layout review owes
+// it), and once the room matches, the throne stands and is assigned (or cannot
+// be yet). An unmet requirement with no available definition is
+// ThroneUnavailable. Otherwise the room is reconciled whenever its ring, doors
+// or furniture differ from the plan and the template, or it holds a forbidden
+// building (packed, not blocked); the throne's assignment comes first.
+func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus, built []CurrentBuilding, need ThroneNeed, defs []FurnitureDefinition, thrones []RoyalThrone) ThroneStep {
 	room, ok := plan.ThroneRoomFor(need.MinArea)
 	if !ok {
 		return ThroneStep{}
@@ -391,14 +382,6 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 	// A forbidden class is never planned: its definitions are not offered.
 	defs = slices.DeleteFunc(slices.Clone(defs), func(d FurnitureDefinition) bool { return need.Forbids(d.Name) })
 	step := ThroneStep{Room: room, Need: need}
-	if _, ok := CensusRoomIn(room, rooms); !ok {
-		step.Kind = ThroneShell
-		return step
-	}
-	if intruders := throneIntruders(room, need, built); len(intruders) > 0 {
-		step.Kind, step.Intruders = ThroneBlocked, intruders
-		return step
-	}
 	standing, stands := standingThroneIn(room, need, built)
 	if stands {
 		if step := throneAssignment(step, standing, thrones); step.Kind != ThroneNone {
@@ -429,16 +412,14 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 		return ThroneStep{}
 	}
 	// The template plans every required piece in its slot whether or not
-	// it stands; only the missing ones are placed, each from the first
-	// available definition of its any-of list (a requirement no available
-	// definition serves plans nothing).
-	deficit := map[string]int{}
+	// it stands; a piece that stands is wanted where it stands, each
+	// missing one from the first available definition of its any-of list (a
+	// requirement no available definition serves plans nothing).
 	for _, w := range need.wants() {
 		d, ok := availableDefinition(w.Things, defs)
 		if !ok {
 			continue
 		}
-		deficit[w.Key] = w.Count - standingCount(room, w.Things, built)
 		for i := 0; i < w.Count; i++ {
 			in.Required = append(in.Required, RequiredPiece{Slot: fmt.Sprintf("%s.%d", w.Key, i), Piece: d})
 		}
@@ -461,26 +442,49 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 		}
 		return true
 	}
-	if !stands {
+	planned := func(p InteriorPiece) WantedPiece {
+		return WantedPiece{DefName: p.Def, Minimum: domain.Cell{X: p.Rect.X, Z: p.Rect.Z}, Maximum: domain.Cell{X: p.Rect.X + p.Rect.Width - 1, Z: p.Rect.Z + p.Rect.Height - 1}, Slot: p.Slot, Size: p.Size, Rot: p.Rot}
+	}
+	standingPiece := func(b CurrentBuilding) WantedPiece {
+		r := cellsRectangle(b.Cells)
+		return WantedPiece{DefName: b.Building.Definition(), Minimum: domain.Cell{X: r.X, Z: r.Z}, Maximum: domain.Cell{X: r.X + r.Width - 1, Z: r.Z + r.Height - 1}}
+	}
+	var template []WantedPiece
+	absent := false
+	if stands {
+		template = append(template, standingPiece(standing))
+	} else {
+		absent = true
 		for _, p := range interior.Pieces {
 			if p.Slot == throneSlot && p.Def == def.Def {
 				if !free(p) {
 					return ThroneStep{}
 				}
-				step.Kind, step.Piece = ThronePlace, p
-				return step
+				template = append(template, planned(p))
+				break
 			}
 		}
-		return ThroneStep{}
 	}
-	// The throne stands and is assigned (or cannot be yet): furnish the
-	// room to the title's piece requirements.
-	for _, p := range interior.Pieces {
-		key, _, _ := strings.Cut(p.Slot, ".")
-		if deficit[key] > 0 && p.Slot != throneSlot && free(p) {
-			step.Kind, step.Piece = ThronePlace, p
-			return step
+	for _, w := range need.wants() {
+		count := 0
+		for _, b := range built {
+			if count < w.Count && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) && slices.Contains(w.Things, b.Building.Definition()) {
+				template = append(template, standingPiece(b))
+				count++
+			}
 		}
+		for _, p := range interior.Pieces {
+			if key, _, _ := strings.Cut(p.Slot, "."); count < w.Count && key == w.Key && p.Slot != throneSlot && free(p) {
+				template = append(template, planned(p))
+				absent = true
+				count++
+			}
+		}
+	}
+	step.Template = template
+	if absent || !plan.GroundMatches(room, ground) || len(throneIntruders(room, need, built)) > 0 {
+		step.Kind = ThroneReconcile
+		return step
 	}
 	return ThroneStep{}
 }

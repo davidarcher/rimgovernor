@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"testing"
@@ -88,22 +89,32 @@ func standing(t *testing.T, facts *observation.ColonyProjection, id, def string,
 	facts.Facts.CurrentConstruction = domain.Known(census)
 }
 
-// furnish places every piece throneStep asks for until it asks for none
-// and returns what was placed.
+// furnish stands every piece throneStep wants and returns what was placed.
 func furnish(t *testing.T, facts *observation.ColonyProjection) map[string]int {
 	t.Helper()
 	placed := map[string]int{}
 	for i := 0; i < 12; i++ {
 		step := throneStep(*facts)
-		if step.Kind != policy.ThronePlace {
+		if step.Kind != policy.ThroneReconcile {
 			return placed
 		}
-		placed[step.Piece.Def]++
-		standing(t, facts, step.Piece.Def+string(rune('a'+i)), step.Piece.Def, step.Piece.Anchor())
-		if step.Piece.Def == "Throne" {
-			royalty, _ := facts.Royalty.Value()
-			royalty.Thrones = []policy.RoyalThrone{{ID: "Throne" + string(rune('a'+i)), Def: "Throne", Owner: "Alice"}}
-			facts.Royalty = domain.Known(royalty)
+		built := false
+		for j, p := range step.Template {
+			if p.Slot == "" {
+				continue
+			}
+			built = true
+			placed[p.DefName]++
+			id := fmt.Sprintf("%s%d_%d", p.DefName, i, j)
+			standing(t, facts, id, p.DefName, p.Anchor())
+			if p.DefName == "Throne" {
+				royalty, _ := facts.Royalty.Value()
+				royalty.Thrones = []policy.RoyalThrone{{ID: id, Def: "Throne", Owner: "Alice"}}
+				facts.Royalty = domain.Known(royalty)
+			}
+		}
+		if !built {
+			t.Fatalf("a reconcile step with nothing to place: %+v", step)
 		}
 	}
 	t.Fatal("furnishing never ended")
@@ -129,6 +140,7 @@ func without(facts *observation.ColonyProjection, def string, n int) {
 
 func TestThroneRoomMissingAPieceStaysOwedUntilFurnished(t *testing.T) {
 	facts, room, _ := knightSnapshot(t)
+	ringCells := 2*(6+5) + 4
 	need, ok := throneNeed(facts)
 	if !ok || need.Title != "Knight" || need.MinArea != 30 || len(need.AnyOfCounts) != 1 || len(need.Counts) != 1 || len(need.AnyOf) != 1 || len(need.Glowing) != 1 {
 		t.Fatalf("the Knight's full requirement set is the need: %+v %v", need, ok)
@@ -137,7 +149,7 @@ func TestThroneRoomMissingAPieceStaysOwedUntilFurnished(t *testing.T) {
 	if placed["Throne"] != 1 || placed["Brazier"] != 2 || placed["Column"] != 2 || placed["Harp"] != 1 {
 		t.Fatalf("a bare room is furnished to the title: %v", placed)
 	}
-	if step := throneStep(facts); step.Owed() || step.Kind == policy.ThroneBlocked {
+	if step := throneStep(facts); step.Owed() {
 		t.Fatalf("a complete room owes nothing: %+v", step)
 	}
 	for _, c := range []struct{ missing, def string }{{"brazier", "Brazier"}, {"column", "Column"}, {"instrument", "Harp"}} {
@@ -145,13 +157,19 @@ func TestThroneRoomMissingAPieceStaysOwedUntilFurnished(t *testing.T) {
 			short := facts
 			without(&short, c.def, 0)
 			step := throneStep(short)
-			if step.Kind != policy.ThronePlace || step.Piece.Def != c.def || !step.Room.Same(room) {
+			planned := 0
+			for _, p := range step.Template {
+				if p.Slot != "" && p.DefName == c.def {
+					planned++
+				}
+			}
+			if step.Kind != policy.ThroneReconcile || planned != 1 || !step.Room.Same(room) {
 				t.Fatalf("a room missing a %s plans it: %+v", c.missing, step)
 			}
 			if owed, known := bedroomsOwed(short, policy.StageReserves).Value(); !known || !owed {
 				t.Fatalf("the missing %s holds MaintainHousing open: %v %v", c.missing, owed, known)
 			}
-			if built, _ := facts.Facts.CurrentConstruction.Value(); len(built.Buildings) != 6 {
+			if built, _ := facts.Facts.CurrentConstruction.Value(); len(built.Buildings) != ringCells+6 {
 				t.Fatalf("the snapshot was written: %d buildings", len(built.Buildings))
 			}
 		})
@@ -187,17 +205,19 @@ func TestThroneRoomFloorTierPlansTheRequiredTerrain(t *testing.T) {
 	}
 }
 
-func TestThroneRoomForbiddenBuildingBlocks(t *testing.T) {
+// A forbidden building in the room is packed by the reconcile, not a block; one
+// elsewhere is no intrusion (#2109).
+func TestThroneRoomForbiddenBuildingIsPackedNotBlocking(t *testing.T) {
 	facts, room, _ := knightSnapshot(t)
 	furnish(t, &facts)
 	inside := domain.Cell{X: room.Interior.X, Z: room.Interior.Z}
 	standing(t, &facts, "TableButcher_9", "TableButcher", inside)
 	step := throneStep(facts)
-	if step.Kind != policy.ThroneBlocked || step.Owed() || len(step.Intruders) != 1 || step.Intruders[0].ID != "TableButcher_9" {
-		t.Fatalf("a Production building in the room blocks it: %+v", step)
+	if step.Kind != policy.ThroneReconcile || !step.Owed() || step.Failed() {
+		t.Fatalf("a Production building in the room is reconciled away: %+v", step)
 	}
-	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); known && owed {
-		t.Fatalf("a blocked room plans nothing: %v", owed)
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
+		t.Fatalf("the reconcile holds MaintainHousing open: %v", owed)
 	}
 	// A bed elsewhere is no intrusion.
 	facts, _, _ = knightSnapshot(t)

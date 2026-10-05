@@ -127,8 +127,12 @@ func throneStep(facts observation.ColonyProjection) policy.ThroneStep {
 			defs = append(defs, policy.FurnitureDefinition{Name: d.Name, Available: d.Available, Size: d.Size})
 		}
 	}
+	ground, gk := colonyGround(facts)
+	if !gk {
+		return policy.ThroneStep{}
+	}
 	royalty, _ := facts.Royalty.Value()
-	step := policy.NextThroneStep(plan, rooms, census.Buildings, need, defs, royalty.Thrones)
+	step := policy.NextThroneStep(plan, rooms, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, need, defs, royalty.Thrones)
 	if step.Kind != policy.ThroneNone {
 		return step
 	}
@@ -201,24 +205,18 @@ func throneFloorTerrains(catalog *bridge.DefinitionCatalog, f policy.RoyaltyFact
 	return catalog.TerrainsWithTags(tags)
 }
 
-// throneMethod names a throne step's method: the shell once per room, the
-// throne once per slot, per Episode.
-func throneMethod(step policy.ThroneStep) domain.MethodID {
-	in := step.Room.Interior
-	if step.Kind == policy.ThronePlace {
-		return domain.MethodID(fmt.Sprintf("throne-place-%d-%d-%s", in.X, in.Z, step.Piece.Slot))
-	}
-	return domain.MethodID(fmt.Sprintf("throne-shell-%d-%d", in.X, in.Z))
-}
-
-// stageThrone answers a due throne step: the shell through shellRoom, the
-// throne through placePiece. Furnishing follows through the room upgrade.
-func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
+// stageThrone answers a due throne step: the room through the shared build
+// side (reconcileRoom: the ring, floor and furniture the template and the plan
+// still owe, installed from packed stock first), the assignment, the refuel.
+// Furnishing beyond the template follows through the room upgrade.
+func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
 	switch step.Kind {
-	case policy.ThroneShell:
-		return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, throneMethod(step), "throne room")
-	case policy.ThronePlace:
-		return r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, throneMethod(step))
+	case policy.ThroneReconcile:
+		in := step.Room.Interior
+		return r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
+			room: step.Room, template: step.Template, forbidden: step.Need.Forbids, tags: step.Need.FloorTags,
+			name: fmt.Sprintf("throne-%d-%d", in.X, in.Z), reason: "throne room",
+		})
 	case policy.ThroneRefuel:
 		return r.refuelThrone(call, epoch, arbiter, state, review, goal, reading, step)
 	case policy.ThroneAssign:

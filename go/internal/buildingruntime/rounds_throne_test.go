@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -42,17 +43,51 @@ func throneProjection(standing bool) (observation.ColonyProjection, policy.Plann
 			Name: "Throne", Available: domain.Known(true), Size: domain.Known(policy.Bounds{Width: 1, Height: 1}),
 		}},
 	}
-	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
+	census := policy.CurrentConstruction{Colony: true}
+	if standing {
+		census.Buildings = ringBuildings(facts.LayoutPlan.Value())
+	}
+	facts.Facts.CurrentConstruction = domain.Known(census)
 	facts.Facts.Sleeping = domain.Known(policy.SleepingObservation{})
 	return facts, room
 }
 
-// The throne room rides under MaintainHousing: shelled, then furnished with
-// the throne, each owing the bedroom phase, and unknown or absent royalty
-// owes nothing.
+// ringBuildings are the walls and doors standing on the first planned room's
+// ring, as the construction census lists them.
+func ringBuildings(plan policy.LayoutPlan, _ bool) []policy.CurrentBuilding {
+	room := plan.Rooms[0]
+	doors := map[domain.Cell]bool{}
+	for _, d := range plan.ShellDoors(room) {
+		doors[d] = true
+	}
+	in := room.Interior
+	var out []policy.CurrentBuilding
+	for x := in.X - 1; x <= in.X+in.Width; x++ {
+		for z := in.Z - 1; z <= in.Z+in.Height; z++ {
+			if x != in.X-1 && x != in.X+in.Width && z != in.Z-1 && z != in.Z+in.Height {
+				continue
+			}
+			c := domain.Cell{X: x, Z: z}
+			def := "Wall"
+			if doors[c] {
+				def = "Door"
+			}
+			b, err := domain.NewBuilding(def, c, domain.North, "")
+			if err != nil {
+				panic(err)
+			}
+			out = append(out, policy.CurrentBuilding{ID: fmt.Sprintf("%s_%d_%d", def, x, z), Building: b, Cells: []domain.Cell{c}})
+		}
+	}
+	return out
+}
+
+// The throne room rides under MaintainHousing: reconciled (its ring, then the
+// throne), each owing the bedroom phase, and unknown or absent royalty owes
+// nothing.
 func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	facts, room := throneProjection(false)
-	if step := throneStep(facts); step.Kind != policy.ThroneShell || !step.Room.Same(room) {
+	if step := throneStep(facts); step.Kind != policy.ThroneReconcile || !step.Room.Same(room) || len(step.Template) == 0 {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
@@ -60,7 +95,8 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	}
 	facts, _ = throneProjection(true)
 	step := throneStep(facts)
-	if step.Kind != policy.ThronePlace || step.Piece.Def != "Throne" {
+	throne0 := step.Template[0]
+	if step.Kind != policy.ThroneReconcile || throne0.DefName != "Throne" || throne0.Slot == "" {
 		t.Fatalf("standing room: %+v", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
@@ -69,12 +105,12 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	// With the throne standing, the assignment is owed until the royalty
 	// read lists the holder as its owner. A throne built after the read
 	// waits for the next one.
-	throne, err := domain.NewBuilding("Throne", step.Piece.Anchor(), step.Piece.Rot, "")
+	throne, err := domain.NewBuilding("Throne", throne0.Anchor(), throne0.Rot, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "t1", Building: throne}}}
-	census.Buildings[0].Cells = []domain.Cell{step.Piece.Anchor()}
+	census, _ := facts.Facts.CurrentConstruction.Value()
+	census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: "t1", Building: throne, Cells: []domain.Cell{throne0.Anchor()}})
 	facts.Facts.CurrentConstruction = domain.Known(census)
 	if step := throneStep(facts); step.Kind != policy.ThroneNone {
 		t.Fatalf("throne unlisted by the read: %+v", step)

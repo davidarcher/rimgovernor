@@ -13,18 +13,10 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // MaxCellsPerPlan batching only paces the laying of non-planned ground.
 func WantedFloors(room PlannedRoom, tags []string, facts FlooringFacts, p FlooringPolicy) func(domain.Cell) string {
 	none := func(domain.Cell) string { return "" }
-	role := moduleRoomRoles[room.Role]
-	tier, ok := roleFloorTier(role)
-	if len(tags) > 0 && role == RoomRoleThroneRoom {
-		tier, ok = FloorTierThrone, true
-	}
-	cells := rectCells(room.Interior)
+	d, ok := roomFloorDeficit(room, tags)
+	cells := d.Cells
 	if !ok || len(cells) == 0 || !p.valid() {
 		return none
-	}
-	d := FloorDeficit{Tier: tier, Role: role, Cells: cells}
-	if tier == FloorTierThrone {
-		d.Tags = tags
 	}
 	name, _, _ := chooseFloor(d, facts, len(cells), p)
 	if name == "" {
@@ -39,5 +31,65 @@ func WantedFloors(room PlannedRoom, tags []string, facts FlooringFacts, p Floori
 			return name
 		}
 		return ""
+	}
+}
+
+// roomFloorDeficit is the floor requirement a PlannedRoom's whole interior
+// carries: the tier its role asks for, the throne room's title tags.
+func roomFloorDeficit(room PlannedRoom, tags []string) (FloorDeficit, bool) {
+	role := moduleRoomRoles[room.Role]
+	tier, ok := roleFloorTier(role)
+	if len(tags) > 0 && role == RoomRoleThroneRoom {
+		tier, ok = FloorTierThrone, true
+	}
+	d := FloorDeficit{Tier: tier, Role: role, Cells: rectCells(room.Interior)}
+	if tier == FloorTierThrone {
+		d.Tags = tags
+	}
+	return d, ok
+}
+
+// FloorKept reports whether the constructed floor have stands in for the wanted
+// floor want of a PlannedRoom (#2109): any floor that meets the room's tier
+// does, so a different adequate floor is never torn up. The throne room's title
+// tags are the exception: the floor must carry one. A floor the mirror does not
+// describe is kept, never torn up on a missing fact.
+func FloorKept(room PlannedRoom, tags []string, facts FlooringFacts, p FlooringPolicy) func(have, want string) bool {
+	d, ok := roomFloorDeficit(room, tags)
+	return func(have, want string) bool {
+		if have == want {
+			return true
+		}
+		def, known := facts.Definitions[have]
+		if !ok || !known || !p.valid() {
+			return true
+		}
+		if d.Tier == FloorTierThrone {
+			return hasAnyTag(def.Tags, d.Tags)
+		}
+		weights := p.Clean
+		switch d.Tier {
+		case FloorTierLiving:
+			weights = p.Living
+		}
+		_, meets := floorScore(d.Tier, def, weights)
+		return meets
+	}
+}
+
+// RoomFloors is the flooring review's decision for one PlannedRoom, for the
+// reconciler: the wanted floor per interior cell and whether an existing floor
+// stands in for it. A nil RoomFloors wants no floor anywhere.
+type RoomFloors func(PlannedRoom) (wanted func(domain.Cell) string, kept func(have, want string) bool)
+
+// FlooringRoomFloors reads WantedFloors and FloorKept for every room; tags names
+// a room's title tags (the throne room's), nil for none.
+func FlooringRoomFloors(tags func(PlannedRoom) []string, facts FlooringFacts, p FlooringPolicy) RoomFloors {
+	return func(r PlannedRoom) (func(domain.Cell) string, func(have, want string) bool) {
+		var t []string
+		if tags != nil {
+			t = tags(r)
+		}
+		return WantedFloors(r, t, facts, p), FloorKept(r, t, facts, p)
 	}
 }

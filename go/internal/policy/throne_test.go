@@ -114,68 +114,102 @@ func standingThrone(t *testing.T, p InteriorPiece) CurrentBuilding {
 	return CurrentBuilding{ID: "Throne_1", Building: b, Cells: rectCells(p.Rect)}
 }
 
-func TestThroneStepShellsPlacesThenAssigns(t *testing.T) {
+// templateOf is the wanted piece with the given def in a throne step.
+func templateOf(step ThroneStep, def string) (WantedPiece, bool) {
+	for _, p := range step.Template {
+		if p.DefName == def {
+			return p, true
+		}
+	}
+	return WantedPiece{}, false
+}
+
+func TestThroneStepReconcilesThenAssigns(t *testing.T) {
 	plan, room, need := throneFixture()
 	defs := throneDefs(Bounds{Width: 1, Height: 1})
-	if step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, nil, need, defs, nil); step.Kind != ThroneShell || !step.Room.Same(room) || !step.Owed() {
+	// Shell: the ring does not stand, and the throne is wanted in its slot.
+	step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, GroundCensus{}, nil, need, defs, nil)
+	if step.Kind != ThroneReconcile || !step.Room.Same(room) || !step.Owed() {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
-	step := NextThroneStep(plan, tombStanding(room), nil, need, defs, nil)
-	if step.Kind != ThronePlace || step.Piece.Def != "Throne" || step.Piece.Slot != throneSlot || !step.Owed() {
+	ground := ringWalls(plan, room)
+	// Place: the ring stands; the template still owes the throne.
+	step = NextThroneStep(plan, tombStanding(room), ground, nil, need, defs, nil)
+	throne, ok := templateOf(step, "Throne")
+	if step.Kind != ThroneReconcile || !ok || throne.Slot != throneSlot || !step.Owed() {
 		t.Fatalf("standing room: %+v", step)
 	}
 	// The throne sits centred against the back wall.
-	if got := step.Piece.Rect; got.X != 12 || got.Z != 24 || got.Width != 1 || got.Height != 1 {
-		t.Fatalf("throne footprint %+v", got)
+	if throne.Minimum != (domain.Cell{X: 12, Z: 24}) || throne.Maximum != throne.Minimum {
+		t.Fatalf("throne footprint %+v", throne)
 	}
-	built := []CurrentBuilding{standingThrone(t, step.Piece)}
+	// The reconciler installs it from stock, else builds it on site.
+	in := ReconcileInput{Plan: plan, Room: room, Ground: ground, Rooms: tombStanding(room), Furniture: step.Template}
+	if ops := ReconcileRoom(in); len(ops) != 1 || ops[0].Kind != OpBuild || len(ops[0].Pieces) != 1 {
+		t.Fatalf("build on site: %+v", ops)
+	}
+	in.Stock = map[string]int{"Throne": 1}
+	if ops := ReconcileRoom(in); len(ops) != 1 || ops[0].Kind != OpInstall {
+		t.Fatalf("stock first: %+v", ops)
+	}
+	built := []CurrentBuilding{standingThrone(t, InteriorPiece{Def: "Throne", Size: domain.Cell{X: 1, Z: 1}, Rot: throne.Rot, Rect: Rectangle{X: throne.Minimum.X, Z: throne.Minimum.Z, Width: 1, Height: 1}})}
 	// A throne the royalty read has not listed yet waits for the next read.
-	if step := NextThroneStep(plan, tombStanding(room), built, need, defs, nil); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, tombStanding(room), ground, built, need, defs, nil); step.Kind != ThroneNone {
 		t.Fatalf("throne built after the read: %+v", step)
 	}
 	need.Titled = true
 	unowned := []RoyalThrone{{ID: "Throne_1", Def: "Throne"}}
-	step = NextThroneStep(plan, tombStanding(room), built, need, defs, unowned)
+	step = NextThroneStep(plan, tombStanding(room), ground, built, need, defs, unowned)
 	if step.Kind != ThroneAssign || step.Throne != "Throne_1" || step.PreviousThrone != "" || !step.Owed() {
 		t.Fatalf("unowned throne is assigned to the holder: %+v", step)
 	}
 	// The holder's other throne is the expected previous assignment.
 	moved := []RoyalThrone{{ID: "Throne_1", Def: "Throne"}, {ID: "Throne_0", Def: "Throne", Owner: need.Holder}}
-	if step := NextThroneStep(plan, tombStanding(room), built, need, defs, moved); step.Kind != ThroneAssign || step.PreviousThrone != "Throne_0" {
+	if step := NextThroneStep(plan, tombStanding(room), ground, built, need, defs, moved); step.Kind != ThroneAssign || step.PreviousThrone != "Throne_0" {
 		t.Fatalf("previous throne: %+v", step)
 	}
 	// Done once the read lists the holder as the owner; a throne someone
 	// else owns is left alone.
 	for _, owner := range []PawnID{need.Holder, "other"} {
 		owned := []RoyalThrone{{ID: "Throne_1", Def: "Throne", Owner: owner}}
-		if step := NextThroneStep(plan, tombStanding(room), built, need, defs, owned); step.Kind != ThroneNone || step.Owed() {
+		if step := NextThroneStep(plan, tombStanding(room), ground, built, need, defs, owned); step.Kind != ThroneNone || step.Owed() {
 			t.Fatalf("owner %s: %+v", owner, step)
 		}
 	}
 	// Native lets only a titled colonist own a throne.
 	untitled := need
 	untitled.Titled = false
-	if step := NextThroneStep(plan, tombStanding(room), built, untitled, defs, unowned); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, tombStanding(room), ground, built, untitled, defs, unowned); step.Kind != ThroneNone {
 		t.Fatalf("holder without a title: %+v", step)
 	}
 	need.Assigned = false
-	if step := NextThroneStep(plan, tombStanding(room), built, need, defs, unowned); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, tombStanding(room), ground, built, need, defs, unowned); step.Kind != ThroneNone {
 		t.Fatalf("nothing to assign: %+v", step)
+	}
+	// A standing room whose ring diverges is reconciled again.
+	gap := ringWalls(plan, room)
+	gap.walls[domain.Cell{X: 9, Z: 22}] = false
+	need.Assigned = true
+	owned := []RoyalThrone{{ID: "Throne_1", Def: "Throne", Owner: need.Holder}}
+	if step := NextThroneStep(plan, tombStanding(room), gap, built, need, defs, owned); step.Kind != ThroneReconcile {
+		t.Fatalf("a ring gap: %+v", step)
 	}
 }
 
 func TestThroneFootprintComesFromTheCatalog(t *testing.T) {
 	plan, room, need := throneFixture()
-	step := NextThroneStep(plan, tombStanding(room), nil, need, throneDefs(Bounds{Width: 2, Height: 1}), nil)
-	if step.Kind != ThronePlace || step.Piece.Rect.Width != 2 || step.Piece.Rect.Height != 1 || step.Piece.Rect.X != 12 {
-		t.Fatalf("a 2x1 throne: %+v", step.Piece.Rect)
+	ground := ringWalls(plan, room)
+	step := NextThroneStep(plan, tombStanding(room), ground, nil, need, throneDefs(Bounds{Width: 2, Height: 1}), nil)
+	throne, _ := templateOf(step, "Throne")
+	if step.Kind != ThroneReconcile || throne.Maximum.X-throne.Minimum.X != 1 || throne.Maximum.Z != throne.Minimum.Z || throne.Minimum.X != 12 {
+		t.Fatalf("a 2x1 throne: %+v", throne)
 	}
 	unknown := []FurnitureDefinition{{Name: "Throne", Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
-	if step := NextThroneStep(plan, tombStanding(room), nil, need, unknown, nil); step.Kind != ThroneUnavailable {
+	if step := NextThroneStep(plan, tombStanding(room), ground, nil, need, unknown, nil); step.Kind != ThroneUnavailable {
 		t.Fatalf("no footprint, no placement: %+v", step)
 	}
 	locked := []FurnitureDefinition{{Name: "Throne", Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
-	if step := NextThroneStep(plan, tombStanding(room), nil, need, locked, nil); step.Kind != ThroneUnavailable {
+	if step := NextThroneStep(plan, tombStanding(room), ground, nil, need, locked, nil); step.Kind != ThroneUnavailable {
 		t.Fatalf("unavailable throne: %+v", step)
 	}
 }
@@ -183,7 +217,7 @@ func TestThroneFootprintComesFromTheCatalog(t *testing.T) {
 func TestThroneStepWaitsForARoomOfTheTitlesArea(t *testing.T) {
 	plan, _, need := throneFixture()
 	need.MinArea = 48
-	if step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, nil, need, throneDefs(Bounds{Width: 1, Height: 1}), nil); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, GroundCensus{}, nil, need, throneDefs(Bounds{Width: 1, Height: 1}), nil); step.Kind != ThroneNone {
 		t.Fatalf("a 30 cell room cannot meet 48: %+v", step)
 	}
 	if want := ThroneAreaOwed(plan, need, true); want != 48 {

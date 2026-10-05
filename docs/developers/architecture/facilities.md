@@ -300,10 +300,24 @@ planner raises it under MaintainHousing, like the tomb:
 1. The layout review grows a `throne` core room of at least
    `MinArea` cells (`policy.ReplanLayoutWithRooms`); existing
    rooms never move, so a title that outgrows the room adds a larger one.
-2. `NextThroneStep` shells the room, then places the title's throne at
-   the template's back-wall slot. The throne's footprint is the native
-   definition catalog's size, never a constant; an unavailable throne or an
-   unknown size places nothing.
+2. `NextThroneStep` owes the room a reconcile (`ThroneReconcile`) whenever
+   its ring or doors differ from the plan, a template piece is missing or a
+   forbidden building stands in it. The step carries the template: the
+   title's throne at the back-wall slot and each required piece, standing
+   ones wanted where they stand. The shared build side then does the work
+   (`reconcileRoom`, `policy.ReconcileRoom`, epic #2101): a room's state is
+   whatever the diff against the ground leaves, so there is no shell, place
+   or blocked step. Per pass it commits one wave: removals first (pack,
+   deconstruct, remove floor), then installs from packed stock
+   (`packedStock`), then everything built on site (doors, walls, floors from
+   the flooring review's `WantedFloors`, furniture). Stock comes first: a
+   piece is built only when none is stored. A placement the native preview
+   refuses is not ready this pass and the room waits. The ring's removals
+   (wall or door out, roof off) are the plan-wide clear side's
+   (`PlannedGroundStep`), which now also reconciles standing rooms. The
+   throne's footprint is the native definition catalog's size, never a
+   constant; an unavailable throne or an unknown size is the named
+   `ThroneUnavailable` failure.
 3. The standing room gets the title's minimum impressiveness as a room
    quality target (reason `title`), which the room upgrade and beauty
    upgrade fill with end table, dresser, lamp, plant pot and floor.
@@ -318,8 +332,9 @@ planner raises it under MaintainHousing, like the tomb:
 5. The template plans every counted piece of the title in its own slot
    (the braziers of `AnyOfCounts`, the columns and drapes of `Counts`, the
    instrument of `AnyOf`), each from the first available definition of its
-   list, and `NextThroneStep` places only the missing ones: a room that loses
-   a brazier, column or instrument plans exactly that piece. A requirement no
+   list; pieces that stand are wanted where they stand and only the missing
+   ones are built or installed: a room that loses a brazier, column or
+   instrument reconciles exactly that piece. A requirement no
    available definition serves plans nothing.
 6. The flooring review marks the standing room with the title's `FloorTags`
    (`withThroneFloor`) and plans floors of any available terrain the mirror
@@ -329,10 +344,12 @@ planner raises it under MaintainHousing, like the tomb:
    as the room census; a room the census does not list is left as read.
 7. A standing building of a forbidden class (`ForbiddenDefs`: the building
    defs whose `buildingTags` meet `ForbiddenBuildingTags`, plus altars when
-   forbidden) inside the room makes the step `ThroneBlocked`: planning
-   places nothing, a forbidden throne definition is never offered, and the
-   sleeping planner reports the named `site_blocked` failure listing each
-   intruder. Moving the building is the player's.
+   forbidden) inside the room is reconciled away: it is packed
+   (uninstalled, stored in the warehouse), or deconstructed when it cannot
+   pack, instead of blocking the step. A forbidden throne definition is never
+   offered; the room's other buildings (the quality levers' furniture) are
+   left alone, since the owner's reconcile only sees the template's pieces and
+   the forbidden ones.
 8. Once everything stands and is assigned, an unlit light of the title's
    `Glowing` defs inside the room that native measures out of fuel plans a
    `ThroneRefuel`: one `recovery_service` refuel order for the best hauler
@@ -341,8 +358,9 @@ planner raises it under MaintainHousing, like the tomb:
 Tests: `go/internal/policy/throne*_test.go` cover each step in the planner;
 `go/internal/buildingruntime/rounds_throne_requirements_test.go` drives the
 recorded Knight title through the review's own path and asserts a missing
-brazier, column or instrument, an unfloored room, a forbidden building and an
-unlit brazier each plan their fix. There is no acceptance case.
+brazier, column or instrument, an unfloored room, a forbidden building (packed,
+not blocking) and an unlit brazier each plan their fix; `reconcile*_test.go`
+cover the diff, the floor-kept rule and the roof read from the census room. There is no acceptance case.
 
 The royalty read reaches the projection through the optional
 `RoyaltyNative` source (like `MapSurveyNative`); without it, or without

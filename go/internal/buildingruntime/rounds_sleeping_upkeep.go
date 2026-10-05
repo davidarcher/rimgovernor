@@ -342,14 +342,13 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 		case policy.BedroomClear:
 			return r.removeOldBed(call, epoch, state, review, goal, reading, policy.BedReplacement{Room: "shell", Bed: step.Bed, Def: policy.SleepingSpotDefinition, Cell: step.Cells[0]})
 		default:
-			// The title's throne room: shell, throne, then its furnishing
-			// through the room upgrade below (#1601).
+			// The title's throne room: reconciled to the plan and its template,
+			// then furnished through the room upgrade below (#1601, #2109).
 			if throne := throneStep(facts); throne.Owed() {
-				return r.stageThrone(call, epoch, arbiter, state, review, goal, reading, throne)
+				return r.stageThrone(call, epoch, arbiter, stock, state, review, goal, reading, throne)
 			} else if throne.Failed() {
-				// Forbidden buildings (moving them is the player's, #1865) and
-				// requirements without an available definition (#1874) are
-				// named failures.
+				// A requirement without an available definition is a named
+				// failure (#1874); forbidden buildings are packed (#2109).
 				return RoundsBuildingResult{Verdict: siteBlocked("throne room", throne.Detail())}, nil
 			}
 			// The Biotech child rooms: shell, then furniture (#1680).

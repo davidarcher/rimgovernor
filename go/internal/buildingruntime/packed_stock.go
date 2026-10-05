@@ -24,11 +24,12 @@ type packedStock struct {
 	source   packedSource // nil: no stock readable
 	identity *c.Identity
 	read     map[string][]bridge.PackedItem
+	claimed  map[string]bool // packed things Install handed out this pass
 }
 
 func newPackedStock(native any, identity *c.Identity) *packedStock {
 	source, _ := native.(packedSource)
-	return &packedStock{source: source, identity: identity, read: map[string][]bridge.PackedItem{}}
+	return &packedStock{source: source, identity: identity, read: map[string][]bridge.PackedItem{}, claimed: map[string]bool{}}
 }
 
 // Items is the packed items of one packed definition; ok is false when the
@@ -56,10 +57,11 @@ func (s *packedStock) Install(call context.Context, packedDef, def string, ancho
 		return domain.MoveBuilding{}, false, err
 	}
 	for _, item := range items {
-		if item.InnerDef != def {
+		if item.InnerDef != def || s.claimed[item.Inner] {
 			continue
 		}
 		move, err := domain.NewMoveBuilding(item.Inner, def, anchor, rot)
+		s.claimed[item.Inner] = err == nil
 		return move, err == nil, err
 	}
 	return domain.MoveBuilding{}, false, nil

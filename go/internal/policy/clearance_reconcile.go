@@ -11,11 +11,6 @@ import (
 // operations that take things down are batched by kind across rooms. The build
 // side (wall, door, floor in, install, build) belongs to the owning concerns.
 
-// clearFloor stands for "no floor wanted": until the flooring review supplies
-// the wanted floor (#2107) every constructed floor on planned ground is owed
-// its removal.
-const clearFloor = "(clear)"
-
 // clearKinds are the removal kinds in the order a pass takes them: other
 // buildings first (one at a time, so removals cannot jointly invalidate the
 // observed roof support), then packing, the door swaps, the roof and the
@@ -39,13 +34,17 @@ type clearedRoom struct {
 	rec  Reconciliation
 }
 
-func reconcileGround(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation) []clearedRoom {
+// reconcileGround reconciles every ground room against the flooring review's
+// wanted floors (#2107): a floor is owed removal only where it is not the wanted
+// one nor one that stands in for it. Without a decision the floors are left.
+func reconcileGround(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation, wants RoomFloors) []clearedRoom {
 	var out []clearedRoom
 	for _, r := range plan.groundRooms(g) {
-		out = append(out, clearedRoom{r, Reconcile(ReconcileInput{
-			Plan: plan, Room: r, Ground: g, Rows: rows, Floors: floors, Rooms: rooms,
-			WantedFloor: func(domain.Cell) string { return clearFloor },
-		})})
+		in := ReconcileInput{Plan: plan, Room: r, Ground: g, Rows: rows, Floors: floors, Rooms: rooms}
+		if wants != nil {
+			in.WantedFloor, in.FloorKept = wants(r)
+		}
+		out = append(out, clearedRoom{r, Reconcile(in)})
 	}
 	return out
 }
@@ -55,8 +54,8 @@ func reconcileGround(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, fl
 // in one batch (a single other building or door swap at a time), else the
 // first retired ground with work. Rows are the census's player rows
 // (SplitGroundRows). ok is false when the ground is clear.
-func PlannedGroundStep(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation, rg RetiredGround) (GroundStep, bool) {
-	crs := reconcileGround(plan, g, rows, floors, rooms)
+func PlannedGroundStep(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation, rg RetiredGround, wants RoomFloors) (GroundStep, bool) {
+	crs := reconcileGround(plan, g, rows, floors, rooms, wants)
 	for _, kind := range clearKinds {
 		step := GroundStep{Phase: kindLabel(kind)}
 		seen, seenRoof := map[string]bool{}, map[domain.Cell]bool{}
@@ -106,9 +105,9 @@ func PlannedGroundStep(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, 
 // PlannedGroundWork is the clearance deficit planned ground owes: every
 // removal the planned rooms owe (Reconcile) and every target building and floor
 // retired ground holds, stable.
-func PlannedGroundWork(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation, rg RetiredGround) []string {
+func PlannedGroundWork(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation, rg RetiredGround, wants RoomFloors) []string {
 	out := retiredGroundWork(rows, floors, rg.Ground, rg)
-	for _, cr := range reconcileGround(plan, g, rows, floors, rooms) {
+	for _, cr := range reconcileGround(plan, g, rows, floors, rooms, wants) {
 		for _, op := range cr.rec.Owed {
 			if !slices.Contains(clearKinds, op.Kind) || op.Kind == OpRoofOff {
 				continue

@@ -133,7 +133,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 			prefix = fmt.Sprintf("deconstruct-%s-x%d-", selection.Targets[0].EntityID, len(selection.Targets))
 		}
 		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: selection.Targets}, nil)
-	} else if step, ok := plannedGroundStep(colony.Projection, stampPacking(player, colony.Projection), census.Floors); ok {
+	} else if step, ok := plannedGroundStep(colony.Projection, stampPacking(player, colony.Projection), census.Floors, r.reviewer.clearFloors(colony.Projection)); ok {
 		prefix, actions, err = groundStepMethod(id, step)
 	} else {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)
@@ -166,7 +166,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 // plannedGroundStep is the next clearance method over the recorded plan and
 // ground census; none while either is unknown, so nothing of the colony's comes
 // down on a guess.
-func plannedGroundStep(colony observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor) (policy.GroundStep, bool) {
+func plannedGroundStep(colony observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor, wants policy.RoomFloors) (policy.GroundStep, bool) {
 	plan, known := colony.LayoutPlan.Value()
 	if !known {
 		return policy.GroundStep{}, false
@@ -175,12 +175,12 @@ func plannedGroundStep(colony observation.ColonyProjection, player []policy.Clea
 	if !known {
 		return policy.GroundStep{}, false
 	}
-	return policy.PlannedGroundStep(plan, ground, player, floors, colonyRooms(colony), retiredGround(colony))
+	return policy.PlannedGroundStep(plan, ground, player, floors, colonyRooms(colony), retiredGround(colony), wants)
 }
 
 // plannedGroundWork is the clearance deficit over the same plan and census;
 // none while either is unknown.
-func plannedGroundWork(colony observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor) []string {
+func plannedGroundWork(colony observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor, wants policy.RoomFloors) []string {
 	plan, known := colony.LayoutPlan.Value()
 	if !known {
 		return nil
@@ -189,7 +189,7 @@ func plannedGroundWork(colony observation.ColonyProjection, player []policy.Clea
 	if !known {
 		return nil
 	}
-	return policy.PlannedGroundWork(plan, ground, player, floors, colonyRooms(colony), retiredGround(colony))
+	return policy.PlannedGroundWork(plan, ground, player, floors, colonyRooms(colony), retiredGround(colony), wants)
 }
 
 // stampPacking marks the player rows that pack instead of deconstruct and the

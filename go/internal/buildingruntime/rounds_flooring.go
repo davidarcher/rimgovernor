@@ -110,11 +110,7 @@ func (r *RoundsBuildingPlanner) selectFlooring(call context.Context, current dom
 	if !review.Known {
 		return nil, fieldUnavailable("flooring"), nil
 	}
-	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts)}
-	for _, d := range facts.Definitions {
-		flooring.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild, Tags: d.FloorTags}
-	}
-	proposal, err := policy.SelectFlooringMethod(review, flooring, p)
+	proposal, err := policy.SelectFlooringMethod(review, flooringFacts(facts), p)
 	if err != nil {
 		return nil, Verdict{}, err
 	}

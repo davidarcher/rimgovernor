@@ -640,7 +640,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 			others, player := policy.SplitGroundRows(census.Targets)
 			reading.Projection.Facts.Upkeep.Clearance = domain.Known(others)
 			reading.Projection.Facts.Upkeep.Chunks = domain.Known(census.Chunks)
-			reading.Projection.Facts.Upkeep.Ground = domain.Known(plannedGroundWork(reading.Projection, player, census.Floors))
+			reading.Projection.Facts.Upkeep.Ground = domain.Known(plannedGroundWork(reading.Projection, player, census.Floors, r.clearFloors(reading.Projection)))
 			if err := r.dropClearedRetiredGround(ctx, state.Snapshot, &reading.Projection, player, census.Floors); err != nil {
 				return store.RoundsResult{}, err
 			}
