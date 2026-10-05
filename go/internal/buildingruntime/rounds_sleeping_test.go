@@ -24,6 +24,10 @@ type sleepingNative struct {
 	previews  int
 	calls     int
 	onPreview func(context.Context, *bridge.BuildingPreview)
+	// standing holds the cells of the sleeping pieces standMarks shows;
+	// overlays counts bed previews over them.
+	standing map[domain.Cell]bool
+	overlays int
 }
 
 func (n *sleepingNative) PreviewBuildings(ctx context.Context, actions []domain.Action, s domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error) {
@@ -52,6 +56,17 @@ func (n *sleepingNative) previewOne(ctx context.Context, a domain.Action, s doma
 	v := bridge.BuildingPreview{Preview: policy.Preview{Action: a, Snapshot: s, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), Costs: domain.Known([]policy.Amount{}), Footprint: domain.Known(policy.BunkCells(anchor, b.Rotation()))}, Stock: policy.StockObservation{Snapshot: s, Tick: tick}}
 	if n.onPreview != nil {
 		n.onPreview(ctx, &v)
+	}
+	// The native refuses a bed or bedroll blueprint over a standing sleeping
+	// piece (#2080); overlays counts the attempts.
+	if b.Definition() == "Bed" || b.Definition() == policy.SleepingBedrollDefinition {
+		for _, cell := range policy.BunkCells(anchor, b.Rotation()) {
+			if n.standing[cell] {
+				n.overlays++
+				v.Preview.CanPlace = domain.Known(false)
+				break
+			}
+		}
 	}
 	return v, bridge.Result{}, nil
 }

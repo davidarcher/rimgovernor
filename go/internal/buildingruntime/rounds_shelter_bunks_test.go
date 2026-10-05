@@ -95,12 +95,117 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 			used[p] = true
 		}
 	}
-	// The slots are shared: every spot lies under the bed that replaces it.
+	// The slots are shared: every spot lies under the bed that replaces it,
+	// after the spot was deleted: no bed was ever previewed over a standing
+	// one (#2080).
 	for _, spot := range spots {
 		if !slices.Contains(beds, spot) {
 			t.Fatal("spot", spot, "has no bed on its slot", beds)
 		}
 	}
+	if n.overlays != 0 {
+		t.Fatal("a bed was overlaid on a standing spot", n.overlays)
+	}
+}
+
+// The ladder across tiers (#2080): with Bed locked and bedrolls stocked the
+// spots are deleted and bedrolls placed on the freed slots; when Bed then
+// becomes buildable the bedrolls are packed to storage (uninstalled, not
+// deconstructed) and the beds go on the same slots. At no step is a bed or
+// bedroll previewed over a standing piece.
+func TestRoundsShelterLadderSpotsBedrollsBeds(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
+	t.Parallel()
+	r, db, n := shelterSiteFixture(t)
+	ctx := context.Background()
+	n.catalogRow("Bed").Research = []string{"Beds"}
+	bedroll := buildable(policy.SleepingBedrollDefinition, 0, 1, 2)
+	bedroll.Stuffs = []bridge.FixtureStuff{{Stuff: "WoodLog"}}
+	n.putCatalog(bedroll)
+	step := func(method domain.MethodID) store.PlanState {
+		t.Helper()
+		result, err := r.Step(ctx)
+		if err != nil || result.Verdict != BuildingReasonAdmitted {
+			t.Fatal(method, result, err)
+		}
+		id := methodPlan(t, result.Decision, method)
+		completeRoundsBuildingMethod(t, db, result)
+		plan, err := db.LoadPlan(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return plan
+	}
+	spots := step(shelterSpotsMethod)
+	slots := bunkAnchors(t, spots, "SleepingSpot")
+	// The standing spots are first deleted, never built over.
+	settleBunks(t, r, db, n)
+	standBunks(n, standingBunks{"SleepingSpot", slots})
+	for _, action := range step(shelterClearBedrollsMethod).Spec.Actions() {
+		if cut, ok := action.Deconstruction(); !ok || cut.Definition() != "SleepingSpot" {
+			t.Fatal("not a spot deletion", action)
+		}
+	}
+	standBunks(n)
+	rolls := step(shelterBedrollsMethod)
+	if got := bunkAnchors(t, rolls, policy.SleepingBedrollDefinition); !slices.Equal(got, slots) {
+		t.Fatal("bedrolls not on the spots' slots", got, slots)
+	}
+	// Bed becomes buildable: the standing bedrolls are packed, not deleted.
+	settleBunks(t, r, db, n)
+	standBunks(n, standingBunks{policy.SleepingBedrollDefinition, slots})
+	n.catalogRow("Bed").Research = nil
+	for _, action := range step(shelterClearBedsMethod).Spec.Actions() {
+		if pack, ok := action.UninstallBuilding(); !ok || pack.Definition() != policy.SleepingBedrollDefinition {
+			t.Fatal("not a bedroll pack", action)
+		}
+	}
+	standBunks(n)
+	beds := step(shelterBedsMethod)
+	if got := bunkAnchors(t, beds, "Bed"); !slices.Equal(got, slots) {
+		t.Fatal("beds not on the same slots", got, slots)
+	}
+	if n.overlays != 0 {
+		t.Fatal("a bed or bedroll was overlaid on a standing piece", n.overlays)
+	}
+}
+
+// While a spot is not yet standing, or its deletion is open, the bed rung
+// waits rather than overlaying; it never previews a bed then.
+func TestRoundsShelterBedRungWaitsForSpotsAndDeletion(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
+	t.Parallel()
+	r, db, n := shelterSiteFixture(t)
+	ctx := context.Background()
+	spots, err := r.Step(ctx)
+	if err != nil || spots.Verdict != BuildingReasonAdmitted {
+		t.Fatal(spots, err)
+	}
+	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(WaitBunksOpen) {
+		t.Fatal("open spots did not hold the bed rung", held, err)
+	}
+	completeRoundsBuildingMethod(t, db, spots)
+	settleBunks(t, r, db, n)
+	standBunks(n, standingBunks{"SleepingSpot", bunkAnchors(t, mustLoad(t, db, methodPlan(t, spots.Decision, shelterSpotsMethod)), "SleepingSpot")})
+	clearing, err := r.Step(ctx)
+	if err != nil || clearing.Verdict != BuildingReasonAdmitted {
+		t.Fatal(clearing, err)
+	}
+	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(WaitBunksOpen) {
+		t.Fatal("an open deletion did not hold the bed rung", held, err)
+	}
+	if n.overlays != 0 {
+		t.Fatal("a bed was previewed over a standing spot", n.overlays)
+	}
+}
+
+func mustLoad(t *testing.T, db *store.Store, id domain.PlanID) store.PlanState {
+	t.Helper()
+	plan, err := db.LoadPlan(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan
 }
 
 // A beds rung refused whole (the Bed is not buildable) falls through to
@@ -188,9 +293,16 @@ func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
 	if err != nil || spots.Verdict != BuildingReasonAdmitted {
 		t.Fatal(spots, err)
 	}
-	methodPlan(t, spots.Decision, shelterSpotsMethod)
-	// The spots stay open too: an interim that has not stood yet holds
-	// neither the beds nor the ring.
+	spotPlan := mustLoad(t, db, methodPlan(t, spots.Decision, shelterSpotsMethod))
+	completeRoundsBuildingMethod(t, db, spots)
+	settleBunks(t, r, db, n)
+	standBunks(n, standingBunks{"SleepingSpot", bunkAnchors(t, spotPlan, "SleepingSpot")})
+	clearing, err := r.Step(ctx)
+	if err != nil || clearing.Verdict != BuildingReasonAdmitted {
+		t.Fatal(clearing, err)
+	}
+	completeRoundsBuildingMethod(t, db, clearing)
+	standBunks(n)
 	beds, err := r.Step(ctx)
 	if err != nil || beds.Verdict != BuildingReasonAdmitted {
 		t.Fatal(beds, err)
@@ -238,11 +350,8 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
-	for range 2 {
-		if result, err := r.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted {
-			t.Fatal(result, err)
-		}
-	}
+	stageShelterBunks(t, r, db, n)
+	// The beds are open (placed, not yet built): the restart keeps them.
 	restarted, err := NewRoundsShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
@@ -251,8 +360,8 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	if err != nil || shell.Verdict != BuildingReasonAdmitted {
 		t.Fatal(shell, err)
 	}
-	record, err := restarted.shelterBunks(ctx, shell.Decision.Standard)
-	if err != nil || len(record.spots) != 2 || len(record.beds) != 2 {
+	record, err := restarted.shelterBunks(ctx, shell.Decision.Standard, domain.Unknown[policy.CurrentConstruction]())
+	if err != nil || len(record.placed[shelterSpotsMethod]) != 2 || len(record.placed[shelterBedsMethod]) != 2 {
 		t.Fatal(record, err)
 	}
 	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Standard).Plan)

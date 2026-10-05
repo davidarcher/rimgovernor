@@ -95,11 +95,29 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		service.Stop()
 		return err
 	}
-	// 2. The beds are admitted next; the shell is sited around them whether
-	// or not they stand yet (#641).
-	if _, err := waitBunks(ctx, st, buildingruntime.ShelterBedsMethod(), "Bed", false, w.wait(w.build, service)); err != nil {
+	// 2. Once the spots stand they are deleted (the native refuses a bed over
+	// a standing spot, #2080), then the beds are admitted on the freed slots;
+	// the shell is sited around them whether or not they stand yet (#641).
+	deleted, err := waitSpotsCleared(ctx, st, w.wait(w.build, service))
+	if err != nil {
 		service.Stop()
 		return err
+	}
+	report["spots_deleted"] = deleted
+	placed, err := waitBunks(ctx, st, buildingruntime.ShelterBedsMethod(), "Bed", false, w.wait(w.build, service))
+	if err != nil {
+		service.Stop()
+		return err
+	}
+	if len(placed) != len(spots) {
+		service.Stop()
+		return fmt.Errorf("%d beds placed on %d spot slots", len(placed), len(spots))
+	}
+	for i := range placed {
+		if fmt.Sprint(placed[i].cells) != fmt.Sprint(spots[i].cells) {
+			service.Stop()
+			return fmt.Errorf("bed %d on %v, not on the freed spot slot %v", i, placed[i].cells, spots[i].cells)
+		}
 	}
 	sh, err := waitShell(ctx, st, w.wait(w.build, service))
 	if err != nil {
@@ -286,6 +304,50 @@ func noShellYet(ctx context.Context, st *store.Store, after string) error {
 		}
 	}
 	return nil
+}
+
+// waitSpotsCleared polls the store until the shelter goal has bound the
+// spot deletion the bed rung runs first (#2080) and returns the cells of
+// the spots it deletes: the native refuses a bed over a standing spot, so
+// the beds go on the freed slots.
+func waitSpotsCleared(ctx context.Context, st *store.Store, w na.Wait) ([]domain.Cell, error) {
+	var cells []domain.Cell
+	method := buildingruntime.ShelterClearBedsMethod()
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		review, err := st.LoadRounds(ctx)
+		if err != nil {
+			return na.Signature("no-review", err), false, nil
+		}
+		for _, binding := range review.Standards {
+			if binding.Concern != policy.MaintainHousing {
+				continue
+			}
+			id, err := st.LatestMethodPlan(ctx, binding.Standard, method)
+			if errors.Is(err, store.ErrNotFound) {
+				return na.Signature(binding.Standard, "unbound"), false, nil
+			}
+			if err != nil {
+				return "", false, err
+			}
+			plan, err := st.LoadPlan(ctx, id)
+			if err != nil {
+				return "", false, err
+			}
+			for _, a := range plan.Spec.Actions() {
+				cut, ok := a.Deconstruction()
+				if !ok || cut.Definition() != "SleepingSpot" {
+					return "", false, fmt.Errorf("%s places %v, want a SleepingSpot deletion", method, a)
+				}
+				cells = append(cells, cut.Cell())
+			}
+			return "", true, nil
+		}
+		return na.Signature("unbound", len(review.Standards)), false, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s not admitted for MaintainHousing: %w", method, err)
+	}
+	return cells, nil
 }
 
 func describeBunks(bunks []bunk) []map[string]any {

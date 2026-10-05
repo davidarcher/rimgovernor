@@ -218,16 +218,7 @@ func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	centreOn(planner.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(n, 25, func(int32, int32) bool { return true })
 	bunks := map[domain.Cell]bool{}
-	for rung, method := range []domain.MethodID{shelterSpotsMethod, shelterBedsMethod} {
-		result, err := planner.Step(ctx)
-		if err != nil || result.Verdict != BuildingReasonAdmitted {
-			t.Fatal(rung, result, err)
-		}
-		completeRoundsBuildingMethod(t, db, result)
-		plan, err := db.LoadPlan(ctx, methodPlan(t, result.Decision, method))
-		if err != nil {
-			t.Fatal(err)
-		}
+	for _, plan := range stageShelterBunks(t, planner, db, n, func() { recordStoreroom(t, planner, db, policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}) }) {
 		for _, action := range plan.Spec.Actions() {
 			if b, ok := action.Building(); ok {
 				for _, cell := range policy.BunkCells(b.Cell(), b.Rotation()) {

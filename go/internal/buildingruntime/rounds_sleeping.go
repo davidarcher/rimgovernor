@@ -170,7 +170,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 			continue
 		}
-		if r.phase == policy.HousingShelter && (m.Method == shelterSpotsMethod || m.Method == shelterBedsMethod) {
+		if r.phase == policy.HousingShelter && isShelterBunkMethod(m.Method) {
 			// An open bunk rung does not hold the ring (#641): the walls and
 			// door stand on cells the bunks never take (the ring is sited
 			// around them), and a stalled bed must not keep the colony

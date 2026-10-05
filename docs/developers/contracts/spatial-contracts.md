@@ -95,12 +95,17 @@ On a fresh site the initial shelter runs three rungs under one Episode:
 1. Sleeping spots at the first review, one per colonist owed, on the chosen layout's
    interior.
 2. Wooden beds (`Bed`, north-facing 1x2; bedrolls in stocked fabric or leather while
-   `Bed` is locked) as the first construction, off the ring's corner cells, the
-   entrance aisle and the storage patch.
+   `Bed` is locked) on the same slots, off the ring's corner cells, the entrance aisle
+   and the storage patch. The native refuses a bed over a standing spot, so the bed rung
+   first deletes the standing spots (`shelter-clear-beds`; a bedroll being upgraded is
+   packed to storage instead, never deleted), and places the beds once none stands
+   (#2080). The rung waits, holding the ring, while the spots are unbuilt or the
+   deletion is open.
 3. The ring around them.
 
-Each rung is one plan (`routine-bunks-*`, methods `shelter-spots` and
-`shelter-beds`), admitted one per review, and an open rung does not hold the next, so
+Each rung is one plan (`routine-bunks-*`, methods `shelter-spots`, `shelter-clear-*`,
+`shelter-bedrolls` and `shelter-beds`), admitted one per review; once the beds are
+admitted an open bed rung does not hold the ring, so
 a stalled bed never keeps the walls and door from starting. The store admits a method
 beside open bunk rungs only when it is pure construction on no bunk cell; an open
 shell still holds the concern, and the indoor furnishing step waits for the bunks.

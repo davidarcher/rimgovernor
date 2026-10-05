@@ -46,7 +46,7 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 		if b.Definition() == "SleepingSpot" {
 			return
 		}
-		if b.Definition() == "Bed" {
+		if b.Definition() == "Bed" || b.Definition() == policy.SleepingBedrollDefinition {
 			// A wooden bed on the default 1x2 footprint; its stock is not
 			// charged so the ring's budget tests count the ring alone.
 			v.Preview.MadeFromStuff = domain.Known(true)
@@ -110,7 +110,7 @@ func shelterFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sleepi
 // is not a bunk rung, or the last bound when only bunks are.
 func shellMethod(goal store.StandardState) domain.Method {
 	for _, m := range goal.Methods {
-		if m.Method != shelterSpotsMethod && m.Method != shelterBedsMethod {
+		if !isShelterBunkMethod(m.Method) {
 			return m
 		}
 	}
@@ -424,28 +424,86 @@ func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBu
 // the journal, so the next Step sites the ring around them. It returns the
 // bunk plans in the order admitted and resets the fixture's preview
 // counters, so a test's shell assertions count the ring alone.
-func stageShelterBunks(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, n *sleepingNative) []store.PlanState {
+func stageShelterBunks(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, n *sleepingNative, afterSettle ...func()) []store.PlanState {
 	t.Helper()
 	ctx := context.Background()
 	var plans []store.PlanState
-	for rung := 0; rung < 2; rung++ {
+	upkeep := n.reply.GetObserved().Upkeep
+	step := func(method domain.MethodID) store.PlanState {
+		t.Helper()
 		result, err := r.Step(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if result.Verdict != BuildingReasonAdmitted {
-			t.Fatal("bunk rung not admitted", rung, result)
+			t.Fatal("bunk rung not admitted", method, result)
 		}
-		method := methodPlan(t, result.Decision, []domain.MethodID{shelterSpotsMethod, shelterBedsMethod}[rung])
+		id := methodPlan(t, result.Decision, method)
 		completeRoundsBuildingMethod(t, db, result)
-		plan, err := db.LoadPlan(ctx, method)
+		plan, err := db.LoadPlan(ctx, id)
 		if err != nil {
 			t.Fatal(err)
 		}
-		plans = append(plans, plan)
+		return plan
 	}
+	spots := step(shelterSpotsMethod)
+	plans = append(plans, spots)
+	// The spots stand: the bed rung deletes them first, then places the
+	// beds on the freed slots.
+	settleBunks(t, r, db, n)
+	for _, f := range afterSettle {
+		f()
+	}
+	standBunks(n, standingBunks{"SleepingSpot", bunkAnchors(t, spots, "SleepingSpot")})
+	clearing := step(shelterClearBedsMethod)
+	for _, action := range clearing.Spec.Actions() {
+		if cut, ok := action.Deconstruction(); !ok || cut.Definition() != "SleepingSpot" {
+			t.Fatal("clearing is not a spot deletion", action)
+		}
+	}
+	standBunks(n)
+	beds := step(shelterBedsMethod)
+	plans = append(plans, beds)
+
+	// The ring tests that follow read no sleeping census, as before.
+	n.reply.GetObserved().Upkeep, n.standing = upkeep, nil
 	n.previews, n.calls = 0, 0
 	return plans
+}
+
+// standingBunks is a definition standing at the anchors of some bunk slots.
+type standingBunks struct {
+	definition string
+	at         []shelterBunk
+}
+
+// standBunks makes the fixture's sleeping census show the standing pieces
+// (none when called bare).
+func standBunks(n *sleepingNative, sets ...standingBunks) {
+	var beds []*o.UpkeepBed
+	n.standing = map[domain.Cell]bool{}
+	for _, set := range sets {
+		for _, b := range set.at {
+			for _, cell := range policy.BunkCells(b.anchor, b.rot) {
+				n.standing[cell] = true
+			}
+			ref := &o.EntityRef{Id: proto.String(fmt.Sprintf("%s-bunk%d", set.definition, len(beds))), DefName: proto.String(set.definition), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(b.anchor.X), Z: proto.Int32(b.anchor.Z)}}
+			beds = append(beds, &o.UpkeepBed{Bed: n.head(ref), Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(false), TemperatureC: proto.Float64(20)})
+		}
+	}
+	n.reply.GetObserved().Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Beds: beds,
+		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
+}
+
+// settleBunks shows the journal's applied bunks standing built in the
+// census and runs the review that retires their plans, as a real colony's
+// next review does once the builders finish.
+func settleBunks(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, n *sleepingNative) {
+	t.Helper()
+	markBuilt(t, db, n.roundsNative)
+	if _, err := r.reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *testing.T) {
@@ -481,7 +539,7 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 	}
 	remaining, err := r.Step(ctx)
 	if err != nil || remaining.NativeWorkTicks != 10000 {
-		t.Fatal("furnishing stopped unfinished roofing", remaining, err)
+		t.Fatal("furnishing stopped unfinished roofing", remaining.Decision.Standard.Methods, err)
 	}
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
