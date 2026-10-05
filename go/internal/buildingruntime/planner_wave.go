@@ -3,11 +3,13 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // StepBudget bounds one clock step's planner waves (#623), each part
@@ -118,14 +120,52 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 			return err
 		})
 		err := run()
+		took := time.Since(start)
 		w.mu.Lock()
-		w.took[entry.name] = time.Since(start)
+		w.took[entry.name] = took
+		late := w.closed
 		w.mu.Unlock()
+		telemetry.Decide(ctx, plannerStepDecision(entry, reason, err, took, late))
 		if err != nil {
 			err = fmt.Errorf("%s: %w", entry.name, err)
 		}
 		return w.done(entry.name, reason, err)
 	})
+}
+
+// plannerStepDecision is the planner_step row of one planner run: the planner
+// (target), its verdict word and cause, wall time, concern, class and, for a
+// failure, the error. A run that returned after the cutoff is marked late.
+// A refused or waiting verdict's reason is its refusal kind (the subject and
+// detail ride in attrs); any other outcome beyond admitted reads as ok with
+// the outcome as the reason; a run with no verdict reads ok/no_verdict.
+func plannerStepDecision(entry plannerEntry, v Verdict, err error, took time.Duration, late bool) telemetry.Decision {
+	d := telemetry.Decision{Kind: "planner_step", Component: "clock-scheduler", Target: entry.name, Dur: took,
+		Attrs: map[string]any{"concern": string(entry.concern), "class": string(entry.class)}}
+	switch {
+	case err != nil:
+		d.Level, d.Verdict, d.Reason = slog.LevelWarn, "failed", "error"
+		d.Attrs["error"] = err
+	case v.IsZero():
+		d.Verdict, d.Reason = "ok", "no_verdict"
+	case v.Outcome == OutcomeAdmitted || v.Outcome == OutcomeWaiting || v.Outcome == OutcomeRefused:
+		d.Verdict, d.Reason = string(v.Outcome), string(v.Refusal.Kind)
+		if v.Outcome == OutcomeAdmitted {
+			d.Reason = "plan_admitted"
+		}
+	default:
+		d.Verdict, d.Reason = "ok", string(v.Outcome)
+	}
+	if v.Refusal.Subject != "" {
+		d.Attrs["subject"] = v.Refusal.Subject
+	}
+	if v.Refusal.Detail != "" {
+		d.Attrs["detail"] = v.Refusal.Detail
+	}
+	if late {
+		d.Attrs["late"] = true
+	}
+	return d
 }
 
 // done records a planner's return and its reason. After the cutoff the

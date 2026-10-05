@@ -316,13 +316,15 @@ const (
 	DefaultIdleGrace        = 30 * time.Second
 )
 
-// NoWorkRefusal reports a scheduler admission_refused row naming no_work:
-// the governor declined to run the clock because nothing needs game time.
+// NoWorkRefusal reports a scheduler admission row refusing the window with
+// no_work among its refusals: the governor declined to run the clock because
+// nothing needs game time.
 func NoWorkRefusal(row na.FlightRow) bool {
-	if row.Kind != "admission_refused" {
+	if row.Kind != "admission" || na.AsString(row.Payload["target"]) != "window" {
 		return false
 	}
-	for _, reason := range na.AsSlice(row.Payload["refused"]) {
+	attrs, _ := na.AsMap(row.Payload["attrs"])
+	for _, reason := range na.AsSlice(attrs["refused"]) {
 		if na.AsString(reason) == "no_work" {
 			return true
 		}

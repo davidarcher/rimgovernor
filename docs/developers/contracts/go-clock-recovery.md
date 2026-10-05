@@ -316,7 +316,7 @@ only. Each catalog entry is `critical` (preempt and critical priority classes an
 fire safety) or `optional` (the development reviews). The step joins the routine
 review and the critical planners under `StepBudget.Wall`; past it, planners still
 evaluating are named on `ClockSchedulerResult.HeldBy` (`held_by` on the row) and the
-step admits nothing (`admission_refused` with `critical_wave_budget`). Optional
+step admits nothing (an `admission` row, verdict `refused`, reason `critical_wave_budget`). Optional
 planners run on the same snapshot, started after the critical ones, and are joined
 for one critical-wave duration more (floored by `StepBudget.OptionalGrace`, never
 past the wall budget); those still evaluating are cancelled, listed under

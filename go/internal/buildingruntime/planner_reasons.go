@@ -21,8 +21,7 @@ func plannerRecordReason(v Verdict) (policy.PlannerNote, bool) {
 	if v.IsZero() {
 		return policy.PlannerNote{}, false
 	}
-	if err := v.Validate(); err != nil {
-		clockSchedulerLog("planner verdict rejected: %v", err)
+	if v.Validate() != nil {
 		return policy.PlannerNote{}, false
 	}
 	switch v.Outcome {
@@ -128,6 +127,13 @@ func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *planne
 		return
 	}
 	if _, err := s.player.journal.RecordPlannerReasons(call, notes); err != nil {
-		clockSchedulerLog("planner reasons: %v", err)
+		plannerBookkeepingFailed(call, "reasons", err)
 	}
+}
+
+// plannerBookkeepingFailed files the step's own failure to record a wave
+// (the goal notes or the open work of the planners' kinds) as a failed
+// planner_step row, so a store error is not swallowed.
+func plannerBookkeepingFailed(ctx context.Context, target string, err error) {
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "planner_step", Component: "clock-scheduler", Level: slog.LevelWarn, Verdict: "failed", Reason: "journal_error", Target: target, Attrs: map[string]any{"error": err}})
 }

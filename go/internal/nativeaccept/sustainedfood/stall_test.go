@@ -64,11 +64,11 @@ func TestTickStallIdle(t *testing.T) {
 }
 
 func TestNoWorkRefusal(t *testing.T) {
-	row := na.FlightRow{Kind: "admission_refused", Payload: map[string]any{"refused": []any{"no_work"}}}
+	row := na.FlightRow{Kind: "admission", Payload: map[string]any{"verdict": "refused", "target": "window", "attrs": map[string]any{"refused": []any{"no_work"}}}}
 	if !NoWorkRefusal(row) {
 		t.Fatal("no_work refusal not recognised")
 	}
-	row.Payload = map[string]any{"refused": []any{"critical_wave_budget"}}
+	row.Payload = map[string]any{"verdict": "refused", "target": "window", "attrs": map[string]any{"refused": []any{"critical_wave_budget"}}}
 	if NoWorkRefusal(row) {
 		t.Fatal("budget refusal read as no_work")
 	}

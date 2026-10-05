@@ -43,7 +43,7 @@ Row kinds a phase report reads:
 Every service log line is a structured record (`go/internal/telemetry`):
 `<time> tick=<n|-> <LEVEL> [<component>] <message> k=v ...`. A record naming an
 event `kind` is also a flight row of that kind (`phases` ignores them).
-Kinds: `scheduler_step` (one per change of a step's outcome), `admission_refused`,
+Kinds: `scheduler_step` (one per change of a step's outcome), `planner_step` (one per planner run), `admission`,
 `scheduler_stop`, `authority_change`, `alert_row`, `worker_outcome`,
 `worker_dispatch`, `rounds_review`. Grep the emitting code for each one's
 attributes.

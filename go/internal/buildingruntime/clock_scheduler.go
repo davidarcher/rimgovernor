@@ -742,6 +742,19 @@ func clockReasonNames(reasons []policy.ClockWindowReason) []string {
 	return out
 }
 
+// windowRefusedDecision is the admission row of a clock window the step did
+// not admit: target "window", reason the first refusal (critical_wave_budget
+// when a critical planner was still evaluating past the wall budget, else a
+// ClockWindowReason), every refusal listed in attrs.refused beside attrs.
+func windowRefusedDecision(refused []string, attrs map[string]any) telemetry.Decision {
+	reason := "unspecified"
+	if len(refused) > 0 {
+		reason = refused[0]
+	}
+	attrs["refused"] = refused
+	return telemetry.Decision{Kind: "admission", Component: "clock-scheduler", Verdict: "refused", Reason: reason, Target: "window", Attrs: attrs}
+}
+
 // StepWithReason performs at most one scheduling decision for reason. It
 // never acquires authority, renews an epoch, acknowledges events, or starts
 // a background loop. Which planners run is the reason's plannerSelection;
@@ -765,9 +778,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	defer done()
 	gateWait := time.Since(entered)
-	if gateWait > 50*time.Millisecond {
-		clockSchedulerLog("step waited %s for the player gate (holder=%s held=%s)", gateWait.Round(time.Millisecond), gate.holder, gate.holderHeld.Round(time.Millisecond))
-	}
 	// A wake's evidence lands on the due queue once, here, so it outlives
 	// a step that runs no planners (a paced live wave, a stopping window)
 	// and selects the same planners on the next (#625).
@@ -792,7 +802,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	defer func() {
 		elapsed := time.Since(stepBegan)
 		out.Journal = journal.total
-		clockSchedulerLog("step reads: %s running=%v elapsed=%s", reads, out.Running, elapsed.Round(time.Millisecond))
 		// The reason the step acted on (out.Reason once the status read
 		// fixed it, else the caller's) and, for a step woken by a clock
 		// stop, the latency from the native stop stamp to the step
@@ -898,7 +907,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	epochs, err := journalTimed(journal, func() ([]store.ClockEpochObligation, error) { return s.player.journal.LoadClockEpochs(call, 4096) })
 	if err != nil {
-		clockSchedulerLog("step exit: LoadClockEpochs %v", err)
 		return out, err
 	}
 	// The player runs the game by hand under a stopped clock (#601): every
@@ -908,8 +916,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// of the speed keys: pause natively and read the bundle again at the
 	// paused tick, so the same step reviews and admits from it.
 	if s.playerDriven(loaded, epochs) {
-		if since, quiet := s.playerQuiet(); !quiet {
-			clockSchedulerLog("stopped clock advanced to tick %d under the player: last Manual bump %s ago, waiting for %s of quiet before re-taking", loaded.Context.GetTick(), since.Round(time.Millisecond), s.playerQuietFor())
+		if _, quiet := s.playerQuiet(); !quiet {
 			out.Deferred = true
 			return out, nil
 		}
@@ -919,10 +926,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, errors.Join(e, s.session.Disable())
 		}
 		s.livePace(status, started)
-		clockSchedulerLog("stopped clock advanced to tick %d under the player (%.0f ticks/s, stopReason=%v) -> re-taking the clock: pausing natively", status.Context.GetTick(), s.pacePerSecond, status.GetStopped().GetReason())
 		repaused, e := s.session.RepauseClock(call, status)
 		if e != nil {
-			clockSchedulerLog("step exit: native re-pause %v", e)
 			return out, e
 		}
 		clockEvent(call, "clock-scheduler", "clock_retaken", "clock re-taken from the player", "tick", repaused.Context.GetTick(), "paused", repaused.GetActualPaused(), "pace", s.pacePerSecond, "stop_reason", status.GetStopped().GetReason().String())
@@ -950,7 +955,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, fmt.Errorf("world rebuild: %w", e)
 		}
 		if reset && s.config.Rounds != nil {
-			clockSchedulerLog("world rebuild reset the review cache at tick %d -> full review", loaded.Context.GetTick())
 			reason.Cause = StepFull
 			s.replanAfterFailure()
 			reviews = s.stepReviews(reason)
@@ -972,9 +976,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// census, each read whole.
 	if reviews {
 		refreshEntitySections(call, s.native, s.facts, loaded.Context.Identity, factsScope(loaded.Context))
-		if _, err := zones.Zones(call, loaded.Context.Identity); err != nil {
-			clockSchedulerLog("zones: review refresh failed: %v", err)
-		}
+		// A failed zone refresh leaves the census held; planners read it
+		// as stale rather than the step failing.
+		_, _ = zones.Zones(call, loaded.Context.Identity)
 	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
@@ -994,7 +998,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			recovered, e := s.session.ReconcileClock(call, v.Intent.RequestID)
 			out.Attempt = &recovered
 			out.Reconciled = true
-			clockSchedulerLog("step exit: reconciled start %s -> phase=%s err=%v", v.Intent.RequestID, recovered.Phase, e)
 			return out, e
 		}
 	}
@@ -1034,10 +1037,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		reason.Cause = StepFull
 	}
 	out.Reason = reason
-	// The timeline page's stderr parser reads the tick from this line.
-	clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v stopReason=%v tick=%d tickAdvanced=%v",
-		status.GetRunning() != nil, status.GetStopping() != nil, status.GetStopped() != nil, status.GetNeverStarted() != nil,
-		status.GetStopped().GetReason(), status.Context.GetTick(), reason.TickAdvanced)
 	if status.GetRunning() != nil || status.GetStopping() != nil {
 		var actual *k.Epoch
 		if status.GetRunning() != nil {
@@ -1057,7 +1056,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			}
 		}
 		if (status.GetStopping() != nil || !ownedCurrent) && obligations {
-			clockSchedulerLog("step exit: epoch stopping=%v ownedCurrent=%v with obligations -> cleanup", status.GetStopping() != nil, ownedCurrent)
 			out.Cleaned = true
 			return out, s.session.CleanupClock(call)
 		}
@@ -1079,7 +1077,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 				// CAS evidence the dependent's admission carries is what
 				// keeps the order honest against a world that moved since
 				// the read -- a stale read is refused, not obeyed.
-				clockSchedulerLog("coupled orders %v ready under the running window -> live review", coupled)
 				out.Coupled = true
 				out.CoupledOrders = len(coupled)
 			}
@@ -1096,7 +1093,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// The window runs whatever planners the due queue selected; a
 		// running window never waits for the stop to plan.
 		if status.GetStopping() != nil || s.config.Rounds == nil || !sel.planners {
-			clockSchedulerLog("clock already running under our own epoch -> no planners due")
 			out.Waiting = sel.waiting
 			return out, s.pauseForHunt(call, state.Snapshot, status, &out)
 		}
@@ -1105,13 +1101,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// Worker dispatch live. Planners admit their methods as at a stop; only
 		// the clock window itself is left to the stop that ends it.
 		if err = s.player.current(call, epoch); err != nil {
-			clockSchedulerLog("step exit: player epoch replaced before the live review: %v", err)
 			return out, err
 		}
 		reason.Cause = StepLive
 		out.Reason = reason
 		out.Waiting = sel.waiting
-		clockSchedulerLog("step reason: %s", reason)
 		if out.Planners, err = s.runPlanners(call, epoch, &out, sel, status); err != nil {
 			s.replanAfterFailure()
 			return out, err
@@ -1127,10 +1121,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// from the status just read and, once nothing is owed, review in
 		// this same step rather than leave the game paused for another
 		// bundle read and a second pass (issue #162).
-		clockSchedulerLog("obligations present, not running -> cleanup")
 		readmit = true
 		if err = s.session.CleanupClockObserved(call, status); err != nil {
-			clockSchedulerLog("step exit: cleanup %v", err)
 			out.Cleaned = true
 			return out, err
 		}
@@ -1140,19 +1132,15 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		for _, owned := range epochs {
 			if !clockCoordinatorTerminal(owned.Stage) {
-				clockSchedulerLog("step exit: epoch %s still %s after cleanup", owned.StartRequestID, owned.Stage)
 				out.Cleaned = true
 				return out, nil
 			}
 		}
-		clockSchedulerLog("cleanup settled every owed epoch -> reviewing in the same step")
 	}
 	if !state.Enabled {
-		clockSchedulerLog("step exit: authority disabled before the review")
 		return out, executor.ErrAuthority
 	}
 	if err = s.player.current(call, epoch); err != nil {
-		clockSchedulerLog("step exit: player epoch replaced before the review: %v", err)
 		return out, err
 	}
 	if status.GetStopped() != nil && s.combatStops.active {
@@ -1163,7 +1151,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, err
 	}
 	out.Waiting = sel.waiting
-	clockSchedulerLog("step reason: %s planners=%v waiting=%v", reason, sel.planners, sel.waiting)
 	if sel.planners {
 		if out.Planners, err = s.runPlanners(call, epoch, &out, sel, status); err != nil {
 			s.replanAfterFailure()
@@ -1173,8 +1160,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			// A critical planner is still evaluating past the wall budget:
 			// the window decision would read a verdict it does not have.
 			// Hold, naming the planners; the next step evaluates again.
-			clockSchedulerLog("critical planners %v past the wall budget %s -> holding admission", out.HeldBy, s.config.Budget.wall())
-			clockEvent(call, "clock-scheduler", "admission_refused", "window not admitted", "refused", []string{"critical_wave_budget"}, "held_by", out.HeldBy, "wall_budget_ms", float64(s.config.Budget.wall())/float64(time.Millisecond))
+			telemetry.Decide(call, windowRefusedDecision([]string{"critical_wave_budget"}, map[string]any{"held_by": out.HeldBy, "wall_budget_ms": float64(s.config.Budget.wall()) / float64(time.Millisecond)}))
 			return out, executor.ErrHeld
 		}
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
@@ -1241,13 +1227,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// reconciled: a window admitted now would watch that attempt again
 		// (the native clock never re-latches a settled one) and run out
 		// its budget before the successor it unblocks is dispatched.
-		clockSchedulerLog("latched outcomes await the worker %v -> deferring admission", pending)
 		out.Deferred = true
 		return out, nil
 	}
 	if waiting := s.latched.undispatched(fingerprint); s.config.Worker && len(waiting) > 0 {
 		// Likewise while the successor is queued but not yet dispatched.
-		clockSchedulerLog("undispatched work awaits the worker %v -> deferring admission", waiting)
 		out.Deferred = true
 		return out, nil
 	}
@@ -1282,11 +1266,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// combat bound may narrow it below.
 	paused = clockStopSpan(status, s.clock.Now())
 	out.Window = ClockWindowSize{Ticks: start.MaxTicks}
-	clockSchedulerLog("colony window: %d ticks", out.Window.Ticks)
 	var nativeWorkTicks uint32
 	if out.Shrine != nil {
 		nativeWorkTicks = out.Shrine.NativeWorkTicks
-		clockSchedulerLog("shrine: reason=%s shrine=%s hold=%s native_work_ticks=%d", out.Shrine.Verdict, out.Shrine.Shrine, out.Shrine.Hold, out.Shrine.NativeWorkTicks)
 	}
 	if out.Fields != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Fields.NativeWorkTicks)
@@ -1356,7 +1338,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// wait, and the same read is refused again next step while the game
 	// stands still; one window lets the world move under it (#219).
 	if wait := plannerRefusalWait(out.PlannerFailures); wait > 0 {
-		clockSchedulerLog("planner failed on a native refusal -> lending %d ticks", wait)
 		nativeWorkTicks = max(nativeWorkTicks, wait)
 	}
 	out.NativeWorkTicks = nativeWorkTicks
@@ -1393,7 +1374,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	combatMaxTicks := min(s.config.CombatMaxTicks, start.MaxTicks)
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
-	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
 	s.noWork = !out.Decision.Admitted && slices.Contains(out.Decision.Refused, policy.ClockWindowNoWork)
 	if s.noWork {
 		s.idleRefusals++
@@ -1401,7 +1381,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		s.idleRefusals = 0
 	}
 	if !out.Decision.Admitted {
-		clockEvent(call, "clock-scheduler", "admission_refused", "window not admitted", "refused", clockReasonNames(out.Decision.Refused), "mode", string(out.Decision.Mode), "work", work, "combat_plan", combatPlan, "hostiles", len(out.Decision.Hostiles), "clock_state", string(clockState), "window_ticks", out.Window.Ticks)
+		telemetry.Decide(call, windowRefusedDecision(clockReasonNames(out.Decision.Refused), map[string]any{"mode": string(out.Decision.Mode), "work": work, "combat_plan": combatPlan, "hostiles": len(out.Decision.Hostiles), "clock_state": string(clockState), "window_ticks": out.Window.Ticks}))
 		return out, executor.ErrHeld
 	}
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
@@ -1500,7 +1480,6 @@ func (s *ClockScheduler) seedLiveDrift(startTick int64) {
 		return
 	}
 	s.livePaceTicks = s.pacePerSecond
-	clockSchedulerLog("window started: pace %.0f ticks/s", s.pacePerSecond)
 }
 
 const (
@@ -1648,7 +1627,6 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	}
 	if pending := wave.group.WaitUntil(cutoff); len(pending) > 0 {
 		out.MissedCutoff = pending
-		clockSchedulerLog("optional planners %v still evaluating %s after the critical wave (%s) -> missed the cutoff", pending, grace.Round(time.Millisecond), out.CriticalWave.Round(time.Millisecond))
 	}
 	s.markStarved(wave.finishedNames(), out.MissedCutoff)
 	out.PlannerMS = wave.plannerMS()
@@ -1668,16 +1646,6 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	var commitFailures []error
 	out.Proposals, commitFailures = arbiter.coordinate(call, budget, scope)
 	for _, outcome := range out.Proposals {
-		switch {
-		case outcome.Admitted:
-			clockSchedulerLog("proposal %s admitted plan %s", outcome.Proposal, outcome.Plan)
-		case outcome.Stale != "":
-			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Verdict, outcome.Stale)
-		case outcome.Verdict == BuildingReasonDemand:
-			clockSchedulerLog("proposal %s %s: %s (demand %v)", outcome.Proposal, outcome.Verdict, outcome.Waiting, outcome.Demand)
-		default:
-			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Verdict, outcome.Waiting)
-		}
 		wave.decided(outcome.Planner, outcome.Verdict)
 	}
 	wave.merge(out)
@@ -1685,8 +1653,10 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	// clock window on what the other planners committed, and the failed
 	// planner retries next step (#62).
 	out.PlannerFailures = append(wave.group.Failures(), commitFailures...)
-	for _, failure := range out.PlannerFailures {
-		clockSchedulerLog("planner failed (isolated): %v", failure)
+	// A planner's own failure filed its planner_step row when it returned; a
+	// proposal that failed to commit has none, so it files one here.
+	for _, failure := range commitFailures {
+		plannerBookkeepingFailed(call, "proposals", failure)
 	}
 	return planners, nil
 }
@@ -1703,7 +1673,7 @@ func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionRe
 		if plans == nil {
 			loaded, err := s.player.journal.LoadPlans(call, 256)
 			if err != nil {
-				clockSchedulerLog("planner waits: LoadPlans %v", err)
+				plannerBookkeepingFailed(call, "waits", err)
 				return nil
 			}
 			plans = loaded
@@ -1915,7 +1885,6 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			// Foothold (#630): the shelter's planner is critical for this
 			// step (#658), its siting reads outlasting the optional grace.
 			// Every other planner still runs.
-			clockSchedulerLog("colony stage %s makes the startup planners critical: %s", stage.Stage, stage.Reason)
 			startup = true
 		}
 	}
@@ -2054,7 +2023,6 @@ func (s *ClockScheduler) pauseForHunt(call context.Context, snapshot domain.Gene
 	if err != nil || !fightOpen || len(prey) == 0 {
 		return err
 	}
-	clockSchedulerLog("hunt fight open under a colony window -> pausing it for a combat window")
 	out.Cleaned = true
 	return s.session.CleanupClock(call)
 }

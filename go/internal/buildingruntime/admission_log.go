@@ -7,18 +7,37 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// admitMethod runs a planner's building-method admission and logs why a
-// refused one was refused (#1233): planners map every refusal to
-// shared_admission_refused, which alone hides a development gate from a
-// footprint clash.
+// admitMethod runs a planner's building-method admission and files one
+// admission row per outcome that matters: why a refused one was refused
+// (#1233: planners map every refusal to shared_admission_refused, which
+// alone hides a development gate from a footprint clash) and an admitted
+// one, which commits the method to the plan. An error from the store files
+// nothing: the planner's own step row carries it.
 func admitMethod(ctx context.Context, journal *store.Store, r store.BuildingMethodRequest) (store.BuildingMethodDecision, error) {
 	decision, err := journal.AdmitBuildingMethod(ctx, r)
-	if err == nil && !decision.Admitted {
-		clockEvent(ctx, "clock-scheduler", "admission", "method admission refused", "concern", r.Owner.OwnerID(), "method", string(r.Method), "refused", refusalSummary(decision.Refused))
+	if err == nil {
+		telemetry.Decide(ctx, methodAdmissionDecision(r, decision))
 	}
 	return decision, err
+}
+
+// methodAdmissionDecision is the admission row of a method admission: target
+// the method, the concern in attrs, and for a refusal the first refusal's
+// reason with every refusal listed in refused.
+func methodAdmissionDecision(r store.BuildingMethodRequest, decision store.BuildingMethodDecision) telemetry.Decision {
+	d := telemetry.Decision{Kind: "admission", Component: "clock-scheduler", Verdict: "admitted", Reason: "method_committed", Target: string(r.Method),
+		Attrs: map[string]any{"concern": r.Owner.OwnerID()}}
+	if !decision.Admitted {
+		d.Verdict, d.Reason = "refused", "unspecified"
+		if len(decision.Refused) > 0 {
+			d.Reason = string(decision.Refused[0].Reason)
+		}
+		d.Attrs["refused"] = refusalSummary(decision.Refused)
+	}
+	return d
 }
 
 // refusalSummary reads each refusal as reason[/resource]@action.

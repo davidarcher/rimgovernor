@@ -2,8 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"sync"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -139,20 +137,16 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Work.step result: reason=%v plan=%v", method.Verdict, method.Plan)
 			out.Work = &method
 			return method.Verdict, nil
 		}},
 	{name: "fields", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.ZoneCreateAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Fields != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			started := time.Now()
 			method, err := s.config.Fields.step(ctx, epoch, arbiter)
 			if err != nil {
-				clockSchedulerLog("Fields.step failed after %s: %v", time.Since(started), err)
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Fields.step result: reason=%v plan=%s wait=%d", method.Verdict, method.Plan, method.NativeWorkTicks)
 			out.Fields = &method
 			return method.Verdict, nil
 		}},
@@ -163,7 +157,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("FoodAcquisition.step result: reason=%v plan=%s", method.Verdict, method.Plan)
 			out.FoodAcquisition = &method
 			return method.Verdict, nil
 		}},
@@ -174,7 +167,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("PestAcquisition.step result: reason=%v plan=%s", method.Verdict, method.Plan)
 			out.PestAcquisition = &method
 			return method.Verdict, nil
 		}},
@@ -205,7 +197,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Sleeping.step result: reason=%v admitted=%v refused=%v", method.Verdict, method.Decision.Admitted, method.Decision.Refused)
 			out.Sleeping = &method
 			return method.Verdict, nil
 		}},
@@ -216,7 +207,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Power.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Verdict, method.Decision, method.NativeWorkTicks)
 			out.Power = &method
 			return method.Verdict, nil
 		}},
@@ -227,7 +217,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Temperature.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Verdict, method.Decision, method.NativeWorkTicks)
 			out.Temperature = &method
 			return method.Verdict, nil
 		}},
@@ -238,7 +227,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Refrigeration.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Verdict, method.Decision, method.NativeWorkTicks)
 			out.Refrigeration = &method
 			return method.Verdict, nil
 		}},
@@ -249,7 +237,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Lighting.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Verdict, method.Decision, method.NativeWorkTicks)
 			out.Lighting = &method
 			return method.Verdict, nil
 		}},
@@ -260,7 +247,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Flooring.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Verdict, method.Decision, method.NativeWorkTicks)
 			out.Flooring = &method
 			return method.Verdict, nil
 		}},
@@ -271,7 +257,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Routes.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Verdict, method.Decision, method.NativeWorkTicks)
 			out.Routes = &method
 			return method.Verdict, nil
 		}},
@@ -282,7 +267,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Cooking.step result: reason=%v admitted=%v refused=%v", method.Verdict, method.Decision.Admitted, method.Decision.Refused)
 			out.Cooking = &method
 			return method.Verdict, nil
 		}},
@@ -293,7 +277,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Butcher.step result: reason=%v admitted=%v refused=%v", method.Verdict, method.Decision.Admitted, method.Decision.Refused)
 			out.Butcher = &method
 			return method.Verdict, nil
 		}},
@@ -304,7 +287,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("CookingBills.step result: reason=%v plan=%v", method.Verdict, method.Plan)
 			out.CookingBills = &method
 			return method.Verdict, nil
 		}},
@@ -315,7 +297,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("PreservationBills.step result: reason=%v plan=%v", method.Verdict, method.Plan)
 			out.PreservationBills = &method
 			return method.Verdict, nil
 		}},
@@ -386,7 +367,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("BasicComfort.step result: reason=%v admitted=%v refused=%v", method.Verdict, method.Decision.Admitted, method.Decision.Refused)
 			out.BasicComfort = &method
 			return method.Verdict, nil
 		}},
@@ -407,7 +387,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Workshop.step result: reason=%v admitted=%v refused=%v", method.Verdict, method.Decision.Admitted, method.Decision.Refused)
 			out.Workshop = &method
 			return method.Verdict, nil
 		}},
@@ -418,7 +397,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Hospital.step result: reason=%v admitted=%v refused=%v", method.Verdict, method.Decision.Admitted, method.Decision.Refused)
 			out.Hospital = &method
 			return method.Verdict, nil
 		}},
@@ -429,7 +407,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("SleepingUpkeep.step result: reason=%v admitted=%v refused=%v ticks=%d", method.Verdict, method.Decision.Admitted, method.Decision.Refused, method.NativeWorkTicks)
 			out.SleepingUpkeep = &method
 			return method.Verdict, nil
 		}},
@@ -450,7 +427,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Defense.step result: reason=%v plan=%v", method.Verdict, method.Plan)
 			out.Defense = &method
 			return method.Verdict, nil
 		}},
@@ -461,7 +437,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Medical.step result: reason=%v plan=%s", method.Verdict, method.Plan)
 			out.Medical = &method
 			return method.Verdict, nil
 		}},
@@ -522,7 +497,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("FireSafety.step result: reason=%v outcome=%v nativeWorkTicks=%d", method.Verdict, method.Outcome, method.NativeWorkTicks)
 			out.FireSafety = &method
 			return method.Verdict, nil
 		}},
@@ -713,7 +687,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Research.step result: reason=%v plan=%v nativeWorkTicks=%d", method.Verdict, method.Plan, method.NativeWorkTicks)
 			out.Research = &method
 			return method.Verdict, nil
 		}},
@@ -724,7 +697,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("StorageShelves.step result: reason=%v plan=%v", method.Verdict, method.Plan)
 			out.StorageShelves = &method
 			return method.Verdict, nil
 		}},
@@ -755,7 +727,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("Trade.step result: reason=%v plan=%v trader=%s phase=%s", method.Verdict, method.Plan, method.Trader, method.Phase)
 			out.Trade = &method
 			return method.Verdict, nil
 		}},
@@ -776,7 +747,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("AnimalFeed.step result: reason=%v plan=%s", method.Verdict, method.Plan)
 			out.AnimalFeed = &method
 			return method.Verdict, nil
 		}},
@@ -884,9 +854,6 @@ var plannerCatalog = []plannerEntry{
 		configured: func(c *ClockSchedulerConfig) bool { return c.Stockpiles != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Stockpiles.step(ctx, epoch, arbiter)
-			// Every early return is otherwise silent: a grow proposed for tens
-			// of thousands of ticks left no trace of the gate that held it.
-			clockEvent(ctx, "layout", "stockpiles", "stockpile step", "verdict", method.Verdict.String(), "edits", method.Edits, "err", err, "ctx_err", ctx.Err())
 			if err != nil {
 				return Verdict{}, err
 			}
@@ -900,7 +867,6 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return Verdict{}, err
 			}
-			clockSchedulerLog("defense-layout.step: reason=%s tier=%s plan=%s nativeWorkTicks=%d", method.Verdict, method.Tier, method.Plan, method.NativeWorkTicks)
 			out.DefenseLayout = &method
 			return method.Verdict, nil
 		}},
@@ -945,18 +911,9 @@ func (e plannerEntry) declared() map[bridge.FactFamily]bool {
 
 // plannerReadAudit is called for every fact family a catalog planner reads
 // that its entry does not declare (the recording facts reader,
-// bridge.ReadNote). Production logs each planner/family pair once to the
-// service log; the buildingruntime test binary replaces it in TestMain with
-// a collector that fails the run.
-var plannerReadAudit = logUndeclaredRead
-
-var loggedUndeclaredReads sync.Map
-
-func logUndeclaredRead(planner string, family bridge.FactFamily, source string) {
-	if _, seen := loggedUndeclaredReads.LoadOrStore(planner+"/"+string(family), true); !seen {
-		clockSchedulerLog("planner %s read undeclared fact family %s (%s)", planner, family, source)
-	}
-}
+// bridge.ReadNote). Only the buildingruntime test binary installs one (in
+// TestMain, a collector that fails the run); production reads unaudited.
+var plannerReadAudit func(planner string, family bridge.FactFamily, source string)
 
 // auditReads returns ctx carrying the planner's read note when an audit is
 // installed.
