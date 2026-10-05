@@ -317,9 +317,6 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if err := checkThrough(c, opts); err != nil {
 		return err
 	}
-	if err := StageSaves(c.Start, opts.Root); err != nil {
-		return err
-	}
 	log := opts.Log
 	if log == nil {
 		log = io.Discard
@@ -704,43 +701,6 @@ func (s *session) postmortem(ctx context.Context) error {
 	return nil
 }
 
-// StageSaves copies every Save.From checkpoint the start names into
-// <root>/profile/Saves when the root lacks the .rws (every file of that
-// name, e.g. its .checkpoint.json sidecar, comes along).
-func StageSaves(start Start, root string) error {
-	switch v := start.(type) {
-	case Fixture:
-		if v.On != nil {
-			return StageSaves(v.On, root)
-		}
-	case Save:
-		if v.From == "" {
-			return nil
-		}
-		target := filepath.Join(root, "profile", "Saves")
-		if _, err := os.Stat(filepath.Join(target, v.Name+".rws")); err == nil {
-			return nil
-		}
-		matches, _ := filepath.Glob(filepath.Join(v.From, v.Name+".*"))
-		if len(matches) == 0 {
-			return fmt.Errorf("save %s: nothing to stage from %s", v.Name, v.From)
-		}
-		if err := os.MkdirAll(target, 0755); err != nil {
-			return err
-		}
-		for _, src := range matches {
-			data, err := os.ReadFile(src)
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(filepath.Join(target, filepath.Base(src)), data, 0644); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // seededStart is the case's Start as the lifecycle library's with seed
 // pinned on it (#281); "" leaves the start as declared. Only a debug or
 // scenario start (bare or under a Fixture) generates a world to pin.
@@ -1008,29 +968,4 @@ func (s *session) Advance(ctx context.Context, ticks uint64, opts ...na.AdvanceO
 		opts = append([]na.AdvanceOption{na.WithExpectedLetters(s.c.Letters...)}, opts...)
 	}
 	return na.AdvanceGame(ctx, rt, ticks, opts...)
-}
-
-// CommittedSavesDir is the repository directory holding checkpointed
-// preconditions (a Save.From source), relative to the repository root.
-const CommittedSavesDir = "scripts/fixtures/saves"
-
-// CommittedSaves is CommittedSavesDir as an absolute path, found from the
-// working directory upwards (the runner runs from go/ or the repo root);
-// the relative name when no ancestor holds it.
-func CommittedSaves() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return CommittedSavesDir
-	}
-	for {
-		candidate := filepath.Join(dir, CommittedSavesDir)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return CommittedSavesDir
-		}
-		dir = parent
-	}
 }

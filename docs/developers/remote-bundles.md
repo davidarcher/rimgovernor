@@ -78,7 +78,7 @@ assets; public ciphertext cannot be revoked if its identity is compromised.
 
 ## Fixtures and generated starts
 
-Committed saves are inventoried from `scripts/fixtures/saves` and used from the
+Committed saves are inventoried from `scripts/fixtures/saves` (none are committed now; the tribal8 baseline generates on first use) and used from the
 tested checkout. They are not copied out of a player's profile. By default the
 bundle includes `starts/compatibility.json` with an empty `generated` list;
 bootstrap reports that generated debug starts will regenerate on first use.

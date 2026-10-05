@@ -41,11 +41,6 @@ type DebugStart struct {
 // expansions (Config.UseSaveExpansions).
 type Save struct {
 	Name string
-	// From, when set, is a committed directory holding Name.rws (and any
-	// sidecar files) that the runner copies into <root>/profile/Saves when
-	// the root lacks the save, before the profile is prepared: a
-	// checkpointed precondition a fresh root can resume from.
-	From string
 }
 
 // Fixture brings the game up through On (nil: the debug colony), then

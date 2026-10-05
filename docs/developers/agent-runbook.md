@@ -63,8 +63,8 @@ passes ~140 characters (`setup` refuses one).
 - **Bridge root**, `.rimgovernor/bridge/` (or `-root`): `config/config.json`
   (`games.<id>.target` is the private exe; the running game is recorded in
   `config/<id>/endpoint.json`), `profile/Config/{ModsConfig,Prefs}.xml` (Prefs
-  from the player's own profile when present), `profile/Saves/` (Prepare stages
-  `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws` there).
+  from the player's own profile when present), `profile/Saves/` (the harness
+  generates the tribal8 baseline there on first use).
 - **Mod build**, `.rimgovernor/native-builds/<role>-<stamp>/`, from
   `scripts/build_native_mod.ps1`, installed over the copy's `Mods/RimGovernor`
   only while no game of yours runs. Always build through `acceptance setup

@@ -489,7 +489,7 @@ func TestRefusalNamesItsNativeCause(t *testing.T) {
 
 // A caller that asked the native side to wait longer than the session's
 // timeout gets the deadline it asked for: food/fishing spent its 60s session
-// budget on a start_debug_game_ready it had given 120s and reported the cut
+// budget on a native start it had given 120s and reported the cut
 // as a transport failure (#663).
 func TestWithCallTimeoutCoversALongNativeWait(t *testing.T) {
 	released := make(chan struct{})

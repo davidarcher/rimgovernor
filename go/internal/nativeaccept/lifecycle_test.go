@@ -66,7 +66,7 @@ func TestLoadSaveIssuesLoadGameReady(t *testing.T) {
 
 func TestFixturePrepare(t *testing.T) {
 	identity := map[string]any{"colonyId": "c", "loadToken": "t", "mapId": float64(1)}
-	names := []string{"rimworld/start_debug_game_ready", "test/x_prepare"}
+	names := []string{"rimworld/load_game_ready", "test/x_prepare"}
 	ctx := context.Background()
 
 	if _, err := (Fixture{}).prepare(ctx, &fakeCaller{}, names, identity); err == nil {

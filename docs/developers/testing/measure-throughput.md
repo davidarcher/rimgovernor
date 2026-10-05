@@ -207,7 +207,7 @@ and reporting:
 go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/observations -root <abs root> -rimgovernor <abs path to rimgovernor.exe>
 ```
 
-It stages the committed `RimGovernor-tribal8-baseline` colony with
+It loads the generated `RimGovernor-tribal8-baseline` colony with
 `test/throughput_prepare` applied, always windowed (`Rendered`, since update
 intervals are a player's only when the game draws), one clock speed and one
 tick budget. Rows: `governor-off` (ungoverned update-interval ceiling; its

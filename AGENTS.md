@@ -174,7 +174,7 @@ sentence on what landed or remains and the commit.
   sustained run: it times `SnapshotFrames.Capture` paused on the newest
   `sustained/colony` checkpoint and prints p50/p90/max per family.
 - A new case starts from a fixture that already exercises the behaviour (a
-  committed save, a `test/*_prepare` op, or a programmatic start) and follows
+  baseline save, a `test/*_prepare` op, or a programmatic start) and follows
   the performance checklist in choose-tests: Core-only, quiet storyteller,
   stall-bounded waits, minute-scale budgets. Playing a colony into its
   precondition for 20 minutes is a fixture bug.

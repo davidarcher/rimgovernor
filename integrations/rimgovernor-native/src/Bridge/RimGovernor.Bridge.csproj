@@ -36,9 +36,9 @@
     <Compile Include="../../../../scripts/fixtures/MedicalManagementFixture.cs" Condition="'$(MedicalManagementFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HutShellFixture.cs" Condition="'$(HutShellFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ColonyReviewFixture.cs" Condition="'$(ColonyReviewFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true'" />
     <!-- build_native_mod.ps1 adds QuietStorytellerFixture, DebugStartFixture, LetterFixture, FreezeNeedsFixture and ShutdownFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
-    <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LetterFixture.cs" Condition="'$(LetterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DialogFixture.cs" Condition="'$(DialogFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/NamingFixture.cs" Condition="'$(NamingFixture)' == 'true'" />
@@ -53,7 +53,6 @@
     <Compile Include="../../../../scripts/fixtures/AnimalContainmentFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(AnimalContainmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/AnimalFeedFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(AnimalFeedFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/ScenarioStartFixture.cs" Condition="'$(ScenarioStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />

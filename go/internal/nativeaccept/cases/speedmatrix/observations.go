@@ -49,7 +49,7 @@ func init() {
 			"companion's observation capture/format split, its per-section costs and its update-interval account beside the " +
 			"clock and step phases, with the run's provenance.",
 		Start: cases.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": items, "wallSegments": segments},
-			On: cases.Save{Name: baselineSave, From: cases.CommittedSaves()}},
+			On: cases.Save{Name: baselineSave}},
 		// A windowed launch: update intervals only mean what the issue asks
 		// them to mean when the game is drawing.
 		Rendered: true,

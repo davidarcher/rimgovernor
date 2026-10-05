@@ -383,7 +383,7 @@ installs.
 
 Baseline-pinned cases run for #2029 (six of ~28, one root each; the rest are the
 nightly bulk tier's): `startup/labor` passed on the generated baseline. On the
-generated and the committed baseline alike, `farm/select-hydroponics` (no basin
+generated and the earlier committed baseline alike, `farm/select-hydroponics` (no basin
 sows Plant_Potato), `defense/threat` (wealthItems did not grow with the stocked
 supplies) and `shelter/bunks-first` (MaintainHousing admits no shelter plan)
 fail, so those failures are not the generated colony's: they predate it and are
@@ -435,8 +435,7 @@ override a run with `RIMGOVERNOR_ACCEPT_MAP_SIZE` and
 - `na.DebugStart.Biomes` (comma-separated `BiomeDef` preference) settles the
   first biome the planet offers and fails when it offers none; the cached start
   is keyed on it.
-- Every starting colonist of a configured debug start can Construct and Haul.
-  Delete a stale `RimGovernor-debug-*` save when a stage refuses for it.
+- Delete a stale `RimGovernor-debug-*` save when a stage refuses for it.
 - `StartDebugGame` loads a cached copy of the quick start
   (`RimGovernor-debug-<size>-<coverage>[-<dlc>][-<biomes>][-flat][-seed-<seed>]-quiet|loud` in `profile/Saves`).
   A case about world generation or first-load identity sets

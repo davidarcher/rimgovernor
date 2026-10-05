@@ -283,7 +283,7 @@ const MaxCallTimeout = 10 * time.Minute
 // WithCallTimeout raises this call's deadline above the session's Timeout.
 // A session timeout that bounds every read cannot also cover a native call
 // the caller explicitly asked to wait longer for: food/fishing spent its
-// 60s session budget waiting on a start_debug_game_ready it had given
+// 60s session budget waiting on a native start it had given
 // 120s, and reported the cut as "bridge transport failure: games_call_tool:
 // context deadline exceeded" (#663). A caller passing a native timeoutMs
 // must pass the matching deadline here. Lowering the deadline is not this

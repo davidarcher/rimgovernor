@@ -22,14 +22,11 @@ func TestHarnessAttention(t *testing.T) {
 		name, tool, first, read, ack, second string
 		wantErr, wantRefused                 bool
 	}{
-		{name: "debug start", tool: "rimworld/start_debug_game_ready", first: ok, read: attention, ack: ok},
 		{name: "blocked then recovered", first: blocked, read: attention, ack: ok, second: ok},
-		{name: "no attention", tool: "rimworld/start_debug_game_ready", first: ok, read: `{"structuredContent":{"supported":true,"attention":null,"blocking":false}}`},
 		{name: "cleared before read", first: blocked, read: `{"structuredContent":{"attention":null}}`, second: ok},
 		{name: "read fails", first: blocked, read: refused, wantErr: true, wantRefused: true},
 		{name: "ack fails", first: blocked, read: attention, ack: refused, wantErr: true, wantRefused: true},
 		{name: "missing id", first: blocked, read: `{"structuredContent":{"attention":{"summary":"bad"}}}`, wantErr: true, wantRefused: true},
-		{name: "malformed read", tool: "rimworld/start_debug_game_ready", first: ok, read: `{"structuredContent":{"attention":42}}`, wantErr: true},
 		{name: "retry remains blocked", first: blocked, read: attention, ack: ok, second: blocked, wantErr: true, wantRefused: true},
 		{name: "retry genuine failure", first: blocked, read: attention, ack: ok, second: refused, wantErr: true, wantRefused: true},
 		{name: "ordinary refusal", first: refused, wantErr: true, wantRefused: true},

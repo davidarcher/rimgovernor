@@ -14,7 +14,6 @@ import (
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
 const fixtureUsage = `
@@ -167,11 +166,6 @@ func executeFixture(ctx context.Context, o fixtureOptions, result *fixtureResult
 	}
 	var start na.Start = na.Loaded{}
 	if !o.Loaded {
-		// A save the profile lacks is staged from the committed checkpoints;
-		// one it holds is used as is.
-		if err := cases.StageSaves(cases.Save{Name: o.Save, From: cases.CommittedSaves()}, o.Root); err != nil {
-			return err
-		}
 		start = na.Save{Name: o.Save}
 	}
 	// FixtureOps names the op so the stale-package check's rebuild hint

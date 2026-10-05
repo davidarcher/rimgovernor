@@ -61,7 +61,7 @@ func (h *Harness) call(ctx context.Context, label, tool string, arguments any, r
 	row := evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, callErr, nil)
 	defer func() { writeEvidence(evidencePath(h.Output, sequence, label), row) }()
 	blocked := blockingAttention(callErr)
-	if blocked || (callErr == nil && tool == "rimworld/start_debug_game_ready") {
+	if blocked {
 		attention, attentionErr := h.readAndAckAttention(bridge.WithTranscriptPhase(ctx, label), func(attention map[string]any) {
 			row["attention"] = attention
 			writeEvidence(evidencePath(h.Output, sequence, label), row)
@@ -291,7 +291,7 @@ const nativeWaitMargin = 30 * time.Second
 
 // coverNativeWait raises the call's bridge deadline to cover a native wait
 // the arguments asked for. The lifecycle tools (load_game_ready,
-// start_debug_game_ready) take a timeoutMs the caller sized for the work:
+// new-colony) take a timeoutMs the caller sized for the work:
 // loading a save or generating a fresh world takes longer than an ordinary
 // read, and up to three minutes on a loaded CI runner. Cutting the call at
 // the session timeout instead reported a real, bounded wait as a transport

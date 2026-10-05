@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
@@ -49,11 +48,6 @@ func TestWorkflowSuiteWorkingDirectory(t *testing.T) {
 	for _, root := range inputs.NativeSourceRoots() {
 		write(filepath.Join(repo, filepath.FromSlash(root)), "synthetic native input")
 	}
-	// scripts/fixtures is a directory in the real checkout.
-	if err := os.Remove(filepath.Join(repo, "scripts", "fixtures")); err != nil {
-		t.Fatal(err)
-	}
-	write(filepath.Join(repo, cases.CommittedSavesDir, "checkpoint.rws"), "synthetic save")
 	write(filepath.Join(repo, "go", "go.mod"), "module github.com/davidarcher/RimGovernor/go\n\ngo 1.24\n")
 	write(filepath.Join(repo, "go", "internal", "buildingruntime", "cmd", "buildingsmoke", "main.go"), "package main\nfunc main() {}\n")
 	hash, err := na.SourceTreeHash(repo)
@@ -125,16 +119,6 @@ func TestWorkflowCWDProbe(t *testing.T) {
 	if workspace == "" {
 		t.Skip("subprocess probe only")
 	}
-	t.Run("SaveFrom", func(t *testing.T) {
-		root := filepath.Join(workspace, "staged", os.Getenv("RG_CWD_OUTCOME"))
-		if err := cases.StageSaves(cases.Save{Name: "checkpoint", From: cases.CommittedSaves()}, root); err != nil {
-			t.Fatal(err)
-		}
-		got, err := os.ReadFile(filepath.Join(root, "profile", "Saves", "checkpoint.rws"))
-		if err != nil || string(got) != "synthetic save" {
-			t.Fatalf("staged save = %q, %v", got, err)
-		}
-	})
 	t.Run("HelperBuild", func(t *testing.T) {
 		cmd := exec.Command("go", "build", "-o", filepath.Join(workspace, "helper.exe"), "github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cmd/buildingsmoke")
 		if out, err := cmd.CombinedOutput(); err != nil {
