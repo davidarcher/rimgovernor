@@ -2,6 +2,8 @@ package nativeaccept
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,14 +13,15 @@ import (
 )
 
 // CachedStartEnv controls whether StartDebugGame loads a saved copy of the
-// debug quick start instead of generating a world and map every time
-// (issue #91: a load is ~2.7s where a warm quick start is ~5.4s). It is on
-// by default. The first start under a given map size, planet coverage and
-// expansion set generates as before, saves the result as
-// RimGovernor-debug-<size>-<coverage>[-<expansions>][-<biomes>] through
-// lifecycle_save, and copies it into profile/Saves so every later Prepare
-// carries it; later starts load it (rimworld/load_game_ready). The quiet
-// storyteller is applied after either path, as before. Delete the save to
+// debug start instead of generating a world and map every time (issue #91:
+// a load is ~2.7s where a generation is far longer). It is on by default. The
+// first start under a given map size, planet coverage and expansion set
+// generates through the new-colony op (#2028), which saves the result as
+// RimGovernor-debug-<size>-<coverage>[-<expansions>][-<biomes>][-flat]
+// [-seed-<seed>]-quiet|loud (the storyteller is part of the save); it is
+// copied into profile/Saves so every later Prepare carries it, and later
+// starts load it (rimworld/load_game_ready). The fixture's quiet op is
+// applied after either path where the mode asks. Delete the save to
 // regenerate; a harness that must see a never-before-seen world (world
 // generation itself under test) runs with RIMGOVERNOR_ACCEPT_CACHED_START=0.
 // A start with a pinned seed (#281) caches as its own
@@ -33,16 +36,22 @@ var startCache struct {
 	root       string
 	headless   bool
 	expansions []string
-	// seed is the seed the last StartDebugGameSized armed a generation
-	// with, "" when it loaded the cached save or had no DebugStartTool.
+	// seed is the seed the last StartDebugGameSized generated with, "" when
+	// it loaded the cached save.
 	seed string
+	// save is the cached save the last StartDebugGameSized loaded, "" when
+	// it generated.
+	save string
 }
 
 // CachedStart reports whether the saved start is used: true unless
 // CachedStartEnv opts out.
 func CachedStart() bool { return !envOptsOut(CachedStartEnv) }
 
-func cachedStartName(start DebugStart) string {
+// cachedStartName names the save a start caches as. The storyteller is baked
+// into the save by the op, so a quiet (RimGovernorQuiet) and a loud (ordinary)
+// start never share one.
+func cachedStartName(start DebugStart, quiet bool) string {
 	name := fmt.Sprintf("RimGovernor-debug-%d-%g", start.MapSize, start.PlanetCoverage)
 	if len(startCache.expansions) > 0 {
 		name += "-" + strings.ToLower(strings.Join(startCache.expansions, "-"))
@@ -58,8 +67,23 @@ func cachedStartName(start DebugStart) string {
 	if start.Seed != "" {
 		name += "-seed-" + seedToken(start.Seed)
 	}
-	return strings.ReplaceAll(name, ".", "_")
+	if quiet {
+		name += "-quiet"
+	} else {
+		name += "-loud"
+	}
+	name = strings.ReplaceAll(name, ".", "_")
+	if len(name) > maxSaveName {
+		// The op's save names are at most 64 characters: keep a readable
+		// prefix and make the whole name's hash the tail.
+		sum := sha256.Sum256([]byte(name))
+		name = name[:maxSaveName-9] + "-" + hex.EncodeToString(sum[:4])
+	}
+	return name
 }
+
+// maxSaveName is the longest save name lifecycle_new_colony accepts.
+const maxSaveName = 64
 
 // cachedStartPath is where the running process's profile would hold the
 // save, and whether it is there.

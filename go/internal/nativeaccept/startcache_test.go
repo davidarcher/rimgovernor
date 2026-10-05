@@ -3,29 +3,53 @@ package nativeaccept
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
+
+func TestCachedStartNameSeparatesTheStoryteller(t *testing.T) {
+	defer func() { startCache.expansions = nil }()
+	start := DebugStart{MapSize: 200, PlanetCoverage: 0.05}
+	quiet, loud := cachedStartName(start, true), cachedStartName(start, false)
+	if quiet == loud || loud != "RimGovernor-debug-200-0_05-loud" {
+		t.Errorf("quiet %q loud %q", quiet, loud)
+	}
+	// Every name the op will write is a valid save name (letters, digits,
+	// '_' and '-', at most 64).
+	startCache.expansions = []string{"Royalty", "Biotech"}
+	for _, s := range []DebugStart{
+		start,
+		{MapSize: 250, PlanetCoverage: 0.3, Biomes: "TemperateForest, TropicalRainforest", Flat: true, Seed: "Pin-1"},
+	} {
+		for _, q := range []bool{true, false} {
+			name := cachedStartName(s, q)
+			if len(name) > 64 || !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(name) {
+				t.Errorf("name %q is not a valid save name", name)
+			}
+		}
+	}
+}
 
 func TestCachedStartName(t *testing.T) {
 	defer func() { startCache.expansions = nil }()
 	startCache.expansions = nil
-	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05}); got != "RimGovernor-debug-200-0_05" {
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05}, true); got != "RimGovernor-debug-200-0_05-quiet" {
 		t.Errorf("name = %q", got)
 	}
 	startCache.expansions = []string{"Royalty", "Biotech"}
-	if got := cachedStartName(DebugStart{MapSize: 250, PlanetCoverage: 0.3}); got != "RimGovernor-debug-250-0_3-royalty-biotech" {
+	if got := cachedStartName(DebugStart{MapSize: 250, PlanetCoverage: 0.3}, true); got != "RimGovernor-debug-250-0_3-royalty-biotech-quiet" {
 		t.Errorf("name = %q", got)
 	}
 	startCache.expansions = nil
-	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Biomes: "TemperateForest, TropicalRainforest"}); got != "RimGovernor-debug-200-0_05-temperateforest-tropicalrainforest" {
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Biomes: "TemperateForest, TropicalRainforest"}, true); got != "RimGovernor-debug-200-0_05-temperateforest-tropicalrain-cf435fbc" {
 		t.Errorf("name = %q", got)
 	}
 	// A flat start never loads a plain roll's save (#272), and a pinned
 	// seed on it keeps its own name.
-	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Flat: true}); got != "RimGovernor-debug-200-0_05-flat" {
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Flat: true}, true); got != "RimGovernor-debug-200-0_05-flat-quiet" {
 		t.Errorf("name = %q", got)
 	}
-	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Flat: true, Seed: "abc"}); got != "RimGovernor-debug-200-0_05-flat-seed-abc" {
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Flat: true, Seed: "abc"}, true); got != "RimGovernor-debug-200-0_05-flat-seed-abc-quiet" {
 		t.Errorf("name = %q", got)
 	}
 }

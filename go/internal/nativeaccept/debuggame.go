@@ -16,10 +16,6 @@ const QuietStorytellerTool = "test/quiet_storyteller"
 // carries it).
 const QuietWorldTool = "test/quiet_world"
 
-// DebugStartTool arms the next quick start's map size and planet coverage
-// (scripts/fixtures/DebugStartFixture.cs); every fixture build carries it.
-const DebugStartTool = "test/configure_debug_start"
-
 // LabStartTool wipes the loaded map to a blank Soil lab with fixture
 // colonists (#730); LabSpawnTool spawns one building, item or pawn on it
 // (#743). Both are in scripts/fixtures/DebugStartFixture.cs, so every
@@ -93,14 +89,13 @@ const (
 // settlement tile of the first one the generated planet offers (issue #172:
 // a case whose assertion needs a food-bearing map cannot leave the biome to
 // the roll, least of all under the cached start, which pins one roll per
-// root). Biomes needs DebugStartTool, so a fixture build. Seed pins the
-// world seed (#281: `acceptance run -seed` reproduces a recorded run; the
-// tile and starting pawns follow it natively); empty draws one, which the
-// report's world block records. A pinned seed caches under its own save.
-// Flat settles a flat tile without rivers, roads or tile mutators when the
-// planet offers one (#272: nothing to path around or bridge in a
-// construction-heavy case); it also needs DebugStartTool and caches under
-// its own save.
+// root). Seed pins the world seed (#281: `acceptance run -seed` reproduces a
+// recorded run; the tile and starting pawns follow it natively); empty draws
+// one, which the report's world block records. A pinned seed caches under its
+// own save. Flat settles a flat tile without rivers, roads or tile mutators
+// when the planet offers one (#272: nothing to path around or bridge in a
+// construction-heavy case); it caches under its own save. All of it is the
+// production new-colony op's spec (#2028).
 type DebugStart struct {
 	MapSize        int
 	PlanetCoverage float64
@@ -135,7 +130,7 @@ func DefaultDebugStart() DebugStart {
 	return d
 }
 
-// Validate applies the fixture's own bounds.
+// Validate applies the op's own bounds.
 func (d DebugStart) Validate() error {
 	if d.MapSize < MinMapSize || d.MapSize > MaxMapSize {
 		return fmt.Errorf("map size %d outside %d..%d", d.MapSize, MinMapSize, MaxMapSize)
@@ -192,12 +187,13 @@ func quietDecision(names []string, mode QuietMode) (bool, error) {
 	return false, fmt.Errorf("unknown quiet mode %d", int(mode))
 }
 
-// StartDebugGame starts RimWorld's debug colony (rimworld/start_debug_game_ready
-// at visual readiness, paused) on the small start when the build carries
-// DebugStartTool, and then, per mode, quiets the storyteller so the harness
-// sees only its own events. names are the discovered tool names; nil
-// fetches them. The returned map is the quiet op's reply, or nil when it was
-// not applied.
+// StartDebugGame starts the acceptance debug colony through the production
+// new-colony op (a Crashlanded start of DebugColonists colonists, Rough,
+// paused, names confirmed), on the RimGovernorQuiet storyteller (Loud keeps
+// Cassandra) and then, where the mode asks for it, the fixture's quiet op for
+// the residuals the storyteller def does not cover. names are the discovered
+// tool names; nil fetches them. The returned map is the quiet op's reply, or
+// nil when it was not applied.
 func StartDebugGame(ctx context.Context, h *Harness, names []string, mode QuietMode) (map[string]any, error) {
 	return StartDebugGameSized(ctx, h, names, mode, DefaultDebugStart())
 }
@@ -216,9 +212,10 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 	if err != nil {
 		return nil, err
 	}
+	quietDef := mode != Loud
 	cached := CachedStart() && startCache.root != ""
-	name := cachedStartName(start)
-	startCache.seed = ""
+	name := cachedStartName(start, quietDef)
+	startCache.seed, startCache.save = "", ""
 	if path, have := cachedStartPath(name); cached && have {
 		stale, err := cachedStartStale(path, name)
 		if err != nil {
@@ -228,64 +225,55 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 			if err := loadCachedStart(ctx, h, name); err != nil {
 				return nil, err
 			}
+			startCache.save = name
 			return applyQuiet(ctx, h, apply)
 		}
 	}
-	if err := generateDebugStart(ctx, h, names, start); err != nil {
+	if err := generateDebugStart(ctx, h, start, quietDef, name); err != nil {
 		return nil, err
 	}
 	if cached {
-		if err := saveCachedStart(ctx, h, name); err != nil {
-			return nil, err
+		// The op saved the colony as name in the running profile.
+		if err := PersistSave(startCache.root, startCache.headless, name); err != nil {
+			return nil, fmt.Errorf("cached start %s: %w", name, err)
 		}
+		startCache.save = name
 	}
 	return applyQuiet(ctx, h, apply)
 }
 
-// generateDebugStart arms start (when the build carries DebugStartTool)
-// and runs the quick start; startCache.seed records the seed it armed.
-func generateDebugStart(ctx context.Context, h *Harness, names []string, start DebugStart) error {
-	if !Contains(names, DebugStartTool) && start.Biomes != "" {
-		return fmt.Errorf("%s not in discovery but the start asks for biome %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Biomes)
+// The colony the acceptance debug start asks the op for.
+const (
+	DebugScenario   = "Crashlanded"
+	DebugColonists  = 3
+	DebugDifficulty = "Rough"
+)
+
+// scenarioStart is the new-colony spec of the debug start: seed is the pinned
+// one or the one the caller drew, saveName the save the op writes.
+func (d DebugStart) scenarioStart(seed, saveName string) ScenarioStart {
+	return ScenarioStart{
+		Scenario: DebugScenario, Count: DebugColonists, Seed: seed, Difficulty: DebugDifficulty,
+		Biome: d.Biomes, Flat: d.Flat, Size: d, SaveName: saveName,
 	}
-	if !Contains(names, DebugStartTool) && start.Seed != "" {
-		return fmt.Errorf("%s not in discovery but the start pins seed %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Seed)
-	}
-	if !Contains(names, DebugStartTool) && start.Flat {
-		return fmt.Errorf("%s not in discovery but the start asks for a flat tile: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool)
-	}
-	if Contains(names, DebugStartTool) {
-		if err := start.Validate(); err != nil {
-			return err
-		}
-		// The seed is drawn here, not natively, so the record knows it
-		// even when no save is written (the cached start off).
-		seed := start.Seed
-		if seed == "" {
-			seed = RandomSeed()
-		}
-		startCache.seed = seed
-		args := map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage, "seed": seed}
-		if start.Biomes != "" {
-			args["biomes"] = start.Biomes
-		}
-		if start.Flat {
-			args["flat"] = true
-		}
-		armed, err := h.Call(ctx, "debug-start", DebugStartTool, args)
-		if err != nil {
-			return fmt.Errorf("%s: %w", DebugStartTool, err)
-		}
-		if ok, _ := AsBool(armed["success"]); !ok {
-			return fmt.Errorf("%s refused: %#v", DebugStartTool, armed)
-		}
-	}
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+}
+
+// generateDebugStart runs the debug start through the new-colony op from the
+// main menu, saving it as saveName, with the RimGovernorQuiet storyteller
+// when quiet; startCache.seed records the seed it used. The op needs a seed,
+// so an unpinned start draws one here and the record knows it even when no
+// cached save is kept.
+func generateDebugStart(ctx context.Context, h *Harness, start DebugStart, quiet bool, saveName string) error {
+	if err := start.Validate(); err != nil {
 		return err
 	}
-	return nil
+	seed := start.Seed
+	if seed == "" {
+		seed = RandomSeed()
+	}
+	startCache.seed = seed
+	_, err := start.scenarioStart(seed, saveName).Run(ctx, h, quiet)
+	return err
 }
 
 // ApplyQuietWorld sets the loaded game's quiet-world marker through

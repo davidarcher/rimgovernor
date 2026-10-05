@@ -42,13 +42,7 @@ type Start interface {
 func (d DebugStart) saves() []string      { return nil }
 func (d DebugStart) fixtureOps() []string { return nil }
 func (d DebugStart) world() worldSource {
-	src := worldSource{seed: startCache.seed, pinned: d.Seed != ""}
-	if name := cachedStartName(d.withDefaults()); CachedStart() && startCache.root != "" {
-		if _, have := cachedStartPath(name); have {
-			src.save = name
-		}
-	}
-	return src
+	return worldSource{seed: startCache.seed, save: startCache.save, pinned: d.Seed != ""}
 }
 
 func (d DebugStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {

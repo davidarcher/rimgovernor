@@ -370,7 +370,7 @@ override a run with `RIMGOVERNOR_ACCEPT_MAP_SIZE` and
 - Every starting colonist of a configured debug start can Construct and Haul.
   Delete a stale `RimGovernor-debug-*` save when a stage refuses for it.
 - `StartDebugGame` loads a cached copy of the quick start
-  (`RimGovernor-debug-<size>-<coverage>[-<dlc>][-<biomes>]` in `profile/Saves`).
+  (`RimGovernor-debug-<size>-<coverage>[-<dlc>][-<biomes>][-flat][-seed-<seed>]-quiet|loud` in `profile/Saves`).
   A case about world generation or first-load identity sets
   `RIMGOVERNOR_ACCEPT_CACHED_START=0`; delete the save to pick up a fixture or
   start change that alters the colony.

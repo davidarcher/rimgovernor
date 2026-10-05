@@ -53,25 +53,27 @@ func TestDebugStartWorldFollowsTheCacheAndTheDrawnSeed(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv(CachedStartEnv, "")
 	startCache.root, startCache.headless, startCache.expansions, startCache.seed = root, true, nil, "drawnseed"
-	t.Cleanup(func() { startCache.root, startCache.headless, startCache.seed = "", false, "" })
+	t.Cleanup(func() { startCache.root, startCache.headless, startCache.seed, startCache.save = "", false, "", "" })
 	// No cached save yet: the seed the start drew is all the record has.
 	if rec := RecordWorld(&Config{Root: root, Headless: true}, DebugStart{}); rec != (WorldRecord{Seed: "drawnseed"}) {
 		t.Errorf("uncached = %+v", rec)
 	}
-	name := cachedStartName(DefaultDebugStart())
+	name := cachedStartName(DefaultDebugStart(), true)
 	dir := filepath.Join(root, "headless-profile", "Saves")
 	_ = os.MkdirAll(dir, 0755)
 	_ = os.WriteFile(filepath.Join(dir, name+".rws"), []byte("<seedString>cached</seedString>"), 0644)
+	startCache.save = name
 	// The cached save's seed wins once it is there, and a pinned seed is
 	// recorded as pinned under its own save.
 	rec := RecordWorld(&Config{Root: root, Headless: true}, DebugStart{})
 	if rec.Save != name || rec.Seed != "cached" || rec.Pinned || rec.SaveSHA256 == "" {
 		t.Errorf("cached = %+v", rec)
 	}
+	startCache.save = ""
 	if rec := RecordWorld(&Config{Root: root, Headless: true}, DebugStart{Seed: "Pin-1"}); rec.Save != "" || !rec.Pinned {
 		t.Errorf("pinned = %+v", rec)
 	}
-	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Seed: "Pin-1"}); got != "RimGovernor-debug-200-0_05-seed-pin1" {
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Seed: "Pin-1"}, true); got != "RimGovernor-debug-200-0_05-seed-pin1-quiet" {
 		t.Errorf("pinned name = %q", got)
 	}
 }

@@ -148,7 +148,7 @@ func (l LabStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[st
 		row["lab"] = lab
 		row["cached"] = true
 	} else {
-		if err := generateDebugStart(ctx, h, s.Names, l.base()); err != nil {
+		if err := generateDebugStart(ctx, h, l.base(), true, name); err != nil {
 			return nil, err
 		}
 		lab, err := h.Call(ctx, "lab-start", LabStartTool, map[string]any{"colonists": colonists})

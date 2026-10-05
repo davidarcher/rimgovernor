@@ -3,6 +3,7 @@ package nativeaccept
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -21,10 +22,15 @@ const (
 // hand-played. The seed is required and pins the world; the team policy's
 // rerolls make a colony differ from one a different build generated.
 type ScenarioStart struct {
-	Scenario       string
-	Count          int
-	Seed           string
-	Biome          string
+	Scenario string
+	Count    int
+	Seed     string
+	// Biome is one BiomeDef name or a comma-separated preference list; the
+	// start settles the first the generated planet offers.
+	Biome string
+	// Flat settles a flat tile without rivers, roads or tile mutators when
+	// the planet offers one.
+	Flat           bool
 	Difficulty     string
 	MinTemperature float64
 	MaxTemperature float64
@@ -68,8 +74,11 @@ func (v ScenarioStart) Spec(quiet bool) (map[string]any, error) {
 		"difficulty": difficulty, "storyteller": storyteller,
 		"mapSize": size.MapSize, "planetCoverage": size.PlanetCoverage, "saveName": saveName,
 	}
-	if v.Biome != "" {
-		spec["biomes"] = []any{v.Biome}
+	if biomes := splitBiomes(v.Biome); len(biomes) > 0 {
+		spec["biomes"] = biomes
+	}
+	if v.Flat {
+		spec["flatTile"] = true
 	}
 	if v.WorldTemperature != "" {
 		spec["worldTemperature"] = v.WorldTemperature
@@ -105,4 +114,16 @@ func (v ScenarioStart) Run(ctx context.Context, h *Harness, quiet bool) (NewColo
 		return run, fmt.Errorf("scenario start %s seed %s: %w", v.Scenario, v.Seed, err)
 	}
 	return run, nil
+}
+
+// splitBiomes is a comma-separated biome preference list as the wire's biomes
+// array, in order, without blanks; nil when none is named.
+func splitBiomes(list string) []any {
+	var out []any
+	for _, name := range strings.Split(list, ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			out = append(out, name)
+		}
+	}
+	return out
 }

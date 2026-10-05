@@ -2,6 +2,51 @@ package nativeaccept
 
 import "testing"
 
+func TestDebugStartSpec(t *testing.T) {
+	t.Setenv(MapSizeEnv, "")
+	t.Setenv(PlanetCoverageEnv, "")
+	spec, err := DefaultDebugStart().scenarioStart("abcdefghij", "RimGovernor-debug-200-0_05-quiet").Spec(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"scenario": "Crashlanded", "colonistCount": 3, "seed": "abcdefghij", "difficulty": "Rough",
+		"storyteller": QuietStorytellerDef, "mapSize": 200, "planetCoverage": 0.05, "saveName": "RimGovernor-debug-200-0_05-quiet",
+	}
+	if len(spec) != len(want) {
+		t.Fatalf("spec %v, want %v", spec, want)
+	}
+	for k, v := range want {
+		if spec[k] != v {
+			t.Errorf("spec[%s] = %v, want %v", k, spec[k], v)
+		}
+	}
+	// Loud keeps the ordinary storyteller; biomes keep their order and
+	// blanks drop; flat is a wire flag.
+	spec, err = (DebugStart{MapSize: 250, PlanetCoverage: 0.3, Biomes: "TemperateForest, ,TropicalRainforest", Flat: true}).scenarioStart("s", "n").Spec(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	biomes, _ := spec["biomes"].([]any)
+	if spec["storyteller"] != LoudStorytellerDef || spec["flatTile"] != true || len(biomes) != 2 || biomes[0] != "TemperateForest" || biomes[1] != "TropicalRainforest" {
+		t.Errorf("spec %v", spec)
+	}
+	if spec["mapSize"] != 250 || spec["planetCoverage"] != 0.3 {
+		t.Errorf("size %v", spec)
+	}
+	// A plain start carries no biomes, flat flag or temperature band.
+	spec, _ = (DebugStart{MapSize: 200, PlanetCoverage: 0.05}).scenarioStart("s", "n").Spec(true)
+	for _, k := range []string{"biomes", "flatTile", "minTemperature", "maxTemperature", "worldTemperature"} {
+		if _, has := spec[k]; has {
+			t.Errorf("plain spec carries %s", k)
+		}
+	}
+	// An empty seed is refused by the spec; generateDebugStart draws one first.
+	if _, err := (DebugStart{MapSize: 200, PlanetCoverage: 0.05}).scenarioStart("", "n").Spec(true); err == nil {
+		t.Error("empty seed accepted")
+	}
+}
+
 func TestQuietDecision(t *testing.T) {
 	with := []string{"rimworld/start_debug_game_ready", QuietStorytellerTool}
 	without := []string{"rimworld/start_debug_game_ready"}
