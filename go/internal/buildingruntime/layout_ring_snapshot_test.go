@@ -11,9 +11,10 @@ import (
 
 // layout/ring (#1271): the expansion-phase MaintainHousing step that raised
 // the Masonry capacity ring, recorded from `acceptance run layout/ring`
-// (tick 15, issue-1271 branch on 8130fd810). The ring is one stone block definition throughout
-// apart from its Door at the planned door cell, exactly the planned room's walls,
-// its door onto a spine hallway.
+// (tick 15, issue-1271 branch on 8130fd810). The ring is one stuff throughout, the
+// one the shell style picks from the recorded stock, apart from its Door at the
+// planned door cell, exactly the planned room's walls, its door onto a spine
+// hallway.
 func TestLayoutRingStepIsMasonry(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -64,13 +65,17 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 			}
 			continue
 		}
-		if !policy.StoneBlockResource(policy.Resource(b.Stuff())) {
-			t.Fatalf("%s at %v is %s, not stone blocks", b.Definition(), b.Cell(), b.Stuff())
+		// The wall stuff is the stock's call (#2127): this recording holds 400
+		// slate blocks, 80 walls' worth, short of the 200-wall shell budget, and
+		// wood is plentiful, so the ring is wood. Stone winning once the stock
+		// covers a shell is TestShellStyleFollowsTheStock's claim.
+		if want := shellStyle(facts).WallStuff(domain.ShellRun); b.Stuff() != want {
+			t.Fatalf("%s at %v is %s, want the shell style's %s", b.Definition(), b.Cell(), b.Stuff(), want)
 		}
 		stuffs[b.Stuff()] = true
 	}
 	if len(stuffs) != 1 {
-		t.Fatalf("ring mixes block definitions %v", stuffs)
+		t.Fatalf("ring mixes stuffs %v", stuffs)
 	}
 	if placements[0].Cell() != room.Door || placements[0].Definition() != "Door" {
 		t.Fatalf("ring door %s at %v, planned door %v", placements[0].Definition(), placements[0].Cell(), room.Door)
