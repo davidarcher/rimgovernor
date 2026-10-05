@@ -55,7 +55,7 @@ func parseFixture(args []string, stderr io.Writer) (fixtureOptions, error) {
 	fs.SetOutput(stderr)
 	var o fixtureOptions
 	fs.StringVar(&o.Root, "root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	fs.StringVar(&o.Save, "save", strings.TrimSuffix(na.BaselineSave, ".rws"), "save to load before the op (profile/Saves, staged from "+cases.CommittedSavesDir+" when the root lacks it)")
+	fs.StringVar(&o.Save, "save", strings.TrimSuffix(na.BaselineSave, ".rws"), "save to load before the op (profile/Saves; the tribal8 baseline is generated there on first use)")
 	fs.BoolVar(&o.Loaded, "loaded", false, "run the op on the game an earlier fixture call left loaded instead of loading -save")
 	fs.StringVar(&o.Output, "output", "", "evidence directory; each call writes under <output>/<op>-<time> (default <root>/acceptance/fixture)")
 	fs.StringVar(&o.GameID, "game", "rimgovernor-trial", "configured game ID")

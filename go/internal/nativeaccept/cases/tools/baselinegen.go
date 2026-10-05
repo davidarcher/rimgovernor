@@ -4,32 +4,31 @@ import (
 	"context"
 	"time"
 
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/variantgen"
 )
 
-// Baseline is the committed tribal8 baseline's generation spec (#192). It
-// is generated under the run's default profile, every installed DLC since
-// #1260; copy root/profile/Saves/<Save>.rws over
-// scripts/fixtures/saves after auditing it.
-var Baseline = variantgen.Variant{
-	Save: sustained.BaselineSave, Scenario: "LostTribe", Count: 8, Seed: "rimgovernor-tribal-eight-e",
-	Biome: "TemperateForest", Difficulty: "Medium", WorldTemperature: "LittleBitColder",
-	MapSize: 250, PlanetCoverage: 0.3,
-}.WithDefaults()
-
+// The tribal8 baseline's spec is na.BaselineStart (#2027). Any harness that
+// loads sustained.BaselineSave generates it into profile/Saves on first use
+// (Config.EnsureSave); this case regenerates it on demand, under the run's
+// default profile (every installed DLC since #1260), and stamps the result as
+// current.
 func init() {
 	cases.Register(cases.Case{
 		Name: "tools/baselinegen",
 		Scope: "Fixture generation: regenerates " + sustained.BaselineSave + " (LostTribe, eight colonists, seed " +
-			Baseline.Seed + ") under the run's profile; requires a ScenarioStartFixture build.",
-		Start:  cases.Scenario{Spec: Baseline.Start()},
-		Budget: 8 * time.Minute,
+			na.BaselineStart.Seed + ") through the new-colony op under the run's profile.",
+		Start:  cases.Scenario{Spec: na.BaselineStart},
+		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
-			row := map[string]any{"variant": Baseline}
+			row := map[string]any{"spec": na.BaselineStart}
 			s.Report()["generated"] = row
-			return variantgen.SaveVariant(ctx, s.Harness(), s.Config().Root, s.Config().Headless, Baseline.Save, row)
+			if err := variantgen.SaveVariant(ctx, s.Harness(), s.Config().Root, s.Config().Headless, sustained.BaselineSave, row); err != nil {
+				return err
+			}
+			return na.StampBaseline(s.Config().Root)
 		},
 	})
 }

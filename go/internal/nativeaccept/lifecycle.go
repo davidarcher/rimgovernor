@@ -241,6 +241,11 @@ func OpenSession(ctx context.Context, cfg *Config, report Report, start Start, q
 		if cfg.FixtureOps == nil {
 			cfg.FixtureOps = start.fixtureOps()
 		}
+		for _, name := range start.saves() {
+			if err := cfg.EnsureSave(name); err != nil {
+				return nil, err
+			}
+		}
 		if saves := start.saves(); len(saves) > 0 && cfg.Expansions == nil {
 			if err := cfg.UseSaveExpansions(saves...); err != nil {
 				return nil, err
@@ -427,76 +432,3 @@ func (s *Session) Reattach(ctx context.Context) (*Harness, error) {
 // Close ends the hold (Game.Close): the process is kept at the main menu
 // or stopped, and game_reuse lands on Report.
 func (s *Session) Close() { s.Game.Close(s.Report) }
-
-// ScenarioStartTool configures the next new game's scenario, seed, pawn
-// count and world settings (scripts/fixtures/ScenarioStartFixture.cs); only
-// a ScenarioStartFixture build carries it.
-const ScenarioStartTool = "test/configure_start"
-
-// ScenarioStart starts a programmatic scenario from the main menu:
-// ScenarioStartTool configures the scenario, then the debug start runs it
-// (world and colony generation, so Timeout is longer than a cached debug
-// start), the clock is paused and the colony naming dialog dismissed. It is
-// how a save variant is generated (variantgen) rather than hand-played.
-type ScenarioStart struct {
-	Scenario         string
-	Count            int
-	Seed             string
-	Biome            string
-	Difficulty       string
-	MinTemperature   float64
-	MaxTemperature   float64
-	WorldTemperature string
-	Size             DebugStart
-	// Timeout bounds start_debug_game_ready; zero is 180s.
-	Timeout time.Duration
-}
-
-func (ScenarioStart) saves() []string      { return nil }
-func (ScenarioStart) fixtureOps() []string { return nil }
-func (v ScenarioStart) world() worldSource { return worldSource{seed: v.Seed, pinned: true} }
-
-func (v ScenarioStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
-	if !Contains(s.Names, ScenarioStartTool) {
-		return nil, fmt.Errorf("missing %s in discovery -- install a ScenarioStartFixture-built mod "+
-			"(scripts/build_native_mod.ps1 -Fixture ScenarioStartFixture ...), not the production mod", ScenarioStartTool)
-	}
-	configured, err := s.Harness.Call(ctx, "configure-start", ScenarioStartTool, map[string]any{
-		"scenario": v.Scenario, "count": v.Count, "seed": v.Seed, "biome": v.Biome,
-		"difficulty": v.Difficulty, "minTemperature": v.MinTemperature, "maxTemperature": v.MaxTemperature,
-		"worldTemperature": v.WorldTemperature, "mapSize": v.Size.MapSize, "planetCoverage": v.Size.PlanetCoverage,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("configure-start: %w", err)
-	}
-	if success, _ := AsBool(configured["success"]); !success {
-		return nil, fmt.Errorf("configure-start refused: %#v", configured)
-	}
-	s.Report["configured"] = configured
-	timeout := v.Timeout
-	if timeout <= 0 {
-		timeout = 180 * time.Second
-	}
-	if _, err := s.Harness.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": timeout.Milliseconds(),
-	}); err != nil {
-		return nil, fmt.Errorf("start_debug_game_ready: %w", err)
-	}
-	if err := s.Pause(ctx); err != nil {
-		return nil, err
-	}
-	if _, err := ConfirmColonyNames(ctx, s.Harness, s.Report); err != nil {
-		return nil, err
-	}
-	apply, err := quietDecision(s.Names, quiet)
-	if err != nil {
-		return nil, err
-	}
-	quietReply, err := applyQuiet(ctx, s.Harness, apply)
-	if err != nil {
-		return nil, err
-	}
-	s.Report["quiet"] = quietReply != nil
-	return map[string]any{"kind": "scenario", "scenario": v.Scenario, "seed": v.Seed, "count": v.Count, "biome": v.Biome,
-		"mapSize": v.Size.MapSize, "planetCoverage": v.Size.PlanetCoverage}, nil
-}

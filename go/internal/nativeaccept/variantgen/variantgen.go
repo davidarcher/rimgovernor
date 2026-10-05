@@ -1,10 +1,9 @@
 // Package variantgen holds the scenario-start save-generation mechanics
 // behind the tools/variantsavegen and sustained/matrix cases
 // (issue #1's sustained matrix): drive RimWorld's programmatic scenario
-// start -- scripts/fixtures/ScenarioStartFixture.cs's test/configure_start,
-// wired into Root_Play.SetupForQuickTestPlay via a Harmony prefix -- then
-// save the result under the requested name with rimgovernor/lifecycle_save,
-// the same trusted native save path checkpointaccept exercises.
+// start through the production new-colony op (na.ScenarioStart,
+// rimgovernor/lifecycle_new_colony), which generates the colony and saves it
+// under the requested name.
 //
 // It exists as its own package so the sustained/matrix cases can generate
 // any variant save missing from a manifest before running their watch
@@ -19,16 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
-	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// Variant is one scenario-start spec, matching test/configure_start's
-// parameters one-to-one (see ScenarioStartFixture.Configure).
+// Variant is one scenario-start spec, field for field na.ScenarioStart's.
 type Variant struct {
 	Save             string  `json:"save"`
 	Scenario         string  `json:"scenario"`
@@ -52,7 +47,7 @@ type Variant struct {
 // variant defaults to: large enough to hold every settleable biome.
 const ConstrainedPlanetCoverage = 0.3
 
-// WithDefaults fills in test/configure_start's own defaults for any field a
+// WithDefaults fills in the start's defaults for any field a
 // hand-written manifest entry left zero, so a minimal spec ({"save": ...,
 // "scenario": "LostTribe", "count": 8, "seed": "..."}) is enough.
 func (v Variant) WithDefaults() Variant {
@@ -77,8 +72,8 @@ func (v Variant) WithDefaults() Variant {
 	return v
 }
 
-// Validate checks the fields test/configure_start itself would otherwise
-// reject, so a manifest typo fails before spending a native session on it.
+// Validate checks the fields the op would otherwise reject, so a manifest
+// typo fails before spending a native session on it.
 func (v Variant) Validate() error {
 	if v.Save == "" || v.Scenario == "" || v.Seed == "" {
 		return fmt.Errorf("variant missing save/scenario/seed: %#v", v)
@@ -93,8 +88,8 @@ func (v Variant) Validate() error {
 }
 
 // SavePath is where a variant's generated save durably lives: profile/Saves
-// under the disposable worker root, exactly where docs/players/setup.md says
-// the committed tribal8 baseline is staged (na.StageBaselineSave). PrepareRendered points
+// under the disposable worker root, beside the generated tribal8 baseline
+// (na.BaselineStart). PrepareRendered points
 // RimWorld straight at this directory; Prepare (headless) mirrors every
 // .rws here into its own disposable headless-profile copy on each run.
 func SavePath(root, save string) string {
@@ -120,7 +115,7 @@ func (v Variant) Start() na.ScenarioStart {
 	return na.ScenarioStart{
 		Scenario: v.Scenario, Count: v.Count, Seed: v.Seed, Biome: v.Biome, Difficulty: v.Difficulty,
 		MinTemperature: v.MinTemperature, MaxTemperature: v.MaxTemperature, WorldTemperature: v.WorldTemperature,
-		Size: na.DebugStart{MapSize: v.MapSize, PlanetCoverage: v.PlanetCoverage},
+		Size: na.DebugStart{MapSize: v.MapSize, PlanetCoverage: v.PlanetCoverage}, SaveName: v.Save,
 	}
 }
 
@@ -155,10 +150,11 @@ func Manifest(data []byte) ([]Variant, error) {
 // directory admit.
 func Sanitize(name string) string { return sanitize(name) }
 
-// SaveVariant writes the loaded, paused game as save through
-// lifecycle_save and persists the .rws into root/profile/Saves (the
-// durable location Prepare mirrors into the headless profile). The
-// completed save must report the identity and tick that were loaded.
+// SaveVariant confirms the loaded, paused game's save and persists it into
+// root/profile/Saves (the durable location Prepare mirrors into the headless
+// profile). The new-colony op already saved the colony under the variant's
+// save name when the start completed (Variant.Start sets it); this checks the
+// colony is paused and copies the file out of the running profile.
 func SaveVariant(ctx context.Context, h *na.Harness, root string, headless bool, save string, row map[string]any) error {
 	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
@@ -171,73 +167,9 @@ func SaveVariant(ctx context.Context, h *na.Harness, root string, headless bool,
 	if paused, _ := na.AsBool(loaded["paused"]); !paused {
 		return fmt.Errorf("generated colony did not end up paused before save")
 	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-	tick := na.AsNumber(loadedContext["tick"])
-
-	requestID := fmt.Sprintf("variantgen-%s-%d", sanitize(save), time.Now().UnixNano())
-	saveReply, err := h.Wire(ctx, "save", "lifecycle_save", map[string]any{
-		"player":       map[string]any{"identity": identity, "playerDirection": 1, "requestId": requestID},
-		"saveName":     save,
-		"expectedTick": tick,
-	})
-	if err != nil {
-		return fmt.Errorf("lifecycle_save: %w", err)
-	}
-	_, completed, err := na.Outcome(saveReply, "completed")
-	if err != nil {
-		return fmt.Errorf("lifecycle_save: expected a completed save: %w", err)
-	}
-	if na.AsString(completed["saveName"]) != save {
-		return fmt.Errorf("lifecycle_save: completed save name mismatch: %#v", completed)
-	}
-	completedContext, _ := na.AsMap(completed["context"])
-	if na.AsNumber(completedContext["tick"]) != tick {
-		return fmt.Errorf("lifecycle_save: completed tick does not match expected: %#v", completed)
-	}
-	row["saved"] = completed
-	if err := persistSave(root, headless, save); err != nil {
+	if err := na.PersistSave(root, headless, save); err != nil {
 		return fmt.Errorf("persist generated save to profile/Saves: %w", err)
 	}
 	row["path"] = SavePath(root, save)
 	return nil
-}
-
-// persistSave copies the save the running process just wrote from its own
-// (possibly disposable) profile directory into profile/Saves, the durable
-// location every other tool's Prepare/PrepareRendered reads from. In
-// rendered mode the running profile already is profile/Saves (no copy
-// needed); in headless mode it wrote into headless-profile/Saves, a fresh
-// per-run mirror that Prepare() overwrites from profile/Saves on every
-// subsequent run -- so without this copy, a headless-generated save would be
-// silently lost the next time anything calls Prepare().
-func persistSave(root string, headless bool, save string) error {
-	dst := SavePath(root, save)
-	var runningProfile string
-	if headless {
-		runningProfile = "headless-profile"
-	} else {
-		runningProfile = "profile"
-	}
-	src := filepath.Join(root, runningProfile, "Saves", save+".rws")
-	if src == dst {
-		return nil
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
-	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
 }

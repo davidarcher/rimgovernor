@@ -83,7 +83,7 @@ type Lab struct {
 func LabStart() Lab { return Lab{} }
 
 // Scenario starts a programmatic scenario from the main menu through the
-// ScenarioStartFixture (na.ScenarioStart): how a save variant is generated.
+// the production new-colony op (na.ScenarioStart): how a save variant is generated.
 type Scenario struct {
 	Spec na.ScenarioStart
 }

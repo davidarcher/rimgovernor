@@ -24,11 +24,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-const newColonyPhasePrefix = "NEW_COLONY_PHASE_"
-
-// newColonyPhaseOrder is the wire order a start's phases must follow.
-var newColonyPhaseOrder = []string{"GENERATING_WORLD", "CHOOSING_TILE", "ROLLING_COLONISTS", "GENERATING_MAP", "FINISHING", "SAVING"}
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "lifecycle/new_colony",
@@ -260,55 +255,11 @@ func newColonyRun(ctx context.Context, h *na.Harness, id string, spec map[string
 	return newColonyRunRequest(ctx, h, newColonyRequest(id, spec), label)
 }
 
-// newColonyRunRequest starts a colony and polls until it completes, returning
-// the phases seen in order (each once) and the completed reply. A terminal
-// failure is an error; the phases must follow the wire order without going back.
+// newColonyRunRequest starts a colony and polls until it completes (na.RunNewColony),
+// returning the phases seen in order and the completed reply.
 func newColonyRunRequest(ctx context.Context, h *na.Harness, request map[string]any, label string) ([]string, map[string]any, error) {
-	id := na.AsString(request["requestId"])
-	reply, err := h.Wire(ctx, label+"-start", "lifecycle_new_colony", request)
-	if err != nil {
-		return nil, nil, err
-	}
-	var seen []string
-	last := -1
-	for attempt := 0; attempt < 6000; attempt++ {
-		if code, ok := na.FailureCode(reply); ok {
-			failure, _ := na.AsMap(reply["failure"])
-			return seen, nil, fmt.Errorf("%s: new colony failed: %s: %v", label, code, failure["detail"])
-		}
-		if _, completed, err := na.Outcome(reply, "completed"); err == nil {
-			if indexOf(seen, "SAVING") < 0 {
-				return seen, nil, fmt.Errorf("%s: completed without reporting SAVING (phases %v)", label, seen)
-			}
-			return seen, completed, nil
-		}
-		_, pending, err := na.Outcome(reply, "pending")
-		if err != nil {
-			return seen, nil, fmt.Errorf("%s: unexpected reply shape: %v", label, reply)
-		}
-		phase := strings.TrimPrefix(na.AsString(pending["phase"]), newColonyPhasePrefix)
-		index := indexOf(newColonyPhaseOrder, phase)
-		if index < 0 {
-			return seen, nil, fmt.Errorf("%s: unknown phase %q", label, phase)
-		}
-		if index < last {
-			return seen, nil, fmt.Errorf("%s: phase went backwards to %s after %s", label, phase, seen[len(seen)-1])
-		}
-		if index != last {
-			seen = append(seen, phase)
-			last = index
-		}
-		select {
-		case <-ctx.Done():
-			return seen, nil, ctx.Err()
-		case <-time.After(250 * time.Millisecond):
-		}
-		reply, err = h.Wire(ctx, fmt.Sprintf("%s-poll-%d", label, attempt), "lifecycle_read_new_colony", map[string]any{"requestId": id})
-		if err != nil {
-			return seen, nil, err
-		}
-	}
-	return seen, nil, fmt.Errorf("%s: new colony did not complete within the polling budget (phases %v)", label, seen)
+	run, err := na.RunNewColony(ctx, h, request, label)
+	return run.Phases, run.Completed, err
 }
 
 func indexOf(list []string, want string) int {

@@ -249,7 +249,7 @@ func stopRunning(ctx context.Context, client *bridge.Client) error {
 // process gone (or ctx expires). Without it the next OpenGame under the
 // same root can race the teardown: the bridge still reports the process
 // connected, games_start attaches to it mid-game, and a fixture that needs
-// the main menu (test/configure_start) refuses -- observed generating a
+// the main menu (lifecycle_new_colony) refuses -- observed generating a
 // manifest's second variant right after its first.
 func awaitStopped(ctx context.Context, client *bridge.Client) {
 	for {

@@ -642,8 +642,8 @@ follows the journal from deficit through method and plan to observed recovery, a
 re-reads the native postcondition after the service releases the game. Run with
 `acceptance run upkeep/<scenario>... -root <bridge root> -rimgovernor <service exe>
 -output <fresh dir>` from `go/`. For a same-colony retry pass
-`--start-save RimGovernor-tribal8-baseline`; headless preparation stages the
-committed baseline (`scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`).
+`--start-save RimGovernor-tribal8-baseline`; the harness generates the
+baseline into the root's `profile/Saves` on first use (`na.BaselineStart`).
 
 | Scenario | Checks |
 | --- | --- |
@@ -681,7 +681,7 @@ Native scenario variants (flags on the native routine scenario):
 - `--cooking-methods`: campfire construction; verifies cooking still needs a bill.
 - Clock acceptance needs a healthy colony and verifies clock advancement and
   construction.
-- The `ForecastFixture`, `RoundsSleepingFixture` and `ScenarioStartFixture` drive
+- The `ForecastFixture` and `RoundsSleepingFixture` drive
   the cold and hot temperature variants; `UpkeepFixture` drives the facility-upkeep
   scenario (removes one Home cell after normal shell construction).
 

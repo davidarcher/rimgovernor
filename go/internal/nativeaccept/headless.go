@@ -7,8 +7,6 @@ package nativeaccept
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -622,9 +620,6 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), installed, expansions...); err != nil {
 		return "", err
 	}
-	if err := StageBaselineSave(root); err != nil {
-		return "", err
-	}
 	if err := SetPrefs(filepath.Join(profile, "Config", "Prefs.xml"), RenderedPrefs); err != nil {
 		return "", err
 	}
@@ -694,13 +689,8 @@ func prepare(root string, fixtureOps, expansions []string, graphics bool) (strin
 	// headless run (the default for the native acceptance binaries) can load
 	// any variant save deposited there, e.g. by a tools/variantsavegen-* case, the same way
 	// a rendered run already can (PrepareRendered points RimWorld straight at
-	// profile/Saves with no copy step). The baseline itself stays required:
-	// it is staged from the checkout when the root lacks it or holds an
-	// older copy, and its absence otherwise is a root prepared outside any
-	// checkout.
-	if err := StageBaselineSave(root); err != nil {
-		return "", err
-	}
+	// profile/Saves with no copy step). The baseline is generated into
+	// profile/Saves on first use (Config.EnsureSave).
 	saves, err := filepath.Glob(filepath.Join(root, "profile", "Saves", "*.rws"))
 	if err != nil {
 		return "", err
@@ -730,102 +720,6 @@ func prepare(root string, fixtureOps, expansions []string, graphics bool) (strin
 		return "", err
 	}
 	return destination, nil
-}
-
-// BaselineSave is the committed starting colony most save-driven harnesses
-// load: the Lost Tribe scenario with eight colonists (#192), generated with
-// every DLC active by tools/baselinegen (#1260), whose spec it is. It lives
-// in the checkout at CommittedSavesDir/BaselineSave.
-const BaselineSave = "RimGovernor-tribal8-baseline.rws"
-
-// CommittedSavesDir is where committed fixture saves live, relative to the
-// checkout root.
-const CommittedSavesDir = "scripts/fixtures/saves"
-
-// findCommittedSaves locates the checkout's CommittedSavesDir from the
-// working directory; tests override it.
-var findCommittedSaves = func() (string, bool) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", false
-	}
-	repo, ok := FindRepo(cwd)
-	if !ok {
-		return "", false
-	}
-	return filepath.Join(repo, filepath.FromSlash(CommittedSavesDir)), true
-}
-
-// StageBaselineSave makes root/profile/Saves/BaselineSave the checkout's
-// committed copy: it is copied in when the root has none, and replaced when
-// the root's bytes differ (the hand-prepared DLC baseline every root carried
-// before #192, or a peer's older regeneration), so every root converges on
-// the committed colony. A root outside any checkout keeps what it has, and
-// lacking the save entirely is an error: no harness can start from it.
-func StageBaselineSave(root string) error {
-	target := filepath.Join(root, "profile", "Saves", BaselineSave)
-	committed, ok := findCommittedSaves()
-	if ok {
-		source := filepath.Join(committed, BaselineSave)
-		if _, err := os.Stat(source); err == nil {
-			same, err := sameFile(source, target)
-			if err != nil {
-				return err
-			}
-			if !same {
-				if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-					return err
-				}
-				if err := copyFile(source, target); err != nil {
-					return fmt.Errorf("stage %s: %w", BaselineSave, err)
-				}
-			}
-		}
-	}
-	if _, err := os.Stat(target); err != nil {
-		return fmt.Errorf("required baseline save missing (commit it under %s or stage it by hand): %w", CommittedSavesDir, err)
-	}
-	return nil
-}
-
-// sameFile is whether target exists with source's size and SHA-256.
-func sameFile(source, target string) (bool, error) {
-	a, err := os.Stat(source)
-	if err != nil {
-		return false, err
-	}
-	b, err := os.Stat(target)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if a.Size() != b.Size() {
-		return false, nil
-	}
-	ha, err := fileSHA256(source)
-	if err != nil {
-		return false, err
-	}
-	hb, err := fileSHA256(target)
-	if err != nil {
-		return false, err
-	}
-	return ha == hb, nil
-}
-
-func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // SaveExpansions reads the official expansions a save at
@@ -882,6 +776,9 @@ func (c *Config) UseSaveExpansions(saveNames ...string) error {
 			continue
 		}
 		any = true
+		if err := c.EnsureSave(name); err != nil {
+			return err
+		}
 		ids, err := SaveExpansions(c.Root, name)
 		if err != nil {
 			return err

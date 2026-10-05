@@ -286,7 +286,7 @@ func copyTree(from, to string) (int, error) {
 // profile/Config with a Prefs.xml (the player's own when RimWorld has
 // been run on this machine, else a minimal one; Prepare trims either) and
 // a ModsConfig.xml for the core game plus the bridge and our package, and
-// the committed baseline save under profile/Saves.
+// profile/Saves (the baseline save is generated there on first use).
 func bridgeRoot(l Layout, in *Inputs, note func(string, ...any)) error {
 	configPath := filepath.Join(l.Root, "config", "config.json")
 	want := RenderConfig(l)
@@ -329,12 +329,7 @@ func bridgeRoot(l Layout, in *Inputs, note func(string, ...any)) error {
 		}
 		note("wrote %s", mods)
 	}
-	save := filepath.Join(l.Root, "profile", "Saves", na.BaselineSave)
-	if n, err := copyIfChanged(filepath.Join(l.Repo, filepath.FromSlash(na.CommittedSavesDir), na.BaselineSave), save); err != nil {
-		return fmt.Errorf("baseline save: %w", err)
-	} else if n > 0 {
-		note("staged %s", save)
-	}
+	// The baseline save is generated into profile/Saves on first use (na.BaselineStart).
 	return nil
 }
 

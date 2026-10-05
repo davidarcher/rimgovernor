@@ -322,27 +322,8 @@ func TestPrepareNativeModConfigMissingActiveMods(t *testing.T) {
 	}
 }
 
-// withoutCommittedSaves keeps a test's roots hermetic: Prepare must not
-// stage the real checkout's committed baseline over the test's own.
-func withoutCommittedSaves(t *testing.T) {
-	t.Helper()
-	previous := findCommittedSaves
-	findCommittedSaves = func() (string, bool) { return "", false }
-	t.Cleanup(func() { findCommittedSaves = previous })
-}
-
-// withCommittedSaves points staging at dir as the checkout's committed
-// saves directory.
-func withCommittedSaves(t *testing.T, dir string) {
-	t.Helper()
-	previous := findCommittedSaves
-	findCommittedSaves = func() (string, bool) { return dir, true }
-	t.Cleanup(func() { findCommittedSaves = previous })
-}
-
 func writeSourceRoot(t *testing.T) string {
 	t.Helper()
-	withoutCommittedSaves(t)
 	source := filepath.Join(t.TempDir(), "source")
 	mods := filepath.Join(source, "install", "Mods")
 	writeUnifiedPackage(t, mods)
@@ -561,21 +542,6 @@ func TestPrepareMirrorsEveryVariantSave(t *testing.T) {
 	}
 }
 
-func TestPrepareFailsWithoutRequiredBaseline(t *testing.T) {
-	source := writeSourceRoot(t)
-	destination := filepath.Join(t.TempDir(), "worker")
-	root, err := IsolatedRoot(source, destination)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(filepath.Join(root, "profile", "Saves", "RimGovernor-tribal8-baseline.rws")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := prepare(root, nil, nil, false); err == nil {
-		t.Fatal("expected Prepare to fail without the required baseline save")
-	}
-}
-
 func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 	source := writeSourceRoot(t)
 	destination := filepath.Join(t.TempDir(), "worker")
@@ -770,54 +736,5 @@ func TestLaunchedMismatchOnPackage(t *testing.T) {
 	}
 	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "" {
 		t.Fatalf("relaunched on the rebuilt package: reason %q, err %v; want reuse", reason, err)
-	}
-}
-
-// The committed baseline is staged into a root that lacks it and replaces
-// an older copy (the DLC one every root carried before #192); a root that
-// already holds the committed bytes is left alone (#192).
-func TestPrepareStagesCommittedBaseline(t *testing.T) {
-	source := writeSourceRoot(t)
-	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	committed := filepath.Join(t.TempDir(), "saves")
-	if err := os.MkdirAll(committed, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(committed, BaselineSave), []byte("committed core-only save"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	withCommittedSaves(t, committed)
-	target := filepath.Join(root, "profile", "Saves", BaselineSave)
-	// IsolatedRoot copied the source root's stale "save-data" baseline.
-	if _, err := prepare(root, nil, nil, false); err != nil {
-		t.Fatalf("Prepare failed: %v", err)
-	}
-	if got, _ := os.ReadFile(target); string(got) != "committed core-only save" {
-		t.Fatalf("older baseline not replaced: %q", got)
-	}
-	if got, _ := os.ReadFile(filepath.Join(root, "headless-profile", "Saves", BaselineSave)); string(got) != "committed core-only save" {
-		t.Fatalf("headless profile got %q", got)
-	}
-	if err := os.Remove(target); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := prepareRendered(root, nil, nil); err != nil {
-		t.Fatalf("PrepareRendered failed: %v", err)
-	}
-	if got, _ := os.ReadFile(target); string(got) != "committed core-only save" {
-		t.Fatalf("missing baseline not staged: %q", got)
-	}
-	before, err := os.Stat(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := prepare(root, nil, nil, false); err != nil {
-		t.Fatal(err)
-	}
-	if after, _ := os.Stat(target); !after.ModTime().Equal(before.ModTime()) {
-		t.Fatal("an up-to-date baseline was rewritten")
 	}
 }

@@ -293,45 +293,20 @@ func fixtureFlag(repo string, installed, fixtureOps []string) string {
 	return "-fixture " + strings.Join(flags, ",")
 }
 
-// baseline is the committed baseline save (#192, every DLC since #1260):
-// missing in both the checkout and the root, no save-driven case can start;
-// an expansion in its modIds the game copy does not ship fails
-// save.missing_mods at load.
+// baseline is the generated baseline save (#2027): missing, the first
+// save-driven case generates it through the new-colony op; present, an
+// expansion in its modIds the game copy does not ship fails save.missing_mods
+// at load.
 func baseline(o Options, gameCopy string) Check {
 	c := Check{Name: "baseline"}
-	rooted := filepath.Join(o.Root, "profile", "Saves", na.BaselineSave)
-	committed := ""
-	if o.Repo != "" {
-		committed = filepath.Join(o.Repo, filepath.FromSlash(na.CommittedSavesDir), na.BaselineSave)
-		if _, err := os.Stat(committed); err != nil {
-			committed = ""
-		}
-	}
-	_, rootErr := os.Stat(rooted)
-	switch {
-	case committed == "" && rootErr != nil:
-		c.Status, c.Detail = Fail, "no "+na.BaselineSave+" in the root or the checkout"
-		c.Fix = "commit it under " + na.CommittedSavesDir + " or copy a peer worktree's into " + filepath.Dir(rooted)
+	effective := filepath.Join(o.Root, "profile", "Saves", na.BaselineSave)
+	if _, err := os.Stat(effective); err != nil {
+		c.Detail = "not generated yet; the first case that loads " + na.BaselineName + " generates it"
 		return c
-	case committed == "":
-		c.Detail = rooted + " (root outside a checkout; not restaged)"
-	case rootErr != nil:
-		c.Detail = "not staged yet; Prepare copies " + committed
-	default:
-		same, _ := sameContent(committed, rooted)
-		if same {
-			c.Detail = rooted + " matches the committed save"
-		} else {
-			c.Detail = rooted + " differs from the committed save; Prepare replaces it"
-		}
-	}
-	effective := committed
-	if effective == "" {
-		effective = rooted
 	}
 	mods, err := saveModIDs(effective)
 	if err != nil {
-		c.Status, c.Detail, c.Fix = Fail, effective+": "+err.Error(), "regenerate it (acceptance setup generate baseline) or restore it from git"
+		c.Status, c.Detail, c.Fix = Fail, effective+": "+err.Error(), "delete it; the next case that loads it regenerates it"
 		return c
 	}
 	if gameCopy == "" {
@@ -350,7 +325,7 @@ func baseline(o Options, gameCopy string) Check {
 	}
 	if len(missing) > 0 {
 		c.Status, c.Detail = Fail, fmt.Sprintf("%s needs %v, which the game copy lacks; it fails save.missing_mods at load", effective, missing)
-		c.Fix = "install those expansions, or regenerate the baseline on this copy (acceptance setup generate baseline)"
+		c.Fix = "install those expansions, or delete the baseline so it regenerates on this copy"
 	}
 	return c
 }
@@ -660,30 +635,6 @@ func storeVersion(path string) (int, bool) {
 		return 0, false
 	}
 	return version, true
-}
-
-// sameContent is whether both files hold the same bytes (sizes first).
-func sameContent(a, b string) (bool, error) {
-	ia, err := os.Stat(a)
-	if err != nil {
-		return false, err
-	}
-	ib, err := os.Stat(b)
-	if err != nil {
-		return false, err
-	}
-	if ia.Size() != ib.Size() {
-		return false, nil
-	}
-	da, err := os.ReadFile(a)
-	if err != nil {
-		return false, err
-	}
-	db, err := os.ReadFile(b)
-	if err != nil {
-		return false, err
-	}
-	return string(da) == string(db), nil
 }
 
 func short(rev string) string {

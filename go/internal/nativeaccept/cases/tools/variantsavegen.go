@@ -1,7 +1,7 @@
 // Package tools holds the cases that produce fixtures rather than assert on
 // them: tools/variantsavegen-<save> generates one save variant of issue
 // #1's sustained matrix through a programmatic scenario start
-// (ScenarioStartFixture's test/configure_start) and persists it under
+// (the production new-colony op) and persists it under
 // root/profile/Saves, where the sustained/matrix-<save> case loads it. A
 // run regenerates the save even when one exists. The generated map is not
 // checked against its intended stressor (that a "scarce wood" biome really
@@ -23,7 +23,7 @@ func init() {
 		cases.Register(cases.Case{
 			Name: "tools/variantsavegen-" + sustained.Short(v.Save),
 			Scope: "Fixture generation: scenario start " + v.Scenario + " seed " + v.Seed + " saved as " + v.Save +
-				" for the sustained matrix (issue #1); requires a ScenarioStartFixture build.",
+				" for the sustained matrix (issue #1).",
 			Start:  cases.Scenario{Spec: v.Start()},
 			Budget: 8 * time.Minute,
 			Run: func(ctx context.Context, s cases.Session) error {

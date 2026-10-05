@@ -123,23 +123,12 @@ func TestBaselineInstalledDLCPasses(t *testing.T) {
 	}
 }
 
-func TestBaselineMissingEverywhereFails(t *testing.T) {
+func TestBaselineMissingIsGeneratedOnFirstUse(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	o, l := fakeRoot(t)
 	os.Remove(filepath.Join(l.Root, "profile", "Saves", na.BaselineSave))
 	c := byName(Run(context.Background(), o), "baseline")
-	if c.Status != Fail || !strings.Contains(c.Fix, na.CommittedSavesDir) {
-		t.Fatalf("baseline = %+v", c)
-	}
-}
-
-func TestBaselineStagedFromCheckout(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	o, l := fakeRoot(t)
-	os.Remove(filepath.Join(l.Root, "profile", "Saves", na.BaselineSave))
-	write(t, filepath.Join(o.Repo, filepath.FromSlash(na.CommittedSavesDir), na.BaselineSave), coreSave)
-	c := byName(Run(context.Background(), o), "baseline")
-	if c.Status != OK || !strings.Contains(c.Detail, "Prepare copies") {
+	if c.Status != OK || !strings.Contains(c.Detail, "generates it") {
 		t.Fatalf("baseline = %+v", c)
 	}
 }

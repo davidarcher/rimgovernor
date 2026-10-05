@@ -162,7 +162,7 @@ the colony grow into the precondition. In order of preference:
 - a `test/*_prepare` op in the fixture mod that spawns buildings, pawns, items
   and conditions in one call;
 - `acceptance setup generate variantsave-<save>` (`tools/variantsavegen-<save>`)
-  / `ScenarioStartFixture` when the stressor is map- or start-level (seed,
+  / `na.ScenarioStart` when the stressor is map- or start-level (seed,
   biome, season, scarcity). The checked-in artifact is the manifest
   (`cases/sustained/manifests/issue-1-matrix.json`); the generated `.rws` under
   `profile/Saves` is written once offline.
@@ -321,14 +321,16 @@ installed expansion it has not seen at boot). A save refuses to load
 (`save.missing_mods`) under a profile missing an expansion it was recorded with,
 so a `Save` start calls `cfg.UseSaveExpansions` before `PrepareConfig`.
 
-The tribal8 baseline (`scripts/fixtures/saves/`; Lost Tribe, eight colonists,
-quiet) is saved with all six expansions. `acceptance setup generate baseline`
-(`tools/baselinegen`) regenerates it into the root's `profile/Saves` for copying
-over the committed one.
+The tribal8 baseline (Lost Tribe, eight colonists, quiet, Core-only) is a spec,
+`na.BaselineStart`, not a committed save: the first `Save{Name: BaselineSave}`
+start on a root generates it through the new-colony op into `profile/Saves`
+(`Config.EnsureSave`) and stamps it with a `<name>.spec.json` beside it; a
+missing save or a stamp that differs from the spec regenerates it.
+`acceptance setup generate baseline` (`tools/baselinegen`) regenerates on demand.
 
 ### Quiet storyteller, frozen needs, letters
 
-`test/configure_start` applies `test/quiet_storyteller` once the colony exists
+A scenario start (`na.ScenarioStart`, the production new-colony op) picks the `RimGovernorQuiet` storyteller; a save start applies `test/quiet_storyteller` once the colony exists
 (`quiet=false` keeps the ordinary one). Harnesses start through
 `na.StartDebugGame(ctx, h, names, mode)`: `QuietRequired` (fixture-dependent),
 `QuietIfAvailable` (also runs on a production build), `Loud` (interruption
