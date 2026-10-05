@@ -147,7 +147,6 @@ func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, s
 			return RoundsResourceResult{}, false, err
 		}
 		if !done {
-			clockSchedulerLog("%s: %s deposit %s at %v is buried; resuming tunnel %s", goal.Standard.ID, resource, ore.ThingID, ore.Cell, sited.Key())
 			return finish(result)
 		}
 		r.reviewer.tunnels.forget(resource)
@@ -205,7 +204,6 @@ func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, s
 		if !verified {
 			continue
 		}
-		clockSchedulerLog("%s: %s deposit %s at %v is buried; tunnelling %s", goal.Standard.ID, resource, ore.ThingID, ore.Cell, target.Key())
 		r.reviewer.tunnels.set(world, resource, ore.Cell, target)
 		result, _, err := resume(target)
 		if err != nil {
@@ -213,6 +211,5 @@ func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, s
 		}
 		return finish(result)
 	}
-	clockSchedulerLog("%s: %s deposit %s at %v is buried and no corridor verifies (%d proposed)", goal.Standard.ID, resource, ore.ThingID, ore.Cell, len(targets))
 	return RoundsResourceResult{}, false, nil
 }
