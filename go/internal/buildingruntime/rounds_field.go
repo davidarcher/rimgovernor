@@ -205,7 +205,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return placeOthers(wait, fieldUnavailable("field_plan"))
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
-	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Candidates[0].Cells, len(selection.Buildings), selection.Explain())
+	telemetry.Decide(call, fieldsSelectDecision(selection))
 	// Candidates are tried in score order; a construction kind whose
 	// placements the game refuses, or whose costs the store cannot reserve,
 	// falls through to the next plantable candidate within the same step.

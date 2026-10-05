@@ -4,26 +4,26 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
-	"strconv"
+	"strings"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
 // Bundle files a combat-fixture run records (#855). ReadsFile holds every
 // raw test/lab_stage read reply, one JSON object per line, in tick order;
-// MetricsFile is the aggregate; ServiceLogFile, when a run served the
-// planner, carries the scheduler's combat_stop lines (#849).
+// MetricsFile is the aggregate; FlightFile, when a run served the planner,
+// carries its combat_stop, combat_order and worker outcome flight rows
+// (#849, #2062).
 const (
-	ReadsFile      = "combat_reads.jsonl"
-	MetricsFile    = "combat_metrics.json"
-	ServiceLogFile = "service.log"
+	ReadsFile   = "combat_reads.jsonl"
+	MetricsFile = "combat_metrics.json"
+	FlightFile  = "combat_flight.jsonl"
 )
 
 // MetricsVersion is the Metrics schema version: bump it when a field
@@ -55,8 +55,8 @@ type Metrics struct {
 	FriendlyFireHits int `json:"friendlyFireHits"`
 	DamageDropped    int `json:"damageDropped,omitempty"`
 
-	// OrdersIssued and OrdersRefused count combat orders from the service
-	// log: combat_order lines (#850) and the routine defense planner's
+	// OrdersIssued and OrdersRefused count combat orders from the flight
+	// rows: combat_order rows (#850) and the routine defense planner's
 	// actions, issued once one completes, refused when one only ever
 	// carried a refusal.
 	OrdersIssued  int `json:"ordersIssued"`
@@ -209,48 +209,49 @@ func resolved(staged map[string]string, pawns map[string]map[string]any) string 
 	return ""
 }
 
-var (
-	resumeLatency = regexp.MustCompile(`(\bcombat_stop\b|combat window stopped).*\bresume_latency_ms=(\d+)`)
-	// The combat order op (#850) logs combat_order lines with outcome=.
-	orderLine = regexp.MustCompile(`\bcombat_order\b.*\boutcome=(\w+)`)
-	// The routine defense planner's actions (drafts, holds) report through
-	// the worker.
-	defenseAction = regexp.MustCompile(`worker outcome action=(routine-defense-\S+) .*\bstage_after=(\w+).*\brefused=\[([^\]]*)\]`)
-)
-
-// ScanServiceLog adds the service log's combat orders and step latency.
-func (m *Metrics) ScanServiceLog(path string) error {
-	f, err := os.Open(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
+// ScanFlight adds the flight rows' combat orders and step latency: each
+// combat stop's resume_latency_ms, each combat_order row's verdict, and the
+// routine defense planner's actions (drafts, holds) from the worker's
+// outcome rows, issued once one completes, refused when one only ever
+// refused. A missing file is a run no planner served.
+func (m *Metrics) ScanFlight(path string) error {
+	rows, err := na.ReadFlight(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	var latencies []int64
 	actions := map[string]string{}
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<20), 1<<24)
-	for sc.Scan() {
-		line := sc.Text()
-		if g := resumeLatency.FindStringSubmatch(line); g != nil {
-			v, _ := strconv.ParseInt(g[2], 10, 64)
-			latencies = append(latencies, v)
-		}
-		if g := defenseAction.FindStringSubmatch(line); g != nil {
-			switch {
-			case g[2] == "completed":
-				actions[g[1]] = "issued"
-			case g[3] != "" && actions[g[1]] == "":
-				actions[g[1]] = "refused"
+	for _, row := range rows {
+		f := row.Fields()
+		switch {
+		case row.Kind == "combat_stop" || bridge.IsClockStopKind(row.Kind):
+			if v, ok := f["resume_latency_ms"]; ok {
+				latencies = append(latencies, int64(na.AsNumber(v)))
 			}
-		}
-		if g := orderLine.FindStringSubmatch(line); g != nil {
-			if g[1] == "refused" {
+		case row.Kind == "combat_order":
+			outcome := na.AsString(f["verdict"])
+			if outcome == "" {
+				outcome = na.AsString(f["outcome"])
+			}
+			if outcome == "refused" {
 				m.OrdersRefused++
 			} else {
 				m.OrdersIssued++
+			}
+		case bridge.IsDispatchKind(row.Kind):
+			action := na.AsString(f["action"])
+			if action == "" {
+				action = na.AsString(f["target"])
+			}
+			if !strings.HasPrefix(action, "routine-defense-") {
+				continue
+			}
+			verdict := na.AsString(f["verdict"])
+			switch {
+			case na.AsString(f["stage_after"]) == "completed" || verdict == "completed":
+				actions[action] = "issued"
+			case (len(na.AsSlice(f["refused"])) > 0 || verdict == "refused") && actions[action] == "":
+				actions[action] = "refused"
 			}
 		}
 	}
@@ -265,7 +266,13 @@ func (m *Metrics) ScanServiceLog(path string) error {
 		sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
 		m.StepLatencyP95Ms = latencies[(len(latencies)*95+99)/100-1]
 	}
-	return sc.Err()
+	return nil
+}
+
+// CombatRow reports whether a flight row is one ScanFlight reads: the
+// bundle keeps only these.
+func CombatRow(row na.FlightRow) bool {
+	return row.Kind == "combat_stop" || row.Kind == "combat_order" || bridge.IsClockStopKind(row.Kind) || bridge.IsDispatchKind(row.Kind)
 }
 
 // StagedSides maps a staging's pawn ids to their sides.
@@ -285,7 +292,7 @@ func StagedSides(s Staged) map[string]string {
 
 // AggregateBundle recomputes a recorded run's metrics from its bundle
 // directory: the reads file, whose first line (the read right after
-// staging) carries staged {id: side}, and the service log when present.
+// staging) carries staged {id: side}, and the flight rows when present.
 func AggregateBundle(dir, fixture string) (Metrics, error) {
 	data, err := os.ReadFile(filepath.Join(dir, ReadsFile))
 	if err != nil {
@@ -316,5 +323,5 @@ func AggregateBundle(dir, fixture string) (Metrics, error) {
 		staged[id] = na.AsString(side)
 	}
 	m := Aggregate(fixture, staged, reads)
-	return m, m.ScanServiceLog(filepath.Join(dir, ServiceLogFile))
+	return m, m.ScanFlight(filepath.Join(dir, FlightFile))
 }

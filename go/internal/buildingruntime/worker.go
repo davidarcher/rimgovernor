@@ -177,10 +177,7 @@ type workerWait struct {
 // error. Refusal reasons matter most -- an owned draft held before prepare
 // otherwise leaves no trace but a bare "building execution held".
 func workerOutcome(after domain.ProgressView, result executor.Result, err error) string {
-	reasons := make([]string, 0, len(result.Refused))
-	for _, r := range result.Refused {
-		reasons = append(reasons, string(r.Reason))
-	}
+	reasons := workerRefusedReasons(result)
 	// The receipt and effect name why an attempt is unresolved: an unknown
 	// receipt is a native call that timed out on the controller side (#71),
 	// and with the attempt number it identifies the native ledger entry.
@@ -192,6 +189,16 @@ func workerOutcome(after domain.ProgressView, result executor.Result, err error)
 		effect = string(v)
 	}
 	return fmt.Sprintf("stage=%s attempt=%d receipt=%s effect=%s refused=[%s] err=%v", after.Stage, after.Attempt, receipt, effect, strings.Join(reasons, ","), err)
+}
+
+// workerRefusedReasons lists the refusal reasons of a run's result: the
+// outcome text's refused=[...] and the worker_outcome row's refused attr.
+func workerRefusedReasons(result executor.Result) []string {
+	reasons := make([]string, 0, len(result.Refused))
+	for _, r := range result.Refused {
+		reasons = append(reasons, string(r.Reason))
+	}
+	return reasons
 }
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {
@@ -574,7 +581,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			outcome := workerOutcome(after, result, err)
 			repeats := wait.repeats
 			if outcome != wait.outcome {
-				workerOutcomeEvent(run, v, after, outcome, err, repeats)
+				workerOutcomeEvent(run, v, after, outcome, workerRefusedReasons(result), err, repeats)
 				repeats = 0
 			} else {
 				repeats++
@@ -719,12 +726,12 @@ func workerSameReceipt(a, b domain.ProgressView) bool {
 // the run, the outcome text, and the error, at Warn when the run failed. An
 // action waiting on a prerequisite that has not completed is the plan
 // sequencing itself, not a failure, so it logs at Info.
-func workerOutcomeEvent(ctx context.Context, before, after domain.ProgressView, outcome string, err error, repeats int) {
+func workerOutcomeEvent(ctx context.Context, before, after domain.ProgressView, outcome string, refused []string, err error, repeats int) {
 	level := slog.LevelInfo
 	if err != nil && !errors.Is(err, domain.ErrDependency) {
 		level = slog.LevelWarn
 	}
-	slog.Default().Log(ctx, level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "err", err, "repeated", repeats)
+	slog.Default().Log(ctx, level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "refused", refused, "err", err, "repeated", repeats)
 }
 
 // workerSameView reports whether two views of one action describe the same

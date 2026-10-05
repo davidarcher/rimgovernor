@@ -102,6 +102,7 @@ its v1 payload and its readers.
 | v2 kind | Shape and fields | Piece |
 |---|---|---|
 | `http_access` | event row, one per HTTP request. `method`, `path`, `status`, `dur_ms`, `bytes`, `long_lived`; 2xx GETs of `/api/state`, `/api/spectator/now`, `/api/routines`, `/api/health` and `/api/presentation/*` under 250 ms are dropped; errors, slow calls and every non-GET are kept. Pprof rows are written at finish with `long_lived: true` (`dur_ms` is the capture, not latency). Written by `httpapi.Config.Access`; component `httpapi`; level `WARN` for a 5xx | #2055 |
+| `fields_select` | decision, one per farm site-type selection (`RoundsFieldPlanner`). `target` the winning crop, `verdict` `selected`, `reason` the winning site kind (`outdoor`, `greenhouse-new`, `greenhouse-reuse`, `hydroponics`); attrs `cells`, `buildings`, `needed`, `urgent`, `candidates` (each `kind`, `crop`, `needed`, `cells`, `score`, `terms` {name: value}, `reason` for an unplantable one). Read by `nativeaccept/farmselect`; replaces the multi-line `Fields select:` debug trace. Component `clock-scheduler` | #2062 |
 | `mod_log` | event row for each `rimgovernor.log` event from the mod: `seq`, `level`, `source`, `msg`, `dropped` (ring overflow count) | #2058 |
 
 ### Unchanged or reader-side
@@ -133,5 +134,5 @@ producer piece lands. Each legacy branch is deleted by the piece that moves its 
 | `scheduler_stop`, `authority_change` | `clock_stop`, `authority` | #2064 |
 | Log panel INFO kinds `combat_stops`, `hold_refused`, `animal_clear`, `entity_kill`, `entity_capture_refused`, `authority_lost`, `clock_retaken` | `combat_summary`, `defense_action`, `authority` | #2064, #2067 |
 | acceptance `stepevent`, `stepstall`, `failfast` | #2061 |
-| acceptance `farm/select`, `combatlab` metrics | #2062 |
+| acceptance `farm/select` (reads `fields_select`), `combatlab` metrics and run-end stop (read `combat_stop`/`clock_stop`, `combat_order`, `worker_outcome`/`dispatch`, `combat_stops`/`combat_summary`; the bundle's `combat_flight.jsonl` replaces `service.log`) | #2062 (legacy names deleted with #2064, #2067) |
 | postmortem, `acceptance why` | #2065 |

@@ -48,6 +48,10 @@ func NewFlightTail(path string) *FlightTail {
 	return t
 }
 
+// NewFlightTailFromStart starts a tail at the first row of path: it
+// returns every row the recorder holds on its first Next.
+func NewFlightTailFromStart(path string) *FlightTail { return &FlightTail{path: path} }
+
 // Next returns the rows appended since the previous call. A missing file
 // is not an error (the service has not opened its recorder yet); a
 // corrupt line is skipped.

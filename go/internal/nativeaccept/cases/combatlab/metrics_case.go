@@ -5,9 +5,11 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -129,7 +131,8 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 		return err
 	}
 	service.KeepAuthority(ctx)
-	served, err := serveUntil(ctx, service, start+metricsTicks-metricsStopMargin)
+	flight := na.FlightRecorderPath(s.Config().Output)
+	served, err := serveUntil(ctx, service, flight, start+metricsTicks-metricsStopMargin)
 	service.Stop()
 	s.Report()["servedTick"] = served
 	if err != nil {
@@ -149,10 +152,8 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	if err := writeReads(dir, []map[string]any{first, last}); err != nil {
 		return err
 	}
-	if log, err := os.ReadFile(service.StderrPath()); err == nil {
-		if err := os.WriteFile(filepath.Join(dir, ServiceLogFile), log, 0o644); err != nil {
-			return err
-		}
+	if err := writeCombatFlight(flight, filepath.Join(dir, FlightFile)); err != nil {
+		return err
 	}
 	m, err := AggregateBundle(dir, name)
 	if err != nil {
@@ -212,12 +213,13 @@ func stagePods(ctx context.Context, s cases.Session, name string) (Staged, error
 }
 
 // serveUntil polls the service's state until the game tick reaches until,
-// until the service logs the end of the combat (the colony window after
-// it would otherwise run the quiet lab to the budget, #890), or until the
-// served clock has sat still for metricsIdle, and returns the last tick
-// it saw.
-func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int, error) {
+// until the service records the end of the combat (a combat_stops row at
+// flight; the colony window after it would otherwise run the quiet lab to
+// the budget, #890), or until the served clock has sat still for
+// metricsIdle, and returns the last tick it saw.
+func serveUntil(ctx context.Context, service *na.ServiceProcess, flight string, until int) (int, error) {
 	tick, moved := -1, time.Now()
+	tail := na.NewFlightTailFromStart(flight)
 	for {
 		if err := service.Exited(); err != nil {
 			return tick, fmt.Errorf("service exited at tick %d: %w", tick, err)
@@ -230,11 +232,11 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int
 				}
 			}
 		}
-		ended := false
-		if log, err := os.ReadFile(service.StderrPath()); err == nil {
-			ended = bytes.Contains(log, []byte("combat ended"))
+		rows, err := tail.Next()
+		if err != nil {
+			return tick, err
 		}
-		if ended || tick >= until || (tick >= 0 && time.Since(moved) > metricsIdle) {
+		if slices.ContainsFunc(rows, combatEnded) || tick >= until || (tick >= 0 && time.Since(moved) > metricsIdle) {
 			return tick, nil
 		}
 		select {
@@ -243,6 +245,31 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
+}
+
+// combatEnded reports whether a flight row is the end-of-combat summary: the
+// legacy combat_stops row or the v2 combat_summary (#2064).
+func combatEnded(row na.FlightRow) bool {
+	return row.Kind == "combat_stops" || row.Kind == "combat_summary"
+}
+
+// writeCombatFlight copies the combat rows ScanFlight reads from the
+// service's flight recorder into the bundle, one wire line each.
+func writeCombatFlight(from, to string) error {
+	data, err := os.ReadFile(from)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var kept []byte
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		if record, ok := bridge.DecodeFlightLine(line); ok && CombatRow(na.FlightRow{Kind: record.Kind}) {
+			kept = append(append(kept, line...), '\n')
+		}
+	}
+	return os.WriteFile(to, kept, 0o644)
 }
 
 // storeLayout puts the fixture's layout, as a complete, verified defense

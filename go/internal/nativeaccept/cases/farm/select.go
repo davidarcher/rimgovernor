@@ -24,8 +24,6 @@ package farm
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -129,12 +127,11 @@ func (sel selection) register(name string) cases.Case {
 				return err
 			}
 			report := s.Report()
-			f, err := os.Open(filepath.Join(s.Config().Output, "service", "stderr.log"))
+			flight, err := na.ReadFlight(na.FlightRecorderPath(s.Config().Output))
 			if err != nil {
 				return err
 			}
-			selections, err := farmselect.Parse(f)
-			f.Close()
+			selections, err := farmselect.Parse(flight)
 			if err != nil {
 				return err
 			}

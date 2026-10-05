@@ -1,17 +1,14 @@
 // Package farmselect reads the field planner's site-type selections out of
-// a live service's clock-scheduler trace so a native run can assert which
+// a live service's fields_select flight rows so a native run can assert which
 // crop and site kind the controller chose and why, independently of whether
 // the zone or building receipts later resolve.
 package farmselect
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io"
-	"regexp"
-	"strconv"
-	"strings"
+
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
 // Candidate is one crop under one site kind with its score breakdown.
@@ -25,7 +22,7 @@ type Candidate struct {
 	Reason string             `json:"reason,omitempty"`
 }
 
-// Selection is one "Fields select:" trace with the candidates that followed it.
+// Selection is one fields_select row with the candidates it scored.
 type Selection struct {
 	Kind       string      `json:"kind"`
 	Crop       string      `json:"crop"`
@@ -35,67 +32,38 @@ type Selection struct {
 	Candidates []Candidate `json:"candidates"`
 }
 
-var (
-	// The service stamps every line with time, tick and level before the
-	// component (internal/telemetry); the candidate lines are the message's
-	// own continuation lines and carry no stamp.
-	selectLine    = regexp.MustCompile(`^(?:\S+ tick=\S+ \w+ )?\[clock-scheduler\] Fields select: kind=(\S+) crop=(\S+) cells=(\d+) buildings=(\d+) \| \S+ \S+ needed=\d+ urgent=(true|false) buildings=\d+$`)
-	candidateLine = regexp.MustCompile(`^ (\S+) (\S+) needed=(\d+) cells=(\d+) score=(-?[0-9.]+)(.*)$`)
-	termToken     = regexp.MustCompile(`^([a-z][a-z-]*)=(-?[0-9.]+)$`)
-)
-
-// Parse extracts every selection from a service stderr log. Candidate lines
-// are the indented continuation lines of the planner's Explain output; any
-// other line ends the selection.
-func Parse(r io.Reader) ([]Selection, error) {
+// Parse extracts every selection from a service's flight rows: a
+// fields_select row carries the winner (reason the site kind, target the
+// crop) and its candidates in attrs. Other rows are ignored.
+func Parse(rows []na.FlightRow) ([]Selection, error) {
 	var out []Selection
-	var current *Selection
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
-	for scanner.Scan() {
-		line := strings.TrimRight(scanner.Text(), "\r")
-		if m := selectLine.FindStringSubmatch(line); m != nil {
-			cells, _ := strconv.Atoi(m[3])
-			buildings, _ := strconv.Atoi(m[4])
-			out = append(out, Selection{Kind: m[1], Crop: m[2], Cells: cells, Buildings: buildings, Urgent: m[5] == "true"})
-			current = &out[len(out)-1]
+	for _, row := range rows {
+		if row.Kind != "fields_select" {
 			continue
 		}
-		if current == nil {
-			continue
-		}
-		m := candidateLine.FindStringSubmatch(line)
-		if m == nil {
-			current = nil
-			continue
-		}
-		needed, _ := strconv.Atoi(m[3])
-		cells, _ := strconv.Atoi(m[4])
-		score, err := strconv.ParseFloat(m[5], 64)
-		if err != nil {
-			return nil, fmt.Errorf("candidate score: %w", err)
-		}
-		c := Candidate{Kind: m[1], Crop: m[2], Needed: needed, Cells: cells, Score: score}
-		var reason []string
-		for _, token := range strings.Fields(m[6]) {
-			if t := termToken.FindStringSubmatch(token); t != nil && len(reason) == 0 {
-				v, err := strconv.ParseFloat(t[2], 64)
-				if err != nil {
-					return nil, fmt.Errorf("candidate term: %w", err)
-				}
-				if c.Terms == nil {
-					c.Terms = map[string]float64{}
-				}
-				c.Terms[t[1]] = v
-				continue
+		f := row.Fields()
+		s := Selection{Kind: text(f["reason"]), Crop: text(f["target"]), Cells: int(na.AsNumber(f["cells"])), Buildings: int(na.AsNumber(f["buildings"]))}
+		s.Urgent, _ = f["urgent"].(bool)
+		for _, item := range na.AsSlice(f["candidates"]) {
+			m, ok := na.AsMap(item)
+			if !ok {
+				return nil, fmt.Errorf("fields_select row %d: candidate is %T", row.Sequence, item)
 			}
-			reason = append(reason, token)
+			c := Candidate{Kind: text(m["kind"]), Crop: text(m["crop"]), Needed: int(na.AsNumber(m["needed"])), Cells: int(na.AsNumber(m["cells"])), Score: na.AsNumber(m["score"]), Reason: text(m["reason"])}
+			if terms, ok := na.AsMap(m["terms"]); ok && len(terms) > 0 {
+				c.Terms = make(map[string]float64, len(terms))
+				for name, v := range terms {
+					c.Terms[name] = na.AsNumber(v)
+				}
+			}
+			s.Candidates = append(s.Candidates, c)
 		}
-		c.Reason = strings.Join(reason, " ")
-		current.Candidates = append(current.Candidates, c)
+		out = append(out, s)
 	}
-	return out, scanner.Err()
+	return out, nil
 }
+
+func text(v any) string { s, _ := v.(string); return s }
 
 // Expectation is what a run must show in every selection.
 type Expectation struct {
@@ -111,7 +79,7 @@ type Expectation struct {
 // as evidence.
 func Check(selections []Selection, want Expectation) (Selection, error) {
 	if len(selections) == 0 {
-		return Selection{}, errors.New("no field selection was traced; is the field family on?")
+		return Selection{}, errors.New("no field selection was recorded; is the field family on?")
 	}
 	for i, s := range selections {
 		if want.Kind != "" && s.Kind != want.Kind {
