@@ -59,7 +59,7 @@ func (r *RoundsDefensePlanner) step(call, epoch context.Context, arbiter *stepAr
 			recErr = snapshot.RecordDefense(dir, d)
 		}
 		if recErr != nil {
-			clockEvent(call, "defense", "snapshot", "defense snapshot not recorded: "+recErr.Error())
+			defenseSnapshotSkip(call, "defense", "defense", recErr)
 		}
 	}
 	return result, err
@@ -75,7 +75,7 @@ func recordLayoutSnapshot(ctx context.Context, current domain.GenerationSnapshot
 	l.Recorded = fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick)
 	l.Snapshot, l.Tick = current, tick
 	if err := snapshot.RecordLayout(dir, l); err != nil {
-		clockEvent(ctx, "defense-layout", "snapshot", "layout snapshot not recorded: "+err.Error())
+		defenseSnapshotSkip(ctx, "defense-layout", "layout", err)
 	}
 }
 

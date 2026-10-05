@@ -30,11 +30,11 @@ type LogRow struct {
 // changing stage, the clock's authority changing). Every other INFO row stays
 // in the Problems feed and `rimgovernor log`. The legacy names go when the
 // producer piece moves (#2064 authority and combat summary, #2066 stage and
-// tier, #2067 defense).
+// tier).
 var infoLogKinds = map[string]bool{
 	"combat_summary": true, "combat_stops": true,
-	"defense_action": true, "hold_refused": true, "animal_clear": true, "entity_kill": true, "entity_capture_refused": true,
-	"colony_stage": true, "build_tier": true,
+	"defense_action": true,
+	"colony_stage":   true, "build_tier": true,
 	"authority": true, "authority_change": true, "authority_lost": true, "clock_retaken": true,
 }
 

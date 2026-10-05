@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -46,7 +45,7 @@ func (r *RoundsDefensePlanner) fightLoadout(call context.Context, state ControlS
 		}
 		facts, err := equipCandidatePawnFacts(row, catalog, things)
 		if err != nil {
-			slog.Default().InfoContext(call, "fight loadout pawn: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+			defenseAction(call, "routine-defense", slog.LevelWarn, "failed", "loadout_pawn", string(pawn), map[string]any{"error": err})
 			return nil
 		}
 		d := policy.LoadoutDefender{EquipCandidatePawn: facts, Primary: primaryDef(row, things)}
@@ -59,7 +58,7 @@ func (r *RoundsDefensePlanner) fightLoadout(call context.Context, state ControlS
 		// The primary's def rows (#1723): a def the catalog cannot state
 		// leaves the loadout out, as any failed read does.
 		if d.PrimaryFacts, err = catalog.WeaponOf(d.Primary); err != nil {
-			slog.Default().InfoContext(call, "fight loadout primary: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+			defenseAction(call, "routine-defense", slog.LevelWarn, "failed", "loadout_primary", string(pawn), map[string]any{"error": err})
 			return nil
 		}
 		beltless = beltless || !d.ShieldBelt
@@ -73,7 +72,7 @@ func (r *RoundsDefensePlanner) fightLoadout(call context.Context, state ControlS
 	if source, ok := r.native.(loadoutWeaponSource); ok && threat != policy.LoadoutNone {
 		read, err := loadoutWeapons(call, source, identity, state, catalog)
 		if err != nil {
-			slog.Default().InfoContext(call, "fight loadout weapons: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+			defenseAction(call, "routine-defense", slog.LevelWarn, "failed", "loadout_weapons", "", map[string]any{"error": err})
 		}
 		weapons = read
 	}
@@ -81,7 +80,7 @@ func (r *RoundsDefensePlanner) fightLoadout(call context.Context, state ControlS
 	if source, ok := r.native.(colonyFactsReader); ok && beltless {
 		read, err := r.loadoutBelts(call, source, identity, state)
 		if err != nil {
-			slog.Default().InfoContext(call, "fight loadout belts: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+			defenseAction(call, "routine-defense", slog.LevelWarn, "failed", "loadout_belts", "", map[string]any{"error": err})
 		}
 		belts = read
 	}

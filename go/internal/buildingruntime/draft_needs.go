@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
@@ -135,13 +134,13 @@ func undraft(ctx context.Context, writer undraftWriter, identity *c.Identity, ti
 		return err
 	}
 	for i, result := range reply.GetResults() {
-		outcome := "applied"
+		verdict, level, detail := "applied", slog.LevelInfo, ""
 		if refused := result.GetRefused(); refused != nil {
-			outcome = "refused: " + refused.GetReason()
+			verdict, detail = "refused", refused.GetReason()
 		} else if failed := result.GetFailed(); failed != nil {
-			outcome = "failed: " + failed.GetDetail()
+			verdict, level, detail = "failed", slog.LevelWarn, failed.GetDetail()
 		}
-		slog.Default().InfoContext(ctx, "undraft", telemetry.ComponentKey, "undraft-sweep", telemetry.KindKey, "undraft", "pawn", string(pawns[i]), "outcome", outcome)
+		defenseAction(ctx, "undraft-sweep", level, verdict, "undraft", string(pawns[i]), map[string]any{"detail": detail})
 	}
 	return nil
 }

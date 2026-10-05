@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -354,7 +355,7 @@ func (r *RoundsDefenseLayoutPlanner) remove(call, epoch context.Context, goal st
 	if len(lost) > 0 {
 		tier.Buildings = slices.DeleteFunc(tier.Buildings, func(b store.DefenseBuilding) bool { return lost[b.Cell] })
 		record.SetTier(tier)
-		clockSchedulerLog("defense-layout.remove: tier=%s no removable thing on %v; left out of the tier", tier.Name, lost)
+		defenseAction(call, "defense-layout", slog.LevelInfo, "refused", "nothing_removable", string(tier.Name), map[string]any{"cells": len(lost)})
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
@@ -384,7 +385,7 @@ func (r *RoundsDefenseLayoutPlanner) remove(call, epoch context.Context, goal st
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
-	clockSchedulerLog("defense-layout.remove: tier=%s ordered %d removals (%s)", tier.Name, len(actions), key)
+	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "removals", string(tier.Name), map[string]any{"removals": len(actions), "method": string(key)})
 	return RoundsDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id, Tier: tier.Name}, nil
 }
 

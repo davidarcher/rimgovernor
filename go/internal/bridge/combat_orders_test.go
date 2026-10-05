@@ -175,7 +175,7 @@ func TestCombatOrdersIssue(t *testing.T) {
 		t.Fatal(err)
 	}
 	// combatlab metrics (#855) count these lines by this pattern.
-	line := regexp.MustCompile(`\bcombat_order\b.*\boutcome=(\w+)`)
+	line := regexp.MustCompile(`\bcombat_order (applied|refused)\b`)
 	var outcomes []string
 	for _, l := range strings.Split(strings.TrimSpace(logged.String()), "\n") {
 		if g := line.FindStringSubmatch(l); g != nil {

@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 )
 
@@ -66,9 +65,9 @@ func (r *RoundsDefensePlanner) postFightEntities(call, epoch context.Context, st
 		switch {
 		case !ok || v.Decision == policy.EntityCapture:
 		case v.Decision == policy.EntityRefuse:
-			slog.Default().WarnContext(call, "entity left alive: no capture and no kill, "+v.Reason, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "entity_capture_refused", "pawn", raider.GetId(), "plan", string(fightPlan))
+			defenseAction(call, "routine-defense", slog.LevelWarn, "refused", "entity_capture_refused", raider.GetId(), map[string]any{"plan": string(fightPlan), "outcome": "left_alive", "detail": v.Reason})
 		case v.Decision == policy.EntityKill:
-			slog.Default().InfoContext(call, "entity not captured: "+v.Reason, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "entity_kill", "pawn", raider.GetId(), "plan", string(fightPlan))
+			defenseAction(call, "routine-defense", slog.LevelInfo, "applied", "entity_kill", raider.GetId(), map[string]any{"plan": string(fightPlan), "outcome": "not_captured", "detail": v.Reason})
 			result, err := r.finishRaider(call, epoch, state, fightPlan, memory, combat, raider, arbiter)
 			return result, true, err
 		}

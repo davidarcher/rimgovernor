@@ -16,7 +16,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mirrorpb "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -202,7 +201,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	recorded.MemoryOut = next
 	if next.Formed == tick && next.Refusal != "" && next.Tactic != policy.TacticHold {
 		// Squad defense follows; say which gate refused the hold (#714).
-		slog.Default().InfoContext(call, "hold refused: "+next.Refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "incident", string(incident.Incident.ID))
+		defenseAction(call, "routine-defense", slog.LevelInfo, "refused", "hold_refused", string(incident.Incident.ID), map[string]any{"incident": string(incident.Incident.ID), "gate": next.Refusal})
 	}
 	if fight == nil {
 		result, err := r.admitFight(call, epoch, incident, state, started, arbiter, fightAdmission{combat: combat, in: in, held: held, reply: recorded.Reply, stop: stop, memory: next})

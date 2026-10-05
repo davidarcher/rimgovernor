@@ -216,7 +216,7 @@ entity the game does not let the colony capture, or no available platform
 that strong, is killed (the post-fight finish, `postFightEntities`); an entity
 with any needed fact unread (dead, downed, held, capturable, needed strength,
 platform census, door hit points) is neither captured nor killed and is
-logged at warn (`entity_capture_refused`). Capture is a `GiveJobIntent`
+logged at warn (`defense_action` reason `entity_capture_refused`). Capture is a `GiveJobIntent`
 Capture whose native side, for a pawn with `CompHoldingPlatformTarget`, sets
 the entity's `targetHolder` and gives the carrier `CarryToEntityHolder` to the
 available platform of highest strength (the game's own order); MaintainPopulation's
@@ -260,12 +260,12 @@ blocked_open). A holder with a held pawn whose door is held open owes one
 (`CombatOrders`, mode CLOSE) for that cell; CLOSE clears the hold. A breached
 door that is neither held nor blocked closes by itself (the game's
 `ContainmentBreached` is the door staying open past its delay), and a breached
-door that stays blocked open is reported only (`containment_upkeep_issue`),
+door that stays blocked open is reported only (`defense_action` reason `containment_upkeep_issue`),
 since no order clears a blockage. Unread door facts are reported, never
 guessed. Bleeding captives: a held, downed, living entity whose health reads
 `needs_tend` is tended through the ordinary Tend action (bleeding first, then
 by id) with a doctor chosen by `SelectTend`; no eligible pair logs
-`entity_tend_unavailable`. A breach has no dedicated tactic: an escaped entity
+`defense_action` reason `entity_tend_unavailable`. A breach has no dedicated tactic: an escaped entity
 is a live hostile and falls to the existing defense tactics
 (`TestEscapedEntityFallsToTheExistingDefense`).
 

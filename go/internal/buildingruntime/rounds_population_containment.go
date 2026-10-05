@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // RoundsCustodySource is what the custody planner reads: the rescue
@@ -31,7 +30,7 @@ type RoundsCustodySource interface {
 func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, containment policy.ContainmentPlanning, arbiter *stepArbiter) (RoundsPopulationCustodyResult, error) {
 	upkeep := policy.ContainmentDoorUpkeep(containment)
 	for _, issue := range upkeep.Issues {
-		slog.Default().WarnContext(call, "containment upkeep: "+issue.Reason, telemetry.ComponentKey, "routine-population-custody", telemetry.KindKey, "containment_upkeep_issue", "x", issue.Cell.X, "z", issue.Cell.Z)
+		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "containment_upkeep_issue", fmt.Sprintf("%d,%d", issue.Cell.X, issue.Cell.Z), map[string]any{"x": issue.Cell.X, "z": issue.Cell.Z, "detail": issue.Reason})
 	}
 	if len(upkeep.CloseDoors) > 0 {
 		cell := upkeep.CloseDoors[0]
@@ -42,7 +41,7 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 		prefix := fmt.Sprintf("population-door-%d-%d-", cell.X, cell.Z)
 		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
-			slog.Default().WarnContext(call, "containment upkeep: the cell door is held open again after every close order", telemetry.ComponentKey, "routine-population-custody", telemetry.KindKey, "containment_upkeep_exhausted", "x", cell.X, "z", cell.Z)
+			defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "containment_upkeep_exhausted", fmt.Sprintf("%d,%d", cell.X, cell.Z), map[string]any{"x": cell.X, "z": cell.Z})
 			return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
@@ -114,7 +113,7 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
 	}
 	if !ok {
-		slog.Default().WarnContext(call, "containment upkeep: a held entity needs tending and no doctor can be ordered to it (the entity is neither downed nor in a bed, or no doctor is eligible and reaches it)", telemetry.ComponentKey, "routine-population-custody", telemetry.KindKey, "entity_tend_unavailable", "pawn", string(patient))
+		defenseAction(call, "routine-population-custody", slog.LevelWarn, "waiting", "entity_tend_unavailable", string(patient), nil)
 		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "entity_tend_doctor")}, nil
 	}
 	value, err := domain.NewTend(doctor, target)

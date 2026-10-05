@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"slices"
 	"sort"
@@ -291,7 +292,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	} else if recut {
 		// The plan's perimeter changed (#954): the new cut is built
 		// behind removals of what it no longer wants.
-		clockSchedulerLog("defense-layout: perimeter re-cut, revision %d", record.PerimeterRevision)
+		defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "perimeter_recut", "perimeter", map[string]any{"revision": record.PerimeterRevision})
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
@@ -316,7 +317,6 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 				return RoundsDefenseLayoutResult{}, err
 			}
 		} else {
-			clockSchedulerLog("defense-layout: turret gates closed %s", defenseTurretGates(request))
 		}
 	}
 	// The mortar tier follows the same way once mortar research and the
@@ -409,7 +409,6 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		return r.rearm(call, epoch, goal, review, state, read, upkeep.Rearm[0], arbiter)
 	}
 	if len(upkeep.Unpowered) > 0 || len(upkeep.Empty) > 0 {
-		clockSchedulerLog("defense-layout: turrets unpowered at %v, unfuelled at %v (fuel shortage %v)", upkeep.Unpowered, upkeep.Empty, upkeep.Shortage)
 		subject := "turret_fuel"
 		if len(upkeep.Unpowered) > 0 {
 			subject = "turret_power"
@@ -467,7 +466,6 @@ func (r *RoundsDefenseLayoutPlanner) rearm(call, epoch context.Context, goal sto
 		return RoundsDefenseLayoutResult{}, err
 	}
 	if defenseRearmAttempts(history, order.Turret, tick) >= maxDefenseRearmAttempts {
-		clockSchedulerLog("defense-layout: rearm of %s at %v exhausted", order.Turret, order.Cell)
 		return RoundsDefenseLayoutResult{Verdict: refuse(RefusalRetriesSpent, "maxDefenseRearmAttempts", ""), Tier: policy.TierTurrets}, nil
 	}
 	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(order.Pawn)}, "defense-rearm:"+order.Turret) {
@@ -497,7 +495,7 @@ func (r *RoundsDefenseLayoutPlanner) rearm(call, epoch context.Context, goal sto
 	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
-	clockSchedulerLog("defense-layout: rearm %s at %v by %s with %s (%s)", order.Turret, order.Cell, order.Pawn, order.Fuel, method)
+	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "rearm", order.Turret, map[string]any{"pawn": order.Pawn, "fuel": order.Fuel, "x": order.Cell.X, "z": order.Cell.Z, "method": string(method)})
 	return RoundsDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id, Tier: policy.TierTurrets}, nil
 }
 
@@ -573,7 +571,6 @@ func defenseUnitPrice(projection observation.ColonyProjection, d observation.Pla
 	stock, _ := projection.Stock()
 	price, err := d.StuffChoice(observation.MaxHitPointsPerCost, stock)
 	if err != nil {
-		clockSchedulerLog("defense-layout: %s unpriced: %v", d.Name, err)
 		return observation.StuffPrice{}, false
 	}
 	return price, true
@@ -605,7 +602,6 @@ func (r *RoundsDefenseLayoutPlanner) proposeMortars(call context.Context, state 
 	geometry := defenseMortarGeometry(*record)
 	record.MortarsProbedTick = projection.Identity.Tick
 	tier, err := policy.DefenseMortars(request, geometry)
-	clockSchedulerLog("defense-layout: mortar probe buildings=%d costs=%v max=%d err=%v", len(tier.Buildings), tier.Costs, request.Mortar.Max, err)
 	if err == nil && len(tier.Buildings) > 0 {
 		record.SetPolicyTier(tier)
 	}
@@ -813,11 +809,11 @@ func (r *RoundsDefenseLayoutPlanner) replaceTurret(call context.Context, state C
 		request.Cells = append(request.Cells, defenseCellFacts(cell))
 	}
 	old, replacement, ok, err := policy.TurretReplacement(request, defenseRecordGeometry(*record), standing)
-	clockSchedulerLog("defense-layout: turret replacement rung=%s ok=%v old=%v err=%v %s", request.Turret.Definition, ok, old.Cell(), err, defenseTurretGates(request))
 	if err != nil || !ok {
 		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 	}
 	applyTurretReplacement(record, old, replacement, standing, request.Turret.Size)
+	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "turret_replace", request.Turret.Definition, map[string]any{"x": old.Cell().X, "z": old.Cell().Z})
 	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 }
 
@@ -842,16 +838,6 @@ func applyTurretReplacement(record *store.DefenseLayoutRecord, old, replacement 
 	record.SetTier(tier)
 	name := policy.DefenseTierName(fmt.Sprintf("%s%d-%d-%d", defenseTurretReplacePrefix, old.Cell().X, old.Cell().Z, policy.TurretRank(replacement.Definition())))
 	record.Tiers = append(record.Tiers, store.DefenseTierRecord{Name: name, Remove: true, Buildings: []store.DefenseBuilding{{Definition: old.Definition(), Cell: old.Cell(), Rotation: old.Rotation(), Stuff: old.Stuff()}}})
-}
-
-// defenseTurretGates renders the turret request's gates for the scheduler
-// log: which observation keeps the tier from being proposed.
-func defenseTurretGates(r policy.DefenseRequest) string {
-	q := r.Turret
-	stock, sk := q.Stock.Value()
-	_, ck := r.UnitCosts[q.Definition]
-	return fmt.Sprintf("available=%v draw=%v spare=%v transmitters=%d costs_known=%v stock_known=%v steel=%d components=%d",
-		q.Available, q.DrawW, q.SpareW, len(q.Transmitters), ck, sk, stock["Steel"], stock["ComponentIndustrial"])
 }
 
 // defenseNetworkConduits approximates which conduits carry the network the
@@ -929,7 +915,6 @@ func (r *RoundsDefenseLayoutPlanner) proposeTurrets(call context.Context, state 
 	record.TurretsProbedTick = projection.Identity.Tick
 	_, candidates, err := policy.DefenseTurrets(request, geometry)
 	if err != nil || len(candidates) == 0 {
-		clockSchedulerLog("defense-layout: no turret candidate (firing=%v cells=%d err=%v %s)", geometry.Firing, len(request.Cells), err, defenseTurretGates(request))
 		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 	}
 	var probe []domain.Cell
@@ -951,8 +936,7 @@ func (r *RoundsDefenseLayoutPlanner) proposeTurrets(call context.Context, state 
 		request.Lines = append(request.Lines, l)
 	}
 	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutTurrets, Request: request, Geometry: geometry, Record: record})
-	tier, verified, err := policy.DefenseTurrets(request, geometry)
-	clockSchedulerLog("defense-layout: turret probe candidates=%+v lines=%d buildings=%d costs=%v err=%v %s", verified, len(lines.Lines), len(tier.Buildings), tier.Costs, err, defenseTurretGates(request))
+	tier, _, err := policy.DefenseTurrets(request, geometry)
 	if err != nil || len(tier.Buildings) == 0 {
 		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 	}
@@ -1164,7 +1148,6 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 	identity := boundary.Identity(state.Snapshot)
 	killbox, region, home, ok := defenseKillbox(projection)
 	if !ok {
-		clockSchedulerLog("defense-layout: waiting for the layout plan's killbox")
 		return policy.DefenseLayout{}, nil, awaitingPlan("layout_plan", "killbox"), false, nil
 	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
@@ -1191,7 +1174,6 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 		if err != nil {
 			return policy.DefenseLayout{}, nil, Verdict{}, false, err
 		}
-		clockSchedulerLog("defense-layout: waiting for a ranged defender (colonists=%d complete=%v)", len(read.Emergency.Colonists), read.Emergency.ColonistsComplete)
 		return policy.DefenseLayout{}, nil, noWorker("ranged_defender"), false, nil
 	}
 	request.Defenders, request.MinRange = defenders, minRange
@@ -1205,19 +1187,16 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 		result, handled, err := r.digKillbox(call, epoch, goal, review, state, read, request.Home, rock)
 		if err != nil || handled {
 			if err == nil {
-				clockSchedulerLog("defense-layout: the layout waits on its killbox dig (reason=%s)", result.Verdict)
 			}
 			return policy.DefenseLayout{}, nil, result.Verdict, false, err
 		}
 	}
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
-		clockSchedulerLog("defense-layout: no layout for the site: %v (region=%+v home=%v killbox=%+v defenders=%d)", err, request.Region, request.Home, request.Killbox, defenders)
 		return policy.DefenseLayout{}, nil, noSpace("defense_layout"), false, nil
 	}
 	firing, approach := layout.Probe()
 	if len(firing) == 0 {
-		clockSchedulerLog("defense-layout: the layout has no firing cell to probe")
 		return policy.DefenseLayout{}, nil, noSpace("firing_cell"), false, nil
 	}
 	lines, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
@@ -1237,11 +1216,9 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutPropose, Request: request})
 	layout, err = policy.DefenseLayouts(request)
 	if err != nil {
-		clockSchedulerLog("defense-layout: no layout once the lines of fire are read: %v", err)
 		return policy.DefenseLayout{}, nil, noSpace("defense_layout"), false, nil
 	}
 	if !layout.LinesVerified {
-		clockSchedulerLog("defense-layout: lines of fire not verified")
 		return policy.DefenseLayout{}, nil, fieldUnavailable("lines_of_fire"), false, nil
 	}
 	return layout, request.Entrances, Verdict{}, true, nil
@@ -1331,7 +1308,7 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	if len(unfloorable) > 0 {
 		tier.Buildings = defenseWithoutFloors(tier.Buildings, unfloorable, policy.IsPerimeterTier(tier.Name) || tier.Name == policy.TierIEDs)
 		record.SetTier(tier)
-		clockSchedulerLog("defense-layout.admit: tier=%s placement refused natively on %v; left out of the tier", tier.Name, unfloorable)
+		defenseAction(call, "defense-layout", slog.LevelInfo, "refused", "placement_refused_natively", string(tier.Name), map[string]any{"cells": len(unfloorable)})
 		if err := p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
@@ -1369,7 +1346,7 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		return RoundsDefenseLayoutResult{}, err
 	}
 	if refusal := access.Refusal(); refusal != "" {
-		clockSchedulerLog("defense-layout.admit: tier=%s access audit refused: %s (blocked %d cells)", tier.Name, refusal, len(blockedCells))
+		defenseAction(call, "defense-layout", slog.LevelInfo, "refused", "access_audit", string(tier.Name), map[string]any{"blocked_cells": len(blockedCells), "detail": refusal})
 		return RoundsDefenseLayoutResult{Verdict: noSpace("walkable_layout"), Tier: tier.Name}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
@@ -1403,7 +1380,6 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 			return RoundsDefenseLayoutResult{}, err
 		}
 	} else {
-		clockSchedulerLog("defense-layout.admit: tier=%s refused=%+v", tier.Name, decision.Refused)
 	}
 	return RoundsDefenseLayoutResult{Verdict: reason, Plan: id, Tier: tier.Name}, nil
 }

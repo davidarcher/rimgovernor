@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -131,7 +132,6 @@ func (r *RoundsDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Contex
 			return RoundsDefenseLayoutResult{}, err
 		}
 		if !ok {
-			clockSchedulerLog("defense-layout.%s: %s/%s at %v refused natively", tier, b.Definition(), b.Stuff(), b.Cell())
 			continue
 		}
 		actions = append(actions, action)
@@ -163,9 +163,8 @@ func (r *RoundsDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Contex
 		return RoundsDefenseLayoutResult{}, err
 	}
 	if !decision.Admitted {
-		clockSchedulerLog("defense-layout.%s: refused=%+v", tier, decision.Refused)
 		return RoundsDefenseLayoutResult{Verdict: admissionRefused(decision), Plan: id, Tier: tier}, nil
 	}
-	clockSchedulerLog("defense-layout.%s: %d builds (%s)", tier, len(actions), method)
+	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "builds", string(tier), map[string]any{"builds": len(actions), "method": string(method)})
 	return RoundsDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id, Tier: tier}, nil
 }

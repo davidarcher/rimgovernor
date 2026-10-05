@@ -120,7 +120,7 @@ func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident 
 	if err != nil {
 		// Nothing is known of the batch: the next stop's rows show who
 		// was drafted.
-		slog.Default().WarnContext(call, "fight admission batch failed", telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "fight_admission", "plan", string(id), "error", err)
+		telemetry.Decide(call, telemetry.Decision{Kind: "admission", Component: "routine-defense", Level: slog.LevelWarn, Verdict: "refused", Reason: "batch_failed", Target: string(id), Attrs: map[string]any{"combat_plan": string(id), "error": err}})
 		return admitted, nil
 	}
 	results, next, err = r.recordDrafts(call, id, drafts, results, next)
@@ -148,7 +148,7 @@ func (r *RoundsDefensePlanner) clearFightAnimals(call context.Context, state Con
 		return
 	}
 	if _, _, err = r.sendCombatBatch(call, state, fmt.Sprintf("%s-animals", plan), nil, clears); err != nil {
-		slog.Default().WarnContext(call, "fight animal clears failed", telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "animal_clear", "plan", string(plan), "error", err)
+		defenseAction(call, "routine-defense", slog.LevelWarn, "failed", "animal_clear", string(plan), map[string]any{"plan": string(plan), "error": err})
 	}
 }
 
@@ -392,7 +392,7 @@ func (r *RoundsDefensePlanner) answerGeometry(ctx context.Context, identity *c.I
 	request.Propose = propose
 	geometry, _, err := r.native.CombatGeometry(ctx, request)
 	if err != nil {
-		slog.Default().InfoContext(ctx, "combat geometry: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+		defenseAction(ctx, "routine-defense", slog.LevelWarn, "failed", "geometry_read", "", map[string]any{"error": err})
 		return reply
 	}
 	// Every proposal is standable by contract; a named cell is when the
@@ -435,7 +435,7 @@ func (r *RoundsDefensePlanner) answerRescuePath(ctx context.Context, identity *c
 	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_RescuePath{RescuePath: &mp.CombatRescuePath{To: &c.Cell{X: proto.Int32(ask.To.X), Z: proto.Int32(ask.To.Z)}}}}
 	geometry, _, err := r.native.CombatGeometry(ctx, bridge.CombatGeometryProposeAsk(identity, propose, hostiles, string(ask.Pawn)))
 	if err != nil {
-		slog.Default().InfoContext(ctx, "combat rescue path: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+		defenseAction(ctx, "routine-defense", slog.LevelWarn, "failed", "rescue_path_read", string(ask.Pawn), map[string]any{"error": err})
 		return reply
 	}
 	for _, row := range geometry.GetProposed() {
@@ -498,7 +498,7 @@ func recordCombatStop(ctx context.Context, combat bridge.Combat, s snap.CombatSt
 		return
 	}
 	if err := snap.RecordCombatStop(dir, combat.Frame, s); err != nil {
-		clockEvent(ctx, "defense", "snapshot", "combat stop not recorded: "+err.Error())
+		defenseSnapshotSkip(ctx, "defense", "combat", err)
 	}
 }
 

@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 
@@ -280,14 +279,14 @@ func (client *Client) CombatOrders(ctx context.Context, identity *c.Identity, ke
 	return results, err
 }
 
-// logCombatOrder writes one service-log line per order result, the
-// combat_order ... outcome=<applied|refused> line combatlab metrics count.
+// logCombatOrder writes one combat_order decision row per order result:
+// applied (reason empty, attrs job) or refused (reason the refusal).
 func logCombatOrder(ctx context.Context, res CombatOrderResult) {
-	attrs := []any{telemetry.ComponentKey, "combat-orders", telemetry.KindKey, "combat_order", "index", res.Index, "pawn", res.PawnID}
+	d := telemetry.Decision{Kind: "combat_order", Component: "combat-orders", Target: res.PawnID, Attrs: map[string]any{"index": res.Index}}
 	if res.Applied {
-		attrs = append(attrs, "outcome", "applied", "job", res.JobDef)
+		d.Verdict, d.Attrs["job"] = "applied", res.JobDef
 	} else {
-		attrs = append(attrs, "outcome", "refused", "reason", res.Refusal)
+		d.Verdict, d.Reason = "refused", res.Refusal
 	}
-	slog.Default().InfoContext(ctx, "combat_order", attrs...)
+	telemetry.Decide(ctx, d)
 }

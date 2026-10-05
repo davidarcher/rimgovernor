@@ -132,7 +132,8 @@ producer piece lands. Each legacy branch is deleted by the piece that moves its 
 | `scheduler_step` (spectator `now`, trace roots) | `planner_step` (attrs `admitted`, `running`, `window_ticks`) | #2064 (worker step; the #2063 planner_step rows are per planner and do not carry them) |
 | `worker_dispatch`, `worker_outcome` | `dispatch` | #2064 |
 | `scheduler_stop`, `authority_change` | `clock_stop`, `authority` | #2064 |
-| Log panel INFO kinds `combat_stops`, `hold_refused`, `animal_clear`, `entity_kill`, `entity_capture_refused`, `authority_lost`, `clock_retaken` | `combat_summary`, `defense_action`, `authority` | #2064, #2067 |
+| Log panel INFO kinds `combat_stops`, `authority_lost`, `clock_retaken` | `combat_summary`, `authority` | #2064 |
+
 | acceptance `stepevent`, `stepstall`, `failfast` | #2061 |
 | acceptance `farm/select` (reads `fields_select`), `combatlab` metrics and run-end stop (read `combat_stop`/`clock_stop`, `combat_order`, `worker_outcome`/`dispatch`, `combat_stops`/`combat_summary`; the bundle's `combat_flight.jsonl` replaces `service.log`) | #2062 (legacy names deleted with #2064, #2067) |
 | postmortem, `acceptance why` | #2065 |

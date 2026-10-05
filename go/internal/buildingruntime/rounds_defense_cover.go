@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -204,11 +205,9 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 		return RoundsDefenseLayoutResult{}, false, err
 	}
 	if !ok {
-		clockSchedulerLog("defense-layout: cover clearance held: no ranged defender sizes the engagement zone")
 		return RoundsDefenseLayoutResult{}, false, nil
 	}
 	request.Defenders, request.MinRange = defenders, minRange
-	rangeLimit, _ := minRange.Value()
 	layout, err := defenseRecordLayout(record)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
@@ -216,22 +215,17 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 	recordLayoutSnapshot(call, state.Snapshot, tick, snapshot.Layout{Point: snapshot.LayoutCover, Request: request, Record: &record, Site: site.Cells})
 	approaches, err := policy.DefenseApproachesFor(request, layout)
 	if err != nil {
-		clockSchedulerLog("defense-layout: cover census refused: %v", err)
+		defenseAction(call, "defense-layout", slog.LevelInfo, "refused", "cover_census", "cover", map[string]any{"error": err})
 		return RoundsDefenseLayoutResult{}, false, nil
 	}
 	if approaches.Hold != "" {
-		clockSchedulerLog("defense-layout: cover clearance held: %s", approaches.Hold)
+		defenseAction(call, "defense-layout", slog.LevelInfo, "waiting", "cover_held", "cover", map[string]any{"detail": approaches.Hold})
 		return RoundsDefenseLayoutResult{}, false, nil
 	}
-	clearances, held, err := defenseCoverSelection(approaches, byCell)
+	clearances, _, err := defenseCoverSelection(approaches, byCell)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
 	}
-	rankedRaids := 0
-	if len(approaches.Sectors) > 0 {
-		rankedRaids = approaches.Sectors[0].RecentRaids
-	}
-	clockSchedulerLog("defense-layout: cover demand %d, orderable %d, held %v (range %.1f, sectors %d, ranked_sector_raids %d, arrivals %d, unmatched %v, %s)", len(approaches.Cover), len(clearances), held, rangeLimit, len(approaches.Sectors), rankedRaids, len(request.Arrivals), approaches.UnmatchedArrivals, defenseCensusSummary(request, byCell))
 	if len(clearances) == 0 {
 		return RoundsDefenseLayoutResult{}, false, nil
 	}
@@ -243,7 +237,6 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 		return RoundsDefenseLayoutResult{}, false, err
 	}
 	if defenseCoverAttempts(history, tick) >= maxDefenseCoverAttempts {
-		clockSchedulerLog("defense-layout: cover clearance exhausted for the day (%d things waiting)", len(clearances))
 		return RoundsDefenseLayoutResult{Verdict: refuse(RefusalRetriesSpent, "maxDefenseCoverAttempts", "")}, true, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseCoverPrefix, tick))
@@ -270,29 +263,6 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
 	}
-	for _, clearance := range clearances {
-		clockSchedulerLog("defense-layout: clear cover %s (%s) at %v by %s (%s)", clearance.Thing(), clearance.Definition(), clearance.Cell(), clearance.Designation(), method)
-	}
+	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "cover_clearance", string(method), map[string]any{"things": len(clearances)})
 	return RoundsDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
-}
-
-// defenseCensusSummary is the census in one line for a sector-less or
-// cover-less review: whether Home is passable and how many border cells
-// are passable and reach the map edge, which is what the sectors need.
-func defenseCensusSummary(request policy.DefenseRequest, byCell map[domain.Cell]bridge.DefenseCell) string {
-	reg := request.Region
-	home, homeKnown := byCell[request.Home]
-	borderPassable, borderEdge := 0, 0
-	for c, cell := range byCell {
-		if c.X != reg.X && c.Z != reg.Z && c.X != reg.X+reg.Width-1 && c.Z != reg.Z+reg.Height-1 {
-			continue
-		}
-		if cell.Passable {
-			borderPassable++
-		}
-		if cell.EdgeReachable {
-			borderEdge++
-		}
-	}
-	return fmt.Sprintf("census cells %d, home %v known %v passable %v, border passable %d edge_reachable %d", len(byCell), request.Home, homeKnown, home.Passable, borderPassable, borderEdge)
 }
