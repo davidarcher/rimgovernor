@@ -614,6 +614,19 @@ func colonyCoreNative(t *testing.T) *roundsNative {
 	return n
 }
 
+// reviewedConcernCount is the review's concern total, derived from the policy
+// inspection catalog: every Standard and Project concern, no Incident (the
+// rounds open incidents and file no row for them).
+func reviewedConcernCount() int {
+	n := 0
+	for _, d := range policy.AllInspections() {
+		if !policy.IsIncidentKind(d.Concern) {
+			n++
+		}
+	}
+	return n
+}
+
 func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -622,8 +635,8 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 42 standards and 8 projects; TidyLayout left the set in #2117.
-	if len(got.Standards)+len(got.Projects) != 50 || got.Review.Revision != 1 || !got.Review.Enabled {
+	// The review yields every catalogued Standard and Project concern.
+	if len(got.Standards)+len(got.Projects) != reviewedConcernCount() || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Standards {
