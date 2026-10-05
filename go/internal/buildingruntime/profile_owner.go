@@ -8,10 +8,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 )
 
 var ErrProfileOwned = errors.New("game profile already has a controller owner")
+
+// ProfileOwnerPIDFile names, inside the profile directory, the file holding
+// the pid of the process that took the lock. The launcher reads it by this
+// name (cmd/launcher keeps its own copy of the constant).
+const ProfileOwnerPIDFile = "rimgovernor-controller.pid"
 
 // ProfileOwner must remain open until all native writes and owned workers have stopped.
 // Kernel ownership ends on process exit, including a crash. The lock file remains
@@ -60,6 +66,11 @@ func AcquireProfile(ctx context.Context, profileDirectory string) (*ProfileOwner
 		file.Close()
 		return nil, fmt.Errorf("controller ownership: %w", err)
 	}
+	// Record who holds the lock beside it, so a launcher starting a
+	// replacement can stop an owner that no longer listens on any port (a
+	// controller hung after its bridge dropped kept the profile for good).
+	// Best effort: the lock, not this file, is the ownership.
+	_ = os.WriteFile(filepath.Join(canonical, ProfileOwnerPIDFile), []byte(strconv.Itoa(os.Getpid())), 0600)
 	owner := &ProfileOwner{file: file}
 	if err = ctx.Err(); err != nil {
 		owner.Close()

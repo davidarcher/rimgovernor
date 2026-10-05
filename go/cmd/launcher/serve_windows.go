@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -23,6 +24,33 @@ func kill(pid int) {
 	for i := 0; i < 40 && processPath(pid) != ""; i++ {
 		time.Sleep(250 * time.Millisecond)
 	}
+}
+
+// profileOwnerPIDFile is buildingruntime.ProfileOwnerPIDFile, copied so the
+// launcher does not link the controller's packages.
+const profileOwnerPIDFile = "rimgovernor-controller.pid"
+
+// profileOwnerPID is the live rimgovernor controller recorded as holding the
+// profile lock, 0 when none (no file, process gone, pid reused by another
+// program, or the launcher itself).
+func profileOwnerPID(profile string) int {
+	data, err := os.ReadFile(filepath.Join(profile, profileOwnerPIDFile))
+	if err != nil {
+		return 0
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 0 || pid == os.Getpid() {
+		return 0
+	}
+	if !isController(processPath(pid)) {
+		return 0
+	}
+	return pid
+}
+
+// isController is whether an executable path names a rimgovernor controller.
+func isController(path string) bool {
+	return strings.HasPrefix(strings.ToLower(filepath.Base(path)), "rimgovernor.exe")
 }
 
 func healthy(url string) bool {
@@ -130,6 +158,12 @@ func (a *app) start(s Settings) error {
 		Config:  config,
 		Game:    game,
 		State:   state,
+	}
+	// The profile lock outlives a controller that hung without ever
+	// listening on the port; stop whoever still holds it.
+	if pid := profileOwnerPID(paths.Profile); pid != 0 {
+		a.logf("stopping the earlier controller holding the profile (pid %d)", pid)
+		kill(pid)
 	}
 	args, err := ServeArgs(s, paths, port)
 	if err != nil {
