@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -655,7 +656,7 @@ func (r *Rounder) step(ctx, epoch context.Context, arbiter *stepArbiter, partial
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRounds err=%v", err)
 	} else {
-		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), append(roundsDevelopmentAttrs(result.Review.Development), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawSafetyOverlay(ctx, state.Snapshot, &reading.Projection, reading.Emergency)
@@ -756,4 +757,20 @@ func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
 func plannedDoors(colony observation.ColonyProjection) map[domain.Cell]bool {
 	plan, _ := colony.LayoutPlan.Value()
 	return policy.PlannedDoors(plan)
+}
+
+// roundsDevelopmentAttrs is the review row's development ranking: each row's
+// concern with the reason it holds no slot ("selected" when it has one), so a
+// concern that never acts shows why at Info instead of only as a refused
+// admission.
+func roundsDevelopmentAttrs(d store.RoundsDevelopment) []any {
+	rows := make([]string, 0, len(d.Rows))
+	for _, row := range d.Rows {
+		verdict := string(row.Reason)
+		if row.Selected {
+			verdict = "selected"
+		}
+		rows = append(rows, fmt.Sprintf("%s=%s", row.Concern, verdict))
+	}
+	return []any{"development", strings.Join(rows, " "), "development_limiting", string(d.Limiting)}
 }
