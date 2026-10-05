@@ -1180,9 +1180,18 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			if err != nil {
 				return nil, policy.StockObservation{}, Verdict{}, err
 			}
+			// The search drops anchors that are protected, occupied or off the
+			// site cells; previewing one anyway fails the whole step.
+			proposed := map[domain.Cell]bool{}
+			for _, c := range slotSearch.Candidates() {
+				proposed[c] = true
+			}
 			for i, p := range slots {
 				if int64(len(selected)) == missing {
 					break
+				}
+				if !proposed[p.Anchor()] {
+					continue
 				}
 				choice, ok, reason, err := previewAt(slotSearch, fmt.Sprintf("%s-t%d", snapshot.Plan, i), p.Anchor(), p.Rot)
 				if err != nil || !reason.IsZero() {
