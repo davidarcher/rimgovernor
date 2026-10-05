@@ -49,6 +49,8 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/Guards/DesignationGuards.cs" Link="Production/DesignationGuards.cs" />
     <Compile Include="NativeContractProbes/native-home-coverage/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/HomeCoverageGeometry.cs" Link="Production/HomeCoverageGeometry.cs" />
+    <Compile Include="NativeContractProbes/native-team-policy/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeTeamPolicy.cs" Link="Production/NativeTeamPolicy.cs" />
     <Compile Include="NativeContractProbes/native-traffic-counts/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Runtime/Traffic/TrafficCounts.cs" Link="Production/TrafficCounts.cs" />
     <Compile Include="NativeContractProbes/native-production-bill-settings/Program.cs" />

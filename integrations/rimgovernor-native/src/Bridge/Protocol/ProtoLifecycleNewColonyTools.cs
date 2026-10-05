@@ -287,31 +287,71 @@ namespace HomeBridge.BridgeTools
             finally { Rand.PopState(); }
         }
 
-        // Reroll hook for #2024's team-composition policy: runs on the freshly
-        // generated starting pawns, inside the seeded Rand scope, and counts
-        // rerolls into the reported reroll_count. #2024 replaces the body.
-        // Interim minimal policy (the old DebugStart.EnsureCapableColonists, so
-        // the colony is usable until #2024): every colonist can Construct and Haul.
-        private const int MaxRerollsPerPawn = 40;
-
-        private static bool CapableColonist(Pawn p) =>
-            p != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
-            && (p.skills?.GetSkill(SkillDefOf.Construction).Level ?? 0) >= ThingDefOf.Wall.constructionSkillPrerequisite;
-
+        // Team-composition policy (#2024, NativeTeamPolicy): runs on the freshly
+        // generated starting pawns, inside the seeded Rand scope, rerolling from
+        // that stream and counting rerolls into the reported reroll_count. An
+        // exhausted budget refuses, naming the unmet requirement.
         private static void TeamPolicy(Entry entry)
         {
             var pawns = Find.GameInitData.startingAndOptionalPawns;
-            for (var i = 0; i < Find.GameInitData.startingPawnCount && i < pawns.Count; i++)
+            var size = Math.Min(Find.GameInitData.startingPawnCount, pawns.Count);
+            try
             {
-                var tries = 0;
-                while (!CapableColonist(pawns[i]))
+                NativeTeamPolicy.Run(size, i => ReadFacts(pawns[i]), i =>
                 {
-                    if (++tries > MaxRerollsPerPawn)
-                        throw new Refusal(Common.FailureCode.NativeFailure, "Starting pawn " + i + " was incapable of Construction or Hauling after " + MaxRerollsPerPawn + " rerolls.");
                     StartingPawnUtility.RandomizeInPlace(pawns[i]);
                     entry.Rerolls++;
-                }
+                });
             }
+            catch (TeamPolicyException e) { throw new Refusal(Common.FailureCode.NativeFailure, e.Message); }
+        }
+
+        private static readonly TeamSkill[] Skills = (TeamSkill[])Enum.GetValues(typeof(TeamSkill));
+
+        private static SkillDef SkillDefFor(TeamSkill skill)
+        {
+            switch (skill)
+            {
+                case TeamSkill.Plants: return SkillDefOf.Plants;
+                case TeamSkill.Cooking: return SkillDefOf.Cooking;
+                case TeamSkill.Construction: return SkillDefOf.Construction;
+                case TeamSkill.Medicine: return SkillDefOf.Medicine;
+                case TeamSkill.Mining: return SkillDefOf.Mining;
+                case TeamSkill.Shooting: return SkillDefOf.Shooting;
+                default: return SkillDefOf.Melee;
+            }
+        }
+
+        // Cooking has no WorkTypeDefOf field.
+        private static WorkTypeDef? WorkTypeFor(TeamSkill skill)
+        {
+            switch (skill)
+            {
+                case TeamSkill.Plants: return WorkTypeDefOf.Growing;
+                case TeamSkill.Cooking: return DefDatabase<WorkTypeDef>.GetNamed("Cooking");
+                case TeamSkill.Construction: return WorkTypeDefOf.Construction;
+                case TeamSkill.Medicine: return WorkTypeDefOf.Doctor;
+                case TeamSkill.Mining: return WorkTypeDefOf.Mining;
+                default: return null; // combat skills are judged by passion, not a work type
+            }
+        }
+
+        private static PawnFacts ReadFacts(Pawn p)
+        {
+            var levels = new int[Skills.Length]; var passions = new int[Skills.Length]; var enabled = new bool[Skills.Length];
+            foreach (var skill in Skills)
+            {
+                var record = p.skills.GetSkill(SkillDefFor(skill));
+                var workType = WorkTypeFor(skill);
+                levels[(int)skill] = record.Level;
+                passions[(int)skill] = record.TotallyDisabled ? 0 : (int)record.passion;
+                enabled[(int)skill] = workType == null || !p.WorkTypeIsDisabled(workType);
+            }
+            var traits = p.story.traits.allTraits.Select(t => new TraitFact(t.def.defName, t.Degree)).ToArray();
+            var permanent = p.health.hediffSet.hediffs.Any(h => h.def.isBad && (h.IsPermanent() || h.def.chronic || h is Hediff_MissingPart));
+            return new PawnFacts(levels, passions, enabled, !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling),
+                enabled[(int)TeamSkill.Construction] && levels[(int)TeamSkill.Construction] >= ThingDefOf.Wall.constructionSkillPrerequisite,
+                permanent, traits);
         }
 
         // Call only on the game thread.

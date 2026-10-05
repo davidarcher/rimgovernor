@@ -64,7 +64,7 @@ func runQuietStoryteller(ctx context.Context, s cases.Session) error {
 	spec["seed"] = "quietteller-accept"
 	spec["saveName"] = "quietteller-accept"
 	id := fmt.Sprintf("quietteller-%d", time.Now().UnixNano())
-	if _, err := newColonyRun(ctx, h, id, spec, "FINISHING", "quiet"); err != nil {
+	if _, _, err := newColonyRun(ctx, h, id, spec, "quiet"); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "quiet-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
