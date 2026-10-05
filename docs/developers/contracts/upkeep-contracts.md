@@ -334,7 +334,7 @@ Only the current phase's planner acts.
   its owners are upgrade targets. A sleeping spot is never suitable. While every
   colonist owns some bed the bedroom ladder (shell with door, furnish, move) runs ahead
   of any barracks bed at every tier. Furnishing falls back to a `SleepingSpot` the owner
-  moves into; the vacated starter-shell spot is deconstructed.
+  moves into; the vacated shelter-shell spot is deconstructed.
 - Assignment and construction receipts do not complete the deficit. Recovery requires
   observed use by the assigned pawn in a suitable bed, kept for that bed and load.
   Missing reads, changed assignments, access loss and unsafe temperature reopen it.

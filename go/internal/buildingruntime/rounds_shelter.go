@@ -480,7 +480,7 @@ func shellStands(standing map[domain.Cell]string, building domain.Building) bool
 // successors: initial shelter, expansion, workshop and hospital shells
 // alike); adoptShell reads their plans back as the durable record of the
 // rings it ordered.
-var shellMethodPatterns = []string{"starter-shell*", "expansion-starter-shell*", "comfort-shell*", "workshop-shell*", "hospital-shell*", "laboratory-shell*", "sleeping-shell*", "shelter-shell*", "expansion-shelter-shell*"}
+var shellMethodPatterns = []string{"comfort-shell*", "workshop-shell*", "hospital-shell*", "laboratory-shell*", "sleeping-shell*", "shelter-shell*", "expansion-shelter-shell*"}
 
 // shellHistoryLimit bounds how many earlier shell plans adoption consults.
 // A world orders a handful of shells over its life and each interruption

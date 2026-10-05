@@ -962,7 +962,7 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 	if err := db.CreatePlan(context.Background(), plan); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.SeedPlanMethod(context.Background(), id, "starter-shell"); err != nil {
+	if err := db.SeedPlanMethod(context.Background(), id, "shelter-shell"); err != nil {
 		t.Fatal(err)
 	}
 	return shell, ring

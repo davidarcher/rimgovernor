@@ -134,7 +134,7 @@ func TestPlanHistoryWithMethodsIsANewestFirstWindowIncludingRetiredPlans(t *test
 		if err = s.CreatePlan(ctx, plan(t, id, domain.ActionID("action-"+string(id)))); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s.db.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", map[bool]string{true: "starter-shell", false: "shelter-beds"}[id[0] == 's'], id); err != nil {
+		if _, err = s.db.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", map[bool]string{true: "shelter-shell", false: "shelter-beds"}[id[0] == 's'], id); err != nil {
 			t.Fatal(err)
 		}
 	}

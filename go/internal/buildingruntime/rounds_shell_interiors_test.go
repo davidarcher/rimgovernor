@@ -33,16 +33,16 @@ func concaveClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.Co
 }
 
 func TestShellInteriorsCoverThePlannedRingsFloor(t *testing.T) {
-	claims, shell := concaveClaims(t, "starter-shell", domain.Cell{X: 40, Z: 40})
+	claims, shell := concaveClaims(t, "shelter-shell", domain.Cell{X: 40, Z: 40})
 	var actions []domain.Action
 	for i, claim := range claims {
-		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("starter-shell-%d", i)), claim.Building)
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("shelter-shell-%d", i)), claim.Building)
 		if err != nil {
 			t.Fatal(err)
 		}
 		actions = append(actions, a)
 	}
-	spec, err := domain.NewPlan("starter-shell", 1, actions)
+	spec, err := domain.NewPlan("shelter-shell", 1, actions)
 	if err != nil {
 		t.Fatal(err)
 	}
