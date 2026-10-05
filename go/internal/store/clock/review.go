@@ -134,10 +134,14 @@ func BenignStopEvent(stop *k.StopEvent) bool {
 // the session under an admitted combat plan and re-planned the squad for
 // an announcement that carried no threat (#325); a letter class that
 // stops arrives as its own LETTER_PAUSE or NOTIFICATION_BATCH stop. It is
-// shared with the poll loop so both classifications cannot drift.
+// A force-pause wait is the same tier: native raises it for an autosave or a
+// transient force pause, states that play is not stopped, and waits a grace
+// period; one that outlasts the grace becomes its own FORCE_PAUSED stop, which
+// does hold. Holding on the wait dropped authority at every day boundary.
+// It is shared with the poll loop so both classifications cannot drift.
 func EventInterrupts(event *k.Event) bool {
 	switch e := event.Event.(type) {
-	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved, *k.Event_Notification:
+	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_ForcePauseWaiting, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved, *k.Event_Notification:
 		return false
 	case *k.Event_Stopped:
 		return !BenignStopEvent(e.Stopped)

@@ -207,7 +207,7 @@ func TestClockWindowInterveningEventAndManualPreventDispatch(t *testing.T) {
 				} else {
 					ctx := proto.Clone(f.status.Context).(*c.ObservationContext)
 					r := &k.EventsRequest{Identity: ctx.Identity, AfterCursor: proto.Int64(0), Limit: proto.Uint32(1)}
-					page := &k.EventsPage{Context: ctx, NewestCursor: proto.Int64(1), NextCursor: proto.Int64(1), Gap: proto.Bool(false), LostCount: proto.Uint64(0), Events: []*k.Event{{Cursor: proto.Int64(1), Owner: &k.EpochOwner{ControllerSessionId: proto.String("session"), Epoch: proto.Int64(1)}, Context: ctx, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_ForcePauseWaiting{ForcePauseWaiting: &k.ForcePauseWaiting{Pause: &k.PauseEvidence{Letter: &k.Letter{Id: proto.String("danger"), Label: proto.String("danger")}}}}}}}
+					page := &k.EventsPage{Context: ctx, NewestCursor: proto.Int64(1), NextCursor: proto.Int64(1), Gap: proto.Bool(false), LostCount: proto.Uint64(0), Events: []*k.Event{{Cursor: proto.Int64(1), Owner: &k.EpochOwner{ControllerSessionId: proto.String("session"), Epoch: proto.Int64(1)}, Context: ctx, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_PauseFailed{PauseFailed: &k.PauseFailed{Pending: &k.StopEvent{Reason: k.StopReason_STOP_REASON_UNAVAILABLE.Enum(), Evidence: &k.StopEvent_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}}}}}}
 					if _, _, err := db.AppendClockEvents(context.Background(), request.Intent.Window.Profile, r, page); err != nil {
 						t.Fatal(err)
 					}

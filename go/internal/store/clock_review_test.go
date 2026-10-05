@@ -18,7 +18,7 @@ import (
 func reviewAppend(t *testing.T, s *Store, profile string, after int64, lost uint64) {
 	t.Helper()
 	r, p := inboxPage(after, 1, lost)
-	p.Events[0].Event = &k.Event_ForcePauseWaiting{ForcePauseWaiting: &k.ForcePauseWaiting{Pause: &k.PauseEvidence{Letter: &k.Letter{Id: proto.String("letter"), Label: proto.String("warning")}}}}
+	p.Events[0].Event = &k.Event_PauseFailed{PauseFailed: &k.PauseFailed{Pending: &k.StopEvent{Reason: k.StopReason_STOP_REASON_UNAVAILABLE.Enum(), Evidence: &k.StopEvent_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}}}
 	if _, _, err := s.AppendClockEvents(context.Background(), profile, r, p); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestClockReviewEmptyAckDoesNotCoverNewEvents(t *testing.T) {
 }
 func TestClockReviewEventClassification(t *testing.T) {
 	t.Parallel()
-	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}, {Event: &k.Event_OperationOutcome{}}, {Event: &k.Event_AuthorityChanged{}}}
+	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}, {Event: &k.Event_ForcePauseWaiting{}}, {Event: &k.Event_OperationOutcome{}}, {Event: &k.Event_AuthorityChanged{}}}
 	for _, event := range benign {
 		if clock.EventInterrupts(event) {
 			t.Fatal(event)
@@ -114,7 +114,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 			t.Fatal(reason)
 		}
 	}
-	for _, event := range []*k.Event{{Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
+	for _, event := range []*k.Event{{Event: &k.Event_PauseFailed{}}} {
 		if !clock.EventInterrupts(event) {
 			t.Fatal(event)
 		}

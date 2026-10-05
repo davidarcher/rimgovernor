@@ -188,6 +188,8 @@ and derives interruption and gap holds from that evidence. These never create
 interruption holds:
 
 - ordinary epoch starts, speed changes, hostiles-cleared, force-pause-cleared,
+  force-pause waits (an autosave or transient pause native says is not a stop; one that
+  outlasts its grace becomes a `FORCE_PAUSED` stop),
   operation outcomes and authority changes;
 - game alerts (`Event_Alert`): planning evidence and an `alert_row` telemetry event;
 - injury observations (`Event_InjuryObserved`): sub-threshold damage native coalesces;
@@ -195,7 +197,7 @@ interruption holds:
 - the benign stops (`store/clock.BenignStop`): tick budget, requested pause, watch
   latched, and a letter pause for an informational letter.
 
-Pause failures, force-pause waits and other stop events remain conservative holds.
+Pause failures and other stop events remain conservative holds.
 Cleared conditions cannot erase an earlier unacknowledged event.
 
 Acknowledgements require an exact review revision and reviewed cursor. An exact

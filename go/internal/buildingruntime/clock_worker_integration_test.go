@@ -105,7 +105,7 @@ func (f *joinedClockNative) ReadClockEvents(ctx context.Context, request *k.Even
 	f.source.status.NewestCursor = proto.Int64(newest)
 	page := &k.EventsPage{Context: proto.Clone(f.source.status.Context).(*c.ObservationContext), NewestCursor: proto.Int64(newest), NextCursor: proto.Int64(newest), Gap: proto.Bool(false), LostCount: proto.Uint64(0)}
 	if f.alert && request.GetAfterCursor() == 0 {
-		page.Events = []*k.Event{{Cursor: proto.Int64(1), Owner: proto.Clone(clockCoordinatorEpoch(f.source.status).Owner).(*k.EpochOwner), Context: proto.Clone(f.source.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_ForcePauseWaiting{ForcePauseWaiting: &k.ForcePauseWaiting{Pause: &k.PauseEvidence{Letter: &k.Letter{Id: proto.String("danger"), Label: proto.String("danger")}}}}}}
+		page.Events = []*k.Event{{Cursor: proto.Int64(1), Owner: proto.Clone(clockCoordinatorEpoch(f.source.status).Owner).(*k.EpochOwner), Context: proto.Clone(f.source.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_PauseFailed{PauseFailed: &k.PauseFailed{Pending: &k.StopEvent{Reason: k.StopReason_STOP_REASON_UNAVAILABLE.Enum(), Evidence: &k.StopEvent_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}}}}}
 	}
 	if request.GetAfterCursor() == 1 {
 		f.captureOnce.Do(func() { close(f.captured) })
