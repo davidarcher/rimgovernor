@@ -77,12 +77,12 @@ func TestPenRefusedRingCellReportsNoSpace(t *testing.T) {
 	}
 	// Control: with every cell accepted the ring is admitted whole.
 	n.refused = nil
-	ok, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, roomReconcile{room: room, name: "pen-1-1", reason: "pen"}, ops)
+	ok, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, []roomWork{{rr: roomReconcile{room: room, name: "pen-1-1", reason: "pen"}, ops: ops}})
 	if err != nil || ok.Verdict == noSpace("pen_enclosure") {
 		t.Fatalf("an accepted ring reads %v %v", ok.Verdict, err)
 	}
 	n.refused = map[domain.Cell]bool{refused: true}
-	result, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, roomReconcile{room: room, name: "pen-1-1", reason: "pen"}, ops)
+	result, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, []roomWork{{rr: roomReconcile{room: room, name: "pen-1-1", reason: "pen"}, ops: ops}})
 	if err != nil {
 		t.Fatal(err)
 	}

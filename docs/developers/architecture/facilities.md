@@ -306,7 +306,17 @@ pass installs it instead of building another. The couple's double bed is the
 same: the pack step takes the two single beds up, the install is a
 reconcile of the couple's planned room to a `DoubleBed` template
 (`CoupleBed.Template`), and a couple whose room is outside the plan is never
-packed for. Move, clear and the bed replacement, sculpture and upgrade levers
+packed for. A wing's bedrooms are built together (#2133): `NextBedroomStep`
+carries every unbuilt or empty bedroom of the head room's wing, in plan order
+(`BedroomStep.Rooms`, `Room` being the first), once any of them is owed, ahead
+of need; a Retiring wing is never carried, and a bedroom outside a wing, the
+suite step and the migration step stay one room. `reconcileBedroom` hands the
+batch to `reconcileRooms`, the shared build side's multi-room entry: each room
+is diffed alone, the packed stock is shared in plan order, the installs are one
+method, and the on-site builds are one admission in which the first room is
+admitted whole and later rooms only as far as the stock funds (no cap on rooms
+or cells); the rest follows in the next wave. Suites keep their own ring-stock
+gate. Move, clear and the bed replacement, sculpture and upgrade levers
 are unchanged. The starter shelter's bunk rungs (`rounds_shelter_bunks.go`)
 and the stand-in `SleepingSpot` keep their own guard (`standInBed`): the
 reconciler leaves a spot alone and the bunks are sited before a ring exists.

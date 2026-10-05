@@ -115,60 +115,106 @@ func roomWaiting(name string) RoundsBuildingResult {
 	return RoundsBuildingResult{Verdict: waitFor(WaitExistingWork, name+"_reconcile")}
 }
 
+// roomWork is one room of a reconcile with the operations its diff leaves.
+type roomWork struct {
+	rr  roomReconcile
+	ops []policy.Operation
+}
+
+// reconcileRoom reconciles one owner's room (see reconcileRooms).
 func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rr roomReconcile) (RoundsBuildingResult, error) {
+	return b.reconcileRooms(call, epoch, state, review, goal, reading, stock, []roomReconcile{rr})
+}
+
+// reconcileRooms reconciles several rooms of one owner together (#2133, a
+// wing's bedrooms): each room is diffed on its own, then the next wave is
+// committed across all of them in plan order, so twelve rooms' walls are one
+// wall batch. The first room names the methods. A removal is the first room's
+// that owes one (it ends the pass), installs from packed stock are one method
+// for every room (each stored piece goes to one room), and the builds are one
+// method that admits what the stock funds (commitBuilds).
+func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rrs []roomReconcile) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	plan, known := facts.LayoutPlan.Value()
-	in, ground := roomRingInput(facts, plan, rr.room)
-	if !known || !ground {
+	if !known || len(rrs) == 0 {
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 	}
-	if !rr.ringOnly {
-		source, ok := b.native.(observation.ClearanceSource)
-		if !ok {
+	// The packed stock the rooms share: a room takes what its predecessors left.
+	var left map[string]int
+	works := make([]roomWork, 0, len(rrs))
+	for _, rr := range rrs {
+		in, ground := roomRingInput(facts, plan, rr.room)
+		if !ground {
 			return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 		}
-		read, err := observation.ObserveClearanceCensusOnGround(call, source, facts.Identity, false, []policy.Rectangle{rr.room.RoomGround()})
-		if err != nil {
-			return RoundsBuildingResult{}, err
+		if !rr.ringOnly {
+			source, ok := b.native.(observation.ClearanceSource)
+			if !ok {
+				return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
+			}
+			read, err := observation.ObserveClearanceCensusOnGround(call, source, facts.Identity, false, []policy.Rectangle{rr.room.RoomGround()})
+			if err != nil {
+				return RoundsBuildingResult{}, err
+			}
+			census, known := read.Value()
+			if !known {
+				return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
+			}
+			_, player := policy.SplitGroundRows(census.Targets)
+			in.Rows, in.Floors, in.Furniture = policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden), census.Floors, rr.template
+			if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
+				in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
+			}
+			if !rr.room.Outdoor {
+				in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
+			}
+			if left == nil {
+				if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
+					return RoundsBuildingResult{}, err
+				} else if readable {
+					left = map[string]int{}
+					for _, item := range items {
+						left[item.InnerDef]++
+					}
+				}
+			}
+			in.Stock = left
 		}
-		census, known := read.Value()
-		if !known {
-			return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
-		}
-		_, player := policy.SplitGroundRows(census.Targets)
-		in.Rows, in.Floors, in.Furniture = policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden), census.Floors, rr.template
-		if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
-			in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
-		}
-		if !rr.room.Outdoor {
-			in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
-		}
-		if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
-			return RoundsBuildingResult{}, err
-		} else if readable {
-			in.Stock = map[string]int{}
-			for _, item := range items {
-				in.Stock[item.InnerDef]++
+		ops := policy.ReconcileRoom(in)
+		for _, op := range ops {
+			if op.Kind != policy.OpInstall || left == nil {
+				continue
+			}
+			for _, piece := range op.Pieces {
+				left[piece.DefName] = max(0, left[piece.DefName]-1)
 			}
 		}
+		works = append(works, roomWork{rr: rr, ops: ops})
 	}
-	ops := policy.ReconcileRoom(in)
 	// Removals first, then installs from stock, then what is built on site.
 	for _, kind := range []policy.OpKind{policy.OpFurnitureOut, policy.OpPack, policy.OpPackInUse, policy.OpFloorOut} {
-		for _, op := range ops {
-			if op.Kind == kind {
-				return b.commitRemoval(call, epoch, state, goal, rr, op)
+		for _, w := range works {
+			for _, op := range w.ops {
+				if op.Kind == kind {
+					return b.commitRemoval(call, epoch, state, goal, w.rr, op)
+				}
 			}
 		}
 	}
-	for _, op := range ops {
-		if op.Kind == policy.OpInstall {
-			if result, done, err := b.commitInstalls(call, epoch, state, goal, stock, rr, op); done || err != nil {
-				return result, err
+	var installs []policy.WantedPiece
+	for _, w := range works {
+		for _, op := range w.ops {
+			if op.Kind == policy.OpInstall {
+				installs = append(installs, op.Pieces...)
 			}
 		}
 	}
-	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, rr, ops)
+	if len(installs) > 0 {
+		if result, done, err := b.commitInstalls(call, epoch, state, goal, stock, works[0].rr, installs); done || err != nil {
+			return result, err
+		}
+	}
+	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, works)
 }
 
 // methodOnce is true when the owner has not committed method yet.
@@ -222,11 +268,11 @@ func (b *RoundsBuildingPlanner) commitRemoval(call, epoch context.Context, state
 
 // commitInstalls moves the pieces the packed stock holds to their slots; done
 // is false when none is stored after all, so the pieces are built on site.
-func (b *RoundsBuildingPlanner) commitInstalls(call, epoch context.Context, state ControlState, goal store.WorkOwner, stock *packedStock, rr roomReconcile, op policy.Operation) (RoundsBuildingResult, bool, error) {
+func (b *RoundsBuildingPlanner) commitInstalls(call, epoch context.Context, state ControlState, goal store.WorkOwner, stock *packedStock, rr roomReconcile, pieces []policy.WantedPiece) (RoundsBuildingResult, bool, error) {
 	var actions []domain.Action
 	var key strings.Builder
 	id := domain.MintPlanID()
-	for _, piece := range op.Pieces {
+	for _, piece := range pieces {
 		move, stored, err := stock.Install(call, policy.PackedFurnitureDefinition, piece.DefName, piece.Anchor(), piece.Rot)
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
@@ -253,76 +299,92 @@ func (b *RoundsBuildingPlanner) commitInstalls(call, epoch context.Context, stat
 	return result, true, err
 }
 
-// roomBuild is one building the room is built from on site.
+// roomBuild is one building a room is built from on site.
 type roomBuild struct {
 	def, stuff string
 	cell       domain.Cell
 	rot        domain.Rotation
 	// ring marks a wall, fence, door or gate of the room's ring.
 	ring bool
+	// work is the room's index in the batch.
+	work int
 }
 
-// commitBuilds previews every ready on-site building of the room, doors first
-// then walls, floors and furniture, and admits those native accepts as one
-// method; a refused placement is left for a later pass.
-func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, plan policy.LayoutPlan, rr roomReconcile, ops []policy.Operation) (RoundsBuildingResult, error) {
+// roomBuildKinds is the order a wave's buildings are admitted in: doors first,
+// then walls, floors and furniture.
+var roomBuildKinds = []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.OpWallUp, policy.OpFloorIn, policy.OpBuild}
+
+// commitBuilds previews every ready on-site building of the rooms, one kind at
+// a time across the rooms in plan order (twelve rooms' walls are one batch),
+// and admits those native accepts as one method; a refused placement is left
+// for a later pass. The first room with work to do is admitted whole, as a
+// single room always was (a shell short of a material records the shortfall,
+// #602); the rooms after it take only what the stock still funds after it,
+// walls, doors, floors and furniture alike, and the rest follows in the next
+// wave (#2133). There is no cap on rooms or cells: the stock is the limit.
+func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, plan policy.LayoutPlan, works []roomWork) (RoundsBuildingResult, error) {
 	facts := reading.Projection
-	var wantWalls bool
-	for _, op := range ops {
-		wantWalls = wantWalls || op.Kind == policy.OpWallIn || op.Kind == policy.OpWallUp || op.Kind == policy.OpDoorIn
-	}
-	var builds []roomBuild
-	wallDef, doorDef := rr.room.RingDefs()
-	var wallStuff, doorStuff string
-	if wantWalls {
-		var refusal Verdict
-		var ok bool
-		if wallStuff, doorStuff, refusal, ok = shellMaterials(facts, wallDef, doorDef, rr.stuff); !ok {
-			return RoundsBuildingResult{Verdict: refusal}, nil
+	wantWalls := make([]bool, len(works))
+	for i, w := range works {
+		for _, op := range w.ops {
+			wantWalls[i] = wantWalls[i] || op.Kind == policy.OpWallIn || op.Kind == policy.OpWallUp || op.Kind == policy.OpDoorIn
 		}
 	}
-	for _, kind := range []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.OpWallUp, policy.OpFloorIn, policy.OpBuild} {
-		for _, op := range ops {
-			if op.Kind != kind {
-				continue
+	var builds []roomBuild
+	for _, kind := range roomBuildKinds {
+		for i, w := range works {
+			rr := w.rr
+			wallDef, doorDef := rr.room.RingDefs()
+			var wallStuff, doorStuff string
+			if wantWalls[i] {
+				var refusal Verdict
+				var ok bool
+				if wallStuff, doorStuff, refusal, ok = shellMaterials(facts, wallDef, doorDef, rr.stuff); !ok {
+					return RoundsBuildingResult{Verdict: refusal}, nil
+				}
 			}
-			switch kind {
-			case policy.OpDoorIn:
-				flaps := plan.FlapCells(rr.room)
-				for _, c := range op.Cells {
-					if slices.Contains(flaps, c) {
-						// The shared wall of a pen and its barn takes the animal flap (#2122).
-						flap := facts.Shapes.Furniture.AnimalFlap
-						if flap == "" {
-							return RoundsBuildingResult{}, fmt.Errorf("%w: commitBuilds: the catalog names no animal flap", ErrControl)
+			for _, op := range w.ops {
+				if op.Kind != kind {
+					continue
+				}
+				switch kind {
+				case policy.OpDoorIn:
+					flaps := plan.FlapCells(rr.room)
+					for _, c := range op.Cells {
+						if slices.Contains(flaps, c) {
+							// The shared wall of a pen and its barn takes the animal flap (#2122).
+							flap := facts.Shapes.Furniture.AnimalFlap
+							if flap == "" {
+								return RoundsBuildingResult{}, fmt.Errorf("%w: commitBuilds: the catalog names no animal flap", ErrControl)
+							}
+							builds = append(builds, roomBuild{def: flap, stuff: facts.BuildStuff(flap), cell: c, rot: domain.North, ring: true, work: i})
+							continue
 						}
-						builds = append(builds, roomBuild{def: flap, stuff: facts.BuildStuff(flap), cell: c, rot: domain.North, ring: true})
-						continue
+						builds = append(builds, roomBuild{def: doorDef, stuff: doorStuff, cell: c, rot: domain.North, ring: true, work: i})
 					}
-					builds = append(builds, roomBuild{def: doorDef, stuff: doorStuff, cell: c, rot: domain.North, ring: true})
-				}
-			case policy.OpWallIn, policy.OpWallUp:
-				for _, c := range op.Cells {
-					builds = append(builds, roomBuild{def: wallDef, stuff: wallStuff, cell: c, rot: domain.North, ring: true})
-				}
-			case policy.OpFloorIn:
-				for _, f := range op.Floors {
-					builds = append(builds, roomBuild{def: f.DefName, cell: f.Cell, rot: domain.North})
-				}
-			case policy.OpBuild:
-				for _, piece := range op.Pieces {
-					builds = append(builds, roomBuild{def: piece.DefName, stuff: facts.BulkBuildStuff(piece.DefName, 1), cell: piece.Anchor(), rot: piece.Rot})
+				case policy.OpWallIn, policy.OpWallUp:
+					for _, c := range op.Cells {
+						builds = append(builds, roomBuild{def: wallDef, stuff: wallStuff, cell: c, rot: domain.North, ring: true, work: i})
+					}
+				case policy.OpFloorIn:
+					for _, f := range op.Floors {
+						builds = append(builds, roomBuild{def: f.DefName, cell: f.Cell, rot: domain.North, work: i})
+					}
+				case policy.OpBuild:
+					for _, piece := range op.Pieces {
+						builds = append(builds, roomBuild{def: piece.DefName, stuff: facts.BulkBuildStuff(piece.DefName, 1), cell: piece.Anchor(), rot: piece.Rot, work: i})
+					}
 				}
 			}
 		}
 	}
 	if len(builds) == 0 {
-		if rr.ringOnly {
+		if works[0].rr.ringOnly {
 			// Nothing of the ring is ready (a door awaits the clear side's wall
 			// removal): the owner goes on to its own placement.
 			return RoundsBuildingResult{Verdict: noSpace("room_ring")}, nil
 		}
-		return roomWaiting(rr.name), nil
+		return roomWaiting(works[0].rr.name), nil
 	}
 	p := b.reviewer.player
 	snapshot := state.Snapshot
@@ -338,15 +400,56 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		return nil
 	}
 	// A room planned into rock is mined out before its ring (#836).
-	if wantWalls && rr.room.Dug {
-		if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, plan, rr.room, check); err != nil || handled {
-			return result, err
+	for i, w := range works {
+		if wantWalls[i] && w.rr.room.Dug {
+			if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, plan, w.rr.room, check); err != nil || handled {
+				return result, err
+			}
+		}
+	}
+	// The first room with work goes first and whole; the rest follow in the
+	// order the kinds were collected.
+	head := builds[0].work
+	ordered := make([]roomBuild, 0, len(builds))
+	for _, build := range builds {
+		if build.work == head {
+			ordered = append(ordered, build)
+		}
+	}
+	for _, build := range builds {
+		if build.work != head {
+			ordered = append(ordered, build)
 		}
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	var selected []policy.Preview
 	var key strings.Builder
-	for _, build := range builds {
+	spend := map[policy.Resource]int64{}
+	priced := map[string][]policy.Amount{}
+	// funded is whether the stock read so far still pays costs after what is
+	// selected; a resource the stock does not name is not funded.
+	funded := func(costs []policy.Amount) bool {
+		for _, c := range costs {
+			available, known := int64(0), false
+			for _, s := range stock.Values {
+				if v, ok := s.Available.Value(); ok && s.Resource == c.Resource {
+					available, known = v, true
+				}
+			}
+			if !known || spend[c.Resource]+c.Count > available {
+				return false
+			}
+		}
+		return true
+	}
+	previewed := 0
+	for _, build := range ordered {
+		rr := works[build.work].rr
+		priceKey := build.def + "/" + build.stuff
+		// A building priced already and unfunded is not previewed again.
+		if costs, seen := priced[priceKey]; seen && build.work != head && !funded(costs) {
+			continue
+		}
 		if err := check(); err != nil {
 			return RoundsBuildingResult{}, err
 		}
@@ -374,15 +477,27 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			}
 			continue
 		}
-		if err := mergeRoundsStock(&stock, preview.Stock, len(selected) == 0); err != nil {
+		if err := mergeRoundsStock(&stock, preview.Stock, previewed == 0); err != nil {
 			return RoundsBuildingResult{}, err
+		}
+		previewed++
+		costs, priceKnown := v.Costs.Value()
+		if priceKnown {
+			priced[priceKey] = costs
+		}
+		if build.work != head && (!priceKnown || !funded(costs)) {
+			continue
+		}
+		for _, c := range costs {
+			spend[c.Resource] += c.Count
 		}
 		selected = append(selected, v)
 		fmt.Fprintf(&key, "%s@%d,%d;", build.def, build.cell.X, build.cell.Z)
 	}
 	if len(selected) == 0 {
-		return roomWaiting(rr.name), nil
+		return roomWaiting(works[0].rr.name), nil
 	}
+	rr := works[0].rr
 	digest := sha256.Sum256([]byte(key.String()))
 	method := domain.MethodID(fmt.Sprintf("%s-build-%x", rr.name, digest[:8]))
 	if once, err := b.methodOnce(call, goal, method); err != nil || !once {

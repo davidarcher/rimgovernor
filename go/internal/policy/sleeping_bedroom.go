@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -54,7 +55,13 @@ type BedroomStep struct {
 	Kind             BedroomStepKind
 	Pawn             PawnID
 	Bed, PreviousBed string
-	Room             PlannedRoom
+	// Room is the step's room; for a BedroomReconcile from NextBedroomStep it
+	// is Rooms[0].
+	Room PlannedRoom
+	// Rooms is a BedroomReconcile's batch: every unbuilt or empty bedroom of
+	// the head room's wing, in plan order (#2133). Empty for the suite and
+	// migration steps, whose one room is Room.
+	Rooms []PlannedRoom
 	// Cells is a BedroomClear's one cell.
 	Cells    []domain.Cell
 	Unhoused int
@@ -202,11 +209,32 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		}
 	}
 	// A standing empty room first (it owes the least), then an unbuilt one.
-	if rooms := append(empty, unbuilt...); len(rooms) > 0 {
-		return BedroomStep{Kind: BedroomReconcile, Room: rooms[0], Unhoused: len(unhoused)}
+	if owed := append(empty, unbuilt...); len(owed) > 0 {
+		// The whole wing is owed once one of its rooms is (#2133).
+		return BedroomStep{Kind: BedroomReconcile, Room: owed[0], Rooms: wingBedrooms(plan, owed[0], owed), Unhoused: len(unhoused)}
 	}
 	// No slot left: Unhoused still counts who stays outside a bedroom.
 	return suiteStep()
+}
+
+// wingBedrooms is the rooms of owed that share head's bedroom wing, in the
+// wing's plan order: a wing's bedrooms are built together, ahead of need
+// (#2133). A head outside any wing (a spine bedroom) stands alone. A Retiring
+// wing never reaches here (NextBedroomStep skips its rooms).
+func wingBedrooms(plan LayoutPlan, head PlannedRoom, owed []PlannedRoom) []PlannedRoom {
+	for _, w := range plan.Wings {
+		if w.Purpose != WingBedrooms || !slices.ContainsFunc(w.Rooms, head.Same) {
+			continue
+		}
+		var batch []PlannedRoom
+		for _, r := range w.Rooms {
+			if r.Role == PlannedBedroom && slices.ContainsFunc(owed, r.Same) {
+				batch = append(batch, r)
+			}
+		}
+		return batch
+	}
+	return []PlannedRoom{head}
 }
 
 // BedroomTemplate is the furniture template of a BedroomReconcile's room: bed
