@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
@@ -180,11 +181,6 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	reserveDays := r.reviewer.seasonal(projection.Facts).FoodTargetDays
 	request, choices := fieldSiteRequest(projection, protected, reserveDays)
 	selection, known := policy.PlanSiteType(request)
-	if env, known := projection.Environment.Value(); known {
-		clockSchedulerLog("Fields environment: lights=%d growers=%d rooms=%d networks=%d daylight=%v outdoorC=%v", len(env.Lights), len(env.Growers), len(env.Rooms), len(env.Networks), env.Daylight, env.OutdoorTemperatureC)
-	} else {
-		clockSchedulerLog("Fields environment: unknown")
-	}
 	// Existing growers first: a basin sows its definition's default crop
 	// when built, so the crop the candidate scored is applied here once the
 	// game reports the grower, and a better crop re-crops it the same way.
@@ -206,7 +202,6 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return result, err
 	}
 	if !known {
-		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, request.Field.Coverage, len(projection.Farms), selection.Explain())
 		return placeOthers(wait, fieldUnavailable("field_plan"))
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
@@ -235,7 +230,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil || tried {
 			return result, err
 		}
-		clockSchedulerLog("Fields: %s %s refused (%s), trying next candidate", candidate.Kind, candidate.Crop.Name, result.Verdict)
+		fieldEdit(call, "refused", "candidate_refused", candidate.Crop.Name, map[string]any{"kind": candidate.Kind, "cells": candidate.Cells, "refusal": result.Verdict})
 	}
 	return placeOthers(wait, noSpace("field_candidates"))
 }
@@ -297,7 +292,6 @@ func (r *RoundsFieldPlanner) placeLedger(call, epoch context.Context, state Cont
 			continue
 		}
 		lead := s.Options[0]
-		clockSchedulerLog("Fields ledger: %s %s needs %d (priority %d)", s.What, lead.Crop.Name, lead.Needed, s.Standard.Standard.Priority)
 		var tried bool
 		var err error
 		result, tried, err = r.enactBlock(call, epoch, state, s.Standard, projection, read, wait, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: lead.Crop, Needed: lead.Needed}, s.Options, anchor, protected)
@@ -417,7 +411,7 @@ func (r *RoundsFieldPlanner) enact(call, epoch context.Context, state ControlSta
 				return RoundsFieldResult{}, false, err
 			}
 			if refused != "" {
-				clockSchedulerLog("Fields: %s patch %+v refused: %s", crop.Name, patch, refused)
+				fieldEdit(call, "refused", "preview_refused", crop.Name, map[string]any{"detail": refused})
 				return RoundsFieldResult{Verdict: siteBlocked("field_zone", "preview_refused"), NativeWorkTicks: wait}, false, nil
 			}
 			v := reply.GetEvaluated()
@@ -457,7 +451,6 @@ func (r *RoundsFieldPlanner) admit(call, epoch context.Context, state ControlSta
 		return RoundsFieldResult{}, false, err
 	}
 	if !decision.Admitted {
-		clockSchedulerLog("Fields: %s not admitted: %+v", what, decision.Refused)
 		return RoundsFieldResult{Verdict: admissionRefused(decision), NativeWorkTicks: wait}, false, nil
 	}
 	return RoundsFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
@@ -529,7 +522,7 @@ func (r *RoundsFieldPlanner) enactBlock(call, epoch context.Context, state Contr
 		return RoundsFieldResult{}, false, err
 	}
 	if refused != "" {
-		clockSchedulerLog("Fields: %s block zone refused: %s", edit.Crop, refused)
+		fieldEdit(call, "refused", "preview_refused", edit.Crop, map[string]any{"detail": refused})
 		return RoundsFieldResult{Verdict: siteBlocked("field_zone", "preview_refused"), NativeWorkTicks: wait}, false, nil
 	}
 	v := reply.GetEvaluated()
@@ -569,7 +562,6 @@ func (r *RoundsFieldPlanner) recrop(call, epoch context.Context, state ControlSt
 		return RoundsFieldResult{}, false, fmt.Errorf("%w: recrop: err != nil || target.Context.GetTick() < int64(projection.Identity.Tick)", ErrControl)
 	}
 	if target.Crop != choice.Current {
-		clockSchedulerLog("Fields: grower %s crop moved (%s -> %s) since the census", choice.Grower, choice.Current, target.Crop)
 		return RoundsFieldResult{Verdict: fieldUnavailable("grower_crop"), NativeWorkTicks: wait}, false, nil
 	}
 	patch, err := domain.NewGrowerCrop(choice.Grower, choice.Crop.Name)
@@ -597,7 +589,7 @@ func (r *RoundsFieldPlanner) recrop(call, epoch context.Context, state ControlSt
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoundsFieldResult{}, false, fmt.Errorf("%w: recrop: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
-	clockSchedulerLog("Fields recrop: grower=%s %s -> %s | %s", choice.Grower, choice.Current, choice.Crop.Name, choice.Reason)
+	fieldEdit(call, "admitted", "recrop", choice.Grower, map[string]any{"from": choice.Current, "to": choice.Crop.Name, "detail": choice.Reason})
 	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoundsFieldResult{}, false, err
 	}
@@ -745,4 +737,12 @@ func firebreakRing(projection observation.ColonyProjection) ([]domain.Cell, erro
 	ring, err := policy.FirebreakRing(firebreakRequest(projection))
 	cells, _ := ring.Value()
 	return cells, err
+}
+
+// fieldEdit files a layout_edit row for a field decision: a candidate or
+// zone the game refused, or a grower re-cropped. The facts go in attrs;
+// reason stays a stable word.
+func fieldEdit(ctx context.Context, verdict, reason, target string, attrs map[string]any) {
+	attrs["family"] = "field"
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_edit", Component: "clock-scheduler", Verdict: verdict, Reason: reason, Target: target, Attrs: attrs})
 }

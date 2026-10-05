@@ -273,7 +273,6 @@ func (b *RoundsBuildingPlanner) shellRoomOf(call, epoch context.Context, state C
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
-			clockSchedulerLog("%s: %s %d,%d refused at %d,%d", goal.OwnerID(), method, room.Interior.X, room.Interior.Z, cell.X, cell.Z)
 			return RoundsBuildingResult{Verdict: noSpace("bedroom_wall_cell")}, nil
 		}
 		if err := mergeRoundsStock(&stock, preview.Stock, len(selected) == 0); err != nil {

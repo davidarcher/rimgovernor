@@ -131,7 +131,6 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sta
 			}
 			actions = append(actions, action)
 		}
-		clockSchedulerLog("%s: couple %s+%s: pack %d single bed(s) for room %s", goal.OwnerID(), step.Pawn, step.Partner, len(actions), step.Room)
 		return r.commitCouple(call, epoch, state, goal, method, id, actions)
 	case policy.CoupleInstall:
 		room := sha256.Sum256([]byte(fmt.Sprintf("%d,%d", step.Anchor.X, step.Anchor.Z)))
@@ -149,10 +148,8 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sta
 			if err != nil {
 				return RoundsBuildingResult{}, false, err
 			}
-			clockSchedulerLog("%s: couple %s+%s: reinstall stored %s in room %s", goal.OwnerID(), step.Pawn, step.Partner, move.Thing(), step.Room)
 			return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 		}
-		clockSchedulerLog("%s: couple %s+%s: build DoubleBed in room %s", goal.OwnerID(), step.Pawn, step.Partner, step.Room)
 		result, err := r.upgradeBedroom(call, epoch, state, review, goal, reading, policy.RoomUpgrade{Room: step.Room, Slot: "couple-bed", Def: policy.SleepingCoupleBedDefinition, Anchor: step.Anchor, Rot: step.Rot})
 		// A build already tried this epoch, or refused, leaves the
 		// ordinary choice to go on.
@@ -198,7 +195,6 @@ func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Con
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
-		clockSchedulerLog("%s: reinstall stored %s %s in room %s", goal.OwnerID(), choice.Definition, move.Thing(), room.ID)
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	return RoundsBuildingResult{}, false, nil

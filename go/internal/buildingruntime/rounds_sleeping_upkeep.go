@@ -294,9 +294,6 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 	}
 	// swapping flags a bedroom swap: native evicts the bed's owner (#1243).
 	swapping := false
-	if clockDebug() {
-		clockSchedulerLog("sleeping: choice=%+v", choice)
-	}
 	// A couple's double bed comes before any other bed change (#843).
 	if choice.Method != policy.SleepingUnknown {
 		if result, due, err := r.coupleBed(call, epoch, state, review, goal, reading); due || err != nil {

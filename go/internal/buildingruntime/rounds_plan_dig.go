@@ -39,7 +39,6 @@ func (b *RoundsBuildingPlanner) admitRockStep(call, epoch context.Context, s exc
 		return RoundsBuildingResult{}, false, err
 	}
 	if len(step.Unfit) > 0 {
-		clockSchedulerLog("%s: %s: %d open-sky cells unfit (thick or unseen roof)", b.concern, method, len(step.Unfit))
 		return RoundsBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("%d_cells_thick_or_unseen_roof", len(step.Unfit)))}, true, nil
 	}
 	return b.digPlannedSky(call, epoch, s, step.Dig, step.Unroof, access, method, buildings, check)
@@ -115,11 +114,9 @@ func (b *RoundsBuildingPlanner) digPlannedSky(call, epoch context.Context, s exc
 			if designated {
 				return RoundsBuildingResult{Verdict: BuildingReasonExistingWork}, true, nil
 			}
-			clockSchedulerLog("%s: %s: none of %d rock cells eligible", b.concern, method, len(rock))
 			return RoundsBuildingResult{}, false, nil
 		}
 		if site.CollapsePending || site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable {
-			clockSchedulerLog("%s: %s: not diggable now: support=%d (%s) collapse=%v worker=%v", b.concern, method, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
 			// Each cause is named, but stays no_space: callers that fall
 			// back to another site test the kind.
 			cause := "dig_no_worker"
@@ -149,11 +146,9 @@ func (b *RoundsBuildingPlanner) digPlannedSky(call, epoch context.Context, s exc
 			return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "dig_plan")}, true, nil
 		}
 		if len(excavations) == 0 {
-			clockSchedulerLog("%s: %s: %d roof cells still standing after the plan settled", b.concern, method, len(unroof))
 			return RoundsBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("roof_standing_%d_cells", len(unroof)))}, true, nil
 		}
 		if len(buildings) > 0 || wave+1 >= digWaves {
-			clockSchedulerLog("%s: %s: %d rock cells still standing after the dig plan settled", b.concern, method, len(excavations))
 			return RoundsBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("%d_cells_standing", len(excavations)))}, true, nil
 		}
 		admitted = domain.MethodID(fmt.Sprintf("%s~%d", method, wave+1))
@@ -220,7 +215,6 @@ func (b *RoundsBuildingPlanner) digPlannedSky(call, epoch context.Context, s exc
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %d rock cells reason=%s", b.concern, method, len(actions), result.Verdict)
 	return result, true, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 type RoundsBuildingSource interface {
@@ -91,7 +93,6 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			indoor.definition = ""
 		}
 		result, err := indoor.step(call, epoch, arbiter)
-		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.concern, result.Verdict, err)
 		if err != nil || !result.Verdict.Is(RefusalNoSpace) && !result.Verdict.Is(WaitMethodUsed) && !result.Verdict.Is(WaitBunksOpen) {
 			return result, err
 		}
@@ -204,8 +205,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		// ErrControl alone reads as a lost writer gate in the diagnosis
 		// (#662); name the boundary that actually failed.
-		clockSchedulerLog("%s: ErrControl identity boundary observed=%+v tick=%d review tick=%d snapshot=%+v", r.concern, expected, expected.Tick, review.Tick, state.Snapshot)
-		return RoundsBuildingResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+		return RoundsBuildingResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick=%d review tick=%d", ErrControl, expected.Tick, review.Tick)
 	}
 	if r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment {
 		var recorded func()
@@ -573,13 +573,6 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	if !gate.IsZero() {
-		if clockDebug() {
-			for _, d := range facts.Definitions {
-				if d.Name == r.definition {
-					clockSchedulerLog("%s: builder unavailable definition=%+v workPawns=%+v", goal.OwnerID(), d, facts.WorkPawns)
-				}
-			}
-		}
 		return RoundsBuildingResult{Verdict: gate}, nil
 	}
 	if r.shelter {
@@ -708,7 +701,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		call, finish = snap.StartPlanner(call, r.concern)
 		defer func() {
 			if err := finish(snapshot, facts.Identity.Tick); err != nil {
-				clockSchedulerLog("%s: planner snapshot not recorded: %v", r.concern, err)
+				telemetry.Decide(call, telemetry.Decision{Kind: "snapshot_skip", Component: "clock-scheduler", Level: slog.LevelWarn, Verdict: "skipped", Reason: "not_recorded", Target: "shelter", Attrs: map[string]any{"error": err, "tick": int64(facts.Identity.Tick)}})
 			}
 		}()
 	}
@@ -939,13 +932,6 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 		interiorRooms = shelterInteriorRooms(policy.InteriorRoomsFor(*r.facility, rooms, facts.Cells), facts)
 		if len(roomCells) == 0 {
-			if clockDebug() {
-				var summary []string
-				for _, room := range rooms.Rooms {
-					summary = append(summary, fmt.Sprintf("%s role=%v enclosed=%v cells=%d", room.ID, room.Role, room.Enclosed, len(room.Cells)))
-				}
-				clockSchedulerLog("%s: no room hosts the facility %+v; rooms=%v", r.concern, *r.facility, summary)
-			}
 			return nil, policy.StockObservation{}, noSpace("hosting_room"), nil
 		}
 	}
@@ -1229,7 +1215,6 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 					return nil, policy.StockObservation{}, reason, err
 				}
 				if ok && !overlaps(choice.choice) {
-					clockSchedulerLog("%s: %s takes interior slot %s at %d,%d %s", r.concern, r.definition, p.Slot, p.Anchor().X, p.Anchor().Z, p.Rot)
 					pending = &choice
 					if err := commit(); err != nil {
 						return nil, policy.StockObservation{}, Verdict{}, err
@@ -1257,21 +1242,6 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if int64(len(selected)) != missing {
 		if unknownWatch {
 			return nil, policy.StockObservation{}, fieldUnavailable("watch_cells_accessible"), nil
-		}
-		clockSchedulerLog("%s: no site for %s (%s): selected=%d missing=%d candidates=%d siteCells=%d roomCells=%d restricted=%v environment=%s", r.concern, r.definition, r.stuff, len(selected), missing, len(search.Candidates()), len(cells), len(roomCells), restricted, searchRequest.Environment)
-		if clockDebug() && restricted {
-			blocked := map[domain.Cell]bool{}
-			for _, c := range searchRequest.Protected {
-				blocked[c] = true
-			}
-			var rows []string
-			for _, c := range cells {
-				occupied, _ := c.Occupied.Value()
-				zone, zoneKnown := c.Zone.Value()
-				indoors, _ := c.Indoors.Value()
-				rows = append(rows, fmt.Sprintf("%d,%d w=%v o=%v z=%v/%v i=%v p=%v", c.Cell.X, c.Cell.Z, c.Walkable, occupied, zone, zoneKnown, indoors, blocked[c.Cell]))
-			}
-			clockSchedulerLog("%s: site census %v", r.concern, rows)
 		}
 		return nil, policy.StockObservation{}, noSpace("placement_site"), nil
 	}

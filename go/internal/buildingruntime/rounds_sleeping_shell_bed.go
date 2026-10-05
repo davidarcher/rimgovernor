@@ -66,7 +66,6 @@ func (r *RoundsSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Conte
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
-		clockSchedulerLog("%s: bedroom: reinstall stored %s in the new room", goal.OwnerID(), move.Thing())
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	plan, _ := facts.LayoutPlan.Value()
@@ -104,7 +103,6 @@ func (r *RoundsSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Conte
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
-		clockSchedulerLog("%s: bedroom: pack shell bed %s to carry it over", goal.OwnerID(), b.ID)
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	return RoundsBuildingResult{}, false, nil

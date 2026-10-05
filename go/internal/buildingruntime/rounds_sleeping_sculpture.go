@@ -48,7 +48,6 @@ func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context,
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	traits := sleepingTraits(facts)
 	if !ok || !sk || !rk || !ck || !census.Colony || traits == nil {
-		clockSchedulerLog("%s: sculpture install: inputs unknown source=%v sleeping=%v rooms=%v census=%v traits=%v", goal.OwnerID(), ok, sk, rk, ck, traits != nil)
 		return RoundsBuildingResult{}, false, nil
 	}
 	tier, _ := facts.BuildTier.Value()
@@ -64,9 +63,6 @@ func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context,
 	}
 	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), r.reviewer.stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed, facts.Facts.Items, bedroomGate(facts, r.reviewer.stage))
 	if !due {
-		if len(packed) > 0 {
-			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.OwnerID(), len(packed), packed, sculptureRoomsOwed(facts, r.reviewer.stage))
-		}
 		return RoundsBuildingResult{}, false, nil
 	}
 	p := r.reviewer.player
@@ -98,7 +94,6 @@ func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context,
 	if err := p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoundsBuildingResult{}, false, err
 	}
-	clockSchedulerLog("%s: bedroom %s: sculpture install (weakest beauty)", goal.OwnerID(), step.Room)
 	return RoundsBuildingResult{Verdict: BuildingReasonAdmitted}, true, nil
 }
 
@@ -152,14 +147,12 @@ func saleSculptures(call context.Context, native sculptureSource, identity *c.Id
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	traits := sleepingTraits(facts)
 	if !sk || !rk || !ck || !census.Colony || traits == nil {
-		clockSchedulerLog("sale art: room inputs unknown sleeping=%v rooms=%v construction=%v colony=%v traits=%v", sk, rk, ck, census.Colony, traits != nil)
 		return nil, nil
 	}
 	items, _, err := native.ReadPackedItems(call, identity, policy.PackedSculptureDefinition)
 	if err != nil {
 		return nil, err
 	}
-	clockSchedulerLog("sale art: packed=%+v", packedSculptures(items, facts.Facts.Items))
 	tier, _ := facts.BuildTier.Value()
 	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items, facts.Facts.Items), facts.Facts.Items), nil
 }

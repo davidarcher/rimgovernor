@@ -188,17 +188,8 @@ func (r *RoundsBuildingPlanner) stepShelterSite(call, epoch context.Context, s s
 	if !sited {
 		return nil, none, noSpace("planned_shell_room"), nil, nil
 	}
-	if len(free) > 0 {
-		var recorded []policy.Rectangle
-		for _, bunk := range append(append([]shelterBunk(nil), record.beds...), record.spots...) {
-			recorded = append(recorded, bunk.rect())
-		}
-		if _, ok := policy.BunkLayout([]policy.StarterLayout{layout}, recorded); !ok {
-			clockSchedulerLog("%s: the planned room does not enclose the bunks placed earlier (beds=%v spots=%v)", r.concern, record.beds, record.spots)
-		}
-	}
 	// The planned room's rock is dug and its ruins claimed before the bunks
-	// stand on it; either holds the first roof, and says so in its log.
+	// stand on it; either holds the first roof.
 	if result, handled, err := r.prepareShell(call, epoch, step, layout, room, s.check); err != nil || handled {
 		return nil, none, Verdict{}, &result, err
 	}
@@ -327,7 +318,6 @@ func (r *RoundsBuildingPlanner) admitShellClaims(call, epoch context.Context, s 
 		return RoundsBuildingResult{}, false, err
 	}
 	if len(actions) == 0 {
-		clockSchedulerLog("%s: %s: none of %d ring ruins still claimable", r.concern, method, len(layout.Claimed))
 		return RoundsBuildingResult{}, false, nil
 	}
 	plan, err := domain.NewPlan(snapshot.Plan, 1, actions)
@@ -338,7 +328,6 @@ func (r *RoundsBuildingPlanner) admitShellClaims(call, epoch context.Context, s 
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %d claims reason=%s", r.concern, method, len(actions), result.Verdict)
 	return result, result.Verdict == BuildingReasonAdmitted, nil
 }
 
@@ -349,11 +338,9 @@ func (r *RoundsBuildingPlanner) admitShellClaims(call, epoch context.Context, s 
 // the same review.
 func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelterSite, method domain.MethodID, definition string, bunks []shelterBunk) (RoundsBuildingResult, bool, error) {
 	if len(bunks) == 0 {
-		clockSchedulerLog("%s: %s: no bunk fits the site", r.concern, method)
 		return RoundsBuildingResult{}, false, nil
 	}
 	if gate := definitionsGate(s.facts, []string{definition}, false); !gate.IsZero() {
-		clockSchedulerLog("%s: %s: %s is not buildable now: %s", r.concern, method, definition, gate.Text())
 		return RoundsBuildingResult{}, false, nil
 	}
 	stuff := bedStuff(s.facts, definition)
@@ -413,14 +400,12 @@ func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelte
 		selected = append(selected, v)
 	}
 	if len(selected) == 0 {
-		clockSchedulerLog("%s: %s: none of %d bunks placeable", r.concern, method, len(bunks))
 		return RoundsBuildingResult{}, false, nil
 	}
 	result, err := r.admitPreviews(call, epoch, roundsAdmission{state: s.state, review: s.review, owner: s.owner, facts: s.facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Rounds})
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %s x%d reason=%s refused=%d", r.concern, method, definition, len(selected), result.Verdict, len(result.Decision.Refused))
 	return result, result.Verdict == BuildingReasonAdmitted, nil
 }
 

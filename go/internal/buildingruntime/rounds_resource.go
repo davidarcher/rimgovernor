@@ -290,7 +290,6 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 		// No bench where the product would be usable: producing elsewhere
 		// only piles it up out of reach (#237). Lend a window so a bench
 		// built or an area widened meanwhile is seen next step.
-		clockSchedulerLog("%s: no reachable bench for %s among %d benches", goal.Standard.ID, resource, len(census))
 		return RoundsResourceResult{Verdict: awaitingPlan("feed_bench", "within_reach_of_animals"), NativeWorkTicks: stockWaitTicks}, nil
 	}
 	names := recipeIngredientNames(census, resource)
@@ -377,7 +376,6 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 			return RoundsResourceResult{Verdict: claimHeld(string(resource))}, nil
 		}
 		if ok && len(ranked) > 0 && ranked[0].Kind == policy.AcquisitionMining {
-			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Standard.ID, resource, ranked[0].ID, ranked[0].Score)
 			result, dispatched, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, &sel)
 			if err != nil || dispatched {
 				return result, err
@@ -436,10 +434,7 @@ func (r *RoundsResourcePlanner) outbid(goal store.StandardState, state ControlSt
 	if len(ranked) > 0 {
 		best = ranked[0]
 	}
-	rival, yield := r.reviewer.bids.bid(state.Snapshot, resource, bidResource, best.Score, best.Kind, tick)
-	if yield {
-		clockSchedulerLog("%s: %s %s %.3f yields to %s %.3f", goal.Standard.ID, resource, best.Kind, best.Score, rival.kind, rival.score)
-	}
+	_, yield := r.reviewer.bids.bid(state.Snapshot, resource, bidResource, best.Score, best.Kind, tick)
 	return yield
 }
 
@@ -541,11 +536,7 @@ func (r *RoundsResourcePlanner) sourcesForDeficit(ctx context.Context, identity 
 		return sourceSelection{}, false
 	}
 	remote.Reach.StorageHeadroom = domain.Known(storage.Capacity)
-	selected, holds := policy.SelectReachableResourceSources(sources, target, have, remote)
-	if len(selected) == 0 && len(holds) > 0 {
-		decision := policy.ResourceReach(remote.Reach)
-		clockSchedulerLog("resource %s: %d sources held, reach=%s first=%s:%s stock=%d target=%d", resource, len(holds), decision.Stage, holds[0].Target, holds[0].Reason, have, target)
-	}
+	selected, _ := policy.SelectReachableResourceSources(sources, target, have, remote)
 	out := sourceSelection{selected: selected, storage: storage}
 	for _, s := range sources {
 		out.designated = out.designated || s.Method == policy.ResourceSourceMine && s.Designated
@@ -653,7 +644,6 @@ func (r *RoundsResourcePlanner) storageFloor(call, epoch context.Context, state 
 	if err != nil || !needed {
 		return RoundsResourceResult{}, false, err
 	}
-	clockSchedulerLog("%s: %s storage full under a %d deficit; stockpile on %d cells", goal.Standard.ID, resource, deficit, len(zone.Cells))
 	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage")
 	return result, true, err
 }

@@ -190,7 +190,6 @@ func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, 
 		if err != nil {
 			return RoundsBuildingResult{}, err
 		}
-		clockSchedulerLog("%s: bedroom %s: pack replaced bed %s for reuse", goal.OwnerID(), rep.Room, rep.Bed)
 		result, _, err := r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 		return result, err
 	}
@@ -221,7 +220,6 @@ func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, 
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: bedroom %s: remove replaced bed %s", goal.OwnerID(), rep.Room, rep.Bed)
 	facts := reading.Projection
 	return r.building.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }
@@ -278,7 +276,6 @@ func (r *RoundsSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
-			clockSchedulerLog("%s: bedroom upgrade %s %s refused at %d,%d", goal.OwnerID(), u.Room, u.Def, cell.X, cell.Z)
 			continue
 		}
 		if err := mergeRoundsStock(&stock, preview.Stock, len(selected) == 0); err != nil {
@@ -289,6 +286,5 @@ func (r *RoundsSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context
 	if len(selected) == 0 {
 		return RoundsBuildingResult{Verdict: noSpace("bedroom_upgrade_site")}, nil
 	}
-	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.OwnerID(), u.Room, u.Def, len(selected), u.Weakest)
 	return r.building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }
