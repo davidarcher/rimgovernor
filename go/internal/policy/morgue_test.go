@@ -89,7 +89,11 @@ func containsSelector(rows []domain.FilterSelector, s domain.FilterSelector) boo
 }
 
 func TestCoreGrowPlansAMorgueBesideTheTomb(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	p := growPlan(corePlan(coreTestZones(), 3, BuildTierCamp), 3, 1, BuildTierCamp)
+	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []ModuleRole{ModuleMorgue})
+	if err != nil || !grown {
+		t.Fatalf("morgue grown=%v err=%v", grown, err)
+	}
 	var morgue, tomb *LayoutRoom
 	for i, r := range p.Rooms {
 		switch r.Role {

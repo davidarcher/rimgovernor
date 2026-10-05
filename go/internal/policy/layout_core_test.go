@@ -61,7 +61,7 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 		t.Fatal("bedrooms", count)
 	}
 	for _, role := range coreBaseRooms {
-		if count[role] != 1 && (role != ModuleTomb || count[role] < 1) {
+		if count[role] != 1 {
 			t.Fatal("missing", role)
 		}
 	}
@@ -263,8 +263,10 @@ func TestGrowBranchesIntoCrossings(t *testing.T) {
 	}
 }
 
-// Dining sits nearer the core's centre than the tomb and battery room (#1535).
-func TestDiningCentralTombAndBatteryAtTheFringe(t *testing.T) {
+// The demand-grown rooms (#1535 kept dining central; the rest used to be
+// sited at start) join the plan on the nearest free slot beside the essentials:
+// each stands clear of every other room and the routes stay valid.
+func TestDemandRoomsJoinTheCore(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, rock := range []int32{50, 80} {
 		zones := Zone(zoningSurvey(120, func(x, z int32) SurveyCell {
@@ -273,23 +275,26 @@ func TestDiningCentralTombAndBatteryAtTheFringe(t *testing.T) {
 			}
 			return SurveyCell{Walkable: true, Fertility: 1}
 		}))
-		centre, _ := newCoreGrid(zones, nil).seed()
 		for _, tier := range []BuildTier{BuildTierCamp, BuildTierPowered} {
 			for _, pawns := range []int{1, 4, 8} {
-				p := PlanUtilities(growPlan(LayoutPlan{Zones: zones}, pawns, 1, tier), UtilityWants{})
-				dist := map[ModuleRole]int32{}
-				for _, r := range p.Rooms {
-					dx := r.Interior.X + r.Interior.Width/2 - centre.X
-					dz := r.Interior.Z + r.Interior.Height/2 - centre.Z
-					dist[r.Role] = max(dx, -dx) + max(dz, -dz)
+				base := growPlan(LayoutPlan{Zones: zones}, pawns, 0, tier)
+				p, grown, err := growDemandRooms(growPlan(base, pawns, 1, tier), MapSurvey{}, nil, demandCoreRooms)
+				if err != nil || !grown {
+					t.Fatalf("rock %d tier %v pawns %d: grown=%v err=%v", rock, tier, pawns, grown, err)
 				}
-				for _, far := range []ModuleRole{ModuleTomb, ModuleBattery} {
-					if _, ok := dist[far]; !ok {
-						t.Fatal(rock, "no", far, "room")
+				for _, role := range append([]ModuleRole{ModuleTomb}, demandCoreRooms...) {
+					if len(p.roomsOf(role)) != 1 {
+						t.Errorf("rock %d tier %v pawns %d: %s rooms = %d", rock, tier, pawns, role, len(p.roomsOf(role)))
 					}
-					if dist[ModuleDining] >= dist[far] {
-						t.Errorf("rock %d tier %v pawns %d: dining %d from the centre, %s %d", rock, tier, pawns, dist[ModuleDining], far, dist[far])
+				}
+				rooms := p.AllRooms()
+				for i, a := range rooms {
+					if overlapsRooms(a, append(append([]LayoutRoom(nil), rooms[:i]...), rooms[i+1:]...)) && a.Link == nil {
+						t.Errorf("rock %d tier %v pawns %d: %s overlaps another room", rock, tier, pawns, a.Role)
 					}
+				}
+				if _, err := CheckRoutes(p); err != nil {
+					t.Errorf("rock %d tier %v pawns %d: %v", rock, tier, pawns, err)
 				}
 			}
 		}

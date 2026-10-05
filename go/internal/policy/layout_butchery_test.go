@@ -2,10 +2,14 @@ package policy
 
 import "testing"
 
-// TestPlanCorePlansButcheryApartFromKitchen: the plan holds a butcher room
+// TestPlanCorePlansButcheryApartFromKitchen: the butchery is grown on demand and
 // that does not crowd the kitchen.
 func TestPlanCorePlansButcheryApartFromKitchen(t *testing.T) {
 	p := corePlan(coreTestZones(), 0, BuildTierCamp)
+	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []ModuleRole{ModuleButchery})
+	if err != nil || !grown {
+		t.Fatalf("butchery grown=%v err=%v", grown, err)
+	}
 	var butchery, kitchen *LayoutRoom
 	for i, r := range p.Rooms {
 		switch r.Role {

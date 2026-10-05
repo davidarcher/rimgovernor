@@ -26,7 +26,7 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGeyser, animals int) domain.Fact[LayoutPlan] {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
-	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints))}, s, pawns, 1, tier)
+	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints))}, s, pawns, 0, tier)
 	if len(plan.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}
@@ -50,6 +50,9 @@ type RoomGrowth struct {
 	ThroneMin int
 	Child     []ChildRoomShape
 	Demand    RoomDemand
+	// Core are the demand-grown core rooms (demandCoreRooms) the colony now
+	// needs: each the plan lacks is sited (layout_demand_rooms.go).
+	Core []ModuleRole
 	// Incinerator is the site of the incinerator the plan lacks (#1814).
 	Incinerator IncineratorSite
 	// Shapes are every resolved child-room need and Built the planned rooms
@@ -141,6 +144,9 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	unplaced = append(unplaced, err)
 	next, storage, err := growStorageRooms(next, growth.Demand, &scorer)
 	dropped = dropped || storage
+	unplaced = append(unplaced, err)
+	next, core, err := growDemandRooms(next, s, &scorer, growth.Core)
+	dropped = dropped || core
 	unplaced = append(unplaced, err)
 	next, incinerator := growIncinerator(next, growth.Incinerator)
 	dropped = dropped || incinerator

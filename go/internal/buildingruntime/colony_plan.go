@@ -84,7 +84,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	grown := grownFor(*projection)
 	research := haveLayout && grown != r.planGrownFor && hourly
 	// Every tomb full (#857): grow one more, at most once an hour.
-	tombs := 1
+	tombs := 0
 	tomb := haveLayout && tombsFull(layout.Plan, *projection)
 	if tomb {
 		tombs = layout.Plan.TombRooms() + 1
@@ -141,13 +141,19 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 		growth.Demand = demand
 	}
 	gear := growth.Demand != (policy.RoomDemand{}) && hourly
+	// A need for a room the plan starts without (hospital, lab, rec, butchery,
+	// prison, morgue, battery) plans it, at most once an hour.
+	if haveLayout {
+		growth.Core = policy.CoreRoomsOwed(layout.Plan, coreRoomsWanted(*projection))
+	}
+	core := len(growth.Core) > 0 && hourly
 	// Rotten food or worn gear waits for a dump and the plan has no
 	// incinerator (#1814): reserve the site the storage planner found.
 	if haveLayout {
 		growth.Incinerator = incineratorSite
 	}
 	incinerator := growth.Incinerator != (policy.IncineratorSite{}) && hourly
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || throne || children || gear || incinerator) {
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || throne || children || gear || core || incinerator) {
 		replanned := false
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
@@ -170,7 +176,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				keyed.Occupied = nil
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
-					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "incinerator": incinerator})
+					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "incinerator": incinerator})
 					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)

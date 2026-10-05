@@ -55,7 +55,7 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 		}
 	}
 	clusters := affinityClusters(want)
-	for i := max(have[ModuleTomb], 1); i < tombs; i++ {
+	for i := have[ModuleTomb]; i < tombs; i++ {
 		clusters = append(clusters, roleCluster{roles: []ModuleRole{ModuleTomb}})
 	}
 	housed := false

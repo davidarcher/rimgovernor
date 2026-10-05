@@ -43,19 +43,22 @@ var coreRoomSize = map[ModuleRole][2]int32{
 	ModuleLab:      {6, 5},
 	ModuleTomb:     {5, 5},
 	ModuleMorgue:   {5, 4},
-	// The gear rooms (layout_gear.go) are added on demand, not in coreBaseRooms.
+	// The rooms below are added on demand (layout_demand_rooms.go,
+	// layout_gear.go), not in coreBaseRooms.
 	ModuleArmory:   {7, 5},
 	ModuleWardrobe: {7, 5},
+	ModuleBattery:  batteryRoomSize,
 }
 
-// coreBaseRooms is every colony's fixed set, in placement order: pairs
+// coreBaseRooms is every colony's essential set, in placement order: pairs
 // that trade goods sit side by side. Each room takes the nearest free slot,
-// so order is centrality: dining lands near the centre and the tomb (and
-// the battery room PlanUtilities adds after) at the fringe (#1535).
+// so order is centrality: dining lands near the centre (#1535). The bedroom
+// wings are sited with them. Every other room is grown when a need shows
+// (demandCoreRooms), so nothing is dug or reserved for a room that is not
+// up for building.
 var coreBaseRooms = []ModuleRole{
-	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining, ModuleButchery, ModuleRec,
-	ModuleWorkshop, ModuleStorage, ModuleHospital, ModulePrison, ModuleLab,
-	ModuleTomb, ModuleMorgue,
+	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining,
+	ModuleWorkshop, ModuleStorage,
 }
 
 // coreMaxDepth is the deepest interior, which bounds the core's cross-section.

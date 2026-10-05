@@ -13,7 +13,7 @@ func corePlan(zones []LayoutZone, pawns int, tier BuildTier) LayoutPlan {
 	if !ok {
 		return LayoutPlan{Zones: zones}
 	}
-	return g.generate(LayoutPlan{Zones: zones}, seed, pawns, 1, tier)
+	return g.generate(LayoutPlan{Zones: zones}, seed, pawns, 0, tier)
 }
 
 // growPlan generates plan again over its zones: the rooms it holds stay and
@@ -30,6 +30,12 @@ func growPlan(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float
 		return plan
 	}
 	return g.generate(plan, seed, pawns, tombs, tier, suites...)
+}
+
+// withRooms grows the demand-grown core rooms wanted onto plan.
+func withRooms(plan LayoutPlan, wanted ...ModuleRole) LayoutPlan {
+	plan, _, _ = growDemandRooms(plan, MapSurvey{}, nil, wanted)
+	return plan
 }
 
 // wingOf is the index of the wing for purpose, or -1.

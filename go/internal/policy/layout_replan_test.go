@@ -88,7 +88,7 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 					}
 				}
 			}
-			next, _, _ := ReplanLayoutWithRooms(plan, s, growth, 0, pawns, 1, tier, nil, nil)
+			next, _, _ := ReplanLayoutWithRooms(plan, s, growth, 0, pawns, 0, tier, nil, nil)
 			have := map[Rectangle]LayoutRoom{}
 			for _, r := range next.AllRooms() {
 				have[r.Interior] = r
@@ -134,7 +134,7 @@ func TestReplanHysteresisKeepsThePlan(t *testing.T) {
 	t.Cleanup(func() { planWeights.ReplanGain = was })
 	planWeights.ReplanGain = 1 << 30
 	for range 2 {
-		next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: map[Rectangle]bool{}}, 0, 3, 1, BuildTierCamp, nil, nil)
+		next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: map[Rectangle]bool{}}, 0, 3, 0, BuildTierCamp, nil, nil)
 		if changed || !reflect.DeepEqual(next, plan) {
 			t.Fatalf("a gain under the threshold changed the plan: %s -> %s", plan.Summary(), next.Summary())
 		}
@@ -154,7 +154,7 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 			built[r.Interior] = true
 		}
 	}
-	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 3, 1, BuildTierCamp, nil, nil)
+	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 3, 0, BuildTierCamp, nil, nil)
 	if !changed {
 		t.Fatal("nothing re-sited")
 	}
@@ -180,7 +180,7 @@ func TestReplanWithUnknownCensusKeepsEveryRoom(t *testing.T) {
 	was := planWeights.ReplanGain
 	t.Cleanup(func() { planWeights.ReplanGain = was })
 	planWeights.ReplanGain = -1 << 30
-	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, 3, 1, BuildTierCamp, nil, nil)
+	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, 3, 0, BuildTierCamp, nil, nil)
 	if changed || !reflect.DeepEqual(next, plan) {
 		t.Fatalf("a plan with an unknown census changed: %s -> %s", plan.Summary(), next.Summary())
 	}
@@ -204,7 +204,7 @@ func BenchmarkReplanHourly(b *testing.B) {
 	b.ResetTimer()
 	start, n := time.Now(), 0
 	for b.Loop() {
-		ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 5, 1, BuildTierCamp, nil, nil)
+		ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 5, 0, BuildTierCamp, nil, nil)
 		n++
 	}
 	if per := time.Since(start) / time.Duration(n); per > replanBudget {

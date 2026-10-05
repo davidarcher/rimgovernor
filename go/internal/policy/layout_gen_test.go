@@ -49,7 +49,12 @@ func linksKeepWall(t *testing.T, p LayoutPlan) {
 }
 
 func TestAffinityClustersFollowTheTripTable(t *testing.T) {
-	clusters := affinityClusters(coreBaseRooms)
+	if got := affinityClusters(coreBaseRooms)[0].roles; !reflect.DeepEqual(got, []ModuleRole{ModuleKitchen, ModuleFreezer, ModuleDining}) {
+		t.Fatal("essential kitchen cluster", got)
+	}
+	// The trip table still ties the demand-grown rooms to their anchors.
+	all := append(append([]ModuleRole(nil), coreBaseRooms...), demandCoreRooms...)
+	clusters := affinityClusters(all)
 	var kitchen, store, hospital *roleCluster
 	for i, c := range clusters {
 		for _, r := range c.roles {
@@ -82,7 +87,7 @@ func TestAffinityClustersFollowTheTripTable(t *testing.T) {
 	for _, c := range clusters {
 		n += len(c.roles)
 	}
-	if n != len(coreBaseRooms) {
+	if n != len(all) {
 		t.Fatal("every base room is in one cluster", n)
 	}
 }

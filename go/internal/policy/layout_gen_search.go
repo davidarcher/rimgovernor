@@ -19,7 +19,6 @@ import (
 //     out and placed again on ground that has the old slot struck from it,
 //     so it lands in the next slot (the other side of the hallway
 //     included);
-//   - swapRooms: two rooms of equal size trade roles;
 //   - resiteWing: a bedroom wing is sited again with its old column (a
 //     radius of columns, or its whole side of the hallway) struck.
 //
@@ -69,10 +68,8 @@ func (g coreGrid) search(sc planScorer, plan LayoutPlan, seed domain.Cell, iters
 func (g coreGrid) vary(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool) {
 	var out LayoutPlan
 	var ok bool
-	switch rng.intn(8) {
-	case 0:
-		out, ok = swapRooms(plan, rng, g.fixed)
-	case 1, 2:
+	switch rng.intn(7) {
+	case 0, 1:
 		out, ok = g.resiteWing(plan, rng)
 	default:
 		out, ok = g.moveCluster(plan, rng)
@@ -91,41 +88,6 @@ func searchRole(role ModuleRole) bool {
 		}
 	}
 	return false
-}
-
-// swapRooms exchanges the roles of two base rooms of the same size that
-// share no wall or door with a partner (besideRoles). The geometry stays,
-// so the hallways stay valid; CheckRoutes in the score rejects a swap that
-// makes a thoroughfare of a pass-through room.
-func swapRooms(plan LayoutPlan, rng *searchRand, fixed map[Rectangle]bool) (LayoutPlan, bool) {
-	var idx []int
-	for i, r := range plan.Rooms {
-		_, key := besideRoles[r.Role]
-		partner := false
-		for _, nb := range besideRoles {
-			partner = partner || nb == r.Role
-		}
-		if searchRole(r.Role) && !key && !partner && r.Link == nil && !fixed[r.Interior] {
-			idx = append(idx, i)
-		}
-	}
-	var pairs [][2]int
-	for a, i := range idx {
-		for _, j := range idx[a+1:] {
-			ri, rj := plan.Rooms[i], plan.Rooms[j]
-			if ri.Role != rj.Role && ri.Interior.Width == rj.Interior.Width && ri.Interior.Height == rj.Interior.Height {
-				pairs = append(pairs, [2]int{i, j})
-			}
-		}
-	}
-	if len(pairs) == 0 {
-		return plan, false
-	}
-	p := pairs[rng.intn(len(pairs))]
-	rooms := append([]LayoutRoom(nil), plan.Rooms...)
-	rooms[p[0]].Role, rooms[p[1]].Role = rooms[p[1]].Role, rooms[p[0]].Role
-	plan.Rooms = rooms
-	return plan, true
 }
 
 // moveCluster lifts one affinity cluster out of plan and places it again

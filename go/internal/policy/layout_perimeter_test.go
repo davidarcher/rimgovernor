@@ -585,6 +585,12 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	for _, r := range p.AllRooms() {
 		rooms = unionRect(rooms, r.Interior)
 	}
+	// The herd sites sit inside the ring beside the few essential rooms.
+	for _, r := range p.Reservations {
+		if !perimeterKinds[r.Kind] {
+			rooms = unionRect(rooms, r.Area)
+		}
+	}
 	for _, r := range reserved(p, ReservePerimeter) {
 		ring = unionRect(ring, r)
 	}

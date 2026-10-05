@@ -42,7 +42,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 		return n
 	}
 	growth := RoomGrowth{Shapes: []ChildRoomShape{shape}, Built: map[Rectangle]bool{}}
-	next, changed, _ := ReplanLayoutWithRooms(plan, s, growth, 0, 3, 1, BuildTierCamp, nil, nil)
+	next, changed, _ := ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, BuildTierCamp, nil, nil)
 	if !changed || count(next) != 1 || len(next.Rooms) != other+1 {
 		t.Fatalf("changed=%v worship=%d rooms=%d", changed, count(next), len(next.Rooms))
 	}
@@ -55,7 +55,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 			t.Fatalf("kept %+v, smaller room %+v holds the shape", kept.Interior, r.Interior)
 		}
 	}
-	if again, changed, _ := ReplanLayoutWithRooms(next, s, growth, 0, 3, 1, BuildTierCamp, nil, nil); changed || count(again) != 1 {
+	if again, changed, _ := ReplanLayoutWithRooms(next, s, growth, 0, 3, 0, BuildTierCamp, nil, nil); changed || count(again) != 1 {
 		t.Fatal("a reconciled plan replanned", changed)
 	}
 
@@ -63,12 +63,12 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	// no longer planned ground.
 	built := worship[8]
 	growth.Built = map[Rectangle]bool{built.Interior: true}
-	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 1, BuildTierCamp, nil, nil)
+	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, BuildTierCamp, nil, nil)
 	if got := next.roomsOf(ModuleWorship); len(got) != 1 || got[0].Interior != built.Interior {
 		t.Fatalf("built room not kept: %+v", got)
 	}
 	growth.Built = map[Rectangle]bool{worship[0].Interior: true}
-	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 1, BuildTierCamp, nil, nil)
+	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, BuildTierCamp, nil, nil)
 	// The sited core may legitimately plan another room over the spot.
 	planned := map[Rectangle]bool{}
 	for _, r := range next.AllRooms() {

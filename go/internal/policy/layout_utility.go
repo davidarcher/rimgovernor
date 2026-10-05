@@ -95,8 +95,28 @@ func squareSide(n int) (w, h int32) {
 	return w, int32((n + int(w) - 1) / int(w))
 }
 
-// PlanUtilities adds a battery room, cooler exhausts and the wanted
-// generator sites to plan. Sites that do not fit are left out.
+// reserveExhausts gives each cooling room that has none a cooler exhaust.
+// Rooms already holding one are left alone, so it is safe to run again after
+// a cooled room is grown (growDemandRooms).
+func reserveExhausts(u *utilityGrid, plan *LayoutPlan) {
+	for _, role := range coolingRoles {
+		for _, r := range plan.AllRooms() {
+			if r.Role != role {
+				continue
+			}
+			if _, _, has := plan.CoolerExhaust(r); has {
+				continue
+			}
+			if area, ok := u.exhaust(r); ok {
+				u.reserve(plan, LayoutReservation{Kind: ReserveExhaust, Area: area})
+			}
+		}
+	}
+}
+
+// PlanUtilities adds cooler exhausts and the wanted generator sites to plan.
+// Sites that do not fit are left out. The battery room is grown on demand
+// (growDemandRooms), not here.
 func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	if len(plan.Hallways()) == 0 {
 		return plan
@@ -104,35 +124,10 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	plan.Rooms = append([]LayoutRoom(nil), plan.Rooms...)
 	plan.Reservations = append([]LayoutReservation(nil), plan.Reservations...)
 	plan.Zones = append([]LayoutZone(nil), plan.Zones...)
-	has := false
-	for _, r := range plan.AllRooms() {
-		has = has || r.Role == ModuleBattery
-	}
-	if !has {
-		// The battery room goes on the main hallway, or on a crossing when
-		// the main hallway is full (#1265; BatterySlots turns its rows), off
-		// the geysers' ground.
-		sited := plan
-		sited.Zones = coreWithout(plan.Zones, geothermalCells(want.Geysers))
-		if grown, ok, err := SiteRoom(sited, want.scorer, ModuleBattery, batteryRoomSize); ok {
-			plan.Spine, plan.Rooms = grown.Spine, grown.Rooms
-		} else {
-			slog.Warn("layout: no hallway has room for the battery room", "hallways", len(plan.Spine), "rooms", len(plan.Rooms), "err", err)
-		}
-	}
 	u := newUtilityGrid(plan)
 	u.thick = want.ThickRoof
 	skyRock := want.ThickRoof != nil
-	for _, role := range coolingRoles {
-		for _, r := range plan.AllRooms() {
-			if r.Role != role {
-				continue
-			}
-			if area, ok := u.exhaust(r); ok {
-				u.reserve(&plan, LayoutReservation{Kind: ReserveExhaust, Area: area})
-			}
-		}
-	}
+	reserveExhausts(u, &plan)
 	for _, gz := range want.Geysers {
 		area := geothermalArea(gz)
 		if u.free(area, true) {

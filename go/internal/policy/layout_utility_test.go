@@ -19,7 +19,7 @@ func utilityTestZones() []LayoutZone {
 }
 
 func TestPlannedPowerSites(t *testing.T) {
-	p := PlanUtilities(corePlan(utilityTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1, Solar: 1})
+	p := PlanUtilities(withRooms(corePlan(utilityTestZones(), 3, BuildTierCamp), ModuleBattery), UtilityWants{TurbinePairs: 1, Solar: 1})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
 		t.Fatal(batteries)
@@ -54,7 +54,7 @@ func TestPlannedPowerSites(t *testing.T) {
 // hallway the battery room still gets a site, on a crossing when needed,
 // its slots nearest the door first and every block beside its battery.
 func TestBatteryRoomOnCrossing(t *testing.T) {
-	p := PlanUtilities(corePlan(coreTestZones(), 12, BuildTierCamp), UtilityWants{})
+	p := PlanUtilities(withRooms(corePlan(coreTestZones(), 12, BuildTierCamp), ModuleBattery), UtilityWants{})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 {
 		t.Fatal(batteries)
@@ -102,7 +102,7 @@ func TestBatterySlotsCrossing(t *testing.T) {
 // with the cold side in the room and the hot side on the exhaust (#791),
 // on either hallway (#952): the freezer and the soil tomb both get one.
 func TestPlannedCoolerSites(t *testing.T) {
-	p := PlanUtilities(corePlan(coreTestZones(), 0, BuildTierCamp), UtilityWants{})
+	p := PlanUtilities(growPlan(corePlan(coreTestZones(), 0, BuildTierCamp), 0, 1, BuildTierCamp), UtilityWants{})
 	sites := PlannedCoolerSites(p)
 	if len(sites) != 2 {
 		t.Fatal(sites)
@@ -212,7 +212,7 @@ func TestTurbineWindCells(t *testing.T) {
 
 func TestPlanUtilities(t *testing.T) {
 	zones := utilityTestZones()
-	core := corePlan(zones, 0, BuildTierCamp)
+	core := withRooms(growPlan(corePlan(zones, 0, BuildTierCamp), 0, 1, BuildTierCamp), ModuleBattery, ModuleMorgue)
 	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
 	if !p.Valid() {
 		t.Fatal("invalid")

@@ -11,17 +11,21 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // tomb, and the butcher bill takes corpses from any storage, the morgue's
 // included.
 
+// MorgueWaiting reports a fresh stranger corpse lying unburied that the
+// human butchery would take.
+func MorgueWaiting(waste []WasteItem, butchery bool) bool {
+	for _, item := range waste {
+		if item.State != WasteBuried && item.CorpseOf == domain.CorpseStranger && RouteStranger(item.RotStage, butchery) == StrangerButcher {
+			return true
+		}
+	}
+	return false
+}
+
 // MorgueRoomOwed is the planned morgue that stands unbuilt while a fresh
 // stranger corpse waits and the butchery is open; false otherwise.
 func MorgueRoomOwed(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, butchery bool) (LayoutRoom, bool) {
-	waiting := false
-	for _, item := range waste {
-		if item.State != WasteBuried && item.CorpseOf == domain.CorpseStranger && RouteStranger(item.RotStage, butchery) == StrangerButcher {
-			waiting = true
-			break
-		}
-	}
-	if !waiting {
+	if !MorgueWaiting(waste, butchery) {
 		return LayoutRoom{}, false
 	}
 	for _, r := range plan.AllRooms() {

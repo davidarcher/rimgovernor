@@ -77,7 +77,6 @@ func TestSearchOperatorsKeepPlansPlaceable(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	g, _, base, seed := searchFixture(t)
 	ops := map[string]func(LayoutPlan, *searchRand) (LayoutPlan, bool){
-		"swapRooms":   func(p LayoutPlan, r *searchRand) (LayoutPlan, bool) { return swapRooms(p, r, nil) },
 		"moveCluster": g.moveCluster,
 		"resiteWing":  g.resiteWing,
 	}

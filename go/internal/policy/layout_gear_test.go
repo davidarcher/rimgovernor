@@ -9,7 +9,9 @@ import (
 )
 
 func gearTestPlan() LayoutPlan {
-	return growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	plan := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	plan, _, _ = SiteRoom(plan, nil, ModulePrison, coreRoomSize[ModulePrison])
+	return plan
 }
 
 func roomOf(p LayoutPlan, role ModuleRole) (LayoutRoom, bool) {
