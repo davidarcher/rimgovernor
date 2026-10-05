@@ -337,12 +337,14 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	var meets []meet
 	if found {
 		sectors, _ := site.sectors(origin)
-		_, dist := site.paths(origin, nil)
+		flood := newFloodGrid(site)
+		dist := flood.from(origin)
 		for _, sec := range sectors {
 			best, ok := domain.Cell{}, false
+			bestD := int32(0)
 			for _, c := range sec.Edge {
-				if d, in := dist[c]; in && (!ok || d < dist[best]) {
-					best, ok = c, true
+				if d, in := dist.at(c); in && (!ok || d < bestD) {
+					best, bestD, ok = c, d, true
 				}
 			}
 			if !ok {
@@ -350,21 +352,25 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 			// The first ring cell on some shortest route, nearest the
 			// edge: a raider meets the wall there.
-			_, fromEdge := site.paths(best, nil)
-			hit, hitOK := domain.Cell{}, false
-			for c, de := range fromEdge {
-				if do, in := dist[c]; !in || de+do != dist[best] || !inRing(c) {
+			fromEdge := flood.from(best)
+			hit, hitDe, hitOK := domain.Cell{}, int32(0), false
+			for i, de := range fromEdge.d {
+				if de < 0 || dist.d[i] < 0 || de+dist.d[i] != bestD {
 					continue
 				}
-				if !hitOK || de < fromEdge[hit] || de == fromEdge[hit] && defenseCellLess(c, hit) {
-					hit, hitOK = c, true
+				c := fromEdge.cell(i)
+				if !inRing(c) {
+					continue
+				}
+				if !hitOK || de < hitDe || de == hitDe && defenseCellLess(c, hit) {
+					hit, hitDe, hitOK = c, de, true
 				}
 			}
 			if !hitOK {
 				continue
 			}
 			if k, p := sideOf(hit); k >= 0 {
-				meets = append(meets, meet{crossing{k, p}, dist[best]})
+				meets = append(meets, meet{crossing{k, p}, int(bestD)})
 			}
 		}
 	}
@@ -659,4 +665,92 @@ func clipRect(r, to Rectangle) Rectangle {
 
 func contains(r Rectangle, c domain.Cell) bool {
 	return c.X >= r.X && c.Z >= r.Z && c.X < r.X+r.Width && c.Z < r.Z+r.Height
+}
+
+// floodGrid is defenseSite.paths over a dense array, for the callers that
+// need only distances (#2089): one pass per sector is the replan's hot loop.
+type floodGrid struct {
+	x0, z0, w, h int32
+	pass         []bool
+}
+
+// floodDist is the distances one flood wrote (-1 where it did not reach).
+type floodDist struct {
+	g *floodGrid
+	d []int32
+}
+
+func newFloodGrid(s defenseSite) floodGrid {
+	if len(s.cells) == 0 {
+		return floodGrid{}
+	}
+	first := true
+	var x0, z0, x1, z1 int32
+	for c := range s.cells {
+		if first {
+			x0, z0, x1, z1, first = c.X, c.Z, c.X, c.Z, false
+			continue
+		}
+		x0, z0, x1, z1 = min(x0, c.X), min(z0, c.Z), max(x1, c.X), max(z1, c.Z)
+	}
+	g := floodGrid{x0: x0, z0: z0, w: x1 - x0 + 1, h: z1 - z0 + 1}
+	g.pass = make([]bool, g.w*g.h)
+	for c := range s.cells {
+		if s.passable(c) {
+			g.pass[(c.Z-z0)*g.w+c.X-x0] = true
+		}
+	}
+	return g
+}
+
+func (g *floodGrid) index(c domain.Cell) (int32, bool) {
+	if c.X < g.x0 || c.Z < g.z0 || c.X >= g.x0+g.w || c.Z >= g.z0+g.h {
+		return 0, false
+	}
+	return (c.Z-g.z0)*g.w + c.X - g.x0, true
+}
+
+// from floods the passable cells reachable from start.
+func (g *floodGrid) from(start domain.Cell) floodDist {
+	d := make([]int32, len(g.pass))
+	for i := range d {
+		d[i] = -1
+	}
+	out := floodDist{g: g, d: d}
+	at, ok := g.index(start)
+	if !ok || !g.pass[at] {
+		return out
+	}
+	d[at] = 0
+	queue := []int32{at}
+	for i := 0; i < len(queue); i++ {
+		cur := queue[i]
+		x, z := cur%g.w, cur/g.w
+		for _, step := range [4][2]int32{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+			nx, nz := x+step[0], z+step[1]
+			if nx < 0 || nz < 0 || nx >= g.w || nz >= g.h {
+				continue
+			}
+			n := nz*g.w + nx
+			if d[n] >= 0 || !g.pass[n] {
+				continue
+			}
+			d[n] = d[cur] + 1
+			queue = append(queue, n)
+		}
+	}
+	return out
+}
+
+func (f floodDist) at(c domain.Cell) (int32, bool) {
+	i, ok := f.g.index(c)
+	if !ok || f.d[i] < 0 {
+		return 0, false
+	}
+	return f.d[i], true
+}
+
+func (f floodDist) cell(i int) domain.Cell {
+	w := int(f.g.w)
+	return domain.Cell{X: f.g.x0 + int32(i%w), Z: f.g.z0 + int32(i/w)}
 }
