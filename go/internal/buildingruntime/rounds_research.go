@@ -108,23 +108,6 @@ func (r *RoundsResearchPlanner) bench(call, epoch context.Context, arbiter *step
 	if r.building == nil {
 		return RoundsResearchResult{Verdict: BuildingResearchBench}, nil
 	}
-	// A table being relocated out of the shelter (#2047) is packed for a
-	// while; building a second bench meanwhile would take its new slot.
-	if state := r.reviewer.player.session.State(); state.ObservationKnown {
-		review, err := r.reviewer.player.journal.LoadRounds(call)
-		if err != nil {
-			return RoundsResearchResult{}, err
-		}
-		tidies, err := r.reviewer.player.journal.LayoutTidies(call, state.Snapshot, review.Tick)
-		if err != nil {
-			return RoundsResearchResult{}, err
-		}
-		for _, t := range tidies {
-			if t.Kind == policy.TidyFurniture && t.Status == store.LayoutTidyMoving {
-				return RoundsResearchResult{Verdict: waitFor(WaitMethodUsed, "research_table_move")}, nil
-			}
-		}
-	}
 	result, err := r.building.step(call, epoch, arbiter)
 	if err != nil {
 		return RoundsResearchResult{}, err

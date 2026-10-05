@@ -73,7 +73,7 @@ func (r *RoundsWastePlanner) placeGrave(call, epoch context.Context, state Contr
 	if !planned {
 		return RoundsBuildingResult{Verdict: BuildingNoLayoutPlan}, nil
 	}
-	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: facts.Cells, Protected: nil}, 1, 2)
+	sites, err := policy.FreeSites(policy.FreeSiteRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: facts.Cells, Protected: nil}, 1, 2)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}

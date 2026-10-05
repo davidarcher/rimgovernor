@@ -73,7 +73,7 @@ func (f shelterRetireFixture) replan(t *testing.T, retire bool, inFlight map[Rec
 // a bed in a built bedroom and the workshop and laboratory stand (#2046).
 func TestShelterRetiresWhenBedroomsWorkshopAndLabStand(t *testing.T) {
 	f := newShelterRetireFixture(t)
-	if !ShelterRetirable(f.plan, f.rooms, f.sleeping, nil) {
+	if !ShelterRetirable(f.plan, f.rooms, f.sleeping) {
 		t.Fatal("a housed colony with workshop and lab standing is not retirable")
 	}
 	next, changed := f.replan(t, true, nil)
@@ -95,21 +95,21 @@ func TestShelterRetirementGates(t *testing.T) {
 		s := f.sleeping
 		s.Colonists = 3
 		s.People = append(append([]SleepingPerson(nil), s.People...), SleepingPerson{ID: "c", OwnedBed: domain.Known("")})
-		if ShelterRetirable(f.plan, f.rooms, s, nil) {
+		if ShelterRetirable(f.plan, f.rooms, s) {
 			t.Fatal("retirable with a bedless colonist")
 		}
 	})
 	t.Run("bed only in the shelter", func(t *testing.T) {
 		s := f.sleeping
 		s.People = []SleepingPerson{{ID: "a", OwnedBed: domain.Known("spot1")}, {ID: "b", OwnedBed: domain.Known("bed2")}}
-		if ShelterRetirable(f.plan, f.rooms, s, nil) {
+		if ShelterRetirable(f.plan, f.rooms, s) {
 			t.Fatal("a shelter spot counted as a built bedroom bed")
 		}
 	})
 	t.Run("unknown bed", func(t *testing.T) {
 		s := f.sleeping
 		s.People = []SleepingPerson{{ID: "a", OwnedBed: domain.Unknown[string]()}, {ID: "b", OwnedBed: domain.Known("bed2")}}
-		if ShelterRetirable(f.plan, f.rooms, s, nil) {
+		if ShelterRetirable(f.plan, f.rooms, s) {
 			t.Fatal("retirable on an unknown bed")
 		}
 	})
@@ -124,21 +124,10 @@ func TestShelterRetirementGates(t *testing.T) {
 				}
 				rooms := f.rooms
 				rooms.Rooms = kept
-				if ShelterRetirable(f.plan, rooms, f.sleeping, nil) {
+				if ShelterRetirable(f.plan, rooms, f.sleeping) {
 					t.Fatalf("retirable with a %s not standing", role)
 				}
 			}
-		}
-	})
-	t.Run("research table still in the shelter", func(t *testing.T) {
-		in := f.shelter.Interior
-		b, err := domain.NewBuilding("SimpleResearchBench", domain.Cell{X: in.X, Z: in.Z}, domain.North, "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		table := CurrentBuilding{ID: "bench", Building: b, Cells: rectCells(Rectangle{X: in.X, Z: in.Z, Width: 3, Height: 2})}
-		if ShelterRetirable(f.plan, f.rooms, f.sleeping, []CurrentBuilding{table}) {
-			t.Fatal("retirable with the research table in the shelter")
 		}
 	})
 	t.Run("work in flight", func(t *testing.T) {
@@ -169,7 +158,7 @@ func TestInFlightRoomsKeysByInteriorOrigin(t *testing.T) {
 
 // The retired shelter's footprint is recorded by the real replan and survives
 // the next one; clearance then takes the furniture, the walls and the floor
-// down, waits on a standing research table, and the entry is dropped once the
+// down, and the entry is dropped once the
 // ground is clear (#2075).
 func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	f := newShelterRetireFixture(t)
@@ -194,19 +183,9 @@ func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 		return PlannedGroundStep(next, GroundCensus{}, rows, floors, rooms, rg, wantsAll)
 	}
 
-	// The table holds the whole ground: nothing comes down and the entry stays.
-	if step, ok := stepOf(spot, craft, table, wall); ok && step.Ground == ground {
-		t.Fatalf("clearance moved on a standing research table: %+v", step)
-	}
-	if work := PlannedGroundWork(next, GroundCensus{}, []ClearanceTarget{spot, craft, table, wall}, floors, rooms, rg, wantsAll); len(work) != 0 {
-		t.Fatalf("a waiting ground owes work: %v", work)
-	}
-	if len(RetiredGroundDone(next, []ClearanceTarget{table}, nil)) != 0 {
-		t.Fatal("the entry dropped under a standing table")
-	}
-	// Table relocated: furniture (the shelter spots included) first, then walls, then floors.
-	step, ok := stepOf(spot, craft, wall)
-	if !ok || step.Phase != GroundFurniture || len(step.Targets) != 2 {
+	// Furniture (the shelter spots and the table included) first, then walls, then floors.
+	step, ok := stepOf(spot, craft, table, wall)
+	if !ok || step.Phase != GroundFurniture || len(step.Targets) != 3 {
 		t.Fatalf("furniture first: %+v", step)
 	}
 	if step, ok = stepOf(wall); !ok || step.Phase != GroundWalls || step.Targets[0].EntityID != "wall" {

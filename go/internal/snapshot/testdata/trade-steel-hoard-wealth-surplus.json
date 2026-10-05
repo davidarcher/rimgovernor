@@ -6656,17 +6656,6 @@
      "Reason": "blocked",
      "Risk": 0.5,
      "WaitingSince": 21
-    },
-    {
-     "Concern": "TidyLayout",
-     "Labor": [
-      "Growing",
-      "Hauling",
-      "Construction"
-     ],
-     "Reason": "blocked",
-     "Risk": 0.5,
-     "WaitingSince": 21
     }
    ],
    "Snapshot": {
@@ -7081,10 +7070,6 @@
     "Concern": "RemoveBlight"
    },
    {
-    "Standard": "routine-683ea481d4e8bb6d-TidyLayout",
-    "Concern": "TidyLayout"
-   },
-   {
     "Standard": "routine-683ea481d4e8bb6d-RecoverDisasterServices",
     "Concern": "RecoverDisasterServices"
    }
@@ -7357,20 +7342,6 @@
     ],
     "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainWaste",
-    "LastProgress": 9655,
-    "Method": "assess",
-    "NextReview": 12155
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 12155
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "TidyLayout",
     "LastProgress": 9655,
     "Method": "assess",
     "NextReview": 12155

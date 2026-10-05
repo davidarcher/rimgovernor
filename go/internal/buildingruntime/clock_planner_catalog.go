@@ -840,16 +840,6 @@ var plannerCatalog = []plannerEntry{
 			out.StoneShell = &method
 			return method.Verdict, nil
 		}},
-	{name: "tidy", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCreateAction, domain.ZoneDeleteAction, domain.DeconstructionAction, domain.MoveBuildingAction}, sections: sectionsBuilding,
-		configured: func(c *ClockSchedulerConfig) bool { return c.Tidy != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.Tidy.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.Tidy = &method
-			return method.Verdict, nil
-		}},
 	{name: "stockpiles", concern: policy.MaintainStockpiles, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.ZoneDeleteAction, domain.ZoneCreateAction, domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Stockpiles != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

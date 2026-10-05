@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -63,8 +62,8 @@ func roomGround(in Rectangle) Rectangle {
 // ground planned clearance is given, with the wall rectangles of the rooms the
 // plan still holds: a building on a retired room's ring that also lies in a
 // kept room's walls is that room's and stays. Nothing on retired ground is
-// planned: its ring walls, doors and frames come down, its sleeping spots go,
-// and a research table holds the whole ground until it is relocated (#2047).
+// planned: its ring walls, doors and frames come down and its sleeping spots go;
+// a research table is packed with the rest and installed in the laboratory.
 type RetiredGround struct {
 	Ground, Kept []Rectangle
 }
@@ -101,7 +100,7 @@ func (rg RetiredGround) heldRow(row ClearanceTarget) bool {
 }
 
 // RetiredGroundDone is the retired ground with nothing left to clear: no
-// building (a standing research table included) and no floor of ours that
+// building and no floor of ours that
 // is not a kept room's. The plan drops these entries.
 func RetiredGroundDone(plan LayoutPlan, rows []ClearanceTarget, floors []ClearanceFloor) []Rectangle {
 	rg := RetiredGroundOf(plan)
@@ -129,16 +128,6 @@ func retiredWork(rows []ClearanceTarget, floors []ClearanceFloor, g Rectangle, r
 	}
 	for _, f := range floors {
 		if inside(f.Cell, g) && !rg.kept(f.Cell) && !groundCovered(f.Cell, rows) {
-			return true
-		}
-	}
-	return false
-}
-
-// researchTableStands reports a research table on retired ground g.
-func researchTableStands(rows []ClearanceTarget, g Rectangle, rg RetiredGround) bool {
-	for _, row := range rows {
-		if row.Player && overlaps(row, g) && strings.Contains(row.DefName, "ResearchBench") && !rg.heldRow(row) {
 			return true
 		}
 	}
@@ -195,7 +184,7 @@ func standInBed(row ClearanceTarget) bool { return row.DefName == "SleepingSpot"
 // retiredGroundStep picks the first retired ground, in plan order, with work
 // left and its earliest phase: furniture, packs, then walls with their roof,
 // then floors. Rows are the census's player rows on the ground
-// (SplitGroundRows). A research table holds its ground. ok is false when the
+// (SplitGroundRows). ok is false when the
 // ground is clear. Planned rooms go through Reconcile (PlannedGroundStep).
 func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle, rooms RoomObservation, rg RetiredGround) (GroundStep, bool) {
 	ordered := append([]ClearanceTarget(nil), rows...)
@@ -208,9 +197,6 @@ func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 	claimed := map[string]bool{}
 	claimedFloor := map[domain.Cell]bool{}
 	for _, g := range ground {
-		if rg.has(g) && researchTableStands(ordered, g, rg) {
-			continue
-		}
 		var furniture, packs, walls []ClearanceTarget
 		for _, row := range ordered {
 			if claimed[row.EntityID] || !groundTarget(row, g, rg) {
@@ -255,7 +241,7 @@ func retiredGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 	var out []string
 	for _, row := range rows {
 		for _, g := range ground {
-			if groundTarget(row, g, rg) && !(rg.has(g) && researchTableStands(rows, g, rg)) {
+			if groundTarget(row, g, rg) {
 				out = append(out, row.EntityID)
 				break
 			}
@@ -263,7 +249,7 @@ func retiredGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 	}
 	for _, f := range floors {
 		for _, g := range ground {
-			if inside(f.Cell, g) && !groundCovered(f.Cell, rows) && !(rg.has(g) && (rg.kept(f.Cell) || researchTableStands(rows, g, rg))) {
+			if inside(f.Cell, g) && !groundCovered(f.Cell, rows) && !(rg.has(g) && rg.kept(f.Cell)) {
 				out = append(out, GroundFloorID(f.Cell))
 				break
 			}

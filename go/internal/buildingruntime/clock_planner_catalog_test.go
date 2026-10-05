@@ -25,7 +25,7 @@ var inlinePlannerSet = []struct {
 	{"animalContainment", plannerMaintenance}, {"recovery", plannerCritical}, {"husbandry", plannerMaintenance}, {"prisonerInteraction", plannerMaintenance},
 	{"populationCustody", plannerPreempt}, {"populationJoiner", plannerMaintenance}, {"research", plannerMaintenance}, {"storage-shelves", plannerMaintenance}, {"naming", plannerPreempt}, {"dialog", plannerPreempt}, {"trade", plannerFoothold}, {"resource", plannerMaintenance},
 	{"animalFeed", plannerMaintenance}, {"maintainShelter", plannerComfort}, {"firebreak", plannerMaintenance}, {"psylink", plannerMaintenance}, {"creepJoiners", plannerMaintenance}, {"ideoRoles", plannerMaintenance}, {"rituals", plannerMaintenance}, {"permits", plannerMaintenance}, {"homeCoverage", plannerComfort},
-	{"stoneShell", plannerComfort}, {"tidy", plannerMaintenance}, {"stockpiles", plannerFoothold}, {"defenseLayout", plannerMaintenance},
+	{"stoneShell", plannerComfort}, {"stockpiles", plannerFoothold}, {"defenseLayout", plannerMaintenance},
 }
 
 // TestPlannerCatalogMatchesInlineSet: the catalog is the inline set in the

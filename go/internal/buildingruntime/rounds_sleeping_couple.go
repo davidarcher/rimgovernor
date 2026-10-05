@@ -131,7 +131,7 @@ func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Con
 		hosting[cell] = true
 	}
 	p := r.reviewer.player
-	for _, room := range policy.TidyFurnitureRooms(rooms, census, facts.Cells) {
+	for _, room := range policy.FurnitureRooms(rooms, census, facts.Cells) {
 		anchor, rot, ok := policy.BedSpot(room, policy.Resource(choice.Definition))
 		if !ok || !hosting[anchor] {
 			continue

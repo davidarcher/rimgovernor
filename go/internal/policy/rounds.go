@@ -438,10 +438,6 @@ type RoundsFacts struct {
 	// Biotech or a complete gene-building read, and then MaintainGeneBank
 	// has no assessment.
 	GeneBankOwed domain.Fact[bool]
-	// LayoutTidy is the layout tidying review (#611) the reviewer measures
-	// from the room census against each room's derived interior plan;
-	// unknown without a tier.
-	LayoutTidy domain.Fact[TidyReview]
 	// Stockpiles is the MaintainStockpiles review (#725): this cycle's
 	// stockpile edits within the haul budget, or why none stands.
 	Stockpiles domain.Fact[StockpileReview]

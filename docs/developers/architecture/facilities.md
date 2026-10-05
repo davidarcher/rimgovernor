@@ -62,7 +62,9 @@ Each rung reports an explicit reason when it cannot proceed
 Laboratory row: when the research ladder's next rung is locked only for lack
 of a bench, `RoundsResearchPlanner` walks the same furnish-or-shell ladder
 under `EnsureResearch` for a `SimpleResearchBench` (`routine-laboratory-*`
-plans) and selects the rung once it stands.
+plans) and selects the rung once it stands. A table still standing in a retiring
+shelter is packed with the rest of the retired ground and installed in the
+laboratory from stock; no separate pass relocates it.
 
 ## Electrical safety
 

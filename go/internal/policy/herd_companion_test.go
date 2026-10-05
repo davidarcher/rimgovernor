@@ -34,7 +34,7 @@ func TestCompanionBedGoesInTheMastersSoloBedroom(t *testing.T) {
 	if !ok || u.Room != "Room_1" || u.Def != testAnimalSpot || !rectInside(rooms[0].Room.Interior, OccupiedRect(u.Anchor, spot.Size, u.Rot)) {
 		t.Fatal("companion bed in the master's room", u, ok)
 	}
-	rooms[0].Pieces = append(rooms[0].Pieces, TidyPiece{Def: u.Def, Rect: OccupiedRect(u.Anchor, spot.Size, u.Rot)})
+	rooms[0].Pieces = append(rooms[0].Pieces, FurniturePiece{Def: u.Def, Rect: OccupiedRect(u.Anchor, spot.Size, u.Rot)})
 	if _, ok := NextCompanionBed(obs, []UpkeepAnimal{dog}, rooms, testFurniture, spot, true); ok {
 		t.Fatal("one bed per mastered animal")
 	}
@@ -43,7 +43,7 @@ func TestCompanionBedGoesInTheMastersSoloBedroom(t *testing.T) {
 	}
 	// A shared bedroom is nobody's solo room.
 	obs.Beds = []SleepingBed{replacementBed("Bed_1", "Good", "a", "b")}
-	if _, ok := NextCompanionBed(obs, []UpkeepAnimal{{ID: "dog", BondedPawns: []string{"a"}}}, []TidyRoom{{ID: "Room_1", Room: rooms[0].Room}}, testFurniture, spot, true); ok {
+	if _, ok := NextCompanionBed(obs, []UpkeepAnimal{{ID: "dog", BondedPawns: []string{"a"}}}, []FurnitureRoom{{ID: "Room_1", Room: rooms[0].Room}}, testFurniture, spot, true); ok {
 		t.Fatal("a shared bedroom gets no companion bed")
 	}
 }

@@ -72,14 +72,12 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// places the feed stockpile inside the animals' area when no bench is
 	// reachable there (rounds_animal_feed.go, #311: refused here the same
 	// way until bound); ClearHomeObstructions places the chunk dump
-	// (rounds_clearance.go, #394); TidyLayout re-sites one managed field
-	// or stockpile per method (rounds_tidy.go, #611: refused here on the
-	// first live run until bound).
+	// (rounds_clearance.go, #394).
 	limit := 32
-	needs := []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource, policy.TidyLayout}
+	needs := []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource}
 	if stockpile {
 		limit = 1
-		needs = []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
+		needs = []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.MaintainStockpiles}
 	}
 	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() {
 		return ErrConflict

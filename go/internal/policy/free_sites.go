@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// PenEnclosureRequest ports upkeep_sites.enclosure_site's free-cell census:
+// FreeSiteRequest is FreeSites' free-cell census:
 // only walkable, unoccupied, unzoned, light-supporting cells outside any
 // protected footprint may host a footprint (FreeSites).
-type PenEnclosureRequest struct {
+type FreeSiteRequest struct {
 	Bounds    Bounds
 	Anchor    domain.Cell
 	Cells     []SiteCell
@@ -21,22 +21,22 @@ type PenEnclosureRequest struct {
 // candidate rectangles nearest the colony anchor (a plain grave's 1x2, #857).
 // It is a proposal only: native placement previews still decide legality.
 // Missing or unknown cells are never treated as free.
-func FreeSites(r PenEnclosureRequest, width, height int32) ([]Rectangle, error) {
+func FreeSites(r FreeSiteRequest, width, height int32) ([]Rectangle, error) {
 	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
-		return nil, errors.New("invalid pen enclosure site bounds")
+		return nil, errors.New("invalid free site bounds")
 	}
 	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }
 	if !inBounds(r.Anchor) {
-		return nil, errors.New("invalid pen enclosure anchor")
+		return nil, errors.New("invalid free site anchor")
 	}
 	cells := make(map[domain.Cell]SiteCell, len(r.Cells))
 	ordered := make([]domain.Cell, 0, len(r.Cells))
 	for _, c := range r.Cells {
 		if !inBounds(c.Cell) {
-			return nil, errors.New("pen enclosure site cell out of bounds")
+			return nil, errors.New("free site cell out of bounds")
 		}
 		if _, exists := cells[c.Cell]; exists {
-			return nil, errors.New("duplicate pen enclosure site cell")
+			return nil, errors.New("duplicate free site cell")
 		}
 		cells[c.Cell] = c
 		ordered = append(ordered, c.Cell)
@@ -45,7 +45,7 @@ func FreeSites(r PenEnclosureRequest, width, height int32) ([]Rectangle, error) 
 	protected := map[domain.Cell]bool{}
 	for _, c := range r.Protected {
 		if !inBounds(c) {
-			return nil, errors.New("protected pen enclosure cell out of bounds")
+			return nil, errors.New("protected free site cell out of bounds")
 		}
 		protected[c] = true
 	}

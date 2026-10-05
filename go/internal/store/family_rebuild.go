@@ -16,7 +16,7 @@ import (
 // save. A missing blob leaves its table empty.
 func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) error {
 	blobs := map[string]GovernorFamilyBlob{}
-	for _, key := range []string{GovernorLayoutPlanKey, GovernorTidiesKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey} {
+	for _, key := range []string{GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey} {
 		raw, ok := saved[key]
 		if !ok {
 			continue
@@ -28,7 +28,7 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 		if b.SchemaVersion != GovernorStateSchemaVersion {
 			return fmt.Errorf("%s: schema version %d", key, b.SchemaVersion)
 		}
-		if (key == GovernorLayoutPlanKey || key == GovernorTidiesKey) && b.Scope == nil {
+		if key == GovernorLayoutPlanKey && b.Scope == nil {
 			return fmt.Errorf("%s: missing scope", key)
 		}
 		blobs[key] = b
@@ -38,7 +38,7 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 		return err
 	}
 	defer tx.Rollback()
-	for _, table := range []string{"colony_layout_plans", "layout_tidies", "defense_layout", "production_ladder", "soldier_squad", "colony_extent_events"} {
+	for _, table := range []string{"colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "colony_extent_events"} {
 		if _, err = tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
 			return err
 		}
@@ -46,11 +46,6 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 	if b, ok := blobs[GovernorLayoutPlanKey]; ok {
 		if err = rebuildLayoutPlan(ctx, tx, b); err != nil {
 			return fmt.Errorf("%s: %w", GovernorLayoutPlanKey, err)
-		}
-	}
-	if b, ok := blobs[GovernorTidiesKey]; ok {
-		if err = rebuildLayoutTidies(ctx, tx, b); err != nil {
-			return fmt.Errorf("%s: %w", GovernorTidiesKey, err)
 		}
 	}
 	if b, ok := blobs[GovernorDefenseLayoutKey]; ok {
@@ -114,32 +109,6 @@ func rebuildLayoutPlan(ctx context.Context, tx *sql.Tx, b GovernorFamilyBlob) er
 	}
 	_, err = tx.ExecContext(ctx, "INSERT INTO colony_layout_plans(colony,map_id,tick,plan) VALUES(?,?,?,?)", b.Scope.Colony, b.Scope.Map, b.Scope.Tick, string(encoded))
 	return err
-}
-
-// rebuildLayoutTidies inserts the latest state per item oldest first, so the
-// newest row carries the blob's scope tick.
-func rebuildLayoutTidies(ctx context.Context, tx *sql.Tx, b GovernorFamilyBlob) error {
-	var tidies []LayoutTidy
-	if err := json.Unmarshal(b.Record, &tidies); err != nil {
-		return err
-	}
-	sort.SliceStable(tidies, func(i, j int) bool {
-		if tidies[i].Tick != tidies[j].Tick {
-			return tidies[i].Tick < tidies[j].Tick
-		}
-		return tidies[i].Item < tidies[j].Item
-	})
-	sc := b.Scope
-	for _, t := range tidies {
-		if !layoutTidyValid(t) {
-			return errors.New("invalid layout tidy")
-		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO layout_tidies(colony,map_id,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-			sc.Colony, sc.Map, t.Tick, t.Item, string(t.Kind), string(t.Status), t.From.X, t.From.Z, t.From.Width, t.From.Height, t.To.X, t.To.Z, t.To.Width, t.To.Height, t.Crop, t.NewZone, t.PlanID, t.Explanation); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func putSingleton(ctx context.Context, tx *sql.Tx, table string, record any, limit int) error {

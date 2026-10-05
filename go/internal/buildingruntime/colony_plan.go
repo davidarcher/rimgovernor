@@ -141,7 +141,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 		census, rk := projection.Rooms.Value()
 		sleeping, sk := projection.Facts.Sleeping.Value()
 		construction, ck := projection.Facts.CurrentConstruction.Value()
-		growth.RetireShelter = rk && sk && ck && construction.Colony && policy.ShelterRetirable(layout.Plan, census, sleeping, construction.Buildings)
+		growth.RetireShelter = rk && sk && ck && construction.Colony && policy.ShelterRetirable(layout.Plan, census, sleeping)
 	}
 	retireShelter := growth.RetireShelter && hourly
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds

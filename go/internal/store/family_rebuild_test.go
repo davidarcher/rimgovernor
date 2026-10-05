@@ -23,15 +23,6 @@ func TestRebuildFamiliesRoundTripsEachFamily(t *testing.T) {
 	if err := source.RecordLayoutPlan(ctx, w, 100, plan); err != nil {
 		t.Fatal(err)
 	}
-	for i, tidy := range []LayoutTidy{
-		{Item: "Zone_7", Kind: policy.TidyFurniture, Status: LayoutTidyMoving, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice"},
-		{Item: "Zone_3", Kind: policy.TidyFurniture, Status: LayoutTidyDone},
-		{Item: "Zone_7", Kind: policy.TidyFurniture, Status: LayoutTidyDone, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice"},
-	} {
-		if err := source.RecordLayoutTidy(ctx, w, domain.Tick(200+i*50), tidy); err != nil {
-			t.Fatal(err)
-		}
-	}
 	world := World{Colony: "colony", Load: "load-1", Map: 1}
 	wall, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 4}, domain.North, "BlocksGranite")
 	layout := policy.DefenseLayout{Chokepoint: domain.Cell{X: 9, Z: 15}, Entry: domain.Cell{X: 9, Z: 8}, Toward: domain.North, Width: 3,
@@ -53,7 +44,7 @@ func TestRebuildFamiliesRoundTripsEachFamily(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{GovernorLayoutPlanKey, GovernorTidiesKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey} {
+	for _, key := range []string{GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey} {
 		if saved[key] == "" {
 			t.Fatal("missing blob", key)
 		}

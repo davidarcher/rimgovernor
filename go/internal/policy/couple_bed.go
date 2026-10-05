@@ -39,14 +39,14 @@ type CoupleBed struct {
 	Kind          CoupleBedKind
 	Pawn, Partner PawnID
 	Room          string
-	Pack          []TidyPiece
+	Pack          []FurniturePiece
 	Planned       PlannedRoom
 	Template      []WantedPiece
 }
 
 // coupleBedSlot is the bedroom template's bed slot for a DoubleBed in room,
 // and the planned room of plan that room stands in; false when plan has none.
-func coupleBedSlot(plan LayoutPlan, room TidyRoom) (PlannedRoom, []WantedPiece, bool) {
+func coupleBedSlot(plan LayoutPlan, room FurnitureRoom) (PlannedRoom, []WantedPiece, bool) {
 	for _, planned := range plan.AllRooms() {
 		if planned.Interior != room.Room.Interior {
 			continue
@@ -63,7 +63,7 @@ func coupleBedSlot(plan LayoutPlan, room TidyRoom) (PlannedRoom, []WantedPiece, 
 // of the beds this Episode's completed pack steps uninstalled, the
 // couple's room's bed first; buildable reports that a DoubleBed can be
 // built, without which nothing is packed.
-func NextCoupleBed(obs SleepingObservation, plan LayoutPlan, rooms []TidyRoom, packed []domain.Cell, buildable bool) (CoupleBed, bool) {
+func NextCoupleBed(obs SleepingObservation, plan LayoutPlan, rooms []FurnitureRoom, packed []domain.Cell, buildable bool) (CoupleBed, bool) {
 	couples := sleepingCouples(obs.People)
 	owned := map[PawnID]string{}
 	for _, p := range obs.People {
@@ -73,7 +73,7 @@ func NextCoupleBed(obs SleepingObservation, plan LayoutPlan, rooms []TidyRoom, p
 	for _, b := range obs.Beds {
 		beds[b.ID] = b
 	}
-	pieceOf := func(bed string) (TidyPiece, TidyRoom, bool) {
+	pieceOf := func(bed string) (FurniturePiece, FurnitureRoom, bool) {
 		for _, r := range rooms {
 			for _, p := range r.Pieces {
 				if p.Thing == bed {
@@ -81,7 +81,7 @@ func NextCoupleBed(obs SleepingObservation, plan LayoutPlan, rooms []TidyRoom, p
 				}
 			}
 		}
-		return TidyPiece{}, TidyRoom{}, false
+		return FurniturePiece{}, FurnitureRoom{}, false
 	}
 	var pawns []PawnID
 	for p, q := range couples {
@@ -107,7 +107,7 @@ func NextCoupleBed(obs SleepingObservation, plan LayoutPlan, rooms []TidyRoom, p
 			continue
 		}
 		step := CoupleBed{Pawn: p, Partner: q}
-		var home TidyRoom
+		var home FurnitureRoom
 		for _, pawn := range []PawnID{p, q} {
 			b, ok := beds[owned[pawn]]
 			if !ok || SleepingDoubleBeds[b.Definition] {
@@ -153,15 +153,15 @@ func NextCoupleBed(obs SleepingObservation, plan LayoutPlan, rooms []TidyRoom, p
 
 // BedSpot is the first free anchor in room where a bed of def fits (the
 // bed replacement's placement), for reinstalling a stored bed.
-func BedSpot(room TidyRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
+func BedSpot(room FurnitureRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
 	return bedSpot(room, def)
 }
 
-// CoupleBedRooms is TidyFurnitureRooms for the couple bed lever. Packing
+// CoupleBedRooms is FurnitureRooms for the couple bed lever. Packing
 // the couple's beds leaves their room bedless, and native then reads it as
 // RoomRoleNone, which has no interior template; such an empty room is read
 // as a bedroom so the install step still finds it by its packed cell.
-func CoupleBedRooms(rooms RoomObservation, census CurrentConstruction, cells []SiteCell) []TidyRoom {
+func CoupleBedRooms(rooms RoomObservation, census CurrentConstruction, cells []SiteCell) []FurnitureRoom {
 	read := rooms
 	read.Rooms = make([]Room, len(rooms.Rooms))
 	for i, room := range rooms.Rooms {
@@ -170,7 +170,7 @@ func CoupleBedRooms(rooms RoomObservation, census CurrentConstruction, cells []S
 		}
 		read.Rooms[i] = room
 	}
-	return TidyFurnitureRooms(read, census, cells)
+	return FurnitureRooms(read, census, cells)
 }
 
 func cellInRect(r Rectangle, c domain.Cell) bool {

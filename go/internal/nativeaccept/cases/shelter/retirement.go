@@ -19,10 +19,10 @@ import (
 // game. Everyone sleeps in a built bedroom (the layout grid fixture's
 // expansion start), the planned workshop and laboratory stand (staged on the
 // plan the controller recorded) and the shelter still holds a research table,
-// a sleeping spot, a crafting spot and a butcher spot: ShelterEmptied holds,
-// TidyLayout carries the table into a laboratory bench slot (#2047), the
-// shelter leaves the plan (#2046), and its footprint, spots included, is
-// cleared through LayoutPlan.RetiredGround (#2075) until the entry drops.
+// a sleeping spot, a crafting spot and a butcher spot: ShelterRetirable holds,
+// the shelter leaves the plan (#2046), and its footprint, table and spots
+// included, is cleared through LayoutPlan.RetiredGround (#2075) until the entry
+// drops; the table is packed, and the laboratory installs it from stock.
 const (
 	retireTableDef = "SimpleResearchBench"
 	retireWait     = 35 * time.Minute
@@ -37,16 +37,16 @@ func init() {
 		Name: "shelter/retirement",
 		Scope: "Issue #2076: from the tribal " + sustained.BaselineSave + " baseline with every colonist asleep in a built bedroom, the planned " +
 			"workshop and laboratory staged standing and a research table, sleeping spot, crafting spot and butcher spot left in the " +
-			"shelter hut, the shelter retires: TidyLayout relocates the table into a laboratory bench slot, the plan drops the shelter " +
-			"with its footprint as RetiredGround, and the table, spots and hut walls are cleared before the entry leaves the plan. " +
-			"A snapshot test cannot cover it: the relocation is the game's Reinstall, the clearance is pawns deconstructing, and the " +
+			"shelter hut, the shelter retires: the plan drops it with its footprint as RetiredGround, and the table (packed, then installed " +
+			"in a laboratory from stock), spots and hut walls are cleared before the entry leaves the plan. " +
+			"A snapshot test cannot cover it: the clearance is pawns packing and deconstructing, and the " +
 			"gate reads the native room census and sleeping facts.",
 		Start: cases.Fixture{Op: "test/layout_grid_prepare", ArgsFrom: startersite.BedroomArgs,
 			Args: map[string]any{"sleepingSpots": 8, "builders": true, "expansion": true},
 			On:   cases.Save{Name: sustained.BaselineSave}},
 		RequiredOps: []string{"test/layout_grid_prepare", "test/layout_grid_audit", stageRoomsOp, na.LabSpawnTool},
 		Keep:        []string{string(na.NeedFood)},
-		Serve:       &cases.ServeSpec{Families: []string{"shelter", "sleeping", "tidy", "clearance"}, NativeTimeout: 30 * time.Second, Prefix: "shelter-retirement"},
+		Serve:       &cases.ServeSpec{Families: []string{"shelter", "sleeping", "clearance"}, NativeTimeout: 30 * time.Second, Prefix: "shelter-retirement"},
 		Budget:      50 * time.Minute,
 		Reason:      "three stages on one journal: the plan the controller records, the rooms staged on it, then pawn work (a Reinstall and a deconstruction of the hut) to the retirement's end",
 		Run:         retirement,
@@ -102,21 +102,10 @@ func retirement(ctx context.Context, s cases.Session) error {
 		service.Stop()
 		return err
 	}
-	var tidy store.LayoutTidy
 	var ground []policy.Rectangle
 	var final policy.LayoutPlan
 	var readErr error
 	_, err = service.WaitReview(ctx, na.Wait{Ceiling: retireWait}, func(r store.Rounds) bool {
-		tidies, err := journal.LayoutTidies(ctx, r.Snapshot, r.Tick)
-		if err != nil {
-			readErr = err
-			return true
-		}
-		for _, t := range tidies {
-			if t.Item == "shelter-table-"+table.id {
-				tidy = t
-			}
-		}
 		rec, ok, err := journal.LayoutPlan(ctx, r.Snapshot, r.Tick)
 		if err != nil {
 			readErr = err
@@ -131,22 +120,18 @@ func retirement(ctx context.Context, s cases.Session) error {
 		}
 		return len(ground) > 0 && len(final.RetiredGround) == 0
 	})
-	report["tidy"] = tidy
 	report["retired_ground"] = ground
 	report["keepalive_retire"] = service.Stop()
 	if readErr != nil {
 		return readErr
 	}
 	if err != nil {
-		return fmt.Errorf("the shelter did not retire and clear (table tidy %q, retired ground %v, shelter planned %d, ground left %v): %w",
-			tidy.Status, ground, len(roomsOf(final, policy.PlannedShelter)), final.RetiredGround, err)
-	}
-	if tidy.Status != store.LayoutTidyDone {
-		return fmt.Errorf("the plan retired the shelter while the table's tidy is %q, not done: %+v", tidy.Status, tidy)
+		return fmt.Errorf("the shelter did not retire and clear (retired ground %v, shelter planned %d, ground left %v): %w",
+			ground, len(roomsOf(final, policy.PlannedShelter)), final.RetiredGround, err)
 	}
 
-	// 4. The game agrees: the table stands in a laboratory slot, the spots
-	// and the hut's walls are gone.
+	// 4. The game agrees: the table is not left in the hut (packed, or
+	// installed in a laboratory), the spots and the hut's walls are gone.
 	h, err = s.Reattach(ctx)
 	if err != nil {
 		return err
@@ -155,22 +140,13 @@ func retirement(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if !found || len(cells) == 0 {
-		return fmt.Errorf("research table %s no longer stands", table.id)
-	}
-	var lab *policy.PlannedRoom
-	for i := range labs {
-		in := true
-		for _, c := range cells {
-			in = in && inside(labs[i].Interior, c)
-		}
-		if in {
-			lab = &labs[i]
-		}
-	}
 	report["table_after"] = cells
-	if lab == nil {
-		return fmt.Errorf("research table %s stands on %v, outside every planned laboratory %v", table.id, cells, labs)
+	if found {
+		for _, c := range cells {
+			if inside(shelter.Interior, c) {
+				return fmt.Errorf("research table %s still stands in the retired shelter at %v", table.id, cells)
+			}
+		}
 	}
 	for i, id := range spots {
 		if _, found, err := buildingCells(ctx, h, s.Identity(), "spot-after", id); err != nil {

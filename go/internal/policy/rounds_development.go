@@ -146,18 +146,6 @@ func RoundsDevelopmentDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domai
 			return domain.Known(0.0)
 		}
 		return domain.Known(stockpileDeficit)
-	case TidyLayout:
-		// A standing tidy proposal is a fixed small deficit (#611): ranked
-		// under any partial deficit of a production, upkeep or defense goal,
-		// but not zero, so an idle colony's slot still falls to it.
-		tidy, tidyKnown := f.LayoutTidy.Value()
-		if !tidyKnown || !tidy.Known {
-			return domain.Unknown[float64]()
-		}
-		if !tidy.Active {
-			return domain.Known(0.0)
-		}
-		return domain.Known(tidyDeficit)
 	default:
 		return domain.Unknown[float64]()
 	}

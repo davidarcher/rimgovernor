@@ -142,7 +142,6 @@ type ClockSchedulerConfig struct {
 	IdeoRoles           *RoundsIdeoRolesPlanner
 	Rituals             *RoundsRitualsPlanner
 	StoneShell          *RoundsStoneShellPlanner
-	Tidy                *RoundsTidyPlanner
 	Stockpiles          *RoundsStockpilePlanner
 	DefenseLayout       *RoundsDefenseLayoutPlanner
 	Waste               *RoundsWastePlanner
@@ -225,7 +224,6 @@ type ClockSchedulerResult struct {
 	IdeoRoles                    *RoundsIdeoRolesResult
 	Rituals                      *RoundsRitualsResult
 	StoneShell                   *RoundsStoneShellResult
-	Tidy                         *RoundsTidyResult
 	Stockpiles                   *RoundsStockpileResult
 	DefenseLayout                *RoundsDefenseLayoutResult
 	Waste                        *RoundsWasteResult
@@ -601,9 +599,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.StoneShell != nil && (config.Rounds == nil || config.StoneShell.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.StoneShell != nil && (config.Rounds == nil || config.StoneShell.reviewer != config.Rounds)", ErrControl)
-	}
-	if config.Tidy != nil && (config.Rounds == nil || config.Tidy.reviewer != config.Rounds) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.Tidy != nil && (config.Rounds == nil || config.Tidy.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Stockpiles != nil && (config.Rounds == nil || config.Stockpiles.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Stockpiles != nil && (config.Rounds == nil || config.Stockpiles.reviewer != config.Rounds)", ErrControl)

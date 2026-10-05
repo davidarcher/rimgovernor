@@ -450,9 +450,6 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	} else if len(parts) > 0 {
 		reading.Projection.Facts.FabricableParts = policy.FabricableParts(benches)
 	}
-	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
-		return store.RoundsResult{}, err
-	}
 	if err = r.reviewStockpiles(ctx, state.Snapshot, &reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	}

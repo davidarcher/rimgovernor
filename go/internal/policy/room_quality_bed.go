@@ -127,7 +127,7 @@ func bedScore(items ItemFacts, b SleepingBed) float64 {
 // NextBedReplacement returns the first (by room id) bed replacement step
 // due, false when none. rooms are the furniture rooms; available reports a
 // definition the colony can build now.
-func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool, materials BedMaterials) (BedReplacement, bool) {
+func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, rooms []FurnitureRoom, available func(string) bool, materials BedMaterials) (BedReplacement, bool) {
 	census, ok := obs.Rooms.Value()
 	if !ok {
 		return BedReplacement{}, false
@@ -138,7 +138,7 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 			quality[r.ID] = q
 		}
 	}
-	furniture := map[string]TidyRoom{}
+	furniture := map[string]FurnitureRoom{}
 	for _, r := range rooms {
 		furniture[r.ID] = r
 	}
@@ -232,7 +232,7 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 
 // bedSpot is the first free anchor (back row first) where a bed of def
 // fits the room's floor clear of its furniture and keeps it walkable.
-func bedSpot(room TidyRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
+func bedSpot(room FurnitureRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
 	size, ok := replacementBedSizes[def]
 	if !ok {
 		return domain.Cell{}, domain.South, false
@@ -243,13 +243,13 @@ func bedSpot(room TidyRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
 // freeSpot is the first free anchor (back row first) where a piece of the
 // North size fits the room's floor clear of its furniture and keeps it
 // walkable.
-func freeSpot(room TidyRoom, size domain.Cell) (domain.Cell, domain.Rotation, bool) {
+func freeSpot(room FurnitureRoom, size domain.Cell) (domain.Cell, domain.Rotation, bool) {
 	return freeSpotFacing(room, size, domain.South, domain.North)
 }
 
 // freeSpotFacing is freeSpot over the given rotations only: a sculpture is
 // not rotatable, so it faces North (#1195).
-func freeSpotFacing(room TidyRoom, size domain.Cell, rots ...domain.Rotation) (domain.Cell, domain.Rotation, bool) {
+func freeSpotFacing(room FurnitureRoom, size domain.Cell, rots ...domain.Rotation) (domain.Cell, domain.Rotation, bool) {
 	in := room.Room.Interior
 	blocked := map[domain.Cell]bool{}
 	for _, p := range room.Pieces {

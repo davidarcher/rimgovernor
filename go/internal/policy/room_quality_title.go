@@ -17,12 +17,12 @@ var titleFurnitureSizes = map[Resource]domain.Cell{"EndTable": {X: 1, Z: 1}, "Dr
 
 // NextTitleFurniture returns the first unmet royal bedroom thing, false
 // when none.
-func NextTitleFurniture(obs SleepingObservation, rooms []TidyRoom, available func(string) bool) (RoomUpgrade, bool) {
+func NextTitleFurniture(obs SleepingObservation, rooms []FurnitureRoom, available func(string) bool) (RoomUpgrade, bool) {
 	titles := map[PawnID]*RoyalTitle{}
 	for _, p := range obs.People {
 		titles[p.ID] = p.Title
 	}
-	furniture := map[string]TidyRoom{}
+	furniture := map[string]FurnitureRoom{}
 	for _, r := range rooms {
 		furniture[r.ID] = r
 	}
@@ -57,7 +57,7 @@ func NextTitleFurniture(obs SleepingObservation, rooms []TidyRoom, available fun
 	return RoomUpgrade{}, false
 }
 
-func titlePiece(id string, room TidyRoom, def Resource, available func(string) bool) (RoomUpgrade, bool) {
+func titlePiece(id string, room FurnitureRoom, def Resource, available func(string) bool) (RoomUpgrade, bool) {
 	size, known := titleFurnitureSizes[def]
 	if !known || !available(string(def)) {
 		return RoomUpgrade{}, false

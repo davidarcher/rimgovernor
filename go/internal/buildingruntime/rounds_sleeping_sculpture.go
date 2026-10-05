@@ -24,7 +24,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyS
 		return domain.Unknown[bool]()
 	}
 	tier, _ := facts.BuildTier.Value()
-	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells))
+	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), stage), policy.FurnitureRooms(rooms, census, facts.Cells))
 }
 
 // sculptBedroom is the beauty lever after pots and floors (#830): a
@@ -50,7 +50,7 @@ func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context,
 	for _, item := range items {
 		inner[item.ID] = item
 	}
-	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), r.reviewer.stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed, facts.Facts.Items, bedroomGate(facts, r.reviewer.stage))
+	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), r.reviewer.stage), policy.FurnitureRooms(rooms, census, facts.Cells), packed, facts.Facts.Items, bedroomGate(facts, r.reviewer.stage))
 	if !due {
 		return RoundsBuildingResult{}, false, nil
 	}
@@ -143,7 +143,7 @@ func saleSculptures(call context.Context, native packedSource, identity *c.Ident
 		return nil, err
 	}
 	tier, _ := facts.BuildTier.Value()
-	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items, facts.Facts.Items), facts.Facts.Items), nil
+	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.FurnitureRooms(rooms, census, facts.Cells), packedSculptures(items, facts.Facts.Items), facts.Facts.Items), nil
 }
 
 // reviewSaleArt is the review's shed_art input (#1247): the unreserved

@@ -361,15 +361,6 @@ func (r *RoundsTendPlanner) Step(ctx context.Context) (RoundsTendResult, error) 
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoundsTidyPlanner) Step(ctx context.Context) (RoundsTidyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
-	if err != nil {
-		return RoundsTidyResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 func (r *RoundsTradePlanner) Step(ctx context.Context) (RoundsTradeResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {

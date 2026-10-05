@@ -53,7 +53,7 @@ func TestTitleFurnitureFillsUnmetThings(t *testing.T) {
 			t.Fatalf("anchor %v, slot %v", u.Anchor, p.Anchor())
 		}
 	}
-	rooms[0].Pieces = append(rooms[0].Pieces, TidyPiece{Def: "EndTable", Rect: Rectangle{u.Anchor.X, u.Anchor.Z, 1, 1}})
+	rooms[0].Pieces = append(rooms[0].Pieces, FurniturePiece{Def: "EndTable", Rect: Rectangle{u.Anchor.X, u.Anchor.Z, 1, 1}})
 	if u, ok := NextTitleFurniture(obs, rooms, all); !ok || u.Def != "Dresser" {
 		t.Fatalf("dresser = %+v %v", u, ok)
 	}

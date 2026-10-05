@@ -112,7 +112,6 @@ func (s serviceRoundsDiagnostics) RoundsStatus(ctx context.Context) (httpapi.Rou
 		status.NoOps = review.NoOps
 		status.Stage = review.Stage
 		status.Roster = review.Roster
-		status.LayoutTidy = review.Layout
 		status.ResourceRunways = review.ResourceRunwayState()
 	}
 	return status, nil
@@ -238,7 +237,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	armory := sc.roundsArmoryPlans
 	clearance := sc.roundsClearancePlans
 	shrine := sc.roundsShrinePlans
-	tidy := sc.roundsTidyPlans
 	stockpiles := sc.roundsStockpilePlans
 	config := serviceClockConfig(profile, sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
 	config.FollowPlayerSpeed = sc.followPlayerSpeed && !sc.clockTestAcceleration
@@ -266,7 +264,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoundsMethods = session.RoundsMethodsEnabled()
-	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.roundsArtPlans || sc.roundsMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.roundsPopulationJoinerPlans || homeCoverage || sc.roundsShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.roundsArtPlans || sc.roundsMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.roundsPopulationJoinerPlans || homeCoverage || sc.roundsShelteringPlans || stoneShell || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require rounds")
 	}
 	if routine {
@@ -658,12 +656,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		if tidy {
-			config.Tidy, err = buildingruntime.NewRoundsTidyPlanner(reviewer)
-			if err != nil {
-				return nil, err
-			}
-		}
 		if stockpiles {
 			stockpileNative, ok := reads.(buildingruntime.RoundsStockpileSource)
 			if !ok {
@@ -1016,9 +1008,6 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	}
 	if sc.roundsStoneShellPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)
-	}
-	if sc.roundsTidyPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.TidyLayout)
 	}
 	if sc.roundsStockpilePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStockpiles)

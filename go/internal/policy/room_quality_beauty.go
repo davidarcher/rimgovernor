@@ -26,8 +26,8 @@ const maxBeautyFloorCells = 24
 // NextBeautyUpgrade returns the first (by room id) beauty upgrade due,
 // false when none. A floor upgrade carries its cells in Cells (Def placed
 // at each, North); a plant pot is one piece at Anchor.
-func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool, flooring domain.Fact[FlooringObservation], floors FlooringFacts, gate RoomGate) (RoomUpgrade, bool) {
-	furniture := map[string]TidyRoom{}
+func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, rooms []FurnitureRoom, available func(string) bool, flooring domain.Fact[FlooringObservation], floors FlooringFacts, gate RoomGate) (RoomUpgrade, bool) {
+	furniture := map[string]FurnitureRoom{}
 	for _, r := range rooms {
 		furniture[r.ID] = r
 	}
@@ -107,7 +107,7 @@ func rankSculptures(packed []PackedSculpture) []PackedSculpture {
 // (rankSculptures) whose footprint has a free spot there (#1191: a large
 // sculpture needs a free multi-cell spot); the caller asks only once
 // NextBeautyUpgrade has nothing.
-func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []PackedSculpture, items ItemFacts, gate RoomGate) (SculptureStep, bool) {
+func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []FurnitureRoom, packed []PackedSculpture, items ItemFacts, gate RoomGate) (SculptureStep, bool) {
 	for _, room := range sculptureRooms(obs, targets, rooms) {
 		// The install is charged the sculpture's market value against the
 		// room's owners' share (#1841); the rooms owed and the art sale are
@@ -127,7 +127,7 @@ func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms
 
 // fitSculpture is the first of ranked, not in taken, with a free spot in
 // room.
-func fitSculpture(room TidyRoom, ranked []PackedSculpture, taken map[string]bool, items ItemFacts) (PackedSculpture, domain.Cell, domain.Rotation, bool) {
+func fitSculpture(room FurnitureRoom, ranked []PackedSculpture, taken map[string]bool, items ItemFacts) (PackedSculpture, domain.Cell, domain.Rotation, bool) {
 	for _, p := range ranked {
 		size, ok := items.SculptureSize(p.Def)
 		if !ok || taken[p.ID] {
@@ -143,7 +143,7 @@ func fitSculpture(room TidyRoom, ranked []PackedSculpture, taken map[string]bool
 // SaleSculptures is the packed art the trade selector may sell (#1194):
 // every piece but those NextSculpture would install, one per owed room,
 // best first.
-func SaleSculptures(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []PackedSculpture, items ItemFacts) map[string]bool {
+func SaleSculptures(obs SleepingObservation, targets map[string]RoomTarget, rooms []FurnitureRoom, packed []PackedSculpture, items ItemFacts) map[string]bool {
 	ranked := rankSculptures(packed)
 	reserved := map[string]bool{}
 	for _, room := range sculptureRooms(obs, targets, rooms) {

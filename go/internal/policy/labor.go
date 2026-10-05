@@ -69,10 +69,6 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		// Plants are cut by plant cutters, wooden ruins taken down by
 		// builders (#1548).
 		return LaborProfile{WorkPlantCutting, WorkConstruction}
-	case TidyLayout:
-		// A re-sited field is sown by growers and a Camp shell taken down
-		// by builders (#611).
-		return LaborProfile{WorkGrowing, WorkConstruction}
 	case MaintainStockpiles:
 		// A resized or retargeted stockpile is refilled by haulers (#725).
 		return LaborProfile{WorkHauling}

@@ -121,7 +121,7 @@ Every Concern id in `go/internal/policy` (`ConcernID` in code):
 | --- | --- |
 | Incident | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodConcern(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
 | Project | `AllowStartingSupplies`, `EnsureCooking`, `MaintainButcherSpot`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
-| Standard (chore) | `MaintainWaste`, `RemoveBlight`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
+| Standard (chore) | `MaintainWaste`, `RemoveBlight`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `MaintainStockpiles`, `ClearHomeObstructions` |
 | Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainBabyFeeding`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMechs`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainPermits`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell` |
 | Safeguard | none (see above) |
 
@@ -144,7 +144,7 @@ Concerns or budgets labor.
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
 | Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainSurgery` |
 | People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainPermits`, `MaintainIdeoRoles`, `MaintainRituals`, `MoodConcern(pawn)`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment` |
-| Upkeep | `AllowStartingSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `TradeWithCaravan`, `MaintainWaste`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `TidyLayout`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainRoutes`, `RecoverDisasterServices` |
+| Upkeep | `AllowStartingSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `TradeWithCaravan`, `MaintainWaste`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainRoutes`, `RecoverDisasterServices` |
 | System (no panel section) | `AnswerDialog`, `ConfirmColonyNames` |
 
 ## Execute under supervision

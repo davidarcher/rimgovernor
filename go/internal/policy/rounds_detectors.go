@@ -968,23 +968,6 @@ func inspectGeneBank(c *roundsRun) error {
 	return nil
 }
 
-// detectTidyLayout (#611) is census-driven too: the layout review measures
-// off-plan furniture against each room's interior plan and stands a
-// proposal only while the colony is idle; a standing proposal is the
-// deficit. It ranks last (tidyPriority, tidyDeficit), and its availability
-// is gated through AvailableMethods.
-func inspectTidyLayout(c *roundsRun) error {
-	recovered := domain.Unknown[bool]()
-	if tidy, known := c.f.LayoutTidy.Value(); known && tidy.Known {
-		recovered = domain.Known(!tidy.Active)
-	}
-	c.assess(TidyLayout, tidyPriority, recovered)
-	if !positive(recovered) {
-		c.raise(TidyLayout, tidyPriority)
-	}
-	return nil
-}
-
 // detectStockpiles (#725): a standing stockpile edit is the deficit;
 // availability is gated through AvailableMethods.
 func inspectStockpiles(c *roundsRun) error {

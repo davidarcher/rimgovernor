@@ -58,7 +58,6 @@ var concernLabels = map[string]string{
 	"ClearAncientShrine":        "Clear the ancient shrine",
 	"MaintainStockpiles":        "Keep stockpiles in order",
 	"MaintainSurgery":           "Keep surgery available",
-	"TidyLayout":                "Tidy the colony layout",
 	"MaintainFireSafety":        "Guard against fire",
 	"MaintainEssentialRepairs":  "Repair essential buildings",
 	"MaintainCleanFacilities":   "Keep facilities clean",

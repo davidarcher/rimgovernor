@@ -8,16 +8,16 @@ import (
 
 // coupleBedFixture: lovers a and b each own a single Bed in their own bedroom
 // (Room_1 at x 0..4, Room_2 at x 10..14).
-func coupleBedFixture() (SleepingObservation, []TidyRoom) {
-	var rooms []TidyRoom
+func coupleBedFixture() (SleepingObservation, []FurnitureRoom) {
+	var rooms []FurnitureRoom
 	for i, id := range []string{"Room_1", "Room_2"} {
 		x := int32(i * 10)
 		room := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: x, Z: -1}}}
 		plan, _ := PlanInterior(room, InteriorPieceDef{})
-		tidy := TidyRoom{ID: id, Room: room}
+		tidy := FurnitureRoom{ID: id, Room: room}
 		for _, p := range plan.Pieces {
 			if p.Slot == "bed" {
-				tidy.Pieces = append(tidy.Pieces, TidyPiece{Thing: "Bed_" + id[5:], Def: p.Def, Size: p.Size, Rot: p.Rot, Rect: p.Rect})
+				tidy.Pieces = append(tidy.Pieces, FurniturePiece{Thing: "Bed_" + id[5:], Def: p.Def, Size: p.Size, Rot: p.Rot, Rect: p.Rect})
 			}
 		}
 		rooms = append(rooms, tidy)
@@ -102,7 +102,7 @@ func TestCoupleBedInstallsInTheRoomPackingEmptied(t *testing.T) {
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "Room_1", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: rectCells(interior)}}}
 	census := CurrentConstruction{Colony: true}
 	cells := []SiteCell{{Cell: door, Doorway: domain.Known(true)}}
-	if got := TidyFurnitureRooms(rooms, census, cells); len(got) != 0 {
+	if got := FurnitureRooms(rooms, census, cells); len(got) != 0 {
 		t.Fatalf("tidy rooms %+v: a roleless room has no template", got)
 	}
 	person := func(id, partner PawnID) SleepingPerson {

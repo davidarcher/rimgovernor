@@ -6,7 +6,6 @@ package layout
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 const (
@@ -39,12 +38,4 @@ func planned(sample map[string]any, match func(domain.MethodID) bool, complete b
 		}
 	}
 	return false
-}
-
-func bounding(cells []domain.Cell) policy.Rectangle {
-	minX, minZ, maxX, maxZ := cells[0].X, cells[0].Z, cells[0].X, cells[0].Z
-	for _, c := range cells[1:] {
-		minX, maxX, minZ, maxZ = min(minX, c.X), max(maxX, c.X), min(minZ, c.Z), max(maxZ, c.Z)
-	}
-	return policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
 }

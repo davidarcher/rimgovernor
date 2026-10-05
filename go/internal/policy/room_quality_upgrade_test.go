@@ -8,21 +8,21 @@ import (
 
 // upgradeFixture is one 5x4 bedroom at (0,0), door south of (0,0), holding
 // its planned bed, with the given quality.
-func upgradeFixture(t *testing.T, q RoomQuality) (SleepingObservation, []TidyRoom, InteriorPlan) {
+func upgradeFixture(t *testing.T, q RoomQuality) (SleepingObservation, []FurnitureRoom, InteriorPlan) {
 	t.Helper()
 	room := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{0, 0, 5, 4}, Doors: []domain.Cell{{X: 0, Z: -1}}}
 	plan, ok := PlanInterior(room, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no bedroom plan")
 	}
-	tidy := TidyRoom{ID: "Room_1", Room: room}
+	tidy := FurnitureRoom{ID: "Room_1", Room: room}
 	for _, p := range plan.Pieces {
 		if p.Slot == "bed" {
-			tidy.Pieces = append(tidy.Pieces, TidyPiece{Thing: "Bed_1", Def: p.Def, Size: p.Size, Rot: p.Rot, Rect: p.Rect})
+			tidy.Pieces = append(tidy.Pieces, FurniturePiece{Thing: "Bed_1", Def: p.Def, Size: p.Size, Rot: p.Rot, Rect: p.Rect})
 		}
 	}
 	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_1", Quality: domain.Known(q)}})}
-	return obs, []TidyRoom{tidy}, plan
+	return obs, []FurnitureRoom{tidy}, plan
 }
 
 func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
@@ -47,7 +47,7 @@ func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
 	// Every slot filled: nothing left.
 	for _, p := range plan.Pieces {
 		if p.Slot != "bed" {
-			rooms[0].Pieces = append(rooms[0].Pieces, TidyPiece{Def: p.Def, Rect: p.Rect})
+			rooms[0].Pieces = append(rooms[0].Pieces, FurniturePiece{Def: p.Def, Rect: p.Rect})
 		}
 	}
 	if u, ok := NextRoomUpgrade(obs, targets, rooms, all, RoomGate{}); ok {
@@ -62,16 +62,16 @@ func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
 // phase on the first review.
 func TestRoomUpgradeSmallBedroomSettledByAnyEndTable(t *testing.T) {
 	room := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{0, 0, 4, 3}, Doors: []domain.Cell{{X: 4, Z: 1}}}
-	tidy := TidyRoom{ID: "Room_1", Room: room, Pieces: []TidyPiece{{Thing: "Bed_1", Def: "Bed", Size: domain.Cell{X: 1, Z: 2}, Rot: domain.North, Rect: Rectangle{0, 1, 1, 2}}}}
+	tidy := FurnitureRoom{ID: "Room_1", Room: room, Pieces: []FurniturePiece{{Thing: "Bed_1", Def: "Bed", Size: domain.Cell{X: 1, Z: 2}, Rot: domain.North, Rect: Rectangle{0, 1, 1, 2}}}}
 	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_1", Quality: domain.Known(RoomQuality{Wealth: 196, Beauty: -1.35, Space: 15, Cleanliness: -1, Impressiveness: -9.2})}})}
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: testImpressiveness.Baseline(BuildTierMasonry)}}
 	all := func(string) bool { return true }
-	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{})
+	u, ok := NextRoomUpgrade(obs, targets, []FurnitureRoom{tidy}, all, RoomGate{})
 	if !ok || u.Def != "EndTable" {
 		t.Fatalf("bare room upgrade = %+v %v, want the end table", u, ok)
 	}
-	tidy.Pieces = append(tidy.Pieces, TidyPiece{Thing: "EndTable_1", Def: "EndTable", Size: domain.Cell{X: 1, Z: 1}, Rect: Rectangle{1, 2, 1, 1}})
-	if u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{}); ok {
+	tidy.Pieces = append(tidy.Pieces, FurniturePiece{Thing: "EndTable_1", Def: "EndTable", Size: domain.Cell{X: 1, Z: 1}, Rect: Rectangle{1, 2, 1, 1}})
+	if u, ok := NextRoomUpgrade(obs, targets, []FurnitureRoom{tidy}, all, RoomGate{}); ok {
 		t.Fatalf("furnished room upgrade = %+v", u)
 	}
 }

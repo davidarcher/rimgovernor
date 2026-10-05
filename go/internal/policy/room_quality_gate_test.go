@@ -143,7 +143,7 @@ func TestBeautyUpgradeIsGated(t *testing.T) {
 		return FloorDefinition{Available: domain.Known(true), Terrain: domain.Known(true), Beauty: domain.Known(beauty), Costs: domain.Known([]Amount{{Resource: "Cloth", Count: 5}})}
 	}
 	floors := FlooringFacts{Definitions: map[string]FloorDefinition{"WoodPlankFloor": floor(0), "Carpet": floor(2)}, Stock: domain.Known(map[Resource]int64{"Cloth": 1000})}
-	rooms[0].Pieces = append(rooms[0].Pieces, TidyPiece{Def: PlantPotDefinition, Rect: Rectangle{4, 3, 1, 1}})
+	rooms[0].Pieces = append(rooms[0].Pieces, FurniturePiece{Def: PlantPotDefinition, Rect: Rectangle{4, 3, 1, 1}})
 	gate := pieceGate(StageReserves, map[PawnID]float64{"a": 100})
 	gate.Items = ItemFacts{Market: map[Resource]float64{"Cloth": 2}}
 	// Ten silver a cell: the share pays for ten of the 20 cells.

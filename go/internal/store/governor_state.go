@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/gabp"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // GovernorStateSchemaVersion versions every governor state blob (#882).
@@ -25,13 +23,11 @@ import (
 //	                          (finished ones included: they are the record);
 //	                          a retired project's key is deleted.
 //	family/layout_plan        GovernorFamilyBlob, Record = policy.LayoutPlan
-//	family/tidies             GovernorFamilyBlob, Record = []LayoutTidy
-//	                          (latest state per item, sorted by item)
 //	family/defense_layout     GovernorFamilyBlob, Record = DefenseLayoutRecord
 //	family/production_ladder  GovernorFamilyBlob, Record = ProductionLadderRecord
 //	family/soldier_squad      GovernorFamilyBlob, Record = SoldierSquadRecord
 //
-// Layout plan and tidies are world rows: the blob carries the scope
+// The layout plan is a world row: the blob carries the scope
 // (colony, map, tick) of the newest row written. Field names are the
 // Go struct field names encoding/json emits; a breaking change bumps
 // GovernorStateSchemaVersion.
@@ -41,7 +37,6 @@ const (
 	GovernorStandardKeyPrefix   = "standard/"
 	GovernorProjectKeyPrefix    = "project/"
 	GovernorLayoutPlanKey       = "family/layout_plan"
-	GovernorTidiesKey           = "family/tidies"
 	GovernorDefenseLayoutKey    = "family/defense_layout"
 	GovernorProductionLadderKey = "family/production_ladder"
 	GovernorSoldierSquadKey     = "family/soldier_squad"
@@ -160,13 +155,6 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	if tidyScope, tidies, err := newestLayoutTidies(ctx, tx); err != nil {
-		return nil, err
-	} else if tidyScope != nil {
-		if err = family(GovernorTidiesKey, tidyScope, tidies); err != nil {
-			return nil, err
-		}
-	}
 	if r, ok, err := loadDefenseLayout(ctx, tx); err != nil {
 		return nil, err
 	} else if ok {
@@ -189,43 +177,4 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 		}
 	}
 	return out, tx.Commit()
-}
-
-// newestLayoutTidies returns the latest state per item in the scope of the
-// newest tidy row, nil scope when none.
-func newestLayoutTidies(ctx context.Context, tx *sql.Tx) (*GovernorScope, []LayoutTidy, error) {
-	var scope GovernorScope
-	err := tx.QueryRowContext(ctx, "SELECT colony,map_id,tick FROM layout_tidies ORDER BY id DESC LIMIT 1").Scan(&scope.Colony, &scope.Map, &scope.Tick)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil, nil
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-	rows, err := tx.QueryContext(ctx, "SELECT tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation FROM layout_tidies WHERE colony=? AND map_id=? ORDER BY id DESC", scope.Colony, scope.Map)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer rows.Close()
-	latest := map[string]LayoutTidy{}
-	for rows.Next() {
-		var t LayoutTidy
-		var kind, status string
-		if err := rows.Scan(&t.Tick, &t.Item, &kind, &status, &t.From.X, &t.From.Z, &t.From.Width, &t.From.Height, &t.To.X, &t.To.Z, &t.To.Width, &t.To.Height, &t.Crop, &t.NewZone, &t.PlanID, &t.Explanation); err != nil {
-			return nil, nil, err
-		}
-		t.Kind, t.Status = policy.TidyKind(kind), LayoutTidyStatus(status)
-		if _, seen := latest[t.Item]; !seen {
-			latest[t.Item] = t
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, nil, err
-	}
-	out := make([]LayoutTidy, 0, len(latest))
-	for _, t := range latest {
-		out = append(out, t)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Item < out[j].Item })
-	return &scope, out, nil
 }

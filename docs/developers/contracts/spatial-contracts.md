@@ -194,15 +194,16 @@ on the colony centre when the plan has no free cell there.
   result replaces the saved plan only when it houses as many colonists and scores
   clearly better (`planWeights.ReplanGain`, `layout_replan.go`).
 
-### Layout tidy
+### Layout reconcile
 
-`TidyLayout` re-sites a settled colony's off-plan furniture onto each room's derived
-interior plan, one room at a time. It is a maintenance concern ranked below every
-production, upkeep and defense concern, active only at tier >= `Masonry` while the colony
-has no unfilled construction or hauling work. One re-site is in flight at a time and a
-tidied piece is never moved again; the set is journaled per world
-(`store.RecordLayoutTidy`). The review record carries the outcome (`Rounds.Layout`);
-the routines API reports it as `layoutTidy`.
+There is no separate tidy pass. A PlannedRoom is worked toward the plan by the room's owner
+(build side) and by planned-ground clearance (clear side), both over one per-cell diff
+(`policy.Reconcile`, `ReconcileRoom`): furniture off its template slot is packed and the
+slot filled from packed stock or built on site, a wall of a lower-ranked stuff is swapped
+in place, floors are replaced. Standing census rooms are reconciled too. The plan's
+`RetiredGround` (a retired shelter's footprint) is cleared with the rest: its ring, spots
+and furniture come down, a research table packed to stock for the laboratory to install,
+and the entry drops once nothing of ours stands on it.
 
 ### Stockpile maintenance
 

@@ -26,7 +26,7 @@ func claimFixture(t *testing.T) TitleClaimFacts {
 	ladder[1].BedroomMinImpressiveness = domain.Known(50)
 	ladder[1].BedroomThings = []BedroomThing{{AnyOf: []Resource{"EndTable"}, Count: 1}}
 	obs.Beds = []SleepingBed{replacementBed("Bed_1", "Good", "Alice")}
-	tidy[0].Pieces = append(tidy[0].Pieces, TidyPiece{Def: "EndTable"})
+	tidy[0].Pieces = append(tidy[0].Pieces, FurniturePiece{Def: "EndTable"})
 	return TitleClaimFacts{
 		Royalty:        RoyaltyFacts{Ladder: ladder, Holders: map[PawnID][]RoyalHolding{"Alice": royalHolder("Yeoman", 10)}},
 		Sleeping:       obs,

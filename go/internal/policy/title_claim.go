@@ -44,7 +44,7 @@ type TitleClaim struct {
 type TitleClaimFacts struct {
 	Royalty        RoyaltyFacts
 	Sleeping       SleepingObservation
-	BedroomPieces  []TidyRoom
+	BedroomPieces  []FurnitureRoom
 	Plan           LayoutPlan
 	Rooms          RoomObservation
 	Built          []CurrentBuilding
@@ -80,7 +80,7 @@ func bedroomMet(f TitleClaimFacts, holder PawnID, rung RoyalRung) domain.Fact[bo
 	if minImpressiveness <= 0 && len(rung.BedroomThings) == 0 {
 		return domain.Known(true)
 	}
-	furniture := map[string]TidyRoom{}
+	furniture := map[string]FurnitureRoom{}
 	for _, r := range f.BedroomPieces {
 		furniture[r.ID] = r
 	}

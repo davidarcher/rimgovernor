@@ -235,7 +235,7 @@ func (d ArtDemand) stuff(size Sculpture) (Resource, bool) {
 
 // NewArtDemand reads the art demand from the first owed sculpture room and
 // the artists' profiles.
-func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomTarget, rooms []TidyRoom, stock map[Resource]int64, profiles []PawnProfile, items ItemFacts) ArtDemand {
+func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomTarget, rooms []FurnitureRoom, stock map[Resource]int64, profiles []PawnProfile, items ItemFacts) ArtDemand {
 	d := ArtDemand{Stock: stock, Skill: map[PawnID]int{}, Items: items}
 	for _, p := range profiles {
 		d.Skill[p.ID] = p.Skill(p.WorkSkill[WorkArt]).Level
@@ -264,7 +264,7 @@ func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomT
 
 // SculptureRoomsOwed is the review's art deficit input: known true while a
 // bedroom below target, weakest in beauty, has a free cell for a sculpture.
-func SculptureRoomsOwed(obs domain.Fact[SleepingObservation], targets map[string]RoomTarget, rooms []TidyRoom) domain.Fact[bool] {
+func SculptureRoomsOwed(obs domain.Fact[SleepingObservation], targets map[string]RoomTarget, rooms []FurnitureRoom) domain.Fact[bool] {
 	o, known := obs.Value()
 	if !known || targets == nil {
 		return domain.Unknown[bool]()
@@ -274,7 +274,7 @@ func SculptureRoomsOwed(obs domain.Fact[SleepingObservation], targets map[string
 
 // sculptureRooms are the beauty rooms (by id) with a free cell, each with
 // its impressiveness gap.
-func sculptureRooms(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom) []sculptureRoom {
+func sculptureRooms(obs SleepingObservation, targets map[string]RoomTarget, rooms []FurnitureRoom) []sculptureRoom {
 	var out []sculptureRoom
 	gaps := map[string]float64{}
 	if census, ok := obs.Rooms.Value(); ok {
@@ -300,6 +300,6 @@ func sculptureRooms(obs SleepingObservation, targets map[string]RoomTarget, room
 
 type sculptureRoom struct {
 	ID   string
-	Room TidyRoom
+	Room FurnitureRoom
 	Gap  float64
 }

@@ -40,23 +40,23 @@ func TestCommonRoomBelowTargetGetsTheTemplateLamp(t *testing.T) {
 	if !ok {
 		t.Fatal("no dining plan")
 	}
-	tidy := TidyRoom{ID: "Room_2", Room: room}
+	tidy := FurnitureRoom{ID: "Room_2", Room: room}
 	for _, p := range plan.Pieces {
 		if p.Slot != "lamp" {
-			tidy.Pieces = append(tidy.Pieces, TidyPiece{Def: p.Def, Size: p.Size, Rot: p.Rot, Rect: p.Rect})
+			tidy.Pieces = append(tidy.Pieces, FurniturePiece{Def: p.Def, Size: p.Size, Rot: p.Rot, Rect: p.Rect})
 		}
 	}
 	low := domain.Known(RoomQuality{Wealth: 300, Beauty: 1, Space: 60, Impressiveness: 25})
 	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_2", Role: "DiningRoom", Quality: low}})}
 	targets := CommonRoomTargets(obs, BuildTierIndustrial, testImpressiveness)
 	all := func(string) bool { return true }
-	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{})
+	u, ok := NextRoomUpgrade(obs, targets, []FurnitureRoom{tidy}, all, RoomGate{})
 	if !ok || u.Room != "Room_2" || u.Slot != "lamp" || u.Def != "StandingLamp" {
 		t.Fatalf("upgrade = %+v %v", u, ok)
 	}
 	// At the colony target: nothing to do.
 	obs.Rooms = domain.Known([]UpkeepRoom{{ID: "Room_2", Role: "DiningRoom", Quality: domain.Known(RoomQuality{Wealth: 300, Beauty: 1, Space: 60, Impressiveness: 41})}})
-	if u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{}); ok {
+	if u, ok := NextRoomUpgrade(obs, targets, []FurnitureRoom{tidy}, all, RoomGate{}); ok {
 		t.Fatalf("met target upgrade = %+v", u)
 	}
 }

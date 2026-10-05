@@ -98,7 +98,6 @@ var inspections = []Inspection{
 	{ManagePollution, StandardConcern, DepartmentUpkeep, []FactFamily{FactColony, FactWorld}, inspectPollution},
 	{EnsureMechCharger, StandardConcern, DepartmentUpkeep, []FactFamily{FactColony, FactPawns}, inspectMechCharger},
 	{MaintainGeneBank, StandardConcern, DepartmentUpkeep, []FactFamily{FactColony}, inspectGeneBank},
-	{TidyLayout, StandardConcern, DepartmentUpkeep, []FactFamily{FactRooms, FactColony}, inspectTidyLayout},
 	{MaintainStockpiles, StandardConcern, DepartmentUpkeep, []FactFamily{FactColony}, inspectStockpiles},
 	{EnsureMood, IncidentConcern, DepartmentPeople, []FactFamily{FactPawns}, inspectMood},
 	{RecoverDisasterServices, IncidentConcern, DepartmentUpkeep, []FactFamily{FactEmergency, FactColony, FactWorld}, inspectDisaster},

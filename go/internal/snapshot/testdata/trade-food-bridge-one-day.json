@@ -10076,17 +10076,6 @@
      "Reason": "method_unavailable",
      "Risk": 0.5,
      "WaitingSince": 15
-    },
-    {
-     "Concern": "TidyLayout",
-     "Labor": [
-      "Growing",
-      "Hauling",
-      "Construction"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0.5,
-     "WaitingSince": 15
     }
    ],
    "Snapshot": {
@@ -10465,10 +10454,6 @@
     "Concern": "RemoveBlight"
    },
    {
-    "Standard": "routine-22415c73ac47e212-TidyLayout",
-    "Concern": "TidyLayout"
-   },
-   {
     "Standard": "routine-22415c73ac47e212-RecoverDisasterServices",
     "Concern": "RecoverDisasterServices"
    }
@@ -10757,20 +10742,6 @@
     "LastProgress": 2515,
     "Method": "assess",
     "NextReview": 5015
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 5015
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "TidyLayout",
-    "LastProgress": 2515,
-    "Method": "assess",
-    "NextReview": 5015
    }
   ],
   "ReadyWork": {
@@ -10913,9 +10884,7 @@
     },
     {
      "Adapter": "migrated",
-     "Concerns": [
-      "TidyLayout"
-     ],
+     "Concerns": [],
      "ID": "cae8535e15e5f5fb",
      "Reason": "no plan or proposal",
      "Stage": "none",

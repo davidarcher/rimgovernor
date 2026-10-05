@@ -88,9 +88,6 @@ type Rounds struct {
 	// decaying skills and pawn profiles as of its Tick. A disabled review
 	// keeps the last one; absent until an enabled review planned work.
 	Roster *policy.WorkRosterReport `json:",omitempty"`
-	// Layout is the TidyLayout review this enabled review measured (#611):
-	// the standing proposal with its explanation, or why none stands.
-	Layout *policy.TidyReview `json:",omitempty"`
 	// Progress is every active goal's progress record (#629), keyed by
 	// need: method, expected observable, last progress tick, next review
 	// tick, blocked reason and the bounded cooldowns its rotations keyed.
@@ -281,9 +278,6 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	}
 	if r.ShrineStep != nil && r.ShrineStep.validate(r.Tick) != nil {
 		return Rounds{}, errors.New("invalid routine shrine step")
-	}
-	if r.Layout != nil && len(r.Layout.Reason) > 256 {
-		return Rounds{}, errors.New("invalid routine layout review")
 	}
 	if len(r.Progress) > 306 {
 		return Rounds{}, errors.New("invalid routine progress history")
@@ -680,13 +674,8 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	r.Sleeping = sleeping
 	r.Mood = moodRecord(mood)
 	r.Roster = roundsRoster(request, previous, reset)
-	r.Layout = previous.Layout
 	if !reset {
 		r.ShrineStep = previous.ShrineStep
-	}
-	if tidy, known := request.Facts.LayoutTidy.Value(); request.Enabled && known {
-		copied := tidy
-		r.Layout = &copied
 	}
 	r.ResourceRunways = resourceRunwayRecords(request.Facts.ResourceRunways)
 	if !request.Enabled && !reset {

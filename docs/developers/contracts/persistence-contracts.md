@@ -43,10 +43,6 @@ the save holds. The rest of this page details the session journal.
   change empties it and the new session re-establishes the extent from the live world; another colony
   or map sees nothing. Historical Home exclusions are not recorded: they are current restorable
   state, not player vetoes. Ownership and consumer contract: [colony extent](colony-extent.md).
-- **Layout tidies.** The re-sites `TidyLayout` moved or is moving (`store.RecordLayoutTidy`,
-  `LayoutTidies`) are a session cache per world (colony, map), rebuilt from the save's
-  `family/tidies` blob on a world change. Each status change (moving, done, abandoned) is a row; the
-  latest row per item at or before the tick is its state.
 
 ## What is re-derived
 

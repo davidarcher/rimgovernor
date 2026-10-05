@@ -105,7 +105,7 @@ func titleClaimQuests(facts observation.ColonyProjection) []domain.QuestID {
 			}
 		}
 	}
-	claim := policy.NextTitleClaim(policy.TitleClaimFacts{Royalty: royalty, Sleeping: sleeping, BedroomPieces: policy.TidyFurnitureRooms(rooms, census, facts.Cells),
+	claim := policy.NextTitleClaim(policy.TitleClaimFacts{Royalty: royalty, Sleeping: sleeping, BedroomPieces: policy.FurnitureRooms(rooms, census, facts.Cells),
 		Plan: plan, Rooms: rooms, Built: census.Buildings, Impressiveness: impressiveness})
 	return policy.ClaimQuests(royalty, claim)
 }

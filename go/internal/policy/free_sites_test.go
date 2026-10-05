@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func penSiteFixture() PenEnclosureRequest {
-	r := PenEnclosureRequest{Bounds: Bounds{20, 20}, Anchor: domain.Cell{X: 10, Z: 10}}
+func freeSiteFixture() FreeSiteRequest {
+	r := FreeSiteRequest{Bounds: Bounds{20, 20}, Anchor: domain.Cell{X: 10, Z: 10}}
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
 			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)})
@@ -16,8 +16,8 @@ func penSiteFixture() PenEnclosureRequest {
 	return r
 }
 
-func TestPenEnclosureSitesDeterministicNearestFirst(t *testing.T) {
-	sites, err := FreeSites(penSiteFixture(), 6, 6)
+func TestFreeSitesDeterministicNearestFirst(t *testing.T) {
+	sites, err := FreeSites(freeSiteFixture(), 6, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,8 +43,8 @@ func TestPenEnclosureSitesDeterministicNearestFirst(t *testing.T) {
 	}
 }
 
-func TestPenEnclosureSitesExcludesProtectedAndOutOfBoundsCandidates(t *testing.T) {
-	r := penSiteFixture()
+func TestFreeSitesExcludesProtectedAndOutOfBoundsCandidates(t *testing.T) {
+	r := freeSiteFixture()
 	// Protect a strip through the center so the nearest unobstructed anchor
 	// straddling site must shift away from the exact center.
 	for z := int32(0); z < 20; z++ {
@@ -61,8 +61,8 @@ func TestPenEnclosureSitesExcludesProtectedAndOutOfBoundsCandidates(t *testing.T
 	}
 }
 
-func TestPenEnclosureSitesUnknownAndOccupiedCellsAreNotFree(t *testing.T) {
-	r := PenEnclosureRequest{Bounds: Bounds{8, 8}, Anchor: domain.Cell{X: 4, Z: 4}}
+func TestFreeSitesUnknownAndOccupiedCellsAreNotFree(t *testing.T) {
+	r := FreeSiteRequest{Bounds: Bounds{8, 8}, Anchor: domain.Cell{X: 4, Z: 4}}
 	for x := int32(0); x < 8; x++ {
 		for z := int32(0); z < 8; z++ {
 			cell := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)}
@@ -84,14 +84,14 @@ func TestPenEnclosureSitesUnknownAndOccupiedCellsAreNotFree(t *testing.T) {
 	}
 }
 
-func TestPenEnclosureSitesInvalidInput(t *testing.T) {
-	if _, err := FreeSites(PenEnclosureRequest{Bounds: Bounds{0, 10}}, 6, 6); err == nil {
+func TestFreeSitesInvalidInput(t *testing.T) {
+	if _, err := FreeSites(FreeSiteRequest{Bounds: Bounds{0, 10}}, 6, 6); err == nil {
 		t.Fatal("expected invalid bounds error")
 	}
-	if _, err := FreeSites(PenEnclosureRequest{Bounds: Bounds{10, 10}, Anchor: domain.Cell{X: 20, Z: 20}}, 6, 6); err == nil {
+	if _, err := FreeSites(FreeSiteRequest{Bounds: Bounds{10, 10}, Anchor: domain.Cell{X: 20, Z: 20}}, 6, 6); err == nil {
 		t.Fatal("expected out-of-bounds anchor error")
 	}
-	dup := PenEnclosureRequest{Bounds: Bounds{10, 10}, Anchor: domain.Cell{X: 1, Z: 1}}
+	dup := FreeSiteRequest{Bounds: Bounds{10, 10}, Anchor: domain.Cell{X: 1, Z: 1}}
 	dup.Cells = []SiteCell{{Cell: domain.Cell{X: 1, Z: 1}}, {Cell: domain.Cell{X: 1, Z: 1}}}
 	if _, err := FreeSites(dup, 6, 6); err == nil {
 		t.Fatal("expected duplicate cell error")

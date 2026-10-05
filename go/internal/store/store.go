@@ -296,9 +296,6 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		if err = initializeLayoutPlan(ctx, tx); err != nil {
 			return err
 		}
-		if err = initializeLayoutTidies(ctx, tx); err != nil {
-			return err
-		}
 		if err = initializeCombatFights(ctx, tx); err != nil {
 			return err
 		}
@@ -344,9 +341,6 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		return err
 	}
 	if err = checkLayoutPlanSchema(ctx, tx); err != nil {
-		return err
-	}
-	if err = checkLayoutTidySchema(ctx, tx); err != nil {
 		return err
 	}
 	if err = checkCombatFightsSchema(ctx, tx); err != nil {
