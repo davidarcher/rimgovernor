@@ -11,26 +11,21 @@ import (
 // until the producer's piece moves. Each legacy branch below names the issue
 // whose landing deletes it.
 
-// IsNativeReply reports whether kind is a completed native call: the legacy
-// native_response and native_error rows (#2057) or the v2 native_call.
-func IsNativeReply(kind string) bool {
-	return kind == "native_response" || kind == "native_error" || kind == "native_call"
-}
+// IsNativeReply reports whether kind is a completed native call: the
+// native_call row (#2057).
+func IsNativeReply(kind string) bool { return kind == "native_call" }
 
-// NativeReplyFailed reports whether a native reply row records a failure: a
-// native_error row, or a native_call row with ok false or an error text.
+// NativeReplyFailed reports whether a native_call row records a failure: ok
+// false or an error text.
 func NativeReplyFailed(row TimelineRecord) bool {
-	switch row.Kind {
-	case "native_error":
-		return true
-	case "native_call":
-		if ok, has := row.Payload["ok"].(bool); has && !ok {
-			return true
-		}
-		text, _ := row.Payload["error"].(string)
-		return text != ""
+	if row.Kind != "native_call" {
+		return false
 	}
-	return false
+	if ok, has := row.Payload["ok"].(bool); has && !ok {
+		return true
+	}
+	text, _ := row.Payload["error"].(string)
+	return text != ""
 }
 
 // IsDispatchKind reports whether kind is the Worker's per-run row: the legacy

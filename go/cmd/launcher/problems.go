@@ -22,9 +22,9 @@ const (
 	searchTextLimit    = 16384
 )
 
-// hiddenByDefault are the kinds the feed hides until asked: a decode row
-// shadows its response and says nothing a reader wants at feed scale.
-var hiddenByDefault = []string{"native_decode"}
+// hiddenByDefault are the kinds the feed hides until asked. None: the rows that
+// shadowed another (native_decode) are folded into native_call.
+var hiddenByDefault = []string{}
 
 // ProblemEvent is one recorder row of the feed.
 type ProblemEvent struct {
@@ -276,7 +276,7 @@ func problemEvent(r bridge.TimelineRecord) ProblemEvent {
 // gave it.
 func eventSummary(r bridge.TimelineRecord) string {
 	switch r.Kind {
-	case "native_request", "native_response", "native_error", "native_call", "native_decode":
+	case "native_request", "native_call":
 		s := toolOf(r.Payload)
 		if e, ok := r.Payload["error"].(string); ok && e != "" {
 			s += " - " + e

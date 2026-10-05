@@ -279,14 +279,102 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 	for _, row := range rows {
 		kinds = append(kinds, row.Kind)
 	}
-	assertContains(t, kinds, "native_request")
-	assertContains(t, kinds, "native_response")
-	assertContains(t, kinds, "native_error")
-	for _, row := range rows {
-		if row.Kind == "native_request" && row.Context["colony"] != "test-colony" {
-			t.Fatalf("expected recording context on request row, got %+v", row.Context)
+	// One completed row per call; a fast call writes no in-flight marker.
+	for _, kind := range kinds {
+		if kind == "native_request" || kind == "native_response" || kind == "native_error" {
+			t.Fatalf("fast call wrote %s: %v", kind, kinds)
 		}
 	}
+	var okRows, failedRows int
+	for _, row := range rows {
+		if row.Kind != "native_call" {
+			continue
+		}
+		if row.Context["colony"] != "test-colony" {
+			t.Fatalf("expected recording context on call row, got %+v", row.Context)
+		}
+		if _, hasArgs := row.Payload["arguments"]; !hasArgs {
+			t.Fatalf("call row without arguments: %+v", row.Payload)
+		}
+		if NativeReplyFailed(row) {
+			failedRows++
+		} else {
+			okRows++
+		}
+	}
+	if okRows == 0 || failedRows != 1 {
+		t.Fatalf("native_call rows ok=%d failed=%d: %v", okRows, failedRows, kinds)
+	}
+}
+
+// A call outstanding past slowCallMarker leaves the native_request marker
+// while it runs and a native_call row naming it once it returns (#2057).
+func TestSlowNativeCallWritesInFlightMarker(t *testing.T) {
+	old := slowCallMarker
+	slowCallMarker = 20 * time.Millisecond
+	t.Cleanup(func() { slowCallMarker = old })
+	hold := make(chan struct{})
+	var slow int32
+	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*callResult, error) {
+		if atomic.LoadInt32(&slow) != 0 {
+			<-hold
+		}
+		return structured(`{"colonyId":"test-colony","tick":0,"operation":{"id":"receipt-1"}}`), nil
+	}}
+	path := filepath.Join(t.TempDir(), "timeline.jsonl")
+	rec, err := NewFlightRecorder(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { rec.Close() })
+	client, err := open(context.Background(), "fixture-game", 10*time.Second, rec, nil, s.factory(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	atomic.StoreInt32(&slow, 1)
+	done := make(chan error, 1)
+	go func() { _, err := testNativeRead(client, context.Background()); done <- err }()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		rows, err := ReadTimeline(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hung := false
+		for _, row := range rows {
+			hung = hung || row.Kind == "native_request"
+		}
+		if hung {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no in-flight marker for a call past the threshold")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	close(hold)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	rows, err := ReadTimeline(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markers := map[uint64]bool{}
+	for _, row := range rows {
+		if row.Kind == "native_request" {
+			markers[row.Sequence] = true
+		}
+	}
+	for _, row := range rows {
+		if row.Kind == "native_call" {
+			if seq, ok := number(row.Payload["request"]); ok && markers[uint64(seq)] {
+				return
+			}
+		}
+	}
+	t.Fatalf("no native_call row names an in-flight marker: %v", markers)
 }
 
 // TestConcurrentNativeCallsDoNotCrossTalk fires overlapping native calls from
@@ -403,16 +491,6 @@ func TestIndependentCallAnsweredWhileLongPollHeld(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("the released call never returned")
 	}
-}
-
-func assertContains(t *testing.T, values []string, want string) {
-	t.Helper()
-	for _, v := range values {
-		if v == want {
-			return
-		}
-	}
-	t.Fatalf("expected %q among %v", want, values)
 }
 
 // TestReattachAfterLostSession is the #87 recovery: once the game connection is gone the

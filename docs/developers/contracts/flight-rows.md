@@ -56,9 +56,9 @@ its v1 payload and its readers.
 
 | Old kind | v2 kind | v2 shape and fields | Piece |
 |---|---|---|---|
-| `native_response`, `native_error`, `native_decode` | `native_call` | event row, one per completed call. `request` (sequence of the in-flight marker, when one was written), `tool`, `native_tool`, `ok`, `error`, `refused_text`, `reply_type`, `result`, `timing` (the v1 phases plus `proto_decode_ms`, `payload_bytes`, `wire_bytes`). Slow or failed calls only for the hot-poll denylist (#2038) | #2057 |
-| `native_request` | `native_request` (kept) | slow or outstanding marker only: `tool`, `arguments` | #2057 |
-| `native_frame`, `native_frame_hit`, `native_frame_miss` | `native_frame` | event row. `outcome` (`decoded`, `hit`, `miss`), `native_tool`, `frame`, `why` (miss), plus the v1 decoded-frame fields | #2057 |
+| `native_response`, `native_error`, `native_decode` | `native_call` | event row, one per completed call (landed, #2057; `Client.core` writes it, a typed call's row waits for its reply decode). `request` (sequence of the in-flight marker, only when one was written), `tool`, `native_tool`, `arguments`, `ok`, `error`, `refused_text`, `reply_type`, `result`, `timing` (the v1 phases plus `proto_decode_ms`, `payload_bytes`, `wire_bytes`, `proto_decode_error`). Every call writes it; the hot-poll denylist applies to HTTP rows only (#2055). `nativeaccept/postmortem` reads the error and failure cases from `native_call` rows until #2065 | #2057 |
+| `native_request` | `native_request` (kept) | slow or outstanding marker only, written (durable) once a call has run past `bridge.slowCallMarker` (2 s): `tool`, `native_tool`, `arguments`. The completed `native_call` names it in `request`; a hung call leaves the marker last, and `trace` prints `(no reply recorded)` | #2057 |
+| `native_frame`, `native_frame_hit`, `native_frame_miss` | `native_frame` | event row. `outcome` (`decoded`, `hit`, `miss`), `native_tool`, `frame`, `why` (miss), plus the v1 decoded-frame fields | #2057 (landed) |
 | `native_cache_hit` | removed | no writer; the dead reader branch in `cmd/launcher/problems.go` goes | #2054 |
 | `combat_order` | `combat_order` (decision) | `target` pawn, `verdict` `applied`/`refused`, `reason` refusal, attrs `index`, `job` | #2067 |
 | `clock_step` | `clock_step` (decision) | `verdict` step outcome (`admitted`, `deferred`, `refused`, `idle`), `reason` cause, `target` step reason, `dur_ms` step wall; attrs `reads`, `tools`, `schema_fetches`, `running`, `stop_pause_s` (the read tally's payload moves under `attrs`) | #2063 |
@@ -127,7 +127,6 @@ producer piece lands. Each legacy branch is deleted by the piece that moves its 
 
 | Legacy name read | v2 name | Deleted by |
 |---|---|---|
-| `native_response`, `native_error`, `native_decode`, `native_frame_hit` | `native_call`, `native_frame` (`outcome`) | #2057 (the `native_error`/`native_response` names stay until #2065) |
 | `clock_step` legacy payload | `clock_step` decision (`StepFields`) | #2063 |
 | `scheduler_step` (spectator `now`, trace roots) | `planner_step` (attrs `admitted`, `running`, `window_ticks`) | #2064 (worker step; the #2063 planner_step rows are per planner and do not carry them) |
 | `worker_dispatch`, `worker_outcome` | `dispatch` | #2064 |

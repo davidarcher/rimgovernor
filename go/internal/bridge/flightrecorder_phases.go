@@ -335,13 +335,12 @@ func (c ClockSample) PausedFraction() float64 {
 	return 0
 }
 
-// SummarizePhases aggregates rows produced by Client (native_response,
-// native_error, native_decode, native_frame_hit). Rows recorded before phase timing existed
+// SummarizePhases aggregates rows produced by Client (native_call and the
+// native_frame outcomes). Rows recorded before phase timing existed
 // count as Untimed and contribute only to Calls.
 func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	summary := PhaseSummary{}
 	tools := map[string]*ToolPhases{}
-	requestTool := map[uint64]string{}
 	var lastTick int64
 	haveTick := false
 	var tickWall float64
@@ -365,15 +364,12 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			summary.LastWall = row.WallTime
 		}
 		switch row.Kind {
-		case "native_response", "native_error", "native_call":
-			key, entry := phaseEntry(tools, row)
+		case "native_call":
+			_, entry := phaseEntry(tools, row)
 			entry.Calls++
 			failed := NativeReplyFailed(row)
 			if failed {
 				entry.Errors++
-			}
-			if request, ok := number(row.Payload["request"]); ok {
-				requestTool[uint64(request)] = key
 			}
 			timing, ok := row.Payload["timing"].(map[string]any)
 			if !ok {
@@ -384,8 +380,6 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				entry.DecodeMs += field(timing, "decode_ms")
 				entry.TotalMs += field(timing, "total_ms")
 				entry.ResponseBytes += uint64(field(timing, "response_bytes"))
-				// v2 native_call carries the decode time the legacy
-				// native_decode row did (#2057 deletes the legacy branch).
 				entry.ProtoDecodeMs += field(timing, "proto_decode_ms")
 				if queue, ok := number(timing["native_queue_ms"]); ok {
 					entry.NativeTimed++
@@ -449,12 +443,7 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			}
 			lastTick, tickWall, haveTick = tick, row.WallTime, true
 			summary.Clock.LastTick = tick
-		case "native_frame_hit":
-			_, entry := phaseEntry(tools, row)
-			entry.CacheHits++
 		case "native_frame":
-			// The v2 native_frame carries an outcome; the legacy row is a
-			// decoded frame (#2057 deletes native_frame_hit above).
 			switch outcome, _ := row.Payload["outcome"].(string); outcome {
 			case "hit":
 				_, entry := phaseEntry(tools, row)
@@ -553,16 +542,6 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				}
 				d.Receipts[receipt]++
 			}
-		case "native_decode":
-			request, ok := number(row.Payload["request"])
-			if !ok {
-				continue
-			}
-			key, known := requestTool[uint64(request)]
-			if !known {
-				continue
-			}
-			tools[key].ProtoDecodeMs += field(row.Payload, "proto_decode_ms")
 		}
 	}
 	for _, entry := range tools {

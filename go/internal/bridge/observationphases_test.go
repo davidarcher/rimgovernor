@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-// response builds one native_response row carrying the companion's timing
+// response builds one native_call row carrying the companion's timing
 // block, the shape the service copies out of the reply wrapper.
 func response(tool string, timing map[string]any) TimelineRecord {
-	return TimelineRecord{Kind: "native_response", WallTime: 1,
+	return TimelineRecord{Kind: "native_call", WallTime: 1,
 		Payload: map[string]any{"tool": "games_call_tool", "native_tool": tool, "timing": timing}}
 }
 
@@ -103,13 +103,13 @@ func TestObservationAccountAbsentStaysUnknown(t *testing.T) {
 		// Pre-#642: queue/execute only.
 		response("rimgovernor/snapshot_frame_routine", nativeTimed(1, 4)),
 		// An untimed call (a failure before timing existed).
-		{Kind: "native_response", WallTime: 1, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/clock_read_status"}},
+		{Kind: "native_call", WallTime: 1, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/clock_read_status"}},
 		// A malformed account: a negative duration is not a measurement.
 		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 4), map[string]any{"captureMs": -1.0, "formatMs": 1.0})),
 		// An empty account carries no measurement either.
 		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 4), map[string]any{})),
 		// An error row keeps its call in the tool totals with no account.
-		{Kind: "native_error", WallTime: 1, Payload: map[string]any{"tool": "games_call_tool",
+		{Kind: "native_call", WallTime: 1, Payload: map[string]any{"tool": "games_call_tool",
 			"native_tool": "rimgovernor/snapshot_frame_routine", "error": "transport", "timing": nativeTimed(0, 0)}},
 	}
 	summary := SummarizePhases(rows)
@@ -181,7 +181,7 @@ func TestObservationEncodeBlockSplitsOffThread(t *testing.T) {
 	}
 }
 
-// frameSampleRow builds a native_response row carrying a frame-recorder
+// frameSampleRow builds a native_call row carrying a frame-recorder
 // sample with the given cumulative counters.
 func frameSampleRow(updates, observations, cancelled uint64, elapsed, maxUpdate, observationMs, recorder float64, slow map[float64]uint64, worst []any) TimelineRecord {
 	buckets := make([]any, 0, len(slow))

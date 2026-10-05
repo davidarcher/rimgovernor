@@ -20,9 +20,6 @@ type callTiming struct {
 	// admission is the class the call was admitted under and what it saw
 	// of the queue (#631).
 	admission admissionOutcome
-	// request is the flight-recorder sequence of the native_request row core
-	// wrote, so a later native_decode row can correlate with it.
-	request uint64
 }
 
 type callTimingKey struct{}

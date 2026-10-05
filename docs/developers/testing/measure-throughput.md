@@ -28,7 +28,7 @@ Row kinds a phase report reads:
   when the companion carries it, its main-thread queue and execute time plus
   `native_observation` (capture/format account) and `native_frames` (update
   intervals). Absent blocks read unknown, never zero.
-- `native_frame_hit`: a read the snapshot frame stream served without a round trip.
+- `native_frame` with `outcome` `hit`: a read the snapshot frame stream served without a round trip.
 - `clock_step`: one row per `ClockScheduler.Step` (round trips by tool, reason,
   stop-to-step latency, the window sized, budgets against use: `budget`,
   `critical_wave_ms`, `missed_cutoff`, `held_by`).

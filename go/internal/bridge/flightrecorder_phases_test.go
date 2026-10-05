@@ -64,7 +64,7 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	responses, decodes := 0, 0
 	for _, row := range rows {
 		switch row.Kind {
-		case "native_response":
+		case "native_call":
 			responses++
 			timing, ok := row.Payload["timing"].(map[string]any)
 			if !ok {
@@ -91,10 +91,11 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 			if row.WallTime == 0 {
 				t.Fatal("wall time not surfaced on timeline row")
 			}
-		case "native_decode":
-			decodes++
-			if _, ok := number(row.Payload["request"]); !ok || row.Payload["ok"] != true {
-				t.Fatalf("decode row incomplete: %+v", row.Payload)
+			if _, ok := timing["proto_decode_ms"]; ok {
+				decodes++
+				if _, ok := number(timing["payload_bytes"]); !ok {
+					t.Fatalf("decode fields incomplete: %+v", timing)
+				}
 			}
 		}
 	}
@@ -175,16 +176,14 @@ func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
 		{Kind: "coverage", WallTime: 10, Payload: map[string]any{}},
 		{Kind: "recording_gap", Reason: "Retention or sequence discontinuity"},
 		// Pre-timing row: counted, no phases.
-		{Kind: "native_response", WallTime: 11, Payload: map[string]any{"request": 1.0, "tool": "games_call_tool", "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"500"}}}`}}},
-		{Kind: "native_response", WallTime: 12, Payload: map[string]any{"request": 2.0, "tool": "games_call_tool", "native_tool": "x/read", "timing": map[string]any{"gate_wait_ms": 1.0, "call_ms": 5.0, "decode_ms": 0.5, "total_ms": 7.0, "response_bytes": 100.0}, "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"1100"}}}`}}},
+		{Kind: "native_call", WallTime: 11, Payload: map[string]any{"request": 1.0, "tool": "games_call_tool", "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"500"}}}`}}},
+		{Kind: "native_call", WallTime: 12, Payload: map[string]any{"request": 2.0, "tool": "games_call_tool", "native_tool": "x/read", "timing": map[string]any{"gate_wait_ms": 1.0, "call_ms": 5.0, "decode_ms": 0.5, "total_ms": 7.0, "response_bytes": 100.0}, "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"1100"}}}`}}},
 		// Tick went backwards: a load or rewind, not negative progress.
-		{Kind: "native_response", WallTime: 13, Payload: map[string]any{"request": 3.0, "tool": "games_call_tool", "native_tool": "x/read", "timing": map[string]any{"gate_wait_ms": 0.0, "call_ms": 3.0, "decode_ms": 0.5, "total_ms": 4.0, "response_bytes": 50.0}, "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"200"}}}`}}},
-		{Kind: "native_decode", WallTime: 13, Payload: map[string]any{"request": 3.0, "native_tool": "x/read", "proto_decode_ms": 0.25, "ok": true}},
-		{Kind: "native_decode", WallTime: 13, Payload: map[string]any{"request": 99.0, "native_tool": "orphan", "proto_decode_ms": 9.0, "ok": true}},
-		{Kind: "native_error", WallTime: 14, Payload: map[string]any{"request": 4.0, "tool": "games_start", "native_tool": "games_start", "error": "boom", "timing": map[string]any{"gate_wait_ms": 0.0, "call_ms": 2.0, "decode_ms": 0.0, "total_ms": 2.0, "response_bytes": 0.0}}},
+		{Kind: "native_call", WallTime: 13, Payload: map[string]any{"request": 3.0, "tool": "games_call_tool", "native_tool": "x/read", "timing": map[string]any{"gate_wait_ms": 0.0, "call_ms": 3.0, "decode_ms": 0.5, "proto_decode_ms": 0.25, "total_ms": 4.0, "response_bytes": 50.0}, "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"200"}}}`}}},
+		{Kind: "native_call", WallTime: 14, Payload: map[string]any{"tool": "games_start", "native_tool": "games_start", "ok": false, "error": "boom", "timing": map[string]any{"gate_wait_ms": 0.0, "call_ms": 2.0, "decode_ms": 0.0, "total_ms": 2.0, "response_bytes": 0.0}}},
 	}
 	summary := SummarizePhases(rows)
-	if summary.Records != 8 || summary.Gaps != 1 || summary.Untimed != 1 || summary.WallSecs != 4 {
+	if summary.Records != 6 || summary.Gaps != 1 || summary.Untimed != 1 || summary.WallSecs != 4 {
 		t.Fatalf("summary: %+v", summary)
 	}
 	if len(summary.Tools) != 3 || summary.Tools[0].NativeTool != "x/read" {
@@ -212,7 +211,7 @@ func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
 // its admission (issue #162).
 func TestSummarizePhasesWeighsPausedTimeAndCountsAppliedStarts(t *testing.T) {
 	sample := func(wall float64, payload string) TimelineRecord {
-		return TimelineRecord{Kind: "native_response", WallTime: wall, Payload: map[string]any{"request": wall, "tool": "games_call_tool", "native_tool": "x", "timing": map[string]any{}, "result": map[string]any{"payload": payload}}}
+		return TimelineRecord{Kind: "native_call", WallTime: wall, Payload: map[string]any{"request": wall, "tool": "games_call_tool", "native_tool": "x", "timing": map[string]any{}, "result": map[string]any{"payload": payload}}}
 	}
 	rows := []TimelineRecord{
 		sample(10, `{"bundle":{"clockStatus":{"actualPaused":true,"stopped":{}}}}`),
@@ -268,7 +267,7 @@ func TestSummarizePhasesStopLatency(t *testing.T) {
 // a sample without it (an older native build) leaves the account at zero.
 func TestSummarizePhasesNativePauseAccount(t *testing.T) {
 	sample := func(wall float64, payload string) TimelineRecord {
-		return TimelineRecord{Kind: "native_response", WallTime: wall, Payload: map[string]any{"request": wall, "tool": "games_call_tool", "native_tool": "x", "timing": map[string]any{}, "result": map[string]any{"payload": payload}}}
+		return TimelineRecord{Kind: "native_call", WallTime: wall, Payload: map[string]any{"request": wall, "tool": "games_call_tool", "native_tool": "x", "timing": map[string]any{}, "result": map[string]any{"payload": payload}}}
 	}
 	rows := []TimelineRecord{
 		sample(10, `{"status":{"actualPaused":true,"stopped":{},"pausedMs":"1000","runningMs":"4000"}}`),

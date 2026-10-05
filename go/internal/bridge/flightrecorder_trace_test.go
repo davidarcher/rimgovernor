@@ -81,34 +81,34 @@ func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 		if row.Context[telemetry.SpanIDKey] != child.SpanID || row.Context[telemetry.ParentIDKey] != root.SpanID {
 			t.Fatalf("row %d (%s) span/parent: %+v", row.Sequence, row.Kind, row.Context)
 		}
-		if row.Kind == "native_response" && row.Payload["tool"] == "games_call_tool" {
+		if row.Kind == "native_call" && row.Payload["tool"] == "games_call_tool" {
 			timing, _ := row.Payload["timing"].(map[string]any)
 			if timing["native_trace"] != child.Wire() || timing["native_queue_ms"] != 0.5 {
 				t.Fatalf("echoed trace missing from response timing: %+v", timing)
 			}
 		}
 	}
-	// The traced call's describe (games_tool_detail) and read round trips
-	// and its decode row. The untraced call's request, reply and decode
-	// rows share its own root; the coverage row is a single-row trace.
-	if traced != 5 || untraced != 4 {
+	// The traced call's describe (games_tool_detail) and read round trips are
+	// one native_call row each; the untraced call is one row of its own
+	// trace; the coverage row is a single-row trace.
+	if traced != 2 || untraced != 2 {
 		t.Fatalf("traced %d untraced %d rows: %+v", traced, untraced, rows)
 	}
-	if ownTrace, ok := FindTrace(rows, own); !ok || len(ownTrace.Rows) != 3 || ownTrace.Root != "native rimgovernor/lifecycle_read_identity" {
+	if ownTrace, ok := FindTrace(rows, own); !ok || len(ownTrace.Rows) != 1 || ownTrace.Root != "native rimgovernor/lifecycle_read_identity" {
 		t.Fatalf("the untraced call's rows do not share its operation trace: %+v", ownTrace)
 	}
 	summaries := SummarizeTraces(rows)
 	found, ok := FindTrace(rows, root.TraceID)
-	if !ok || len(found.Rows) != 5 || found.Kinds["native_request"] != 2 || found.Root != "native rimgovernor/lifecycle_read_identity" {
+	if !ok || len(found.Rows) != 2 || found.Kinds["native_call"] != 2 || found.Root != "native rimgovernor/lifecycle_read_identity" {
 		t.Fatalf("summary: %+v (of %d)", found, len(summaries))
 	}
 	var report strings.Builder
 	WriteTraceReport(&report, found)
 	text := report.String()
-	if !strings.Contains(text, "trace "+root.TraceID+": 5 rows") || !strings.Contains(text, "native rimgovernor/lifecycle_read_identity") || !strings.Contains(text, "native queue 0.5 exec 1.5") {
+	if !strings.Contains(text, "trace "+root.TraceID+": 2 rows") || !strings.Contains(text, "native rimgovernor/lifecycle_read_identity") || !strings.Contains(text, "native queue 0.5 exec 1.5") {
 		t.Fatalf("report:\n%s", text)
 	}
-	// The response and decode rows fold into the request line.
+	// Each completed call is one line.
 	if strings.Count(text, "\n") != 4 || !strings.Contains(text, "games_tool_detail rimgovernor/lifecycle_read_identity") {
 		t.Fatalf("report lines:\n%s", text)
 	}
@@ -133,14 +133,15 @@ func TestTraceReportWaterfall(t *testing.T) {
 	}
 	rows := []TimelineRecord{
 		{Kind: "native_request", Sequence: 10, WallTime: 100.000, Context: stamp(root, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/snapshot_frame_routine"}},
-		{Kind: "native_response", Sequence: 11, WallTime: 100.012, Context: stamp(root, 50), Payload: map[string]any{"request": float64(10), "native_tool": "rimgovernor/snapshot_frame_routine", "timing": map[string]any{"total_ms": 12.0, "gate_wait_ms": 0.0, "call_ms": 11.5, "decode_ms": 0.2}}},
-		{Kind: "native_frame_hit", Sequence: 12, WallTime: 100.013, Context: stamp(root, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/observations_list_pawns"}},
+		{Kind: "native_call", Sequence: 11, WallTime: 100.012, Context: stamp(root, 50), Payload: map[string]any{"request": float64(10), "native_tool": "rimgovernor/snapshot_frame_routine", "timing": map[string]any{"total_ms": 12.0, "gate_wait_ms": 0.0, "call_ms": 11.5, "decode_ms": 0.2}}},
+		{Kind: "native_frame", Sequence: 12, WallTime: 100.013, Context: stamp(root, 50), Payload: map[string]any{"outcome": "hit", "tool": "games_call_tool", "native_tool": "rimgovernor/observations_list_pawns"}},
 		{Kind: "native_request", Sequence: 13, WallTime: 100.020, Context: stamp(dispatch, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/operations_apply"}},
-		{Kind: "native_error", Sequence: 14, WallTime: 100.025, Context: stamp(dispatch, 50), Payload: map[string]any{"request": float64(13), "native_tool": "rimgovernor/operations_apply", "error": "refused", "timing": map[string]any{"total_ms": 5.0, "call_ms": 4.9}}},
+		{Kind: "native_call", Sequence: 14, WallTime: 100.025, Context: stamp(dispatch, 50), Payload: map[string]any{"request": float64(13), "native_tool": "rimgovernor/operations_apply", "error": "refused", "timing": map[string]any{"total_ms": 5.0, "call_ms": 4.9}}},
 		{Kind: "worker_dispatch", Sequence: 15, WallTime: 100.026, Context: stamp(dispatch, 50), Payload: map[string]any{"reads": float64(1), "receipt": "refused"}},
 		{Kind: "worker_outcome", Sequence: 16, WallTime: 100.027, Context: stamp(worker, 50), Payload: map[string]any{"msg": "worker outcome", "outcome": "refused"}},
-		{Kind: "native_response", Sequence: 17, WallTime: 100.030, Context: stamp(root, 50), Payload: map[string]any{"native_tool": "rimgovernor/clock_read_status"}},
+		{Kind: "native_call", Sequence: 17, WallTime: 100.030, Context: stamp(root, 50), Payload: map[string]any{"native_tool": "rimgovernor/clock_read_status", "timing": map[string]any{"total_ms": 3.0, "gate_wait_ms": 0.0, "call_ms": 2.5, "decode_ms": 0.1}}},
 		{Kind: "scheduler_step", Sequence: 18, WallTime: 100.040, Context: stamp(root, 51), Payload: map[string]any{"msg": "step done", "admitted": true}},
+		{Kind: "native_request", Sequence: 19, WallTime: 100.050, Context: stamp(root, 51), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/hung_read"}},
 	}
 	found, ok := FindTrace(rows, root.TraceID)
 	if !ok || found.Root != "scheduler_step: step done" || !found.HasTick || found.Tick != 50 {
@@ -150,15 +151,16 @@ func TestTraceReportWaterfall(t *testing.T) {
 	WriteTraceReport(&b, found)
 	lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
 	want := []string{
-		"trace " + root.TraceID + ": 9 rows over 40.0ms, tick 50, sequence 10..18",
+		"trace " + root.TraceID + ": 10 rows over 50.0ms, tick 50, sequence 10..19",
 		"    at ms   dur ms  span      row",
 		"      0.0     12.0  " + shortID(root.SpanID) + "  native rimgovernor/snapshot_frame_routine  gate 0.0 call 11.5 decode 0.2",
 		"     13.0        -  " + shortID(root.SpanID) + "  frame hit rimgovernor/observations_list_pawns",
 		"     20.0      5.0  " + shortID(dispatch.SpanID) + "      native rimgovernor/operations_apply  gate 0.0 call 4.9 decode 0.0  error: refused",
 		"     26.0        -  " + shortID(dispatch.SpanID) + "      worker_dispatch reads=1 receipt=refused",
 		"     27.0        -  " + shortID(worker.SpanID) + "    worker_outcome \"worker outcome\" outcome=refused",
-		"     30.0        -  " + shortID(root.SpanID) + "  native_response rimgovernor/clock_read_status",
+		"     30.0      3.0  " + shortID(root.SpanID) + "  native rimgovernor/clock_read_status  gate 0.0 call 2.5 decode 0.1",
 		"     40.0        -  " + shortID(root.SpanID) + "  scheduler_step \"step done\" admitted=true",
+		"     50.0        -  " + shortID(root.SpanID) + "  native rimgovernor/hung_read  (no reply recorded)",
 	}
 	if len(lines) != len(want) {
 		t.Fatalf("report:\n%s", b.String())

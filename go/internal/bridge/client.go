@@ -543,16 +543,14 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		return Result{}, fmt.Errorf("%w: missing capability %s", ErrContract, name)
 	}
 	var recordCtx map[string]any
-	var request uint64
+	var marker *callMarker
 	recording := c.recorder != nil
+	nativeTool := nativeToolOf(name, arguments)
 	if recording {
 		recordCtx = c.snapshotRecordingContext(ctx)
-		request, _ = c.recorder.Event("native_request", recordCtx, false, map[string]any{"tool": name, "arguments": arguments})
+		marker = c.startCallMarker(recordCtx, name, nativeTool, arguments)
 	}
 	timing := callTimingFrom(ctx)
-	if timing != nil {
-		timing.request = request
-	}
 	callBegan := time.Now()
 	raw, err := live.backend.call(ctx, name, arguments)
 	callElapsed := time.Since(callBegan)
@@ -578,7 +576,22 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		}
 		return out
 	}
-	nativeTool := nativeToolOf(name, arguments)
+	// One native_call row per completed call; request names the in-flight
+	// marker when the call ran past slowCallMarker (#2057).
+	var request uint64
+	if marker != nil {
+		request = marker.finish()
+	}
+	callRow := func(fields map[string]any) map[string]any {
+		fields["tool"], fields["native_tool"] = name, nativeTool
+		if request != 0 {
+			fields["request"] = request
+		}
+		if len(arguments) > 0 {
+			fields["arguments"] = arguments
+		}
+		return fields
+	}
 	if name == "games_call_tool" {
 		readTallyFrom(ctx).add(c, nativeTool)
 	} else {
@@ -589,7 +602,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	}
 	if err != nil {
 		if recording {
-			c.recorder.Event("native_error", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": err.Error(), "timing": phases(0, len(raw))})
+			c.recordCall(ctx, recordCtx, callRow(map[string]any{"ok": false, "error": err.Error(), "timing": phases(0, len(raw))}))
 		}
 		if errors.Is(err, ErrContract) {
 			return Result{}, err
@@ -602,14 +615,14 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	decodeElapsed := time.Since(decodeBegan)
 	if recording {
 		if decodeErr != nil {
-			row := map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))}
+			row := callRow(map[string]any{"ok": false, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))})
 			// A refusal's text names its cause (an open attention item, a
 			// tool the game no longer exposes), which the error alone hides.
 			var refusal *Refusal
 			if errors.As(decodeErr, &refusal) {
 				row["refused_text"] = refusal.Result.Text
 			}
-			c.recorder.Event("native_error", recordCtx, false, row)
+			c.recordCall(ctx, recordCtx, row)
 		} else {
 			timing := phases(decodeElapsed, len(raw))
 			if native, ok := nativeTiming(decoded.Structured); ok {
@@ -630,11 +643,11 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 					timing["native_frames"] = native.frames
 				}
 			}
-			row := map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing}
+			row := callRow(map[string]any{"ok": true, "result": decoded.Structured, "timing": timing})
 			if typeName := recordedReplyType(ctx); typeName != "" {
 				row["reply_type"] = typeName
 			}
-			c.recorder.Event("native_response", recordCtx, false, row)
+			c.recordCall(ctx, recordCtx, row)
 		}
 	}
 	return decoded, decodeErr

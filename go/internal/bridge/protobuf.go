@@ -314,8 +314,11 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	}
 	ctx = withRecordedReply(ctx, reply)
 	invoked := false
-	var recordCtx map[string]any
-	var requestRow uint64
+	// The call's native_call row waits here for the reply decode below, so a
+	// typed call is still one row (#2057).
+	ctx, parked := withDeferredCall(ctx)
+	var decodeExtra map[string]any
+	defer func() { parked.flush(decodeExtra) }()
 	class := admissionClassOf(name)
 	result, err := caller.operation(ctx, class, func(ctx context.Context, live *liveSession) (Result, error) {
 		// Nothing before games_call_tool reaches native: a failure here is
@@ -324,9 +327,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			return detail, fmt.Errorf("%w: %w", domain.ErrWriteUnsent, err)
 		}
 		invoked = true
-		if caller.recorder != nil {
-			recordCtx = caller.snapshotRecordingContext(ctx)
-		}
 		// The trace the call runs under (the caller's step or dispatch,
 		// else the operation's own) rides beside the request; the
 		// companion echoes it in its timing object, so its main-thread
@@ -348,9 +348,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 				result, err = caller.core(ctx, live, "games_call_tool", call)
 			}
 		}
-		if timing := callTimingFrom(ctx); timing != nil {
-			requestRow = timing.request
-		}
 		return result, err
 	})
 	callErr := err
@@ -367,11 +364,13 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	}
 	err = unmarshalReply(wire, reply)
 	if caller.recorder != nil && invoked {
-		// Reply decoding is the typed adapter's own cost, after the raw
-		// receipt row; it is correlated to that row by request sequence.
-		// payload_bytes is the decoded binary reply, wire_bytes the JSON value that carried it.
-		caller.recorder.Event("native_decode", recordCtx, false, map[string]any{"request": requestRow, "native_tool": name, "proto_decode_ms": millis(time.Since(decodeBegan)),
-			"payload_bytes": len(wire.data), "wire_bytes": wire.wire, "ok": err == nil})
+		// Reply decoding is the typed adapter's own cost; it joins the
+		// call's native_call timing. payload_bytes is the decoded binary
+		// reply, wire_bytes the JSON value that carried it.
+		decodeExtra = map[string]any{"proto_decode_ms": millis(time.Since(decodeBegan)), "payload_bytes": len(wire.data), "wire_bytes": wire.wire}
+		if err != nil {
+			decodeExtra["proto_decode_error"] = err.Error()
+		}
 	}
 	if err != nil {
 		if callErr != nil {

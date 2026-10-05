@@ -142,7 +142,7 @@ passes ~140 characters (`setup` refuses one).
   usually mean an action prepared under an older native generation
   (`transitions` in `service.sqlite`, read-only), not transport;
   `[worker] ... bridge transport failure` lines repeat a few real failures
-  (`native_error` rows in the flight recorder).
+  (`native_call` rows with an `error` in the flight recorder).
 - A failed case resumes from its last checkpoint on the next `run` in the same
   root (first output line says so); `-fresh` starts over, `-rewind N` steps
   back. Report a resumed pass as such and land on a fresh one: `acceptance

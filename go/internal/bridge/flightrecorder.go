@@ -100,7 +100,7 @@ func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecord
 	}
 	r.sequence = last
 	if _, err := r.Event("coverage", nil, true, map[string]any{
-		"coverage": "All bridge.Client native requests, responses and exceptions, including background reads. " +
+		"coverage": "All bridge.Client native calls (one row each, plus an in-flight marker for a slow one) and exceptions, including background reads." +
 			"Records reach the OS on each write (a process crash loses none); fsync happens on rotation, close and this row. " +
 			"A machine crash can lose the unsynced tail. No in-game per-frame/pawn transition trace.",
 	}); err != nil {

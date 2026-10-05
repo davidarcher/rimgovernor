@@ -174,7 +174,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 	defer cancel()
 	miss := func(why string, err error) (bool, error) {
 		if caller.recorder != nil {
-			caller.recorder.Event("native_frame_miss", caller.snapshotRecordingContext(ctx), false, map[string]any{"native_tool": name, "why": why})
+			caller.recorder.Event("native_frame", caller.snapshotRecordingContext(ctx), false, map[string]any{"outcome": "miss", "native_tool": name, "why": why})
 		}
 		return true, err
 	}
@@ -220,7 +220,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 						}
 					}
 					if caller.recorder != nil {
-						caller.recorder.Event("native_frame_hit", caller.snapshotRecordingContext(ctx), false, map[string]any{"tool": "games_call_tool", "native_tool": name, "frame": frame.Number})
+						caller.recorder.Event("native_frame", caller.snapshotRecordingContext(ctx), false, map[string]any{"outcome": "hit", "tool": "games_call_tool", "native_tool": name, "frame": frame.Number})
 					}
 					return true, nil
 				case world != nil && !sameIdentity(world, identity):
@@ -250,7 +250,7 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey, wantPayl
 	if frame.Number != s.number {
 		started := time.Now()
 		table, identity, context, tables, held, gap, grid, gridKind, err := s.frameTable(frame.Payload)
-		decoded = map[string]any{"frame": frame.Number, "bytes": len(frame.Payload), "capture_us": frame.CaptureMicros, "encode_us": frame.EncodeMicros,
+		decoded = map[string]any{"outcome": "decoded", "frame": frame.Number, "bytes": len(frame.Payload), "capture_us": frame.CaptureMicros, "encode_us": frame.EncodeMicros,
 			"write_us": frame.WriteMicros, "decode_us": time.Since(started).Microseconds(), "replies": len(table)}
 		if s.number != 0 && frame.Number > s.number {
 			decoded["skipped"] = frame.Number - s.number - 1

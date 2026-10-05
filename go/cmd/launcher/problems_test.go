@@ -36,9 +36,9 @@ func fixture(t *testing.T) (path string, tail *recorderTail) {
 		t.Fatal(err)
 	}
 	writeFile(t, path+".1",
-		row(1, "runA", 10, "native_error", `{}`, `{"tool":"games_call_tool","native_tool":"x/read","error":"boom"}`)+
+		row(1, "runA", 10, "native_call", `{}`, `{"tool":"games_call_tool","native_tool":"x/read","error":"boom"}`)+
 			row(2, "runA", 11, "clock_step", `{"tick":100}`, `{"reads":4,"elapsed_ms":7,"reason":"timer"}`)+
-			row(3, "runA", 12, "native_decode", `{}`, `{"native_tool":"x/read"}`), false)
+			row(3, "runA", 12, "native_request", `{}`, `{"native_tool":"x/read"}`), false)
 	writeFile(t, path,
 		row(5, "runA", 14, "authority_change", `{"tick":120}`, `{"msg":"authority changed","generation":9}`)+
 			row(6, "runA", 15, "goal", `{"tick":130,"level":"WARN","trace_id":"abc123"}`, `{"msg":"goal refused","goal":"build-hut"}`)+
@@ -48,7 +48,7 @@ func fixture(t *testing.T) (path string, tail *recorderTail) {
 
 func TestProblemsFeedOrderingGapAndKinds(t *testing.T) {
 	_, tail := fixture(t)
-	v := tail.view(hiddenByDefault, "")
+	v := tail.view([]string{"native_request"}, "")
 	if !v.Available || v.Rows != 7 { // 6 rows + the gap
 		t.Fatalf("available=%v rows=%d empty=%q", v.Available, v.Rows, v.Empty)
 	}
@@ -56,8 +56,8 @@ func TestProblemsFeedOrderingGapAndKinds(t *testing.T) {
 	for _, e := range v.Events {
 		kinds = append(kinds, e.Kind)
 	}
-	want := "clock_step goal authority_change recording_gap clock_step native_error"
-	if strings.Join(kinds, " ") != want { // newest first, decode hidden
+	want := "clock_step goal authority_change recording_gap clock_step native_call"
+	if strings.Join(kinds, " ") != want { // newest first, slow marker hidden
 		t.Fatalf("feed %v, want %s", kinds, want)
 	}
 	for _, e := range v.Events {

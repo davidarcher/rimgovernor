@@ -170,11 +170,44 @@ func WriteTraceReport(w io.Writer, t TraceSummary) {
 	}
 }
 
+// callLine fills line from a completed native_call row: the call, its phases
+// and any error.
+func callLine(line *traceLine, reply TimelineRecord, traceID, span string) {
+	// The reply names the inner rimgovernor/* tool. A call through another
+	// wrapper (games_tool_detail describing the tool before its first use)
+	// keeps the wrapper's name.
+	line.text = "native " + toolName(reply.Payload)
+	if wrapper, _ := reply.Payload["tool"].(string); wrapper != "" && wrapper != "games_call_tool" {
+		line.text = wrapper + " " + toolName(reply.Payload)
+	}
+	if timing, ok := reply.Payload["timing"].(map[string]any); ok {
+		if total, ok := number(timing["total_ms"]); ok {
+			line.durationMs, line.timed = total, true
+		}
+		line.text += fmt.Sprintf("  gate %.1f call %.1f decode %.1f", field(timing, "gate_wait_ms"), field(timing, "call_ms"), field(timing, "decode_ms"))
+		if queue, ok := number(timing["native_queue_ms"]); ok {
+			line.text += fmt.Sprintf(" native queue %.1f exec %.1f", queue, field(timing, "native_execute_ms"))
+		}
+		if echoed, _ := timing["native_trace"].(string); echoed != "" && echoed != traceID+"/"+span {
+			line.text += " echoed " + echoed
+		}
+	}
+	if NativeReplyFailed(reply) {
+		if text, _ := reply.Payload["error"].(string); text != "" {
+			line.text += "  error: " + text
+		}
+	}
+}
+
 func traceLines(t TraceSummary) []traceLine {
-	// A response or error row names its request by sequence; join them so
-	// the call reads as one line with its phases.
+	// A native_call row names the in-flight marker it answers by sequence;
+	// join them so a slow call reads as one line with its phases.
 	replies := map[uint64]TimelineRecord{}
+	markers := map[uint64]bool{}
 	for _, row := range t.Rows {
+		if row.Kind == "native_request" {
+			markers[row.Sequence] = true
+		}
 		if IsNativeReply(row.Kind) {
 			if seq, ok := number(row.Payload["request"]); ok {
 				replies[uint64(seq)] = row
@@ -188,46 +221,31 @@ func traceLines(t TraceSummary) []traceLine {
 		span, _ := row.Context[telemetry.SpanIDKey].(string)
 		line := traceLine{offsetMs: (row.WallTime - origin) * 1000, span: shortID(span), depth: depths[span]}
 		switch row.Kind {
-		case "native_response", "native_error", "native_call":
-			if _, joined := number(row.Payload["request"]); joined {
+		case "native_call":
+			if seq, ok := number(row.Payload["request"]); ok && markers[uint64(seq)] {
+				// The in-flight marker's line carries this call.
 				continue
 			}
-			line.text = row.Kind + " " + toolName(row.Payload)
+			callLine(&line, row, t.TraceID, span)
 		case "native_request":
 			reply, replied := replies[row.Sequence]
 			if !replied {
 				line.text = "native " + toolName(row.Payload) + "  (no reply recorded)"
 				break
 			}
-			// The reply names the inner rimgovernor/* tool; the request
-			// row only carries the wrapper and its arguments. A call
-			// through another wrapper (games_tool_detail describing the
-			// tool before its first use) keeps the wrapper's name.
-			line.text = "native " + toolName(reply.Payload)
-			if wrapper, _ := reply.Payload["tool"].(string); wrapper != "" && wrapper != "games_call_tool" {
-				line.text = wrapper + " " + toolName(reply.Payload)
+			callLine(&line, reply, t.TraceID, span)
+		case "native_frame":
+			switch outcome, _ := row.Payload["outcome"].(string); outcome {
+			case "hit":
+				line.text = "frame hit " + toolName(row.Payload)
+			case "miss":
+				line.text = "frame miss " + toolName(row.Payload)
+				if why, _ := row.Payload["why"].(string); why != "" {
+					line.text += " (" + why + ")"
+				}
+			default:
+				line.text = row.Kind + payloadAttrs(row.Payload)
 			}
-			if timing, ok := reply.Payload["timing"].(map[string]any); ok {
-				if total, ok := number(timing["total_ms"]); ok {
-					line.durationMs, line.timed = total, true
-				}
-				line.text += fmt.Sprintf("  gate %.1f call %.1f decode %.1f", field(timing, "gate_wait_ms"), field(timing, "call_ms"), field(timing, "decode_ms"))
-				if queue, ok := number(timing["native_queue_ms"]); ok {
-					line.text += fmt.Sprintf(" native queue %.1f exec %.1f", queue, field(timing, "native_execute_ms"))
-				}
-				if echoed, _ := timing["native_trace"].(string); echoed != "" && echoed != t.TraceID+"/"+span {
-					line.text += " echoed " + echoed
-				}
-			}
-			if NativeReplyFailed(reply) {
-				if text, _ := reply.Payload["error"].(string); text != "" {
-					line.text += "  error: " + text
-				}
-			}
-		case "native_frame_hit":
-			line.text = "frame hit " + toolName(row.Payload)
-		case "native_decode":
-			continue
 		default:
 			line.text = row.Kind
 			if msg, _ := row.Payload["msg"].(string); msg != "" {

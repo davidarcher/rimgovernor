@@ -395,7 +395,7 @@ func flightNativeErrors(dir string) []Line {
 		for scanner.Scan() {
 			n++
 			line := scanner.Bytes()
-			if !strings.Contains(string(line), `"kind":"native_error"`) {
+			if !strings.Contains(string(line), `"kind":"native_call"`) {
 				continue
 			}
 			var row struct {
@@ -407,7 +407,10 @@ func flightNativeErrors(dir string) []Line {
 					RefusedText string `json:"refused_text"`
 				} `json:"payload"`
 			}
-			if json.Unmarshal(line, &row) != nil {
+			// A native_call row is an error row when it carries an error text
+			// (the old native_error); the name stays in the evidence text
+			// until #2065 moves this reader to structured rows.
+			if json.Unmarshal(line, &row) != nil || row.Payload.Error == "" {
 				continue
 			}
 			tool := row.Payload.NativeTool
@@ -927,7 +930,7 @@ func flightFailures(dir string) []Line {
 		for scanner.Scan() {
 			n++
 			line := string(scanner.Bytes())
-			if !strings.Contains(line, `"kind":"native_response"`) {
+			if !strings.Contains(line, `"kind":"native_call"`) {
 				continue
 			}
 			var row struct {

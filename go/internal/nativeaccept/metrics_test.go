@@ -16,9 +16,9 @@ import (
 func writeRecordings(t *testing.T, output string) {
 	t.Helper()
 	first := strings.Join([]string{
-		`{"sequence":1,"wall_time":10,"kind":"native_response","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":100,"native_queue_ms":2,"native_execute_ms":4}}}`,
-		`{"sequence":2,"wall_time":11,"kind":"native_error","context":{},"payload":{"request":2,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":1,"response_bytes":20}}}`,
-		`{"sequence":3,"wall_time":12,"kind":"native_frame_hit","context":{},"payload":{"tool":"games_call_tool","native_tool":"x/read"}}`,
+		`{"sequence":1,"wall_time":10,"kind":"native_call","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":100,"native_queue_ms":2,"native_execute_ms":4}}}`,
+		`{"sequence":2,"wall_time":11,"kind":"native_call","context":{},"payload":{"request":2,"tool":"games_call_tool","native_tool":"x/read","ok":false,"error":"boom","timing":{"total_ms":1,"response_bytes":20}}}`,
+		`{"sequence":3,"wall_time":12,"kind":"native_frame","context":{},"payload":{"outcome":"hit","tool":"games_call_tool","native_tool":"x/read"}}`,
 		`{"sequence":4,"wall_time":13,"kind":"clock_step","context":{},"payload":{"reads":3,"reason":"timer"}}`,
 		`{"sequence":5,"wall_time":14,"kind":"clock_step","context":{},"payload":{"reads":1,"reason":"timer"}}`,
 		// Clock status samples: paused for 2 of the 4 s they span.
@@ -30,7 +30,7 @@ func writeRecordings(t *testing.T, output string) {
 	// The restart's recording runs unpaused for 4 s: the block's paused
 	// fraction weighs both recordings by time, 2 of 8 s.
 	second := strings.Join([]string{
-		`{"sequence":1,"wall_time":20,"kind":"native_response","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":30,"native_queue_ms":6,"native_execute_ms":8}}}`,
+		`{"sequence":1,"wall_time":20,"kind":"native_call","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":30,"native_queue_ms":6,"native_execute_ms":8}}}`,
 		clockSampleRow(2, 30, false), clockSampleRow(3, 34, false),
 	}, "\n") + "\n"
 	if err := os.MkdirAll(filepath.Join(output, "service-2"), 0755); err != nil {
@@ -48,7 +48,7 @@ func clockSampleRow(sequence int, wall float64, paused bool) string {
 	if paused {
 		state = "stopped"
 	}
-	return fmt.Sprintf(`{"sequence":%d,"wall_time":%v,"kind":"native_response","context":{},"payload":{"request":%d,"tool":"games_call_tool","native_tool":"x/bundle","timing":{},"result":{"payload":"{\"bundle\":{\"clockStatus\":{\"actualPaused\":%v,\"%s\":{}}}}"}}}`, sequence, wall, sequence, paused, state)
+	return fmt.Sprintf(`{"sequence":%d,"wall_time":%v,"kind":"native_call","context":{},"payload":{"request":%d,"tool":"games_call_tool","native_tool":"x/bundle","timing":{},"result":{"payload":"{\"bundle\":{\"clockStatus\":{\"actualPaused\":%v,\"%s\":{}}}}"}}}`, sequence, wall, sequence, paused, state)
 }
 
 func TestComputeMetricsFromReportAndRecordings(t *testing.T) {

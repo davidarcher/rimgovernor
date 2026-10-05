@@ -74,10 +74,10 @@ func TestSummarizeStops(t *testing.T) {
 	latched := map[string]any{"cursor": "8", "observedAtUnixMs": float64(1000500), "stopped": map[string]any{"reason": "STOP_REASON_WATCH_LATCHED"}}
 	started := map[string]any{"cursor": "9", "started": map[string]any{}}
 	rows := []bridge.TimelineRecord{
-		{Kind: "native_response", Sequence: 1, WallTime: 1000.250, Payload: page(budget, started)},
+		{Kind: "native_call", Sequence: 1, WallTime: 1000.250, Payload: page(budget, started)},
 		// The same page read again after a hold: cursor 7 counts once.
-		{Kind: "native_response", Sequence: 2, WallTime: 1000.900, Payload: page(budget, latched)},
-		{Kind: "native_response", Sequence: 3, WallTime: 1001, Payload: map[string]any{"native_tool": "rimgovernor/clock_read_status", "result": map[string]any{"payload": "{}"}}},
+		{Kind: "native_call", Sequence: 2, WallTime: 1000.900, Payload: page(budget, latched)},
+		{Kind: "native_call", Sequence: 3, WallTime: 1001, Payload: map[string]any{"native_tool": "rimgovernor/clock_read_status", "result": map[string]any{"payload": "{}"}}},
 		{Kind: "recording_gap"},
 	}
 	got := SummarizeStops(rows, 0)
@@ -137,12 +137,12 @@ func TestCheckSpeedMetrics(t *testing.T) {
 func TestSummarizeStopsLatencySplit(t *testing.T) {
 	page := func(wall float64, timing map[string]any, events ...map[string]any) bridge.TimelineRecord {
 		body, _ := json.Marshal(map[string]any{"page": map[string]any{"events": events}})
-		return bridge.TimelineRecord{Kind: "native_response", WallTime: wall, Payload: map[string]any{
+		return bridge.TimelineRecord{Kind: "native_call", WallTime: wall, Payload: map[string]any{
 			"native_tool": clockEventsTool, "tool": "games_call_tool", "timing": timing, "result": map[string]any{"payload": string(body)},
 		}}
 	}
 	start := func(wall float64, payload string) bridge.TimelineRecord {
-		return bridge.TimelineRecord{Kind: "native_response", WallTime: wall, Payload: map[string]any{"native_tool": clockStartTool, "tool": "games_call_tool", "result": map[string]any{"payload": payload}}}
+		return bridge.TimelineRecord{Kind: "native_call", WallTime: wall, Payload: map[string]any{"native_tool": clockStartTool, "tool": "games_call_tool", "result": map[string]any{"payload": payload}}}
 	}
 	injury := map[string]any{"cursor": "3", "observedAtUnixMs": "1000000", "ageAtReplyMs": "120", "context": map[string]any{"tick": "5040"},
 		"stopped": map[string]any{"reason": "STOP_REASON_COLONIST_INJURY", "detectedTick": "5030", "occurrenceTick": "5000"}}

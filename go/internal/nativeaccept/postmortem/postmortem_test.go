@@ -46,7 +46,7 @@ func fixture(t *testing.T) string {
 		"[worker] routine-haul-abc-0 stage=pending attempt=0 receipt=- effect=- refused=[] err=native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured",
 	}, "\n")+"\n")
 	write("flight.jsonl.1", `{"version":1,"run":"r","sequence":1,"wall_time":1,"kind":"native_request","context":{},"payload":{}}`+"\n")
-	write("flight.jsonl", `{"version":1,"run":"r","sequence":2,"wall_time":2,"kind":"native_error","context":{},"payload":{"native_tool":"rimgovernor/orders_haul","error":"refused","refused_text":"the target is not a haulable item"}}`+"\n")
+	write("flight.jsonl", `{"version":1,"run":"r","sequence":2,"wall_time":2,"kind":"native_call","context":{},"payload":{"native_tool":"rimgovernor/orders_haul","error":"refused","refused_text":"the target is not a haulable item"}}`+"\n")
 
 	db, err := sql.Open(store.DriverName, "file:"+filepath.ToSlash(filepath.Join(dir, "service.sqlite")))
 	if err != nil {
@@ -219,7 +219,7 @@ func TestRevisionAgainstMain(t *testing.T) {
 	}
 }
 
-// A native_response row answering with a failure payload is a refusal too
+// A native_call row answering with a failure payload is a refusal too
 // (#677): rows group by tool, code and detail with a count, the latest
 // group first, and a success response stays out.
 func TestRefusalsReportNativeResponseFailures(t *testing.T) {
@@ -235,7 +235,7 @@ func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 		w := gzip.NewWriter(&buffer)
 		w.Write(data)
 		w.Close()
-		line, _ := json.Marshal(map[string]any{"version": 1, "run": "r", "sequence": seq, "kind": "native_response", "context": map[string]any{}, "payload": map[string]any{
+		line, _ := json.Marshal(map[string]any{"version": 1, "run": "r", "sequence": seq, "kind": "native_call", "context": map[string]any{}, "payload": map[string]any{
 			"native_tool": tool,
 			"reply_type":  string(reply.ProtoReflect().Descriptor().FullName()),
 			"result":      map[string]any{"proto": base64.StdEncoding.EncodeToString(buffer.Bytes())},
