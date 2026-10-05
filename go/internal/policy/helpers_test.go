@@ -80,6 +80,8 @@ var testShapes = func() PieceShapes {
 	add("FabricationBench", 5, 2, RoomRoleWorkshop, front)
 	add("TableButcher", 3, 1, "", front)
 	add(testResearch, 3, 2, RoomRoleLaboratory, front)
+	add("Campfire", 1, 1, "", nil)
+	add("CraftingSpot", 1, 1, "", nil)
 	add("AnimalSleepingSpot", 1, 1, "", nil)
 	add("AnimalBed", 1, 1, "", nil)
 	add("HiTechResearchBench", 5, 2, RoomRoleLaboratory, front)

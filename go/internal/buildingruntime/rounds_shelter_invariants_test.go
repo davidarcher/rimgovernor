@@ -80,7 +80,7 @@ func bunkCellsOf(t *testing.T, plan store.PlanState) map[domain.Cell]bool {
 		if !ok || b.Definition() != "Bed" {
 			t.Fatalf("the last bunk rung places %v, want beds", action)
 		}
-		for _, cell := range policy.BunkFootprint(b.Cell()) {
+		for _, cell := range policy.BunkCells(b.Cell(), b.Rotation()) {
 			cells[cell] = true
 		}
 	}
@@ -230,7 +230,7 @@ func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 		}
 		for _, action := range plan.Spec.Actions() {
 			if b, ok := action.Building(); ok {
-				for _, cell := range policy.BunkFootprint(b.Cell()) {
+				for _, cell := range policy.BunkCells(b.Cell(), b.Rotation()) {
 					bunks[cell] = true
 				}
 			}

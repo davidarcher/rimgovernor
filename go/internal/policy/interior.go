@@ -43,6 +43,14 @@ type InteriorRoom struct {
 	// (the title's braziers, columns and instrument), each with the
 	// definition and shape the catalog gave it.
 	Required []RequiredPiece
+	// Occupants is how many sleepers a template that packs bunks plans for
+	// (the shelter, #2042); 0 fills every bunk that fits. Derived and never
+	// persisted, like the rest of the plan input.
+	Occupants int
+	// Reserved are floor cells (world) a template must keep clear: ground
+	// another plan holds, like the starter stockpile patch or rock yet to be
+	// mined. Cells outside the interior are ignored.
+	Reserved []domain.Cell
 }
 
 // Piece is def's shape for a plan in this room; false when the catalog has
@@ -66,6 +74,11 @@ type InteriorFrame struct {
 	// Doors are every door of the room in canonical cells, the entrance
 	// included; each lies one cell outside the frame.
 	Doors []domain.Cell
+	// Occupants is InteriorRoom.Occupants.
+	Occupants int
+	// Reserved is InteriorRoom.Reserved in canonical cells, those inside the
+	// frame only.
+	Reserved []domain.Cell
 }
 
 // InteriorPiece is one planned building. In a template's output Rect is
@@ -154,6 +167,13 @@ func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool
 	}
 	frame := x.frame()
 	frame.Dining, frame.Shapes, frame.Required = room.Dining, room.Shapes, room.Required
+	frame.Occupants = room.Occupants
+	for _, c := range room.Reserved {
+		if rc := x.toCanonical(c); rectContains(room.Interior, c) {
+			frame.Reserved = append(frame.Reserved, rc)
+		}
+	}
+	sort.Slice(frame.Reserved, func(i, j int) bool { return cellLess(frame.Reserved[i], frame.Reserved[j]) })
 	for _, d := range room.Standing {
 		frame.Standing = append(frame.Standing, room.Shapes.standing(d))
 	}

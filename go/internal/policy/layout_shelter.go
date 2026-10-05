@@ -10,7 +10,7 @@ import (
 // sleeping spot per colonist, a campfire, a crafting spot and a research
 // table. It is sited apart from the other rooms so its ground frees cleanly
 // when it is demolished, and sized from those contents. Its interior is the
-// template's (a later child); only the counts are here.
+// shelter template's (interior_shelter.go); only the counts are here.
 
 const (
 	// shelterGap is the clear ground, in cells, the shelter prefers between
@@ -22,15 +22,18 @@ const (
 	shelterMaxDepth int32 = 6
 	// shelterMinSide is the shortest shelter interior side.
 	shelterMinSide int32 = 3
+	// shelterMinDepth is the shallowest shelter interior: the research table
+	// (3x2) and the open row in front of it that it is worked from.
+	shelterMinDepth int32 = 4
 )
 
-// Contents, in cells. A sleeping spot is 1x2, the simple research bench 3x1,
+// Contents, in cells. A sleeping spot is 1x2, the simple research bench 3x2,
 // the crafting spot and a campfire one cell each.
 const (
 	shelterBunkCells    = 2
 	shelterCampfireCell = 1
 	shelterCraftCells   = 1
-	shelterResearchCell = 3
+	shelterResearchCell = 6
 )
 
 // ShelterCampfires is how many campfires the shelter holds. Stubbed to one
@@ -38,7 +41,8 @@ const (
 const ShelterCampfires = 1
 
 // ShelterInteriorArea is the interior cells a shelter for colonists needs:
-// its contents plus half again for the aisle and the door's approach.
+// its contents plus half again for the aisle and the door's approach. The
+// research bench is counted at its 3x2 footprint (#2042).
 func ShelterInteriorArea(colonists, campfires int) int {
 	contents := shelterBunkCells*max(colonists, 1) + shelterCampfireCell*max(campfires, 0) + shelterCraftCells + shelterResearchCell
 	return (contents*3 + 1) / 2
@@ -50,7 +54,7 @@ func ShelterInteriorArea(colonists, campfires int) int {
 func ShelterSizes(colonists, campfires int) [][2]int32 {
 	area := ShelterInteriorArea(colonists, campfires)
 	var out [][2]int32
-	for d := shelterMinSide; d <= shelterMaxDepth; d++ {
+	for d := shelterMinDepth; d <= shelterMaxDepth; d++ {
 		w := max(int32((area+int(d)-1)/int(d)), shelterMinSide)
 		if w >= d {
 			out = append(out, [2]int32{w, d})

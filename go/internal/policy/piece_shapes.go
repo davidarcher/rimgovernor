@@ -64,6 +64,8 @@ type templatePiece struct {
 var templatePieces = []templatePiece{
 	{standingLampDef, "", false},
 	{workshopShelfDef, "", false},
+	{shelterCampfireDef, "", false},
+	{shelterCraftingDef, "", false},
 }
 
 // Validate checks every shape is a footprint a template can lay out (a

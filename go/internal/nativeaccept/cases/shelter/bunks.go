@@ -250,11 +250,11 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 				if !ok || b.Definition() != definition {
 					return "", false, fmt.Errorf("%s places %v, want %s", method, a, definition)
 				}
-				f := policy.BunkFootprint(b.Cell())
+				f := policy.BunkCells(b.Cell(), b.Rotation())
 				v := plan.Progress[i].View()
 				seen = fmt.Sprintf("%s at %v stage %s", plan.Spec.ID(), b.Cell(), v.Stage)
 				done = done && v.Stage == domain.Completed
-				bunks = append(bunks, bunk{cells: f[:], tick: v.Tick})
+				bunks = append(bunks, bunk{cells: f, tick: v.Tick})
 			}
 			if len(bunks) == 0 {
 				return "", false, fmt.Errorf("%s admitted no bunk", method)

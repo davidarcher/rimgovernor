@@ -19,12 +19,12 @@ import (
 // The initial shelter is raised around its bunks (#612). A fresh starter
 // shell is three rungs under the one goal, each a method of its epoch:
 //
-//  1. shelter-spots: sleeping spots on the site's interior, placed anywhere
-//     (nothing is roofed yet), the cells the beds will not take. They are
-//     an interim only: a pawn on a spot still sleeps on the ground.
+//  1. shelter-spots: sleeping spots on the shelter template's bunk slots
+//     (policy.PlanShelterBunks, #2042), placed before anything is roofed.
+//     They are an interim only: a pawn on a spot still sleeps on the ground.
 //  2. shelter-beds: the beds, the first construction on the site, on the
-//     interior cells off the ring's corners, the entrance aisle and the
-//     starter storage patch.
+//     same slots (a bed replaces the spot under it), which keep off the
+//     ring's corners, the entrance aisle and the starter storage patch.
 //  3. the ring itself, at the next review whether or not the beds stand
 //     (#641), sited around the bunks: the layout whose interior holds every
 //     bunk and whose corners hold no bed.
@@ -42,19 +42,37 @@ const (
 	shelterBedDefinition                 = "Bed"
 )
 
-// shelterBeds is the bed rung's definition and anchors on the ladder
+// shelterBunk is one bunk slot: the anchor and rotation a building order
+// names (the footprint is policy.BunkRect).
+type shelterBunk struct {
+	anchor domain.Cell
+	rot    domain.Rotation
+}
+
+func (b shelterBunk) rect() policy.Rectangle { return policy.BunkRect(b.anchor, b.rot) }
+
+// shelterBunkSlots are the template's bunk slots for the site as orders.
+func shelterBunkSlots(layout policy.StarterLayout, facts observation.ColonyProjection, occupants int) []shelterBunk {
+	var out []shelterBunk
+	for _, p := range policy.PlanShelterBunks(layout, facts.Shapes, occupants, nil) {
+		out = append(out, shelterBunk{p.Anchor(), p.Rot})
+	}
+	return out
+}
+
+// shelterBeds is the bed rung's definition and slots on the ladder
 // (#1181): Bed when it is buildable, else as many bedrolls as the stock of
 // their first stocked stuff covers, else Bed (which admitBunks refuses).
-func shelterBeds(facts observation.ColonyProjection, anchors []domain.Cell) (string, []domain.Cell) {
+func shelterBeds(facts observation.ColonyProjection, slots []shelterBunk) (string, []shelterBunk) {
 	if available, known := facts.DefinitionAvailable(shelterBedDefinition).Value(); known && available {
-		return shelterBedDefinition, anchors
+		return shelterBedDefinition, slots
 	}
 	if available, _ := facts.DefinitionAvailable(policy.SleepingBedrollDefinition).Value(); available {
 		if _, count, ok := facts.StockedStuff(policy.SleepingBedrollDefinition); ok {
-			return policy.SleepingBedrollDefinition, anchors[:min(int64(len(anchors)), count)]
+			return policy.SleepingBedrollDefinition, slots[:min(int64(len(slots)), count)]
 		}
 	}
-	return shelterBedDefinition, anchors
+	return shelterBedDefinition, slots
 }
 
 // ShellMethodPatterns are the GLOB patterns matching every whole-shell
@@ -88,18 +106,17 @@ type shelterSite struct {
 	check     func() error
 }
 
-// shelterBunkRecord is what the Episode already placed: the anchors of
+// shelterBunkRecord is what the Episode already placed: the slots of
 // the spots and beds bound under it.
 type shelterBunkRecord struct {
-	spots, beds           []domain.Cell
+	spots, beds           []shelterBunk
 	spotsBound, bedsBound bool
 }
 
 func (b shelterBunkRecord) cells() []domain.Cell {
 	var cells []domain.Cell
-	for _, anchor := range append(append([]domain.Cell(nil), b.spots...), b.beds...) {
-		f := policy.BunkFootprint(anchor)
-		cells = append(cells, f[0], f[1])
+	for _, bunk := range append(append([]shelterBunk(nil), b.spots...), b.beds...) {
+		cells = append(cells, policy.BunkCells(bunk.anchor, bunk.rot)...)
 	}
 	return cells
 }
@@ -108,7 +125,7 @@ func (b shelterBunkRecord) cells() []domain.Cell {
 func (r *RoundsBuildingPlanner) shelterBunks(call context.Context, goal store.WorkOwner) (shelterBunkRecord, error) {
 	journal := r.reviewer.player.journal
 	var record shelterBunkRecord
-	read := func(method domain.MethodID) ([]domain.Cell, bool, error) {
+	read := func(method domain.MethodID) ([]shelterBunk, bool, error) {
 		bound, err := journal.LoadOwnerMethod(call, goal, method)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, false, nil
@@ -120,13 +137,13 @@ func (r *RoundsBuildingPlanner) shelterBunks(call context.Context, goal store.Wo
 		if err != nil {
 			return nil, false, err
 		}
-		var anchors []domain.Cell
+		var bunks []shelterBunk
 		for _, action := range plan.Spec.Actions() {
 			if b, ok := action.Building(); ok {
-				anchors = append(anchors, b.Cell())
+				bunks = append(bunks, shelterBunk{b.Cell(), b.Rotation()})
 			}
 		}
-		return anchors, true, nil
+		return bunks, true, nil
 	}
 	var err error
 	if record.spots, record.spotsBound, err = read(shelterSpotsMethod); err != nil {
@@ -172,7 +189,11 @@ func (r *RoundsBuildingPlanner) stepShelterSite(call, epoch context.Context, s s
 		return nil, none, noSpace("planned_shell_room"), nil, nil
 	}
 	if len(free) > 0 {
-		if _, ok := policy.BunkLayout([]policy.StarterLayout{layout}, record.beds, record.spots); !ok {
+		var recorded []policy.Rectangle
+		for _, bunk := range append(append([]shelterBunk(nil), record.beds...), record.spots...) {
+			recorded = append(recorded, bunk.rect())
+		}
+		if _, ok := policy.BunkLayout([]policy.StarterLayout{layout}, recorded); !ok {
 			clockSchedulerLog("%s: the planned room does not enclose the bunks placed earlier (beds=%v spots=%v)", r.concern, record.beds, record.spots)
 		}
 	}
@@ -188,16 +209,19 @@ func (r *RoundsBuildingPlanner) stepShelterSite(call, epoch context.Context, s s
 		return nil, none, reason, nil, nil
 	}
 	if !record.spotsBound && !record.bedsBound {
-		bunks := policy.PlanShelterBunks(layout, int(owed), int(owed), nil)
-		result, admitted, err := r.admitBunks(call, epoch, s, shelterSpotsMethod, "SleepingSpot", bunks.Spots)
+		result, admitted, err := r.admitBunks(call, epoch, s, shelterSpotsMethod, "SleepingSpot", shelterBunkSlots(layout, s.facts, int(owed)))
 		if err != nil || admitted {
 			return nil, none, Verdict{}, &result, err
 		}
 	}
 	if !record.bedsBound {
-		bunks := policy.PlanShelterBunks(layout, int(owed), 0, record.cells())
-		definition, anchors := shelterBeds(s.facts, bunks.Beds)
-		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, definition, anchors)
+		// The slots are shared: beds stand where the spots were placed.
+		slots := record.spots
+		if !record.spotsBound {
+			slots = shelterBunkSlots(layout, s.facts, int(owed))
+		}
+		definition, beds := shelterBeds(s.facts, slots)
+		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, definition, beds)
 		if err != nil || admitted {
 			return nil, none, Verdict{}, &result, err
 		}
@@ -323,8 +347,8 @@ func (r *RoundsBuildingPlanner) admitShellClaims(call, epoch context.Context, s 
 // rung has nothing to place (no candidate, definition unavailable, none
 // placeable, or the method refused whole), so the next rung is tried in
 // the same review.
-func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelterSite, method domain.MethodID, definition string, anchors []domain.Cell) (RoundsBuildingResult, bool, error) {
-	if len(anchors) == 0 {
+func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelterSite, method domain.MethodID, definition string, bunks []shelterBunk) (RoundsBuildingResult, bool, error) {
+	if len(bunks) == 0 {
 		clockSchedulerLog("%s: %s: no bunk fits the site", r.concern, method)
 		return RoundsBuildingResult{}, false, nil
 	}
@@ -336,9 +360,9 @@ func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelte
 	snapshot := s.state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1
-	actions := make([]domain.Action, 0, len(anchors))
-	for i, anchor := range anchors {
-		b, err := domain.NewBuilding(definition, anchor, domain.North, stuff)
+	actions := make([]domain.Action, 0, len(bunks))
+	for i, bunk := range bunks {
+		b, err := domain.NewBuilding(definition, bunk.anchor, bunk.rot, stuff)
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
@@ -380,7 +404,7 @@ func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelte
 		can, canKnown := v.CanPlace.Value()
 		safe, safeKnown := v.SafeToPlace.Value()
 		footprint, footprintKnown := v.Footprint.Value()
-		if !canKnown || !can || !safeKnown || !safe || !footprintKnown || !sameBunkFootprint(anchors[i], footprint) {
+		if !canKnown || !can || !safeKnown || !safe || !footprintKnown || !sameBunkFootprint(bunks[i].rect(), footprint) {
 			continue
 		}
 		if err := mergeRoundsStock(&stock, preview.Stock, len(selected) == 0); err != nil {
@@ -389,7 +413,7 @@ func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelte
 		selected = append(selected, v)
 	}
 	if len(selected) == 0 {
-		clockSchedulerLog("%s: %s: none of %d bunks placeable", r.concern, method, len(anchors))
+		clockSchedulerLog("%s: %s: none of %d bunks placeable", r.concern, method, len(bunks))
 		return RoundsBuildingResult{}, false, nil
 	}
 	result, err := r.admitPreviews(call, epoch, roundsAdmission{state: s.state, review: s.review, owner: s.owner, facts: s.facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Rounds})
@@ -400,12 +424,17 @@ func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelte
 	return result, result.Verdict == BuildingReasonAdmitted, nil
 }
 
-// sameBunkFootprint reports whether the native footprint is exactly the two
-// cells a north-facing bunk anchored at anchor occupies.
-func sameBunkFootprint(anchor domain.Cell, footprint []domain.Cell) bool {
-	if len(footprint) != 2 {
+// sameBunkFootprint reports whether the native footprint is exactly the
+// cells of the bunk slot's rectangle: the anchor and rotation the slot names
+// took the footprint the template planned.
+func sameBunkFootprint(want policy.Rectangle, footprint []domain.Cell) bool {
+	if int64(len(footprint)) != int64(want.Width)*int64(want.Height) {
 		return false
 	}
-	want := policy.BunkFootprint(anchor)
-	return footprint[0] == want[0] && footprint[1] == want[1] || footprint[0] == want[1] && footprint[1] == want[0]
+	for _, c := range footprint {
+		if c.X < want.X || c.X >= want.X+want.Width || c.Z < want.Z || c.Z >= want.Z+want.Height {
+			return false
+		}
+	}
+	return len(footprint) == 2 && footprint[0] != footprint[1]
 }

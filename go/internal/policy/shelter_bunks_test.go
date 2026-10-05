@@ -32,15 +32,12 @@ func TestShellCornerCellsRectangle(t *testing.T) {
 	}
 }
 
-func TestPlanShelterBunksKeepsBedsOffCornersAisleAndStorage(t *testing.T) {
+func TestPlanShelterBunksKeepsOffCornersAisleAndStorage(t *testing.T) {
 	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
 	layout := bunkLayout(t, shell, err)
-	bunks := PlanShelterBunks(layout, 8, 8, nil)
-	if len(bunks.Beds) != 8 {
-		t.Fatalf("beds %v", bunks.Beds)
-	}
-	if len(bunks.Spots) == 0 {
-		t.Fatal("no spots fit beside the beds")
+	bunks := PlanShelterBunks(layout, testShapes, 8, nil)
+	if len(bunks) != 8 {
+		t.Fatalf("bunks %+v", bunks)
 	}
 	interior, corner, forbidden := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for _, c := range shell.Interior() {
@@ -56,45 +53,36 @@ func TestPlanShelterBunksKeepsBedsOffCornersAisleAndStorage(t *testing.T) {
 		forbidden[c] = true
 	}
 	used := map[domain.Cell]bool{}
-	for _, anchor := range bunks.Beds {
-		for _, p := range BunkFootprint(anchor) {
+	for _, bunk := range bunks {
+		for _, p := range rectCells(bunk.Rect) {
 			if !interior[p] || corner[p] || forbidden[p] || used[p] {
-				t.Fatalf("bed cell %v: interior=%v corner=%v forbidden=%v used=%v", p, interior[p], corner[p], forbidden[p], used[p])
-			}
-			used[p] = true
-		}
-	}
-	for _, anchor := range bunks.Spots {
-		for _, p := range BunkFootprint(anchor) {
-			if !interior[p] || forbidden[p] || used[p] {
-				t.Fatalf("spot cell %v: interior=%v forbidden=%v used=%v", p, interior[p], forbidden[p], used[p])
+				t.Fatalf("bunk cell %v: interior=%v corner=%v forbidden=%v used=%v", p, interior[p], corner[p], forbidden[p], used[p])
 			}
 			used[p] = true
 		}
 	}
 }
 
-func TestPlanShelterBunksHonoursBlockedCells(t *testing.T) {
+func TestPlanShelterBunksHonoursReservedCells(t *testing.T) {
 	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
 	layout := bunkLayout(t, shell, err)
-	first := PlanShelterBunks(layout, 0, 4, nil)
-	var blocked []domain.Cell
-	for _, anchor := range first.Spots {
-		f := BunkFootprint(anchor)
-		blocked = append(blocked, f[0], f[1])
+	first := PlanShelterBunks(layout, testShapes, 4, nil)
+	var reserved []domain.Cell
+	for _, bunk := range first {
+		reserved = append(reserved, rectCells(bunk.Rect)...)
 	}
-	second := PlanShelterBunks(layout, 8, 0, blocked)
-	if len(second.Beds) != 8 {
-		t.Fatalf("beds %v", second.Beds)
+	second := PlanShelterBunks(layout, testShapes, 8, reserved)
+	if len(second) != 8 {
+		t.Fatalf("bunks %+v", second)
 	}
 	held := map[domain.Cell]bool{}
-	for _, c := range blocked {
+	for _, c := range reserved {
 		held[c] = true
 	}
-	for _, anchor := range second.Beds {
-		for _, p := range BunkFootprint(anchor) {
+	for _, bunk := range second {
+		for _, p := range rectCells(bunk.Rect) {
 			if held[p] {
-				t.Fatalf("bed cell %v lies on a spot", p)
+				t.Fatalf("bunk cell %v lies on a reserved cell", p)
 			}
 		}
 	}
@@ -104,16 +92,16 @@ func TestBunkLayoutPrefersTheShellAroundTheBunks(t *testing.T) {
 	near, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
 	far, err2 := domain.RectangleFootprint(domain.RoomBounds{X: 30, Z: 30, Width: 9, Height: 9}, domain.South)
 	a, b := bunkLayout(t, near, err), bunkLayout(t, far, err2)
-	bunks := PlanShelterBunks(b, 2, 1, nil)
-	chosen, ok := BunkLayout([]StarterLayout{a, b}, bunks.Beds, bunks.Spots)
+	var rects []Rectangle
+	for _, bunk := range PlanShelterBunks(b, testShapes, 3, nil) {
+		rects = append(rects, bunk.Rect)
+	}
+	chosen, ok := BunkLayout([]StarterLayout{a, b}, rects)
 	if !ok || chosen.Room != b.Room {
 		t.Fatalf("chose %+v ok=%v", chosen.Room, ok)
 	}
-	// A bed on a corner cell disqualifies the layout.
-	if _, ok := BunkLayout([]StarterLayout{a}, []domain.Cell{{X: 11, Z: 11}}, nil); ok {
-		t.Fatal("a corner bed fitted the rectangle")
-	}
-	if _, ok := BunkLayout([]StarterLayout{a}, nil, []domain.Cell{{X: 11, Z: 11}}); !ok {
-		t.Fatal("a corner spot did not fit the rectangle")
+	// A bunk on a corner cell disqualifies the layout.
+	if _, ok := BunkLayout([]StarterLayout{a}, []Rectangle{{X: 11, Z: 11, Width: 1, Height: 2}}); ok {
+		t.Fatal("a corner bunk fitted the rectangle")
 	}
 }

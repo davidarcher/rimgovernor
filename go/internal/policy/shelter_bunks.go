@@ -4,28 +4,26 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ShelterBunks is the sleeping layout of a starter shell before its ring
-// goes up (#612): beds are the first construction on the site and the
-// sleeping spots the interim on the cells left over, so the ring is raised
-// around colonists who already have somewhere to lie down.
-//
-// Every bunk is one north-facing 1x2 footprint (the anchor and the cell
-// above it), which is what a SleepingSpot or a Bed of the native default
-// rotation occupies. Beds keep off the shell's corner cells (a bed against
-// a ring corner is reachable diagonally from outside the wall), off the
-// cell inside the door and the doorway's other neighbours (the entrance
-// aisle) and off the starter storage patch; spots are gone once the beds
-// stand, so they may take the corners too. Bunks are packed in z-outer,
-// x-inner order, beds first, and never overlap each other or a blocked
-// cell. Fewer bunks than asked for is not an error: the shell is small,
-// and whatever fits is placed.
-type ShelterBunks struct {
-	Beds, Spots []domain.Cell
+// The sleeping layout of a starter shell before its ring goes up (#612):
+// beds are the first construction on the site and the sleeping spots the
+// interim, so the ring is raised around colonists who already have somewhere
+// to lie down. The packing is the shelter interior template's
+// (interior_shelter.go, #2042): one bunk slot per colonist, shared by the
+// spot rung and the bed rung (a bed replaces the spot on the same cells), each
+// a 1x2 footprint at the slot's rotation, off the shell's corner cells
+// (a bed against a ring corner is reachable diagonally from outside the
+// wall), the cell inside the door, the starter storage patch and the cells
+// the plan digs. Fewer bunks than asked for is not an error: the shell is
+// small, and whatever fits is placed.
+
+// BunkRect is the footprint a bunk anchored at anchor occupies at a rotation.
+func BunkRect(anchor domain.Cell, rot domain.Rotation) Rectangle {
+	return OccupiedRect(anchor, shelterBunkSize, rot)
 }
 
-// BunkFootprint is the two cells a bunk anchored at c occupies.
-func BunkFootprint(c domain.Cell) [2]domain.Cell {
-	return [2]domain.Cell{c, {X: c.X, Z: c.Z + 1}}
+// BunkCells is the two cells of BunkRect.
+func BunkCells(anchor domain.Cell, rot domain.Rotation) []domain.Cell {
+	return rectCells(BunkRect(anchor, rot))
 }
 
 // ShellCornerCells returns the interior cells beside a corner of the ring:
@@ -60,59 +58,51 @@ func ShellCornerCells(shell domain.RoomFootprint) []domain.Cell {
 	return cells
 }
 
-// PlanShelterBunks packs up to beds bed anchors and then up to spots spot
-// anchors into the layout's interior, avoiding blocked cells (bunks already
-// standing, other reservations).
-func PlanShelterBunks(layout StarterLayout, beds, spots int, blocked []domain.Cell) ShelterBunks {
-	interior := map[domain.Cell]bool{}
-	for _, c := range layout.Shell.Interior() {
-		interior[c] = true
+// ShelterRoom reads a starter layout as the shelter template's input: its
+// interior, the door, and the cells the template keeps clear (the starter
+// storage patch, the cells plan dig mines and reserved). False when the
+// interior is not a rectangle the door opens onto.
+func ShelterRoom(layout StarterLayout, shapes PieceShapes, occupants int, reserved []domain.Cell) (InteriorRoom, bool) {
+	cells := layout.Shell.Interior()
+	if len(cells) == 0 {
+		return InteriorRoom{}, false
 	}
-	taken := map[domain.Cell]bool{}
-	for _, c := range blocked {
-		taken[c] = true
+	room := InteriorRoom{Role: RoomRoleShelter, Interior: cellsRectangle(cells), Doors: []domain.Cell{layout.Shell.Door()}, Shapes: shapes, Occupants: occupants}
+	if int64(len(cells)) != int64(room.Interior.Width)*int64(room.Interior.Height) {
+		return InteriorRoom{}, false
 	}
-	for _, c := range rectCells(layout.Storage) {
-		taken[c] = true
+	if _, ok := doorSide(room.Interior, room.Doors[0]); !ok {
+		return InteriorRoom{}, false
 	}
-	for _, c := range layout.Mined {
-		taken[c] = true
-	}
-	for _, c := range DoorwayAisles(Bounds{Width: 1 << 30, Height: 1 << 30}, []SiteCell{{Cell: layout.Shell.Door(), Doorway: domain.Known(true)}}) {
-		taken[c] = true
-	}
-	corner := map[domain.Cell]bool{}
-	for _, c := range ShellCornerCells(layout.Shell) {
-		corner[c] = true
-	}
-	pack := func(count int, avoidCorners bool) []domain.Cell {
-		var anchors []domain.Cell
-		for _, c := range layout.Shell.Interior() {
-			if len(anchors) >= count {
-				break
-			}
-			f := BunkFootprint(c)
-			fits := true
-			for _, p := range f {
-				fits = fits && interior[p] && !taken[p] && !(avoidCorners && corner[p])
-			}
-			if !fits {
-				continue
-			}
-			for _, p := range f {
-				taken[p] = true
-			}
-			anchors = append(anchors, c)
-		}
-		return anchors
-	}
-	return ShelterBunks{Beds: pack(beds, true), Spots: pack(spots, false)}
+	room.Reserved = append(append(append([]domain.Cell(nil), rectCells(layout.Storage)...), layout.Mined...), reserved...)
+	return room, true
 }
 
-// BunkLayout picks the first layout whose interior holds every bunk cell
-// and whose corner cells hold no bed cell: the shell a later rung raises
+// PlanShelterBunks is the bunk slots of the layout's interior for up to
+// occupants sleepers (0 fills every bunk that fits), in world cells, best
+// first; reserved are further cells to keep clear.
+func PlanShelterBunks(layout StarterLayout, shapes PieceShapes, occupants int, reserved []domain.Cell) []InteriorPiece {
+	room, ok := ShelterRoom(layout, shapes, occupants, reserved)
+	if !ok {
+		return nil
+	}
+	plan, ok := PlanInterior(room, InteriorPieceDef{})
+	if !ok {
+		return nil
+	}
+	var bunks []InteriorPiece
+	for _, p := range plan.Pieces {
+		if p.IsBunk() {
+			bunks = append(bunks, p)
+		}
+	}
+	return bunks
+}
+
+// BunkLayout picks the first layout whose interior holds every bunk
+// footprint and whose corner cells hold none: the shell a later rung raises
 // around the bunks an earlier one placed. ok is false when no layout does.
-func BunkLayout(layouts []StarterLayout, beds, spots []domain.Cell) (StarterLayout, bool) {
+func BunkLayout(layouts []StarterLayout, bunks []Rectangle) (StarterLayout, bool) {
 	for _, layout := range layouts {
 		interior := map[domain.Cell]bool{}
 		for _, c := range layout.Shell.Interior() {
@@ -123,14 +113,9 @@ func BunkLayout(layouts []StarterLayout, beds, spots []domain.Cell) (StarterLayo
 			corner[c] = true
 		}
 		fits := true
-		for _, anchor := range beds {
-			for _, p := range BunkFootprint(anchor) {
+		for _, bunk := range bunks {
+			for _, p := range rectCells(bunk) {
 				fits = fits && interior[p] && !corner[p]
-			}
-		}
-		for _, anchor := range spots {
-			for _, p := range BunkFootprint(anchor) {
-				fits = fits && interior[p]
 			}
 		}
 		if fits {

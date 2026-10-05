@@ -544,11 +544,12 @@ func shellCells(t *testing.T, plan store.PlanState) (domain.Building, map[domain
 func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	r, db, n := shelterFixture(t)
+	r, db, n := shelterSiteFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(n, 21, func(int32, int32) bool { return true })
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
+	stageShelterBunks(t, r, db, n)
 	result, err := r.Step(context.Background())
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
@@ -648,11 +649,14 @@ func (n *adoptingNative) PreviewBuildings(ctx context.Context, actions []domain.
 func TestRoundsShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	r, db, base := shelterFixture(t)
+	r, db, base := shelterSiteFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
+	// The bunk rungs run on the relocated site, so the ring is sited around
+	// them there.
+	stageShelterBunks(t, r, db, base)
 	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)

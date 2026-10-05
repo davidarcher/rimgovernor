@@ -266,6 +266,8 @@ func CoreFurnitureFixtures() []FixtureDef {
 		{Name: "Cooler", Width: 2, Height: 1, Costs: wood(40), PowerW: ptr(200.0), TempControlW: ptr(float32(-12))},
 		{Name: "ToolCabinet", Width: 2, Height: 1, Costs: wood(40), Facility: &FixtureFacility{Offsets: map[string]float32{StatWorkTableWorkSpeedFactor: .06}, MaxDistance: 8, MaxSimultaneous: 2}},
 		{Name: "ShelfSmall", Width: 1, Height: 1, Costs: wood(20)},
+		{Name: "Campfire", Width: 1, Height: 1, Costs: wood(300)},
+		{Name: "CraftingSpot", Width: 1, Height: 1},
 		{Name: "VitalsMonitor", Width: 1, Height: 1, Costs: wood(100), Facility: &FixtureFacility{Offsets: map[string]float32{StatMedicalTendQualityOffset: .06}, MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true}},
 		{Name: "Sarcophagus", Width: 1, Height: 2, Sarcophagus: true, Costs: wood(100)},
 		{Name: "FueledStove", Width: 3, Height: 1, WorkTableRole: "Kitchen", Costs: wood(80)},

@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
+	"slices"
 	"testing"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -15,17 +16,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func bunkAnchors(t *testing.T, plan store.PlanState, definition string) []domain.Cell {
+// bunkAnchors are the cells and rotations a bunk rung's plan places, which
+// must be the shelter template's slot rotation (the head away from the door).
+func bunkAnchors(t *testing.T, plan store.PlanState, definition string) []shelterBunk {
 	t.Helper()
-	var anchors []domain.Cell
+	var bunks []shelterBunk
 	for _, action := range plan.Spec.Actions() {
 		b, ok := action.Building()
-		if !ok || b.Definition() != definition || b.Rotation() != domain.North {
-			t.Fatal("not a north-facing bunk", ok, b.Definition(), definition, b.Rotation())
+		if !ok || b.Definition() != definition || b.Rotation() != domain.South {
+			t.Fatal("not a template-rotated bunk", ok, b.Definition(), definition, b.Rotation())
 		}
-		anchors = append(anchors, b.Cell())
+		bunks = append(bunks, shelterBunk{b.Cell(), b.Rotation()})
 	}
-	return anchors
+	return bunks
 }
 
 // The first review places sleeping spots, the first construction is the
@@ -80,20 +83,18 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 		corner[c] = true
 	}
 	used := map[domain.Cell]bool{}
-	for _, anchor := range beds {
-		for _, p := range policy.BunkFootprint(anchor) {
+	for _, bed := range beds {
+		for _, p := range policy.BunkCells(bed.anchor, bed.rot) {
 			if wall[p] || corner[p] || used[p] {
 				t.Fatal("bed cell", p, wall[p], corner[p], used[p])
 			}
 			used[p] = true
 		}
 	}
-	for _, anchor := range spots {
-		for _, p := range policy.BunkFootprint(anchor) {
-			if wall[p] || used[p] {
-				t.Fatal("spot cell", p, wall[p], used[p])
-			}
-			used[p] = true
+	// The slots are shared: every spot lies under the bed that replaces it.
+	for _, spot := range spots {
+		if !slices.Contains(beds, spot) {
+			t.Fatal("spot", spot, "has no bed on its slot", beds)
 		}
 	}
 }
@@ -208,8 +209,8 @@ func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
 		b, _ := action.Building()
 		wall[b.Cell()] = true
 	}
-	for _, anchor := range bunkAnchors(t, bedPlan, "Bed") {
-		for _, p := range policy.BunkFootprint(anchor) {
+	for _, bed := range bunkAnchors(t, bedPlan, "Bed") {
+		for _, p := range policy.BunkCells(bed.anchor, bed.rot) {
 			if wall[p] {
 				t.Fatal("the ring overlaps a pending bed", p)
 			}

@@ -93,14 +93,14 @@ func TestShelterStandsOnThePlannedStoreroom(t *testing.T) {
 		t.Fatalf("shell %+v door %v, want storage %+v door %v", layout.Shell.Bounds(), layout.Shell.Door(), want.Bounds(), storage.Door)
 	}
 	inward := domain.Cell{X: storage.Door.X, Z: storage.Door.Z + 1}
-	bunks := PlanShelterBunks(layout, 3, 3, nil)
-	if len(bunks.Spots) != 3 {
-		t.Fatalf("%d spots fit", len(bunks.Spots))
+	bunks := PlanShelterBunks(layout, testShapes, 3, nil)
+	if len(bunks) != 3 {
+		t.Fatalf("%d bunks fit", len(bunks))
 	}
-	for _, anchor := range append(bunks.Beds, bunks.Spots...) {
-		for _, c := range BunkFootprint(anchor) {
+	for _, bunk := range bunks {
+		for _, c := range rectCells(bunk.Rect) {
 			if c == inward {
-				t.Fatalf("bunk at %v blocks the door aisle %v", anchor, inward)
+				t.Fatalf("bunk at %v blocks the door aisle %v", bunk.Anchor(), inward)
 			}
 		}
 	}

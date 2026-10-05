@@ -20,7 +20,7 @@ func TestShelterBedsStageBedrollsFromStockedLeather(t *testing.T) {
 		Definitions: []observation.PlanningDefinition{{Name: "Bed", Available: domain.Known(false)}, bedroll},
 		Resources:   domain.Known(map[policy.Resource]int64{"Leather_Plain": 95, "Cloth": 10}),
 	}
-	anchors := []domain.Cell{{X: 1}, {X: 2}, {X: 3}}
+	anchors := []shelterBunk{{domain.Cell{X: 1}, domain.South}, {domain.Cell{X: 2}, domain.South}, {domain.Cell{X: 3}, domain.South}}
 	definition, got := shelterBeds(facts, anchors)
 	if definition != "Bedroll" || len(got) != 2 {
 		t.Fatal(definition, got)
