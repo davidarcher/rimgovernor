@@ -17,7 +17,7 @@ func penSiteFixture() PenEnclosureRequest {
 }
 
 func TestPenEnclosureSitesDeterministicNearestFirst(t *testing.T) {
-	sites, err := PenEnclosureSites(penSiteFixture())
+	sites, err := FreeSites(penSiteFixture(), 6, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestPenEnclosureSitesExcludesProtectedAndOutOfBoundsCandidates(t *testing.T
 	for z := int32(0); z < 20; z++ {
 		r.Protected = append(r.Protected, domain.Cell{X: 10, Z: z})
 	}
-	sites, err := PenEnclosureSites(r)
+	sites, err := FreeSites(r, 6, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestPenEnclosureSitesUnknownAndOccupiedCellsAreNotFree(t *testing.T) {
 			r.Cells = append(r.Cells, cell)
 		}
 	}
-	sites, err := PenEnclosureSites(r)
+	sites, err := FreeSites(r, 6, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,15 +85,15 @@ func TestPenEnclosureSitesUnknownAndOccupiedCellsAreNotFree(t *testing.T) {
 }
 
 func TestPenEnclosureSitesInvalidInput(t *testing.T) {
-	if _, err := PenEnclosureSites(PenEnclosureRequest{Bounds: Bounds{0, 10}}); err == nil {
+	if _, err := FreeSites(PenEnclosureRequest{Bounds: Bounds{0, 10}}, 6, 6); err == nil {
 		t.Fatal("expected invalid bounds error")
 	}
-	if _, err := PenEnclosureSites(PenEnclosureRequest{Bounds: Bounds{10, 10}, Anchor: domain.Cell{X: 20, Z: 20}}); err == nil {
+	if _, err := FreeSites(PenEnclosureRequest{Bounds: Bounds{10, 10}, Anchor: domain.Cell{X: 20, Z: 20}}, 6, 6); err == nil {
 		t.Fatal("expected out-of-bounds anchor error")
 	}
 	dup := PenEnclosureRequest{Bounds: Bounds{10, 10}, Anchor: domain.Cell{X: 1, Z: 1}}
 	dup.Cells = []SiteCell{{Cell: domain.Cell{X: 1, Z: 1}}, {Cell: domain.Cell{X: 1, Z: 1}}}
-	if _, err := PenEnclosureSites(dup); err == nil {
+	if _, err := FreeSites(dup, 6, 6); err == nil {
 		t.Fatal("expected duplicate cell error")
 	}
 }

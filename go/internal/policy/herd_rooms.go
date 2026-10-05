@@ -29,6 +29,11 @@ const (
 	// PlannedBarn is the barn's plan role, PlannedVetRoom the vet room's.
 	PlannedBarn    PlannedRole = "barn"
 	PlannedVetRoom PlannedRole = "vet_room"
+	// PlannedPen is the animal pen's plan role (#2120): the ReservePen
+	// reservation viewed as an outdoor room, ringed by fences round its gate.
+	// It is no part of roomsWithHerd: the clear side leaves a pen's ring and
+	// marker to the pen's own reconcile.
+	PlannedPen PlannedRole = "pen"
 	// RoomRoleVetRoom is the vet room's interior-template role. It is the
 	// controller's own, not a RoomRoleDef: the game scores a room of animal
 	// beds Barn, whichever of the two it is.
@@ -176,12 +181,14 @@ func herdRole(kind ReservationKind) (PlannedRole, bool) {
 		return PlannedBarn, true
 	case ReserveVetRoom:
 		return PlannedVetRoom, true
+	case ReservePen:
+		return PlannedPen, true
 	}
 	return "", false
 }
 
-// HerdRooms are the plan's rooms of role (PlannedBarn or PlannedVetRoom), one
-// per reservation in plan order.
+// HerdRooms are the plan's rooms of role (PlannedBarn, PlannedVetRoom or
+// PlannedPen), one per reservation in plan order.
 func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range p.Reservations {
@@ -203,7 +210,7 @@ func (p LayoutPlan) roomsWithHerd() []PlannedRoom {
 // (vet room; the barn's centre when the plan has no core).
 func (p LayoutPlan) herdRoom(area Rectangle, role PlannedRole) PlannedRoom {
 	in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: area.Width - 2, Height: area.Height - 2}
-	room := PlannedRoom{Role: role, Interior: in}
+	room := PlannedRoom{Role: role, Interior: in, Outdoor: role == PlannedPen}
 	cx, cz := float64(in.X)+float64(in.Width)/2, float64(in.Z)+float64(in.Height)/2
 	tx, tz, ok := p.herdTarget(role)
 	if !ok {
@@ -299,13 +306,19 @@ func (p LayoutPlan) herdTarget(role PlannedRole) (x, z float64, ok bool) {
 			return float64(c.X), float64(c.Z), true
 		}
 	}
+	// The barn opens onto the pen and the pen onto the barn, else the core.
 	want := ReservePen
-	if role == PlannedVetRoom {
+	if role != PlannedBarn {
 		want = ReserveBarn
 	}
 	for _, r := range p.Reservations {
 		if r.Kind == want {
 			return centre(r.Area)
+		}
+	}
+	if role == PlannedPen {
+		if c, found := p.Core(); found {
+			return float64(c.X), float64(c.Z), true
 		}
 	}
 	return 0, 0, false

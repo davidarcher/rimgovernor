@@ -7,34 +7,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// PenEnclosureRequest ports upkeep_sites.enclosure_site's free-cell census for
-// the fixed 6x6 animal pen shell (wall='Fence', door='FenceGate',
-// empty_interior=False): only walkable, unoccupied, unzoned, light-supporting
-// cells outside any protected footprint may host a wall or gate.
+// PenEnclosureRequest ports upkeep_sites.enclosure_site's free-cell census:
+// only walkable, unoccupied, unzoned, light-supporting cells outside any
+// protected footprint may host a footprint (FreeSites).
 type PenEnclosureRequest struct {
 	Bounds    Bounds
 	Anchor    domain.Cell
 	Cells     []SiteCell
 	Protected []domain.Cell
-	// Entrance, when set, is the census a pen's gate must open onto: a site
-	// is legal only if the cell below the middle of its first row is
-	// walkable and unoccupied there. A rock-sited pen (RockSiteView) passes
-	// the true cells, since its own cells read the mountain as open.
-	Entrance []SiteCell
 }
 
-const PenEnclosureSize int32 = 6
-
-// PenEnclosureSites returns a bounded, deterministically ordered list of 6x6
-// candidate rectangles nearest the colony anchor. It is a proposal only: native
-// placement/access previews still decide legality, and only an admitted method
-// reserves geometry. Missing or unknown cells are never treated as free.
-func PenEnclosureSites(r PenEnclosureRequest) ([]Rectangle, error) {
-	return FreeSites(r, PenEnclosureSize, PenEnclosureSize)
-}
-
-// FreeSites is PenEnclosureSites for any width x height footprint: a plain
-// grave's 1x2 (#857) takes the same free-cell census.
+// FreeSites returns a bounded, deterministically ordered list of width x height
+// candidate rectangles nearest the colony anchor (a plain grave's 1x2, #857).
+// It is a proposal only: native placement previews still decide legality.
+// Missing or unknown cells are never treated as free.
 func FreeSites(r PenEnclosureRequest, width, height int32) ([]Rectangle, error) {
 	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
 		return nil, errors.New("invalid pen enclosure site bounds")
@@ -71,13 +57,6 @@ func FreeSites(r PenEnclosureRequest, width, height int32) ([]Rectangle, error) 
 		return positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v })) &&
 			positive(measured(c.Zone, func(v bool) bool { return !v })) && positive(c.SupportsLight)
 	}
-	var entrance map[domain.Cell]bool
-	if r.Entrance != nil {
-		entrance = map[domain.Cell]bool{}
-		for _, c := range r.Entrance {
-			entrance[c.Cell] = positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))
-		}
-	}
 	type site struct {
 		score int64
 		cell  domain.Cell
@@ -87,7 +66,7 @@ func FreeSites(r PenEnclosureRequest, width, height int32) ([]Rectangle, error) 
 		if c.X+width > r.Bounds.Width || c.Z+height > r.Bounds.Height {
 			continue
 		}
-		legal := entrance == nil || entrance[domain.Cell{X: c.X + width/2, Z: c.Z - 1}]
+		legal := true
 		for _, p := range rectCells(Rectangle{c.X, c.Z, width, height}) {
 			if !free(p) {
 				legal = false

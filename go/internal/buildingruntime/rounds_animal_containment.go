@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -11,17 +12,17 @@ import (
 )
 
 // RoundsAnimalContainmentPlanner composes MaintainAnimalContainment's
-// containment-method decision (policy.SelectAnimalContainmentMethod) into a
-// durable shell-then-marker build, reusing the existing plain-BuildingAction
-// preview/admission path (Fence/FenceGate/PenMarker) rather than folding into
-// the shared shelter/cooking/comfort switch (RoundsBuildingPlanner). It is
-// self-contained the way RoundsFieldPlanner is,
-// on purpose: the shared switch is actively edited by parallel building-family
-// slices, and this goal's action family needs none of its machinery.
+// containment-method decision (policy.SelectAnimalContainmentMethod) with the
+// build side of the reconciler: the plan's ReservePen is a PlannedRoom with an
+// outdoor ring (policy.NextPenStep), reconciled through reconcileRoom like the
+// barn and vet room (stageHerdRooms). It is self-contained the way
+// RoundsFieldPlanner is, on purpose: the shared shelter/cooking/comfort switch
+// is actively edited by parallel building-family slices, and this goal's action
+// family needs none of its machinery.
 type RoundsAnimalContainmentPlanner struct {
 	reviewer *Rounder
 	native   RoundsBuildingSource
-	// building raises the barn and vet room (stageHerdRooms).
+	// building raises the pen, barn and vet room (stagePen, stageHerdRooms).
 	building *RoundsBuildingPlanner
 }
 type RoundsAnimalContainmentResult struct {
@@ -37,80 +38,22 @@ func NewRoundsAnimalContainmentPlanner(reviewer *Rounder, native RoundsBuildingS
 	return &RoundsAnimalContainmentPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 
-const (
-	animalShellMethod  domain.MethodID = "pen-shell"
-	animalMarkerMethod domain.MethodID = "pen-marker"
-
-	// maxAnimalShellRebuilds bounds how many times a shell that was built and
-	// then lost (an Effect regressed after completion) is rebuilt.
-	maxAnimalShellRebuilds = 3
-)
-
-// animalShellMethodFor names the shell method for the attempt after lost
-// earlier shells: a method binds once per Episode, so each rebuild is its own.
-func animalShellMethodFor(lost int) domain.MethodID {
-	if lost == 0 {
-		return animalShellMethod
-	}
-	return domain.MethodID(fmt.Sprintf("%s-%d", animalShellMethod, lost+1))
-}
-
-type animalContainmentPlanKind int
-
-const (
-	animalContainmentPlanOther animalContainmentPlanKind = iota
-	animalContainmentPlanShell
-	animalContainmentPlanMarker
-)
-
-// animalContainmentPlanKind recovers what a previously committed method built
-// from its own actions rather than trusting a naming convention: a shell plan
-// is whichever one placed Fence/FenceGate, a marker plan whichever placed
-// PenMarker. The shell's room (needed to search inside it for a marker spot)
-// is the PenEnclosureSize square its gate anchors: the gate is the middle of
-// the room's first row, and a ring cell left as natural rock has no fence.
-func animalContainmentPlanKindOf(spec domain.PlanSpec) (animalContainmentPlanKind, policy.Rectangle) {
-	var gate domain.Cell
-	shell, haveGate, marker := false, false, false
-	for _, action := range spec.Actions() {
-		b, ok := action.Building()
-		if !ok {
-			continue
-		}
-		switch b.Definition() {
-		case "Fence":
-			shell = true
-		case "FenceGate":
-			shell, haveGate, gate = true, true, b.Cell()
-		case "PenMarker":
-			marker = true
-		}
-	}
-	if shell && haveGate {
-		size := policy.PenEnclosureSize
-		return animalContainmentPlanShell, policy.Rectangle{X: gate.X - size/2, Z: gate.Z, Width: size, Height: size}
-	}
-	if marker {
-		return animalContainmentPlanMarker, policy.Rectangle{}
-	}
-	return animalContainmentPlanOther, policy.Rectangle{}
-}
-
-// animalContainmentPlanComplete matches the completed-shell check
-// shelterNativeWorkTicks relies on elsewhere: every action must
-// be an observed, resolved, completed effect. An empty plan is never complete.
-func animalContainmentPlanComplete(plan store.PlanState) bool {
-	if len(plan.Progress) == 0 {
+// penPlanOpen reports whether the plan is still building the pen: it places a
+// fence, gate or marker and has not finished. The pen is not reconciled again
+// until it has, or the diff would offer cells already under construction.
+func penPlanOpen(spec domain.PlanSpec, plan store.PlanState) bool {
+	if !store.PlanOpen(plan) {
 		return false
 	}
-	for _, p := range plan.Progress {
-		v := p.View()
-		effect, known := v.Effect.Value()
-		if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted {
-			return false
+	for _, action := range spec.Actions() {
+		if b, ok := action.Building(); ok {
+			switch b.Definition() {
+			case policy.PenFenceDefinition, policy.PenGateDefinition, policy.PenMarkerDefinition:
+				return true
+			}
 		}
 	}
-	return true
+	return false
 }
 
 // animalHandlerAvailable ports the enabled-Handling-worker prerequisite:
@@ -179,11 +122,6 @@ func shellSharedStuff(facts observation.ColonyProjection, a, b observation.Plann
 	return animalContainmentStuff(a, b)
 }
 
-// animalContainmentDevelopmentGated reports whether an unselected
-// low-priority goal must wait for development: only a new shell does. Once
-// a shell stands, its PenMarker is the step that makes it a working pen, so
-// a development row refusing Construction labor (the ring's own bottleneck)
-// never strands a finished fence ring without a marker.
 // containmentWait is the refusal of a containment step that waits on the
 // handler, the native pen or the shell it needs.
 func containmentWait(reason policy.AnimalContainmentReason) Verdict {
@@ -198,12 +136,15 @@ func containmentWait(reason policy.AnimalContainmentReason) Verdict {
 		return awaitingPlan("pen", "herd_exceeds_planning_limit")
 	case policy.ContainmentAwaitingShell:
 		return awaitingPlan("pen_shell", "completion")
-	case policy.ContainmentShellExhausted:
-		return awaitingPlan("pen_shell", "rebuilds_exhausted")
 	}
 	return awaitingPlan("pen", string(reason))
 }
 
+// animalContainmentDevelopmentGated reports whether an unselected
+// low-priority goal must wait for development: only a pen ring that does not
+// match the plan does. Once the ring stands, its PenMarker is the step that
+// makes it a working pen, so a development row refusing Construction labor (the
+// ring's own bottleneck) never strands a finished fence ring without a marker.
 func animalContainmentDevelopmentGated(priority int, selected bool, reason policy.AnimalContainmentReason) bool {
 	return priority >= 3 && !selected && reason == policy.ContainmentBuildShell
 }
@@ -235,33 +176,13 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Concern == policy.MaintainAnimalContainment && row.Selected
 	}
-	shellStage := policy.ContainmentShellNone
-	markerAttempted := false
-	shellsLost := 0
-	var shellRoom policy.Rectangle
-	haveShellRoom := false
+	penBuilding := false
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoundsAnimalContainmentResult{}, err
 		}
-		kind, room := animalContainmentPlanKindOf(plan.Spec)
-		switch kind {
-		case animalContainmentPlanShell:
-			if store.PlanOpen(plan) {
-				shellStage = policy.ContainmentShellPending
-			} else if animalContainmentPlanComplete(plan) {
-				shellStage = policy.ContainmentShellComplete
-				shellRoom, haveShellRoom = room, true
-			} else {
-				shellsLost++
-			}
-		case animalContainmentPlanMarker:
-			markerAttempted = true
-		}
-	}
-	if shellStage == policy.ContainmentShellNone && shellsLost >= maxAnimalShellRebuilds {
-		shellStage = policy.ContainmentShellLost
+		penBuilding = penBuilding || penPlanOpen(plan.Spec, plan)
 	}
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
@@ -291,7 +212,17 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if _, known := handlerAvailable.Value(); !known {
 		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("animal_handler")}, nil
 	}
-	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, shellStage, markerAttempted)
+	// The pen is the plan's ReservePen viewed as an outdoor room: its ring
+	// stage and marker come from the same diff the reconciler builds from.
+	pen, sited := penOf(facts)
+	shellStage, markerStands := policy.ContainmentShellNone, false
+	switch {
+	case penBuilding:
+		shellStage = policy.ContainmentShellPending
+	case sited && pen.Ring:
+		shellStage, markerStands = policy.ContainmentShellComplete, pen.Marker
+	}
+	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, shellStage, markerStands)
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
@@ -304,360 +235,82 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	}
 	switch choice.Reason {
 	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
-		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted, policy.ContainmentShellExhausted:
+		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted:
 		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
-	case policy.ContainmentBuildShell:
-	case policy.ContainmentPlaceMarker:
-		if !haveShellRoom {
-			return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: step: !haveShellRoom", ErrControl)
-		}
-	default:
-		return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: step: case policy.ContainmentPlaceMarker", ErrControl)
+	case policy.ContainmentBuildShell, policy.ContainmentPlaceMarker:
+		return r.stagePen(call, epoch, state, review, goal, read, pen, sited)
 	}
-	held, err := p.journal.BuildingReservations(call, state.Snapshot)
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
-	}
-	var protected []domain.Cell
-	for _, h := range held {
-		protected = append(protected, h.Footprint...)
-	}
-	if choice.Reason == policy.ContainmentBuildShell {
-		return r.buildShell(call, epoch, state, review, goal, facts, protected, read, animalShellMethodFor(shellsLost))
-	}
-	return r.placeMarker(call, epoch, state, goal, facts, protected, read, shellRoom)
+	return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: step: unknown containment reason %s", ErrControl, choice.Reason)
 }
 
-// buildShell proposes the durable Fence-then-FenceGate perimeter for the
-// nearest legal 6x6 enclosure. Every candidate site is fully previewed before
-// any is admitted; a site whose native preview refuses a cell is abandoned in
-// favor of the next, exactly like previewShell abandons a planned room
-// candidate that fails partway through its perimeter.
-func (r *RoundsAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading, method domain.MethodID) (RoundsAnimalContainmentResult, error) {
-	p := r.reviewer.player
-	fenceDef, fok := animalContainmentDefinition(facts.Definitions, "Fence")
-	gateDef, gok := animalContainmentDefinition(facts.Definitions, "FenceGate")
-	if !fok || !gok {
-		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_definitions")}, nil
+// penOf is the projection's next pen step; false while the plan holds no pen
+// site or a fact it reads (the plan, the construction census, the marker's
+// size) is unknown.
+func penOf(facts observation.ColonyProjection) (policy.PenStep, bool) {
+	plan, pk := facts.LayoutPlan.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	ground, gk := colonyGround(facts)
+	if !pk || !ck || !gk {
+		return policy.PenStep{}, false
 	}
-	favail, fak := fenceDef.Available.Value()
-	gavail, gak := gateDef.Available.Value()
-	if !fak || !gak {
-		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_availability")}, nil
+	var marker policy.InteriorPieceDef
+	if d, found := animalContainmentDefinition(facts.Definitions, policy.PenMarkerDefinition); found {
+		if size, known := d.Size.Value(); known && size.Width >= 1 && size.Height >= 1 {
+			marker = policy.InteriorPieceDef{Def: d.Name, Size: domain.Cell{X: size.Width, Z: size.Height}}
+		}
 	}
-	if !favail || !gavail {
-		return RoundsAnimalContainmentResult{Verdict: awaitingPlan("fence", "unbuildable")}, nil
-	}
-	stuff, known := shellSharedStuff(facts, fenceDef, gateDef)
-	if !known {
-		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_stuff")}, nil
-	}
-	anchor, planned := fieldAnchor(facts)
-	if !planned {
+	return policy.NextPenStep(plan, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, marker)
+}
+
+// stagePen builds the pen on the plan's ReservePen: its fence ring, gate and
+// marker through the shared build side (reconcileRoom), a lost fence rebuilt
+// by the same diff as a first ring. The planner sites the pen, so a ring cell
+// the native preview refuses is reported (noSpace) and left to the plan's
+// next replan; no other site is tried.
+func (r *RoundsAnimalContainmentPlanner) stagePen(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, read observation.RoundsReading, pen policy.PenStep, sited bool) (RoundsAnimalContainmentResult, error) {
+	facts := read.Projection
+	if _, known := facts.LayoutPlan.Value(); !known {
 		return RoundsAnimalContainmentResult{Verdict: BuildingNoLayoutPlan}, nil
 	}
-	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: facts.Cells, Protected: protected})
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
+	if !sited {
+		if plan, _ := facts.LayoutPlan.Value(); len(plan.HerdRooms(policy.PlannedPen)) == 0 {
+			return RoundsAnimalContainmentResult{Verdict: noSpace("pen_enclosure")}, nil
+		}
+		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("room_ground")}, nil
 	}
-	planID := domain.MintPlanID()
-	snapshot := state.Snapshot
-	snapshot.Plan = planID
-	snapshot.Revision = 1
-	for _, room := range sites {
-		actions, previews, stock, reason, err := r.previewPenShell(call, snapshot, room, stuff, facts)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
+	if !pen.Ring {
+		fenceDef, fok := animalContainmentDefinition(facts.Definitions, policy.PenFenceDefinition)
+		gateDef, gok := animalContainmentDefinition(facts.Definitions, policy.PenGateDefinition)
+		if !fok || !gok {
+			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_definitions")}, nil
 		}
-		if reason.Is(RefusalFieldUnavailable) {
-			return RoundsAnimalContainmentResult{Verdict: reason}, nil
+		favail, fak := fenceDef.Available.Value()
+		gavail, gak := gateDef.Available.Value()
+		if !fak || !gak {
+			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_availability")}, nil
 		}
-		if !reason.IsZero() {
-			continue
-		}
-		// The ring is one ungated wave, and like the starter shell it is
-		// admitted as Shelter work: fences and gate are placed regardless
-		// of stock and hold natively for materials (#602).
-		plan, err := domain.NewPlan(planID, 1, actions)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		if err = p.current(call, epoch); err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		if p.session.State() != state {
-			return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: buildShell: p.session.State() != state", ErrControl)
-		}
-		actual, err := stepScope(call, r.reviewer.native)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		if !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
-			return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: buildShell: !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)", ErrControl)
-		}
-		now := r.reviewer.clock.Now()
-		if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
-			return RoundsAnimalContainmentResult{}, observation.ErrStale
-		}
-		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Shelter})
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		outcome := admissionRefused(decision)
-		if decision.Admitted {
-			outcome = BuildingReasonAdmitted
-		}
-		return RoundsAnimalContainmentResult{Verdict: outcome, Plan: planID}, nil
-	}
-	return r.digShell(call, epoch, state, review, goal, facts, protected, read, stuff, method)
-}
-
-// penShellCells lists a pen ring's building cells with the gate first, in
-// the order previewPenShell previews and admits them.
-func penShellCells(room policy.Rectangle) (gate domain.Cell, ring []domain.Cell) {
-	gate = domain.Cell{X: room.X + room.Width/2, Z: room.Z}
-	ring = []domain.Cell{gate}
-	for x := room.X; x < room.X+room.Width; x++ {
-		for z := room.Z; z < room.Z+room.Height; z++ {
-			cell := domain.Cell{X: x, Z: z}
-			if cell != gate && (x == room.X || x == room.X+room.Width-1 || z == room.Z || z == room.Z+room.Height-1) {
-				ring = append(ring, cell)
-			}
+		if !favail || !gavail {
+			return RoundsAnimalContainmentResult{Verdict: awaitingPlan("fence", "unbuildable")}, nil
 		}
 	}
-	return gate, ring
-}
-
-// digShell sites the pen where no open ground fits: the picker sees rock and
-// fogged cells near the anchor as open (policy.RockSiteView), a fence cell on
-// rock stays rock, and the gate cell and the interior are mined before the
-// rest of the ring is built, all in one shell method through the shared rock
-// step. The gate opens onto ground the frame lists open, which a miner and
-// the animals reach.
-func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading, stuff string, method domain.MethodID) (RoundsAnimalContainmentResult, error) {
-	anchor, planned := fieldAnchor(facts)
-	if !planned {
-		return RoundsAnimalContainmentResult{Verdict: BuildingNoLayoutPlan}, nil
-	}
-	reach := policy.RockSiteReach
-	view := policy.RockSiteView(facts.Cells, facts.Bounds, policy.Rectangle{X: anchor.X - reach, Z: anchor.Z - reach, Width: 2*reach + 1, Height: 2*reach + 1})
-	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: view, Protected: protected, Entrance: facts.Cells})
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
-	}
-	step := excavationStep{state: state, review: review, owner: goal, facts: facts, read: read.ColonyReading}
-	check := func() error {
-		if err := r.reviewer.player.current(call, epoch); err != nil {
-			return err
-		}
-		if r.reviewer.player.session.State() != state {
-			return fmt.Errorf("%w: digShell: p.session.State() != state", ErrControl)
-		}
-		return nil
-	}
-	for _, room := range sites {
-		gate, ring := penShellCells(room)
-		outside := domain.Cell{X: gate.X, Z: gate.Z - 1}
-		var planned []policy.RoleCell
-		for _, cell := range ring {
-			role := policy.RockBlocks
-			if cell == gate {
-				role = policy.RockNeedsFloor
-			}
-			planned = append(planned, policy.RoleCell{Cell: cell, Role: role})
-		}
-		for x := room.X + 1; x < room.X+room.Width-1; x++ {
-			for z := room.Z + 1; z < room.Z+room.Height-1; z++ {
-				planned = append(planned, policy.RoleCell{Cell: domain.Cell{X: x, Z: z}, Role: policy.RockNeedsFloor})
-			}
-		}
-		rock := policy.RockStep(planned, facts.Cells)
-		if len(rock.Dig) == 0 {
-			continue
-		}
-		left := make(map[domain.Cell]bool, len(rock.Left))
-		for _, cell := range rock.Left {
-			left[cell] = true
-		}
-		var buildings []domain.Building
-		for _, cell := range ring {
-			if left[cell] {
-				continue
-			}
-			definition := "Fence"
-			if cell == gate {
-				definition = "FenceGate"
-			}
-			building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
-			if err != nil {
-				return RoundsAnimalContainmentResult{}, err
-			}
-			buildings = append(buildings, building)
-		}
-		result, handled, err := r.building.admitRockStep(call, epoch, step, planned, outside, method, buildings, check)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		if !handled {
-			continue
-		}
-		out := RoundsAnimalContainmentResult{Verdict: result.Verdict}
-		for _, m := range result.Decision.Standard.Methods {
-			if m.Method == method {
-				out.Plan = m.Plan
-			}
-		}
-		return out, nil
-	}
-	return RoundsAnimalContainmentResult{Verdict: noSpace("pen_enclosure")}, nil
-}
-
-// previewPenShell previews one candidate room's full 6x6 perimeter (one
-// FenceGate anchoring the south wall's center, Fence elsewhere). It never
-// commits: a rejected or infeasible cell aborts only this candidate.
-func (r *RoundsAnimalContainmentPlanner) previewPenShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, Verdict, error) {
-	_, perimeter := penShellCells(room)
-	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-	var actions []domain.Action
-	var previews []policy.Preview
-	for i, cell := range perimeter {
-		definition := "Fence"
-		if i == 0 {
-			definition = "FenceGate"
-		}
-		building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
-		if err != nil {
-			return nil, nil, policy.StockObservation{}, Verdict{}, err
-		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
-		if err != nil {
-			return nil, nil, policy.StockObservation{}, Verdict{}, err
-		}
-		preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
-		if err != nil {
-			return nil, nil, policy.StockObservation{}, Verdict{}, err
-		}
-		v := preview.Preview
-		made, madeKnown := v.MadeFromStuff.Value()
-		if !madeKnown || made != (stuff != "") {
-			return nil, nil, policy.StockObservation{}, fieldUnavailable("pen_shell_preview"), nil
-		}
-		footprint, fk := v.Footprint.Value()
-		can, ck := v.CanPlace.Value()
-		safe, sk := v.SafeToPlace.Value()
-		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
-			return nil, nil, policy.StockObservation{}, noSpace("pen_enclosure"), nil
-		}
-		if err := mergeRoundsStock(&stock, preview.Stock, i == 0); err != nil {
-			return nil, nil, policy.StockObservation{}, Verdict{}, err
-		}
-		actions = append(actions, action)
-		previews = append(previews, v)
-	}
-	return actions, previews, stock, Verdict{}, nil
-}
-
-// placeMarker searches the completed shell's interior for a legal PenMarker
-// spot, nearest its northwest interior corner within radius 4.
-func (r *RoundsAnimalContainmentPlanner) placeMarker(call, epoch context.Context, state ControlState, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading, room policy.Rectangle) (RoundsAnimalContainmentResult, error) {
-	p := r.reviewer.player
-	markerDef, ok := animalContainmentDefinition(facts.Definitions, "PenMarker")
-	if !ok {
-		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_definition")}, nil
-	}
-	avail, ak := markerDef.Available.Value()
-	if !ak {
-		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_availability")}, nil
-	}
-	if !avail {
-		return RoundsAnimalContainmentResult{Verdict: awaitingPlan("pen_marker", "unbuildable")}, nil
-	}
-	stuff := facts.BuildStuff("PenMarker")
-	var cells []policy.SiteCell
-	for _, c := range facts.Cells {
-		if c.Cell.X > room.X && c.Cell.X < room.X+room.Width-1 && c.Cell.Z > room.Z && c.Cell.Z < room.Z+room.Height-1 {
-			cells = append(cells, c)
-		}
-	}
-	planID := domain.MintPlanID()
-	snapshot := state.Snapshot
-	snapshot.Plan = planID
-	snapshot.Revision = 1
-	center := domain.Cell{X: room.X + 1, Z: room.Z + 1}
-	markerSearch := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: center, Cells: cells, Protected: protected, Environment: policy.PlacementAnywhere, Radius: 4, Limit: 64}
-	search, err := policy.NewPlacementSearch(markerSearch)
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
-	}
-	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-	var chosen policy.Preview
-	var chosenStock policy.StockObservation
-	found := false
-	for i, c := range search.Candidates() {
-		building, err := domain.NewBuilding("PenMarker", c, domain.North, stuff)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", planID, i)), building)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		preview, _, err := r.native.PreviewBuilding(call, action, snapshot)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		v := preview.Preview
-		made, mk := v.MadeFromStuff.Value()
-		if !mk || made != (stuff != "") {
-			continue
-		}
-		choice, ok, err := search.Select("PenMarker", stuff, []policy.Preview{v})
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
+	if !pen.Marker {
+		markerDef, ok := animalContainmentDefinition(facts.Definitions, policy.PenMarkerDefinition)
 		if !ok {
-			continue
+			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_definition")}, nil
 		}
-		chosen, found = choice, true
-		chosenStock = stock
-		if err := mergeRoundsStock(&chosenStock, preview.Stock, true); err != nil {
-			return RoundsAnimalContainmentResult{}, err
+		avail, ak := markerDef.Available.Value()
+		if !ak {
+			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_availability")}, nil
 		}
-		break
+		if !avail {
+			return RoundsAnimalContainmentResult{Verdict: awaitingPlan("pen_marker", "unbuildable")}, nil
+		}
 	}
-	if !found {
-		// A finished ring without a marker is not a pen; the verdict says
-		// the interior refused one.
-		return RoundsAnimalContainmentResult{Verdict: noSpace("pen_marker")}, nil
-	}
-	plan, err := domain.NewPlan(planID, 1, []domain.Action{chosen.Action})
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoundsAnimalContainmentResult{}, err
-	}
-	if p.session.State() != state {
-		return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: placeMarker: p.session.State() != state", ErrControl)
-	}
-	actual, err := stepScope(call, r.reviewer.native)
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
-	}
-	if !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
-		return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: placeMarker: !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)", ErrControl)
-	}
-	now := r.reviewer.clock.Now()
-	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
-		return RoundsAnimalContainmentResult{}, observation.ErrStale
-	}
-	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: animalMarkerMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: chosenStock, Previews: []policy.Preview{chosen}, Purpose: policy.Rounds})
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
-	}
-	outcome := admissionRefused(decision)
-	if decision.Admitted {
-		outcome = BuildingReasonAdmitted
-	}
-	return RoundsAnimalContainmentResult{Verdict: outcome, Plan: planID}, nil
+	in := pen.Room.Interior
+	stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
+	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, read, stock, roomReconcile{
+		room: pen.Room, template: pen.Template,
+		name: fmt.Sprintf("pen-%d-%d", in.X, in.Z), reason: string(pen.Room.Role),
+	})
+	return RoundsAnimalContainmentResult{Verdict: result.Verdict}, err
 }

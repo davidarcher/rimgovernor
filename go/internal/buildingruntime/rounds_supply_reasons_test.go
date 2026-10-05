@@ -56,7 +56,6 @@ func TestContainmentWaitsReadInPlainEnglish(t *testing.T) {
 		policy.ContainmentMarkerExhausted:  "waiting on native pen (marker placed)",
 		policy.ContainmentExceedsBound:     "waiting on pen (herd exceeds planning limit)",
 		policy.ContainmentAwaitingShell:    "waiting on pen shell (completion)",
-		policy.ContainmentShellExhausted:   "waiting on pen shell (rebuilds exhausted)",
 	} {
 		if got := containmentWait(reason).Text(); got != text {
 			t.Fatalf("%s reads %q, want %q", reason, got, text)
@@ -126,21 +125,5 @@ func TestAcquisitionReasonsNameTheMissingThing(t *testing.T) {
 		if got := noAcquisition(test.need, test.noHunter, test.deficit, test.pending); got != test.want {
 			t.Fatalf("%s reads %v, want %v", test.name, got, test.want)
 		}
-	}
-}
-
-// A shell lost after completion is rebuilt under its own method: a method
-// binds once per Episode, so reusing pen-shell failed every cycle.
-func TestAnimalShellMethodForNamesEachRebuild(t *testing.T) {
-	seen := map[domain.MethodID]bool{}
-	for lost := 0; lost < maxAnimalShellRebuilds; lost++ {
-		m := animalShellMethodFor(lost)
-		if seen[m] {
-			t.Fatalf("attempt %d reused %s", lost, m)
-		}
-		seen[m] = true
-	}
-	if animalShellMethodFor(0) != animalShellMethod {
-		t.Fatal("first shell renamed")
 	}
 }

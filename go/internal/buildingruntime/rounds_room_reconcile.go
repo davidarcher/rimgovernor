@@ -106,10 +106,12 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 		Rows:   policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden),
 		Floors: census.Floors, Rooms: colonyRooms(facts), Furniture: rr.template,
 	}
-	if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" {
+	if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
 		in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
 	}
-	in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
+	if !rr.room.Outdoor {
+		in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
+	}
 	if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
 		return RoundsBuildingResult{}, err
 	} else if readable {
@@ -224,6 +226,8 @@ type roomBuild struct {
 	def, stuff string
 	cell       domain.Cell
 	rot        domain.Rotation
+	// ring marks a wall, fence, door or gate of the room's ring.
+	ring bool
 }
 
 // commitBuilds previews every ready on-site building of the room, doors first
@@ -236,11 +240,12 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		wantWalls = wantWalls || op.Kind == policy.OpWallIn || op.Kind == policy.OpWallUp || op.Kind == policy.OpDoorIn
 	}
 	var builds []roomBuild
+	wallDef, doorDef := rr.room.RingDefs()
 	var wallStuff, doorStuff string
 	if wantWalls {
 		var refusal Verdict
 		var ok bool
-		if wallStuff, doorStuff, refusal, ok = shellMaterials(facts); !ok {
+		if wallStuff, doorStuff, refusal, ok = shellMaterials(facts, wallDef, doorDef); !ok {
 			return RoundsBuildingResult{Verdict: refusal}, nil
 		}
 	}
@@ -252,11 +257,11 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			switch kind {
 			case policy.OpDoorIn:
 				for _, c := range op.Cells {
-					builds = append(builds, roomBuild{def: policy.ShellDoorDefinition, stuff: doorStuff, cell: c, rot: domain.North})
+					builds = append(builds, roomBuild{def: doorDef, stuff: doorStuff, cell: c, rot: domain.North, ring: true})
 				}
 			case policy.OpWallIn, policy.OpWallUp:
 				for _, c := range op.Cells {
-					builds = append(builds, roomBuild{def: policy.ShellWallDefinition, stuff: wallStuff, cell: c, rot: domain.North})
+					builds = append(builds, roomBuild{def: wallDef, stuff: wallStuff, cell: c, rot: domain.North, ring: true})
 				}
 			case policy.OpFloorIn:
 				for _, f := range op.Floors {
@@ -314,6 +319,12 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
+			if build.ring && rr.room.Outdoor {
+				// The planner sited this ring: a cell the native refuses is
+				// reported and left to the plan's replan, never moved to
+				// another site (#2120).
+				return RoundsBuildingResult{Verdict: noSpace("pen_enclosure")}, nil
+			}
 			continue
 		}
 		if err := mergeRoundsStock(&stock, preview.Stock, len(selected) == 0); err != nil {
@@ -335,9 +346,9 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 
 // shellMaterials chooses the wall's and the door's stuff from the one stuff the
 // colony can raise a shell from; refusal names what is unavailable.
-func shellMaterials(facts observation.ColonyProjection) (wallStuff, doorStuff string, refusal Verdict, ok bool) {
-	wallDef, wok := animalContainmentDefinition(facts.Definitions, policy.ShellWallDefinition)
-	doorDef, dok := animalContainmentDefinition(facts.Definitions, policy.ShellDoorDefinition)
+func shellMaterials(facts observation.ColonyProjection, wall, door string) (wallStuff, doorStuff string, refusal Verdict, ok bool) {
+	wallDef, wok := animalContainmentDefinition(facts.Definitions, wall)
+	doorDef, dok := animalContainmentDefinition(facts.Definitions, door)
 	if !wok || !dok {
 		return "", "", fieldUnavailable("wall_door_definitions"), false
 	}

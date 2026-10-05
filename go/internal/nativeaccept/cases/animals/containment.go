@@ -1,9 +1,8 @@
 // The animals/containment case exercises the MaintainAnimalContainment
 // native dispatch vertical (G01.07e, issue #27) end to end against a live
 // game: one rimgovernor/operations_apply batch of BuildingIntents (#856)
-// authors a durable Fence/FenceGate pen shell and a PenMarker exactly the way
-// buildingruntime.RoundsAnimalContainmentPlanner's buildShell/placeMarker
-// compose it, then real game ticks build it and carry a genuinely uncontained,
+// authors a durable Fence/FenceGate pen shell and a PenMarker in the shape the
+// planner's pen room reconciles (policy.NextPenStep, #2120), then real game ticks build it and carry a genuinely uncontained,
 // pen-requiring herd animal into that pen -- observed via
 // rimgovernor/observations_read_colony_facts's native AnimalFeed/AnimalState
 // facts (Contained=true, a non-empty PenId), not just a receipt. A
@@ -82,9 +81,9 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 
 	// Author the whole pen in one Actions/Apply batch (#856): 19 Fence + 1
-	// FenceGate matching previewPenShell's perimeter/door layout (door
+	// FenceGate matching the pen ring's perimeter/door layout (door
 	// anchoring the south wall's center, Fence elsewhere), and the PenMarker
-	// at the shell's nearest-northwest interior corner, as placeMarker picks.
+	// at the shell's nearest-northwest interior corner.
 	type cellPlan struct {
 		defName, stuff string
 		x, z           int

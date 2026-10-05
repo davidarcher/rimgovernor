@@ -39,6 +39,9 @@ type PlannedRoom struct {
 	Link *domain.Cell
 	// Dug is a room mined out of natural rock.
 	Dug bool
+	// Outdoor is an open ring: a fence and a gate (RingDefs), no roof and no
+	// floor owed (the animal pen, #2120).
+	Outdoor bool `json:",omitempty"`
 }
 
 // ZoneKind is a whole-map zone's use.
@@ -274,7 +277,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug
+	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

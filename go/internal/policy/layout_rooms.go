@@ -61,18 +61,24 @@ func PlannedRoleFor(role RoomRole) (PlannedRole, bool) {
 // geometry a PlannedRoom's ring is matched against.
 type GroundCensus struct {
 	walls, doors map[domain.Cell]bool
+	// fences and gates are the ring of an outdoor room (PlannedRoom.Outdoor).
+	fences, gates map[domain.Cell]bool
 	// stuff is the stuff of each standing wall, where the census names one.
 	stuff map[domain.Cell]string
 }
 
 // GroundOf reads the walls and doors out of the colony's built buildings.
 func GroundOf(buildings []CurrentBuilding) GroundCensus {
-	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, stuff: map[domain.Cell]string{}}
+	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, fences: map[domain.Cell]bool{}, gates: map[domain.Cell]bool{}, stuff: map[domain.Cell]string{}}
 	for _, b := range buildings {
 		def := b.Building.Definition()
 		for _, c := range b.Cells {
 			switch {
-			case def == "Wall":
+			case def == PenFenceDefinition:
+				g.fences[c] = true
+			case def == PenGateDefinition:
+				g.gates[c] = true
+			case def == ShellWallDefinition:
 				g.walls[c] = true
 				g.stuff[c] = b.Building.Stuff()
 			case strings.Contains(strings.ToLower(def), "door"):
@@ -81,6 +87,23 @@ func GroundOf(buildings []CurrentBuilding) GroundCensus {
 		}
 	}
 	return g
+}
+
+// RingDefs are the defs r's ring is raised from: a wall and a door, or a fence
+// and a gate round an outdoor room.
+func (r PlannedRoom) RingDefs() (wall, door string) {
+	if r.Outdoor {
+		return PenFenceDefinition, PenGateDefinition
+	}
+	return ShellWallDefinition, ShellDoorDefinition
+}
+
+// ring is the standing walls and doors r's ring is matched against.
+func (g GroundCensus) ring(r PlannedRoom) (walls, doors map[domain.Cell]bool) {
+	if r.Outdoor {
+		return g.fences, g.gates
+	}
+	return g.walls, g.doors
 }
 
 // GroundMatches is true when r's wall ring and doors stand as planned: a wall
@@ -93,11 +116,12 @@ func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
 		doors[d] = true
 	}
 	ring := roomWalls(r)
+	walls, standing := g.ring(r)
 	for _, c := range rectCells(ring) {
 		if !onRing(c, ring) {
 			continue
 		}
-		if doors[c] != g.doors[c] || !doors[c] && !g.walls[c] {
+		if doors[c] != standing[c] || !doors[c] && !walls[c] {
 			return false
 		}
 	}

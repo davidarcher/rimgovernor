@@ -120,41 +120,6 @@ func TestRockSiteView(t *testing.T) {
 	}
 }
 
-func TestPenEnclosureEntranceMustOpenOntoGround(t *testing.T) {
-	var cells, ground []SiteCell
-	for x := int32(0); x < 8; x++ {
-		for z := int32(0); z < 8; z++ {
-			open := openSite(x, z)
-			open.Zone, open.SupportsLight = domain.Known(false), domain.Known(true)
-			cells = append(cells, open)
-			if z == 0 { // only the south row is real ground
-				ground = append(ground, open)
-			} else {
-				ground = append(ground, rockSite(x, z))
-			}
-		}
-	}
-	request := PenEnclosureRequest{Bounds: Bounds{Width: 8, Height: 8}, Anchor: domain.Cell{X: 3, Z: 3}, Cells: cells}
-	free, err := PenEnclosureSites(request)
-	if err != nil || len(free) == 0 {
-		t.Fatal(free, err)
-	}
-	request.Entrance = ground
-	sites, err := PenEnclosureSites(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Only a pen whose first row sits on z=1 has the ground row below its gate.
-	if len(sites) != 3 {
-		t.Fatal(sites)
-	}
-	for _, s := range sites {
-		if s.Z != 1 {
-			t.Fatal("entrance not on ground", s)
-		}
-	}
-}
-
 func TestRockAccessPicksFirstOpenNeighbour(t *testing.T) {
 	foot := []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}
 	cells := []SiteCell{openSite(5, 5), openSite(2, 2), openSite(0, 1), rockSite(1, 0)}

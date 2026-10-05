@@ -336,7 +336,10 @@ The shared food forecast allocates current stored food among native eligible eat
 using diet, policy, safe reachability, held stock and rot deadlines. Missing reads,
 grass, expected harvest and unborn animals cannot certify feed capacity. Animal pen
 membership uses the native enclosed, suitable pen lookup; a marker by itself is not
-containment. Area-managed animals use their current allowed-area membership.
+containment. The pen is built on the plan's `ReservePen` rectangle as an outdoor
+planned room (fence ring, gate, then the marker) by the same reconciler as the barn;
+the planner sites it, a ring cell the native preview refuses is reported and left to
+the next replan, and a lost fence or gate is rebuilt by the diff. Area-managed animals use their current allowed-area membership.
 
 An explicit feed resource, or observed feed used exclusively by animals, creates an
 owned `MaintainResource` concern through the existing acquisition/production methods.

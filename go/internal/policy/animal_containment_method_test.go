@@ -68,10 +68,6 @@ func TestSelectAnimalContainmentMethodBoundedHerdAndShellStaging(t *testing.T) {
 	if err != nil || m.Reason != ContainmentMarkerExhausted {
 		t.Fatalf("%+v %v", m, err)
 	}
-	m, err = SelectAnimalContainmentMethod(small, domain.Known(true), ContainmentShellLost, false)
-	if err != nil || m.Reason != ContainmentShellExhausted {
-		t.Fatalf("%+v %v", m, err)
-	}
 }
 
 func TestSelectAnimalContainmentMethodInvalidOrUnknownFacts(t *testing.T) {
