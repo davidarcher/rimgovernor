@@ -223,3 +223,22 @@ func TestBuildStuffRanksByTheStatsTheDefCarries(t *testing.T) {
 		t.Fatal("a powered door ranked by open speed", got)
 	}
 }
+
+// A bench that takes blocks or wood builds from the trees the map has when
+// nothing is stocked: blocks need stonecutting, which a young colony lacks.
+func TestBulkBuildStuffCountsStandingTreesNotBlocks(t *testing.T) {
+	bench := stuffedDef("Bench", option("BlocksGranite", 75, 1, nil), option("WoodLog", 75, 2, nil))
+	p := ColonyProjection{Definitions: []PlanningDefinition{bench}}
+	p.Resources = domain.Known(map[policy.Resource]int64{"Steel": 100})
+	if got := p.BuildStuff("Bench"); got != "BlocksGranite" {
+		t.Fatal("setup: the abstract best is blocks", got)
+	}
+	p.Acquisition = domain.Known([]policy.AcquisitionSource{{Resource: "WoodLog", Tree: true, Yield: 40}, {Resource: "WoodLog", Tree: true, Yield: 40}})
+	if got := p.BulkBuildStuff("Bench", 1); got != "WoodLog" {
+		t.Fatal("two trees cover 75 wood", got)
+	}
+	p.Resources = domain.Known(map[policy.Resource]int64{"BlocksGranite": 80})
+	if got := p.BulkBuildStuff("Bench", 1); got != "BlocksGranite" {
+		t.Fatal("stocked blocks lead", got)
+	}
+}

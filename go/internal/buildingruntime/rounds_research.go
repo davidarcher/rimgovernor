@@ -98,7 +98,7 @@ func (r *RoundsBuildingPlanner) selectResearchBench(facts observation.ColonyProj
 	resolved.definition = bench
 	resolved.environment = policy.PlacementIndoors
 	resolved.facility = &facility
-	resolved.stuff = facts.BuildStuff(bench)
+	resolved.stuff = facts.BulkBuildStuff(bench, 1)
 	return &resolved, Verdict{}, nil
 }
 
