@@ -703,6 +703,61 @@ func TestDefenseLayoutFunnelSkipsUnsupportedTerrain(t *testing.T) {
 	}
 }
 
+// A trap cell whose terrain cannot carry the trap is skipped for another
+// corridor cell; when every candidate is unsupported the layout refuses at
+// siting instead of asking native for the same cell every round (#2130).
+func TestDefenseLayoutTrapsSkipUnsupportedTerrain(t *testing.T) {
+	base, err := DefenseLayouts(defenseFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	corridor, _ := base.Tier(TierTrapCorridor)
+	var traps []domain.Cell
+	for _, b := range corridor.Buildings {
+		if b.Definition() == "TrapSpike" {
+			traps = append(traps, b.Cell())
+		}
+	}
+	if len(traps) == 0 {
+		t.Fatal("fixture sites no trap")
+	}
+	mark := func(r *DefenseRequest, bad map[domain.Cell]bool) {
+		for i := range r.Cells {
+			if bad[r.Cells[i].Cell] {
+				r.Cells[i].TrapSupport = domain.Known(false)
+			}
+		}
+	}
+	r := defenseFixture()
+	mark(&r, map[domain.Cell]bool{traps[0]: true})
+	layout, err := DefenseLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := layout.Tier(TierTrapCorridor)
+	n := 0
+	for _, b := range got.Buildings {
+		if b.Definition() == "TrapSpike" {
+			n++
+			if b.Cell() == traps[0] {
+				t.Fatalf("trap still sited on unsupported terrain at %v", traps[0])
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("no other corridor cell was chosen")
+	}
+	all := map[domain.Cell]bool{}
+	for _, c := range base.TrapLane {
+		all[c] = true
+	}
+	r = defenseFixture()
+	mark(&r, all)
+	if _, err := DefenseLayouts(r); err == nil {
+		t.Fatal("layout with no trap-capable cell was accepted")
+	}
+}
+
 func TestDefenseLayoutRejectsInvalidRequests(t *testing.T) {
 	for name, edit := range map[string]func(*DefenseRequest){
 		"region outside bounds": func(r *DefenseRequest) { r.Region.Width = 300 },

@@ -37,10 +37,8 @@ func (r *RoundsDefenseLayoutPlanner) markWallSupport(call context.Context, ident
 	if err != nil || catalog == nil {
 		return err
 	}
-	need := defenseWallAffordance(catalog, request.Definitions.Wall, request.Definitions.WallStuff)
-	if need == "" {
-		return nil
-	}
+	wallNeed := defenseWallAffordance(catalog, request.Definitions.Wall, request.Definitions.WallStuff)
+	trapNeed := defenseWallAffordance(catalog, request.Definitions.Trap, request.Definitions.TrapStuff)
 	terrain := map[domain.Cell]string{}
 	for _, cell := range site {
 		if !cell.Fogged {
@@ -48,8 +46,15 @@ func (r *RoundsDefenseLayoutPlanner) markWallSupport(call context.Context, ident
 		}
 	}
 	for i, cell := range request.Cells {
-		if def := catalog.TerrainDef(terrain[cell.Cell]); def != nil {
-			request.Cells[i].WallSupport = domain.Known(slices.Contains(def.GetAffordances(), need))
+		def := catalog.TerrainDef(terrain[cell.Cell])
+		if def == nil {
+			continue
+		}
+		if wallNeed != "" {
+			request.Cells[i].WallSupport = domain.Known(slices.Contains(def.GetAffordances(), wallNeed))
+		}
+		if trapNeed != "" {
+			request.Cells[i].TrapSupport = domain.Known(slices.Contains(def.GetAffordances(), trapNeed))
 		}
 	}
 	return nil

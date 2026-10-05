@@ -22,6 +22,8 @@ type DefenseCell struct {
 	// affordance (a wooden wall needs Light, which water and marsh lack).
 	// Unknown leaves the cell sited; the native preview is the backstop.
 	WallSupport domain.Fact[bool]
+	// TrapSupport is the same for the spike trap (#2130).
+	TrapSupport domain.Fact[bool]
 	CoverFill   domain.Fact[float64]
 	Edifice     string
 }
@@ -663,8 +665,15 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		}
 		return order[sites[i].cell] < order[sites[j].cell]
 	})
+	unsupportedTrap, trapsSited := false, 0
 	for _, st := range sites {
 		t := st.cell
+		// Terrain that cannot carry the trap is skipped for the next
+		// corridor cell; native would refuse it every round (#2130).
+		if supported, known := s.cells[t].TrapSupport.Value(); known && !supported {
+			unsupportedTrap = true
+			continue
+		}
 		beside := costs.traps[t]
 		for _, d := range pathSteps {
 			beside = beside || costs.traps[addCell(t, d)]
@@ -680,6 +689,10 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		if err := build(&corridor, r.Definitions.Trap, r.Definitions.TrapStuff, t, "trap"); err != nil {
 			return DefenseLayout{}, err
 		}
+		trapsSited++
+	}
+	if unsupportedTrap && trapsSited == 0 {
+		return DefenseLayout{}, errors.New("no corridor cell has terrain that supports a trap")
 	}
 	// The fence T: a continuous bar across the kill zone and a stem toward
 	// the exit, so raiders climb fences under fire. Raider-side shaping is
