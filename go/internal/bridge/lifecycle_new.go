@@ -20,7 +20,7 @@ const (
 	NewColonyMinTimeoutMs   = 1000
 	NewColonyMaxTimeoutMs   = 1_800_000
 	newColonyMaxBiomes      = 32
-	newColonyMaxTemperature = 200
+	NewColonyMaxTemperature = 200
 )
 
 var newColonySaveName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -180,7 +180,7 @@ func ValidateNewColonySpec(spec *l.NewColonySpec) error {
 		return contract("new colony planet coverage out of range")
 	}
 	for name, value := range map[string]*float32{"min": spec.MinTemperature, "max": spec.MaxTemperature} {
-		if value != nil && (math.IsNaN(float64(*value)) || math.Abs(float64(*value)) > newColonyMaxTemperature) {
+		if value != nil && (math.IsNaN(float64(*value)) || math.Abs(float64(*value)) > NewColonyMaxTemperature) {
 			return contract("new colony %s temperature out of range", name)
 		}
 	}

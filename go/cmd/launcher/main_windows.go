@@ -78,16 +78,19 @@ func main() {
 	}
 	defer w.Destroy()
 	for name, f := range map[string]any{
-		"getState":       a.view,
-		"saveSettings":   a.saveSettings,
-		"focused":        func() { go a.focus() },
-		"play":           func() { go a.play() },
-		"stopController": func() { go a.stop() },
-		"restart":        func() { go a.restart() },
-		"closeGame":      func() { go a.closeGame() },
-		"getEvents":      a.tail.rows,
-		"getProblems":    func(hidden []string, needle string) ProblemsView { return a.recorder.view(hidden, needle) },
-		"allProblems":    a.recorder.allProblems,
+		"getState":          a.view,
+		"saveSettings":      a.saveSettings,
+		"focused":           func() { go a.focus() },
+		"play":              func() { go a.play() },
+		"stopController":    func() { go a.stop() },
+		"restart":           func() { go a.restart() },
+		"closeGame":         func() { go a.closeGame() },
+		"getEvents":         a.tail.rows,
+		"getProblems":       func(hidden []string, needle string) ProblemsView { return a.recorder.view(hidden, needle) },
+		"allProblems":       a.recorder.allProblems,
+		"getNewColony":      a.colony.View,
+		"generateNewColony": a.colony.Generate,
+		"cancelNewColony":   func() { go a.colony.Cancel() },
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())

@@ -78,6 +78,7 @@ type app struct {
 	cmd        *exec.Cmd
 	tail       logTail       // the Log panel's digest of the controller log
 	recorder   *recorderTail // the Problems tab's reader of the flight recorder
+	colony     *colonyRunner // new-colony generation (#2025)
 }
 
 func newApp(repo string) *app {
@@ -93,6 +94,11 @@ func newApp(repo string) *app {
 		a.logf("settings: %v (using defaults)", err)
 	}
 	a.settings = s
+	spec := DefaultNewColonySpec()
+	if s.NewColony != nil {
+		spec = *s.NewColony
+	}
+	a.colony = newColonyRunner(colonyApp{a}, spec)
 	return a
 }
 
@@ -162,6 +168,11 @@ func (a *app) saveSettings(s Settings) error {
 	}
 	a.mu.Lock()
 	a.settings = s
+	spec := DefaultNewColonySpec()
+	if s.NewColony != nil {
+		spec = *s.NewColony
+	}
+	a.colony = newColonyRunner(colonyApp{a}, spec)
 	a.mu.Unlock()
 	return nil
 }

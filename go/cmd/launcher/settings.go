@@ -34,6 +34,10 @@ type Settings struct {
 
 	Debug     bool   `json:"debug"`
 	ExtraArgs string `json:"extraArgs"`
+
+	// NewColony is the last New colony form (#2025); nil until one is
+	// generated, then the form opens on it.
+	NewColony *NewColonySpec `json:"newColony,omitempty"`
 }
 
 // DefaultSettings match serve's own defaults.

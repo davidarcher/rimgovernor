@@ -53,7 +53,10 @@ func (a *app) ready() string {
 	return ""
 }
 
-func (a *app) play() {
+func (a *app) play() { a.playWith(nil) }
+
+// playWith is Play over override instead of the saved settings (nil: those).
+func (a *app) playWith(override *Settings) {
 	// Serve only the finished rimgovernor.exe: a rebuild in flight would
 	// otherwise leave the old binary running (#1132).
 	for deadline := time.Now().Add(5 * time.Minute); a.isBusy(jobController) && time.Now().Before(deadline); {
@@ -70,6 +73,9 @@ func (a *app) play() {
 		return
 	}
 	s := a.settings
+	if override != nil {
+		s = *override
+	}
 	a.ctrl, a.message = ctrlStarting, "Starting the controller"
 	a.mu.Unlock()
 	if err := a.start(s); err != nil {
