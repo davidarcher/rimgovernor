@@ -19,7 +19,8 @@ func TestLabels(t *testing.T) {
 	if got := stopReason(""); got != "unspecified" {
 		t.Fatal(got)
 	}
-	for in, want := range map[string]string{"": "Progressing", "no_worker": "No capable worker available", "prerequisite:Roof": "Needs Roof first", "odd": "odd"} {
+	for in, want := range map[string]string{"": "Progressing", "no_worker": "No capable worker available", "prerequisite:Roof": "Needs Roof first", "odd": "odd",
+		"held:emergency": "Held for an emergency", "planner:no site": "Planner refused: no site", "waiting:wood": "Waiting: wood"} {
 		if got := blockedLabel(in); got != want {
 			t.Fatalf("%q -> %q", in, got)
 		}
@@ -32,55 +33,11 @@ func TestLabels(t *testing.T) {
 	}
 }
 
-func TestNowViewFresh(t *testing.T) {
-	obs := 0.4
-	n := spectator.Now{
-		Stage:    &spectator.Stage{Stage: "Foothold", Since: 1200, Blocker: "shelter", Reason: "no roof", Held: true},
-		Concerns: []spectator.Concern{{Concern: "Feed", Method: "", Expected: "stock", LastProgress: 5000, NextReview: 0, Blocked: "no_worker", Observed: &obs}, {Concern: "Roof", Method: "Build", NextReview: 9000}},
-		Pacing:   spectator.Pacing{Reason: spectator.ReasonHeld, Detail: "raid", EffectiveTPS: 249.6, PacedTPS: 150, WindowTicks: 2500},
-		LastStop: &spectator.Stop{Reason: "STOP_REASON_TICK_BUDGET", Tick: 8000, Benign: true, DetectTicks: ptr(int64(12)), ReadmitMs: ptr(1500.25)},
-		Stops:    spectator.Counts{Stops: 3, Budget: 2, Reactive: 1},
-	}
-	v := nowView(Reading[spectator.Now]{Value: &n, At: time.Now()})
-	if v.Notice != "" || !v.HasValue || v.Stale {
-		t.Fatalf("%+v", v.Feed)
-	}
-	if !strings.Contains(v.Stage, "Foothold since tick 1,200") || !strings.Contains(v.Stage, "waits on shelter: no roof") || !strings.Contains(v.Stage, "development held") {
-		t.Fatal(v.Stage)
-	}
-	if v.Pacing != "Held: a clock event awaits review: raid - 250 ticks/s - holding 150 ticks/s - last window 2,500 ticks" {
-		t.Fatal(v.Pacing)
-	}
-	if len(v.Concerns) != 2 || v.Concerns[0].Concern != "Feed" || v.Concerns[0].Method != "none" || v.Concerns[0].ReviewBy != "no deadline" ||
-		v.Concerns[0].Status != "No capable worker available - deficit 40%" || !v.Concerns[0].Blocked || v.Concerns[1].ReviewBy != "9,000" || v.Concerns[1].Status != "Progressing" {
-		t.Fatalf("%+v", v.Concerns)
-	}
-	want := "Last stop: tick budget at tick 8,000, the controller's own - 12 ticks to detect, 1500.3 ms paused before readmission - 3 stop(s) this launch, 2 on budget and 1 reactive"
-	if v.LastStop != want {
-		t.Fatalf("%q", v.LastStop)
-	}
-}
-
-func TestNowViewEmptyAndStates(t *testing.T) {
-	n := spectator.Now{Pacing: spectator.Pacing{Reason: spectator.ReasonUnknown}}
-	v := nowView(Reading[spectator.Now]{Value: &n})
-	if !strings.HasPrefix(v.Stage, "No round has derived") || v.LastStop != "No window has stopped on this launch." || len(v.Concerns) != 0 {
-		t.Fatalf("%+v", v)
-	}
-	stale := nowView(Reading[spectator.Now]{Value: &n, Stale: true, Error: "HTTP 500", At: time.Date(2026, 1, 1, 10, 30, 5, 0, time.Local)})
-	if !stale.HasValue || !stale.Stale || stale.Stage == "" || stale.Notice != "Stale: the last good reading, from 10:30:05. HTTP 500" {
-		t.Fatalf("%+v", stale)
-	}
-	ns := nowView(Reading[spectator.Now]{NotServed: true})
-	if ns.HasValue || !ns.NotServed || !strings.Contains(ns.Notice, "Observe mode") || ns.Stage != "" {
-		t.Fatalf("%+v", ns)
-	}
-	none := nowView(Reading[spectator.Now]{Error: "connection refused"})
-	if none.HasValue || none.Stale || none.Notice != "Unavailable: connection refused" {
-		t.Fatalf("%+v", none)
-	}
-	if w := nowView(Reading[spectator.Now]{}); w.Notice != "Waiting for the controller." {
-		t.Fatal(w.Notice)
+func TestSpan(t *testing.T) {
+	for in, want := range map[int64]string{-5: "0 ticks", 900: "900 ticks", 5000: "2 game h", 6250: "2.5 game h", 150000: "2.5 game days"} {
+		if got := span(in); got != want {
+			t.Fatalf("%d -> %q", in, got)
+		}
 	}
 }
 
@@ -97,37 +54,145 @@ func TestHeaderView(t *testing.T) {
 	}
 }
 
-func TestDevViewOrderStatusAndBlockers(t *testing.T) {
-	d := DevelopmentView{
-		Development: &Development{Tick: 7000, Workers: ptr(3), Capacity: 2, Committed: []string{"Feed"}, HeldWorkers: 1, Limiting: "capacity_committed", Rows: []DevelopmentRow{
-			{Concern: "Feed", Score: 3.14, Deficit: ptr(0.5), Selected: true},
-			{Concern: "Wall", Score: 2, Committed: true, WaitingSince: 6000},
-			{Concern: "Roof", Score: 1, Reason: "blocked", Bottleneck: "Construction"},
-			{Concern: "Art", Score: 0.5, Reason: "labor_unavailable"},
+// sectionText flattens one section to "flag|text" lines.
+func sectionText(v ReportView, title string) (ReportSection, string) {
+	for _, s := range v.Sections {
+		if s.Title == title {
+			var b strings.Builder
+			for _, l := range s.Lines {
+				b.WriteString(l.Flag + "|" + l.Text + "\n")
+			}
+			return s, b.String()
+		}
+	}
+	return ReportSection{}, ""
+}
+
+func TestReportView(t *testing.T) {
+	healthy := spectator.Now{
+		Tick:     ptr(int64(10000)),
+		Stage:    &spectator.Stage{Stage: "Foothold", Since: 1200, Blocker: "shelter", Reason: "roof 40% of 80%"},
+		Concerns: []spectator.Concern{{Concern: "Roof", Method: "Build", Expected: "roofed cells", LastProgress: 5000, NextReview: 12500}, {Concern: "Feed", Blocked: "no_worker", Observed: ptr(0.4)}},
+		Pacing:   spectator.Pacing{Reason: spectator.ReasonRunning, EffectiveTPS: 249.6},
+		LastStop: &spectator.Stop{Reason: "STOP_REASON_TICK_BUDGET", Tick: 8000, Benign: true, DetectTicks: ptr(int64(12)), ReadmitMs: ptr(1500.25)},
+		Stops:    spectator.Counts{Stops: 3, Budget: 2, Reactive: 1},
+	}
+	dev := DevelopmentView{
+		Development: &Development{Tick: 7500, Workers: ptr(3), Capacity: 1, Committed: []string{"Roof"}, HeldWorkers: 1, Limiting: "capacity_committed", Rows: []DevelopmentRow{
+			{Concern: "Roof", Score: 3.14, Deficit: ptr(0.5), Committed: true},
+			{Concern: "Art", Score: 1, Reason: "blocked", Bottleneck: "Construction", WaitingSince: 6000},
+			{Concern: "Wall", Score: 0.5, Reason: "labor_unavailable"},
 		}},
-		Progress: []ConcernBlock{{Concern: "Roof", Blocked: "cooldown"}, {Concern: "Feed"}},
+		Progress: []ConcernBlock{{Concern: "Art", Blocked: "cooldown"}},
 	}
-	v := devView(Reading[DevelopmentView]{Value: &d})
-	if v.Summary != "Reviewed tick 7,000 - automatic admission, at most 2 - workers 3 - committed Feed" || v.Capacity != "Held by startup work: 1 - Limited by: Waiting for capacity" {
-		t.Fatalf("%q / %q", v.Summary, v.Capacity)
+	paced := func(r spectator.PacingReason, detail string) spectator.Now {
+		n := healthy
+		n.Pacing = spectator.Pacing{Reason: r, Detail: detail}
+		return n
 	}
-	got := []string{}
-	for _, r := range v.Rows {
-		got = append(got, r.Concern+"="+r.Status)
+	held, off := paced(spectator.ReasonHeld, "raid"), paced(spectator.ReasonGovernorOff, "rounds are disabled")
+	stopped := paced(spectator.ReasonStopped, "tick budget")
+	stopped.Concerns = nil
+	emergencyNow := healthy
+	emergencyNow.Concerns = []spectator.Concern{{Concern: "Fire", Method: "Extinguish", Expected: "burning cells", LastProgress: 9900, NextReview: 9000, Blocked: "no_worker"}, {Concern: "Roof", Blocked: "held:emergency"}}
+	emergencyDev := DevelopmentView{Development: &Development{Tick: 9000, Rows: []DevelopmentRow{{Concern: "Art", Reason: "emergency"}}}}
+	at := time.Date(2026, 1, 1, 10, 30, 5, 0, time.Local)
+	const lastGood = "Stale: the last good reading, from 10:30:05. HTTP 500"
+
+	cases := []struct {
+		name     string
+		now      Reading[spectator.Now]
+		dev      Reading[DevelopmentView]
+		headline string
+		contains map[string][]string // section -> "flag|text" substrings
+		notice   string
+		hasValue bool
+		stale    bool
+	}{
+		{name: "healthy with an active concern", now: Reading[spectator.Now]{Value: &healthy}, dev: Reading[DevelopmentView]{Value: &dev}, hasValue: true,
+			headline: "Stage Foothold, governor running, last review 1 game h ago.",
+			contains: map[string][]string{
+				"Doing":    {"|Roof: Build, to move roofed cells (last moved 2 game h ago) - Progressing", "|Pace: Running - 250 ticks/s"},
+				"Pursuing": {"|Stage Foothold since tick 1,200 - next stage waits on shelter: roof 40% of 80%", "|1. Roof - in progress - score 3.1, deficit 50%, risk unknown"},
+				"Concerns": {"|Roof - Build - Progressing - review in 1 game h", "warn|Feed - no method - No capable worker available - deficit 40% - no review deadline",
+					"|Last stop: tick budget at tick 8,000, the controller's own - 12 ticks to detect, 1500.3 ms paused before readmission - 3 stop(s) this launch, 2 on budget and 1 reactive"},
+				"Waiting": {"|Capacity: at most 1 automatic admission(s), workers 3, committed Roof, 1 held by startup work - limited by waiting for capacity",
+					"|2. Art - Blocked: Every method on cooldown (Construction) - score 1.0, deficit unknown, risk unknown, waiting 1.6 game h", "|3. Wall - Waiting for labor"},
+			}},
+		{name: "idle: held", now: Reading[spectator.Now]{Value: &held}, dev: Reading[DevelopmentView]{Value: &dev}, hasValue: true,
+			headline: "Stage Foothold, governor held for a review, last review 1 game h ago.",
+			contains: map[string][]string{"Doing": {"warn|Nothing is being worked. Held: a clock event awaits review: raid", "|Last on the list: Roof: Build"}}},
+		{name: "idle: governor off", now: Reading[spectator.Now]{Value: &off}, dev: Reading[DevelopmentView]{Value: &dev}, hasValue: true,
+			headline: "Stage Foothold, governor off, last review 1 game h ago.",
+			contains: map[string][]string{"Doing": {"warn|Nothing is being worked. Governor off: rounds are disabled"}}},
+		{name: "idle: stopped, no concerns, nothing ranked", now: Reading[spectator.Now]{Value: &stopped}, dev: Reading[DevelopmentView]{Value: &DevelopmentView{}}, hasValue: true,
+			headline: "Stage Foothold, governor running, last review unknown.",
+			contains: map[string][]string{
+				"Doing":    {"warn|Nothing is being worked. Stopped: tick budget"},
+				"Concerns": {"|No active concern has filed a progress record yet."},
+				"Pursuing": {"|No round has ranked development yet."},
+				"Waiting":  {"|No round has ranked development yet."},
+			}},
+		{name: "emergency", now: Reading[spectator.Now]{Value: &emergencyNow}, dev: Reading[DevelopmentView]{Value: &emergencyDev}, hasValue: true,
+			headline: "Stage Foothold, governor running, last review 1,000 ticks ago, an emergency is in force.",
+			contains: map[string][]string{
+				"Concerns": {"emergency|Emergency in force: 1 optional concern(s) deferred for emergency precedence.", "warn|Fire - Extinguish - No capable worker available - review overdue by 1,000 ticks", "emergency|Roof - no method - Held for an emergency"},
+				"Waiting":  {"emergency|1. Art - Emergency precedence"},
+				"Doing":    {"|Fire: Extinguish, to move burning cells (last moved 100 ticks ago)"},
+			}},
+		{name: "stale development keeps its last value", now: Reading[spectator.Now]{Value: &healthy}, hasValue: true,
+			dev:      Reading[DevelopmentView]{Value: &dev, Stale: true, Error: "HTTP 500", At: at},
+			headline: "Stage Foothold, governor running, last review 1 game h ago.",
+			contains: map[string][]string{"Waiting": {"|3. Wall - Waiting for labor"}}},
+		{name: "stale now keeps its last value", now: Reading[spectator.Now]{Value: &healthy, Stale: true, Error: "HTTP 500", At: at},
+			dev: Reading[DevelopmentView]{Value: &dev}, hasValue: true, stale: true, notice: lastGood,
+			headline: "Stage Foothold, governor running, last review 1 game h ago."},
+		{name: "observe mode", now: Reading[spectator.Now]{NotServed: true}, dev: Reading[DevelopmentView]{NotServed: true},
+			notice: "The colony report is not served: the controller is in Observe mode, which serves no colony readings."},
+		{name: "never read", now: Reading[spectator.Now]{Error: "connection refused"}, notice: "Unavailable: connection refused"},
+		{name: "waiting", now: Reading[spectator.Now]{}, notice: "Waiting for the controller."},
 	}
-	want := "Feed=Selected Wall=In progress Roof=Blocked: Every method on cooldown (Construction) Art=Waiting for labor"
-	if strings.Join(got, " ") != want {
-		t.Fatalf("%q", strings.Join(got, " "))
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			v := reportView(c.now, c.dev)
+			if v.HasValue != c.hasValue || v.Stale != c.stale || v.Notice != c.notice {
+				t.Fatalf("feed %+v", v.Feed)
+			}
+			if !c.hasValue {
+				if v.Headline != "" || len(v.Sections) != 0 {
+					t.Fatalf("a failed reading shows no report: %+v", v)
+				}
+				return
+			}
+			if v.Headline != c.headline {
+				t.Fatalf("headline %q", v.Headline)
+			}
+			if len(v.Sections) != 4 || v.Sections[0].Title != "Doing" || v.Sections[1].Title != "Pursuing" || v.Sections[2].Title != "Concerns" || v.Sections[3].Title != "Waiting" {
+				t.Fatalf("sections %+v", v.Sections)
+			}
+			for title, want := range c.contains {
+				_, got := sectionText(v, title)
+				for _, w := range want {
+					if !strings.Contains(got, w) {
+						t.Errorf("%s lacks %q in:\n%s", title, w, got)
+					}
+				}
+			}
+		})
 	}
-	if v.Rows[0].Score != "3.1" || v.Rows[0].Deficit != "50%" || v.Rows[0].Risk != "unknown" || v.Rows[1].Waiting != "6,000" {
-		t.Fatalf("%+v", v.Rows)
+
+	// A development reading that failed outright says so in the sections that
+	// need it instead of printing an empty list.
+	v := reportView(Reading[spectator.Now]{Value: &healthy}, Reading[DevelopmentView]{Error: "connection refused"})
+	for _, title := range []string{"Pursuing", "Waiting"} {
+		s, got := sectionText(v, title)
+		if s.Note != "Unavailable: connection refused" || !strings.Contains(got, "Development priorities are unavailable.") {
+			t.Fatalf("%s: %+v %s", title, s, got)
+		}
 	}
-	none := devView(Reading[DevelopmentView]{Value: &DevelopmentView{}})
-	if none.Empty != "No round has ranked development yet." || len(none.Rows) != 0 {
-		t.Fatalf("%+v", none)
-	}
-	ns := devView(Reading[DevelopmentView]{NotServed: true})
-	if ns.HasValue || !strings.Contains(ns.Notice, "Observe mode") {
-		t.Fatalf("%+v", ns)
+	// A stale development reading carries its notice on the sections.
+	v = reportView(Reading[spectator.Now]{Value: &healthy}, Reading[DevelopmentView]{Value: &dev, Stale: true, Error: "HTTP 500", At: at})
+	if s, _ := sectionText(v, "Waiting"); s.Note != lastGood {
+		t.Fatalf("%q", s.Note)
 	}
 }

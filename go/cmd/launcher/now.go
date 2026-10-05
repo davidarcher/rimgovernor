@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/spectator"
 )
@@ -14,7 +15,8 @@ import (
 // Reading into the strings the page prints, so the page holds no labels or
 // ordering. A stale Reading renders its last good value with a notice; a
 // 404 (Observe mode) renders one line and no value. The label maps are the
-// dashboard's NowPanel and DevelopmentPanel ones.
+// dashboard's NowPanel and DevelopmentPanel ones. reportView joins the Now and
+// routines readings into the four-section report (#2033).
 
 // Feed says how current a panel is. Notice is empty for a fresh reading.
 type Feed struct {
@@ -112,9 +114,25 @@ func blockedLabel(blocked string) string {
 	if rest, ok := strings.CutPrefix(blocked, "prerequisite:"); ok {
 		return "Needs " + rest + " first"
 	}
+	if rest, ok := strings.CutPrefix(blocked, "planner:"); ok {
+		return "Planner refused: " + rest
+	}
+	if rest, ok := strings.CutPrefix(blocked, "waiting:"); ok {
+		return "Waiting: " + rest
+	}
 	switch blocked {
 	case "":
 		return "Progressing"
+	case "held:emergency":
+		return "Held for an emergency"
+	case "held:stage":
+		return "Held at the current stage"
+	case "held:unavailable":
+		return "Held: unavailable"
+	case "held:opt-in":
+		return "Held: not opted in"
+	case "held:capacity":
+		return "Held: waiting for capacity"
 	case "no_worker":
 		return "No capable worker available"
 	case "native_ineligible":
@@ -147,71 +165,301 @@ func reasonLabel(reason string) string {
 	return reason
 }
 
-// ConcernRow is one active concern's progress line.
-type ConcernRow struct {
-	Concern, Method, Expected, LastProgress, ReviewBy, Status string
-	Blocked                                                   bool
+// ReportLine is one sentence of the report. Flag is "", "warn" or
+// "emergency"; the page only styles by it.
+type ReportLine struct {
+	Text string
+	Flag string
 }
 
-// NowView is the stage, concerns, pacing and last stop.
-type NowView struct {
+// ReportSection is one titled section (Doing, Pursuing, Concerns, Waiting).
+// Note is the section's own feed notice (stale or unserved development
+// priorities); Lines say what is known, or that nothing is.
+type ReportSection struct {
+	Title string
+	Note  string
+	Lines []ReportLine
+}
+
+// ReportView is the Now tab's report on the colony: a headline and the four
+// sections in reading order, built from the spectator Now and the routines
+// feed (#2033). The page prints them as given. Feed is the Now feed's: with
+// no value the page shows its Notice alone (Observe mode serves neither).
+type ReportView struct {
 	Feed
-	Stage    string
-	Pacing   string
-	Concerns []ConcernRow
-	LastStop string
+	Headline string
+	Sections []ReportSection
 }
 
-func nowView(r Reading[spectator.Now]) NowView {
-	v := NowView{Feed: feedOf(r, "The now panel"), Concerns: []ConcernRow{}}
-	n := r.Value
+// ticksPerHour and ticksPerDay are RimWorld's clock.
+const (
+	ticksPerHour = 2500
+	ticksPerDay  = 60000
+)
+
+// span reads a tick span in game time.
+func span(ticks int64) string {
+	one := func(v float64, unit string) string {
+		return strconv.FormatFloat(math.Round(v*10)/10, 'f', -1, 64) + " " + unit
+	}
+	switch {
+	case ticks < ticksPerHour:
+		return group(max(ticks, 0)) + " ticks"
+	case ticks < 2*ticksPerDay:
+		return one(float64(ticks)/ticksPerHour, "game h")
+	}
+	return one(float64(ticks)/ticksPerDay, "game days")
+}
+
+// idleReasons are the pacing reasons in which no window is running.
+var idleReasons = map[spectator.PacingReason]bool{
+	spectator.ReasonUnknown: true, spectator.ReasonGovernorOff: true, spectator.ReasonHeld: true, spectator.ReasonRefused: true,
+	spectator.ReasonBudget: true, spectator.ReasonStopped: true, spectator.ReasonBackoff: true,
+}
+
+func pacingLine(p spectator.Pacing) string {
+	label, ok := pacingLabels[p.Reason]
+	if !ok {
+		label = string(p.Reason)
+	}
+	out := label
+	if p.Detail != "" {
+		out += ": " + p.Detail
+	}
+	out += fmt.Sprintf(" - %s ticks/s", group(int64(math.Round(p.EffectiveTPS))))
+	if p.PacedTPS > 0 {
+		out += fmt.Sprintf(" - holding %s ticks/s", group(int64(math.Round(p.PacedTPS))))
+	}
+	if p.WindowTicks > 0 {
+		out += fmt.Sprintf(" - last window %s ticks", group(p.WindowTicks))
+	}
+	return out
+}
+
+func governorWords(r spectator.PacingReason) string {
+	switch r {
+	case spectator.ReasonGovernorOff:
+		return "governor off"
+	case spectator.ReasonHeld:
+		return "governor held for a review"
+	case spectator.ReasonUnknown:
+		return "governor has not stepped yet"
+	}
+	return "governor running"
+}
+
+// movedAgo says how long ago a concern's native observable last moved.
+func movedAgo(last domain.Tick, now *int64) string {
+	switch {
+	case last == 0:
+		return "no movement recorded yet"
+	case now == nil:
+		return "last moved at tick " + group(int64(last))
+	}
+	return "last moved " + span(*now-int64(last)) + " ago"
+}
+
+// deadline says when a concern is judged stalled, relative to now when known.
+func deadline(next domain.Tick, now *int64) string {
+	switch {
+	case next == 0:
+		return "no review deadline"
+	case now == nil:
+		return "review by tick " + group(int64(next))
+	case int64(next) <= *now:
+		return "review overdue by " + span(*now-int64(next))
+	}
+	return "review in " + span(int64(next)-*now)
+}
+
+func reportView(nr Reading[spectator.Now], dr Reading[DevelopmentView]) ReportView {
+	v := ReportView{Feed: feedOf(nr, "The colony report"), Sections: []ReportSection{}}
+	n := nr.Value
 	if n == nil {
 		return v
 	}
+	var dev *Development
+	var progress []ConcernBlock
+	if dr.Value != nil {
+		dev, progress = dr.Value.Development, dr.Value.Progress
+	}
+	devNote := feedOf(dr, "Development priorities").Notice
+	blockers := map[string]string{}
+	for _, p := range progress {
+		if p.Blocked != "" {
+			blockers[p.Concern] = p.Blocked
+		}
+	}
+	emergency, deferred := false, 0
+	if dev != nil {
+		for _, row := range dev.Rows {
+			if row.Reason == "emergency" {
+				emergency = true
+				deferred++
+			}
+		}
+	}
+	for _, c := range n.Concerns {
+		emergency = emergency || c.Blocked == "held:emergency"
+	}
+	idle := idleReasons[n.Pacing.Reason]
+
+	// Headline.
+	stage := "no colony stage derived yet"
+	if n.Stage != nil {
+		stage = "stage " + n.Stage.Stage
+	}
+	review := "last review unknown"
+	if dev != nil && n.Tick != nil {
+		review = "last review " + span(*n.Tick-dev.Tick) + " ago"
+	}
+	head := []string{stage, governorWords(n.Pacing.Reason), review}
+	if emergency {
+		head = append(head, "an emergency is in force")
+	}
+	v.Headline = strings.ToUpper(head[0][:1]) + strings.Join(head, ", ")[1:] + "."
+
+	// Doing: the most urgent active concern, or why nothing is.
+	doing := ReportSection{Title: "Doing"}
+	if idle {
+		doing.Lines = append(doing.Lines, ReportLine{"Nothing is being worked. " + pacingLine(n.Pacing), "warn"})
+	}
+	switch {
+	case len(n.Concerns) == 0:
+		if !idle {
+			doing.Lines = append(doing.Lines, ReportLine{Text: "No active concern has filed a progress record yet. " + pacingLine(n.Pacing)})
+		}
+	default:
+		c := n.Concerns[0]
+		text := c.Concern + ": no method in play"
+		if c.Method != "" {
+			text = c.Concern + ": " + c.Method
+			if c.Expected != "" {
+				text += ", to move " + c.Expected + " (" + movedAgo(c.LastProgress, n.Tick) + ")"
+			}
+		}
+		text += " - " + blockedLabel(c.Blocked)
+		if idle {
+			text = "Last on the list: " + text
+		}
+		doing.Lines = append(doing.Lines, ReportLine{Text: text})
+		if !idle {
+			doing.Lines = append(doing.Lines, ReportLine{Text: "Pace: " + pacingLine(n.Pacing)})
+		}
+	}
+	// Pursuing: the stage and its next condition, then the ranked
+	// development rows holding or taking a slot.
+	pursuing := ReportSection{Title: "Pursuing", Note: devNote}
 	if s := n.Stage; s == nil {
-		v.Stage = "No round has derived a colony stage yet."
+		pursuing.Lines = append(pursuing.Lines, ReportLine{Text: "No round has derived a colony stage yet."})
 	} else {
-		v.Stage = fmt.Sprintf("Stage %s since tick %s", s.Stage, group(int64(s.Since)))
+		text := fmt.Sprintf("Stage %s since tick %s", s.Stage, group(int64(s.Since)))
 		if s.Blocker != "" {
-			v.Stage += fmt.Sprintf(" - next stage waits on %s: %s", s.Blocker, s.Reason)
+			text += fmt.Sprintf(" - next stage waits on %s: %s", s.Blocker, s.Reason)
 		} else {
-			v.Stage += " - every condition met"
+			text += " - every next-stage condition is met"
 		}
 		if s.Held {
-			v.Stage += " - development held"
+			text += " - development held"
+		}
+		pursuing.Lines = append(pursuing.Lines, ReportLine{Text: text})
+	}
+	waiting := ReportSection{Title: "Waiting", Note: devNote}
+	switch {
+	case dev == nil:
+		none := ReportLine{Text: "No round has ranked development yet."}
+		if devNote != "" {
+			none = ReportLine{Text: "Development priorities are unavailable."}
+		}
+		pursuing.Lines = append(pursuing.Lines, none)
+		waiting.Lines = append(waiting.Lines, none)
+	default:
+		workers := "unknown"
+		if dev.Workers != nil {
+			workers = strconv.Itoa(*dev.Workers)
+		}
+		committed := "none"
+		if len(dev.Committed) > 0 {
+			committed = strings.Join(dev.Committed, ", ")
+		}
+		limit := "no eligible concern is waiting"
+		if dev.Limiting != "" {
+			limit = "limited by " + strings.ToLower(reasonLabel(dev.Limiting))
+		}
+		waiting.Lines = append(waiting.Lines, ReportLine{Text: fmt.Sprintf("Capacity: at most %d automatic admission(s), workers %s, committed %s, %d held by startup work - %s", dev.Capacity, workers, committed, dev.HeldWorkers, limit)})
+		pursued, waits := 0, 0
+		for i, row := range dev.Rows {
+			facts := fmt.Sprintf("score %s, deficit %s, risk %s", strconv.FormatFloat(row.Score, 'f', 1, 64), percent(row.Deficit), percent(row.Risk))
+			switch {
+			case row.Selected || row.Committed:
+				status := "in progress"
+				if row.Selected {
+					status = "selected"
+				}
+				pursuing.Lines = append(pursuing.Lines, ReportLine{Text: fmt.Sprintf("%d. %s - %s - %s", i+1, row.Concern, status, facts)})
+				pursued++
+			default:
+				why := reasonLabel(row.Reason)
+				if b := blockers[row.Concern]; row.Reason == "blocked" && b != "" {
+					why += ": " + blockedLabel(b)
+				}
+				if row.Bottleneck != "" {
+					why += " (" + row.Bottleneck + ")"
+				}
+				text := fmt.Sprintf("%d. %s - %s - %s", i+1, row.Concern, why, facts)
+				if row.WaitingSince > 0 && n.Tick != nil {
+					text += ", waiting " + span(*n.Tick-row.WaitingSince)
+				}
+				flag := ""
+				if row.Reason == "emergency" {
+					flag = "emergency"
+				}
+				waiting.Lines = append(waiting.Lines, ReportLine{Text: text, Flag: flag})
+				waits++
+			}
+		}
+		if pursued == 0 {
+			pursuing.Lines = append(pursuing.Lines, ReportLine{Text: "No development project is selected or in progress."})
+		}
+		if waits == 0 {
+			waiting.Lines = append(waiting.Lines, ReportLine{Text: "No optional concern is waiting."})
 		}
 	}
-	label, ok := pacingLabels[n.Pacing.Reason]
-	if !ok {
-		label = string(n.Pacing.Reason)
+
+	// Concerns: the projection orders them, most urgent first.
+	concerns := ReportSection{Title: "Concerns"}
+	if emergency {
+		text := "Emergency in force"
+		if deferred > 0 {
+			text += fmt.Sprintf(": %d optional concern(s) deferred for emergency precedence", deferred)
+		}
+		concerns.Lines = append(concerns.Lines, ReportLine{Text: text + ". The feeds do not name the need; the controller log does.", Flag: "emergency"})
 	}
-	v.Pacing = label
-	if n.Pacing.Detail != "" {
-		v.Pacing += ": " + n.Pacing.Detail
-	}
-	v.Pacing += fmt.Sprintf(" - %s ticks/s", group(int64(math.Round(n.Pacing.EffectiveTPS))))
-	if n.Pacing.PacedTPS > 0 {
-		v.Pacing += fmt.Sprintf(" - holding %s ticks/s", group(int64(math.Round(n.Pacing.PacedTPS))))
-	}
-	if n.Pacing.WindowTicks > 0 {
-		v.Pacing += fmt.Sprintf(" - last window %s ticks", group(n.Pacing.WindowTicks))
-	}
-	// The projection already orders the concerns, most urgent first.
 	for _, c := range n.Concerns {
-		row := ConcernRow{Concern: c.Concern, Method: c.Method, Expected: c.Expected, LastProgress: group(int64(c.LastProgress)),
-			ReviewBy: "no deadline", Status: blockedLabel(c.Blocked), Blocked: c.Blocked != ""}
-		if row.Method == "" {
-			row.Method = "none"
+		method := c.Method
+		if method == "" {
+			method = "no method"
 		}
-		if c.NextReview != 0 {
-			row.ReviewBy = group(int64(c.NextReview))
-		}
+		text := fmt.Sprintf("%s - %s - %s", c.Concern, method, blockedLabel(c.Blocked))
 		if c.Observed != nil {
-			row.Status += fmt.Sprintf(" - deficit %d%%", int(math.Round(*c.Observed*100)))
+			text += fmt.Sprintf(" - deficit %d%%", int(math.Round(*c.Observed*100)))
 		}
-		v.Concerns = append(v.Concerns, row)
+		text += " - " + deadline(c.NextReview, n.Tick)
+		flag := ""
+		switch {
+		case c.Blocked == "held:emergency":
+			flag = "emergency"
+		case c.Blocked != "":
+			flag = "warn"
+		}
+		concerns.Lines = append(concerns.Lines, ReportLine{Text: text, Flag: flag})
 	}
-	v.LastStop = describeStop(n.LastStop, n.Stops)
+	if len(n.Concerns) == 0 {
+		concerns.Lines = append(concerns.Lines, ReportLine{Text: "No active concern has filed a progress record yet."})
+	}
+	concerns.Lines = append(concerns.Lines, ReportLine{Text: describeStop(n.LastStop, n.Stops)})
+
+	v.Sections = []ReportSection{doing, pursuing, concerns, waiting}
 	return v
 }
 
@@ -253,77 +501,6 @@ func stopLegs(s *spectator.Stop) []string {
 		legs = append(legs, ms(*s.ReadmitMs)+" paused before readmission")
 	}
 	return legs
-}
-
-// DevRow is one ranked development candidate.
-type DevRow struct {
-	Concern, Status, Score, Deficit, Risk, Waiting string
-	Selected, InProgress                           bool
-}
-
-// DevView is the development priorities: the "why is nothing happening" list.
-type DevView struct {
-	Feed
-	Summary  string
-	Capacity string
-	Rows     []DevRow
-	Empty    string // why Rows is empty, when it is
-}
-
-func devView(r Reading[DevelopmentView]) DevView {
-	v := DevView{Feed: feedOf(r, "Development priorities"), Rows: []DevRow{}}
-	if r.Value == nil {
-		return v
-	}
-	d := r.Value.Development
-	if d == nil {
-		v.Empty = "No round has ranked development yet."
-		return v
-	}
-	workers := "unknown"
-	if d.Workers != nil {
-		workers = strconv.Itoa(*d.Workers)
-	}
-	committed := "none"
-	if len(d.Committed) > 0 {
-		committed = strings.Join(d.Committed, ", ")
-	}
-	v.Summary = fmt.Sprintf("Reviewed tick %s - automatic admission, at most %d - workers %s - committed %s", group(d.Tick), d.Capacity, workers, committed)
-	limit := "No eligible concern waiting"
-	if d.Limiting != "" {
-		limit = "Limited by: " + reasonLabel(d.Limiting)
-	}
-	v.Capacity = fmt.Sprintf("Held by startup work: %d - %s", d.HeldWorkers, limit)
-	blockers := map[string]string{}
-	for _, p := range r.Value.Progress {
-		if p.Blocked != "" {
-			blockers[p.Concern] = p.Blocked
-		}
-	}
-	for _, row := range d.Rows {
-		out := DevRow{Concern: row.Concern, Selected: row.Selected, InProgress: row.Committed && !row.Selected,
-			Score: strconv.FormatFloat(row.Score, 'f', 1, 64), Deficit: percent(row.Deficit), Risk: percent(row.Risk),
-			Waiting: group(row.WaitingSince)}
-		switch {
-		case row.Selected:
-			out.Status = "Selected"
-		case row.Committed:
-			out.Status = "In progress"
-		default:
-			out.Status = reasonLabel(row.Reason)
-			if b := blockers[row.Concern]; row.Reason == "blocked" && b != "" {
-				out.Status += ": " + blockedLabel(b)
-			}
-		}
-		if row.Bottleneck != "" {
-			out.Status += " (" + row.Bottleneck + ")"
-		}
-		v.Rows = append(v.Rows, out)
-	}
-	if len(v.Rows) == 0 {
-		v.Empty = "No optional concerns are competing."
-	}
-	return v
 }
 
 func percent(v *float64) string {

@@ -7,7 +7,7 @@ Everything you do happens in the launcher window.
 | Tab | Use it to |
 | --- | --- |
 | Launch | Play, stop or restart the controller, pick a saved game, change settings, and change settings. |
-| Now | See what the colony is doing now and which development projects are queued. |
+| Now | Read the governor's last report on the colony: what it is doing, pursuing, worried about and waiting on. |
 | Problems | Read the controller's problem log; copy rows to share. |
 
 ## Speed and the bot
@@ -18,15 +18,25 @@ RimWorld do not change it. If you pause the game natively, the bot waits.
 
 ## Read the Now tab
 
-**Now** shows the colony stage, the current concerns with their method, expected
-result and review deadline, the pacing reason and the last clock stop.
+**Now** opens with the connection strip and a one-line headline (the colony stage,
+whether the governor is running and how long ago it last reviewed the colony),
+then four sections:
 
-**Development priorities** lists the optional projects the last rounds ranked:
-comfort, research, production targets, defense and expansion. Each row shows
-whether the project was selected, is in progress, or why it waits - for capacity,
-for free pawns of a named work type, for a known deficit, or because outdoor work
-is unsafe. Emergencies are handled before this list and never appear in it. The
-list is absent when routine reviews are disabled.
+- **Doing**: the method the most urgent concern is using, the in-game number it
+  should move and how long ago that number last moved. When nothing is being
+  worked it says why: governor off, held for a review, stopped, or between
+  windows.
+- **Pursuing**: the colony stage, what the next stage is waiting on, and the
+  ranked development projects it has selected or started.
+- **Concerns**: the active concerns with their method, status and review
+  deadline, most urgent first; an emergency is marked. The last clock stop and
+  how long it took to land close the section.
+- **Waiting**: the optional projects that are not started and why: capacity, free
+  pawns of a named work type, a known deficit, or unsafe outdoor work. The lists
+  are absent when routine reviews are disabled.
+
+In Observe mode the controller serves no colony readings, so the tab shows a
+single notice instead of the report.
 
 If a reading goes stale the tab keeps the last good value and says so.
 

@@ -108,15 +108,13 @@
   .nowhead { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 8px; color: var(--muted); }
   .nowhead b { color: var(--text); font-weight: 600; }
   .nowsec { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; user-select: text; }
-  .nowsec h2 { font-size: 15px; margin: 0 0 8px; }
+  .nowsec h2 { font-size: 15px; margin: 14px 0 6px; }
+  .nowsec p.nowline { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .nowsec p.warn { color: var(--warn); }
+  .nowsec p.emergency { color: var(--bad); font-weight: 600; }
   .nowsec p { margin: 6px 0; overflow-wrap: anywhere; }
   .nownotice { color: var(--warn); font-size: 13px; margin: 4px 0 8px; overflow-wrap: anywhere; }
   .nownotice[hidden] { display: none; }
-  table.nowtable { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
-  .nowtable th, .nowtable td { text-align: left; padding: 4px 6px; border-top: 1px solid #23261f; vertical-align: top; overflow-wrap: anywhere; }
-  .nowtable thead th { color: var(--muted); font-weight: 400; border-top: none; }
-  .nowtable tr.blocked td:last-child, .nowtable tr.sel td:nth-child(2) { color: var(--warn); }
-  .nowtable tr.sel td:nth-child(2) { color: var(--ok); }
 
   section.colony { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
   section.colony h2 { font-size: 15px; margin: 0; display: inline; }
@@ -164,23 +162,11 @@
   <div class="view" id="view-now" role="tabpanel" aria-labelledby="tab-now" hidden>
     <div class="nowhead" id="nowHeader" aria-label="Connection"></div>
     <div class="nownotice" id="nowHeaderNote" role="status" hidden></div>
-    <section class="nowsec" aria-label="Now">
-      <h2>Now</h2>
+    <section class="nowsec" aria-label="Colony report">
       <div class="nownotice" id="nowNote" role="status" hidden></div>
       <div id="nowBody" hidden>
-        <p id="nowStage"></p>
-        <p id="nowPacing"></p>
-        <div id="nowConcerns"></div>
-        <p id="nowStop"></p>
-      </div>
-    </section>
-    <section class="nowsec" aria-label="Development priorities">
-      <h2>Development priorities</h2>
-      <div class="nownotice" id="devNote" role="status" hidden></div>
-      <div id="devBody" hidden>
-        <p id="devSummary"></p>
-        <p id="devCapacity"></p>
-        <div id="devRows"></div>
+        <p class="nowline" id="nowHeadline"></p>
+        <div id="nowSections"></div>
       </div>
     </section>
   </div>
@@ -541,15 +527,11 @@ $('pbCopyAll').onclick = async () => { copyText((await allProblems()) || 'No pro
 $('toLog').onclick = e => { e.preventDefault(); $('tab-log').click(); };
 document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', pollProblems));
 setInterval(pollProblems, 1500);
-// Now tab (#1986): each section polls its own Bind at the serve client's
-// cadence while the tab is showing. A call still in flight skips the tick.
+// Now tab (#1986, #2033): the header and the report poll their own Binds at the
+// serve client's cadences while the tab is showing. A call still in flight skips the tick.
 function setNote(id, f) {
   $(id).hidden = !f.Notice;
   $(id).textContent = f.Notice || '';
-}
-function nowTable(head, rows, rowClass) {
-  return '<table class="nowtable"><thead><tr>' + head.map(h => `<th scope="col">${esc(h)}</th>`).join('') + '</tr></thead><tbody>' +
-    rows.map(r => `<tr class="${rowClass(r.src)}">` + r.cells.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
 }
 async function pollNowHeader() {
   const h = await getNowHeader();
@@ -558,30 +540,15 @@ async function pollNowHeader() {
     ? [h.Connection, h.Tick ? 'tick ' + h.Tick : '', h.Paused, h.Colony, h.Mode].filter(Boolean).map(s => `<span>${esc(s)}</span>`).join('')
     : '';
 }
-async function pollNowPanel() {
-  const n = await getNowPanel();
-  setNote('nowNote', n);
-  $('nowBody').hidden = !n.HasValue;
-  if (!n.HasValue) return;
-  $('nowStage').textContent = n.Stage;
-  $('nowPacing').textContent = n.Pacing;
-  $('nowStop').textContent = n.LastStop;
-  $('nowConcerns').innerHTML = n.Concerns.length
-    ? nowTable(['Concern', 'Method', 'Expected', 'Last progress', 'Review by', 'Status'],
-        n.Concerns.map(c => ({ src: c, cells: [c.Concern, c.Method, c.Expected, c.LastProgress, c.ReviewBy, c.Status] })), c => c.Blocked ? 'blocked' : '')
-    : '<p>No active concern has filed a progress record yet.</p>';
-}
-async function pollNowDevelopment() {
-  const d = await getNowDevelopment();
-  setNote('devNote', d);
-  $('devBody').hidden = !d.HasValue;
-  if (!d.HasValue) return;
-  $('devSummary').textContent = d.Summary || d.Empty;
-  $('devCapacity').textContent = d.Capacity;
-  $('devRows').innerHTML = d.Rows.length
-    ? nowTable(['Concern', 'Status', 'Score', 'Deficit', 'Risk', 'Waiting since'],
-        d.Rows.map(r => ({ src: r, cells: [r.Concern, r.Status, r.Score, r.Deficit, r.Risk, r.Waiting] })), r => r.Selected ? 'sel' : '')
-    : (d.Summary ? '<p>' + esc(d.Empty) + '</p>' : '');
+async function pollNowReport() {
+  const r = await getNowReport();
+  setNote('nowNote', r);
+  $('nowBody').hidden = !r.HasValue;
+  if (!r.HasValue) return;
+  $('nowHeadline').textContent = r.Headline;
+  $('nowSections').innerHTML = r.Sections.map(s =>
+    `<h2>${esc(s.Title)}</h2>` + (s.Note ? `<div class="nownotice">${esc(s.Note)}</div>` : '') +
+    s.Lines.map(l => `<p class="${esc(l.Flag)}">${esc(l.Text)}</p>`).join('')).join('');
 }
 function everyWhileNow(poll, ms) {
   let busy = false;
@@ -594,8 +561,7 @@ function everyWhileNow(poll, ms) {
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
 }
 everyWhileNow(pollNowHeader, 1500);
-everyWhileNow(pollNowPanel, 2000);
-everyWhileNow(pollNowDevelopment, 3000);
+everyWhileNow(pollNowReport, 3000);
 
 // New colony panel (#2026): renders getNewColony() verbatim; the Go view model
 // owns every label, order, default and range. The page polls only while the

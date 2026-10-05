@@ -100,9 +100,10 @@ func main() {
 	// cadences while the tab is visible; no timer lives here.
 	serve := NewServeClient(a.serveURL)
 	for name, f := range map[string]any{
-		"getNowHeader":      func() HeaderView { return headerView(serve.State(context.Background())) },
-		"getNowPanel":       func() NowView { return nowView(serve.Now(context.Background())) },
-		"getNowDevelopment": func() DevView { return devView(serve.Routines(context.Background())) },
+		"getNowHeader": func() HeaderView { return headerView(serve.State(context.Background())) },
+		"getNowReport": func() ReportView {
+			return reportView(serve.Now(context.Background()), serve.Routines(context.Background()))
+		},
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())

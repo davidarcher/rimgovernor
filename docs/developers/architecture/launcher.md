@@ -28,29 +28,42 @@ while its tab is showing and skips a tick while a call is in flight.
 | Tab | Shows | Source |
 | --- | --- | --- |
 | Launch | Play, Restart, Stop and Close game; the saved game to load; component status rows (game layout, native mod, controller, game); Settings; the operator controls; the collapsible New colony panel. | Launcher state; `GET /api/player/*` for the controls. |
-| Now | A connection header, then **Now** and **Development priorities**. | `GET /api/state`, `GET /api/spectator/now`, `GET /api/routines`. |
+| Now | A connection header, a one-line headline and the four report sections (Doing, Pursuing, Concerns, Waiting). | `GET /api/state`, `GET /api/spectator/now`, `GET /api/routines`. |
 | Problems | The flight recorder as a filterable feed with kind counts, health and Copy. | `<profile>/flight/flight.jsonl` read in-process. |
 | Log | The controller's own log events (problems, or all with Events too) and the build and controller output (Details). Polls only while the tab shows. | Launcher state; the controller log feed. |
 
-[now.go](../../../go/cmd/launcher/now.go) builds the Now view models. **Now**
-answers what the colony is doing at a glance (`GET /api/spectator/now`):
+[now.go](../../../go/cmd/launcher/now.go) builds the Now view models: `headerView`
+for the strip (connection, tick, paused, colony) and `reportView` for the
+report (#2033). `reportView` joins `GET /api/spectator/now` with the development
+slice of `GET /api/routines` and produces every word Go-side: a one-line
+headline (stage, whether the governor runs, the last review's age, an emergency
+when one is in force) and four sections the page prints in the order given,
+with a flag (`warn`, `emergency`) per line and no labels of its own.
 
-- the colony stage with the first unmet condition of the next and its
-  measured values;
-- the active concerns' progress records: method, the native observable it
-  should move, the tick evidence last moved it, the review deadline and the
-  status, the most urgent first;
-- the pacing reason with the effective ticks per second: `running`,
-  `tick_budget` between windows, `window_refused`, `held` while a clock event
-  awaits review, `governor_off`, `stopped` or `cinematic`;
-- the last clock stop with its latency split.
+- **Doing**: the current method of the most urgent active concern, the native
+  observable it should move and how long ago the tick evidence last moved it
+  (game hours); when the pacing reason is idle (governor off, held, stopped,
+  between windows, refused), that reason instead.
+- **Pursuing**: the colony stage, the first unmet condition of the next stage
+  with its measured values, and the ranked development rows that are selected or
+  in progress.
+- **Concerns**: every active concern with its method, status, deficit and
+  review deadline, most urgent first, emergencies marked; the last clock stop
+  with its latency split.
+- **Waiting**: the development capacity summary and each ranked row that waits,
+  with its reason and bottleneck.
 
 `internal/spectator` projects these from the last review's records and the
 flight-recorder rows of the current launch. Reading issues no native call,
 writes no journal row and requests no speed, so watching never changes the
-simulation. **Development priorities** lists the optional projects the last
-rounds ranked (comfort, research, production targets, defense, expansion) with
-the capacity summary and why each waits; emergencies never appear in it.
+simulation. A failed Now reading keeps its last good report with the stale
+notice; a failed routines reading puts its notice on Pursuing and Waiting, which
+then say development priorities are unavailable. In Observe mode neither route
+is served, so the tab shows one notice line and no sections. The data has gaps
+the report states instead of filling: the feeds mark an emergency only through
+deferral reasons and `held:emergency` concerns, never naming the need (the
+controller log does), and development rows carry no category, so Pursuing ranks
+them by concern name.
 
 The Problems tab ([problems.go](../../../go/cmd/launcher/problems.go)) reads the
 flight recorder directly, so it still shows the last session after the
