@@ -28,6 +28,8 @@ type fakeGame struct {
 
 	mu        sync.Mutex
 	attention map[string]any
+	// onModLogSubscribe, when set, runs after a subscribe naming the mod log channel is answered.
+	onModLogSubscribe func(*gabptest.ServerConn)
 }
 
 func gameSpec(t *testing.T) gamehost.Spec {
@@ -51,7 +53,7 @@ func startFakeGame(t *testing.T) *fakeGame {
 		Tools: []map[string]any{{"name": "fixture/read", "inputSchema": json.RawMessage(emptySchema)}, {"name": "rimworld/load_game_ready"}},
 		Welcome: map[string]any{"capabilities": map[string]any{
 			"methods": []string{gabp.MethodToolsList, gabp.MethodToolsCall, gabp.MethodEventsSubscribe, attentionCurrent, attentionAck},
-			"events":  []string{attentionOpened, attentionUpdated, attentionCleared},
+			"events":  []string{attentionOpened, attentionUpdated, attentionCleared, modLogChannel},
 		}},
 		Handle: g.handle,
 	})
@@ -77,6 +79,9 @@ func (g *fakeGame) handle(r *gabptest.Request) {
 	switch r.Method {
 	case gabp.MethodEventsSubscribe:
 		r.Reply(map[string]any{}, nil)
+		if strings.Contains(string(r.Params), modLogChannel) && g.onModLogSubscribe != nil {
+			g.onModLogSubscribe(r.Conn())
+		}
 	case attentionCurrent:
 		g.mu.Lock()
 		defer g.mu.Unlock()

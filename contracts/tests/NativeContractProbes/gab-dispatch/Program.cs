@@ -20,12 +20,14 @@ using RimGovernor.Host.Gab.Server;
 // waits on a wall-clock bound; the waits are hang guards only.
 internal static class GabDispatchProbe
 {
-    private static readonly TimeSpan Guard = TimeSpan.FromSeconds(60);
+    internal static readonly TimeSpan Guard = TimeSpan.FromSeconds(60);
     private static int checks;
     private static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
 
-    private sealed class Client : IDisposable
+    internal sealed class Client : IDisposable
     {
+        // Server-pushed event frames in arrival order (the mod-log probe reads them).
+        internal readonly BlockingCollection<JObject> Events = new BlockingCollection<JObject>();
         private readonly TcpClient tcp;
         private readonly NetworkStream stream;
         private readonly ConcurrentDictionary<string, TaskCompletionSource<JObject>> pending = new ConcurrentDictionary<string, TaskCompletionSource<JObject>>();
@@ -67,7 +69,8 @@ internal static class GabDispatchProbe
                     for (var i = 0; i < read; i++) buffer.Add(chunk[i]);
                     while (TryFrame(buffer, out var message))
                     {
-                        if (message["id"] != null && pending.TryRemove((string)message["id"], out var completion))
+                        if ((string)message["type"] == "event") Events.Add(message);
+                        else if (message["id"] != null && pending.TryRemove((string)message["id"], out var completion))
                             completion.TrySetResult(message);
                     }
                 }
@@ -94,7 +97,7 @@ internal static class GabDispatchProbe
         public void Dispose() { tcp.Close(); }
     }
 
-    private static JObject Settle(Task<JObject> task, string name)
+    internal static JObject Settle(Task<JObject> task, string name)
     {
         Check(task.Wait(Guard), name + " is answered within the hang guard");
         return task.Result;

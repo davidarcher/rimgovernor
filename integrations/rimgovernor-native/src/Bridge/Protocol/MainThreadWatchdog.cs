@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using RimGovernor.Host.Sdk;
 using Verse;
 
 namespace HomeBridge.BridgeTools
@@ -17,12 +18,14 @@ namespace HomeBridge.BridgeTools
     // StallSeconds (the body itself is stuck), naming the operation and the
     // controller's trace ("<trace_id>/<span_id>") so the line joins the
     // service's flight log. Without it a hung call shows only as a Go-side
-    // deadline, indistinguishable from a dead game.
+    // deadline, indistinguishable from a dead game. The lines go through
+    // ModLog (the rimgovernor.log channel, #2058), not Unity's log: they reach
+    // the flight recorder as mod_log rows carrying the same trace.
     internal static class MainThreadWatchdog
     {
         internal const double StallSeconds = 2.0;
         internal const double SlowMillis = 100.0;
-        private const string Prefix = "[RimGovernor] main-thread hop ";
+        private const string Component = "watchdog";
 
         internal sealed class Hop
         {
@@ -69,17 +72,18 @@ namespace HomeBridge.BridgeTools
                 // stall line still names itself, so a choppy session shows
                 // which op held the game thread.
                 var executeMs = Millis(hop.Started == 0 ? 0 : now - hop.Started);
-                if (executeMs >= SlowMillis) Log.Warning(Prefix + "slow: " + hop.Describe() + " executeMs=" + executeMs);
+                if (executeMs >= SlowMillis) ModLog.Warn(Component, "hop slow: " + hop.Describe() + " executeMs=" + executeMs, hop.Trace, "watchdog.slow:" + hop.Operation);
                 return;
             }
-            Log.Warning(Prefix + "recovered: " + hop.Describe() + " queuedMs=" + Millis((hop.Started == 0 ? now : hop.Started) - hop.Queued)
-                + " executeMs=" + Millis(hop.Started == 0 ? 0 : now - hop.Started));
+            ModLog.Warn(Component, "hop recovered: " + hop.Describe() + " queuedMs=" + Millis((hop.Started == 0 ? now : hop.Started) - hop.Queued)
+                + " executeMs=" + Millis(hop.Started == 0 ? 0 : now - hop.Started), hop.Trace, "watchdog.recovered:" + hop.Operation);
         }
 
         private static void Scan()
         {
             var now = Stopwatch.GetTimestamp();
-            var stalled = new List<string>();
+            var stalled = new List<Hop>();
+            var lines = new List<string>();
             lock (Gate)
             {
                 foreach (var hop in Live.Values)
@@ -90,21 +94,21 @@ namespace HomeBridge.BridgeTools
                         var waited = Seconds(now - hop.Queued);
                         if (waited < StallSeconds) continue;
                         hop.Reported = true;
-                        stalled.Add("queued " + waited.ToString("F1") + "s without the game thread picking it up: " + hop.Describe());
+                        stalled.Add(hop);
+                        lines.Add("queued " + waited.ToString("F1") + "s without the game thread picking it up: " + hop.Describe());
                     }
                     else
                     {
                         var running = Seconds(now - hop.Started);
                         if (running < StallSeconds) continue;
                         hop.Reported = true;
-                        stalled.Add("running " + running.ToString("F1") + "s on the game thread: " + hop.Describe());
+                        stalled.Add(hop);
+                        lines.Add("running " + running.ToString("F1") + "s on the game thread: " + hop.Describe());
                     }
                 }
             }
-            foreach (var line in stalled)
-            {
-                try { Log.Warning(Prefix + line); } catch (Exception) { }
-            }
+            for (var i = 0; i < stalled.Count; i++)
+                ModLog.Warn(Component, "hop " + lines[i], stalled[i].Trace, "watchdog.stall:" + stalled[i].Operation);
         }
 
         private static double Seconds(long ticks) => ticks <= 0 ? 0.0 : ticks / (double)Stopwatch.Frequency;

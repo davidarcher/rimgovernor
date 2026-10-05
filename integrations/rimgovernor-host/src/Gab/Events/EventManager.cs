@@ -26,6 +26,8 @@ namespace RimGovernor.Host.Gab.Events
             public HashSet<IConnection> Subscribers { get; set; } = new HashSet<IConnection>();
         }
 
+        public event Action<string> ChannelSubscribed;
+
         public async Task<List<string>> SubscribeAsync(IConnection connection, List<string> channels)
         {
             var subscribed = new List<string>();
@@ -49,6 +51,16 @@ namespace RimGovernor.Host.Gab.Events
 
                 // Clean up when connection disconnects
                 connection.Disconnected += (_, __) => CleanupConnection(connection);
+            }
+
+            var handler = ChannelSubscribed;
+            if (handler != null)
+            {
+                foreach (var channel in subscribed)
+                {
+                    try { handler(channel); }
+                    catch (Exception) { /* an observer never fails a subscribe */ }
+                }
             }
 
             return await Task.FromResult(subscribed);

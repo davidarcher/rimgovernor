@@ -354,9 +354,11 @@ namespace HomeBridge.BridgeTools
                 // install is gated out of it rather than faked.
                 ObservationFrameHook.Ensure();
                 PlayerSpeedHook.Ensure();
+                ModLogTick.Ensure();
 #endif
                 var started = Stopwatch.GetTimestamp();
                 var work = ObservationWork.Begin();
+                ModLog.CurrentTrace = trace;
                 try
                 {
                     object reply;
@@ -378,7 +380,7 @@ namespace HomeBridge.BridgeTools
                     ObservationWork.End();
                     throw;
                 }
-                finally { MainThreadWatchdog.Finish(hop); }
+                finally { ModLog.CurrentTrace = null; MainThreadWatchdog.Finish(hop); }
             }, cancellationToken, out depth);
             // A hop the host never runs (cancelled while queued) still leaves
             // the watchdog once its task settles.

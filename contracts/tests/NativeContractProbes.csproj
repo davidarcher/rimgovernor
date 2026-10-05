@@ -64,6 +64,7 @@
     <Compile Include="$(HostSourceRoot)/Sdk/*.cs" Link="Host/Sdk/%(Filename)%(Extension)" />
     <Compile Include="$(HostSourceRoot)/Gab/**/*.cs" Exclude="$(HostSourceRoot)/Gab/obj/**" Link="Host/Gab/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="NativeContractProbes/gab-dispatch/Program.cs" />
+    <Compile Include="NativeContractProbes/mod-log/Program.cs" />
   </ItemGroup>
 
   <!-- ==== Shared fakes (Category 1/4: in-process, no real Assembly-CSharp.dll) ==== -->

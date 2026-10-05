@@ -34,8 +34,9 @@ const connectDialBound = 10 * time.Second
 // gameBackend drives one game: gamehost launches or finds the process and
 // a direct GABP connection carries the calls.
 type gameBackend struct {
-	gameID string
-	spec   gamehost.Spec
+	gameID   string
+	spec     gamehost.Spec
+	recorder *FlightRecorder // receives the mod's rimgovernor.log events as rows; nil records none
 
 	connectMu sync.Mutex // one dial at a time
 
@@ -58,9 +59,9 @@ type attentionState struct {
 	current   json.RawMessage // the item, nil when none is open
 }
 
-func newGameBackend(gameID string, spec gamehost.Spec) *gameBackend {
+func newGameBackend(gameID string, spec gamehost.Spec, recorder *FlightRecorder) *gameBackend {
 	spec.GameID = gameID
-	return &gameBackend{gameID: gameID, spec: spec, ended: make(chan struct{})}
+	return &gameBackend{gameID: gameID, spec: spec, recorder: recorder, ended: make(chan struct{})}
 }
 
 func (b *gameBackend) discovery() Discovery  { return wrapperDiscovery("rimgovernor-gamehost") }
@@ -240,9 +241,13 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 	}
 	defer cancel()
 	state := &attentionState{}
+	modLog := newModLogSink(b.recorder)
 	conn, err := gabp.Dial(dialCtx, game.Addr(), game.Token(), gabp.Options{
 		ClientName: "rimgovernor", ClientVersion: "go-read-v1", MaxFrameBytes: maxResponseBytes + 1<<20,
-		OnEvent: func(event gabp.Event) { b.attentionEvent(state, event) },
+		OnEvent: func(event gabp.Event) {
+			b.attentionEvent(state, event)
+			modLog.offer(event)
+		},
 	})
 	if err != nil {
 		if !game.Alive() {
@@ -250,12 +255,18 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 		}
 		return b.refuse(map[string]any{"status": "running"}, "game %q has no attachable endpoint yet: %v", b.gameID, err)
 	}
+	if modLog != nil {
+		go modLog.run(conn.Done())
+	}
 	tools, err := conn.ListTools(dialCtx)
 	if err != nil {
 		_ = conn.Close()
 		return b.refuse(map[string]any{"status": "running"}, "game %q has no attachable endpoint yet: tools/list: %v", b.gameID, err)
 	}
 	welcome := conn.Welcome()
+	if modLog != nil && slices.Contains(welcome.Capabilities.Events, modLogChannel) {
+		_ = conn.Subscribe(dialCtx, modLogChannel)
+	}
 	var acknowledged json.RawMessage
 	if slices.Contains(welcome.Capabilities.Methods, attentionCurrent) && slices.Contains(welcome.Capabilities.Methods, attentionAck) {
 		state.supported = true

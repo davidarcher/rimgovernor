@@ -211,7 +211,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	}
 	launch := config.Launch
 	client, err := open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func(context.Context) (backend, error) {
-		return newGameBackend(config.GameID, launch), nil
+		return newGameBackend(config.GameID, launch, config.Recorder), nil
 	})
 	if err != nil {
 		return nil, err

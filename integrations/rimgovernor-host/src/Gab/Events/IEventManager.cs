@@ -11,6 +11,12 @@ namespace RimGovernor.Host.Gab.Events
     public interface IEventManager
     {
         /// <summary>
+        /// Raised with the channel name after a connection subscribes to it (a publisher holding
+        /// entries for an absent subscriber flushes then)
+        /// </summary>
+        event Action<string> ChannelSubscribed;
+
+        /// <summary>
         /// Subscribe a connection to one or more event channels
         /// </summary>
         Task<List<string>> SubscribeAsync(IConnection connection, List<string> channels);

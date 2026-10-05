@@ -146,6 +146,8 @@ internal static class RimBridgeStartup
                     RegisterExtensionTools(_server);
                 using (RimBridgeStartupTiming.Phase("event-relay.initialize"))
                     RimBridgeEventRelay.Initialize(_server.Events, RimBridgeCapabilities.Journal, RimBridgeCapabilities.LogJournal);
+                using (RimBridgeStartupTiming.Phase("mod-log.initialize"))
+                    StartModLogChannel(_server.Events);
                 using (RimBridgeStartupTiming.Phase("attention.initialize"))
                     _attentionPublisher = new RimBridgeAttentionPublisher(_server.Attention, RimBridgeCapabilities.Journal, RimBridgeCapabilities.LogJournal);
 
@@ -184,6 +186,20 @@ internal static class RimBridgeStartup
             Log.Error($"[RimBridge] STARTUP_INIT_FAILURE: {ex}");
             Log.Error($"[RimBridge] Failed to initialize server: {ex}");
         }
+    }
+
+    // The mod's diagnostics channel (#2058): the ring lives in ModLog; the publisher thread owns the emit.
+    private static void StartModLogChannel(RimGovernor.Host.Gab.Events.IEventManager events)
+    {
+        events.RegisterChannel(RimGovernor.Host.Sdk.ModLogPublisher.Channel, RimGovernor.Host.Sdk.ModLogPublisher.Description);
+        events.ChannelSubscribed += channel =>
+        {
+            if (channel == RimGovernor.Host.Sdk.ModLogPublisher.Channel)
+                RimGovernor.Host.Sdk.ModLog.Poke();
+        };
+        new RimGovernor.Host.Sdk.ModLogPublisher(
+            events.EmitEventAsync,
+            () => events.GetSubscriberCount(RimGovernor.Host.Sdk.ModLogPublisher.Channel) > 0).Start();
     }
 
     private static class TaskShim
