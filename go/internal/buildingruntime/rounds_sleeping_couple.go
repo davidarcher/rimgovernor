@@ -7,46 +7,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// packedSource is the native half that reinstalls stored packed furniture
-// (#830, #843); a source without it builds new beds instead.
-type packedSource interface {
-	ReadPackedItems(context.Context, *c.Identity, string) ([]bridge.PackedItem, bridge.Result, error)
-}
-
-var _ packedSource = (*bridge.Client)(nil)
-
 const couplePackMethod = "sleeping-couple-pack-"
-
-// storedPiece is a stored packed item of def installable at anchor/rot,
-// as the move that installs it; false when none (or no packed source).
-func (r *RoundsSleepingUpkeepPlanner) storedPiece(call context.Context, state ControlState, def string, anchor domain.Cell, rot domain.Rotation) (domain.MoveBuilding, bool, error) {
-	native, ok := r.native.(packedSource)
-	if !ok {
-		return domain.MoveBuilding{}, false, nil
-	}
-	identity := boundary.Identity(state.Snapshot)
-	packed, _, err := native.ReadPackedItems(call, identity, policy.PackedFurnitureDefinition)
-	if err != nil {
-		return domain.MoveBuilding{}, false, err
-	}
-	for _, item := range packed {
-		if item.InnerDef != def {
-			continue
-		}
-		move, err := domain.NewMoveBuilding(item.Inner, def, anchor, rot)
-		return move, err == nil, err
-	}
-	return domain.MoveBuilding{}, false, nil
-}
 
 // couplePacked is the cells of the beds this epoch's completed couple pack
 // steps uninstalled, each plan's first (the couple's room's) first.
@@ -79,7 +46,7 @@ func (r *RoundsSleepingUpkeepPlanner) couplePacked(call context.Context, goal st
 // then install a DoubleBed (a stored one first) in the couple's room's
 // bedroom slot; each step once per Episode. due is false when nothing
 // is to do, so the ordinary sleeping choice goes on.
-func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
 	facts := reading.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
@@ -138,7 +105,7 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sta
 		if done, err := used(method); err != nil || done {
 			return RoundsBuildingResult{}, false, err
 		}
-		move, stored, err := r.storedPiece(call, state, policy.SleepingCoupleBedDefinition, step.Anchor, step.Rot)
+		move, stored, err := stock.Install(call, policy.PackedFurnitureDefinition, policy.SleepingCoupleBedDefinition, step.Anchor, step.Rot)
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
@@ -162,7 +129,7 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sta
 // the chosen definition, installed at the first free bed spot of a hosting
 // room; once per packed bed per Episode. due is false when none is
 // stored or none fits, so the build goes on.
-func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoundsReading, choice policy.SleepingChoice) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading, choice policy.SleepingChoice) (RoundsBuildingResult, bool, error) {
 	facts := reading.Projection
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -179,7 +146,7 @@ func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Con
 		if !ok || !hosting[anchor] {
 			continue
 		}
-		move, stored, err := r.storedPiece(call, state, choice.Definition, anchor, rot)
+		move, stored, err := stock.Install(call, policy.PackedFurnitureDefinition, choice.Definition, anchor, rot)
 		if err != nil || !stored {
 			return RoundsBuildingResult{}, false, err
 		}

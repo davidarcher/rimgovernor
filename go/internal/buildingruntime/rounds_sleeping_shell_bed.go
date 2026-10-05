@@ -19,7 +19,7 @@ import (
 // (uninstalled) so the next round reinstalls it. Each step once per bed per
 // Episode; due is false when there is no bed to carry over, the room has
 // no spot, or the step was tried, so the ordinary build goes on.
-func (r *RoundsSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, bool, error) {
 	facts := reading.Projection
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -51,7 +51,7 @@ func (r *RoundsSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Conte
 		}
 		return false, err
 	}
-	move, stored, err := r.storedPiece(call, state, string(bed), anchor, rot)
+	move, stored, err := stock.Install(call, policy.PackedFurnitureDefinition, string(bed), anchor, rot)
 	if err != nil {
 		return RoundsBuildingResult{}, false, err
 	}

@@ -284,6 +284,8 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 		return RoundsBuildingResult{}, err
 	}
 	facts := reading.Projection
+	// One packed read per pass, shared by every owner of stored pieces.
+	stock := newPackedStock(r.native, boundary.Identity(state.Snapshot))
 	request, err := sleepingRequest(facts, review)
 	if err != nil {
 		return RoundsBuildingResult{}, err
@@ -296,7 +298,7 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 	swapping := false
 	// A couple's double bed comes before any other bed change (#843).
 	if choice.Method != policy.SleepingUnknown {
-		if result, due, err := r.coupleBed(call, epoch, state, review, goal, reading); due || err != nil {
+		if result, due, err := r.coupleBed(call, epoch, stock, state, review, goal, reading); due || err != nil {
 			return result, err
 		}
 	}
@@ -327,7 +329,7 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 		case policy.BedroomFurnish:
 			// A bed left empty in the starter shell moves to the new room
 			// (packed, then reinstalled) rather than being built again.
-			if result, due, err := r.furnishFromShell(call, epoch, state, goal, reading, step); due || err != nil {
+			if result, due, err := r.furnishFromShell(call, epoch, stock, state, goal, reading, step); due || err != nil {
 				return result, err
 			}
 			// The indoor rung alone: a bed the room refuses is no reason to
@@ -371,7 +373,7 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 				if upgrade, due := beautyUpgrade(facts, r.reviewer.stage); due {
 					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
 				}
-				if result, due, err := r.sculptBedroom(call, epoch, state, goal, reading); due || err != nil {
+				if result, due, err := r.sculptBedroom(call, epoch, stock, state, goal, reading); due || err != nil {
 					return result, err
 				}
 				return RoundsBuildingResult{Verdict: BuildingSleepingUseNeeded}, nil
@@ -385,7 +387,7 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 		return r.markSlaveBed(call, epoch, state, goal, choice.Bed)
 	case policy.SleepingBuild:
 		// A stored bed is reinstalled before a new one is built (#843).
-		if result, due, err := r.reinstallStoredBed(call, epoch, state, goal, reading, choice); due || err != nil {
+		if result, due, err := r.reinstallStoredBed(call, epoch, stock, state, goal, reading, choice); due || err != nil {
 			return result, err
 		}
 		return r.building.step(call, epoch, arbiter)

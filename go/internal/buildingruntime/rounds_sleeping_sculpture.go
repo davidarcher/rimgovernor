@@ -6,21 +6,12 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
-
-// sculptureSource is the native half the sculpture install (#830) needs
-// beyond RoundsBuildingSource; a source without it skips the lever.
-type sculptureSource interface {
-	ReadPackedItems(context.Context, *c.Identity, string) ([]bridge.PackedItem, bridge.Result, error)
-}
-
-var _ sculptureSource = (*bridge.Client)(nil)
 
 // sculptureRoomsOwed is the review's MaintainArt room input (#1190): a
 // bedroom below target, weakest in beauty, with a free cell.
@@ -40,20 +31,18 @@ func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyS
 // finished packed sculpture (MaintainArt's pinned bill, #1190) installed (a
 // RelocateIntent on the packed item's inner building) on free floor in the
 // room, once per Episode. due is false when the lever has nothing to do.
-func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, state ControlState, goal store.WorkOwner, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
-	native, ok := r.native.(sculptureSource)
+func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
 	facts := reading.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	traits := sleepingTraits(facts)
-	if !ok || !sk || !rk || !ck || !census.Colony || traits == nil {
+	if !sk || !rk || !ck || !census.Colony || traits == nil {
 		return RoundsBuildingResult{}, false, nil
 	}
 	tier, _ := facts.BuildTier.Value()
-	identity := boundary.Identity(state.Snapshot)
-	items, _, err := native.ReadPackedItems(call, identity, policy.PackedSculptureDefinition)
-	if err != nil {
+	items, ok, err := stock.Items(call, policy.PackedSculptureDefinition)
+	if err != nil || !ok {
 		return RoundsBuildingResult{}, false, err
 	}
 	packed := packedSculptures(items, facts.Facts.Items)
@@ -120,7 +109,7 @@ func packedSculptures(items []bridge.PackedItem, facts policy.ItemFacts) []polic
 // uses (#1195). Nil (no art sale) when the source cannot read packed items
 // or a room input is unknown.
 func (r *RoundsTradePlanner) saleArt(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (map[string]bool, error) {
-	native, ok := r.native.(sculptureSource)
+	native, ok := r.native.(packedSource)
 	if !ok {
 		return nil, nil
 	}
@@ -141,7 +130,7 @@ func (r *RoundsTradePlanner) saleArt(call context.Context, identity *c.Identity,
 
 // saleSculptures is SaleSculptures over a routine projection and the packed
 // items read; nil when a room input is unknown.
-func saleSculptures(call context.Context, native sculptureSource, identity *c.Identity, facts observation.ColonyProjection) (map[string]bool, error) {
+func saleSculptures(call context.Context, native packedSource, identity *c.Identity, facts observation.ColonyProjection) (map[string]bool, error) {
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -161,7 +150,7 @@ func saleSculptures(call context.Context, native sculptureSource, identity *c.Id
 // packed art count, read only while the wealth headroom is known and
 // negative (unknown otherwise, so the need adds nothing).
 func reviewSaleArt(call context.Context, source any, identity *c.Identity, facts observation.ColonyProjection) (domain.Fact[int64], error) {
-	native, ok := source.(sculptureSource)
+	native, ok := source.(packedSource)
 	h, hk := facts.Facts.WealthBudget().Value()
 	if !ok || !hk || h >= 0 {
 		return domain.Unknown[int64](), nil
