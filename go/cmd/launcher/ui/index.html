@@ -119,7 +119,12 @@
   .nowtable tr.sel td:nth-child(2) { color: var(--ok); }
 
   section.colony { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
-  section.colony h2 { font-size: 15px; margin: 0 0 10px; }
+  section.colony h2 { font-size: 15px; margin: 0; display: inline; }
+  section.colony > details { margin: 0; }
+  section.colony > details > summary { color: var(--text); margin: 0; }
+  section.colony > details[open] > summary { margin-bottom: 10px; }
+  #ncSummary { margin-left: 10px; color: var(--muted); font-size: 13px; }
+  #ncBox[open] #ncSummary { display: none; }
   section.colony fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
   section.colony .field select, section.colony .field input[type=text], section.colony .field input[type=number] { width: 200px; }
   section.colony .field input[type=number].short { width: 90px; }
@@ -154,6 +159,7 @@
     <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
     <button role="tab" id="tab-now" data-tab="now" aria-selected="false">Now</button>
     <button role="tab" id="tab-problems" data-tab="problems" aria-selected="false">Problems</button>
+    <button role="tab" id="tab-log" data-tab="log" aria-selected="false">Log</button>
   </nav>
   <div class="view" id="view-now" role="tabpanel" aria-labelledby="tab-now" hidden>
     <div class="nowhead" id="nowHeader" aria-label="Connection"></div>
@@ -191,7 +197,25 @@
       <div class="pbstatus" id="pbStatus" role="status"></div>
       <div class="evlist" id="pbList"></div>
     </div>
-    <p class="note">The controller's own log and the build output are on the <a href="#" id="toLog">Launch tab</a> (Log, Details).</p>
+    <p class="note">The controller's own log and the build output are on the <a href="#" id="toLog">Log tab</a>.</p>
+  </div>
+
+  <div class="view" id="view-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+  <section class="events" id="events" aria-label="Log">
+    <div class="evbar">
+      <h2>Log</h2>
+      <span class="seg" role="radiogroup" aria-label="Show">
+        <input type="radio" name="evshow" id="showProblems" value="problems" checked><label for="showProblems">Problems</label>
+        <input type="radio" name="evshow" id="showAll" value="all"><label for="showAll">Events too</label>
+      </span>
+      <button id="copyProblems" title="Copy every problem to the clipboard">Copy problems</button>
+    </div>
+    <div class="evlist" id="evlist"></div>
+  </section>
+  <details class="log" id="logbox" open>
+    <summary>Details</summary>
+    <pre id="log"></pre>
+  </details>
   </div>
 
   <div id="view-launch" role="tabpanel" aria-labelledby="tab-launch">
@@ -208,14 +232,14 @@
     <div class="secondary" id="gamebar" hidden>
       <button id="closeGame">Close game</button>
     </div>
-    <div class="secondary"><button id="logToggle"aria-expanded="false" aria-controls="events">Log</button></div>
     <div class="alert" id="alert" role="alert" hidden></div>
     <ul class="status" id="status" aria-label="Components"></ul>
     <p class="note">Player guide: <code>https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md</code> (or <code>docs/players/README.md</code> in this checkout)</p>
   </div>
 
   <section class="colony" id="newColony" aria-label="New colony">
-    <h2>New colony</h2>
+   <details id="ncBox">
+    <summary><h2>New colony</h2><span id="ncSummary"></span></summary>
     <div class="ncnotice" id="ncUnavailable" role="status" hidden></div>
     <fieldset id="ncForm">
       <div class="field"><label for="ncScenario">Scenario</label><select id="ncScenario"></select></div>
@@ -250,18 +274,7 @@
       <div id="ncResult"></div>
     </div>
     <div class="err" id="ncErr" role="alert"></div>
-  </section>
-
-  <section class="events" id="events" hidden aria-label="Log">
-    <div class="evbar">
-      <h2>Log</h2>
-      <span class="seg" role="radiogroup" aria-label="Show">
-        <input type="radio" name="evshow" id="showProblems" value="problems" checked><label for="showProblems">Problems</label>
-        <input type="radio" name="evshow" id="showAll" value="all"><label for="showAll">Events too</label>
-      </span>
-      <button id="copyProblems" title="Copy every problem to the clipboard">Copy problems</button>
-    </div>
-    <div class="evlist" id="evlist"></div>
+   </details>
   </section>
 
   <section class="settings" id="settings" hidden aria-label="Settings">
@@ -294,10 +307,6 @@
     <div class="err" id="settingsErr" role="alert"></div>
   </section>
 
-  <details class="log" id="logbox">
-    <summary>Details</summary>
-    <pre id="log"></pre>
-  </details>
   </div>
 </main>
 
@@ -429,7 +438,7 @@ function renderEvents() {
   }).join('');
 }
 async function pollEvents() {
-  if ($('events').hidden) return;
+  if ($('view-log').hidden) return;
   try { events = await getEvents(); } catch (e) { return; }
   const list = $('evlist'), top = list.scrollTop;
   renderEvents();
@@ -467,12 +476,7 @@ $('copyProblems').onclick = () => {
   flash($('copyProblems'), 'Copied');
 };
 document.querySelectorAll('input[name=evshow]').forEach(i => i.onchange = renderEvents);
-$('logToggle').onclick = () => {
-  const open = $('events').hidden;
-  $('events').hidden = !open;
-  $('logToggle').setAttribute('aria-expanded', String(open));
-  pollEvents();
-};
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', pollEvents));
 setInterval(pollEvents, 1500);
 
 // Problems tab: the flight recorder, read by the launcher itself.
@@ -534,7 +538,7 @@ $('pbList').addEventListener('click', e => {
 });
 $('pbCopyShown').onclick = () => { copyText(pbShown.map(e => e.Text).join('\n\n') || 'No rows.'); flash($('pbCopyShown'), 'Copied'); };
 $('pbCopyAll').onclick = async () => { copyText((await allProblems()) || 'No problems.'); flash($('pbCopyAll'), 'Copied'); };
-$('toLog').onclick = e => { e.preventDefault(); $('tab-launch').click(); };
+$('toLog').onclick = e => { e.preventDefault(); $('tab-log').click(); };
 document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', pollProblems));
 setInterval(pollProblems, 1500);
 // Now tab (#1986): each section polls its own Bind at the serve client's
@@ -661,6 +665,8 @@ function ncRender(v) {
   const p = v.progress, active = ncActive(p.state);
   if (p.requestId !== nc.rid) { nc.rid = p.requestId; nc.shown = 0; }
   nc.anchor = { ms: p.elapsedMs, at: performance.now() };
+  if (active && !ncActive(nc.prev)) $('ncBox').open = true;
+  $('ncSummary').textContent = p.state === 'idle' ? '' : [p.state, p.phase].filter(Boolean).join(' - ');
   $('ncUnavailable').hidden = !v.unavailable;
   $('ncUnavailable').textContent = v.unavailable || '';
   $('ncForm').disabled = active;

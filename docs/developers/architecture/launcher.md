@@ -27,9 +27,10 @@ while its tab is showing and skips a tick while a call is in flight.
 
 | Tab | Shows | Source |
 | --- | --- | --- |
-| Launch | Play, Restart, Stop and Close game; the saved game to load; component status rows (game layout, native mod, controller, game); the Log and Details; Settings; the operator controls. | Launcher state; build and controller output; `GET /api/player/*` for the controls. |
+| Launch | Play, Restart, Stop and Close game; the saved game to load; component status rows (game layout, native mod, controller, game); Settings; the operator controls; the collapsible New colony panel. | Launcher state; `GET /api/player/*` for the controls. |
 | Now | A connection header, then **Now** and **Development priorities**. | `GET /api/state`, `GET /api/spectator/now`, `GET /api/routines`. |
 | Problems | The flight recorder as a filterable feed with kind counts, health and Copy. | `<profile>/flight/flight.jsonl` read in-process. |
+| Log | The controller's own log events (problems, or all with Events too) and the build and controller output (Details). Polls only while the tab shows. | Launcher state; the controller log feed. |
 
 [now.go](../../../go/cmd/launcher/now.go) builds the Now view models. **Now**
 answers what the colony is doing at a glance (`GET /api/spectator/now`):
@@ -54,12 +55,12 @@ the capacity summary and why each waits; emergencies never appear in it.
 The Problems tab ([problems.go](../../../go/cmd/launcher/problems.go)) reads the
 flight recorder directly, so it still shows the last session after the
 controller crashed or stopped. It hides decode rows by default; the controller's
-own log and the build output stay on the Launch tab. See
+own log and the build output are on the Log tab. See
 [measure throughput](../testing/measure-throughput.md) for what the rows carry.
 
 ## New colony panel
 
-The Launch tab's New colony panel renders `getNewColony()` (`NewColonyView` in
+The Launch tab's New colony panel is collapsed by default, shows the generation state and phase in its summary while collapsed, opens itself when a generation starts (or is already running on load) and never re-collapses mid-run; the open state is not persisted. It renders `getNewColony()` (`NewColonyView` in
 [newcolony.go](../../../go/cmd/launcher/newcolony.go)) verbatim: option lists
 with their labels, order and `requires` DLC, ranges, defaults, the last spec and
 the generation progress. The page fills the form once from `spec`, calls

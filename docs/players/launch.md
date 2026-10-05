@@ -17,11 +17,11 @@ to its main menu; load a save there.
 
 Play stops an earlier controller from this checkout first. The controller
 starts at port 8787 and moves up past ports another checkout is using.
-Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`.
+Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`; the **Log** tab shows the controller's log events and the build output.
 
 ## New colony
 
-The **New colony** panel on the Launch tab generates a fresh colony without
+The **New colony** panel on the Launch tab (collapsed until you open it; it opens itself when a generation starts) generates a fresh colony without
 touching the RimWorld menus: pick the scenario, colonist count, seed (blank is
 random; **Random** fills one in), biomes, difficulty, storyteller (including
 Quiet), map size and flat tile, then press **Generate**. **Advanced** (collapsed)
