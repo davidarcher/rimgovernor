@@ -1,6 +1,16 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"sync/atomic"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
+// layoutCounters tally growth events for the replay score gate (#2094), which
+// logs them per fixture. They only count and never steer the plan.
+var layoutCounters struct {
+	routed, spineFallbacks, rings, secondDoors atomic.Int64
+}
 
 // Corridors for the new generator (#1956, epic #1938). Once the rooms and
 // housing blocks stand, the hallway network is finished in three passes,
@@ -147,6 +157,7 @@ func (g coreGrid) routeRings(p LayoutPlan) LayoutPlan {
 		if bestGain <= 0 {
 			break
 		}
+		layoutCounters.rings.Add(1)
 		p.Spine = best
 		p.Entrances = hallEntrances(best)
 	}
@@ -266,6 +277,7 @@ func (p LayoutPlan) addSecondDoors(fixed map[Rectangle]bool) LayoutPlan {
 			if planWalk(q) < planWalk(p) {
 				if _, err := CheckRoutes(q); err == nil {
 					rooms, p.Rooms = trial, trial
+					layoutCounters.secondDoors.Add(1)
 				}
 			}
 		}

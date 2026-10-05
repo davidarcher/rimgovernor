@@ -98,8 +98,10 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 // of the base, or, when that set strands a trip, to the end slabs of every
 // hallway, which are always enough.
 func routedEntrances(plan LayoutPlan) LayoutPlan {
+	layoutCounters.routed.Add(1)
 	plan.Entrances = hallEntrances(plan.Spine)
 	if _, err := CheckRoutes(plan); err != nil {
+		layoutCounters.spineFallbacks.Add(1)
 		plan.Entrances = spineEntrances(plan.Spine)
 	}
 	return plan

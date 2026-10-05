@@ -60,11 +60,20 @@ var replayFixtures = []replayFixture{
 
 func TestReplayScoreFixtures(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
+	recorded := map[string]replayRow{}
+	if !updateReplayScores() {
+		recorded = loadReplayScores(t)
+	}
+	got := map[string]replayRow{}
 	for _, f := range replayFixtures {
 		t.Run(f.name, func(t *testing.T) {
 			s := f.survey(t)
 			zones := Zone(s)
 			before := Score(siteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, BuildTierCamp, 0), s)
+			layoutCounters.routed.Store(0)
+			layoutCounters.spineFallbacks.Store(0)
+			layoutCounters.rings.Store(0)
+			layoutCounters.secondDoors.Store(0)
 			plan := SiteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, BuildTierCamp)
 			sc := Score(plan, s)
 			t.Logf("%-16s unsearched %s", f.name, before)
@@ -72,6 +81,17 @@ func TestReplayScoreFixtures(t *testing.T) {
 				t.Fatalf("searched plan scores below the unsearched one: %d < %d", sc.Total(), before.Total())
 			}
 			t.Logf("%-16s %dx%d rooms=%d %s", f.name, s.Bounds.Width, s.Bounds.Height, len(plan.AllRooms()), sc)
+			t.Logf("%-16s hallways=%d rings=%d secondDoors=%d routedEntrances=%d spineFallbacks=%d", f.name, len(plan.Hallways()),
+				layoutCounters.rings.Load(), layoutCounters.secondDoors.Load(), layoutCounters.routed.Load(), layoutCounters.spineFallbacks.Load())
+			row := newReplayRow(sc, len(plan.AllRooms()))
+			got[f.name] = row
+			if want, ok := recorded[f.name]; !updateReplayScores() {
+				if !ok {
+					t.Errorf("no recorded row (RIMGOVERNOR_UPDATE_SNAPSHOT=1 records one)")
+				} else if err := checkReplayRow(want, row); err != nil {
+					t.Error(err)
+				}
+			}
 			if !f.mayFail && !sc.Passes() {
 				t.Fatalf("hard-fail tier: missing=%v routes=%q rich=%d", sc.Missing, sc.RoutesErr, sc.RichCells)
 			}
@@ -89,5 +109,8 @@ func TestReplayScoreFixtures(t *testing.T) {
 				}
 			}
 		})
+	}
+	if updateReplayScores() {
+		writeReplayScores(t, got)
 	}
 }
