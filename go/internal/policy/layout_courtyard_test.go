@@ -83,7 +83,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 			}
 		}
 	}
-	enc := planEnclosureCells(coreFootprint(plan, 140, 140), 140, 140)
+	enc := coreEnclosure(plan, 140, 140)
 	for c := range rich {
 		if !enc.inside(c) {
 			t.Fatalf("patch cell %v outside the core enclosure", c)

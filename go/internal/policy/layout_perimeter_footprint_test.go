@@ -41,7 +41,7 @@ func TestCoreFootprintRectangularCoreMatchesTheBox(t *testing.T) {
 	if got, want := countCells(fp), int(box.Width*box.Height); got != want {
 		t.Fatalf("footprint %d cells, box %d", got, want)
 	}
-	enc := planEnclosureCells(fp, 150, 150)
+	enc := coreEnclosure(plan, 150, 150)
 	if enc.bbox != pad(box, perimeterGap) {
 		t.Fatalf("enclosure %v, want the box grown by the yard %v", enc.bbox, pad(box, perimeterGap))
 	}
@@ -57,7 +57,7 @@ func TestCoreFootprintLShapeKeepsItsNotch(t *testing.T) {
 	}}
 	const n = 150
 	fp := coreFootprint(plan, n, n)
-	enc := planEnclosureCells(fp, n, n)
+	enc := coreEnclosure(plan, n, n)
 	box := pad(footprintBox(plan, n, n), perimeterGap)
 	if got := countCells(enc.in); got >= int(box.Width*box.Height) {
 		t.Fatalf("enclosure holds %d cells of the %d-cell box", got, box.Width*box.Height)
@@ -84,7 +84,7 @@ func TestCoreFootprintNarrowNotchCloses(t *testing.T) {
 		footprintRoom(ModuleStorage, 54, 40, 10, 10),
 	}}
 	const n = 150
-	enc := planEnclosureCells(coreFootprint(plan, n, n), n, n)
+	enc := coreEnclosure(plan, n, n)
 	if !enc.inside(domain.Cell{X: 52, Z: 45}) {
 		t.Fatal("the gap between two rooms is not enclosed")
 	}

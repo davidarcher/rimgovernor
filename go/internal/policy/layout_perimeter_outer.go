@@ -273,14 +273,6 @@ func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 	return newEnclosure(closeRegion(grown, w, h, yard), w, h)
 }
 
-// planEnclosureCells traces the enclosure around a core footprint on a w x h
-// map: the footprint grown by the yard, closed so the outline has no notches
-// narrower than the closing.
-func planEnclosureCells(footprint []bool, w, h int32) enclosure {
-	m := LayoutEdgeMargin + perimeterThick
-	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
-	return newEnclosure(encloseRegion(footprint, w, h, yard, perimeterGap), w, h)
-}
 
 // outerClear is how far the outer ring needs a unit to stand off the core
 // footprint: the core ring's yard, its thickness, the gap and the outer ring's thickness.
