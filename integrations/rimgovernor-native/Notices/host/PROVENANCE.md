@@ -28,8 +28,11 @@ Tool names (`rimworld/*`, `rimbridge/*`) are unchanged.
 ## Deviations from the vendored source
 
 - Target framework is net472 only (upstream also built netstandard2.0 and net10.0 for its tests and NuGet SDK).
-- `RimWorldMainTabs.cs` and `RimWorldDebugActions.cs` replace `Range`/`Index` slicing with `Substring`
-  (net472 lacks `System.Range`); everything else differs only by the renames above.
+- Pruned to what RimGovernor calls (#2056): the UI workbench, Lua/script runner and MoonSharp, virtual pointer,
+  map click injector, architect, context menus, view/screenshot, DPA, input, selection, notification, mod
+  settings/configuration and debug-action modules, the SDK tool client, game clock and evidence helpers, and 118
+  of the 125 built-in tools. What remains of the vendored `Host` project is the `rimworld/*` and `rimbridge/*`
+  tools Go calls plus the host core; see `docs/developers/source-map.md`.
 - `Assembly-CSharp` is publicised at build time (TaskPubliciser, build-only, not redistributed), as upstream does.
 
 ## Packages shipped beside the host
@@ -40,5 +43,4 @@ Restored in locked mode from `packages.lock.json`; their runtime DLLs are staged
 | Package | Version | License | Notice |
 | --- | --- | --- | --- |
 | Newtonsoft.Json | 13.0.4 | MIT | `newtonsoft.json/13.0.4/LICENSE` (verbatim from the package) |
-| MoonSharp | 2.0.0 | BSD-3-Clause | `moonsharp/2.0.0/LICENSE` (verbatim from [moonsharp-devs/moonsharp](https://github.com/moonsharp-devs/moonsharp) `master` at `cb4a978093bae3fd7b0b331643a8cd9b6fb8ed16`) |
 | Gabp.Runtime | 1.0.0 | Apache-2.0 (package metadata) | `gabp.runtime/1.0.0/LICENSE`: the canonical Apache-2.0 text; the upstream repo ([pardeike/gabp-runtime](https://github.com/pardeike/gabp-runtime) at `ce258707e15bc45e4303e9785ce49bc1fe6506cf`) ships no LICENSE file |

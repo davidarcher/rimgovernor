@@ -27,19 +27,7 @@ internal static class RimBridgeCapabilities
         registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
             providerId: "rimbridge.core/diagnostics",
             category: "diagnostics",
-            module: new DiagnosticsCapabilityModule(journal, logJournal, registry),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.optional/dpa",
-            category: "profiling",
-            module: new DpaCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Optional));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/scripting",
-            category: "scripting",
-            module: new ScriptingCapabilityModule(registry),
+            module: new DiagnosticsCapabilityModule(journal, logJournal),
             aliasMetadataType: typeof(RimBridgeTools),
             source: CapabilitySourceKind.Core));
         registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
@@ -48,67 +36,6 @@ internal static class RimBridgeCapabilities
             module: new LifecycleCapabilityModule(),
             aliasMetadataType: typeof(RimBridgeTools),
             source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/debug_actions",
-            category: "debug_actions",
-            module: new DebugActionsCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/mod_configuration",
-            category: "mod_configuration",
-            module: new ModConfigurationCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/mod_settings",
-            category: "mod_settings",
-            module: new ModSettingsCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.optional/architect",
-            category: "architect",
-            module: new ArchitectCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Optional));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/input",
-            category: "input",
-            module: new InputCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/selection",
-            category: "selection",
-            module: new SelectionCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/inspection",
-            category: "inspection",
-            module: new SelectionSemanticsCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/notifications",
-            category: "notifications",
-            module: new NotificationCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.core/view",
-            category: "view",
-            module: new ViewCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Core));
-        registry.RegisterProvider(new BuiltInCapabilityModuleProvider(
-            providerId: "rimbridge.optional/context_menu",
-            category: "context_menu",
-            module: new ContextMenuCapabilityModule(),
-            aliasMetadataType: typeof(RimBridgeTools),
-            source: CapabilitySourceKind.Optional));
-        RimBridgeSdkHost.Initialize(registry);
         var extensionProviders = RimBridgeExtensionDiscovery.DiscoverProviders();
         var extensionTools = new List<AnnotatedExtensionCapabilityProvider.DiscoveredTool>();
 
@@ -132,6 +59,5 @@ internal static class RimBridgeCapabilities
         ExtensionTools = extensionTools;
         Registry = registry;
         LegacyToolExecution.Initialize(registry);
-        RimBridgeSdkHost.MarkRegistrationComplete();
     }
 }

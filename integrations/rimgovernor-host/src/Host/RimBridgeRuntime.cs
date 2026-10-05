@@ -15,10 +15,6 @@ internal static class RimBridgePatches
     private const string HarmonyId = "pardeike.RimGovernor.Host.runtime";
     private static readonly object Sync = new();
     private static bool _applied;
-    private static bool _essentialApplied;
-    private static int _optionalPatchAttemptCount;
-    private static int _optionalPatchSuccessCount;
-    private static readonly List<string> OptionalPatchFailures = [];
 
     public static void Apply()
     {
@@ -27,13 +23,19 @@ internal static class RimBridgePatches
             if (_applied)
                 return;
 
-            _essentialApplied = false;
-            _optionalPatchAttemptCount = 0;
-            _optionalPatchSuccessCount = 0;
-            OptionalPatchFailures.Clear();
-            var harmony = new Harmony(HarmonyId);
-            ApplyEssentialPatches(harmony);
-            ApplyOptionalPatches(harmony);
+            try
+            {
+                new Harmony(HarmonyId).Patch(
+                    original: AccessTools.Method(typeof(Root), nameof(Root.Update)),
+                    postfix: new HarmonyMethod(typeof(Root_Update_Patch), nameof(Root_Update_Patch.Postfix)));
+                Log.Message("[RimBridge] Applied essential Harmony patches.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RimBridge] STARTUP_ESSENTIAL_PATCH_FAILURE: {ex}");
+                throw;
+            }
+
             _applied = true;
         }
     }
@@ -42,69 +44,8 @@ internal static class RimBridgePatches
     {
         lock (Sync)
         {
-            return new
-            {
-                applied = _applied,
-                essentialApplied = _essentialApplied,
-                optionalPatchAttemptCount = _optionalPatchAttemptCount,
-                optionalPatchSuccessCount = _optionalPatchSuccessCount,
-                optionalPatchFailureCount = OptionalPatchFailures.Count,
-                optionalPatchFailures = OptionalPatchFailures.ToArray(),
-                lateInputPatches = RimBridgeVirtualPointer.DescribeLateInputPatchStatus()
-            };
+            return new { applied = _applied };
         }
-    }
-
-    private static void ApplyEssentialPatches(Harmony harmony)
-    {
-        try
-        {
-            harmony.Patch(
-                original: AccessTools.Method(typeof(Root), nameof(Root.Update)),
-                postfix: new HarmonyMethod(typeof(Root_Update_Patch), nameof(Root_Update_Patch.Postfix)));
-            _essentialApplied = true;
-            Log.Message("[RimBridge] Applied essential Harmony patches.");
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"[RimBridge] STARTUP_ESSENTIAL_PATCH_FAILURE: {ex}");
-            throw;
-        }
-    }
-
-    private static void ApplyOptionalPatches(Harmony harmony)
-    {
-        var optionalPatchTypes = typeof(RimBridgePatches).Assembly
-            .GetTypes()
-            .Where(type => type != typeof(Root_Update_Patch))
-            .Where(type => type.GetCustomAttributes(typeof(HarmonyPatch), inherit: false).Length > 0)
-            .OrderBy(type => type.FullName, StringComparer.Ordinal)
-            .ToList();
-
-        _optionalPatchAttemptCount = optionalPatchTypes.Count;
-
-        foreach (var patchType in optionalPatchTypes)
-        {
-            try
-            {
-                harmony.CreateClassProcessor(patchType).Patch();
-                _optionalPatchSuccessCount++;
-            }
-            catch (Exception ex)
-            {
-                var failure = $"{patchType.FullName}: {ex.GetType().Name}: {ex.Message}";
-                OptionalPatchFailures.Add(failure);
-                Log.Error($"[RimBridge] STARTUP_OPTIONAL_PATCH_FAILURE: {patchType.FullName}: {ex}");
-            }
-        }
-
-        if (OptionalPatchFailures.Count == 0)
-        {
-            Log.Message($"[RimBridge] Applied {_optionalPatchSuccessCount} optional Harmony patch classes.");
-            return;
-        }
-
-        Log.Warning($"[RimBridge] Applied {_optionalPatchSuccessCount} of {_optionalPatchAttemptCount} optional Harmony patch classes. Failed: {OptionalPatchFailures.Count}.");
     }
 }
 
@@ -113,18 +54,10 @@ internal static class Root_Update_Patch
 {
     public static void Postfix()
     {
-        if (PlayDataLoader.Loaded && !LongEventHandler.AnyEventNowOrWaiting && Find.UIRoot != null)
-            RimBridgeCameraConfig.MaintainZoomExtension();
-
         RimBridgeMainThread.Pump();
         RimBridgeAsyncScheduler.Pump();
         RimWorldTickStepper.AdvanceFromRootUpdate(Time.frameCount);
-        RimBridgeFrameClock.AdvanceFromRootUpdate(Time.frameCount);
         RimBridgeAsyncScheduler.Pump();
-        RimBridgeUiWorkbench.AdvanceFrame(Time.frameCount);
-        RimBridgeVirtualPointer.ClearExpiredSyntheticMouseState();
-        RimWorldHover.ClearHoverTargetForRealInputState();
-        RimWorldHover.ClearExpiredHoverTarget();
         if (PlayDataLoader.Loaded && !LongEventHandler.AnyEventNowOrWaiting && Find.UIRoot != null)
         {
             RimBridgeStartup.OnRuntimeReady();
@@ -294,42 +227,5 @@ internal static class RimBridgeMainThread
             action();
             return true;
         }, cancellationToken);
-    }
-}
-
-internal sealed class ContextMenuSnapshot
-{
-    public int Id;
-    public string Provider;
-    public FloatMenu Menu;
-    public List<FloatMenuOption> Options = [];
-    public IntVec3 ClickCell = IntVec3.Invalid;
-    public string TargetLabel;
-}
-
-internal static class RimBridgeContextMenus
-{
-    private static int _nextId = 1;
-
-    public static ContextMenuSnapshot Current { get; private set; }
-
-    public static ContextMenuSnapshot Store(string provider, FloatMenu menu, IEnumerable<FloatMenuOption> options, IntVec3 clickCell, string targetLabel)
-    {
-        Current = new ContextMenuSnapshot
-        {
-            Id = _nextId++,
-            Provider = provider,
-            Menu = menu,
-            Options = [.. options],
-            ClickCell = clickCell,
-            TargetLabel = targetLabel
-        };
-
-        return Current;
-    }
-
-    public static void Clear()
-    {
-        Current = null;
     }
 }

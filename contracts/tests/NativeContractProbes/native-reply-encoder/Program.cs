@@ -65,8 +65,6 @@ internal static class NativeReplyEncoderProbe
         internal Context(IRimBridgeMainThread main) { MainThread = main; }
         public IRimBridgeMainThread MainThread { get; }
         public IDictionary<string, object> Arguments => arguments;
-        public IRimBridgeToolClient Tools => throw new NotSupportedException();
-        public IRimBridgeGameClock Game => throw new NotSupportedException();
         public string OperationId => "probe";
         public string CapabilityId => "rimgovernor/probe";
     }

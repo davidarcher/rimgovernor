@@ -62,11 +62,6 @@
           "Microsoft.Build.Framework": "[15.1.548]"
         }
       },
-      "MoonSharp": {
-        "type": "Transitive",
-        "resolved": "2.0.0",
-        "contentHash": "uiAcRh7d+53k3xW9pFDJfAFVw4RnjHVCJG05M3oPAVEVwPtFavhg1H/IpC6So4X1j9kJlzuLlA3OghhPcIvc5A=="
-      },
       "System.Collections": {
         "type": "Transitive",
         "resolved": "4.0.11",
@@ -111,7 +106,6 @@
       "rimgovernor.host.core": {
         "type": "Project",
         "dependencies": {
-          "MoonSharp": "[2.0.0, )",
           "RimGovernor.Host.Contracts": "[2.1.1, )",
           "RimGovernor.Host.Extensions.Abstractions": "[2.1.1, )"
         }

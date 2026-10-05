@@ -29,8 +29,6 @@ internal static class NativeClockProbe
         public string CapabilityId => "probe";
         public bool IsMainThread => true;
         public Task InvokeAsync(Action action, CancellationToken token) => InvokeAsync<object>(() => { action(); return null!; }, token);
-        public RimGovernor.Host.Sdk.IRimBridgeToolClient Tools => throw new NotSupportedException();
-        public RimGovernor.Host.Sdk.IRimBridgeGameClock Game => throw new NotSupportedException();
         public int Invocations;
         // The probe thread is the game's main thread: a hop requested from it runs
         // inline; one requested from a continuation off that thread queues until the

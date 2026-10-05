@@ -25,7 +25,7 @@ RimWorld instance is stopped, then enable RimGovernor after its dependencies.
 Fixtures change disposable scenario state; their manifest says `fixture`.
 The native entry assemblies are `Assemblies/RimGovernor.Runtime.dll` and
 `BridgeTools/RimGovernor/RimGovernor.Bridge.dll`; the host is `Assemblies/RimGovernor.Host.dll` with
-its Core/Contracts/Abstractions/Sdk/Gab assemblies, Newtonsoft.Json, MoonSharp and Gabp.Runtime
+its Core/Contracts/Abstractions/Sdk/Gab assemblies, Newtonsoft.Json and Gabp.Runtime
 (notices under `Notices/host`). Source and retained notices are
 included under `Source` and `Notices`; game and Harmony DLLs are not
 bundled. The Bridge bundle also contains the locked Google.Protobuf 3.31.1 runtime

@@ -17,8 +17,6 @@ internal static class NativeProtoBoundaryProbe {
         public IDictionary<string, object> Arguments => Raw;
         public string OperationId => "probe";
         public string CapabilityId => "probe";
-        public RimGovernor.Host.Sdk.IRimBridgeToolClient Tools => throw new NotSupportedException();
-        public RimGovernor.Host.Sdk.IRimBridgeGameClock Game => throw new NotSupportedException();
         public RimGovernor.Host.Sdk.IRimBridgeMainThread MainThread => throw new NotSupportedException();
     }
     static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }

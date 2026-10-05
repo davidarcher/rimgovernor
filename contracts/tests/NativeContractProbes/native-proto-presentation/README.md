@@ -12,18 +12,17 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto
 Tests load the actual adapter, generated messages, SDK binder and normalizer. No
 game state is created.
 
-Camera reads follow the audited SDK `RimWorldState.DescribeCamera`: native driver
-position, root/zoom sizes, configuration bounds, current zoom range and view rect.
-The only reflection is the exact static boolean
-`RimGovernor.Host.RimBridgeCameraConfig.CameraZoomExtensionEnabled` property; absence
-returns unavailable. It is the SDK's backing-field read, not its state-changing
-zoom extension setter. Headless camera and selection return Failure.Unavailable.
+Camera reads follow the audited native driver facts: position, root/zoom sizes,
+configuration bounds, current zoom range and view rect. The zoom-extension flag is
+always false: the host's zoom-extension tool was removed with the unused host tools
+(#2056), so nothing can enable it. Headless camera and selection return
+Failure.Unavailable.
 
 Graphical selection projects all native Thing, Zone and Plan IDs/maps up to4096;
 unsupported kinds, ambiguous IDs or unreadable facts refuse the whole reply.
 No inspect strings or gizmos are evaluated. Optional fingerprint, inspect detail
 and visible-gizmo count are absent; this read never creates a capture/CAS token.
-Colonists preserve the SDK `SelectionCapabilityModule.ListColonists` default
+Colonists default to
 currentMapOnly=false and use FreeColonistsSpawned across loaded maps. World caravan
 and unspawned pawns are outside that roster. The bounded roster refuses above256.
 

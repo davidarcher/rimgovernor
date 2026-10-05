@@ -29,8 +29,6 @@ internal static class NativeAuthorityControlProbe
         public string CapabilityId => "probe";
         public bool IsMainThread => true;
         public Task InvokeAsync(Action action, CancellationToken token) => InvokeAsync<object>(() => { action(); return null!; }, token);
-        public RimGovernor.Host.Sdk.IRimBridgeToolClient Tools => throw new NotSupportedException();
-        public RimGovernor.Host.Sdk.IRimBridgeGameClock Game => throw new NotSupportedException();
         public int Invocations;
         public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
         { token.ThrowIfCancellationRequested(); Invocations++; return Task.FromResult(action()); }

@@ -76,23 +76,6 @@ public static class OperationContext
         return new RestoreScope(previous);
     }
 
-    public static IDisposable PushMetadata(string scriptStatementId = null, string scriptStepId = null, string scriptCall = null)
-    {
-        var previous = CurrentSlot.Value;
-        Current = new OperationContextSnapshot
-        {
-            OperationId = previous?.OperationId ?? string.Empty,
-            CapabilityId = previous?.CapabilityId ?? string.Empty,
-            ParentOperationId = previous?.ParentOperationId ?? string.Empty,
-            RootOperationId = previous?.RootOperationId ?? string.Empty,
-            ScriptStatementId = scriptStatementId ?? previous?.ScriptStatementId ?? string.Empty,
-            ScriptStepId = scriptStepId ?? previous?.ScriptStepId ?? string.Empty,
-            ScriptCall = scriptCall ?? previous?.ScriptCall ?? string.Empty
-        };
-
-        return new RestoreScope(previous);
-    }
-
     public static IDisposable Restore(OperationContextSnapshot snapshot)
     {
         var previous = CurrentSlot.Value;

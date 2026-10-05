@@ -48,11 +48,6 @@ internal static class RimWorldWaits
         };
     }
 
-    public static object WaitForGameLoaded(int timeoutMs = 30000, int pollIntervalMs = 50, string readiness = AutomationReadiness.DefaultTargetName, bool pauseIfNeeded = false)
-    {
-        return WaitForGameLoadedResult(timeoutMs, pollIntervalMs, readiness, pauseIfNeeded);
-    }
-
     public static string ResolveReadinessInput(string readiness, string targetReadiness = null, bool waitForVisualReady = false)
     {
         if (waitForVisualReady)
@@ -102,62 +97,6 @@ internal static class RimWorldWaits
         });
 
         return CreateWaitResponse(outcome, targetReadiness);
-    }
-
-    public static object WaitForLongEventIdle(int timeoutMs = 30000, int pollIntervalMs = 100)
-    {
-        var outcome = WaitUntilMainThreadProbe(() =>
-        {
-            var state = RimWorldState.ToolStateSnapshot();
-            var satisfied = LongEventHandler.AnyEventNowOrWaiting == false;
-
-            return new WaitProbeResult
-            {
-                IsSatisfied = satisfied,
-                Message = satisfied
-                    ? "RimWorld is idle."
-                    : "Waiting for RimWorld long events to finish.",
-                Snapshot = state
-            };
-        }, new WaitOptions
-        {
-            TimeoutMs = timeoutMs,
-            PollIntervalMs = pollIntervalMs,
-            HandleProbeException = ex => HandleMainThreadProbeException(ex, "RimWorld main thread was busy while checking long-event state. Retrying."),
-            TimeoutMessage = "Timed out waiting for RimWorld long events to finish."
-        });
-
-        return CreateWaitResponse(outcome);
-    }
-
-    public static Dictionary<string, object> WaitForEntrySceneReadyResult(int timeoutMs = 30000, int pollIntervalMs = 50)
-    {
-        var outcome = WaitUntilMainThreadProbe(() =>
-        {
-            var status = RimWorldState.ReadStatus();
-            var state = RimWorldState.ToolStateSnapshot(status);
-            var satisfied = status.InEntryScene
-                && string.Equals(status.ProgramState, "Entry", StringComparison.OrdinalIgnoreCase)
-                && status.HasCurrentGame == false;
-
-            return new WaitProbeResult
-            {
-                IsSatisfied = satisfied,
-                Message = satisfied
-                    ? "RimWorld entry scene can queue a debug game."
-                    : "Waiting for RimWorld entry scene to accept a debug-game start.",
-                BlockingReason = satisfied ? null : DescribeEntrySceneBlockingReason(status),
-                Snapshot = state
-            };
-        }, new WaitOptions
-        {
-            TimeoutMs = timeoutMs,
-            PollIntervalMs = pollIntervalMs,
-            HandleProbeException = ex => HandleMainThreadProbeException(ex, "RimWorld main thread was busy while checking entry-scene readiness. Retrying."),
-            TimeoutMessage = "Timed out waiting for RimWorld entry scene readiness."
-        });
-
-        return CreateWaitResponse(outcome, "entryScene");
     }
 
     private static object SnapshotState()
@@ -248,20 +187,6 @@ internal static class RimWorldWaits
 
         if (readiness.ScreenFadeClear == false)
             return $"RimWorld screen fade is still active (alpha {status.FadeOverlayAlpha:0.###}).";
-
-        return string.Empty;
-    }
-
-    private static string DescribeEntrySceneBlockingReason(RimWorldState.RuntimeStatus status)
-    {
-        if (status.HasCurrentGame)
-            return "A game is already loaded.";
-
-        if (string.Equals(status.ProgramState, "Entry", StringComparison.OrdinalIgnoreCase) == false)
-            return $"RimWorld programState is {status.ProgramState}, not Entry.";
-
-        if (status.InEntryScene == false)
-            return "RimWorld is not in the entry scene.";
 
         return string.Empty;
     }

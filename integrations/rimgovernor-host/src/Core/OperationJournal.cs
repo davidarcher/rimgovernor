@@ -246,42 +246,6 @@ public sealed class OperationJournal
         }
     }
 
-    public IReadOnlyList<OperationEnvelope> GetRecentOperations(int limit = 20, bool includeResults = false)
-    {
-        if (limit <= 0)
-            return [];
-
-        lock (_gate)
-        {
-            return _operationOrder
-                .Take(limit)
-                .Select(id => HydrateEnvelope(_operationsById[id], includeResults))
-                .ToList();
-        }
-    }
-
-    public IReadOnlyList<OperationEventRecord> GetRecentEvents(int limit = 50, string eventType = null, long afterSequence = 0, string operationId = null)
-    {
-        if (limit <= 0)
-            return [];
-
-        lock (_gate)
-        {
-            IEnumerable<OperationEventRecord> query = _events;
-            if (string.IsNullOrWhiteSpace(eventType) == false)
-                query = query.Where(entry => string.Equals(entry.EventType, eventType, StringComparison.Ordinal));
-            if (afterSequence > 0)
-                query = query.Where(entry => entry.Sequence > afterSequence);
-            if (string.IsNullOrWhiteSpace(operationId) == false)
-                query = query.Where(entry => string.Equals(entry.OperationId, operationId, StringComparison.Ordinal));
-
-            return query
-                .Take(limit)
-                .Select(CloneEvent)
-                .ToList();
-        }
-    }
-
     private OperationRecord MergeWithExisting(OperationEnvelope envelope)
     {
         var previous = _operationsById.TryGetValue(envelope.OperationId, out var existing)

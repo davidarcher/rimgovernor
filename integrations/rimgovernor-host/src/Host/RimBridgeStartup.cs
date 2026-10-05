@@ -27,7 +27,6 @@ internal static class RimBridgeStartup
     public static void OnRuntimeReady()
     {
         var shouldLog = false;
-        var shouldApplyRuntimeReadyPatches = false;
         var alreadyStarted = false;
 
         lock (Sync)
@@ -36,7 +35,6 @@ internal static class RimBridgeStartup
             {
                 _runtimeReady = true;
                 shouldLog = true;
-                shouldApplyRuntimeReadyPatches = true;
             }
 
             alreadyStarted = _started;
@@ -47,12 +45,6 @@ internal static class RimBridgeStartup
             Log.Message(alreadyStarted
                 ? "[RimBridge] Play-data load complete; bridge services are already available."
                 : "[RimBridge] Startup conditions satisfied after play-data load; initializing bridge services.");
-        }
-
-        if (shouldApplyRuntimeReadyPatches)
-        {
-            using (RimBridgeStartupTiming.Phase("late-input-patches"))
-                RimBridgeVirtualPointer.ApplyLateInputPatches();
         }
 
         TryStart();

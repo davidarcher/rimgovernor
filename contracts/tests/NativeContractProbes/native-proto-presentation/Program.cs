@@ -45,8 +45,6 @@ internal static class NativeProtoPresentationProbe
             Check((bool)Get(roster, "HasCurrentMapOnly") && (bool)Get(roster, "CurrentMapOnly") == (value == "true"), "Explicit map scope retained");
         }
         var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
-        Check((bool)tools.GetMethod("TryZoomExtension", Flags)!.Invoke(null, new object?[] { server, null })!, "Exact actual SDK zoom property available");
-        Check(!(bool)tools.GetMethod("TryZoomExtension", Flags)!.Invoke(null, new object?[] { typeof(NativeProtoPresentationProbe).Assembly, null })!, "Missing zoom property does not fabricate false");
         foreach (var value in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
         {
             try { tools.GetMethod("Finite", Flags)!.Invoke(null, new object[] { value }); throw new Exception("Nonfinite camera accepted"); }

@@ -34,24 +34,6 @@ namespace RimGovernor.Host.Gab
         }
 
         /// <summary>
-        /// Set the authentication token
-        /// </summary>
-        public GabpServerBuilder UseToken(string token)
-        {
-            _config.Token = token;
-            return this;
-        }
-
-        /// <summary>
-        /// Set the agent ID
-        /// </summary>
-        public GabpServerBuilder UseAgentId(string agentId)
-        {
-            _config.AgentId = agentId;
-            return this;
-        }
-
-        /// <summary>
         /// Set application information
         /// </summary>
         public GabpServerBuilder UseAppInfo(string name, string version)
@@ -181,37 +163,6 @@ namespace RimGovernor.Host.Gab
         }
 
         /// <summary>
-        /// Create a simple GABP server with default configuration
-        /// </summary>
-        public static GabpServer CreateSimpleServer(string appName, string appVersion, int port = 0)
-        {
-            return CreateServer()
-                .UseAppInfo(appName, appVersion)
-                .UsePort(port)
-                .Build();
-        }
-
-        /// <summary>
-        /// Create a GABP server and register tools from an assembly
-        /// </summary>
-        public static GabpServer CreateServerWithAssembly(string appName, string AppVersion, Assembly assembly, int port = 0)
-        {
-            var server = CreateSimpleServer(appName, AppVersion, port);
-            server.Tools.RegisterToolsFromAssembly(assembly);
-            return server;
-        }
-
-        /// <summary>
-        /// Create a GABP server and register tools from an object instance
-        /// </summary>
-        public static GabpServer CreateServerWithInstance(string appName, string appVersion, object instance, int port = 0)
-        {
-            var server = CreateSimpleServer(appName, appVersion, port);
-            server.Tools.RegisterToolsFromInstance(instance);
-            return server;
-        }
-
-        /// <summary>
         /// Create a GABP server with external configuration and register tools from an object instance
         /// </summary>
         /// <param name="appName">Application name</param>
@@ -275,39 +226,6 @@ namespace RimGovernor.Host.Gab
                 .UseAppInfo(appName, appVersion)
                 .UseExternalConfig(port, token, gameId)
                 .Build();
-        }
-
-        /// <summary>
-        /// Create a GABP server that automatically detects GABS configuration
-        /// Falls back to standard configuration if GABS configuration is not detected
-        /// </summary>
-        /// <param name="appName">Application name</param>
-        /// <param name="appVersion">Application version</param>
-        /// <param name="fallbackPort">Port to use if GABS configuration is not detected (0 for automatic)</param>
-        /// <returns>Configured GABP server</returns>
-        public static GabpServer CreateGabsAwareServer(string appName, string appVersion, int fallbackPort = 0)
-        {
-            return CreateServer()
-                .UseAppInfo(appName, appVersion)
-                .UseGabsEnvironmentIfAvailable()
-                .UsePortIfNotSet(fallbackPort) // Only used if GABS configuration wasn't detected
-                .Build();
-        }
-
-        /// <summary>
-        /// Create a GABP server that automatically detects GABS configuration and registers tools from an instance
-        /// Falls back to standard configuration if GABS configuration is not detected
-        /// </summary>
-        /// <param name="appName">Application name</param>
-        /// <param name="appVersion">Application version</param>
-        /// <param name="instance">Object instance containing tools marked with [Tool] attributes</param>
-        /// <param name="fallbackPort">Port to use if GABS configuration is not detected (0 for automatic)</param>
-        /// <returns>Configured GABP server with registered tools</returns>
-        public static GabpServer CreateGabsAwareServerWithInstance(string appName, string appVersion, object instance, int fallbackPort = 0)
-        {
-            var server = CreateGabsAwareServer(appName, appVersion, fallbackPort);
-            server.Tools.RegisterToolsFromInstance(instance);
-            return server;
         }
 
         /// <summary>

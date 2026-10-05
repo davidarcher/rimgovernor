@@ -49,11 +49,6 @@ public sealed class CapabilityRegistry
             .ToList();
     }
 
-    public CapabilityDescriptor ResolveDescriptor(string idOrAlias)
-    {
-        return ResolveRegistration(idOrAlias).Descriptor;
-    }
-
     public OperationEnvelope Invoke(string idOrAlias, IDictionary<string, object> arguments = null, CancellationToken cancellationToken = default)
     {
         return InvokeAsync(idOrAlias, arguments, cancellationToken).GetAwaiter().GetResult();

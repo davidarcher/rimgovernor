@@ -33,9 +33,6 @@ namespace HomeBridge.BridgeTools
                     var driver = Find.CameraDriver;
                     if (Application.isBatchMode || Find.Camera == null || driver?.config == null)
                         return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = Unavailable("Graphical map camera unavailable.") });
-                    var server = AppDomain.CurrentDomain.GetAssemblies().SingleOrDefault(a => a.GetName().Name == "RimGovernor.Host");
-                    if (server == null || !TryZoomExtension(server, out var enabled))
-                        return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = Unavailable("Native SDK camera extension state unavailable.") });
                     var position = driver.MapPosition;
                     var size = driver.config.sizeRange;
                     var rect = driver.CurrentViewRect;
@@ -43,7 +40,7 @@ namespace HomeBridge.BridgeTools
                         MapPosition = new Presentation.MapPoint { X = Finite(position.x), Z = Finite(position.z) },
                         RootSize = Positive(driver.RootSize), ZoomRootSize = Positive(driver.ZoomRootSize),
                         MinimumRootSize = Positive(size.min), MaximumRootSize = Positive(size.max),
-                        NativeZoomRange = Id(driver.CurrentZoom.ToString()), ZoomExtensionEnabled = enabled,
+                        NativeZoomRange = Id(driver.CurrentZoom.ToString()), ZoomExtensionEnabled = false,
                         ViewRect = new Presentation.MapRect { MinX = rect.minX, MinZ = rect.minZ, MaxX = rect.maxX, MaxZ = rect.maxZ } };
                     if (state.MaximumRootSize < state.MinimumRootSize || rect.maxX < rect.minX || rect.maxZ < rect.minZ)
                         throw new InvalidOperationException("Native camera bounds invalid.");
@@ -114,16 +111,6 @@ namespace HomeBridge.BridgeTools
         { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact identity is required."); return request?.Identity != null; }
         internal static bool ValidateColonists(Presentation.ColonistRosterRequest request, out Common.Failure failure)
         { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact identity is required."); return request?.Identity != null; }
-
-        internal static bool TryZoomExtension(Assembly server, out bool enabled)
-        {
-            enabled = false;
-            var property = server.GetType("RimGovernor.Host.RimBridgeCameraConfig", false)?.GetProperty("CameraZoomExtensionEnabled", BindingFlags.Public | BindingFlags.Static);
-            if (property == null || property.PropertyType != typeof(bool) || property.GetIndexParameters().Length != 0
-                || property.GetGetMethod()?.IsStatic != true) return false;
-            enabled = (bool)property.GetValue(null)!; // SDK getter is the audited _enabled field read, never SetZoomExtension.
-            return true;
-        }
 
         private static Presentation.SelectedObject Selected(object value, Map expectedMap)
         {
