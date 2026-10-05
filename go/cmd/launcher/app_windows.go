@@ -348,7 +348,12 @@ func (a *app) prepareController() bool {
 	}
 	if _, err := os.Stat(exe); err == nil {
 		old := exe + ".old"
-		os.Remove(old)
+		if os.Remove(old) != nil {
+			// A controller still runs from the image an earlier rebuild
+			// renamed aside; it is stale, so end it rather than failing.
+			a.stopStaleController(old)
+			os.Remove(old)
+		}
 		if err := os.Rename(exe, old); err != nil {
 			a.set(artController, StateFailed, err.Error())
 			return false
@@ -362,6 +367,22 @@ func (a *app) prepareController() bool {
 	a.logf("controller rebuilt")
 	a.set(artController, StateOK, "Rebuilt")
 	return true
+}
+
+// stopStaleController ends every process running from the renamed-aside
+// image old, including the one this launcher recorded.
+func (a *app) stopStaleController(old string) {
+	if procs, err := setup.ListProcesses(filepath.Base(old)); err == nil {
+		for _, p := range procs {
+			if strings.EqualFold(filepath.Clean(p.Path), filepath.Clean(old)) {
+				a.logf("stopping stale controller (pid %d) running from %s", p.PID, old)
+				kill(p.PID)
+			}
+		}
+	}
+	if r, ok := readRecord(a.recordPath()); ok && strings.EqualFold(filepath.Clean(processPath(r.PID)), filepath.Clean(old)) {
+		a.stop()
+	}
 }
 
 func sameFile(a, b string) bool {
