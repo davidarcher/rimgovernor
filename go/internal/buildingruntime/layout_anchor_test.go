@@ -35,6 +35,19 @@ func centreOn(r *Rounder, c domain.Cell) {
 	}
 }
 
+// sleepingSite records the plan the sleeping fixtures run under: a 5x5
+// bedroom over the roofed site sleepingFacts lays out, since loose sleeping
+// spots stand only in a room planned to sleep in. It takes centreOn's
+// signature; the bedroom, not c, is the plan's centre.
+func sleepingSite(r *Rounder, _ domain.Cell) {
+	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
+		{Role: policy.ModuleBedroom, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
+	}}
+	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
+		panic(err)
+	}
+}
+
 func anchorPlan() policy.LayoutPlan {
 	return policy.LayoutPlan{
 		Rooms: []policy.LayoutRoom{

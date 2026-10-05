@@ -16,7 +16,7 @@ import (
 func TestRoundsWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	planner, db, base, _, _ := sleepingFixture(t)
+	planner, db, base, _, _ := bedroomFixture(t)
 	ctx := context.Background()
 	method, err := planner.Step(ctx)
 	if err != nil || !method.Decision.Admitted {

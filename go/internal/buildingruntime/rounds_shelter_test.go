@@ -280,7 +280,7 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 
 func TestRoundsShelterPrefersExistingRoom(t *testing.T) {
 	t.Parallel()
-	r, db, _, _, n := sleepingFixture(t)
+	r, db, _, _, n := bedroomFixture(t)
 	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)

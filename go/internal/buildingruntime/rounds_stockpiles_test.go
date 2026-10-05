@@ -314,3 +314,24 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 		t.Error("the animal barn and vet room are open to loose colonist spots (they must be protected)")
 	}
 }
+
+// Loose sleeping spots are allowlisted: only the shelter, bedrooms and
+// suites are open to them, every other planned room is not.
+func TestSleepingPlannedCellsAllowlist(t *testing.T) {
+	at := func(role policy.ModuleRole, x int32) policy.LayoutRoom {
+		return policy.LayoutRoom{Role: role, Interior: policy.Rectangle{X: x, Z: 10, Width: 3, Height: 3}}
+	}
+	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
+		at(policy.ModuleShelter, 10), at(policy.ModuleBedroom, 20), at(policy.ModuleSuite, 30),
+		at(policy.ModuleBarn, 40), at(policy.ModuleKitchen, 50), at(policy.ModuleReserve, 60),
+	}}
+	cells := map[domain.Cell]bool{}
+	for _, c := range sleepingPlannedCells(observation.ColonyProjection{LayoutPlan: domain.Known(plan)}) {
+		cells[c] = true
+	}
+	for x, want := range map[int32]bool{11: true, 21: true, 31: true, 41: false, 51: false, 61: false} {
+		if cells[domain.Cell{X: x, Z: 11}] != want {
+			t.Errorf("cell x=%d open to loose spots = %v, want %v", x, !want, want)
+		}
+	}
+}

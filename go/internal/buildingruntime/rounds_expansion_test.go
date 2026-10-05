@@ -47,7 +47,7 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	base, db, _, request, n := sleepingFixture(t)
+	base, db, _, request, n := bedroomFixture(t)
 	ctx := context.Background()
 	prepareExpansionReview(t, db, n)
 	r, err := NewRoundsExpansionPlanner(base.reviewer, n)

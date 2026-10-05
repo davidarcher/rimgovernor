@@ -14,7 +14,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// schedulerSleeping plans a bedroom over the site; schedulerSleepingAt takes the
+// plan, for the planners that need the site clear of rooms.
 func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sleepingNative {
+	t.Helper()
+	return schedulerSleepingAt(t, s, f, sleepingSite)
+}
+
+func schedulerSleepingAt(t *testing.T, s *ClockScheduler, f *schedulerNative, plan func(*Rounder, domain.Cell)) *sleepingNative {
 	t.Helper()
 	n := schedulerRounds(t, s, f)
 	_, _, _, _, template := sleepingFixture(t)
@@ -26,7 +33,7 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	n.cells = &window
 	n.reply.GetObserved().Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: planning}}
 	n.reply.GetObserved().Center = proto.Clone(template.reply.GetObserved().Center).(*c.Cell)
-	centreOn(s.config.Rounds, domain.Cell{X: n.reply.GetObserved().Center.GetX(), Z: n.reply.GetObserved().Center.GetZ()})
+	plan(s.config.Rounds, domain.Cell{X: n.reply.GetObserved().Center.GetX(), Z: n.reply.GetObserved().Center.GetZ()})
 	source := &sleepingNative{roundsNative: n}
 	planner, err := NewRoundsSleepingPlanner(s.config.Rounds, source)
 	if err != nil {
@@ -109,7 +116,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
-	n := schedulerSleeping(t, s, f)
+	n := schedulerSleepingAt(t, s, f, centreOn)
 	v := n.reply.GetObserved()
 	foodPlanFixture(v)
 	issues := v.Issues[:0]

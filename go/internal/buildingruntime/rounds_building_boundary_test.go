@@ -47,6 +47,7 @@ func TestRoundsBuildingBoundaryAcceptsAnIdentityReadBehindTheReviewAnchor(t *tes
 func TestRoundsSleepingPlansUnderAReviewAnchorAheadOfTheIdentityRead(t *testing.T) {
 	reviewer, _, _, _, n := roundsFixture(t)
 	sleepingFacts(n)
+	sleepingSite(reviewer, domain.Cell{X: 2, Z: 2})
 	// The review reads the colony 500 ticks after the step opened.
 	const opened, reviewed = 7, 507
 	observed := n.reply.GetObserved()

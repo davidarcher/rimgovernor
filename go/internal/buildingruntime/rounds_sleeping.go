@@ -885,7 +885,10 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if r.shelter {
 		return r.previewShell(call, snapshot, facts, protected, check)
 	}
-	if (r.concern == policy.MaintainHousing || r.concern == policy.EnsureComfort && r.phase == policy.ComfortBasic && r.cells == nil) && r.facility == nil {
+	// A loose sleeping spot stands only in a room planned to sleep in; the
+	// basic-comfort table and seat keep out of the rooms that must stay clear.
+	looseSpot := r.concern == policy.MaintainHousing && r.definition == "SleepingSpot" && r.facility == nil && r.cells == nil
+	if !looseSpot && (r.concern == policy.MaintainHousing || r.concern == policy.EnsureComfort && r.phase == policy.ComfortBasic && r.cells == nil) && r.facility == nil {
 		// Loose sleeping spots and the basic-comfort table and seat go to the
 		// starter shell or a bedroom, not into a standing kitchen, lab, storage
 		// or other planned room: beds there make it a sleeping room and block the
@@ -923,6 +926,12 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	roomCells := map[domain.Cell]bool{}
 	var interiorRooms []policy.InteriorRoom
 	restricted := r.temperature != nil || r.facility != nil || r.cells != nil
+	if looseSpot {
+		restricted = true
+		for _, c := range sleepingPlannedCells(facts) {
+			roomCells[c] = true
+		}
+	}
 	// The crafting spot takes the standing shelter's template slot (#2074);
 	// with no shelter, or its slot taken, it is placed as before.
 	slotOnly := r.concern == policy.EnsureBasicDefense && r.definition == craftingSpotDefinition && r.facility == nil
@@ -1448,6 +1457,24 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 			continue
 		}
 		cells = append(cells, plannedRoomInterior(room)...)
+	}
+	return cells
+}
+
+// sleepingPlannedCells are the interior cells of the layout plan's rooms a
+// colonist sleeps in: the shelter, the bedrooms and the suites. Loose
+// sleeping spots stand in these and nowhere else.
+func sleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
+	plan, ok := facts.LayoutPlan.Value()
+	if !ok {
+		return nil
+	}
+	var cells []domain.Cell
+	for _, room := range plan.AllRooms() {
+		switch room.Role {
+		case policy.ModuleShelter, policy.ModuleBedroom, policy.ModuleSuite:
+			cells = append(cells, plannedRoomInterior(room)...)
+		}
 	}
 	return cells
 }

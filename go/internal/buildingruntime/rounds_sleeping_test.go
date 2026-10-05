@@ -71,11 +71,25 @@ func (n *sleepingNative) previewOne(ctx context.Context, a domain.Action, s doma
 	return v, bridge.Result{}, nil
 }
 
+// sleepingFixture stages the roofed site with no room planned over it; the
+// fixtures that place loose sleeping spots use bedroomFixture.
 func sleepingFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *playerFakeSession, store.ControlRequest, *sleepingNative) {
+	t.Helper()
+	return sleepingFixtureAt(t, centreOn)
+}
+
+// bedroomFixture is sleepingFixture with a bedroom planned over the site:
+// loose sleeping spots stand only in a room planned to sleep in.
+func bedroomFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *playerFakeSession, store.ControlRequest, *sleepingNative) {
+	t.Helper()
+	return sleepingFixtureAt(t, sleepingSite)
+}
+
+func sleepingFixtureAt(t *testing.T, plan func(*Rounder, domain.Cell)) (*RoundsBuildingPlanner, *store.Store, *playerFakeSession, store.ControlRequest, *sleepingNative) {
 	t.Helper()
 	r, db, session, request, n := roundsFixture(t)
 	sleepingFacts(n)
-	centreOn(r, domain.Cell{X: 2, Z: 2})
+	plan(r, domain.Cell{X: 2, Z: 2})
 	if _, err := r.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -109,14 +123,14 @@ func sleepingFacts(n *roundsNative) {
 func TestRoundsSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	r, db, session, request, n := sleepingFixture(t)
+	r, db, session, request, n := bedroomFixture(t)
 	before := session.acquires.Load()
 	result, err := r.Step(context.Background())
 	if err != nil || result.Verdict != BuildingReasonAdmitted || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
 	g := result.Decision.Standard
-	if len(g.Methods) != 1 || n.previews != 3 || session.acquires.Load() != before {
+	if len(g.Methods) != 1 || n.previews != 2 || session.acquires.Load() != before {
 		t.Fatal(g, n.previews)
 	}
 	p, err := db.LoadPlan(context.Background(), g.Methods[0].Plan)
@@ -128,7 +142,7 @@ func TestRoundsSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T
 			t.Fatal("compiler dispatched", progress)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 3 {
+	if next, err := r.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 2 {
 		t.Fatal(next, err)
 	}
 	request.Kind, request.RequestID = store.PauseControl, "manual-sleep"
@@ -154,7 +168,7 @@ func TestRoundsSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"space", "unsafe", "direction", "prerequisite", "unknown-room"} {
 		t.Run(change, func(t *testing.T) {
-			r, db, session, _, n := sleepingFixture(t)
+			r, db, session, _, n := bedroomFixture(t)
 			switch change {
 			case "prerequisite":
 				n.catalog[0].ConstructionSkill = 20 // beyond every builder
@@ -197,7 +211,7 @@ func TestRoundsSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	r, db, _, _, n := sleepingFixture(t)
+	r, db, _, _, n := bedroomFixture(t)
 	first, err := r.Step(context.Background())
 	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
@@ -247,7 +261,7 @@ func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	r, db, session, _, _ := sleepingFixture(t)
+	r, db, session, _, _ := bedroomFixture(t)
 	ctx := context.Background()
 	snapshot := session.State().Snapshot
 	g, err := domain.NewStandard("player-room", 3, snapshot, 7)
@@ -302,7 +316,7 @@ func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 func TestRoundsSleepingManualCancelsBlockedPreview(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	r, db, session, request, n := sleepingFixture(t)
+	r, db, session, request, n := bedroomFixture(t)
 	entered := make(chan struct{})
 	n.onPreview = func(ctx context.Context, _ *bridge.BuildingPreview) { close(entered); <-ctx.Done() }
 	finished := make(chan error, 1)
@@ -328,12 +342,12 @@ func TestRoundsSleepingManualCancelsBlockedPreview(t *testing.T) {
 func TestRoundsSleepingKeepsDoorwayAislesClear(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	r, db, _, _, n := sleepingFixture(t)
+	r, db, _, _, n := bedroomFixture(t)
 	// A door on the room's south wall at (2,0): the cell just inside it and
 	// the cells beside it are the entrance aisle, never furniture, even when
 	// the colony centre makes the aisle the nearest candidate.
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)}
-	centreOn(r.reviewer, domain.Cell{X: 2, Z: 1})
+	sleepingSite(r.reviewer, domain.Cell{X: 2, Z: 1})
 	for i, row := range n.cells.Cells {
 		if row.Cell == (domain.Cell{X: 2, Z: 0}) {
 			n.cells.Cells[i].Doorway, n.cells.Cells[i].Occupied, n.cells.Cells[i].Walkable = domain.Known(true), domain.Known(true), domain.Known(true)

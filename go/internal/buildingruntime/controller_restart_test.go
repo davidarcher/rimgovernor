@@ -208,7 +208,7 @@ func (rig *controllerRig) resume(t *testing.T, requestID string) store.RoundsRes
 	if !rig.session.State().Enabled {
 		t.Fatal("resume left the session disabled")
 	}
-	centreOn(rig.reviewer, domain.Cell{X: 2, Z: 2})
+	sleepingSite(rig.reviewer, domain.Cell{X: 2, Z: 2})
 	generation := uint64(rig.session.State().Snapshot.Native)
 	stampContexts(rig.native.reply, func(v *c.ObservationContext) { v.NativeGeneration = proto.Uint64(generation) })
 	return rig.review(t)
