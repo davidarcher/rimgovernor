@@ -13,7 +13,8 @@ import (
 )
 
 // The service log names each skipped Odyssey offer once per quest and
-// reason (#1717), at warn level.
+// reason (#1717), as a WARN routine_skip row (#2066: the text sink renders the
+// decision summary; the quest detail rides in the row attrs).
 func TestRounderLogsOdysseySkipsOncePerQuest(t *testing.T) {
 	var out bytes.Buffer
 	previous := slog.Default()
@@ -37,8 +38,8 @@ func TestRounderLogsOdysseySkipsOncePerQuest(t *testing.T) {
 	r.logOdysseySkips(ctx, facts(offer("Quest_9", "OrbitalFugitive", ship)))
 	r.logOdysseySkips(ctx, facts(offer("Quest_9", "OrbitalFugitive", ship), offer("Quest_12", "SurveySite", domain.Unknown[policy.QuestClass]())))
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) != 2 || !strings.Contains(lines[0], "WARN") || !strings.Contains(lines[0], "[routine] odyssey quest skipped Quest_9 OrbitalFugitive: ship_only (Orbit)") ||
-		!strings.Contains(lines[1], "Quest_12 SurveySite: class_unknown") {
+	if len(lines) != 2 || !strings.Contains(lines[0], "WARN") || !strings.Contains(lines[0], "[routine] routine_skip skipped ship_only Quest_9") ||
+		!strings.Contains(lines[1], "routine_skip skipped class_unknown Quest_12") {
 		t.Fatalf("log:\n%s", out.String())
 	}
 }

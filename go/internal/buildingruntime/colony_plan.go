@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 )
@@ -165,7 +166,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || incinerator) {
 		replanned := false
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
-			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
+			_ = err // a failed survey retries on the next review
 		} else {
 			r.planChecked, r.planSurveyed = tick, true
 			topology, _ := projection.PowerPlanning.Value()
@@ -246,11 +247,9 @@ func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.Generat
 	if !r.layoutOverlay || !haveLayout {
 		if !r.overlayCleared {
 			if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), overlayLayer, policy.LayoutOverlay{}, false); err != nil {
-				clockSchedulerLog("layout overlay not cleared: %v", err)
 				return
 			}
 			if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), fieldLayer, policy.LayoutOverlay{}, false); err != nil {
-				clockSchedulerLog("field overlay not cleared: %v", err)
 				return
 			}
 			r.overlayCleared = true
@@ -263,16 +262,13 @@ func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.Generat
 	}
 	layer, fields := policy.SplitFields(layout.Plan.Overlay(projection.Bounds))
 	if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), fieldLayer, fields, len(fields.Layers) > 0); err != nil {
-		clockSchedulerLog("field overlay not drawn: %v", err)
 		return
 	}
-	applied, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), overlayLayer, layer, true)
+	_, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), overlayLayer, layer, true)
 	if err != nil {
-		clockSchedulerLog("layout overlay not drawn: %v", err)
 		return
 	}
 	r.overlayKey, r.overlayDrawn, r.overlayCleared = key, tick, false
-	clockSchedulerLog("layout overlay drawn layers=%d cells=%d", applied.GetLayers(), applied.GetCells())
 }
 
 // layoutPlan reads the v2 layout plan (#783). A saved plan that no longer
@@ -282,7 +278,6 @@ func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnap
 	record, ok, err := r.player.journal.LayoutPlan(ctx, snapshot, tick)
 	if err == nil && record.Invalid && !r.layoutInvalidLogged {
 		r.layoutInvalidLogged = true
-		clockSchedulerLog("saved layout plan from tick %d is invalid, replanning", record.Tick)
 	}
 	return record, ok, err
 }
@@ -292,13 +287,13 @@ func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnap
 func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.BuildTier, geysers []policy.PowerGeyser, animals int) error {
 	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers, animals).Value()
 	if !known {
-		clockSchedulerLog("map survey holds no core for the layout plan")
+		telemetry.Decide(ctx, layoutPlanDecision("skipped", "no_core", pawns, "", nil))
 		return nil
 	}
 	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, tick, plan); err != nil {
 		return err
 	}
-	clockEvent(ctx, "layout", "layout_plan", fmt.Sprintf("layout plan for %d colonists %s", pawns, plan.Summary()), "colonists", pawns)
+	telemetry.Decide(ctx, layoutPlanDecision("planned", "", pawns, plan.Summary(), nil))
 	return nil
 }
 
@@ -306,24 +301,33 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 // it when it changed.
 func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
 	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
-	if unplaced != nil {
-		clockSchedulerLog("layout plan could not add rooms: %v", unplaced)
-	}
-	if next.TombRooms() < tombs {
-		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
-	}
 	if !changed {
 		return nil
 	}
 	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, tick, next); err != nil {
 		return err
 	}
-	clockEvent(ctx, "layout", "layout_replan", fmt.Sprintf("layout plan replanned for %d colonists reason=%s %s", pawns, reason, next.Summary()), "colonists", pawns, "reason", reason)
+	extra := map[string]any{"tomb_short": max(tombs-next.TombRooms(), 0)}
+	if unplaced != nil {
+		extra["unplaced"] = fmt.Sprint(unplaced)
+	}
+	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), extra))
 	return nil
 }
 
+// layoutPlanDecision is the layout_plan row of a plan derived (planned),
+// grown (replanned, reason the triggers that fired) or not derivable
+// (skipped), with the colonist count and the plan summary as attrs.
+func layoutPlanDecision(verdict, reason string, colonists int, summary string, extra map[string]any) telemetry.Decision {
+	attrs := map[string]any{"colonists": colonists, "summary": summary}
+	for k, v := range extra {
+		attrs[k] = v
+	}
+	return telemetry.Decision{Kind: "layout_plan", Component: "layout", Verdict: verdict, Reason: reason, Target: "plan", Attrs: attrs}
+}
+
 // layoutReasons names the triggers that fired, sorted, for the
-// layout_replan event.
+// layout_plan replanned row.
 func layoutReasons(fired map[string]bool) string {
 	var out []string
 	for name, on := range fired {
@@ -352,7 +356,7 @@ func (r *Rounder) logSuiteClaims(ctx context.Context, claims []policy.SuiteClaim
 		return
 	}
 	r.suiteClaimsLogged = line
-	clockEvent(ctx, "layout", "suite_claims", "suite claims "+line, "claims", len(claims))
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_plan", Component: "layout", Verdict: "claimed", Target: "suites", Attrs: map[string]any{"claims": len(claims), "summary": line}})
 }
 
 // heatRedrawEvery is how often the traffic heat layers are redrawn (one
@@ -378,7 +382,6 @@ func (r *Rounder) drawHeatOverlay(ctx context.Context, native LayoutOverlayNativ
 			heat = policy.TrafficOverlay(census.Traffic, layer, projection.Bounds)
 		}
 		if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), "heat."+string(layer), heat, on && len(heat.Layers) > 0); err != nil {
-			clockSchedulerLog("heat overlay %s not drawn: %v", layer, err)
 			return
 		}
 	}

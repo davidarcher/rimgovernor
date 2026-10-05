@@ -68,7 +68,7 @@ its v1 payload and its readers.
 
 | Old kind | v2 kind | v2 shape and fields | Piece |
 |---|---|---|---|
-| `scheduler_step`, `stockpiles` ("stockpile step"), the surviving `clockSchedulerLog` Debug sites | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait cause; attrs `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error` | #2063 (spine, landed: the row is written where the planner returns, `reason` is the refusal kind and `plan_admitted`/`no_verdict`/an outcome word otherwise, attrs `concern`, `class`, `subject`, `detail`, `error`, `late`; a step's own failure to record a wave files `failed`/`journal_error` with target `reasons`, `waits` or `proposals`), #2064 (worker) |
+| `scheduler_step`, `stockpiles` ("stockpile step"), the surviving `clockSchedulerLog` Debug sites | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait cause; attrs `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error` | #2063 (spine, landed: the row is written where the planner returns, `reason` is the refusal kind and `plan_admitted`/`no_verdict`/an outcome word otherwise, attrs `concern`, `class`, `subject`, `detail`, `error`, `late`; each Rounder step writes one row, target `rounds`, `ok`/`reviewed` or `failed`/`error` (`control_lost` for ErrControl), attr `partial` (#2066); a step's own failure to record a wave files `failed`/`journal_error` with target `reasons`, `waits` or `proposals`), #2064 (worker) |
 | `admission`, `admission_refused`, `fight_admission` | `admission` (decision) | `target` method, window or plan, `verdict` `admitted`/`refused`/`held`, `reason` the refusal (`critical_wave_budget`, a `ClockWindowReason`, a method refusal); attrs `concern`, `refused` (all reasons), `held_by`, `mode`, `work`, `combat_plan`, `hostiles`, `clock_state`, `window_ticks`, `wall_budget_ms`, `error` | #2063 (window, method), #2067 (fight) |
 | `scheduler_stop`, `combat_stop` | `clock_stop` | event row. `reason`, `evidence`, `cursor`, `observed_at_unix_ms`, `benign`, the stop legs, and for a combat stop `event`, `resume_latency_ms`, `ticks_since_stop` | #2064 |
 | `combat_stops` | `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `ticks_between_stops_p50`, `ticks_between_stops_p95` | #2064 |
@@ -83,12 +83,12 @@ its v1 payload and its readers.
 
 | Old kind | v2 kind | v2 shape and fields | Piece |
 |---|---|---|---|
-| `rounds_review` | `rounds_review` | event row. `revision`, `previous_revision`, `concerns`, `emergency`, the stage and food attrs of `roundsStageAttrs` and `roundsFoodAttrs` | #2066 |
+| `rounds_review` | `rounds_review` | event row (kept). `revision`, `previous_revision`, `concerns`, `emergency`, the stage and food attrs of `roundsStageAttrs` and `roundsFoodAttrs` | #2066 |
 | `colony_stage` | `colony_stage` | event row. `stage`, `since`, `blocker`, `reason`, `held` | #2066 |
 | `build_tier` | `build_tier` | event row. `tier`, `evidence` | #2066 |
-| `layout_plan`, `layout_replan`, `suite_claims` | `layout_plan` (decision) | `verdict` `planned`/`replanned`/`claimed`, `reason` replan reason, attrs `colonists`, `summary`, `claims` | #2066 |
+| `layout_plan`, `layout_replan`, `suite_claims` | `layout_plan` (decision) | `verdict` `planned`/`replanned`/`claimed`, `reason` replan reason, attrs `colonists`, `summary`, `claims`, and on a replan `tomb_short`, `unplaced`; `skipped`/`no_core` when the survey holds no core; a suite-claims change is `claimed` with target `suites` (landed, #2066) | #2066 |
+| `stockpiles` (edits; the `rounds_stockpiles.go` rows landed in #2066 as `layout_edit` family `stockpile`), `fields`, `tidy`, `building_retire` | `layout_edit` (decision) | `target` zone, role, item or building, `verdict` `admitted`/`refused`/`abandoned`/`closed`/`proposed`, `reason` refusal code or detail; attrs `family` (`stockpile`, `field`, `tidy`, `building`), `kind`, `plan`, `crop`, `cells`, `hauls`, `moves`, `gain`, `owner`, `x`, `z` | #2068 (fields, `layout_fields_shrink`), #2069 (stockpiles, tidy, `building_retire`) |
 | `snapshot` ("not recorded" warnings from rounds, defense, defense-layout, firebreak) | `snapshot_skip` | decision, `WARN`. `target` the snapshot (`colony`, `combat`, `defense`, `layout`, `firebreak`, `shelter`), `verdict` `skipped`, `reason` `not_recorded`; attrs `error`, `tick` | #2066 (colony), #2067 (combat, defense), #2068 (firebreak) |
-| `stockpiles` (edits), `fields`, `tidy`, `building_retire` | `layout_edit` (decision) | `target` zone, role, item or building, `verdict` `admitted`/`refused`/`abandoned`/`closed`/`proposed`, `reason` refusal code or detail; attrs `family` (`stockpile`, `field`, `tidy`, `building`), `kind`, `plan`, `crop`, `cells`, `hauls`, `moves`, `gain`, `owner`, `x`, `z` | #2068 (fields, `layout_fields_shrink`), #2069 (stockpiles, tidy, `building_retire`) |
 | `traffic_finding`, `entity_study_unread`, `odyssey_quest_skip` | `routine_skip` (decision) | `target` the subject, `verdict` `skipped`/`waiting`, `reason`; attrs `quest`, `script`, `detail`, `findings` | #2069 (`rounds_flooring`, `rounds_fishing`), #2066 (`rounds.go`) |
 
 ### Defense, population and pawns
@@ -131,7 +131,6 @@ producer piece lands. Each legacy branch is deleted by the piece that moves its 
 | `scheduler_step` (spectator `now`, trace roots) | `planner_step` (attrs `admitted`, `running`, `window_ticks`) | #2064 (worker step; the #2063 planner_step rows are per planner and do not carry them) |
 | `worker_dispatch`, `worker_outcome` | `dispatch` | #2064 |
 | `scheduler_stop`, `authority_change` | `clock_stop`, `authority` | #2064 |
-| `layout_replan` (acceptance `rich_soil`) | `layout_plan` verdict `replanned` | #2066 |
 | Log panel INFO kinds `combat_stops`, `hold_refused`, `animal_clear`, `entity_kill`, `entity_capture_refused`, `authority_lost`, `clock_retaken` | `combat_summary`, `defense_action`, `authority` | #2064, #2067 |
 | acceptance `stepevent`, `stepstall`, `failfast` | #2061 |
 | acceptance `farm/select`, `combatlab` metrics | #2062 |

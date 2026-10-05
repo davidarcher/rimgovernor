@@ -7,7 +7,7 @@ package layout
 // soil, each fertile patch one field zone wholly inside or outside the
 // traced ring (crossed only where the ring runs along the edge margin
 // line), and the crop zones inside a patch one block with no gap. A
-// colonist is then spawned and the plan must grow (a layout_replan event
+// colonist is then spawned and the plan must grow (a layout_plan replanned row
 // for the new count) within one in-game hour.
 
 import (
@@ -116,11 +116,11 @@ func richSoil(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	if replan == nil {
-		return fmt.Errorf("no layout_replan for %d colonists by tick %d (spawned at %d)", pawns+1, spawnTick+2*replanWithin, spawnTick)
+		return fmt.Errorf("no layout_plan replanned row for %d colonists by tick %d (spawned at %d)", pawns+1, spawnTick+2*replanWithin, spawnTick)
 	}
 	report["replan"] = map[string]any{"tick": replan.Tick, "payload": replan.Payload, "after_ticks": replan.Tick - spawnTick}
 	if replan.Tick-spawnTick > replanWithin {
-		return fmt.Errorf("layout_replan for %d colonists at tick %d, %d ticks after the colonist joined (bound %d)", pawns+1, replan.Tick, replan.Tick-spawnTick, replanWithin)
+		return fmt.Errorf("layout_plan replanned for %d colonists at tick %d, %d ticks after the colonist joined (bound %d)", pawns+1, replan.Tick, replan.Tick-spawnTick, replanWithin)
 	}
 	return nil
 }
@@ -186,8 +186,8 @@ func cropZones(ctx context.Context, s cases.Session, h *na.Harness) ([][]domain.
 	return out, nil
 }
 
-// isReplan reports a layout replan row: the legacy layout_replan kind (#2066
-// deletes it) or the v2 layout_plan decision with verdict replanned.
+// isReplan reports a layout replan row: the layout_plan decision with verdict
+// replanned.
 func isReplan(row na.FlightRow) bool {
-	return row.Kind == "layout_replan" || (row.Kind == "layout_plan" && na.AsString(row.Fields()["verdict"]) == "replanned")
+	return row.Kind == "layout_plan" && na.AsString(row.Fields()["verdict"]) == "replanned"
 }

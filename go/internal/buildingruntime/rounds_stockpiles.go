@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
@@ -194,13 +195,11 @@ func (r *Rounder) reviewStockpiles(ctx context.Context, snapshot domain.Generati
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
 	r.stockpiles.setDemand(stockpileWorld(snapshot), request.RoomDemand, request.Incinerator)
-	if r.stockpiles.siteErrChanged(request.SiteErr) {
-		clockSchedulerLog("storage plan has unusable sites: %v", request.SiteErr)
-	}
+	r.stockpiles.siteErrChanged(request.SiteErr)
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)
 	for _, e := range review.Edits {
-		clockEvent(ctx, "layout", "stockpiles", "stockpile edit: "+e.Explanation, "zone", e.Zone, "kind", string(e.Kind), "hauls", e.Hauls)
+		telemetry.Decide(ctx, stockpileEditDecision("proposed", "", e.Zone, map[string]any{"kind": string(e.Kind), "hauls": e.Hauls, "detail": e.Explanation}))
 	}
 	return nil
 }
@@ -441,7 +440,7 @@ func (r *RoundsStockpilePlanner) shell(call, epoch context.Context, state Contro
 		return RoundsStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_room_built")}, false, nil
 	}
 	result, err := r.building.shellRoom(call, epoch, state, review, goal, read.ColonyReading, room, plannedRoomMethod(room), "storage-planner room")
-	clockEvent(call, "layout", "stockpiles", "stockpile edit: "+edit.Explanation, "role", edit.Role, "verdict", fmt.Sprint(result.Verdict))
+	telemetry.Decide(call, stockpileEditDecision("proposed", fmt.Sprint(result.Verdict), edit.Role, map[string]any{"kind": "room", "detail": edit.Explanation}))
 	if err != nil || shellLeavesZoneEdits(result.Verdict) {
 		return RoundsStockpileResult{Verdict: result.Verdict}, false, err
 	}
@@ -583,7 +582,7 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 		}
 		action, err := stockpileEditAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), e)
 		if err != nil {
-			clockSchedulerLog("Stockpiles: %s %s dropped: %v", e.Kind, e.Zone, err)
+			telemetry.Decide(call, stockpileEditDecision("refused", "action_invalid", e.Zone, map[string]any{"kind": string(e.Kind), "error": err}))
 			continue
 		}
 		actions = append(actions, action)
@@ -614,7 +613,7 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 		if e.Kind == policy.StockpileCreate {
 			continue
 		}
-		clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "zone", e.Zone, "kind", string(e.Kind), "plan", string(id))
+		telemetry.Decide(call, stockpileEditDecision("admitted", "", e.Zone, map[string]any{"kind": string(e.Kind), "plan": string(id), "detail": e.Explanation}))
 	}
 	return RoundsStockpileResult{Verdict: BuildingReasonAdmitted, Plan: id, Edits: len(actions)}, nil
 }
@@ -662,7 +661,7 @@ func (r *RoundsStockpilePlanner) create(call, epoch context.Context, state Contr
 		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), value)
 		var refused *bridge.NativeFailure
 		if errors.As(err, &refused) {
-			clockEvent(call, "layout", "stockpiles", "stockpile create preview refused", "role", e.Role, "code", refused.Value.GetCode().String(), "detail", refused.Value.GetDetail())
+			telemetry.Decide(call, stockpileEditDecision("refused", refused.Value.GetCode().String(), e.Role, map[string]any{"kind": "create", "detail": refused.Value.GetDetail()}))
 			continue
 		}
 		if err != nil {
@@ -670,7 +669,7 @@ func (r *RoundsStockpilePlanner) create(call, epoch context.Context, state Contr
 		}
 		v := reply.GetEvaluated()
 		if v == nil || !v.GetAccepted() {
-			clockEvent(call, "layout", "stockpiles", "stockpile create preview not accepted", "role", e.Role, "reason", v.GetReason())
+			telemetry.Decide(call, stockpileEditDecision("refused", "preview_not_accepted", e.Role, map[string]any{"kind": "create", "detail": v.GetReason()}))
 			continue
 		}
 		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < tick {
@@ -706,7 +705,7 @@ func (r *RoundsStockpilePlanner) create(call, epoch context.Context, state Contr
 		return RoundsStockpileResult{Verdict: admissionRefused(decision)}, nil
 	}
 	for _, e := range admitted {
-		clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "role", e.Role, "kind", string(e.Kind), "plan", string(id))
+		telemetry.Decide(call, stockpileEditDecision("admitted", "", e.Role, map[string]any{"kind": string(e.Kind), "plan": string(id), "detail": e.Explanation}))
 	}
 	return RoundsStockpileResult{Verdict: BuildingReasonAdmitted, Plan: id, Edits: len(actions)}, nil
 }
@@ -765,4 +764,12 @@ func stockpileEditAction(id domain.ActionID, e policy.StockpileEdit) (domain.Act
 		return domain.NewZoneDeleteAction(id, del)
 	}
 	return domain.Action{}, fmt.Errorf("unknown stockpile edit %q", e.Kind)
+}
+
+// stockpileEditDecision is the layout_edit row (family stockpile) of a
+// stockpile edit proposed, admitted or refused: target the zone or role,
+// reason the refusal code, attrs the edit kind, plan and detail.
+func stockpileEditDecision(verdict, reason, target string, attrs map[string]any) telemetry.Decision {
+	attrs["family"] = "stockpile"
+	return telemetry.Decision{Kind: "layout_edit", Component: "layout", Verdict: verdict, Reason: reason, Target: target, Attrs: attrs}
 }

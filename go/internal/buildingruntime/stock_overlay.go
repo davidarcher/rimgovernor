@@ -15,7 +15,7 @@ import (
 // stockpile the zone census lists, tinted by the review's resource targets
 // and the food runway, sent when it changes or an hour passed, and cleared
 // once with the flag off or no stockpile. Output only: a failure is
-// logged, never fatal.
+// dropped and the next review draws again.
 func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, result store.RoundsResult) {
 	native, ok := r.native.(LayoutOverlayNative)
 	if !ok {
@@ -25,7 +25,6 @@ func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.Generati
 	if r.layoutOverlay && projection.Zones.Complete {
 		zones, err := r.stockZones(ctx, snapshot, projection)
 		if err != nil {
-			clockSchedulerLog("stock overlay not drawn: %v", err)
 			return
 		}
 		f := projection.Facts
@@ -42,7 +41,6 @@ func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.Generati
 	if !on {
 		if !r.stock.cleared {
 			if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), policy.StockLayer, policy.LayoutOverlay{}, false); err != nil {
-				clockSchedulerLog("stock overlay not cleared: %v", err)
 				return
 			}
 			r.stock = overlayState{cleared: true}
@@ -54,7 +52,6 @@ func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.Generati
 		return
 	}
 	if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), policy.StockLayer, layer, true); err != nil {
-		clockSchedulerLog("stock overlay not drawn: %v", err)
 		return
 	}
 	r.stock = overlayState{key: key, drawn: tick}
