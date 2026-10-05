@@ -442,9 +442,6 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus,
 		}
 		return true
 	}
-	planned := func(p InteriorPiece) WantedPiece {
-		return WantedPiece{DefName: p.Def, Minimum: domain.Cell{X: p.Rect.X, Z: p.Rect.Z}, Maximum: domain.Cell{X: p.Rect.X + p.Rect.Width - 1, Z: p.Rect.Z + p.Rect.Height - 1}, Slot: p.Slot, Size: p.Size, Rot: p.Rot}
-	}
 	standingPiece := func(b CurrentBuilding) WantedPiece {
 		r := cellsRectangle(b.Cells)
 		return WantedPiece{DefName: b.Building.Definition(), Minimum: domain.Cell{X: r.X, Z: r.Z}, Maximum: domain.Cell{X: r.X + r.Width - 1, Z: r.Z + r.Height - 1}}
@@ -460,7 +457,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus,
 				if !free(p) {
 					return ThroneStep{}
 				}
-				template = append(template, planned(p))
+				template = append(template, p.Wanted())
 				break
 			}
 		}
@@ -475,7 +472,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus,
 		}
 		for _, p := range interior.Pieces {
 			if key, _, _ := strings.Cut(p.Slot, "."); count < w.Count && key == w.Key && p.Slot != throneSlot && free(p) {
-				template = append(template, planned(p))
+				template = append(template, p.Wanted())
 				absent = true
 				count++
 			}

@@ -372,6 +372,21 @@ The royalty read reaches the projection through the optional
 `RoyaltyNative` source (like `MapSurveyNative`); without it, or without
 Royalty, no throne room is owed.
 
+### Tomb, jail and morgue (#2113)
+
+The tomb, the jail and the morgue use the same shared build side as the throne
+room (`reconcileRoom`); their steps shrink to a furniture template.
+`NextTombStep` reports `TombReconcile` with the next free sarcophagus slot as
+the template (`TombFull` and `TombGrave` stay); `NextJailStep` reports
+`JailReconcile` with the next free bed (`JailMark` stays: it flags a standing
+bed, found through `CensusRoomIn`); the morgue holds no furniture, so
+`MorgueRoomOwed` is just "the ring does not match the ground" and its template
+is empty. There are no shell or place steps: the ring, floors and pieces are
+whatever the diff leaves, installed from packed stock first. A refused
+placement means wait: the jail and the morgue let their concern go on, the tomb
+returns the wait. The isolation room is a child-room need (`IsolationRoomNeed`)
+and converts with the child rooms (#2112).
+
 ### Bestowing ceremony and title claim
 
 The royalty read lists each bestowing-ceremony quest (`ceremonies`: quest id,

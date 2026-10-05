@@ -6,13 +6,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestNextJailStepShellsMarksThenPlaces(t *testing.T) {
+func TestNextJailStepReconcilesAndMarks(t *testing.T) {
 	jail := hallRoom(PlannedPrison, 10, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []PlannedRoom{jail}}
 	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 0, nil, nil); s.Kind != JailNone {
 		t.Fatalf("no prisoner: %+v", s)
 	}
-	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 1, nil, nil); s.Kind != JailShell || s.Room.Interior != jail.Interior {
+	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 1, nil, nil); s.Kind != JailReconcile || s.Room.Interior != jail.Interior || len(s.Template) != 1 {
 		t.Fatalf("unbuilt jail: %+v", s)
 	}
 	centre := domain.Cell{X: jail.Interior.X + 2, Z: jail.Interior.Z + 2}
@@ -22,7 +22,7 @@ func TestNextJailStepShellsMarksThenPlaces(t *testing.T) {
 		t.Fatalf("plain bed in the jail: %+v", s)
 	}
 	s := NextJailStep(plan, rooms, 1, nil, nil)
-	if s.Kind != JailPlace || s.Piece.Def != testPrimaryBed {
+	if s.Kind != JailReconcile || len(s.Template) != 1 || s.Template[0].DefName != testPrimaryBed {
 		t.Fatalf("empty jail: %+v", s)
 	}
 	marked := plain

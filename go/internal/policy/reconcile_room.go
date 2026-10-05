@@ -73,3 +73,8 @@ func (p LayoutPlan) GroundWithRock(g GroundCensus, rock []domain.Cell) GroundCen
 // RoomGround is the rectangle a planned room's ring and interior cover, the
 // ground an owner reads the census on.
 func (r PlannedRoom) RoomGround() Rectangle { return roomGround(r.Interior) }
+
+// Wanted is the template piece for p: its slot's cells, size and rotation.
+func (p InteriorPiece) Wanted() WantedPiece {
+	return WantedPiece{DefName: p.Def, Minimum: domain.Cell{X: p.Rect.X, Z: p.Rect.Z}, Maximum: domain.Cell{X: p.Rect.X + p.Rect.Width - 1, Z: p.Rect.Z + p.Rect.Height - 1}, Slot: p.Slot, Size: p.Size, Rot: p.Rot}
+}

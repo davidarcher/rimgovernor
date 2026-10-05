@@ -97,11 +97,11 @@ func TestIsolationRoomNeedAndStanding(t *testing.T) {
 		}
 	}
 	plan, room := childRoomFixture(PlannedIsolationRoom)
-	if IsolationRoomStanding(plan, RoomObservation{Shapes: testShapes}, nil, need, defs) {
+	if IsolationRoomStanding(plan, GroundCensus{}, nil, need, defs) {
 		t.Fatal("an unbuilt room stands")
 	}
 	rooms := tombStanding(room)
-	if IsolationRoomStanding(plan, rooms, nil, need, defs) {
+	if IsolationRoomStanding(plan, ringWalls(plan, room), nil, need, defs) {
 		t.Fatal("a room without its bed stands")
 	}
 	step := NextChildRoomStep(plan, rooms, ringWalls(plan, room), nil, []ChildRoomNeed{need}, defs)
@@ -109,7 +109,7 @@ func TestIsolationRoomNeedAndStanding(t *testing.T) {
 		t.Fatalf("bed step = %+v", step)
 	}
 	built := piecesOf(t, step)
-	if !IsolationRoomStanding(plan, rooms, built, need, defs) {
+	if !IsolationRoomStanding(plan, ringWalls(plan, room), built, need, defs) {
 		t.Fatal("a furnished enclosed room does not stand")
 	}
 	if cells := plan.IsolationRoomCells(); len(cells) != int(room.Interior.Width*room.Interior.Height) {

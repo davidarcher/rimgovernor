@@ -56,10 +56,10 @@ func IsolationRoomNeed(p IsolationPlanning, furniture []FurnitureDefinition) (Ch
 }
 
 // IsolationRoomStanding reports whether the plan's isolation room for need
-// stands with every piece of its furniture: the room is enclosed in the
-// census and the bed is built inside it. Only then is a creepjoiner held in
+// stands with every piece of its furniture: its ring stands as planned and the
+// bed is built inside it. Only then is a creepjoiner held in
 // it.
-func IsolationRoomStanding(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, need ChildRoomNeed, defs []FurnitureDefinition) bool {
+func IsolationRoomStanding(plan LayoutPlan, ground GroundCensus, built []CurrentBuilding, need ChildRoomNeed, defs []FurnitureDefinition) bool {
 	shape, ok := need.shape(defs)
 	if !ok {
 		return false
@@ -68,7 +68,7 @@ func IsolationRoomStanding(plan LayoutPlan, rooms RoomObservation, built []Curre
 	if !ok {
 		return false
 	}
-	if _, standing := CensusRoomIn(room, rooms); !standing {
+	if !plan.GroundMatches(room, ground) {
 		return false
 	}
 	pieces, _ := need.resolve(defs)

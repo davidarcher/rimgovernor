@@ -22,9 +22,11 @@ func MorgueWaiting(waste []WasteItem, butchery bool) bool {
 	return false
 }
 
-// MorgueRoomOwed is the planned morgue that stands unbuilt while a fresh
-// stranger corpse waits and the butchery is open; false otherwise.
-func MorgueRoomOwed(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, butchery bool) (PlannedRoom, bool) {
+// MorgueRoomOwed is the planned morgue whose ring does not match the ground
+// while a fresh stranger corpse waits and the butchery is open; false
+// otherwise. The morgue holds no furniture: the build side reconciles its ring
+// and floor (ReconcileRoom).
+func MorgueRoomOwed(plan LayoutPlan, ground GroundCensus, waste []WasteItem, butchery bool) (PlannedRoom, bool) {
 	if !MorgueWaiting(waste, butchery) {
 		return PlannedRoom{}, false
 	}
@@ -32,10 +34,10 @@ func MorgueRoomOwed(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, b
 		if r.Role != PlannedMorgue {
 			continue
 		}
-		if _, ok := CensusRoomIn(r, rooms); !ok {
-			return r, true
+		if plan.GroundMatches(r, ground) {
+			return PlannedRoom{}, false
 		}
-		return PlannedRoom{}, false
+		return r, true
 	}
 	return PlannedRoom{}, false
 }

@@ -7,9 +7,10 @@ import (
 )
 
 // Furnishing the jail (#880). While a prisoner is held, MaintainPopulation
-// shells a planned jail (#835), then keeps one bed set for prisoners in it
-// per held prisoner: it sets an unflagged bed standing in a jail for
-// prisoners first, and otherwise places the next free template bed. A
+// keeps one bed set for prisoners in a planned jail (#835) per held prisoner:
+// it sets an unflagged bed standing in a jail for prisoners first, and
+// otherwise reconciles the room (ReconcileRoom) to the next free template
+// bed: the ring, the floor and the bed, installed from packed stock first. A
 // fresh bed is placed plain and flagged on a later step once it stands.
 // Wardens bring the prisoners to the beds; nothing here hauls.
 
@@ -53,20 +54,20 @@ const (
 	// JailNone: no prisoner held, enough prisoner beds, no planned jail
 	// with room, or a fact is unknown.
 	JailNone JailStepKind = ""
-	// JailShell: raise the walls and doors of Room.
-	JailShell JailStepKind = "shell"
+	// JailReconcile: reconcile Room to Template, its next free bed
+	// (ReconcileRoom): whatever the ring, floor and bed still owe.
+	JailReconcile JailStepKind = "reconcile"
 	// JailMark: set Bed, standing in a jail, for prisoners.
 	JailMark JailStepKind = "mark"
-	// JailPlace: place Piece, the next free template bed in Room.
-	JailPlace JailStepKind = "place"
 )
 
 // JailStep is one bounded step towards a prisoner bed per prisoner.
 type JailStep struct {
-	Kind  JailStepKind
-	Room  PlannedRoom
-	Piece InteriorPiece
-	Bed   string
+	Kind JailStepKind
+	Room PlannedRoom
+	// Template is a JailReconcile's wanted furniture: the next free bed.
+	Template []WantedPiece
+	Bed      string
 	// Held is the living prisoners; Beds the beds set for prisoners.
 	Held, Beds int
 }
@@ -93,23 +94,21 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 		if r.Role != PlannedPrison {
 			continue
 		}
-		step.Room = r
-		standing, ok := CensusRoomIn(r, rooms)
-		if !ok {
-			step.Kind = JailShell
-			return step
-		}
+		standing, stands := CensusRoomIn(r, rooms)
 		for _, b := range beds {
+			if !stands {
+				break
+			}
 			humanlike, _ := b.Humanlike.Value()
 			medical, _ := b.Medical.Value()
 			prisoners, pk := b.Prisoners.Value()
 			if room, _ := b.Room.Value(); room == standing.ID && humanlike && !medical && pk && !prisoners {
-				step.Kind, step.Bed = JailMark, b.ID
+				step.Room, step.Kind, step.Bed = r, JailMark, b.ID
 				return step
 			}
 		}
 		if piece, ok := jailSlot(r, rooms.Shapes, taken); ok {
-			step.Kind, step.Piece = JailPlace, piece
+			step.Room, step.Kind, step.Template = r, JailReconcile, []WantedPiece{piece.Wanted()}
 			return step
 		}
 	}

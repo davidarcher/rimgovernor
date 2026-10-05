@@ -150,15 +150,13 @@ func (r *RoundsPrisonerInteractionPlanner) stageJail(call, epoch context.Context
 	switch step.Kind {
 	case policy.JailNone:
 		return RoundsPrisonerInteractionResult{}, false, nil
-	case policy.JailShell:
-		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, plannedRoomMethod(step.Room), "")
-	case policy.JailPlace:
-		method := domain.MethodID(fmt.Sprintf("jail-place-%d-%d-%s", step.Room.Interior.X, step.Room.Interior.Z, step.Piece.Slot))
-		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, method)
+	case policy.JailReconcile:
+		stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
+		result, err = r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: step.Room, template: step.Template, name: roomName("jail", step.Room), reason: "jail"})
 	case policy.JailMark:
 		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
 	}
-	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
+	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(WaitExistingWork) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
 		return RoundsPrisonerInteractionResult{}, false, err
 	}
 	return RoundsPrisonerInteractionResult{Verdict: result.Verdict}, true, nil

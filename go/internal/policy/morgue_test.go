@@ -12,24 +12,23 @@ func morgueFixture() (LayoutPlan, PlannedRoom) {
 	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
-func TestMorgueShelledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
+func TestMorgueReconciledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
 	plan, room := morgueFixture()
 	fresh := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotFresh}}
-	if got, owed := MorgueRoomOwed(plan, RoomObservation{Shapes: testShapes}, fresh, true); !owed || !got.Same(room) {
+	if got, owed := MorgueRoomOwed(plan, GroundCensus{}, fresh, true); !owed || !got.Same(room) {
 		t.Fatalf("fresh stranger: %+v %v", got, owed)
 	}
-	if _, owed := MorgueRoomOwed(plan, RoomObservation{Shapes: testShapes}, fresh, false); owed {
+	if _, owed := MorgueRoomOwed(plan, GroundCensus{}, fresh, false); owed {
 		t.Fatal("butchery closed: the stranger is burned, not kept")
 	}
 	rotten := []WasteItem{{ID: "Corpse_2", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotRotting}}
 	colonist := []WasteItem{{ID: "Corpse_3", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist, RotStage: domain.RotFresh}}
 	for _, waste := range [][]WasteItem{rotten, colonist, nil} {
-		if _, owed := MorgueRoomOwed(plan, RoomObservation{Shapes: testShapes}, waste, true); owed {
+		if _, owed := MorgueRoomOwed(plan, GroundCensus{}, waste, true); owed {
 			t.Fatalf("owed for %+v", waste)
 		}
 	}
-	standing := tombStanding(PlannedRoom{Interior: room.Interior})
-	if _, owed := MorgueRoomOwed(plan, standing, fresh, true); owed {
+	if _, owed := MorgueRoomOwed(plan, ringWalls(plan, room), fresh, true); owed {
 		t.Fatal("a standing morgue owes no shell")
 	}
 }

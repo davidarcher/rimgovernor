@@ -18,10 +18,9 @@ func tombStep(facts observation.ColonyProjection) policy.TombStep {
 	}
 	available, _ := sarcophagusAvailable(facts).Value()
 	plan, _ := facts.LayoutPlan.Value()
-	rooms, _ := facts.Rooms.Value()
 	waste, _ := facts.Facts.Waste.Value()
 	built, _ := facts.Facts.CurrentConstruction.Value()
-	return policy.NextTombStep(plan, rooms, waste, built.Buildings, facts.Shapes, available)
+	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, available)
 }
 
 // tombOwed is the review's TombOwed fact for the projection.
@@ -53,7 +52,7 @@ func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool 
 	if !ak || !available || !wk || !bk || !built.Colony {
 		return false
 	}
-	return policy.NextTombStep(plan, policy.RoomObservation{}, waste, built.Buildings, facts.Shapes, true).Kind == policy.TombFull
+	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, true).Kind == policy.TombFull
 }
 
 // strangerButchery is whether the human butchery would take a fresh stranger
@@ -66,12 +65,12 @@ func strangerButchery(facts observation.ColonyProjection) bool {
 // a shell (#1820); false while the plan, rooms or waste census is unread.
 func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool) {
 	plan, pk := facts.LayoutPlan.Value()
-	rooms, rk := facts.Rooms.Value()
 	waste, wk := facts.Facts.Waste.Value()
-	if !pk || !rk || !wk {
+	ground, gk := colonyGround(facts)
+	if !pk || !wk || !gk {
 		return policy.PlannedRoom{}, false
 	}
-	return policy.MorgueRoomOwed(plan, rooms, waste, strangerButchery(facts))
+	return policy.MorgueRoomOwed(plan, plan.GroundWithRock(ground, naturalRock(facts)), waste, strangerButchery(facts))
 }
 
 // corpsesOwed is the review's CorpsesOwed fact: the tomb, the morgue or the

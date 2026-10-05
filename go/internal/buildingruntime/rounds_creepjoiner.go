@@ -132,12 +132,12 @@ func creepJoinerIsolation(facts observation.ColonyProjection, frame bridge.Round
 func isolationReady(facts observation.ColonyProjection) bool {
 	need, owed := isolationRoomNeed(facts)
 	plan, pk := facts.LayoutPlan.Value()
-	rooms, rk := facts.Rooms.Value()
+	ground, gk := colonyGround(facts)
 	census, ck := facts.Facts.CurrentConstruction.Value()
-	if !owed || !pk || !rk || !ck || !census.Colony {
+	if !owed || !pk || !gk || !ck || !census.Colony {
 		return false
 	}
-	return policy.IsolationRoomStanding(plan, rooms, census.Buildings, need, furnitureDefinitions(facts))
+	return policy.IsolationRoomStanding(plan, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, need, furnitureDefinitions(facts))
 }
 
 // take returns the work the review at tick left for world.

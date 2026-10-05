@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -16,13 +17,9 @@ import (
 // another; a plain grave stands in when no sarcophagus can be had (#857).
 // Vanilla haulers inter the body.
 
-// tombMethod names a tomb step's method: the shell once per room, each
-// sarcophagus slot once, per Episode.
-func tombMethod(step policy.TombStep) domain.MethodID {
-	if step.Kind == policy.TombPlace {
-		return domain.MethodID(fmt.Sprintf("tomb-place-%d-%d-%s", step.Room.Interior.X, step.Room.Interior.Z, step.Piece.Slot))
-	}
-	return domain.MethodID(fmt.Sprintf("tomb-shell-%d-%d", step.Room.Interior.X, step.Room.Interior.Z))
+// roomName prefixes a room's reconcile methods: its role and interior corner.
+func roomName(role string, room policy.PlannedRoom) string {
+	return fmt.Sprintf("%s-%d-%d", role, room.Interior.X, room.Interior.Z)
 }
 
 // stageTomb answers a due tomb step; handled is false when none is due.
@@ -36,12 +33,13 @@ func (r *RoundsWastePlanner) stageTomb(call, epoch context.Context, state Contro
 		return RoundsWasteResult{}, false, err
 	}
 	step := tombStep(reading.Projection)
+	stock := newPackedStock(r.native, boundary.Identity(state.Snapshot))
 	if step.Kind == policy.TombNone {
 		if morgue, owed := plannedMorgue(reading.Projection); owed {
-			result, err := r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, morgue, plannedRoomMethod(morgue), "")
-			// A shell already tried this epoch, or refused, leaves the
-			// burn to go on.
-			if err != nil || !result.Verdict.skipsToPlacement() {
+			result, err := r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: morgue, name: roomName("morgue", morgue), reason: "morgue"})
+			// A method already tried this epoch, a refused placement or
+			// a fact unknown leaves the burn to go on.
+			if err != nil || !(result.Verdict.skipsToPlacement() || result.Verdict.Is(WaitExistingWork)) {
 				return RoundsWasteResult{Verdict: result.Verdict}, true, err
 			}
 		}
@@ -49,10 +47,8 @@ func (r *RoundsWastePlanner) stageTomb(call, epoch context.Context, state Contro
 	}
 	var result RoundsBuildingResult
 	switch step.Kind {
-	case policy.TombShell:
-		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, tombMethod(step), "")
-	case policy.TombPlace:
-		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step))
+	case policy.TombReconcile:
+		result, err = r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: step.Room, template: step.Template, name: roomName("tomb", step.Room), reason: "tomb"})
 	case policy.TombFull:
 		// The layout review grows another tomb; a grave only once a
 		// replan found no room for one; the burn goes on meanwhile.
