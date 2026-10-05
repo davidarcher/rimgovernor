@@ -10,37 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// batchLog/normalLog are the startup-log fixtures: batch patches armed versus
-// an ordinary graphical start.
-const batchLog = "[HeadlessRim] Bootstrap armed.\n[HeadlessRim] Headless mode active."
-const normalLog = "Normal game startup"
-
-func TestCheckStartupLogRequiresBatchPatchesAndPreservesGraphicalMode(t *testing.T) {
-	if err := CheckStartupLog(batchLog, true); err != nil {
-		t.Fatalf("unexpected error for a genuine headless batch log: %v", err)
-	}
-	if err := CheckStartupLog(normalLog, false); err != nil {
-		t.Fatalf("unexpected error for a genuine graphical log: %v", err)
-	}
-	cases := []struct {
-		name     string
-		log      string
-		headless bool
-	}{
-		{"headless-markers-without-headless-launch", batchLog, false},
-		{"empty-log-claiming-headless", "", true},
-		{"bootstrap-error", batchLog + "[HeadlessRim] Bootstrap Error: missing target", true},
-		{"post-init-error", batchLog + "[HeadlessRim] Post-Init Error: missing target", true},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if err := CheckStartupLog(c.log, c.headless); err == nil {
-				t.Fatalf("expected an error for %s", c.name)
-			}
-		})
-	}
-}
-
 // writePackage writes a minimal installed native package.
 func writePackage(t *testing.T, root string) {
 	t.Helper()

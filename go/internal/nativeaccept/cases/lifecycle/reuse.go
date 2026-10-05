@@ -156,7 +156,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("BeginCase after retirement should refuse with ErrReuseRetired, got %v", err)
 	}
 
-	return cases.CheckStartupLog(s)
+	return nil
 }
 
 // cleanCase is one well-behaved case: authority on, draft, release, authority

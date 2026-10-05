@@ -316,9 +316,6 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 	if ticks <= 0 || ticks > combatTickBudget {
 		return fmt.Errorf("unexpected tick delta: %v", ticks)
 	}
-	if err := cases.CheckStartupLog(s); err != nil {
-		return err
-	}
 	report["pawn_id"] = actorID
 	report["target_ids"] = targets
 	report["ticks"] = ticks

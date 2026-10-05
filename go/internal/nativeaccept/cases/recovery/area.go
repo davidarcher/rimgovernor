@@ -17,7 +17,6 @@ package recovery
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -228,9 +227,5 @@ func runArea(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), s.Config().Headless)
+	return nil
 }

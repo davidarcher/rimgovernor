@@ -26,7 +26,6 @@ package authority
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -218,11 +217,7 @@ func warmPhase2(ctx context.Context, cfg *na.Config, output, previousLoadToken s
 	if _, err := na.RevokeManual(ctx, h.WireFunc(), "p2-release", identity, granted); err != nil {
 		return err
 	}
-	logData, err := os.ReadFile(cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), cfg.Headless)
+	return nil
 }
 
 // warmStage loads the lab (#751), pauses it and returns its identity.

@@ -496,10 +496,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		runErr = s.postmortem(ctx)
 	}
 	if runErr == nil {
-		// The game's own startup log is part of every case's evidence: a
-		// native load error there fails the case even when its assertion
-		// held.
-		runErr = CheckStartupLog(s)
+		runErr = checkStartupRows(output, cfg.Headless)
 	}
 	closeRing(ring, resumed, runErr, report, func(ctx context.Context) error {
 		s.stopServices()
@@ -576,7 +573,7 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	if err := c.Postmortem(ctx, s); err != nil {
 		return err
 	}
-	return CheckStartupLog(s)
+	return checkStartupRows(output, cfg.Headless)
 }
 
 // planDev is the resumption of an `acceptance dev` iteration (#274): the

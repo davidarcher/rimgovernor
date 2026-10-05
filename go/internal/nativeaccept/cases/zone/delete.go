@@ -24,7 +24,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -439,9 +438,5 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), s.Config().Headless)
+	return nil
 }

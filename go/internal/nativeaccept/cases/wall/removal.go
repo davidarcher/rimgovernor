@@ -17,7 +17,6 @@ package wall
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -495,9 +494,5 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	}
 	report["backup_demolished"] = firstBackup
 
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), s.Config().Headless)
+	return nil
 }

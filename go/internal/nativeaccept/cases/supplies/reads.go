@@ -5,7 +5,6 @@ package supplies
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -147,13 +146,6 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	if afterContext, _ := after["context"].(map[string]any); !na.DeepEqual(afterContext, beforeContext) {
 		return fmt.Errorf("identity/tick changed during a read-only pass")
-	}
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	if err := na.CheckStartupLog(string(logData), s.Config().Headless); err != nil {
-		return err
 	}
 	return nil
 }

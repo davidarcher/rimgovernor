@@ -151,7 +151,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["case_transport_drop"] = transport
-	return cases.CheckStartupLog(s)
+	return nil
 }
 
 // authority reads the native generation and the state message (one of

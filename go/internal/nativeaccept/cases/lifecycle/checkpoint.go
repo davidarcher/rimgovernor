@@ -12,7 +12,6 @@ package lifecycle
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -205,12 +204,5 @@ func runCheckpoint(ctx context.Context, s cases.Session) error {
 	}
 	report["case_read_save_unknown"] = true
 
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	if err := na.CheckStartupLog(string(logData), s.Config().Headless); err != nil {
-		return err
-	}
 	return nil
 }

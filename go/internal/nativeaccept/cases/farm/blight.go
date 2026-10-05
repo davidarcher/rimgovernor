@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"time"
 
@@ -278,11 +277,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	if len(after.rows) != 0 {
 		return fmt.Errorf("blight-after: census still lists %d plants", len(after.rows))
 	}
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), s.Config().Headless)
+	return nil
 }
 
 func separatedPlantedField(native, prepared map[string]any) error {

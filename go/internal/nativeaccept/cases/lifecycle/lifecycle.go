@@ -140,7 +140,7 @@ func runShutdown(ctx context.Context, s cases.Session) error {
 	}
 	report["case_fresh_game"] = map[string]any{"state": nextState, "generation": nextGeneration}
 
-	return cases.CheckStartupLog(s)
+	return nil
 }
 
 // newGame starts a paused debug colony and returns its identity.
@@ -340,5 +340,5 @@ func runRuntimeFault(ctx context.Context, s cases.Session) error {
 	}
 	report["case_reinstalled"] = map[string]any{"generation": regranted}
 
-	return cases.CheckStartupLog(s)
+	return nil
 }

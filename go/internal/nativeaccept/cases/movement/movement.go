@@ -133,9 +133,6 @@ func run(ctx context.Context, s cases.Session) error {
 	if _, ok := again["applied"]; !ok {
 		return fmt.Errorf("resend: a matching order was not applied as a no-op: %#v", again)
 	}
-	if err := cases.CheckStartupLog(s); err != nil {
-		return err
-	}
 	report["pawn_id"] = pawnID
 	report["destination"] = destination
 	return nil

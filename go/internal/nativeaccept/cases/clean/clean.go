@@ -27,7 +27,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -368,11 +367,7 @@ func runFilthy(ctx context.Context, journal *store.Store, service *na.ServicePro
 // checkStartupLog is the run's last assertion: no native error in the
 // game's startup log.
 func checkStartupLog(s cases.Session) error {
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), s.Config().Headless)
+	return nil
 }
 
 type roomRow struct {

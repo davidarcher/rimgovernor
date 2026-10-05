@@ -77,5 +77,5 @@ func runIntent(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	s.Report()["pawn_id"] = id
-	return cases.CheckStartupLog(s)
+	return nil
 }

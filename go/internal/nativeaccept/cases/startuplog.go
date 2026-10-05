@@ -7,14 +7,35 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// CheckStartupLog is the closing check most cases end on: the game's
-// startup log under the session's profile carries no error and matches
-// the profile's headless/windowed mode (na.CheckStartupLog).
-func CheckStartupLog(s Session) error {
-	cfg := s.Config()
-	logData, err := os.ReadFile(cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
+// checkStartupRows is the closing check every run ends on (#2121): the
+// mod's startup rows in <output>/flight.jsonl (ModLog, kind mod_log,
+// source "startup") carry no error, and "headless mode active" is present
+// exactly when the run asked for headless. A run that never started a
+// service has no flight.jsonl and no startup guard.
+func checkStartupRows(output string, headless bool) error {
+	path := na.FlightRecorderPath(output)
+	if _, err := os.Stat(path); err != nil {
+		return nil
 	}
-	return na.CheckStartupLog(string(logData), cfg.Headless)
+	rows, err := na.ReadFlight(path)
+	if err != nil {
+		return fmt.Errorf("read flight recorder: %w", err)
+	}
+	active := false
+	for _, row := range rows {
+		if row.Kind != "mod_log" || na.AsString(row.Payload["source"]) != "startup" {
+			continue
+		}
+		msg := na.AsString(row.Payload["msg"])
+		if na.AsString(row.Payload["level"]) == "error" {
+			return fmt.Errorf("startup error logged by the mod: %s", msg)
+		}
+		if msg == "headless mode active" {
+			active = true
+		}
+	}
+	if active != headless {
+		return fmt.Errorf("headless initialization disagrees with launch mode (headless=%t, \"headless mode active\" row=%t)", headless, active)
+	}
+	return nil
 }

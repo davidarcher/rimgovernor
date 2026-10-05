@@ -266,23 +266,6 @@ func PackageFiles(installation string) (map[string]string, error) {
 	return hashes, nil
 }
 
-// CheckStartupLog validates the mod's HeadlessRim startup markers: batch initialization must be
-// active exactly when headless is requested, and no bootstrap/post-init error logged.
-func CheckStartupLog(log string, headless bool) error {
-	if strings.Contains(log, "[HeadlessRim] Bootstrap Error:") {
-		return fmt.Errorf("headless bootstrap failed")
-	}
-	if strings.Contains(log, "[HeadlessRim] Post-Init Error:") {
-		return fmt.Errorf("headless runtime patches failed")
-	}
-	active := strings.Contains(log, "[HeadlessRim] Headless mode active.")
-	armed := strings.Contains(log, "[HeadlessRim] Bootstrap armed.")
-	if active != headless || armed != headless {
-		return fmt.Errorf("headless initialization disagrees with launch mode")
-	}
-	return nil
-}
-
 // nativeWaitMargin is how much longer than the wait it asked for a call is
 // given: the native side has to receive the request, run the work to its own
 // timeoutMs and report the timeout back, and the reply crosses the bridge

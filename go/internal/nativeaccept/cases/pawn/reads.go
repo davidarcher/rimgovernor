@@ -5,7 +5,6 @@ package pawn
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -262,13 +261,6 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	if !nativeaccept.DeepEqual(repeat, baseline) {
 		return fmt.Errorf("repeating the default read returned a different snapshot")
-	}
-	logData, err := os.ReadFile(s.Config().StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	if err := nativeaccept.CheckStartupLog(string(logData), s.Config().Headless); err != nil {
-		return err
 	}
 	report["context"] = loadedContext
 	report["pawns"] = len(baseline)
