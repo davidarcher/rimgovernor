@@ -56,9 +56,9 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeTeamPolicy
     {
-        // Total rerolls across the team, not per pawn. 1,000 if #2029 measures
-        // rerolls as slow.
-        internal const int RerollBudget = 10000;
+        // Total rerolls across the team, not per pawn. #2029 measured 40-80 ms a
+        // reroll and 5-17 rerolls to accept a team, so 1,000 caps a failure near a minute.
+        internal const int RerollBudget = 1000;
 
         // Hard rejects: the reason the pawn can never be on the team, or null.
         internal static string? HardReject(PawnFacts p)

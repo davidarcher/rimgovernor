@@ -143,9 +143,9 @@ var newColonyOptions = NewColonyOptions{
 	// Native PlanetCoverages are 0.3, 0.5 and 1, labelled ToStringPercent;
 	// 0.05 is dev mode only.
 	PlanetCoverages: []Option{
-		{"0.3", "30%", ""},
-		{"0.5", "50%", ""},
-		{"1", "100%", ""},
+		{"0.3", "30% (about 15 s to start)", ""},
+		{"0.5", "50% (about 20 s to start)", ""},
+		{"1", "100% (about 45 s to start)", ""},
 	},
 }
 

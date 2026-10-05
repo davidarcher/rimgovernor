@@ -117,7 +117,16 @@ func teamLaunch(ctx context.Context, cfg *na.Config, report na.Report, label, se
 	}
 	row := map[string]any{"finish_ms": time.Since(started).Milliseconds()}
 	report["team_run_"+label] = row
+	team, err := readTeam(ctx, h, label, teamColonistCount)
+	if err != nil {
+		return nil, err
+	}
+	row["team"] = team.digest()
+	return team, nil
+}
 
+// readTeam lists the live colony's colonists with biography and wants count.
+func readTeam(ctx context.Context, h *na.Harness, label string, count int) (*teamRead, error) {
 	identity, err := na.ReadIdentity(ctx, h, label+"-identity")
 	if err != nil {
 		return nil, err
@@ -158,10 +167,9 @@ func teamLaunch(ctx context.Context, cfg *na.Config, report na.Report, label, se
 		}
 		team.pawns = append(team.pawns, p)
 	}
-	if len(team.pawns) != teamColonistCount {
-		return nil, fmt.Errorf("%s: pawn list has %d colonists, want %d", label, len(team.pawns), teamColonistCount)
+	if len(team.pawns) != count {
+		return nil, fmt.Errorf("%s: pawn list has %d colonists, want %d", label, len(team.pawns), count)
 	}
-	row["team"] = team.digest()
 	return team, nil
 }
 

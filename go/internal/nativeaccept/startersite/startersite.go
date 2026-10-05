@@ -50,6 +50,11 @@ func Survey(ctx context.Context, h *na.Harness) (*observation.ColonyProjection, 
 	if err != nil {
 		return nil, policy.MapSurvey{}, err
 	}
+	// The colony read decides outdoor darkness from the definition catalog
+	// the client holds for this load (#1712); load it first.
+	if _, err := h.Client.DefinitionCatalog(ctx, reply.GetLoaded().GetContext().GetIdentity()); err != nil {
+		return nil, policy.MapSurvey{}, fmt.Errorf("definition catalog: %w", err)
+	}
 	reading, err := observation.ObserveColony(observation.WithPlanningWindow(ctx, window{h.Client}), h.Client, wallClock{}, expected, time.Minute, true)
 	if err != nil {
 		return nil, policy.MapSurvey{}, fmt.Errorf("colony facts: %w", err)

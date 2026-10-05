@@ -328,6 +328,60 @@ start on a root generates it through the new-colony op into `profile/Saves`
 missing save or a stamp that differs from the spec regenerates it.
 `acceptance setup generate baseline` (`tools/baselinegen`) regenerates on demand.
 
+#### Start cost and reproducibility (#2029)
+
+`acceptance run tools/startcost` (off-tier, ~10 min, one game launch per row)
+measures the new-colony op and reports it under `start_cost` in `result.json`.
+Measured on the maintainer's box with no peer RimWorld running, all DLC, eight
+LostTribe colonists, quiet; seconds from the op's start to the saved colony
+(game boot excluded, ~25 s headless):
+
+| Planet coverage | 150 map | 250 map | 350 map |
+|---|---|---|---|
+| 5% (dev only) | 5.6 | 7.7 | 13.1 |
+| 30% | 10.1 | 13.8 | 21.4 |
+| 50% | 16.0 | 18.6 | 23.7 |
+| 100% | 41.4 | 44.6 | 55.9 |
+
+Coverage dominates (world generation); map size adds roughly 5-12 s from 150 to
+350. The launcher's coverage labels carry these figures. Colonists: 5-19 rerolls
+accepted a team across 20 starts (3-10 colonists, nine seeds); a reroll costs
+about 20-90 ms (the figure includes the roll's share of pawn generation and is
+quantised by the 250 ms poll), so a team takes well under two seconds. At that
+cost 10,000 rerolls would hold the game for 3-15 minutes before the hard error,
+so the budget is 1,000 (about a minute at worst; 50 times the largest need seen).
+`colonist_count` is capped at 10 natively.
+
+Reproducibility (same spec twice on one install, each on a fresh game): the
+tribal-8 spec gave the same tile and the same eight colonists (names, traits,
+skills) and the same reroll count in every Core-only pair and in three of four
+all-DLC pairs. One all-DLC pair diverged (17 against 11 rerolls, different
+colonists), so DLC profiles are not guaranteed. The generated **map is not
+reproducible**: terrain, plants, animals and ancient structures differ on every
+start (about 30,000 things, a few dozen differing, terrain grid differs), and
+so do the world's factions, ideoligions and world pawns while the planet grid,
+features and landmarks match. `tools/startcost` compares colonists, tile and a
+map digest (`na.SaveMapHash`: terrain grid plus every thing's def and position)
+and fails on the map, so it stays red until native generation is made
+deterministic. A case that asserts a map feature (rich soil, a hut site, an
+ancient ruin) on the generated baseline therefore asserts a feature that varies
+per root: see the baseline-pinned cases below.
+
+Baseline-pinned cases run for #2029 (six of ~28, one root each; the rest are the
+nightly bulk tier's): `startup/labor` passed on the generated baseline. On the
+generated and the committed baseline alike, `farm/select-hydroponics` (no basin
+sows Plant_Potato), `defense/threat` (wealthItems did not grow with the stocked
+supplies) and `shelter/bunks-first` (MaintainHousing admits no shelter plan)
+fail, so those failures are not the generated colony's: they predate it and are
+open for the full tier. `layout/rich-soil` and `layout/ring` failed on both
+with "no definition catalog was loaded" until `startersite.Survey` loaded the
+catalog (fixed here); after it, on the generated baseline `layout/rich-soil`
+fails "no crop zone was laid" (the generated world has no rich-soil patch near
+the centre; the case asserts the committed map) and `layout/ring` fails "no
+stone ring stands". Neither assertion is relaxed here: with a map that differs
+per generation, the terrain-pinned cases need either deterministic generation
+or a spec-level terrain requirement first.
+
 ### Quiet storyteller, frozen needs, letters
 
 A scenario start (`na.ScenarioStart`, the production new-colony op) picks the `RimGovernorQuiet` storyteller; a save start applies `test/quiet_storyteller` once the colony exists

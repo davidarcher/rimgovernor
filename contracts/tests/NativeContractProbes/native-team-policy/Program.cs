@@ -114,7 +114,7 @@ internal static class NativeTeamPolicyProbe
             Require(rolled == 25, "budget is a total: " + rolled);
             Require(e.Message.Contains("25 rerolls") && e.Message.Contains("trait Wimp"), "error names the unmet requirement: " + e.Message);
         }
-        Require(NativeTeamPolicy.RerollBudget == 10000, "total budget is 10,000");
+        Require(NativeTeamPolicy.RerollBudget == 1000, "total budget is 1,000");
         Console.WriteLine("native-team-policy: hard rejects, coverage, combat scaling, passion ordering, budget passed");
     }
 
