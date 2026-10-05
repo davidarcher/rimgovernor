@@ -39,3 +39,29 @@ func TestNoSlowTestsNoWarning(t *testing.T) {
 		t.Fatalf("warning = %q", warning.String())
 	}
 }
+
+// go test -json emits the test binary's package-level "PASS" as its own
+// output event; plain go test prints no such line, so the renderer drops it,
+// while a failing package keeps FAIL, its summary line and the failed test's
+// own output.
+func TestRenderDropsStrayPassKeepsFailure(t *testing.T) {
+	const stream = `{"Action":"run","Package":"p","Test":"TestOK"}
+{"Action":"output","Package":"p","Test":"TestOK","Output":"--- PASS: TestOK (0.00s)\n"}
+{"Action":"pass","Package":"p","Test":"TestOK","Elapsed":0}
+{"Action":"output","Package":"p","Output":"PASS\n"}
+{"Action":"output","Package":"p","Output":"ok  \tp\t0.1s\n"}
+{"Action":"pass","Package":"p","Elapsed":0.1}
+{"Action":"run","Package":"q","Test":"TestBad"}
+{"Action":"output","Package":"q","Test":"TestBad","Output":"    q_test.go:3: boom\n"}
+{"Action":"fail","Package":"q","Test":"TestBad","Elapsed":0}
+{"Action":"output","Package":"q","Output":"FAIL\n"}
+{"Action":"output","Package":"q","Output":"FAIL\tq\t0.1s\n"}
+{"Action":"fail","Package":"q","Elapsed":0.1}
+`
+	var text bytes.Buffer
+	renderTestJSON(strings.NewReader(stream), &text)
+	const want = "ok  \tp\t0.1s\n    q_test.go:3: boom\nFAIL\nFAIL\tq\t0.1s\n"
+	if text.String() != want {
+		t.Fatalf("rendered text = %q, want %q", text.String(), want)
+	}
+}

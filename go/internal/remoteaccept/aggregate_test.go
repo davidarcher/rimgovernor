@@ -2,9 +2,11 @@ package remoteaccept
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
@@ -18,12 +20,37 @@ type fixture struct {
 	shards    []Shard
 }
 
+// contractTree holds the contract fixture's files, read from disk once per
+// test binary; every fixtureRun materializes its own copy from memory.
+var contractTree = sync.OnceValues(func() (map[string][]byte, error) {
+	source := filepath.Join("..", "..", "..", "docs", "developers", "contracts", "remote-acceptance")
+	files := map[string][]byte{}
+	err := fs.WalkDir(os.DirFS(source), ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(p)))
+		files[p] = b
+		return err
+	})
+	return files, err
+})
+
 func fixtureRun(t *testing.T) *fixture {
 	t.Helper()
 	root := t.TempDir()
-	source := filepath.Join("..", "..", "..", "docs", "developers", "contracts", "remote-acceptance")
-	if err := os.CopyFS(root, os.DirFS(source)); err != nil {
+	files, err := contractTree()
+	if err != nil {
 		t.Fatal(err)
+	}
+	for p, b := range files {
+		dst := filepath.Join(root, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(dst, b, 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	f := &fixture{root: root}
 	readTest(t, root, "run.json", &f.run)
