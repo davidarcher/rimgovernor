@@ -752,3 +752,18 @@ func TestLaunchedMismatchOnPackage(t *testing.T) {
 		t.Fatalf("relaunched on the rebuilt package: reason %q, err %v; want reuse", reason, err)
 	}
 }
+
+func TestCopyFileCreatesMissingDestinationDirectory(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.rws")
+	if err := os.WriteFile(src, []byte("save"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, "profile", "Saves", "dst.rws")
+	if err := copyFile(src, dst); err != nil {
+		t.Fatalf("copyFile into a missing directory: %v", err)
+	}
+	if got, err := os.ReadFile(dst); err != nil || string(got) != "save" {
+		t.Fatalf("dst = %q, %v", got, err)
+	}
+}
