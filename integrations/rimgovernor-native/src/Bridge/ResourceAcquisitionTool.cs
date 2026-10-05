@@ -56,26 +56,22 @@ namespace HomeBridge.BridgeTools
 
         // A deposit may be mined under roof when it is not the last holder of
         // any roof cell (#986). The check reads the true map through fog, as
-        // the game does for collapse; a pending collapse nearby still refuses.
+        // the game does for collapse. A pending collapse is transient and
+        // map-wide, so it is a wait (CollapsePending), never a blocker, and
+        // support is judged only while none is pending (MineSafetyRule). Ore
+        // is always mineable (#1133): a building, blueprint or frame beside
+        // the rock does not protect it. The roof rule covers what its removal
+        // can bring down, and ReplaceWall walls what it opens.
         internal static string? MiningBlocker(Thing t, Map map)
         {
             if (t.Faction != null) return "Faction-owned extraction target is protected";
-            if ((map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0 && GenRadial.RadialCellsAround(t.Position, RoofCollapseUtility.RoofMaxSupportDistance, true)
-                    .Any(cell => cell.InBounds(map) && map.roofCollapseBuffer.IsMarkedToCollapse(cell)))
-                || ExcavationSafety.Check(map, new[] { t.Position }, out _, out _, throughFog: true) != ExcavationSafety.Support.Supported)
+            if (!CollapsePending(map) && ExcavationSafety.Check(map, new[] { t.Position }, out _, out _, throughFog: true) != ExcavationSafety.Support.Supported)
                 return "Roof support requires a supported excavation plan";
-            foreach (var cell in GenAdj.CellsAdjacent8WayAndInside(t))
-            {
-                if (!cell.InBounds(map)) return "Map edge excavation is protected";
-                if (cell.GetThingList(map).Any(other => other != t && !IsWall(other) && (other is Blueprint || other is Frame
-                    || (other is Building && !(other is Mineable))))) return "Excavation borders a protected structure";
-            }
+            if (GenAdj.CellsAdjacent8WayAndInside(t).Any(cell => !cell.InBounds(map))) return "Map edge excavation is protected";
             return null;
         }
 
-        // Ore is always mineable (#1133). A wall (built or queued, such as a
-        // replacement from a neighbouring face) does not protect the rock.
-        private static bool IsWall(Thing t) => t.def == ThingDefOf.Wall || t.def.entityDefToBuild == ThingDefOf.Wall;
+        internal static bool CollapsePending(Map map) => map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0;
 
         // A mined cell that borders a zone or Home opens protected colony
         // space, so the mine is followed by an ordinary wall blueprint on it

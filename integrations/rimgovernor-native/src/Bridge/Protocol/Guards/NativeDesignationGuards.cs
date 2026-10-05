@@ -35,7 +35,8 @@ namespace HomeBridge.BridgeTools
             .Register(GuardNames.Enclosure, s => s.Target is Building b ? Enclosure(b, s.Ground) : "The enclosure guard holds a building.",
                 s => s.Target is Building b ? RoofWait(b, s.Ground) : null)
             .Register(GuardNames.MineSafety, MineSafety, s => MineSafetyRule.Wait(CollapsePending(s.Map)))
-            .Register(GuardNames.Acquisition, s => s.Target is Mineable rock ? ResourceAcquisitionTools.MiningBlocker(rock, s.Map) : null)
+            .Register(GuardNames.Acquisition, s => s.Target is Mineable rock ? ResourceAcquisitionTools.MiningBlocker(rock, s.Map) : null,
+                s => MineSafetyRule.Wait(ResourceAcquisitionTools.CollapsePending(s.Map)))
             .Register(GuardNames.WallUpgrade, s => s.Wall == null ? "The wall_upgrade guard holds a wall-upgrade site." : WallUpgradeSafety.Check(s.Wall))
             .Register(GuardNames.Wastepack, Wastepack);
 
@@ -206,7 +207,9 @@ namespace HomeBridge.BridgeTools
                 var map = MapOf(r);
                 var designation = map == null ? null : Designation(r, map);
                 r.Cancelled = true;
-                if (designation != null) { map!.designationManager.RemoveDesignation(designation); count++; }
+                if (designation == null) continue;
+                map!.designationManager.RemoveDesignation(designation); count++;
+                ModLog.Warn("guards", "" + r.Guard + " guard released " + r.Designation + " at (" + r.X + "," + r.Z + ") on map " + r.MapId + ": control authority ended");
             }
             return count;
         }

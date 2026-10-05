@@ -11,6 +11,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// ErrMethodBound is a commit refused because the owner already binds that method id.
+var ErrMethodBound = errors.New("method already bound")
+
 // methodOwner is what method admission reads of the goal or incident a
 // methods row binds to (#1019): the world it was last reviewed in,
 // whether the autopilot owns it, the routine need it serves and its open
@@ -146,7 +149,7 @@ func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method 
 	// owner table's primary key (owner, [episode,] method).
 	switch bound, err := owner.boundPlan(ctx, tx, method); {
 	case err == nil:
-		return fmt.Errorf("%w: %s already binds method %s to plan %s", ErrConflict, owner.ownerLabel(), method, bound)
+		return fmt.Errorf("%w: %w: %s already binds method %s to plan %s", ErrConflict, ErrMethodBound, owner.ownerLabel(), method, bound)
 	case !errors.Is(err, sql.ErrNoRows):
 		return err
 	}
