@@ -1,8 +1,10 @@
 package buildingruntime
 
 import (
+	"slices"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
@@ -21,6 +23,18 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 	}
 	step := loadStep(t, "layout-ring-step", policy.MaintainHousing)
 	facts := step.Projection
+	// The recording predates the shelter plan role (#2037): its starter room
+	// is a barracks. The shelter stands on that same slot now, so the replay
+	// relabels it rather than hand-editing the recording.
+	recorded, _ := facts.LayoutPlan.Value()
+	recorded.Rooms = slices.Clone(recorded.Rooms)
+	for i, room := range recorded.Rooms {
+		if room.Role == "barracks" {
+			recorded.Rooms[i].Role = policy.ModuleShelter
+			break
+		}
+	}
+	facts.LayoutPlan = domain.Known(recorded)
 	if tier := styleTier(facts); tier != policy.BuildTierMasonry {
 		t.Fatalf("build tier %v, want Masonry", tier)
 	}
