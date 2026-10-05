@@ -457,6 +457,12 @@ func shellLeavesZoneEdits(v Verdict) bool {
 	return v.Is(WaitMethodUsed) || v.Is(WaitExistingWork) || v.Is(RefusalNoSpace) || v.Is(RefusalFieldUnavailable) || v.Is(RefusalSharedAdmission)
 }
 
+// isStockpileEditMethod reports a zone-edit method of MaintainStockpiles (the
+// grow, shrink, retarget and delete batch, or a create batch), not a room shell.
+func isStockpileEditMethod(m domain.MethodID) bool {
+	return strings.HasPrefix(string(m), "stockpiles-") || strings.HasPrefix(string(m), "stockpile-create-")
+}
+
 func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbiter) (RoundsStockpileResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -481,6 +487,11 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 		return RoundsStockpileResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
+		// A room shell is building work that takes days; zoning is instant, so
+		// only an open zone-edit plan holds the next edits.
+		if !isStockpileEditMethod(method.Method) {
+			continue
+		}
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoundsStockpileResult{}, err

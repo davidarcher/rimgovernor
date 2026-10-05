@@ -269,3 +269,39 @@ func TestShellLeavesZoneEdits(t *testing.T) {
 		t.Error("an admitted shell lets the zone edits go on the same step")
 	}
 }
+
+// A room shell is days of building work and must not hold zone edits; only the
+// stockpile planner's own zone-edit batches do.
+func TestIsStockpileEditMethod(t *testing.T) {
+	for _, m := range []domain.MethodID{"stockpiles-1200", "stockpile-create-0123abcd"} {
+		if !isStockpileEditMethod(m) {
+			t.Errorf("%s is a zone-edit method", m)
+		}
+	}
+	for _, m := range []domain.MethodID{"storage-shell-10-10", "armory-shell-4-4", "wardrobe-shell-6-6"} {
+		if isStockpileEditMethod(m) {
+			t.Errorf("%s is a room shell, not a zone edit", m)
+		}
+	}
+}
+
+// Loose sleeping spots and the basic-comfort table must not land in a planned
+// storage room: it was the starter shell's room once, and furniture there
+// carves up the warehouse zone.
+func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
+	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
+		{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}},
+		{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
+	}}
+	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
+	cells := map[domain.Cell]bool{}
+	for _, c := range nonSleepingPlannedCells(facts) {
+		cells[c] = true
+	}
+	if !cells[domain.Cell{X: 11, Z: 11}] {
+		t.Error("the planned storage room is open to loose spots and furniture")
+	}
+	if cells[domain.Cell{X: 31, Z: 31}] {
+		t.Error("the starter shell (barracks) is closed to loose spots")
+	}
+}

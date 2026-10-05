@@ -876,10 +876,11 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if r.shelter {
 		return r.previewShell(call, snapshot, facts, protected, check)
 	}
-	if r.concern == policy.MaintainHousing && r.facility == nil {
-		// Loose sleeping spots go to the starter shell or a bedroom, not into
-		// a standing kitchen, lab or other planned room: beds there make it a
-		// sleeping room and block the room's own furnishing.
+	if (r.concern == policy.MaintainHousing || r.concern == policy.EnsureComfort && r.phase == policy.ComfortBasic && r.cells == nil) && r.facility == nil {
+		// Loose sleeping spots and the basic-comfort table and seat go to the
+		// starter shell or a bedroom, not into a standing kitchen, lab, storage
+		// or other planned room: beds there make it a sleeping room and block the
+		// room's own furnishing, and furniture there carves up its warehouse zone.
 		protected = append(append([]domain.Cell(nil), protected...), nonSleepingPlannedCells(facts)...)
 	}
 	if r.definition == "ButcherSpot" || r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
@@ -1403,8 +1404,8 @@ func developmentSelects(rows []store.RoundsDevelopmentRow, goal domain.ConcernID
 }
 
 // nonSleepingPlannedCells are the interior cells of the layout plan's rooms
-// built for another use than sleeping (storage and reserve rooms stay open to
-// the starter shell).
+// built for another use than sleeping. Only the starter shell (the planned
+// barracks) and unbuilt reserve ground stay open to loose spots and furniture.
 func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 	plan, ok := facts.LayoutPlan.Value()
 	if !ok {
@@ -1413,7 +1414,7 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 	var cells []domain.Cell
 	for _, room := range plan.AllRooms() {
 		switch room.Role {
-		case policy.ModuleKitchen, policy.ModuleLab, policy.ModuleHospital, policy.ModulePrison, policy.ModuleDining, policy.ModuleRec, policy.ModuleFreezer, policy.ModuleWorkshop, policy.ModuleMealCloset, policy.ModuleButchery, policy.ModuleThrone, policy.ModuleNursery, policy.ModulePlayroom, policy.ModuleClassroom, policy.ModuleDeathrestChamber, policy.ModuleWorship, policy.ModuleContainmentCell, policy.ModuleIsolationRoom:
+		case policy.ModuleKitchen, policy.ModuleLab, policy.ModuleHospital, policy.ModulePrison, policy.ModuleDining, policy.ModuleRec, policy.ModuleFreezer, policy.ModuleWorkshop, policy.ModuleMealCloset, policy.ModuleButchery, policy.ModuleThrone, policy.ModuleNursery, policy.ModulePlayroom, policy.ModuleClassroom, policy.ModuleDeathrestChamber, policy.ModuleWorship, policy.ModuleContainmentCell, policy.ModuleIsolationRoom, policy.ModuleStorage, policy.ModuleArmory, policy.ModuleWardrobe:
 		default:
 			continue
 		}
