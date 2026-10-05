@@ -107,7 +107,8 @@ repository variable `REMOTE_ARTIFACT_MAX_BYTES` sets a positive run cap; zero
 disables it. A configured cap reserves 64 MiB for manifests and divides the
 remainder across shard and final copies. This is an operator limit, not a GitHub
 plan quota: GitHub stores compressed artifacts and enforces its own service
-limits. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+limits. A case's flight recorder ring holds up to 512 MiB (16 x 32 MiB), so size
+`REMOTE_ARTIFACT_MAX_BYTES` with that per exported attempt in mind. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 Required reports/logs are exported first. A size limit, malformed record,
 missing required file or unsafe diagnostic stops export; partial diagnostics and
 an `incomplete.json` marker remain available. Nothing is silently truncated into

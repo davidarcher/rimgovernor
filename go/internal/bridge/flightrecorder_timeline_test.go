@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // timelineRecorder writes fixed-size rows into a small ring so a few dozen
@@ -241,7 +242,7 @@ func BenchmarkReadTimelineFilledRing(b *testing.B) {
 }
 
 // benchmarkRing fills four 1 MiB segments (a bounded stand-in for the
-// eight 8 MiB default) with rows of the recorder's usual shape.
+// sixteen 32 MiB default) with rows of the recorder's usual shape.
 func benchmarkRing(b *testing.B) (string, *FlightRecorder) {
 	b.Helper()
 	path := filepath.Join(b.TempDir(), "timeline.jsonl")
@@ -254,6 +255,38 @@ func benchmarkRing(b *testing.B) (string, *FlightRecorder) {
 		benchmarkRows(b, r, 500)
 	}
 	return path, r
+}
+
+// TestReadTimelineFullDefaultRing measures a full-retention read over sixteen
+// 32 MiB segments (512 MiB). Skipped unless RIMGOVERNOR_FULL_RING=1 because
+// filling the ring writes half a gigabyte.
+func TestReadTimelineFullDefaultRing(t *testing.T) {
+	if os.Getenv("RIMGOVERNOR_FULL_RING") != "1" {
+		t.Skip("set RIMGOVERNOR_FULL_RING=1 to fill and read the 512 MiB default ring")
+	}
+	path := filepath.Join(t.TempDir(), "timeline.jsonl")
+	r, err := NewFlightRecorder(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for r.FlightRecorderStats().Rotations < DefaultFlightSegments {
+		for i := 0; i < 2000; i++ {
+			if _, err := r.Event("native_response", map[string]any{"trace_id": "t", "step": i}, false, map[string]any{
+				"request": i, "tool": "games_call_tool", "native_tool": "rimgovernor/colony_facts",
+				"timing":  map[string]any{"gate_wait_ms": 0.2, "call_ms": 3.5, "decode_ms": 0.4, "total_ms": 4.1},
+				"preview": strings.Repeat("x", 300),
+			}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	r.Close()
+	start := time.Now()
+	rows, err := ReadTimeline(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("ReadTimeline over %d segments: %d rows in %s", DefaultFlightSegments, len(rows), time.Since(start))
 }
 
 func benchmarkRows(b *testing.B, r *FlightRecorder, n int) {

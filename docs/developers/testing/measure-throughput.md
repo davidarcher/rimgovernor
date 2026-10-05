@@ -15,7 +15,7 @@ rules for reading them.
 sample to a flight recorder: `<profile>/flight/flight.jsonl` by default (the
 sequence continues across launches; each row's `run` names its launch), or
 `--flight-recorder <absolute path>` (the acceptance runner's per-case path).
-Segments rotate beside the path (8 x 8 MiB); the reader picks them all up.
+Segments rotate beside the path (16 x 32 MiB, 512 MiB, pruned by count); the reader picks them all up.
 
 ```bash
 go run ./cmd/rimgovernor serve --flight-recorder C:\path\to\run\flight-recorder.jsonl ...

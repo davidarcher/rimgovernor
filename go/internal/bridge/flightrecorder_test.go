@@ -137,6 +137,17 @@ func TestDurableRecordsFsyncImmediatelyNonDurableDoNot(t *testing.T) {
 	}
 }
 
+func TestDefaultRetentionIs16Segments32MiB(t *testing.T) {
+	r, err := NewFlightRecorder(filepath.Join(t.TempDir(), "timeline.jsonl"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(func() { r.Close() })
+	if r.segmentBytes != 32<<20 || r.segments != 16 {
+		t.Fatalf("default retention = %d bytes x %d, want 32 MiB x 16", r.segmentBytes, r.segments)
+	}
+}
+
 func TestRejectsBoundsBelowMinimums(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
 	if _, err := NewFlightRecorder(path, FlightSegmentBytes(1)); err == nil {

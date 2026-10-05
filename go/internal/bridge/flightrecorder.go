@@ -29,6 +29,12 @@ import (
 const FlightSchemaVersion = 2
 
 const (
+	// DefaultFlightSegmentBytes and DefaultFlightSegments are the retention:
+	// 32 MiB x 16 files (the active one included) = 512 MiB, pruned by count
+	// only (#2072).
+	DefaultFlightSegmentBytes = 32 << 20
+	DefaultFlightSegments     = 16
+
 	minSegmentBytes = 1024
 	minSegments     = 2
 	minPayloadBytes = 128
@@ -57,7 +63,8 @@ type FlightRecorder struct {
 }
 
 // FlightRecorderOption configures a FlightRecorder at construction. Defaults:
-// 8 MiB segments, 8 retained segments, 256 KiB payloads.
+// 32 MiB segments, 16 retained segments (512 MiB, pruned by count only),
+// 256 KiB payloads.
 type FlightRecorderOption func(*FlightRecorder)
 
 func FlightSegmentBytes(n int64) FlightRecorderOption {
@@ -77,7 +84,7 @@ func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecord
 	if path == "" {
 		return nil, errors.New("flightrecorder: path required")
 	}
-	r := &FlightRecorder{path: path, segmentBytes: 8 << 20, segments: 8, payloadBytes: 256 << 10}
+	r := &FlightRecorder{path: path, segmentBytes: DefaultFlightSegmentBytes, segments: DefaultFlightSegments, payloadBytes: 256 << 10}
 	for _, opt := range opts {
 		opt(r)
 	}

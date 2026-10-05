@@ -107,7 +107,7 @@ launcher binds no "open in browser" function.
 ## Telemetry
 
 `serve` keeps a flight recorder under the profile by default
-(`<profile>/flight/flight.jsonl`, an 8 x 8 MiB ring; `--flight-recorder <path>`
+(`<profile>/flight/flight.jsonl`, a 16 x 32 MiB ring, 512 MiB; `--flight-recorder <path>`
 moves it, `--observe` has no profile and so none). The service does not serve it
 over HTTP; the launcher and the acceptance harness read `flight.jsonl`
 in-process through `bridge.TimelineReader`.
