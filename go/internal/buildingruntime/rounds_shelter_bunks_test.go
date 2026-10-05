@@ -63,8 +63,8 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	if shell.Method != "shelter-shell-1-1" {
 		t.Fatal("shell method", shell.Method)
 	}
-	// The ring encloses every bunk, no bed touches a ring corner, and no
-	// bunk shares a cell with another or with the storage patch.
+	// The ring encloses every bunk, and no bunk shares a cell with another or
+	// with a wall.
 	ring, err := domain.RectangleFootprint(domain.RoomBounds{X: 0, Z: 0, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
@@ -82,15 +82,11 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 			t.Fatal("ring does not enclose the bunks", w)
 		}
 	}
-	corner := map[domain.Cell]bool{}
-	for _, c := range policy.ShellCornerCells(ring) {
-		corner[c] = true
-	}
 	used := map[domain.Cell]bool{}
 	for _, bed := range beds {
 		for _, p := range policy.BunkCells(bed.anchor, bed.rot) {
-			if wall[p] || corner[p] || used[p] {
-				t.Fatal("bed cell", p, wall[p], corner[p], used[p])
+			if wall[p] || used[p] {
+				t.Fatal("bed cell", p, wall[p], used[p])
 			}
 			used[p] = true
 		}

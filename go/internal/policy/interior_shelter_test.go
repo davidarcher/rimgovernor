@@ -81,7 +81,32 @@ func TestShelterBunkSlotsFollowOccupants(t *testing.T) {
 	}
 }
 
-func TestShelterBunksKeepOffCornersDoorAndReservedCells(t *testing.T) {
+func TestShelterLaysEastWestBunksWhenNorthSouthOnesRunOut(t *testing.T) {
+	// Some room sizes leave one-row gaps the N-S bunks cannot use; a full
+	// shelter lays 2x1 bunks facing East into them.
+	var east int
+	for width := int32(5); width <= 9; width++ {
+		for depth := int32(4); depth <= 7; depth++ {
+			plan, ok := PlanInterior(shelterInterior(width, depth, 0), InteriorPieceDef{})
+			if !ok {
+				t.Fatalf("%dx%d: no plan", width, depth)
+			}
+			for _, p := range slotsOf(plan, "bunk.") {
+				if p.Rot == domain.East {
+					east++
+					if p.Rect.Width != 2 || p.Rect.Height != 1 {
+						t.Errorf("%dx%d: east bunk %+v", width, depth, p.Rect)
+					}
+				}
+			}
+		}
+	}
+	if east == 0 {
+		t.Error("no room size got an east-west bunk")
+	}
+}
+
+func TestShelterBunksKeepOffDoorAndReservedCells(t *testing.T) {
 	room := shelterInterior(9, 7, 0)
 	reserved := Rectangle{X: room.Interior.X + 3, Z: room.Interior.Z + 2, Width: 3, Height: 3}
 	room.Reserved = rectCells(reserved)
@@ -103,8 +128,8 @@ func TestShelterBunksKeepOffCornersDoorAndReservedCells(t *testing.T) {
 	}
 	for _, p := range slotsOf(plan, "bunk.") {
 		for _, c := range rectCells(p.Rect) {
-			if corners[c] || holds[c] || c == inside {
-				t.Fatalf("bunk %s cell %v: corner=%v reserved=%v door aisle=%v", p.Slot, c, corners[c], holds[c], c == inside)
+			if holds[c] || c == inside {
+				t.Fatalf("bunk %s cell %v: reserved=%v door aisle=%v", p.Slot, c, holds[c], c == inside)
 			}
 		}
 	}

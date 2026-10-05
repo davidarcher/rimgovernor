@@ -10,18 +10,18 @@ import (
 // a research table, a crafting spot, f.Campfires campfires (two on a cold map,
 // none elsewhere, #2044) and one
 // sleeping bunk per occupant. It also decides how bunks pack (it folds
-// ShelterBunks, #612), so one place owns the entrance-aisle and corner rules.
+// ShelterBunks, #612), so one place owns the entrance-aisle rules.
 //
 // The research table is the only piece with a fixed place: centred on the
 // back wall, its front interaction cell kept clear (the bench row of the
 // workshop and laboratory templates). The crafting spot and the campfires
-// take the room's corners, which bunks may not use (see below), the back
-// ones first. Bunks then fill the floor back to front, left to right, each a
-// 1x2 footprint facing South with its head on the cell farther from the
-// entrance. A bunk never takes a corner cell (a bed in a corner is reachable
-// diagonally from outside the wall), a reserved cell, the cell inside any
-// door, or a cell whose loss would cut floor off from the doors. A campfire
-// may sit beside bunks (nothing models campfire flammability).
+// take the room's corners, the back ones first. Bunks then fill the floor
+// back to front, left to right, each a 1x2 footprint facing South with its
+// head on the cell farther from the entrance; when that leaves a colonist
+// unbedded, a second pass lays 2x1 bunks facing East into the gaps. A bunk
+// never takes a reserved cell, the cell inside any door, or a cell whose loss
+// would cut floor off from the doors. A campfire may sit beside bunks
+// (nothing models campfire flammability).
 //
 // The bunk slots are shared: a bed replaces a sleeping spot on the same
 // cells, so the template plans one set of slots per occupant whatever stands
@@ -130,18 +130,18 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 	if bunkDef == "" {
 		bunkDef = SleepingSpotDefinition
 	}
-	isCorner := func(c domain.Cell) bool {
-		return (c.X == 0 || c.X == f.Width-1) && (c.Z == 0 || c.Z == f.Depth-1)
-	}
 	count := 0
-	for v := f.Depth - 2; v >= 0 && (f.Occupants <= 0 || count < f.Occupants); v-- {
-		for u := int32(0); u < f.Width && (f.Occupants <= 0 || count < f.Occupants); u++ {
-			bunk := NewInteriorPiece(fmt.Sprintf("%s%d", shelterBunkSlotPrefix, count+1), bunkDef, shelterBunkSize, domain.South, domain.Cell{X: u, Z: v})
-			if isCorner(domain.Cell{X: u, Z: v}) || isCorner(domain.Cell{X: u, Z: v + 1}) {
-				continue
-			}
-			if try(bunk) {
-				count++
+	full := func() bool { return f.Occupants > 0 && count >= f.Occupants }
+	// Bunks run north-south first. A second pass lays the rest east-west into
+	// the one-row gaps the first leaves, so a shallow or odd-width room still
+	// sleeps everyone.
+	for _, rot := range []domain.Rotation{domain.South, domain.East} {
+		for v := f.Depth - 1; v >= 0 && !full(); v-- {
+			for u := int32(0); u < f.Width && !full(); u++ {
+				bunk := NewInteriorPiece(fmt.Sprintf("%s%d", shelterBunkSlotPrefix, count+1), bunkDef, shelterBunkSize, rot, domain.Cell{X: u, Z: v})
+				if try(bunk) {
+					count++
+				}
 			}
 		}
 	}

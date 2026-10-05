@@ -27,7 +27,7 @@ func init() {
 		Scope: "Issues #612 and #615: the one complete-construction path. From the tribal " + sustained.BaselineSave +
 			" baseline, which houses nobody indoors at the start (asserted), the initial shelter places sleeping spots at " +
 			"the first review, admits the wooden beds next and raises the shell around them without waiting for the beds " +
-			"to stand (#641) -- every wall and the door by ordinary pawn work, nothing staged -- no bed on a ring corner; " +
+			"to stand (#641) -- every wall and the door by ordinary pawn work, nothing staged; " +
 			"the game roofs the room and the native census then holds one bed per colonist inside it.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  &cases.ServeSpec{Families: []string{families}, NativeTimeout: 60 * time.Second, Prefix: "bunks"},
@@ -142,20 +142,12 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	for _, c := range sh.footprint.Interior() {
 		inside[c] = true
 	}
-	corner := map[domain.Cell]bool{}
-	for _, c := range policy.ShellCornerCells(sh.footprint) {
-		corner[c] = true
-	}
 	var bedCells []domain.Cell
 	for _, b := range beds {
 		for _, c := range b.cells {
 			if !inside[c] {
 				service.Stop()
 				return fmt.Errorf("bed cell %v lies outside the sited shell %v", c, sh.footprint.Bounds())
-			}
-			if corner[c] {
-				service.Stop()
-				return fmt.Errorf("bed cell %v sits on a ring corner", c)
 			}
 			bedCells = append(bedCells, c)
 		}
