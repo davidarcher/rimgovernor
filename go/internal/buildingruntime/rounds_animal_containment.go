@@ -40,7 +40,20 @@ func NewRoundsAnimalContainmentPlanner(reviewer *Rounder, native RoundsBuildingS
 const (
 	animalShellMethod  domain.MethodID = "pen-shell"
 	animalMarkerMethod domain.MethodID = "pen-marker"
+
+	// maxAnimalShellRebuilds bounds how many times a shell that was built and
+	// then lost (an Effect regressed after completion) is rebuilt.
+	maxAnimalShellRebuilds = 3
 )
+
+// animalShellMethodFor names the shell method for the attempt after lost
+// earlier shells: a method binds once per Episode, so each rebuild is its own.
+func animalShellMethodFor(lost int) domain.MethodID {
+	if lost == 0 {
+		return animalShellMethod
+	}
+	return domain.MethodID(fmt.Sprintf("%s-%d", animalShellMethod, lost+1))
+}
 
 type animalContainmentPlanKind int
 
@@ -185,6 +198,8 @@ func containmentWait(reason policy.AnimalContainmentReason) Verdict {
 		return awaitingPlan("pen", "herd_exceeds_planning_limit")
 	case policy.ContainmentAwaitingShell:
 		return awaitingPlan("pen_shell", "completion")
+	case policy.ContainmentShellExhausted:
+		return awaitingPlan("pen_shell", "rebuilds_exhausted")
 	}
 	return awaitingPlan("pen", string(reason))
 }
@@ -222,6 +237,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	}
 	shellStage := policy.ContainmentShellNone
 	markerAttempted := false
+	shellsLost := 0
 	var shellRoom policy.Rectangle
 	haveShellRoom := false
 	for _, method := range goal.Methods {
@@ -237,10 +253,15 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 			} else if animalContainmentPlanComplete(plan) {
 				shellStage = policy.ContainmentShellComplete
 				shellRoom, haveShellRoom = room, true
+			} else {
+				shellsLost++
 			}
 		case animalContainmentPlanMarker:
 			markerAttempted = true
 		}
+	}
+	if shellStage == policy.ContainmentShellNone && shellsLost >= maxAnimalShellRebuilds {
+		shellStage = policy.ContainmentShellLost
 	}
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
@@ -283,7 +304,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	}
 	switch choice.Reason {
 	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
-		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted:
+		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted, policy.ContainmentShellExhausted:
 		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
 	case policy.ContainmentBuildShell:
 	case policy.ContainmentPlaceMarker:
@@ -302,7 +323,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 		protected = append(protected, h.Footprint...)
 	}
 	if choice.Reason == policy.ContainmentBuildShell {
-		return r.buildShell(call, epoch, state, review, goal, facts, protected, read)
+		return r.buildShell(call, epoch, state, review, goal, facts, protected, read, animalShellMethodFor(shellsLost))
 	}
 	return r.placeMarker(call, epoch, state, goal, facts, protected, read, shellRoom)
 }
@@ -312,7 +333,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 // any is admitted; a site whose native preview refuses a cell is abandoned in
 // favor of the next, exactly like previewShell abandons a planned room
 // candidate that fails partway through its perimeter.
-func (r *RoundsAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading) (RoundsAnimalContainmentResult, error) {
+func (r *RoundsAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading, method domain.MethodID) (RoundsAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	fenceDef, fok := animalContainmentDefinition(facts.Definitions, "Fence")
 	gateDef, gok := animalContainmentDefinition(facts.Definitions, "FenceGate")
@@ -378,7 +399,7 @@ func (r *RoundsAnimalContainmentPlanner) buildShell(call, epoch context.Context,
 		if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 			return RoundsAnimalContainmentResult{}, observation.ErrStale
 		}
-		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: animalShellMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Shelter})
+		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Owner: goal, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Shelter})
 		if err != nil {
 			return RoundsAnimalContainmentResult{}, err
 		}
@@ -388,7 +409,7 @@ func (r *RoundsAnimalContainmentPlanner) buildShell(call, epoch context.Context,
 		}
 		return RoundsAnimalContainmentResult{Verdict: outcome, Plan: planID}, nil
 	}
-	return r.digShell(call, epoch, state, review, goal, facts, protected, read, stuff)
+	return r.digShell(call, epoch, state, review, goal, facts, protected, read, stuff, method)
 }
 
 // penShellCells lists a pen ring's building cells with the gate first, in
@@ -413,7 +434,7 @@ func penShellCells(room policy.Rectangle) (gate domain.Cell, ring []domain.Cell)
 // rest of the ring is built, all in one shell method through the shared rock
 // step. The gate opens onto ground the frame lists open, which a miner and
 // the animals reach.
-func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading, stuff string) (RoundsAnimalContainmentResult, error) {
+func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading, stuff string, method domain.MethodID) (RoundsAnimalContainmentResult, error) {
 	anchor, planned := fieldAnchor(facts)
 	if !planned {
 		return RoundsAnimalContainmentResult{Verdict: BuildingNoLayoutPlan}, nil
@@ -473,7 +494,7 @@ func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, s
 			}
 			buildings = append(buildings, building)
 		}
-		result, handled, err := r.building.admitRockStep(call, epoch, step, planned, outside, animalShellMethod, buildings, check)
+		result, handled, err := r.building.admitRockStep(call, epoch, step, planned, outside, method, buildings, check)
 		if err != nil {
 			return RoundsAnimalContainmentResult{}, err
 		}
@@ -482,7 +503,7 @@ func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, s
 		}
 		out := RoundsAnimalContainmentResult{Verdict: result.Verdict}
 		for _, m := range result.Decision.Standard.Methods {
-			if m.Method == animalShellMethod {
+			if m.Method == method {
 				out.Plan = m.Plan
 			}
 		}

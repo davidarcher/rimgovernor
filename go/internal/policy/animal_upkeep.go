@@ -196,6 +196,9 @@ const (
 	// ContainmentMarkerExhausted is the blocked outcome once a marker
 	// method was already attempted with no observed suitable enclosure yet.
 	ContainmentMarkerExhausted AnimalContainmentReason = "marker_placed_awaiting_native_pen"
+	// ContainmentShellExhausted is the blocked outcome once every shell
+	// rebuild the planner may spend was lost again.
+	ContainmentShellExhausted AnimalContainmentReason = "shell_rebuilds_exhausted"
 )
 
 // AnimalContainmentShellStage retains the durable shell staging animal_upkeep.
@@ -208,6 +211,9 @@ const (
 	ContainmentShellNone AnimalContainmentShellStage = iota
 	ContainmentShellPending
 	ContainmentShellComplete
+	// ContainmentShellLost: shells were built, none stands, and the rebuild
+	// budget is spent.
+	ContainmentShellLost
 )
 
 type AnimalContainmentMethod struct {
@@ -279,6 +285,8 @@ func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable doma
 		return AnimalContainmentMethod{Reason: ContainmentBuildShell, Animals: ids}, nil
 	case ContainmentShellPending:
 		return AnimalContainmentMethod{Reason: ContainmentAwaitingShell, Animals: ids}, nil
+	case ContainmentShellLost:
+		return AnimalContainmentMethod{Reason: ContainmentShellExhausted, Animals: ids}, nil
 	}
 	if markerAttempted {
 		return AnimalContainmentMethod{Reason: ContainmentMarkerExhausted, Animals: ids}, nil
