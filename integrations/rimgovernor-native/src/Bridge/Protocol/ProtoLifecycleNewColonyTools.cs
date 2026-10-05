@@ -210,18 +210,31 @@ namespace HomeBridge.BridgeTools
         // Phase 1: Game, scenario copy with the colonist count, storyteller, world.
         private static void GenerateWorld(Entry entry)
         {
+            DeterministicGenSeed.EnsurePatched();
             var spec = entry.Spec; var resolved = entry.Resolved;
             Current.ProgramState = ProgramState.Entry;
             Game.ClearCaches();
-            Current.Game = new Game();
-            Current.Game.InitData = new GameInitData();
-            var scenario = resolved.Scenario.scenario.CopyForEditing();
-            var part = scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().Single();
-            part.pawnCount = (int)spec.ColonistCount;
-            part.pawnChoiceCount = Math.Max((int)spec.ColonistCount, part.pawnChoiceCount);
-            Current.Game.Scenario = scenario;
-            Find.Scenario.PreConfigure();
-            Current.Game.storyteller = new Storyteller(resolved.Storyteller, resolved.Difficulty);
+            // The Game constructor draws from Rand (UniqueIDsManager starts thing ids at
+            // Rand.Range(0, 1000)); thing ids seed pawn and plant randomness, so an
+            // unseeded start shifts the whole world and map (#2034).
+            Rand.PushState(GenText.StableStringHash(entry.Seed));
+            try
+            {
+                Current.Game = new Game();
+                Current.Game.InitData = new GameInitData();
+                // A new game runs at normal speed until the poll sees the live map and
+                // pauses it, so animals would walk a poll-timing-dependent distance.
+                // (The property setter needs a map for PlayerCanControl, so set the field.)
+                HarmonyLib.Traverse.Create(Current.Game.tickManager).Field("curTimeSpeed").SetValue(TimeSpeed.Paused);
+                var scenario = resolved.Scenario.scenario.CopyForEditing();
+                var part = scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().Single();
+                part.pawnCount = (int)spec.ColonistCount;
+                part.pawnChoiceCount = Math.Max((int)spec.ColonistCount, part.pawnChoiceCount);
+                Current.Game.Scenario = scenario;
+                Find.Scenario.PreConfigure();
+                Current.Game.storyteller = new Storyteller(resolved.Storyteller, resolved.Difficulty);
+            }
+            finally { Rand.PopState(); }
             Current.Game.World = WorldGenerator.GenerateWorld(spec.PlanetCoverage, entry.Seed,
                 OverallRainfall.Normal, resolved.WorldTemperature, OverallPopulation.Normal, LandmarkDensity.Normal);
         }

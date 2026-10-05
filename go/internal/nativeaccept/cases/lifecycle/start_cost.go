@@ -102,23 +102,32 @@ func runStartCost(ctx context.Context, s cases.Session) error {
 		run(name, startCostSpec(fmt.Sprintf("startcost-seed-%d", i), 8, 150, 0.05, name))
 	}
 
-	// Reproducibility: the baseline spec twice under one save name.
-	spec := func(save string) map[string]any {
-		return startCostSpec(na.BaselineStart.Seed, na.BaselineStart.Count, na.BaselineStart.Size.MapSize, na.BaselineStart.Size.PlanetCoverage, save)
-	}
+	// Reproducibility: the baseline spec and two more seeds, each twice under
+	// one save name, on Core-only and on all DLC.
 	for _, profile := range []struct {
 		name string
 		cfg  *na.Config
 	}{{"core", &coreCfg}, {"dlc", cfg}} {
-		first := runOn(profile.cfg, "repro-"+profile.name+"-first", spec("startcost-repro-"+profile.name+"-a"))
-		second := runOn(profile.cfg, "repro-"+profile.name+"-second", spec("startcost-repro-"+profile.name+"-b"))
-		if first == nil || second == nil {
-			return fmt.Errorf("the %s reproducibility starts did not both finish (see start_cost)", profile.name)
+		// The profile on disk is shared, so each profile writes its own
+		// ModsConfig before its rows run (core rows first, then all DLC).
+		if err := profile.cfg.PrepareConfig(); err != nil {
+			return fmt.Errorf("prepare the %s profile: %w", profile.name, err)
 		}
-		same := first.digest() == second.digest()
-		rows["repro_"+profile.name+"_same"] = map[string]any{"colonists_and_tile": first.team.digest() == second.team.digest() && first.tile == second.tile, "map": first.hash == second.hash}
-		if !same {
-			failures = append(failures, fmt.Sprintf("%s profile: the same spec twice gave different colonies (colonists+tile same: %v, map same: %v)", profile.name, first.team.digest() == second.team.digest() && first.tile == second.tile, first.hash == second.hash))
+		for i, seed := range []string{na.BaselineStart.Seed, "startcost-repro-2", "startcost-repro-3"} {
+			tag := fmt.Sprintf("%s-s%d", profile.name, i+1)
+			spec := func(save string) map[string]any {
+				return startCostSpec(seed, na.BaselineStart.Count, na.BaselineStart.Size.MapSize, na.BaselineStart.Size.PlanetCoverage, save)
+			}
+			first := runOn(profile.cfg, "repro-"+tag+"-first", spec("startcost-repro-"+tag+"-a"))
+			second := runOn(profile.cfg, "repro-"+tag+"-second", spec("startcost-repro-"+tag+"-b"))
+			if first == nil || second == nil {
+				return fmt.Errorf("the %s reproducibility starts did not both finish (see start_cost)", tag)
+			}
+			teamSame := first.team.digest() == second.team.digest() && first.tile == second.tile
+			rows["repro_"+tag+"_same"] = map[string]any{"colonists_and_tile": teamSame, "map": first.hash == second.hash}
+			if first.digest() != second.digest() {
+				failures = append(failures, fmt.Sprintf("%s: the same spec twice gave different colonies (colonists+tile same: %v, map same: %v)", tag, teamSame, first.hash == second.hash))
+			}
 		}
 	}
 	if len(failures) > 0 {

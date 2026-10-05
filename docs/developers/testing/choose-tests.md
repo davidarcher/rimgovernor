@@ -352,20 +352,34 @@ cost 10,000 rerolls would hold the game for 3-15 minutes before the hard error,
 so the budget is 1,000 (about a minute at worst; 50 times the largest need seen).
 `colonist_count` is capped at 10 natively.
 
-Reproducibility (same spec twice on one install, each on a fresh game): the
-tribal-8 spec gave the same tile and the same eight colonists (names, traits,
-skills) and the same reroll count in every Core-only pair and in three of four
-all-DLC pairs. One all-DLC pair diverged (17 against 11 rerolls, different
-colonists), so DLC profiles are not guaranteed. The generated **map is not
-reproducible**: terrain, plants, animals and ancient structures differ on every
-start (about 30,000 things, a few dozen differing, terrain grid differs), and
-so do the world's factions, ideoligions and world pawns while the planet grid,
-features and landmarks match. `tools/startcost` compares colonists, tile and a
-map digest (`na.SaveMapHash`: terrain grid plus every thing's def and position)
-and fails on the map, so it stays red until native generation is made
-deterministic. A case that asserts a map feature (rich soil, a hut site, an
-ancient ruin) on the generated baseline therefore asserts a feature that varies
-per root: see the baseline-pinned cases below.
+Reproducibility (#2034): the same spec twice on one install, each on a fresh
+game, gives the same tile, colonists (names, traits, skills, reroll count) and
+map digest (`na.SaveMapHash`: terrain grid plus every thing's def and position).
+`tools/startcost` checks three seeds (the tribal-8 seed and two more, 250 map,
+0.3 coverage) on a Core-only profile and on all DLC, and passes: identical
+digests in all six pairs. Four native causes were removed:
+
+- `new Game()` draws `UniqueIDsManager.nextThingID = Rand.Range(0, 1000)` from
+  the unseeded stream, so thing ids (which seed pawn relations and more) shifted
+  every start. The Game, scenario and storyteller are now built under the
+  spec seed's `Rand` scope.
+- Vanilla's `Map.NextGenSeed` (BaseGen shrines, ruins and scatter groups) and
+  `LayoutWorker.FillAllRooms` seed with `System.HashCode.Combine`, which is
+  salted per process. `DeterministicGenSeed` swaps those calls for
+  `Gen.HashCombineInt` (a Harmony transpiler installed at the start of a new
+  colony); diagnose such a divergence by logging `UniqueIDsManager.nextThingID`
+  and the thing count around each `GenStep.Generate`: the first step whose
+  counts differ with equal `Rand` iterations is drawing from another source.
+- A new game starts at normal speed until the poll pauses it, so animals walked
+  a poll-timing-dependent distance; the start now begins paused.
+- The case's earlier "core" rows never switched the profile and ran all DLC;
+  each profile now writes its own `ModsConfig` before its rows.
+
+The earlier reroll divergence (17 against 11) was the first cause. World
+factions and ideoligions matched in the logged runs once thing ids were seeded.
+A case that asserts a map feature on the generated baseline is now asserting a
+feature that is stable per install, not per root; it can still differ across
+installs.
 
 Baseline-pinned cases run for #2029 (six of ~28, one root each; the rest are the
 nightly bulk tier's): `startup/labor` passed on the generated baseline. On the
