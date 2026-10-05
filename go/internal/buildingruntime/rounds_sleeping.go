@@ -535,6 +535,14 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
+	if r.definition == "ButcherSpot" {
+		// The stand-in spot goes in the planned butchery once it stands (#2040).
+		if cells := plannedRoomCells(facts, policy.ModuleButchery); cells != nil {
+			spot := *r
+			spot.cells = cells
+			r = &spot
+		}
+	}
 	if r.concern == policy.EnsureCooking {
 		definitions = []string{r.definition}
 		if len(r.paste) > 0 {
@@ -883,8 +891,24 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		// room's own furnishing, and furniture there carves up its warehouse zone.
 		protected = append(append([]domain.Cell(nil), protected...), nonSleepingPlannedCells(facts)...)
 	}
-	if r.definition == "ButcherSpot" || r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
-		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot" || r.definition == "TableButcher")...)
+	if r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
+		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "TableButcher")...)
+	}
+	var spotBox policy.Rectangle
+	spotOutside := r.definition == "ButcherSpot" && r.cells == nil
+	if spotOutside {
+		// The stand-in spot stands outside every room, within the planned
+		// core's box plus a margin, never map-wide (#2040).
+		plan, ok := facts.LayoutPlan.Value()
+		if !ok {
+			return nil, policy.StockObservation{}, BuildingNoLayoutPlan, nil
+		}
+		core, ok := plan.CoreBounds()
+		if !ok {
+			return nil, policy.StockObservation{}, BuildingNoLayoutPlan, nil
+		}
+		spotBox = policy.Rectangle{X: core.X - butcherSpotCoreMargin, Z: core.Z - butcherSpotCoreMargin, Width: core.Width + 2*butcherSpotCoreMargin, Height: core.Height + 2*butcherSpotCoreMargin}
+		protected = append(append([]domain.Cell(nil), protected...), roomInteriorCells(facts)...)
 	}
 	var cells []policy.SiteCell
 	adjacent := map[domain.Cell]bool{}
@@ -944,6 +968,9 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		if restricted && !roomCells[c.Cell] {
 			continue
 		}
+		if spotOutside && (c.Cell.X < spotBox.X || c.Cell.X >= spotBox.X+spotBox.Width || c.Cell.Z < spotBox.Z || c.Cell.Z >= spotBox.Z+spotBox.Height) {
+			continue
+		}
 		if comfortFurniture(facts).IsChair(r.definition) && !adjacent[c.Cell] {
 			continue
 		}
@@ -974,6 +1001,9 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		if anchor, ok := planCore(facts); ok {
 			searchRequest.Center = anchor
 		}
+	}
+	if spotOutside {
+		searchRequest.Radius = max(spotBox.Width, spotBox.Height)
 	}
 	if r.cells != nil {
 		// The room is fixed: search around it, wherever it stands (#838).

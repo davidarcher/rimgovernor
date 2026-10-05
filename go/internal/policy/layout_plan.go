@@ -137,6 +137,16 @@ func (p LayoutPlan) Core() (domain.Cell, bool) {
 // Center is the middle of the plan's core: the bounding box of its hallways
 // and room walls. False for a plan with neither.
 func (p LayoutPlan) Center() (domain.Cell, bool) {
+	fp, ok := p.CoreBounds()
+	if !ok {
+		return domain.Cell{}, false
+	}
+	return domain.Cell{X: fp.X + fp.Width/2, Z: fp.Z + fp.Height/2}, true
+}
+
+// CoreBounds is the bounding box of the plan's hallways and room walls (#2040);
+// false for a plan with neither.
+func (p LayoutPlan) CoreBounds() (Rectangle, bool) {
 	var fp Rectangle
 	for _, r := range spineRects(p.Hallways()) {
 		fp = unionRect(fp, r)
@@ -144,10 +154,7 @@ func (p LayoutPlan) Center() (domain.Cell, bool) {
 	for _, r := range p.AllRooms() {
 		fp = unionRect(fp, roomWalls(r))
 	}
-	if fp.Width == 0 {
-		return domain.Cell{}, false
-	}
-	return domain.Cell{X: fp.X + fp.Width/2, Z: fp.Z + fp.Height/2}, true
+	return fp, fp.Width != 0
 }
 
 // Valid reports a plan a store may persist: at least one room, straight

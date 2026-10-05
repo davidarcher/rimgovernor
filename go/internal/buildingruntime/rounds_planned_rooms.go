@@ -91,6 +91,27 @@ func plannedRoomInterior(room policy.LayoutRoom) []domain.Cell {
 	return cells
 }
 
+// butcherSpotCoreMargin is how far past the planned core's bounding box the
+// stand-in butcher spot may stand (#2040).
+const butcherSpotCoreMargin = 3
+
+// roomInteriorCells are the cells inside any observed room or planned room
+// interior, built or not.
+func roomInteriorCells(facts observation.ColonyProjection) []domain.Cell {
+	var cells []domain.Cell
+	if census, known := facts.Rooms.Value(); known {
+		for _, room := range census.Rooms {
+			cells = append(cells, room.Cells...)
+		}
+	}
+	if plan, ok := facts.LayoutPlan.Value(); ok {
+		for _, room := range plan.AllRooms() {
+			cells = append(cells, plannedRoomInterior(room)...)
+		}
+	}
+	return cells
+}
+
 // plannedRoomMethod names a planned room's shell: once per room per epoch.
 func plannedRoomMethod(room policy.LayoutRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s-shell-%d-%d", room.Role, room.Interior.X, room.Interior.Z))
