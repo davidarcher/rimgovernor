@@ -13,7 +13,6 @@ import (
 var zoneOverlay = map[ZoneKind]overlayStyle{
 	ZoneField:  {planGreen, "field"},
 	ZoneMining: {planBrown, "mining"},
-	ZoneWood:   {planLightBlue, "wood lot"},
 	ZoneNoGo:   {planDarkPurple, "no-go"},
 }
 
