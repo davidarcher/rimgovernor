@@ -261,7 +261,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			return false
 		}
 		for _, c := range rectCells(killbox) {
-			if !enc.inside(c) || strict && fields[c] {
+			if !enc.inside(c) || strict && fields[c] || built(c) {
 				return false
 			}
 		}
