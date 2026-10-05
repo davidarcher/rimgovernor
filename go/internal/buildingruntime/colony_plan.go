@@ -106,6 +106,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	// A colonist who holds or can claim a title that asks for a throne room
 	// the plan lacks (#1601): grow one sized to the title's area.
 	var growth policy.RoomGrowth
+	growth.HerdUnits = projection.Facts.HerdUnits()
 	if need, owed := throneNeed(*projection); haveLayout {
 		growth.ThroneArea = policy.ThroneAreaOwed(layout.Plan, need, owed)
 		if owed {

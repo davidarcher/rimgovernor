@@ -54,6 +54,7 @@ func TestPieceShapesRefuseACatalogTheTemplatesCannotUse(t *testing.T) {
 		"no sarcophagus":  {without("Sarcophagus"), "Sarcophagus"},
 		"no stove":        {without("FueledStove", "ElectricStove"), "Kitchen"},
 		"no animal bed":   {without("AnimalBed"), "animal"},
+		"no animal flap":  {without("AnimalFlap"), "animal flap"},
 		"no double bed":   {without("DoubleBed", "RoyalBed", "BedrollDouble"), "double bed"},
 		"stoves not role": {append(without("FueledStove", "ElectricStove"), FixtureDef{Name: "FueledStove", Width: 3, Height: 1, Bench: true}), "Kitchen"},
 	} {

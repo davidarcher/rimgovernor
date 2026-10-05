@@ -197,7 +197,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 		u.reserve(&plan, LayoutReservation{Kind: ReserveSolar, Area: site})
 	}
-	planHerdSites(u, &plan, want.PenAnimals)
+	planHerdSites(u, &plan, want.PenAnimals, nil)
 	return plan
 }
 

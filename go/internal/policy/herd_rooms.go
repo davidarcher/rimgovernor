@@ -205,6 +205,90 @@ func (p LayoutPlan) roomsWithHerd() []PlannedRoom {
 	return append(append(slices.Clone(p.AllRooms()), p.HerdRooms(PlannedBarn)...), p.HerdRooms(PlannedVetRoom)...)
 }
 
+// penBarnOpenings are the two cells each pen and barn that share a wall open
+// through (#2122): the animal flap, which lets animals through but no colonist,
+// and beside it a regular door for the colonists. A pair sharing fewer than two
+// wall cells has none.
+func (p LayoutPlan) penBarnOpenings() (flaps, doors []domain.Cell) {
+	for _, pen := range p.Reservations {
+		if pen.Kind != ReservePen {
+			continue
+		}
+		for _, barn := range p.Reservations {
+			if barn.Kind != ReserveBarn {
+				continue
+			}
+			run := sharedWallRun(pen.Area, barn.Area)
+			if len(run) < 2 {
+				continue
+			}
+			i := (len(run) - 1) / 2
+			flaps = append(flaps, run[i])
+			if i+1 < len(run) {
+				doors = append(doors, run[i+1])
+			} else {
+				doors = append(doors, run[i-1])
+			}
+		}
+	}
+	return flaps, doors
+}
+
+func (p LayoutPlan) flaps() []domain.Cell {
+	flaps, _ := p.penBarnOpenings()
+	return flaps
+}
+
+// FlapCells are the cells of r's ring that take an animal flap: the flap links
+// of a barn's walls, none for an outdoor room (its shared wall is the barn's,
+// sharedRing).
+func (p LayoutPlan) FlapCells(r PlannedRoom) []domain.Cell {
+	flaps, _ := p.penBarnOpenings()
+	return p.ringCells(r, flaps)
+}
+
+// penBarnDoors are the cells of a barn's ring that take the colonists' door
+// into the pen beside the flap (#2122); none for an outdoor room.
+func (p LayoutPlan) penBarnDoors(r PlannedRoom) []domain.Cell {
+	_, doors := p.penBarnOpenings()
+	return p.ringCells(r, doors)
+}
+
+func (p LayoutPlan) ringCells(r PlannedRoom, cells []domain.Cell) []domain.Cell {
+	if r.Outdoor {
+		return nil
+	}
+	ring := roomWalls(r)
+	var out []domain.Cell
+	for _, c := range cells {
+		if onRing(c, ring) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// sharedRing are the cells of an outdoor room's ring that lie on a barn's
+// outline: the barn's wall (or the flap in it), never a fence (#2122).
+func (p LayoutPlan) sharedRing(r PlannedRoom) map[domain.Cell]bool {
+	if !r.Outdoor {
+		return nil
+	}
+	ring := roomWalls(r)
+	out := map[domain.Cell]bool{}
+	for _, barn := range p.Reservations {
+		if barn.Kind != ReserveBarn {
+			continue
+		}
+		for _, c := range rectCells(ring) {
+			if onRing(c, ring) && onRing(c, barn.Area) {
+				out[c] = true
+			}
+		}
+	}
+	return out
+}
+
 // herdRoom is the room a barn or vet room reservation holds: the door in
 // the middle of the wall facing the first pen (barn) or the colony core
 // (vet room; the barn's centre when the plan has no core).

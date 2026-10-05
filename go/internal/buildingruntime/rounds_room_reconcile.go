@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -294,7 +295,17 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			}
 			switch kind {
 			case policy.OpDoorIn:
+				flaps := plan.FlapCells(rr.room)
 				for _, c := range op.Cells {
+					if slices.Contains(flaps, c) {
+						// The shared wall of a pen and its barn takes the animal flap (#2122).
+						flap := facts.Shapes.Furniture.AnimalFlap
+						if flap == "" {
+							return RoundsBuildingResult{}, fmt.Errorf("%w: commitBuilds: the catalog names no animal flap", ErrControl)
+						}
+						builds = append(builds, roomBuild{def: flap, stuff: facts.BuildStuff(flap), cell: c, rot: domain.North, ring: true})
+						continue
+					}
 					builds = append(builds, roomBuild{def: doorDef, stuff: doorStuff, cell: c, rot: domain.North, ring: true})
 				}
 			case policy.OpWallIn, policy.OpWallUp:

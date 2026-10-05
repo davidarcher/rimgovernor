@@ -61,7 +61,7 @@ func colonyGround(facts observation.ColonyProjection) (policy.GroundCensus, bool
 	if !known || !construction.Colony {
 		return policy.GroundCensus{}, false
 	}
-	return policy.GroundOf(construction.Buildings), true
+	return policy.GroundOfWithFlap(construction.Buildings, facts.Shapes.Furniture.AnimalFlap), true
 }
 
 // plannedRoomCells is the interior of the first standing planned room of

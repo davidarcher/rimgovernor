@@ -66,7 +66,7 @@ func TestHerdRoomsHaveADoorAndHoldTheirBeds(t *testing.T) {
 
 // herdGround is the walls and doors standing on every room's ring.
 func herdGround(plan LayoutPlan, rooms ...PlannedRoom) GroundCensus {
-	out := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}}
+	out := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, flaps: map[domain.Cell]bool{}}
 	for _, r := range rooms {
 		g := ringWalls(plan, r)
 		for c := range g.walls {
@@ -74,6 +74,9 @@ func herdGround(plan LayoutPlan, rooms ...PlannedRoom) GroundCensus {
 		}
 		for c := range g.doors {
 			out.doors[c] = true
+		}
+		for c := range g.flaps {
+			out.flaps[c] = true
 		}
 	}
 	return out

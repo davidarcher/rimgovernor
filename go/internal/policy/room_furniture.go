@@ -45,6 +45,8 @@ type FacilityLink struct {
 //   - AnimalSpot is the free bed of the kind animals use (not humanlike, no
 //     body size limit) and AnimalBed the costed one with the most Comfort per
 //     cost;
+//   - AnimalFlap is the buildable Building_Door roaming animals can open
+//     (building.roamerCanOpen), by name when several;
 //   - Bench is, per room role, the cheapest buildable work table of that role
 //     worked from the floor in front of it (the template's default bench);
 //   - EndTable and Dresser are the Comfort facilities a bed links, the one
@@ -57,7 +59,9 @@ type RoomFurniture struct {
 	Heater      string
 	AnimalSpot  string
 	AnimalBed   string
-	Bench       map[RoomRole]string
+	// AnimalFlap is the door of a pen and barn's shared wall (#2122).
+	AnimalFlap string
+	Bench      map[RoomRole]string
 
 	EndTable, Dresser, Cabinet, Monitor FacilityLink
 }
@@ -152,7 +156,7 @@ func (f RoomFurniture) BenchFor(role RoomRole) string { return f.Bench[role] }
 // beds, the default benches and the facilities.
 func (f RoomFurniture) Definitions() []string {
 	out := bedDefs(f.Beds)
-	out = append(out, f.Sarcophagus, f.Heater, f.AnimalSpot, f.AnimalBed)
+	out = append(out, f.Sarcophagus, f.Heater, f.AnimalSpot, f.AnimalBed, f.AnimalFlap)
 	for _, bench := range f.Bench {
 		out = append(out, bench)
 	}
@@ -176,7 +180,7 @@ func (f RoomFurniture) Validate() error {
 	if f.CoupleBed() == "" {
 		return fmt.Errorf("room furniture has no costed double bed")
 	}
-	for role, def := range map[string]string{"sarcophagus": f.Sarcophagus, "heater": f.Heater, "animal sleeping spot": f.AnimalSpot, "animal bed": f.AnimalBed} {
+	for role, def := range map[string]string{"sarcophagus": f.Sarcophagus, "heater": f.Heater, "animal sleeping spot": f.AnimalSpot, "animal bed": f.AnimalBed, "animal flap": f.AnimalFlap} {
 		if def == "" {
 			return fmt.Errorf("room furniture has no %s", role)
 		}

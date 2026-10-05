@@ -78,6 +78,10 @@ type RoomGrowth struct {
 	// leaves in the plan.
 	RetireShelter bool
 	InFlight      map[Rectangle]bool
+	// HerdUnits are the ceilings of the herds' units (HerdPlan.HerdUnits,
+	// #2122): each gets a pen, barn and vet area of its own beside the misc
+	// unit's.
+	HerdUnits []int
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
@@ -110,7 +114,7 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 			}
 		}
 	}
-	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals)
+	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals, growth.HerdUnits)
 	var kept []PlannedRoom
 	for _, r := range plan.Rooms {
 		if !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) {
@@ -172,8 +176,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 // topUpHerdSites adds the herd sites animals needs to plan, sited over the
 // fresh core candidates and off the current perimeter (which is laid again
 // around them). It reports whether it added any.
-func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int) (LayoutPlan, bool) {
-	if animals <= 0 {
+func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []int) (LayoutPlan, bool) {
+	if animals <= 0 && len(herds) == 0 {
 		return plan, false
 	}
 	var inner []LayoutReservation
@@ -184,7 +188,7 @@ func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int) (LayoutPlan
 	}
 	sitePlan := plan
 	sitePlan.Zones, sitePlan.Reservations = core, inner
-	topped := PlanHerdSites(sitePlan, animals)
+	topped := PlanHerdSites(sitePlan, animals, herds...)
 	if len(topped.Reservations) == len(inner) {
 		return plan, false
 	}

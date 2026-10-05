@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -201,7 +202,7 @@ func TestNextPlannedRoomSkipsStandingRooms(t *testing.T) {
 // ringWalls is the ground census of plan's room r with its ring standing as
 // planned: a wall on every ring cell, a door on each of its door cells.
 func ringWalls(plan LayoutPlan, r PlannedRoom) GroundCensus {
-	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}}
+	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, flaps: map[domain.Cell]bool{}}
 	doors := map[domain.Cell]bool{}
 	for _, d := range plan.ShellDoors(r) {
 		doors[d] = true
@@ -210,6 +211,8 @@ func ringWalls(plan LayoutPlan, r PlannedRoom) GroundCensus {
 	for _, c := range rectCells(ring) {
 		switch {
 		case !onRing(c, ring):
+		case slices.Contains(plan.FlapCells(r), c):
+			g.flaps[c] = true
 		case doors[c]:
 			g.doors[c] = true
 		default:

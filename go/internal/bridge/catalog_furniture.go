@@ -14,6 +14,9 @@ import (
 // The classes and stats the furniture rules match, never names.
 const (
 	ClassSarcophagus = "RimWorld.Building_Sarcophagus"
+	// ClassDoor is the door class; the animal flap is the buildable one
+	// BuildingProperties.roamerCanOpen marks.
+	ClassDoor = "RimWorld.Building_Door"
 	// StatWorkTableWorkSpeedFactor and StatMedicalTendQualityOffset are the
 	// stats a bench's and a medical bed's facility offsets.
 	StatWorkTableWorkSpeedFactor = "WorkTableWorkSpeedFactor"
@@ -41,6 +44,9 @@ func (catalog *DefinitionCatalog) RoomFurniture(shapes map[string]policy.Interio
 		return out, err
 	}
 	if out.Heater, err = catalog.cheapestHeater(); err != nil {
+		return out, err
+	}
+	if out.AnimalFlap, err = catalog.animalFlap(); err != nil {
 		return out, err
 	}
 	if out.Sarcophagus, err = catalog.cheapestOfClass(ClassSarcophagus); err != nil {
@@ -215,6 +221,30 @@ func (r bedRanks) animalBeds() (spot, bed string, err error) {
 	slices.SortFunc(spots, func(a, b bedRank) int { return cmp.Compare(a.def, b.def) })
 	slices.SortFunc(beds, compareBeds)
 	return spots[0].def, beds[0].def, nil
+}
+
+// animalFlap is the buildable door roaming animals can open (a Building_Door
+// whose building properties say roamerCanOpen), by name when several. A catalog
+// with none is an error: nothing stands in for the flap between a pen and its
+// barn (#2122).
+func (catalog *DefinitionCatalog) animalFlap() (string, error) {
+	var best string
+	for name, row := range catalog.ThingDefs {
+		if !Buildable(row) || !row.GetBuilding().GetRoamerCanOpen() {
+			continue
+		}
+		door, err := catalog.ClassIsA(row.GetThingClass(), ClassDoor)
+		if err != nil {
+			return "", err
+		}
+		if door && (best == "" || name < best) {
+			best = name
+		}
+	}
+	if best == "" {
+		return "", contract("catalog has no buildable animal flap (a %s that roamers can open)", ClassDoor)
+	}
+	return best, nil
 }
 
 // cheapestOfClass is the cheapest buildable def of the class (or a subclass),

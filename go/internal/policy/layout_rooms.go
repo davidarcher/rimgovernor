@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -63,17 +64,26 @@ type GroundCensus struct {
 	walls, doors map[domain.Cell]bool
 	// fences and gates are the ring of an outdoor room (PlannedRoom.Outdoor).
 	fences, gates map[domain.Cell]bool
+	// flaps are the animal flaps standing (#2122), kept apart from doors: a
+	// pen's barn wall takes one where a room's ring takes a door.
+	flaps map[domain.Cell]bool
 	// stuff is the stuff of each standing wall, where the census names one.
 	stuff map[domain.Cell]string
 }
 
 // GroundOf reads the walls and doors out of the colony's built buildings.
-func GroundOf(buildings []CurrentBuilding) GroundCensus {
-	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, fences: map[domain.Cell]bool{}, gates: map[domain.Cell]bool{}, stuff: map[domain.Cell]string{}}
+func GroundOf(buildings []CurrentBuilding) GroundCensus { return GroundOfWithFlap(buildings, "") }
+
+// GroundOfWithFlap is GroundOf with the animal flap's def (the catalog's,
+// RoomFurniture.AnimalFlap) read as a flap, never as a door; "" reads none.
+func GroundOfWithFlap(buildings []CurrentBuilding, flap string) GroundCensus {
+	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, fences: map[domain.Cell]bool{}, gates: map[domain.Cell]bool{}, flaps: map[domain.Cell]bool{}, stuff: map[domain.Cell]string{}}
 	for _, b := range buildings {
 		def := b.Building.Definition()
 		for _, c := range b.Cells {
 			switch {
+			case flap != "" && def == flap:
+				g.flaps[c] = true
 			case def == PenFenceDefinition:
 				g.fences[c] = true
 			case def == PenGateDefinition:
@@ -98,12 +108,35 @@ func (r PlannedRoom) RingDefs() (wall, door string) {
 	return ShellWallDefinition, ShellDoorDefinition
 }
 
-// ring is the standing walls and doors r's ring is matched against.
-func (g GroundCensus) ring(r PlannedRoom) (walls, doors map[domain.Cell]bool) {
+// withCells is a copy of set that can be written (nil reads as empty).
+func withCells(set map[domain.Cell]bool) map[domain.Cell]bool {
+	out := make(map[domain.Cell]bool, len(set))
+	maps.Copy(out, set)
+	return out
+}
+
+// ring is the standing walls and doors r's ring is matched against: a pen's
+// fences and gates, and its barn's wall the pen shares counts as a standing
+// wall; a barn's flap cells count as a door where a flap stands (#2122).
+func (p LayoutPlan) ring(r PlannedRoom, g GroundCensus) (walls, doors map[domain.Cell]bool) {
 	if r.Outdoor {
-		return g.fences, g.gates
+		walls, doors = g.fences, g.gates
+		if shared := p.sharedRing(r); len(shared) > 0 {
+			walls = withCells(walls)
+			for c := range shared {
+				walls[c] = true
+			}
+		}
+		return walls, doors
 	}
-	return g.walls, g.doors
+	walls, doors = g.walls, g.doors
+	if flaps := p.FlapCells(r); len(flaps) > 0 {
+		doors = withCells(doors)
+		for _, c := range flaps {
+			doors[c] = g.flaps[c]
+		}
+	}
+	return walls, doors
 }
 
 // GroundMatches is true when r's wall ring and doors stand as planned: a wall
@@ -116,7 +149,7 @@ func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
 		doors[d] = true
 	}
 	ring := roomWalls(r)
-	walls, standing := g.ring(r)
+	walls, standing := p.ring(r, g)
 	for _, c := range rectCells(ring) {
 		if !onRing(c, ring) {
 			continue
@@ -213,6 +246,8 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 	if r.Link != nil {
 		doors = append(doors, *r.Link)
 	}
+	doors = append(doors, p.FlapCells(r)...)
+	doors = append(doors, p.penBarnDoors(r)...)
 	in := r.Interior
 	for _, o := range p.roomsWithHerd() {
 		if o.Link == nil || o.Interior == in {

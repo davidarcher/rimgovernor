@@ -133,7 +133,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		doorWanted[d] = true
 	}
 	wallDef, doorDef := r.RingDefs()
-	walls, doors := in.Ground.ring(r)
+	walls, doors := in.Plan.ring(r, in.Ground)
 	var items []*reconcileItem
 	add := func(it reconcileItem) *reconcileItem { items = append(items, &it); return items[len(items)-1] }
 

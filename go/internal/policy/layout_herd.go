@@ -7,14 +7,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Herd sites (#1633). The animal pen, the barn and the vet room are
-// reservations sized by the herd plan (#1628): pens hold its target herd at
-// penCellsPerAnimal each, growing by one more pen when the target outgrows
-// them; the barn (roofed, an animal sleeping spot per animal) and the vet
-// room (clean, animal beds) stand beside the first pen inside the outer
-// ring. A barn or vet room reservation is its walls and interior together
-// and never changes: a herd the rooms cannot hold gets another reservation
-// of the same kind (herd_rooms.go builds and furnishes them).
+// Herd sites (#1633, #2122). The animal pen, the barn and the vet area are
+// reservations sized by the herd plan (#1628), grouped in units: the misc unit
+// holds every animal that is no herd's, and each herd (HerdPlan.Herds) gets a
+// unit of its own, sized from its policy ceiling. A unit is a pen with a barn
+// built against its wall (the two joined by an animal flap) and a vet area
+// against the barn. Pens hold the unit's herd at penCellsPerAnimal each; the
+// barn (roofed, an animal sleeping spot per animal) and the vet area (clean,
+// animal beds, VetBeds per barn) are walls and interior together. A
+// reservation never changes or moves: a herd its unit cannot hold gets another
+// reservation of the same kind beside the same room (herd_rooms.go builds and
+// furnishes them).
 
 const (
 	// ReserveBarn is the roofed barn where the herd sleeps.
@@ -35,15 +38,28 @@ const (
 	penAnimalsFloor = herdUnplannedFloor
 )
 
-// PenAnimals is the herd the pens hold: the plan's ceiling summed over its
-// races (founders and companions have none and live elsewhere), at least
-// penAnimalsFloor.
+// PenAnimals is the misc unit's herd (#2122): the plan's ceiling summed over
+// the races that are no herd of their own (founders and companions have none
+// and live elsewhere), at least penAnimalsFloor.
 func (p HerdPlan) PenAnimals() int {
 	n := int64(0)
-	for _, ceiling := range p.Policy.PopulationMax {
-		n += ceiling
+	for race, ceiling := range p.Policy.PopulationMax {
+		if !slices.Contains(p.Herds, race) {
+			n += ceiling
+		}
 	}
 	return max(int(n), penAnimalsFloor)
+}
+
+// HerdUnits are the ceilings of the herds' units (#2122), one per herd race in
+// name order: each gets a pen, barn and vet area of its own.
+func (p HerdPlan) HerdUnits() []int {
+	herds := slices.Sorted(slices.Values(p.Herds))
+	out := make([]int, len(herds))
+	for i, race := range herds {
+		out[i] = int(p.Policy.PopulationMax[race])
+	}
+	return out
 }
 
 // VetBeds is the animal beds a herd of animals needs.
@@ -66,78 +82,180 @@ func (p LayoutPlan) AnimalAreas() []Rectangle {
 // walledSide is the outline of a room whose interior is w by h.
 func walledSide(w, h int32) (int32, int32) { return w + 2, h + 2 }
 
-// PlanHerdSites tops plan up with the pens, barn and vet room an animals
-// strong herd needs: pens, barn beds and vet beds for what the existing
-// ones cannot hold. Nothing placed moves; sites that do not fit
-// are left out. Zero animals plans nothing. plan holds its core zones.
-func PlanHerdSites(plan LayoutPlan, animals int) LayoutPlan {
-	if animals <= 0 || len(plan.Hallways()) == 0 {
+// PlanHerdSites tops plan up with the herd units (#2122): the misc unit for
+// animals animals and one unit per herds ceiling (HerdPlan.HerdUnits), each
+// with the pens, barn beds and vet beds the unit's existing rooms cannot hold.
+// Nothing placed moves; sites that do not fit are left out. A unit is matched
+// to its race by order (misc first), so the matching is never stored. Zero
+// animals plans no misc unit. plan holds its core zones.
+func PlanHerdSites(plan LayoutPlan, animals int, herds ...int) LayoutPlan {
+	if animals <= 0 && len(herds) == 0 || len(plan.Hallways()) == 0 {
 		return plan
 	}
 	plan.Reservations = slices.Clone(plan.Reservations)
-	planHerdSites(newUtilityGrid(plan), &plan, animals)
+	planHerdSites(newUtilityGrid(plan), &plan, animals, herds)
 	return plan
 }
 
-func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
-	if animals <= 0 {
-		return
-	}
-	var pen, barn Rectangle
-	var hasPen, hasBarn bool
-	held := 0
-	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReservePen:
-			held += int(r.Area.Width * r.Area.Height)
-			if !hasPen {
-				pen, hasPen = r.Area, true
-			}
-		case ReserveBarn:
-			barn, hasBarn = r.Area, true
+// herdUnit is one unit's reservations: the pens and barns joined by a shared
+// wall and the vet areas against those barns, in plan order.
+type herdUnit struct{ pens, barns, vets []Rectangle }
+
+// centre is the middle of the unit's first reservation, the core when it has
+// none.
+func (h herdUnit) centre(u *utilityGrid) (int32, int32) {
+	for _, rs := range [][]Rectangle{h.pens, h.barns, h.vets} {
+		if len(rs) > 0 {
+			return rs[0].X + rs[0].Width/2, rs[0].Z + rs[0].Height/2
 		}
 	}
-	cx, cz := u.cx, u.cz
-	if hasPen {
-		cx, cz = pen.X+pen.Width/2, pen.Z+pen.Height/2
+	return u.cx, u.cz
+}
+
+// herdUnits groups the plan's pen, barn and vet reservations into units by the
+// walls they share, the first group being the misc unit. A barn is the hinge:
+// the pens and vet areas stand against it.
+func (p LayoutPlan) herdUnits() []herdUnit {
+	var rs []LayoutReservation
+	for _, r := range p.Reservations {
+		if _, ok := herdRole(r.Kind); ok {
+			rs = append(rs, r)
+		}
+	}
+	group := make([]int, len(rs))
+	for i := range group {
+		group[i] = i
+	}
+	root := func(i int) int {
+		for group[i] != i {
+			i = group[i]
+		}
+		return i
+	}
+	for i, a := range rs {
+		for j := i + 1; j < len(rs); j++ {
+			b := rs[j]
+			if a.Kind == b.Kind || a.Kind != ReserveBarn && b.Kind != ReserveBarn {
+				continue
+			}
+			if _, joined := sharedWallLink(a.Area, b.Area); joined {
+				group[max(root(i), root(j))] = min(root(i), root(j))
+			}
+		}
+	}
+	var units []herdUnit
+	at := map[int]int{}
+	for i, r := range rs {
+		k, seen := at[root(i)]
+		if !seen {
+			k = len(units)
+			at[root(i)] = k
+			units = append(units, herdUnit{})
+		}
+		switch r.Kind {
+		case ReservePen:
+			units[k].pens = append(units[k].pens, r.Area)
+		case ReserveBarn:
+			units[k].barns = append(units[k].barns, r.Area)
+		default:
+			units[k].vets = append(units[k].vets, r.Area)
+		}
+	}
+	return units
+}
+
+// capacity is the 1x1 beds the rooms of role hold on the areas.
+func (p LayoutPlan) capacity(areas []Rectangle, role PlannedRole) int {
+	n := 0
+	for _, a := range areas {
+		n += herdRoomBeds(p.herdRoom(a, role), PieceShapes{}, InteriorPieceDef{Def: "bed", Size: domain.Cell{X: 1, Z: 1}})
+	}
+	return n
+}
+
+func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []int) {
+	for i, animals := range append([]int{misc}, herds...) {
+		if animals <= 0 {
+			continue
+		}
+		units := plan.herdUnits()
+		var unit herdUnit
+		if i < len(units) {
+			unit = units[i]
+		}
+		// A herd's unit prefers a site near the misc unit's.
+		cx, cz := u.cx, u.cz
+		if i > 0 && len(units) > 0 {
+			cx, cz = units[0].centre(u)
+		}
+		planUnit(u, plan, unit, animals, cx, cz, i == 0)
+	}
+}
+
+// planUnit tops one unit up for animals: a pen beside its barn (else near cx,
+// cz), a barn beside its pen, a vet area beside its barn. A herd the unit's
+// rooms outgrow gets another reservation of the same kind; none moves.
+func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, cz int32, misc bool) {
+	pens, barns := slices.Clone(unit.pens), slices.Clone(unit.barns)
+	held := 0
+	for _, a := range pens {
+		held += int(a.Width * a.Height)
+	}
+	if len(pens) > 0 {
+		cx, cz = pens[0].X+pens[0].Width/2, pens[0].Z+pens[0].Height/2
 	}
 	if short := animals*penCellsPerAnimal - held; short > 0 {
 		w, h := penSide((short + penCellsPerAnimal - 1) / penCellsPerAnimal)
-		site, ok := u.site(w, h, false, false, cx, cz)
+		site, ok := Rectangle{}, false
+		for _, barn := range barns {
+			if site, ok = u.besideReservation(*plan, barn, ReservePen, w, h); ok {
+				break
+			}
+		}
+		if !ok {
+			site, ok = u.site(w, h, false, false, cx, cz)
+		}
 		if !ok {
 			return
 		}
 		u.reserve(plan, LayoutReservation{Kind: ReservePen, Area: site})
-		if !hasPen {
+		if len(pens) == 0 {
 			cx, cz = site.X+site.Width/2, site.Z+site.Height/2
 		}
+		pens = append(pens, site)
 	}
-	// A barn holds a sleeping spot per animal and a vet room VetBeds of
-	// them; a herd the rooms outgrow gets another beside the first.
-	if short := animals - plan.herdCapacity(PlannedBarn); short > 0 {
+	// A barn holds a sleeping spot per animal and a vet area VetBeds of them.
+	if short := animals - plan.capacity(barns, PlannedBarn); short > 0 {
 		beds := short
-		if !hasBarn {
+		if misc && len(barns) == 0 {
 			beds = max(beds, herdBarnMinBeds)
 		}
 		w, h := walledSide(herdSide(beds))
-		site, ok := u.site(w, h, false, false, cx, cz)
+		site, ok := Rectangle{}, false
+		for _, pen := range pens {
+			if site, ok = u.besideReservation(*plan, pen, ReserveBarn, w, h); ok {
+				break
+			}
+		}
+		if !ok {
+			site, ok = u.site(w, h, false, false, cx, cz)
+		}
 		if !ok {
 			return
 		}
 		u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: site})
-		if !hasBarn {
-			barn, hasBarn = site, true
-		}
+		barns = append(barns, site)
 	}
-	if hasBarn {
-		cx, cz = barn.X+barn.Width/2, barn.Z+barn.Height/2
+	if len(barns) > 0 {
+		cx, cz = barns[0].X+barns[0].Width/2, barns[0].Z+barns[0].Height/2
 	}
-	if short := VetBeds(animals) - plan.herdCapacity(PlannedVetRoom); short > 0 {
+	if short := VetBeds(animals) - plan.capacity(unit.vets, PlannedVetRoom); short > 0 {
 		w, h := walledSide(herdSide(short))
-		// The vet room shares the barn's wall when a site beside it fits.
 		site, ok := Rectangle{}, false
-		if hasBarn {
-			site, ok = u.vetBesideBarn(*plan, barn, w, h)
+		for _, barn := range barns {
+			if site, ok = u.besideReservation(*plan, barn, ReserveVetRoom, w, h); ok {
+				break
+			}
 		}
 		if !ok {
 			site, ok = u.site(w, h, false, false, cx, cz)
@@ -152,9 +270,23 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 // where a door joins them: the middle of the run between the corners both
 // walls stand on. False unless the outlines overlap in exactly one wall line.
 func sharedWallLink(a, b Rectangle) (domain.Cell, bool) {
-	run := func(a0, a1, b0, b1 int32) (int32, bool) {
-		lo, hi := max(a0, b0)+1, min(a1, b1)-1
-		return (lo + hi - 1) / 2, lo < hi
+	run := sharedWallRun(a, b)
+	if len(run) == 0 {
+		return domain.Cell{}, false
+	}
+	return run[(len(run)-1)/2], true
+}
+
+// sharedWallRun are the cells of the wall two outlines share between the
+// corners both walls stand on, in order; nil unless they overlap in exactly one
+// wall line.
+func sharedWallRun(a, b Rectangle) []domain.Cell {
+	run := func(a0, a1, b0, b1 int32, at func(int32) domain.Cell) []domain.Cell {
+		var out []domain.Cell
+		for v := max(a0, b0) + 1; v < min(a1, b1)-1; v++ {
+			out = append(out, at(v))
+		}
+		return out
 	}
 	switch {
 	case a.X+a.Width-1 == b.X || b.X+b.Width-1 == a.X:
@@ -162,64 +294,110 @@ func sharedWallLink(a, b Rectangle) (domain.Cell, bool) {
 		if b.X+b.Width-1 == a.X {
 			x = a.X
 		}
-		z, ok := run(a.Z, a.Z+a.Height, b.Z, b.Z+b.Height)
-		return domain.Cell{X: x, Z: z}, ok
+		return run(a.Z, a.Z+a.Height, b.Z, b.Z+b.Height, func(z int32) domain.Cell { return domain.Cell{X: x, Z: z} })
 	case a.Z+a.Height-1 == b.Z || b.Z+b.Height-1 == a.Z:
 		z := b.Z
 		if b.Z+b.Height-1 == a.Z {
 			z = a.Z
 		}
-		x, ok := run(a.X, a.X+a.Width, b.X, b.X+b.Width)
-		return domain.Cell{X: x, Z: z}, ok
+		return run(a.X, a.X+a.Width, b.X, b.X+b.Width, func(x int32) domain.Cell { return domain.Cell{X: x, Z: z} })
 	}
-	return domain.Cell{}, false
+	return nil
 }
 
-// vetBesideBarn is the nearest w x h outline sharing one wall with the barn
-// (no wall material is wasted on a second parallel wall): every other cell
-// must be free. The barn's own door never lands on the shared wall.
-func (u *utilityGrid) vetBesideBarn(plan LayoutPlan, barn Rectangle, w, h int32) (Rectangle, bool) {
-	barnRoom := plan.herdRoom(barn, PlannedBarn)
-	cx, cz := barn.X+barn.Width/2, barn.Z+barn.Height/2
+// besideReservation is the nearest w x h outline of kind sharing one wall with
+// anchor (no wall material is wasted on a second parallel wall): every other
+// cell must be free, and no room's door moves or lands on the shared link (the
+// link takes a door, the vet area's, or the animal flap).
+func (u *utilityGrid) besideReservation(plan LayoutPlan, anchor Rectangle, kind ReservationKind, w, h int32) (Rectangle, bool) {
+	cx, cz := anchor.X+anchor.Width/2, anchor.Z+anchor.Height/2
 	best, bestCost, found := Rectangle{}, 0.0, false
 	for _, side := range []struct{ dx, dz int32 }{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
-		x0, z0 := barn.X, barn.Z
+		x0, z0 := anchor.X, anchor.Z
 		switch {
 		case side.dx > 0:
-			x0 = barn.X + barn.Width - 1
+			x0 = anchor.X + anchor.Width - 1
 		case side.dx < 0:
-			x0 = barn.X - w + 1
+			x0 = anchor.X - w + 1
 		case side.dz > 0:
-			z0 = barn.Z + barn.Height - 1
+			z0 = anchor.Z + anchor.Height - 1
 		default:
-			z0 = barn.Z - h + 1
+			z0 = anchor.Z - h + 1
 		}
-		for off := int32(-h - barn.Height); off <= h+barn.Height+w+barn.Width; off++ {
+		for off := int32(-h - anchor.Height); off <= h+anchor.Height+w+anchor.Width; off++ {
 			r := Rectangle{X: x0, Z: z0 + off, Width: w, Height: h}
 			if side.dz != 0 {
 				r = Rectangle{X: x0 + off, Z: z0, Width: w, Height: h}
 			}
-			link, ok := sharedWallLink(r, barn)
-			if !ok || link == barnRoom.Door || !u.inset(r) || !u.freeBesideWall(r, barn) {
+			dx, dz := float64(r.X+w/2-cx), float64(r.Z+h/2-cz)
+			cost := math.Sqrt(dx*dx + dz*dz)
+			if found && cost >= bestCost {
 				continue
 			}
-			dx, dz := float64(r.X+w/2-cx), float64(r.Z+h/2-cz)
-			if cost := math.Sqrt(dx*dx + dz*dz); !found || cost < bestCost {
-				best, bestCost, found = r, cost, true
+			if _, ok := sharedWallLink(r, anchor); !ok || !u.inset(r) || !u.freeBesideWall(r, anchor) || !plan.doorsHold(LayoutReservation{Kind: kind, Area: r}) {
+				continue
 			}
+			best, bestCost, found = r, cost, true
 		}
 	}
 	return best, found
 }
 
-// freeBesideWall reports every cell of r free, bar the cells of barn's own
+// doorsHold reports that adding cand to the plan leaves every herd room's door
+// where it was and no two of the rooms' doors, vet links and animal flaps on one
+// cell.
+func (p LayoutPlan) doorsHold(cand LayoutReservation) bool {
+	next := p
+	next.Reservations = append(slices.Clone(p.Reservations), cand)
+	seen := map[domain.Cell]bool{}
+	for _, r := range next.Reservations {
+		role, ok := herdRole(r.Kind)
+		if !ok {
+			continue
+		}
+		room := next.herdRoom(r.Area, role)
+		if r != cand && p.herdRoom(r.Area, role).Door != room.Door {
+			return false
+		}
+		cells := []domain.Cell{room.Door}
+		if room.Link != nil {
+			cells = append(cells, *room.Link)
+		}
+		for _, c := range cells {
+			if seen[c] {
+				return false
+			}
+			seen[c] = true
+		}
+	}
+	flaps, doors := next.penBarnOpenings()
+	for _, c := range append(flaps, doors...) {
+		if seen[c] {
+			return false
+		}
+		seen[c] = true
+	}
+	// A pen and barn that share a wall open through a flap and a door.
+	for _, pen := range next.Reservations {
+		for _, barn := range next.Reservations {
+			if pen.Kind == ReservePen && barn.Kind == ReserveBarn && (pen == cand || barn == cand) {
+				if run := sharedWallRun(pen.Area, barn.Area); len(run) == 1 {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// freeBesideWall reports every cell of r free, bar the cells of anchor's own
 // outline: the shared wall.
-func (u *utilityGrid) freeBesideWall(r, barn Rectangle) bool {
+func (u *utilityGrid) freeBesideWall(r, anchor Rectangle) bool {
 	for z := r.Z; z < r.Z+r.Height; z++ {
 		for x := r.X; x < r.X+r.Width; x++ {
-			if x >= barn.X && x < barn.X+barn.Width && z >= barn.Z && z < barn.Z+barn.Height {
-				// Only the barn's wall may be shared, never its interior.
-				if x > barn.X && x < barn.X+barn.Width-1 && z > barn.Z && z < barn.Z+barn.Height-1 {
+			if x >= anchor.X && x < anchor.X+anchor.Width && z >= anchor.Z && z < anchor.Z+anchor.Height {
+				// Only the anchor's wall may be shared, never its interior.
+				if x > anchor.X && x < anchor.X+anchor.Width-1 && z > anchor.Z && z < anchor.Z+anchor.Height-1 {
 					return false
 				}
 				continue

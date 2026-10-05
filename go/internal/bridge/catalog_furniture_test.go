@@ -90,3 +90,16 @@ func TestRoomFurnitureHeaterIsChosenByTempControlRule(t *testing.T) {
 		t.Errorf("heater %q, want the cheaper ZRadiator", got)
 	}
 }
+
+// The animal flap is the door roamers can open, by that property and never by
+// name (#2122); a plain door is none.
+func TestRoomFurnitureAnimalFlapIsTheDoorRoamersCanOpen(t *testing.T) {
+	if got := furnitureOf(t, CoreFurnitureFixtures()...).AnimalFlap; got != "AnimalFlap" {
+		t.Errorf("animal flap %q", got)
+	}
+	renamed := slices.DeleteFunc(CoreFurnitureFixtures(), func(d FixtureDef) bool { return d.Name == "AnimalFlap" })
+	renamed = append(renamed, FixtureDef{Name: "ZCurtain", Door: true, AnimalFlap: true})
+	if got := furnitureOf(t, renamed...).AnimalFlap; got != "ZCurtain" {
+		t.Errorf("animal flap %q, want the renamed ZCurtain", got)
+	}
+}

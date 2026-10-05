@@ -77,6 +77,9 @@ type FixtureDef struct {
 	// humanlike); both kinds of bed take any body size and state Comfort as
 	// their Comfort stat. Sarcophagus makes it a Building_Sarcophagus.
 	Animal, Sarcophagus bool
+	// Door makes the def a Building_Door; AnimalFlap one roaming animals can
+	// open (BuildingProperties.roamerCanOpen), the animal flap (#2122).
+	Door, AnimalFlap bool
 	// Facility makes the def a facility (CompProperties_Facility); Links lists
 	// the facilities its CompProperties_AffectedByFacilities may link.
 	Facility *FixtureFacility
@@ -224,6 +227,7 @@ func WithCoreFurniture(defs []FixtureDef) []FixtureDef {
 		}
 		out[i].Width, out[i].Height = core.Width, core.Height
 		out[i].WorkTableRole, out[i].Bench, out[i].Bed, out[i].Medical = core.WorkTableRole, core.Bench, core.Bed, core.Medical
+		out[i].Door, out[i].AnimalFlap = core.Door, core.AnimalFlap
 		out[i].Animal, out[i].Sarcophagus, out[i].Comfort, out[i].Facility, out[i].Links = core.Animal, core.Sarcophagus, core.Comfort, core.Facility, core.Links
 		if len(out[i].Costs) == 0 && len(out[i].Stuffs) == 0 && !out[i].Stuffed {
 			out[i].Costs = core.Costs
@@ -257,6 +261,8 @@ func CoreFurnitureFixtures() []FixtureDef {
 		{Name: "RoyalBed", Width: 2, Height: 2, Bed: true, Comfort: .9, Costs: wood(150), Links: links},
 		{Name: "DoubleSleepingSpot", Width: 2, Height: 2, Bed: true, Comfort: .3},
 		{Name: "HospitalBed", Width: 1, Height: 2, Bed: true, Medical: true, Comfort: .8, Costs: wood(60), Links: []string{"VitalsMonitor", "EndTable", "Dresser"}},
+		{Name: "Door", Door: true, Costs: wood(25)},
+		{Name: "AnimalFlap", Door: true, AnimalFlap: true, Costs: wood(25)},
 		{Name: "AnimalSleepingSpot", Animal: true, Comfort: .3},
 		{Name: "AnimalBed", Animal: true, Comfort: .7, Costs: wood(30)},
 		{Name: "EndTable", Width: 1, Height: 1, Costs: wood(30), Facility: &FixtureFacility{Offsets: map[string]float32{StatComfort: .03}, MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true, CardinalToHead: true}},
@@ -467,6 +473,14 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		if def.Sarcophagus {
 			t.ThingClass = ClassSarcophagus
 			chains[ClassSarcophagus] = nil
+		}
+		if def.Door || def.AnimalFlap {
+			if t.Building == nil {
+				t.Building = &d.BuildingProperties{}
+			}
+			t.ThingClass = ClassDoor
+			chains[ClassDoor] = nil
+			t.Building.RoamerCanOpen = def.AnimalFlap
 		}
 		if def.EatSurface {
 			t.SurfaceType = d.SurfaceType_SURFACE_TYPE_EAT

@@ -63,6 +63,9 @@ func (f RoundsFacts) HerdPolicy() HerdPolicy { return PlanHerd(f.HerdPlanInput()
 // PenAnimals is the herd the layout's pens, barn and vet room are sized for.
 func (f RoundsFacts) PenAnimals() int { return PlanHerd(f.HerdPlanInput()).PenAnimals() }
 
+// HerdUnits are the ceilings of the herds the layout gives units of their own (#2122).
+func (f RoundsFacts) HerdUnits() []int { return PlanHerd(f.HerdPlanInput()).HerdUnits() }
+
 // HerdRole is one race's place in the plan. Consumers (taming, training,
 // sterilize, sell, buy, pens) read it; none of them owns a second copy.
 type HerdRole struct {
@@ -101,6 +104,10 @@ type HerdPlan struct {
 	Roles  map[Resource]HerdRole
 	Jobs   map[HerdJob]HerdJobPlan
 	Policy HerdPolicy
+	// Herds are the races that are herds (#2122): a fertile breeding pair or
+	// herdMinAnimals animals kept, with a policy ceiling to size a unit from
+	// (a founder or companion has none and stays with the misc animals).
+	Herds []Resource
 	// Leveling is the easy race tamed (and trained) to raise the best
 	// handler's Animals skill while a wanted race needs more than any
 	// handler has (#1634); empty when none is needed or available.
@@ -225,6 +232,10 @@ const herdSpare = herdPairSize
 // herdUnplannedFloor is the smallest ceiling the wealth budget cuts a race
 // without a job to.
 const herdUnplannedFloor = 6
+
+// herdMinAnimals is the headcount at which a race with no breeding pair is
+// still a herd with a unit of its own (#2122).
+const herdMinAnimals = 5
 
 // PlanHerd derives each race's job from the colony facts (#1628). A job is
 // wanted while any kept animal holds it: a yield (milk, wool, chemfuel,
@@ -427,6 +438,11 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 			plan.Policy.Retired[def] = true
 		case role.Founder, role.Job == HerdJobCompanion:
 			delete(plan.Policy.PopulationMax, def)
+		}
+	}
+	for _, def := range order {
+		if ceiling, capped := plan.Policy.PopulationMax[def]; capped && ceiling > 0 && (stats[def].paired() || stats[def].n >= herdMinAnimals) {
+			plan.Herds = append(plan.Herds, def)
 		}
 	}
 	return plan

@@ -341,6 +341,8 @@ planned room (fence ring, gate, then the marker) by the same reconciler as the b
 the planner sites it, a ring cell the native preview refuses is reported and left to
 the next replan, and a lost fence or gate is rebuilt by the diff. Area-managed animals use their current allowed-area membership.
 
+**Herd units (#2122).** Pens, barns and vet areas are sited as units. The misc unit (the first pen, barn and vet area) holds every animal that is no herd's, sized from the ceilings of the other races. A race is a herd at a fertile breeding pair or `herdMinAnimals` (5) animals, provided it has a policy ceiling (a founder or companion has none and stays misc); it gets a unit of its own, sized from that ceiling and not its headcount, near the misc unit when a site fits. Units are matched to herds by order (misc first, then races by name) and joined by their shared walls, never stored. Reservations never move or shrink: an outgrown unit gets another reservation of the same kind beside it. Each barn has its own vet area (`VetBeds`). A pen's barn is built against its wall: the shared wall belongs to the barn, never a fence, and carries two openings, the animal flap (the catalog's buildable `Building_Door` that roamers can open, `RoomFurniture.AnimalFlap`; a catalog without one is an error) and beside it a regular `Door` for colonists, since the flap lets no colonist through. Assigning animals to units is not planned here.
+
 An explicit feed resource, or observed feed used exclusively by animals, creates an
 owned `MaintainResource` concern through the existing acquisition/production methods.
 The stock target uses native per-item nutrition and demand from competing eligible

@@ -28,6 +28,7 @@ func penRing(t *testing.T, plan LayoutPlan, room PlannedRoom) []CurrentBuilding 
 	for _, c := range rectCells(ring) {
 		switch {
 		case !onRing(c, ring):
+		case plan.sharedRing(room)[c]:
 		case slices.Contains(doors, c):
 			out = append(out, penBuilding(t, PenGateDefinition, c))
 		default:
@@ -97,7 +98,7 @@ func TestPenReconcilesFencesGateAndMarkerNeverRoofOrFloor(t *testing.T) {
 		t.Fatal(gate)
 	}
 	ring := roomWalls(step.Room)
-	if fences := readyOp(t, rec, OpWallIn); len(fences.Cells) != int(2*ring.Width+2*ring.Height-4-1) {
+	if fences := readyOp(t, rec, OpWallIn); len(fences.Cells) != int(2*ring.Width+2*ring.Height-4-1)-len(plan.sharedRing(step.Room)) {
 		t.Fatal("every ring cell but the gate is fenced", len(fences.Cells))
 	}
 	marker := readyOp(t, rec, OpBuild)
