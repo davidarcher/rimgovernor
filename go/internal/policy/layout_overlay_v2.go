@@ -107,10 +107,15 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 			add(style, OverlayFill, nil, z.Runs)
 		}
 	}
+	// The cover band is many rectangles: one label, on the largest.
+	var cover Rectangle
 	for _, r := range p.Reservations {
 		style, ok := reservationOverlay[r.Kind]
 		if !ok {
 			continue
+		}
+		if r.Kind == ReserveCoverClear && r.Area.Width*r.Area.Height > cover.Width*cover.Height {
+			cover = r.Area
 		}
 		shape := OverlayFill
 		if r.Kind == ReservePerimeter || r.Kind == ReserveOuterWall || r.Kind == ReserveKillbox {
@@ -119,6 +124,9 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		if add(style, shape, []Rectangle{r.Area}, nil) && r.Kind != ReservePerimeter && r.Kind != ReserveOuterWall && r.Kind != ReserveCoverClear {
 			label(style.label, centre(r.Area))
 		}
+	}
+	if cover.Width > 0 {
+		label(reservationOverlay[ReserveCoverClear].label, centre(cover))
 	}
 	spine := spineRects(p.Hallways())
 	add(overlayStyle{planGray, "hallway"}, OverlayFill, spine, nil)

@@ -31,6 +31,11 @@ var planWeights = struct {
 	// Edge: per step a room cell stands inside EdgeClear walking distance
 	// of an open map edge cell (raiders arrive there).
 	Edge, EdgeClear int
+	// Centre: per step a room cell stands inside CentreClear cells of the
+	// map border, rock or not. Edge prices raiders, and a mountain on the
+	// border is out of their reach; this prices the hauling and pawn trips
+	// a core far from the middle of the map costs every other area.
+	Centre, CentreClear int
 	// Defense: a killbox placed, an approach lane placed, and per ring cell
 	// nothing can close.
 	Killbox, Approach, Gap int
@@ -41,6 +46,9 @@ var planWeights = struct {
 	// plan's by before the unbuilt rooms are sited again (#1958): about a
 	// room's worth of plain soil, so near-equal layouts never flicker.
 	ReplanGain int
+	// FieldGain is the score a plan built on field ground must beat the best
+	// plan off it by before siting uses it (siteCore's obstacle levels).
+	FieldGain int
 }{
 	MissingRoom: 100000, BadRoutes: 100000,
 	// Rock is a dig, but its walls and floor come with it: a little dearer
@@ -52,9 +60,13 @@ var planWeights = struct {
 	Walk: 0, WalkUnreachable: 200,
 	Footprint: 1, Wall: 10,
 	Edge: 3, EdgeClear: 50,
+	// A mountain on the border saves a long wall and a dig's worth of soil,
+	// thousands of points; a room cell pays Centre per step inside a third
+	// of the map's short side, so tens of cells off the border outweigh it.
+	Centre: 1, CentreClear: 83,
 	Killbox: 200, Approach: 100, Gap: 20,
 	Expansion: 1, ExpansionReach: 6, ExpansionCap: 300,
-	ReplanGain: 100,
+	ReplanGain: 100, FieldGain: 2000,
 }
 
 // PlanScore is a plan's per-term values and tier verdict. The soft terms
@@ -65,7 +77,7 @@ type PlanScore struct {
 	RoutesErr string       // CheckRoutes' error, "" when the routes are valid
 	RichCells int          // rich-soil cells under rooms and hallways
 	// Soft tier.
-	Soil, Walk, Footprint, Wall, Edge, Defense, Expansion int
+	Soil, Walk, Footprint, Wall, Edge, Centre, Defense, Expansion int
 	// Walled reports whether Wall and Defense were scored (PlanPerimeter
 	// ran); a cheap score leaves them zero.
 	Walled bool
@@ -78,7 +90,7 @@ func (s PlanScore) Passes() bool {
 
 // Total is the soft terms plus the hard-tier failure charges.
 func (s PlanScore) Total() int {
-	t := s.Soil + s.Walk + s.Footprint + s.Wall + s.Edge + s.Defense + s.Expansion
+	t := s.Soil + s.Walk + s.Footprint + s.Wall + s.Edge + s.Centre + s.Defense + s.Expansion
 	t -= planWeights.MissingRoom * len(s.Missing)
 	if s.RoutesErr != "" {
 		t -= planWeights.BadRoutes
@@ -96,8 +108,8 @@ func (s PlanScore) Better(o PlanScore) bool {
 }
 
 func (s PlanScore) String() string {
-	return fmt.Sprintf("pass=%v total=%d missing=%d routes=%q rich=%d soil=%d walk=%d footprint=%d wall=%d edge=%d defense=%d expansion=%d",
-		s.Passes(), s.Total(), len(s.Missing), s.RoutesErr, s.RichCells, s.Soil, s.Walk, s.Footprint, s.Wall, s.Edge, s.Defense, s.Expansion)
+	return fmt.Sprintf("pass=%v total=%d missing=%d routes=%q rich=%d soil=%d walk=%d footprint=%d wall=%d edge=%d centre=%d defense=%d expansion=%d",
+		s.Passes(), s.Total(), len(s.Missing), s.RoutesErr, s.RichCells, s.Soil, s.Walk, s.Footprint, s.Wall, s.Edge, s.Centre, s.Defense, s.Expansion)
 }
 
 // Score scores plan over the survey s: every term, the wall and defense
@@ -169,6 +181,7 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 		}
 	}
 	out.Edge = -sc.edgeCost(rooms, under)
+	out.Centre = -sc.centreCost(rooms)
 	out.Expansion = sc.expansion(rooms, under)
 	return out
 }
@@ -310,6 +323,25 @@ func (sc planScorer) edgeCost(rooms []LayoutRoom, under map[domain.Cell]bool) in
 				continue
 			}
 			cost += planWeights.Edge * (clear - d)
+		}
+	}
+	return cost
+}
+
+// centreCost charges every room interior cell planWeights.Centre per step it
+// stands closer to the map border than CentreClear, or a third of the map's
+// short side on a small map. Plain geometry: unlike edgeCost it ignores what
+// raiders can walk, so a mountain on the border gets no discount.
+func (sc planScorer) centreCost(rooms []LayoutRoom) int {
+	b := sc.s.Bounds
+	clear := min(planWeights.CentreClear, int(min(b.Width, b.Height))/3)
+	cost := 0
+	for _, r := range rooms {
+		for _, c := range rectCells(r.Interior) {
+			d := int(min(c.X, c.Z, b.Width-1-c.X, b.Height-1-c.Z))
+			if d < clear {
+				cost += planWeights.Centre * (clear - d)
+			}
 		}
 	}
 	return cost

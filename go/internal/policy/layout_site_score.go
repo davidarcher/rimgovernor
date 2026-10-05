@@ -63,23 +63,33 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 	var lg coreGrid
 	// Each obstacle level sites every seed over the ground left once its
 	// obstacles are out; a level holds only if some plan places every base
-	// room, routes and houses every colonist, else the next, looser level
-	// runs, the last with no obstacle (rich soil at cost, #1921).
+	// room, routes and houses every colonist. The strictest holding level is
+	// kept, and a looser one (fields built on) replaces it only when its best
+	// plan beats the kept one by fieldGain: farmland is worth a core a little
+	// off the best ground, not a core crammed against the map border because
+	// the middle is all field. The last level has no obstacle (rich soil at
+	// cost, #1921) and runs only when no level held.
+	held := false
 	for _, level := range obstacleLevels {
-		scores, lg = siteLevel(g, scorer, plan, level, pawns, tombs, tier)
-		used = level
-		if level == obstacleNone {
+		if held && level == obstacleNone {
 			break
 		}
-		var held []siteScore
-		for _, sc := range scores {
+		ls, llg := siteLevel(g, scorer, plan, level, pawns, tombs, tier)
+		if level == obstacleNone {
+			scores, lg, used = ls, llg, level
+			break
+		}
+		var ok []siteScore
+		for _, sc := range ls {
 			if sc.score.Passes() && !sc.plan.LayoutOutgrown(pawns) {
-				held = append(held, sc)
+				ok = append(ok, sc)
 			}
 		}
-		if len(held) > 0 {
-			scores = held
-			break
+		if len(ok) == 0 {
+			continue
+		}
+		if !held || ok[0].score.Total() > scores[0].score.Total()+planWeights.FieldGain {
+			scores, lg, used, held = ok, llg, level, true
 		}
 	}
 	if len(scores) == 0 {
