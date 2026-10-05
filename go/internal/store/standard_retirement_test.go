@@ -19,10 +19,11 @@ func TestRoundsGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	r := roundsRequest()
 	first := reviewRounds(t, s, &r)
 	old := roundsGoal(t, first, policy.MaintainResource)
+	n := len(first.Standards) // the catalog size moves with the catalog (TidyLayout left it at 42, #2117)
 	for i := 0; i < 32; i++ {
 		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
 		out := reviewRounds(t, s, &r)
-		if len(out.Standards) != 43 {
+		if len(out.Standards) != n {
 			t.Fatal(out)
 		}
 	}
@@ -36,7 +37,7 @@ func TestRoundsGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if err = s.db.QueryRowContext(ctx, "SELECT count(*),sum(retired=0) FROM standards").Scan(&history, &active); err != nil {
 		t.Fatal(err)
 	}
-	if active != 43 || history != 43*33 {
+	if active != n || history != n*33 {
 		t.Fatal(active, history)
 	}
 	if _, err = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, r.Current, r.Tick, domain.FindingUnmet); err == nil {
