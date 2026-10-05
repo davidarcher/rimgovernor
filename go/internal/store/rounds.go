@@ -721,9 +721,9 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		// before authority returns does not rank; the last ranking stays
 		// so waiting ages survive it. Only a world change or tick rewind
 		// resets ranking history.
-		r.Development = previous.Development
-		r.Development.Rows = append([]RoundsDevelopmentRow(nil), previous.Development.Rows...)
 		if !reset {
+			r.Development = previous.Development
+			r.Development.Rows = append([]RoundsDevelopmentRow(nil), previous.Development.Rows...)
 			r.Progress = previous.Progress
 			r.Stage = previous.Stage
 			r.Dependencies = previous.Dependencies
