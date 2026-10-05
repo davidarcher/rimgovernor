@@ -82,29 +82,23 @@ func TestDevelopmentSurvivesRestart(t *testing.T) {
 	}
 }
 
-// EnsureResearch is in deficit at Foothold but the colony stage keeps it off
-// the ranking (raisedAtStage): the stage ladder, not the development slots,
-// holds research back on a fresh colony.
-func TestDevelopmentStageHoldsResearchAtFoothold(t *testing.T) {
-	r, d := loadDevelopment(t, developmentBefore)
+// EnsureResearch is in deficit at Foothold and the colony stage raises it
+// there: the shelter must not hold the research ladder back on a fresh colony.
+func TestDevelopmentStageRaisesResearchAtFoothold(t *testing.T) {
+	r, _ := loadDevelopment(t, developmentBefore)
 	if a, err := r.Assessment(policy.EnsureResearch); err != nil || a.Finding != "unmet" {
 		t.Fatal("research assessment", a, err)
 	}
-	if policy.StageConcernAllowed(policy.EnsureResearch, r.Policy.ColonyStage) {
-		t.Fatal("stage allows research; the recording no longer shows the hold", r.Policy.ColonyStage)
-	}
-	for _, row := range d.Rows {
-		if row.Concern == policy.EnsureResearch && row.Selected {
-			t.Fatal("research ranked under the stage hold")
-		}
+	if !policy.StageConcernAllowed(policy.EnsureResearch, r.Policy.ColonyStage) {
+		t.Fatal("stage holds research", r.Policy.ColonyStage)
 	}
 	needs, err := r.Detect()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, g := range needs.Concerns {
-		if g.ID == policy.EnsureResearch && !g.Staged {
-			t.Fatal("replay raised research at the recorded stage")
+		if g.ID == policy.EnsureResearch && g.Staged {
+			t.Fatal("replay held research at the recorded stage")
 		}
 	}
 }

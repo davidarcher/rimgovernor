@@ -257,7 +257,7 @@ func TestRaisedAtStage(t *testing.T) {
 	f := RoundsFacts{Research: domain.Known(ResearchFacts{}), AnimalUpkeep: AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{})}}
 	p.ColonyStage = StageFoothold
 	got := raised(raisedAtStage(all(), f, p, RoundsLatches{}))
-	if !got[CriticalMedicine] || !got[EnsureFoodSupply] || len(got) != 2 {
+	if !got[CriticalMedicine] || !got[EnsureFoodSupply] || !got[EnsureResearch] || !got[MaintainResource] || len(got) != 4 {
 		t.Fatalf("foothold raised %v", got)
 	}
 	spoiling := all()
