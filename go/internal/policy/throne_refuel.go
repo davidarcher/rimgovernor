@@ -28,6 +28,7 @@ func NextThroneRefuel(plan LayoutPlan, rooms RoomObservation, need ThroneNeed, l
 	if !ok {
 		return ThroneStep{}
 	}
+	// Census: the lamp refuel needs the roofed room, not just a ring.
 	if _, ok := CensusRoomIn(room, rooms); !ok {
 		return ThroneStep{}
 	}

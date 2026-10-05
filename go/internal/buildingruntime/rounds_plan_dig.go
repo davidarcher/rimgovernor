@@ -294,6 +294,7 @@ func (b *RoundsBuildingPlanner) digExhaust(call, epoch context.Context, s excava
 		if !ok {
 			continue
 		}
+		// Census: the cooler's room is matched by census id.
 		if standing, ok := policy.CensusRoomIn(room, rooms); !ok || standing.ID != b.refrigeration.Room {
 			continue
 		}

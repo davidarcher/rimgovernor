@@ -92,6 +92,7 @@ func (r StorageRequest) gearRoomPending(demand RoomDemand) bool {
 	}
 	for _, planned := range r.Layout.AllRooms() {
 		if planned.Role == PlannedArmory && demand.Armory || planned.Role == PlannedWardrobe && demand.Wardrobe {
+			// Census: pending until the room is a roofed room a zone can bind to.
 			if _, ok := CensusRoomIn(planned, *r.Rooms); !ok {
 				return true
 			}
@@ -125,6 +126,7 @@ func (r StorageRequest) gearSites() ([]StockpileSite, error) {
 			if planned.Role != gear.module {
 				continue
 			}
+			// Census: the stockpile zone is the room's own cells.
 			room, ok := CensusRoomIn(planned, *r.Rooms)
 			if !ok || len(room.Cells) == 0 {
 				continue

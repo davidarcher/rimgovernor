@@ -31,6 +31,7 @@ func (p LayoutPlan) VetRoomCells() []domain.Cell {
 func VetRoomReady(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, beds []SleepingBed, animalBed string) domain.Fact[bool] {
 	unread := false
 	for _, room := range plan.HerdRooms(PlannedVetRoom) {
+		// Census: a vet room is ready only once roofed.
 		if _, standing := CensusRoomIn(room, rooms); !standing {
 			continue
 		}

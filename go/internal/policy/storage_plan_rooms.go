@@ -56,6 +56,7 @@ func (r StorageRequest) warehouseReading() warehouseReading {
 	open := newStockpileOpen(StockpileRequest{Cells: r.Cells, Bounds: r.Bounds, Protected: r.Protected})
 	zones := false
 	for _, planned := range rooms {
+		// Census: a zone binds to the roofed room, so unroofed is still pending.
 		room, ok := CensusRoomIn(planned, *r.Rooms)
 		if !ok {
 			w.pending = true

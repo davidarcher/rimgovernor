@@ -96,6 +96,7 @@ func (r StorageRequest) standingWorkshop() ([]domain.Cell, bool) {
 		if planned.Role != PlannedWorkshop {
 			continue
 		}
+		// Census: the yard abuts the room's own cells.
 		if room, ok := CensusRoomIn(planned, *r.Rooms); ok && len(room.Cells) > 0 {
 			return room.Cells, true
 		}

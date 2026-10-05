@@ -17,11 +17,11 @@ import (
 // walls, the floors last.
 var clearKinds = []OpKind{OpFurnitureOut, OpPack, OpPackInUse, OpDoorOut, OpRoofOff, OpWallOut, OpFloorOut}
 
-// groundRooms are the plan's open-ground rooms whose ring or doors differ from
-// the plan.
+// groundRooms are the plan's open-ground rooms, barns and vet rooms included
+// (#2116), whose ring or doors differ from the plan.
 func (p LayoutPlan) groundRooms(g GroundCensus) []PlannedRoom {
 	var out []PlannedRoom
-	for _, r := range p.AllRooms() {
+	for _, r := range p.roomsWithHerd() {
 		if !r.Dug && !p.GroundMatches(r, g) {
 			out = append(out, r)
 		}

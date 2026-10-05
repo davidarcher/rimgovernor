@@ -45,6 +45,7 @@ func WarmTombs(shapes PieceShapes, coolers domain.Fact[bool], plan domain.Fact[L
 		if planned.Role != PlannedTomb && planned.Role != PlannedMorgue && planned.Role != PlannedMealCloset {
 			continue
 		}
+		// Census: the room's cells and floors are cooled.
 		room, ok := CensusRoomIn(planned, r)
 		if !ok {
 			continue

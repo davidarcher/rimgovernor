@@ -20,6 +20,7 @@ func ShellBedIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 		if r.Role != PlannedShelter {
 			continue
 		}
+		// Census: the shelter's beds are read off its room.
 		if room, ok := CensusRoomIn(r, rooms); ok {
 			for _, b := range room.Beds {
 				shell[b] = true
@@ -157,6 +158,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		if r.Role != PlannedSuite {
 			continue
 		}
+		// Census: the suite's beds are read off its room.
 		if room, ok := CensusRoomIn(r, rooms); ok {
 			for _, b := range room.Beds {
 				suiteBed[b] = true
@@ -181,6 +183,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			}
 		}
 	}
+	// Census: beds and roof, read off the room.
 	standing := func(r PlannedRoom) (Room, bool) { return CensusRoomIn(r, rooms) }
 	var empty, unbuilt []PlannedRoom
 	retiring := retiringRooms(plan)

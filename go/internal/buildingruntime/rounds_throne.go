@@ -180,6 +180,7 @@ func withThroneFloor(facts observation.ColonyProjection, v policy.FlooringObserv
 	if !ok {
 		return v
 	}
+	// Census: the floor requirement is keyed by the room's id.
 	standing, ok := policy.CensusRoomIn(room, rooms)
 	if !ok {
 		return v

@@ -60,9 +60,11 @@ func (p LayoutPlan) MealClosetOwed(rooms RoomObservation) (PlannedRoom, bool) {
 	if closet == nil || dining == nil {
 		return PlannedRoom{}, false
 	}
+	// Census: the closet shells only once dining is a usable room.
 	if _, ok := CensusRoomIn(*dining, rooms); !ok {
 		return PlannedRoom{}, false
 	}
+	// Census: an unroofed closet ring is still owed its shell.
 	if _, ok := CensusRoomIn(*closet, rooms); ok {
 		return PlannedRoom{}, false
 	}

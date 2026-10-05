@@ -32,6 +32,7 @@ func retiringBeds(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 			continue
 		}
 		for _, r := range w.Rooms {
+			// Census: the room's beds are the retiring beds.
 			if room, ok := CensusRoomIn(r, rooms); ok {
 				for _, b := range room.Beds {
 					out[b] = true
@@ -65,6 +66,7 @@ func EmptiedRetiringWings(plan LayoutPlan, rooms domain.Fact[RoomObservation], s
 		}
 		empty := true
 		for _, r := range w.Rooms {
+			// Census: the room's beds say whether the wing is empty.
 			if room, ok := CensusRoomIn(r, census); ok {
 				for _, b := range room.Beds {
 					empty = empty && !owned[b]
@@ -123,6 +125,7 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			continue
 		}
 		for _, r := range w.Rooms {
+			// Census: the room's beds say vacant, empty or unbuilt.
 			room, ok := CensusRoomIn(r, rooms)
 			if !ok {
 				unbuilt = append(unbuilt, r)

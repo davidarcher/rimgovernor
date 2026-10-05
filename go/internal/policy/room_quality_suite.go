@@ -54,6 +54,7 @@ func plannedRoomIDs(plan LayoutPlan, rooms RoomObservation, role PlannedRole) ma
 		if r.Role != role {
 			continue
 		}
+		// Census: the room's id keys the quality targets.
 		if room, ok := CensusRoomIn(r, rooms); ok {
 			out[room.ID] = r
 		}
@@ -174,6 +175,7 @@ func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObser
 		if r.Role != PlannedSuite {
 			continue
 		}
+		// Census: the room's beds say whether a suite is taken.
 		room, ok := CensusRoomIn(r, rooms)
 		taken := false
 		for _, b := range room.Beds {
@@ -223,6 +225,7 @@ func nextSuiteStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObse
 			break
 		}
 		r := vacant[i]
+		// Census: the room's beds decide the next bedroom step.
 		room, ok := CensusRoomIn(r, rooms)
 		if !ok || len(room.Beds) == 0 {
 			return BedroomStep{Kind: BedroomReconcile, Room: r}

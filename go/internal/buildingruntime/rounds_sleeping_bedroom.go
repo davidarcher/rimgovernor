@@ -190,6 +190,7 @@ func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Conte
 		return RoundsBuildingResult{Verdict: noSpace("bedroom_template")}, nil
 	}
 	// Only once the room stands: until then the shelter's bed keeps its sleeper.
+	// Census: the shelter bed packs only once the room is roofed.
 	if _, standing := policy.CensusRoomIn(step.Room, rooms); standing {
 		if result, due, err := r.packShellBed(call, epoch, stock, state, goal, reading, bed); due || err != nil {
 			return result, err

@@ -176,6 +176,7 @@ func (r StorageRequest) morgueSites() []StockpileSite {
 		if morgue.Role != PlannedMorgue {
 			continue
 		}
+		// Census: the stockpile zone is the room's own cells.
 		if room, ok := CensusRoomIn(morgue, *r.Rooms); ok && len(room.Cells) > 0 {
 			return []StockpileSite{{Role: domain.MorgueRolePrefix + room.ID, Room: room.Cells, Filter: domain.MorgueCorpsesFilter(), Priority: domain.CriticalPriority, Remainder: true,
 				Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}}}
@@ -190,6 +191,7 @@ func (r StorageRequest) tombSites() []StockpileSite {
 		if tomb.Role != PlannedTomb {
 			continue
 		}
+		// Census: the stockpile zone is the room's own cells.
 		if room, ok := CensusRoomIn(tomb, *r.Rooms); ok && len(room.Cells) > 0 {
 			return []StockpileSite{{Role: domain.TombRolePrefix + room.ID, Room: room.Cells, Filter: domain.TombCorpsesFilter(), Priority: domain.CriticalPriority, Remainder: true,
 				Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}}}

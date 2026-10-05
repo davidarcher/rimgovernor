@@ -94,6 +94,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 		if r.Role != PlannedPrison {
 			continue
 		}
+		// Census: the room's id keys the beds read inside it.
 		standing, stands := CensusRoomIn(r, rooms)
 		for _, b := range beds {
 			if !stands {

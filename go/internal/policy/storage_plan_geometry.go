@@ -60,6 +60,7 @@ func rawFoodStockSites(layout LayoutPlan, rooms RoomObservation, bounds Bounds, 
 		if planned.Role != PlannedFreezer {
 			continue
 		}
+		// Census: the stock patches are cut from the room's own cells.
 		room, ok := CensusRoomIn(planned, rooms)
 		if !ok || len(room.Cells) == 0 {
 			continue

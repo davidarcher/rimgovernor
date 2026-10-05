@@ -38,6 +38,7 @@ func ShelterEmptied(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObs
 			return false
 		}
 		for _, r := range planned {
+			// Census: a work room must be a roofed room before the shelter retires.
 			if _, ok := CensusRoomIn(r, rooms); !ok {
 				return false
 			}
@@ -45,6 +46,7 @@ func ShelterEmptied(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObs
 	}
 	inShelter := map[string]bool{}
 	for _, s := range shelters {
+		// Census: the shelter's beds are read off its room.
 		if room, ok := CensusRoomIn(s, rooms); ok {
 			for _, b := range room.Beds {
 				inShelter[b] = true

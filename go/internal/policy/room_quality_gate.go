@@ -70,6 +70,7 @@ func gateSuiteClaims(claims []SuiteClaim, plan LayoutPlan, rooms RoomObservation
 	var out []SuiteClaim
 	for _, c := range claims {
 		if i := len(out); i < len(vacant) {
+			// Census: the suite's beds are read off its room.
 			if room, ok := CensusRoomIn(vacant[i], rooms); ok && len(room.Beds) > 0 {
 				out = append(out, c)
 				continue

@@ -72,7 +72,7 @@ type RetiredGround struct {
 // RetiredGroundOf is plan's retired ground with its kept rooms' walls.
 func RetiredGroundOf(plan LayoutPlan) RetiredGround {
 	out := RetiredGround{Ground: plan.RetiredGround}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.roomsWithHerd() {
 		out.Kept = append(out.Kept, roomWalls(r))
 	}
 	return out

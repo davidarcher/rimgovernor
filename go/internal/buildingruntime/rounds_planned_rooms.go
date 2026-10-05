@@ -75,6 +75,7 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.PlannedR
 		if r.Role != module {
 			continue
 		}
+		// Census: a spot goes only in a roofed room.
 		if _, ok := policy.CensusRoomIn(r, rooms); !ok {
 			continue
 		}

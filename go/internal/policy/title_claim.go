@@ -128,6 +128,7 @@ func throneMet(f TitleClaimFacts, rung RoyalRung) domain.Fact[bool] {
 	if !ok {
 		return domain.Known(false)
 	}
+	// Census: impressiveness is read by the room's id.
 	standing, ok := CensusRoomIn(room, f.Rooms)
 	if _, stands := standingThroneIn(room, need, f.Built); !ok || !stands {
 		return domain.Known(false)

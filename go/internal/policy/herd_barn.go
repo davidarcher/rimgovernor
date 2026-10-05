@@ -21,6 +21,7 @@ const BarnAreaLabel = BarnAreaKey
 func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 	set := map[domain.Cell]bool{}
 	for _, room := range p.HerdRooms(PlannedBarn) {
+		// Census: an animal is sent only into a roofed barn.
 		if _, standing := CensusRoomIn(room, rooms); !standing {
 			continue
 		}

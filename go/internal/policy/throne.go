@@ -508,6 +508,7 @@ func ThroneRoomTargets(plan LayoutPlan, rooms RoomObservation, need ThroneNeed) 
 	if !ok || need.MinImpressiveness <= 0 {
 		return nil
 	}
+	// Census: the target is keyed by the room's id.
 	standing, ok := CensusRoomIn(room, rooms)
 	if !ok {
 		return nil
