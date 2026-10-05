@@ -102,6 +102,10 @@ type LayoutPlan struct {
 	Wings        []Wing `json:",omitempty"`
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
+	// RetiredGround is the walled footprint of each room the plan retired
+	// while its building stands (#2075): planned-ground clearance demolishes
+	// it, then the entry is dropped.
+	RetiredGround []Rectangle `json:",omitempty"`
 	// Cold latches the map's climate when the plan is derived (#2044): the
 	// seasonal curve dips below ColdMapBelowC. The shelter is sized for it,
 	// so a replan never resizes or re-sites the room.
@@ -205,6 +209,11 @@ func (p LayoutPlan) Valid() bool {
 			if run.Length < 1 {
 				return false
 			}
+		}
+	}
+	for _, g := range p.RetiredGround {
+		if g.Width < 1 || g.Height < 1 {
+			return false
 		}
 	}
 	for _, r := range p.Reservations {

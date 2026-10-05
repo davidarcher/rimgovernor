@@ -637,7 +637,10 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 			others, player := policy.SplitGroundRows(census.Targets)
 			reading.Projection.Facts.Upkeep.Clearance = domain.Known(others)
 			reading.Projection.Facts.Upkeep.Chunks = domain.Known(census.Chunks)
-			reading.Projection.Facts.Upkeep.Ground = domain.Known(policy.PlannedGroundWork(player, census.Floors, ground, plannedDoors(reading.Projection)))
+			reading.Projection.Facts.Upkeep.Ground = domain.Known(policy.PlannedGroundWork(player, census.Floors, ground, plannedDoors(reading.Projection), retiredGround(reading.Projection)))
+			if err := r.dropClearedRetiredGround(ctx, state.Snapshot, &reading.Projection, player, census.Floors); err != nil {
+				return store.RoundsResult{}, err
+			}
 		}
 	}
 	if r.methodEnabled(policy.ClearAncientShrine) {
@@ -754,6 +757,32 @@ func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
 		return nil
 	}
 	return policy.PlannedGround(plan, rooms)
+}
+
+// retiredGround is the recorded plan's retired ground (#2075) with its kept
+// rooms' walls; empty while the plan is unknown.
+func retiredGround(colony observation.ColonyProjection) policy.RetiredGround {
+	plan, _ := colony.LayoutPlan.Value()
+	return policy.RetiredGroundOf(plan)
+}
+
+// dropClearedRetiredGround records the plan without the retired ground the
+// census found clear (#2075); the projection carries the recorded plan.
+func (r *Rounder) dropClearedRetiredGround(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor) error {
+	plan, known := projection.LayoutPlan.Value()
+	if !known || len(plan.RetiredGround) == 0 {
+		return nil
+	}
+	done := policy.RetiredGroundDone(plan, player, floors)
+	if len(done) == 0 {
+		return nil
+	}
+	next := plan.WithoutRetiredGround(done)
+	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, projection.Identity.Tick, next); err != nil {
+		return err
+	}
+	projection.LayoutPlan = domain.Known(next)
+	return nil
 }
 
 // plannedDoors is the recorded plan's door cells; none while it is unknown

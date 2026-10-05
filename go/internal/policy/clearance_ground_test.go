@@ -52,7 +52,7 @@ func TestPlannedGroundTargetsUnplannedOnly(t *testing.T) {
 		playerRow("far", "Table", "other", domain.Cell{X: 30, Z: 30}, domain.Cell{X: 30, Z: 30}, false),
 	}
 	floors := []ClearanceFloor{{Cell: domain.Cell{X: 10, Z: 10}, DefName: "WoodPlankFloor"}, {Cell: domain.Cell{X: 12, Z: 10}, DefName: "WoodPlankFloor"}, {Cell: domain.Cell{X: 9, Z: 11}, DefName: "WoodPlankFloor"}}
-	got := PlannedGroundWork(rows, floors, ground, PlannedDoors(plan))
+	got := PlannedGroundWork(rows, floors, ground, PlannedDoors(plan), RetiredGroundOf(plan))
 	// The floor under the bed waits for it; the one under the ring wall stays.
 	want := []string{"bed", GroundFloorID(domain.Cell{X: 12, Z: 10}), "inner", "swap"}
 	if !reflect.DeepEqual(got, want) {
@@ -73,26 +73,26 @@ func TestPlannedGroundStepOrder(t *testing.T) {
 
 	doors := PlannedDoors(plan)
 	swap := playerRow("swap", "Door", "ancient_wall_door", domain.Cell{X: 9, Z: 10}, domain.Cell{X: 9, Z: 10}, true)
-	step, ok := PlannedGroundStep([]ClearanceTarget{wall, swap, bed}, floors, ground, doors, rooms)
+	step, ok := PlannedGroundStep([]ClearanceTarget{wall, swap, bed}, floors, ground, doors, rooms, RetiredGround{})
 	if !ok || step.Phase != GroundFurniture || len(step.Targets) != 1 || step.Targets[0].EntityID != "bed" {
 		t.Fatalf("furniture first: %+v", step)
 	}
-	step, ok = PlannedGroundStep([]ClearanceTarget{wall, swap}, floors, ground, doors, rooms)
+	step, ok = PlannedGroundStep([]ClearanceTarget{wall, swap}, floors, ground, doors, rooms, RetiredGround{})
 	if !ok || step.Phase != GroundDoors || len(step.Targets) != 1 || step.Targets[0].EntityID != "swap" {
 		t.Fatalf("ring door swap after furniture: %+v", step)
 	}
-	step, ok = PlannedGroundStep([]ClearanceTarget{wall}, floors, ground, doors, rooms)
+	step, ok = PlannedGroundStep([]ClearanceTarget{wall}, floors, ground, doors, rooms, RetiredGround{})
 	if !ok || step.Phase != GroundWalls || step.Targets[0].EntityID != "wall" {
 		t.Fatalf("walls after furniture: %+v", step)
 	}
 	if want := []domain.Cell{{X: 12, Z: 11}, {X: 12, Z: 12}}; !reflect.DeepEqual(step.Roof, want) {
 		t.Fatalf("roof = %v, want only the room inside the ground %v", step.Roof, want)
 	}
-	step, ok = PlannedGroundStep(nil, floors, ground, doors, rooms)
+	step, ok = PlannedGroundStep(nil, floors, ground, doors, rooms, RetiredGround{})
 	if !ok || step.Phase != GroundFloors || len(step.Floors) != 1 {
 		t.Fatalf("floors last: %+v", step)
 	}
-	if _, ok = PlannedGroundStep(nil, nil, ground, doors, rooms); ok {
+	if _, ok = PlannedGroundStep(nil, nil, ground, doors, rooms, RetiredGround{}); ok {
 		t.Fatal("clear ground has no step")
 	}
 }
@@ -110,10 +110,10 @@ func TestPlannedGroundStepLeavesTheStandInBed(t *testing.T) {
 	plan, rooms := groundFixture()
 	ground := PlannedGround(plan, rooms)
 	spot := playerRow("spot", "SleepingSpot", "other", domain.Cell{X: 10, Z: 10}, domain.Cell{X: 10, Z: 11}, false)
-	if step, ok := PlannedGroundStep([]ClearanceTarget{spot}, nil, ground, PlannedDoors(plan), rooms); ok {
+	if step, ok := PlannedGroundStep([]ClearanceTarget{spot}, nil, ground, PlannedDoors(plan), rooms, RetiredGround{}); ok {
 		t.Fatalf("cleared the stand-in bed: %+v", step)
 	}
-	if work := PlannedGroundWork([]ClearanceTarget{spot}, nil, ground, PlannedDoors(plan)); len(work) != 0 {
+	if work := PlannedGroundWork([]ClearanceTarget{spot}, nil, ground, PlannedDoors(plan), RetiredGroundOf(plan)); len(work) != 0 {
 		t.Fatal(work)
 	}
 }

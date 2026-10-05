@@ -133,7 +133,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 			prefix = fmt.Sprintf("deconstruct-%s-x%d-", selection.Targets[0].EntityID, len(selection.Targets))
 		}
 		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: selection.Targets}, nil)
-	} else if step, ok := policy.PlannedGroundStep(player, census.Floors, ground, plannedDoors(colony.Projection), colonyRooms(colony.Projection)); ok {
+	} else if step, ok := policy.PlannedGroundStep(player, census.Floors, ground, plannedDoors(colony.Projection), colonyRooms(colony.Projection), retiredGround(colony.Projection)); ok {
 		prefix, actions, err = groundStepMethod(id, step, ground)
 	} else {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)

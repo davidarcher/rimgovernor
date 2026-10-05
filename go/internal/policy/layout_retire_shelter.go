@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -81,10 +82,16 @@ func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 		return plan, false
 	}
 	drop := map[Rectangle]bool{}
+	var ground []Rectangle
 	for _, r := range plan.roomsOf(ModuleShelter) {
 		if !growth.InFlight[r.Interior] {
 			drop[r.Interior] = true
+			ground = append(ground, roomGround(r.Interior))
 		}
 	}
-	return dropRooms(plan, drop)
+	next, dropped := dropRooms(plan, drop)
+	if dropped {
+		next.RetiredGround = append(slices.Clone(plan.RetiredGround), ground...)
+	}
+	return next, dropped
 }
