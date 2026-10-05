@@ -339,6 +339,10 @@ type ClockScheduler struct {
 	// noWork is set when the last window decision refused no_work; see
 	// selectPlanners. Touched only under the player gate.
 	noWork bool
+	// idleRefusals counts consecutive steps that refused no_work with every
+	// planner returned; at idleLendAfter the step lends one idleLendTicks
+	// window so game time passes (see idleLend). Under the player gate.
+	idleRefusals int
 	// paceTick and paceAt are the previous step's status tick and the wall
 	// time it was read at, the basis of the running window's pace
 	// (livePace); touched only under the player gate.
@@ -1360,6 +1364,18 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		work = true
 		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks, s.nativeWorkBudget())
 	}
+	// A colony that is waiting on the world (a shell being raised, a dig in
+	// progress, a development slot another goal holds) offers no method and
+	// no native-work hint, and a stopped clock never moves the tick that
+	// would change that: the step refused no_work forever (live, tick 60023).
+	// After a few such steps one short window lends game time; every other
+	// refusal (hostiles, interruption, stale facts) still applies to it.
+	if !work && s.config.RoundsMethods && s.idleRefusals >= idleLendAfter && len(out.HeldBy) == 0 {
+		s.warnIdleStall(call, loaded.Context.GetTick())
+		work = true
+		start.MaxTicks = min(start.MaxTicks, idleLendTicks, s.nativeWorkBudget())
+		out.NativeWorkTicks = max(out.NativeWorkTicks, start.MaxTicks)
+	}
 	// An admitted trade phase keeps the window short: the session's next
 	// phase lands in the stop after it, before the caravan leaves (#1195).
 	if out.Trade != nil && out.Trade.Plan != "" && out.Trade.NativeWorkTicks > 0 {
@@ -1379,6 +1395,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
 	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
 	s.noWork = !out.Decision.Admitted && slices.Contains(out.Decision.Refused, policy.ClockWindowNoWork)
+	if s.noWork {
+		s.idleRefusals++
+	} else {
+		s.idleRefusals = 0
+	}
 	if !out.Decision.Admitted {
 		clockEvent(call, "clock-scheduler", "admission_refused", "window not admitted", "refused", clockReasonNames(out.Decision.Refused), "mode", string(out.Decision.Mode), "work", work, "combat_plan", combatPlan, "hostiles", len(out.Decision.Hostiles), "clock_state", string(clockState), "window_ticks", out.Window.Ticks)
 		return out, executor.ErrHeld
@@ -1480,6 +1501,37 @@ func (s *ClockScheduler) seedLiveDrift(startTick int64) {
 	}
 	s.livePaceTicks = s.pacePerSecond
 	clockSchedulerLog("window started: pace %.0f ticks/s", s.pacePerSecond)
+}
+
+const (
+	// idleLendAfter is the consecutive no_work refusals before an idle
+	// colony is lent a window; idleLendTicks is its length, about an hour.
+	idleLendAfter = 3
+	idleLendTicks = 2500
+)
+
+// warnIdleStall is the loud half of the idle lend: reaching it is a defect
+// (a planner waits on game time without saying how many ticks, so the
+// stopped clock deadlocks), not routine. It logs at Warn, mirrored to the
+// flight recorder as an idle_stall row, naming every goal's standing
+// planner refusal or wait: those are the planners to teach a
+// NativeWorkTicks hint.
+func (s *ClockScheduler) warnIdleStall(ctx context.Context, tick int64) {
+	standing := make([]string, 0, len(s.plannerReasons.last))
+	for goal, note := range s.plannerReasons.last {
+		if note.Text == "" || note.Text == policy.PlannerOptOut {
+			continue
+		}
+		kind := "refused"
+		if note.Waiting {
+			kind = "waiting"
+		}
+		standing = append(standing, fmt.Sprintf("%s %s: %s", goal, kind, note.Text))
+	}
+	slices.Sort(standing)
+	slog.Default().WarnContext(ctx, "STALL: the colony refused no_work and nothing lent game time; a planner waits on ticks without saying so, lending a window as a fallback",
+		telemetry.ComponentKey, "clock-scheduler", telemetry.KindKey, "idle_stall",
+		"tick", tick, "refusals", s.idleRefusals, "lend_ticks", idleLendTicks, "standing", standing)
 }
 
 // nativeWorkBudget is the most ticks a step lends as a native-work window

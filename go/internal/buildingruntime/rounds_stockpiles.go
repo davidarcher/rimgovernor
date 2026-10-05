@@ -442,10 +442,19 @@ func (r *RoundsStockpilePlanner) shell(call, epoch context.Context, state Contro
 	}
 	result, err := r.building.shellRoom(call, epoch, state, review, goal, read.ColonyReading, room, plannedRoomMethod(room), "storage-planner room")
 	clockEvent(call, "layout", "stockpiles", "stockpile edit: "+edit.Explanation, "role", edit.Role, "verdict", fmt.Sprint(result.Verdict))
-	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
+	if err != nil || shellLeavesZoneEdits(result.Verdict) {
 		return RoundsStockpileResult{Verdict: result.Verdict}, false, err
 	}
 	return RoundsStockpileResult{Verdict: result.Verdict}, true, nil
+}
+
+// shellLeavesZoneEdits reports a room-shell verdict that lets the zone edits
+// go on this step. Zoning is instant and needs no builder, so a shell that is
+// already being worked (WaitExistingWork) must not hold the food stockpile
+// back: it stood uncreated for as long as the room's shell was unbuilt, with
+// the clock stopped waiting for it.
+func shellLeavesZoneEdits(v Verdict) bool {
+	return v.Is(WaitMethodUsed) || v.Is(WaitExistingWork) || v.Is(RefusalNoSpace) || v.Is(RefusalFieldUnavailable) || v.Is(RefusalSharedAdmission)
 }
 
 func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbiter) (RoundsStockpileResult, error) {

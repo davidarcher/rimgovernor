@@ -255,3 +255,17 @@ func TestGearStoreRolesPublishTheCatalogSplit(t *testing.T) {
 		}
 	}
 }
+
+// A room shell already being worked must not hold the zone edits back: the
+// food stockpile went uncreated for as long as the storage room's shell stood
+// unbuilt.
+func TestShellLeavesZoneEdits(t *testing.T) {
+	for _, v := range []Verdict{BuildingReasonExistingWork, waitFor(WaitMethodUsed, "x"), noSpace("x"), fieldUnavailable("x")} {
+		if !shellLeavesZoneEdits(v) {
+			t.Errorf("verdict %v holds the zone edits back", v)
+		}
+	}
+	if shellLeavesZoneEdits(BuildingReasonAdmitted) {
+		t.Error("an admitted shell lets the zone edits go on the same step")
+	}
+}
