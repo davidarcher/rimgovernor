@@ -389,6 +389,7 @@ namespace HomeBridge.BridgeTools
         /// elapsed. Never part of the probe.
         private static void RunDigestIfDue(State s, TickManager tm)
         {
+            RunStockpileFillIfDue(s, tm);
             if (!DigestDue(DigestDirty, tm.TicksGame - s.LastDigestTick)) return;
             DigestDirty = false;
             s.LastDigestTick = tm.TicksGame;
@@ -696,6 +697,53 @@ namespace HomeBridge.BridgeTools
                 payload["cells"] = new Dictionary<string, object?> { { "minX", span.MinX }, { "minZ", span.MinZ }, { "maxX", span.MaxX }, { "maxZ", span.MaxZ } };
             }
             Add("observation_invalidated", "Observed facts changed: " + reason + ".", s, payload);
+        }
+        /// Stockpile fill on its own, shorter cadence (StockpileFillIntervalTicks):
+        /// items arriving in or leaving a stockpile append one colony row
+        /// narrowed to the changed zones' ids, so the controller's stockpile
+        /// planner re-judges fill without waiting for the digest interval. The
+        /// thresholds stay in the controller's policy; this only reports that
+        /// a zone's used-cell count moved.
+        private static void RunStockpileFillIfDue(State s, TickManager tm)
+        {
+            if (tm.TicksGame - s.LastFillTick < StockpileFillIntervalTicks) return;
+            s.LastFillTick = tm.TicksGame;
+            var fill = StockpileFill(s.Map);
+            var before = s.StockpileFill;
+            s.StockpileFill = fill;
+            if (before == null) return;
+            var changed = new List<string>();
+            foreach (var pair in fill)
+            {
+                int old;
+                if (!before.TryGetValue(pair.Key, out old) || old != pair.Value) changed.Add(pair.Key);
+            }
+            // A vanished zone is already a zone edit; only fill moves here.
+            if (changed.Count == 0) return;
+            changed.Sort(StringComparer.Ordinal);
+            var reason = "stockpile fill: " + string.Join(", ", changed);
+            var payload = new Dictionary<string, object?> { { "families", new List<string> { "colony" } }, { "reason", reason } };
+            if (changed.Count <= InvalidationEntitiesMax) payload["entityIds"] = changed;
+            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s, payload);
+        }
+        /// Used (not storage-empty) cells per stockpile zone, by zone id.
+        private static Dictionary<string, int> StockpileFill(Map map)
+        {
+            var result = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (map == null) return result;
+            List<Zone> zones;
+            try { zones = map.zoneManager?.AllZones ?? new List<Zone>(); } catch { return result; }
+            foreach (var zone in zones)
+            {
+                if (!(zone is Zone_Stockpile)) continue;
+                string id;
+                try { id = zone.GetUniqueLoadID(); } catch { continue; }
+                if (!ProtoBoundary.IsIdentifier(id)) continue;
+                var used = 0;
+                try { foreach (var cell in zone.Cells) if (!NativeZoneCreation.StorageEmpty(cell, map)) used++; } catch { continue; }
+                result[id] = used;
+            }
+            return result;
         }
         /// One zone's cell set as a count, an order-independent hash and its
         /// bounds; equal count and hash read as unchanged.
@@ -1459,6 +1507,7 @@ namespace HomeBridge.BridgeTools
             // null until the epoch's first probe baselined them; see PublishFactChanges.
             public string? ResearchDigest; public string? WorldDigest; public string? ConditionDigest;
             public Dictionary<string, ZoneDigest>? ZoneDigests;
+            public Dictionary<string, int>? StockpileFill; public int LastFillTick;
             public HashSet<string>? RipeZones; public Dictionary<string, bool>? ResourceLevels;
             // Wall-clock ms at which a windowless force pause began, 0 when none.
             public long ForcePauseSinceMs; public string? ForcePauseKind;

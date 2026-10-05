@@ -50,6 +50,9 @@ namespace HomeBridge.BridgeTools
         /// Ticks between digest passes when no hook marked a digest dirty:
         /// the cadence the old wall-paced probe gave at Ultrafast.
         internal const int DigestIntervalTicks = 600;
+        /// Ticks between stockpile-fill passes: a stockpile's used-cell count
+        /// is one census per zone, cheap enough for a one-game-second cadence.
+        internal const int StockpileFillIntervalTicks = 60;
         /// Bound for a class with a direct hook: the hook requests a probe at
         /// the next tick boundary.
         internal const int HookedBoundTicks = 1;

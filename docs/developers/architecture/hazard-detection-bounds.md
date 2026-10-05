@@ -84,6 +84,13 @@ row when one changed. It runs at the epoch's start (baseline) and then:
 | World dirty | `Faction.TryAffectGoodwillWith` / `SetRelationDirect` postfixes |
 | Interval | `DigestIntervalTicks` = 600 ticks since the last pass, the safety net for a path no hook covers (a faction defeated, a debug command) |
 
+Stockpile fill has its own pass, `RunStockpileFillIfDue`, every
+`StockpileFillIntervalTicks` = 60 ticks: it counts each stockpile's used
+cells and, when one moved, journals an `observation_invalidated` colony row
+narrowed to those zone ids (`stockpile fill: ...`). It reports the change
+only; the grow and shrink thresholds stay in the controller's policy, which
+re-reads fresh fill on the wake.
+
 The digest pass runs from the frame path after the probe gate, never from
 `Probe`; the contract probe asserts the cadence functions are independent
 and the epoch timing summary (`probeMs`, `digestMs`) and the clock status
