@@ -142,3 +142,40 @@ func (r *RoundsBuildingPlanner) plannedDiningFurnishing(call, epoch context.Cont
 	furnish.facility, furnish.cells, furnish.environment = nil, plannedRoomInterior(room), policy.PlacementAnywhere
 	return &furnish, RoundsBuildingResult{}, false, nil
 }
+
+// shelterShellSuffix is "-X-Z" of the layout plan's first shelter room, so
+// the shell reads shelter-shell-X-Z (#2043); empty while no plan holds one.
+func shelterShellSuffix(facts observation.ColonyProjection) string {
+	plan, known := facts.LayoutPlan.Value()
+	if !known {
+		return ""
+	}
+	for _, room := range plan.AllRooms() {
+		if room.Role == policy.ModuleShelter {
+			return fmt.Sprintf("-%d-%d", room.Interior.X, room.Interior.Z)
+		}
+	}
+	return ""
+}
+
+// shelterInteriorRooms plans the standing room on the layout plan's shelter
+// interior as the shelter, whatever role the game scores it (a Barracks once
+// the bunks stand), so the research bench takes the template's research slot
+// (#2043).
+func shelterInteriorRooms(rooms []policy.InteriorRoom, facts observation.ColonyProjection) []policy.InteriorRoom {
+	plan, known := facts.LayoutPlan.Value()
+	if !known {
+		return rooms
+	}
+	for _, planned := range plan.AllRooms() {
+		if planned.Role != policy.ModuleShelter {
+			continue
+		}
+		for i := range rooms {
+			if rooms[i].Interior == planned.Interior {
+				rooms[i].Role = policy.RoomRoleShelter
+			}
+		}
+	}
+	return rooms
+}

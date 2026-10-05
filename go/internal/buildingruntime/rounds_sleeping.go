@@ -931,7 +931,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		for _, c := range policy.HostingCells(*r.facility, rooms) {
 			roomCells[c] = true
 		}
-		interiorRooms = policy.InteriorRoomsFor(*r.facility, rooms, facts.Cells)
+		interiorRooms = shelterInteriorRooms(policy.InteriorRoomsFor(*r.facility, rooms, facts.Cells), facts)
 		if len(roomCells) == 0 {
 			if clockDebug() {
 				var summary []string

@@ -41,19 +41,19 @@ func NewRoundsExpansionPlanner(reviewer *Rounder, native RoundsBuildingSource) (
 
 // roomModule is the layout module this planner sites a shell as (#609): a
 // facility ladder's room role names it, the shelter and expansion
-// planners raise barracks.
+// planners raise the shelter.
 func (r *RoundsBuildingPlanner) roomModule() (policy.ModuleRole, bool) {
 	return policy.ModuleRoleOf(r.roomRole())
 }
 
 // roomRole is the room role a planner sites for (#637): a facility
-// ladder's own role, and Barracks for the shelter and expansion planners,
-// which raise the colony's bunkrooms.
+// ladder's own role, and Shelter for the shelter and expansion planners,
+// which raise the colony's temporary starter room (#2043).
 func (r *RoundsBuildingPlanner) roomRole() policy.RoomRole {
 	if r.facility != nil {
 		return r.facility.Role
 	}
-	return policy.RoomRoleBarracks
+	return policy.RoomRoleShelter
 }
 
 // shellShapesAtDoor lists the planned rooms (shellPlan) whose door would
@@ -70,13 +70,10 @@ func shellShapesAtDoor(planned []domain.RoomFootprint, door domain.Cell) []domai
 }
 
 // plannedRole is the room role whose planned rooms this planner builds
-// (#1231): the initial shelter stands on the layout plan's barracks at
-// every tier, Camp included; the storage room is built for supplies
+// (#1231): the initial shelter stands on the layout plan's shelter room at
+// every tier, Camp included (#2043); the storage room is built for supplies
 // separately. Any other shell builds its own role's rooms.
 func (r *RoundsBuildingPlanner) plannedRole() policy.RoomRole {
-	if r.shelter && r.phase == policy.HousingShelter {
-		return policy.RoomRoleBarracks
-	}
 	return r.roomRole()
 }
 
@@ -493,7 +490,7 @@ func shellStands(standing map[domain.Cell]string, building domain.Building) bool
 // successors: initial shelter, expansion, workshop and hospital shells
 // alike); adoptShell reads their plans back as the durable record of the
 // rings it ordered.
-var shellMethodPatterns = []string{"starter-shell*", "expansion-starter-shell*", "comfort-shell*", "workshop-shell*", "hospital-shell*", "laboratory-shell*", "sleeping-shell*", "shelter-shell*"}
+var shellMethodPatterns = []string{"starter-shell*", "expansion-starter-shell*", "comfort-shell*", "workshop-shell*", "hospital-shell*", "laboratory-shell*", "sleeping-shell*", "shelter-shell*", "expansion-shelter-shell*"}
 
 // shellHistoryLimit bounds how many earlier shell plans adoption consults.
 // A world orders a handful of shells over its life and each interruption

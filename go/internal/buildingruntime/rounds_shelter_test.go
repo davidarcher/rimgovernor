@@ -74,7 +74,7 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 // planned room (#1231).
 func recordStoreroom(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, interior policy.Rectangle) policy.LayoutRoom {
 	t.Helper()
-	room := policy.LayoutRoom{Role: policy.ModuleBarracks, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
+	room := policy.LayoutRoom{Role: policy.ModuleShelter, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{room}})
 	return room
 }
@@ -782,7 +782,7 @@ func TestRoundsShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	door := domain.Cell{X: 4, Z: 3}
 	// Two planned storerooms share the door: the square one and a taller one.
-	square := policy.LayoutRoom{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
+	square := policy.LayoutRoom{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
 	tall := square
 	tall.Interior.Height = 9
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{square, tall}})
@@ -1106,7 +1106,7 @@ func TestRoundsShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *te
 	}
 	var repair *domain.Method
 	for _, m := range second.Decision.Standard.Methods {
-		if m.Method == "starter-shell-repair-1" {
+		if m.Method == "shelter-shell-1-1-repair-1" {
 			m := m
 			repair = &m
 		}
@@ -1154,7 +1154,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	n.last = snapshot
 	facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 21, Height: 21}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 10, Z: 10})), Identity: observation.Identity{Tick: domain.Tick(base.reply.GetObserved().Context.GetTick())}}
 	// The ring is the planned barracks these planners build (#1231).
-	barracks, _ := policy.LayoutModule(policy.RoomRoleBarracks)
+	barracks, _ := policy.LayoutModule(policy.RoomRoleShelter)
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7}, Door: ring.Door(), DoorRot: domain.South}}})
 	inside := policy.Room{ID: "hut", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}}
 	unroofed := inside

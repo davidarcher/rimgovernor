@@ -59,6 +59,10 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	if err != nil || !IsShellMethod(shell.Method) || len(shell.Progress) != 32 {
 		t.Fatal(shell, err)
 	}
+	// The first-round shell stands on the planned shelter room (#2043).
+	if shell.Method != "shelter-shell-1-1" {
+		t.Fatal("shell method", shell.Method)
+	}
 	// The ring encloses every bunk, no bed touches a ring corner, and no
 	// bunk shares a cell with another or with the storage patch.
 	ring, err := domain.RectangleFootprint(domain.RoomBounds{X: 0, Z: 0, Width: 9, Height: 9}, domain.South)

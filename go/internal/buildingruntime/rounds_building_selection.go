@@ -188,7 +188,7 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 			return 0, "", noSpace("housing_bound")
 		}
 		if r.shelter {
-			return 32, domain.MethodID(prefix + "starter-shell"), Verdict{}
+			return 32, domain.MethodID(prefix + "shelter-shell" + shelterShellSuffix(facts)), Verdict{}
 		}
 		return missing, domain.MethodID(fmt.Sprintf("%sindoor-sleeping-%d-%d", prefix, count, missing)), Verdict{}
 	case policy.EnsureCooking:

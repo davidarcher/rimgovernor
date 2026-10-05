@@ -25,9 +25,15 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 	}
 	r.shelter = true
 	n, id, reason = r.selection(f)
-	if n != 32 || id != "expansion-starter-shell" || !reason.IsZero() {
+	if n != 32 || id != "expansion-shelter-shell" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
+	// With a planned shelter room the shell is named for its interior (#2043).
+	f.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 12, Z: 34, Width: 7, Height: 7}}}})
+	if _, id, _ = r.selection(f); id != "expansion-shelter-shell-12-34" {
+		t.Fatal(id)
+	}
+	f.LayoutPlan = domain.Unknown[policy.LayoutPlan]()
 	f.Facts.IndoorCapacity = domain.Known(int64(4))
 	if _, _, reason = r.selection(f); reason != BuildingReasonNoDeficit {
 		t.Fatal(reason)
@@ -105,7 +111,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The expansion builds the planned barracks (#1231).
-	barracks, _ := policy.LayoutModule(policy.RoomRoleBarracks)
+	barracks, _ := policy.LayoutModule(policy.RoomRoleShelter)
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())
 	if err != nil || got.Verdict != BuildingReasonAdmitted {
@@ -155,7 +161,7 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	barracks, _ := policy.LayoutModule(policy.RoomRoleBarracks)
+	barracks, _ := policy.LayoutModule(policy.RoomRoleShelter)
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())
 	if err != nil || got.Verdict != BuildingReasonAdmitted {

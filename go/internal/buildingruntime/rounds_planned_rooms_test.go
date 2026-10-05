@@ -10,9 +10,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The initial shelter tries the plan's barracks at Camp, not the storage room.
-func TestStarterShellPlansTheBarracksAtCamp(t *testing.T) {
-	storage := policy.LayoutRoom{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 116, Z: 130, Width: 9, Height: 7}, Door: domain.Cell{X: 120, Z: 129}, DoorRot: domain.South}
+// The initial shelter tries the plan's shelter room at Camp, not the storage room.
+func TestStarterShellPlansTheShelterAtCamp(t *testing.T) {
+	storage := policy.LayoutRoom{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 116, Z: 130, Width: 9, Height: 7}, Door: domain.Cell{X: 120, Z: 129}, DoorRot: domain.South}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{storage}}), BuildTier: domain.Known(policy.BuildTierCamp)}
 	starter := &RoundsBuildingPlanner{shelter: true, phase: policy.HousingShelter}
 	shells := starter.shellPlan(facts)
