@@ -147,3 +147,15 @@ func TestRecoveryUsesForcedWorkerAsFallback(t *testing.T) {
 		t.Fatal(s)
 	}
 }
+
+// A step anchors on the review's tick: an active disaster observed at the
+// review refuses a later live tick, which is why the step passes review.Tick.
+func TestRecoverySelectionBoundaryIsTheObservationTick(t *testing.T) {
+	p, h := recoveryPlanning(t)
+	if _, err := SelectRecoveryMethods(p, h, nil, h.Observed+5); err == nil {
+		t.Fatal("a live tick ahead of the observation was accepted")
+	}
+	if _, err := SelectRecoveryMethods(p, h, nil, h.Observed); err != nil {
+		t.Fatal(err)
+	}
+}

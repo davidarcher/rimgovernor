@@ -136,7 +136,7 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 	for _, method := range incident.Methods {
 		seen = append(seen, method.Method)
 	}
-	selection, err := policy.SelectRecoveryMethods(planning, review.Disaster, seen, expected.Tick)
+	selection, err := policy.SelectRecoveryMethods(planning, review.Disaster, seen, review.Tick)
 	if err != nil {
 		return RoundsRecoveryResult{}, err
 	}
