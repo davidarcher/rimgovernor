@@ -134,6 +134,9 @@ type ColonyProjection struct {
 	// PlayerTechLevel is the player faction's native TechLevel name, the
 	// faction's tech level.
 	PlayerTechLevel domain.Fact[string]
+	// Packable is the catalog's building defs that pack (minifiedDef, #2103);
+	// empty without a catalog.
+	Packable map[string]bool
 	// BuildTier is the construction tier derived from finished research
 	// with PlayerTechLevel as its floor (#604); unknown until a routine
 	// reading served the research census.
@@ -382,6 +385,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	if tables.Catalog != nil {
 		r.RoofSupport = float64(tables.Catalog.Constants.RoofMaxSupportDistance)
 		r.BedPrice = marketBedPrice(tables.Catalog)
+		r.Packable = tables.Catalog.Packable()
 		if r.Impressiveness, err = tables.Catalog.ImpressivenessLevels(); err != nil {
 			return ColonyProjection{}, err
 		}

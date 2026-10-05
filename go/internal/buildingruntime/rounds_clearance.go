@@ -133,7 +133,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 			prefix = fmt.Sprintf("deconstruct-%s-x%d-", selection.Targets[0].EntityID, len(selection.Targets))
 		}
 		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: selection.Targets}, nil)
-	} else if step, ok := policy.PlannedGroundStep(player, census.Floors, ground, plannedDoors(colony.Projection), colonyRooms(colony.Projection), retiredGround(colony.Projection)); ok {
+	} else if step, ok := policy.PlannedGroundStep(stampPacking(player, colony.Projection), census.Floors, ground, plannedDoors(colony.Projection), colonyRooms(colony.Projection), retiredGround(colony.Projection)); ok {
 		prefix, actions, err = groundStepMethod(id, step, ground)
 	} else {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)
@@ -167,6 +167,33 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 // designates the rest.
 const maxGroundFloorBatch = 64
 
+// stampPacking marks the player rows that pack instead of deconstruct and the
+// ones in use (#2103): packable from the def mirror, in use as an owned bed or
+// a bench with an active bill.
+func stampPacking(rows []policy.ClearanceTarget, colony observation.ColonyProjection) []policy.ClearanceTarget {
+	inUse := map[string]bool{}
+	if sleeping, known := colony.Facts.Sleeping.Value(); known {
+		for _, bed := range sleeping.Beds {
+			inUse[bed.ID] = inUse[bed.ID] || len(bed.Owners) > 0
+		}
+	}
+	if benches, known := colony.ProductionBenches.Value(); known {
+		for _, bench := range benches {
+			for _, bill := range bench.Bills {
+				if active, _ := bill.Active.Value(); active {
+					inUse[bench.ID] = true
+				}
+			}
+		}
+	}
+	out := append([]policy.ClearanceTarget(nil), rows...)
+	for i := range out {
+		out[i].Packable = colony.Packable[out[i].DefName]
+		out[i].InUse = inUse[out[i].EntityID]
+	}
+	return out
+}
+
 func colonyRooms(colony observation.ColonyProjection) policy.RoomObservation {
 	rooms, _ := colony.Rooms.Value()
 	return rooms
@@ -183,6 +210,15 @@ func groundStepMethod(id domain.PlanID, step policy.GroundStep, ground []policy.
 		step.Targets = step.Targets[:1]
 		actions, err := groundActions(id, step, nil)
 		return fmt.Sprintf("deconstruct-%s-", step.Targets[0].EntityID), actions, err
+	case policy.GroundPack:
+		// Packing leaves the roof's support alone, so a room's packable
+		// furniture goes in one batch (#2103).
+		actions, err := groundActions(id, step, nil)
+		prefix := fmt.Sprintf("pack-%s-", step.Targets[0].EntityID)
+		if len(step.Targets) > 1 {
+			prefix = fmt.Sprintf("pack-%s-x%d-", step.Targets[0].EntityID, len(step.Targets))
+		}
+		return prefix, actions, err
 	case policy.GroundDoors:
 		// One door per method, swapped in place: no cleared ground, so the
 		// native enclosure and roof-wait rules see a door that stays a wall.
@@ -218,6 +254,19 @@ func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.Gr
 		actions = append(actions, action)
 	}
 	for _, target := range step.Targets {
+		if step.Phase == policy.GroundPack {
+			// Native resolves the piece by id and echoes its own placement.
+			value, err := domain.NewMoveBuilding(target.EntityID, target.DefName, target.Minimum, domain.South)
+			if err != nil {
+				return nil, err
+			}
+			action, err := domain.NewUninstallBuildingAction(next(), value)
+			if err != nil {
+				return nil, err
+			}
+			actions = append(actions, action)
+			continue
+		}
 		value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
 		if err != nil {
 			return nil, err

@@ -28,8 +28,12 @@ type ClearanceTarget struct {
 	// ground (#1365); EnclosesRoom is then a wall or door bounding an
 	// indoor room.
 	Player, EnclosesRoom bool
-	Salvage              *SalvageEvidence
-	SalvageSelected      bool
+	// Packable and InUse are stamped by the clearance planner (#2103): the
+	// def packs into a minified item, and the piece is an owned bed or a bench
+	// with an active bill.
+	Packable, InUse bool
+	Salvage         *SalvageEvidence
+	SalvageSelected bool
 }
 
 // ClearanceChunk is one rock or slag chunk stack standing on a Home cell: a

@@ -128,6 +128,21 @@ func (catalog *DefinitionCatalog) ThingDef(name string) *d.ThingDef {
 	return catalog.ThingDefs[name]
 }
 
+// Packable is the building defs that pack into a minified item (#2103): those
+// with a minifiedDef, which vanilla uninstalls instead of destroying.
+func (catalog *DefinitionCatalog) Packable() map[string]bool {
+	out := map[string]bool{}
+	if catalog == nil {
+		return out
+	}
+	for name, def := range catalog.ThingDefs {
+		if def.GetCategory() == d.ThingCategory_THING_CATEGORY_BUILDING && def.GetMinifiedDef() != "" {
+			out[name] = true
+		}
+	}
+	return out
+}
+
 // TerrainDef is name's generated def row, nil when the catalog has none.
 func (catalog *DefinitionCatalog) TerrainDef(name string) *d.TerrainDef {
 	if catalog == nil {

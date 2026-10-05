@@ -5,6 +5,22 @@ import (
 	"testing"
 )
 
+// The warehouse takes packed buildings (#2103): the indoor_only preset never
+// lists a building def (it cannot deteriorate, so it is outdoor-safe), so the
+// Buildings category, which holds a chair's def, carries the minified chair.
+func TestWarehouseFilterAcceptsPackedFurniture(t *testing.T) {
+	f := GeneralFilter()
+	if f.Base() != BaseIndoorOnly {
+		t.Fatalf("base %s", f.Base())
+	}
+	if got := f.Allow(); len(got) != 1 || got[0] != CategoryDef("Buildings") {
+		t.Fatalf("allow %v", got)
+	}
+	if len(f.Disallow()) != 0 {
+		t.Fatal("warehouse disallows nothing")
+	}
+}
+
 func TestStockpileFilterCanonical(t *testing.T) {
 	a, err := NewStockpileFilter(BaseNothing, []FilterSelector{SpecialFilter("AllowFresh"), ThingDef("Steel"), CategoryDef("Meals"), ThingDef("Cloth")}, nil)
 	if err != nil {

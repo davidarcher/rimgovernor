@@ -324,6 +324,15 @@ func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
 		t.Fatalf("furniture is a plain deconstruction: %+v", cut)
 	}
 
+	table := policy.ClearanceTarget{EntityID: "Table1", DefName: "Table2x2c", Minimum: domain.Cell{X: 11, Z: 10}, Player: true, Packable: true}
+	prefix, actions, err = groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundPack, Targets: []policy.ClearanceTarget{table, bed}}, ground)
+	if err != nil || prefix != "pack-Table1-x2-" || len(actions) != 2 {
+		t.Fatal(prefix, actions, err)
+	}
+	if pack, ok := actions[1].UninstallBuilding(); !ok || pack.Thing() != "Bed1" {
+		t.Fatalf("packable furniture is one batched uninstall: %v", actions[1].Kind())
+	}
+
 	door := policy.ClearanceTarget{EntityID: "Door1", DefName: "Door", Minimum: domain.Cell{X: 9, Z: 10}, Maximum: domain.Cell{X: 9, Z: 10}, Player: true, EnclosesRoom: true}
 	prefix, actions, err = groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundDoors, Targets: []policy.ClearanceTarget{door}}, ground)
 	if err != nil || prefix != "swap-door-Door1-" || len(actions) != 1 {

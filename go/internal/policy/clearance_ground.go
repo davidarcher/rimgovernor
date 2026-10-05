@@ -29,9 +29,11 @@ type GroundPhase string
 
 const (
 	GroundFurniture GroundPhase = "furniture"
-	GroundDoors     GroundPhase = "doors"
-	GroundWalls     GroundPhase = "walls"
-	GroundFloors    GroundPhase = "floors"
+	// GroundPack packs the room's packable furniture in one batch (#2103).
+	GroundPack   GroundPhase = "pack"
+	GroundDoors  GroundPhase = "doors"
+	GroundWalls  GroundPhase = "walls"
+	GroundFloors GroundPhase = "floors"
 )
 
 // PlannedGround is the ground of every open-ground planned room with no room
@@ -222,7 +224,9 @@ func standInBed(row ClearanceTarget) bool { return row.DefName == "SleepingSpot"
 // left and its earliest phase. Rows are the census's player rows on the
 // ground (SplitGroundRows); a building the plan holds (groundPlanned) is no
 // target. Walls wait for the room's furniture, floors for every building on
-// it. A door on the ring where the plan has none (doors) is a swap target
+// it. A packable piece with no Deconstruct designation is packed, not
+// deconstructed: after the room's other furniture, one batch, in-use pieces
+// last (#2103). A door on the ring where the plan has none (doors) is a swap target
 // after the furniture. ok is false when the ground is clear.
 func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle, doors map[domain.Cell]bool, rooms RoomObservation, rg RetiredGround) (GroundStep, bool) {
 	ordered := append([]ClearanceTarget(nil), rows...)
@@ -238,7 +242,7 @@ func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 		if rg.has(g) && researchTableStands(ordered, g, rg) {
 			continue
 		}
-		var furniture, swaps, walls []ClearanceTarget
+		var furniture, packs, swaps, walls []ClearanceTarget
 		for _, row := range ordered {
 			if claimed[row.EntityID] || !groundTarget(row, g, doors, rg) {
 				continue
@@ -248,13 +252,19 @@ func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 				swaps = append(swaps, row)
 			} else if row.EnclosesRoom {
 				walls = append(walls, row)
+			} else if row.Packable && !row.Designated {
+				packs = append(packs, row)
 			} else {
 				furniture = append(furniture, row)
 			}
 		}
+		// Pieces in use go after every other piece in the room (#2103).
+		sort.SliceStable(packs, func(i, j int) bool { return !packs[i].InUse && packs[j].InUse })
 		switch {
 		case len(furniture) > 0:
 			return GroundStep{Ground: g, Phase: GroundFurniture, Targets: furniture}, true
+		case len(packs) > 0:
+			return GroundStep{Ground: g, Phase: GroundPack, Targets: packs}, true
 		case len(swaps) > 0:
 			return GroundStep{Ground: g, Phase: GroundDoors, Targets: swaps}, true
 		case len(walls) > 0:

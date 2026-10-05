@@ -97,6 +97,42 @@ func TestPlannedGroundStepOrder(t *testing.T) {
 	}
 }
 
+// Packable furniture is packed in one batch, in-use pieces last; a conduit and
+// a wall stay deconstructions; a Deconstruct-designated packable piece is
+// adopted as a deconstruction, never given an uninstall (#2103).
+func TestPlannedGroundStepPacksPackableFurniture(t *testing.T) {
+	plan, rooms := groundFixture()
+	ground := PlannedGround(plan, rooms)
+	doors := PlannedDoors(plan)
+	piece := func(id, def string, x, z int32, inUse bool) ClearanceTarget {
+		row := playerRow(id, def, "other", domain.Cell{X: x, Z: z}, domain.Cell{X: x, Z: z}, false)
+		row.Packable, row.InUse = true, inUse
+		return row
+	}
+	bed := piece("a-bed", "Bed", 10, 10, true)
+	table := piece("b-table", "Table2x2c", 11, 10, false)
+	lamp := piece("c-lamp", "StandingLamp", 12, 10, false)
+	step, ok := PlannedGroundStep([]ClearanceTarget{bed, table, lamp}, nil, ground, doors, rooms, RetiredGround{})
+	if !ok || step.Phase != GroundPack || len(step.Targets) != 3 || step.Targets[2].EntityID != "a-bed" || step.Targets[0].EntityID != "b-table" || step.Targets[1].EntityID != "c-lamp" {
+		t.Fatalf("one batch, in-use bed last: %+v", step)
+	}
+	conduit := playerRow("conduit", "PowerConduit", "other", domain.Cell{X: 11, Z: 11}, domain.Cell{X: 11, Z: 11}, false)
+	step, ok = PlannedGroundStep([]ClearanceTarget{bed, table, conduit}, nil, ground, doors, rooms, RetiredGround{})
+	if !ok || step.Phase != GroundFurniture || len(step.Targets) != 1 || step.Targets[0].EntityID != "conduit" {
+		t.Fatalf("a conduit is deconstructed before the packing: %+v", step)
+	}
+	wall := playerRow("wall", "Wall", "ancient_wall_door", domain.Cell{X: 11, Z: 11}, domain.Cell{X: 11, Z: 11}, true)
+	wall.Packable = true
+	if step, ok = PlannedGroundStep([]ClearanceTarget{wall}, nil, ground, doors, rooms, RetiredGround{}); !ok || step.Phase != GroundWalls {
+		t.Fatalf("a wall is never packed: %+v", step)
+	}
+	table.Designated = true
+	step, ok = PlannedGroundStep([]ClearanceTarget{table}, nil, ground, doors, rooms, RetiredGround{})
+	if !ok || step.Phase != GroundFurniture || step.Targets[0].EntityID != "b-table" {
+		t.Fatalf("a Deconstruct-designated piece is not packed: %+v", step)
+	}
+}
+
 func TestSplitGroundRows(t *testing.T) {
 	others, player := SplitGroundRows([]ClearanceTarget{{EntityID: "ruin"}, {EntityID: "mine", Player: true}})
 	if len(others) != 1 || others[0].EntityID != "ruin" || len(player) != 1 || player[0].EntityID != "mine" {

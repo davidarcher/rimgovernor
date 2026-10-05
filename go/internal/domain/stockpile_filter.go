@@ -182,8 +182,14 @@ func (f StockpileFilter) Quality() (min, max Quality, ok bool) {
 // FoodFilter is the native food preset, unpatched.
 func FoodFilter() StockpileFilter { return StockpileFilter{base: BaseFood} }
 
-// GeneralFilter is the warehouse's: every storable that is not safe outside.
-func GeneralFilter() StockpileFilter { return StockpileFilter{base: BaseIndoorOnly} }
+// GeneralFilter is the warehouse's: every storable that is not safe outside,
+// plus packed buildings (#2103). A building def cannot deteriorate, so the
+// indoor_only preset never lists one; the Buildings category adds the packed
+// furniture, benches and art clearance leaves behind.
+func GeneralFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseIndoorOnly, []FilterSelector{CategoryDef("Buildings")}, nil)
+	return f
+}
 
 // OpeningStoreFilter is the opening outdoor store's: every non-perishable
 // storable except chunks.
