@@ -119,7 +119,7 @@ func ShelterSizes(colonists, campfires, coolers int) [][2]int32 {
 // siteShelter adds the shelter to a base plan's rooms unless it holds one.
 // The preferred ground is shelterGap cells clear of every other room; where
 // that fits nowhere the gap shrinks a cell at a time, and last the shelter
-// takes an ordinary slot on a hallway (placeRole), so the first roof is never
+// takes an ordinary slot on a hallway (packRoom), so the first roof is never
 // delayed by a site that cannot be had. g is the core ground the rest of the
 // plan left; seed is the base's centre, the shelter's door faces it.
 func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, seed domain.Cell, colonists int, cold, hot bool) ([]SpineSegment, []LayoutRoom) {
@@ -145,7 +145,7 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []
 		}
 	}
 	for _, size := range sizes {
-		if next, grown, placed, _ := g.placeRole(spine, rooms, wings, ModuleShelter, size); placed {
+		if next, grown, placed, _ := g.packRoom(spine, rooms, wings, ModuleShelter, size); placed {
 			return next, grown
 		}
 	}

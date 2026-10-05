@@ -39,7 +39,7 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 	base.carveSuiteWings(wings)
 	g.carveBedroomWings(wings)
 	if len(spine) == 1 {
-		if next, ok := g.addCrossing(spine, rooms); ok {
+		if next, ok := g.growSpine(spine, rooms); ok {
 			// The centre crossing is laid first so no room takes its column (#952).
 			spine = next
 		}

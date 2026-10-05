@@ -6,10 +6,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// hallRoom is a room of role at interior X ix on the east-west hallway at z0,
+// north of it or south, its door in the hallway wall.
+func hallRoom(role ModuleRole, ix, z0, w, d int32, north bool) LayoutRoom {
+	return hallFrame{along: true, line: z0}.room(role, ix, w, d, north)
+}
+
 func TestPlannedShellsKeepThePlanRectangleAndDoor(t *testing.T) {
-	north := coreRoom(ModuleWorkshop, 20, 30, 7, 5, true)
-	south := coreRoom(ModuleWorkshop, 30, 30, 7, 5, false)
-	plan := LayoutPlan{Rooms: []LayoutRoom{coreRoom(ModuleKitchen, 10, 30, 6, 5, true), north, south}}
+	north := hallRoom(ModuleWorkshop, 20, 30, 7, 5, true)
+	south := hallRoom(ModuleWorkshop, 30, 30, 7, 5, false)
+	plan := LayoutPlan{Rooms: []LayoutRoom{hallRoom(ModuleKitchen, 10, 30, 6, 5, true), north, south}}
 	shells := plan.PlannedShells(RoomRoleWorkshop)
 	if len(shells) != 2 {
 		t.Fatalf("%d workshop shells", len(shells))
@@ -52,8 +58,8 @@ func plannedGround(bounds Bounds, edit func(*SiteCell)) ([]SiteCell, []domain.Ce
 // with none buildable (or none planned) there is no site at all.
 func TestPlannedLayoutBuildsTheFirstBuildablePlannedRoom(t *testing.T) {
 	bounds := Bounds{Width: 60, Height: 60}
-	taken := coreRoom(ModuleWorkshop, 20, 30, 7, 5, true)
-	next := coreRoom(ModuleWorkshop, 20, 30, 7, 5, false)
+	taken := hallRoom(ModuleWorkshop, 20, 30, 7, 5, true)
+	next := hallRoom(ModuleWorkshop, 20, 30, 7, 5, false)
 	cells, hallway := plannedGround(bounds, func(c *SiteCell) {
 		in := taken.Interior
 		c.Occupied = domain.Known(c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height)
@@ -80,8 +86,8 @@ func TestPlannedLayoutBuildsTheFirstBuildablePlannedRoom(t *testing.T) {
 // refused rather than searched for elsewhere.
 func TestShelterStandsOnThePlannedStoreroom(t *testing.T) {
 	bounds := Bounds{Width: 60, Height: 60}
-	storage := coreRoom(ModuleStorage, 20, 30, 9, 7, true)
-	plan := LayoutPlan{Rooms: []LayoutRoom{coreRoom(ModuleKitchen, 10, 30, 6, 5, true), storage}}
+	storage := hallRoom(ModuleStorage, 20, 30, 9, 7, true)
+	plan := LayoutPlan{Rooms: []LayoutRoom{hallRoom(ModuleKitchen, 10, 30, 6, 5, true), storage}}
 	cells, hallway := plannedGround(bounds, nil)
 	request := StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleStoreroom)}
 	layout, ok, err := PlannedLayout(request)
@@ -118,7 +124,7 @@ func TestShelterStandsOnThePlannedStoreroom(t *testing.T) {
 // home clearance removes it.
 func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 	bounds := Bounds{Width: 60, Height: 60}
-	room := coreRoom(ModuleWorkshop, 20, 30, 7, 5, true)
+	room := hallRoom(ModuleWorkshop, 20, 30, 7, 5, true)
 	shell, _ := room.Footprint()
 	b := shell.Bounds()
 	ruin := domain.Cell{X: b.X + 2, Z: b.Z + b.Height - 1}
@@ -154,11 +160,11 @@ func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 }
 
 func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
-	kitchen := coreRoom(ModuleKitchen, 10, 30, 6, 5, true)
-	freezer := coreRoom(ModuleFreezer, 17, 30, 5, 5, true)
+	kitchen := hallRoom(ModuleKitchen, 10, 30, 6, 5, true)
+	freezer := hallRoom(ModuleFreezer, 17, 30, 5, 5, true)
 	link := domain.Cell{X: 16, Z: kitchen.Interior.Z + 2}
 	freezer.Link = &link
-	jail := coreRoom(ModulePrison, 40, 30, 5, 5, true)
+	jail := hallRoom(ModulePrison, 40, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []LayoutRoom{kitchen, freezer, jail}}
 	has := func(doors []domain.Cell, c domain.Cell) bool {
 		for _, d := range doors {
@@ -180,8 +186,8 @@ func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
 }
 
 func TestNextPlannedRoomSkipsStandingRooms(t *testing.T) {
-	built := coreRoom(ModulePrison, 20, 30, 5, 5, true)
-	open := coreRoom(ModulePrison, 30, 30, 5, 5, true)
+	built := hallRoom(ModulePrison, 20, 30, 5, 5, true)
+	open := hallRoom(ModulePrison, 30, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []LayoutRoom{built, open}}
 	centre := domain.Cell{X: built.Interior.X + 2, Z: built.Interior.Z + 2}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "r", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}

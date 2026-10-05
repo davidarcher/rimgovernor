@@ -43,7 +43,7 @@ func SiteRoom(plan LayoutPlan, sc *planScorer, role ModuleRole, sizes ...[2]int3
 		var rooms []LayoutRoom
 		placed := false
 		for _, size := range sizes {
-			spine, rooms, placed, _ = g.placeRole(append([]SpineSegment(nil), plan.Spine...), append([]LayoutRoom(nil), plan.Rooms...), plan.Wings, role, size)
+			spine, rooms, placed, _ = g.packRoom(append([]SpineSegment(nil), plan.Spine...), append([]LayoutRoom(nil), plan.Rooms...), plan.Wings, role, size)
 			if placed {
 				break
 			}

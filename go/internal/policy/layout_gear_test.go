@@ -57,8 +57,8 @@ func gearBesidePlan() LayoutPlan {
 		Spine:     spine,
 		Entrances: spineEntrances(spine),
 		Rooms: []LayoutRoom{
-			coreRoom(ModuleStorage, 40, 59, 7, 5, false),
-			coreRoom(ModuleWorkshop, 70, 59, 7, 5, false),
+			hallRoom(ModuleStorage, 40, 59, 7, 5, false),
+			hallRoom(ModuleWorkshop, 70, 59, 7, 5, false),
 		},
 	}
 }

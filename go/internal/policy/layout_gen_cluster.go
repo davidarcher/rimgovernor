@@ -136,7 +136,7 @@ func (g coreGrid) placeCluster(spine []SpineSegment, rooms []LayoutRoom, wings [
 		first := -1
 		for _, role := range c.roles {
 			var placed bool
-			a.spine, a.rooms, placed, _ = ground.placeRole(a.spine, a.rooms, wings, role, coreRoomSize[role])
+			a.spine, a.rooms, placed, _ = ground.packRoom(a.spine, a.rooms, wings, role, coreRoomSize[role])
 			if placed {
 				a.placed++
 				if first < 0 {

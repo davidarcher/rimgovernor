@@ -65,65 +65,14 @@ var coreBaseRooms = []ModuleRole{
 // coreMaxDepth is the deepest interior, which bounds the core's cross-section.
 const coreMaxDepth int32 = 7
 
-// placeRole places one room of role on the nearest free slot, trying every
-// hallway and adding a crossing while no slot fits. fit reports that some
-// slot fit the role (a room that makes a thoroughfare, #780, still counts
-// as fit); placed that a room was added.
-func (g coreGrid) placeRole(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, role ModuleRole, size [2]int32) (_ []SpineSegment, _ []LayoutRoom, placed, fit bool) {
-	for !placed {
-		for i := range spine {
-			var next SpineSegment
-			var room LayoutRoom
-			ok := false
-			if i == 0 {
-				local, main, _ := g.segmentGrid(spine, 0, rooms)
-				next = main
-				room, ok = local.beside(&next, rooms, role)
-			}
-			if !ok {
-				next, room, ok = g.placeOn(spine, i, rooms, role, size)
-			}
-			if !ok {
-				continue
-			}
-			fit = true
-			// A room that makes a thoroughfare (#780) is left out; the
-			// next hallway (or role) tries its slot.
-			trial := append(append([]LayoutRoom(nil), rooms...), room)
-			grown := append([]SpineSegment(nil), spine...)
-			grown[i] = next
-			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Entrances: spineEntrances(grown), Rooms: trial, Wings: wings}); err != nil {
-				continue
-			}
-			spine, rooms, placed = grown, trial, true
-			break
-		}
-		if placed || fit {
-			break
-		}
-		next, ok := g.addCrossing(spine, rooms)
-		if !ok {
-			break
-		}
-		spine = next
-	}
-	return spine, rooms, placed, fit
-}
-
 type coreGrid struct {
 	core, rock map[domain.Cell]bool
-	// maxLen caps the hallway's length; 0 leaves it open.
-	maxLen int32
-	// junction, when set, is where the hallway meets another (its X along
-	// the hallway): rooms go to whichever end stays nearer it.
-	junction    int32
-	hasJunction bool
 	// soil is each surveyed cell's build cost (#1284); nil costs nothing.
 	soil map[domain.Cell]int
 	// fixed are the interiors of the rooms a replan must not move or change
 	// (#1958): the search operators and the second-door pass leave them be.
 	fixed map[Rectangle]bool
-	// skip are the room interiors fits refuses: the slots SiteRoom has scored.
+	// skip are the room interiors the packer refuses: the slots SiteRoom has scored.
 	skip map[Rectangle]bool
 	// noShelter keeps the generator from siting a shelter: a replan never
 	// regrows one a retirement (#2046) dropped.
@@ -240,130 +189,6 @@ func (g coreGrid) seed() (domain.Cell, bool) {
 		}
 	}
 	return best, found
-}
-
-// placeSized puts a room of size in the nearest slot at whichever end of
-// the rooms keeps seg shortest (or nearest its junction), extending seg
-// over it.
-func (g coreGrid) placeSized(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole, size [2]int32) (LayoutRoom, bool) {
-	w, d := size[0], size[1]
-	z0 := seg.From.Z
-	// Wall rows: the hallway spans z0-1..z0+1, so side walls start at z0±2.
-	// Each end offers its nearest slot; the one that lengthens the hallway
-	// least wins (east on a tie), so the hallway grows out from its centre.
-	pick, picked, pickGrow := LayoutRoom{}, false, int32(0)
-	for _, east := range []bool{true, false} {
-		best := LayoutRoom{}
-		found := false
-		for _, north := range []bool{true, false} {
-			// Walls on this side: the next slot's west wall is the last
-			// room's east wall (shared).
-			edge, any := seg.From.X-1, false
-			for _, r := range rooms {
-				if (r.Interior.Z > z0) != north {
-					continue
-				}
-				if east && (!any || r.Interior.X+r.Interior.Width > edge) {
-					edge = r.Interior.X + r.Interior.Width
-				}
-				if !east && (!any || r.Interior.X-1 < edge) {
-					edge = r.Interior.X - 1
-				}
-				any = true
-			}
-			for shift := int32(0); shift < 64; shift++ {
-				var ix int32
-				if east {
-					ix = edge + 1 + shift
-				} else {
-					ix = edge - w - shift
-				}
-				room := coreRoom(role, ix, z0, w, d, north)
-				if !g.fits(room, *seg) {
-					continue
-				}
-				if !found || (east && room.Interior.X < best.Interior.X) || (!east && room.Interior.X > best.Interior.X) {
-					best, found = room, true
-				}
-				break
-			}
-		}
-		if !found {
-			continue
-		}
-		lo, hi := min(seg.From.X, best.Interior.X-1), max(seg.To.X, best.Interior.X+best.Interior.Width)
-		if g.maxLen > 0 && hi-lo > g.maxLen {
-			continue
-		}
-		grow := hi - lo - (seg.To.X - seg.From.X)
-		if g.hasJunction {
-			grow = max(hi-g.junction, g.junction-lo)
-		}
-		if !picked || grow < pickGrow {
-			pick, picked, pickGrow = best, true, grow
-		}
-	}
-	if !picked {
-		return LayoutRoom{}, false
-	}
-	pick.Dug = g.dug(pick)
-	seg.From.X = min(seg.From.X, pick.Interior.X-1)
-	seg.To.X = max(seg.To.X, pick.Interior.X+pick.Interior.Width)
-	return pick, true
-}
-
-func coreRoom(role ModuleRole, ix, z0, w, d int32, north bool) LayoutRoom {
-	door := domain.Cell{X: ix + w/2}
-	r := LayoutRoom{Role: role}
-	if north {
-		door.Z = z0 + 2
-		r.Interior = Rectangle{X: ix, Z: z0 + 3, Width: w, Height: d}
-		r.DoorRot = domain.South
-	} else {
-		door.Z = z0 - 2
-		r.Interior = Rectangle{X: ix, Z: z0 - 2 - d, Width: w, Height: d}
-		r.DoorRot = domain.North
-	}
-	r.Door = door
-	return r
-}
-
-// fits reports the room with its walls, and the hallway beside it, all on
-// core candidates.
-func (g coreGrid) fits(r LayoutRoom, seg SpineSegment) bool {
-	in := r.Interior
-	if g.skip[in] {
-		return false
-	}
-	for x := in.X - 1; x <= in.X+in.Width; x++ {
-		for z := in.Z - 1; z <= in.Z+in.Height; z++ {
-			if !g.core[domain.Cell{X: x, Z: z}] {
-				return false
-			}
-		}
-		for dz := -SpineWidth / 2; dz <= SpineWidth/2; dz++ {
-			if !g.core[domain.Cell{X: x, Z: seg.From.Z + dz}] {
-				return false
-			}
-		}
-	}
-	// The hallway between the spine and this room must be continuous.
-	lo, hi := in.X-1, in.X+in.Width
-	if hi < seg.From.X {
-		lo, hi = hi, seg.From.X
-	} else if lo > seg.To.X {
-		lo, hi = seg.To.X, lo
-	} else {
-		return true
-	}
-	for x := lo; x <= hi; x++ {
-		for dz := -SpineWidth / 2; dz <= SpineWidth/2; dz++ {
-			if !g.core[domain.Cell{X: x, Z: seg.From.Z + dz}] {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 func (g coreGrid) dug(r LayoutRoom) bool {
