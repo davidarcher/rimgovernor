@@ -7,7 +7,8 @@ import (
 )
 
 // The shelter template (#2042, epic #2037): the temporary starter room holds
-// a research table, a crafting spot, ShelterCampfires campfires and one
+// a research table, a crafting spot, f.Campfires campfires (two on a cold map,
+// none elsewhere, #2044) and one
 // sleeping bunk per occupant. It also decides how bunks pack (it folds
 // ShelterBunks, #612), so one place owns the entrance-aisle and corner rules.
 //
@@ -110,7 +111,7 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 		}
 	}
 	single("craft", shelterCraftingDef)
-	for i := range ShelterCampfires {
+	for i := range f.Campfires {
 		single(fmt.Sprintf("campfire.%d", i+1), shelterCampfireDef)
 	}
 

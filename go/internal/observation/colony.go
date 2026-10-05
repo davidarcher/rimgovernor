@@ -88,6 +88,9 @@ type ColonyProjection struct {
 	ButcheringBenches   domain.Fact[[]CookingBench]
 	FoodAtRiskNutrition domain.Fact[float64]
 	CropClimate         policy.CropClimate
+	// ColdMap is whether the seasonal outdoor temperature curve dips below
+	// freezing (policy.ColdMapCurve, #2044); unknown without the curve.
+	ColdMap domain.Fact[bool]
 
 	PendingHunts domain.Fact[int]
 
@@ -500,6 +503,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining), OutdoorsDark: outdoorsDark}
 		r.Facts.Calendar = colonyCalendar(climate)
+	}
+	if curve := v.GetPlanning().GetObserved().GetGear().GetOutdoorTemperatureByTwelfthC(); len(curve) == 12 {
+		temps := make([]float64, len(curve))
+		for i, t := range curve {
+			temps[i] = float64(t)
+		}
+		r.ColdMap = domain.Known(policy.ColdMapCurve(temps))
 	}
 	colonyAcquisition(v, tables, &r)
 	colonyProduction(v, &r.Facts)

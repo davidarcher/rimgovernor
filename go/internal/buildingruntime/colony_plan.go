@@ -169,6 +169,8 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			_ = err // a failed survey retries on the next review
 		} else {
 			r.planChecked, r.planSurveyed = tick, true
+			// A fresh plan latches the map's climate (#2044); unknown reads warm.
+			survey.Cold, _ = projection.ColdMap.Value()
 			topology, _ := projection.PowerPlanning.Value()
 			if !haveLayout {
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals)

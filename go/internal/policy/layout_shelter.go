@@ -7,8 +7,8 @@ import (
 )
 
 // The shelter (#2041, epic #2037): one temporary starter room holding a
-// sleeping spot per colonist, a campfire, a crafting spot and a research
-// table. It is sited apart from the other rooms so its ground frees cleanly
+// sleeping spot per colonist, campfires on a cold map, a crafting spot and a
+// research table. It is sited apart from the other rooms so its ground frees cleanly
 // when it is demolished, and sized from those contents. Its interior is the
 // shelter template's (interior_shelter.go); only the counts are here.
 
@@ -36,9 +36,32 @@ const (
 	shelterResearchCell = 6
 )
 
-// ShelterCampfires is how many campfires the shelter holds. Stubbed to one
-// until the climate input lands (#2044).
-const ShelterCampfires = 1
+// ColdMapBelowC is the seasonal minimum below which a map is cold (#2044): a
+// pinned constant, not the room latches' ColdEnter.
+const ColdMapBelowC = 0.0
+
+// coldMapCampfires is how many campfires a cold map's shelter holds indoors.
+const coldMapCampfires = 2
+
+// ColdMapCurve reports whether a seasonal outdoor temperature curve (the
+// twelfths' means, C) dips below ColdMapBelowC. An empty curve is not cold.
+func ColdMapCurve(curve []float64) bool {
+	for _, t := range curve {
+		if t < ColdMapBelowC {
+			return true
+		}
+	}
+	return false
+}
+
+// ShelterCampfires is how many campfires the shelter holds indoors (#2044):
+// two on a cold map, none elsewhere, where the cooking campfire stands outside.
+func ShelterCampfires(cold bool) int {
+	if cold {
+		return coldMapCampfires
+	}
+	return 0
+}
 
 // ShelterInteriorArea is the interior cells a shelter for colonists needs:
 // its contents plus half again for the aisle and the door's approach. The
@@ -76,7 +99,7 @@ func ShelterSizes(colonists, campfires int) [][2]int32 {
 // takes an ordinary slot on a hallway (placeRole), so the first roof is never
 // delayed by a site that cannot be had. g is the core ground the rest of the
 // plan left; seed is the base's centre, the shelter's door faces it.
-func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, seed domain.Cell, colonists int) ([]SpineSegment, []LayoutRoom) {
+func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, seed domain.Cell, colonists int, cold bool) ([]SpineSegment, []LayoutRoom) {
 	if g.noShelter {
 		return spine, rooms
 	}
@@ -85,7 +108,7 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []
 			return spine, rooms
 		}
 	}
-	sizes := ShelterSizes(colonists, ShelterCampfires)
+	sizes := ShelterSizes(colonists, ShelterCampfires(cold))
 	all := append([]LayoutRoom(nil), rooms...)
 	for _, w := range wings {
 		all = append(all, w.Rooms...)

@@ -9,7 +9,7 @@ import (
 
 func shelterInterior(width, depth int32, occupants int) InteriorRoom {
 	room := interiorRoomsAround(RoomRoleShelter, width, depth, width/2-1)[0]
-	room.Occupants = occupants
+	room.Occupants, room.Campfires = occupants, ShelterCampfires(true)
 	return room
 }
 
@@ -26,7 +26,7 @@ func slotsOf(plan InteriorPlan, prefix string) []InteriorPiece {
 func TestShelterLayoutRepeatsAcrossDoorsAndSizes(t *testing.T) {
 	for _, size := range [][3]int32{{7, 5, 2}, {6, 4, 1}, {9, 9, 3}, {5, 4, 1}, {8, 6, 3}} {
 		plan := assertInteriorRepeatable(t, RoomRoleShelter, size[0], size[1], size[2])
-		if len(slotsOf(plan, "research")) != 1 || len(slotsOf(plan, "craft")) != 1 || len(slotsOf(plan, "campfire.")) != ShelterCampfires {
+		if len(slotsOf(plan, "research")) != 1 || len(slotsOf(plan, "craft")) != 1 || len(slotsOf(plan, "campfire.")) != ShelterCampfires(true) {
 			t.Errorf("%dx%d: pieces %+v miss the research table, crafting spot or campfire", size[0], size[1], plan.Canonical)
 		}
 	}
@@ -109,7 +109,7 @@ func TestShelterBunksKeepOffCornersDoorAndReservedCells(t *testing.T) {
 		}
 	}
 	// A campfire may stand in a corner, beside bunks.
-	if fire := slotsOf(plan, "campfire."); len(fire) != ShelterCampfires || !corners[domain.Cell{X: fire[0].Rect.X, Z: fire[0].Rect.Z}] {
+	if fire := slotsOf(plan, "campfire."); len(fire) != ShelterCampfires(true) || !corners[domain.Cell{X: fire[0].Rect.X, Z: fire[0].Rect.Z}] {
 		t.Errorf("campfire %+v", fire)
 	}
 }
@@ -142,12 +142,12 @@ func TestShelterTemplateKeepsBunksWhenTheRoomIsCramped(t *testing.T) {
 
 func TestShelterSizesLeaveTheResearchTableItsDepth(t *testing.T) {
 	for n := 1; n < 12; n++ {
-		for _, s := range ShelterSizes(n, ShelterCampfires) {
+		for _, s := range ShelterSizes(n, ShelterCampfires(true)) {
 			if s[1] < 4 {
 				t.Fatalf("%d colonists: %v is shallower than the 3x2 table and its front row", n, s)
 			}
-			plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleShelter, Shapes: testShapes, Interior: Rectangle{Width: s[0], Height: s[1]}, Doors: []domain.Cell{{X: s[0] / 2, Z: -1}}, Occupants: n}, InteriorPieceDef{})
-			if !ok || len(slotsOf(plan, "research")) != 1 || len(slotsOf(plan, "craft")) != 1 || len(slotsOf(plan, "campfire.")) != ShelterCampfires {
+			plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleShelter, Shapes: testShapes, Interior: Rectangle{Width: s[0], Height: s[1]}, Doors: []domain.Cell{{X: s[0] / 2, Z: -1}}, Occupants: n, Campfires: ShelterCampfires(true)}, InteriorPieceDef{})
+			if !ok || len(slotsOf(plan, "research")) != 1 || len(slotsOf(plan, "craft")) != 1 || len(slotsOf(plan, "campfire.")) != ShelterCampfires(true) {
 				t.Fatalf("%d colonists: %v lays out %+v (ok=%v)", n, s, plan.Pieces, ok)
 			}
 		}

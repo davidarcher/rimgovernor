@@ -535,6 +535,14 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
+	if r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.cells == nil && len(r.paste) == 0 {
+		// The cooking campfire goes in the planned kitchen once it stands (#2044).
+		if cells := plannedRoomCells(facts, policy.ModuleKitchen); cells != nil {
+			fire := *r
+			fire.cells = cells
+			r = &fire
+		}
+	}
 	if r.definition == "ButcherSpot" {
 		// The stand-in spot goes in the planned butchery once it stands (#2040).
 		if cells := plannedRoomCells(facts, policy.ModuleButchery); cells != nil {
@@ -888,7 +896,11 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "TableButcher")...)
 	}
 	var spotBox policy.Rectangle
-	spotOutside := r.definition == "ButcherSpot" && r.cells == nil
+	// The cooking campfire stands like the butcher spot (#2044): in the planned
+	// kitchen when it stands, else outside every room within the core box.
+	cookingCampfire := r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.facility == nil && len(r.paste) == 0
+	spotOutside := (r.definition == "ButcherSpot" || cookingCampfire) && r.cells == nil
+	slotProtected := protected
 	if spotOutside {
 		// The stand-in spot stands outside every room, within the planned
 		// core's box plus a margin, never map-wide (#2040).
@@ -914,6 +926,12 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	// The crafting spot takes the standing shelter's template slot (#2074);
 	// with no shelter, or its slot taken, it is placed as before.
 	slotOnly := r.concern == policy.EnsureBasicDefense && r.definition == craftingSpotDefinition && r.facility == nil
+	// On a cold map the campfires stand indoors on the shelter's template
+	// slots (#2044); a taken slot, or no shelter, leaves the campfire to the
+	// search below.
+	if plan, known := facts.LayoutPlan.Value(); known && plan.Cold && r.definition == "Campfire" && (cookingCampfire || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat) {
+		slotOnly = len(standingShelterRooms(facts)) > 0
+	}
 	if slotOnly {
 		interiorRooms = standingShelterRooms(facts)
 	}
@@ -1189,6 +1207,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 		if len(slots) > 0 {
 			request := searchRequest
+			request.Protected = append(append([]domain.Cell(nil), slotProtected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...)
 			request.Anchors, request.Limit = nil, min(len(slots), 64)
 			for _, p := range slots {
 				request.Anchors = append(request.Anchors, p.Anchor())

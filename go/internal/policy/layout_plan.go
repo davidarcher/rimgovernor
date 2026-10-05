@@ -102,6 +102,10 @@ type LayoutPlan struct {
 	Wings        []Wing `json:",omitempty"`
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
+	// Cold latches the map's climate when the plan is derived (#2044): the
+	// seasonal curve dips below ColdMapBelowC. The shelter is sized for it,
+	// so a replan never resizes or re-sites the room.
+	Cold bool `json:",omitempty"`
 }
 
 // Anchor is the interior centre of the

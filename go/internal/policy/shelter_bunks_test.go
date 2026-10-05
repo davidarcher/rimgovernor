@@ -35,7 +35,7 @@ func TestShellCornerCellsRectangle(t *testing.T) {
 func TestPlanShelterBunksKeepsOffCornersAisleAndStorage(t *testing.T) {
 	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
 	layout := bunkLayout(t, shell, err)
-	bunks := PlanShelterBunks(layout, testShapes, 8, nil)
+	bunks := PlanShelterBunks(layout, testShapes, 8, 1, nil)
 	if len(bunks) != 8 {
 		t.Fatalf("bunks %+v", bunks)
 	}
@@ -66,12 +66,12 @@ func TestPlanShelterBunksKeepsOffCornersAisleAndStorage(t *testing.T) {
 func TestPlanShelterBunksHonoursReservedCells(t *testing.T) {
 	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
 	layout := bunkLayout(t, shell, err)
-	first := PlanShelterBunks(layout, testShapes, 4, nil)
+	first := PlanShelterBunks(layout, testShapes, 4, 1, nil)
 	var reserved []domain.Cell
 	for _, bunk := range first {
 		reserved = append(reserved, rectCells(bunk.Rect)...)
 	}
-	second := PlanShelterBunks(layout, testShapes, 8, reserved)
+	second := PlanShelterBunks(layout, testShapes, 8, 1, reserved)
 	if len(second) != 8 {
 		t.Fatalf("bunks %+v", second)
 	}
@@ -93,7 +93,7 @@ func TestBunkLayoutPrefersTheShellAroundTheBunks(t *testing.T) {
 	far, err2 := domain.RectangleFootprint(domain.RoomBounds{X: 30, Z: 30, Width: 9, Height: 9}, domain.South)
 	a, b := bunkLayout(t, near, err), bunkLayout(t, far, err2)
 	var rects []Rectangle
-	for _, bunk := range PlanShelterBunks(b, testShapes, 3, nil) {
+	for _, bunk := range PlanShelterBunks(b, testShapes, 3, 1, nil) {
 		rects = append(rects, bunk.Rect)
 	}
 	chosen, ok := BunkLayout([]StarterLayout{a, b}, rects)

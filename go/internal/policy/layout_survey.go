@@ -63,6 +63,9 @@ func (c SurveyCell) Soft() bool {
 type MapSurvey struct {
 	Bounds Bounds
 	Cells  []SurveyCell
+	// Cold is the map's climate (ColdMapCurve), set by the caller; a fresh
+	// plan latches it (LayoutPlan.Cold).
+	Cold bool
 }
 
 // ModuleRole is a planned room's role.

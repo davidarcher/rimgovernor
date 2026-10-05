@@ -26,7 +26,7 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGeyser, animals int) domain.Fact[LayoutPlan] {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
-	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints))}, s, pawns, 0, tier)
+	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints)), Cold: s.Cold}, s, pawns, 0, tier)
 	if len(plan.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}

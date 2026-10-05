@@ -89,7 +89,7 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 	spine, wings = sg.siteSuiteBlocks(spine, rooms, wings, suites)
 	sg.carveSuiteWings(wings)
 	sg.carveBedroomWings(wings)
-	spine, rooms = sg.siteShelter(spine, rooms, wings, seed, pawns)
+	spine, rooms = sg.siteShelter(spine, rooms, wings, seed, pawns, plan.Cold)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
 	return routedEntrances(plan)
 }

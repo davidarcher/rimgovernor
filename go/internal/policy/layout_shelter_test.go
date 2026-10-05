@@ -44,7 +44,7 @@ func TestPlanHoldsOneShelterFiveTilesClearOnOpenGround(t *testing.T) {
 	if gap := shelterGapTo(p, s); gap < shelterGap {
 		t.Fatalf("shelter %v is %d tiles from the nearest room, want at least %d", s.Interior, gap, shelterGap)
 	}
-	want := ShelterSizes(3, ShelterCampfires)[0]
+	want := ShelterSizes(3, ShelterCampfires(false))[0]
 	if s.Interior.Width != want[0] || s.Interior.Height != want[1] {
 		t.Fatalf("shelter interior %dx%d, sized %v", s.Interior.Width, s.Interior.Height, want)
 	}
@@ -79,7 +79,7 @@ func TestShelterFallbackLadder(t *testing.T) {
 		}
 	}
 	seed := open.Spine[0].From
-	size := ShelterSizes(3, ShelterCampfires)[0]
+	size := ShelterSizes(3, ShelterCampfires(false))[0]
 	all := base.AllRooms()
 	halls := spineRects(base.Hallways())
 
@@ -101,7 +101,7 @@ func TestShelterFallbackLadder(t *testing.T) {
 			t.Fatalf("shelter sited %d clear on ground that leaves less", gap)
 		}
 	}
-	spine, rooms := g.siteShelter(base.Spine, base.Rooms, base.Wings, seed, 3)
+	spine, rooms := g.siteShelter(base.Spine, base.Rooms, base.Wings, seed, 3, false)
 	crowded := base
 	crowded.Spine, crowded.Rooms = spine, rooms
 	s := shelterOf(t, crowded)

@@ -54,7 +54,7 @@ func (b shelterBunk) rect() policy.Rectangle { return policy.BunkRect(b.anchor, 
 // shelterBunkSlots are the template's bunk slots for the site as orders.
 func shelterBunkSlots(layout policy.StarterLayout, facts observation.ColonyProjection, occupants int) []shelterBunk {
 	var out []shelterBunk
-	for _, p := range policy.PlanShelterBunks(layout, facts.Shapes, occupants, nil) {
+	for _, p := range policy.PlanShelterBunks(layout, facts.Shapes, occupants, shelterCampfires(facts), nil) {
 		out = append(out, shelterBunk{p.Anchor(), p.Rot})
 	}
 	return out
