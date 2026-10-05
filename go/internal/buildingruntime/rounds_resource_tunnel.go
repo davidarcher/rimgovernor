@@ -182,7 +182,11 @@ func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, s
 	if err != nil {
 		return RoundsResourceResult{}, false, err
 	}
-	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, MinCorridor: 1, MaxCorridor: tunnelMaxCorridor, RoofSupport: facts.RoofSupport, Roofs: roofs}
+	anchor, planned := facts.Center().Value()
+	if !planned {
+		return RoundsResourceResult{Verdict: BuildingNoLayoutPlan}, false, nil
+	}
+	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: anchor, Cells: facts.Cells, Protected: protected, MinCorridor: 1, MaxCorridor: tunnelMaxCorridor, RoofSupport: facts.RoofSupport, Roofs: roofs}
 	snap.NoteExcavation(call, request)
 	targets, err := policy.CorridorExcavationSites(request, ore.Cell)
 	if err != nil {

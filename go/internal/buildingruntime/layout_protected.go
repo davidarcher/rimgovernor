@@ -6,40 +6,41 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// planCore is the persisted layout plan's core (#1534), or the colony
-// centre when no plan is stored.
-func planCore(facts observation.ColonyProjection) domain.Cell {
+// planCore is the persisted layout plan's core (#1534); false until a plan
+// exists.
+func planCore(facts observation.ColonyProjection) (domain.Cell, bool) {
 	if plan, ok := facts.LayoutPlan.Value(); ok {
 		if core, ok := plan.Core(); ok {
-			return core
+			return core, true
 		}
 	}
-	return facts.Center
+	return facts.Center().Value()
 }
 
 // fieldAnchor is where pens, barns, fields, tombs and waste start their site
 // search: the middle of the first free field-zone run of the layout plan, else
-// the colony centre (no plan, or no free run). The plan is read at every build
-// tier: gating it on Masonry stacked the pens, barn and turbines of a Camp
-// colony on the map centre.
-func fieldAnchor(facts observation.ColonyProjection) domain.Cell {
+// the plan's centre (no free run); false until a plan exists. The plan is read
+// at every build tier: gating it on Masonry stacked the pens, barn and
+// turbines of a Camp colony on the map centre.
+func fieldAnchor(facts observation.ColonyProjection) (domain.Cell, bool) {
 	if plan, ok := facts.LayoutPlan.Value(); ok {
 		if anchor, ok := plan.FieldAnchor(layoutFree(facts)); ok {
-			return anchor
+			return anchor, true
 		}
 	}
-	return facts.Center
+	return facts.Center().Value()
 }
 
 // roomAnchor is the centre of the nearest free planned room of the role to the
-// point to (reserve rooms when none is free), else the colony centre.
-func roomAnchor(facts observation.ColonyProjection, role policy.ModuleRole, to domain.Cell) domain.Cell {
+// point to (reserve rooms when none is free), else the plan's centre; false
+// until a plan exists.
+func roomAnchor(facts observation.ColonyProjection, role policy.ModuleRole, to domain.Cell) (domain.Cell, bool) {
 	if plan, ok := facts.LayoutPlan.Value(); ok {
 		if anchor, ok := plan.NearestAnchor(role, to, layoutFree(facts)); ok {
-			return anchor
+			return anchor, true
 		}
 	}
-	return facts.Center
+	return facts.Center().Value()
 }
 
 // layoutFree reports whether a rectangle is observed open ground free of

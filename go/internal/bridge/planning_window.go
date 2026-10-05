@@ -15,9 +15,9 @@ import (
 // map. The window was the colony centre +/- 22 cells widened to the layout
 // plan's extent, and a plan first derived after the window was read left
 // the planners that anchor on its core looking at cells round the landing
-// only (a butcher spot placed 70 cells from the core). center and plan are
-// kept for the callers' signature; neither narrows the read.
-func PlanningWindowRect(center domain.Cell, bounds policy.Bounds, plan policy.Rectangle) policy.Rectangle {
+// only (a butcher spot placed 70 cells from the core). plan is kept for
+// the callers' signature; it does not narrow the read.
+func PlanningWindowRect(bounds policy.Bounds, plan policy.Rectangle) policy.Rectangle {
 	return policy.Rectangle{Width: bounds.Width, Height: bounds.Height}
 }
 

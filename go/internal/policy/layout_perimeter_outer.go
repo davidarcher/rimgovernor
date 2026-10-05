@@ -3,9 +3,9 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // The outer ring (#1595): a second stone wall, planned up front around the
-// rich field patches, the animal pen, the geothermal enclosures and the
-// turbine pairs (with their lanes) near the core, wholly apart from the core ring (perimeterOuterGap cells between
-// them, never a shared wall). It has its own reservation kinds, so the core
+// geothermal enclosures near the core, wholly apart from the core ring
+// (perimeterOuterGap cells between them, never a shared wall). Fertile
+// patches stand outside it: fields are open ground. It has its own reservation kinds, so the core
 // ring's logic and the builder tell them apart; it holds no killbox. It
 // traces, snaps to rock and gates as the core ring does (wallRuns); soft
 // ground on it is walled like any other cell.
@@ -13,14 +13,6 @@ const (
 	ReserveOuterWall ReservationKind = "outer_wall"
 	ReserveOuterGate ReservationKind = "outer_gate"
 
-	// perimeterPatchMax is the largest rich patch the ring takes in: a bigger
-	// one (a whole valley floor) would wall the map and is left outside
-	// (#1582).
-	perimeterPatchMax = 2500
-	// perimeterPatchMin is the smallest rich patch worth walling: a lone
-	// fertile tile or two would stretch the ring (and its extra walls) across
-	// open ground for nothing.
-	perimeterPatchMin = 30
 	// perimeterOuterGap is the free cells between the core ring (and the
 	// killbox approach) and the outer ring.
 	perimeterOuterGap int32 = 1
@@ -40,15 +32,14 @@ var outerEnclosed = map[ReservationKind]bool{ReserveGeothermal: true}
 var innerEnclosed = map[ReservationKind]bool{ReservePen: true, ReserveBarn: true, ReserveVetRoom: true, ReserveTurbine: true, ReserveTurbineLane: true}
 
 // planOuterRing returns the outer ring's reservations: walls and gates around
-// the units within twice perimeterFieldReach of the core ring (the chain limit, so a
-// string of patches cannot walk the wall across the map). core is the core
+// the units within twice perimeterFieldReach of the core ring. core is the core
 // ring's enclosure and approaches the killbox's lanes, both kept clear.
 func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Rectangle, impassable func(domain.Cell) bool) []LayoutReservation {
 	w, h := core.w, core.h
 	chain := pad(core.bbox, 2*perimeterFieldReach)
 	region := make([]bool, w*h)
 	found := false
-	// take adds a unit (a patch, the pen, an enclosure) when some cell of it
+	// take adds a unit (an enclosure) when some cell of it
 	// lies within the chain, whole.
 	take := func(cells []domain.Cell) {
 		near := false
@@ -61,34 +52,6 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 				found = true
 			}
 		}
-	}
-	rich := make([]bool, w*h)
-	for _, z := range plan.Zones {
-		if z.Kind != ZoneField {
-			continue
-		}
-		for _, r := range z.Runs {
-			for x := r.X; x < r.X+r.Length; x++ {
-				if x >= 0 && r.Z >= 0 && x < w && r.Z < h {
-					rich[r.Z*w+x] = true
-				}
-			}
-		}
-	}
-	for _, c := range s.Cells {
-		if c.Fertility <= zoneRichFertility && c.Cell.X >= 0 && c.Cell.Z >= 0 && c.Cell.X < w && c.Cell.Z < h {
-			rich[c.Cell.Z*w+c.Cell.X] = false
-		}
-	}
-	for _, comp := range components(w, h, func(i int32) bool { return rich[i] }) {
-		if len(comp) > perimeterPatchMax || len(comp) < perimeterPatchMin {
-			continue
-		}
-		cells := make([]domain.Cell, len(comp))
-		for k, i := range comp {
-			cells[k] = domain.Cell{X: i % w, Z: i / w}
-		}
-		take(cells)
 	}
 	pairs := map[int32][]domain.Cell{}
 	for _, r := range plan.Reservations {

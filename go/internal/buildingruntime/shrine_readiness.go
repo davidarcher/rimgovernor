@@ -143,7 +143,8 @@ func roundsShrineHolds(ctx context.Context, native any, snapshot domain.Generati
 	var shrinePolicy policy.ShrinePolicy
 	custody := policy.JoinerCapacity(projection.Facts.JoinerCapacity())
 	reads, ok := native.(shrineReadinessNative)
-	if !ok {
+	center, planned := projection.Center().Value()
+	if !ok || !planned {
 		out := make([]policy.ShrineHold, 0, len(shrines))
 		for _, shrine := range shrines {
 			out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: ShrineHoldReadinessUnknown})
@@ -151,7 +152,7 @@ func roundsShrineHolds(ctx context.Context, native any, snapshot domain.Generati
 		}
 		return out, shrinePolicy, nil
 	}
-	reports, err := shrineReadiness(ctx, reads, boundary.Identity(snapshot), shrines, nil, projection.Threat.RaidPoints, projection.Center, projection.Bounds)
+	reports, err := shrineReadiness(ctx, reads, boundary.Identity(snapshot), shrines, nil, projection.Threat.RaidPoints, center, projection.Bounds)
 	if err != nil {
 		return nil, shrinePolicy, err
 	}

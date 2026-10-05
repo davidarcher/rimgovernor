@@ -29,7 +29,8 @@ type deepDrillBuildingSource interface {
 func deepDrillSites(f observation.ColonyProjection, runways []policy.ResourceRunway) []observation.DeepResourceLump {
 	deep, known := f.DeepResources.Value()
 	available, ak := f.DefinitionAvailable("DeepDrill").Value()
-	if !known || policy.ResearchGate([]string{"DeepDrilling", "GroundPenetratingScanner"}, f.Facts.Research) != "" || !ak || !available {
+	center, planned := f.Center().Value()
+	if !planned || !known || policy.ResearchGate([]string{"DeepDrilling", "GroundPenetratingScanner"}, f.Facts.Research) != "" || !ak || !available {
 		return nil
 	}
 	scanner := false
@@ -55,7 +56,7 @@ func deepDrillSites(f observation.ColonyProjection, runways []policy.ResourceRun
 		}
 	}
 	distance := func(c domain.Cell) int64 {
-		x, z := int64(c.X)-int64(f.Center.X), int64(c.Z)-int64(f.Center.Z)
+		x, z := int64(c.X)-int64(center.X), int64(c.Z)-int64(center.Z)
 		return x*x + z*z
 	}
 	sort.Slice(sites, func(i, j int) bool {
@@ -210,6 +211,7 @@ func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state Con
 		}
 	}
 	runways := review.ResourceRunwayState()
+	center, _ := f.Center().Value()
 	for _, site := range deepDrillSites(f, runways) {
 		// The drill is one catalog row (#728): a deposit, bill, tree or
 		// caravan the other planners bid higher for the same metal wins.
@@ -221,7 +223,7 @@ func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state Con
 				deficit = row.Target - stock
 			}
 		}
-		if candidate, ok := policy.DeepDrillCandidate(resource, site.Definition, min(site.Count, deficit), math.Hypot(float64(site.Centre.X-f.Center.X), float64(site.Centre.Z-f.Center.Z)), domain.Unknown[int64]()); ok {
+		if candidate, ok := policy.DeepDrillCandidate(resource, site.Definition, min(site.Count, deficit), math.Hypot(float64(site.Centre.X-center.X), float64(site.Centre.Z-center.Z)), domain.Unknown[int64]()); ok {
 			ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, deficit), []policy.AcquisitionCandidate{candidate}, policy.AcquisitionCompetition{})
 			if err != nil {
 				return RoundsResourceResult{}, true, err

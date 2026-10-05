@@ -61,14 +61,18 @@ func geneBankDefinitions(read *observation.RoundsReading) ([]observation.Plannin
 
 // geneBankAnchor is where the site search starts: beside a gene assembler,
 // else a standing bank, else the nearest free workshop room.
-func geneBankAnchor(facts observation.ColonyProjection, biotech observation.BiotechColony) domain.Cell {
+func geneBankAnchor(facts observation.ColonyProjection, biotech observation.BiotechColony) (domain.Cell, bool) {
 	if len(biotech.GeneAssemblers) > 0 {
-		return biotech.GeneAssemblers[0].Position
+		return biotech.GeneAssemblers[0].Position, true
 	}
 	if len(biotech.GeneBanks) > 0 {
-		return biotech.GeneBanks[0].Position
+		return biotech.GeneBanks[0].Position, true
 	}
-	return roomAnchor(facts, policy.ModuleWorkshop, facts.Center)
+	center, planned := facts.Center().Value()
+	if !planned {
+		return domain.Cell{}, false
+	}
+	return roomAnchor(facts, policy.ModuleWorkshop, center)
 }
 
 func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsBuildingResult, error) {
@@ -181,7 +185,11 @@ func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 		return got.Preview, got.Stock, action, nil
 	}
-	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: f.Bounds, Anchor: geneBankAnchor(f, biotech), Cells: f.Cells}, size.Width, size.Height)
+	anchor, planned := geneBankAnchor(f, biotech)
+	if !planned {
+		return RoundsBuildingResult{Verdict: BuildingNoLayoutPlan}, nil
+	}
+	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: f.Bounds, Anchor: anchor, Cells: f.Cells}, size.Width, size.Height)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}

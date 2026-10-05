@@ -591,6 +591,9 @@ func roundsFixture(t *testing.T) (*Rounder, *store.Store, *playerFakeSession, st
 	if err != nil {
 		t.Fatal(err)
 	}
+	if centre := n.reply.GetObserved().GetCenter(); centre != nil {
+		centreOn(r, domain.Cell{X: centre.GetX(), Z: centre.GetZ()})
+	}
 	return r, db, session, request, n
 }
 

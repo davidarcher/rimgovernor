@@ -131,15 +131,21 @@ func (p LayoutPlan) Core() (domain.Cell, bool) {
 			return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
 		}
 	}
+	return p.Center()
+}
+
+// Center is the middle of the plan's core: the bounding box of its hallways
+// and room walls. False for a plan with neither.
+func (p LayoutPlan) Center() (domain.Cell, bool) {
 	var fp Rectangle
 	for _, r := range spineRects(p.Hallways()) {
 		fp = unionRect(fp, r)
 	}
-	if fp.Width == 0 {
-		return domain.Cell{}, false
-	}
 	for _, r := range p.AllRooms() {
 		fp = unionRect(fp, roomWalls(r))
+	}
+	if fp.Width == 0 {
+		return domain.Cell{}, false
 	}
 	return domain.Cell{X: fp.X + fp.Width/2, Z: fp.Z + fp.Height/2}, true
 }

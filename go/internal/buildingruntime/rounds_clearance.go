@@ -119,7 +119,11 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 		}
 		row.SalvageSelected = !row.InHome && review.SalvageTarget != "" && row.EntityID == review.SalvageTarget && safe
 	}
-	selection := policy.SelectHomeClearance(filtered, colony.Projection.Center)
+	center, planned := colony.Projection.Center().Value()
+	if !planned {
+		return RoundsClearanceResult{Verdict: BuildingNoLayoutPlan}, nil
+	}
+	selection := policy.SelectHomeClearance(filtered, center)
 	id := domain.MintPlanID()
 	var prefix string
 	var actions []domain.Action

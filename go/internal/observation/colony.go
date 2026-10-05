@@ -139,7 +139,6 @@ type ColonyProjection struct {
 	BedPrice policy.BedPrice
 	Workers  domain.Fact[int]
 	Bounds   policy.Bounds
-	Center   domain.Cell
 	// Region is the observed planning window; cells absent inside it are
 	// fogged, cells outside it were never read.
 	Region policy.Rectangle
@@ -165,6 +164,17 @@ type ColonyProjection struct {
 
 // ResourceStock reports the accessible stock of one definition, unknown when
 // the census itself is unknown.
+// Center is the middle of the layout plan's core: unknown until a plan
+// exists, so nothing anchors on where the colonists happen to stand.
+func (r ColonyProjection) Center() domain.Fact[domain.Cell] {
+	if plan, ok := r.LayoutPlan.Value(); ok {
+		if center, ok := plan.Center(); ok {
+			return domain.Known(center)
+		}
+	}
+	return domain.Unknown[domain.Cell]()
+}
+
 func (r ColonyProjection) ResourceStock(name policy.Resource) domain.Fact[int64] {
 	stock, known := r.Resources.Value()
 	if !known {
@@ -342,7 +352,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			return ColonyProjection{}, ErrChanged
 		}
 	}
-	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
+	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}}
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.BuildTier = domain.Unknown[policy.BuildTier]()
 	r.Threat = bridge.ProjectColonyThreat(v)

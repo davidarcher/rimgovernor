@@ -333,7 +333,11 @@ func (r *RoundsAnimalContainmentPlanner) buildShell(call, epoch context.Context,
 	if !known {
 		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_stuff")}, nil
 	}
-	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: fieldAnchor(facts), Cells: facts.Cells, Protected: protected})
+	anchor, planned := fieldAnchor(facts)
+	if !planned {
+		return RoundsAnimalContainmentResult{Verdict: BuildingNoLayoutPlan}, nil
+	}
+	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: facts.Cells, Protected: protected})
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
@@ -412,7 +416,10 @@ func penShellCells(room policy.Rectangle) (gate domain.Cell, ring []domain.Cell)
 // step. The gate opens onto ground the frame lists open, which a miner and
 // the animals reach.
 func (r *RoundsAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoundsReading, stuff string) (RoundsAnimalContainmentResult, error) {
-	anchor := fieldAnchor(facts)
+	anchor, planned := fieldAnchor(facts)
+	if !planned {
+		return RoundsAnimalContainmentResult{Verdict: BuildingNoLayoutPlan}, nil
+	}
 	reach := policy.RockSiteReach
 	view := policy.RockSiteView(facts.Cells, facts.Bounds, policy.Rectangle{X: anchor.X - reach, Z: anchor.Z - reach, Width: 2*reach + 1, Height: 2*reach + 1})
 	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: view, Protected: protected, Entrance: facts.Cells})

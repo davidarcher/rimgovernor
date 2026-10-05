@@ -33,7 +33,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 				p.Preview.WatchCellsAccessible = test.access[native.previews-1]
 			}
-			facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}}
+			facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}}
 			for _, c := range []domain.Cell{{X: 2, Z: 2}, {X: 3, Z: 2}} {
 				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
 			}
@@ -228,7 +228,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 			}
-			facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(barracks, hosting), Rooms: test.rooms}
+			facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(barracks, hosting), Rooms: test.rooms}
 			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)

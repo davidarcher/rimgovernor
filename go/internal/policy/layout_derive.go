@@ -33,6 +33,8 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 	plan.Zones = zones
 	want := layoutUtilities
 	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
+	scorer := newPlanScorer(plan.Zones, plan.Reservations, s)
+	want.scorer = &scorer
 	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s), s)
 	return domain.Known(withoutCore(plan))
 }
@@ -124,19 +126,20 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	next, resited := rp.replanCore(next, replanPins(next, growth.Fixed, emptied, tier))
 	dropped = dropped || resited
 	var unplaced []error
-	next, throne, err := growThroneRoom(next, growth.ThroneArea)
+	scorer := newPlanScorer(next.Zones, next.Reservations, s)
+	next, throne, err := growThroneRoom(next, growth.ThroneArea, &scorer)
 	dropped = dropped || throne
 	unplaced = append(unplaced, err)
 	for _, shape := range growth.Child {
 		var grown bool
-		next, grown, err = growChildRoom(next, shape)
+		next, grown, err = growChildRoom(next, shape, &scorer)
 		dropped = dropped || grown
 		unplaced = append(unplaced, err)
 	}
-	next, gear, err := growGearRooms(next, growth.Demand)
+	next, gear, err := growGearRooms(next, growth.Demand, &scorer)
 	dropped = dropped || gear
 	unplaced = append(unplaced, err)
-	next, storage, err := growStorageRooms(next, growth.Demand)
+	next, storage, err := growStorageRooms(next, growth.Demand, &scorer)
 	dropped = dropped || storage
 	unplaced = append(unplaced, err)
 	next, incinerator := growIncinerator(next, growth.Incinerator)

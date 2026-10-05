@@ -33,7 +33,11 @@ func (r *RoundsBuildingPlanner) selectPaste(p observation.ColonyProjection) (*Ro
 			request.Size = d.Size
 		}
 	}
-	site, ok := policy.PlanSiteType(policy.SiteTypeRequest{Paste: &request, Field: policy.FieldRequest{Site: policy.FarmSiteRequest{Cells: p.Cells, Bounds: p.Bounds, Anchor: p.Center}}})
+	anchor, planned := p.Center().Value()
+	if !planned {
+		return r, BuildingNoLayoutPlan
+	}
+	site, ok := policy.PlanSiteType(policy.SiteTypeRequest{Paste: &request, Field: policy.FieldRequest{Site: policy.FarmSiteRequest{Cells: p.Cells, Bounds: p.Bounds, Anchor: anchor}}})
 	if !ok {
 		return r, noSpace("paste_dispenser_site")
 	}

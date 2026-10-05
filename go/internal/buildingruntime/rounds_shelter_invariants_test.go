@@ -43,6 +43,7 @@ func TestRoundsShelterShellInvariantsAcrossSites(t *testing.T) {
 			planner, db, n := shelterSiteFixture(t)
 			if variant.side > 0 {
 				n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(variant.center.X), Z: proto.Int32(variant.center.Z)}
+				centreOn(planner.reviewer, domain.Cell{X: variant.center.X, Z: variant.center.Z})
 				lit := variant.lit
 				if lit == nil {
 					lit = func(int32, int32) bool { return true }
@@ -206,14 +207,15 @@ func TestRoundsShelterRefusesAlreadyRoofedGround(t *testing.T) {
 }
 
 // Bunks staged from one review's layout are still enclosed by the ring a
-// later review raises, though the colony centre (the pawns' mean position)
-// has drifted in between (#672).
+// later review raises (#672). The colony centre is the plan's, so the pawns
+// walking off between reviews no longer moves it.
 func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, n := shelterSiteFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(planner.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(n, 25, func(int32, int32) bool { return true })
 	bunks := map[domain.Cell]bool{}
 	for rung, method := range []domain.MethodID{shelterSpotsMethod, shelterBedsMethod} {
@@ -233,8 +235,6 @@ func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 				}
 			}
 		}
-		// The pawns walk off between reviews.
-		n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10 + 4*int32(rung+1)), Z: proto.Int32(10 + 3*int32(rung+1))}
 	}
 	result, err := planner.Step(ctx)
 	if err != nil || result.Verdict != BuildingReasonAdmitted {

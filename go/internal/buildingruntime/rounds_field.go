@@ -142,7 +142,10 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoundsFieldResult{}, err
 	}
-	anchor := fieldAnchor(projection)
+	anchor, planned := fieldAnchor(projection)
+	if !planned {
+		return RoundsFieldResult{Verdict: BuildingNoLayoutPlan}, nil
+	}
 	placeOthers := func(wait uint32, reason Verdict) (RoundsFieldResult, error) {
 		result, tried, err := r.placeLedger(call, epoch, state, projection, read, wait, others, anchor, protected)
 		if err != nil || tried {
@@ -714,7 +717,8 @@ func fieldSiteRequest(projection observation.ColonyProjection, protected []domai
 		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, HarvestWork: d.HarvestWork, RawPreferred: d.RawPreferred, DietAllowed: d.DietAllowed, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil})
 	}
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays)
-	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: fieldAnchor(projection), Cells: projection.Cells, Protected: protected}
+	anchor, _ := fieldAnchor(projection)
+	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: anchor, Cells: projection.Cells, Protected: protected}
 	if fields, ok := layoutFieldCells(projection); ok {
 		site.Fields = fields
 	}

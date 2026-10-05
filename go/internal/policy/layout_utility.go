@@ -68,6 +68,9 @@ type UtilityWants struct {
 	// first, except where a cell is under thick roof (it cannot be
 	// removed). Nil keeps those sites off rock (#1758).
 	ThickRoof map[domain.Cell]bool
+	// scorer sites the battery room with the initial siting's costing; nil
+	// takes the nearest slot.
+	scorer *planScorer
 }
 
 // ThickRoofCells is the survey's cells under thick mountain roof, for
@@ -111,7 +114,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		// the geysers' ground.
 		sited := plan
 		sited.Zones = coreWithout(plan.Zones, geothermalCells(want.Geysers))
-		if grown, ok, err := SiteRoom(sited, ModuleBattery, batteryRoomSize); ok {
+		if grown, ok, err := SiteRoom(sited, want.scorer, ModuleBattery, batteryRoomSize); ok {
 			plan.Spine, plan.Rooms = grown.Spine, grown.Rooms
 		} else {
 			slog.Warn("layout: no hallway has room for the battery room", "hallways", len(plan.Spine), "rooms", len(plan.Rooms), "err", err)

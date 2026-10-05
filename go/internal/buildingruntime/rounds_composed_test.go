@@ -320,6 +320,7 @@ func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *
 	if err != nil {
 		t.Fatal(err)
 	}
+	centreOn(r1, domain.Cell{X: n1.reply.GetObserved().GetCenter().GetX(), Z: n1.reply.GetObserved().GetCenter().GetZ()})
 	r1.native = &healthyWorkNative{roundsMedicalNative: &roundsMedicalNative{roundsNative: n1}}
 	r1.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	if _, err = r1.Step(ctx); err != nil {
@@ -392,6 +393,7 @@ func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *
 	if err != nil {
 		t.Fatal(err)
 	}
+	centreOn(r2, domain.Cell{X: n2.reply.GetObserved().GetCenter().GetX(), Z: n2.reply.GetObserved().GetCenter().GetZ()})
 	r2.native = &healthyWorkNative{roundsMedicalNative: &roundsMedicalNative{roundsNative: n2}}
 	r2.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	if _, err = r2.Step(ctx); err != nil {

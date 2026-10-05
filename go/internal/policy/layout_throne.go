@@ -61,12 +61,12 @@ func (p LayoutPlan) ThroneRoomFor(area int) (LayoutRoom, bool) {
 // moves or resizes: a room a later title outgrows stays until a larger one
 // supersedes it. It reports whether a room was added; a plan with no
 // core ground or no slot for any shape is left as it is, with the error.
-func growThroneRoom(plan LayoutPlan, area int) (LayoutPlan, bool, error) {
+func growThroneRoom(plan LayoutPlan, area int, sc *planScorer) (LayoutPlan, bool, error) {
 	if area <= 0 || len(plan.Hallways()) == 0 {
 		return plan, false, nil
 	}
 	if _, ok := plan.ThroneRoomFor(area); ok {
 		return plan, false, nil
 	}
-	return SiteRoom(plan, ModuleThrone, ThroneRoomSizes(area)...)
+	return SiteRoom(plan, sc, ModuleThrone, ThroneRoomSizes(area)...)
 }

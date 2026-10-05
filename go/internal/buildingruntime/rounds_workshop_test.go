@@ -290,7 +290,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 			}
-			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(tomb, hosting), Rooms: test.rooms}
+			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(tomb, hosting), Rooms: test.rooms}
 			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)
@@ -328,7 +328,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	hosting := domain.Cell{X: 3, Z: 2}
 	rooms := domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}})
 	facts := func(tick domain.Tick) observation.ColonyProjection {
-		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: hosting, Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}, Rooms: rooms}
+		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(hosting)), Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}, Rooms: rooms}
 	}
 	rejectUnless := func(accepted domain.Rotation) func(context.Context, *bridge.BuildingPreview) {
 		return func(_ context.Context, p *bridge.BuildingPreview) {

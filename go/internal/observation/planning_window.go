@@ -62,7 +62,7 @@ func fillPlanningWindow(ctx context.Context, reply *o.ColonyFactsReply, identity
 			return err
 		}
 	}
-	held, err := source.PlanningWindow(ctx, identity, bridge.PlanningWindowRect(projection.Center, projection.Bounds, extent))
+	held, err := source.PlanningWindow(ctx, identity, bridge.PlanningWindowRect(projection.Bounds, extent))
 	if err != nil {
 		return err
 	}

@@ -212,10 +212,13 @@ func storageRequest(projection *observation.ColonyProjection, protected []domain
 	}
 	if met, known := projection.Facts.FoodStorage.Value(); !known || !met {
 		anchor, cooking := cookingSpot(projection)
+		core, planned := planCore(*projection)
 		if !cooking {
-			anchor = planCore(*projection)
+			anchor = core
 		}
-		request.Food = &policy.FoodStore{Anchor: anchor}
+		if cooking || planned {
+			request.Food = &policy.FoodStore{Anchor: anchor}
+		}
 	}
 	return request
 }

@@ -60,6 +60,7 @@ func sleepingFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *playe
 	t.Helper()
 	r, db, session, request, n := roundsFixture(t)
 	sleepingFacts(n)
+	centreOn(r, domain.Cell{X: 2, Z: 2})
 	if _, err := r.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestRoundsSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T
 		t.Fatal(result, err)
 	}
 	g := result.Decision.Standard
-	if len(g.Methods) != 1 || n.previews != 2 || session.acquires.Load() != before {
+	if len(g.Methods) != 1 || n.previews != 3 || session.acquires.Load() != before {
 		t.Fatal(g, n.previews)
 	}
 	p, err := db.LoadPlan(context.Background(), g.Methods[0].Plan)
@@ -112,7 +113,7 @@ func TestRoundsSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T
 			t.Fatal("compiler dispatched", progress)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 2 {
+	if next, err := r.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 3 {
 		t.Fatal(next, err)
 	}
 	request.Kind, request.RequestID = store.PauseControl, "manual-sleep"
@@ -317,6 +318,7 @@ func TestRoundsSleepingKeepsDoorwayAislesClear(t *testing.T) {
 	// the cells beside it are the entrance aisle, never furniture, even when
 	// the colony centre makes the aisle the nearest candidate.
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)}
+	centreOn(r.reviewer, domain.Cell{X: 2, Z: 1})
 	for i, row := range n.cells.Cells {
 		if row.Cell == (domain.Cell{X: 2, Z: 0}) {
 			n.cells.Cells[i].Doorway, n.cells.Cells[i].Occupied, n.cells.Cells[i].Walkable = domain.Known(true), domain.Known(true), domain.Known(true)

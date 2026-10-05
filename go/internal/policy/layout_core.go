@@ -119,6 +119,8 @@ type coreGrid struct {
 	// fixed are the interiors of the rooms a replan must not move or change
 	// (#1958): the search operators and the second-door pass leave them be.
 	fixed map[Rectangle]bool
+	// skip are the room interiors fits refuses: the slots SiteRoom has scored.
+	skip map[Rectangle]bool
 }
 
 // Soil build costs per cell (#1279/#1284): rich soil costs more than
@@ -322,6 +324,9 @@ func coreRoom(role ModuleRole, ix, z0, w, d int32, north bool) LayoutRoom {
 // core candidates.
 func (g coreGrid) fits(r LayoutRoom, seg SpineSegment) bool {
 	in := r.Interior
+	if g.skip[in] {
+		return false
+	}
 	for x := in.X - 1; x <= in.X+in.Width; x++ {
 		for z := in.Z - 1; z <= in.Z+in.Height; z++ {
 			if !g.core[domain.Cell{X: x, Z: z}] {

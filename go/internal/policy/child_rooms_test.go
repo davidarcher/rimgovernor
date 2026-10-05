@@ -261,7 +261,7 @@ func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
 func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
 	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
 	shape := ChildRoomShape{Module: ModuleNursery, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 4}}}
-	grown, added, _ := growChildRoom(base, shape)
+	grown, added, _ := growChildRoom(base, shape, nil)
 	if !added || len(grown.Rooms) != len(base.Rooms)+1 {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(base.Rooms), len(grown.Rooms))
 	}
@@ -276,10 +276,10 @@ func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
 	if _, err := CheckRoutes(grown); err != nil {
 		t.Fatal(err)
 	}
-	if again, added, _ := growChildRoom(grown, shape); added || len(again.Rooms) != len(grown.Rooms) {
+	if again, added, _ := growChildRoom(grown, shape, nil); added || len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("a nursery already holds the cribs")
 	}
-	if _, added, _ := growChildRoom(grown, ChildRoomShape{Module: ModuleNursery}); added {
+	if _, added, _ := growChildRoom(grown, ChildRoomShape{Module: ModuleNursery}, nil); added {
 		t.Fatal("no furniture, no room")
 	}
 }

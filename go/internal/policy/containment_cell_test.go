@@ -123,7 +123,7 @@ func TestContainmentCellIsFurnishedWithALamp(t *testing.T) {
 	shape, _ := need.shape(withLamp)
 	plain, _ := need.shape(platformFurniture())
 	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
-	grown, added, _ := growChildRoom(base, plain)
+	grown, added, _ := growChildRoom(base, plain, nil)
 	if !added {
 		t.Fatal("no room grown")
 	}
@@ -190,7 +190,7 @@ func TestContainmentCellIsStagedLikeAnyChildRoom(t *testing.T) {
 		t.Fatalf("shape %+v %v", shape, ok)
 	}
 	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
-	grown, added, _ := growChildRoom(base, shape)
+	grown, added, _ := growChildRoom(base, shape, nil)
 	if !added {
 		t.Fatal("no room grown for the platform")
 	}

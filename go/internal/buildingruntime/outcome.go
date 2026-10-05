@@ -425,7 +425,10 @@ var (
 	BuildingResearchBenchUnavailable = awaitingPlan("research_bench", "unbuildable")
 	BuildingHospitalUnavailable      = awaitingPlan("buildable_bed", "hospital")
 	BuildingSleepingUnavailable      = awaitingPlan("buildable_bed", "")
-	BuildingNoWeaponBench            = awaitingPlan("weapon_bench", "")
+	// BuildingNoLayoutPlan holds a site search that anchors on the layout
+	// plan until one exists: nothing is sited on where the colonists stand.
+	BuildingNoLayoutPlan  = awaitingPlan("layout_plan", "")
+	BuildingNoWeaponBench = awaitingPlan("weapon_bench", "")
 	// BuildingReasonDemand is a migrated planner's result when the step's
 	// stock, less the quantities earlier proposals claimed and admitted
 	// plans hold, does not cover a quantity it needs and no less urgent

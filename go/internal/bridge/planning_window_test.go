@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -14,7 +13,7 @@ func TestPlanningWindowRectIsTheWholeMap(t *testing.T) {
 	bounds := policy.Bounds{Width: 100, Height: 60}
 	want := policy.Rectangle{Width: 100, Height: 60}
 	for _, plan := range []policy.Rectangle{{}, {X: 90, Z: 50, Width: 5, Height: 5}} {
-		if got := PlanningWindowRect(domain.Cell{X: 50, Z: 30}, bounds, plan); got != want {
+		if got := PlanningWindowRect(bounds, plan); got != want {
 			t.Fatal(got)
 		}
 	}

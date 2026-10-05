@@ -207,7 +207,11 @@ func (r *RoundsShrinePlanner) step(call, epoch context.Context, arbiter *stepArb
 			return r.open(call, epoch, state, goal, shrine, caskets, lock, started, arbiter)
 		}
 	}
-	reports, err := shrineReadiness(call, r.native, boundary.Identity(state.Snapshot), candidates, nil, colony.Projection.Threat.RaidPoints, colony.Projection.Center, colony.Projection.Bounds)
+	center, planned := colony.Projection.Center().Value()
+	if !planned {
+		return RoundsShrineResult{Verdict: BuildingNoLayoutPlan}, nil
+	}
+	reports, err := shrineReadiness(call, r.native, boundary.Identity(state.Snapshot), candidates, nil, colony.Projection.Threat.RaidPoints, center, colony.Projection.Bounds)
 	if err != nil {
 		return RoundsShrineResult{}, err
 	}

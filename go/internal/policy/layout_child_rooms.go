@@ -123,14 +123,14 @@ func frameDims(r LayoutRoom) (width, depth int32) {
 // the nearest core slot. A room is only ever retired by the reconcile steps
 // in layout_retire.go; none moves or resizes. It reports whether a room was
 // added.
-func growChildRoom(plan LayoutPlan, s ChildRoomShape) (LayoutPlan, bool, error) {
+func growChildRoom(plan LayoutPlan, s ChildRoomShape, sc *planScorer) (LayoutPlan, bool, error) {
 	if len(s.Pieces) == 0 || len(plan.Hallways()) == 0 {
 		return plan, false, nil
 	}
 	if _, ok := plan.ChildRoomFor(s); ok {
 		return plan, false, nil
 	}
-	return SiteRoom(plan, s.Module, ChildRoomSizes(s)...)
+	return SiteRoom(plan, sc, s.Module, ChildRoomSizes(s)...)
 }
 
 // planChildRoom lays every slot for the piece being placed; the step takes

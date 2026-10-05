@@ -546,6 +546,7 @@ func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(n, 21, func(int32, int32) bool { return true })
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	result, err := r.Step(context.Background())
@@ -604,6 +605,7 @@ func TestRoundsShelterRefusesABlockedPlannedStoreroom(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	lit := func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }
 	hutCells(n, 21, lit)
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
@@ -648,6 +650,7 @@ func TestRoundsShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) 
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
@@ -724,6 +727,7 @@ func TestRoundsShelterAdoptsALoneDoor(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// An interrupted shell's blueprints and frames are cancelled natively;
 	// only the door it had finished survives, and it is the shell's record.
@@ -770,6 +774,7 @@ func TestRoundsShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	door := domain.Cell{X: 4, Z: 3}
 	// Two planned storerooms share the door: the square one and a taller one.
@@ -906,6 +911,7 @@ func TestRoundsShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// An earlier controller grew a concave shell over constrained terrain,
 	// which no template describes, and a restart left its door and all but
@@ -961,6 +967,7 @@ func TestRoundsShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// The player cancelled the door of an earlier shell whose walls stand;
 	// with no door standing the census alone sees nothing to adopt, but the
@@ -1010,6 +1017,7 @@ func TestRoundsShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// A shell plan whose every cell was cancelled before anything was built
 	// leaves no durable native record; the ring is not adopted from the
@@ -1127,6 +1135,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	t.Parallel()
 	r, _, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	ring, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
@@ -1139,7 +1148,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	snapshot := r.reviewer.player.session.State().Snapshot
 	snapshot.Plan, snapshot.Revision = "routine-shell-test", 1
 	n.last = snapshot
-	facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 21, Height: 21}, Center: domain.Cell{X: 10, Z: 10}, Identity: observation.Identity{Tick: domain.Tick(base.reply.GetObserved().Context.GetTick())}}
+	facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 21, Height: 21}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 10, Z: 10})), Identity: observation.Identity{Tick: domain.Tick(base.reply.GetObserved().Context.GetTick())}}
 	// The ring is the planned barracks these planners build (#1231).
 	barracks, _ := policy.LayoutModule(policy.RoomRoleBarracks)
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7}, Door: ring.Door(), DoorRot: domain.South}}})

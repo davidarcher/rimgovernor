@@ -138,7 +138,10 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 			entry.stored = append(entry.stored, cell.Cell)
 		}
 	}
-	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists, Anchor: planCore(*projection), Rooms: domain.Unknown[[]policy.Room]()}
+	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists, Rooms: domain.Unknown[[]policy.Room]()}
+	if core, planned := planCore(*projection); planned {
+		request.Anchor = core
+	}
 	if plan, known := projection.LayoutPlan.Value(); known {
 		request.Planned = policy.PlannedRoomGround(plan)
 	}

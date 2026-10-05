@@ -361,6 +361,10 @@ func (r *RoundsAcquisitionPlanner) resourceSelection(ctx context.Context, snapsh
 		return nil, false, err
 	}
 	hunts, _ := slots.Value()
+	center, planned := projection.Center().Value()
+	if !planned {
+		return nil, false, errors.New("layout plan unknown")
+	}
 	for _, row := range ranked {
 		// A designated resource is its own existing work; the goal's
 		// other targets still plan (#1045).
@@ -369,7 +373,7 @@ func (r *RoundsAcquisitionPlanner) resourceSelection(ctx context.Context, snapsh
 			existing = true
 			continue
 		}
-		picked, best, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), projection.Center, held, hunts)
+		picked, best, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), center, held, hunts)
 		if err != nil {
 			return nil, false, err
 		}

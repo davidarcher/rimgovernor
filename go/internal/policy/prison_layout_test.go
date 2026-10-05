@@ -87,7 +87,7 @@ func TestGrowGearRoomsKeepsTheArmoryClearOfPrisons(t *testing.T) {
 	if len(plan.roomsOf(ModulePrison)) == 0 {
 		t.Fatal("the test plan has no prison")
 	}
-	grown, added, err := growGearRooms(plan, RoomDemand{Armory: true})
+	grown, added, err := growGearRooms(plan, RoomDemand{Armory: true}, nil)
 	if err != nil || !added {
 		t.Fatalf("armory added=%v err=%v", added, err)
 	}

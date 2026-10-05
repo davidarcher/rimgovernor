@@ -26,6 +26,7 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	n.cells = &window
 	n.reply.GetObserved().Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: planning}}
 	n.reply.GetObserved().Center = proto.Clone(template.reply.GetObserved().Center).(*c.Cell)
+	centreOn(s.config.Rounds, domain.Cell{X: n.reply.GetObserved().Center.GetX(), Z: n.reply.GetObserved().Center.GetZ()})
 	source := &sleepingNative{roundsNative: n}
 	planner, err := NewRoundsSleepingPlanner(s.config.Rounds, source)
 	if err != nil {

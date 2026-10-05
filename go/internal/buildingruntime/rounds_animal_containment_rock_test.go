@@ -17,7 +17,7 @@ func penMountain(t *testing.T, fogged bool) (*RoundsAnimalContainmentPlanner, ex
 	t.Helper()
 	p, _, n, s, _, _ := rockCoolerStep(t)
 	s.facts.Bounds = policy.Bounds{Width: 32, Height: 32}
-	s.facts.Center = domain.Cell{X: 16, Z: 16}
+	s.facts.LayoutPlan = domain.Known(centrePlan(domain.Cell{X: 16, Z: 16}))
 	s.facts.Cells = nil
 	n.rock = map[domain.Cell]bool{}
 	for x := int32(0); x < 32; x++ {

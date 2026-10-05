@@ -40,7 +40,7 @@ func TestGearRoomsNeedDemand(t *testing.T) {
 	if owed := GearRoomsOwed(plan, RoomDemand{}); len(owed) != 0 {
 		t.Fatalf("owed %v with no demand", owed)
 	}
-	if same, added, _ := growGearRooms(plan, RoomDemand{}); added || len(same.Rooms) != len(plan.Rooms) {
+	if same, added, _ := growGearRooms(plan, RoomDemand{}, nil); added || len(same.Rooms) != len(plan.Rooms) {
 		t.Fatal("rooms added with no demand")
 	}
 }
@@ -64,7 +64,7 @@ func gearBesidePlan() LayoutPlan {
 func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 	t.Parallel()
 	plan := gearBesidePlan()
-	grown, added, _ := growGearRooms(plan, RoomDemand{Armory: true, Wardrobe: true})
+	grown, added, _ := growGearRooms(plan, RoomDemand{Armory: true, Wardrobe: true}, nil)
 	if !added || len(grown.Rooms) != len(plan.Rooms)+2 {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(plan.Rooms), len(grown.Rooms))
 	}
@@ -89,7 +89,7 @@ func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 	if _, err := CheckRoutes(grown); err != nil {
 		t.Fatal(err)
 	}
-	if again, added, _ := growGearRooms(grown, RoomDemand{Armory: true, Wardrobe: true}); added || len(again.Rooms) != len(grown.Rooms) {
+	if again, added, _ := growGearRooms(grown, RoomDemand{Armory: true, Wardrobe: true}, nil); added || len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("a standing room answers its demand for good")
 	}
 }

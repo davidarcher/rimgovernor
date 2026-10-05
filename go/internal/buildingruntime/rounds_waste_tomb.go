@@ -75,7 +75,11 @@ const graveSiteTries = 4
 // fields anchor, trying the next site while native refuses one.
 func (r *RoundsWastePlanner) placeGrave(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.TombStep) (RoundsBuildingResult, error) {
 	facts := reading.Projection
-	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: fieldAnchor(facts), Cells: facts.Cells, Protected: nil}, 1, 2)
+	anchor, planned := fieldAnchor(facts)
+	if !planned {
+		return RoundsBuildingResult{Verdict: BuildingNoLayoutPlan}, nil
+	}
+	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: facts.Cells, Protected: nil}, 1, 2)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}

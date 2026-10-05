@@ -533,8 +533,12 @@ func (r *RoundsBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.
 	if !ok {
 		return nil, policy.StockObservation{}, Verdict{}, false, nil
 	}
-	minimum := domain.Cell{X: max(0, facts.Center.X-shellAdoptionReach), Z: max(0, facts.Center.Z-shellAdoptionReach)}
-	maximum := domain.Cell{X: min(facts.Bounds.Width-1, facts.Center.X+shellAdoptionReach), Z: min(facts.Bounds.Height-1, facts.Center.Z+shellAdoptionReach)}
+	center, planned := facts.Center().Value()
+	if !planned {
+		return nil, policy.StockObservation{}, Verdict{}, false, nil
+	}
+	minimum := domain.Cell{X: max(0, center.X-shellAdoptionReach), Z: max(0, center.Z-shellAdoptionReach)}
+	maximum := domain.Cell{X: min(facts.Bounds.Width-1, center.X+shellAdoptionReach), Z: min(facts.Bounds.Height-1, center.Z+shellAdoptionReach)}
 	if minimum.X > maximum.X || minimum.Z > maximum.Z {
 		return nil, policy.StockObservation{}, Verdict{}, false, nil
 	}
@@ -572,7 +576,7 @@ func (r *RoundsBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.
 		return nil, policy.StockObservation{}, Verdict{}, false, nil
 	}
 	sort.Slice(doors, func(i, j int) bool {
-		a, b := squaredDistance(doors[i], facts.Center), squaredDistance(doors[j], facts.Center)
+		a, b := squaredDistance(doors[i], center), squaredDistance(doors[j], center)
 		if a != b {
 			return a < b
 		}

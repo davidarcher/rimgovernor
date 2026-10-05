@@ -189,7 +189,7 @@ func withoutOpening(r policy.StockpileRequest) policy.StockpileRequest {
 // once the fact reads met.
 func TestStorageRequestPlansFoodUntilStorageIsMet(t *testing.T) {
 	t.Parallel()
-	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, Center: domain.Cell{X: 7, Z: 8}}
+	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 7, Z: 8}))}
 	for _, fact := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
 		projection.Facts.FoodStorage = fact
 		food := storageRequest(projection, nil).Food

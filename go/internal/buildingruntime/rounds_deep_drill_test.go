@@ -10,7 +10,7 @@ import (
 
 func drillFacts() observation.ColonyProjection {
 	return observation.ColonyProjection{
-		Center:      domain.Cell{X: 10, Z: 10},
+		LayoutPlan:  domain.Known(centrePlan(domain.Cell{X: 10, Z: 10})),
 		Resources:   domain.Known(map[policy.Resource]int64{"Steel": 0, "Plasteel": 0}),
 		Facts:       policy.RoundsFacts{Research: domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{"DeepDrilling", "GroundPenetratingScanner"}})},
 		Definitions: []observation.PlanningDefinition{{Name: "DeepDrill", Available: domain.Known(true), PowerW: domain.Known(200.0)}},

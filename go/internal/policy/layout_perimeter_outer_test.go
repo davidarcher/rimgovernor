@@ -67,9 +67,9 @@ func outerReach(walls map[domain.Cell]bool) map[domain.Cell]bool {
 	return seen
 }
 
-func TestOuterRingEnclosesPatchAndGeothermal(t *testing.T) {
+func TestOuterRingEnclosesGeothermal(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	p, units := outerPlan(t, 40)
+	p, _ := outerPlan(t, 40)
 	walls, gates := reservedCells(p, ReserveOuterWall), reserved(p, ReserveOuterGate)
 	if len(walls) == 0 || len(gates) == 0 {
 		t.Fatal("outer walls", len(walls), "gates", gates)
@@ -83,9 +83,14 @@ func TestOuterRingEnclosesPatchAndGeothermal(t *testing.T) {
 		}
 	}
 	seen := outerReach(walls)
-	for c := range units {
-		if seen[c] {
-			t.Fatal("outer ring leaves", c, "reachable")
+	for _, r := range p.Reservations {
+		if r.Kind != ReserveGeothermal {
+			continue
+		}
+		for _, c := range rectCells(r.Area) {
+			if seen[c] {
+				t.Fatal("outer ring leaves the geothermal enclosure", c, "reachable")
+			}
 		}
 	}
 	// Apart from the core ring, the killbox and its approach by a free cell.
@@ -107,33 +112,26 @@ func TestOuterRingEnclosesPatchAndGeothermal(t *testing.T) {
 	}
 }
 
-// A patch past the size cap is a valley floor, left outside; the geothermal
-// enclosure beside it is still walled.
-func TestOuterRingSkipsHugePatch(t *testing.T) {
+// A fertile patch is open ground, left outside the outer ring at any size;
+// the geothermal enclosure beside it is still walled.
+func TestOuterRingLeavesPatchOutside(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	p, units := outerPlan(t, 126)
-	walls := reservedCells(p, ReserveOuterWall)
-	if len(walls) == 0 {
-		t.Fatal("no outer ring for the geothermal enclosure")
-	}
-	seen := outerReach(walls)
-	for _, r := range p.Reservations {
-		if r.Kind == ReserveGeothermal {
-			for _, c := range rectCells(r.Area) {
-				if seen[c] {
-					t.Fatal(r.Kind, "left outside", c)
-				}
+	for _, width := range []int32{40, 126} {
+		p, units := outerPlan(t, width)
+		walls := reservedCells(p, ReserveOuterWall)
+		if len(walls) == 0 {
+			t.Fatal("no outer ring for the geothermal enclosure")
+		}
+		seen := outerReach(walls)
+		outside := 0
+		for c := range units {
+			if seen[c] {
+				outside++
 			}
 		}
-	}
-	outside := 0
-	for c := range units {
-		if seen[c] {
-			outside++
+		if want := int(width) * 20; outside < want {
+			t.Fatal("the patch is walled in at width", width, ":", outside, "of", want, "cells outside")
 		}
-	}
-	if outside < 126*20 {
-		t.Fatal("the huge patch is walled in:", outside, "cells outside")
 	}
 }
 
@@ -141,7 +139,7 @@ func TestOuterRingNeedsUnits(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} })
 	if len(reserved(p, ReserveOuterWall)) != 0 || len(reserved(p, ReserveOuterGate)) != 0 {
-		t.Fatal("outer ring without a patch, pen or geothermal enclosure")
+		t.Fatal("outer ring without a geothermal enclosure")
 	}
 }
 
