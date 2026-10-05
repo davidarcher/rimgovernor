@@ -37,9 +37,6 @@ func (r *Rounder) reviewChildRooms(reading *observation.RoundsReading) error {
 		return err
 	}
 	r.census.rememberWorship(worship)
-	if _, verdict := containmentCellNeed(reading.Projection); verdict.Reason != "" {
-		clockSchedulerLog("containment cell not planned: %s", verdict.Reason)
-	}
 	return nil
 }
 
@@ -112,7 +109,6 @@ func childRoomStep(facts observation.ColonyProjection) policy.ChildRoomStep {
 // stageChildRoom answers a due child room step: the shell through
 // shellRoom, a piece through placePiece.
 func (r *RoundsSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ChildRoomStep) (RoundsBuildingResult, error) {
-	clockSchedulerLog("%s: %s %s", goal.OwnerID(), step.Need.Role, step.Kind)
 	method := domain.MethodID(step.Method())
 	if step.Kind == policy.ChildRoomPlace {
 		return r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, method)

@@ -639,8 +639,8 @@ func TestPlayerGateWaitNamesHolder(t *testing.T) {
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
-	if r.wait.wait <= slowGateWait {
-		t.Fatalf("wait = %s, want > %s", r.wait.wait, slowGateWait)
+	if r.wait.wait <= 100*time.Millisecond {
+		t.Fatalf("wait = %s, want > 100ms", r.wait.wait)
 	}
 	if r.wait.holder != "rounds_review" {
 		t.Fatalf("holder = %q, want rounds_review", r.wait.holder)

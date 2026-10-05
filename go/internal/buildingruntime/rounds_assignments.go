@@ -89,7 +89,6 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	existing := func(unknown RoundsWorkResult) RoundsWorkResult {
 		if len(open) > 0 {
-			clockSchedulerLog("Work.step: open plan kept, fresh decision unknown reason=%v", unknown.Verdict)
 			return RoundsWorkResult{Verdict: BuildingReasonExistingWork}
 		}
 		return unknown

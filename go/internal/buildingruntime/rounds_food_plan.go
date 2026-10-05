@@ -64,13 +64,6 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 		weatherAccuracy = env.WeatherAccuracy
 	}
 	squads, lone := policy.SquadHunts(sources, gunners, weatherAccuracy)
-	prey := 0
-	for _, src := range sources {
-		if src.SquadPrey() {
-			prey++
-		}
-	}
-	clockSchedulerLog("food plan: %d acquisition sources (%d squad prey), %d gunners, %d squad channels", len(sources), prey, gunners, len(squads))
 	channels := append(policy.ForageChannels(sources), policy.HuntChannels(lone)...)
 	channels = append(channels, squads...)
 	if benches, bk := p.ProductionBenches.Value(); bk {

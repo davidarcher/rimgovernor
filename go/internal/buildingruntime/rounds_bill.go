@@ -150,7 +150,6 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		if art.sculpting {
 			ticks = artNativeWorkTicks
 		}
-		clockSchedulerLog("art bill: selected=%+v missing=%v art=%+v err=%v", selected, missing, art, err)
 		if err != nil || !missing.IsZero() {
 			return RoundsBillResult{Verdict: missing, NativeWorkTicks: ticks}, err
 		}

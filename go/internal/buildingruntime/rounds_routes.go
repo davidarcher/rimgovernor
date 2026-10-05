@@ -54,9 +54,6 @@ func (r *RoundsBuildingPlanner) selectRoutes(facts observation.ColonyProjection,
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	if clockDebug() {
-		clockSchedulerLog("routes: review=%+v door=%+v proposal=%+v", review, routes.DoorAvailable, proposal)
-	}
 	switch proposal.Method {
 	case policy.RoutesBuild:
 		resolved := *r
@@ -141,16 +138,10 @@ func (r *RoundsBuildingPlanner) previewRoutes(ctx context.Context, snapshot doma
 				p.SafeToPlace = domain.Known(true)
 			}
 			if !made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-				if clockDebug() {
-					clockSchedulerLog("routes: breach %v rotation %v refused legal=%v safe=%v footprint=%v blockers=%+v", cell, rotation, legal, safe, footprint, p.Blockers)
-				}
 				continue
 			}
 			if err = mergeRoundsStock(&stock, preview.Stock, true); err != nil {
 				return nil, stock, Verdict{}, err
-			}
-			if clockDebug() {
-				clockSchedulerLog("routes: door %s on breach %v for facility %s stock=%+v", r.routes.Definition, cell, r.routes.Facility, stock.Values)
 			}
 			return []policy.Preview{p}, stock, Verdict{}, nil
 		}

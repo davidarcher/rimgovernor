@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"sync"
@@ -119,9 +118,6 @@ func (r *RoundsBuildingPlanner) selectFlooring(call context.Context, current dom
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	if clockDebug() {
-		clockSchedulerLog("flooring: review=%+v definitions=%d stock=%+v proposal=%+v", review, len(flooring.Definitions), flooring.Stock, proposal)
-	}
 	switch proposal.Method {
 	case policy.FlooringBuild:
 		resolved := *r
@@ -195,9 +191,6 @@ func (r *RoundsBuildingPlanner) previewFlooring(ctx context.Context, snapshot do
 			continue
 		}
 		if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-			if clockDebug() {
-				clockSchedulerLog("flooring: cell %v refused legal=%v safe=%v footprint=%v", cell, legal, safe, footprint)
-			}
 			continue
 		}
 		if err = mergeRoundsStock(&stock, preview.Stock, len(selected) == 0); err != nil {
@@ -206,9 +199,6 @@ func (r *RoundsBuildingPlanner) previewFlooring(ctx context.Context, snapshot do
 		selected = append(selected, p)
 	}
 	if len(selected) > 0 {
-		if clockDebug() {
-			clockSchedulerLog("flooring: %d cells previewed for %s in room %s stock=%+v", len(selected), r.flooring.Definition, r.flooring.Room, stock.Values)
-		}
 		return selected, stock, Verdict{}, nil
 	}
 	if unknown {
@@ -243,7 +233,7 @@ func logTrafficFindings(fact domain.Fact[policy.FlooringObservation]) {
 	if !changed || joined == "" {
 		return
 	}
-	slog.Default().Info("traffic findings: "+joined, telemetry.ComponentKey, "routine-flooring", telemetry.KindKey, "traffic_finding")
+	telemetry.Decide(context.Background(), telemetry.Decision{Kind: "routine_skip", Component: "routine-flooring", Verdict: "skipped", Reason: "traffic_finding", Target: "flooring", Attrs: map[string]any{"findings": lines}})
 }
 
 // trafficFlooringFacts adds what the traffic tier prices its floor from

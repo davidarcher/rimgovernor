@@ -92,9 +92,6 @@ type gateWait struct {
 	holderHeld time.Duration
 }
 
-// slowGateWait is the wait past which enter names the gate's holder.
-const slowGateWait = 100 * time.Millisecond
-
 // enter takes the player gate for a caller named by label (clock_step,
 // rounds_review, submit, manual, ...).
 func (p *Player) enter(ctx context.Context, label string, manual bool) (context.Context, context.Context, func(), error) {
@@ -150,13 +147,6 @@ func (p *Player) enterTimed(ctx context.Context, label string, manual bool) (con
 	p.mu.Lock()
 	p.holder, p.holderSince = label, acquired
 	p.mu.Unlock()
-	if waited.wait > slowGateWait {
-		name := waited.holder
-		if name == "" {
-			name = "unknown"
-		}
-		clockSchedulerLog("player gate: %s waited %s behind %s (held %s)", label, waited.wait.Round(time.Millisecond), name, waited.holderHeld.Round(time.Millisecond))
-	}
 	release := func() {
 		p.mu.Lock()
 		p.holder, p.holderSince = "", time.Time{}

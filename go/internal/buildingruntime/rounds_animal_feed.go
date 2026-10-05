@@ -169,7 +169,6 @@ func (r *RoundsAnimalFeedPlanner) step(call, epoch context.Context, arbiter *ste
 		case choice.Delivered:
 			benches = nil
 		case len(choice.StorageCells) > 0:
-			clockSchedulerLog("%s: no reachable bench for %s; zoning %d feed storage cells inside the animals' area", goal.Standard.ID, choice.Resource, len(choice.StorageCells))
 			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage")
 			if err == nil && (result.Verdict.Is(RefusalSharedAdmission) || result.Verdict.Is(RefusalNoSpace)) {
 				// The footprint native offered was refused at preview (the

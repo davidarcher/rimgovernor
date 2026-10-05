@@ -63,9 +63,7 @@ func (m *psylinkMemory) review(ctx context.Context, identity *c.Identity, curren
 			items = domain.Known([]string{})
 		} else if known {
 			read, _, err := m.native.ReadNeuroformerItems(ctx, identity, policy.PsylinkNeuroformer)
-			if err != nil {
-				clockSchedulerLog("psylink: item read deferred: %v", err)
-			} else {
+			if err == nil {
 				items = domain.Known(read)
 			}
 		}

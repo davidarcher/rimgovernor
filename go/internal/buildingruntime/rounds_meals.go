@@ -14,7 +14,6 @@ func (r *Rounder) reviewMeals(p *observation.ColonyProjection) {
 	if err != nil {
 		return
 	}
-	clockSchedulerLog("meals: %s", review.Explain())
 	if review.Tier == policy.MealPaste {
 		channels, known := p.FoodChannels.Value()
 		if !known {

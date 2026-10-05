@@ -82,6 +82,5 @@ func (r *RoundsSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context, 
 	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: throne light %s refuel by %s (%s)", goal.OwnerID(), step.Lamp, step.Pawn, method)
 	return RoundsBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

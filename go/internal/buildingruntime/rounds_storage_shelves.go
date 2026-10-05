@@ -289,7 +289,6 @@ func (r *RoundsStorageShelvesPlanner) build(call, epoch context.Context, state C
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
-			clockSchedulerLog("%s: shelf %s refused in zone %s", goal.OwnerID(), piece.Slot, step.Zone.Zone)
 			continue
 		}
 		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}

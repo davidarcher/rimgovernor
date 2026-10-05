@@ -118,7 +118,6 @@ func (r *RoundsWastePlanner) stageDisposal(call, epoch context.Context, state Co
 	if !owed {
 		return RoundsWasteResult{}, false, nil
 	}
-	clockSchedulerLog("%s: incinerator shell at %d,%d", goal.Standard.ID, room.Interior.X, room.Interior.Z)
 	result, err := r.building.shellRoomOf(call, epoch, state, review, goal, reading.ColonyReading, room, incineratorMethod(room), "burn rotten and worn items", fireproofShellStuff)
 	return RoundsWasteResult{Verdict: result.Verdict}, true, err
 }

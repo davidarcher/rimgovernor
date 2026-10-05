@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -95,9 +94,6 @@ func comfortBuilderGate(facts observation.ColonyProjection, definition string) V
 	if builderAvailable(pawns, int(minimum)) {
 		return Verdict{}
 	}
-	if clockDebug() {
-		clockSchedulerLog("%s builder gate: no available pawn with Construction enabled at skill >= %d (%s)", definition, minimum, builderCensus(pawns))
-	}
 	need := "construction_work_enabled"
 	if minimum > 0 {
 		need = fmt.Sprintf("construction_skill_%d", minimum)
@@ -182,8 +178,6 @@ func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 // builderAvailable reports whether some available pawn has Construction
 // enabled in its observed settings and,
 // when the definition needs one, a Construction skill at the native minimum.
-// builderCensus is the diagnostic behind a "builder unavailable" wait
-// (clock trace, serve --debug).
 func builderAvailable(pawns []policy.WorkPawn, minimum int) bool {
 	for _, pawn := range pawns {
 		if pawn.Available != domain.Known(true) || pawn.Applies != domain.Known(true) {
@@ -215,30 +209,6 @@ func builderAvailable(pawns []policy.WorkPawn, minimum int) bool {
 		}
 	}
 	return false
-}
-
-func builderCensus(pawns []policy.WorkPawn) string {
-	var out []string
-	for _, pawn := range pawns {
-		level := -1
-		if skills, known := pawn.Skills.Value(); known {
-			for _, skill := range skills {
-				if skill.Name == "Construction" {
-					level = skill.Level
-				}
-			}
-		}
-		priority := -1
-		if settings, known := pawn.Work.Value(); known {
-			for _, setting := range settings {
-				if setting.Work == "Construction" {
-					priority = setting.Priority
-				}
-			}
-		}
-		out = append(out, fmt.Sprintf("%s available=%v applies=%v construction=%d priority=%d", pawn.ID, pawn.Available, pawn.Applies, level, priority))
-	}
-	return strings.Join(out, "; ")
 }
 
 // NewRoundsBasicComfortPlanner furnishes the starter hut at foothold

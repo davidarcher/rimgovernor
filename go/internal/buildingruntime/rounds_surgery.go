@@ -126,9 +126,6 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !harvesting {
 		// Prisoners stay on herbal (#1239): a cut only better medicine
 		// could serve is refused; the review asks for herbal instead.
-		if blocked, ok := policy.CareLimitedHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants), inFlight); ok {
-			clockSchedulerLog("%s: surgery %s on prisoner %s refused: medicine care limit %s allows no stocked medicine; herbal wanted", goal.Standard.ID, blocked.Recipe, blocked.Prisoner, policy.PrisonerMedicalCare)
-		}
 	}
 	if !harvesting {
 		// Peg-leg cycling (#1236): training, control or a reinstall.

@@ -41,7 +41,6 @@ func (r *Rounder) drawSafetyOverlay(ctx context.Context, snapshot domain.Generat
 	if !on {
 		if !r.safety.cleared {
 			if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), policy.SafetyLayer, policy.LayoutOverlay{}, false); err != nil {
-				clockSchedulerLog("safety overlay not cleared: %v", err)
 				return
 			}
 			r.safety = overlayState{cleared: true}
@@ -53,7 +52,6 @@ func (r *Rounder) drawSafetyOverlay(ctx context.Context, snapshot domain.Generat
 		return
 	}
 	if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), policy.SafetyLayer, layer, true); err != nil {
-		clockSchedulerLog("safety overlay not drawn: %v", err)
 		return
 	}
 	r.safety = overlayState{key: key, drawn: tick}

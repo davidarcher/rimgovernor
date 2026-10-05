@@ -232,8 +232,7 @@ func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state Con
 			if len(ranked) > 0 {
 				score = ranked[0].Score
 			}
-			if rival, yield := r.reviewer.bids.outranked(state.Snapshot, resource, bidDeepDrill, score, f.Identity.Tick); yield {
-				clockSchedulerLog("%s: %s deep drill %.3f yields to %s %.3f", goal.Standard.ID, resource, score, rival.kind, rival.score)
+			if _, yield := r.reviewer.bids.outranked(state.Snapshot, resource, bidDeepDrill, score, f.Identity.Tick); yield {
 				continue
 			}
 		}

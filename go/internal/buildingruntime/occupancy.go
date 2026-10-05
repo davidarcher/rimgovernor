@@ -22,7 +22,6 @@ func (r *Rounder) layoutOccupied(ctx context.Context, projection observation.Col
 	}
 	plans, err := r.player.journal.LoadPlans(ctx, 256)
 	if err != nil {
-		clockSchedulerLog("layout occupancy unknown, plan catalog: %v", err)
 		return nil, nil, false
 	}
 	origins := roomMethodOrigins(plans)

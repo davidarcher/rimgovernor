@@ -129,12 +129,10 @@ func (r *RoundsBuildingPlanner) verifyExcavation(call context.Context, snapshot 
 // excavationVerified is verifyExcavation's judgement of one site read.
 func excavationVerified(target policy.ExcavationTarget, site bridge.ExcavationSite) bool {
 	if site.Support == policy.ExcavationSupportUnsupported && !site.CollapsePending || !site.AccessReachable || !site.WorkerAvailable {
-		clockSchedulerLog("excavation target %s rejected: support=%d (%s) worker=%v access=%v", target.Key(), site.Support, site.SupportBlocker, site.WorkerAvailable, site.AccessReachable)
 		return false
 	}
 	review := policy.ReviewExcavation(target, excavationStates(site), excavationStageLimit)
 	if len(review.Kept) > 0 || !review.Corridor {
-		clockSchedulerLog("excavation target %s rejected: kept=%v corridor=%v", target.Key(), review.Kept, review.Corridor)
 		return false
 	}
 	return true
@@ -219,7 +217,6 @@ func (r *RoundsBuildingPlanner) stepExcavation(call, epoch context.Context, s ex
 		definitions[cell.Cell] = cell.Definition
 	}
 	review, reason, door := excavationNext(s.target, site)
-	clockSchedulerLog("excavation stage %d for %s: next=%v kept=%v remaining=%d unknown=%v complete=%v corridor=%v support=%d (%s) collapse=%v worker=%v access=%v", stage, s.target.Key(), review.Stage, review.Kept, review.Remaining, review.Unknown, review.Complete, review.Corridor, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable, site.AccessReachable)
 	if door {
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "excavation_door")}, nil
 	}
@@ -234,7 +231,6 @@ func (r *RoundsBuildingPlanner) stepExcavation(call, epoch context.Context, s ex
 		if err != nil {
 			return RoundsBuildingResult{}, err
 		}
-		clockSchedulerLog("excavation stage %d support=%d (%s)", stage, stageSite.Support, stageSite.SupportBlocker)
 		switch stageSite.Support {
 		case policy.ExcavationSupportSupported:
 		case policy.ExcavationSupportUnsupported:

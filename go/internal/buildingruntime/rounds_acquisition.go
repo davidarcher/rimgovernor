@@ -242,7 +242,6 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		runway = plan.Forecast.RunwayDays
 		projection.Acquisition, deficit = foodPlanAcquisition(plan, projection.Acquisition)
-		clockSchedulerLog("Food acquisition: %s", plan.Explain())
 	}
 	slots := domain.Unknown[int]()
 	if n, known := projection.PendingHunts.Value(); known {
@@ -271,15 +270,6 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 			sources = huntRows(sources)
 		}
 		selected, err = policy.SelectAcquisition(sources, deficit, pending, food, held, slots)
-	}
-	if rows, known := projection.Acquisition.Value(); known && !pest && !stockGoal {
-		hunts := 0
-		for _, row := range rows {
-			if row.Hunt {
-				hunts++
-			}
-		}
-		clockSchedulerLog("%s: acquisition select rows=%d hunts=%d deficit=%v pending=%v slots=%v held=%d selected=%d err=%v", goal.Standard.ID, len(rows), hunts, deficit, pending, slots, len(held), len(selected), err)
 	}
 	if err != nil {
 		return RoundsAcquisitionResult{Verdict: fieldUnavailable(unreadAcquisitionFact(projection.Acquisition, deficit, pending, pest || stockGoal))}, nil
@@ -369,7 +359,6 @@ func (r *RoundsAcquisitionPlanner) resourceSelection(ctx context.Context, snapsh
 		// A designated resource is its own existing work; the goal's
 		// other targets still plan (#1045).
 		if busy[string(row.Resource)] {
-			clockSchedulerLog("%s: catalog %s designated, existing work", r.need, row.Resource)
 			existing = true
 			continue
 		}
@@ -377,11 +366,9 @@ func (r *RoundsAcquisitionPlanner) resourceSelection(ctx context.Context, snapsh
 		if err != nil {
 			return nil, false, err
 		}
-		clockSchedulerLog("%s: catalog %s target=%d selected=%d", r.need, row.Resource, row.Target, len(picked))
 		// Joint ranking with the bill and mine planner (#728): a resource
 		// its fresh bid scores higher is left to it.
-		if rival, yield := r.reviewer.bids.bid(snapshot, row.Resource, bidAcquisition, best.Score, best.Kind, tick); yield {
-			clockSchedulerLog("%s: %s %s %.3f yields to %s %.3f", r.need, row.Resource, best.Kind, best.Score, rival.kind, rival.score)
+		if _, yield := r.reviewer.bids.bid(snapshot, row.Resource, bidAcquisition, best.Score, best.Kind, tick); yield {
 			continue
 		}
 		if len(picked) > 0 {

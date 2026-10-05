@@ -52,9 +52,6 @@ func (r *RoundsBuildingPlanner) selectRefrigeration(call context.Context, facts 
 	}
 	review = review.WithTombs(warmTombs(facts))
 	if !review.Active {
-		if clockDebug() {
-			clockSchedulerLog("refrigeration: inactive review=%+v storage=%+v", review, facts.Facts.FoodStorageUpkeep)
-		}
 		return nil, BuildingReasonNoDeficit, nil
 	}
 	coolers, _, err := observation.ReadRefrigerationCoolers(call, r.native.(observation.RefrigerationSource), facts.Identity, facts.PowerPlanning)
@@ -65,12 +62,6 @@ func (r *RoundsBuildingPlanner) selectRefrigeration(call context.Context, facts 
 	proposal, err := policy.SelectRefrigerationMethod(review, fact, r.reviewer.policy.FoodStorage, allowance)
 	if err != nil {
 		return nil, Verdict{}, err
-	}
-	if clockDebug() {
-		v, known := fact.Value()
-		_, tk := facts.Rooms.Value()
-		_, ck := coolers.Value()
-		clockSchedulerLog("refrigeration: review=%+v factKnown=%v temperatureKnown=%v coolersKnown=%v rooms=%d cells=%d coolerAvailable=%+v proposal=%+v", review, known, tk, ck, len(v.Rooms), len(v.Cells), v.CoolerAvailable, proposal)
 	}
 	switch proposal.Method {
 	case policy.RefrigerationBuild, policy.RefrigerationSetTarget:
@@ -234,9 +225,6 @@ func (r *RoundsBuildingPlanner) previewPlannedBuilding(ctx context.Context, snap
 	}
 	if err = mergeRoundsStock(&stock, preview.Stock, true); err != nil {
 		return nil, stock, Verdict{}, err
-	}
-	if clockDebug() {
-		clockSchedulerLog("%s: %s preview costs=%+v stock=%+v", r.concern, building.Definition(), p.Costs, stock.Values)
 	}
 	return []policy.Preview{p}, stock, Verdict{}, nil
 }

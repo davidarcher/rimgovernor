@@ -33,7 +33,7 @@ func fishingWork(p observation.ColonyProjection) []policy.WorkRequirement {
 func studyWork(ctx context.Context, p observation.ColonyProjection) domain.Fact[[]policy.WorkRequirement] {
 	work, reason := policy.StudyWork(p.Facts.Containment)
 	if _, known := work.Value(); !known {
-		slog.Default().WarnContext(ctx, "entity study staffing waits: "+reason, telemetry.ComponentKey, "routine-work", telemetry.KindKey, "entity_study_unread")
+		telemetry.Decide(ctx, telemetry.Decision{Kind: "routine_skip", Component: "routine-work", Level: slog.LevelWarn, Verdict: "waiting", Reason: "entity_study_unread", Target: "entity_study", Attrs: map[string]any{"detail": reason}})
 	}
 	return work
 }

@@ -158,7 +158,6 @@ func (r *RoundsPrisonerInteractionPlanner) stageJail(call, epoch context.Context
 	case policy.JailMark:
 		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
 	}
-	clockSchedulerLog("%s: jail %s (held %d, beds %d) reason=%v", goal.Standard.ID, step.Kind, step.Held, step.Beds, result.Verdict)
 	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
 		return RoundsPrisonerInteractionResult{}, false, err
 	}

@@ -86,10 +86,10 @@ func (m *creepJoinerMemory) review(current domain.GenerationSnapshot, tick domai
 	}
 	// Arrested creepjoiners are disarmed from the prisoner census.
 	if prisoners, known := facts.Facts.Prisoners.Value(); known {
-		if disarm, err := frame.Catalog.CreepJoinerDisarm(); err != nil {
-			clockSchedulerLog("creepjoiner disarm: %v", err)
-		} else if work.disarm = disarm.Orders(prisoners); len(work.disarm.Orders) > 0 {
-			owed = domain.Known(true)
+		if disarm, err := frame.Catalog.CreepJoinerDisarm(); err == nil {
+			if work.disarm = disarm.Orders(prisoners); len(work.disarm.Orders) > 0 {
+				owed = domain.Known(true)
+			}
 		}
 	}
 	m.mu.Lock()
@@ -283,9 +283,6 @@ func (r *RoundsCreepJoinerPlanner) step(call, epoch context.Context, arbiter *st
 		actions = append(actions, action)
 	}
 	if len(actions) == 0 {
-		for _, why := range work.disarm.Waiting {
-			clockSchedulerLog("%s: %s", goal.Standard.ID, why)
-		}
 		// No order to place: an ended inspection bill still changes the record.
 		if ordered.Encode() != was.Encode() {
 			if err = p.current(call, epoch); err != nil {
@@ -297,7 +294,6 @@ func (r *RoundsCreepJoinerPlanner) step(call, epoch context.Context, arbiter *st
 			return RoundsCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order_recorded")}, nil
 		}
 		if len(work.inspections.Waiting) > 0 {
-			clockSchedulerLog("%s: %s", goal.Standard.ID, work.inspections.Waiting[0])
 			return RoundsCreepJoinerResult{Verdict: awaitingPlan("creepjoiner_inspection", "")}, nil
 		}
 		return RoundsCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order")}, nil

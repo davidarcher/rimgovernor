@@ -55,7 +55,7 @@ func (r *RoundsTidyPlanner) move(call, epoch context.Context, state ControlState
 	if err = r.commit(call, epoch, state, goal, read, method, plan); err != nil {
 		return RoundsTidyResult{}, err
 	}
-	clockEvent(call, "layout", "tidy", "tidy furniture batch admitted: "+proposal.Explanation, "item", proposal.Item.ID, "plan", string(id), "moves", len(actions))
+	tidyEdit(call, "admitted", proposal.Item.ID, map[string]any{"plan": string(id), "moves": len(actions)})
 	for _, row := range tidyFurnitureRows(proposal, store.LayoutTidyMoving, string(id)) {
 		if err = p.journal.RecordLayoutTidy(call, state.Snapshot, tick, row); err != nil {
 			return RoundsTidyResult{}, err
@@ -82,7 +82,7 @@ func tidyFurnitureRows(proposal policy.TidyProposal, status store.LayoutTidyStat
 }
 
 func (r *RoundsTidyPlanner) abandonFurniture(call context.Context, state ControlState, tick domain.Tick, proposal policy.TidyProposal, plan string) (RoundsTidyResult, error) {
-	clockEvent(call, "layout", "tidy", "tidy furniture batch abandoned: "+proposal.Item.ID, "item", proposal.Item.ID)
+	tidyEdit(call, "abandoned", proposal.Item.ID, map[string]any{"plan": plan})
 	for _, row := range tidyFurnitureRows(proposal, store.LayoutTidyAbandoned, plan) {
 		if err := r.reviewer.player.journal.RecordLayoutTidy(call, state.Snapshot, tick, row); err != nil {
 			return RoundsTidyResult{}, err
@@ -113,7 +113,7 @@ func (r *RoundsTidyPlanner) finishFurniture(call context.Context, state ControlS
 				return RoundsTidyResult{}, err
 			}
 		}
-		clockEvent(call, "layout", "tidy", fmt.Sprintf("tidy furniture batch closed: %d of %d pieces moved", len(completed), len(rows)), "plan", planID)
+		tidyEdit(call, "closed", planID, map[string]any{"plan": planID, "moves": len(completed), "pieces": len(rows)})
 		return RoundsTidyResult{Verdict: BuildingReasonAdmitted}, nil
 	}
 	plan, err := p.journal.LoadPlan(call, domain.PlanID(planID))

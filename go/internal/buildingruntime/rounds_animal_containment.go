@@ -3,13 +3,11 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // RoundsAnimalContainmentPlanner composes MaintainAnimalContainment's
@@ -607,10 +605,8 @@ func (r *RoundsAnimalContainmentPlanner) placeMarker(call, epoch context.Context
 		break
 	}
 	if !found {
-		// A finished ring without a marker is not a pen; say why the
-		// interior refused one instead of idling silently.
-		slog.Default().Warn("pen marker found no legal interior cell", telemetry.ComponentKey, "animal-containment",
-			"shell", fmt.Sprintf("%d,%d %dx%d", room.X, room.Z, room.Width, room.Height), "interior_cells", len(cells), "candidates", len(search.Candidates()))
+		// A finished ring without a marker is not a pen; the verdict says
+		// the interior refused one.
 		return RoundsAnimalContainmentResult{Verdict: noSpace("pen_marker")}, nil
 	}
 	plan, err := domain.NewPlan(planID, 1, []domain.Action{chosen.Action})

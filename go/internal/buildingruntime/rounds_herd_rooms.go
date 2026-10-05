@@ -138,7 +138,6 @@ func (r *RoundsAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Cont
 	if !step.Owed() {
 		return RoundsAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	clockSchedulerLog("%s: %s %s", goal.Standard.ID, step.Role, step.Kind)
 	var result RoundsBuildingResult
 	switch step.Kind {
 	case policy.HerdShell:

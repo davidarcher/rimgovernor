@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"log/slog"
 	"strings"
 	"unicode"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // goalLabels are the in-game names of goal kinds whose split identifier
@@ -104,7 +102,6 @@ func withPlanIntent(ctx context.Context, intents interface {
 }, plan domain.PlanID) context.Context {
 	method, ok, err := intents.PlanMethod(ctx, plan)
 	if err != nil {
-		slog.Default().Debug("operation intent lookup failed", telemetry.ComponentKey, "dispatch", "plan", string(plan), "error", err)
 		return ctx
 	}
 	if !ok {

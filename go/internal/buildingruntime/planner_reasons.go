@@ -60,9 +60,9 @@ func noteRank(n policy.PlannerNote) int {
 	return 3
 }
 
-// plannerReasonLog remembers the last note filed per goal so the service log
-// names each goal's refusal or wait once per change. Only the step goroutine
-// touches it (recordWave).
+// plannerReasonLog remembers the last note filed per goal; the idle-stall row
+// lists them as the standing refusals. Only the step goroutine touches it
+// (recordWave).
 type plannerReasonLog struct {
 	last map[policy.ConcernID]policy.PlannerNote
 }
@@ -102,27 +102,15 @@ func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, V
 	return out
 }
 
-// recordPlannerReasons logs each goal's planner refusal or wait on change and
-// files it on the goal's progress record, so the status strip and the
-// service log say why a goal has no method or what it waits on.
+// recordPlannerReasons notes each goal's planner refusal or wait and files it
+// on the goal's progress record, so the status strip says why a goal has no
+// method or what it waits on (the planner_step rows carry the same reasons).
 func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *plannerWave) {
 	notes := wavePlannerReasons(wave.finishedNames(), wave.filing)
 	if len(notes) == 0 {
 		return
 	}
-	for goal, note := range s.plannerReasons.changed(notes) {
-		log := slog.Default().With(telemetry.ComponentKey, "clock-scheduler", "concern", string(goal))
-		switch {
-		case note.Text == "":
-			log.Info("planner refusal cleared")
-		case note.Waiting:
-			log.Info("planner waiting", "reason", note.Text)
-		case note.Text == policy.PlannerOptOut:
-			log.Info("planner switched off")
-		default:
-			log.Info("planner refused", "reason", note.Text)
-		}
-	}
+	s.plannerReasons.changed(notes)
 	if s.player == nil || s.player.journal == nil {
 		return
 	}

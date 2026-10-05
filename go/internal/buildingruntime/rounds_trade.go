@@ -410,7 +410,6 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 	default:
 		selection = policy.SelectTrade(economic, facts)
 	}
-	clockSchedulerLog("trade selection: phase=%v sale_art=%v refused=%v reason=%q selected=%+v evidence=%+v trader_silver=%d", phase, facts.SaleArt, selection.Refused, selection.Reason, selection.Selected, selection.Evidence, facts.TraderSilver)
 	if !facts.Favor {
 		r.bid(state, trader, selection, facts.Rows, review.Tick)
 	}

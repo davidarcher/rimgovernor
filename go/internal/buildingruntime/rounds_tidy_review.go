@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // reviewTidy serves the TidyLayout review (#611, #809) on the projection:
@@ -46,9 +47,16 @@ func (r *Rounder) reviewTidy(ctx context.Context, snapshot domain.GenerationSnap
 	review := policy.PlanTidyLayout(request)
 	projection.Facts.LayoutTidy = domain.Known(review)
 	if proposal := review.Proposal; proposal != nil {
-		clockEvent(ctx, "layout", "tidy", "tidy proposal: "+proposal.Explanation, "item", proposal.Item.ID, "kind", string(proposal.Item.Kind), "gain", proposal.Gain)
+		tidyEdit(ctx, "proposed", proposal.Item.ID, map[string]any{"kind": string(proposal.Item.Kind), "gain": proposal.Gain})
 	}
 	return nil
+}
+
+// tidyEdit files one tidy outcome (proposed, admitted, abandoned, closed) as
+// a layout_edit row about target, an item or a plan.
+func tidyEdit(ctx context.Context, verdict, target string, attrs map[string]any) {
+	attrs["family"] = "tidy"
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_edit", Component: "layout", Verdict: verdict, Reason: "tidy", Target: target, Attrs: attrs})
 }
 
 // tidyBusy reports the open work that holds the tidy: a project definition

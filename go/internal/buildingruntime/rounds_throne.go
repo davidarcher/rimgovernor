@@ -34,7 +34,6 @@ func (r *Rounder) reviewRoyalty(ctx context.Context, snapshot domain.GenerationS
 	// pawn rows (#1876). A read that cannot be used leaves royalty unknown.
 	royalty, err := projection.RoyaltyOf(reading.Frame.Pawns, reading.Frame.Catalog)
 	if err != nil {
-		clockSchedulerLog("royalty read deferred: %v", err)
 		return nil
 	}
 	facts, known := royalty.Value()
@@ -215,7 +214,6 @@ func throneMethod(step policy.ThroneStep) domain.MethodID {
 // stageThrone answers a due throne step: the shell through shellRoom, the
 // throne through placePiece. Furnishing follows through the room upgrade.
 func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
-	clockSchedulerLog("%s: throne room %s for %s (%s)", goal.OwnerID(), step.Kind, step.Need.Holder, step.Need.Title)
 	switch step.Kind {
 	case policy.ThroneShell:
 		return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, throneMethod(step), "throne room")

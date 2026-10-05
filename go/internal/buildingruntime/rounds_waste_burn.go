@@ -148,7 +148,6 @@ func (r *RoundsWastePlanner) burnRoom(call, epoch context.Context, state Control
 	}
 	order, verdict := policy.PlanBurn(request)
 	if verdict != policy.BurnReady {
-		clockSchedulerLog("%s: incinerator burn held: %s", goal.Standard.ID, verdict)
 		return RoundsWasteResult{Verdict: refuse(RefusalNoWorker, "incinerator_"+string(verdict), "")}, true, nil
 	}
 	var claims []string
@@ -198,7 +197,6 @@ func (r *RoundsWastePlanner) burnRoom(call, epoch context.Context, state Control
 		return RoundsWasteResult{}, true, err
 	}
 	chain(igniteAction)
-	clockSchedulerLog("%s: burn the incinerator (%d cells) with %s", goal.Standard.ID, stored, order.Burner)
 	return r.commitBurnPlan(call, epoch, state, goal, nextWaveMethod(goal, "burn-wave-"), id, actions, dependencies)
 }
 

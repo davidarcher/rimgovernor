@@ -282,7 +282,7 @@ job then, so no owner is owed between studies and nothing forces a job.
 Capture leaves the mode at Study (`CompHoldingPlatformTarget`); no write sets
 a mode. A held entity whose held or studiable fact is unread makes the
 requirement unknown: the work review reports `study_work` unavailable and
-logs `entity_study_unread` at warn.
+files a `routine_skip` row (`entity_study_unread`) at warn.
 
 ### Throne room
 

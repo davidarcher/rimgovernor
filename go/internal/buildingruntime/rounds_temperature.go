@@ -51,13 +51,6 @@ func (r *RoundsBuildingPlanner) selectTemperature(facts observation.ColonyProjec
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	if clockDebug() && (latches.Hot || proposal.Method == policy.TemperatureCoolPowered) {
-		spare := domain.Unknown[float64]()
-		if topology, known := cooling.Power.Value(); known {
-			spare = topology.SpareW()
-		}
-		clockSchedulerLog("temperature: proposal=%s room=%s coolerAvailable=%+v draw=%+v spare=%+v cells=%d", proposal.Method, proposal.Room, cooling.CoolerAvailable, cooling.CoolerDrawW, spare, len(cooling.Cells))
-	}
 	switch proposal.Method {
 	case policy.TemperatureHeat, policy.TemperatureCool, policy.TemperatureCoolPowered, policy.TemperatureRefuelOff, policy.TemperatureRefuelOn:
 		resolved := *r

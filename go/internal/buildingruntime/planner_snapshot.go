@@ -30,20 +30,16 @@ func recordStepRead(planner string, goal policy.ConcernID, current domain.Genera
 		return
 	}
 	snap.Later(func() {
-		if err := snap.RecordStep(dir, planner, goal, current, reading); err != nil {
-			clockSchedulerLog("%s: step read snapshot not recorded: %v", goal, err)
-		}
+		_ = snap.RecordStep(dir, planner, goal, current, reading)
 	})
 }
 
 // recordPlannerStep starts recording one planner step's policy inputs for
 // replay (#745, #746) when snapshot recording is on; the returned func
-// writes them, logging a failed write rather than failing the step.
+// writes them; a failed write is dropped rather than failing the step.
 func recordPlannerStep(call context.Context, goal policy.ConcernID, current domain.GenerationSnapshot, tick domain.Tick) (context.Context, func()) {
 	call, finish := snap.StartPlanner(call, goal)
 	return call, func() {
-		if err := finish(current, tick); err != nil {
-			clockSchedulerLog("%s: planner snapshot not recorded: %v", goal, err)
-		}
+		_ = finish(current, tick)
 	}
 }

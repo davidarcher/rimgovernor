@@ -345,14 +345,12 @@ func (r *RoundsBuildingPlanner) previewFreshShell(ctx context.Context, snapshot 
 			if !rock[c] {
 				// Fogged or unobserved: native has not said it is rock, so the
 				// ring is not raised around it.
-				clockSchedulerLog("%s: planned room at %+v has unobserved cells to mine; the ring waits", r.concern, layout.Room)
 				return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
 			}
 			waiting = append(waiting, c)
 		}
 		perimeter = unreused(perimeter, waiting)
 		if len(perimeter) == 0 {
-			clockSchedulerLog("%s: planned room at %+v has only rock cells left to mine; the ring waits", r.concern, layout.Room)
 			return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
 		}
 		ids := make([]domain.ActionID, len(perimeter))

@@ -38,7 +38,6 @@ func (r *RoundsWastePlanner) stageTomb(call, epoch context.Context, state Contro
 	step := tombStep(reading.Projection)
 	if step.Kind == policy.TombNone {
 		if morgue, owed := plannedMorgue(reading.Projection); owed {
-			clockSchedulerLog("%s: morgue shell for a waiting stranger corpse", goal.OwnerID())
 			result, err := r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, morgue, plannedRoomMethod(morgue), "")
 			// A shell already tried this epoch, or refused, leaves the
 			// burn to go on.
@@ -48,7 +47,6 @@ func (r *RoundsWastePlanner) stageTomb(call, epoch context.Context, state Contro
 		}
 		return r.stageDisposal(call, epoch, state, review, goal, arbiter, reading)
 	}
-	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.OwnerID(), step.Kind, step.Dead, step.Empty)
 	var result RoundsBuildingResult
 	switch step.Kind {
 	case policy.TombShell:
@@ -137,7 +135,6 @@ func (b *RoundsBuildingPlanner) placePiece(call, epoch context.Context, state Co
 	can, ck := v.CanPlace.Value()
 	safe, sk := v.SafeToPlace.Value()
 	if !ck || !can || !sk || !safe {
-		clockSchedulerLog("%s: %s %s refused at %d,%d", goal.OwnerID(), piece.Def, piece.Slot, piece.Anchor().X, piece.Anchor().Z)
 		return RoundsBuildingResult{Verdict: noSpace(piece.Slot)}, nil
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}

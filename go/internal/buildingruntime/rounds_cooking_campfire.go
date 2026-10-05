@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // campfireRetirement is the cooking campfire to deconstruct (#1179): any once
@@ -122,7 +123,6 @@ func (r *RoundsBuildingPlanner) commitCampfireRefuel(call context.Context, goal 
 	if err = check(); err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: campfire %s auto-refuel %v", goal.OwnerID(), proposal.Thing, value.Allow())
 	if err = p.journal.CommitOwnerMethod(call, goal, proposal.Key, "", plan); err != nil {
 		return RoundsBuildingResult{}, err
 	}
@@ -186,7 +186,7 @@ func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, stat
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	clockEvent(call, "building", "building_retire", "retiring "+label, "owner", goal.OwnerID(), "building", campfire.ID, "x", campfire.Cells[0].X, "z", campfire.Cells[0].Z)
+	telemetry.Decide(call, telemetry.Decision{Kind: "layout_edit", Component: "building", Verdict: "admitted", Reason: "building_retire", Target: campfire.ID, Attrs: map[string]any{"family": "building", "owner": goal.OwnerID(), "x": campfire.Cells[0].X, "z": campfire.Cells[0].Z}})
 	facts := reading.Projection
 	return r.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }

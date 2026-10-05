@@ -402,7 +402,6 @@ func (r *RoundsFirebreakPlanner) step(call, epoch context.Context, arbiter *step
 		return RoundsFirebreakResult{}, err
 	}
 	if firebreakAttempts(history, review.Tick) >= maxFirebreakAttempts {
-		clockSchedulerLog("firebreak: exhausted for the day (%d cells, %d ruins waiting)", len(work.Cut), len(work.Deconstruct))
 		return RoundsFirebreakResult{Verdict: refuse(RefusalRetriesSpent, "maxFirebreakAttempts", "")}, nil
 	}
 	actions, err := firebreakActions(domain.MintPlanID(), work, ruins)

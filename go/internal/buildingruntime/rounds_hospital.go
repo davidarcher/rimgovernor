@@ -149,9 +149,6 @@ func (r *RoundsHospitalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	if clockDebug() {
-		clockSchedulerLog("hospital: choice=%+v", choice)
-	}
 	switch choice.Method {
 	case policy.HospitalUnknown:
 		return RoundsBuildingResult{Verdict: fieldUnavailable("hospital")}, nil

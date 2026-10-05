@@ -60,9 +60,6 @@ func (r *RoundsBuildingPlanner) selectLighting(facts observation.ColonyProjectio
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	if clockDebug() {
-		clockSchedulerLog("lighting: review=%+v rooms=%d cells=%d source=%+v proposal=%+v", review, len(lighting.Rooms), len(lighting.Cells), lighting.PoweredSource, proposal)
-	}
 	switch proposal.Method {
 	case policy.LightingBuild:
 		resolved := *r
@@ -117,16 +114,10 @@ func (r *RoundsBuildingPlanner) previewLighting(ctx context.Context, snapshot do
 			continue
 		}
 		if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-			if clockDebug() {
-				clockSchedulerLog("lighting: cell %v refused legal=%v safe=%v footprint=%v", cell, legal, safe, footprint)
-			}
 			continue
 		}
 		if err = mergeRoundsStock(&stock, preview.Stock, true); err != nil {
 			return nil, stock, Verdict{}, err
-		}
-		if clockDebug() {
-			clockSchedulerLog("lighting: preview cell=%v costs=%+v stock=%+v", cell, p.Costs, stock.Values)
 		}
 		return []policy.Preview{p}, stock, Verdict{}, nil
 	}
