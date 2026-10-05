@@ -1290,3 +1290,13 @@ func TestMergeRoundsStockTakesTheLowestAvailable(t *testing.T) {
 		t.Fatal("an unknown preview must leave the resource unknown")
 	}
 }
+
+func TestNoPlannedShellNamesEachRoomsFirstBlocker(t *testing.T) {
+	v := noPlannedShell(policy.StarterLayout{Blocked: []string{"wall (91,88) zoned", "interior (95,90) occupied"}})
+	if v.Refusal.Kind != RefusalNoSpace || v.Refusal.Subject != "planned_shell_room" || v.Refusal.Detail != "wall (91,88) zoned; interior (95,90) occupied" {
+		t.Fatal(v.Refusal)
+	}
+	if v := noPlannedShell(policy.StarterLayout{}); v.Refusal.Detail != "" {
+		t.Fatal(v.Refusal)
+	}
+}

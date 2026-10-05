@@ -125,7 +125,9 @@ func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observa
 	snap.NoteShelter(call, request)
 	layout, ok, err := policy.PlannedLayout(request)
 	if err != nil || !ok {
-		return policy.StarterLayout{}, policy.PlannedRoom{}, false, err
+		// A refused layout still carries the first blocking cell of each
+		// planned room, which the caller names in its refusal.
+		return layout, policy.PlannedRoom{}, false, err
 	}
 	return layout, rooms[layout.Planned], true, nil
 }
@@ -283,7 +285,7 @@ func (r *RoundsBuildingPlanner) previewShell(ctx context.Context, snapshot domai
 	}
 	layout, _, ok, err := r.plannedShell(ctx, facts, protected, nil, check)
 	if err != nil || !ok {
-		return nil, policy.StockObservation{}, noSpace("planned_shell_room"), err
+		return nil, policy.StockObservation{}, noPlannedShell(layout), err
 	}
 	return r.previewPlannedRing(ctx, snapshot, facts, layout, check)
 }

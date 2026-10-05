@@ -231,7 +231,7 @@ func (r *RoundsBuildingPlanner) stepShelterSite(call, epoch context.Context, s s
 	}
 	step := excavationStep{state: s.state, review: s.review, owner: s.owner, facts: s.facts, read: s.read}
 	if !sited {
-		return nil, none, noSpace("planned_shell_room"), nil, nil
+		return nil, none, noPlannedShell(layout), nil, nil
 	}
 	// The planned room's rock is dug and its ruins claimed before the bunks
 	// stand on it; either holds the first roof.
