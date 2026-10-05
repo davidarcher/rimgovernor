@@ -221,6 +221,51 @@ namespace HomeBridge.BridgeTools
         }
 
 
+        // Rooms (#2076) stages already-built rooms on the planned rectangles a
+        // running case read from the journal: a wood-walled, roofed room with
+        // its door per interior, so the census holds an enclosed room on each
+        // planned centre. Nothing is furnished.
+        [Tool("test/layout_rooms_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#2076): raise a finished, roofed, wood-walled room with a wood door round each given interior, clearing plants, items and buildings off the ground first. A wall a neighbouring room already holds stays.")]
+        public async Task<object> Rooms(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "'x,z,width,height,doorX,doorZ' (interior and door cell on its wall ring) per room, joined by ';'.")] string rooms)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
+                var specs = (rooms ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(r => r.Split(',').Select(int.Parse).ToArray()).ToList();
+                if (specs.Count == 0 || specs.Any(r => r.Length != 6)) throw new ArgumentException($"Want 'x,z,width,height,doorX,doorZ' rooms, got '{rooms}'.");
+                var player = Faction.OfPlayer;
+                var wallDef = ThingDef.Named("Wall");
+                var doorDef = ThingDef.Named("Door");
+                var raised = new List<object>();
+                foreach (var r in specs) {
+                    var interior = new CellRect(r[0], r[1], r[2], r[3]);
+                    var door = new IntVec3(r[4], 0, r[5]);
+                    var ring = interior.ExpandedBy(1);
+                    if (!ring.Contains(door) || interior.Contains(door)) throw new ArgumentException($"Door {door} is not on the wall ring of {interior}.");
+                    foreach (var c in ring.Cells) {
+                        if (!c.InBounds(map)) throw new InvalidOperationException($"Room {interior} runs off the map.");
+                        var edge = !interior.Contains(c);
+                        var edifice = c.GetEdifice(map);
+                        if (edge && c != door && edifice != null && edifice.def == wallDef && edifice.Faction == player) continue;
+                        foreach (var t in c.GetThingList(map).ToList())
+                            if (t is Plant || t.def.category == ThingCategory.Item || t.def.category == ThingCategory.Building) t.Destroy(DestroyMode.Vanish);
+                        map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                        if (!edge) continue;
+                        var b = (Building)ThingMaker.MakeThing(c == door ? doorDef : wallDef, ThingDefOf.WoodLog);
+                        b.SetFaction(player); GenSpawn.Spawn(b, c, map);
+                    }
+                    raised.Add(new { x = interior.minX, z = interior.minZ, width = interior.Width, height = interior.Height });
+                }
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                var enclosed = specs.Select(r => {
+                    var room = new IntVec3(r[0] + r[2] / 2, 0, r[1] + r[3] / 2).GetRoom(map);
+                    return room != null && room.ProperRoom && room.OpenRoofCount == 0 && !room.TouchesMapEdge;
+                }).ToList();
+                return new { success = enclosed.All(e => e), rooms = raised, enclosed, tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         // Suite growth (#1221): a royal title raises the pawn's bedroom
         // target past what their suite was sized for. Needs Royalty; a save
         // recorded without it holds no Empire, so one is generated.
