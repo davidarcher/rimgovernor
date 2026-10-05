@@ -66,7 +66,13 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	ctx, _ = telemetry.EnsureTrace(ctx)
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()
-	invalidate := func() error { out.Interrupted = true; return s.disableOnEvidence(fresh) }
+	invalidate := func() error {
+		out.Interrupted = true
+		if fresh || s.session.State().Enabled {
+			clockAuthorityLost(call, "poll found interrupting evidence or a standing hold", "fresh", fresh)
+		}
+		return s.disableOnEvidence(fresh)
+	}
 	review, err := s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {
 		return fail(err)

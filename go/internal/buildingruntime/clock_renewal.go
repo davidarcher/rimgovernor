@@ -3,6 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
+	"path/filepath"
+	"runtime"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -15,6 +18,10 @@ import (
 )
 
 func (s *ClockScheduler) renewalHold(cause error) error {
+	if s.session.State().Enabled {
+		_, file, line, _ := runtime.Caller(1)
+		clockAuthorityLost(context.Background(), "lease renewal held", "cause", cause, "at", fmt.Sprintf("%s:%d", filepath.Base(file), line))
+	}
 	disabled := s.disableOnEvidence(false)
 	ctx, cancel := context.WithTimeout(context.Background(), s.session.control.config.CallTimeout)
 	defer cancel()
