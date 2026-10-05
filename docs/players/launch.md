@@ -23,9 +23,9 @@ Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`.
 
 Settings persist to `.rimgovernor/launcher.json`.
 
-- **Main**: Autopilot or Observe only (no writes); start the bot automatically
-  on every load (`--resume`); game speed (Ultrafast adaptive paces ticks to
-  your frame rate); continue the last state database or start fresh.
+- **Main**: Autopilot or Observe only (no writes); continue the last state
+  database or start fresh. In Autopilot the bot starts on every load and always
+  runs at Ultrafast (adaptive: paces ticks to your frame rate).
 - **Colony policy**: allow slaughter or release of surplus animals, the layout
   overlay, and food reserve days.
 - **Advanced**: debug logging and extra `rimgovernor serve` arguments

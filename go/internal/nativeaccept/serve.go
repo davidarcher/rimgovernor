@@ -248,6 +248,9 @@ func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec Serve
 	// flag too; one that passed ClockSpeedArgs in Extra already has it.
 	if spec.PlayerSpeed == "" && !slices.Contains(spec.Extra, "--clock-test-acceleration") {
 		argv = append(argv, ClockSpeedArgs()...)
+	} else if spec.PlayerSpeed != "" && !slices.Contains(spec.Extra, "--clock-test-acceleration") {
+		// serve runs Ultrafast unless told to follow the player (#875).
+		argv = append(argv, "--follow-player-speed")
 	}
 	if ProfileServices() {
 		argv = append(argv, "--pprof")

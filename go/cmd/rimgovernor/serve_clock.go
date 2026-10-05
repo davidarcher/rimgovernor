@@ -157,10 +157,10 @@ func serviceClockConfig(profile string, testAcceleration bool, windowTicks, blin
 		// a slow admission read under peer load still admits.
 		Profile: profile, MaxAge: serviceClockStepTimeout,
 		CombatMaxTicks: min(combatBackstopTicks, windowTicks),
-		// Without the dev tick boost each window runs at the player's own
-		// speed, Ultrafast under player pacing (#627) when none was chosen
-		// (#875); with it every window is boosted Ultrafast.
-		FollowPlayerSpeed: !testAcceleration,
+		// Every window runs at Ultrafast whatever the native speed controls say;
+		// serve --follow-player-speed opts back into the player's own speed
+		// (#875); the dev tick boost makes every window boosted Ultrafast.
+		FollowPlayerSpeed: false,
 		Start: bridge.ClockStart{Speed: k.Speed_SPEED_ULTRAFAST, TestAcceleration: testAcceleration, PlayerAccelerated: !testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks, BlindTickBudget: blindTicks,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
@@ -254,6 +254,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	tidy := sc.roundsTidyPlans
 	stockpiles := sc.roundsStockpilePlans
 	config := serviceClockConfig(profile, sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
+	config.FollowPlayerSpeed = sc.followPlayerSpeed && !sc.clockTestAcceleration
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
 	if sc.resourceTargetsConfigured() {
 		// The native digest appends a colony row when a stock crosses one

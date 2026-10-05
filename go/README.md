@@ -59,7 +59,8 @@ launches RimWorld itself and talks GABP to RimBridgeServer directly.
 | `--config`, `--game`, `--state` | Absolute game configuration directory and state path, and the configured game ID (both modes). |
 | `--profile` | Absolute shared game profile; required for autonomous play. |
 | `--listen`, `--timeout` | Loopback listen address (default `127.0.0.1:0`, prints the URL; loopback IPs and numeric ports only); native call timeout. |
-| `--clock-test-acceleration` | Acceptance only: every window at boosted Ultrafast. Otherwise each window runs at the speed the player last chose in game (Ultrafast under player pacing when none was chosen). |
+| `--clock-test-acceleration` | Acceptance only: every window at boosted Ultrafast (the dev tick boost). |
+| `--follow-player-speed` | Run each window at the speed the player last chose in game (Ultrafast when none was chosen). Default: always Ultrafast. |
 | `--routine-resource-*` | Resource reserves/stops. MaintainResource default floors: Steel 200, ComponentIndustrial 10, stone blocks 150; trade buys components toward the same floor. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a launcher Resume. |
 | `--flight-recorder <path>` | Flight recorder ring (default `<profile>/flight/flight.jsonl`; none under `--observe`); see [Native request diagnostics](#native-request-diagnostics). |

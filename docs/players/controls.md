@@ -6,30 +6,15 @@ Everything you do happens in the launcher window.
 
 | Tab | Use it to |
 | --- | --- |
-| Launch | Play, stop or restart the controller, pick a saved game, change settings, and use the three controls below. |
+| Launch | Play, stop or restart the controller, pick a saved game, change settings, and change settings. |
 | Now | See what the colony is doing now and which development projects are queued. |
 | Problems | Read the controller's problem log; copy rows to share. |
 
-## Three controls
+## Speed and the bot
 
-The controls appear on the Launch tab once the controller runs in Autopilot mode
-(Observe only has none).
-
-- **Resume** starts the autopilot for the colony that is loaded. Routine control
-  uses no model calls.
-- **Pause** stops it. The game keeps running; the colony simply stops being
-  managed until you Resume.
-- **Acknowledge inspected interruptions** releases the controller after a pause
-  for a clock event that you have looked at.
-
-By default the controller starts paused; turn on **Start the autopilot as soon as
-a colony loads** in Settings to resume automatically on every load. If a control's
-outcome is uncertain, the button offers a retry that repeats the same request.
-
-Under automation, every colony's first shelter is a rectangular room; cramped
-terrain gets an L-shaped, two-chamber or irregular room that fits the ground.
-
-Headless sessions have no game images.
+Pressing Play runs the autopilot on whatever colony loads, and again after every
+load. The bot always runs the game at maximum speed; the speed buttons inside
+RimWorld do not change it. If you pause the game natively, the bot waits.
 
 ## Read the Now tab
 

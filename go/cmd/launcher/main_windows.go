@@ -88,9 +88,6 @@ func main() {
 		"getEvents":      a.tail.rows,
 		"getProblems":    func(hidden []string, needle string) ProblemsView { return a.recorder.view(hidden, needle) },
 		"allProblems":    a.recorder.allProblems,
-		"getControls":    a.getControls,
-		"botControl":     a.botControl,
-		"ackClock":       a.ackClock,
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())

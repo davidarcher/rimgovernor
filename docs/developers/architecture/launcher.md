@@ -57,26 +57,7 @@ controller crashed or stopped. It hides decode rows by default; the controller's
 own log and the build output stay on the Launch tab. See
 [measure throughput](../testing/measure-throughput.md) for what the rows carry.
 
-## Controls
-
-[controls.go](../../../go/cmd/launcher/controls.go) owns the request ids and the
-unresolved intents; the page only calls `botControl` and `ackClock` and renders
-the `ControlsView`. A retry after an uncertain outcome reuses the same
-`requestId`, never a new one. The controls are unavailable when the controller is
-not running, runs in Observe mode or serves no player routes.
-
-| Control | Route | Effect |
-| --- | --- | --- |
-| Resume | `POST /api/player/control/resume` | Runs the bot for the observed world. |
-| Pause | `POST /api/player/control/pause` | Stops the bot; remains available regardless of an unresolved Resume. |
-| Acknowledge inspected interruptions | `POST /api/player/clock/acknowledge` | Releases clock holds the player has inspected. |
-
-An unresolved Resume (pending or uncertain) blocks another Resume until a later
-journaled Pause supersedes it. The player routes are session, control,
-control/pause and resume, clock, clock/acknowledge and colony; the player has no
-other control surface, and player edits get no exemption from the autopilot. See the [player API](../contracts/go-player-api.md)
-and [interface contracts](../contracts/interface-contracts.md).
-
+## ControlsThe launcher has no bot or clock controls. In Autopilot it passes `serve --resume`, so thebot runs on every load, and serve runs every window at Ultrafast whatever speedthe native controls show; `--follow-player-speed` (acceptance harnesses) opts backinto the player's own speed (#875). Clock holds are not acknowledged from thelauncher. The player has no other control surface, and player edits get noexemption from the autopilot.
 ## Help
 
 The Launch tab shows the player-documentation URL as copyable text, not a link:

@@ -85,50 +85,12 @@ type ConcernBlock struct {
 	Blocked string `json:"blocked"`
 }
 
-// ClockView is /api/player/clock: the clock review cursors and holds.
-type ClockView struct {
-	Revision     string      `json:"revision"`
-	Inbox        string      `json:"inboxCursor"`
-	Reviewed     string      `json:"reviewedCursor"`
-	Acknowledged string      `json:"acknowledgedCursor"`
-	Holds        []ClockHold `json:"holds"`
-}
-
-type ClockHold struct {
-	Kind    string `json:"kind"`
-	From    string `json:"fromCursor"`
-	Through string `json:"throughCursor"`
-}
-
-// ControlView is /api/player/control: the latest pause or resume record and
-// whether player control is enabled.
-type ControlView struct {
-	Record *ControlRecord   `json:"record"`
-	State  ControlState     `json:"state"`
-	Error  *httpapi.Failure `json:"error"`
-}
-
-type ControlRecord struct {
-	RequestID string `json:"requestId"`
-	Kind      string `json:"kind"`
-	Phase     string `json:"phase"`
-}
-
-type ControlState struct {
-	Enabled          bool `json:"enabled"`
-	ObservationKnown bool `json:"observationKnown"`
-}
-
 // feed holds one endpoint's last good value behind its own lock, so a slow
 // feed never blocks another.
 type feed[T any] struct {
 	path string
-	// keep503 reads a 503 whose body is the feed's own DTO (not a bare
-	// failure) as a value: /api/player/control answers 503 with the record
-	// and an "uncertain" error while a control outcome is unresolved.
-	keep503 bool
-	mu      sync.Mutex
-	last    Reading[T]
+	mu   sync.Mutex
+	last Reading[T]
 }
 
 // ServeClient reads serve's API at the controller URL base returns (the
@@ -139,9 +101,6 @@ type ServeClient struct {
 	state    feed[httpapi.State]
 	now      feed[spectator.Now]
 	routines feed[DevelopmentView]
-	clock    feed[ClockView]
-	control  feed[ControlView]
-	tok      tokenCache // the player token, fetched on first write
 }
 
 func NewServeClient(base func() string) *ServeClient {
@@ -149,9 +108,6 @@ func NewServeClient(base func() string) *ServeClient {
 	c.state.path = "/api/state"
 	c.now.path = "/api/spectator/now"
 	c.routines.path = "/api/routines"
-	c.clock.path = "/api/player/clock"
-	c.control.path = "/api/player/control"
-	c.control.keep503 = true
 	return c
 }
 
@@ -165,15 +121,9 @@ func (c *ServeClient) Now(ctx context.Context) Reading[spectator.Now] {
 func (c *ServeClient) Routines(ctx context.Context) Reading[DevelopmentView] {
 	return refresh(ctx, c, &c.routines)
 }
-func (c *ServeClient) Clock(ctx context.Context) Reading[ClockView] {
-	return refresh(ctx, c, &c.clock)
-}
-func (c *ServeClient) Control(ctx context.Context) Reading[ControlView] {
-	return refresh(ctx, c, &c.control)
-}
 
 func refresh[T any](ctx context.Context, c *ServeClient, f *feed[T]) Reading[T] {
-	value, notServed, err := fetch[T](ctx, c, f.path, f.keep503)
+	value, notServed, err := fetch[T](ctx, c, f.path)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	switch {
@@ -189,7 +139,7 @@ func refresh[T any](ctx context.Context, c *ServeClient, f *feed[T]) Reading[T] 
 	return f.last
 }
 
-func fetch[T any](ctx context.Context, c *ServeClient, path string, keep503 bool) (*T, bool, error) {
+func fetch[T any](ctx context.Context, c *ServeClient, path string) (*T, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(c.base(), "/")+path, nil)
 	if err != nil {
 		return nil, false, err
@@ -206,8 +156,6 @@ func fetch[T any](ctx context.Context, c *ServeClient, path string, keep503 bool
 	switch {
 	case resp.StatusCode == http.StatusNotFound:
 		return nil, true, nil
-	case resp.StatusCode == http.StatusServiceUnavailable && keep503 && !bareFailure(body):
-		// a control record with an "uncertain" error: decoded below
 	case resp.StatusCode != http.StatusOK:
 		var failure httpapi.Failure
 		if json.Unmarshal(body, &failure) == nil && failure.Detail != "" {

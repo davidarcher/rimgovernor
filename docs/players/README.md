@@ -15,7 +15,7 @@ The launcher shows the address of this guide on its Launch tab.
 
 ## When something stops
 
-- **Paused:** routine automation is off. Choose Resume on the Launch tab when ready.
+- **Paused:** the game is paused natively; unpause it in RimWorld.
 - **A concern is blocked:** inspect it and its reason on the Now tab. Issued orders
   still depend on available pawns, materials and access.
 - **No game image:** a headless session supplies colony data only.

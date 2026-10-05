@@ -14,9 +14,7 @@ setting on **Continue last state** (the default), the controller reopens the
 newest `.rimgovernor\go\state-<timestamp>.sqlite`; **Fresh state** starts a new
 one.
 
-By default the controller starts paused; choose **Resume** in the launcher
-when ready. Turn on **Start bot automatically on load** to run the bot for the
-loaded colony at startup and again after every load.
+The bot runs for the loaded colony at startup and again after every load.
 
 Loading a save (from the launcher or in-game) starts a fresh review of the
 loaded colony; concerns are re-derived from what the controller observes, and

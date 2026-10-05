@@ -26,7 +26,7 @@ func TestServeArgsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"serve", "--profile", `C:\p`, "--config", `C:\c`, "--game", "rimgovernor-trial", "--state", `C:\s.sqlite`, "--listen", "127.0.0.1:8787"}
+	want := []string{"serve", "--profile", `C:\p`, "--config", `C:\c`, "--game", "rimgovernor-trial", "--state", `C:\s.sqlite`, "--listen", "127.0.0.1:8787", "--resume"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
 	}
@@ -34,7 +34,6 @@ func TestServeArgsDefaults(t *testing.T) {
 
 func TestServeArgsEverything(t *testing.T) {
 	s := DefaultSettings()
-	s.AutoStart = true
 	s.LayoutOverlay, s.Debug, s.ExtraArgs = false, true, `--routine-silver-reserve 3 --x "a b"`
 	got, err := ServeArgs(s, testPaths, 9000)
 	if err != nil {
@@ -52,7 +51,7 @@ func TestServeArgsEverything(t *testing.T) {
 
 func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 	s := DefaultSettings()
-	s.Observe, s.AutoStart = true, true
+	s.Observe = true
 	got, err := ServeArgs(s, testPaths, 8787)
 	if err != nil {
 		t.Fatal(err)

@@ -26,10 +26,6 @@ func TestServeClientDecodesEachEndpoint(t *testing.T) {
 			w.Write([]byte(`{"tick":4200,"concerns":[{"concern":"Feed","method":"Hunt","blocked":"no_hunter"}],"pacing":{"reason":"held","detail":"d"}}`))
 		case "/api/routines":
 			w.Write([]byte(`{"reviewsEnabled":true,"sections":[{"x":1}],"development":{"tick":4200,"capacity":3,"heldWorkers":1,"limiting":"capacity","committed":["Feed"],"rows":[{"concern":"Feed","score":1.5,"selected":true,"reason":"selected"},{"concern":"Roof","score":0.5,"reason":"capacity","bottleneck":"Construction"}]},"progress":[{"concern":"Feed","blocked":"no_hunter"}]}`))
-		case "/api/player/clock":
-			w.Write([]byte(`{"revision":"3","inboxCursor":"9","reviewedCursor":"7","acknowledgedCursor":"5","holds":[{"kind":"raid","fromCursor":"6","throughCursor":"9"}]}`))
-		case "/api/player/control":
-			w.Write([]byte(`{"record":{"requestId":"r","kind":"pause","phase":"done"},"state":{"enabled":true,"observationKnown":true},"error":null}`))
 		default:
 			w.WriteHeader(404)
 		}
@@ -44,12 +40,6 @@ func TestServeClientDecodesEachEndpoint(t *testing.T) {
 	r := c.Routines(ctx)
 	if r.Value == nil || r.Value.Development == nil || len(r.Value.Development.Rows) != 2 || r.Value.Development.Rows[1].Reason != "capacity" || r.Value.Development.Rows[1].Bottleneck != "Construction" || r.Value.Progress[0].Blocked != "no_hunter" {
 		t.Fatalf("routines %+v", r)
-	}
-	if k := c.Clock(ctx); k.Value == nil || k.Value.Revision != "3" || k.Value.Holds[0].Through != "9" {
-		t.Fatalf("clock %+v", k)
-	}
-	if k := c.Control(ctx); k.Value == nil || k.Value.Record.Phase != "done" || !k.Value.State.Enabled {
-		t.Fatalf("control %+v", k)
 	}
 }
 

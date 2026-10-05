@@ -22,8 +22,6 @@ import (
 type Settings struct {
 	// Observe runs serve --observe (no control, no writes).
 	Observe bool `json:"observe"`
-	// AutoStart is --resume: run the bot on every native load.
-	AutoStart bool `json:"autoStart"`
 	// ContinueState reuses the newest .rimgovernor/go/state-*.sqlite when
 	// the bot was running there (see StatePath).
 	ContinueState bool `json:"continueState"`
@@ -103,9 +101,7 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 	args = append(args, "--config", p.Config, "--game", p.Game, "--state", p.State,
 		"--listen", "127.0.0.1:"+strconv.Itoa(port))
 	if !s.Observe {
-		if s.AutoStart {
-			args = append(args, "--resume")
-		}
+		args = append(args, "--resume") // the bot always runs; there is no launcher Resume
 		for _, f := range []struct {
 			on   bool
 			name string

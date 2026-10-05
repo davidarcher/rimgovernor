@@ -285,12 +285,12 @@ func ClockSpeed() string {
 }
 
 // ClockSpeedArgs is the serve flag set for ClockSpeed:
-// --clock-test-acceleration at Ultrafast, nothing otherwise.
+// --clock-test-acceleration at Ultrafast, --follow-player-speed otherwise.
 func ClockSpeedArgs() []string {
 	if ClockSpeed() == "Ultrafast" {
 		return []string{"--clock-test-acceleration"}
 	}
-	return nil
+	return []string{"--follow-player-speed"}
 }
 
 // WritePlayerSpeed sets the speed spec's service will follow as the

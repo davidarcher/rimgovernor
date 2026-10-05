@@ -76,7 +76,7 @@ func TestServeClockTestAccelerationPinsUltrafast(t *testing.T) {
 		t.Fatalf("window start: %+v", config.Start)
 	}
 	config = serviceClockConfig(dir, false, defaultClockWindowTicks, 0)
-	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || config.Start.TestAcceleration || !config.Start.PlayerAccelerated || !config.FollowPlayerSpeed {
+	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || config.Start.TestAcceleration || !config.Start.PlayerAccelerated || config.FollowPlayerSpeed {
 		t.Fatalf("player window start: %+v", config.Start)
 	}
 }
