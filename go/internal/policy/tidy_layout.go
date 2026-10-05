@@ -53,6 +53,9 @@ type TidyRequest struct {
 	Tidied   []string
 	InFlight bool
 	Rooms    []TidyRoom
+	// Relocate is the shelter table's move into the laboratory (#2047), a
+	// cross-room re-site ranked before the in-room batches.
+	Relocate *TidyProposal
 }
 
 // TidyProposal is the one re-site the review proposes: the item, the
@@ -105,6 +108,9 @@ func PlanTidyLayout(r TidyRequest) TidyReview {
 		return review
 	}
 	review.Candidates = tidyFurnitureCandidates(r.Rooms, tidied)
+	if r.Relocate != nil {
+		review.Candidates++
+	}
 	if review.Candidates == 0 {
 		review.Reason = "nothing to tidy"
 		return review
@@ -114,7 +120,11 @@ func PlanTidyLayout(r TidyRequest) TidyReview {
 		review.Reason = "colony busy"
 		return review
 	}
-	if furniture := tidyFurnitureProposal(r.Rooms, tidied); furniture != nil {
+	furniture := r.Relocate
+	if furniture == nil {
+		furniture = tidyFurnitureProposal(r.Rooms, tidied)
+	}
+	if furniture != nil {
 		review.Active, review.Proposal = true, furniture
 		return review
 	}

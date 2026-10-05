@@ -42,6 +42,21 @@ func (r *Rounder) reviewTidy(ctx context.Context, snapshot domain.GenerationSnap
 	if rooms, rk := projection.Rooms.Value(); rk {
 		if census, ck := projection.Facts.CurrentConstruction.Value(); ck && census.Colony {
 			request.Rooms = policy.TidyFurnitureRooms(rooms, census, projection.Cells)
+			// The shelter's research table moves into the laboratory before
+			// the shelter can retire (#2047).
+			if sleeping, sk := projection.Facts.Sleeping.Value(); sk {
+				layout, haveLayout, err := r.layoutPlan(ctx, snapshot, tick)
+				if err != nil {
+					return err
+				}
+				tidied := map[string]bool{}
+				for _, id := range request.Tidied {
+					tidied[id] = true
+				}
+				if move, ok := policy.ShelterTableMove(layout.Plan, rooms, sleeping, census.Buildings, tidied); haveLayout && ok {
+					request.Relocate = &move
+				}
+			}
 		}
 	}
 	review := policy.PlanTidyLayout(request)
