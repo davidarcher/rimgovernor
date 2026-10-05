@@ -116,8 +116,8 @@ func TestPaceBackoffLowersBeforeHorizonAndNeverReleasesWhileStale(t *testing.T) 
 			t.Fatalf("fresh waves did not release: %+v", requests)
 		}
 		for i := 2; i < len(requests)-1; i++ {
-			if requests[i].ceiling > 2*requests[i-1].ceiling {
-				t.Fatalf("ceiling jumped more than doubling: %+v", requests)
+			if requests[i].ceiling > paceRiseFactor*requests[i-1].ceiling {
+				t.Fatalf("ceiling jumped more than %dx: %+v", paceRiseFactor, requests)
 			}
 		}
 		if backoff.released != 1 {
@@ -185,14 +185,14 @@ func TestPaceBackoffHysteresis(t *testing.T) {
 	if got := backoff.Ceiling(); got != 100 {
 		t.Fatalf("ceiling %d, want 100", got)
 	}
-	now = now.Add(2 * time.Second)
-	backoff.fresh(ctx, 500*time.Millisecond) // 300 target, inside the interval
+	now = now.Add(paceHysteresisInterval / 2)
+	backoff.fresh(ctx, 200*time.Millisecond) // 750 target, inside the interval
 	if got := backoff.Ceiling(); got != 100 {
 		t.Fatalf("change inside the interval moved the ceiling to %d", got)
 	}
-	now = now.Add(4 * time.Second)
-	backoff.fresh(ctx, 500*time.Millisecond)
-	if got := backoff.Ceiling(); got != 200 {
-		t.Fatalf("ceiling %d, want 200 (doubling)", got)
+	now = now.Add(paceHysteresisInterval)
+	backoff.fresh(ctx, 200*time.Millisecond)
+	if got := backoff.Ceiling(); got != 100*paceRiseFactor {
+		t.Fatalf("ceiling %d, want %d (capped rise)", got, 100*paceRiseFactor)
 	}
 }

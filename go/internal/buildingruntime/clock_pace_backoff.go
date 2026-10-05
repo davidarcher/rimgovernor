@@ -36,7 +36,7 @@ import (
 // the rate at which the next wave fits inside the margin (half the
 // horizon), and the ceiling moves toward it with hysteresis: a change under
 // paceHysteresisShare of the current ceiling is ignored, and fresh changes
-// come at most once per paceHysteresisInterval; up at most doubling, and
+// come at most once per paceHysteresisInterval; up at most paceRiseFactor times, and
 // released (full speed) only when the target reaches the boosted rate. A
 // full-speed request is never issued while a wave's evidence is stale, and
 // a stale wave's drop to Normal bypasses the hysteresis.
@@ -70,8 +70,13 @@ const (
 	// wave issues; smaller targets keep the current ceiling.
 	paceHysteresisShare = 0.25
 	// paceHysteresisInterval is the least wall time between fresh-wave
-	// ceiling changes; stale drops ignore it.
-	paceHysteresisInterval = 5 * time.Second
+	// ceiling changes; stale drops ignore it. Waves arrive every 6-20 s
+	// live, so a longer interval made each one a no-op.
+	paceHysteresisInterval = time.Second
+	// paceRiseFactor caps how far one fresh wave raises the ceiling. A
+	// stale drop to Normal climbed one doubling per wave live, so the
+	// sawtooth spent 40-100 s regaining the rate a wave earns in two.
+	paceRiseFactor = 4
 )
 
 // paceBackoff is one scheduler's ceiling state. request issues an owned
@@ -196,7 +201,7 @@ func (b *paceBackoff) fresh(ctx context.Context, wave time.Duration) {
 	case target < current:
 		b.set(ctx, target, "wave")
 	case target > current:
-		next := min(target, 2*current)
+		next := min(target, paceRiseFactor*current)
 		if next >= PaceFullTicksPerSecond {
 			b.set(ctx, 0, "fresh")
 			return
