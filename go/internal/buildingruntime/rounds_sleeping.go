@@ -317,8 +317,8 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	facts := reading.Projection
 	recordStepRead("building", r.concern, state.Snapshot, facts)
 	if r.concern == policy.EnsureCooking {
-		// A cooking campfire in a sleeping room, or one a stove kitchen
-		// supersedes, is deconstructed first (#1179).
+		// A cooking campfire a stove kitchen supersedes is deconstructed
+		// first (#1179).
 		claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 		if err != nil {
 			return RoundsBuildingResult{}, err
@@ -886,12 +886,6 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if r.definition == "ButcherSpot" || r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot" || r.definition == "TableButcher")...)
 	}
-	if r.concern == policy.EnsureCooking && r.definition == "Campfire" {
-		// The cooking campfire stands outdoors or in a non-sleeping room,
-		// never beside a bed or spot (#1179).
-		protected = append(append([]domain.Cell(nil), protected...), sleepingRoomCells(facts.Rooms)...)
-		protected = append(protected, sleepingPlannedCells(facts)...)
-	}
 	var cells []policy.SiteCell
 	adjacent := map[domain.Cell]bool{}
 	for _, c := range r.adjacent {
@@ -1419,25 +1413,6 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 			continue
 		}
 		cells = append(cells, plannedRoomInterior(room)...)
-	}
-	return cells
-}
-
-// sleepingPlannedCells are the interiors of the layout's bedrooms and
-// barracks, built or not: the cooking campfire never goes where beds will
-// stand. The census alone (sleepingRoomCells) protects a room only once a bed
-// is in it, so the campfire went into rooms about to be bedrooms and was
-// retired the moment the beds arrived, then placed again (#1179).
-func sleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
-	plan, ok := facts.LayoutPlan.Value()
-	if !ok {
-		return nil
-	}
-	var cells []domain.Cell
-	for _, room := range plan.AllRooms() {
-		if room.Role == policy.ModuleBedroom || room.Role == policy.ModuleBarracks {
-			cells = append(cells, plannedRoomInterior(room)...)
-		}
 	}
 	return cells
 }

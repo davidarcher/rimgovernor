@@ -344,8 +344,8 @@ func SleepingRoomCells(rooms domain.Fact[RoomObservation]) map[domain.Cell]bool 
 // would co-locate the two. Unknown room facts protect nothing: the
 // placement's own native preview still owns legality. Sleeping rooms (the
 // Bedroom role, or any room holding a bed or sleeping spot, so the starter
-// bedroom counts before native scores it) are protected for both
-// placements: blood filth and a campfire's smoke stay out of bedrooms.
+// bedroom counts before native scores it) are protected for a butcher
+// placement only: blood filth stays out of bedrooms.
 func SeparationProtectedCells(rooms domain.Fact[RoomObservation], butcherPlacement bool) []domain.Cell {
 	census, known := rooms.Value()
 	if !known {
@@ -358,7 +358,7 @@ func SeparationProtectedCells(rooms domain.Fact[RoomObservation], butcherPlaceme
 	var cells []domain.Cell
 	for _, room := range census.Rooms {
 		role, _ := room.Role.Value()
-		if role == RoomRoleBedroom || roomHolds(room, sleepingDefinitions) || roomHolds(room, set) || butcherPlacement && role == RoomRoleKitchen {
+		if butcherPlacement && (role == RoomRoleBedroom || roomHolds(room, sleepingDefinitions)) || roomHolds(room, set) || butcherPlacement && role == RoomRoleKitchen {
 			cells = append(cells, room.Cells...)
 		}
 	}

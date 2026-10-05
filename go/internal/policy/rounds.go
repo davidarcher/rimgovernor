@@ -289,8 +289,7 @@ type RoundsFacts struct {
 	// MealClosetOwed: the planned meal closet waits to be shelled while its
 	// dining room stands (#936); it keeps MaintainRefrigeration open.
 	MealClosetOwed domain.Fact[bool]
-	// CampfireRetireOwed: a cooking campfire stands in a sleeping room or a
-	// stove kitchen supersedes it (#1179); it keeps EnsureCooking open.
+	// CampfireRetireOwed: a stove kitchen supersedes a cooking campfire (#1179); it keeps EnsureCooking open.
 	CampfireRetireOwed domain.Fact[bool]
 	// TemperatureOwed: a heat campfire's auto-refuel should switch, or a
 	// sleeping room sits unheated below its sleepers' comfort minimum

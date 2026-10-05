@@ -12,25 +12,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// sleepingRoomCells are the cells of every census room holding a bed,
-// bedroll or sleeping spot (#1179): the cooking campfire never stands there.
-func sleepingRoomCells(rooms domain.Fact[policy.RoomObservation]) []domain.Cell {
-	census, known := rooms.Value()
-	if !known {
-		return nil
-	}
-	var cells []domain.Cell
-	for _, room := range census.Rooms {
-		if len(room.Beds) > 0 {
-			cells = append(cells, room.Cells...)
-		}
-	}
-	return cells
-}
-
-// campfireRetirement is the cooking campfire to deconstruct (#1179): one
-// standing in a sleeping room, or any once a usable stove stands in a
-// kitchen. A campfire the temperature family claimed is room heat and
+// campfireRetirement is the cooking campfire to deconstruct (#1179): any once
+// a usable stove stands in a kitchen. A campfire the temperature family claimed is room heat and
 // stays. Unknown rooms, benches or census retire nothing.
 func campfireRetirement(facts observation.ColonyProjection, claims []policy.ConstructionClaim) (policy.CurrentBuilding, bool) {
 	benches, bk := facts.CookingBenches.Value()
@@ -55,12 +38,7 @@ func campfireRetirement(facts observation.ColonyProjection, claims []policy.Cons
 		if bench.Definition != "Campfire" {
 			continue
 		}
-		sleeping := false
-		if id, ik := bench.Room.Value(); ik {
-			room, found := rooms.Room(id)
-			sleeping = found && len(room.Beds) > 0
-		}
-		if !stove && !sleeping {
+		if !stove {
 			continue
 		}
 		for _, b := range census.Buildings {

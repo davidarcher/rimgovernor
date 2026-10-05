@@ -28,24 +28,11 @@ func campfireBuilding(t *testing.T, id string, cell domain.Cell) policy.CurrentB
 	return policy.CurrentBuilding{ID: id, Building: b, Cells: []domain.Cell{cell}}
 }
 
-func TestSleepingRoomCellsAreProtectedFromTheCookingCampfire(t *testing.T) {
-	facts := campfireFacts(nil)
-	cells := sleepingRoomCells(facts.Rooms)
-	if len(cells) != 2 || cells[0] != (domain.Cell{X: 1, Z: 1}) {
-		t.Fatalf("sleeping cells = %v, want the shell's", cells)
-	}
-}
-
-func TestCampfireInSleepingRoomIsRetired(t *testing.T) {
+func TestCampfireInSleepingRoomIsNotRetired(t *testing.T) {
 	fire := campfireBuilding(t, "fire1", domain.Cell{X: 1, Z: 1})
 	facts := campfireFacts([]observation.CookingBench{{ID: "fire1", Definition: "Campfire", Usable: domain.Known(true), Room: domain.Known("shell")}}, fire)
-	got, owed := campfireRetirement(facts, nil)
-	if !owed || got.ID != "fire1" {
-		t.Fatalf("retirement = %v %v, want fire1", got, owed)
-	}
-	heat := []policy.ConstructionClaim{{Concern: policy.EnsureTemperatureSafety, Building: fire.Building, Cells: fire.Cells}}
-	if _, owed := campfireRetirement(facts, heat); owed {
-		t.Fatal("a heat campfire the temperature family claimed was retired")
+	if _, owed := campfireRetirement(facts, nil); owed {
+		t.Fatal("a campfire in a sleeping room was retired with no stove kitchen")
 	}
 }
 
@@ -60,6 +47,10 @@ func TestOutdoorCampfireStaysUntilAStoveKitchen(t *testing.T) {
 	got, owed := campfireRetirement(facts, nil)
 	if !owed || got.ID != "fire1" {
 		t.Fatalf("retirement = %v %v, want fire1 once a stove kitchen stands", got, owed)
+	}
+	heat := []policy.ConstructionClaim{{Concern: policy.EnsureTemperatureSafety, Building: fire.Building, Cells: fire.Cells}}
+	if _, owed := campfireRetirement(facts, heat); owed {
+		t.Fatal("a heat campfire the temperature family claimed was retired")
 	}
 	value, err := domain.NewDeconstruction(got.ID, got.Building.Definition(), got.Cells[0])
 	if err != nil {

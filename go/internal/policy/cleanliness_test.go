@@ -172,10 +172,11 @@ func TestKitchenSeparation(t *testing.T) {
 		{ID: "b", Cells: []domain.Cell{{X: 5, Z: 5}}, Role: domain.Known(RoomRoleBedroom), Contents: domain.Known([]Amount{})},
 		{ID: "open", Cells: []domain.Cell{{X: 9, Z: 9}}, Contents: domain.Known([]Amount{})},
 	}})
-	for _, butcher := range []bool{true, false} {
-		if cells := SeparationProtectedCells(bedrooms, butcher); !reflect.DeepEqual(cells, []domain.Cell{{X: 5, Z: 5}, {X: 126, Z: 135}}) {
-			t.Fatalf("butcher=%v: sleeping rooms protected: %+v", butcher, cells)
-		}
+	if cells := SeparationProtectedCells(bedrooms, true); !reflect.DeepEqual(cells, []domain.Cell{{X: 5, Z: 5}, {X: 126, Z: 135}}) {
+		t.Fatalf("butcher placement: sleeping rooms protected: %+v", cells)
+	}
+	if cells := SeparationProtectedCells(bedrooms, false); len(cells) != 0 {
+		t.Fatalf("cooking placement protects no sleeping room: %+v", cells)
 	}
 	if _, known := KitchenSeparation(domain.Unknown[RoomObservation]()).Value(); known || SeparationProtectedCells(domain.Unknown[RoomObservation](), true) != nil {
 		t.Fatalf("unknown census")
