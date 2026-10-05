@@ -7,7 +7,7 @@ import "sort"
 // wall and a Link door. Its connected components over the non-housing base
 // rooms are the clusters: kitchen-freezer-dining-butchery, workshop-storage,
 // and the rooms nothing ties to another (the hospital, which only wants an
-// entrance, the barracks, the tomb). A cluster is placed as a unit.
+// entrance, the shelter, the tomb). A cluster is placed as a unit.
 
 // besideAffinity is the weight of a besideRoles edge: the strongest tie,
 // since the pair shares a wall and a door.

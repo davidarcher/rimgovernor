@@ -9,15 +9,15 @@ import (
 // Individual bedrooms (#786, C2). The sleeping planner walks each
 // colonist, a bedless joiner included (#1197), into a room of their own in the bedroom wing, in the wing's slot
 // order (#1213): raise the room's shell, stage one bed in it, then
-// move the colonist's ownership there. The barracks bed left behind stays
+// move the colonist's ownership there. The shelter bed left behind stays
 // as a spare for joiners (MaintainHousing keeps one beyond the population).
 
 // ShellBedIDs are the beds standing in the starter shell, the planned
-// storage room (#1177).
+// shelter (#2037).
 func ShellBedIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	shell := map[string]bool{}
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleBarracks {
+		if r.Role != ModuleShelter {
 			continue
 		}
 		if room, ok := PlannedRoomStanding(r, rooms); ok {
@@ -45,7 +45,7 @@ const (
 	// standing yet.
 	BedroomShell BedroomStepKind = "shell"
 	// BedroomClear: deconstruct Bed, a vacant sleeping spot left in the
-	// starter shell (the planned storage room) at Cells[0] (#1182).
+	// starter shell (the planned shelter) at Cells[0] (#1182).
 	BedroomClear BedroomStepKind = "clear"
 )
 
@@ -71,7 +71,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	if len(sleeping.People) == 0 || len(sleeping.People) != sleeping.Colonists {
 		return BedroomStep{}
 	}
-	// The starter shell stands on the planned storage room (#1177): the
+	// The starter shell is the planned shelter (#2037): the
 	// last spot left in it reads as a bedroom but is still the shell.
 	shell := ShellBedIDs(plan, rooms)
 	bedroomBed := map[string]bool{}

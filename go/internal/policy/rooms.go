@@ -225,10 +225,9 @@ func FacilityCatalog() []FacilityRequirement {
 		// AssignWork's standing requirement; medicine is MaintainMedicalReserves.
 		{Role: RoomRoleHospital, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBedroom, RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		// A laboratory is a hosted research bench: EnsureResearch stages the
-		// simple bench in the starter shell (a Workshop or Barracks once the
-		// spots and benches move in) when a ladder rung waits on it (#254).
+		// simple bench in the shelter (scored a Barracks once the bunks stand) when a ladder rung waits on it (#254).
 		{Role: RoomRoleLaboratory, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleWorkshop, RoomRoleBarracks}, generic...), FurnitureFromGame: true},
-		// A workshop shares the starter shell: the ladder furnishes the first
+		// A workshop shares the shelter: the ladder furnishes the first
 		// enclosed room rather than siting a second ring (rounds_sleeping.go),
 		// and once the sleeping spots move indoors the game scores that room a
 		// Barracks while the bench keeps working (issue #4 M2 runs 24-25).

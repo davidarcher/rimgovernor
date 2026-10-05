@@ -278,7 +278,7 @@ type RoundsFacts struct {
 	Sleeping          domain.Fact[SleepingObservation]
 	SleepingRecovered domain.Fact[bool]
 	// BedroomsOwed: a planned individual bedroom step is due (#786); it
-	// keeps MaintainHousing open once everyone owns a barracks bed.
+	// keeps MaintainHousing open once everyone owns a shelter bed.
 	BedroomsOwed domain.Fact[bool]
 	// CorpsesOwed: a tomb (#832), morgue (#1820) or incinerator (#1814) step is due; it keeps
 	// MaintainWaste open while a corpse waits on one.

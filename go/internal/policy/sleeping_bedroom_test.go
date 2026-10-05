@@ -8,7 +8,7 @@ import (
 
 func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	plan := LayoutPlan{Rooms: []LayoutRoom{
-		{Role: ModuleBarracks, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North},
+		{Role: ModuleShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North},
 		{Role: ModuleBedroom, Interior: Rectangle{X: 10, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 5}, DoorRot: domain.North},
 		{Role: ModuleBedroom, Interior: Rectangle{X: 16, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 5}, DoorRot: domain.North},
 	}}
@@ -123,7 +123,7 @@ func TestBedroomStepNeverSplitsACouple(t *testing.T) {
 // last spot in the shell never reads as a bedroom (#1182).
 func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	plan, _, sleeping := bedroomFixture()
-	plan.Rooms[0] = LayoutRoom{Role: ModuleBarracks, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}
+	plan.Rooms[0] = LayoutRoom{Role: ModuleShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}
 	room := func(id string, x int32, beds ...string) Room {
 		var cells []domain.Cell
 		for cx := x; cx < x+5; cx++ {

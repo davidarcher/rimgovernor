@@ -13,8 +13,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // Room roles the v2 core adds beside the master-plan ones; the jail is
 // ModulePrison.
 const (
-	ModuleBedroom  ModuleRole = "bedroom"
-	ModuleBarracks ModuleRole = "barracks"
+	ModuleBedroom ModuleRole = "bedroom"
 	// ModuleShelter is the temporary starter room (#2037), sited apart from the
 	// core (layout_shelter.go) so its ground frees cleanly once it is demolished.
 	ModuleShelter ModuleRole = "shelter"
@@ -33,7 +32,6 @@ const (
 // coreRoomSize is a role's interior: width along the spine, depth away
 // from it. Bedrooms live in the wing (layout_wing.go).
 var coreRoomSize = map[ModuleRole][2]int32{
-	ModuleBarracks: {7, 5},
 	ModuleKitchen:  {6, 5},
 	ModuleFreezer:  {5, 5},
 	ModuleButchery: {4, 4},
@@ -60,7 +58,7 @@ var coreRoomSize = map[ModuleRole][2]int32{
 // (demandCoreRooms), so nothing is dug or reserved for a room that is not
 // up for building.
 var coreBaseRooms = []ModuleRole{
-	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining,
+	ModuleKitchen, ModuleFreezer, ModuleDining,
 	ModuleWorkshop, ModuleStorage,
 }
 

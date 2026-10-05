@@ -9,13 +9,13 @@ import (
 
 var gearTestItems = ItemFacts{Armor: []Resource{"Apparel_FlakVest", "Apparel_PlateArmor"}}
 
-// gearField is a 100x100 open map with a barracks, an armory and a wardrobe
+// gearField is a 100x100 open map with a shelter, an armory and a wardrobe
 // standing as roofed rooms (and a prison when set), under a gear store with
 // the catalog's armor split.
 func gearField(t *testing.T, prison *LayoutRoom) StorageRequest {
 	t.Helper()
 	layout := LayoutPlan{Rooms: []LayoutRoom{
-		{Role: ModuleBarracks, Interior: Rectangle{X: 40, Z: 40, Width: 7, Height: 5}},
+		{Role: ModuleShelter, Interior: Rectangle{X: 40, Z: 40, Width: 7, Height: 5}},
 		{Role: ModuleArmory, Interior: Rectangle{X: 52, Z: 40, Width: 5, Height: 5}},
 		{Role: ModuleWardrobe, Interior: Rectangle{X: 40, Z: 50, Width: 5, Height: 5}},
 	}}

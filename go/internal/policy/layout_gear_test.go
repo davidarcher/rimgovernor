@@ -47,7 +47,7 @@ func TestGearRoomsNeedDemand(t *testing.T) {
 	}
 }
 
-// gearBesidePlan is a hallway with a barracks and a workshop on it and free
+// gearBesidePlan is a hallway with a storage room and a workshop on it and free
 // ground either side of each: a generated base packs its rooms, so whether
 // an anchor has a free side depends on its layout, not on the gear siting.
 func gearBesidePlan() LayoutPlan {
@@ -57,7 +57,7 @@ func gearBesidePlan() LayoutPlan {
 		Spine:     spine,
 		Entrances: spineEntrances(spine),
 		Rooms: []LayoutRoom{
-			coreRoom(ModuleBarracks, 40, 59, 7, 5, false),
+			coreRoom(ModuleStorage, 40, 59, 7, 5, false),
 			coreRoom(ModuleWorkshop, 70, 59, 7, 5, false),
 		},
 	}
@@ -75,7 +75,7 @@ func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 			t.Fatalf("room %d moved", i)
 		}
 	}
-	for role, anchor := range map[ModuleRole]ModuleRole{ModuleArmory: ModuleBarracks, ModuleWardrobe: ModuleWorkshop} {
+	for role, anchor := range map[ModuleRole]ModuleRole{ModuleArmory: ModuleStorage, ModuleWardrobe: ModuleWorkshop} {
 		room, ok := roomOf(grown, role)
 		host, hok := roomOf(grown, anchor)
 		if !ok || !hok {

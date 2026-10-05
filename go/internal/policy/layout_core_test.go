@@ -209,7 +209,9 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 // A fresh core reserves its centre crossing: the main hallway grows out
 // from it on both sides and no room takes its column (#952).
 func TestCoreReservesCentreCrossing(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	// The five base rooms all fit east of the crossing, so demand rooms fill
+	// the hallway out to its west side.
+	p := withRooms(corePlan(coreTestZones(), 3, BuildTierCamp), ModuleHospital, ModuleLab, ModuleTomb)
 	if len(p.Spine) != 2 || alongX(p.Spine[1]) {
 		t.Fatal("spine", p.Spine)
 	}

@@ -13,8 +13,6 @@ func LayoutModule(role RoomRole) (ModuleRole, bool) {
 		return ModuleBedroom, true
 	case RoomRoleSuite:
 		return ModuleSuite, true
-	case RoomRoleBarracks:
-		return ModuleBarracks, true
 	case RoomRoleShelter:
 		return ModuleShelter, true
 	case RoomRoleKitchen:

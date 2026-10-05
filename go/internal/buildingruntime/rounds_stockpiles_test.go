@@ -291,7 +291,7 @@ func TestIsStockpileEditMethod(t *testing.T) {
 func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
 		{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}},
-		{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
+		{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
 		{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3}},
 	}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}

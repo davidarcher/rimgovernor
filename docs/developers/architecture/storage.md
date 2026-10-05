@@ -26,7 +26,7 @@ when it needs another room.
 | Medicine store | `medicine:*` | The hospital room with the most medical beds, nearest those beds | Critical | Medicine |
 | Food store | `food` | Beside the kitchen | Preferred | Food, until a roofed food store stands |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
-| Gear | `apparel`, `weapons` | The storage room (apparel) and barracks (weapons) | Preferred | Clothing and armor, weapons |
+| Gear | `apparel`, `weapons` | The storage room (apparel) and armory (weapons) | Preferred | Clothing and armor, weapons |
 | Dumps | `dump:worn`, `dump:rotten`, `dump:corpses`, `dump:fresh` | A free outdoor 2x2 patch clear of living rooms, nearest the warehouse; sited only while something waits for it (worn-out apparel, spoiled items and rotting animal carcasses, human corpses, fresh animal carcasses while no freezer shelf stands) | Low | Worn gear, rotten items, corpses, fresh animal corpses |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
@@ -43,7 +43,7 @@ When every warehouse zone is full and cannot grow in its room (the state that
 also asks for a further storage room), the planner raises `RoomDemand` for each
 kind of serviceable gear the colony holds (armory for weapons and armor,
 wardrobe for clothing) and layout adds the room: the armory beside the
-barracks, the wardrobe beside the workshop with the tailor bench, with no
+storage room, the wardrobe beside the workshop with the tailor bench, with no
 wealth gate and no item-count threshold. A planned gear room not yet standing
 holds back the further storage room. Layout keeps the armory and every prison
 out of each other's weapon clearance; a standing armory with no free cell clear

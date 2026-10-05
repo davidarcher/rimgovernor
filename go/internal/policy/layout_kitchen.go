@@ -13,12 +13,12 @@ const ModuleMealCloset ModuleRole = "meal_closet"
 // Link door in the shared wall: the freezer beside the kitchen (#819), so
 // the cook steps straight to the shelf, and the dining room beside the
 // freezer (#936), so the meal stockpile sits in the cold one door from the
-// table, the armory beside the barracks and the wardrobe beside the workshop
+// table, the armory beside the storage room and the wardrobe beside the workshop
 // (#1773).
-var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer, ModuleButchery: ModuleFreezer, ModuleArmory: ModuleBarracks, ModuleWardrobe: ModuleWorkshop}
+var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer, ModuleButchery: ModuleFreezer, ModuleArmory: ModuleStorage, ModuleWardrobe: ModuleWorkshop}
 
 // unlinkedBeside are the besideRoles rooms that share only the wall: the
-// armory has no door into the barracks, so haulers never cross the bunks.
+// armory has no door into the storage room, so haulers never cross its stockpile.
 var unlinkedBeside = map[ModuleRole]bool{ModuleArmory: true}
 
 // beside places role against its neighbour's side wall (besideRoles), on

@@ -249,7 +249,6 @@ func InteriorRoomFromCensus(room Room, role RoomRole, doorways []domain.Cell, sh
 var moduleRoomRoles = map[ModuleRole]RoomRole{
 	ModuleBedroom:          RoomRoleBedroom,
 	ModuleSuite:            RoomRoleSuite,
-	ModuleBarracks:         RoomRoleBarracks,
 	ModuleShelter:          RoomRoleShelter,
 	ModuleDining:           RoomRoleDiningRoom,
 	ModuleRec:              RoomRoleRecRoom,

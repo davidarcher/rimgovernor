@@ -1404,8 +1404,8 @@ func developmentSelects(rows []store.RoundsDevelopmentRow, goal domain.ConcernID
 }
 
 // nonSleepingPlannedCells are the interior cells of the layout plan's rooms
-// built for another use than sleeping. Only the starter shell (the planned
-// barracks) and unbuilt reserve ground stay open to loose spots and furniture.
+// built for another use than sleeping. Only the shelter (the starter room) and unbuilt
+// reserve ground stay open to loose spots and furniture.
 func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 	plan, ok := facts.LayoutPlan.Value()
 	if !ok {

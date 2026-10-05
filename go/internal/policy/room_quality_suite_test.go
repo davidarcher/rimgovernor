@@ -15,7 +15,7 @@ func suiteFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	}
 	suite := LayoutRoom{Role: ModuleSuite, Interior: Rectangle{X: 30, Z: 0, Width: 7, Height: 8}, Door: domain.Cell{X: 33, Z: 8}, DoorRot: domain.North}
 	plan := LayoutPlan{
-		Rooms: []LayoutRoom{{Role: ModuleBarracks, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}},
+		Rooms: []LayoutRoom{{Role: ModuleShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}},
 		Wings: []Wing{
 			{Purpose: WingBedrooms, Rooms: []LayoutRoom{standard(10), standard(14)}},
 			{Purpose: WingSuites, Rooms: []LayoutRoom{suite}},

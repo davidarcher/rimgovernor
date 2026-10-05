@@ -33,7 +33,7 @@ type routeTrip struct {
 
 // noThroughfare are the roles nobody may walk through.
 var noThroughfare = map[ModuleRole]bool{
-	ModuleBedroom: true, ModuleSuite: true, ModuleBarracks: true, ModuleShelter: true, ModulePrison: true,
+	ModuleBedroom: true, ModuleSuite: true, ModuleShelter: true, ModulePrison: true,
 	ModuleKitchen: true, ModuleHospital: true, ModuleLab: true, ModuleThrone: true,
 }
 
