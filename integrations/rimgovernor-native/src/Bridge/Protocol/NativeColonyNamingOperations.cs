@@ -56,11 +56,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new InvalidOperationException("Naming prerequisites changed before apply: " + failure.Detail);
             if (dialog != null && settlement != null)
             {
-                var type = typeof(Dialog_NamePlayerFactionAndSettlement);
-                AccessTools.Method(type, "Named").Invoke(dialog, new object[] { c.FactionName });
-                AccessTools.Method(type, "NamedSecond").Invoke(dialog, new object[] { c.SettlementName });
-                Messages.Message("PlayerFactionAndBaseGainsName".Translate(c.FactionName, c.SettlementName), MessageTypeDefOf.TaskCompletion, historical: false);
-                Find.WindowStack.TryRemove(dialog);
+                ColonyNamingTools.Confirm(dialog, c.FactionName, c.SettlementName);
                 if (Faction.OfPlayer.Name != c.FactionName || settlement.Name != c.SettlementName || Find.WindowStack.Windows.Contains(dialog))
                     throw new InvalidOperationException("Naming confirmation did not verify after native callbacks.");
             }

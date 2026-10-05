@@ -24,10 +24,11 @@ namespace HomeBridge.BridgeTools
     // phase, so the same spec on the same install gives the same world, tile
     // and colonists (per-install determinism only: DLC and mods shift draws).
     //
-    // Hand-off to #2022: when the map is live the entry reports
-    // NewColonyPending{FINISHING} and stays there; #2022 continues from
-    // OnMapLive (pause, naming dialog, save) and ends the entry with
-    // NewColonyCompleted. Nothing here saves.
+    // Live map (#2022): OnMapLive pauses; polls then confirm the colony-naming
+    // dialog (FINISHING), report SAVING, and save through the same native save
+    // path as lifecycle_save into the game's Saves folder under the spec's save
+    // name, ending the entry with NewColonyCompleted. A phase exception, a failed
+    // save or the request's timeout ends it with a failure.
     public sealed class ProtoLifecycleNewColonyTools
     {
         private const string NewColonyToolName = "rimgovernor/lifecycle_new_colony";
@@ -57,6 +58,7 @@ namespace HomeBridge.BridgeTools
             public uint Rerolls;
             public bool Aborted; // A phase failed; later queued phases do nothing.
             public bool MapIsLive;
+            public DateTime LiveUtc;
             public Lifecycle.NewColonyReply? Reply; // Terminal outcome; null while pending.
             public Entry(string requestId, Lifecycle.NewColonySpec spec, string seed, uint? timeoutMs, ResolvedSpec resolved)
             {
@@ -325,7 +327,16 @@ namespace HomeBridge.BridgeTools
                 if (entry.Reply != null) return entry.Reply;
             }
 
-            if (entry.Phase == Lifecycle.NewColonyPhase.GeneratingMap || entry.Phase == Lifecycle.NewColonyPhase.Finishing)
+            // The timeout bounds the whole start, saving included (a save is one
+            // synchronous call, so it is never cut mid-write).
+            if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
+            {
+                entry.Aborted = true;
+                return Complete(entry, Fail(Common.FailureCode.NativeFailure,
+                    "New colony did not finish within the requested timeout (last phase " + entry.Phase + ")."));
+            }
+            if (entry.Phase == Lifecycle.NewColonyPhase.GeneratingMap || entry.Phase == Lifecycle.NewColonyPhase.Finishing
+                || entry.Phase == Lifecycle.NewColonyPhase.Saving)
             {
                 if (!LongEventHandler.AnyEventNowOrWaiting)
                 {
@@ -333,23 +344,69 @@ namespace HomeBridge.BridgeTools
                         return Complete(entry, Fail(Common.FailureCode.NativeFailure, "Map generation failed: the game returned to the main menu."));
                     if (!entry.MapIsLive && ProtoBoundary.TryReadContext(Find.CurrentMap, out _, out _))
                         OnMapLive(entry);
+                    if (entry.MapIsLive)
+                    {
+                        try
+                        {
+                            var done = Finish(entry);
+                            if (done != null) return done;
+                        }
+                        catch (Exception error)
+                        {
+                            entry.Aborted = true;
+                            Log.Warning("[RimGovernor] new colony " + entry.RequestId + " failed in " + entry.Phase + ": " + error);
+                            return Complete(entry, Fail(Common.FailureCode.NativeFailure,
+                                "New colony failed in " + entry.Phase + ": " + error.GetType().Name + ": " + error.Message));
+                        }
+                    }
                 }
             }
-            if (!entry.MapIsLive && entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
-                return Complete(entry, Fail(Common.FailureCode.NativeFailure,
-                    "New colony did not reach a live map within the requested timeout (last phase " + entry.Phase + ")."));
             return PendingReply(entry);
         }
 
-        // The live-map hand-off. The map exists, the colonists are spawned and
-        // the long events are done. #2022 continues from here (pause, naming
-        // dialog, save) and completes the entry; until then the entry reports
-        // FINISHING.
+        // The live-map hand-off: the map exists, the colonists are spawned and
+        // the long events are done. Pause explicitly (nothing else does: the
+        // start is not a load).
         private static void OnMapLive(Entry entry)
         {
             entry.MapIsLive = true;
+            entry.LiveUtc = DateTime.UtcNow;
             entry.Phase = Lifecycle.NewColonyPhase.Finishing;
-            entry.Detail = "The map is live";
+            entry.Detail = "The map is live; pausing and confirming the colony names";
+            Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+        }
+
+        // How long the live map waits for the colony-naming dialog to open
+        // before concluding there is none (the harness treats it as optional).
+        private static readonly TimeSpan NamingDialogGrace = TimeSpan.FromSeconds(3);
+
+        // Finishing -> Saving -> done, one step per poll so the SAVING phase is
+        // reported before the (blocking) save runs. Null while pending.
+        private static Lifecycle.NewColonyReply? Finish(Entry entry)
+        {
+            Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+            if (entry.Phase == Lifecycle.NewColonyPhase.Finishing)
+            {
+                var dialog = ColonyNamingTools.Pending();
+                if (dialog != null)
+                {
+                    ColonyNamingTools.Confirm(dialog, ColonyNamingTools.Name(dialog, "curName") ?? "", ColonyNamingTools.Name(dialog, "curSecondName") ?? "");
+                }
+                else if (DateTime.UtcNow - entry.LiveUtc < NamingDialogGrace)
+                    return null;
+                entry.Phase = Lifecycle.NewColonyPhase.Saving;
+                entry.Detail = "Saving " + entry.Spec.SaveName;
+                return null;
+            }
+            // Saving: same native save path as lifecycle_save.
+            var length = ProtoLifecycleSaveTools.WriteSave(entry.Spec.SaveName);
+            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
+                return Complete(entry, Fail(Common.FailureCode.NativeFailure, "Colony state could not be re-observed after the save: " + unavailable.Detail));
+            return Complete(entry, new Lifecycle.NewColonyReply { Completed = new Lifecycle.NewColonyCompleted
+            {
+                RequestId = entry.RequestId, SaveName = entry.Spec.SaveName, Context = context,
+                Paused = Find.TickManager.Paused, ByteLength = (ulong)length, Seed = entry.Seed,
+            } });
         }
 
         private static Lifecycle.NewColonyReply PendingReply(Entry entry) =>

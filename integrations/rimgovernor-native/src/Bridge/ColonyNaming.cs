@@ -27,5 +27,16 @@ namespace HomeBridge.BridgeTools
 
         internal static string? Name(Dialog_GiveName dialog, string field) =>
             (AccessTools.Field(typeof(Dialog_GiveName), field)?.GetValue(dialog) as string)?.Trim();
+
+        // Names the player faction and settlement through the dialog's own
+        // callbacks and closes it (NamingIntent and the new-colony start).
+        internal static void Confirm(Dialog_NamePlayerFactionAndSettlement dialog, string factionName, string settlementName)
+        {
+            var type = typeof(Dialog_NamePlayerFactionAndSettlement);
+            AccessTools.Method(type, "Named").Invoke(dialog, new object[] { factionName });
+            AccessTools.Method(type, "NamedSecond").Invoke(dialog, new object[] { settlementName });
+            Messages.Message("PlayerFactionAndBaseGainsName".Translate(factionName, settlementName), MessageTypeDefOf.TaskCompletion, historical: false);
+            Find.WindowStack.TryRemove(dialog);
+        }
     }
 }

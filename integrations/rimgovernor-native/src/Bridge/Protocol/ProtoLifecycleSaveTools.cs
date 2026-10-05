@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.IO;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Threading;
@@ -91,10 +92,11 @@ namespace HomeBridge.BridgeTools
 
             try
             {
-                GameDataSaveLoader.SaveGame(request.SaveName);
+                WriteSave(request.SaveName);
             }
             catch (Exception error)
             {
+                Log.Warning("[RimGovernor] native save " + request.SaveName + " failed: " + error);
                 return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                     "Native save failed: " + error.GetType().Name) };
             }
@@ -119,6 +121,22 @@ namespace HomeBridge.BridgeTools
                 RequestId = player.RequestId, SaveName = request.SaveName, Context = after,
                 Paused = pausedAfter, PlayerDirection = player.PlayerDirection
             } });
+        }
+
+        // The one native save path (lifecycle_save and the new-colony start):
+        // vanilla SaveGame logs and swallows its own exceptions, so success is
+        // the save file having been written. Returns its byte length; throws
+        // when the file is missing, unchanged or empty. Game thread only.
+        internal static long WriteSave(string saveName)
+        {
+            var path = GenFilePaths.FilePathForSavedGame(saveName);
+            var before = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+            GameDataSaveLoader.SaveGame(saveName);
+            if (!File.Exists(path) || File.GetLastWriteTimeUtc(path) == before)
+                throw new IOException("The save file " + path + " was not written.");
+            var length = new FileInfo(path).Length;
+            if (length == 0) throw new IOException("The save file " + path + " is empty.");
+            return length;
         }
 
         // Call only on the game thread.
