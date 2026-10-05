@@ -126,7 +126,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 			return fail(e)
 		}
 		if adopted {
-			clockEvent(call, "clock-scheduler", "backlog_adopted", "clock journal adopted native backlog", "through_cursor", skip, "newest_cursor", first.GetNewestCursor())
+			clockEvent(call, "clock-scheduler", "clock_journal", "clock journal adopted native backlog", "through_cursor", skip, "newest_cursor", first.GetNewestCursor())
 			if review, err = s.player.journal.ReadClockReview(call, s.config.Profile); err != nil {
 				return fail(err)
 			}
@@ -344,19 +344,19 @@ func clockPollEventKinds(page *k.EventsPage) string {
 }
 
 // clockPollEvents publishes the typed service events a committed page
-// carries: "scheduler_stop" for each Stopped event (reason, detail, the
-// native stop stamp), "authority_change" for each AuthorityChanged event,
-// and "alert_row" for each game alert (#256). Every other event kind is the
+// carries: "clock_stop" for each Stopped event (reason, detail, the
+// native stop stamp), "authority" (change "changed") for each
+// AuthorityChanged event, and "alert" for each game alert (#256). Every other event kind is the
 // step reason's business and stays in the debug trace.
 func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {
 		case *k.Event_Stopped:
-			clockEvent(ctx, "clock-scheduler", "scheduler_stop", "window stopped", append([]any{"reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStopEvent(v.Stopped)}, clockStopLegs(event, v.Stopped)...)...)
+			clockEvent(ctx, "clock-scheduler", "clock_stop", "window stopped", append([]any{"reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStopEvent(v.Stopped)}, clockStopLegs(event, v.Stopped)...)...)
 		case *k.Event_AuthorityChanged:
-			clockEvent(ctx, "clock-scheduler", "authority_change", "authority changed", "reason", v.AuthorityChanged.GetReason(), "active", v.AuthorityChanged.GetActive(), "generation", v.AuthorityChanged.GetGeneration(), "previous_generation", v.AuthorityChanged.GetPreviousGeneration(), "cursor", event.GetCursor())
+			clockEvent(ctx, "clock-scheduler", "authority", "authority changed", "change", "changed", "reason", v.AuthorityChanged.GetReason(), "active", v.AuthorityChanged.GetActive(), "generation", v.AuthorityChanged.GetGeneration(), "previous_generation", v.AuthorityChanged.GetPreviousGeneration(), "cursor", event.GetCursor())
 		case *k.Event_Alert:
-			clockEvent(ctx, "clock-scheduler", "alert_row", "game alert", "key", v.Alert.GetKey(), "label", v.Alert.GetLabel(), "priority", v.Alert.GetPriority(), "cursor", event.GetCursor())
+			clockEvent(ctx, "clock-scheduler", "alert", "game alert", "key", v.Alert.GetKey(), "label", v.Alert.GetLabel(), "priority", v.Alert.GetPriority(), "cursor", event.GetCursor())
 		}
 	}
 }

@@ -11,14 +11,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
 // Bundle files a combat-fixture run records (#855). ReadsFile holds every
 // raw test/lab_stage read reply, one JSON object per line, in tick order;
 // MetricsFile is the aggregate; FlightFile, when a run served the planner,
-// carries its combat_stop, combat_order and worker outcome flight rows
+// carries its clock_stop, combat_order and dispatch flight rows
 // (#849, #2062).
 const (
 	ReadsFile   = "combat_reads.jsonl"
@@ -224,7 +223,7 @@ func (m *Metrics) ScanFlight(path string) error {
 	for _, row := range rows {
 		f := row.Fields()
 		switch {
-		case row.Kind == "combat_stop" || bridge.IsClockStopKind(row.Kind):
+		case row.Kind == "clock_stop":
 			if v, ok := f["resume_latency_ms"]; ok {
 				latencies = append(latencies, int64(na.AsNumber(v)))
 			}
@@ -238,11 +237,8 @@ func (m *Metrics) ScanFlight(path string) error {
 			} else {
 				m.OrdersIssued++
 			}
-		case bridge.IsDispatchKind(row.Kind):
-			action := na.AsString(f["action"])
-			if action == "" {
-				action = na.AsString(f["target"])
-			}
+		case row.Kind == "dispatch":
+			action := na.AsString(f["target"])
 			if !strings.HasPrefix(action, "routine-defense-") {
 				continue
 			}
@@ -272,7 +268,7 @@ func (m *Metrics) ScanFlight(path string) error {
 // CombatRow reports whether a flight row is one ScanFlight reads: the
 // bundle keeps only these.
 func CombatRow(row na.FlightRow) bool {
-	return row.Kind == "combat_stop" || row.Kind == "combat_order" || bridge.IsClockStopKind(row.Kind) || bridge.IsDispatchKind(row.Kind)
+	return row.Kind == "combat_order" || row.Kind == "clock_stop" || row.Kind == "dispatch"
 }
 
 // StagedSides maps a staging's pawn ids to their sides.

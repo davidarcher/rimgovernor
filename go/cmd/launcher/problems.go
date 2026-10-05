@@ -56,7 +56,7 @@ type ProblemHealth struct {
 	NativeErrors  float64
 	NativeCalls   float64
 	ReadsPerStep  float64
-	Authority     string // "native generation N", or "" when no authority_change row
+	Authority     string // "native generation N", or "" when no authority row
 	CacheHitRatio float64
 }
 
@@ -207,7 +207,7 @@ func computeHealth(rows []bridge.TimelineRecord) ProblemHealth {
 				h.LastStepMs, gotStep = ms, true
 			}
 		}
-		if !gotAuthority && bridge.IsAuthorityKind(r.Kind) {
+		if !gotAuthority && r.Kind == "authority" {
 			if g, ok := r.Payload["generation"]; ok {
 				h.Authority, gotAuthority = "native generation "+scalarText(g), true
 			}

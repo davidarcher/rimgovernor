@@ -28,23 +28,30 @@ func NativeReplyFailed(row TimelineRecord) bool {
 	return text != ""
 }
 
-// IsDispatchKind reports whether kind is the Worker's per-run row: the legacy
-// worker_dispatch and worker_outcome rows (#2064) or the v2 dispatch.
-func IsDispatchKind(kind string) bool {
-	return kind == "worker_dispatch" || kind == "worker_outcome" || kind == "dispatch"
+// WorkerStepTarget is the target of the clock worker's per-step planner_step row
+// (the per-planner rows name the planner); attrs admitted, running,
+// window_ticks and planner_failures describe the step.
+const WorkerStepTarget = "worker_step"
+
+// IsWorkerStep reports whether row is the clock worker's per-step row.
+func IsWorkerStep(row TimelineRecord) bool {
+	target, _ := row.Payload[telemetry.TargetKey].(string)
+	return row.Kind == "planner_step" && target == WorkerStepTarget
 }
 
-// IsSchedulerStepKind reports whether kind is the clock worker's per-step
-// row (scheduler_step; the one place a rename follows).
-func IsSchedulerStepKind(kind string) bool { return kind == "scheduler_step" }
+// IsCombatStop reports whether row is a clock_stop the combat metrics wrote
+// when a combat window resumed (it carries the combat `event`), as opposed to
+// the stop a Stopped clock event recorded.
+func IsCombatStop(row TimelineRecord) bool {
+	_, ok := row.Payload["event"]
+	return row.Kind == "clock_stop" && ok
+}
 
-// IsClockStopKind reports whether kind is a clock stop: the legacy
-// scheduler_stop (#2064) or the v2 clock_stop.
-func IsClockStopKind(kind string) bool { return kind == "scheduler_stop" || kind == "clock_stop" }
-
-// IsAuthorityKind reports whether kind records an authority change: the
-// legacy authority_change (#2064) or the v2 authority.
-func IsAuthorityKind(kind string) bool { return kind == "authority_change" || kind == "authority" }
+// IsWindowStop reports whether row is a clock_stop recorded for a Stopped
+// clock event (not a combat resume).
+func IsWindowStop(row TimelineRecord) bool {
+	return row.Kind == "clock_stop" && !IsCombatStop(row)
+}
 
 // IsDecisionRow reports whether the row has the decision shape.
 func IsDecisionRow(row TimelineRecord) bool {
@@ -73,14 +80,10 @@ func RowFields(row TimelineRecord) map[string]any {
 	return out
 }
 
-// StepFields is a clock_step row's payload in the legacy field names. The v2
-// clock_step is a decision row: the step wall is dur_ms (legacy elapsed_ms),
-// the step reason is target (legacy reason) and the read tally and the rest
-// sit under attrs.
+// StepFields is a clock_step decision row's data flat, with the step wall as
+// elapsed_ms (dur_ms) and the step's cause as reason (target): the field names
+// the step readers aggregate. The read tally and the rest sit under attrs.
 func StepFields(row TimelineRecord) map[string]any {
-	if !IsDecisionRow(row) {
-		return row.Payload
-	}
 	out := RowFields(row)
 	if ms, ok := out[telemetry.DurMsKey]; ok {
 		out["elapsed_ms"] = ms

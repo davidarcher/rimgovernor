@@ -38,8 +38,8 @@ func fixture(t *testing.T) string {
 		}
 	}
 	write("result.json", `{"case":"storage/food","error":"no meal hauled","passed":false,"authority_reacquisitions":{"attempts":2}}`)
-	// The flight recording is the whole evidence: legacy rows (worker_outcome,
-	// authority_change) and v2 rows (dispatch, authority, planner_step) read
+	// The flight recording is the whole evidence: v2 rows (dispatch, authority,
+	// planner_step) read
 	// side by side. An empty refused list and a completed outcome are not
 	// refusals.
 	row := func(seq int, kind, payload string) string {
@@ -48,15 +48,15 @@ func fixture(t *testing.T) string {
 	const haulRefusal = `"native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured"`
 	write("flight.jsonl.1",
 		row(1, "native_request", `{}`)+
-			row(2, "worker_outcome", `{"action":"routine-haul-abc-0","stage":"pending","outcome":"refused","refused":"no_empty_place","err":`+haulRefusal+`}`)+
-			row(3, "authority_change", `{"reason":"Manual","active":true,"generation":4,"previous_generation":3}`))
+			row(2, "dispatch", `{"verdict":"refused","reason":"","target":"routine-haul-abc-0","dur_ms":0,"attrs":{"stage":"pending","refused":"no_empty_place","error":`+haulRefusal+`}}`)+
+			row(3, "authority", `{"change":"changed","reason":"Manual","generation":4}`))
 	write("flight.jsonl",
 		row(4, "dispatch", `{"verdict":"failed","reason":"contract","target":"routine-haul-abc-1","dur_ms":0,"attrs":{"stage":"awaiting_observation","error":"bridge contract failure: pawn order job mismatch"}}`)+
 			row(5, "planner_step", `{"verdict":"failed","reason":"control_lost","target":"rounds","dur_ms":1,"attrs":{"error":"control lost"}}`)+
 			row(6, "authority", `{"change":"lost","reason":"manual","generation":4}`)+
 			row(7, "native_call", `{"native_tool":"rimgovernor/orders_haul","error":"refused","refused_text":"the target is not a haulable item"}`)+
-			row(8, "worker_outcome", `{"action":"routine-haul-abc-0","stage":"pending","outcome":"refused","refused":"no_empty_place","err":`+haulRefusal+`}`)+
-			row(9, "worker_outcome", `{"action":"routine-haul-abc-2","stage":"done","outcome":"completed","refused":"","err":""}`))
+			row(8, "dispatch", `{"verdict":"refused","reason":"","target":"routine-haul-abc-0","dur_ms":0,"attrs":{"stage":"pending","refused":"no_empty_place","error":`+haulRefusal+`}}`)+
+			row(9, "dispatch", `{"verdict":"completed","reason":"","target":"routine-haul-abc-2","dur_ms":0,"attrs":{"stage":"done"}}`))
 
 	db, err := sql.Open(store.DriverName, "file:"+filepath.ToSlash(filepath.Join(dir, "service.sqlite")))
 	if err != nil {

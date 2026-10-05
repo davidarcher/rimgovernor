@@ -191,7 +191,7 @@ interruption holds:
   force-pause waits (an autosave or transient pause native says is not a stop; one that
   outlasts its grace becomes a `FORCE_PAUSED` stop),
   operation outcomes and authority changes;
-- game alerts (`Event_Alert`): planning evidence and an `alert_row` telemetry event;
+- game alerts (`Event_Alert`): planning evidence and an `alert` flight row;
 - injury observations (`Event_InjuryObserved`): sub-threshold damage native coalesces;
 - notifications (`Event_Notification`): only classes native never stops play for;
 - the benign stops (`store/clock.BenignStop`): tick budget, requested pause, watch
@@ -343,7 +343,7 @@ apply. Validity rides the step context and reaches the Worker
 (`ClockScheduler.Validity`, `WorkerConfig.Validity`). Section versions live on
 `facts.Store.Versions`: each moves on an invalidation naming the section, on a
 whole-view invalidation and on a scope change, never on a refresh at cadence. A
-`worker_dispatch` run held on stale facts is marked `stale` (`stale_holds`).
+`dispatch` run held on stale facts is marked `stale` (`stale_holds`).
 
 ### Fact sources
 

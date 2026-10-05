@@ -19,8 +19,8 @@ func writeRecordings(t *testing.T, output string) {
 		`{"sequence":1,"wall_time":10,"kind":"native_call","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":100,"native_queue_ms":2,"native_execute_ms":4}}}`,
 		`{"sequence":2,"wall_time":11,"kind":"native_call","context":{},"payload":{"request":2,"tool":"games_call_tool","native_tool":"x/read","ok":false,"error":"boom","timing":{"total_ms":1,"response_bytes":20}}}`,
 		`{"sequence":3,"wall_time":12,"kind":"native_frame","context":{},"payload":{"outcome":"hit","tool":"games_call_tool","native_tool":"x/read"}}`,
-		`{"sequence":4,"wall_time":13,"kind":"clock_step","context":{},"payload":{"reads":3,"reason":"timer"}}`,
-		`{"sequence":5,"wall_time":14,"kind":"clock_step","context":{},"payload":{"reads":1,"reason":"timer"}}`,
+		`{"sequence":4,"wall_time":13,"kind":"clock_step","context":{},"payload":{"verdict":"admitted","reason":"","target":"timer","dur_ms":0,"attrs":{"reads":3}}}`,
+		`{"sequence":5,"wall_time":14,"kind":"clock_step","context":{},"payload":{"verdict":"admitted","reason":"","target":"timer","dur_ms":0,"attrs":{"reads":1}}}`,
 		// Clock status samples: paused for 2 of the 4 s they span.
 		clockSampleRow(6, 20, true), clockSampleRow(7, 22, false), clockSampleRow(8, 24, true),
 	}, "\n") + "\n"

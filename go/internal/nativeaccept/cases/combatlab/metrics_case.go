@@ -213,7 +213,7 @@ func stagePods(ctx context.Context, s cases.Session, name string) (Staged, error
 }
 
 // serveUntil polls the service's state until the game tick reaches until,
-// until the service records the end of the combat (a combat_stops row at
+// until the service records the end of the combat (a combat_summary row at
 // flight; the colony window after it would otherwise run the quiet lab to
 // the budget, #890), or until the served clock has sat still for
 // metricsIdle, and returns the last tick it saw.
@@ -247,10 +247,9 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, flight string, 
 	}
 }
 
-// combatEnded reports whether a flight row is the end-of-combat summary: the
-// legacy combat_stops row or the v2 combat_summary (#2064).
+// combatEnded reports whether a flight row is the end-of-combat summary.
 func combatEnded(row na.FlightRow) bool {
-	return row.Kind == "combat_stops" || row.Kind == "combat_summary"
+	return row.Kind == "combat_summary"
 }
 
 // writeCombatFlight copies the combat rows ScanFlight reads from the

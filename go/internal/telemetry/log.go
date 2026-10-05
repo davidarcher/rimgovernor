@@ -22,7 +22,7 @@ import (
 )
 
 // KindKey is the record attribute that makes a record a flight-recorder
-// row: its value is the row kind (scheduler_step, worker_outcome, ...). A
+// row: its value is the row kind (planner_step, dispatch, ...). A
 // record without it is rendered to stderr only.
 const KindKey = "kind"
 

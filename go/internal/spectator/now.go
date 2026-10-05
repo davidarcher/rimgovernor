@@ -173,8 +173,6 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 	var admitted, haveStep bool
 	var running bool
 	for _, row := range rows {
-		// A kind is read under its legacy name and its v2 name until the
-		// producer piece moves (bridge/flightrows.go).
 		fields := bridge.RowFields(row)
 		switch {
 		case bridge.WindowRefusal(row):
@@ -185,17 +183,17 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 			if held := stringList(fields["held_by"]); len(held) > 0 {
 				refused = strings.Join(append(stringList(fields["refused"]), "held by "+strings.Join(held, ", ")), ", ")
 			}
-		case row.Kind == "scheduler_step":
+		case bridge.IsWorkerStep(row):
 			haveStep = true
-			admitted, _ = row.Payload["admitted"].(bool)
-			running, _ = row.Payload["running"].(bool)
+			admitted, _ = fields["admitted"].(bool)
+			running, _ = fields["running"].(bool)
 			if admitted {
 				refused = ""
 			}
-			if ticks, ok := number(row.Payload["window_ticks"]); ok {
+			if ticks, ok := number(fields["window_ticks"]); ok {
 				out.Pacing.WindowTicks = int64(ticks)
 			}
-		case bridge.IsClockStopKind(row.Kind):
+		case bridge.IsWindowStop(row):
 			out.LastStop = stop(row)
 			out.Stops.Stops++
 			if out.LastStop.Reason == "STOP_REASON_TICK_BUDGET" {
@@ -280,7 +278,7 @@ func runningPace(native string) (PacingReason, string) {
 	return ReasonRunning, ""
 }
 
-// stop reads one scheduler_stop row, deriving the tick legs the row carries.
+// stop reads one clock_stop row, deriving the tick legs the row carries.
 func stop(row bridge.TimelineRecord) *Stop {
 	out := &Stop{}
 	out.Reason, _ = row.Payload["reason"].(string)

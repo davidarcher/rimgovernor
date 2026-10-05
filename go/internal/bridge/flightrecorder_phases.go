@@ -190,7 +190,7 @@ func (s StepSample) StepMs() float64 {
 	return s.ElapsedMs / float64(s.Steps)
 }
 
-// DispatchSample aggregates the "worker_dispatch" rows the routine Worker
+// DispatchSample aggregates the native-run "dispatch" rows the routine Worker
 // publishes for each run that reached native (#243): how many there were,
 // how many began while the scheduler's window was running (Live), how many
 // left a refused receipt (Refused, LiveRefused of those live), how many
@@ -518,12 +518,17 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					steps.Stops.MaxLatencyMs = math.Max(steps.Stops.MaxLatencyMs, latency)
 				}
 			}
-		case "worker_dispatch", "dispatch":
+		case "dispatch":
 			payload := RowFields(row)
+			// An outcome-change row with no native run carries no receipt:
+			// it is not one of the Worker's native dispatches.
+			receipt, native := payload["receipt"].(string)
+			if !native {
+				continue
+			}
 			d := &summary.Dispatch
 			d.Calls++
 			running, _ := payload["running"].(bool)
-			receipt, _ := payload["receipt"].(string)
 			if running {
 				d.Live++
 			}

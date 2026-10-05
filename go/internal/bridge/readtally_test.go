@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // TestReadTallyCountsPerStepAndSummarizes: calls made under a tallied context
@@ -55,10 +57,10 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 			// Only the step that reached the admission tail sized a window.
 			extra["window_ticks"] = uint32(2700)
 		}
-		tally.Publish(ctx, extra)
+		tally.Publish(ctx, telemetry.Decision{Kind: "clock_step", Attrs: extra})
 	}
 	var empty ReadTally
-	empty.Publish(context.Background(), nil) // nothing tallied: no row, no panic
+	empty.Publish(context.Background(), telemetry.Decision{Kind: "clock_step"}) // nothing tallied: no row, no panic
 	if err = rec.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +106,7 @@ func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
 	if tally.Total() != 2 || tally.Schema() != 1 || tally.Counts()["games_tool_detail"] != 0 || tally.String() != "total=2 lifecycle_read_identity=2 schema=1" {
 		t.Fatalf("tally: total %d schema %d %q", tally.Total(), tally.Schema(), tally.String())
 	}
-	tally.Publish(ctx, nil)
+	tally.Publish(ctx, telemetry.Decision{Kind: "clock_step"})
 	if err = rec.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +118,7 @@ func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
 		if row.Kind != "clock_step" {
 			continue
 		}
-		if field(row.Payload, "reads") != 2 || field(row.Payload, "schema_fetches") != 1 {
+		if field(RowFields(row), "reads") != 2 || field(RowFields(row), "schema_fetches") != 1 {
 			t.Fatalf("clock_step payload: %v", row.Payload)
 		}
 		return

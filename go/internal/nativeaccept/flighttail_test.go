@@ -24,23 +24,23 @@ func TestFlightTailReadsAppendedRowsOnly(t *testing.T) {
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("history is not a wake: rows=%v err=%v", rows, err)
 	}
-	write(`{"version":1,"run":"a","sequence":2,"wall_time":1,"kind":"worker_outcome","context":{"tick":4200},"payload":{"outcome":"completed"}}` + "\n")
+	write(`{"version":1,"run":"a","sequence":2,"wall_time":1,"kind":"dispatch","context":{"tick":4200},"payload":{"verdict":"completed","reason":"completed","target":"a","dur_ms":0,"attrs":{"changed":true}}}` + "\n")
 	write(`not json` + "\n")
-	write(`{"version":1,"run":"a","sequence":3,"wall_time":1,"kind":"scheduler_step","context":{},"payload":{}`) // partial
+	write(`{"version":1,"run":"a","sequence":3,"wall_time":1,"kind":"planner_step","context":{},"payload":{}`) // partial
 	rows, err = tail.Next()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || !WorkerOutcome(rows[0]) || rows[0].Sequence != 2 || !rows[0].HasTick || rows[0].Tick != 4200 || rows[0].Payload["outcome"] != "completed" {
+	if len(rows) != 1 || !WorkerOutcome(rows[0]) || rows[0].Sequence != 2 || !rows[0].HasTick || rows[0].Tick != 4200 {
 		t.Fatalf("rows: %+v", rows)
 	}
 	write("}\n")
 	rows, err = tail.Next()
-	if err != nil || len(rows) != 1 || rows[0].Kind != "scheduler_step" {
+	if err != nil || len(rows) != 1 || rows[0].Kind != "planner_step" {
 		t.Fatalf("partial line completes next read: rows=%+v err=%v", rows, err)
 	}
 	// Rotation: the active file restarts small.
-	if err := os.WriteFile(path, []byte(`{"version":1,"run":"a","sequence":4,"wall_time":1,"kind":"worker_outcome","context":{},"payload":{}}`+"\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"version":1,"run":"a","sequence":4,"wall_time":1,"kind":"dispatch","context":{},"payload":{}}`+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	rows, err = tail.Next()

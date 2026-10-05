@@ -308,12 +308,16 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 	return key
 }
 
-// clockWorkerStepEvent publishes one "scheduler_step" event: the step's
-// error (Warn, as "step failed") or its outcome flags (Info, "step done"),
-// the planner failures the step isolated, and how many unlogged steps
-// restated the previous outcome.
+// clockWorkerStepEvent publishes one planner_step row (target
+// bridge.WorkerStepTarget) for the step: failed on its error (WARN) or on the
+// planner failures it isolated, waiting on a hold or retry, else admitted or
+// waiting on the window; the failures and outcome flags ride in attrs, with
+// how many unlogged steps restated the previous outcome.
 func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err error, repeats int) {
-	level, message := slog.LevelInfo, "step done"
+	level, verdict, reason := slog.LevelInfo, "waiting", "no_window"
+	if result.Decision.Admitted {
+		verdict, reason = "admitted", "window_admitted"
+	}
 	failures := make([]string, 0, len(result.PlannerFailures))
 	var unselected []string
 	for _, failure := range result.PlannerFailures {
@@ -325,22 +329,25 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 		}
 		failures = append(failures, failure.Error())
 	}
+	if len(failures) > 0 {
+		verdict, reason = "failed", "planner_failures"
+	}
 	// A bare hold (no planner failed, nothing else joined) is the step
 	// waiting, not failing: the player log keeps its Warn for real faults.
 	if err != nil {
-		level, message = slog.LevelWarn, "step failed: "+err.Error()
+		level, verdict, reason = slog.LevelWarn, "failed", "step_error"
 		if err == executor.ErrHeld && len(failures) == 0 {
-			level, message = slog.LevelInfo, "step held: "+err.Error()
+			level, verdict, reason = slog.LevelInfo, "waiting", "held"
 		} else if (errors.Is(err, executor.ErrAuthority) || errors.Is(err, observation.ErrChanged) || errors.Is(err, ErrControl)) && len(failures) == 0 {
 			// Authority, the native observation or the planner read lapsed between the step's
 			// state read and its review (a poll hold, a resume, a reload in
 			// flight): the next step reviews with fresh state or exits on
 			// authority's absence, so it is a retry, not a fault.
-			level, message = slog.LevelInfo, "step retry: "+err.Error()
+			level, verdict, reason = slog.LevelInfo, "waiting", "retry"
 		} else if strings.Contains(err.Error(), "FAILURE_CODE_OWNER_CONFLICT") && len(failures) == 0 {
 			// A restarted controller asking after its old clock epoch: it opens a
 			// new one on the next step.
-			level, message = slog.LevelInfo, "step: clock epoch not held, reopening: "+err.Error()
+			level, verdict, reason = slog.LevelInfo, "waiting", "epoch_reopen"
 		}
 	}
 	proposals := make([]string, 0, len(result.Proposals))
@@ -357,32 +364,31 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 	// The readers (spectator now, phases, step stall) use admitted, running,
 	// window_ticks and planner_failures; every other field is written only
 	// when it says something.
-	attrs := []any{telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
-		"planner_failures", failures, "admitted", result.Decision.Admitted, "running", result.Running, "window_ticks", result.Window.Ticks}
+	attrs := map[string]any{"planner_failures": failures, "admitted": result.Decision.Admitted, "running": result.Running, "window_ticks": result.Window.Ticks}
 	if err != nil {
-		attrs = append(attrs, "err", err)
+		attrs["error"] = err
 	}
 	if len(unselected) > 0 {
-		attrs = append(attrs, "planner_unselected", unselected)
+		attrs["planner_unselected"] = unselected
 	}
 	if len(proposals) > 0 {
-		attrs = append(attrs, "proposals", proposals)
+		attrs["proposals"] = proposals
 	}
 	if result.Reason.Cause != "" {
-		attrs = append(attrs, "cause", string(result.Reason.Cause))
+		attrs["cause"] = string(result.Reason.Cause)
 	}
 	for _, flag := range []struct {
 		name string
 		set  bool
 	}{{"reconciled", result.Reconciled}, {"cleaned", result.Cleaned}, {"deferred", result.Deferred}, {"retaken", result.Retaken}, {"combat", result.Combat}} {
 		if flag.set {
-			attrs = append(attrs, flag.name, true)
+			attrs[flag.name] = true
 		}
 	}
 	if repeats > 0 {
-		attrs = append(attrs, "repeated", repeats)
+		attrs["repeated"] = repeats
 	}
-	slog.Default().Log(ctx, level, message, attrs...)
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "planner_step", Component: "clock-worker", Level: level, Verdict: verdict, Reason: reason, Target: bridge.WorkerStepTarget, Attrs: attrs})
 }
 
 func (w *ClockWorker) stepLoop() {
@@ -400,7 +406,7 @@ func (w *ClockWorker) stepLoop() {
 	// ended the wait before it: the timer, a wake, or a settled epoch.
 	reason := StepReason{Cause: StepFull}
 	for w.ctx.Err() == nil {
-		// The loop mints the step's trace so the scheduler_step event below
+		// The loop mints the step's trace so the planner_step row below
 		// shares it with every row the step wrote (#298).
 		call, cancel := context.WithTimeout(telemetry.WithTrace(w.ctx, telemetry.NewTrace()), w.config.StepTimeout)
 		result, err := w.step(call, reason)
@@ -408,7 +414,7 @@ func (w *ClockWorker) stepLoop() {
 		w.wakePoll()
 		key := clockWorkerKey(result, err)
 		changed := !havePrevious || key != previous
-		// One scheduler_step event per change of outcome (like the backoff
+		// One planner_step row per change of outcome (like the backoff
 		// decision below), so a sustained failure logs once, not every
 		// StepInterval, and the next change carries the repeat count.
 		// stepPlanners wraps each planner's error with its own name

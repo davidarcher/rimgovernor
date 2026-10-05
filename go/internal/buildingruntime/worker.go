@@ -51,7 +51,7 @@ type WorkerConfig struct {
 	Store *facts.Store
 	// WindowRunning, when set, reports the scheduler's hint that its window
 	// is running; each native call the worker issues is recorded with it
-	// as a "worker_dispatch" flight row (#243), so a run can count the
+	// as a "dispatch" flight row (#243), so a run can count the
 	// dispatches made live and the fraction native refused.
 	WindowRunning func() bool
 	// Trace, when set, is the trace of the scheduler's latest step
@@ -192,7 +192,7 @@ func workerOutcome(after domain.ProgressView, result executor.Result, err error)
 }
 
 // workerRefusedReasons lists the refusal reasons of a run's result: the
-// outcome text's refused=[...] and the worker_outcome row's refused attr.
+// outcome text's refused=[...] and the dispatch row's refused attr.
 func workerRefusedReasons(result executor.Result) []string {
 	reasons := make([]string, 0, len(result.Refused))
 	for _, r := range result.Refused {
@@ -552,9 +552,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				after = result.Progress.View()
 			}
 			stale := workerHeldStale(after, result, err)
-			if result.NativeCalled {
-				workerDispatchRow(run, tally, candidate.view, after, running, stale, err)
-			}
 			delay := w.config.StepInterval
 			if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) {
 				delay = min(wait.delay*2, workerBackoffCap(w.config, after))
@@ -580,8 +577,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			// the run's log without adding anything a reader can act on (#100).
 			outcome := workerOutcome(after, result, err)
 			repeats := wait.repeats
-			if outcome != wait.outcome {
-				workerOutcomeEvent(run, v, after, outcome, workerRefusedReasons(result), err, repeats)
+			changed := outcome != wait.outcome
+			if changed || result.NativeCalled {
+				workerDispatchRow(run, tally, v, after, result, running, stale, err, changed, repeats)
+			}
+			if changed {
 				repeats = 0
 			} else {
 				repeats++
@@ -601,7 +601,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				if _, cancelErr := w.player.journal.Cancel(call, v.Plan, v.Action); cancelErr != nil {
 					errs = append(errs, cancelErr)
 				} else {
-					slog.Default().Warn("worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(v.Action), "stage", string(v.Stage), "outcome", "cancelled_settled", "attempts", cancelled, "err", err)
+					telemetry.Decide(call, telemetry.Decision{Kind: "dispatch", Component: "worker", Level: slog.LevelWarn, Target: string(v.Action), Verdict: "failed", Reason: "cancelled_settled",
+						Attrs: map[string]any{"stage": string(v.Stage), "attempts": cancelled, "error": err}})
 					delete(w.waits, v.Action)
 					w.advanced = true
 					continue
@@ -696,42 +697,56 @@ func (w *Worker) backedOff(candidate workerCandidate, scope ControlState, now ti
 	return !w.focusNamed(v.Action) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && now.Before(wait.until)
 }
 
-// workerDispatchRow publishes one "worker_dispatch" flight row for a run
-// that reached native: the action's kind and attempt, the receipt the run
-// left (accepted, refused, unknown; "-" when the write was not a dispatch),
-// whether the scheduler's window was running when the run began (#243),
-// and the error. `rimgovernor phases` sums them (bridge.DispatchSample).
-func workerDispatchRow(ctx context.Context, tally *bridge.ReadTally, before, after domain.ProgressView, running, stale bool, err error) {
+// workerDispatchRow publishes the action's dispatch row: one per run that
+// reached native or whose outcome changed. A native run carries the receipt
+// the run left (accepted, refused, unknown; "-" when the write was not a
+// dispatch), whether the scheduler's window was running when the run began
+// (#243) and the read tally (`rimgovernor phases` sums those rows,
+// bridge.DispatchSample); an outcome change carries `changed` and how many
+// unrecorded runs restated the previous outcome, so a refusal that repeats
+// verbatim on every retry writes once (#100). An action waiting on a
+// prerequisite that has not completed is the plan sequencing itself, not a
+// failure, so only another error is WARN. stale marks a run held on stale
+// facts (workerHeldStale) so a run can count the holds the read bounds
+// refused (#624).
+func workerDispatchRow(ctx context.Context, tally *bridge.ReadTally, before, after domain.ProgressView, result executor.Result, running, stale bool, err error, changed bool, repeats int) {
+	refused := workerRefusedReasons(result)
+	d := telemetry.Decision{Kind: "dispatch", Component: "worker", Target: string(before.Action), Verdict: "waiting", Reason: string(after.Stage),
+		Attrs: map[string]any{"attempt": int64(after.Attempt), "stage": string(before.Stage), "stage_after": string(after.Stage), "refused": refused, "stale": stale, "changed": changed, "repeated": repeats}}
+	switch {
+	case err != nil && errors.Is(err, domain.ErrDependency):
+		d.Reason = "dependency"
+	case err != nil && stale:
+		d.Verdict, d.Reason = "held", "stale"
+	case err != nil:
+		d.Verdict, d.Reason = "failed", "error"
+	case len(refused) > 0:
+		d.Verdict, d.Reason = "refused", refused[0]
+	case after.Stage == domain.Completed:
+		d.Verdict, d.Reason = "completed", "completed"
+	}
+	if err != nil {
+		d.Attrs["error"] = err.Error()
+		if !errors.Is(err, domain.ErrDependency) {
+			d.Level = slog.LevelWarn
+		}
+	}
+	if !result.NativeCalled {
+		telemetry.Decide(ctx, d)
+		return
+	}
 	receipt := "-"
 	if v, known := after.Receipt.Value(); known && (after.Attempt != before.Attempt || !workerSameReceipt(before, after)) {
 		receipt = string(v)
 	}
-	// stale marks a run held on stale facts (workerHeldStale) so a run can
-	// count the holds the read bounds refused (#624).
-	extra := map[string]any{"action": string(after.Action), "attempt": after.Attempt, "stage": string(after.Stage), "receipt": receipt, "running": running, "stale": stale}
-	if err != nil {
-		extra["error"] = err.Error()
-	}
-	tally.PublishAs(ctx, "worker_dispatch", extra)
+	d.Attrs["receipt"], d.Attrs["running"] = receipt, running
+	tally.Publish(ctx, d)
 }
 
 func workerSameReceipt(a, b domain.ProgressView) bool {
 	x, xk := a.Receipt.Value()
 	y, yk := b.Receipt.Value()
 	return xk == yk && x == y
-}
-
-// workerOutcomeEvent publishes one "worker_outcome" event when an action's
-// reconciliation outcome changes: the action, its stage before and after
-// the run, the outcome text, and the error, at Warn when the run failed. An
-// action waiting on a prerequisite that has not completed is the plan
-// sequencing itself, not a failure, so it logs at Info.
-func workerOutcomeEvent(ctx context.Context, before, after domain.ProgressView, outcome string, refused []string, err error, repeats int) {
-	level := slog.LevelInfo
-	if err != nil && !errors.Is(err, domain.ErrDependency) {
-		level = slog.LevelWarn
-	}
-	slog.Default().Log(ctx, level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "refused", refused, "err", err, "repeated", repeats)
 }
 
 // workerSameView reports whether two views of one action describe the same

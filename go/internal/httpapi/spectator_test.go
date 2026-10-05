@@ -37,9 +37,9 @@ func spectatorServer(t *testing.T, withRecorder bool) *Server {
 			kind    string
 			payload map[string]any
 		}{
-			{"scheduler_step", map[string]any{"admitted": true, "running": true, "window_ticks": 2500}},
-			{"scheduler_stop", map[string]any{"reason": "STOP_REASON_COLONIST_HEALTH", "evidence": "health", "cursor": 41, "benign": false, "tick": 5040, "detected_tick": 5030, "stop_ticks": 10, "age_at_reply_ms": 12.0}},
-			{"clock_step", map[string]any{"reads": 4, "tools": map[string]any{}, "stop": true, "stop_latency_ms": 40.0, "stop_pause_s": 0.5, "elapsed_ms": 9.0}},
+			{"planner_step", map[string]any{"verdict": "admitted", "reason": "window_admitted", "target": bridge.WorkerStepTarget, "dur_ms": 0.0, "attrs": map[string]any{"admitted": true, "running": true, "window_ticks": 2500}}},
+			{"clock_stop", map[string]any{"reason": "STOP_REASON_COLONIST_HEALTH", "evidence": "health", "cursor": 41, "benign": false, "tick": 5040, "detected_tick": 5030, "stop_ticks": 10, "age_at_reply_ms": 12.0}},
+			{"clock_step", map[string]any{"verdict": "admitted", "reason": "window_admitted", "target": "wake", "dur_ms": 9.0, "attrs": map[string]any{"reads": 4, "tools": map[string]any{}, "stop": true, "stop_latency_ms": 40.0, "stop_pause_s": 0.5}}},
 		} {
 			if _, err := recorder.Event(event.kind, map[string]any{"tick": 5040}, false, event.payload); err != nil {
 				t.Fatal(err)

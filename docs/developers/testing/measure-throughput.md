@@ -44,17 +44,17 @@ Row kinds a phase report reads:
 Every service log line is a structured record (`go/internal/telemetry`):
 `<time> tick=<n|-> <LEVEL> [<component>] <message> k=v ...`. A record naming an
 event `kind` is also a flight row of that kind (`phases` ignores them).
-Kinds: `scheduler_step` (one per change of a step's outcome), `planner_step` (one per planner run), `admission`,
-`scheduler_stop`, `authority_change`, `alert_row`, `worker_outcome`,
-`worker_dispatch`, `rounds_review`. Grep the emitting code for each one's
+Kinds: `planner_step` (one per planner run; target `worker_step` is the clock worker's step, one per change of outcome), `clock_step`, `admission`,
+`clock_stop`, `authority`, `alert`, `dispatch`, `rounds_review`. Grep the
+emitting code for each one's
 attributes.
 
 ## Traces
 
 Every row's context carries `trace_id` and `span_id`. A scheduler step is a
 trace root (bundle, census, planner reads, admission, its `clock_step` and
-`scheduler_step` rows); the Worker's step and each dispatch are child spans, so
-`worker_dispatch`, `worker_outcome` and a dispatch's native calls join the trace
+`planner_step` rows); the Worker's step and each dispatch are child spans, so
+`dispatch` rows and a dispatch's native calls join the trace
 of the step that admitted their window. Typed bridge calls send `trace`
 (`<trace_id>/<span_id>`); the companion echoes it so `queueMs`/`executeMs`
 belong to the same trace.

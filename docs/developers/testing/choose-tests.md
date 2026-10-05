@@ -582,7 +582,7 @@ the verdict is the case's error and `fail_fast` quotes the journal text) when:
   reason but `interrupted`/`cancelled`;
 - the concern stays active/deficit with no method through five consecutive reviews
   that handed its planner the slot;
-- the latest `scheduler_step` line carries the same native refusal in
+- the latest worker-step `planner_step` row carries the same native refusal in
   `planner_failures` for six consecutive samples;
 - the watched concern is vetoed by a Safeguard while the review names emergency
   needs and the live tick has not moved for twelve consecutive samples.

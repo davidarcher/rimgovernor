@@ -61,22 +61,22 @@ its v1 payload and its readers.
 | `native_frame`, `native_frame_hit`, `native_frame_miss` | `native_frame` | event row. `outcome` (`decoded`, `hit`, `miss`), `native_tool`, `frame`, `why` (miss), plus the v1 decoded-frame fields | #2057 (landed) |
 | `native_cache_hit` | removed | no writer; the dead reader branch in `cmd/launcher/problems.go` goes | #2054 |
 | `combat_order` | `combat_order` (decision) | `target` pawn, `verdict` `applied`/`refused`, `reason` refusal, attrs `index`, `job` | #2067 |
-| `clock_step` | `clock_step` (decision) | `verdict` step outcome (`admitted`, `deferred`, `refused`, `idle`), `reason` cause, `target` step reason, `dur_ms` step wall; attrs `reads`, `tools`, `schema_fetches`, `running`, `stop_pause_s` (the read tally's payload moves under `attrs`) | #2063 |
-| `worker_dispatch`, `worker_outcome` | `dispatch` (decision) | one per run that acted. `target` action, `verdict` outcome (`completed`, `refused`, `failed`, `waiting`, `held`), `reason` cause or error class; attrs `attempt`, `stage`, `stage_after`, `receipt`, `running`, `stale`, `error`, `repeated`, `reads`, `tools`, `schema_fetches`. Level `WARN` for a failure other than a dependency wait | #2064 |
+| `clock_step` | `clock_step` (decision) | `verdict` step outcome (`admitted`, `deferred`, `refused`, `idle`, `failed`), `reason` the first window refusal or a stable word (`window_admitted`, `window_refused`, `deferred`, `no_window`, `step_error`), `target` the step's cause (`timer`, `wake`, `settled`, `full`, `live`), `dur_ms` step wall; attrs also `gate_wait_ms`, `journal_ms`, `window_ticks`, `stop`, `stop_latency_ms`, the pacing fields and `error`; attrs `reads`, `tools`, `schema_fetches`, `running`, `stop_pause_s` (the read tally's payload moves under `attrs`) | #2073 (landed; #2063 designed it) |
+| `worker_dispatch`, `worker_outcome` | `dispatch` (decision) | one per run that acted. `target` action, `verdict` outcome (`completed`, `refused`, `failed`, `waiting`, `held`), `reason` cause or error class; attrs `attempt`, `stage`, `stage_after`, `receipt`, `running`, `stale`, `error`, `repeated`, `reads`, `tools`, `schema_fetches`. Level `WARN` for a failure other than a dependency wait. Written for a run that reached native (carries `receipt`, `running` and the read tally; `rimgovernor phases` counts only these) or whose outcome changed (`changed` true, `repeated` the unrecorded runs that restated the previous outcome); an unchanged run that never reached native writes nothing. `reason` is the stage word for a wait, `dependency`, `stale`, `error`, the first refusal, or `completed`; `refused` (all refusal reasons) rides in attrs. The cancelled-settle of an undispatched action is `failed`/`cancelled_settled` with `attempts` | #2073 (landed) |
 
 ### Clock and scheduler (`internal/buildingruntime`)
 
 | Old kind | v2 kind | v2 shape and fields | Piece |
 |---|---|---|---|
-| `scheduler_step`, `stockpiles` ("stockpile step"), the surviving `clockSchedulerLog` Debug sites | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait cause; attrs `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error` | #2063 (spine, landed: the row is written where the planner returns, `reason` is the refusal kind and `plan_admitted`/`no_verdict`/an outcome word otherwise, attrs `concern`, `class`, `subject`, `detail`, `error`, `late`; each Rounder step writes one row, target `rounds`, `ok`/`reviewed` or `failed`/`error` (`control_lost` for ErrControl), attr `partial` (#2066); a step's own failure to record a wave files `failed`/`journal_error` with target `reasons`, `waits` or `proposals`), #2064 (worker) |
+| `scheduler_step`, `stockpiles` ("stockpile step"), the surviving `clockSchedulerLog` Debug sites | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait cause; attrs `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error` | #2063 (spine, landed: the row is written where the planner returns, `reason` is the refusal kind and `plan_admitted`/`no_verdict`/an outcome word otherwise, attrs `concern`, `class`, `subject`, `detail`, `error`, `late`; each Rounder step writes one row, target `rounds`, `ok`/`reviewed` or `failed`/`error` (`control_lost` for ErrControl), attr `partial` (#2066); a step's own failure to record a wave files `failed`/`journal_error` with target `reasons`, `waits` or `proposals`), #2073 (worker step, landed: target `worker_step` (`bridge.WorkerStepTarget`), `verdict` `admitted`/`waiting`/`failed`, `reason` `window_admitted`, `no_window`, `held`, `retry`, `epoch_reopen`, `planner_failures` or `step_error`; attrs `planner_failures`, `planner_unselected`, `admitted`, `running`, `window_ticks`, `proposals`, `cause`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `repeated`, `error`; `WARN` only for a real step error) |
 | `admission`, `admission_refused`, `fight_admission` | `admission` (decision) | `target` method, window or plan, `verdict` `admitted`/`refused`/`held`, `reason` the refusal (`critical_wave_budget`, a `ClockWindowReason`, a method refusal); attrs `concern`, `refused` (all reasons), `held_by`, `mode`, `work`, `combat_plan`, `hostiles`, `clock_state`, `window_ticks`, `wall_budget_ms`, `error` | #2063 (window, method), #2067 (fight) |
-| `scheduler_stop`, `combat_stop` | `clock_stop` | event row. `reason`, `evidence`, `cursor`, `observed_at_unix_ms`, `benign`, the stop legs, and for a combat stop `event`, `resume_latency_ms`, `ticks_since_stop` | #2064 |
-| `combat_stops` | `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `ticks_between_stops_p50`, `ticks_between_stops_p95` | #2064 |
-| `authority_change`, `authority_lost`, `clock_retaken` | `authority` | event row. `change` (`changed`, `lost`, `retaken`), `reason`, `active`, `generation`, `previous_generation`, `cursor`, `paused`, `pace`, `stop_reason`; `WARN` for `lost` | #2064 |
-| `backlog_adopted` | `clock_journal` | event row. `through_cursor`, `newest_cursor` | #2064 |
-| `alert_row` | `alert` | event row. `key`, `label`, `priority`, `cursor` | #2064 |
-| `pace_backoff` | `pace` | decision. `target` `backoff`, `reason` the `why`; attrs `ceiling`, `horizon_ticks`, `error` | #2064 |
-| `idle_stall` | `idle_stall` | decision, `WARN`. `reason` `no_work`; attrs `tick`, `refusals`, `lend_ticks`, `standing` | #2064 |
+| `scheduler_stop`, `combat_stop` | `clock_stop` | event row. `reason`, `evidence`, `cursor`, `observed_at_unix_ms`, `benign`, the stop legs, and for a combat stop `event`, `resume_latency_ms`, `ticks_since_stop` | #2073 (landed) |
+| `combat_stops` | `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `ticks_between_stops_p50`, `ticks_between_stops_p95` | #2073 (landed) |
+| `authority_change`, `authority_lost`, `clock_retaken` | `authority` | event row. `change` (`changed`, `lost`, `retaken`), `reason`, `active`, `generation`, `previous_generation`, `cursor`, `paused`, `pace`, `stop_reason`; `WARN` for `lost` | #2073 (landed) |
+| `backlog_adopted` | `clock_journal` | event row. `through_cursor`, `newest_cursor` | #2073 (landed) |
+| `alert_row` | `alert` | event row. `key`, `label`, `priority`, `cursor` | #2073 (landed) |
+| `pace_backoff` | `pace` | decision. `target` `backoff`, `reason` the `why`; attrs `ceiling`, `horizon_ticks`, `error` | #2073 (landed) |
+| `idle_stall` | `idle_stall` | decision, `WARN`. `reason` `no_work`; attrs `tick`, `refusals`, `lend_ticks`, `standing` | #2073 (landed) |
 | `pacing_mode` | removed | no writer; the `internal/spectator/now.go` branch goes | #2054 |
 
 ### Rounds, layout and colony (`internal/buildingruntime/rounds*`, `colony_plan`, `layout_*`)
@@ -123,17 +123,20 @@ reach. A new emission adds its kind here with a reader, or it is not added.
 | `bridge` phases, `cmd/launcher` problems and Log tab, spectator `now`, `TimelineReader` consumers | #2054 |
 | `rimgovernor log` | #2053 |
 
-The #2054 readers (`bridge/flightrows.go`) accept a kind under its legacy name and its v2 name until the
-producer piece lands. Each legacy branch is deleted by the piece that moves its producer:
+The producers of the clock and worker family write only the v2 kinds (#2073): `clock_step`, `planner_step`
+(target `worker_step` for the clock worker's step), `dispatch`, `clock_stop`, `combat_summary`, `authority`,
+`clock_journal`, `alert`, `pace`, `idle_stall`. Their
+readers match those names only (`bridge.IsWorkerStep`, `bridge.IsWindowStop`, `bridge.StepFields`; the combat
+`clock_stop` rows carry `event`, the stop-event rows do not). The legacy branches that remain, and the piece
+that deletes each:
 
 | Legacy name read | v2 name | Deleted by |
 |---|---|---|
-| `clock_step` legacy payload | `clock_step` decision (`StepFields`) | #2063 |
-| `scheduler_step` (spectator `now`, trace roots) | `planner_step` (attrs `admitted`, `running`, `window_ticks`) | #2064 (worker step; the #2063 planner_step rows are per planner and do not carry them) |
-| `worker_dispatch`, `worker_outcome` | `dispatch` | #2064 |
-| `scheduler_stop`, `authority_change` | `clock_stop`, `authority` | #2064 |
-| Log panel INFO kinds `combat_stops`, `authority_lost`, `clock_retaken` | `combat_summary`, `authority` | #2064 |
+| `native_response`, `native_error`, `native_decode`, `native_frame_hit` (`bridge/flightrows.go`, `flightrecorder_phases.go`, `flightrecorder_trace.go`, `cmd/launcher/problems.go`) | `native_call`, `native_frame` (`outcome`) | #2057 (the `native_error`/`native_response` names stay until #2065) |
+| Log panel INFO kinds `hold_refused`, `animal_clear`, `entity_kill`, `entity_capture_refused` (`cmd/launcher/logtail.go`) | `defense_action` | #2067 |
+| combatlab `ScanFlight` reads a `combat_order` `outcome` attr when `verdict` is absent | `combat_order` decision | #2067 |
+| postmortem, `acceptance why` (raw `native_error` greps and service stderr) | `native_call` rows | #2065 |
 
-| acceptance `stepevent`, `stepstall`, `failfast` | #2061 |
-| acceptance `farm/select` (reads `fields_select`), `combatlab` metrics and run-end stop (read `combat_stop`/`clock_stop`, `combat_order`, `worker_outcome`/`dispatch`, `combat_stops`/`combat_summary`; the bundle's `combat_flight.jsonl` replaces `service.log`) | #2062 (legacy names deleted with #2064, #2067) |
-| postmortem, `acceptance why` (reads `native_call`, `worker_outcome`/`dispatch`, authority rows and `planner_step` `control_lost`; cites `flight.jsonl#<sequence>`; no service log) | #2065 (landed) |
+The acceptance readers `stepevent`, `stepstall`, `failfast` (#2061), `farm/select` and `combatlab` (#2062) read the
+v2 rows directly; the bundle's `combat_flight.jsonl` replaces `service.log`.
+

@@ -16,7 +16,7 @@ import (
 type StepStallError struct {
 	Stall    time.Duration
 	Families string
-	// LastFailure is the last WARN or ERROR scheduler_step row of the
+	// LastFailure is the last WARN or ERROR worker-step planner_step row of the
 	// service's flight recorder, rendered by StepFailureText; empty when it
 	// recorded none.
 	LastFailure string
@@ -37,7 +37,7 @@ func (e *StepStallError) Error() string {
 func lastStepFailure(path string) string {
 	row, _, ok := lastFlightRow(path, 0, func(r FlightRow) bool {
 		level, _ := r.Context["level"].(string)
-		return bridge.IsSchedulerStepKind(r.Kind) && (level == "WARN" || level == "ERROR")
+		return bridge.IsWorkerStep(r.Record()) && (level == "WARN" || level == "ERROR")
 	})
 	if !ok {
 		return ""
@@ -45,12 +45,13 @@ func lastStepFailure(path string) string {
 	return StepFailureText(row)
 }
 
-// StepFailureText renders a failed scheduler_step row as
-// "<at> tick=<n> <LEVEL> <msg>" (the step message carries the error).
+// StepFailureText renders a failed worker-step row as
+// "<at> tick=<n> <LEVEL> <verdict> <reason>: <error>" (the row's error attr
+// and isolated planner failures carry the text).
 func StepFailureText(row FlightRow) string {
 	level, _ := row.Context["level"].(string)
 	at, _ := row.Context["at"].(string)
-	msg, _ := row.Fields()["msg"].(string)
+	msg := stepFailureWords(row)
 	parts := []string{}
 	if at != "" {
 		parts = append(parts, at)
@@ -60,4 +61,24 @@ func StepFailureText(row FlightRow) string {
 	}
 	parts = append(parts, level, msg)
 	return strings.Join(parts, " ")
+}
+
+// stepFailureWords is the worker-step row's "<verdict> <reason>" followed by
+// its error and the isolated planner failures when it carries them.
+func stepFailureWords(row FlightRow) string {
+	f := row.Fields()
+	words := []string{}
+	for _, key := range []string{"verdict", "reason"} {
+		if s, _ := f[key].(string); s != "" {
+			words = append(words, s)
+		}
+	}
+	text := strings.Join(words, " ")
+	if e, _ := f["error"].(string); e != "" {
+		text += ": " + e
+	}
+	if failures := plannerFailures(row); failures != "[]" {
+		text += " " + failures
+	}
+	return text
 }

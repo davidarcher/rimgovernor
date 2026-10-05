@@ -3,9 +3,12 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // ReadTally counts the native round trips issued under one context: every
@@ -123,18 +126,12 @@ func (t *ReadTally) String() string {
 	return b.String()
 }
 
-// Publish writes the tally as one "clock_step" flight-recorder row (payload:
-// reads, tools, schema_fetches, plus the caller's extra fields such as the
-// step's running flag) on the recorder of the Client
-// that served the tallied calls. Without a recorder, or when nothing was
-// tallied, it is a no-op; the profiler (SummarizePhases) aggregates the rows.
-func (t *ReadTally) Publish(ctx context.Context, extra map[string]any) {
-	t.PublishAs(ctx, "clock_step", extra)
-}
-
-// PublishAs is Publish under another row kind: "worker_dispatch" for the
-// Worker's per-dispatch row (#243).
-func (t *ReadTally) PublishAs(ctx context.Context, kind string, extra map[string]any) {
+// Publish writes the tally as one decision row of d's kind (a "clock_step" or
+// a "dispatch") on the recorder of the Client that served the tallied calls:
+// d's verdict, reason, target and duration, with its attrs plus the tally's
+// reads, tools and schema_fetches. Without a recorder it is a no-op; the
+// profiler (SummarizePhases) aggregates the rows.
+func (t *ReadTally) Publish(ctx context.Context, d telemetry.Decision) {
 	if t == nil {
 		return
 	}
@@ -148,9 +145,18 @@ func (t *ReadTally) PublishAs(ctx context.Context, kind string, extra map[string
 	for tool, n := range t.Counts() {
 		tools[tool] = n
 	}
-	payload := map[string]any{"reads": t.Total(), "tools": tools, "schema_fetches": t.Schema()}
-	for key, value := range extra {
-		payload[key] = value
+	attrs := make(map[string]any, len(d.Attrs)+3)
+	for key, value := range d.Attrs {
+		attrs[key] = value
 	}
-	client.recorder.Event(kind, client.snapshotRecordingContext(ctx), false, payload)
+	attrs["reads"], attrs["tools"], attrs["schema_fetches"] = t.Total(), tools, t.Schema()
+	d.Attrs = attrs
+	rowContext := client.snapshotRecordingContext(ctx)
+	if d.Component != "" {
+		rowContext[telemetry.ComponentKey] = d.Component
+	}
+	if d.Level >= slog.LevelWarn {
+		rowContext["level"] = d.Level.String()
+	}
+	client.recorder.Event(d.Kind, rowContext, false, d.Payload())
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// SchedulerStep is the service's latest scheduler_step row (the clock
+// SchedulerStep is the service's latest worker-step row (the planner_step of target worker_step) (the clock
 // worker writes one per change of step outcome): the row as the flight
 // recorder wrote it and the isolated planner failures it carried.
 type SchedulerStep struct {
@@ -30,10 +30,10 @@ func (s SchedulerStep) Refused() bool {
 // end, and a poll must not re-read an hour of rows.
 const schedulerStepTail = 256 * 1024
 
-// LastSchedulerStepFile reads the last scheduler_step row from the tail of
+// LastSchedulerStepFile reads the last worker-step row (planner_step, target worker_step) from the tail of
 // the flight recorder at path; false when it has none yet or cannot be read.
 func LastSchedulerStepFile(path string) (SchedulerStep, bool) {
-	row, line, ok := lastFlightRow(path, schedulerStepTail, func(r FlightRow) bool { return bridge.IsSchedulerStepKind(r.Kind) })
+	row, line, ok := lastFlightRow(path, schedulerStepTail, func(r FlightRow) bool { return bridge.IsWorkerStep(r.Record()) })
 	if !ok {
 		return SchedulerStep{}, false
 	}

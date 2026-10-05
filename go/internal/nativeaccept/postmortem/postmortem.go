@@ -304,7 +304,7 @@ func groupRows(rows []flightRow, read func(flightRow) (string, bool)) []Line {
 // isOutcomeKind reports whether kind is the Worker's per-action outcome row:
 // the legacy worker_outcome or the v2 dispatch. (The per-run worker_dispatch
 // tally is not an outcome.)
-func isOutcomeKind(kind string) bool { return kind == "worker_outcome" || kind == "dispatch" }
+func isOutcomeKind(kind string) bool { return kind == "dispatch" }
 
 // outcome is one outcome row read under either shape: the legacy payload
 // (action, outcome, refused, err) or the v2 decision (target, verdict,
@@ -822,16 +822,11 @@ func jobFailures(rows []flightRow) Section {
 // --- 6. authority generations ------------------------------------------
 
 // authorityMovement reports how an authority row moved the grant: "changed"
-// (an AuthorityChanged event), "lost" or "retaken", under the legacy kinds
-// (authority_change, authority_lost, clock_retaken) or the v2 authority row's
+// (an AuthorityChanged event), "lost" or "retaken", from the authority row's
 // change field.
 func authorityMovement(row flightRow) (string, bool) {
 	switch {
-	case row.rec.Kind == "authority_lost":
-		return "lost", true
-	case row.rec.Kind == "clock_retaken":
-		return "retaken", true
-	case bridge.IsAuthorityKind(row.rec.Kind):
+	case row.rec.Kind == "authority":
 		if change := firstText(row.fields(), "change"); change != "" {
 			return change, true
 		}

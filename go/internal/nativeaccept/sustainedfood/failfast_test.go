@@ -140,15 +140,15 @@ func TestFailFastUnsuccessfulStageSkipsReplannedReasons(t *testing.T) {
 	}
 }
 
-// stepRow is a scheduler_step flight row carrying the given planner failures.
+// stepRow is a worker-step planner_step flight row carrying the given planner failures.
 func stepRow(seq int, failures ...string) string {
 	if failures == nil {
 		failures = []string{}
 	}
 	line, _ := json.Marshal(map[string]any{
-		"sequence": seq, "kind": "scheduler_step",
+		"sequence": seq, "kind": "planner_step",
 		"context": map[string]any{"level": "INFO", "tick": 4200},
-		"payload": map[string]any{"msg": "step done", "planner_failures": failures},
+		"payload": map[string]any{"verdict": "waiting", "reason": "no_window", "target": "worker_step", "dur_ms": 0, "attrs": map[string]any{"planner_failures": failures}},
 	})
 	return string(line)
 }

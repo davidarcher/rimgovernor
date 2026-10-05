@@ -37,12 +37,12 @@ func fixture(t *testing.T) (path string, tail *recorderTail) {
 	}
 	writeFile(t, path+".1",
 		row(1, "runA", 10, "native_call", `{}`, `{"tool":"games_call_tool","native_tool":"x/read","error":"boom"}`)+
-			row(2, "runA", 11, "clock_step", `{"tick":100}`, `{"reads":4,"elapsed_ms":7,"reason":"timer"}`)+
+			row(2, "runA", 11, "clock_step", `{"tick":100}`, `{"verdict":"admitted","reason":"","target":"timer","dur_ms":7,"attrs":{"reads":4}}`)+
 			row(3, "runA", 12, "native_request", `{}`, `{"native_tool":"x/read"}`), false)
 	writeFile(t, path,
-		row(5, "runA", 14, "authority_change", `{"tick":120}`, `{"msg":"authority changed","generation":9}`)+
+		row(5, "runA", 14, "authority", `{"tick":120}`, `{"msg":"authority changed","change":"changed","generation":9}`)+
 			row(6, "runA", 15, "goal", `{"tick":130,"level":"WARN","trace_id":"abc123"}`, `{"msg":"goal refused","goal":"build-hut"}`)+
-			row(7, "runA", 16, "clock_step", `{"tick":140}`, `{"reads":2,"elapsed_ms":9,"reason":"timer"}`), false)
+			row(7, "runA", 16, "clock_step", `{"tick":140}`, `{"verdict":"admitted","reason":"","target":"timer","dur_ms":9,"attrs":{"reads":2}}`), false)
 	return path, newRecorderTail(path)
 }
 
@@ -56,8 +56,9 @@ func TestProblemsFeedOrderingGapAndKinds(t *testing.T) {
 	for _, e := range v.Events {
 		kinds = append(kinds, e.Kind)
 	}
-	want := "clock_step goal authority_change recording_gap clock_step native_call"
+	want := "clock_step goal authority recording_gap clock_step native_call"
 	if strings.Join(kinds, " ") != want { // newest first, slow marker hidden
+
 		t.Fatalf("feed %v, want %s", kinds, want)
 	}
 	for _, e := range v.Events {
@@ -92,7 +93,7 @@ func TestProblemsSubstringFilter(t *testing.T) {
 
 func TestProblemsHealthFromNewestRun(t *testing.T) {
 	path, tail := fixture(t)
-	writeFile(t, path, row(8, "runB", 20, "clock_step", `{"tick":500}`, `{"reads":3,"elapsed_ms":4,"reason":"timer"}`), true)
+	writeFile(t, path, row(8, "runB", 20, "clock_step", `{"tick":500}`, `{"verdict":"admitted","reason":"","target":"timer","dur_ms":4,"attrs":{"reads":3}}`), true)
 	h := tail.view(nil, "").Health
 	if !h.Known || h.Run != "runB" || !h.HasTick || h.Tick != 500 || h.LastStepMs != 4 || h.NativeErrors != 0 || h.ReadsPerStep != 3 {
 		t.Fatalf("%+v", h)

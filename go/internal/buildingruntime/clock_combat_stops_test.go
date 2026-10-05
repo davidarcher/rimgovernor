@@ -44,9 +44,9 @@ func TestCombatStopMetrics(t *testing.T) {
 	var summary string
 	for _, line := range lines {
 		switch {
-		case strings.Contains(line, "kind=combat_stop "):
+		case strings.Contains(line, "kind=clock_stop "):
 			stops = append(stops, line)
-		case strings.Contains(line, "kind=combat_stops "):
+		case strings.Contains(line, "kind=combat_summary "):
 			summary = line
 		}
 	}

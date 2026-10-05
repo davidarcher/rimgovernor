@@ -137,14 +137,14 @@ func TestTraceReportWaterfall(t *testing.T) {
 		{Kind: "native_frame", Sequence: 12, WallTime: 100.013, Context: stamp(root, 50), Payload: map[string]any{"outcome": "hit", "tool": "games_call_tool", "native_tool": "rimgovernor/observations_list_pawns"}},
 		{Kind: "native_request", Sequence: 13, WallTime: 100.020, Context: stamp(dispatch, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/operations_apply"}},
 		{Kind: "native_call", Sequence: 14, WallTime: 100.025, Context: stamp(dispatch, 50), Payload: map[string]any{"request": float64(13), "native_tool": "rimgovernor/operations_apply", "error": "refused", "timing": map[string]any{"total_ms": 5.0, "call_ms": 4.9}}},
-		{Kind: "worker_dispatch", Sequence: 15, WallTime: 100.026, Context: stamp(dispatch, 50), Payload: map[string]any{"reads": float64(1), "receipt": "refused"}},
-		{Kind: "worker_outcome", Sequence: 16, WallTime: 100.027, Context: stamp(worker, 50), Payload: map[string]any{"msg": "worker outcome", "outcome": "refused"}},
+		{Kind: "dispatch", Sequence: 15, WallTime: 100.026, Context: stamp(dispatch, 50), Payload: map[string]any{"verdict": "refused", "reason": "critical_medical", "target": "build", "dur_ms": 0.0, "attrs": map[string]any{"reads": float64(1), "receipt": "refused"}}},
+		{Kind: "dispatch", Sequence: 16, WallTime: 100.027, Context: stamp(worker, 50), Payload: map[string]any{"verdict": "refused", "reason": "critical_medical", "target": "build", "dur_ms": 0.0, "attrs": map[string]any{"changed": true}}},
 		{Kind: "native_call", Sequence: 17, WallTime: 100.030, Context: stamp(root, 50), Payload: map[string]any{"native_tool": "rimgovernor/clock_read_status", "timing": map[string]any{"total_ms": 3.0, "gate_wait_ms": 0.0, "call_ms": 2.5, "decode_ms": 0.1}}},
-		{Kind: "scheduler_step", Sequence: 18, WallTime: 100.040, Context: stamp(root, 51), Payload: map[string]any{"msg": "step done", "admitted": true}},
+		{Kind: "planner_step", Sequence: 18, WallTime: 100.040, Context: stamp(root, 51), Payload: map[string]any{"verdict": "admitted", "reason": "window_admitted", "target": WorkerStepTarget, "dur_ms": 0.0, "attrs": map[string]any{"admitted": true}}},
 		{Kind: "native_request", Sequence: 19, WallTime: 100.050, Context: stamp(root, 51), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/hung_read"}},
 	}
 	found, ok := FindTrace(rows, root.TraceID)
-	if !ok || found.Root != "scheduler_step: step done" || !found.HasTick || found.Tick != 50 {
+	if !ok || found.Root != "planner_step: admitted window_admitted worker_step" || !found.HasTick || found.Tick != 50 {
 		t.Fatalf("summary: %+v", found)
 	}
 	var b strings.Builder
@@ -156,10 +156,10 @@ func TestTraceReportWaterfall(t *testing.T) {
 		"      0.0     12.0  " + shortID(root.SpanID) + "  native rimgovernor/snapshot_frame_routine  gate 0.0 call 11.5 decode 0.2",
 		"     13.0        -  " + shortID(root.SpanID) + "  frame hit rimgovernor/observations_list_pawns",
 		"     20.0      5.0  " + shortID(dispatch.SpanID) + "      native rimgovernor/operations_apply  gate 0.0 call 4.9 decode 0.0  error: refused",
-		"     26.0        -  " + shortID(dispatch.SpanID) + "      worker_dispatch reads=1 receipt=refused",
-		"     27.0        -  " + shortID(worker.SpanID) + "    worker_outcome \"worker outcome\" outcome=refused",
+		"     26.0        -  " + shortID(dispatch.SpanID) + "      dispatch refused critical_medical build reads=1 receipt=refused",
+		"     27.0        -  " + shortID(worker.SpanID) + "    dispatch refused critical_medical build changed=true",
 		"     30.0      3.0  " + shortID(root.SpanID) + "  native rimgovernor/clock_read_status  gate 0.0 call 2.5 decode 0.1",
-		"     40.0        -  " + shortID(root.SpanID) + "  scheduler_step \"step done\" admitted=true",
+		"     40.0        -  " + shortID(root.SpanID) + "  planner_step admitted window_admitted worker_step admitted=true",
 		"     50.0        -  " + shortID(root.SpanID) + "  native rimgovernor/hung_read  (no reply recorded)",
 	}
 	if len(lines) != len(want) {

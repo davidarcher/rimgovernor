@@ -12,7 +12,7 @@ import (
 )
 
 // FlightRow is one flight-recorder row a FlightTail read: the service's
-// own journal of what it did (scheduler_step, worker_outcome, native_*
+// own journal of what it did (planner_step, dispatch, native_*
 // rows; see package telemetry). Tick is the game tick the row was stamped
 // with, when the service knew one.
 type FlightRow struct {
@@ -158,8 +158,11 @@ func (r FlightRow) Record() bridge.TimelineRecord {
 // row's attrs with its verdict, reason, target and dur_ms.
 func (r FlightRow) Fields() map[string]any { return bridge.RowFields(r.Record()) }
 
-// WorkerOutcome reports whether row is a worker_outcome row (the v2
-// dispatch row once #2064 moves it): the service reconciled an action to a
-// new outcome (a stage change, a completion, a failure), the moment a
-// watch's sample is most likely to have changed.
-func WorkerOutcome(row FlightRow) bool { return row.Kind == "worker_outcome" || row.Kind == "dispatch" }
+// WorkerOutcome reports whether row is a dispatch row that recorded an
+// outcome change (attr changed): the service reconciled an action to a new
+// outcome (a stage change, a completion, a failure), the moment a watch's
+// sample is most likely to have changed.
+func WorkerOutcome(row FlightRow) bool {
+	changed, _ := row.Fields()["changed"].(bool)
+	return row.Kind == "dispatch" && changed
+}

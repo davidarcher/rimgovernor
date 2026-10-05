@@ -705,7 +705,8 @@ func clockEvent(ctx context.Context, component, kind, message string, attrs ...a
 // auto-resumer a re-acquire with a growing backoff, and the cause was
 // invisible without --debug.
 func clockAuthorityLost(ctx context.Context, why string, attrs ...any) {
-	clockEvent(ctx, "clock-scheduler", "authority_lost", "authority lost: "+why, attrs...)
+	slog.Default().Log(ctx, slog.LevelWarn, "authority lost: "+why,
+		append([]any{telemetry.ComponentKey, "clock-scheduler", telemetry.KindKey, "authority", "change", "lost", "reason", why}, attrs...)...)
 }
 
 // Trace is the trace of the latest step, empty before the first. The
@@ -792,7 +793,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if cause == "" {
 			cause = reason.Cause
 		}
-		extra := map[string]any{"running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond), "reason": string(cause)}
+		extra := map[string]any{"running": out.Running}
 		// The wait for the player gate before the step began: the
 		// Worker's dispatch step, or manual control, holding it (#593).
 		if gateWait > 0 {
@@ -868,7 +869,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if paused > 0 && readmit && out.Attempt != nil && out.Attempt.Phase != store.ClockRefused {
 			extra["stop_pause_s"] = paused.Seconds()
 		}
-		reads.Publish(call, extra)
+		reads.Publish(call, stepDecision(out, err, cause, elapsed, extra))
 	}()
 	attempts, err := journalTimed(journal, func() ([]store.ClockAttempt, error) { return s.player.journal.LoadClockAttempts(call, 4096) })
 	if err != nil {
@@ -912,7 +913,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if e != nil {
 			return out, e
 		}
-		clockEvent(call, "clock-scheduler", "clock_retaken", "clock re-taken from the player", "tick", repaused.Context.GetTick(), "paused", repaused.GetActualPaused(), "pace", s.pacePerSecond, "stop_reason", status.GetStopped().GetReason().String())
+		clockEvent(call, "clock-scheduler", "authority", "clock re-taken from the player", "change", "retaken", "tick", repaused.Context.GetTick(), "paused", repaused.GetActualPaused(), "pace", s.pacePerSecond, "stop_reason", status.GetStopped().GetReason().String())
 		out.Retaken = true
 		// The re-read below is judged against the paused tick: the families
 		// the store holds fresh at the previous step's tick are not fresh
@@ -1490,9 +1491,10 @@ func (s *ClockScheduler) warnIdleStall(ctx context.Context, tick int64) {
 		standing = append(standing, fmt.Sprintf("%s %s: %s", goal, kind, note.Text))
 	}
 	slices.Sort(standing)
-	slog.Default().WarnContext(ctx, "STALL: the colony refused no_work and nothing lent game time; a planner waits on ticks without saying so, lending a window as a fallback",
-		telemetry.ComponentKey, "clock-scheduler", telemetry.KindKey, "idle_stall",
-		"tick", tick, "refusals", s.idleRefusals, "lend_ticks", idleLendTicks, "standing", standing)
+	// The colony refused no_work and nothing lent game time: a planner waits
+	// on ticks without saying so, so a window is lent as a fallback.
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "idle_stall", Component: "clock-scheduler", Level: slog.LevelWarn, Verdict: "waiting", Reason: "no_work", Target: "colony",
+		Attrs: map[string]any{"tick": tick, "refusals": s.idleRefusals, "lend_ticks": idleLendTicks, "standing": standing}})
 }
 
 // nativeWorkBudget is the most ticks a step lends as a native-work window
@@ -2137,4 +2139,30 @@ func journalTimed[T any](t *journalTimer, read func() (T, error)) (T, error) {
 	v, err := read()
 	t.total += time.Since(began)
 	return v, err
+}
+
+// stepDecision is the clock_step row of one step: target the cause the step
+// acted on (timer, wake, settled, full, live), dur the step's wall, verdict
+// what the step did about the window (admitted, refused, deferred, idle) and
+// reason why (the first window refusal, else a stable word for the verdict).
+// A step that errored out is failed with the error in attrs.
+func stepDecision(out ClockSchedulerResult, err error, cause StepCause, elapsed time.Duration, attrs map[string]any) telemetry.Decision {
+	d := telemetry.Decision{Kind: "clock_step", Component: "clock-scheduler", Target: string(cause), Dur: elapsed, Attrs: attrs}
+	switch {
+	case err != nil:
+		d.Verdict, d.Reason = "failed", "step_error"
+		attrs["error"] = err
+	case out.Deferred:
+		d.Verdict, d.Reason = "deferred", "deferred"
+	case out.Attempt != nil && out.Attempt.Phase == store.ClockRefused:
+		d.Verdict, d.Reason = "refused", "window_refused"
+		if len(out.Decision.Refused) > 0 {
+			d.Reason = string(out.Decision.Refused[0])
+		}
+	case out.Attempt != nil:
+		d.Verdict, d.Reason = "admitted", "window_admitted"
+	default:
+		d.Verdict, d.Reason = "idle", "no_window"
+	}
+	return d
 }

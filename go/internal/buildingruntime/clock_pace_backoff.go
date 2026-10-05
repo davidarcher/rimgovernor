@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -226,8 +225,12 @@ func (b *paceBackoff) set(ctx context.Context, ceiling uint32, why string) {
 		wire = PaceReleaseTicksPerSecond
 	}
 	err := b.request(ctx, wire)
-	slog.Default().Log(ctx, slog.LevelInfo, "pace backoff", telemetry.ComponentKey, "clock-scheduler", telemetry.KindKey, "pace_backoff",
-		"ceiling", wire, "why", why, "horizon_ticks", int64(b.horizon), "err", err)
+	verdict := "applied"
+	if err != nil {
+		verdict = "failed"
+	}
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "pace", Component: "clock-scheduler", Verdict: verdict, Reason: why, Target: "backoff",
+		Attrs: map[string]any{"ceiling": wire, "horizon_ticks": int64(b.horizon), "error": err}})
 	if err != nil {
 		return
 	}

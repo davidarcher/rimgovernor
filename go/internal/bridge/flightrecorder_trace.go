@@ -17,8 +17,8 @@ type TraceSummary struct {
 	Rows    []TimelineRecord
 	// Kinds counts the rows by kind.
 	Kinds map[string]int
-	// Root names the trace: the message of its last scheduler_step or
-	// worker_outcome row, else the kind of its last row.
+	// Root names the trace: its last worker-step planner_step row (else its
+	// last dispatch), else the kind of its last row.
 	Root string
 	// Ticks is the first observed tick a row carried, when any did.
 	Tick    int64
@@ -65,21 +65,28 @@ func SummarizeTraces(records []TimelineRecord) []TraceSummary {
 	return out
 }
 
-// traceRoot names a trace by what it was: the last scheduler_step
-// message (the step's outcome), else the last worker_outcome, else the
-// last other kinded row, else the native tool it called.
+// traceRoot names a trace by what it was: the last worker step (the
+// planner_step row of target worker_step, the step's outcome), else the last
+// dispatch, else the last other planner_step, else the last other kinded
+// row, else the native tool it called.
 func traceRoot(rows []TimelineRecord) string {
-	for _, kind := range []string{"scheduler_step", "worker_outcome", "planner_step", "dispatch"} {
+	for _, match := range []func(TimelineRecord) bool{
+		IsWorkerStep,
+		func(r TimelineRecord) bool { return r.Kind == "dispatch" },
+		func(r TimelineRecord) bool { return r.Kind == "planner_step" },
+	} {
 		for i := len(rows) - 1; i >= 0; i-- {
-			if rows[i].Kind == kind {
-				if msg, _ := rows[i].Payload["msg"].(string); msg != "" {
-					return kind + ": " + msg
-				}
-				if IsDecisionRow(rows[i]) {
-					return kind + ":" + decisionWords(rows[i])
-				}
-				return kind
+			if !match(rows[i]) {
+				continue
 			}
+			kind := rows[i].Kind
+			if msg, _ := rows[i].Payload["msg"].(string); msg != "" {
+				return kind + ": " + msg
+			}
+			if IsDecisionRow(rows[i]) {
+				return kind + ":" + decisionWords(rows[i])
+			}
+			return kind
 		}
 	}
 	for i := len(rows) - 1; i >= 0; i-- {
@@ -248,6 +255,14 @@ func traceLines(t TraceSummary) []traceLine {
 			}
 		default:
 			line.text = row.Kind
+			if IsDecisionRow(row) {
+				// A decision row reads "<kind> <verdict> <reason> <target>"
+				// then its attrs.
+				attrs, _ := row.Payload[telemetry.AttrsKey].(map[string]any)
+				line.text += decisionWords(row) + payloadAttrs(attrs)
+				out = append(out, line)
+				continue
+			}
 			if msg, _ := row.Payload["msg"].(string); msg != "" {
 				line.text += " " + fmt.Sprintf("%q", msg)
 			}

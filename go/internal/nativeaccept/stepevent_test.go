@@ -8,17 +8,24 @@ import (
 	"testing"
 )
 
-// stepRowLine is one flight.jsonl line: a scheduler_step row as the
-// recorder writes it (level and tick in the context, msg and the step's
-// attributes in the payload).
+// stepRowLine is one flight.jsonl line: a worker-step planner_step row as the
+// recorder writes it (level and tick in the context, the verdict and the
+// step's attributes in the payload). A WARN or ERROR row is a failed step
+// whose error is msg; any other level is a waiting step and msg is ignored.
 func stepRowLine(seq int, level, msg string, tick int, failures ...string) string {
 	if failures == nil {
 		failures = []string{}
 	}
+	verdict, reason := "waiting", "no_window"
+	attrs := map[string]any{"planner_failures": failures, "admitted": false}
+	if level == "WARN" || level == "ERROR" {
+		verdict, reason = "failed", "step_error"
+		attrs["error"] = msg
+	}
 	line, _ := json.Marshal(map[string]any{
-		"sequence": seq, "kind": "scheduler_step",
+		"sequence": seq, "kind": "planner_step",
 		"context": map[string]any{"level": level, "tick": tick, "at": "2026-09-18T19:46:03.123Z", "component": "clock-worker"},
-		"payload": map[string]any{"msg": msg, "planner_failures": failures, "admitted": false},
+		"payload": map[string]any{"verdict": verdict, "reason": reason, "target": "worker_step", "dur_ms": 0, "attrs": attrs},
 	})
 	return string(line)
 }
@@ -33,7 +40,7 @@ func writeFlight(t *testing.T, lines ...string) string {
 }
 
 func TestLastSchedulerStepReadsPlannerFailures(t *testing.T) {
-	other, _ := json.Marshal(map[string]any{"sequence": 4, "kind": "worker_outcome", "context": map[string]any{}, "payload": map[string]any{}})
+	other, _ := json.Marshal(map[string]any{"sequence": 4, "kind": "dispatch", "context": map[string]any{}, "payload": map[string]any{}})
 	path := writeFlight(t,
 		stepRowLine(1, "INFO", "step done", 4100),
 		stepRowLine(2, "INFO", "step done", 4200, "resource: add bill preview: bridge read refused: bills/add_bill"),
@@ -56,7 +63,7 @@ func TestLastSchedulerStepReadsPlannerFailures(t *testing.T) {
 	if _, ok := LastSchedulerStepFile(writeFlight(t, string(other))); ok {
 		t.Fatal("no step row must report none")
 	}
-	failed, ok := LastSchedulerStepFile(writeFlight(t, stepRowLine(1, "WARN", "step failed: Fields: context deadline exceeded", 4200)))
+	failed, ok := LastSchedulerStepFile(writeFlight(t, stepRowLine(1, "WARN", "Fields: context deadline exceeded", 4200)))
 	if !ok || failed.Refused() {
 		t.Fatalf("a transport step failure is not a refusal: %+v", failed)
 	}

@@ -76,7 +76,7 @@ func (m *combatStopMetrics) admitted(ctx context.Context, stopped *k.Stopped, ti
 			attrs = append(attrs, "ticks_since_stop", tick-m.lastStopTick)
 		}
 		m.lastStopTick, m.lastKnown = tick, true
-		clockEvent(ctx, "clock-scheduler", "combat_stop", "combat window stopped", attrs...)
+		clockEvent(ctx, "clock-scheduler", "clock_stop", "combat window stopped", attrs...)
 	}
 	if m.active && !combat {
 		m.log(ctx)
@@ -92,7 +92,7 @@ func (m *combatStopMetrics) log(ctx context.Context) {
 	for _, n := range m.byKind {
 		stops += n
 	}
-	clockEvent(ctx, "clock-scheduler", "combat_stops", "combat ended",
+	clockEvent(ctx, "clock-scheduler", "combat_summary", "combat ended",
 		"stops", stops, "by_event", m.byKind,
 		"resume_latency_p50_ms", percentile(m.latencies, 50).Milliseconds(),
 		"resume_latency_p95_ms", percentile(m.latencies, 95).Milliseconds(),

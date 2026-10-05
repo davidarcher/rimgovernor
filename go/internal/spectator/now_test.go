@@ -12,14 +12,24 @@ func row(kind string, sequence uint64, payload map[string]any) bridge.TimelineRe
 	return bridge.TimelineRecord{Kind: kind, Sequence: sequence, HasSeq: true, Run: "run", WallTime: float64(sequence), Payload: payload}
 }
 
-// stopRow is a scheduler_stop row as clockPollEvents writes it, decoded
+// workerStep is the clock worker's per-step planner_step row.
+func workerStep(sequence uint64, attrs map[string]any) bridge.TimelineRecord {
+	return row("planner_step", sequence, map[string]any{"verdict": "admitted", "reason": "window_admitted", "target": bridge.WorkerStepTarget, "dur_ms": 0.0, "attrs": attrs})
+}
+
+// clockStep is a step's clock_step decision row, its facts under attrs.
+func clockStep(sequence uint64, attrs map[string]any) bridge.TimelineRecord {
+	return row("clock_step", sequence, map[string]any{"verdict": "admitted", "reason": "window_admitted", "target": "live", "dur_ms": 0.0, "attrs": attrs})
+}
+
+// stopRow is a clock_stop row as clockPollEvents writes it, decoded
 // from the ring (every number a float64).
 func stopRow(sequence uint64, reason string, extra map[string]any) bridge.TimelineRecord {
 	payload := map[string]any{"reason": reason, "evidence": "health", "cursor": float64(41), "benign": false, "tick": float64(5040)}
 	for key, value := range extra {
 		payload[key] = value
 	}
-	return row("scheduler_stop", sequence, payload)
+	return row("clock_stop", sequence, payload)
 }
 
 func TestProjectStageConcernsAndStop(t *testing.T) {
@@ -32,9 +42,9 @@ func TestProjectStageConcernsAndStop(t *testing.T) {
 	}
 	tick := int64(5050)
 	rows := []bridge.TimelineRecord{
-		row("scheduler_step", 1, map[string]any{"admitted": true, "running": true, "window_ticks": float64(2500)}),
+		workerStep(1, map[string]any{"admitted": true, "running": true, "window_ticks": float64(2500)}),
 		stopRow(2, "STOP_REASON_COLONIST_HEALTH", map[string]any{"detected_tick": float64(5030), "stop_ticks": float64(10), "occurrence_tick": float64(5000), "detect_ticks": float64(30), "age_at_reply_ms": float64(12)}),
-		row("clock_step", 3, map[string]any{"stop": true, "stop_latency_ms": float64(40), "stop_pause_s": float64(0.5)}),
+		clockStep(3, map[string]any{"stop": true, "stop_latency_ms": float64(40), "stop_pause_s": float64(0.5)}),
 	}
 	now := Project(rows, Input{Stage: stage, Progress: progress, ReviewsEnabled: true, Tick: &tick, TPS: 820})
 
@@ -83,7 +93,7 @@ func TestProjectStageConcernsAndStop(t *testing.T) {
 }
 
 func TestProjectPacingReasons(t *testing.T) {
-	running := row("scheduler_step", 1, map[string]any{"admitted": true, "running": true, "window_ticks": float64(1000)})
+	running := workerStep(1, map[string]any{"admitted": true, "running": true, "window_ticks": float64(1000)})
 	refused := row("admission", 2, map[string]any{"verdict": "refused", "reason": "stale_facts", "target": "window", "attrs": map[string]any{"refused": []any{"stale_facts", "combat_plan"}, "held_by": []any{"draft"}}})
 	budget := stopRow(3, "STOP_REASON_TICK_BUDGET", nil)
 	for _, c := range []struct {
@@ -161,14 +171,14 @@ func TestProjectWireShapeWithoutAReview(t *testing.T) {
 // and effective speed from the step's clock_step row; a stop clears them.
 func TestProjectPlayerPacing(t *testing.T) {
 	rows := []bridge.TimelineRecord{
-		row("clock_step", 1, map[string]any{"pacing_reason": "frame_budget", "paced_tps": float64(4200), "effective_tps": float64(3900.5), "player_pacing": true}),
-		row("scheduler_step", 2, map[string]any{"admitted": false, "running": true}),
+		clockStep(1, map[string]any{"pacing_reason": "frame_budget", "paced_tps": float64(4200), "effective_tps": float64(3900.5), "player_pacing": true}),
+		workerStep(2, map[string]any{"admitted": false, "running": true}),
 	}
 	now := Project(rows, Input{ReviewsEnabled: true, TPS: 820})
 	if now.Pacing.Reason != ReasonFrameBudget || now.Pacing.PacedTPS != 4200 || now.Pacing.EffectiveTPS != 3900.5 || now.Pacing.Detail == "" {
 		t.Fatalf("pacing %+v", now.Pacing)
 	}
-	rows = append(rows, row("clock_step", 3, map[string]any{"pacing_reason": "ceiling", "paced_tps": float64(60), "effective_tps": float64(1200)}), row("scheduler_step", 4, map[string]any{"running": true}))
+	rows = append(rows, clockStep(3, map[string]any{"pacing_reason": "ceiling", "paced_tps": float64(60), "effective_tps": float64(1200)}), workerStep(4, map[string]any{"running": true}))
 	if now = Project(rows, Input{ReviewsEnabled: true}); now.Pacing.Reason != ReasonBackoff || now.Pacing.PacedTPS != 60 {
 		t.Fatalf("backoff %+v", now.Pacing)
 	}

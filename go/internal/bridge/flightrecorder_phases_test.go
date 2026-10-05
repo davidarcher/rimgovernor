@@ -237,15 +237,15 @@ func TestSummarizePhasesWeighsPausedTimeAndCountsAppliedStarts(t *testing.T) {
 // (issue #112).
 func TestSummarizePhasesStopLatency(t *testing.T) {
 	rows := []TimelineRecord{
-		{Kind: "clock_step", WallTime: 1, Payload: map[string]any{"reads": 2.0, "reason": "full"}},
-		{Kind: "clock_step", WallTime: 2, Payload: map[string]any{"reads": 0.0, "reason": "timer"}},
-		{Kind: "clock_step", WallTime: 3, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": 30.0}},
-		{Kind: "clock_step", WallTime: 4, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": 10.0}},
-		{Kind: "clock_step", WallTime: 5, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": -5.0}},
-		{Kind: "clock_step", WallTime: 6, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true}},
-		{Kind: "clock_step", WallTime: 7, Payload: map[string]any{"reads": 1.0, "reason": "wake"}},
-		{Kind: "clock_step", WallTime: 8, Payload: map[string]any{"reads": 1.0, "reason": "timer", "coupled_orders": 2.0, "coupled_stop": true}},
-		{Kind: "clock_step", WallTime: 9, Payload: map[string]any{"reads": 1.0, "reason": "live", "coupled_orders": 1.0}},
+		stepRow(1, map[string]any{"reads": 2.0, "reason": "full"}),
+		stepRow(2, map[string]any{"reads": 0.0, "reason": "timer"}),
+		stepRow(3, map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": 30.0}),
+		stepRow(4, map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": 10.0}),
+		stepRow(5, map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": -5.0}),
+		stepRow(6, map[string]any{"reads": 1.0, "reason": "wake", "stop": true}),
+		stepRow(7, map[string]any{"reads": 1.0, "reason": "wake"}),
+		stepRow(8, map[string]any{"reads": 1.0, "reason": "timer", "coupled_orders": 2.0, "coupled_stop": true}),
+		stepRow(9, map[string]any{"reads": 1.0, "reason": "live", "coupled_orders": 1.0}),
 	}
 	steps := SummarizePhases(rows).Steps
 	if steps.Steps != 9 || steps.Reasons["full"] != 1 || steps.Reasons["timer"] != 2 || steps.Reasons["wake"] != 5 {
@@ -301,6 +301,8 @@ func TestSummarizePhasesReadsV2Kinds(t *testing.T) {
 		{Kind: "clock_step", WallTime: 1, Payload: map[string]any{"verdict": "admitted", "reason": "", "target": "live", "dur_ms": 300.0,
 			"attrs": map[string]any{"reads": 2.0, "gate_wait_ms": 400.0}}},
 		{Kind: "dispatch", WallTime: 2, Payload: map[string]any{"verdict": "refused", "target": "build", "attrs": map[string]any{"receipt": "refused", "running": true}}},
+		// An outcome change that never reached native is no native dispatch.
+		{Kind: "dispatch", WallTime: 2, Payload: map[string]any{"verdict": "waiting", "target": "build", "attrs": map[string]any{"changed": true}}},
 		{Kind: "native_call", WallTime: 3, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/a", "ok": true,
 			"timing": map[string]any{"total_ms": 5.0, "proto_decode_ms": 1.5}}},
 		{Kind: "native_call", WallTime: 4, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/a", "ok": false, "error": "boom",
@@ -326,10 +328,10 @@ func TestSummarizePhasesReadsV2Kinds(t *testing.T) {
 
 func TestSummarizePhasesLiveStepCost(t *testing.T) {
 	rows := []TimelineRecord{
-		{Kind: "clock_step", WallTime: 1, Payload: map[string]any{"reads": 11.0, "reason": "full", "elapsed_ms": 900.0}},
-		{Kind: "clock_step", WallTime: 2, Payload: map[string]any{"reads": 2.0, "reason": "live", "elapsed_ms": 300.0, "gate_wait_ms": 400.0}},
-		{Kind: "clock_step", WallTime: 3, Payload: map[string]any{"reads": 4.0, "reason": "live", "elapsed_ms": 500.0}},
-		{Kind: "clock_step", WallTime: 4, Payload: map[string]any{"reads": 1.0, "reason": "timer", "elapsed_ms": 100.0}},
+		stepRow(1, map[string]any{"reads": 11.0, "reason": "full", "elapsed_ms": 900.0}),
+		stepRow(2, map[string]any{"reads": 2.0, "reason": "live", "elapsed_ms": 300.0, "gate_wait_ms": 400.0}),
+		stepRow(3, map[string]any{"reads": 4.0, "reason": "live", "elapsed_ms": 500.0}),
+		stepRow(4, map[string]any{"reads": 1.0, "reason": "timer", "elapsed_ms": 100.0}),
 	}
 	steps := SummarizePhases(rows).Steps
 	if steps.LiveSteps != 2 || steps.LiveReads != 6 || steps.MaxLiveReads != 4 {
@@ -346,4 +348,23 @@ func TestSummarizePhasesLiveStepCost(t *testing.T) {
 	if !strings.Contains(report.String(), "step wall: mean 450ms max 900ms, player-gate wait mean 100ms max 400ms; 2 live steps: reads mean 3.0 max 4, wall mean 400ms max 500ms") {
 		t.Fatal(report.String())
 	}
+}
+
+// stepRow is a clock_step decision row built from the flat fields the step
+// readers aggregate: reason is the row's target, elapsed_ms its dur_ms and
+// every other field an attr.
+func stepRow(wall float64, fields map[string]any) TimelineRecord {
+	attrs := map[string]any{}
+	payload := map[string]any{"verdict": "admitted", "reason": "", "target": "", "dur_ms": 0.0, "attrs": attrs}
+	for key, value := range fields {
+		switch key {
+		case "reason":
+			payload["target"] = value
+		case "elapsed_ms":
+			payload["dur_ms"] = value
+		default:
+			attrs[key] = value
+		}
+	}
+	return TimelineRecord{Kind: "clock_step", WallTime: wall, Payload: payload}
 }
