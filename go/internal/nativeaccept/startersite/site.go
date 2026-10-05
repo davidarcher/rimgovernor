@@ -8,13 +8,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// plannedSite is the size x size fixture hut on the layout plan's first
-// planned storeroom (#1250): the square shares the storeroom ring's
-// south-west corner, pulled back inside the map, and keeps the planned
-// door when it lands on the square's ring off a corner (else the hut's
-// mid east wall). ok is false when the plan holds no storeroom.
+// plannedSite is the size x size fixture hut on the layout plan's shelter
+// room (#1250, #2048): the square shares the shelter ring's south-west
+// corner, pulled back inside the map, and keeps the planned door when it
+// lands on the square's ring off a corner (else the hut's mid east wall).
+// ok is false when the plan holds no shelter.
 func plannedSite(plan policy.LayoutPlan, bounds policy.Bounds, size int32) (site, door domain.Cell, ok bool) {
-	shells := plan.PlannedShells(policy.RoomRoleStoreroom)
+	shells := plan.PlannedShells(policy.RoomRoleShelter)
 	if len(shells) == 0 || bounds.Width < size || bounds.Height < size {
 		return domain.Cell{}, domain.Cell{}, false
 	}

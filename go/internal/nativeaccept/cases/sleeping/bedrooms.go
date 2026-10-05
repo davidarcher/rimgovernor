@@ -4,7 +4,7 @@
 // stone blocks beside it): the sleeping planner first beds everyone in the
 // hut, then orders the layout plan's first bedroom-wing room (the fixture
 // raises its ring as soon as it is ordered), stages a bed in it and moves a colonist's ownership there. The case asserts that move
-// natively: the colonist owns the new bed, and the barracks bed they left
+// natively: the colonist owns the new bed, and the shelter bed they left
 // still stands as a spare.
 package sleeping
 
@@ -40,8 +40,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "sleeping/bedrooms",
 		Scope: "Issue #786: on the tribal " + sustained.BaselineSave + " colony at Masonry with a fixture hut, once every colonist " +
-			"owns a bed the sleeping planner builds the layout plan's first bedroom-wing room and moves a colonist from the barracks " +
-			"into it: the native pawn read shows the colonist owning the bedroom bed, and the barracks bed they left still " +
+			"owns a bed the sleeping planner builds the layout plan's first bedroom-wing room and moves a colonist from the shelter " +
+			"into it: the native pawn read shows the colonist owning the bedroom bed, and the shelter bed they left still " +
 			"stands as a spare. A snapshot test cannot cover it: the move is proven by native bed ownership after real " +
 			"construction encloses the planned room.",
 		Start: cases.Fixture{Op: "test/layout_grid_prepare", ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": 8, "stoneBlocks": 400, "builders": true},
@@ -150,7 +150,7 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 				return err
 			}
 			if len(na.AsSlice(observed["buildings"])) != 1 {
-				return fmt.Errorf("the barracks bed %s no longer stands as a spare: %#v", previous, observed)
+				return fmt.Errorf("the shelter bed %s no longer stands as a spare: %#v", previous, observed)
 			}
 			return nil
 		},

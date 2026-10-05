@@ -26,7 +26,7 @@ func Args(ctx context.Context, h *na.Harness) (map[string]any, error) {
 // #709): the south-west corner and door plannedSite puts on the layout
 // plan derived from the loaded game's map survey (#1250), as the
 // siteX/siteZ/doorX/doorZ arguments FixtureHut takes; an error when the
-// plan holds no storeroom.
+// plan holds no shelter.
 func ArgsFor(size int32) func(context.Context, *na.Harness) (map[string]any, error) {
 	return func(ctx context.Context, h *na.Harness) (map[string]any, error) {
 		return args(ctx, h, size, false)
@@ -87,7 +87,7 @@ func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[st
 	}
 	site, door, ok := plannedSite(plan, facts.Bounds, size)
 	if !ok {
-		return nil, fmt.Errorf("no planned storeroom for a %dx%d fixture hut on this map", size, size)
+		return nil, fmt.Errorf("no planned shelter for a %dx%d fixture hut on this map", size, size)
 	}
 	out := map[string]any{"siteX": site.X, "siteZ": site.Z, "doorX": door.X, "doorZ": door.Z}
 	if bedrooms {

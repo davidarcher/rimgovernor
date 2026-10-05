@@ -7,11 +7,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestPlannedSiteStandsOnThePlannedStoreroom(t *testing.T) {
+func TestPlannedSiteStandsOnThePlannedShelter(t *testing.T) {
 	bounds := policy.Bounds{Width: 50, Height: 50}
-	store := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 11, Z: 11, Width: 7, Height: 7}, Door: domain.Cell{X: 14, Z: 10}, DoorRot: domain.South}
+	store := policy.LayoutRoom{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 11, Z: 11, Width: 7, Height: 7}, Door: domain.Cell{X: 14, Z: 10}, DoorRot: domain.South}
 	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{store}}
-	// The 9x9 hut is the storeroom's ring: its door is kept.
+	// The 9x9 hut is the shelter's ring: its door is kept.
 	site, door, ok := plannedSite(plan, bounds, 9)
 	if !ok || site != (domain.Cell{X: 10, Z: 10}) || door != store.Door {
 		t.Fatal(site, door, ok)
@@ -27,6 +27,6 @@ func TestPlannedSiteStandsOnThePlannedStoreroom(t *testing.T) {
 		t.Fatal(site, door, ok)
 	}
 	if _, _, ok = plannedSite(policy.LayoutPlan{}, bounds, 9); ok {
-		t.Fatal("sited without a planned storeroom")
+		t.Fatal("sited without a planned shelter")
 	}
 }
