@@ -247,7 +247,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	if h, err = s.Reattach(ctx); err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
 	}
-	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	// Ordinary growers must sow the new zone; its creation receipt is not

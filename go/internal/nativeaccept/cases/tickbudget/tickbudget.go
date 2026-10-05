@@ -51,7 +51,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("lab start recorded no cached save to reload: %v", report["start"])
 	}
 	load := func(label string) (*na.ScenarioClock, error) {
-		if _, err := h.Call(ctx, label, "rimworld/load_game_ready", map[string]any{
+		if _, err := h.Call(ctx, label, "rimgovernor/load_game_ready", map[string]any{
 			"saveName": labSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 		}); err != nil {
 			return nil, err
@@ -160,7 +160,7 @@ func run(ctx context.Context, s cases.Session) error {
 		if _, err := clock.Change(ctx, "Normal", 3000); err != nil {
 			return fmt.Errorf("external-resume-%s: %w", external.reason, err)
 		}
-		if _, err := h.Call(ctx, "external-override-"+external.reason, "rimworld/set_time_speed", map[string]any{
+		if _, err := h.Call(ctx, "external-override-"+external.reason, "rimgovernor/set_time_speed", map[string]any{
 			"speed": external.speed, "ultraSpeedBoost": false,
 		}); err != nil {
 			return err

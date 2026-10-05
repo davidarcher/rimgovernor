@@ -7,13 +7,13 @@ namespace RimGovernor.Host;
 
 public class RimBridgeTools
 {
-    [Tool("rimbridge/get_bridge_status", Description = "Get the current bridge and RimWorld state snapshot without mutating game state", Tags = new string[] { "diagnostic", "status", "read-only" })]
+    [Tool("rimgovernor/get_bridge_status", Description = "Get the current bridge and RimWorld state snapshot without mutating game state", Tags = new string[] { "diagnostic", "status", "read-only" })]
     public object GetBridgeStatus()
     {
         return InvokeAlias();
     }
 
-    [Tool("rimbridge/list_logs", Description = "List recent captured RimWorld and bridge log entries from the in-memory log journal, including operation correlation when available", Tags = new string[] { "diagnostic", "read-only" })]
+    [Tool("rimgovernor/list_logs", Description = "List recent captured RimWorld and bridge log entries from the in-memory log journal, including operation correlation when available", Tags = new string[] { "diagnostic", "read-only" })]
     public object ListLogs(
         [ToolParameter(Description = "Maximum number of log entries to return")] int limit = 50,
         [ToolParameter(Description = "Minimum level to include: info, warning, error, or fatal")] string minimumLevel = "info",
@@ -25,7 +25,7 @@ public class RimBridgeTools
         return InvokeAlias(Arguments((nameof(limit), limit), (nameof(minimumLevel), minimumLevel), (nameof(afterSequence), afterSequence), (nameof(operationId), operationId), (nameof(rootOperationId), rootOperationId), (nameof(capabilityId), capabilityId)));
     }
 
-    [Tool("rimworld/set_time_speed", Description = "Set RimWorld's current time speed directly; RimGovernor.Host enables the boost for speed 4 (Ultrafast) at startup, and this tool can change that state")]
+    [Tool("rimgovernor/set_time_speed", Description = "Set RimWorld's current time speed directly; RimGovernor.Host enables the boost for speed 4 (Ultrafast) at startup, and this tool can change that state")]
     public object SetTimeSpeed(
         [ToolParameter(Description = "Desired time speed: Paused, Normal, Fast, Superfast, or Ultrafast")] string speed = "Normal",
         [ToolParameter(Description = "When set, change RimWorld's private TickManager.UltraSpeedBoost flag. RimGovernor.Host enables it at startup; leave null to preserve the current value.")] bool? ultraSpeedBoost = null)
@@ -33,7 +33,7 @@ public class RimBridgeTools
         return InvokeAlias(Arguments((nameof(speed), speed), (nameof(ultraSpeedBoost), ultraSpeedBoost)));
     }
 
-    [Tool("rimworld/play_for", Description = "Unpause the current game at a requested time speed for a bounded real-time duration, then pause it again; speed 4 (Ultrafast) is boosted by default, and forced-normal-speed slowdown can optionally be suppressed during the run")]
+    [Tool("rimgovernor/play_for", Description = "Unpause the current game at a requested time speed for a bounded real-time duration, then pause it again; speed 4 (Ultrafast) is boosted by default, and forced-normal-speed slowdown can optionally be suppressed during the run")]
     public object PlayFor(
         [ToolParameter(Description = "Real-time duration in milliseconds to keep the game unpaused before pausing it again")] int durationMs,
         [ToolParameter(Description = "Desired play speed while the game is running: Normal, Fast, Superfast, or Ultrafast")] string speed = "Normal",
@@ -43,7 +43,7 @@ public class RimBridgeTools
         return InvokeAlias(Arguments((nameof(durationMs), durationMs), (nameof(speed), speed), (nameof(pollIntervalMs), pollIntervalMs), (nameof(forceRequestedSpeed), forceRequestedSpeed)));
     }
 
-    [Tool("rimworld/step_game_ticks", Description = "Advance the paused game by an exact number of ticks, one tick per Unity update frame, mirroring RimWorld's Dev_TickOnce path while preserving render-frame boundaries")]
+    [Tool("rimgovernor/step_game_ticks", Description = "Advance the paused game by an exact number of ticks, one tick per Unity update frame, mirroring RimWorld's Dev_TickOnce path while preserving render-frame boundaries")]
     public object StepGameTicks(
         [ToolParameter(Description = "Number of game ticks to advance. Each requested tick is executed on a separate Unity update frame.")] int ticks = 1,
         [ToolParameter(Description = "Maximum time to wait in milliseconds before cancelling the step request")] int timeoutMs = 10000,
@@ -54,13 +54,13 @@ public class RimBridgeTools
         return InvokeAlias(Arguments((nameof(ticks), ticks), (nameof(timeoutMs), timeoutMs), (nameof(pollIntervalMs), pollIntervalMs), (nameof(pauseFirst), pauseFirst), (nameof(playSound), playSound)));
     }
 
-    [Tool("rimworld/save_game", Description = "Save the current game to a named save")]
+    [Tool("rimgovernor/save_game", Description = "Save the current game to a named save")]
     public object SaveGame([ToolParameter(Description = "Save name without extension")] string saveName)
     {
         return InvokeAlias(Arguments((nameof(saveName), saveName)));
     }
 
-    [Tool("rimworld/load_game_ready", Description = "Load a named RimWorld save after verifying every recorded mod is active unless ignoreModCompatibility is true, then wait until the requested readiness level")]
+    [Tool("rimgovernor/load_game_ready", Description = "Load a named RimWorld save after verifying every recorded mod is active unless ignoreModCompatibility is true, then wait until the requested readiness level")]
     public object LoadGameReady(
         [ToolParameter(Description = "Save name without extension")] string saveName,
         [ToolParameter(Description = "Maximum time to wait in milliseconds")] int timeoutMs = 120000,

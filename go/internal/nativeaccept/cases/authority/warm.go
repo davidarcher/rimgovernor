@@ -230,7 +230,7 @@ func warmStage(ctx context.Context, cfg *na.Config, h *na.Harness, prefix string
 	if _, err := na.StartLab(ctx, cfg, h); err != nil {
 		return nil, err
 	}
-	if _, err := h.Call(ctx, prefix+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, prefix+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
 	identityReply, err := h.Wire(ctx, prefix+"-identity", "lifecycle_read_identity", map[string]any{})

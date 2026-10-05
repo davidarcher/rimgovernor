@@ -117,7 +117,7 @@ func TestTickObservationCountsForwardProgressOnly(t *testing.T) {
 	observeReply(t, "rimgovernor/observations_read_colony_facts", wireReply(`{"observed":{"context":{"tick":"100"}}}`))
 	observeReply(t, "rimgovernor/observations_read_colony_facts", wireReply(`{"observed":{"context":{"tick":"150"}}}`))
 	// A load re-baselines: the loaded save's tick is not progress.
-	observeReplyTick("rimworld/load_game_ready", nil)
+	observeReplyTick("rimgovernor/load_game_ready", nil)
 	observeReply(t, "rimgovernor/lifecycle_read_identity", wireReply(`{"loaded":{"context":{"tick":"90000"}}}`))
 	observeReply(t, "rimgovernor/lifecycle_read_identity", wireReply(`{"loaded":{"context":{"tick":"90010"}}}`))
 	if got := TicksAdvanced(); got != 300+50+10 {
@@ -171,7 +171,7 @@ func wireReply(message string) map[string]any { return map[string]any{"payload":
 func TestReplyTickIgnoresRepliesWithoutOne(t *testing.T) {
 	for tool, payload := range map[string]map[string]any{
 		"rimgovernor/observations_read_colony_facts": wireReply(`{"observed":{}}`),
-		"rimworld/set_time_speed":                    {"success": true},
+		"rimgovernor/set_time_speed":                 {"success": true},
 		"rimgovernor/authority_read_status":          wireReply(`{"status":{"owner":"controller"}}`),
 		"rimgovernor/lifecycle_read_identity":        {"payload": 7},
 		"rimgovernor/lifecycle_read_identity_2":      wireReply(`not json`),

@@ -50,7 +50,7 @@ func startFakeGame(t *testing.T) *fakeGame {
 	t.Cleanup(func() { _ = game.Stop(context.Background()) })
 	g.server = gabptest.Start(t, &gabptest.Server{
 		Token: "fixture-token",
-		Tools: []map[string]any{{"name": "fixture/read", "inputSchema": json.RawMessage(emptySchema)}, {"name": "rimworld/load_game_ready"}},
+		Tools: []map[string]any{{"name": "fixture/read", "inputSchema": json.RawMessage(emptySchema)}, {"name": "rimgovernor/load_game_ready"}},
 		Welcome: map[string]any{"capabilities": map[string]any{
 			"methods": []string{gabp.MethodToolsList, gabp.MethodToolsCall, gabp.MethodEventsSubscribe, attentionCurrent, attentionAck},
 			"events":  []string{attentionOpened, attentionUpdated, attentionCleared, modLogChannel},

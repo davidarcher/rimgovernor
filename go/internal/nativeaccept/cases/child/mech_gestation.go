@@ -203,7 +203,7 @@ func runMechGestation(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return fmt.Errorf("gestation never started forming: %w", err)
 	}
-	if _, err := h.Call(ctx, "pause-forming", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-forming", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	// The birth, then the controller's work order for the mech.

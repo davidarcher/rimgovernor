@@ -195,7 +195,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 	if h, err = s.Reattach(ctx); err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
 	}
-	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	after, err := observe("power-after")
@@ -238,7 +238,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 	// the game runs a few seconds at a time, and accept a calm read.
 	for attempt := 1; attempt <= 12 && !allPowered(rows, consumers); attempt++ {
 		label := fmt.Sprintf("after-%d", attempt)
-		if _, err := h.Call(ctx, "resume-"+label, "rimworld/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
+		if _, err := h.Call(ctx, "resume-"+label, "rimgovernor/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
 			return err
 		}
 		select {
@@ -246,7 +246,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 			return ctx.Err()
 		case <-time.After(5 * time.Second):
 		}
-		if _, err := h.Call(ctx, "pause-"+label, "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		if _, err := h.Call(ctx, "pause-"+label, "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 			return err
 		}
 		if after, err = observe("power-" + label); err != nil {

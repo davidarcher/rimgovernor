@@ -174,7 +174,7 @@ func runCampaign(ctx context.Context, s cases.Session) error {
 			report["stage_"+st.name] = stageReport
 			families := cumulativeFamilies(stages, i+1)
 			stageReport["families"] = families
-			if _, err := h.Call(ctx, st.name+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+			if _, err := h.Call(ctx, st.name+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 				return fmt.Errorf("stage %s: %w", st.name, err)
 			}
 			prepared, err := st.prepare(ctx, h, identity, stageReport)
@@ -254,7 +254,7 @@ func reattachPaused(ctx context.Context, s cases.Session) (*na.Harness, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
 	return h, nil

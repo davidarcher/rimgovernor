@@ -259,7 +259,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return fmt.Errorf("reopen session after service stop: %w", err)
 	}
-	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	after, err := h.Call(ctx, "naming-after", fixtureTool, map[string]any{"action": "read"})

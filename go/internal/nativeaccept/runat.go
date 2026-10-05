@@ -161,7 +161,7 @@ func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) e
 	if len(dismiss) == 0 {
 		return nil
 	}
-	_, err = h.Call(ctx, label+"-resume", "rimworld/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": RunBoost})
+	_, err = h.Call(ctx, label+"-resume", "rimgovernor/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": RunBoost})
 	return err
 }
 
@@ -214,7 +214,7 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 	if ticks == 0 {
 		return 0, fmt.Errorf("%s: a tick budget is required", label)
 	}
-	if _, err := h.Call(ctx, label+"-run", "rimworld/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": RunBoost}); err != nil {
+	if _, err := h.Call(ctx, label+"-run", "rimgovernor/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": RunBoost}); err != nil {
 		return 0, err
 	}
 	// A probe is a ~100ms round trip and the game runs thousands of ticks
@@ -257,7 +257,7 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 	})
 	pauseCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if _, pauseErr := h.Call(pauseCtx, label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); pauseErr != nil && err == nil {
+	if _, pauseErr := h.Call(pauseCtx, label+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); pauseErr != nil && err == nil {
 		err = pauseErr
 	}
 	elapsed := uint64(0)
@@ -314,7 +314,7 @@ func WritePlayerSpeed(ctx context.Context, h *Harness, spec ServeSpec) error {
 		return err
 	}
 	for _, s := range []string{speed, "Paused"} {
-		if _, err := h.Call(ctx, "player-speed-"+strings.ToLower(s), "rimworld/set_time_speed", map[string]any{"speed": s, "ultraSpeedBoost": false}); err != nil {
+		if _, err := h.Call(ctx, "player-speed-"+strings.ToLower(s), "rimgovernor/set_time_speed", map[string]any{"speed": s, "ultraSpeedBoost": false}); err != nil {
 			return err
 		}
 	}

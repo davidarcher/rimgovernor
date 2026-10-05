@@ -34,7 +34,7 @@ func TestHarnessAttention(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tool := tc.tool
 			if tool == "" {
-				tool = "rimworld/set_time_speed"
+				tool = "rimgovernor/set_time_speed"
 			}
 			rows := []bridge.TranscriptRow{{Kind: "session", GameID: "game", Tools: []string{"games_call_tool", "games_tool_detail", "games_tool_names", "games_status", "games_connect", "games_get_attention", "games_ack_attention"}}}
 			add := func(tool string, args, result string) {

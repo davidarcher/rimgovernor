@@ -42,12 +42,12 @@ func (m *matrix) runGovernorOff(ctx context.Context, c na.SpeedCase) (err error)
 		return err
 	}
 	h.Output = output
-	if _, err := h.Call(ctx, "load-stage", "rimworld/load_game_ready", map[string]any{
+	if _, err := h.Call(ctx, "load-stage", "rimgovernor/load_game_ready", map[string]any{
 		"saveName": m.p.save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	}); err != nil {
 		return err
 	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	identity, err := readIdentity(ctx, h)
@@ -68,7 +68,7 @@ func (m *matrix) runGovernorOff(ctx context.Context, c na.SpeedCase) (err error)
 		return fmt.Errorf("stage is not fresh after reload: %#v", before)
 	}
 	startTick := uint64(na.AsNumber(before["tick"]))
-	if _, err := h.Call(ctx, "play", "rimworld/set_time_speed", map[string]any{"speed": c.Speed, "ultraSpeedBoost": c.TestAcceleration}); err != nil {
+	if _, err := h.Call(ctx, "play", "rimgovernor/set_time_speed", map[string]any{"speed": c.Speed, "ultraSpeedBoost": c.TestAcceleration}); err != nil {
 		return err
 	}
 	resumedAt := time.Now()
@@ -89,7 +89,7 @@ func (m *matrix) runGovernorOff(ctx context.Context, c na.SpeedCase) (err error)
 			return na.Signature(lastTick), lastTick >= startTick+m.p.ticks, nil
 		})
 	wallSeconds := time.Since(resumedAt).Seconds()
-	if _, pauseErr := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); pauseErr != nil && waitErr == nil {
+	if _, pauseErr := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); pauseErr != nil && waitErr == nil {
 		waitErr = pauseErr
 	}
 	report["wait"] = map[string]any{"start_tick": startTick, "last_tick": lastTick, "wall_seconds": wallSeconds, "tick_reads": reads}

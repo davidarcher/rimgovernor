@@ -20,7 +20,7 @@ import (
 // RimGovernor-debug-<size>-<coverage>[-<expansions>][-<biomes>][-flat]
 // [-seed-<seed>]-quiet|loud (the storyteller is part of the save); it is
 // copied into profile/Saves so every later Prepare carries it, and later
-// starts load it (rimworld/load_game_ready). The fixture's quiet op is
+// starts load it (rimgovernor/load_game_ready). The fixture's quiet op is
 // applied after either path where the mode asks. Delete the save to
 // regenerate; a harness that must see a never-before-seen world (world
 // generation itself under test) runs with RIMGOVERNOR_ACCEPT_CACHED_START=0.
@@ -123,7 +123,7 @@ func cachedStartStale(path, name string) (bool, error) {
 // loadCachedStart loads the save and waits for it the way a quick start is
 // waited for.
 func loadCachedStart(ctx context.Context, h *Harness, name string) error {
-	_, err := h.Call(ctx, "cached-start-load", "rimworld/load_game_ready", map[string]any{
+	_, err := h.Call(ctx, "cached-start-load", "rimgovernor/load_game_ready", map[string]any{
 		"saveName": name, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	})
 	if err != nil {

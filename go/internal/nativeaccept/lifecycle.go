@@ -62,7 +62,7 @@ func (d DebugStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[
 	return row, nil
 }
 
-// Save loads a save from the profile (rimworld/load_game_ready). The save's
+// Save loads a save from the profile (rimgovernor/load_game_ready). The save's
 // own expansions are enabled through UseSaveExpansions. The storyteller is
 // quieted per the mode the way a debug start is.
 type Save struct {
@@ -105,7 +105,7 @@ func loadSave(ctx context.Context, c caller, name string, timeout time.Duration)
 	if timeout <= 0 {
 		timeout = 90 * time.Second
 	}
-	if _, err := c.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
+	if _, err := c.Call(ctx, "load-save", "rimgovernor/load_game_ready", map[string]any{
 		"saveName": name, "readiness": "visual", "timeoutMs": timeout.Milliseconds(), "ignoreModCompatibility": false,
 	}); err != nil {
 		return fmt.Errorf("load save %s: %w", name, err)
@@ -365,7 +365,7 @@ func (s *Session) Reopen(ctx context.Context, start Start, quiet QuietMode, keep
 
 // Pause pauses the game.
 func (s *Session) Pause(ctx context.Context) error {
-	_, err := s.Harness.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
+	_, err := s.Harness.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
 	return err
 }
 

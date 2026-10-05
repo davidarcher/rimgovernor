@@ -23,7 +23,7 @@ skills, workflows and artwork were not.
 | Harmony ids `pardeike.rimbridgeserver.*` | `davidarcher.rimgovernor.host.*` |
 | mod package id `brrainz.rimbridgeserver` | folded into `davidarcher.rimgovernor.native`; `About.xml` declares `incompatibleWith` it |
 
-Tool names (`rimworld/*`, `rimbridge/*`) are unchanged.
+Tool names were `rimworld/*` and `rimbridge/*` upstream; here they are `rimgovernor/*` (#2059).
 
 ## Deviations from the vendored source
 
@@ -31,7 +31,7 @@ Tool names (`rimworld/*`, `rimbridge/*`) are unchanged.
 - Pruned to what RimGovernor calls (#2056): the UI workbench, Lua/script runner and MoonSharp, virtual pointer,
   map click injector, architect, context menus, view/screenshot, DPA, input, selection, notification, mod
   settings/configuration and debug-action modules, the SDK tool client, game clock and evidence helpers, and 118
-  of the 125 built-in tools. What remains of the vendored `Host` project is the `rimworld/*` and `rimbridge/*`
+  of the 125 built-in tools. What remains of the vendored `Host` project is the `rimgovernor/*` host-owned
   tools Go calls plus the host core; see `docs/developers/source-map.md`.
 - `Assembly-CSharp` is publicised at build time (TaskPubliciser, build-only, not redistributed), as upstream does.
 

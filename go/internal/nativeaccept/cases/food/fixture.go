@@ -106,6 +106,6 @@ func checkEmpty(audit, observed, prepared map[string]any, units int) error {
 // games_call_tool" with the fixture exception only in the evidence tree
 // (#663).
 func pauseForProbe(ctx context.Context, h *na.Harness, label string) error {
-	_, err := h.Call(ctx, label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
+	_, err := h.Call(ctx, label+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
 	return err
 }

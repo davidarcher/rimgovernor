@@ -160,7 +160,7 @@ func TestObserveThroughRealGameSession(t *testing.T) {
 		Token: "fixture-token",
 		Tools: []map[string]any{
 			{"name": "rimgovernor/lifecycle_read_tick", "inputSchema": json.RawMessage(`{"type":"object","properties":{"request":{"type":"object"}},"additionalProperties":false}`)},
-			{"name": "rimworld/load_game_ready"},
+			{"name": "rimgovernor/load_game_ready"},
 		},
 		Handle: answerTick,
 	})

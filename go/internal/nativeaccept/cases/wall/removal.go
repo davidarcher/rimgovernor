@@ -130,7 +130,7 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		}
 	}
 	clock := &na.ScenarioClock{Wire: h.WireFunc(), Identity: identity, Owner: sessionOwner, Report: report}
-	if _, err := h.Call(ctx, "initial-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "initial-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	scope := map[string]any{"expectedIdentity": identity}

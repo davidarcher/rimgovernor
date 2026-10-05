@@ -346,7 +346,7 @@ func (p *phase) stop(ctx context.Context, label string) (*na.Harness, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := h.Call(ctx, "pause-"+label, "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-"+label, "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
 	return h, nil

@@ -111,7 +111,7 @@ func (c *Client) ConnectWithPoll(ctx context.Context, started Result) (Result, e
 	}
 	deadline := time.Now().Add(120 * time.Second)
 	for {
-		_, nameErr := c.NativeNames(ctx, "", "rimworld/load_game_ready")
+		_, nameErr := c.NativeNames(ctx, "", "rimgovernor/load_game_ready")
 		if nameErr == nil {
 			return result, nil
 		}

@@ -48,17 +48,17 @@ func TestLoadSaveIssuesLoadGameReady(t *testing.T) {
 	if err := loadSave(context.Background(), c, "colony", 0); err != nil {
 		t.Fatal(err)
 	}
-	args := c.args["rimworld/load_game_ready"].(map[string]any)
+	args := c.args["rimgovernor/load_game_ready"].(map[string]any)
 	if args["saveName"] != "colony" || args["timeoutMs"] != int64(90000) || args["readiness"] != "visual" {
 		t.Fatalf("load args %#v", args)
 	}
 	if err := loadSave(context.Background(), c, "colony", 5*time.Second); err != nil {
 		t.Fatal(err)
 	}
-	if got := c.args["rimworld/load_game_ready"].(map[string]any)["timeoutMs"]; got != int64(5000) {
+	if got := c.args["rimgovernor/load_game_ready"].(map[string]any)["timeoutMs"]; got != int64(5000) {
 		t.Fatalf("explicit timeout %v", got)
 	}
-	c.fail = map[string]error{"rimworld/load_game_ready": errors.New("boom")}
+	c.fail = map[string]error{"rimgovernor/load_game_ready": errors.New("boom")}
 	if err := loadSave(context.Background(), c, "colony", 0); err == nil || !strings.Contains(err.Error(), "colony") {
 		t.Fatalf("load failure %v", err)
 	}
@@ -66,7 +66,7 @@ func TestLoadSaveIssuesLoadGameReady(t *testing.T) {
 
 func TestFixturePrepare(t *testing.T) {
 	identity := map[string]any{"colonyId": "c", "loadToken": "t", "mapId": float64(1)}
-	names := []string{"rimworld/load_game_ready", "test/x_prepare"}
+	names := []string{"rimgovernor/load_game_ready", "test/x_prepare"}
 	ctx := context.Background()
 
 	if _, err := (Fixture{}).prepare(ctx, &fakeCaller{}, names, identity); err == nil {

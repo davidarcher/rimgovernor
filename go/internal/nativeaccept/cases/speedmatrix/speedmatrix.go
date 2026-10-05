@@ -252,7 +252,7 @@ func (m *matrix) stage(ctx context.Context) error {
 	// Frozen needs do not survive a reload (the op is per game), so the
 	// save carries the stage only; each case freezes again after loading.
 	started := time.Now()
-	if _, err := h.Call(ctx, "save-stage", "rimworld/save_game", map[string]any{"saveName": m.p.save}); err != nil {
+	if _, err := h.Call(ctx, "save-stage", "rimgovernor/save_game", map[string]any{"saveName": m.p.save}); err != nil {
 		return err
 	}
 	return m.waitSaved(ctx, started)
@@ -316,12 +316,12 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, err
 	}
 	h.Output = output
-	if _, err := h.Call(ctx, "load-stage", "rimworld/load_game_ready", map[string]any{
+	if _, err := h.Call(ctx, "load-stage", "rimgovernor/load_game_ready", map[string]any{
 		"saveName": m.p.save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	}); err != nil {
 		return outcome, err
 	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return outcome, err
 	}
 	identity, err := readIdentity(ctx, h)
@@ -482,7 +482,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, err
 	}
 	h.Output = output
-	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return outcome, err
 	}
 	// The service was stopped, not shut down: its authority grant lingers

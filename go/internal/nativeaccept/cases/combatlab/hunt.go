@@ -166,7 +166,7 @@ func servedWindow(ctx context.Context, s cases.Session, ticks int, resume bool) 
 	if err != nil {
 		return nil, err
 	}
-	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
 	return h, nil

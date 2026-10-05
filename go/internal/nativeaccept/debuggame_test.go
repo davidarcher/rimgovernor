@@ -48,8 +48,8 @@ func TestDebugStartSpec(t *testing.T) {
 }
 
 func TestQuietDecision(t *testing.T) {
-	with := []string{"rimworld/load_game_ready", QuietStorytellerTool}
-	without := []string{"rimworld/load_game_ready"}
+	with := []string{"rimgovernor/load_game_ready", QuietStorytellerTool}
+	without := []string{"rimgovernor/load_game_ready"}
 	cases := []struct {
 		names []string
 		mode  QuietMode

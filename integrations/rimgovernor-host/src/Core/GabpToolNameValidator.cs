@@ -20,6 +20,6 @@ public static class GabpToolNameValidator
             throw new ArgumentException("GABP tool name cannot be null or empty.", valueName);
 
         if (!IsCanonical(name))
-            throw new ArgumentException($"GABP tool name '{name}' must match {CanonicalPattern}. Use slash-delimited canonical names such as 'rimbridge/ping'; dotted MCP adapter names are not valid here.", valueName);
+            throw new ArgumentException($"GABP tool name '{name}' must match {CanonicalPattern}. Use slash-delimited canonical names such as 'rimgovernor/ping'; dotted MCP adapter names are not valid here.", valueName);
     }
 }

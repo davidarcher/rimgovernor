@@ -260,7 +260,7 @@ func window(ctx context.Context, s cases.Session, label, pawn string, seen map[d
 	if err != nil {
 		return run{}, err
 	}
-	if _, err := h.Call(ctx, label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, label+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return run{}, err
 	}
 	native, err := readTimetables(ctx, h, label+"-native", identity)

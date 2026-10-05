@@ -746,7 +746,7 @@ func (r *CheckpointRing) bridgeSave(ctx context.Context, h *Harness, name, label
 		if !force {
 			return "", 0, nil, errNotPaused
 		}
-		if _, err := h.Call(ctx, "checkpoint-"+label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		if _, err := h.Call(ctx, "checkpoint-"+label+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 			return "", 0, nil, err
 		}
 		if loaded, err = readLoaded(ctx, h, "checkpoint-"+label+"-identity-paused"); err != nil {

@@ -182,7 +182,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	// Record the undocumented tool schemas up front so they are on disk even
 	// if the run dies.
 	schemas := map[string]any{}
-	for _, name := range []string{"rimworld/play_for", "rimworld/step_game_ticks", "rimworld/set_time_speed", "rimbridge/list_logs", "rimbridge/get_bridge_status"} {
+	for _, name := range []string{"rimgovernor/play_for", "rimgovernor/step_game_ticks", "rimgovernor/set_time_speed", "rimgovernor/list_logs", "rimgovernor/get_bridge_status"} {
 		res, err := client.Describe(ctx, name)
 		if err != nil {
 			schemas[name] = map[string]any{"error": err.Error()}
@@ -198,7 +198,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietIfAvailable); err != nil {
 		return err
 	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	tl.row("game-ready", map[string]any{"status": gameStatus(ctx, client), "proc": processSample()})
@@ -277,7 +277,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	switch cfg.mode {
 	case "poll", "idle", "pausedpoll":
 		if cfg.mode != "pausedpoll" {
-			if _, err := h.Call(ctx, "resume", "rimworld/set_time_speed", map[string]any{"speed": cfg.speed, "ultraSpeedBoost": cfg.ultra}); err != nil {
+			if _, err := h.Call(ctx, "resume", "rimgovernor/set_time_speed", map[string]any{"speed": cfg.speed, "ultraSpeedBoost": cfg.ultra}); err != nil {
 				return err
 			}
 		}
@@ -309,7 +309,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 			i++
 			label := fmt.Sprintf("playfor-%03d", i)
 			args := map[string]any{"speed": cfg.speed, "durationMs": cfg.chunk.Milliseconds()}
-			res, err := h.Call(ctx, label, "rimworld/play_for", args)
+			res, err := h.Call(ctx, label, "rimgovernor/play_for", args)
 			if err != nil {
 				sample(label, err, nil)
 				return onFailure(label, err)
@@ -326,7 +326,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 		for time.Now().Before(deadline) {
 			i++
 			label := fmt.Sprintf("step-%03d", i)
-			if _, err := h.Call(ctx, label, "rimworld/step_game_ticks", map[string]any{"ticks": cfg.stepTicks}); err != nil {
+			if _, err := h.Call(ctx, label, "rimgovernor/step_game_ticks", map[string]any{"ticks": cfg.stepTicks}); err != nil {
 				sample(label, err, nil)
 				return onFailure(label, err)
 			}
@@ -341,10 +341,10 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	default:
 		return fmt.Errorf("unknown mode %q", cfg.mode)
 	}
-	if _, err := h.Call(ctx, "re-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "re-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return onFailure("re-pause", err)
 	}
-	if logs, err := h.Call(ctx, "logs", "rimbridge/list_logs", map[string]any{}); err == nil {
+	if logs, err := h.Call(ctx, "logs", "rimgovernor/list_logs", map[string]any{}); err == nil {
 		report["log_keys"] = keysOf(logs)
 	}
 	report["tick_end"] = last

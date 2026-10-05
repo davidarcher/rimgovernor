@@ -437,7 +437,7 @@ func initialColonists(ctx context.Context, h *na.Harness, report na.Report) ([]s
 // harness, refusing a reply without success.
 func (c *campaign) fixture(ctx context.Context, label, op string, args map[string]any) (map[string]any, error) {
 	h := c.s.Harness()
-	if _, err := h.Call(ctx, label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, label+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
 	out, err := h.Call(ctx, label, op, args)

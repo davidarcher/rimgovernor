@@ -148,7 +148,7 @@ func newGame(ctx context.Context, h *na.Harness, label string) (map[string]any, 
 	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietIfAvailable); err != nil {
 		return nil, fmt.Errorf("%s: %w", label, err)
 	}
-	if _, err := h.Call(ctx, label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, label+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
 	identityReply, err := h.Wire(ctx, label+"-identity", "lifecycle_read_identity", map[string]any{})

@@ -346,7 +346,7 @@ func allowSupplies(ctx context.Context, h *na.Harness, label string, report na.R
 }
 
 func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, sh *shell, bedCells []domain.Cell, report na.Report) error {
-	if _, err := h.Call(ctx, "pause-for-verify", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-for-verify", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	identityReply, err := h.Wire(ctx, "identity-after", "lifecycle_read_identity", map[string]any{})
@@ -420,7 +420,7 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	const roofStep, roofBudget = 200, 10000
 	waited := 0
 	for na.AsNumber(hut["openRoofCount"]) != 0 && waited < roofBudget {
-		if _, err := h.Call(ctx, fmt.Sprintf("roof-step-%d", waited/roofStep), "rimworld/step_game_ticks", map[string]any{"ticks": roofStep}); err != nil {
+		if _, err := h.Call(ctx, fmt.Sprintf("roof-step-%d", waited/roofStep), "rimgovernor/step_game_ticks", map[string]any{"ticks": roofStep}); err != nil {
 			return err
 		}
 		waited += roofStep

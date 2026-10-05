@@ -683,12 +683,12 @@ func (p *ServiceProcess) Entry() map[string]any { return p.entry }
 // every other goal until it is resolved. It returns the typed colony facts
 // snapshot.
 func LoadSave(ctx context.Context, h *Harness, save string, report Report) (map[string]any, error) {
-	if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
+	if _, err := h.Call(ctx, "load-save", "rimgovernor/load_game_ready", map[string]any{
 		"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	}); err != nil {
 		return nil, err
 	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
 	return ConfirmColonyNames(ctx, h, report)

@@ -143,13 +143,13 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 	// Controller restarts above exercise durable routine ownership. Reload the
 	// final native save and independently audit the actual Home mask as well.
 	save := "RimGovernor-home-connected"
-	if _, err = h.Call(ctx, "save-home", "rimworld/save_game", map[string]any{"saveName": save}); err != nil {
+	if _, err = h.Call(ctx, "save-home", "rimgovernor/save_game", map[string]any{"saveName": save}); err != nil {
 		return err
 	}
-	if _, err = h.Call(ctx, "reload-home", "rimworld/load_game_ready", map[string]any{"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false}); err != nil {
+	if _, err = h.Call(ctx, "reload-home", "rimgovernor/load_game_ready", map[string]any{"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false}); err != nil {
 		return err
 	}
-	if _, err = h.Call(ctx, "pause-home", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err = h.Call(ctx, "pause-home", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	if err = auditHomeCells(ctx, h, cx, cz, outside, true); err != nil {

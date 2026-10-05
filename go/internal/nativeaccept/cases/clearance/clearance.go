@@ -81,7 +81,7 @@ func reattach(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	_, err = h.Call(ctx, "pause-audit", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
+	_, err = h.Call(ctx, "pause-audit", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
 	return err
 }
 

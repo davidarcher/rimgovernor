@@ -79,7 +79,7 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 		if h, err = s.Reattach(ctx); err != nil {
 			return err
 		}
-		_, err = h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
+		_, err = h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
 		return err
 	}
 	if _, err := fixture("stock", map[string]any{"op": "stock"}); err != nil {

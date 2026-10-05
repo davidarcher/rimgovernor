@@ -185,7 +185,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		if _, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 			return nil, err
 		}
 		return h, nil

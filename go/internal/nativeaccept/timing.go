@@ -140,7 +140,7 @@ func TicksAdvanced() uint64 {
 // (replyTick) and re-baselines after a load or start.
 func observeReplyTick(tool string, tick *uint64) {
 	switch tool {
-	case "rimworld/load_game_ready", "rimgovernor/lifecycle_load":
+	case "rimgovernor/load_game_ready", "rimgovernor/lifecycle_load":
 		resetTickBaseline()
 		return
 	}

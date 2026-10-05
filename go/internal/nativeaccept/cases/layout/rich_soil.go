@@ -56,7 +56,7 @@ func richSoil(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	facts, survey, err := startersite.Survey(ctx, h)

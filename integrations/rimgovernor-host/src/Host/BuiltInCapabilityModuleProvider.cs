@@ -283,11 +283,11 @@ internal sealed class BuiltInCapabilityModuleProvider : IRimBridgeCapabilityProv
     {
         return toolName switch
         {
-            "rimbridge/get_bridge_status" => CapabilityExecutionKind.Immediate,
-            "rimbridge/list_logs" => CapabilityExecutionKind.Immediate,
-            "rimworld/load_game_ready" => CapabilityExecutionKind.BackgroundObserved,
-            "rimworld/play_for" => CapabilityExecutionKind.BackgroundObserved,
-            "rimworld/step_game_ticks" => CapabilityExecutionKind.BackgroundObserved,
+            "rimgovernor/get_bridge_status" => CapabilityExecutionKind.Immediate,
+            "rimgovernor/list_logs" => CapabilityExecutionKind.Immediate,
+            "rimgovernor/load_game_ready" => CapabilityExecutionKind.BackgroundObserved,
+            "rimgovernor/play_for" => CapabilityExecutionKind.BackgroundObserved,
+            "rimgovernor/step_game_ticks" => CapabilityExecutionKind.BackgroundObserved,
             _ => CapabilityExecutionKind.MainThread
         };
     }

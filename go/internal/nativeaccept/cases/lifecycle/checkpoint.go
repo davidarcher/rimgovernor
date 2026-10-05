@@ -96,7 +96,7 @@ func runCheckpoint(ctx context.Context, s cases.Session) error {
 	// (colony/load/map do not move while ticking) and expected_tick is
 	// intentionally omitted, so the refusal exercises the actual reason under
 	// test -- native not paused -- rather than a stale-tick race.
-	if _, err := h.Call(ctx, "unpause", "rimworld/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "unpause", "rimgovernor/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	unpausedReply, err := h.Wire(ctx, "save-unpaused", "lifecycle_save", map[string]any{
@@ -118,7 +118,7 @@ func runCheckpoint(ctx context.Context, s cases.Session) error {
 	// Case 3: re-pause, then attempt a save with a deliberately wrong
 	// expected_tick. Identity is re-read fresh (tick advanced while unpaused
 	// above) so only the deliberate tick mismatch triggers the refusal.
-	if _, err := h.Call(ctx, "repause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "repause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	identityForUncertain, err := h.Wire(ctx, "identity-before-uncertain", "lifecycle_read_identity", map[string]any{})

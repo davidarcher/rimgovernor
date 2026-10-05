@@ -23,7 +23,7 @@ lists the routes `serve` offers.
   supervisor's own; unset after a load); `serve` starts each window at it, Ultrafast when none was
   chosen, so there is no speed flag. A speed change inside a running window is an
   `external_speed_changed` stop. `--clock-test-acceleration` pins every window to boosted Ultrafast
-  instead. Acceptance sets a slower speed as the player's choice (`rimworld/set_time_speed`, then a
+  instead. Acceptance sets a slower speed as the player's choice (`rimgovernor/set_time_speed`, then a
   pause) before `serve` starts (`na.WritePlayerSpeed`).
 - **Blind-tick budget** (`--clock-blind-ticks`, `StartRequest.blind_tick_budget`). Blind ticks are
   those the controller has not observed: since its last status or bundle read, or since the oldest

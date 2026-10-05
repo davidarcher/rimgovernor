@@ -142,7 +142,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	last, err := rawRead(ctx, h, map[string]any{"action": "read"})

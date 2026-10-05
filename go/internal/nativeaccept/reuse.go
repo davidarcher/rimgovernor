@@ -242,7 +242,7 @@ func (g *GameReuse) BeginCase(ctx context.Context, name, save, output string) (*
 	if err := g.load(ctx, h, save); err != nil {
 		return nil, g.abandon(ctx, c, fmt.Sprintf("case %q load: %v", name, err))
 	}
-	if _, err := h.Call(ctx, "reuse-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, "reuse-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, g.abandon(ctx, c, fmt.Sprintf("case %q pause: %v", name, err))
 	}
 	state, identity, err := ObserveReset(ctx, h, "reuse-begin")
@@ -399,14 +399,14 @@ func (g *GameReuse) Record(report Report) {
 }
 
 func (g *GameReuse) load(ctx context.Context, h *Harness, save string) error {
-	// Every load goes through the harness-level rimworld/load_game_ready.
+	// Every load goes through the harness-level rimgovernor/load_game_ready.
 	// The trusted rimgovernor/lifecycle_load path is not usable here: it
 	// requires the expected identity to survive the load, but a fixture save
 	// that was never written by the mod carries no persisted colony id, so
 	// native mints a fresh one per load (Runtime/Persistence/ColonyIdentity.cs) and lifecycle_load
 	// reports the load as superseded. loadaccept covers that path with a
 	// save it wrote itself.
-	_, err := h.Call(ctx, "reuse-load", "rimworld/load_game_ready", map[string]any{
+	_, err := h.Call(ctx, "reuse-load", "rimgovernor/load_game_ready", map[string]any{
 		"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	})
 	return err
