@@ -311,7 +311,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 				}
 			case policy.OpBuild:
 				for _, piece := range op.Pieces {
-					builds = append(builds, roomBuild{def: piece.DefName, stuff: facts.BuildStuff(piece.DefName), cell: piece.Anchor(), rot: piece.Rot})
+					builds = append(builds, roomBuild{def: piece.DefName, stuff: facts.BulkBuildStuff(piece.DefName, 1), cell: piece.Anchor(), rot: piece.Rot})
 				}
 			}
 		}
