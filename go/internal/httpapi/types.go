@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	"time"
 )
 
@@ -57,6 +58,9 @@ type Config struct {
 	// FlightRecorder is the absolute path of the flight-recorder ring the
 	// spectator route reads; empty, the route projects no rows.
 	FlightRecorder string
+	// Access, when set, receives one http_access row per request (access.go);
+	// nil records nothing.
+	Access telemetry.Recorder
 }
 type State struct {
 	SessionID    string         `json:"sessionId"`

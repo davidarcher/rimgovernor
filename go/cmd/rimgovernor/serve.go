@@ -385,6 +385,15 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 	return 0
 }
 
+// accessRecorder is the recorder http_access rows go to: the flight recorder
+// serve opened, or nil (no rows) when there is none.
+func accessRecorder(config serveConfig) telemetry.Recorder {
+	if config.bridge.Recorder == nil {
+		return nil
+	}
+	return config.bridge.Recorder
+}
+
 func serveReadOnly(ctx context.Context, config serveConfig, out io.Writer) (result error) {
 	return serveWithBridge(ctx, config, out, func(ctx context.Context, c bridge.ProcessConfig) (serviceBridge, error) {
 		return openConfigured(ctx, c)
@@ -442,7 +451,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	if err != nil {
 		return err
 	}
-	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
+	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, Pprof: config.pprof, FlightRecorder: config.flightRecorder, Access: accessRecorder(config), ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
 	if err != nil {
 		return err
 	}

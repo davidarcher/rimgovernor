@@ -319,7 +319,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if err != nil {
 		return err
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Rounds: routines, ColonyStatus: colonyStatus, Notifications: natives.notifications, Presentation: natives.presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: client.attention, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Rounds: routines, ColonyStatus: colonyStatus, Notifications: natives.notifications, Presentation: natives.presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: client.attention, Pprof: config.pprof, FlightRecorder: config.flightRecorder, Access: accessRecorder(config), ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

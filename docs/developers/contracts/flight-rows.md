@@ -101,7 +101,7 @@ its v1 payload and its readers.
 
 | v2 kind | Shape and fields | Piece |
 |---|---|---|
-| `http_access` | event row, one per HTTP request. `method`, `path`, `status`, `dur_ms`, `bytes`, `long_lived`; successful hot-poll GETs under the slow threshold are dropped, errors, slow calls and every non-GET are kept | #2055 |
+| `http_access` | event row, one per HTTP request. `method`, `path`, `status`, `dur_ms`, `bytes`, `long_lived`; 2xx GETs of `/api/state`, `/api/spectator/now`, `/api/routines`, `/api/health` and `/api/presentation/*` under 250 ms are dropped; errors, slow calls and every non-GET are kept. Pprof rows are written at finish with `long_lived: true` (`dur_ms` is the capture, not latency). Written by `httpapi.Config.Access`; component `httpapi`; level `WARN` for a 5xx | #2055 |
 | `mod_log` | event row for each `rimgovernor.log` event from the mod: `seq`, `level`, `source`, `msg`, `dropped` (ring overflow count) | #2058 |
 
 ### Unchanged or reader-side
