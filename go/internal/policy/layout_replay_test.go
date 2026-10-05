@@ -50,6 +50,9 @@ var replayFixtures = []replayFixture{
 	{name: "all-rich-valley", pawns: 3, mayFail: true, survey: syntheticSurvey(140, func(x, z int32) SurveyCell {
 		return SurveyCell{Walkable: true, Fertility: 1.4}
 	})},
+	// A full SiteCore on 300x300 takes ~24 s (#2091); the case runs only under
+	// the long tier because this whole test does.
+	{name: "hundred-colonists", pawns: 100, survey: func(testing.TB) MapSurvey { return plusSurvey(300, 80) }},
 	{name: "tiny", pawns: 3, mayFail: true, survey: syntheticSurvey(40, func(x, z int32) SurveyCell {
 		return SurveyCell{Walkable: true, Fertility: 1}
 	})},
