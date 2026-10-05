@@ -145,6 +145,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		if state != before && !out.Interrupted {
 			return out, executor.ErrAuthority
 		}
+		clockAuthorityLost(call, "events poll context does not match the held authority",
+			"held_known", state.ObservationKnown, "held", fmt.Sprintf("%+v", state.Snapshot),
+			"observed_generation", current.GetNativeGeneration(), "observed_tick", current.GetTick())
 		if err = s.session.control.disableObserved(state); errors.Is(err, store.ErrConflict) {
 			if out.Interrupted {
 				return fail(executor.ErrAuthority)
@@ -188,6 +191,10 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		if latest != state && !out.Interrupted && !page.GetGap() && !clockPollInterrupts(page) {
 			return out, executor.ErrAuthority
 		}
+		clockAuthorityLost(call, "events page context does not match the held authority",
+			"held_known", latest.ObservationKnown, "held", fmt.Sprintf("%+v", latest.Snapshot),
+			"observed_generation", page.Context.GetNativeGeneration(), "observed_tick", page.Context.GetTick(),
+			"gap", page.GetGap(), "events", clockPollEventKinds(page))
 		if err = s.session.control.disableObserved(latest); errors.Is(err, store.ErrConflict) {
 			// Interruption evidence must still be captured even if authority changed.
 			if !page.GetGap() && !clockPollInterrupts(page) {

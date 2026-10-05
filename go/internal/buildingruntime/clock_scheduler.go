@@ -714,6 +714,14 @@ func clockEvent(ctx context.Context, component, kind, message string, attrs ...a
 	slog.Default().InfoContext(ctx, message, append([]any{telemetry.ComponentKey, component, telemetry.KindKey, kind}, attrs...)...)
 }
 
+// clockAuthorityLost logs that the controller dropped its own authority
+// and why. It is an Info event, not a debug trace: every loss costs the
+// auto-resumer a re-acquire with a growing backoff, and the cause was
+// invisible without --debug.
+func clockAuthorityLost(ctx context.Context, why string, attrs ...any) {
+	clockEvent(ctx, "clock-scheduler", "authority_lost", "authority lost: "+why, attrs...)
+}
+
 // Trace is the trace of the latest step, empty before the first. The
 // Worker's dispatches are spans under it (WorkerConfig.Trace).
 func (s *ClockScheduler) Trace() telemetry.Trace {
@@ -903,7 +911,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		status, e := s.bundleClockStatus(loaded, s.session.State().Snapshot)
 		if e != nil {
-			clockSchedulerLog("step exit: bundle clock status %v -> disable", e)
+			clockAuthorityLost(call, "bundle clock status failed while re-taking the clock", "err", e)
 			return out, errors.Join(e, s.session.Disable())
 		}
 		s.livePace(status, started)
@@ -975,7 +983,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	for _, v := range attempts {
 		if v.SupersededAt == nil && v.Intent.Command.Start != nil && (v.Phase == store.ClockDispatched || v.Phase == store.ClockUncertain) {
 			if !state.Enabled || !boundary.World(v.Intent.Snapshot, world) {
-				clockSchedulerLog("step exit: start %s dispatched under another world or without authority -> disable and cleanup", v.Intent.RequestID)
+				clockAuthorityLost(call, "start dispatched under another world or without authority; cleaning up", "request", v.Intent.RequestID, "enabled", state.Enabled)
 				out.Cleaned = true
 				return out, errors.Join(s.session.Disable(), s.session.CleanupClock(call))
 			}
@@ -987,21 +995,25 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 	}
 	if obligations && (!state.Enabled || !state.ObservationKnown || !boundary.World(state.Snapshot, world) || loaded.Context.NativeGeneration == nil || loaded.Context.GetNativeGeneration() != uint64(state.Snapshot.Native)) {
-		clockSchedulerLog("step exit: owed epoch under enabled=%v known=%v snapshot=%+v observed generation=%d -> disable and cleanup", state.Enabled, state.ObservationKnown, state.Snapshot, loaded.Context.GetNativeGeneration())
+		clockAuthorityLost(call, "owed epoch no longer matches the held authority; cleaning up",
+			"enabled", state.Enabled, "known", state.ObservationKnown, "held", fmt.Sprintf("%+v", state.Snapshot),
+			"observed_world", fmt.Sprintf("%v", world), "observed_generation", loaded.Context.GetNativeGeneration())
 		out.Cleaned = true
 		return out, errors.Join(s.session.Disable(), s.session.CleanupClock(call))
 	}
 	if !state.ObservationKnown || !boundary.World(state.Snapshot, world) || loaded.Context.NativeGeneration == nil || loaded.Context.GetNativeGeneration() != uint64(state.Snapshot.Native) {
-		clockSchedulerLog("step exit: observed scope %v generation=%d does not match known=%v snapshot=%+v -> disable", world, loaded.Context.GetNativeGeneration(), state.ObservationKnown, state.Snapshot)
+		clockAuthorityLost(call, "observed scope does not match the held authority",
+			"known", state.ObservationKnown, "held", fmt.Sprintf("%+v", state.Snapshot),
+			"observed_world", fmt.Sprintf("%v", world), "observed_generation", loaded.Context.GetNativeGeneration())
 		return out, errors.Join(executor.ErrAuthority, s.session.Disable())
 	}
 	status, err := s.bundleClockStatus(loaded, state.Snapshot)
 	if err != nil {
-		clockSchedulerLog("step exit: bundle clock status %v -> disable", err)
+		clockAuthorityLost(call, "bundle clock status failed", "err", err)
 		return out, errors.Join(err, s.session.Disable())
 	}
 	if status.Context.GetTick() < loaded.Context.GetTick() {
-		clockSchedulerLog("step exit: clock status tick %d behind scope tick %d -> disable", status.Context.GetTick(), loaded.Context.GetTick())
+		clockAuthorityLost(call, "clock status is behind the scope tick", "status_tick", status.Context.GetTick(), "scope_tick", loaded.Context.GetTick())
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
 	s.running.Store(false)
