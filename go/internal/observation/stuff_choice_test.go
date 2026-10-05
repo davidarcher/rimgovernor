@@ -225,17 +225,24 @@ func TestBuildStuffRanksByTheStatsTheDefCarries(t *testing.T) {
 }
 
 // A bench that takes blocks or wood builds from the trees the map has when
-// nothing is stocked: blocks need stonecutting, which a young colony lacks.
+// nothing is stocked: blocks need stonecutting, which a young colony lacks. The
+// catalog prices every stuff with the def's fixed cost list too (25 steel), so
+// a colony with no steel still has a covered stuff.
 func TestBulkBuildStuffCountsStandingTreesNotBlocks(t *testing.T) {
-	bench := stuffedDef("Bench", option("BlocksGranite", 75, 1, nil), option("WoodLog", 75, 2, nil))
+	withSteel := func(stuff string, value float64) StuffOption {
+		o := option(stuff, 75, value, nil)
+		o.Costs = append([]policy.Amount{{Resource: "Steel", Count: 25}}, o.Costs...)
+		return o
+	}
+	bench := stuffedDef("Bench", withSteel("BlocksGranite", 1), withSteel("WoodLog", 2))
 	p := ColonyProjection{Definitions: []PlanningDefinition{bench}}
-	p.Resources = domain.Known(map[policy.Resource]int64{"Steel": 100})
+	p.Resources = domain.Known(map[policy.Resource]int64{})
 	if got := p.BuildStuff("Bench"); got != "BlocksGranite" {
 		t.Fatal("setup: the abstract best is blocks", got)
 	}
 	p.Acquisition = domain.Known([]policy.AcquisitionSource{{Resource: "WoodLog", Tree: true, Yield: 40}, {Resource: "WoodLog", Tree: true, Yield: 40}})
 	if got := p.BulkBuildStuff("Bench", 1); got != "WoodLog" {
-		t.Fatal("two trees cover 75 wood", got)
+		t.Fatal("two trees cover 75 wood with no steel stocked", got)
 	}
 	p.Resources = domain.Known(map[policy.Resource]int64{"BlocksGranite": 80})
 	if got := p.BulkBuildStuff("Bench", 1); got != "BlocksGranite" {

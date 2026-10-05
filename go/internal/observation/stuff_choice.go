@@ -354,7 +354,13 @@ func (r ColonyProjection) BulkBuildStuff(name string, units int64) string {
 			}
 			return held
 		}
+		// The catalog prices a stuff with the def's fixed cost list too (a bench's
+		// 25 steel), which every option pays alike; what tells the options apart is
+		// the stuff itself, so that is what the stock must cover.
 		covered := func(o StuffOption) bool {
+			if i := slices.IndexFunc(o.Costs, func(a policy.Amount) bool { return string(a.Resource) == o.Stuff }); i >= 0 {
+				return have(o.Costs[i].Resource) >= float64(o.Costs[i].Count*units)
+			}
 			return len(o.Costs) > 0 && !slices.ContainsFunc(o.Costs, func(a policy.Amount) bool { return have(a.Resource) < float64(a.Count*units) })
 		}
 		if price, err := d.chooseStuff(criteria, func(o StuffOption) bool { return ordinary(o) && covered(o) }); err == nil {
