@@ -18,7 +18,7 @@ import (
 func clockLoopFixture(t *testing.T) *ClockWorker {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context, time.Duration) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context, StepReason) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
+	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context, StepReason) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -62,11 +62,11 @@ func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *te
 			t.Fatal("unsafe loop timeout accepted", unsafe)
 		}
 	}
-	// A long poll must leave the read a second of its timeout.
+	// A signal wait past the lost-announcement bound is refused.
 	bad = cfg
-	bad.PollWait = cfg.PollTimeout
+	bad.SignalWait = ClockSignalWaitMax + time.Second
 	if _, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, bad); err == nil {
-		t.Fatal("poll wait consumed the whole poll timeout")
+		t.Fatal("signal wait above the bound accepted")
 	}
 	// A step budget far above lease/4 is valid.
 	cfg.StepTimeout = 10 * time.Second
@@ -88,7 +88,7 @@ func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
 	var polls, renews, steps atomic.Int32
 	allowPoll := make(chan struct{})
 	enteredStep := make(chan struct{})
-	w.poll = func(context.Context, time.Duration) (ClockPollResult, error) {
+	w.poll = func(context.Context) (ClockPollResult, error) {
 		polls.Add(1)
 		select {
 		case <-allowPoll:

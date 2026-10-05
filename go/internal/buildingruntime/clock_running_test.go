@@ -70,7 +70,7 @@ func TestClockPollStoppedPageClearsTheRunningWindow(t *testing.T) {
 		{Cursor: proto.Int64(1), Owner: owner, Context: context1, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_OperationOutcome{OperationOutcome: clockPollOutcome(3)}},
 	}
 	page.NextCursor, page.NewestCursor = proto.Int64(1), proto.Int64(1)
-	if result, err := s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: page}, 128, 0); err != nil || !result.Captured || !s.WindowRunning() {
+	if result, err := s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: page}, 128); err != nil || !result.Captured || !s.WindowRunning() {
 		t.Fatal(result, err, "an outcome alone does not stop the window")
 	}
 	// The committed outcome is remembered for the review's deferral even
@@ -83,7 +83,7 @@ func TestClockPollStoppedPageClearsTheRunningWindow(t *testing.T) {
 		{Cursor: proto.Int64(2), Owner: owner, Context: context1, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_WATCH_LATCHED.Enum(), Evidence: &k.StopEvent_Watch{Watch: &k.WatchLatched{Outcome: clockPollOutcome(3), TickDeadline: proto.Int64(612)}}}}},
 	}
 	page.NextCursor, page.NewestCursor = proto.Int64(2), proto.Int64(2)
-	if result, err := s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: page}, 128, 0); err != nil || !result.Captured || s.WindowRunning() {
+	if result, err := s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: page}, 128); err != nil || !result.Captured || s.WindowRunning() {
 		t.Fatal(result, err, s.WindowRunning())
 	}
 }
@@ -93,13 +93,13 @@ func TestClockWorkerWaitsForStepBetweenWindows(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		w := clockLoopFixture(t)
-		w.config.PollWait = 10 * time.Millisecond
+		w.config.SignalWait = 10 * time.Millisecond
 		w.config.PollInterval = time.Minute
 		w.config.StepTimeout = time.Minute
 		release := make(chan struct{})
 		var polls int
 		w.held = func() bool { return false }
-		w.poll = func(context.Context, time.Duration) (ClockPollResult, error) {
+		w.poll = func(context.Context) (ClockPollResult, error) {
 			polls++
 			return ClockPollResult{}, nil
 		}
@@ -299,10 +299,7 @@ func TestClockWorkerPollsFasterUnderARunningWindow(t *testing.T) {
 		w.config.RunningPollInterval = 5 * time.Millisecond
 		w.held = func() bool { return true }
 		var polls []time.Time
-		w.poll = func(_ context.Context, wait time.Duration) (ClockPollResult, error) {
-			if wait != 0 {
-				t.Error("unexpected held read")
-			}
+		w.poll = func(context.Context) (ClockPollResult, error) {
 			polls = append(polls, time.Now())
 			return ClockPollResult{}, nil
 		}

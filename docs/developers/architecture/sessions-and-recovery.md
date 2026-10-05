@@ -41,8 +41,7 @@ and `GABS_GAME_ID` in its environment, records the endpoint in
 `<config>/<id>/endpoint.json` (pid plus start time, so a reused pid is never
 mistaken for the game) and speaks GABP to the GABP host directly
 (`go/internal/gabp`). The GABP connection correlates concurrent requests by
-id, so a held `clock_read_events` long poll does not stall planner reads
-behind it. The game is spawned detached and keeps running when
+id, so a slow call never stalls planner reads behind it. The game is spawned detached and keeps running when
 the controller ends; a restarted controller reattaches through the endpoint
 record. The vendored GABP server runs every tools/call off its reader thread
 (`GabpServer.HandleToolsCallAsync`), so a held journal read never delays the routine

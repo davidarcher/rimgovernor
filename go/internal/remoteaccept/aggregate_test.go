@@ -362,7 +362,7 @@ func TestRenderedSkipsAreReportedWithoutFailure(t *testing.T) {
 	}
 	for _, skipped := range [][]SkippedCase{
 		{{Name: "speedmatrix/plain", Reason: "failed"}},
-		{{Name: "smoke/dispatch", Reason: "rendered"}},
+		{{Name: "smoke/identity", Reason: "rendered"}},
 		{{Name: "speedmatrix/plain", Reason: "rendered"}, {Name: "speedmatrix/plain", Reason: "rendered"}},
 	} {
 		f.selection.Skipped = skipped

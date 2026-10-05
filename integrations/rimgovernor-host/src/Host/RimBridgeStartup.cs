@@ -140,6 +140,8 @@ internal static class RimBridgeStartup
                     RimBridgeEventRelay.Initialize(_server.Events, RimBridgeCapabilities.Journal, RimBridgeCapabilities.LogJournal);
                 using (RimBridgeStartupTiming.Phase("mod-log.initialize"))
                     StartModLogChannel(_server.Events);
+                using (RimBridgeStartupTiming.Phase("clock-events.initialize"))
+                    StartClockEventChannel(_server.Events);
                 using (RimBridgeStartupTiming.Phase("attention.initialize"))
                     _attentionPublisher = new RimBridgeAttentionPublisher(_server.Attention, RimBridgeCapabilities.Journal, RimBridgeCapabilities.LogJournal);
 
@@ -192,6 +194,21 @@ internal static class RimBridgeStartup
         new RimGovernor.Host.Sdk.ModLogPublisher(
             events.EmitEventAsync,
             () => events.GetSubscriberCount(RimGovernor.Host.Sdk.ModLogPublisher.Channel) > 0).Start();
+    }
+
+    // The clock journal's announcement channel (#2070): the journal writer calls ClockEventPublisher.Advanced.
+    private static void StartClockEventChannel(RimGovernor.Host.Gab.Events.IEventManager events)
+    {
+        events.RegisterChannel(RimGovernor.Host.Sdk.ClockEventPublisher.Channel, RimGovernor.Host.Sdk.ClockEventPublisher.Description);
+        var publisher = new RimGovernor.Host.Sdk.ClockEventPublisher(
+            events.EmitEventAsync,
+            () => events.GetSubscriberCount(RimGovernor.Host.Sdk.ClockEventPublisher.Channel) > 0);
+        events.ChannelSubscribed += channel =>
+        {
+            if (channel == RimGovernor.Host.Sdk.ClockEventPublisher.Channel)
+                publisher.Resubscribed();
+        };
+        publisher.Start();
     }
 
     private static class TaskShim

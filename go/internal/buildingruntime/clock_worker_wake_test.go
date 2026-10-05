@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -31,7 +32,7 @@ func TestClockWorkerWakesStepOnCapturedEvents(t *testing.T) {
 		polled := make(chan struct{})
 		defer close(polled)
 		var polls atomic.Int32
-		w.poll = func(context.Context, time.Duration) (ClockPollResult, error) {
+		w.poll = func(context.Context) (ClockPollResult, error) {
 			if polls.Add(1) != 2 {
 				return ClockPollResult{}, nil
 			}
@@ -73,46 +74,67 @@ func TestClockWorkerWakesStepOnCapturedEvents(t *testing.T) {
 	})
 }
 
-// A native build that ignores wait_ms returns at once: the loop keeps the
-// PollInterval cadence instead of spinning; one that waited re-polls at once.
-// Virtual time measures the exact cadence independently of host scheduling:
-// ignored waits add PollInterval, while held reads add only PollWait.
-func TestClockWorkerLongPollCadence(t *testing.T) {
+// Without the clock channel the loop keeps the PollInterval cadence; with it
+// the loop reads again only on an announcement or at the SignalWait bound.
+// Virtual time measures both exactly, independently of host scheduling.
+func TestClockWorkerPollCadenceFollowsTheClockChannel(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		const target = 7
-		for _, waits := range []bool{false, true} {
-			w := clockLoopFixture(t)
-			w.config.PollInterval = 30 * time.Millisecond
-			if waits {
-				w.config.PollInterval = 500 * time.Millisecond
+		w := clockLoopFixture(t)
+		w.config.PollInterval = 30 * time.Millisecond
+		var polls atomic.Int32
+		reached := make(chan struct{})
+		w.poll = func(context.Context) (ClockPollResult, error) {
+			if polls.Add(1) == target {
+				close(reached)
 			}
-			w.config.PollWait = 10 * time.Millisecond
-			var polls atomic.Int32
-			reached := make(chan struct{})
-			w.poll = func(ctx context.Context, _ time.Duration) (ClockPollResult, error) {
-				if waits {
-					time.Sleep(w.config.PollWait)
-				}
-				if polls.Add(1) == target {
-					close(reached)
-				}
-				return ClockPollResult{}, nil
-			}
-			started := time.Now()
-			w.start()
-			select {
-			case <-reached:
-			case <-time.After(5 * time.Second):
-				t.Fatal("poll loop stalled", waits, polls.Load())
-			}
-			elapsed := time.Since(started)
-			want := (target - 1) * w.config.PollInterval
-			if waits {
-				want = target * w.config.PollWait
-			}
-			if elapsed != want {
-				t.Fatalf("held %v: poll cadence = %v, want %v", waits, elapsed, want)
+			return ClockPollResult{}, nil
+		}
+		started := time.Now()
+		w.start()
+		<-reached
+		if elapsed, want := time.Since(started), (target-1)*w.config.PollInterval; elapsed != want {
+			t.Fatalf("cadence = %v, want %v", elapsed, want)
+		}
+		w.cancel()
+		<-w.done
+	})
+	synctest.Test(t, func(t *testing.T) {
+		w := clockLoopFixture(t)
+		w.config.PollInterval = time.Minute
+		w.config.SignalWait = 100 * time.Millisecond
+		w.signal = bridge.NewClockSignal()
+		var polls []time.Time
+		var mu sync.Mutex
+		w.poll = func(context.Context) (ClockPollResult, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			polls = append(polls, time.Now())
+			return ClockPollResult{}, nil
+		}
+		started := time.Now()
+		w.start()
+		synctest.Wait()
+		// The first read, then silence until the bound.
+		time.Sleep(30 * time.Millisecond)
+		w.signal.Announce(1)
+		synctest.Wait()
+		time.Sleep(250 * time.Millisecond)
+		synctest.Wait()
+		w.cancel()
+		<-w.done
+		var got []time.Duration
+		for _, at := range polls {
+			got = append(got, at.Sub(started))
+		}
+		want := []time.Duration{0, 30 * time.Millisecond, 130 * time.Millisecond, 230 * time.Millisecond}
+		if len(got) != len(want) {
+			t.Fatalf("reads at %v, want %v", got, want)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Fatalf("reads at %v, want %v", got, want)
 			}
 		}
 	})

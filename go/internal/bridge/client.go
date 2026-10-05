@@ -186,6 +186,8 @@ type Client struct {
 	gate     *admission
 	// writes counts the typed side-effect calls queued or in flight.
 	writes atomic.Int64
+	// clock is the rimgovernor.clock channel's signal; nil without a game host.
+	clock *ClockSignal
 
 	frames  *frameStream
 	catalog catalogCache
@@ -210,8 +212,9 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 		return nil, fmt.Errorf("%w: absolute state dir and executable paths required", ErrContract)
 	}
 	launch := config.Launch
+	clock := NewClockSignal()
 	client, err := open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func(context.Context) (backend, error) {
-		return newGameBackend(config.GameID, launch, config.Recorder), nil
+		return newGameBackend(config.GameID, launch, config.Recorder, clock), nil
 	})
 	if err != nil {
 		return nil, err
@@ -219,6 +222,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	// The snapshot stream (#858) serves the state families of a game on
 	// this host; test clients built with open read over GABP only.
 	client.stateDir = launch.StateDir
+	client.clock = clock
 	client.frames = newFrameStream()
 	client.replies = newReplySlots()
 	return client, nil

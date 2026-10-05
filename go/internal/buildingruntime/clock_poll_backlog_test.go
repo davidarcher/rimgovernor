@@ -33,7 +33,7 @@ func TestClockPollAdoptsNativeBacklog(t *testing.T) {
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	native := &backlogNative{clockPollNative: &clockPollNative{core: f.clockCoreFake}, f: f, newest: 1000}
-	result, _ := s.PollEvents(context.Background(), native, 128, 0)
+	result, _ := s.PollEvents(context.Background(), native, 128)
 	if len(native.requests) != 2 || native.requests[0] != 0 || native.requests[1] != 1000-128 {
 		t.Fatal(native.requests)
 	}
@@ -42,7 +42,7 @@ func TestClockPollAdoptsNativeBacklog(t *testing.T) {
 	}
 	// Once the journal holds history it reads on from its cursor.
 	native.requests = nil
-	_, _ = s.PollEvents(context.Background(), native, 128, 0)
+	_, _ = s.PollEvents(context.Background(), native, 128)
 	if len(native.requests) != 1 || native.requests[0] != 1000-127 {
 		t.Fatal(native.requests)
 	}

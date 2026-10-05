@@ -14,7 +14,7 @@ import (
 // budget only matters when it never arrives.
 const invalidationWindowTicks = 1800
 
-// invalidationWait bounds the long polls spent waiting for the journal row.
+// invalidationWait bounds the polling spent waiting for the journal row.
 const invalidationWait = 20 * time.Second
 
 // editUnderEpoch runs execute while a supervised clock window plays and
@@ -67,7 +67,7 @@ func editUnderEpoch(ctx context.Context, h *na.Harness, identity map[string]any,
 		if time.Now().After(deadline) {
 			return nil, fmt.Errorf("no observation_invalidated naming zone %s within %s of the edit", zoneID, invalidationWait)
 		}
-		reply, err := h.Wire(ctx, "invalidation-events", "clock_read_events", map[string]any{"identity": identity, "afterCursor": fmt.Sprint(cursor), "limit": 128, "waitMs": 5000})
+		reply, err := h.Wire(ctx, "invalidation-events", "clock_read_events", map[string]any{"identity": identity, "afterCursor": fmt.Sprint(cursor), "limit": 128})
 		if err != nil {
 			return nil, err
 		}
@@ -92,6 +92,13 @@ func editUnderEpoch(ctx context.Context, h *na.Harness, identity map[string]any,
 			}
 			if na.Contains(asStrings(row["entityIds"]), zoneID) {
 				invalidated = row
+			}
+		}
+		if invalidated == nil {
+			select {
+			case <-time.After(100 * time.Millisecond):
+			case <-ctx.Done():
+				return nil, ctx.Err()
 			}
 		}
 	}

@@ -140,16 +140,13 @@ within the scanned window. An empty journal can report `oldest_cursor = 0` and
 `newest_cursor = 0`; an absent oldest cursor is also valid; a positive oldest cursor
 requires a nonempty journal, and zero is invalid for a nonempty one.
 
-`EventsRequest.wait_ms` (0-5000) turns a read into a long poll: a page that already
-has rows or loss answers at once; an empty page is held until a row lands past the
-cursor or the wait lapses, then read again without waiting. Native keeps at most
-four waiters. `ClockWorkerConfig.PollWait` must leave one second of the poll call
-budget for the two main-thread hops and applies only while the scheduler reports an
-admitted running window (`ClockScheduler.WindowRunning`); otherwise the read is
-not held, because a held read would queue ahead of the review's own reads. Between
-windows it polls unheld at `PollInterval`. A poll that returns early with nothing
-(a native build ignoring `wait_ms`) falls back to that cadence instead of spinning.
-Defaults: `serve` holds 4 s, polls at 1 s.
+Reads are never held: `EventsRequest.wait_ms` is retired and native refuses it.
+The mod announces journal advances on the `rimgovernor.clock` GABP channel
+(`{type: advance, newest}`, coalesced; the current cursor is announced to each new
+subscriber) and the poll loop reads the page after its cursor when the announcement
+version moves (`ClockWorkerConfig.SignalWait`, at most 5 s, bounds a lost
+announcement). Gap and loss evidence is the page's, as above. Without the channel
+the loop polls unheld at `PollInterval`. Defaults: `serve` waits 4 s, polls at 1 s.
 
 `Event.owner` is required for every event except an `AuthorityChanged` observed
 outside an epoch (`epoch = 0`, no owner). `OperationOutcome` rows carry an attempt
@@ -304,7 +301,7 @@ still execute one at a time on the game's main thread.
 **Admission classes.** The bridge hands call slots out by `AdmissionClass`: `control`
 (clock, authority, operations, receipts, lifecycle, placement previews),
 `observation` (`observations_*`, presentation state, leases) or `mirror` (the clock
-events long poll: one call at a time, outside the shared slots). One slot is
+events read: one call at a time, outside the shared slots). One slot is
 reserved for control and a waiting control call is admitted before any waiting read,
 so a renew or stop never queues behind a burst of reads. The class rides beside
 `request` and `trace` on the wire, and the companion's `MainThreadAdmission` runs

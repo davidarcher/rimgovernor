@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
@@ -40,23 +39,20 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 	}
 	page.NextCursor, page.NewestCursor = proto.Int64(3), proto.Int64(3)
 	native := &clockPollNative{core: f.clockCoreFake, page: page}
-	result, err := s.PollEvents(context.Background(), native, 128, 1500*time.Millisecond)
+	result, err := s.PollEvents(context.Background(), native, 128)
 	if err != nil || result.Interrupted || !result.Captured || len(result.Review.Holds) != 0 || result.Review.ReviewedCursor != 3 || !s.session.State().Enabled {
 		t.Fatal(result, err, s.session.State())
 	}
-	if native.request.GetWaitMs() != 1500 {
-		t.Fatal("wait not forwarded", native.request)
+	if native.request.WaitMs != nil {
+		t.Fatal("the read must not be held", native.request)
 	}
 	if len(result.Wake) != 2 || result.Wake[0] != (WakeOutcome{Action: domain.ActionID("wall"), Attempt: 3, Terminal: true}) || !result.AuthorityChanged {
 		t.Fatal(result.Wake, result.AuthorityChanged)
 	}
 	// An empty page commits nothing and therefore wakes nothing.
-	result, err = s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: clockPollPage(f, 3, "empty")}, 128, 0)
+	result, err = s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: clockPollPage(f, 3, "empty")}, 128)
 	if err != nil || result.Captured || len(result.Wake) != 0 || result.AuthorityChanged {
 		t.Fatal(result, err)
-	}
-	if _, err = s.PollEvents(context.Background(), native, 128, 6*time.Second); err == nil {
-		t.Fatal("wait above the bound must be refused")
 	}
 }
 
@@ -87,7 +83,7 @@ func TestClockPollStopBeforeTheCurrentGrantKeepsAuthority(t *testing.T) {
 			event.Cursor = proto.Int64(int64(i + 1))
 		}
 		page.NextCursor, page.NewestCursor = proto.Int64(2), proto.Int64(2)
-		result, err := s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: page}, 128, 0)
+		result, err := s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: page}, 128)
 		if held := errors.Is(err, executor.ErrHeld); held != stopAfterGrant || len(result.Review.Holds) != map[bool]int{true: 1}[stopAfterGrant] || (!stopAfterGrant && err != nil) {
 			t.Fatal(stopAfterGrant, result, err)
 		}
@@ -115,7 +111,7 @@ func TestClockPollStandingHoldBeforeTheRememberedGrantKeepsAuthority(t *testing.
 	page := clockPollPage(f, 0, "benign")
 	owner, context1 := page.Events[0].Owner, page.Events[0].Context
 	page.Events = []*k.Event{{Cursor: proto.Int64(1), Owner: owner, Context: context1, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_EXTERNAL_PAUSE.Enum(), Evidence: &k.StopEvent_Pause{Pause: &k.PauseEvidence{}}}}}}
-	if _, err := s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: page}, 128, 0); !errors.Is(err, executor.ErrHeld) || s.session.State().Enabled {
+	if _, err := s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: page}, 128); !errors.Is(err, executor.ErrHeld) || s.session.State().Enabled {
 		t.Fatal(err, s.session.State())
 	}
 	// The checkpoint's pause revokes and its resume re-acquires; the grant
@@ -132,7 +128,7 @@ func TestClockPollStandingHoldBeforeTheRememberedGrantKeepsAuthority(t *testing.
 	page = clockPollPage(f, 1, "benign")
 	page.Events = []*k.Event{{Cursor: proto.Int64(2), Context: page.Events[0].Context, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(uint64(granted.Native)), Reason: proto.String("None"), Active: proto.Bool(true)}}}}
 	for _, next := range []*k.EventsPage{page, clockPollPage(f, 2, "empty")} {
-		result, err := s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: next}, 128, 0)
+		result, err := s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: next}, 128)
 		if err != nil || len(result.Review.Holds) != 0 || result.Interrupted || !s.session.State().Enabled {
 			t.Fatal(result, err, s.session.State())
 		}
@@ -169,7 +165,7 @@ func TestClockPollBacklogWhileDisabledKeepsAcquireEpoch(t *testing.T) {
 		s.session.control.mu.Unlock()
 	}
 	native := &clockPollNative{core: f.clockCoreFake, page: page, before: capture}
-	result, err := s.PollEvents(ctx, native, 128, 0)
+	result, err := s.PollEvents(ctx, native, 128)
 	if !errors.Is(err, executor.ErrHeld) || !result.Captured || len(result.Review.Holds) == 0 || s.session.State().Enabled {
 		t.Fatal(result, err)
 	}
@@ -180,7 +176,7 @@ func TestClockPollBacklogWhileDisabledKeepsAcquireEpoch(t *testing.T) {
 	page.Events = []*k.Event{stop(3)}
 	page.NextCursor, page.NewestCursor = proto.Int64(3), proto.Int64(3)
 	native = &clockPollNative{core: f.clockCoreFake, page: page, before: capture}
-	if _, err = s.PollEvents(ctx, native, 128, 0); !errors.Is(err, executor.ErrHeld) {
+	if _, err = s.PollEvents(ctx, native, 128); !errors.Is(err, executor.ErrHeld) {
 		t.Fatal(err)
 	}
 	if epoch.Err() != nil {
@@ -191,7 +187,7 @@ func TestClockPollBacklogWhileDisabledKeepsAcquireEpoch(t *testing.T) {
 	page.Events = []*k.Event{stop(4)}
 	page.NextCursor, page.NewestCursor = proto.Int64(4), proto.Int64(4)
 	native = &clockPollNative{core: f.clockCoreFake, page: page, before: capture}
-	if _, err = s.PollEvents(ctx, native, 128, 0); !errors.Is(err, executor.ErrHeld) {
+	if _, err = s.PollEvents(ctx, native, 128); !errors.Is(err, executor.ErrHeld) {
 		t.Fatal(err)
 	}
 	if epoch.Err() == nil {
@@ -225,7 +221,7 @@ func TestClockPollBacklogWhileEnabledKeepsAuthority(t *testing.T) {
 		page := clockPollPage(f, after, "empty")
 		page.Events = events
 		page.NextCursor, page.NewestCursor = proto.Int64(events[len(events)-1].GetCursor()), proto.Int64(newest)
-		return s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: page, before: capture}, 128, 0)
+		return s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: page, before: capture}, 128)
 	}
 	// The first page, read before any authority, fixes the watermark at 3.
 	if _, err := poll(0, 3, stop(1), stop(2)); !errors.Is(err, executor.ErrHeld) {

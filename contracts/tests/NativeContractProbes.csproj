@@ -109,7 +109,6 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeProductionBillSettings.cs" Link="Production/NativeProductionBillSettings.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeRecipeRoles.cs" Link="Production/NativeRecipeRoles.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockTools.cs" Link="Production/NativeClockTools.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockWaiters.cs" Link="Production/NativeClockWaiters.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionCausality.cs" Link="Production/NativeConstructionCausality.cs" />
   </ItemGroup>
 

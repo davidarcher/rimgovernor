@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -30,7 +29,7 @@ type ClockWorker struct {
 	stopped  bool
 	disable  func() error
 	cleanup  func(context.Context) error
-	poll     func(context.Context, time.Duration) (ClockPollResult, error)
+	poll     func(context.Context) (ClockPollResult, error)
 	// held reports a window running (the running poll cadence); nil
 	// counts as running.
 	held       func() bool
@@ -44,13 +43,11 @@ type ClockWorker struct {
 	// own pending evidence instead of racing for one channel token.
 	wake *WakeSignal
 	// pollWake releases the local between-window wait after each step,
-	// and starts a running window's held poll without a cadence delay.
-	// pollHeld records whether the running loop already re-polls itself.
+	// and starts a running window's poll without a cadence delay.
 	pollWake chan struct{}
-	pollHeld atomic.Bool
-	// writes reports a queued side-effect call, under which the poll does
-	// not wait.
-	writes func() bool
+	// signal is the clock channel's announcements (rimgovernor.clock); nil
+	// when the native has none, which leaves the cadence poll.
+	signal *bridge.ClockSignal
 }
 
 // Mirror poll transport-error backoff (#795): from pollBackoffMin,
@@ -80,17 +77,17 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 	if config.PollTimeout <= 0 || config.PollTimeout > lease/4 || config.PollTimeout > playerTimeout || config.RenewTimeout <= 0 || config.RenewTimeout > lease/4 || config.RenewTimeout > playerTimeout || config.StepTimeout <= 0 || config.StepTimeout > playerTimeout {
 		return nil, fmt.Errorf("%w: NewClockWorker: config.PollTimeout <= 0 || config.PollTimeout > lease/4 || config.PollTimeout > playerTimeout || config.Ren", ErrControl)
 	}
-	// A long poll must still leave the read itself a second under its timeout.
-	if config.PollWait < 0 || config.PollWait > bridge.ClockEventsMaxWaitMs*time.Millisecond || (config.PollWait > 0 && config.PollWait+time.Second > config.PollTimeout) {
-		return nil, fmt.Errorf("%w: NewClockWorker: config.PollWait < 0 || config.PollWait > bridge.ClockEventsMaxWaitMs*time.Millisecond || (config.PollWait >", ErrControl)
+	// A missed announcement is found by the next read; bound how long that waits.
+	if config.SignalWait < 0 || config.SignalWait > ClockSignalWaitMax {
+		return nil, fmt.Errorf("%w: NewClockWorker: config.SignalWait < 0 || config.SignalWait > ClockSignalWaitMax", ErrControl)
 	}
 	lifetime, cancel := context.WithCancel(ctx)
 	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, validity: scheduler.Validity, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
-	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
-		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, wait)
+	w.poll = func(ctx context.Context) (ClockPollResult, error) {
+		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit)
 	}
-	if writes, ok := nativeEvents.(writesPending); ok {
-		w.writes = writes.WritesPending
+	if source, ok := nativeEvents.(clockSignalSource); ok {
+		w.signal = source.ClockSignal()
 	}
 	w.stopParent = context.AfterFunc(scheduler.player.lifetime, cancel)
 	if err := errors.Join(ctx.Err(), scheduler.player.lifetime.Err()); err != nil {
@@ -192,34 +189,34 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 	}
 }
 
-// pollLoop reads the native journal through clock_read_events (#858). The read
-// is a long poll bounded by PollWait whether or not a window runs (its
-// wait holds neither the game thread nor an admission slot), so a stop
-// wakes the step as soon as its event lands, except while a side-effect
-// call is queued.
-// With PollWait zero the read is unheld, at the RunningPollInterval
-// cadence while held reports a window running; between windows the loop
-// waits locally on scheduler completion (pollWake). A call that waited
-// (it returned no sooner than half of its wait), captured evidence or
-// applied anything is followed by the next poll at once; a call that
-// returned early falls back to the cadence, and a failed call backs off from 250 ms to 2 s.
+// pollLoop reads the native journal through clock_read_events (#858): one
+// unheld read per round, answered at once. With the clock channel's signal
+// (SignalWait > 0) the loop reads again when the mod announces a journal
+// advance on rimgovernor.clock, so a stop is seen near-push, or after
+// SignalWait at the latest (a bound, not a held call: nothing waits in
+// native). The version is taken before the read so an announcement that
+// lands during it still releases the next wait, and a (re)subscription moves
+// it, so a reconnect always ends in a tail read of the journal. A read that
+// captured evidence is followed by the next at once. Without the signal the
+// loop reads at the PollInterval cadence (RunningPollInterval while a window
+// runs); between windows it waits locally on scheduler completion
+// (pollWake). A failed call backs off from 250 ms to 2 s.
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	backoff := time.Duration(0)
+	signalled := w.signal != nil && w.config.SignalWait > 0
 	for w.ctx.Err() == nil {
-		var wait time.Duration
 		running := w.held == nil || w.held()
-		if w.config.PollWait > 0 && (w.writes == nil || !w.writes()) {
-			wait = w.config.PollWait
-		}
-		w.pollHeld.Store(wait > 0)
 		interval := w.config.PollInterval
 		if running && w.config.RunningPollInterval > 0 {
 			interval = w.config.RunningPollInterval
 		}
+		var seen uint64
+		if signalled {
+			seen = w.signal.Version()
+		}
 		call, cancel := context.WithTimeout(w.ctx, w.config.PollTimeout)
-		started := time.Now()
-		result, err := w.poll(call, wait)
+		result, err := w.poll(call)
 		cancel()
 		if err == nil && !ready && w.ctx.Err() == nil {
 			close(w.ready)
@@ -233,19 +230,19 @@ func (w *ClockWorker) pollLoop() {
 			w.config.Wake.NotifyStopped(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped)
 			w.wake.NotifySections(result.Wake, result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Stopped, result.StoppedAt)
 		}
-		waited := wait > 0 && time.Since(started) >= wait/2
-		if err == nil && (waited || result.Captured) {
+		if err == nil && result.Captured {
 			backoff = 0
-			if w.ctx.Err() != nil {
-				return
-			}
 			continue
 		}
 		if err != nil {
 			backoff = min(pollBackoffMax, max(pollBackoffMin, backoff*2))
 			interval = backoff
-		} else if err == nil {
+		} else {
 			backoff = 0
+			if signalled {
+				w.signal.Wait(w.ctx, seen, w.config.SignalWait)
+				continue
+			}
 		}
 		// Step completion releases this wait immediately. The cadence is
 		// still a safety bound: a blocked step must not hide player input or
@@ -257,11 +254,10 @@ func (w *ClockWorker) pollLoop() {
 }
 
 // wakePoll releases the between-window wait on every completed step, and
-// ends the cadence sleep when a held window starts. A running loop whose
-// last read was already held is left to its own cadence: it re-polls at
-// once after a wait.
+// ends the cadence sleep when a window starts. A running loop is left to its
+// own cadence or clock-channel signal.
 func (w *ClockWorker) wakePoll() {
-	if (w.held == nil || w.held()) && (w.config.PollWait <= 0 || w.pollHeld.Load()) {
+	if w.held == nil || w.held() {
 		return
 	}
 	select {

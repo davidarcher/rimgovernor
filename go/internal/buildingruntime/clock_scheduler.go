@@ -369,8 +369,7 @@ type ClockScheduler struct {
 	manualAt *atomic.Int64
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
-	// cleared by the step or poll that saw it stopped. The poll loop holds
-	// its journal read only while it is set (ClockWorkerConfig.PollWait).
+	// cleared by the step or poll that saw it stopped.
 	running *atomic.Bool
 	// latched holds the attempts whose terminal outcome a committed page
 	// reported and the Worker has yet to reconcile; see clockLatched.

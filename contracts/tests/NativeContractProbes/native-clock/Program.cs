@@ -46,7 +46,7 @@ internal static class NativeClockProbe
         public void Pump() { while (queued.TryDequeue(out var hop)) hop(); }
     }
     // `dispatches` is the number of main-thread hops the request must take:
-    // a shape refusal never reaches the main thread; a long poll takes two.
+    // a shape refusal never reaches the main thread; nothing takes two.
     private static T Call<T>(IMessage request, Func<Context, string, Task<object>> call, MessageParser<T> parser, int dispatches = 1) where T : IMessage<T>
     {
         var ctx = new Context(); var text = JsonFormatter.Default.Format(request); ctx.Arguments["request"] = text;
@@ -89,7 +89,7 @@ internal static class NativeClockProbe
         Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation, "initial event read changed clock or authority");
         foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u) }) Check(Events(pair.Item1, pair.Item2, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "malformed cursor/limit dispatched");
         Check(Events(long.MaxValue, 128).Failure != null, "cursor past the journal admitted");
-        Check(Call(new Clock.EventsRequest { Identity = Identity, AfterCursor = 0, Limit = 1, WaitMs = NativeClockTools.MaxWaitMs + 1 }, (ctx, json) => Tools.ReadEvents(ctx, default, json), Clock.EventsReply.Parser, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "over-long wait dispatched");
+        Check(Call(new Clock.EventsRequest { Identity = Identity, AfterCursor = 0, Limit = 1, WaitMs = 1 }, (ctx, json) => Tools.ReadEvents(ctx, default, json), Clock.EventsReply.Parser, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "a held read dispatched");
         foreach (Action<Clock.StartRequest> mutation in new Action<Clock.StartRequest>[] { r => r.Speed = Clock.Speed.Unspecified, r => r.LeaseMs = 999,
             r => r.LeaseMs = 30001, r => r.MaxTicks = 0, r => r.Policy = null, r => r.Policy.HealthDropFraction = float.NaN,
             r => r.Policy.ClearHostileWithin(), r => r.Policy.Mode = (Clock.WatchMode)99, r => r.Policy.InjuryStopCooldownMs = 1800001 })
@@ -318,9 +318,28 @@ internal static class NativeClockProbe
         var predator = status.HazardGaps.FirstOrDefault(g => g.HazardClass == "predator_hunt");
         Check(downed != null && downed.BoundTicks == 1 && downed.MaxTickGap == 1 && downed.Hooked && predator != null && predator.BoundTicks == 30 && predator.MaxTickGap == 30 && !predator.Hooked, "status hazard gaps");
     }
+    // #2070: the journal's only writer announces its newest cursor on rimgovernor.clock; reads never wait.
+    private static void ClockChannelAnnouncements()
+    {
+        Reset();
+        var sent = new List<Dictionary<string, object>>(); var subscribed = false;
+        var publisher = new RimGovernor.Host.Sdk.ClockEventPublisher((channel, payload, at) =>
+        { Check(channel == RimGovernor.Host.Sdk.ClockEventPublisher.Channel, "announced on rimgovernor.clock"); sent.Add((Dictionary<string, object>)payload); return Task.FromResult(0); }, () => subscribed);
+        Start(Request());
+        var newest = Events().Page.NewestCursor;
+        Check(newest > 0 && publisher.PumpOnce() == 0 && sent.Count == 0, "nothing is announced while nobody is subscribed");
+        subscribed = true;
+        Check(publisher.PumpOnce() == 1 && (string)sent[0]["type"] == "advance" && (long)sent[0]["newest"] == newest, "the journal writer's newest cursor reaches a subscriber");
+        Check(publisher.PumpOnce() == 0, "an unchanged cursor is not announced twice");
+        Supervisor.FixtureEvent("long_event", new() { ["longEvent"] = true, ["graceMs"] = 15000, ["requestedSpeed"] = "Normal" });
+        Supervisor.FixtureEvent("force_pause_cleared", new() { ["waitedMs"] = 100L, ["forcePauseKind"] = "long_event", ["speedRestored"] = true });
+        Check(publisher.PumpOnce() == 1 && (long)sent[1]["newest"] == Events().Page.NewestCursor, "rows appended between pumps coalesce into one announcement of the newest");
+        publisher.Resubscribed();
+        Check(publisher.PumpOnce() == 1, "a new subscriber is told the current cursor");
+    }
     internal static void Invoke()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); ProbeAndDigestCadence();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); ProbeAndDigestCadence(); ClockChannelAnnouncements();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }

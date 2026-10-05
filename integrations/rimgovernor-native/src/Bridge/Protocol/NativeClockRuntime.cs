@@ -320,21 +320,15 @@ namespace HomeBridge.BridgeTools
             TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0,
             BlindTickBudget = (uint)s.BlindTickBudget, MaxTicksPerSecond = (uint)s.MaxTicksPerSecond, RegulatedTicksPerSecond = (uint)s.RegulatedTicksPerSecond };
 
+        // The read never waits: journal advances are announced on the
+        // rimgovernor.clock channel (ClockEventPublisher) and the controller
+        // reads the page after each.
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
-            => TypedEvents(request, context, 0, out _);
-        // A long poll registers its waiter in the same Gate section that found
-        // the page empty; the caller awaits `wake` off the main thread and then
-        // reads again without waiting. A page with rows or loss never waits.
-        internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context, int waitMs, out Task<bool>? wake)
         {
-            wake = null;
             lock (Gate)
             {
                 AcknowledgeRows(_state, request.AfterCursor);
-                var reply = TypedEventsPage(request, context);
-                if (waitMs > 0 && reply.Page != null && reply.Page.Events.Count == 0 && !reply.Page.Gap
-                    && TryRegisterWaiter(request.AfterCursor, out var registered)) wake = registered;
-                return reply;
+                return TypedEventsPage(request, context);
             }
         }
         private static Clock.EventsReply TypedEventsPage(Clock.EventsRequest request, Common.ObservationContext context)

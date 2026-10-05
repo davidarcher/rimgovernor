@@ -191,14 +191,14 @@ namespace HomeBridge.BridgeTools
             Add(kind, detail, s, payload);
         }
         private static void Add(string kind, string detail, State s, Dictionary<string, object> payload)
-        { EnsureJournal(); var row = new Dictionary<string, object> { ["cursor"] = checked(_cursor + 1) }; AttachTypedEvent(row, kind, detail, s, payload); Journal.Append(row); _cursor = Journal.Newest; SignalWaiters(_cursor); }
+        { EnsureJournal(); var row = new Dictionary<string, object> { ["cursor"] = checked(_cursor + 1) }; AttachTypedEvent(row, kind, detail, s, payload); Journal.Append(row); _cursor = Journal.Newest; RimGovernor.Host.Sdk.ClockEventPublisher.Advanced(_cursor); }
         private static void Publish(string kind, string detail, Dictionary<string, object> payload)
         {
             lock (Gate)
             {
                 EnsureJournal(); var row = new Dictionary<string, object> { ["cursor"] = checked(_cursor + 1), ["epoch"] = 0L };
                 if (!AttachOwnerlessEvent(row, kind, detail, payload)) return;
-                Journal.Append(row); _cursor = Journal.Newest; SignalWaiters(_cursor);
+                Journal.Append(row); _cursor = Journal.Newest; RimGovernor.Host.Sdk.ClockEventPublisher.Advanced(_cursor);
             }
         }
         private sealed class State

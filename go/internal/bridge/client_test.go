@@ -441,13 +441,12 @@ func TestConcurrentNativeCallsDoNotCrossTalk(t *testing.T) {
 }
 
 // TestIndependentCallAnsweredWhileLongPollHeld is the deterministic mirror of
-// the smoke/dispatch acceptance case (#227, #617): with one call established
+// the gab-dispatch native probe (#227, #617): with one call established
 // as held in the handler, an independent call is issued and must be answered
 // before the held one is released. The ordering is decided by synchronization
 // (the handler reports entry, the test releases it only after the independent
 // result is in hand), not by elapsed time; the deadlines here are hang guards.
-// The native case keeps the same claim over the installed GABP host
-// path, where the handler cannot be instrumented.
+// The probe keeps the same claim over the real GABP host.
 func TestIndependentCallAnsweredWhileLongPollHeld(t *testing.T) {
 	entered := make(chan struct{}, 1)
 	release := make(chan struct{})

@@ -77,27 +77,17 @@ func (f *clockServiceFake) unavailable() error {
 	return errors.New("event source unavailable")
 }
 
-// The serve clock holds its journal read under a running window and leaves
-// the read its second of the lease-bound poll budget; a call timeout too
-// short for any hold polls unheld, and a worker accepts every sizing.
-func TestServiceClockTimeoutsHoldTheRunningPoll(t *testing.T) {
-	for _, tc := range []struct {
-		call, wait, poll time.Duration
-	}{
-		{call: 10 * time.Second, wait: serviceClockPollWait, poll: 7 * time.Second},
-		{call: 7 * time.Second, wait: serviceClockPollWait, poll: 7 * time.Second},
-		{call: 3 * time.Second, wait: 2 * time.Second, poll: 3 * time.Second},
-		{call: time.Second, wait: 0, poll: time.Second},
-	} {
-		got := serviceClockTimeouts(tc.call)
-		if got.PollWait != tc.wait || got.Poll != tc.poll || got.RunningPoll != 0 {
-			t.Fatalf("serviceClockTimeouts(%v) = %+v, want PollWait %v Poll %v RunningPoll 0", tc.call, got, tc.wait, tc.poll)
+// The serve clock reads its journal unheld and waits on the clock channel
+// for at most the lost-announcement bound; the poll keeps the lease-bound
+// budget and a worker accepts every sizing.
+func TestServiceClockTimeoutsBoundTheSignalWait(t *testing.T) {
+	for _, call := range []time.Duration{10 * time.Second, 7 * time.Second, 3 * time.Second, time.Second} {
+		got := serviceClockTimeouts(call)
+		if got.SignalWait != serviceClockSignalWait || got.Poll != min(call, 7*time.Second) || got.RunningPoll != 0 {
+			t.Fatalf("serviceClockTimeouts(%v) = %+v", call, got)
 		}
-		if got.PollWait > 0 && got.PollWait+time.Second > got.Poll {
-			t.Fatalf("serviceClockTimeouts(%v): hold %v leaves the read under a second of %v", tc.call, got.PollWait, got.Poll)
-		}
-		if got.PollWait > bridge.ClockEventsMaxWaitMs*time.Millisecond {
-			t.Fatalf("serviceClockTimeouts(%v): hold %v exceeds the native bound", tc.call, got.PollWait)
+		if got.SignalWait > buildingruntime.ClockSignalWaitMax {
+			t.Fatalf("serviceClockTimeouts(%v): wait %v exceeds the bound", call, got.SignalWait)
 		}
 	}
 }

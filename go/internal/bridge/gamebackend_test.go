@@ -30,6 +30,8 @@ type fakeGame struct {
 	attention map[string]any
 	// onModLogSubscribe, when set, runs after a subscribe naming the mod log channel is answered.
 	onModLogSubscribe func(*gabptest.ServerConn)
+	// onClockSubscribe is the same for the rimgovernor.clock channel.
+	onClockSubscribe func(*gabptest.ServerConn)
 }
 
 func gameSpec(t *testing.T) gamehost.Spec {
@@ -53,7 +55,7 @@ func startFakeGame(t *testing.T) *fakeGame {
 		Tools: []map[string]any{{"name": "fixture/read", "inputSchema": json.RawMessage(emptySchema)}, {"name": "rimgovernor/load_game_ready"}},
 		Welcome: map[string]any{"capabilities": map[string]any{
 			"methods": []string{gabp.MethodToolsList, gabp.MethodToolsCall, gabp.MethodEventsSubscribe, attentionCurrent, attentionAck},
-			"events":  []string{attentionOpened, attentionUpdated, attentionCleared, modLogChannel},
+			"events":  []string{attentionOpened, attentionUpdated, attentionCleared, modLogChannel, clockChannel},
 		}},
 		Handle: g.handle,
 	})
@@ -81,6 +83,9 @@ func (g *fakeGame) handle(r *gabptest.Request) {
 		r.Reply(map[string]any{}, nil)
 		if strings.Contains(string(r.Params), modLogChannel) && g.onModLogSubscribe != nil {
 			g.onModLogSubscribe(r.Conn())
+		}
+		if strings.Contains(string(r.Params), clockChannel) && g.onClockSubscribe != nil {
+			g.onClockSubscribe(r.Conn())
 		}
 	case attentionCurrent:
 		g.mu.Lock()

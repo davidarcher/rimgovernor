@@ -226,10 +226,10 @@ func TestListCostPricesCasesFromBaseline(t *testing.T) {
 		t.Fatalf("list -cost exit %d: %s", code, stderr.String())
 	}
 	out := stdout.String()
-	if !regexp.MustCompile(`smoke/identity +15s +5s +Runner smoke`).MatchString(out) || !regexp.MustCompile(`smoke/dispatch +untimed +#227`).MatchString(out) {
+	if !regexp.MustCompile(`smoke/identity +15s +5s +Runner smoke`).MatchString(out) {
 		t.Errorf("list -cost rows:\n%s", out)
 	}
-	if !strings.Contains(out, "total: 2 cases, 15s wall (boot 5s), 1 untimed (baseline "+baseline+")") {
+	if !strings.Contains(out, "total: 1 case, 15s wall (boot 5s) (baseline "+baseline+")") {
 		t.Errorf("list -cost total:\n%s", out)
 	}
 	if strings.Contains(out, "light/") {

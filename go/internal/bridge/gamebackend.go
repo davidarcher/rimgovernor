@@ -37,6 +37,7 @@ type gameBackend struct {
 	gameID   string
 	spec     gamehost.Spec
 	recorder *FlightRecorder // receives the mod's rimgovernor.log events as rows; nil records none
+	clock    *ClockSignal    // receives the mod's rimgovernor.clock events; nil ignores them
 
 	connectMu sync.Mutex // one dial at a time
 
@@ -59,9 +60,9 @@ type attentionState struct {
 	current   json.RawMessage // the item, nil when none is open
 }
 
-func newGameBackend(gameID string, spec gamehost.Spec, recorder *FlightRecorder) *gameBackend {
+func newGameBackend(gameID string, spec gamehost.Spec, recorder *FlightRecorder, clock *ClockSignal) *gameBackend {
 	spec.GameID = gameID
-	return &gameBackend{gameID: gameID, spec: spec, recorder: recorder, ended: make(chan struct{})}
+	return &gameBackend{gameID: gameID, spec: spec, recorder: recorder, clock: clock, ended: make(chan struct{})}
 }
 
 func (b *gameBackend) discovery() Discovery  { return wrapperDiscovery("rimgovernor-gamehost") }
@@ -247,6 +248,7 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 		OnEvent: func(event gabp.Event) {
 			b.attentionEvent(state, event)
 			modLog.offer(event)
+			b.clock.offer(event)
 		},
 	})
 	if err != nil {
@@ -266,6 +268,11 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 	welcome := conn.Welcome()
 	if modLog != nil && slices.Contains(welcome.Capabilities.Events, modLogChannel) {
 		_ = conn.Subscribe(dialCtx, modLogChannel)
+	}
+	if b.clock != nil && slices.Contains(welcome.Capabilities.Events, clockChannel) {
+		if conn.Subscribe(dialCtx, clockChannel) == nil {
+			b.clock.touch()
+		}
 	}
 	var acknowledged json.RawMessage
 	if slices.Contains(welcome.Capabilities.Methods, attentionCurrent) && slices.Contains(welcome.Capabilities.Methods, attentionAck) {

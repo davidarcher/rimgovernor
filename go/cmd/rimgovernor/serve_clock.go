@@ -199,32 +199,19 @@ const serviceClockStepTimeout = time.Minute
 // enough to let the native epoch lapse. The step has no lease constraint.
 func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
-	// Under a running window the journal read is held (wait_ms): the poll
-	// returns as soon as a row lands, so a stop is seen near-push instead
-	// of at the next cadence. The vendored GABP server dispatches tools off
-	// its reader (GabpServer.HandleToolsCallAsync, issues #227/#2051; smoke/dispatch
-	// measures a read under a held poll), so the routine Worker's dispatch
-	// of the successor order and the epoch renew no longer queue behind
-	// the held read (the #115 stall that kept PollWait at zero, issue
-	// #162). The hold leaves the read its second of the poll budget
-	// (NewClockWorker's bound); a call timeout too short for any hold
-	// polls unheld at the cadence. A held read that returns empty before
-	// its deadline (a native build that ignores wait_ms) falls back to the
-	// PollInterval cadence, one read a second.
-	wait := min(serviceClockPollWait, lease-time.Second)
-	if wait < 0 {
-		wait = 0
-	}
-	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: wait, RunningPoll: 0}
+	// The journal read is never held: the mod announces journal advances on
+	// the rimgovernor.clock channel and the poll reads the page after each
+	// (#2070). SignalWait only bounds how long a lost announcement waits;
+	// the held read's #115 serialization stall cannot recur, so the
+	// side-effect gate it needed is gone.
+	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, SignalWait: serviceClockSignalWait, RunningPoll: 0}
 }
 
-// serviceClockPollWait bounds the held journal read under a running window.
-// It stays under bridge.ClockEventsMaxWaitMs and under the lease-bound poll
-// budget less the read's own second, so the poll loop can never be late
-// enough to let the native epoch lapse.
-const serviceClockPollWait = 4 * time.Second
+// serviceClockSignalWait bounds the wait for a clock-channel announcement
+// before the poll reads the journal anyway (the lost-announcement bound).
+const serviceClockSignalWait = 4 * time.Second
 
-type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll time.Duration }
+type serviceClockTimeoutConfig struct{ Poll, Renew, Step, SignalWait, RunningPoll time.Duration }
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
@@ -896,7 +883,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	return buildingruntime.NewClockWorker(ctx, scheduler, reads, buildingruntime.ClockWorkerConfig{
 		PollInterval: time.Second, RenewInterval: 5 * time.Second, StepInterval: time.Second,
 		MaxBackoff: 10 * time.Second, PollTimeout: timeouts.Poll, RenewTimeout: timeouts.Renew, StepTimeout: timeouts.Step, PageLimit: 128,
-		PollWait: timeouts.PollWait, RunningPollInterval: timeouts.RunningPoll, Wake: wake,
+		SignalWait: timeouts.SignalWait, RunningPollInterval: timeouts.RunningPoll, Wake: wake,
 	})
 }
 

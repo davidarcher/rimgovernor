@@ -43,7 +43,10 @@ type speedNative struct {
 	deadline  int64
 	events    []*k.Event
 	changed   chan struct{}
-	receipt   *k.ControlReceipt
+	// signal is the clock channel the fake announces each journaled row on,
+	// as the mod does; the worker reads the page after each announcement.
+	signal  *bridge.ClockSignal
+	receipt *k.ControlReceipt
 	// stops is the wall time of each budget stop, in order.
 	stops []time.Time
 	// The paused account native keeps from its own transitions (#621):
@@ -94,7 +97,7 @@ const regulatedRatio = 8
 
 func newSpeedNative(snapshot domain.GenerationSnapshot, tickEvery time.Duration) *speedNative {
 	status := &k.Status{Context: &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)}, State: &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}, ActualPaused: proto.Bool(true), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum(), NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0)}
-	return &speedNative{status: status, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}, tickEvery: tickEvery, changed: make(chan struct{})}
+	return &speedNative{status: status, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}, tickEvery: tickEvery, changed: make(chan struct{}), signal: bridge.NewClockSignal()}
 }
 
 // advance moves the running window's tick to now and stops it on its
@@ -133,6 +136,7 @@ func (n *speedNative) stop(event *k.StopEvent) {
 	cursor := int64(len(n.events) + 1)
 	n.events = append(n.events, &k.Event{Cursor: proto.Int64(cursor), Owner: proto.Clone(epoch.Owner).(*k.EpochOwner), Context: proto.Clone(n.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(now.UnixMilli()), Event: &k.Event_Stopped{Stopped: event}})
 	n.status.NewestCursor = proto.Int64(cursor)
+	n.signal.Announce(cursor)
 	if n.regulator.budget > 0 {
 		n.regulator.unacked = append(n.regulator.unacked, speedRow{cursor, tick})
 	}
@@ -250,6 +254,7 @@ func (n *speedNative) speedChanged(tick int64, regulated uint32, blind int64) {
 	n.events = append(n.events, &k.Event{Cursor: proto.Int64(cursor), Owner: proto.Clone(running.Epoch.Owner).(*k.EpochOwner), Context: context, ObservedAtUnixMs: proto.Int64(time.Now().UnixMilli()),
 		Event: &k.Event_SpeedChanged{SpeedChanged: &k.SpeedChanged{Speed: running.Epoch.RequestedSpeed, RegulatedTicksPerSecond: proto.Uint32(regulated), BlindTicks: proto.Int64(blind)}}})
 	n.status.NewestCursor = proto.Int64(cursor)
+	n.signal.Announce(cursor)
 	close(n.changed)
 	n.changed = make(chan struct{})
 }
@@ -366,6 +371,7 @@ func (n *speedNative) Start(ctx context.Context, r *k.StartRequest) (*k.ControlR
 	}
 	n.starts = append(n.starts, n.startedAt)
 	n.stoppedAt = time.Time{}
+	go n.pace(n.epochs)
 	if budget := int64(r.GetBlindTickBudget()); budget > 0 {
 		epoch.BlindTickBudget = proto.Uint32(r.GetBlindTickBudget())
 		n.regulator = speedRegulator{budget: budget, lastReadTick: tick, lastReadAt: n.startedAt, ackedCursor: int64(len(n.events)), advancedAt: n.startedAt, throttles: n.regulator.throttles, changes: n.regulator.changes, violations: n.regulator.violations, observations: n.regulator.observations, maxBlind: n.regulator.maxBlind}
@@ -411,32 +417,23 @@ func (n *speedNative) OwnedPause(ctx context.Context, r *k.OwnedRequest) (*k.Sta
 	return &k.StatusReply{Outcome: &k.StatusReply_Status{Status: proto.Clone(n.status).(*k.Status)}}, bridge.Result{}, ctx.Err()
 }
 
-// await is the long poll: it returns once an event follows after, the
-// wait elapses or ctx ends, sleeping only until the running window's
-// deadline so a budget stop is observed the moment it lands.
-func (n *speedNative) await(ctx context.Context, after int64, wait time.Duration) {
-	until := time.Now().Add(wait)
+// ClockSignal is the fake's rimgovernor.clock channel.
+func (n *speedNative) ClockSignal() *bridge.ClockSignal { return n.signal }
+
+// pace is native's own tick processing: it advances the window of one epoch
+// to its deadline whether or not anyone reads, so its budget stop lands (and
+// is announced) the moment it is due, sleeping only until then.
+func (n *speedNative) pace(epoch int64) {
 	for {
 		n.mu.Lock()
 		n.advance()
-		newest := int64(len(n.events))
-		changed := n.changed
 		due, running := n.due()
+		current := n.epochs == epoch
 		n.mu.Unlock()
-		remaining := time.Until(until)
-		if newest > after || remaining <= 0 || ctx.Err() != nil {
+		if !running || !current {
 			return
 		}
-		if running && due < remaining {
-			remaining = max(due, 0)
-		}
-		timer := time.NewTimer(remaining)
-		select {
-		case <-ctx.Done():
-		case <-changed:
-		case <-timer.C:
-		}
-		timer.Stop()
+		time.Sleep(max(due, time.Millisecond))
 	}
 }
 
@@ -458,8 +455,6 @@ func (n *speedNative) page(request *k.EventsRequest) *k.EventsPage {
 }
 
 func (n *speedNative) ReadClockEvents(ctx context.Context, request *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
-	n.arrive(request)
-	n.await(ctx, request.GetAfterCursor(), time.Duration(request.GetWaitMs())*time.Millisecond)
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
@@ -500,18 +495,6 @@ func (n *speedNative) parts() bundleParts {
 			return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: n.page(request)}}, bridge.Result{}, ctx.Err()
 		},
 	}
-}
-
-// arrive is a long poll's first hop: like native, the cursor acknowledges
-// its rows before the poll parks, and again when it returns.
-func (n *speedNative) arrive(request *k.EventsRequest) {
-	if request == nil {
-		return
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.advance()
-	n.acknowledge(request.GetAfterCursor())
 }
 
 // regulation reports the regulator's audit so far.
@@ -601,16 +584,16 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	// NewClockWorker starts its loops before returning, so the step is
 	// wrapped here, on a worker built the same way.
 	lifetime, cancel := context.WithCancel(context.Background())
-	worker := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: session.disableClockWorker, cleanup: session.CleanupClock, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
+	worker := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: session.disableClockWorker, cleanup: session.CleanupClock, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1), signal: native.ClockSignal()}
 	worker.step = func(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
 		began := time.Now()
 		result, err := scheduler.StepWithReason(context.WithValue(ctx, speedStepKey{}, true), reason)
 		record(speedStep{began: began, ended: time.Now(), reason: reason, result: result, err: err})
 		return result, err
 	}
-	worker.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
+	worker.poll = func(ctx context.Context) (ClockPollResult, error) {
 		began := time.Now()
-		result, err := scheduler.PollEvents(ctx, native, config.PageLimit, wait)
+		result, err := scheduler.PollEvents(ctx, native, config.PageLimit)
 		recordPoll(speedSpan{began: began, ended: time.Now()})
 		return result, err
 	}
@@ -695,7 +678,7 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	const windows = 3
-	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, PollWait: 500 * time.Millisecond}
+	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, SignalWait: 500 * time.Millisecond}
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
 	var expected []speedDecision
 	for _, multiplier := range []int{1, 3, 6, 15, 150} {
@@ -859,7 +842,7 @@ func TestClockSpeedMatrixRegulatorBoundsBlindTicks(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	const windows, budget = 3, 30
-	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, PollWait: 500 * time.Millisecond}
+	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, SignalWait: 500 * time.Millisecond}
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
 	native := newSpeedNative(snapshot, time.Millisecond)
 	native.regulator.budget = budget

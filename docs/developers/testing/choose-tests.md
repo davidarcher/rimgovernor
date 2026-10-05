@@ -95,7 +95,7 @@ Every `result.json` carries a `provenance` block (`cases.Provenance`):
   ([measure-throughput](measure-throughput.md)).
 - An *ordering* claim needs synchronization, not a bound.
   `internal/bridge` `TestIndependentCallAnsweredWhileLongPollHeld` is the
-  controllable version; `smoke/dispatch` is the native one.
+  controllable version; the `gab-dispatch` native probe covers the host.
 
 ## Remote checks
 
@@ -524,7 +524,7 @@ Reuse does **not** reset process-scoped statics (`OrderedWorkHistory`,
 `PlayerUiRevision`, the `Supervisor` journal) or process-wide `Prefs`. A case
 asserting on those, or run as static-state or fresh-Go-session evidence,
 declares `NoKeep`. Regressions for the kept-process path: `authority/warm`,
-`lifecycle/runtime-fault`, `smoke/dispatch`.
+`lifecycle/runtime-fault`.
 
 ### Running cases in parallel
 

@@ -65,9 +65,9 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 	}
 }
 
-func TestClockEventsWaitBound(t *testing.T) {
+func TestClockEventsReadsAreNeverHeld(t *testing.T) {
 	request := clockEventsRequest()
-	request.WaitMs = proto.Uint32(ClockEventsMaxWaitMs + 1)
+	request.WaitMs = proto.Uint32(1)
 	if _, _, err := (&Client{}).ReadClockEvents(t.Context(), request); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
 	}

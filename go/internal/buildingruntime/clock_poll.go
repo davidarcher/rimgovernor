@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
@@ -16,10 +15,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
-
-// writesPending is the optional client signal that a side-effect call is
-// queued (bridge.Client.WritesPending): the poll then does not wait.
-type writesPending interface{ WritesPending() bool }
 
 // eventsIdentity is the world the event poll asks for: the last page's,
 // else the current scope from one bare step read (the live tick).
@@ -40,7 +35,7 @@ func (s *ClockScheduler) eventsIdentity(ctx context.Context, native ClockEventNa
 
 // PollEvents never waits for the player gate. Interruption invalidation precedes
 // persistence and owned cleanup, which may need to join an active command.
-func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative, limit uint32, wait time.Duration) (out ClockPollResult, err error) {
+func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative, limit uint32) (out ClockPollResult, err error) {
 	// fresh is set once the poll holds a page that carries something earlier
 	// polls have not applied; until then a disable is for evidence already
 	// applied (see disableOnEvidence).
@@ -53,8 +48,8 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		defer cancel()
 		return out, errors.Join(cause, disabled, s.session.CleanupClock(cleanup))
 	}
-	if native == nil || limit < 1 || limit > 128 || wait < 0 || wait > bridge.ClockEventsMaxWaitMs*time.Millisecond {
-		return fail(fmt.Errorf("%w: PollEvents: native == nil || limit < 1 || limit > 128 || wait < 0 || wait > bridge.ClockEventsMaxWaitMs*time.Millisecond", ErrControl))
+	if native == nil || limit < 1 || limit > 128 {
+		return fail(fmt.Errorf("%w: PollEvents: native == nil || limit < 1 || limit > 128", ErrControl))
 	}
 	select {
 	case s.pollGate <- struct{}{}:
@@ -102,9 +97,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	read := func() {
 		for attempt := 0; ; attempt++ {
 			request = &k.EventsRequest{Identity: proto.Clone(identity).(*c.Identity), AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
-			if wait > 0 {
-				request.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
-			}
 			reply, _, err = native.ReadClockEvents(call, request)
 			var stale *bridge.NativeFailure
 			if attempt == 0 && errors.As(err, &stale) && stale.Value.GetCode() == c.FailureCode_FAILURE_CODE_STALE_IDENTITY && stale.Value.GetObservedContext().GetIdentity() != nil {

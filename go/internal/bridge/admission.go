@@ -19,10 +19,9 @@ type AdmissionClass string
 const (
 	AdmissionControl     AdmissionClass = "control"
 	AdmissionObservation AdmissionClass = "observation"
-	// AdmissionMirror is the clock events long poll: ranked after
-	// observation, one call at a time, and outside the
-	// shared slots, so its idle wait never holds one against a command
-	// or a read.
+	// AdmissionMirror is the clock events read: ranked after
+	// observation, one call at a time, and outside the shared slots.
+	// It was the held long poll's class (#2070 made the read unheld).
 	AdmissionMirror AdmissionClass = "mirror"
 )
 

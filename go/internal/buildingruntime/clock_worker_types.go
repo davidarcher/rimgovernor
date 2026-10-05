@@ -11,13 +11,22 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// ClockEventNative serves the event poll: the long-polled clock journal
-// page after the review's cursor, and the bare step read that finds the
+// ClockEventNative serves the event poll: the clock journal page after the
+// review's cursor (an unheld read), and the bare step read that finds the
 // world to ask for when none is held.
 type ClockEventNative interface {
 	ReadClockEvents(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error)
 	ReadStep(context.Context, bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error)
 }
+
+// clockSignalSource is the optional client signal of the rimgovernor.clock
+// channel (bridge.Client.ClockSignal): the poll loop reads again when the mod
+// announces a journal advance.
+type clockSignalSource interface{ ClockSignal() *bridge.ClockSignal }
+
+// ClockSignalWaitMax bounds ClockWorkerConfig.SignalWait: a journal advance
+// whose announcement was lost is found by the next read at the latest.
+const ClockSignalWaitMax = 5 * time.Second
 
 type ClockPollResult struct {
 	Review                store.ClockReviewState
@@ -51,15 +60,15 @@ type ClockWorkerConfig struct {
 	PollInterval, RenewInterval, StepInterval, MaxBackoff time.Duration
 	PollTimeout, RenewTimeout, StepTimeout                time.Duration
 	PageLimit                                             uint32
-	// PollWait is the long-poll bound passed to the native journal read
-	// while the scheduler believes its window is running: the call returns
-	// as soon as an event lands or after PollWait. Zero polls at
-	// PollInterval only. It must leave a second of PollTimeout for the read.
-	PollWait time.Duration
+	// SignalWait is how long the poll loop waits for a clock-channel
+	// announcement before reading the journal anyway: the read is never
+	// held in native. Zero (or a native without the channel) polls at
+	// PollInterval only.
+	SignalWait time.Duration
 	// RunningPollInterval, when set, is the cadence of the unheld poll
 	// while the scheduler believes its window is running; zero keeps
 	// PollInterval. A short cadence bounds how long a stop waits to be
-	// seen where a held read cannot be afforded.
+	// seen where the clock channel is not available.
 	RunningPollInterval time.Duration
 	// Wake receives committed poll evidence and shortcuts the step loop's
 	// backoff; nil keeps the timer cadence.

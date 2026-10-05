@@ -10,12 +10,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ClockEventsMaxWaitMs bounds a long-poll read so that the wait plus two
-// main-thread hops stays under the native call ceiling.
-const ClockEventsMaxWaitMs = 5000
-
 // ReadClockEvents preserves journal loss, partial evidence and original event
 // contexts. Reading does not acknowledge an interruption or authorize resuming.
+// The read is never held: the mod announces journal advances on the
+// rimgovernor.clock channel (ClockSignal) and the reader asks for the page
+// after one.
 // Unix timestamps are diagnostic wall time and need not increase with cursors.
 func (client *Client) ReadClockEvents(ctx context.Context, request *k.EventsRequest) (*k.EventsReply, Result, error) {
 	if request == nil {
@@ -28,8 +27,8 @@ func (client *Client) ReadClockEvents(ctx context.Context, request *k.EventsRequ
 	if request.AfterCursor == nil || request.GetAfterCursor() < 0 || request.Limit == nil || request.GetLimit() < 1 || request.GetLimit() > 128 {
 		return nil, Result{}, contract("clock events cursor/limit")
 	}
-	if request.GetWaitMs() > ClockEventsMaxWaitMs {
-		return nil, Result{}, contract("clock events wait bound")
+	if request.WaitMs != nil {
+		return nil, Result{}, contract("clock events wait_ms is retired; reads are unheld")
 	}
 	reply := &k.EventsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/clock_read_events", request, reply)

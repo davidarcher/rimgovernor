@@ -174,16 +174,19 @@ completion.
 
 ### Event delivery
 
-Delivery from the native clock is a poll on the event journal, not a push: the
-transport is request/response only, so the poll's `mirror_poll` (the scope and the
-events page in one call, like `clock_read_events`) can hold an empty read for up to
-`wait_ms` (at most 5 s) and answer as soon as a row lands.
+The journal is the source of truth and the mod announces it (#2070): after each
+appended row the mod pushes `{type: advance, newest: <cursor>}` on the
+`rimgovernor.clock` GABP channel (`bridge.ClockSignal`), and the poll loop reads
+the page after its own cursor with an unheld `clock_read_events`. Nothing waits in
+native, so a stop is seen near-push without a held call.
 
-- While a window the service admitted is running, the read is held (4 s, the `serve`
-  bound) so a stop is seen as soon as its row lands. Between windows, the poll
-  waits locally for scheduler step completion, then reads immediately; the local
-  wait does not occupy the native transport while the paused step needs reads. A
-  running held read that returns empty early still falls back to its poll cadence.
+- The loop takes the signal's version before each read and waits for it to move
+  afterwards (at most 4 s, the `serve` bound, if an announcement is lost), so an
+  announcement that lands during a read is never missed. A subscription moves the
+  version too: every (re)connect ends in one tail read, and a gap shows as page
+  loss exactly as before. A read that captured evidence is followed by the next at
+  once. Between windows, the poll waits locally for scheduler step completion,
+  then reads immediately. Without the channel the loop reads at the poll cadence.
 - The poll interval remains a safety bound so a blocked step cannot hide player
   input or authority interruptions.
 - A committed stop warms the pawn and emergency admission observations before
@@ -195,7 +198,7 @@ events page in one call, like `clock_read_events`) can hold an empty read for up
   attempt outcomes names those actions so the worker reconciles them first, and
   while any named action is unreconciled the worker steps again at once.
 - Authority changes observed while no epoch is running are journaled as owner-less
-  `AuthorityChanged` rows so a waiting poll learns of them at once.
+  `AuthorityChanged` rows so the next announcement carries them at once.
 
 ### Watched attempts and coupled orders
 
