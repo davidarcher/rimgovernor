@@ -622,7 +622,8 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Standards)+len(got.Projects) != 51 || got.Review.Revision != 1 || !got.Review.Enabled {
+	// 42 standards and 8 projects; TidyLayout left the set in #2117.
+	if len(got.Standards)+len(got.Projects) != 50 || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Standards {
