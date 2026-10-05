@@ -95,7 +95,7 @@ func TestPlannedGroundStepOrder(t *testing.T) {
 // adopted as a deconstruction, never given an uninstall (#2103).
 func TestPlannedGroundStepPacksPackableFurniture(t *testing.T) {
 	plan, rooms := groundFixture()
-	ground := PlannedGround(plan, rooms)
+	ground := PlannedGround(plan, GroundCensus{})
 	doors := PlannedDoors(plan)
 	piece := func(id, def string, x, z int32, inUse bool) ClearanceTarget {
 		row := playerRow(id, def, "other", domain.Cell{X: x, Z: z}, domain.Cell{X: x, Z: z}, false)
