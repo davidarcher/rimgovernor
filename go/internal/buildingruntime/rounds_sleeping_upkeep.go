@@ -351,9 +351,10 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 				// failure (#1874); forbidden buildings are packed (#2109).
 				return RoundsBuildingResult{Verdict: siteBlocked("throne room", throne.Detail())}, nil
 			}
-			// The Biotech child rooms: shell, then furniture (#1680).
+			// The Biotech child rooms, worship room and containment cell:
+			// reconciled to the plan and the role's template (#1680, #2112).
 			if child := childRoomStep(facts); child.Owed() {
-				return r.stageChildRoom(call, epoch, state, review, goal, reading, child)
+				return r.stageChildRoom(call, epoch, stock, state, review, goal, reading, child)
 			}
 			swap, ok := bedroomSwap(facts)
 			if !ok {

@@ -10,7 +10,8 @@ import (
 // holding platform, owed while an entity the game lets the colony capture
 // has no platform that can hold it. It is staged like the worship room
 // (worship.go, layout_child_rooms.go): the layout review grows a core room
-// sized to the platform, MaintainHousing shells it and places the platform.
+// sized to the platform, MaintainHousing reconciles it to its template (the
+// platform and its lamp, NextChildRoomStep).
 // The platform is the catalog's own (a ThingDef with an entity-holder
 // platform comp), never a name here. A cell is owed only when its predicted
 // containment strength (ContainmentDefs.Predict) reaches what the entity

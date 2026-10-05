@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -15,8 +14,8 @@ import (
 // school desk, both only while the room holds no humanlike bed. The
 // planner owes a role's room while a pawn of the matching developmental
 // stage lives in the colony: the plan grows a room sized to the furniture
-// (GrowChildRoom), the sleeping planner raises its shell and places the
-// furniture at the template's slots (NextChildRoomStep). Footprints are the
+// (GrowChildRoom), the sleeping planner reconciles it to the plan and the
+// furniture at the template's slots (NextChildRoomStep, ReconcileRoom). Footprints are the
 // native definition catalog's, never constants here. Using the rooms
 // (feeding, play, lessons) is the next children's.
 
@@ -228,37 +227,31 @@ type ChildRoomStepKind string
 const (
 	// ChildRoomNone: nothing is due, or a fact is unknown.
 	ChildRoomNone ChildRoomStepKind = ""
-	// ChildRoomShell: raise the walls and door of Room.
-	ChildRoomShell ChildRoomStepKind = "shell"
-	// ChildRoomPlace: place Piece in Room.
-	ChildRoomPlace ChildRoomStepKind = "place"
+	// ChildRoomReconcile: the room differs from the plan and the role's template
+	// (Template: the furniture the role scores): the build side reconciles it
+	// (ReconcileRoom). The room's state is whatever the diff leaves; there is no
+	// shell or place step.
+	ChildRoomReconcile ChildRoomStepKind = "reconcile"
 )
 
 // ChildRoomStep is one bounded step towards an owed child room.
 type ChildRoomStep struct {
-	Kind  ChildRoomStepKind
-	Need  ChildRoomNeed
-	Room  PlannedRoom
-	Piece InteriorPiece
+	Kind ChildRoomStepKind
+	Need ChildRoomNeed
+	Room PlannedRoom
+	// Template is the wanted furniture: each role's standing pieces where they
+	// stand, the missing ones in free template slots.
+	Template []WantedPiece
 }
 
 // Owed reports whether the planner can act on the step now.
-func (s ChildRoomStep) Owed() bool {
-	return s.Kind == ChildRoomShell || s.Kind == ChildRoomPlace
-}
+func (s ChildRoomStep) Owed() bool { return s.Kind == ChildRoomReconcile }
 
-// NextChildRoomStep picks the first owed child room's next step from the
-// plan, the room census, the colony's buildings and the definitions. A role
-// whose plan room is missing (the layout review owes it) or whose
-// furniture is unresolved is passed over, as is a standing room that holds
-// every piece or has no free slot.
-func NextChildRoomStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, needs []ChildRoomNeed, defs []FurnitureDefinition) ChildRoomStep {
-	taken := map[domain.Cell]bool{}
-	for _, b := range built {
-		for _, c := range b.Cells {
-			taken[c] = true
-		}
-	}
+// NextChildRoomStep picks the first owed child room whose ground differs from
+// its plan and template. A role whose plan room is missing (the layout review
+// owes it) or whose furniture is unresolved is passed over, as is a room whose
+// ring, doors and furniture match (a piece with no free slot is not wanted).
+func NextChildRoomStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus, built []CurrentBuilding, needs []ChildRoomNeed, defs []FurnitureDefinition) ChildRoomStep {
 	for _, n := range needs {
 		shape, ok := n.shape(defs)
 		if !ok {
@@ -268,28 +261,49 @@ func NextChildRoomStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBu
 		if !ok {
 			continue
 		}
-		if _, standing := CensusRoomIn(room, rooms); !standing {
-			return ChildRoomStep{Kind: ChildRoomShell, Need: n, Room: room}
-		}
 		pieces, _ := n.resolve(defs)
 		in, rok := InteriorRoomFromLayout(room, rooms.Shapes)
 		if !rok {
 			continue
 		}
+		taken := map[domain.Cell]bool{}
+		for _, b := range built {
+			for _, c := range b.Cells {
+				taken[c] = true
+			}
+		}
+		var template []WantedPiece
+		absent := false
 		for _, p := range pieces {
-			if standingChildPieces(room, p.Defs, built) >= p.Count {
+			count := 0
+			for _, b := range built {
+				if count < p.Count && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) && slices.Contains(p.Defs, b.Building.Definition()) {
+					r := cellsRectangle(b.Cells)
+					template = append(template, WantedPiece{DefName: b.Building.Definition(), Minimum: domain.Cell{X: r.X, Z: r.Z}, Maximum: domain.Cell{X: r.X + r.Width - 1, Z: r.Z + r.Height - 1}})
+					count++
+				}
+			}
+			if count >= p.Count {
 				continue
 			}
-			plan, ok := PlanInterior(in, p.Piece)
+			planned, ok := PlanInterior(in, p.Piece)
 			if !ok {
 				continue
 			}
-			for _, slot := range plan.Pieces {
-				if slot.Def != p.Piece.Def || cellsTaken(slot.Rect, taken) {
+			for _, slot := range planned.Pieces {
+				if count >= p.Count || slot.Def != p.Piece.Def || cellsTaken(slot.Rect, taken) {
 					continue
 				}
-				return ChildRoomStep{Kind: ChildRoomPlace, Need: n, Room: room, Piece: slot}
+				for _, c := range rectCells(slot.Rect) {
+					taken[c] = true
+				}
+				template = append(template, WantedPiece{DefName: slot.Def, Minimum: domain.Cell{X: slot.Rect.X, Z: slot.Rect.Z}, Maximum: domain.Cell{X: slot.Rect.X + slot.Rect.Width - 1, Z: slot.Rect.Z + slot.Rect.Height - 1}, Slot: slot.Slot, Size: slot.Size, Rot: slot.Rot})
+				absent = true
+				count++
 			}
+		}
+		if absent || !plan.GroundMatches(room, ground) {
+			return ChildRoomStep{Kind: ChildRoomReconcile, Need: n, Room: room, Template: template}
 		}
 	}
 	return ChildRoomStep{}
@@ -314,14 +328,4 @@ func standingChildPieces(r PlannedRoom, defs []string, built []CurrentBuilding) 
 		}
 	}
 	return n
-}
-
-// Method names the step's method: per room and slot, so the shell and each
-// piece are staged once per Episode.
-func (s ChildRoomStep) Method() string {
-	in := s.Room.Interior
-	if s.Kind == ChildRoomPlace {
-		return fmt.Sprintf("child-room-place-%d-%d-%s", in.X, in.Z, s.Piece.Slot)
-	}
-	return fmt.Sprintf("child-room-shell-%d-%d", in.X, in.Z)
 }

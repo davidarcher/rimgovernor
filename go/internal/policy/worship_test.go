@@ -52,11 +52,11 @@ func TestWorshipRoomIsGrownShelledAndFurnishedLikeAChildRoom(t *testing.T) {
 	}
 	room := PlannedRoom{Role: PlannedWorship, Interior: Rectangle{X: 10, Z: 20, Width: sizes[0][0], Height: sizes[0][1]}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
-	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) {
+	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, GroundCensus{}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomReconcile || !step.Room.Same(room) {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
-	step := NextChildRoomStep(plan, tombStanding(room), nil, []ChildRoomNeed{need}, defs)
-	if step.Kind != ChildRoomPlace || step.Piece.Def != "TestAltar" {
+	step := NextChildRoomStep(plan, tombStanding(room), ringWalls(plan, room), nil, []ChildRoomNeed{need}, defs)
+	if step.Kind != ChildRoomReconcile || len(step.Template) == 0 || step.Template[0].DefName != "TestAltar" {
 		t.Fatalf("standing room: %+v", step)
 	}
 	if owed := ChildRoomsOwed(plan, []ChildRoomNeed{need}, defs); len(owed) != 0 {

@@ -99,15 +99,15 @@ func TestDeathrestChamberFollowsDeathresters(t *testing.T) {
 	plan, room := childRoomFixture(PlannedDeathrestChamber)
 	defs := furnitureDefs(map[string]Bounds{"DeathrestCasket": {Width: 1, Height: 2}})
 	// The accelerator is optional: the catalog lacking one still furnishes caskets.
-	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) {
+	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, GroundCensus{}, nil, needs, defs); step.Kind != ChildRoomReconcile || !step.Room.Same(room) {
 		t.Fatalf("chamber shell: %+v", step)
 	}
-	rooms := tombStanding(room)
-	if step := NextChildRoomStep(plan, rooms, nil, needs, defs); step.Kind != ChildRoomPlace || step.Piece.Def != "DeathrestCasket" {
+	rooms, ground := tombStanding(room), ringWalls(plan, room)
+	if step := NextChildRoomStep(plan, rooms, ground, nil, needs, defs); step.Kind != ChildRoomReconcile || len(step.Template) == 0 || step.Template[0].DefName != "DeathrestCasket" {
 		t.Fatalf("casket placement: %+v", step)
 	}
 	// A required role the catalog does not carry leaves the room unowed.
-	if step := NextChildRoomStep(plan, rooms, nil, needs, furnitureDefs(map[string]Bounds{"DeathrestAccelerator": {Width: 1, Height: 1}})); step.Owed() {
+	if step := NextChildRoomStep(plan, rooms, ground, nil, needs, furnitureDefs(map[string]Bounds{"DeathrestAccelerator": {Width: 1, Height: 1}})); step.Owed() {
 		t.Fatalf("no casket in the catalog: %+v", step)
 	}
 }
@@ -118,11 +118,12 @@ func TestChildRoomFurnitureComesFromCatalogRoles(t *testing.T) {
 	defs[0].Roles = []string{"BabyBed"}
 	plan, room := childRoomFixture(PlannedNursery)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn"), stagePawn("Newborn")})[:1]
-	if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, defs); step.Kind != ChildRoomPlace || step.Piece.Def != "CosyCot" {
+	ground := ringWalls(plan, room)
+	if step := NextChildRoomStep(plan, tombStanding(room), ground, nil, needs, defs); step.Kind != ChildRoomReconcile || len(step.Template) == 0 || step.Template[0].DefName != "CosyCot" {
 		t.Fatalf("a role-carrying def is placed: %+v", step)
 	}
 	defs[0].Roles = nil
-	if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, defs); step.Owed() {
+	if step := NextChildRoomStep(plan, tombStanding(room), ground, nil, needs, defs); step.Owed() {
 		t.Fatalf("a def without the role is not a baby bed: %+v", step)
 	}
 }
@@ -164,86 +165,100 @@ func standingPiece(t *testing.T, def string, p InteriorPiece) CurrentBuilding {
 	return CurrentBuilding{ID: def + p.Slot, Building: b, Cells: rectCells(p.Rect)}
 }
 
-func TestNextChildRoomStepShellsThenFurnishesTheNursery(t *testing.T) {
+// piecesOf is a reconcile step's wanted pieces as standing buildings, for the
+// next pass of a test.
+func piecesOf(t *testing.T, step ChildRoomStep) []CurrentBuilding {
+	t.Helper()
+	var out []CurrentBuilding
+	for _, p := range step.Template {
+		out = append(out, standingPiece(t, p.DefName, InteriorPiece{Def: p.DefName, Slot: p.Slot, Rot: p.Rot, Rect: Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: p.Maximum.X - p.Minimum.X + 1, Height: p.Maximum.Z - p.Minimum.Z + 1}}))
+	}
+	return out
+}
+
+func TestNextChildRoomStepReconcilesTheNursery(t *testing.T) {
 	plan, room := childRoomFixture(PlannedNursery)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn"), stagePawn("Newborn")})[:1]
 	defs := furnitureDefs(childDefs)
-	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) || !step.Owed() {
+	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, GroundCensus{}, nil, needs, defs); step.Kind != ChildRoomReconcile || !step.Room.Same(room) || !step.Owed() {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
-	rooms := tombStanding(room)
-	var built []CurrentBuilding
+	rooms, ground := tombStanding(room), ringWalls(plan, room)
+	step := NextChildRoomStep(plan, rooms, ground, nil, needs, defs)
+	if step.Kind != ChildRoomReconcile || len(step.Template) != 2 || !step.Owed() {
+		t.Fatalf("two cribs wanted: %+v", step)
+	}
+	in := room.Interior
 	cells := map[domain.Cell]bool{}
-	for i := 0; i < 2; i++ {
-		step := NextChildRoomStep(plan, rooms, built, needs, defs)
-		if step.Kind != ChildRoomPlace || step.Piece.Def != "Crib" || !step.Owed() {
-			t.Fatalf("crib %d: %+v", i, step)
+	for _, p := range step.Template {
+		if p.DefName != "Crib" || p.Minimum.X < in.X || p.Minimum.Z < in.Z || p.Maximum.X >= in.X+in.Width || p.Maximum.Z >= in.Z+in.Height {
+			t.Fatalf("crib outside the room: %+v", p)
 		}
-		in := room.Interior
-		if r := step.Piece.Rect; r.X < in.X || r.Z < in.Z || r.X+r.Width > in.X+in.Width || r.Z+r.Height > in.Z+in.Height {
-			t.Fatalf("crib outside the room: %+v", r)
-		}
-		for _, c := range rectCells(step.Piece.Rect) {
+		for _, c := range rectCells(Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: p.Maximum.X - p.Minimum.X + 1, Height: p.Maximum.Z - p.Minimum.Z + 1}) {
 			if cells[c] {
-				t.Fatalf("crib %d overlaps an earlier one at %v", i, c)
+				t.Fatalf("cribs overlap at %v", c)
 			}
 			cells[c] = true
 		}
 		// The row inside the entrance stays floor.
-		if step.Piece.Rect.Z == in.Z {
-			t.Fatalf("crib on the entrance row: %+v", step.Piece.Rect)
+		if p.Minimum.Z == in.Z {
+			t.Fatalf("crib on the entrance row: %+v", p)
 		}
-		built = append(built, standingPiece(t, "Crib", step.Piece))
 	}
-	if step := NextChildRoomStep(plan, rooms, built, needs, defs); step.Kind != ChildRoomNone || step.Owed() {
-		t.Fatalf("two cribs stand: %+v", step)
+	// One crib stands: both are still wanted; both stand: nothing is due.
+	built := piecesOf(t, step)
+	if got := NextChildRoomStep(plan, rooms, ground, built[:1], needs, defs); got.Kind != ChildRoomReconcile || len(got.Template) != 2 {
+		t.Fatalf("one crib stands: %+v", got)
+	}
+	if got := NextChildRoomStep(plan, rooms, ground, built, needs, defs); got.Kind != ChildRoomNone || got.Owed() {
+		t.Fatalf("two cribs stand: %+v", got)
+	}
+	// A standing room whose ring diverges is reconciled again.
+	gap := ringWalls(plan, room)
+	gap.walls[domain.Cell{X: in.X - 1, Z: in.Z + 1}] = false
+	if got := NextChildRoomStep(plan, rooms, gap, built, needs, defs); got.Kind != ChildRoomReconcile {
+		t.Fatalf("a ring gap: %+v", got)
 	}
 }
 
-func TestNextChildRoomStepPlacesEachPieceTheRoleScores(t *testing.T) {
+func TestNextChildRoomStepWantsEachPieceTheRoleScores(t *testing.T) {
 	plan, room := childRoomFixture(PlannedClassroom)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Child")})[1:]
 	if len(needs) != 1 || needs[0].Role != RoomRoleClassroom {
 		t.Fatalf("needs: %+v", needs)
 	}
-	defs := furnitureDefs(childDefs)
-	rooms := tombStanding(room)
-	var built []CurrentBuilding
-	var placed []string
-	for i := 0; i < 4; i++ {
-		step := NextChildRoomStep(plan, rooms, built, needs, defs)
-		if step.Kind != ChildRoomPlace {
-			break
+	step := NextChildRoomStep(plan, tombStanding(room), ringWalls(plan, room), nil, needs, furnitureDefs(childDefs))
+	var wanted []string
+	for _, p := range step.Template {
+		wanted = append(wanted, p.DefName)
+		if p.Maximum.X-p.Minimum.X != 1 || p.Maximum.Z != p.Minimum.Z {
+			t.Fatalf("the footprint is the catalog's 2x1: %+v", p)
 		}
-		placed = append(placed, step.Piece.Def)
-		if step.Piece.Rect.Width != 2 || step.Piece.Rect.Height != 1 {
-			t.Fatalf("the footprint is the catalog's 2x1: %+v", step.Piece.Rect)
-		}
-		built = append(built, standingPiece(t, step.Piece.Def, step.Piece))
 	}
-	if len(placed) != 2 || placed[0] != "Blackboard" || placed[1] != "SchoolDesk" {
-		t.Fatalf("a blackboard then the child's desk: %v", placed)
+	if step.Kind != ChildRoomReconcile || len(wanted) != 2 || wanted[0] != "Blackboard" || wanted[1] != "SchoolDesk" {
+		t.Fatalf("a blackboard then the child's desk: %v", wanted)
 	}
 }
 
 func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
 	plan, room := childRoomFixture(PlannedNursery)
+	ground := ringWalls(plan, room)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn")})[:1]
 	locked := []FurnitureDefinition{{Name: "Crib", Roles: []string{"BabyBed"}, Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
 	unknown := []FurnitureDefinition{{Name: "Crib", Roles: []string{"BabyBed"}, Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
 	for name, defs := range map[string][]FurnitureDefinition{"locked": locked, "unknown size": unknown, "absent": nil} {
-		if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, defs); step.Kind != ChildRoomNone {
+		if step := NextChildRoomStep(plan, tombStanding(room), ground, nil, needs, defs); step.Kind != ChildRoomNone {
 			t.Errorf("%s crib: %+v", name, step)
 		}
 	}
 	// The baby sleeping spot answers when the crib is not researched.
 	spot := []FurnitureDefinition{locked[0], {Name: "BabySleepingSpot", Roles: []string{"BabyBed"}, Available: domain.Known(true), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
-	if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, spot); step.Kind != ChildRoomPlace || step.Piece.Def != "BabySleepingSpot" {
+	if step := NextChildRoomStep(plan, tombStanding(room), ground, nil, needs, spot); step.Kind != ChildRoomReconcile || len(step.Template) == 0 || step.Template[0].DefName != "BabySleepingSpot" {
 		t.Fatalf("fallback bed: %+v", step)
 	}
 	// A plan with no nursery room leaves the room to the layout review.
 	empty, _ := childRoomFixture(PlannedPlayroom)
-	if step := NextChildRoomStep(empty, tombStanding(room), nil, needs, furnitureDefs(childDefs)); step.Kind != ChildRoomNone {
+	if step := NextChildRoomStep(empty, tombStanding(room), ground, nil, needs, furnitureDefs(childDefs)); step.Kind != ChildRoomNone {
 		t.Fatalf("no planned nursery: %+v", step)
 	}
 	owed := ChildRoomsOwed(empty, needs, furnitureDefs(childDefs))

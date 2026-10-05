@@ -133,13 +133,19 @@ capacity beyond the casket allows.
 1. The layout review grows a `nursery`, `playroom` or `classroom` core room
    sized to hold the furniture (`policy.ChildRoomSizes`,
    `policy.ReplanLayoutWithRooms`); existing rooms never move or shrink.
-2. `NextChildRoomStep` shells the room, then places each piece at the first
-   free slot of the child room template: bands of free floor as high as the
-   piece, a free row between bands, the row inside the entrance and the
-   entrance column kept free. Footprints are the native definition
-   catalog's; a role whose required furniture is unavailable or has no known
-   size is passed over, and any available definition of the role answers an
-   unresearched one.
+2. `NextChildRoomStep` owes the room a reconcile (`ChildRoomReconcile`)
+   whenever its ring or doors differ from the plan or a piece is missing. The
+   step carries the template: each role's standing pieces wanted where they
+   stand, the missing ones at free slots of the child room template (bands of
+   free floor as high as the piece, a free row between bands, the row inside
+   the entrance and the entrance column kept free). The shared build side
+   does the work (`reconcileRoom`, as for the throne room below): removals,
+   installs from packed stock, then doors, walls, floors and furniture built
+   on site; there is no shell or place step. Only the template's pieces are
+   the room's: other furniture is left alone. Footprints are the native
+   definition catalog's; a role whose required furniture is unavailable or has
+   no known size is passed over, and any available definition of the role
+   answers an unresearched one.
 3. Feeding is `MaintainBabyFeeding` (below); play and lessons belong to the
    next children.
 
@@ -184,8 +190,8 @@ each. `Ideoligion.RequiredBuildings` names them (the ideology section:
 building precepts' ThingDefs and the held rituals' required buildings, from
 the game's defs; [ideology contracts](../contracts/ideology-contracts.md)),
 and `policy.WorshipRoomNeed` turns them into a child room need
-(`ChildRoomNeed`, one of each), so the room is grown, shelled and furnished
-exactly like the child rooms above, on the same template. The names are the
+(`ChildRoomNeed`, one of each), so the room is grown and reconciled to its
+template exactly like the child rooms above. The names are the
 ideoligion's and the footprints the definition catalog's: no def is listed
 in Go. The review names the required buildings for the catalog and
 remembers them for the planners' reads. Without Ideology or a primary
@@ -197,7 +203,7 @@ requirement, so none is staged.
 
 A living entity the game lets the colony capture (`can_be_captured`, not yet
 held) with no standing platform able to hold it owes one containment cell:
-its own planned room holding one holding platform, staged exactly like the
+its own planned room holding one holding platform, reconciled exactly like the
 worship room (`policy.ContainmentCellNeed` returns the `ChildRoomNeed`). The
 platform is the catalog's: the `ThingDef` with a
 `CompProperties_EntityHolderPlatform` comp and the greatest

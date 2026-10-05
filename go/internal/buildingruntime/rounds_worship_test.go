@@ -32,7 +32,11 @@ func worshipProjection(standing bool) (observation.ColonyProjection, policy.Plan
 	facts.Facts.Ideology = domain.Known(policy.Ideoligion{Facts: policy.IdeoligionFacts{
 		Buildings: []policy.HeldBuilding{{ID: "1", Def: "Precept_Altar", Building: "TestAltar"}},
 	}})
-	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
+	var built []policy.CurrentBuilding
+	if standing {
+		built = ringBuildings(policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}, true)
+	}
+	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: built})
 	facts.Facts.Sleeping = domain.Known(policy.SleepingObservation{})
 	return facts, room
 }
@@ -42,7 +46,7 @@ func worshipProjection(standing bool) (observation.ColonyProjection, policy.Plan
 // an unknown ideoligion owes nothing.
 func TestWorshipRoomOwesHousingUntilTheBuildingsStand(t *testing.T) {
 	facts, room := worshipProjection(false)
-	if step := childRoomStep(facts); step.Kind != policy.ChildRoomShell || !step.Room.Same(room) {
+	if step := childRoomStep(facts); step.Kind != policy.ChildRoomReconcile || !step.Room.Same(room) {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
@@ -50,15 +54,18 @@ func TestWorshipRoomOwesHousingUntilTheBuildingsStand(t *testing.T) {
 	}
 	facts, _ = worshipProjection(true)
 	step := childRoomStep(facts)
-	if step.Kind != policy.ChildRoomPlace || step.Piece.Def != "TestAltar" {
+	if step.Kind != policy.ChildRoomReconcile || len(step.Template) != 1 || step.Template[0].DefName != "TestAltar" {
 		t.Fatalf("standing room: %+v", step)
 	}
-	altar, err := domain.NewBuilding("TestAltar", step.Piece.Anchor(), step.Piece.Rot, "")
+	piece := step.Template[0]
+	altar, err := domain.NewBuilding("TestAltar", piece.Anchor(), piece.Rot, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cells := []domain.Cell{{X: step.Piece.Rect.X, Z: step.Piece.Rect.Z}, {X: step.Piece.Rect.X, Z: step.Piece.Rect.Z + 1}}
-	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "a1", Building: altar, Cells: cells}}})
+	cells := []domain.Cell{piece.Minimum, {X: piece.Minimum.X, Z: piece.Minimum.Z + 1}}
+	census, _ := facts.Facts.CurrentConstruction.Value()
+	census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: "a1", Building: altar, Cells: cells})
+	facts.Facts.CurrentConstruction = domain.Known(census)
 	if step := childRoomStep(facts); step.Owed() {
 		t.Fatalf("altar standing: %+v", step)
 	}

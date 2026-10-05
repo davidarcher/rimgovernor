@@ -2,18 +2,18 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // The Biotech child rooms (#1680, epic #1667): MaintainHousing's sleeping
-// planner shells the planned nursery, playroom or classroom a baby, toddler
-// or child owes and places the furniture the game scores the role from
-// (policy.NextChildRoomStep). The layout review grows the rooms
+// planner reconciles the planned nursery, playroom or classroom a baby,
+// toddler or child owes with the furniture the game scores the role from
+// (policy.NextChildRoomStep, reconcileRoom). The layout review grows the rooms
 // (policy.ChildRoomsOwed). Nothing is owed without Biotech: the pawn rows
 // carry no developmental stage and the furniture definitions are absent.
 
@@ -100,18 +100,20 @@ func childRoomStep(facts observation.ColonyProjection) policy.ChildRoomStep {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
-	if !pk || !rk || !ck || !census.Colony {
+	ground, gk := colonyGround(facts)
+	if !pk || !rk || !ck || !census.Colony || !gk {
 		return policy.ChildRoomStep{}
 	}
-	return policy.NextChildRoomStep(plan, rooms, census.Buildings, childRoomNeeds(facts), furnitureDefinitions(facts))
+	return policy.NextChildRoomStep(plan, rooms, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, childRoomNeeds(facts), furnitureDefinitions(facts))
 }
 
-// stageChildRoom answers a due child room step: the shell through
-// shellRoom, a piece through placePiece.
-func (r *RoundsSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ChildRoomStep) (RoundsBuildingResult, error) {
-	method := domain.MethodID(step.Method())
-	if step.Kind == policy.ChildRoomPlace {
-		return r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, method)
-	}
-	return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, method, string(step.Need.Role))
+// stageChildRoom answers a due child room step through the shared build side
+// (reconcileRoom): the ring, floor and furniture the plan and the template
+// still owe, installed from packed stock first.
+func (r *RoundsSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ChildRoomStep) (RoundsBuildingResult, error) {
+	in := step.Room.Interior
+	return r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
+		room: step.Room, template: step.Template,
+		name: fmt.Sprintf("child-room-%d-%d", in.X, in.Z), reason: string(step.Need.Role),
+	})
 }

@@ -104,11 +104,11 @@ func TestIsolationRoomNeedAndStanding(t *testing.T) {
 	if IsolationRoomStanding(plan, rooms, nil, need, defs) {
 		t.Fatal("a room without its bed stands")
 	}
-	step := NextChildRoomStep(plan, rooms, nil, []ChildRoomNeed{need}, defs)
-	if step.Kind != ChildRoomPlace || step.Piece.Def != "Bed" {
+	step := NextChildRoomStep(plan, rooms, ringWalls(plan, room), nil, []ChildRoomNeed{need}, defs)
+	if step.Kind != ChildRoomReconcile || len(step.Template) == 0 || step.Template[0].DefName != "Bed" {
 		t.Fatalf("bed step = %+v", step)
 	}
-	built := []CurrentBuilding{standingPiece(t, "Bed", step.Piece)}
+	built := piecesOf(t, step)
 	if !IsolationRoomStanding(plan, rooms, built, need, defs) {
 		t.Fatal("a furnished enclosed room does not stand")
 	}
