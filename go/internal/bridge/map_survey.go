@@ -124,6 +124,7 @@ func surveyCells(read cellsRead, roofs policy.RoofRules) ([]policy.SurveyCell, e
 			// Occupied off rock, player edifice and clearable ruin is a
 			// standing prop (#1533).
 			Prop: value(cell.Occupied) && !rock && edifice == "" && !ruin,
+			Ruin: ruin,
 		})
 	}
 	return cells, nil

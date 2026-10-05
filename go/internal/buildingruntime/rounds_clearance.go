@@ -128,9 +128,11 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	var prefix string
 	var actions []domain.Action
 	if len(selection.Targets) > 0 {
-		target := selection.Targets[0]
-		prefix = fmt.Sprintf("deconstruct-%s-", target.EntityID)
-		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: []policy.ClearanceTarget{target}}, nil)
+		prefix = fmt.Sprintf("deconstruct-%s-", selection.Targets[0].EntityID)
+		if len(selection.Targets) > 1 {
+			prefix = fmt.Sprintf("deconstruct-%s-x%d-", selection.Targets[0].EntityID, len(selection.Targets))
+		}
+		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: selection.Targets}, nil)
 	} else if step, ok := policy.PlannedGroundStep(player, census.Floors, ground, plannedDoors(colony.Projection), colonyRooms(colony.Projection)); ok {
 		prefix, actions, err = groundStepMethod(id, step, ground)
 	} else {

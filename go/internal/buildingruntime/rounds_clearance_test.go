@@ -35,7 +35,7 @@ func clearanceChunk(id string, x, z int32, forbidden, stored, destination bool) 
 func clearanceTestRow(id string, x int32) *o.ClearanceTarget {
 	return &o.ClearanceTarget{EntityId: proto.String(id), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(x), Z: proto.Int32(5)}, Maximum: &c.Cell{X: proto.Int32(x), Z: proto.Int32(5)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(true), AncientDanger: proto.Bool(false), Designated: proto.Bool(false)}
 }
-func TestRoundsClearanceAdmitsNearestSingleTargetAndJournalsHolds(t *testing.T) {
+func TestRoundsClearanceBatchesAncientTargetsNearestFirstAndJournalsHolds(t *testing.T) {
 	reviewer, db, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
@@ -74,7 +74,7 @@ func TestRoundsClearanceAdmitsNearestSingleTargetAndJournalsHolds(t *testing.T) 
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil || len(plan.Progress) != 1 {
+	if err != nil || len(plan.Progress) != 2 {
 		t.Fatal(plan, err)
 	}
 	target, ok := plan.Spec.Actions()[0].Deconstruction()

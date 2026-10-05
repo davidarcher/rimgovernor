@@ -130,7 +130,9 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	reserveExhausts(u, &plan)
 	for _, gz := range want.Geysers {
 		area := geothermalArea(gz)
-		if u.free(area, true) {
+		// The clearance ring only keeps other sites off the hallways: a vent is
+		// where it is, and core rooms were already sited off its enclosure.
+		if u.freeWhere(area, true, false) {
 			u.reserve(&plan, LayoutReservation{Kind: ReserveGeothermal, Area: area})
 		} else {
 			slog.Warn("layout: no room for the geothermal enclosure", "geyser", gz, "area", area)
@@ -498,14 +500,17 @@ const siteInset = LayoutEdgeMargin + perimeterThick + 1
 
 // free reports every cell of r on unplanned core candidates, off the core
 // hallway clearance; rockOK lets it cross natural rock.
-func (u *utilityGrid) free(r Rectangle, rockOK bool) bool {
+func (u *utilityGrid) free(r Rectangle, rockOK bool) bool { return u.freeWhere(r, rockOK, true) }
+
+// freeWhere is free, optionally letting r stand in the hallway clearance ring.
+func (u *utilityGrid) freeWhere(r Rectangle, rockOK, clearBlocks bool) bool {
 	for z := r.Z; z < r.Z+r.Height; z++ {
 		for x := r.X; x < r.X+r.Width; x++ {
 			if !u.in(x, z) {
 				return false
 			}
 			i := z*u.w + x
-			if !u.ok[i] || u.used[i] || u.clear[i] || u.rock[i] && !rockOK {
+			if !u.ok[i] || u.used[i] || clearBlocks && u.clear[i] || u.rock[i] && !rockOK {
 				return false
 			}
 		}

@@ -36,6 +36,9 @@ type SurveyCell struct {
 	// ancient exostrider's remains, a blueprint): no core room or hallway is
 	// sited over it (#1533).
 	Prop bool
+	// Ruin is a clearable ruin: not walkable yet, but home clearance
+	// deconstructs it, so core rooms may be sited over it.
+	Ruin bool
 }
 
 // Footing is the heaviest structure a cell's terrain holds.

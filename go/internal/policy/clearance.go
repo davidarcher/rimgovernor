@@ -2,6 +2,7 @@ package policy
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -74,8 +75,13 @@ func ClearanceHoldReason(row ClearanceTarget) string {
 	return ""
 }
 
+// homeClearanceBatch bounds how many ancient-ruin targets one method takes.
+const homeClearanceBatch = 12
+
 // SelectHomeClearance admits one target so removals cannot jointly invalidate
-// the individually observed roof support. Distance ties use stable identities.
+// the individually observed roof support, except that ancient ruin pieces,
+// which carry no roof of ours, come down together (up to homeClearanceBatch)
+// when the nearest target is one. Distance ties use stable identities.
 func SelectHomeClearance(rows []ClearanceTarget, center domain.Cell) ClearanceSelection {
 	out := ClearanceSelection{}
 	for _, row := range rows {
@@ -99,7 +105,13 @@ func SelectHomeClearance(rows []ClearanceTarget, center domain.Cell) ClearanceSe
 	})
 	sort.Slice(out.Holds, func(i, j int) bool { return out.Holds[i].Target < out.Holds[j].Target })
 	if len(out.Targets) > 1 {
-		out.Targets = out.Targets[:1]
+		keep := 1
+		if strings.HasPrefix(out.Targets[0].Class, "ancient_") {
+			for keep < len(out.Targets) && keep < homeClearanceBatch && strings.HasPrefix(out.Targets[keep].Class, "ancient_") {
+				keep++
+			}
+		}
+		out.Targets = out.Targets[:keep]
 	}
 	return out
 }

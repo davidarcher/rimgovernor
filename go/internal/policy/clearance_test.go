@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -174,5 +175,20 @@ func TestShellClaims(t *testing.T) {
 	got := ShellClaims(rows, ring)
 	if len(got) != 2 || got[0].EntityID != "a" || got[1].EntityID != "b" {
 		t.Fatal(got)
+	}
+}
+
+func TestSelectHomeClearanceBatchesAncientRuins(t *testing.T) {
+	var rows []ClearanceTarget
+	for i := range 20 {
+		c := domain.Cell{X: int32(i), Z: 0}
+		rows = append(rows, ClearanceTarget{EntityID: fmt.Sprintf("r%02d", i), Class: "ancient_wall_door", InHome: true, Deconstructible: true, Minimum: c, Maximum: c})
+	}
+	if got := SelectHomeClearance(rows, domain.Cell{}); len(got.Targets) != homeClearanceBatch || got.Targets[0].EntityID != "r00" {
+		t.Fatal(len(got.Targets), got.Targets[0].EntityID)
+	}
+	mixed := append([]ClearanceTarget{{EntityID: "bed", Class: "", InHome: true, Deconstructible: true}}, rows...)
+	if got := SelectHomeClearance(mixed, domain.Cell{X: -50}); len(got.Targets) != 1 {
+		t.Fatal(len(got.Targets))
 	}
 }
