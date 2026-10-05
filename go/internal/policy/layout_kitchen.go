@@ -9,14 +9,14 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // neither side fits (the caller then places the room on the hallway like
 // any other).
 func (g coreGrid) beside(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole) (LayoutRoom, bool) {
-	neighbour, ok := besideRoles[role]
+	rule, ok := besideRoles[role]
 	if !ok {
 		return LayoutRoom{}, false
 	}
 	var k Rectangle
 	found := false
 	for _, r := range rooms {
-		if r.Role == neighbour {
+		if r.Role == rule.neighbour {
 			k, found = r.Interior, true
 			break
 		}
@@ -26,8 +26,8 @@ func (g coreGrid) beside(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole)
 	}
 	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
 	z0 := seg.From.Z
-	if role == ModuleButchery {
-		if room, ok := g.behind(seg, rooms, k, role); ok {
+	if rule.backFirst {
+		if room, ok := g.behind(seg, rooms, k, role, rule); ok {
 			return room, true
 		}
 	}
@@ -44,7 +44,7 @@ func (g coreGrid) beside(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole)
 		if lo >= hi {
 			continue
 		}
-		if !unlinkedBeside[role] {
+		if !rule.unlinked {
 			room.Link = &domain.Cell{X: wall, Z: (lo + hi - 1) / 2}
 		}
 		room.Dug = g.dug(room)
@@ -52,8 +52,8 @@ func (g coreGrid) beside(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole)
 		seg.To.X = max(seg.To.X, room.Interior.X+room.Interior.Width)
 		return room, true
 	}
-	if role == ModuleArmory || role == ModuleWardrobe {
-		return g.behind(seg, rooms, k, role)
+	if rule.backLast {
+		return g.behind(seg, rooms, k, role, rule)
 	}
 	return LayoutRoom{}, false
 }
@@ -113,14 +113,14 @@ func (g coreGrid) mealCloset(rooms []LayoutRoom) (LayoutRoom, bool) {
 // stay in the cold. A gear room (#1773) takes the back wall when the side
 // walls are taken. The room's own Door is the Link. False when the ground
 // behind the neighbour does not fit; the caller then takes the hallway.
-func (g coreGrid) behind(seg *SpineSegment, rooms []LayoutRoom, k Rectangle, role ModuleRole) (LayoutRoom, bool) {
+func (g coreGrid) behind(seg *SpineSegment, rooms []LayoutRoom, k Rectangle, role ModuleRole, rule relationRule) (LayoutRoom, bool) {
 	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
 	north := k.Z > seg.From.Z
 	// The freezer's cooler takes the middle of that wall and vents straight
 	// out behind it, so the butchery overlaps only its east or west end cell;
 	// a gear room lines up with an edge of its neighbour.
 	columns := []int32{k.X, k.X + k.Width - w}
-	if role == ModuleButchery {
+	if rule.endCell {
 		columns = []int32{k.X + k.Width - 1, k.X - w + 1}
 	}
 	for _, ix := range columns {

@@ -30,7 +30,8 @@ func roleAffinity(set map[ModuleRole]bool) map[ModuleRole]int {
 		w[t.from] += t.weight
 		w[t.to] += t.weight
 	}
-	for role, nb := range besideRoles {
+	for role, rule := range besideRoles {
+		nb := rule.neighbour
 		if set[role] && set[nb] {
 			w[role] += besideAffinity
 			w[nb] += besideAffinity
@@ -68,7 +69,8 @@ func affinityClusters(roles []ModuleRole) []roleCluster {
 	for _, t := range routeTrips {
 		union(t.from, t.to)
 	}
-	for role, nb := range besideRoles {
+	for role, rule := range besideRoles {
+		nb := rule.neighbour
 		union(role, nb)
 	}
 	byRoot := map[ModuleRole][]ModuleRole{}
@@ -86,7 +88,7 @@ func affinityClusters(roles []ModuleRole) []roleCluster {
 		}
 		depth := func(r ModuleRole) int {
 			d := 0
-			for nb, ok := besideRoles[r]; ok && in[nb]; nb, ok = besideRoles[nb] {
+			for nb, ok := besideOf(r); ok && in[nb]; nb, ok = besideOf(nb) {
 				d++
 			}
 			return d
@@ -167,7 +169,7 @@ func splitPairs(placed []LayoutRoom, c roleCluster) int {
 	}
 	n := 0
 	for _, role := range c.roles {
-		nb, ok := besideRoles[role]
+		nb, ok := besideOf(role)
 		a, okA := at[role]
 		b, okB := at[nb]
 		if ok && okA && okB && !sharesWall(a, b) {

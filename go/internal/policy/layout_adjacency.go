@@ -15,11 +15,34 @@ const ModuleMealCloset ModuleRole = "meal_closet"
 // freezer (#936), so the meal stockpile sits in the cold one door from the
 // table, the armory beside the storage room and the wardrobe beside the workshop
 // (#1773).
-var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer, ModuleButchery: ModuleFreezer, ModuleArmory: ModuleStorage, ModuleWardrobe: ModuleWorkshop}
+var besideRoles = map[ModuleRole]relationRule{
+	ModuleFreezer:  {neighbour: ModuleKitchen},
+	ModuleDining:   {neighbour: ModuleFreezer},
+	ModuleButchery: {neighbour: ModuleFreezer, backFirst: true, endCell: true},
+	ModuleArmory:   {neighbour: ModuleStorage, backLast: true, unlinked: true},
+	ModuleWardrobe: {neighbour: ModuleWorkshop, backLast: true},
+}
 
-// unlinkedBeside are the besideRoles rooms that share only the wall: the
-// armory has no door into the storage room, so haulers never cross its stockpile.
-var unlinkedBeside = map[ModuleRole]bool{ModuleArmory: true}
+// relationRule places a role against its neighbour's side walls (east, then
+// west), each with a Link door unless unlinked. The back wall, the one
+// opposite the hallway, is tried before the sides when backFirst and after
+// them when backLast. The armory is unlinked: it has no door into the
+// storage room, so haulers never cross its stockpile.
+type relationRule struct {
+	neighbour ModuleRole
+	backFirst bool
+	backLast  bool
+	unlinked  bool
+	// endCell: the back-wall room overlaps only an end cell of the
+	// neighbour, whose cooler vents out of the middle of that wall.
+	endCell bool
+}
+
+// besideOf is the neighbour role takes its side against, if it has one.
+func besideOf(role ModuleRole) (ModuleRole, bool) {
+	rule, ok := besideRoles[role]
+	return rule.neighbour, ok
+}
 
 // MealClosetOwed is the planned meal closet with nothing standing on it
 // while the planned dining room stands (#936); MaintainRefrigeration shells
