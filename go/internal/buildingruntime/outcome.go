@@ -234,7 +234,7 @@ func (v Verdict) Is(kind RefusalKind) bool {
 }
 
 // String is the machine rendering of a verdict for the flight recorder, the
-// dashboard timeline's reason= field and snapshot names, one token without
+// timeline's reason= field and snapshot names, one token without
 // spaces: a refusal or wait reads "kind", "kind:subject" or
 // "kind:subject:detail"; any other verdict reads its outcome.
 func (v Verdict) String() string {
@@ -251,7 +251,7 @@ func (v Verdict) String() string {
 	return strings.Join(parts, ":")
 }
 
-// Text is the one plain-English rendering of a verdict, for the dashboard
+// Text is the one plain-English rendering of a verdict, for the launcher
 // and the journal: each outcome and kind has a sentence template and the
 // subject and detail fill it in.
 func (v Verdict) Text() string {

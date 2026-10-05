@@ -448,7 +448,6 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	if err != nil {
 		return err
 	}
-	defer func() { result = errors.Join(result, server.Close()) }()
 	pollCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() { defer close(done); snapshots.Poll(pollCtx, config.refresh) }()

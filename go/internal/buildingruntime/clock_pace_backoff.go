@@ -308,7 +308,7 @@ func PacingReasonName(reason k.PacingReason) string {
 	return strings.ToLower(strings.TrimPrefix(reason.String(), "PACING_REASON_"))
 }
 
-// publish adds the pace to a clock_step row: what the dashboard's pacing
+// publish adds the pace to a clock_step row: what the pacing
 // reason and effective speed read.
 func (p StepPacing) publish(extra map[string]any) {
 	if p.Reason != "" {

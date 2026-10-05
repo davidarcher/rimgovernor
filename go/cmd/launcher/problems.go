@@ -271,8 +271,7 @@ func problemEvent(r bridge.TimelineRecord) ProblemEvent {
 	return e
 }
 
-// eventSummary is the one-line reading of a row, as the dashboard's feed
-// gave it.
+// eventSummary is the one-line reading of a row for the Problems feed.
 func eventSummary(r bridge.TimelineRecord) string {
 	switch r.Kind {
 	case "native_request", "native_call":

@@ -162,7 +162,7 @@ type roundsTraitDTO struct {
 }
 
 // roundsTraitEffectsDTO is TraitEffects with the boolean preferences
-// flattened to their field names, so the dashboard lists them without
+// flattened to their field names, so the launcher lists them without
 // knowing the table.
 type roundsTraitEffectsDTO struct {
 	WorkSpeed        float64  `json:"workSpeed"`

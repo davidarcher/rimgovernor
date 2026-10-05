@@ -59,7 +59,6 @@ func playerAPI(t *testing.T) (*Server, *playerFixture) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	t.Cleanup(func() { s.Close() })
 	return s, f
 }
 func playerCall(s *Server, method, path, body, token string) *httptest.ResponseRecorder {

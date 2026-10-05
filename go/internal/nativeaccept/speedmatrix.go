@@ -619,7 +619,7 @@ func CheckSpeedMetrics(rows []SpeedMetrics, maxPausedFraction, minUltrafastRatio
 }
 
 // The observation-load row's reader count and polling interval (#656):
-// several dashboards' worth of state reads, well above the dashboard's own
+// several clients' worth of state reads, well above the launcher's own
 // cadence, so readers contend with the controller's refreshes.
 const (
 	ObservationLoadReaders  = 3

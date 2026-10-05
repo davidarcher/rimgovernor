@@ -39,7 +39,6 @@ func newTestAPI(t *testing.T, provider SnapshotProvider, reader PlanReader) *Ser
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	return s
 }
 func testHTTP(t *testing.T, api *Server) *httptest.Server {
@@ -112,7 +111,6 @@ func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
 	var got roundsStatusDTO
@@ -134,7 +132,6 @@ func TestRoutinesRouteRejectsMutationAndUnknownReviewCursor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
 	var got roundsStatusDTO
@@ -425,7 +422,6 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
 	var got roundsStatusDTO
@@ -468,7 +464,6 @@ func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
 	var got roundsStatusDTO
@@ -500,7 +495,6 @@ func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s2.Close() })
 	if _, body = get(t, testHTTP(t, s2).URL+"/api/routines"); !strings.Contains(string(body), `"progress":[]`) || !strings.Contains(string(body), `"stage":null`) {
 		t.Fatalf("empty progress: %s", body)
 	}
@@ -519,7 +513,6 @@ func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
 	var got roundsStatusDTO

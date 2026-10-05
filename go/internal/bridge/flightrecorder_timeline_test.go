@@ -246,7 +246,7 @@ func TestTimelineReaderRecoversFromAReplacedRing(t *testing.T) {
 }
 
 // BenchmarkTimelineReaderPoll measures one poll of a filled ring after a
-// fixed-size batch of new rows, the dashboard's steady state (#375);
+// fixed-size batch of new rows, the launcher's steady state (#375);
 // BenchmarkReadTimelineFilledRing is the one-shot read it replaces.
 func BenchmarkTimelineReaderPoll(b *testing.B) {
 	path, r := benchmarkRing(b)

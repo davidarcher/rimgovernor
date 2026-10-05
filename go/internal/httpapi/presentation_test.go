@@ -66,7 +66,6 @@ func presentationFixture(t *testing.T) (*Server, *presentationFake, *Snapshot) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { server.Close() })
 	return server, f, snapshot
 }
 func presentationRequest(t *testing.T, s *Server, path string) *httptest.ResponseRecorder {

@@ -500,7 +500,7 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 	}
 	stop := context.AfterFunc(live.ctx, cancel)
 	defer stop()
-	// A call outside any traced unit of work (startup, a dashboard read)
+	// A call outside any traced unit of work (startup, an observer read)
 	// is a trace of its own, so its request, reply and decode rows share
 	// one id instead of each minting a single-row trace (#298).
 	ctx, _ = telemetry.EnsureTrace(ctx)

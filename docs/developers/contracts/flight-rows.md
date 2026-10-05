@@ -26,7 +26,7 @@ durable rows, rotation and close.
 
 ## Decision rows
 
-One row per planner run, goal or method selection, admission outcome and action dispatch, emitted with
+One row per planner run, method selection, admission outcome and action dispatch, emitted with
 `telemetry.Decide(ctx, telemetry.Decision{...})`. The payload shape is fixed:
 
 ```json
@@ -36,7 +36,7 @@ One row per planner run, goal or method selection, admission outcome and action 
 - `verdict`: the outcome word. Vocabulary: `admitted`, `refused`, `waiting`, `applied`, `failed`,
   `skipped`, `ok`, plus a kind's own words where its table says so.
 - `reason`: a stable short word. No data inside it (the data goes in `attrs`): rows collapse on it.
-- `target`: what it was about (planner, goal, method, plan, pawn, zone, tool).
+- `target`: what it was about (planner, concern, method, plan, pawn, zone, tool).
 - `dur_ms`: milliseconds, `0` when untimed.
 - `attrs`: kind-specific fields; always an object. Durations render as milliseconds, errors as text.
 - No free text: a decision row has no `msg`. The row's `level` is `WARN` only for a refusal or failure a

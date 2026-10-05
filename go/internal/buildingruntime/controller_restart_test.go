@@ -196,7 +196,7 @@ func (rig *controllerRig) close(t *testing.T) {
 	rig.db = nil
 }
 
-// resume is the dashboard's Resume for the rig's world followed by the
+// resume is the launcher's Resume for the rig's world followed by the
 // review that binds the routine goals under the granted authority. The
 // reviewer's facts report the granted generation, as the game would.
 func (rig *controllerRig) resume(t *testing.T, requestID string) store.RoundsResult {

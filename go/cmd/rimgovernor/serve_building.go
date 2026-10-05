@@ -323,7 +323,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if err != nil {
 		return err
 	}
-	defer func() { result = errors.Join(result, server.Close()) }()
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
 	superviseDone := make(chan struct{})

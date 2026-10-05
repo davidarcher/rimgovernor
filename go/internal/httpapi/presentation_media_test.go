@@ -48,7 +48,6 @@ func presentationMediaAPI(t *testing.T) (*Server, *presentationMediaFake, string
 	if e != nil {
 		t.Fatal(e)
 	}
-	t.Cleanup(func() { s.Close() })
 	token := playerCall(s, "GET", "/api/player/session", "", "")
 	var session struct{ Token string }
 	if err := json.Unmarshal(token.Body.Bytes(), &session); err != nil || session.Token == "" {
@@ -122,7 +121,6 @@ func TestPresentationMediaUnavailableWithoutConfig(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	defer s.Close()
 	token := playerCall(s, "GET", "/api/player/session", "", "")
 	var session struct{ Token string }
 	_ = json.Unmarshal(token.Body.Bytes(), &session)

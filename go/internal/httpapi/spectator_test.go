@@ -56,7 +56,6 @@ func spectatorServer(t *testing.T, withRecorder bool) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	return s
 }
 
@@ -121,7 +120,6 @@ func TestSpectatorNowIsReadOnlyAndNeedsAProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
 	if status, _ := get(t, testHTTP(t, s).URL+spectatorNowPath); status != 404 {
 		t.Fatal(status)
 	}
@@ -170,7 +168,6 @@ func viewerAPI(t *testing.T) (*Server, *presentationMediaFake, *playerFixture, *
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { api.Close() })
 	out := playerCall(api, "GET", "/api/player/session", "", "")
 	var session struct{ Token string }
 	if err := json.Unmarshal(out.Body.Bytes(), &session); err != nil || session.Token == "" {

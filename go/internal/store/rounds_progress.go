@@ -17,7 +17,7 @@ import (
 // dispatched order with no capable available pawn is blocked), the labor
 // census, the foothold gates (the food ladder's prerequisite) and the
 // deficit the review measured. Records are keyed by need, the id the
-// dashboard names goals by; a goal that is recovered, cancelled or
+// launcher names concerns by; a concern that is recovered, cancelled or
 // invalidated drops its record.
 func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []WorkOwner) ([]policy.ConcernProgress, error) {
 	old := map[domain.ConcernID]policy.ConcernProgress{}

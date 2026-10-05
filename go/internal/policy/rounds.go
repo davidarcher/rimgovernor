@@ -483,7 +483,7 @@ type RoundsFacts struct {
 	// WorkDecaying is the same plan's skills above 10 that no assignment
 	// exercises (WorkDecision.Decaying) and WorkProfiles every work pawn's
 	// typed profile (Profiles); both are presentation facts the review
-	// records for the dashboard dossier (#448), never planner inputs.
+	// records for presentation (#448), never planner inputs.
 	WorkDecaying                                                               domain.Fact[[]DecayingSkill]
 	WorkProfiles                                                               domain.Fact[[]PawnProfile]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]

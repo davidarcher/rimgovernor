@@ -125,7 +125,7 @@ type DecayingSkill struct {
 }
 
 // WorkRosterReport is what a Rounds pass records of the roster planner
-// for the dashboard dossier (#448): the coverage census, the decaying
+// for presentation (#448): the coverage census, the decaying
 // skills and every work pawn's typed profile as of Tick. Presentation only;
 // no planner reads it back.
 type WorkRosterReport struct {

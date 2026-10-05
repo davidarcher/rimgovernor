@@ -41,9 +41,6 @@ func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, 
 	return server, nil
 }
 
-// Close is a no-op kept for callers' defers: the server owns no handles, and
-// provider/store ownership remains with the caller.
-func (s *Server) Close() error { return nil }
 func (s *Server) Handler() http.Handler {
 	return accessHandler(http.HandlerFunc(s.handle), s.config.Access)
 }
@@ -51,7 +48,6 @@ func (s *Server) Handler() http.Handler {
 // Serve owns the supplied loopback TCP listener until shutdown. Cancellation
 // reaches active providers before graceful shutdown; no dependency is closed.
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
-	defer s.Close()
 	address, ok := listener.Addr().(*net.TCPAddr)
 	if !ok || !address.IP.IsLoopback() {
 		return errors.New("HTTP API requires a loopback TCP listener")

@@ -3,7 +3,7 @@
 // A controller launched with --resume runs the bot for the observed world
 // with no HTTP write at all, is killed mid-play, and a second controller
 // reopening the same SQLite state resumes autonomous play for the same
-// world -- again without a dashboard step -- continuing the rounds
+// world -- again without a launcher step -- continuing the rounds
 // past the revision the killed process left. Nothing here backs up or
 // restores the database; the plan is re-derived from observation.
 package service

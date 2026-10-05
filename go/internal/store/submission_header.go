@@ -34,7 +34,7 @@ func lookupSubmissionHeader(ctx context.Context, tx *sql.Tx, id, kind string) (s
 	if revision != "1" {
 		return h, errors.New("invalid submitted revision")
 	}
-	if h.Kind != "building" && h.Kind != "research_select" {
+	if h.Kind != "building" {
 		return h, errors.New("invalid submission kind")
 	}
 	if kind != "" && h.Kind != kind {

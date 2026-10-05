@@ -146,7 +146,6 @@ func lifecycleAPIWithConfig(t *testing.T, mode string, knownIdentity bool, fa *f
 	if e != nil {
 		t.Fatal(e)
 	}
-	t.Cleanup(func() { s.Close() })
 	token := playerCall(s, "GET", "/api/player/session", "", "")
 	var session struct{ Token string }
 	if err := json.Unmarshal(token.Body.Bytes(), &session); err != nil || session.Token == "" {
@@ -266,7 +265,6 @@ func TestLifecycleUnavailableWithoutConfig(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	defer s.Close()
 	token := playerCall(s, "GET", "/api/player/session", "", "")
 	var session struct{ Token string }
 	_ = json.Unmarshal(token.Body.Bytes(), &session)

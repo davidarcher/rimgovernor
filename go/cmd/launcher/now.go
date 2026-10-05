@@ -15,7 +15,7 @@ import (
 // Reading into the strings the page prints, so the page holds no labels or
 // ordering. A stale Reading renders its last good value with a notice; a
 // 404 (Observe mode) renders one line and no value. The label maps are the
-// dashboard's NowPanel and DevelopmentPanel ones. reportView joins the Now and
+// launcher's own. reportView joins the Now and
 // routines readings into the four-section report (#2033).
 
 // Feed says how current a panel is. Notice is empty for a fresh reading.

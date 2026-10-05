@@ -21,8 +21,7 @@ import (
 // stale with the error, and a 404 is "not served" (Observe mode serves no
 // routines, spectator or player routes), not an error.
 
-// Poll cadences follow the dashboard's; the views drive the fetch methods
-// at these.
+// The views drive the fetch methods at these.
 const (
 	StateEvery    = 1500 * time.Millisecond
 	NowEvery      = 2 * time.Second

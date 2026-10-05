@@ -184,7 +184,7 @@ func admissionRank(class AdmissionClass) int {
 // is admitted under. Every name protoCall's allowlist accepts must be
 // listed (TestEveryReviewedMethodHasAnAdmissionClass); an unlisted name
 // falls to the prefix rule below. Presentation leases and state reads are
-// dashboard traffic and never take the control slot.
+// observer traffic and never take the control slot.
 var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/clock_start":                          AdmissionControl,
 	"rimgovernor/clock_renew":                          AdmissionControl,

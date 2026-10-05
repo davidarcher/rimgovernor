@@ -54,23 +54,6 @@ lists the routes `serve` offers.
     hazard gaps, the over-budget frame share (the manual-command dispatch bound) and `speed_changes`
     per 6000 ticks.
 
-## Native gesture admission
-
-PlayerInput `LeaseInput`/`SendInput` is player infrastructure outside model capabilities.
-
-- Only a private Linux display and its process-owned game window admit direct input; the bridge
-  session establishes ownership.
-- An ordered shared-memory mailbox dispatches events on the native main thread without another
-  game-order owner.
-- Frame age, source, map/load, camera matrices, window state and UI event revision guard gesture
-  beginnings. Matching key releases and context-menu right-button releases tolerate their own view
-  changes.
-- Input is serialized, obsolete moves are coalesced, gesture boundaries are retained, and no
-  uncertain event is retried.
-- Native eight-second expiry releases held input independently. Cleanup cancels unfinished
-  designations before releasing buttons; disconnect, player direction and load changes also release
-  input.
-
 ## Prepared profiles
 
 A rendered prepared baseline may bypass the native mod mismatch only when the sole missing recorded

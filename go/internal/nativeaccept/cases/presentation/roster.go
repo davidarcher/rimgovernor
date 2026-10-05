@@ -1,7 +1,7 @@
 // The presentation/roster case checks the colonist roster's dossier against a
 // real headless game: native never fills a dossier; with include_dossier the
 // controller joins every row to its pawn table row (#1343), with the
-// families the dashboard's Colony view renders (needs, health, biography,
+// families a colony view renders (needs, health, biography,
 // equipment) read from the live colony and the settings family kept out.
 package presentation
 
@@ -102,7 +102,7 @@ func runRoster(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// joinedRoster is the roster the controller serves the dashboard: the
+// joinedRoster is the roster the controller serves: the
 // native roster with each colonist's pawn table row joined (#1343).
 func joinedRoster(ctx context.Context, h *na.Harness, identity map[string]any) ([]map[string]any, error) {
 	data, err := json.Marshal(identity)
