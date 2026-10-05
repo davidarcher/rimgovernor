@@ -66,10 +66,10 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	ctx, _ = telemetry.EnsureTrace(ctx)
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()
-	invalidate := func() error {
+	invalidate := func(why string, attrs ...any) error {
 		out.Interrupted = true
 		if fresh || s.session.State().Enabled {
-			clockAuthorityLost(call, "poll found interrupting evidence or a standing hold", "fresh", fresh)
+			clockAuthorityLost(call, "poll "+why, append([]any{"fresh", fresh}, attrs...)...)
 		}
 		return s.disableOnEvidence(fresh)
 	}
@@ -229,7 +229,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	answered := !page.GetGap() && !clockPollInterruptsAfter(page, granted)
 	if standing && !s.grant.answers(latest, review.Holds, granted) {
-		if err = invalidate(); err != nil {
+		if err = invalidate("found a standing hold the held grant does not answer", "holds", len(review.Holds), "granted_cursor", granted); err != nil {
 			return fail(err)
 		}
 	}
@@ -237,7 +237,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		if clockDebug() {
 			clockSchedulerLog("poll: interrupting gap=%v events=%s", page.GetGap(), clockPollEventKinds(page))
 		}
-		if err = invalidate(); err != nil {
+		if err = invalidate("found interrupting events", "gap", page.GetGap(), "events", clockPollEventKinds(page), "granted_cursor", granted); err != nil {
 			return fail(err)
 		}
 	}
