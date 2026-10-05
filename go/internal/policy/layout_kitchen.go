@@ -2,25 +2,6 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// ModuleMealCloset is the dining room's cold meal closet (#936): a 2x2 (or
-// 1x2) room behind the dining room's back wall, its only door in that wall,
-// cooled by one cooler venting outdoors. The plan adds it only when no
-// freezer shares a door with the dining room; the Critical meal stockpile
-// then moves into it, where meals never rot.
-const ModuleMealCloset ModuleRole = "meal_closet"
-
-// besideRoles pairs a role with the neighbour whose side wall it takes, a
-// Link door in the shared wall: the freezer beside the kitchen (#819), so
-// the cook steps straight to the shelf, and the dining room beside the
-// freezer (#936), so the meal stockpile sits in the cold one door from the
-// table, the armory beside the storage room and the wardrobe beside the workshop
-// (#1773).
-var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer, ModuleButchery: ModuleFreezer, ModuleArmory: ModuleStorage, ModuleWardrobe: ModuleWorkshop}
-
-// unlinkedBeside are the besideRoles rooms that share only the wall: the
-// armory has no door into the storage room, so haulers never cross its stockpile.
-var unlinkedBeside = map[ModuleRole]bool{ModuleArmory: true}
-
 // beside places role against its neighbour's side wall (besideRoles), on
 // the hallway side the neighbour stands on: its hallway door takes the
 // haulers, the Link the short trip. It tries the neighbour's east side, then
@@ -124,74 +105,6 @@ func (g coreGrid) mealCloset(rooms []LayoutRoom) (LayoutRoom, bool) {
 		}
 	}
 	return LayoutRoom{}, false
-}
-
-// MealClosetOwed is the planned meal closet with nothing standing on it
-// while the planned dining room stands (#936); MaintainRefrigeration shells
-// it.
-func (p LayoutPlan) MealClosetOwed(rooms RoomObservation) (LayoutRoom, bool) {
-	var closet, dining *LayoutRoom
-	for i := range p.Rooms {
-		switch r := &p.Rooms[i]; {
-		case r.Role == ModuleMealCloset && closet == nil:
-			closet = r
-		case r.Role == ModuleDining && dining == nil:
-			dining = r
-		}
-	}
-	if closet == nil || dining == nil {
-		return LayoutRoom{}, false
-	}
-	if _, ok := PlannedRoomStanding(*dining, rooms); !ok {
-		return LayoutRoom{}, false
-	}
-	if _, ok := PlannedRoomStanding(*closet, rooms); ok {
-		return LayoutRoom{}, false
-	}
-	return *closet, true
-}
-
-// FreezerOpensInto reports a planned freezer sharing a door with dining:
-// a Link of either room in the wall between them (#936).
-func (p LayoutPlan) FreezerOpensInto(dining LayoutRoom) bool {
-	_, _, ok := p.FreezerDoorInto(dining)
-	return ok
-}
-
-// FreezerDoorInto is the first planned freezer sharing a door with dining,
-// and that door.
-func (p LayoutPlan) FreezerDoorInto(dining LayoutRoom) (LayoutRoom, domain.Cell, bool) {
-	for _, f := range p.Rooms {
-		if f.Role != ModuleFreezer {
-			continue
-		}
-		for _, link := range []*domain.Cell{f.Link, dining.Link} {
-			if link != nil && inWall(f.Interior, *link) && inWall(dining.Interior, *link) {
-				return f, *link, true
-			}
-		}
-	}
-	return LayoutRoom{}, domain.Cell{}, false
-}
-
-// inWall reports c in the ring of walls round r, corners excluded.
-func inWall(r Rectangle, c domain.Cell) bool {
-	onX := c.X == r.X-1 || c.X == r.X+r.Width
-	onZ := c.Z == r.Z-1 || c.Z == r.Z+r.Height
-	return onX && c.Z >= r.Z && c.Z < r.Z+r.Height || onZ && c.X >= r.X && c.X < r.X+r.Width
-}
-
-// overlapsRooms reports r's interior within a cell of any room's interior;
-// a single shared wall between them is fine.
-func overlapsRooms(r LayoutRoom, rooms []LayoutRoom) bool {
-	a := r.Interior
-	for _, o := range rooms {
-		b := o.Interior
-		if a.X-1 < b.X+b.Width && b.X-1 < a.X+a.Width && a.Z-1 < b.Z+b.Height && b.Z-1 < a.Z+a.Height {
-			return true
-		}
-	}
-	return false
 }
 
 // behind places role against its neighbour's back wall, the one opposite the

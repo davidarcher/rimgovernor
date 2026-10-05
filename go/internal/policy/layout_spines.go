@@ -187,47 +187,10 @@ func rectsOverlap(a, b Rectangle) bool {
 	return a.X < b.X+b.Width && b.X < a.X+a.Width && a.Z < b.Z+b.Height && b.Z < a.Z+a.Height
 }
 
-func transposeCell(c domain.Cell) domain.Cell { return domain.Cell{X: c.Z, Z: c.X} }
-
 func transposeSet(s map[domain.Cell]bool) map[domain.Cell]bool {
 	out := make(map[domain.Cell]bool, len(s))
 	for c := range s {
 		out[transposeCell(c)] = true
 	}
 	return out
-}
-
-func transposeRot(rot domain.Rotation) domain.Rotation {
-	switch rot {
-	case domain.North:
-		return domain.East
-	case domain.East:
-		return domain.North
-	case domain.South:
-		return domain.West
-	case domain.West:
-		return domain.South
-	}
-	return rot
-}
-
-// transposeRoom swaps X and Z; a door facing its hallway to the south faces
-// it to the west once transposed, north to east, and back.
-func transposeRoom(r LayoutRoom) LayoutRoom {
-	in := r.Interior
-	r.Interior = Rectangle{X: in.Z, Z: in.X, Width: in.Height, Height: in.Width}
-	r.Door = transposeCell(r.Door)
-	if r.Link != nil {
-		l := transposeCell(*r.Link)
-		r.Link = &l
-	}
-	r.DoorRot = transposeRot(r.DoorRot)
-	if len(r.Doors) > 0 {
-		doors := make([]Door, len(r.Doors))
-		for i, d := range r.Doors {
-			doors[i] = Door{Cell: transposeCell(d.Cell), Rot: transposeRot(d.Rot)}
-		}
-		r.Doors = doors
-	}
-	return r
 }
