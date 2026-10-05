@@ -135,6 +135,69 @@ message RequestStatus {
   optional string request_id = 1;
   optional string expected_instance_id = 2;
 }
+// New colony (#2019): native generates a colony from a spec on a fresh main
+// menu and saves it as the last phase, so the spec carries the save name.
+// Unset temperature fields leave the game default. world_temperature is the
+// RimWorld OverallTemperature name; planet_coverage is 0.05..1; map_size is
+// the square side in cells (100..400).
+message NewColonySpec {
+  optional string scenario = 1;
+  optional uint32 colonist_count = 2;
+  optional string seed = 3;
+  repeated string biomes = 4;
+  optional bool flat_tile = 5;
+  optional string difficulty = 6;
+  optional string storyteller = 7;
+  optional float min_temperature = 8;
+  optional float max_temperature = 9;
+  optional string world_temperature = 10;
+  optional uint32 map_size = 11;
+  optional float planet_coverage = 12;
+  optional string save_name = 13;
+}
+message NewColonyRequest {
+  optional string request_id = 1;
+  NewColonySpec spec = 2;
+  optional uint32 timeout_ms = 3;
+}
+// Native phases only; restarting the game is launcher-side.
+enum NewColonyPhase {
+  NEW_COLONY_PHASE_UNSPECIFIED = 0;
+  NEW_COLONY_PHASE_GENERATING_WORLD = 1;
+  NEW_COLONY_PHASE_CHOOSING_TILE = 2;
+  NEW_COLONY_PHASE_ROLLING_COLONISTS = 3;
+  NEW_COLONY_PHASE_GENERATING_MAP = 4;
+  NEW_COLONY_PHASE_FINISHING = 5;
+  NEW_COLONY_PHASE_SAVING = 6;
+}
+message NewColonyCompleted {
+  optional string request_id = 1;
+  optional string save_name = 2;
+  rimgovernor.common.v1.ObservationContext context = 3;
+  optional bool paused = 4;
+  optional uint64 byte_length = 5;
+  // The seed the colony was generated from, after any reroll native made.
+  optional string seed = 6;
+}
+message NewColonyPending {
+  optional string request_id = 1;
+  optional NewColonyPhase phase = 2;
+  optional string detail = 3;
+  optional uint64 elapsed_ms = 4;
+  optional uint32 reroll_count = 5;
+}
+message NewColonySuperseded {
+  optional string request_id = 1;
+  optional string detail = 2;
+}
+message NewColonyReply {
+  oneof outcome {
+    NewColonyCompleted completed = 1;
+    NewColonyPending pending = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+    NewColonySuperseded superseded = 4;
+  }
+}
 // Governor state (#882): opaque ASCII blobs Go keeps in the save's
 // GovernorState game component. Native stores and returns them verbatim and
 // never interprets them; they persist once the game next saves.
@@ -158,4 +221,6 @@ service Lifecycle {
   rpc Load(LoadRequest) returns (LoadReply);
   rpc ReadLoad(RequestStatus) returns (LoadReply);
   rpc ReadSave(RequestStatus) returns (SaveReply);
+  rpc NewColony(NewColonyRequest) returns (NewColonyReply);
+  rpc ReadNewColony(RequestStatus) returns (NewColonyReply);
 }

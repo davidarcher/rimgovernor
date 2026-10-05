@@ -104,43 +104,89 @@ namespace RimGovernor.Protocol.Lifecycle {
             "bGUudjEuTG9hZFN1cGVyc2VkZWRIAEIJCgdvdXRjb21lInMKDVJlcXVlc3RT",
             "dGF0dXMSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBEiEKFGV4cGVjdGVkX2lu",
             "c3RhbmNlX2lkGAIgASgJSAGIAQFCDQoLX3JlcXVlc3RfaWRCFwoVX2V4cGVj",
-            "dGVkX2luc3RhbmNlX2lkIhYKFEdvdmVybm9yU3RhdGVSZXF1ZXN0IooBChJH",
-            "b3Zlcm5vclN0YXRlQmxvYnMSRgoFYmxvYnMYASADKAsyNy5yaW1nb3Zlcm5v",
-            "ci5saWZlY3ljbGUudjEuR292ZXJub3JTdGF0ZUJsb2JzLkJsb2JzRW50cnka",
-            "LAoKQmxvYnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgB",
-            "Is0BChJHb3Zlcm5vclN0YXRlUmVwbHkSPgoGbG9hZGVkGAEgASgLMiwucmlt",
-            "Z292ZXJub3IubGlmZWN5Y2xlLnYxLkdvdmVybm9yU3RhdGVCbG9ic0gAEjkK",
-            "C3VuYXZhaWxhYmxlGAIgASgLMiIucmltZ292ZXJub3IuY29tbW9uLnYxLlVu",
-            "YXZhaWxhYmxlSAASMQoHZmFpbHVyZRgDIAEoCzIeLnJpbWdvdmVybm9yLmNv",
-            "bW1vbi52MS5GYWlsdXJlSABCCQoHb3V0Y29tZSJPChdQdXRHb3Zlcm5vclN0",
-            "YXRlUmVxdWVzdBIQCgNrZXkYASABKAlIAIgBARIRCgRibG9iGAIgASgJSAGI",
-            "AQFCBgoEX2tleUIHCgVfYmxvYiqhAQoRQ2FwYWJpbGl0eVN1cHBvcnQSIgoe",
-            "Q0FQQUJJTElUWV9TVVBQT1JUX1VOU1BFQ0lGSUVEEAASIAocQ0FQQUJJTElU",
-            "WV9TVVBQT1JUX1NVUFBPUlRFRBABEiIKHkNBUEFCSUxJVFlfU1VQUE9SVF9V",
-            "TkFWQUlMQUJMRRACEiIKHkNBUEFCSUxJVFlfU1VQUE9SVF9VTlNVUFBPUlRF",
-            "RBADKk8KCVJlYWRpbmVzcxIZChVSRUFESU5FU1NfVU5TUEVDSUZJRUQQABIR",
-            "Cg1SRUFESU5FU1NfTUFQEAESFAoQUkVBRElORVNTX1ZJU1VBTBACMrMFCglM",
-            "aWZlY3ljbGUScQoRUmVhZEdvdmVybm9yU3RhdGUSLi5yaW1nb3Zlcm5vci5s",
-            "aWZlY3ljbGUudjEuR292ZXJub3JTdGF0ZVJlcXVlc3QaLC5yaW1nb3Zlcm5v",
-            "ci5saWZlY3ljbGUudjEuR292ZXJub3JTdGF0ZVJlcGx5EnMKEFB1dEdvdmVy",
-            "bm9yU3RhdGUSMS5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuUHV0R292ZXJu",
-            "b3JTdGF0ZVJlcXVlc3QaLC5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuR292",
-            "ZXJub3JTdGF0ZVJlcGx5EmIKDFJlYWRJZGVudGl0eRIpLnJpbWdvdmVybm9y",
-            "LmxpZmVjeWNsZS52MS5JZGVudGl0eVJlcXVlc3QaJy5yaW1nb3Zlcm5vci5s",
-            "aWZlY3ljbGUudjEuSWRlbnRpdHlSZXBseRJSCgRTYXZlEiUucmltZ292ZXJu",
-            "b3IubGlmZWN5Y2xlLnYxLlNhdmVSZXF1ZXN0GiMucmltZ292ZXJub3IubGlm",
-            "ZWN5Y2xlLnYxLlNhdmVSZXBseRJSCgRMb2FkEiUucmltZ292ZXJub3IubGlm",
-            "ZWN5Y2xlLnYxLkxvYWRSZXF1ZXN0GiMucmltZ292ZXJub3IubGlmZWN5Y2xl",
-            "LnYxLkxvYWRSZXBseRJYCghSZWFkTG9hZBInLnJpbWdvdmVybm9yLmxpZmVj",
-            "eWNsZS52MS5SZXF1ZXN0U3RhdHVzGiMucmltZ292ZXJub3IubGlmZWN5Y2xl",
-            "LnYxLkxvYWRSZXBseRJYCghSZWFkU2F2ZRInLnJpbWdvdmVybm9yLmxpZmVj",
-            "eWNsZS52MS5SZXF1ZXN0U3RhdHVzGiMucmltZ292ZXJub3IubGlmZWN5Y2xl",
-            "LnYxLlNhdmVSZXBseUJuWktnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdv",
-            "dmVybm9yL2dvL2ludGVybmFsL3dpcmUvbGlmZWN5Y2xlcGI7bGlmZWN5Y2xl",
-            "cGKqAh5SaW1Hb3Zlcm5vci5Qcm90b2NvbC5MaWZlY3ljbGViBnByb3RvMw=="));
+            "dGVkX2luc3RhbmNlX2lkIp0ECg1OZXdDb2xvbnlTcGVjEhUKCHNjZW5hcmlv",
+            "GAEgASgJSACIAQESGwoOY29sb25pc3RfY291bnQYAiABKA1IAYgBARIRCgRz",
+            "ZWVkGAMgASgJSAKIAQESDgoGYmlvbWVzGAQgAygJEhYKCWZsYXRfdGlsZRgF",
+            "IAEoCEgDiAEBEhcKCmRpZmZpY3VsdHkYBiABKAlIBIgBARIYCgtzdG9yeXRl",
+            "bGxlchgHIAEoCUgFiAEBEhwKD21pbl90ZW1wZXJhdHVyZRgIIAEoAkgGiAEB",
+            "EhwKD21heF90ZW1wZXJhdHVyZRgJIAEoAkgHiAEBEh4KEXdvcmxkX3RlbXBl",
+            "cmF0dXJlGAogASgJSAiIAQESFQoIbWFwX3NpemUYCyABKA1ICYgBARIcCg9w",
+            "bGFuZXRfY292ZXJhZ2UYDCABKAJICogBARIWCglzYXZlX25hbWUYDSABKAlI",
+            "C4gBAUILCglfc2NlbmFyaW9CEQoPX2NvbG9uaXN0X2NvdW50QgcKBV9zZWVk",
+            "QgwKCl9mbGF0X3RpbGVCDQoLX2RpZmZpY3VsdHlCDgoMX3N0b3J5dGVsbGVy",
+            "QhIKEF9taW5fdGVtcGVyYXR1cmVCEgoQX21heF90ZW1wZXJhdHVyZUIUChJf",
+            "d29ybGRfdGVtcGVyYXR1cmVCCwoJX21hcF9zaXplQhIKEF9wbGFuZXRfY292",
+            "ZXJhZ2VCDAoKX3NhdmVfbmFtZSKZAQoQTmV3Q29sb255UmVxdWVzdBIXCgpy",
+            "ZXF1ZXN0X2lkGAEgASgJSACIAQESNQoEc3BlYxgCIAEoCzInLnJpbWdvdmVy",
+            "bm9yLmxpZmVjeWNsZS52MS5OZXdDb2xvbnlTcGVjEhcKCnRpbWVvdXRfbXMY",
+            "AyABKA1IAYgBAUINCgtfcmVxdWVzdF9pZEINCgtfdGltZW91dF9tcyKEAgoS",
+            "TmV3Q29sb255Q29tcGxldGVkEhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARIW",
+            "CglzYXZlX25hbWUYAiABKAlIAYgBARI6Cgdjb250ZXh0GAMgASgLMikucmlt",
+            "Z292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBITCgZwYXVz",
+            "ZWQYBCABKAhIAogBARIYCgtieXRlX2xlbmd0aBgFIAEoBEgDiAEBEhEKBHNl",
+            "ZWQYBiABKAlIBIgBAUINCgtfcmVxdWVzdF9pZEIMCgpfc2F2ZV9uYW1lQgkK",
+            "B19wYXVzZWRCDgoMX2J5dGVfbGVuZ3RoQgcKBV9zZWVkIvYBChBOZXdDb2xv",
+            "bnlQZW5kaW5nEhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARI8CgVwaGFzZRgC",
+            "IAEoDjIoLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5OZXdDb2xvbnlQaGFz",
+            "ZUgBiAEBEhMKBmRldGFpbBgDIAEoCUgCiAEBEhcKCmVsYXBzZWRfbXMYBCAB",
+            "KARIA4gBARIZCgxyZXJvbGxfY291bnQYBSABKA1IBIgBAUINCgtfcmVxdWVz",
+            "dF9pZEIICgZfcGhhc2VCCQoHX2RldGFpbEINCgtfZWxhcHNlZF9tc0IPCg1f",
+            "cmVyb2xsX2NvdW50Il0KE05ld0NvbG9ueVN1cGVyc2VkZWQSFwoKcmVxdWVz",
+            "dF9pZBgBIAEoCUgAiAEBEhMKBmRldGFpbBgCIAEoCUgBiAEBQg0KC19yZXF1",
+            "ZXN0X2lkQgkKB19kZXRhaWwilQIKDk5ld0NvbG9ueVJlcGx5EkEKCWNvbXBs",
+            "ZXRlZBgBIAEoCzIsLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5OZXdDb2xv",
+            "bnlDb21wbGV0ZWRIABI9CgdwZW5kaW5nGAIgASgLMioucmltZ292ZXJub3Iu",
+            "bGlmZWN5Y2xlLnYxLk5ld0NvbG9ueVBlbmRpbmdIABIxCgdmYWlsdXJlGAMg",
+            "ASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIABJDCgpzdXBl",
+            "cnNlZGVkGAQgASgLMi0ucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLk5ld0Nv",
+            "bG9ueVN1cGVyc2VkZWRIAEIJCgdvdXRjb21lIhYKFEdvdmVybm9yU3RhdGVS",
+            "ZXF1ZXN0IooBChJHb3Zlcm5vclN0YXRlQmxvYnMSRgoFYmxvYnMYASADKAsy",
+            "Ny5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuR292ZXJub3JTdGF0ZUJsb2Jz",
+            "LkJsb2JzRW50cnkaLAoKQmxvYnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFs",
+            "dWUYAiABKAk6AjgBIs0BChJHb3Zlcm5vclN0YXRlUmVwbHkSPgoGbG9hZGVk",
+            "GAEgASgLMiwucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLkdvdmVybm9yU3Rh",
+            "dGVCbG9ic0gAEjkKC3VuYXZhaWxhYmxlGAIgASgLMiIucmltZ292ZXJub3Iu",
+            "Y29tbW9uLnYxLlVuYXZhaWxhYmxlSAASMQoHZmFpbHVyZRgDIAEoCzIeLnJp",
+            "bWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoHb3V0Y29tZSJPChdQ",
+            "dXRHb3Zlcm5vclN0YXRlUmVxdWVzdBIQCgNrZXkYASABKAlIAIgBARIRCgRi",
+            "bG9iGAIgASgJSAGIAQFCBgoEX2tleUIHCgVfYmxvYiqhAQoRQ2FwYWJpbGl0",
+            "eVN1cHBvcnQSIgoeQ0FQQUJJTElUWV9TVVBQT1JUX1VOU1BFQ0lGSUVEEAAS",
+            "IAocQ0FQQUJJTElUWV9TVVBQT1JUX1NVUFBPUlRFRBABEiIKHkNBUEFCSUxJ",
+            "VFlfU1VQUE9SVF9VTkFWQUlMQUJMRRACEiIKHkNBUEFCSUxJVFlfU1VQUE9S",
+            "VF9VTlNVUFBPUlRFRBADKk8KCVJlYWRpbmVzcxIZChVSRUFESU5FU1NfVU5T",
+            "UEVDSUZJRUQQABIRCg1SRUFESU5FU1NfTUFQEAESFAoQUkVBRElORVNTX1ZJ",
+            "U1VBTBACKocCCg5OZXdDb2xvbnlQaGFzZRIgChxORVdfQ09MT05ZX1BIQVNF",
+            "X1VOU1BFQ0lGSUVEEAASJQohTkVXX0NPTE9OWV9QSEFTRV9HRU5FUkFUSU5H",
+            "X1dPUkxEEAESIgoeTkVXX0NPTE9OWV9QSEFTRV9DSE9PU0lOR19USUxFEAIS",
+            "JgoiTkVXX0NPTE9OWV9QSEFTRV9ST0xMSU5HX0NPTE9OSVNUUxADEiMKH05F",
+            "V19DT0xPTllfUEhBU0VfR0VORVJBVElOR19NQVAQBBIeChpORVdfQ09MT05Z",
+            "X1BIQVNFX0ZJTklTSElORxAFEhsKF05FV19DT0xPTllfUEhBU0VfU0FWSU5H",
+            "EAYy+gYKCUxpZmVjeWNsZRJxChFSZWFkR292ZXJub3JTdGF0ZRIuLnJpbWdv",
+            "dmVybm9yLmxpZmVjeWNsZS52MS5Hb3Zlcm5vclN0YXRlUmVxdWVzdBosLnJp",
+            "bWdvdmVybm9yLmxpZmVjeWNsZS52MS5Hb3Zlcm5vclN0YXRlUmVwbHkScwoQ",
+            "UHV0R292ZXJub3JTdGF0ZRIxLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5Q",
+            "dXRHb3Zlcm5vclN0YXRlUmVxdWVzdBosLnJpbWdvdmVybm9yLmxpZmVjeWNs",
+            "ZS52MS5Hb3Zlcm5vclN0YXRlUmVwbHkSYgoMUmVhZElkZW50aXR5Eikucmlt",
+            "Z292ZXJub3IubGlmZWN5Y2xlLnYxLklkZW50aXR5UmVxdWVzdBonLnJpbWdv",
+            "dmVybm9yLmxpZmVjeWNsZS52MS5JZGVudGl0eVJlcGx5ElIKBFNhdmUSJS5y",
+            "aW1nb3Zlcm5vci5saWZlY3ljbGUudjEuU2F2ZVJlcXVlc3QaIy5yaW1nb3Zl",
+            "cm5vci5saWZlY3ljbGUudjEuU2F2ZVJlcGx5ElIKBExvYWQSJS5yaW1nb3Zl",
+            "cm5vci5saWZlY3ljbGUudjEuTG9hZFJlcXVlc3QaIy5yaW1nb3Zlcm5vci5s",
+            "aWZlY3ljbGUudjEuTG9hZFJlcGx5ElgKCFJlYWRMb2FkEicucmltZ292ZXJu",
+            "b3IubGlmZWN5Y2xlLnYxLlJlcXVlc3RTdGF0dXMaIy5yaW1nb3Zlcm5vci5s",
+            "aWZlY3ljbGUudjEuTG9hZFJlcGx5ElgKCFJlYWRTYXZlEicucmltZ292ZXJu",
+            "b3IubGlmZWN5Y2xlLnYxLlJlcXVlc3RTdGF0dXMaIy5yaW1nb3Zlcm5vci5s",
+            "aWZlY3ljbGUudjEuU2F2ZVJlcGx5EmEKCU5ld0NvbG9ueRIqLnJpbWdvdmVy",
+            "bm9yLmxpZmVjeWNsZS52MS5OZXdDb2xvbnlSZXF1ZXN0GigucmltZ292ZXJu",
+            "b3IubGlmZWN5Y2xlLnYxLk5ld0NvbG9ueVJlcGx5EmIKDVJlYWROZXdDb2xv",
+            "bnkSJy5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuUmVxdWVzdFN0YXR1cxoo",
+            "LnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5OZXdDb2xvbnlSZXBseUJuWktn",
+            "aXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9yL2dvL2ludGVybmFs",
+            "L3dpcmUvbGlmZWN5Y2xlcGI7bGlmZWN5Y2xlcGKqAh5SaW1Hb3Zlcm5vci5Q",
+            "cm90b2NvbC5MaWZlY3ljbGViBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Lifecycle.CapabilitySupport), typeof(global::RimGovernor.Protocol.Lifecycle.Readiness), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Lifecycle.CapabilitySupport), typeof(global::RimGovernor.Protocol.Lifecycle.Readiness), typeof(global::RimGovernor.Protocol.Lifecycle.NewColonyPhase), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.IdentityRequest), global::RimGovernor.Protocol.Lifecycle.IdentityRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.Capability), global::RimGovernor.Protocol.Lifecycle.Capability.Parser, new[]{ "FullMethodName", "Support", "Detail" }, new[]{ "FullMethodName", "Support", "Detail" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.LoadedIdentity), global::RimGovernor.Protocol.Lifecycle.LoadedIdentity.Parser, new[]{ "Context", "Capabilities", "Paused" }, new[]{ "Paused" }, null, null, null),
@@ -160,6 +206,12 @@ namespace RimGovernor.Protocol.Lifecycle {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.LoadSuperseded), global::RimGovernor.Protocol.Lifecycle.LoadSuperseded.Parser, new[]{ "RequestId", "ObservedContext", "Detail" }, new[]{ "RequestId", "Detail" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.LoadReply), global::RimGovernor.Protocol.Lifecycle.LoadReply.Parser, new[]{ "Completed", "Pending", "Failure", "Superseded" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.RequestStatus), global::RimGovernor.Protocol.Lifecycle.RequestStatus.Parser, new[]{ "RequestId", "ExpectedInstanceId" }, new[]{ "RequestId", "ExpectedInstanceId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.NewColonySpec), global::RimGovernor.Protocol.Lifecycle.NewColonySpec.Parser, new[]{ "Scenario", "ColonistCount", "Seed", "Biomes", "FlatTile", "Difficulty", "Storyteller", "MinTemperature", "MaxTemperature", "WorldTemperature", "MapSize", "PlanetCoverage", "SaveName" }, new[]{ "Scenario", "ColonistCount", "Seed", "FlatTile", "Difficulty", "Storyteller", "MinTemperature", "MaxTemperature", "WorldTemperature", "MapSize", "PlanetCoverage", "SaveName" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.NewColonyRequest), global::RimGovernor.Protocol.Lifecycle.NewColonyRequest.Parser, new[]{ "RequestId", "Spec", "TimeoutMs" }, new[]{ "RequestId", "TimeoutMs" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted), global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted.Parser, new[]{ "RequestId", "SaveName", "Context", "Paused", "ByteLength", "Seed" }, new[]{ "RequestId", "SaveName", "Paused", "ByteLength", "Seed" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.NewColonyPending), global::RimGovernor.Protocol.Lifecycle.NewColonyPending.Parser, new[]{ "RequestId", "Phase", "Detail", "ElapsedMs", "RerollCount" }, new[]{ "RequestId", "Phase", "Detail", "ElapsedMs", "RerollCount" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded), global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded.Parser, new[]{ "RequestId", "Detail" }, new[]{ "RequestId", "Detail" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.NewColonyReply), global::RimGovernor.Protocol.Lifecycle.NewColonyReply.Parser, new[]{ "Completed", "Pending", "Failure", "Superseded" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.GovernorStateRequest), global::RimGovernor.Protocol.Lifecycle.GovernorStateRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.GovernorStateBlobs), global::RimGovernor.Protocol.Lifecycle.GovernorStateBlobs.Parser, new[]{ "Blobs" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, }),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.GovernorStateReply), global::RimGovernor.Protocol.Lifecycle.GovernorStateReply.Parser, new[]{ "Loaded", "Unavailable", "Failure" }, new[]{ "Outcome" }, null, null, null),
@@ -181,6 +233,19 @@ namespace RimGovernor.Protocol.Lifecycle {
     [pbr::OriginalName("READINESS_UNSPECIFIED")] Unspecified = 0,
     [pbr::OriginalName("READINESS_MAP")] Map = 1,
     [pbr::OriginalName("READINESS_VISUAL")] Visual = 2,
+  }
+
+  /// <summary>
+  /// Native phases only; restarting the game is launcher-side.
+  /// </summary>
+  public enum NewColonyPhase {
+    [pbr::OriginalName("NEW_COLONY_PHASE_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("NEW_COLONY_PHASE_GENERATING_WORLD")] GeneratingWorld = 1,
+    [pbr::OriginalName("NEW_COLONY_PHASE_CHOOSING_TILE")] ChoosingTile = 2,
+    [pbr::OriginalName("NEW_COLONY_PHASE_ROLLING_COLONISTS")] RollingColonists = 3,
+    [pbr::OriginalName("NEW_COLONY_PHASE_GENERATING_MAP")] GeneratingMap = 4,
+    [pbr::OriginalName("NEW_COLONY_PHASE_FINISHING")] Finishing = 5,
+    [pbr::OriginalName("NEW_COLONY_PHASE_SAVING")] Saving = 6,
   }
 
   #endregion
@@ -6608,6 +6673,2685 @@ namespace RimGovernor.Protocol.Lifecycle {
   }
 
   /// <summary>
+  /// New colony (#2019): native generates a colony from a spec on a fresh main
+  /// menu and saves it as the last phase, so the spec carries the save name.
+  /// Unset temperature fields leave the game default. world_temperature is the
+  /// RimWorld OverallTemperature name; planet_coverage is 0.05..1; map_size is
+  /// the square side in cells (100..400).
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NewColonySpec : pb::IMessage<NewColonySpec>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NewColonySpec> _parser = new pb::MessageParser<NewColonySpec>(() => new NewColonySpec());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NewColonySpec> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[19]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonySpec() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonySpec(NewColonySpec other) : this() {
+      _hasBits0 = other._hasBits0;
+      scenario_ = other.scenario_;
+      colonistCount_ = other.colonistCount_;
+      seed_ = other.seed_;
+      biomes_ = other.biomes_.Clone();
+      flatTile_ = other.flatTile_;
+      difficulty_ = other.difficulty_;
+      storyteller_ = other.storyteller_;
+      minTemperature_ = other.minTemperature_;
+      maxTemperature_ = other.maxTemperature_;
+      worldTemperature_ = other.worldTemperature_;
+      mapSize_ = other.mapSize_;
+      planetCoverage_ = other.planetCoverage_;
+      saveName_ = other.saveName_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonySpec Clone() {
+      return new NewColonySpec(this);
+    }
+
+    /// <summary>Field number for the "scenario" field.</summary>
+    public const int ScenarioFieldNumber = 1;
+    private readonly static string ScenarioDefaultValue = "";
+
+    private string scenario_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Scenario {
+      get { return scenario_ ?? ScenarioDefaultValue; }
+      set {
+        scenario_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "scenario" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasScenario {
+      get { return scenario_ != null; }
+    }
+    /// <summary>Clears the value of the "scenario" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearScenario() {
+      scenario_ = null;
+    }
+
+    /// <summary>Field number for the "colonist_count" field.</summary>
+    public const int ColonistCountFieldNumber = 2;
+    private readonly static uint ColonistCountDefaultValue = 0;
+
+    private uint colonistCount_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint ColonistCount {
+      get { if ((_hasBits0 & 1) != 0) { return colonistCount_; } else { return ColonistCountDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        colonistCount_ = value;
+      }
+    }
+    /// <summary>Gets whether the "colonist_count" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasColonistCount {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "colonist_count" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearColonistCount() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "seed" field.</summary>
+    public const int SeedFieldNumber = 3;
+    private readonly static string SeedDefaultValue = "";
+
+    private string seed_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Seed {
+      get { return seed_ ?? SeedDefaultValue; }
+      set {
+        seed_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "seed" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasSeed {
+      get { return seed_ != null; }
+    }
+    /// <summary>Clears the value of the "seed" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearSeed() {
+      seed_ = null;
+    }
+
+    /// <summary>Field number for the "biomes" field.</summary>
+    public const int BiomesFieldNumber = 4;
+    private static readonly pb::FieldCodec<string> _repeated_biomes_codec
+        = pb::FieldCodec.ForString(34);
+    private readonly pbc::RepeatedField<string> biomes_ = new pbc::RepeatedField<string>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<string> Biomes {
+      get { return biomes_; }
+    }
+
+    /// <summary>Field number for the "flat_tile" field.</summary>
+    public const int FlatTileFieldNumber = 5;
+    private readonly static bool FlatTileDefaultValue = false;
+
+    private bool flatTile_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool FlatTile {
+      get { if ((_hasBits0 & 2) != 0) { return flatTile_; } else { return FlatTileDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        flatTile_ = value;
+      }
+    }
+    /// <summary>Gets whether the "flat_tile" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasFlatTile {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "flat_tile" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearFlatTile() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "difficulty" field.</summary>
+    public const int DifficultyFieldNumber = 6;
+    private readonly static string DifficultyDefaultValue = "";
+
+    private string difficulty_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Difficulty {
+      get { return difficulty_ ?? DifficultyDefaultValue; }
+      set {
+        difficulty_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "difficulty" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDifficulty {
+      get { return difficulty_ != null; }
+    }
+    /// <summary>Clears the value of the "difficulty" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDifficulty() {
+      difficulty_ = null;
+    }
+
+    /// <summary>Field number for the "storyteller" field.</summary>
+    public const int StorytellerFieldNumber = 7;
+    private readonly static string StorytellerDefaultValue = "";
+
+    private string storyteller_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Storyteller {
+      get { return storyteller_ ?? StorytellerDefaultValue; }
+      set {
+        storyteller_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "storyteller" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasStoryteller {
+      get { return storyteller_ != null; }
+    }
+    /// <summary>Clears the value of the "storyteller" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearStoryteller() {
+      storyteller_ = null;
+    }
+
+    /// <summary>Field number for the "min_temperature" field.</summary>
+    public const int MinTemperatureFieldNumber = 8;
+    private readonly static float MinTemperatureDefaultValue = 0F;
+
+    private float minTemperature_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public float MinTemperature {
+      get { if ((_hasBits0 & 4) != 0) { return minTemperature_; } else { return MinTemperatureDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        minTemperature_ = value;
+      }
+    }
+    /// <summary>Gets whether the "min_temperature" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMinTemperature {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "min_temperature" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMinTemperature() {
+      _hasBits0 &= ~4;
+    }
+
+    /// <summary>Field number for the "max_temperature" field.</summary>
+    public const int MaxTemperatureFieldNumber = 9;
+    private readonly static float MaxTemperatureDefaultValue = 0F;
+
+    private float maxTemperature_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public float MaxTemperature {
+      get { if ((_hasBits0 & 8) != 0) { return maxTemperature_; } else { return MaxTemperatureDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        maxTemperature_ = value;
+      }
+    }
+    /// <summary>Gets whether the "max_temperature" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMaxTemperature {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "max_temperature" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMaxTemperature() {
+      _hasBits0 &= ~8;
+    }
+
+    /// <summary>Field number for the "world_temperature" field.</summary>
+    public const int WorldTemperatureFieldNumber = 10;
+    private readonly static string WorldTemperatureDefaultValue = "";
+
+    private string worldTemperature_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string WorldTemperature {
+      get { return worldTemperature_ ?? WorldTemperatureDefaultValue; }
+      set {
+        worldTemperature_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "world_temperature" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasWorldTemperature {
+      get { return worldTemperature_ != null; }
+    }
+    /// <summary>Clears the value of the "world_temperature" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearWorldTemperature() {
+      worldTemperature_ = null;
+    }
+
+    /// <summary>Field number for the "map_size" field.</summary>
+    public const int MapSizeFieldNumber = 11;
+    private readonly static uint MapSizeDefaultValue = 0;
+
+    private uint mapSize_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint MapSize {
+      get { if ((_hasBits0 & 16) != 0) { return mapSize_; } else { return MapSizeDefaultValue; } }
+      set {
+        _hasBits0 |= 16;
+        mapSize_ = value;
+      }
+    }
+    /// <summary>Gets whether the "map_size" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMapSize {
+      get { return (_hasBits0 & 16) != 0; }
+    }
+    /// <summary>Clears the value of the "map_size" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMapSize() {
+      _hasBits0 &= ~16;
+    }
+
+    /// <summary>Field number for the "planet_coverage" field.</summary>
+    public const int PlanetCoverageFieldNumber = 12;
+    private readonly static float PlanetCoverageDefaultValue = 0F;
+
+    private float planetCoverage_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public float PlanetCoverage {
+      get { if ((_hasBits0 & 32) != 0) { return planetCoverage_; } else { return PlanetCoverageDefaultValue; } }
+      set {
+        _hasBits0 |= 32;
+        planetCoverage_ = value;
+      }
+    }
+    /// <summary>Gets whether the "planet_coverage" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPlanetCoverage {
+      get { return (_hasBits0 & 32) != 0; }
+    }
+    /// <summary>Clears the value of the "planet_coverage" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPlanetCoverage() {
+      _hasBits0 &= ~32;
+    }
+
+    /// <summary>Field number for the "save_name" field.</summary>
+    public const int SaveNameFieldNumber = 13;
+    private readonly static string SaveNameDefaultValue = "";
+
+    private string saveName_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string SaveName {
+      get { return saveName_ ?? SaveNameDefaultValue; }
+      set {
+        saveName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "save_name" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasSaveName {
+      get { return saveName_ != null; }
+    }
+    /// <summary>Clears the value of the "save_name" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearSaveName() {
+      saveName_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NewColonySpec);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NewColonySpec other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Scenario != other.Scenario) return false;
+      if (ColonistCount != other.ColonistCount) return false;
+      if (Seed != other.Seed) return false;
+      if(!biomes_.Equals(other.biomes_)) return false;
+      if (FlatTile != other.FlatTile) return false;
+      if (Difficulty != other.Difficulty) return false;
+      if (Storyteller != other.Storyteller) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(MinTemperature, other.MinTemperature)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(MaxTemperature, other.MaxTemperature)) return false;
+      if (WorldTemperature != other.WorldTemperature) return false;
+      if (MapSize != other.MapSize) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(PlanetCoverage, other.PlanetCoverage)) return false;
+      if (SaveName != other.SaveName) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasScenario) hash ^= Scenario.GetHashCode();
+      if (HasColonistCount) hash ^= ColonistCount.GetHashCode();
+      if (HasSeed) hash ^= Seed.GetHashCode();
+      hash ^= biomes_.GetHashCode();
+      if (HasFlatTile) hash ^= FlatTile.GetHashCode();
+      if (HasDifficulty) hash ^= Difficulty.GetHashCode();
+      if (HasStoryteller) hash ^= Storyteller.GetHashCode();
+      if (HasMinTemperature) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(MinTemperature);
+      if (HasMaxTemperature) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(MaxTemperature);
+      if (HasWorldTemperature) hash ^= WorldTemperature.GetHashCode();
+      if (HasMapSize) hash ^= MapSize.GetHashCode();
+      if (HasPlanetCoverage) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(PlanetCoverage);
+      if (HasSaveName) hash ^= SaveName.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasScenario) {
+        output.WriteRawTag(10);
+        output.WriteString(Scenario);
+      }
+      if (HasColonistCount) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(ColonistCount);
+      }
+      if (HasSeed) {
+        output.WriteRawTag(26);
+        output.WriteString(Seed);
+      }
+      biomes_.WriteTo(output, _repeated_biomes_codec);
+      if (HasFlatTile) {
+        output.WriteRawTag(40);
+        output.WriteBool(FlatTile);
+      }
+      if (HasDifficulty) {
+        output.WriteRawTag(50);
+        output.WriteString(Difficulty);
+      }
+      if (HasStoryteller) {
+        output.WriteRawTag(58);
+        output.WriteString(Storyteller);
+      }
+      if (HasMinTemperature) {
+        output.WriteRawTag(69);
+        output.WriteFloat(MinTemperature);
+      }
+      if (HasMaxTemperature) {
+        output.WriteRawTag(77);
+        output.WriteFloat(MaxTemperature);
+      }
+      if (HasWorldTemperature) {
+        output.WriteRawTag(82);
+        output.WriteString(WorldTemperature);
+      }
+      if (HasMapSize) {
+        output.WriteRawTag(88);
+        output.WriteUInt32(MapSize);
+      }
+      if (HasPlanetCoverage) {
+        output.WriteRawTag(101);
+        output.WriteFloat(PlanetCoverage);
+      }
+      if (HasSaveName) {
+        output.WriteRawTag(106);
+        output.WriteString(SaveName);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasScenario) {
+        output.WriteRawTag(10);
+        output.WriteString(Scenario);
+      }
+      if (HasColonistCount) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(ColonistCount);
+      }
+      if (HasSeed) {
+        output.WriteRawTag(26);
+        output.WriteString(Seed);
+      }
+      biomes_.WriteTo(ref output, _repeated_biomes_codec);
+      if (HasFlatTile) {
+        output.WriteRawTag(40);
+        output.WriteBool(FlatTile);
+      }
+      if (HasDifficulty) {
+        output.WriteRawTag(50);
+        output.WriteString(Difficulty);
+      }
+      if (HasStoryteller) {
+        output.WriteRawTag(58);
+        output.WriteString(Storyteller);
+      }
+      if (HasMinTemperature) {
+        output.WriteRawTag(69);
+        output.WriteFloat(MinTemperature);
+      }
+      if (HasMaxTemperature) {
+        output.WriteRawTag(77);
+        output.WriteFloat(MaxTemperature);
+      }
+      if (HasWorldTemperature) {
+        output.WriteRawTag(82);
+        output.WriteString(WorldTemperature);
+      }
+      if (HasMapSize) {
+        output.WriteRawTag(88);
+        output.WriteUInt32(MapSize);
+      }
+      if (HasPlanetCoverage) {
+        output.WriteRawTag(101);
+        output.WriteFloat(PlanetCoverage);
+      }
+      if (HasSaveName) {
+        output.WriteRawTag(106);
+        output.WriteString(SaveName);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasScenario) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Scenario);
+      }
+      if (HasColonistCount) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(ColonistCount);
+      }
+      if (HasSeed) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Seed);
+      }
+      size += biomes_.CalculateSize(_repeated_biomes_codec);
+      if (HasFlatTile) {
+        size += 1 + 1;
+      }
+      if (HasDifficulty) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Difficulty);
+      }
+      if (HasStoryteller) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Storyteller);
+      }
+      if (HasMinTemperature) {
+        size += 1 + 4;
+      }
+      if (HasMaxTemperature) {
+        size += 1 + 4;
+      }
+      if (HasWorldTemperature) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(WorldTemperature);
+      }
+      if (HasMapSize) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(MapSize);
+      }
+      if (HasPlanetCoverage) {
+        size += 1 + 4;
+      }
+      if (HasSaveName) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(SaveName);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NewColonySpec other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasScenario) {
+        Scenario = other.Scenario;
+      }
+      if (other.HasColonistCount) {
+        ColonistCount = other.ColonistCount;
+      }
+      if (other.HasSeed) {
+        Seed = other.Seed;
+      }
+      biomes_.Add(other.biomes_);
+      if (other.HasFlatTile) {
+        FlatTile = other.FlatTile;
+      }
+      if (other.HasDifficulty) {
+        Difficulty = other.Difficulty;
+      }
+      if (other.HasStoryteller) {
+        Storyteller = other.Storyteller;
+      }
+      if (other.HasMinTemperature) {
+        MinTemperature = other.MinTemperature;
+      }
+      if (other.HasMaxTemperature) {
+        MaxTemperature = other.MaxTemperature;
+      }
+      if (other.HasWorldTemperature) {
+        WorldTemperature = other.WorldTemperature;
+      }
+      if (other.HasMapSize) {
+        MapSize = other.MapSize;
+      }
+      if (other.HasPlanetCoverage) {
+        PlanetCoverage = other.PlanetCoverage;
+      }
+      if (other.HasSaveName) {
+        SaveName = other.SaveName;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Scenario = input.ReadString();
+            break;
+          }
+          case 16: {
+            ColonistCount = input.ReadUInt32();
+            break;
+          }
+          case 26: {
+            Seed = input.ReadString();
+            break;
+          }
+          case 34: {
+            biomes_.AddEntriesFrom(input, _repeated_biomes_codec);
+            break;
+          }
+          case 40: {
+            FlatTile = input.ReadBool();
+            break;
+          }
+          case 50: {
+            Difficulty = input.ReadString();
+            break;
+          }
+          case 58: {
+            Storyteller = input.ReadString();
+            break;
+          }
+          case 69: {
+            MinTemperature = input.ReadFloat();
+            break;
+          }
+          case 77: {
+            MaxTemperature = input.ReadFloat();
+            break;
+          }
+          case 82: {
+            WorldTemperature = input.ReadString();
+            break;
+          }
+          case 88: {
+            MapSize = input.ReadUInt32();
+            break;
+          }
+          case 101: {
+            PlanetCoverage = input.ReadFloat();
+            break;
+          }
+          case 106: {
+            SaveName = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Scenario = input.ReadString();
+            break;
+          }
+          case 16: {
+            ColonistCount = input.ReadUInt32();
+            break;
+          }
+          case 26: {
+            Seed = input.ReadString();
+            break;
+          }
+          case 34: {
+            biomes_.AddEntriesFrom(ref input, _repeated_biomes_codec);
+            break;
+          }
+          case 40: {
+            FlatTile = input.ReadBool();
+            break;
+          }
+          case 50: {
+            Difficulty = input.ReadString();
+            break;
+          }
+          case 58: {
+            Storyteller = input.ReadString();
+            break;
+          }
+          case 69: {
+            MinTemperature = input.ReadFloat();
+            break;
+          }
+          case 77: {
+            MaxTemperature = input.ReadFloat();
+            break;
+          }
+          case 82: {
+            WorldTemperature = input.ReadString();
+            break;
+          }
+          case 88: {
+            MapSize = input.ReadUInt32();
+            break;
+          }
+          case 101: {
+            PlanetCoverage = input.ReadFloat();
+            break;
+          }
+          case 106: {
+            SaveName = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NewColonyRequest : pb::IMessage<NewColonyRequest>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NewColonyRequest> _parser = new pb::MessageParser<NewColonyRequest>(() => new NewColonyRequest());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NewColonyRequest> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[20]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyRequest(NewColonyRequest other) : this() {
+      _hasBits0 = other._hasBits0;
+      requestId_ = other.requestId_;
+      spec_ = other.spec_ != null ? other.spec_.Clone() : null;
+      timeoutMs_ = other.timeoutMs_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyRequest Clone() {
+      return new NewColonyRequest(this);
+    }
+
+    /// <summary>Field number for the "request_id" field.</summary>
+    public const int RequestIdFieldNumber = 1;
+    private readonly static string RequestIdDefaultValue = "";
+
+    private string requestId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RequestId {
+      get { return requestId_ ?? RequestIdDefaultValue; }
+      set {
+        requestId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "request_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRequestId {
+      get { return requestId_ != null; }
+    }
+    /// <summary>Clears the value of the "request_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRequestId() {
+      requestId_ = null;
+    }
+
+    /// <summary>Field number for the "spec" field.</summary>
+    public const int SpecFieldNumber = 2;
+    private global::RimGovernor.Protocol.Lifecycle.NewColonySpec spec_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Lifecycle.NewColonySpec Spec {
+      get { return spec_; }
+      set {
+        spec_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "timeout_ms" field.</summary>
+    public const int TimeoutMsFieldNumber = 3;
+    private readonly static uint TimeoutMsDefaultValue = 0;
+
+    private uint timeoutMs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint TimeoutMs {
+      get { if ((_hasBits0 & 1) != 0) { return timeoutMs_; } else { return TimeoutMsDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        timeoutMs_ = value;
+      }
+    }
+    /// <summary>Gets whether the "timeout_ms" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTimeoutMs {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "timeout_ms" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTimeoutMs() {
+      _hasBits0 &= ~1;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NewColonyRequest);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NewColonyRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (RequestId != other.RequestId) return false;
+      if (!object.Equals(Spec, other.Spec)) return false;
+      if (TimeoutMs != other.TimeoutMs) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasRequestId) hash ^= RequestId.GetHashCode();
+      if (spec_ != null) hash ^= Spec.GetHashCode();
+      if (HasTimeoutMs) hash ^= TimeoutMs.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (spec_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Spec);
+      }
+      if (HasTimeoutMs) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(TimeoutMs);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (spec_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Spec);
+      }
+      if (HasTimeoutMs) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(TimeoutMs);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasRequestId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RequestId);
+      }
+      if (spec_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Spec);
+      }
+      if (HasTimeoutMs) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(TimeoutMs);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NewColonyRequest other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasRequestId) {
+        RequestId = other.RequestId;
+      }
+      if (other.spec_ != null) {
+        if (spec_ == null) {
+          Spec = new global::RimGovernor.Protocol.Lifecycle.NewColonySpec();
+        }
+        Spec.MergeFrom(other.Spec);
+      }
+      if (other.HasTimeoutMs) {
+        TimeoutMs = other.TimeoutMs;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 18: {
+            if (spec_ == null) {
+              Spec = new global::RimGovernor.Protocol.Lifecycle.NewColonySpec();
+            }
+            input.ReadMessage(Spec);
+            break;
+          }
+          case 24: {
+            TimeoutMs = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 18: {
+            if (spec_ == null) {
+              Spec = new global::RimGovernor.Protocol.Lifecycle.NewColonySpec();
+            }
+            input.ReadMessage(Spec);
+            break;
+          }
+          case 24: {
+            TimeoutMs = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NewColonyCompleted : pb::IMessage<NewColonyCompleted>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NewColonyCompleted> _parser = new pb::MessageParser<NewColonyCompleted>(() => new NewColonyCompleted());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NewColonyCompleted> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[21]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyCompleted() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyCompleted(NewColonyCompleted other) : this() {
+      _hasBits0 = other._hasBits0;
+      requestId_ = other.requestId_;
+      saveName_ = other.saveName_;
+      context_ = other.context_ != null ? other.context_.Clone() : null;
+      paused_ = other.paused_;
+      byteLength_ = other.byteLength_;
+      seed_ = other.seed_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyCompleted Clone() {
+      return new NewColonyCompleted(this);
+    }
+
+    /// <summary>Field number for the "request_id" field.</summary>
+    public const int RequestIdFieldNumber = 1;
+    private readonly static string RequestIdDefaultValue = "";
+
+    private string requestId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RequestId {
+      get { return requestId_ ?? RequestIdDefaultValue; }
+      set {
+        requestId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "request_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRequestId {
+      get { return requestId_ != null; }
+    }
+    /// <summary>Clears the value of the "request_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRequestId() {
+      requestId_ = null;
+    }
+
+    /// <summary>Field number for the "save_name" field.</summary>
+    public const int SaveNameFieldNumber = 2;
+    private readonly static string SaveNameDefaultValue = "";
+
+    private string saveName_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string SaveName {
+      get { return saveName_ ?? SaveNameDefaultValue; }
+      set {
+        saveName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "save_name" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasSaveName {
+      get { return saveName_ != null; }
+    }
+    /// <summary>Clears the value of the "save_name" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearSaveName() {
+      saveName_ = null;
+    }
+
+    /// <summary>Field number for the "context" field.</summary>
+    public const int ContextFieldNumber = 3;
+    private global::RimGovernor.Protocol.Common.ObservationContext context_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.ObservationContext Context {
+      get { return context_; }
+      set {
+        context_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "paused" field.</summary>
+    public const int PausedFieldNumber = 4;
+    private readonly static bool PausedDefaultValue = false;
+
+    private bool paused_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Paused {
+      get { if ((_hasBits0 & 1) != 0) { return paused_; } else { return PausedDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        paused_ = value;
+      }
+    }
+    /// <summary>Gets whether the "paused" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPaused {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "paused" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPaused() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "byte_length" field.</summary>
+    public const int ByteLengthFieldNumber = 5;
+    private readonly static ulong ByteLengthDefaultValue = 0UL;
+
+    private ulong byteLength_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong ByteLength {
+      get { if ((_hasBits0 & 2) != 0) { return byteLength_; } else { return ByteLengthDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        byteLength_ = value;
+      }
+    }
+    /// <summary>Gets whether the "byte_length" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasByteLength {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "byte_length" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearByteLength() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "seed" field.</summary>
+    public const int SeedFieldNumber = 6;
+    private readonly static string SeedDefaultValue = "";
+
+    private string seed_;
+    /// <summary>
+    /// The seed the colony was generated from, after any reroll native made.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Seed {
+      get { return seed_ ?? SeedDefaultValue; }
+      set {
+        seed_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "seed" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasSeed {
+      get { return seed_ != null; }
+    }
+    /// <summary>Clears the value of the "seed" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearSeed() {
+      seed_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NewColonyCompleted);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NewColonyCompleted other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (RequestId != other.RequestId) return false;
+      if (SaveName != other.SaveName) return false;
+      if (!object.Equals(Context, other.Context)) return false;
+      if (Paused != other.Paused) return false;
+      if (ByteLength != other.ByteLength) return false;
+      if (Seed != other.Seed) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasRequestId) hash ^= RequestId.GetHashCode();
+      if (HasSaveName) hash ^= SaveName.GetHashCode();
+      if (context_ != null) hash ^= Context.GetHashCode();
+      if (HasPaused) hash ^= Paused.GetHashCode();
+      if (HasByteLength) hash ^= ByteLength.GetHashCode();
+      if (HasSeed) hash ^= Seed.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (HasSaveName) {
+        output.WriteRawTag(18);
+        output.WriteString(SaveName);
+      }
+      if (context_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Context);
+      }
+      if (HasPaused) {
+        output.WriteRawTag(32);
+        output.WriteBool(Paused);
+      }
+      if (HasByteLength) {
+        output.WriteRawTag(40);
+        output.WriteUInt64(ByteLength);
+      }
+      if (HasSeed) {
+        output.WriteRawTag(50);
+        output.WriteString(Seed);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (HasSaveName) {
+        output.WriteRawTag(18);
+        output.WriteString(SaveName);
+      }
+      if (context_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Context);
+      }
+      if (HasPaused) {
+        output.WriteRawTag(32);
+        output.WriteBool(Paused);
+      }
+      if (HasByteLength) {
+        output.WriteRawTag(40);
+        output.WriteUInt64(ByteLength);
+      }
+      if (HasSeed) {
+        output.WriteRawTag(50);
+        output.WriteString(Seed);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasRequestId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RequestId);
+      }
+      if (HasSaveName) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(SaveName);
+      }
+      if (context_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Context);
+      }
+      if (HasPaused) {
+        size += 1 + 1;
+      }
+      if (HasByteLength) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(ByteLength);
+      }
+      if (HasSeed) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Seed);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NewColonyCompleted other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasRequestId) {
+        RequestId = other.RequestId;
+      }
+      if (other.HasSaveName) {
+        SaveName = other.SaveName;
+      }
+      if (other.context_ != null) {
+        if (context_ == null) {
+          Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+        }
+        Context.MergeFrom(other.Context);
+      }
+      if (other.HasPaused) {
+        Paused = other.Paused;
+      }
+      if (other.HasByteLength) {
+        ByteLength = other.ByteLength;
+      }
+      if (other.HasSeed) {
+        Seed = other.Seed;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 18: {
+            SaveName = input.ReadString();
+            break;
+          }
+          case 26: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+          case 32: {
+            Paused = input.ReadBool();
+            break;
+          }
+          case 40: {
+            ByteLength = input.ReadUInt64();
+            break;
+          }
+          case 50: {
+            Seed = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 18: {
+            SaveName = input.ReadString();
+            break;
+          }
+          case 26: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+          case 32: {
+            Paused = input.ReadBool();
+            break;
+          }
+          case 40: {
+            ByteLength = input.ReadUInt64();
+            break;
+          }
+          case 50: {
+            Seed = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NewColonyPending : pb::IMessage<NewColonyPending>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NewColonyPending> _parser = new pb::MessageParser<NewColonyPending>(() => new NewColonyPending());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NewColonyPending> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[22]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyPending() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyPending(NewColonyPending other) : this() {
+      _hasBits0 = other._hasBits0;
+      requestId_ = other.requestId_;
+      phase_ = other.phase_;
+      detail_ = other.detail_;
+      elapsedMs_ = other.elapsedMs_;
+      rerollCount_ = other.rerollCount_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyPending Clone() {
+      return new NewColonyPending(this);
+    }
+
+    /// <summary>Field number for the "request_id" field.</summary>
+    public const int RequestIdFieldNumber = 1;
+    private readonly static string RequestIdDefaultValue = "";
+
+    private string requestId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RequestId {
+      get { return requestId_ ?? RequestIdDefaultValue; }
+      set {
+        requestId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "request_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRequestId {
+      get { return requestId_ != null; }
+    }
+    /// <summary>Clears the value of the "request_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRequestId() {
+      requestId_ = null;
+    }
+
+    /// <summary>Field number for the "phase" field.</summary>
+    public const int PhaseFieldNumber = 2;
+    private readonly static global::RimGovernor.Protocol.Lifecycle.NewColonyPhase PhaseDefaultValue = global::RimGovernor.Protocol.Lifecycle.NewColonyPhase.Unspecified;
+
+    private global::RimGovernor.Protocol.Lifecycle.NewColonyPhase phase_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Lifecycle.NewColonyPhase Phase {
+      get { if ((_hasBits0 & 1) != 0) { return phase_; } else { return PhaseDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        phase_ = value;
+      }
+    }
+    /// <summary>Gets whether the "phase" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPhase {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "phase" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPhase() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "detail" field.</summary>
+    public const int DetailFieldNumber = 3;
+    private readonly static string DetailDefaultValue = "";
+
+    private string detail_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Detail {
+      get { return detail_ ?? DetailDefaultValue; }
+      set {
+        detail_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "detail" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDetail {
+      get { return detail_ != null; }
+    }
+    /// <summary>Clears the value of the "detail" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDetail() {
+      detail_ = null;
+    }
+
+    /// <summary>Field number for the "elapsed_ms" field.</summary>
+    public const int ElapsedMsFieldNumber = 4;
+    private readonly static ulong ElapsedMsDefaultValue = 0UL;
+
+    private ulong elapsedMs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong ElapsedMs {
+      get { if ((_hasBits0 & 2) != 0) { return elapsedMs_; } else { return ElapsedMsDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        elapsedMs_ = value;
+      }
+    }
+    /// <summary>Gets whether the "elapsed_ms" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasElapsedMs {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "elapsed_ms" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearElapsedMs() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "reroll_count" field.</summary>
+    public const int RerollCountFieldNumber = 5;
+    private readonly static uint RerollCountDefaultValue = 0;
+
+    private uint rerollCount_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint RerollCount {
+      get { if ((_hasBits0 & 4) != 0) { return rerollCount_; } else { return RerollCountDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        rerollCount_ = value;
+      }
+    }
+    /// <summary>Gets whether the "reroll_count" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRerollCount {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "reroll_count" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRerollCount() {
+      _hasBits0 &= ~4;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NewColonyPending);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NewColonyPending other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (RequestId != other.RequestId) return false;
+      if (Phase != other.Phase) return false;
+      if (Detail != other.Detail) return false;
+      if (ElapsedMs != other.ElapsedMs) return false;
+      if (RerollCount != other.RerollCount) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasRequestId) hash ^= RequestId.GetHashCode();
+      if (HasPhase) hash ^= Phase.GetHashCode();
+      if (HasDetail) hash ^= Detail.GetHashCode();
+      if (HasElapsedMs) hash ^= ElapsedMs.GetHashCode();
+      if (HasRerollCount) hash ^= RerollCount.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (HasPhase) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Phase);
+      }
+      if (HasDetail) {
+        output.WriteRawTag(26);
+        output.WriteString(Detail);
+      }
+      if (HasElapsedMs) {
+        output.WriteRawTag(32);
+        output.WriteUInt64(ElapsedMs);
+      }
+      if (HasRerollCount) {
+        output.WriteRawTag(40);
+        output.WriteUInt32(RerollCount);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (HasPhase) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Phase);
+      }
+      if (HasDetail) {
+        output.WriteRawTag(26);
+        output.WriteString(Detail);
+      }
+      if (HasElapsedMs) {
+        output.WriteRawTag(32);
+        output.WriteUInt64(ElapsedMs);
+      }
+      if (HasRerollCount) {
+        output.WriteRawTag(40);
+        output.WriteUInt32(RerollCount);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasRequestId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RequestId);
+      }
+      if (HasPhase) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Phase);
+      }
+      if (HasDetail) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Detail);
+      }
+      if (HasElapsedMs) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(ElapsedMs);
+      }
+      if (HasRerollCount) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(RerollCount);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NewColonyPending other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasRequestId) {
+        RequestId = other.RequestId;
+      }
+      if (other.HasPhase) {
+        Phase = other.Phase;
+      }
+      if (other.HasDetail) {
+        Detail = other.Detail;
+      }
+      if (other.HasElapsedMs) {
+        ElapsedMs = other.ElapsedMs;
+      }
+      if (other.HasRerollCount) {
+        RerollCount = other.RerollCount;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 16: {
+            Phase = (global::RimGovernor.Protocol.Lifecycle.NewColonyPhase) input.ReadEnum();
+            break;
+          }
+          case 26: {
+            Detail = input.ReadString();
+            break;
+          }
+          case 32: {
+            ElapsedMs = input.ReadUInt64();
+            break;
+          }
+          case 40: {
+            RerollCount = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 16: {
+            Phase = (global::RimGovernor.Protocol.Lifecycle.NewColonyPhase) input.ReadEnum();
+            break;
+          }
+          case 26: {
+            Detail = input.ReadString();
+            break;
+          }
+          case 32: {
+            ElapsedMs = input.ReadUInt64();
+            break;
+          }
+          case 40: {
+            RerollCount = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NewColonySuperseded : pb::IMessage<NewColonySuperseded>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NewColonySuperseded> _parser = new pb::MessageParser<NewColonySuperseded>(() => new NewColonySuperseded());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NewColonySuperseded> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[23]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonySuperseded() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonySuperseded(NewColonySuperseded other) : this() {
+      requestId_ = other.requestId_;
+      detail_ = other.detail_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonySuperseded Clone() {
+      return new NewColonySuperseded(this);
+    }
+
+    /// <summary>Field number for the "request_id" field.</summary>
+    public const int RequestIdFieldNumber = 1;
+    private readonly static string RequestIdDefaultValue = "";
+
+    private string requestId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RequestId {
+      get { return requestId_ ?? RequestIdDefaultValue; }
+      set {
+        requestId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "request_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRequestId {
+      get { return requestId_ != null; }
+    }
+    /// <summary>Clears the value of the "request_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRequestId() {
+      requestId_ = null;
+    }
+
+    /// <summary>Field number for the "detail" field.</summary>
+    public const int DetailFieldNumber = 2;
+    private readonly static string DetailDefaultValue = "";
+
+    private string detail_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Detail {
+      get { return detail_ ?? DetailDefaultValue; }
+      set {
+        detail_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "detail" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDetail {
+      get { return detail_ != null; }
+    }
+    /// <summary>Clears the value of the "detail" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDetail() {
+      detail_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NewColonySuperseded);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NewColonySuperseded other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (RequestId != other.RequestId) return false;
+      if (Detail != other.Detail) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasRequestId) hash ^= RequestId.GetHashCode();
+      if (HasDetail) hash ^= Detail.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (HasDetail) {
+        output.WriteRawTag(18);
+        output.WriteString(Detail);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasRequestId) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (HasDetail) {
+        output.WriteRawTag(18);
+        output.WriteString(Detail);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasRequestId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RequestId);
+      }
+      if (HasDetail) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Detail);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NewColonySuperseded other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasRequestId) {
+        RequestId = other.RequestId;
+      }
+      if (other.HasDetail) {
+        Detail = other.Detail;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 18: {
+            Detail = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 18: {
+            Detail = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NewColonyReply : pb::IMessage<NewColonyReply>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NewColonyReply> _parser = new pb::MessageParser<NewColonyReply>(() => new NewColonyReply());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NewColonyReply> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[24]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyReply() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyReply(NewColonyReply other) : this() {
+      switch (other.OutcomeCase) {
+        case OutcomeOneofCase.Completed:
+          Completed = other.Completed.Clone();
+          break;
+        case OutcomeOneofCase.Pending:
+          Pending = other.Pending.Clone();
+          break;
+        case OutcomeOneofCase.Failure:
+          Failure = other.Failure.Clone();
+          break;
+        case OutcomeOneofCase.Superseded:
+          Superseded = other.Superseded.Clone();
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NewColonyReply Clone() {
+      return new NewColonyReply(this);
+    }
+
+    /// <summary>Field number for the "completed" field.</summary>
+    public const int CompletedFieldNumber = 1;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted Completed {
+      get { return outcomeCase_ == OutcomeOneofCase.Completed ? (global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Completed;
+      }
+    }
+
+    /// <summary>Field number for the "pending" field.</summary>
+    public const int PendingFieldNumber = 2;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Lifecycle.NewColonyPending Pending {
+      get { return outcomeCase_ == OutcomeOneofCase.Pending ? (global::RimGovernor.Protocol.Lifecycle.NewColonyPending) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Pending;
+      }
+    }
+
+    /// <summary>Field number for the "failure" field.</summary>
+    public const int FailureFieldNumber = 3;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Failure Failure {
+      get { return outcomeCase_ == OutcomeOneofCase.Failure ? (global::RimGovernor.Protocol.Common.Failure) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Failure;
+      }
+    }
+
+    /// <summary>Field number for the "superseded" field.</summary>
+    public const int SupersededFieldNumber = 4;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded Superseded {
+      get { return outcomeCase_ == OutcomeOneofCase.Superseded ? (global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Superseded;
+      }
+    }
+
+    private object outcome_;
+    /// <summary>Enum of possible cases for the "outcome" oneof.</summary>
+    public enum OutcomeOneofCase {
+      None = 0,
+      Completed = 1,
+      Pending = 2,
+      Failure = 3,
+      Superseded = 4,
+    }
+    private OutcomeOneofCase outcomeCase_ = OutcomeOneofCase.None;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OutcomeOneofCase OutcomeCase {
+      get { return outcomeCase_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearOutcome() {
+      outcomeCase_ = OutcomeOneofCase.None;
+      outcome_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NewColonyReply);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NewColonyReply other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Completed, other.Completed)) return false;
+      if (!object.Equals(Pending, other.Pending)) return false;
+      if (!object.Equals(Failure, other.Failure)) return false;
+      if (!object.Equals(Superseded, other.Superseded)) return false;
+      if (OutcomeCase != other.OutcomeCase) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (outcomeCase_ == OutcomeOneofCase.Completed) hash ^= Completed.GetHashCode();
+      if (outcomeCase_ == OutcomeOneofCase.Pending) hash ^= Pending.GetHashCode();
+      if (outcomeCase_ == OutcomeOneofCase.Failure) hash ^= Failure.GetHashCode();
+      if (outcomeCase_ == OutcomeOneofCase.Superseded) hash ^= Superseded.GetHashCode();
+      hash ^= (int) outcomeCase_;
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (outcomeCase_ == OutcomeOneofCase.Completed) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Completed);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Pending) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Pending);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Failure);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Superseded) {
+        output.WriteRawTag(34);
+        output.WriteMessage(Superseded);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (outcomeCase_ == OutcomeOneofCase.Completed) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Completed);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Pending) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Pending);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Failure);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Superseded) {
+        output.WriteRawTag(34);
+        output.WriteMessage(Superseded);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (outcomeCase_ == OutcomeOneofCase.Completed) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Completed);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Pending) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Pending);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Failure);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Superseded) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Superseded);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NewColonyReply other) {
+      if (other == null) {
+        return;
+      }
+      switch (other.OutcomeCase) {
+        case OutcomeOneofCase.Completed:
+          if (Completed == null) {
+            Completed = new global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted();
+          }
+          Completed.MergeFrom(other.Completed);
+          break;
+        case OutcomeOneofCase.Pending:
+          if (Pending == null) {
+            Pending = new global::RimGovernor.Protocol.Lifecycle.NewColonyPending();
+          }
+          Pending.MergeFrom(other.Pending);
+          break;
+        case OutcomeOneofCase.Failure:
+          if (Failure == null) {
+            Failure = new global::RimGovernor.Protocol.Common.Failure();
+          }
+          Failure.MergeFrom(other.Failure);
+          break;
+        case OutcomeOneofCase.Superseded:
+          if (Superseded == null) {
+            Superseded = new global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded();
+          }
+          Superseded.MergeFrom(other.Superseded);
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted subBuilder = new global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted();
+            if (outcomeCase_ == OutcomeOneofCase.Completed) {
+              subBuilder.MergeFrom(Completed);
+            }
+            input.ReadMessage(subBuilder);
+            Completed = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Lifecycle.NewColonyPending subBuilder = new global::RimGovernor.Protocol.Lifecycle.NewColonyPending();
+            if (outcomeCase_ == OutcomeOneofCase.Pending) {
+              subBuilder.MergeFrom(Pending);
+            }
+            input.ReadMessage(subBuilder);
+            Pending = subBuilder;
+            break;
+          }
+          case 26: {
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
+            if (outcomeCase_ == OutcomeOneofCase.Failure) {
+              subBuilder.MergeFrom(Failure);
+            }
+            input.ReadMessage(subBuilder);
+            Failure = subBuilder;
+            break;
+          }
+          case 34: {
+            global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded subBuilder = new global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded();
+            if (outcomeCase_ == OutcomeOneofCase.Superseded) {
+              subBuilder.MergeFrom(Superseded);
+            }
+            input.ReadMessage(subBuilder);
+            Superseded = subBuilder;
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted subBuilder = new global::RimGovernor.Protocol.Lifecycle.NewColonyCompleted();
+            if (outcomeCase_ == OutcomeOneofCase.Completed) {
+              subBuilder.MergeFrom(Completed);
+            }
+            input.ReadMessage(subBuilder);
+            Completed = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Lifecycle.NewColonyPending subBuilder = new global::RimGovernor.Protocol.Lifecycle.NewColonyPending();
+            if (outcomeCase_ == OutcomeOneofCase.Pending) {
+              subBuilder.MergeFrom(Pending);
+            }
+            input.ReadMessage(subBuilder);
+            Pending = subBuilder;
+            break;
+          }
+          case 26: {
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
+            if (outcomeCase_ == OutcomeOneofCase.Failure) {
+              subBuilder.MergeFrom(Failure);
+            }
+            input.ReadMessage(subBuilder);
+            Failure = subBuilder;
+            break;
+          }
+          case 34: {
+            global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded subBuilder = new global::RimGovernor.Protocol.Lifecycle.NewColonySuperseded();
+            if (outcomeCase_ == OutcomeOneofCase.Superseded) {
+              subBuilder.MergeFrom(Superseded);
+            }
+            input.ReadMessage(subBuilder);
+            Superseded = subBuilder;
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
   /// Governor state (#882): opaque ASCII blobs Go keeps in the save's
   /// GovernorState game component. Native stores and returns them verbatim and
   /// never interprets them; they persist once the game next saves.
@@ -6627,7 +9371,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[19]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[25]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6788,7 +9532,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[20]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[26]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6975,7 +9719,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[21]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[27]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -7326,7 +10070,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[22]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[28]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

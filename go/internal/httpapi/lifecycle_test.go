@@ -27,6 +27,10 @@ type lifecycleFake struct {
 	seenLoad   *l.LoadRequest
 	readSaveID string
 	readLoadID string
+	newColony  *l.NewColonyReply
+	newErr     error // returned by NewColony/ReadNewColony in place of newColony
+	seenNew    *l.NewColonyRequest
+	readNewID  string
 }
 
 func (f *lifecycleFake) errFor() error {
@@ -54,6 +58,23 @@ func (f *lifecycleFake) ReadLoad(ctx context.Context, id string) (*l.LoadReply, 
 	f.calls++
 	f.readLoadID = id
 	return f.load, bridge.Result{}, f.errFor()
+}
+
+func (f *lifecycleFake) NewColony(ctx context.Context, q *l.NewColonyRequest) (*l.NewColonyReply, bridge.Result, error) {
+	f.calls++
+	f.seenNew = q
+	if err := f.errFor(); err != nil {
+		return nil, bridge.Result{}, err
+	}
+	return f.newColony, bridge.Result{}, f.newErr
+}
+func (f *lifecycleFake) ReadNewColony(ctx context.Context, id string) (*l.NewColonyReply, bridge.Result, error) {
+	f.calls++
+	f.readNewID = id
+	if err := f.errFor(); err != nil {
+		return nil, bridge.Result{}, err
+	}
+	return f.newColony, bridge.Result{}, f.newErr
 }
 
 // fakeAttention records acknowledgements an attention-blocked lifecycle
@@ -107,6 +128,9 @@ func lifecycleAPIWithConfig(t *testing.T, mode string, knownIdentity bool, fa *f
 			RequestId: proto.String("load-1"), SaveName: proto.String("checkpoint"),
 			Loaded: &l.LoadedIdentity{Context: observed, Paused: proto.Bool(true)}, Readiness: l.Readiness_READINESS_MAP.Enum()}}},
 	}
+	fake.newColony = &l.NewColonyReply{Outcome: &l.NewColonyReply_Completed{Completed: &l.NewColonyCompleted{
+		RequestId: proto.String("new-1"), SaveName: proto.String("tribal8"), Context: observed,
+		Paused: proto.Bool(true), ByteLength: proto.Uint64(2048), Seed: proto.String("tribal8")}}}
 	f := &playerFixture{journal: db}
 	snapshot := Snapshot{Connected: true, Mode: mode}
 	if knownIdentity {

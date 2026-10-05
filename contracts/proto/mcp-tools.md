@@ -37,7 +37,7 @@ Tool discovery is not authorization. Apply these restrictions before evaluating 
 | Actions.Apply; Clock.Start/Renew/ChangeSpeed | Deterministic guarded execution under current authenticated player direction, native authority, exact identity and attempt correlation. Advisers cannot invoke them. Special policies such as surgery, pawn trading and persistent draft additionally require the approved current action and targets. |
 | Clock.Pause | May remain available after automation revocation, but only for the exact original current-load epoch. Never pause another owner. |
 | Authority.Control | Acquire only from the trusted explicit player-direction path; renew only the active owner/lease; revoke through authorized Manual/direction/disconnect/cleanup policy. Caller-supplied direction numbers cannot authenticate themselves, and renewal cannot reacquire revoked authority. |
-| Lifecycle.Save/Load/ReadSave/ReadLoad | Explicit session lifecycle with exact instance/request ownership and current player direction. Follow lifecycle preconditions; no automatic/model load or process management escape hatch. Completion reads grant no permission to retry uncertain writes. |
+| Lifecycle.Save/Load/ReadSave/ReadLoad/NewColony/ReadNewColony | Explicit session lifecycle with exact instance/request ownership and current player direction. Follow lifecycle preconditions; no automatic/model load or process management escape hatch. Completion reads grant no permission to retry uncertain writes. |
 | PresentationReads | Scoped player-facing inspection with appropriate current game/capture identity. Captured targets do not grant input permission. |
 | PlayerPresentation | Authenticated explicit player control only. Input ownership, verified pause, exact capture and direction checks apply. No adviser access or autonomous fallback to clicks. |
 | PresentationMedia | Authorized viewer/media capability: render-demand leases and screenshot capture with byte limits. Media access grants no simulation-write or input authority. |
@@ -58,6 +58,8 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/clock_renew` | `rimgovernor.clock.v1.Clock/Renew` | `rimgovernor.clock.v1.RenewRequest` | `rimgovernor.clock.v1.ControlReply` |
 | `rimgovernor/clock_start` | `rimgovernor.clock.v1.Clock/Start` | `rimgovernor.clock.v1.StartRequest` | `rimgovernor.clock.v1.ControlReply` |
 | `rimgovernor/lifecycle_load` | `rimgovernor.lifecycle.v1.Lifecycle/Load` | `rimgovernor.lifecycle.v1.LoadRequest` | `rimgovernor.lifecycle.v1.LoadReply` |
+| `rimgovernor/lifecycle_new_colony` | `rimgovernor.lifecycle.v1.Lifecycle/NewColony` | `rimgovernor.lifecycle.v1.NewColonyRequest` | `rimgovernor.lifecycle.v1.NewColonyReply` |
+| `rimgovernor/lifecycle_read_new_colony` | `rimgovernor.lifecycle.v1.Lifecycle/ReadNewColony` | `rimgovernor.lifecycle.v1.RequestStatus` | `rimgovernor.lifecycle.v1.NewColonyReply` |
 | `rimgovernor/lifecycle_read_identity` | `rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity` | `rimgovernor.lifecycle.v1.IdentityRequest` | `rimgovernor.lifecycle.v1.IdentityReply` |
 | `rimgovernor/lifecycle_read_tick` | `rimgovernor.lifecycle.v1.Lifecycle/ReadTick` | `rimgovernor.lifecycle.v1.TickRequest` | `rimgovernor.lifecycle.v1.TickReply` |
 | `rimgovernor/lifecycle_read_governor_state` | `rimgovernor.lifecycle.v1.Lifecycle/ReadGovernorState` | `rimgovernor.lifecycle.v1.GovernorStateRequest` | `rimgovernor.lifecycle.v1.GovernorStateReply` |

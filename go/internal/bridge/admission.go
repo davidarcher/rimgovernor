@@ -223,6 +223,8 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/lifecycle_read_save":                  AdmissionControl,
 	"rimgovernor/lifecycle_load":                       AdmissionControl,
 	"rimgovernor/lifecycle_read_load":                  AdmissionControl,
+	"rimgovernor/lifecycle_new_colony":                 AdmissionControl,
+	"rimgovernor/lifecycle_read_new_colony":            AdmissionControl,
 	methodFlushSnapshot:                                AdmissionControl,
 	"rimgovernor/observations_read_status":             AdmissionObservation,
 	methodOpenSnapshotStream:                           AdmissionObservation,

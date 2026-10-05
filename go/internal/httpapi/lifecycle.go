@@ -94,7 +94,7 @@ type loadReplyDTO struct {
 // other player-submission lookup in player.go.
 func (s *Server) handleLifecycle(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
-	case "/api/lifecycle/save", "/api/lifecycle/load":
+	case "/api/lifecycle/save", "/api/lifecycle/load", "/api/lifecycle/new":
 	default:
 		return false
 	}
@@ -131,11 +131,14 @@ func (s *Server) handleLifecycleMutation(w http.ResponseWriter, r *http.Request)
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.ReadTimeout)
 	defer cancel()
-	if r.URL.Path == "/api/lifecycle/save" {
+	switch r.URL.Path {
+	case "/api/lifecycle/save":
 		s.handleLifecycleSave(w, r, ctx)
-		return
+	case "/api/lifecycle/new":
+		s.handleLifecycleNew(w, r, ctx)
+	default:
+		s.handleLifecycleLoad(w, r, ctx)
 	}
-	s.handleLifecycleLoad(w, r, ctx)
 }
 
 func (s *Server) handleLifecycleRead(w http.ResponseWriter, r *http.Request) {
@@ -155,6 +158,10 @@ func (s *Server) handleLifecycleRead(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.ReadTimeout)
 	defer cancel()
+	if r.URL.Path == "/api/lifecycle/new" {
+		s.handleLifecycleReadNew(w, r, ctx, ids[0])
+		return
+	}
 	if r.URL.Path == "/api/lifecycle/save" {
 		reply, _, err := s.config.Lifecycle.ReadSave(ctx, ids[0])
 		if err == nil {

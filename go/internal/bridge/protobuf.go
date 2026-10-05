@@ -287,6 +287,8 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/lifecycle_read_save":                  true,
 	"rimgovernor/lifecycle_load":                       true,
 	"rimgovernor/lifecycle_read_load":                  true,
+	"rimgovernor/lifecycle_new_colony":                 true,
+	"rimgovernor/lifecycle_read_new_colony":            true,
 	methodOpenSnapshotStream:                           true,
 	methodFlushSnapshot:                                true,
 }

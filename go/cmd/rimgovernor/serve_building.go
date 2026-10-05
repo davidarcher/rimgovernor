@@ -43,12 +43,13 @@ type ownedAuthority struct {
 	*bridge.AuthorityControl
 }
 
-// lifecycleCapability composes the two separately held lifecycle mutations
-// (Save, Load) into the single httpapi.LifecycleWriter shape; neither embedded
+// lifecycleCapability composes the three separately held lifecycle mutations
+// (Save, Load, NewColony) into the single httpapi.LifecycleWriter shape; neither embedded
 // capability grants the other's authority.
 type lifecycleCapability struct {
 	*bridge.LifecycleSave
 	*bridge.LifecycleLoad
+	*bridge.LifecycleNewColony
 }
 
 // attentionAcknowledger adapts bridge.Client.AckAttention to httpapi.AttentionAcknowledger.
@@ -88,13 +89,17 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	lifecycleNewColony, err := bridge.NewLifecycleNewColony(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter,
 		clock: &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		presentationMedia: presentationMedia,
-		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad},
+		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad, lifecycleNewColony},
 		attention:         attentionAcknowledger{client}}, nil
 }
 
