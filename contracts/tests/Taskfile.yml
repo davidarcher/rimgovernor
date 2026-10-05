@@ -1,8 +1,7 @@
-# Native contract probes. Built without game inputs: the csproj gates the five
-# probes that reference Harmony, the game assemblies or the host SDK,
-# and their real types conflict with the shared fake stubs when compiled in the
-# same build (see the gating comments in NativeContractProbes.csproj), so the
-# ungated set is the only configuration that compiles as one project.
+# Native contract probes. NativeContractProbes.csproj builds without game inputs against fake
+# Verse/Harmony stubs; it never takes a real 0Harmony.dll (NativeHookSetProbe is the real-Harmony
+# project). A Category 3 probe (native-proto-*) runs against a built mod; prerequisites are in
+# NativeContractProbes/native-proto-presentation/README.md.
 version: '3'
 
 vars:

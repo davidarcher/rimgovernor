@@ -9,6 +9,14 @@ Harmony directory:
 dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto-presentation <args...>
 ```
 
+Prerequisites in a fresh worktree: `Defs.cs` is generated, so run
+`go run ./internal/protobufgen/cmd/generatecsharp --dotnet dotnet` from `go/`
+first; build the private mod with `acceptance setup -rebuild` (it stages
+`RimGovernor.Bridge.dll` under `.rimgovernor/native-rimworld/Mods/RimGovernor/BridgeTools/RimGovernor`).
+The project compiles against fake Verse/Harmony stubs and takes no
+`-p:HarmonyAssembly`; the real `0Harmony.dll` directory (the Steam workshop
+`2009463077/Current/Assemblies`) is a runtime argument only.
+
 Tests load the actual adapter, generated messages, SDK binder and normalizer. No
 game state is created.
 

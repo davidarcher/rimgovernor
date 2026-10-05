@@ -24,15 +24,6 @@
     <DefineConstants>$(DefineConstants);NATIVE_CONTRACT_PROBES</DefineConstants>
   </PropertyGroup>
 
-  <!-- Dispatcher preprocessor symbols mirroring the Compile/Reference gates below, so the
-       dispatcher's switch can #if out cases whose probe class is excluded from this build. -->
-  <PropertyGroup Condition="'$(HarmonyAssembly)' != ''">
-    <DefineConstants>$(DefineConstants);HAVE_HARMONY</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(HarmonyAssembly)' != '' AND '$(RimWorldManagedDir)' != ''">
-    <DefineConstants>$(DefineConstants);HAVE_HARMONY_AND_RIMWORLD</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
@@ -71,10 +62,10 @@
   <ItemGroup>
     <Compile Include="NativeContractProbes/Shared/FakeVerseStub.cs" />
   </ItemGroup>
-  <!-- Excluded whenever a real Harmony is referenced below: FakeHarmonyStub.cs would otherwise
-       collide with 0Harmony.dll's own HarmonyLib.Harmony. FakeAuthorityHooksStub.cs and
-       native-authority-control (which assumes its shape) ride the same gate. -->
-  <ItemGroup Condition="'$(HarmonyAssembly)' == ''">
+  <!-- Fake HarmonyLib surface (NativeClockRuntime.cs and the authority probes bind to it). This
+       project never references a real 0Harmony.dll: passing -p:HarmonyAssembly changes nothing here
+       and the fakes would collide with it. The real-Harmony check is NativeHookSetProbe. -->
+  <ItemGroup>
     <Compile Include="NativeContractProbes/Shared/FakeHarmonyStub.cs" />
     <Compile Include="NativeContractProbes/Shared/FakeAuthorityHooksStub.cs" />
     <Compile Include="NativeContractProbes/native-authority-control/Program.cs" />

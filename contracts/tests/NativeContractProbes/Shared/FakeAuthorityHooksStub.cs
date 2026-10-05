@@ -4,8 +4,6 @@
 // Harmony reference; this fake lets native-authority-control build and run without one, exactly as
 // its original standalone project (native-authority-control/HookStub.cs) did.
 //
-// This file shares FakeHarmonyStub.cs's gate (excluded whenever $(HarmonyAssembly) is supplied),
-// so native-authority-control is only verified in the default (no $(HarmonyAssembly)) build.
 namespace HomeBridge.BridgeTools
 {
     internal static class NativeAuthorityHooks

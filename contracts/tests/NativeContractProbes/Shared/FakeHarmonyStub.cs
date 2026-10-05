@@ -1,12 +1,8 @@
 using System.Collections.Generic;
 using System.Reflection;
 
-// Fake HarmonyLib surface used only by native-clock's Supervisor double to report whether the
-// (fake) hook patches are installed. This file is EXCLUDED from the build whenever a real
-// $(HarmonyAssembly) is referenced (see NativeContractProbes.csproj) to avoid a CS0104/CS0433
-// ambiguous-reference conflict between this fake HarmonyLib.Harmony and the real 0Harmony.dll's
-// HarmonyLib.Harmony needed by
-// native-explosive-causality / native-ranged-causality.
+// Fake HarmonyLib surface used only by native-clock's Supervisor double and NativeClockRuntime.cs to
+// report whether the (fake) hook patches are installed. This project never references a real 0Harmony.dll.
 namespace HarmonyLib
 {
     internal static class AccessTools

@@ -29,13 +29,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-team-policy": NativeTeamPolicyProbe.Invoke(); return 0;
                 case "native-traffic-counts":NativeTrafficCountsProbe.Invoke(); return 0;
                 case "native-authority": NativeAuthorityProbe.Invoke(); return 0;
-#if !HAVE_HARMONY
                 case "native-authority-control": NativeAuthorityControlProbe.Invoke(); return 0;
-#else
-                case "native-authority-control":
-                    Console.Error.WriteLine("native-authority-control's fake NativeAuthorityHooks stand-in is excluded when $(HarmonyAssembly) is supplied; not available in this build.");
-                    return 1;
-#endif
                 case "native-authority-status": NativeAuthorityStatusProbe.Invoke(); return 0;
                 case "native-clock": NativeClockProbe.Invoke(); return 0;
                 case "native-observation-work": NativeObservationWorkProbe.Invoke(); return 0;

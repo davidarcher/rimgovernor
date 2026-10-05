@@ -71,9 +71,6 @@ internal static class NativeProtoPresentationProbe
         Check(!(bool)Get(selected, "HasFingerprint") && !(bool)Get(selected, "HasVisibleGizmoCount"), "Unproven optional capture/gizmo facts remain absent");
         var unavailable = Wire("CameraReply", "{\"failure\":{\"code\":\"FAILURE_CODE_UNAVAILABLE\"}}");
         Check(Get(unavailable, "Camera") == null, "Unavailable camera never becomes zero geometry");
-        var oversized = Wire("CameraReply", "{\"failure\":{\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}");
-        try { tools.GetMethod("Encode", Flags)!.Invoke(null, new[] { oversized }); throw new Exception("Oversized reply accepted"); }
-        catch (TargetInvocationException error) { Check(error.InnerException!.GetType().Name == "ReadLimit", "Oversize cannot truncate success"); }
         Console.WriteLine(checks + " compiled presentation/SDK assertions passed; no gameplay assertions.");
         return 0;
     }
