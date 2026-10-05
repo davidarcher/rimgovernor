@@ -329,13 +329,15 @@ func TestPlanUtilitiesPen(t *testing.T) {
 	if a := pen.Area; a.Width*a.Height < 30*penCellsPerAnimal {
 		t.Fatal("pen too small", a)
 	}
+	// A herd unit's rooms share one wall line by design (#2122): the pen and
+	// its barn overlap in exactly that line, never in an interior.
 	for _, r := range p.Reservations {
-		if r.Kind != ReservePen && rectsOverlap(r.Area, pen.Area) {
+		if _, shared := sharedWallLink(r.Area, pen.Area); r.Kind != ReservePen && rectsOverlap(r.Area, pen.Area) && !shared {
 			t.Fatal("pen overlaps", r)
 		}
 	}
 	for _, r := range p.AllRooms() {
-		if rectsOverlap(roomWalls(r), pen.Area) {
+		if _, shared := sharedWallLink(roomWalls(r), pen.Area); rectsOverlap(roomWalls(r), pen.Area) && !shared {
 			t.Fatal("pen overlaps room", r.Role)
 		}
 	}
