@@ -68,8 +68,8 @@ func (d Decision) Payload() map[string]any {
 	}
 }
 
-// Summary is the one-line text the stderr sink renders for the row until the
-// text sink is retired: "<kind> <verdict> <reason> <target>".
+// Summary is the log record's message for a decision row, "<kind> <verdict>
+// <reason> <target>"; the row itself carries no free text.
 func (d Decision) Summary() string {
 	s := d.Kind
 	for _, part := range []string{d.Verdict, d.Reason, d.Target} {

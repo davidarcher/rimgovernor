@@ -339,7 +339,7 @@ func clockPollEventKinds(page *k.EventsPage) string {
 // carries: "clock_stop" for each Stopped event (reason, detail, the
 // native stop stamp), "authority" (change "changed") for each
 // AuthorityChanged event, and "alert" for each game alert (#256). Every other event kind is the
-// step reason's business and stays in the debug trace.
+// step reason's business and writes no row.
 func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {

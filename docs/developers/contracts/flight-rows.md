@@ -20,7 +20,7 @@ One JSON object per line, written by `bridge.FlightRecorder.Event`:
 | `context` | Always: `level` (`INFO`/`WARN`/`ERROR`), `at` (RFC 3339 UTC), `tick` (when the service has observed one), `component`, `trace_id`, `span_id` (`parent_id` under a span). The recorder fills what the producer left out (`INFO`, now, last observed tick, component `bridge`, a fresh single-row trace); a producer's own values win. |
 | `payload` | Per kind. Oversized payloads are replaced by `{truncated, original_bytes, sha256, preview}` plus the correlation keys `request`, `tool`, `native_tool`, `category`, `timing` and the decision keys `verdict`, `reason`, `target`, `dur_ms`. |
 
-v1 and v2 rows coexist on disk until #2071. A legacy kind's payload is the v1 shape in the tables; a v2 kind
+v1 and v2 rows coexisted on disk until #2071. A legacy kind's payload is the v1 shape in the tables; a v2 kind
 is a decision row or an event row as marked. Crash safety is unchanged: unbuffered writes, fsync only on
 durable rows, rotation and close.
 
@@ -44,7 +44,7 @@ One row per planner run, goal or method selection, admission outcome and action 
 
 Repeat collapsing (the reader, #2053) keys on `(kind, component, verdict, reason, target)`.
 
-The helper also renders a one-line text summary to the stderr sink until #2071 retires it.
+The helper writes the row only; nothing is rendered to stderr.
 
 ## Kinds
 
@@ -68,7 +68,7 @@ its v1 payload and its readers.
 
 | Old kind | v2 kind | v2 shape and fields | Piece |
 |---|---|---|---|
-| `scheduler_step`, `stockpiles` ("stockpile step"), the surviving `clockSchedulerLog` Debug sites | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait cause; attrs `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error` | #2063 (spine, landed: the row is written where the planner returns, `reason` is the refusal kind and `plan_admitted`/`no_verdict`/an outcome word otherwise, attrs `concern`, `class`, `subject`, `detail`, `error`, `late`; each Rounder step writes one row, target `rounds`, `ok`/`reviewed` or `failed`/`error` (`control_lost` for ErrControl), attr `partial` (#2066); a step's own failure to record a wave files `failed`/`journal_error` with target `reasons`, `waits` or `proposals`), #2073 (worker step, landed: target `worker_step` (`bridge.WorkerStepTarget`), `verdict` `admitted`/`waiting`/`failed`, `reason` `window_admitted`, `no_window`, `held`, `retry`, `epoch_reopen`, `planner_failures` or `step_error`; attrs `planner_failures`, `planner_unselected`, `admitted`, `running`, `window_ticks`, `proposals`, `cause`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `repeated`, `error`; `WARN` only for a real step error) |
+| `scheduler_step`, `stockpiles` ("stockpile step") | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait cause; attrs `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error` | #2063 (spine, landed: the row is written where the planner returns, `reason` is the refusal kind and `plan_admitted`/`no_verdict`/an outcome word otherwise, attrs `concern`, `class`, `subject`, `detail`, `error`, `late`; each Rounder step writes one row, target `rounds`, `ok`/`reviewed` or `failed`/`error` (`control_lost` for ErrControl), attr `partial` (#2066); a step's own failure to record a wave files `failed`/`journal_error` with target `reasons`, `waits` or `proposals`), #2073 (worker step, landed: target `worker_step` (`bridge.WorkerStepTarget`), `verdict` `admitted`/`waiting`/`failed`, `reason` `window_admitted`, `no_window`, `held`, `retry`, `epoch_reopen`, `planner_failures` or `step_error`; attrs `planner_failures`, `planner_unselected`, `admitted`, `running`, `window_ticks`, `proposals`, `cause`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `repeated`, `error`; `WARN` only for a real step error) |
 | `admission`, `admission_refused`, `fight_admission` | `admission` (decision) | `target` method, window or plan, `verdict` `admitted`/`refused`/`held`, `reason` the refusal (`critical_wave_budget`, a `ClockWindowReason`, a method refusal); attrs `concern`, `refused` (all reasons), `held_by`, `mode`, `work`, `combat_plan`, `hostiles`, `clock_state`, `window_ticks`, `wall_budget_ms`, `error` | #2063 (window, method), #2067 (fight) |
 | `scheduler_stop`, `combat_stop` | `clock_stop` | event row. `reason`, `evidence`, `cursor`, `observed_at_unix_ms`, `benign`, the stop legs, and for a combat stop `event`, `resume_latency_ms`, `ticks_since_stop` | #2073 (landed) |
 | `combat_stops` | `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `ticks_between_stops_p50`, `ticks_between_stops_p95` | #2073 (landed) |
@@ -113,8 +113,13 @@ its v1 payload and its readers.
 | `coverage` | First row of each run; free text by design. Stays. |
 | `recording_gap` | Synthetic, produced by `TimelineReader` for a corrupt line or sequence discontinuity; never written. Fields `reason`, `file`, `line`, `before`, `after`. |
 
-Producers with no kind above (an `slog` call with no `kind`) write no row; #2071 removes the text sink they
-reach. A new emission adds its kind here with a reader, or it is not added.
+| `state_reset` | event row, level `WARN`, component `serve`: the service database came from another schema version and was moved aside (`path`, `aside`). Written once at startup (#2071). |
+
+The flight recorder is the only log (#2071): the telemetry handler writes a row for a record that names a `kind`
+and drops one that does not, there is no Debug level, and `telemetry/kinds_test.go` fails any `slog` call in
+non-test code with no `kind`. stderr carries only the startup banner, parse errors, `flight recorder:` and
+`Go service:` failures, the clock fault-injection notice and Go panics. A new emission adds its kind here with
+a reader, or it is not added.
 
 ## Readers
 

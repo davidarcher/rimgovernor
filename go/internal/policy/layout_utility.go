@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"log/slog"
 	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -134,8 +133,6 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		// where it is, and core rooms were already sited off its enclosure.
 		if u.freeWhere(area, true, false) {
 			u.reserve(&plan, LayoutReservation{Kind: ReserveGeothermal, Area: area})
-		} else {
-			slog.Warn("layout: no room for the geothermal enclosure", "geyser", gz, "area", area)
 		}
 	}
 	pair := int32(0)

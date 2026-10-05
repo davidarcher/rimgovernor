@@ -63,7 +63,7 @@ launches RimWorld itself and talks GABP to the GABP host directly.
 | `--follow-player-speed` | Run each window at the speed the player last chose in game (Ultrafast when none was chosen). Default: always Ultrafast. |
 | `--routine-resource-*` | Resource reserves/stops. MaintainResource default floors: Steel 200, ComponentIndustrial 10, stone blocks 150; trade buys components toward the same floor. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a launcher Resume. |
-| `--flight-recorder <path>` | Flight recorder ring (default `<profile>/flight/flight.jsonl`; none under `--observe`); see [Native request diagnostics](#native-request-diagnostics). |
+| `--flight-recorder <path>` | Flight recorder ring (always on: default `<profile>/flight/flight.jsonl`, or `flight/flight.jsonl` beside `--state` under `--observe`); see [Native request diagnostics](#native-request-diagnostics). |
 
 **Configuration.** `serve` reads command-line flags, then process environment;
 there is no configuration file. Player preferences and colony state live in the
@@ -740,7 +740,8 @@ game-level acceptance.
 `serve` records every native request/response/error (including background reads)
 and every kinded service event to a flight recorder ring, by default
 `<profile>/flight/flight.jsonl`; `--flight-recorder <absolute-path>` names another
-(the acceptance runner's per-case path); `--observe` has none.
+(the acceptance runner's per-case path); `--observe` records beside its `--state`.
+It is the only log: stderr carries just the startup banner, fatals and panics.
 
 - The ring outlives each launch: a new launch continues the sequence and stamps
   rows with its own `run` id.

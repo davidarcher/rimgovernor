@@ -35,15 +35,15 @@ Row kinds a phase report reads:
 - `clock_read_events` replies: the ticks and paused status behind wall TPS and
   the paused fraction.
 
-`serve --debug` (a player's launch; acceptance launches no longer pass it,
-#2065) prints the per-step tally on stderr (`[clock-scheduler] step reads:
-...`) for a quick look without a recording.
+There is no text log or debug flag: stderr carries the startup banner,
+fatals and panics, and everything else is a row in `flight.jsonl`
+(`rimgovernor log` reads it).
 
 ## Service events
 
-Every service log line is a structured record (`go/internal/telemetry`):
-`<time> tick=<n|-> <LEVEL> [<component>] <message> k=v ...`. A record naming an
-event `kind` is also a flight row of that kind (`phases` ignores them).
+Every service event is a structured record (`go/internal/telemetry`) that
+becomes a flight row of its `kind` (`phases` ignores them); a record with no
+kind writes nothing, and a test fails any `slog` call that names none.
 Kinds: `planner_step` (one per planner run; target `worker_step` is the clock worker's step, one per change of outcome), `clock_step`, `admission`,
 `clock_stop`, `authority`, `alert`, `dispatch`, `rounds_review`. Grep the
 emitting code for each one's

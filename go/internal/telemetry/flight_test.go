@@ -1,8 +1,6 @@
 package telemetry_test
 
 import (
-	"io"
-	"log/slog"
 	"path/filepath"
 	"testing"
 
@@ -19,7 +17,7 @@ func TestKindedRecordsAreTimelineRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer recorder.Close()
-	logger := telemetry.New(io.Discard, slog.LevelInfo, recorder)
+	logger := telemetry.New(recorder)
 	telemetry.ObserveTick(77)
 	if _, err = recorder.Event("native_request", nil, true, map[string]any{"tool": "x"}); err != nil {
 		t.Fatal(err)

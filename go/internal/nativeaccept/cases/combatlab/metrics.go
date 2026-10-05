@@ -228,11 +228,7 @@ func (m *Metrics) ScanFlight(path string) error {
 				latencies = append(latencies, int64(na.AsNumber(v)))
 			}
 		case row.Kind == "combat_order":
-			outcome := na.AsString(f["verdict"])
-			if outcome == "" {
-				outcome = na.AsString(f["outcome"])
-			}
-			if outcome == "refused" {
+			if na.AsString(f["verdict"]) == "refused" {
 				m.OrdersRefused++
 			} else {
 				m.OrdersIssued++

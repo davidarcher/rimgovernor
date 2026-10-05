@@ -30,7 +30,7 @@ while its tab is showing and skips a tick while a call is in flight.
 | Launch | Play, Restart, Stop and Close game; the saved game to load; component status rows (game layout, native mod, controller, game); Settings; the operator controls; the collapsible New colony panel. | Launcher state; `GET /api/player/*` for the controls. |
 | Now | A connection header, a one-line headline and the four report sections (Doing, Pursuing, Concerns, Waiting). | `GET /api/state`, `GET /api/spectator/now`, `GET /api/routines`. |
 | Problems | The flight recorder as a filterable feed with kind counts, health and Copy. | `<profile>/flight/flight.jsonl` read in-process. |
-| Log | The controller's own log events (problems, or all with Events too) and the build and controller output (Details). Polls only while the tab shows. | Launcher state; the controller log feed. |
+| Log | The newest run's WARN and ERROR rows plus the player-facing INFO kinds, and the build output and controller stderr path on a failed start (Details). Polls only while the tab shows. | Launcher state; the newest run's flight rows. |
 
 [now.go](../../../go/cmd/launcher/now.go) builds the Now view models: `headerView`
 for the strip (connection, tick, paused, colony) and `reportView` for the
@@ -67,7 +67,7 @@ them by concern name.
 
 The Problems tab ([problems.go](../../../go/cmd/launcher/problems.go)) reads the
 flight recorder directly, so it still shows the last session after the
-controller crashed or stopped. It hides decode rows by default. The Log tab shows the
+controller crashed or stopped. The Log tab shows the
 newest run's flight rows through [logview](../../../go/internal/logview): WARN and ERROR rows and an explicit set of INFO event kinds, repeats collapsed. See
 [measure throughput](../testing/measure-throughput.md) for what the rows carry.
 

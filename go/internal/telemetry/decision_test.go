@@ -3,7 +3,6 @@ package telemetry_test
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -29,7 +28,7 @@ func newRecorder(t *testing.T, opts ...bridge.FlightRecorderOption) (string, *br
 // payload shape and the full v2 context, under the ctx's trace.
 func TestDecisionRowRoundTrip(t *testing.T) {
 	path, recorder := newRecorder(t)
-	logger := telemetry.New(io.Discard, slog.LevelInfo, recorder)
+	logger := telemetry.New(recorder)
 	telemetry.ObserveTick(1234)
 	ctx, trace := telemetry.EnsureTrace(context.Background())
 	telemetry.Decision{
@@ -101,7 +100,7 @@ func TestRecorderStampsV2Envelope(t *testing.T) {
 // Truncating an oversized decision row keeps the fixed keys that correlate it.
 func TestTruncationKeepsDecisionKeys(t *testing.T) {
 	path, recorder := newRecorder(t, bridge.FlightPayloadBytes(256))
-	logger := telemetry.New(io.Discard, slog.LevelInfo, recorder)
+	logger := telemetry.New(recorder)
 	telemetry.Decision{
 		Kind: "planner_step", Component: "worker", Verdict: "waiting", Reason: "no_work", Target: "Fields",
 		Dur: time.Millisecond, Attrs: map[string]any{"big": strings.Repeat("x", 4096)},

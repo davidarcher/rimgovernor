@@ -3,12 +3,9 @@ package bridge
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -39,13 +36,11 @@ func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, b
 		return policy.MapSurvey{}, Result{}, err
 	}
 	out := policy.MapSurvey{Bounds: bounds}
-	start, bands := time.Now(), 0
 	rows := max(mapSurveyBand/int(bounds.Width), 1)
 	var last Result
 	var context *c.ObservationContext
 	for z := int32(0); z < bounds.Height; z += int32(rows) {
 		band := policy.Rectangle{Z: z, Width: bounds.Width, Height: min(int32(rows), bounds.Height-z)}
-		bands++
 		read, raw, err := client.readCells(ctx, identity, band, true, false)
 		last = raw
 		if err != nil {
@@ -64,8 +59,6 @@ func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, b
 		out.Cells = append(out.Cells, cells...)
 	}
 	out.Cells = append(out.Cells, unseenRock(out.Cells, bounds)...)
-	// The survey read's wall time (#1280) is what an hourly replan pays.
-	slog.Default().InfoContext(ctx, "map survey read", telemetry.ComponentKey, "layout", "cells", len(out.Cells), "bands", bands, "ms", time.Since(start).Milliseconds())
 	return out, last, nil
 }
 

@@ -169,6 +169,9 @@ func (a *app) start(s Settings) error {
 	if err != nil {
 		return err
 	}
+	// The controller's stdout and stderr hold the startup banner, fatals and
+	// panics only; they are named in a failed start's error and never parsed.
+	pruneControllerLogs(goDir, keepControllerLogs-1)
 	stamp := now.Format("20060102-150405")
 	outPath, errPath := filepath.Join(goDir, "controller-"+stamp+".out.log"), filepath.Join(goDir, "controller-"+stamp+".err.log")
 	stdout, err := os.Create(outPath)

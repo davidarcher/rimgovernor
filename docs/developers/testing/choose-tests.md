@@ -246,7 +246,7 @@ Serve-driven cases declare `Serve: &cases.ServeSpec{...}` and call
 `s.Serve(ctx, s.Spec())` when in-game setup is done (`dialog/pause` and
 `light/*` are the reference shapes); `s.Reattach(ctx)` takes the slot back for
 postmortem reads; `s.Launch` composes the lifecycle yourself. Every launched
-service is profiled (`cpu.pprof`, `heap.pprof` beside the service logs);
+service is profiled (`cpu.pprof`, `heap.pprof` in the service directory);
 `RIMGOVERNOR_ACCEPT_PPROF=0` opts out.
 
 A case is held to this checklist. Each item is enforced by a runner default or

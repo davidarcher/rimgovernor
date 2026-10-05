@@ -1,11 +1,8 @@
 package policy
 
 import (
-	"fmt"
-	"log/slog"
 	"runtime"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -59,7 +56,6 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 	}
 	scorer := planScorer{g: g, s: s, ground: newSiteGround(s)}
 	var scores []siteScore
-	var used obstacleLevel
 	var lg coreGrid
 	// Each obstacle level sites every seed over the ground left once its
 	// obstacles are out; a level holds only if some plan places every base
@@ -76,7 +72,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 		}
 		ls, llg := siteLevel(g, scorer, plan, level, pawns, tombs, tier)
 		if level == obstacleNone {
-			scores, lg, used = ls, llg, level
+			scores, lg = ls, llg
 			break
 		}
 		var ok []siteScore
@@ -89,7 +85,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 			continue
 		}
 		if !held || ok[0].score.Total() > scores[0].score.Total()+planWeights.FieldGain {
-			scores, lg, used, held = ok, llg, level, true
+			scores, lg, held = ok, llg, true
 		}
 	}
 	if len(scores) == 0 {
@@ -116,11 +112,6 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 		walled[i].score = scorer.walled(walled[i].plan, walled[i].score)
 	})
 	rankSites(walled)
-	var top []string
-	for _, sc := range walled[:min(3, len(walled))] {
-		top = append(top, fmt.Sprintf("(%d,%d)=%d", sc.seed.X, sc.seed.Z, sc.score.Total()))
-	}
-	slog.Info("[layout] site scores top 3: "+strings.Join(top, " "), "candidates", len(scores), "obstacles", used)
 	return walled[0].plan
 }
 

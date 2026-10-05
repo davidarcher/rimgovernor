@@ -233,7 +233,7 @@ func (v Verdict) Is(kind RefusalKind) bool {
 	return (v.Outcome == OutcomeRefused || v.Outcome == OutcomeWaiting) && v.Refusal.Kind == kind
 }
 
-// String is the machine rendering of a verdict for the service log, the
+// String is the machine rendering of a verdict for the flight recorder, the
 // dashboard timeline's reason= field and snapshot names, one token without
 // spaces: a refusal or wait reads "kind", "kind:subject" or
 // "kind:subject:detail"; any other verdict reads its outcome.

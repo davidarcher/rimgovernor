@@ -66,7 +66,7 @@ type Rounder struct {
 	store *facts.Store
 	// skipsLogged are the Odyssey quest skips already logged (#1717).
 	skipsLogged map[odysseySkipKey]bool
-	// buildTier is the last build tier logged (#604): the service log
+	// buildTier is the last build tier logged (#604): the flight recorder
 	// records a change once, not every review.
 	buildTier domain.Fact[policy.BuildTier]
 	// stockpiles remembers since when each owned stockpile sat mostly
@@ -94,7 +94,7 @@ type Rounder struct {
 	// targets (staged) agree with the review's. Foothold before any
 	// review filed one.
 	stage policy.ColonyStage
-	// stageLogged is the last stage record logged; the service log records
+	// stageLogged is the last stage record logged; the flight recorder records
 	// a change once, not every review.
 	stageLogged domain.Fact[policy.ColonyStageRecord]
 	// foodGapZero is the acceptance fault that pins the food plan's gap to
@@ -139,7 +139,7 @@ func (r *Rounder) staged() policy.RoundsPolicy {
 	return policy.StageRoundsPolicy(r.policy, r.stage)
 }
 
-// logColonyStage records a review's stage in the service log and timeline
+// logColonyStage records a review's stage in the flight recorder and timeline
 // once per change of stage or blocker: `[routine] colony stage Reserves
 // (settling: production clear 1.0 of 2.0 days)`.
 func (r *Rounder) logColonyStage(ctx context.Context, review store.Rounds) {
@@ -158,7 +158,7 @@ func (r *Rounder) logColonyStage(ctx context.Context, review store.Rounds) {
 	clockEvent(ctx, "routine", "colony_stage", message, "stage", stage.Stage.String(), "since", int64(stage.Since), "blocker", string(stage.Blocker), "reason", stage.Reason, "held", stage.Held)
 }
 
-// logBuildTier records the reading's build tier in the service log once per
+// logBuildTier records the reading's build tier in the flight recorder once per
 // change: `[layout] build tier Masonry (Stonecutting)`. An unknown tier
 // (no research census) is not a change.
 func (r *Rounder) logBuildTier(ctx context.Context, projection observation.ColonyProjection) {
@@ -191,7 +191,7 @@ type odysseySkipKey struct {
 }
 
 // logOdysseySkips records each Odyssey offer the colony does not accept
-// (policy.OdysseySkips) in the service log once per quest and reason:
+// (policy.OdysseySkips) in the flight recorder once per quest and reason:
 // `[routine] odyssey quest skipped Q12 OrbitalFugitive: ship_only (Orbit)`.
 func (r *Rounder) logOdysseySkips(ctx context.Context, facts policy.RoundsFacts) {
 	for _, skip := range policy.OdysseySkips(facts.QuestOffers) {

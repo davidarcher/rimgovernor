@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -178,9 +177,6 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 	argv, _ := entry["argv"].([]string)
 	if len(argv) < 2 || argv[1] != "serve" {
 		t.Fatalf("argv %#v", entry["argv"])
-	}
-	if slices.Contains(argv, "--debug") {
-		t.Fatalf("acceptance launches carry no debug text trace (#2065): %v", argv)
 	}
 	if p.StatePath != filepath.Join(cfg.Output, "service.sqlite") {
 		t.Fatalf("state path %s", p.StatePath)

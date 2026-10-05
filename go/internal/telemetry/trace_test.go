@@ -2,8 +2,6 @@ package telemetry
 
 import (
 	"context"
-	"log/slog"
-	"strings"
 	"testing"
 )
 
@@ -55,21 +53,14 @@ func TestTraceNestingAndContext(t *testing.T) {
 }
 
 // A kinded record logged under a traced ctx carries the trace in its row
-// context and names it on the stderr line; an untraced record and a
-// non-kinded record under a trace do neither.
+// context; an untraced record carries none.
 func TestHandlerStampsTraceFromContext(t *testing.T) {
-	var out strings.Builder
 	recorder := &fakeRecorder{}
-	logger := New(&out, slog.LevelInfo, recorder)
+	logger := New(recorder)
 	trace := NewTrace().Child()
 	ctx := WithTrace(context.Background(), trace)
 	logger.InfoContext(ctx, "step done", KindKey, "scheduler_step", ComponentKey, "clock-worker", "admitted", true)
 	logger.Info("step done", KindKey, "scheduler_step", ComponentKey, "clock-worker")
-	logger.InfoContext(ctx, "not a row", ComponentKey, "clock-scheduler")
-	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
-	if len(lines) != 3 || !strings.HasSuffix(lines[0], " admitted=true trace="+trace.TraceID) || strings.Contains(lines[1], "trace=") || strings.Contains(lines[2], "trace=") {
-		t.Fatalf("lines:\n%s", out.String())
-	}
 	if len(recorder.rows) != 2 {
 		t.Fatalf("rows: %+v", recorder.rows)
 	}

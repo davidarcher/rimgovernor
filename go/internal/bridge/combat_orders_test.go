@@ -1,14 +1,12 @@
 package bridge
 
 import (
-	"bytes"
 	"context"
-	"log/slog"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
@@ -167,23 +165,17 @@ func TestCombatOrdersIssue(t *testing.T) {
 	if err != nil || len(results) != 8 || results[2].Refusal != CombatRefusalNotDrafted {
 		t.Fatalf("issue: %v %+v", err, results)
 	}
-	var logged bytes.Buffer
-	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, nil)))
-	defer slog.SetDefault(previous)
+	rows := telemetrytest.Install(t)
 	if _, err := issue(combatTestOrders()); err != nil {
 		t.Fatal(err)
 	}
-	// combatlab metrics (#855) count these lines by this pattern.
-	line := regexp.MustCompile(`\bcombat_order (applied|refused)\b`)
+	// combatlab metrics (#855) count these rows by verdict.
 	var outcomes []string
-	for _, l := range strings.Split(strings.TrimSpace(logged.String()), "\n") {
-		if g := line.FindStringSubmatch(l); g != nil {
-			outcomes = append(outcomes, g[1])
-		}
+	for _, row := range rows.Of("combat_order") {
+		outcomes = append(outcomes, row.Payload["verdict"].(string))
 	}
 	if strings.Join(outcomes, ",") != "applied,applied,refused,applied,applied,applied,applied,refused" {
-		t.Errorf("combat_order lines: %v", outcomes)
+		t.Errorf("combat_order rows: %v", outcomes)
 	}
 	if _, err := issue(&o.CombatOrders{}); err == nil {
 		t.Fatal("empty batch reached the wire")

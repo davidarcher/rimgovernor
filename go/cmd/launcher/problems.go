@@ -22,10 +22,6 @@ const (
 	searchTextLimit    = 16384
 )
 
-// hiddenByDefault are the kinds the feed hides until asked. None: the rows that
-// shadowed another (native_decode) are folded into native_call.
-var hiddenByDefault = []string{}
-
 // ProblemEvent is one recorder row of the feed.
 type ProblemEvent struct {
 	Seq     uint64 // 0 on a recording_gap row
@@ -62,14 +58,13 @@ type ProblemHealth struct {
 
 // ProblemsView is what the Problems tab polls.
 type ProblemsView struct {
-	Available     bool   // the recorder file exists and holds rows
-	Empty         string // why not, when not Available
-	Path          string
-	Rows          int // rows held
-	Events        []ProblemEvent
-	Kinds         []KindCount
-	Health        ProblemHealth
-	DefaultHidden []string
+	Available bool   // the recorder file exists and holds rows
+	Empty     string // why not, when not Available
+	Path      string
+	Rows      int // rows held
+	Events    []ProblemEvent
+	Kinds     []KindCount
+	Health    ProblemHealth
 }
 
 // recorderTail follows one flight recorder ring, decoding only what was
@@ -98,7 +93,7 @@ func (t *recorderTail) read() ([]bridge.TimelineRecord, error) {
 // matching needle (a case-insensitive substring of the row's context and
 // payload, or its trace id), the kind filter's counts and the health strip.
 func (t *recorderTail) view(hidden []string, needle string) ProblemsView {
-	out := ProblemsView{Path: t.path, Events: []ProblemEvent{}, Kinds: []KindCount{}, DefaultHidden: hiddenByDefault}
+	out := ProblemsView{Path: t.path, Events: []ProblemEvent{}, Kinds: []KindCount{}}
 	rows, err := t.read()
 	if err != nil {
 		out.Empty = "The flight recorder could not be read: " + err.Error()

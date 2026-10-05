@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using HarmonyLib;
+using RimGovernor.Host.Sdk;
 using Verse;
 
 namespace RimGovernor.Host
@@ -38,11 +39,11 @@ namespace RimGovernor.Host
             {
                 new Harmony(Owner).Patch(AccessTools.Method(typeof(Root), nameof(Root.Update)) ?? throw new MissingMethodException("Root.Update"),
                     postfix: new HarmonyMethod(typeof(IdleExit), nameof(AfterUpdate)));
-                Log.Message("[RimGovernor] idle exit armed: the game quits after " + Limit.Value.TotalMinutes + " minutes without a bridge call");
+                ModLog.Info("idle-exit", "idle exit armed: the game quits after " + Limit.Value.TotalMinutes + " minutes without a bridge call");
             }
             catch (Exception ex)
             {
-                Log.Error("[RimGovernor] idle exit not installed: " + ex);
+                ModLog.Error("idle-exit", "idle exit not installed: " + ex);
             }
         }
 
@@ -82,7 +83,7 @@ namespace RimGovernor.Host
             var since = TimeSpan.FromSeconds((Stopwatch.GetTimestamp() - Interlocked.Read(ref lastActivity)) / (double)Stopwatch.Frequency);
             if (!Due(Volatile.Read(ref inFlight), since, Limit.Value)) return;
             fired = true;
-            Log.Message("[RimGovernor] idle exit: no bridge call for " + (int)since.TotalMinutes + " minutes; quitting");
+            ModLog.Info("idle-exit", "idle exit: no bridge call for " + (int)since.TotalMinutes + " minutes; quitting");
             Root.Shutdown();
         }
     }

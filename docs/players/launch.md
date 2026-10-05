@@ -49,7 +49,7 @@ Settings persist to `.rimgovernor/launcher.json`.
   runs at Ultrafast (adaptive: paces ticks to your frame rate).
 - **Colony policy**: allow slaughter or release of surplus animals, the layout
   overlay, and food reserve days.
-- **Advanced**: debug logging and extra `rimgovernor serve` arguments
+- **Advanced**: extra `rimgovernor serve` arguments
   (`rimgovernor serve -h` lists them).
 
 ## Related reading

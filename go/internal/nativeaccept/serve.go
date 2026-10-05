@@ -238,8 +238,8 @@ func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec Serve
 		"--state", statePath,
 		"--listen", "127.0.0.1:0",
 		"--timeout", timeout.String(),
-		// The flight recording is the evidence (#2065): no --debug text
-		// trace, so stderr keeps the startup banner, fatals and panics.
+		// The flight recording is the evidence (#2065); stderr keeps the
+		// startup banner, fatals and panics.
 		"--flight-recorder", flightPath,
 	}
 	// A harness that names its own PlayerSpeed owns the test-acceleration

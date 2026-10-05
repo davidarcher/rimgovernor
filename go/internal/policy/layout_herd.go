@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"log/slog"
 	"slices"
 )
 
@@ -103,7 +102,6 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 		w, h := penSide((short + penCellsPerAnimal - 1) / penCellsPerAnimal)
 		site, ok := u.site(w, h, false, false, cx, cz)
 		if !ok {
-			slog.Warn("layout: no room for the animal pen", "animals", animals, "width", w, "height", h)
 			return
 		}
 		u.reserve(plan, LayoutReservation{Kind: ReservePen, Area: site})
@@ -121,7 +119,6 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 		w, h := walledSide(herdSide(beds))
 		site, ok := u.site(w, h, false, false, cx, cz)
 		if !ok {
-			slog.Warn("layout: no room for the barn", "animals", animals, "width", w, "height", h)
 			return
 		}
 		u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: site})
@@ -136,8 +133,6 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 		w, h := walledSide(herdSide(short))
 		if site, ok := u.site(w, h, false, false, cx, cz); ok {
 			u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: site})
-		} else {
-			slog.Warn("layout: no room for the vet room", "animals", animals, "width", w, "height", h)
 		}
 	}
 }

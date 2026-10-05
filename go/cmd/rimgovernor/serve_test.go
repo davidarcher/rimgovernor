@@ -51,8 +51,8 @@ func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 }
 
 // A plain serve records under the profile; --observe has no profile and
-// so no recorder; --flight-recorder
-// keeps naming the acceptance runner's per-case path.
+// records beside its state database; --flight-recorder keeps naming the
+// acceptance runner's per-case path.
 func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
 	dir := t.TempDir()
 	withRoundsFamilies(t, "", false)
@@ -67,7 +67,7 @@ func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
 		t.Fatalf("explicit ring: %q %v", config.flightRecorder, err)
 	}
 	observe := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
-	if config, err = parseServe(observe, io.Discard); err != nil || config.flightRecorder != "" {
+	if config, err = parseServe(observe, io.Discard); err != nil || config.flightRecorder != filepath.Join(dir, "flight", "flight.jsonl") {
 		t.Fatalf("--observe recorder: %q %v", config.flightRecorder, err)
 	}
 }

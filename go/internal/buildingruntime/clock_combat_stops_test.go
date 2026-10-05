@@ -1,13 +1,11 @@
 package buildingruntime
 
 import (
-	"bytes"
 	"context"
-	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -17,10 +15,7 @@ import (
 // is written when a colony window follows and a stop outside combat is
 // not counted (#849).
 func TestCombatStopMetrics(t *testing.T) {
-	var buf bytes.Buffer
-	prior := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
-	t.Cleanup(func() { slog.SetDefault(prior) })
+	rows := telemetrytest.Install(t)
 	ctx := context.Background()
 	at := time.UnixMilli(1_000_000)
 	stop := func(reason k.StopReason, event k.CombatEvent, ago time.Duration) *k.Stopped {
@@ -39,28 +34,23 @@ func TestCombatStopMetrics(t *testing.T) {
 	if m.active || m.byKind != nil {
 		t.Fatal("combat metrics not reset after the colony window", m)
 	}
-	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	var stops []string
-	var summary string
-	for _, line := range lines {
-		switch {
-		case strings.Contains(line, "kind=clock_stop "):
-			stops = append(stops, line)
-		case strings.Contains(line, "kind=combat_summary "):
-			summary = line
-		}
-	}
-	if len(stops) != 3 || !strings.Contains(stops[0], "event=entered_range") || !strings.Contains(stops[0], "ticks_since_stop=40") ||
-		!strings.Contains(stops[1], "event=tick_budget") || !strings.Contains(stops[1], "ticks_since_stop=300") ||
-		!strings.Contains(stops[1], "resume_latency_ms=200") ||
+	stops, summaries := rows.Of("clock_stop"), rows.Of("combat_summary")
+	if len(stops) != 3 || stops[0].Payload["event"] != "entered_range" || stops[0].Payload["ticks_since_stop"] != int64(40) ||
+		stops[1].Payload["event"] != "tick_budget" || stops[1].Payload["ticks_since_stop"] != int64(300) ||
+		stops[1].Payload["resume_latency_ms"] != int64(200) ||
 		// The stop ending the combat resumes into the colony window: its
 		// latency is the review's, not a combat reaction (#890).
-		!strings.Contains(stops[2], "event=downed") || strings.Contains(stops[2], "resume_latency_ms") {
+		stops[2].Payload["event"] != "downed" || stops[2].Payload["resume_latency_ms"] != nil {
 		t.Fatal(stops)
 	}
-	for _, want := range []string{"stops=3", "entered_range:1", "tick_budget:1", "downed:1", "resume_latency_p50_ms=100", "resume_latency_p95_ms=200", "ticks_between_stops_p50=60", "ticks_between_stops_p95=300"} {
-		if !strings.Contains(summary, want) {
-			t.Fatal(want, summary)
-		}
+	if len(summaries) != 1 {
+		t.Fatal(summaries)
+	}
+	summary := summaries[0].Payload
+	byEvent, _ := summary["by_event"].(map[string]int)
+	if summary["stops"] != int64(3) || byEvent["entered_range"] != 1 || byEvent["tick_budget"] != 1 || byEvent["downed"] != 1 ||
+		summary["resume_latency_p50_ms"] != int64(100) || summary["resume_latency_p95_ms"] != int64(200) ||
+		summary["ticks_between_stops_p50"] != int64(60) || summary["ticks_between_stops_p95"] != int64(300) {
+		t.Fatal(summary)
 	}
 }

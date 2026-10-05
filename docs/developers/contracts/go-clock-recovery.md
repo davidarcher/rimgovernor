@@ -480,7 +480,7 @@ branch on outcome or kind, never text. The kind lists are the constants in
 `outcome.go`.
 
 `Verdict.String` is the machine token (`kind[:subject[:detail]]`, no spaces) for the
-service log's `reason=` and snapshot names; `Verdict.Text` is the plain-English
+flight rows' `reason` and snapshot names; `Verdict.Text` is the plain-English
 sentence filed on `ConcernProgress.Planner`.
 
 A planner's catalog entry names the one concern it serves (`plannerEntry.concern`), and the

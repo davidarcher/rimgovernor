@@ -34,13 +34,13 @@ func TestServeArgsDefaults(t *testing.T) {
 
 func TestServeArgsEverything(t *testing.T) {
 	s := DefaultSettings()
-	s.LayoutOverlay, s.Debug, s.ExtraArgs = false, true, `--routine-silver-reserve 3 --x "a b"`
+	s.LayoutOverlay, s.ExtraArgs = false, `--routine-silver-reserve 3 --x "a b"`
 	got, err := ServeArgs(s, testPaths, 9000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tail := strings.Join(got[11:], " ")
-	want := "--resume --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
+	want := "--resume --layout-overlay=false --routine-silver-reserve 3 --x a b"
 	if got[10] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}
@@ -85,7 +85,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("missing file: %+v %v", s, err)
 	}
 	s := DefaultSettings()
-	s.Debug = true
+	s.LayoutOverlay = false
 	if err := SaveSettings(path, s); err != nil {
 		t.Fatal(err)
 	}

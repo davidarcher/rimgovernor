@@ -46,7 +46,7 @@ func lastStepFailure(path string) string {
 }
 
 // StepFailureText renders a failed worker-step row as
-// "<at> tick=<n> <LEVEL> <verdict> <reason>: <error>" (the row's error attr
+// "<at> tick=<n> <level> <verdict> <reason>: <error>" (the row's error attr
 // and isolated planner failures carry the text).
 func StepFailureText(row FlightRow) string {
 	level, _ := row.Context["level"].(string)

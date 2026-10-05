@@ -108,7 +108,6 @@ type serveConfig struct {
 	clockBlindTicks                uint
 	resume                         bool
 	pprof                          bool
-	debug                          bool
 }
 
 // Fixed serve settings that were flags until #875.
@@ -140,9 +139,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.followPlayerSpeed, "follow-player-speed", false, "run each window at the speed the player last chose in game instead of always Ultrafast; acceptance harnesses that pin a slower speed use it")
 	c.refresh = serveRefresh
 	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
-	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
-	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
+	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, or flight/flight.jsonl beside --state under --observe; always on")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a launcher Resume")
 	if err := flags.Parse(args); err != nil {
@@ -190,11 +188,16 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
 		return c, errors.New("--flight-recorder requires an absolute path")
 	}
-	// The recorder is on by default under the profile (#299): a player
-	// launch keeps the same evidence the acceptance runner reads, in a ring
-	// the profile owns. Acceptance names its per-case path explicitly.
-	if c.flightRecorder == "" && c.profile != "" {
-		c.flightRecorder = filepath.Join(c.profile, "flight", "flight.jsonl")
+	// The flight recorder is the only log, so it is always on: by default
+	// under the profile (#299), where a player launch keeps the evidence the
+	// acceptance runner reads, or beside the state database when --observe
+	// has no profile. Acceptance names its per-case path explicitly.
+	if c.flightRecorder == "" {
+		root := c.profile
+		if root == "" {
+			root = filepath.Dir(c.state)
+		}
+		c.flightRecorder = filepath.Join(root, "flight", "flight.jsonl")
 	}
 	return c, nil
 }
@@ -351,27 +354,17 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}
-	// Service events: every record stamped with time and tick on
-	// diagnostics; kinded records also become flight-recorder rows so the
-	// scheduler, worker and routine layers sit in sequence with the bridge's
-	// native_* rows (#295). Debug records are the clock trace (--debug);
-	// they reach stderr only.
-	var sink telemetry.Recorder
-	if config.flightRecorder != "" {
-		recorder, err := bridge.NewFlightRecorder(config.flightRecorder)
-		if err != nil {
-			fmt.Fprintln(diagnostics, "flight recorder:", err)
-			return 1
-		}
-		defer recorder.Close()
-		config.bridge.Recorder = recorder
-		sink = recorder
+	// The flight recorder is the only log: kinded service records become
+	// rows in sequence with the bridge's native_call rows (#295, #2071).
+	// diagnostics (stderr) carries only the banner, fatals and panics.
+	recorder, err := bridge.NewFlightRecorder(config.flightRecorder)
+	if err != nil {
+		fmt.Fprintln(diagnostics, "flight recorder:", err)
+		return 1
 	}
-	level := slog.LevelInfo
-	if config.debug {
-		level = slog.LevelDebug
-	}
-	slog.SetDefault(telemetry.New(diagnostics, level, sink))
+	defer recorder.Close()
+	config.bridge.Recorder = recorder
+	slog.SetDefault(telemetry.New(recorder))
 	defer snapshot.Flush()
 	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)
@@ -484,7 +477,7 @@ func openConfigured(ctx context.Context, config bridge.ProcessConfig) (*bridge.C
 func openState(ctx context.Context, path string) (*store.Store, error) {
 	database, aside, err := store.OpenOrReplace(ctx, path)
 	if aside != "" {
-		slog.Warn("state database from another schema version moved aside; starting fresh", "path", path, "aside", aside)
+		slog.Warn("state database from another schema version moved aside; starting fresh", telemetry.ComponentKey, "serve", telemetry.KindKey, "state_reset", "path", path, "aside", aside)
 	}
 	return database, err
 }

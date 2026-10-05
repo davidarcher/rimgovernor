@@ -287,7 +287,6 @@
 
     <details>
       <summary>Advanced</summary>
-      <div class="check"><input type="checkbox" id="debug"><label for="debug">Debug logging</label></div>
       <div class="field"><label for="extraArgs">Extra serve arguments</label><input type="text" id="extraArgs" spellcheck="false"></div>
     </details>
     <div class="err" id="settingsErr" role="alert"></div>
@@ -298,7 +297,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const bools = ['layoutOverlay', 'debug'];
+const bools = ['layoutOverlay'];
 const texts = ['extraArgs', 'loadSave'];
 let view = null, loaded = false, busyAction = false;
 
@@ -466,7 +465,7 @@ document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('c
 setInterval(pollEvents, 1500);
 
 // Problems tab: the flight recorder, read by the launcher itself.
-let pbHidden = null, pbShown = [], pbKindsKey = '', pbOpen = new Set();
+let pbHidden = new Set(), pbShown = [], pbKindsKey = '', pbOpen = new Set();
 const num = (v, d = 1) => Number.isFinite(v) ? (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(d)) : '-';
 function renderHealth(h) {
   if (!h.Known) { $('pbHealth').innerHTML = ''; return; }
@@ -489,8 +488,7 @@ function rowKey2(e) { return e.Seq + '|' + e.Kind; }
 async function pollProblems() {
   if ($('view-problems').hidden) return;
   let v;
-  try { v = await getProblems(pbHidden ? [...pbHidden] : [], $('pbNeedle').value); } catch (e) { return; }
-  if (!pbHidden) pbHidden = new Set(v.DefaultHidden || []);
+  try { v = await getProblems([...pbHidden], $('pbNeedle').value); } catch (e) { return; }
   $('pbEmpty').hidden = v.Available;
   $('pbBody').hidden = !v.Available;
   if (!v.Available) { $('pbEmpty').textContent = v.Empty; return; }

@@ -32,7 +32,6 @@ type Settings struct {
 
 	LayoutOverlay bool `json:"layoutOverlay"`
 
-	Debug     bool   `json:"debug"`
 	ExtraArgs string `json:"extraArgs"`
 
 	// NewColony is the last New colony form (#2025); nil until one is
@@ -117,9 +116,6 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 		if !s.LayoutOverlay {
 			args = append(args, "--layout-overlay=false")
 		}
-	}
-	if s.Debug {
-		args = append(args, "--debug")
 	}
 	extra, _ := SplitArgs(s.ExtraArgs)
 	return append(args, extra...), nil

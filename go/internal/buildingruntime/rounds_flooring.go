@@ -207,7 +207,7 @@ func (r *RoundsBuildingPlanner) previewFlooring(ctx context.Context, snapshot do
 	return nil, stock, noSpace("floor_cells"), nil
 }
 
-// trafficFindingsLogged is the last finding set logged, so the service log
+// trafficFindingsLogged is the last finding set logged, so the flight recorder
 // names a flagged room when it changes rather than on every review.
 var trafficFindingsLogged struct {
 	sync.Mutex
@@ -215,7 +215,7 @@ var trafficFindingsLogged struct {
 }
 
 // logTrafficFindings flags thoroughfares and animals in clean rooms from
-// the traffic layers (#817) in the service log; no planner acts on them yet.
+// the traffic layers (#817) in the flight recorder; no planner acts on them yet.
 func logTrafficFindings(fact domain.Fact[policy.FlooringObservation]) {
 	v, known := fact.Value()
 	if !known {

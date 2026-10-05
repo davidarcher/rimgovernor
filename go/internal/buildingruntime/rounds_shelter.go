@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sort"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -112,13 +110,11 @@ func (r *RoundsBuildingPlanner) shellPlan(facts observation.ColonyProjection) []
 // first of the planner's planned rooms that can stand now, its ring cells
 // reused, claimed or free and its rock marked for plan dig. free are cells
 // offered as unoccupied whatever the census says (the shelter's own bunks,
-// #612). ok is false, logged with why, when there is no plan or every
+// #612). ok is false when there is no plan or every
 // planned room is blocked; the caller then refuses.
 func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observation.ColonyProjection, protected, free []domain.Cell, check func() error) (policy.StarterLayout, policy.LayoutRoom, bool, error) {
 	rooms, shells := r.plannedRooms(facts)
 	if len(shells) == 0 {
-		_, known := facts.LayoutPlan.Value()
-		slog.Info(fmt.Sprintf("%s: no planned %s room in the layout plan (plan known=%v); the shell waits for one", r.concern, r.plannedRole(), known), telemetry.ComponentKey, "routine")
 		return policy.StarterLayout{}, policy.LayoutRoom{}, false, nil
 	}
 	cells, err := r.shellRuinHolds(call, facts, shellSiteCells(facts, free), check)
@@ -129,10 +125,6 @@ func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observa
 	snap.NoteShelter(call, request)
 	layout, ok, err := policy.PlannedLayout(request)
 	if err != nil || !ok {
-		if err == nil {
-			b := shells[0].Bounds()
-			slog.Info(fmt.Sprintf("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned, first blockers %q); the shell waits for it", r.concern, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells), layout.Blocked), telemetry.ComponentKey, "routine")
-		}
 		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
 	}
 	return layout, rooms[layout.Planned], true, nil

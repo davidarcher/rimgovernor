@@ -1,25 +1,19 @@
 package buildingruntime
 
 import (
-	"bytes"
 	"context"
-	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-// The service log records the build tier once per change (#604): the first
-// known reading, then only a different tier; an unknown tier is silent.
+// The flight recorder records the build tier once per change (#604): the
+// first known reading, then only a different tier; an unknown tier is silent.
 func TestRounderLogsBuildTierOncePerChange(t *testing.T) {
-	var out bytes.Buffer
-	previous := slog.Default()
-	slog.SetDefault(telemetry.New(&out, slog.LevelInfo, nil))
-	defer slog.SetDefault(previous)
+	rows := telemetrytest.Install(t)
 	r := &Rounder{}
 	reading := func(finished ...policy.ResearchProjectID) observation.ColonyProjection {
 		p := observation.ColonyProjection{PlayerTechLevel: domain.Known("Neolithic")}
@@ -29,16 +23,22 @@ func TestRounderLogsBuildTierOncePerChange(t *testing.T) {
 	}
 	ctx := context.Background()
 	r.logBuildTier(ctx, observation.ColonyProjection{})
-	if out.Len() != 0 {
-		t.Fatalf("unknown tier logged: %s", out.String())
+	if len(rows.All()) != 0 {
+		t.Fatalf("unknown tier logged: %+v", rows.All())
 	}
 	r.logBuildTier(ctx, reading())
 	r.logBuildTier(ctx, reading())
 	r.logBuildTier(ctx, reading("Stonecutting"))
 	r.logBuildTier(ctx, reading("Stonecutting"))
 	r.logBuildTier(ctx, reading("Stonecutting", "Electricity"))
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) != 3 || !strings.Contains(lines[0], "[layout] build tier Camp") || !strings.Contains(lines[1], "[layout] build tier Masonry (Stonecutting)") || !strings.Contains(lines[2], "[layout] build tier Powered (Electricity)") {
-		t.Fatalf("log:\n%s", out.String())
+	got := rows.Of("build_tier")
+	want := [][2]string{{"Camp", ""}, {"Masonry", "Stonecutting"}, {"Powered", "Electricity"}}
+	if len(got) != len(want) || len(rows.All()) != len(want) {
+		t.Fatalf("rows: %+v", rows.All())
+	}
+	for i, row := range got {
+		if row.Payload["tier"] != want[i][0] || row.Payload["evidence"] != want[i][1] {
+			t.Fatalf("row %d: %+v", i, row.Payload)
+		}
 	}
 }
