@@ -90,7 +90,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 
 	// The enclosure: the core's footprint and its yard (killbox included);
 	// the ring traced outside it (#1286, #1945).
-	enc := planEnclosureCells(coreFootprint(plan, w, h), w, h)
+	enc := coreEnclosure(plan, w, h)
 	if enc.bbox.Width == 0 {
 		return plan
 	}

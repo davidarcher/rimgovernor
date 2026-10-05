@@ -252,6 +252,27 @@ func markRect(fp []bool, w, h int32, r Rectangle) {
 	}
 }
 
+// coreEnclosure traces the core ring's enclosure: the core grown by the
+// killbox yard, plus each outer-ring unit it takes in (crowdsCore) grown only
+// by perimeterOuterYard, as a blob of its own: a geothermal has no killbox lane
+// to clear, so it stands hard against the wall.
+func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
+	base := coreBaseFootprint(plan, w, h)
+	tight := make([]bool, len(base))
+	for _, r := range plan.Reservations {
+		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area) {
+			markRect(tight, w, h, r.Area)
+		}
+	}
+	m := LayoutEdgeMargin + perimeterThick
+	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
+	grown := growRegion(base, w, h, perimeterGap)
+	for i, v := range growRegion(tight, w, h, perimeterOuterYard) {
+		grown[i] = grown[i] || v
+	}
+	return newEnclosure(closeRegion(grown, w, h, yard), w, h)
+}
+
 // planEnclosureCells traces the enclosure around a core footprint on a w x h
 // map: the footprint grown by the yard, closed so the outline has no notches
 // narrower than the closing.
@@ -294,7 +315,7 @@ func outerKeepOut(plan LayoutPlan, w, h int32) []bool {
 	if w < 1 || h < 1 || len(plan.AllRooms()) == 0 && len(plan.Hallways()) == 0 {
 		return out
 	}
-	enc := planEnclosureCells(coreFootprint(plan, w, h), w, h)
+	enc := coreEnclosure(plan, w, h)
 	for i, d := range chebyshevField(w, h, enc.in, perimeterThick+perimeterOuterGap+perimeterThick) {
 		out[i] = d >= 0
 	}

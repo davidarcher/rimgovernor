@@ -93,17 +93,27 @@ func newEnclosure(in []bool, w, h int32) enclosure {
 // encloseRegion grows region by grow within yard's bounds, closes it by
 // perimeterThick and fills its holes.
 func encloseRegion(region []bool, w, h int32, yard Rectangle, grow int32) []bool {
-	d := chebyshevField(w, h, region, grow)
+	return closeRegion(growRegion(region, w, h, grow), w, h, yard)
+}
+
+// growRegion is region grown by grow cells (Chebyshev).
+func growRegion(region []bool, w, h int32, grow int32) []bool {
 	grown := make([]bool, len(region))
-	for i, v := range d {
+	for i, v := range chebyshevField(w, h, region, grow) {
 		grown[i] = v >= 0
 	}
+	return grown
+}
+
+// closeRegion clips grown to yard, closes it by perimeterThick and fills its
+// holes.
+func closeRegion(grown []bool, w, h int32, yard Rectangle) []bool {
 	for i := range grown {
 		grown[i] = grown[i] && contains(yard, domain.Cell{X: int32(i) % w, Z: int32(i) / w})
 	}
 	// Closing: dilate, then erode by as much.
-	d = chebyshevField(w, h, grown, perimeterThick)
-	out := make([]bool, len(region))
+	d := chebyshevField(w, h, grown, perimeterThick)
+	out := make([]bool, len(grown))
 	for i, v := range d {
 		out[i] = v < 0
 	}

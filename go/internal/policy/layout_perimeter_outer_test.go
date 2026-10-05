@@ -226,3 +226,40 @@ func coreRingBox(t *testing.T, plan LayoutPlan) Rectangle {
 	}
 	return box
 }
+
+// A geothermal the core ring takes in, beyond the killbox yard the core
+// itself keeps, stands hard against the wall on its open sides.
+func TestCoreRingHugsTakenInGeothermal(t *testing.T) {
+	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }
+	plan := corePlan(Zone(zoningSurvey(200, ground)), 3, BuildTierCamp)
+	core := footprintBox(plan, 200, 200)
+	geo := Rectangle{X: core.X + 30, Z: core.Z + core.Height + perimeterGap + 5, Width: 6, Height: 6}
+	plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveGeothermal, Area: geo})
+	if !coreTakesIn(plan, 200, 200, plan.Reservations[len(plan.Reservations)-1]) {
+		t.Fatal("geothermal not taken in")
+	}
+	p := PlanPerimeter(plan, zoningSurvey(200, ground))
+	if !p.Valid() {
+		t.Fatal("invalid plan")
+	}
+	walls := map[domain.Cell]bool{}
+	for _, k := range []ReservationKind{ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap, ReserveGate} {
+		for c := range reservedCells(p, k) {
+			walls[c] = true
+		}
+	}
+	midX, midZ := geo.X+geo.Width/2, geo.Z+geo.Height/2
+	for name, probe := range map[string]struct{ start, step domain.Cell }{
+		"west":  {domain.Cell{X: geo.X - 1, Z: midZ}, domain.Cell{X: -1}},
+		"east":  {domain.Cell{X: geo.X + geo.Width, Z: midZ}, domain.Cell{X: 1}},
+		"south": {domain.Cell{X: midX, Z: geo.Z + geo.Height}, domain.Cell{Z: 1}},
+	} {
+		free := int32(0)
+		for c := probe.start; !walls[c] && free <= perimeterGap; c = addCell(c, probe.step) {
+			free++
+		}
+		if free > perimeterOuterYard {
+			t.Error(name, "wall after", free, "free cells, want <=", perimeterOuterYard)
+		}
+	}
+}

@@ -25,7 +25,7 @@ func (r StorageRequest) yardSites() []StockpileSite {
 	if !ok || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
 		return nil
 	}
-	enclosure := planEnclosureCells(coreFootprint(*r.Layout, r.Bounds.Width, r.Bounds.Height), r.Bounds.Width, r.Bounds.Height)
+	enclosure := coreEnclosure(*r.Layout, r.Bounds.Width, r.Bounds.Height)
 	fields := r.Layout.FieldCells()
 	cells := make(map[domain.Cell]SiteCell, len(r.Cells))
 	for _, c := range r.Cells {
