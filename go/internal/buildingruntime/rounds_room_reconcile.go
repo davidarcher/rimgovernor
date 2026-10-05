@@ -106,6 +106,9 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 		Rows:   policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden),
 		Floors: census.Floors, Rooms: colonyRooms(facts), Furniture: rr.template,
 	}
+	if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" {
+		in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
+	}
 	in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
 	if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
 		return RoundsBuildingResult{}, err
@@ -230,7 +233,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 	facts := reading.Projection
 	var wantWalls bool
 	for _, op := range ops {
-		wantWalls = wantWalls || op.Kind == policy.OpWallIn || op.Kind == policy.OpDoorIn
+		wantWalls = wantWalls || op.Kind == policy.OpWallIn || op.Kind == policy.OpWallUp || op.Kind == policy.OpDoorIn
 	}
 	var builds []roomBuild
 	var wallStuff, doorStuff string
@@ -241,7 +244,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			return RoundsBuildingResult{Verdict: refusal}, nil
 		}
 	}
-	for _, kind := range []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.OpFloorIn, policy.OpBuild} {
+	for _, kind := range []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.OpWallUp, policy.OpFloorIn, policy.OpBuild} {
 		for _, op := range ops {
 			if op.Kind != kind {
 				continue
@@ -251,7 +254,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 				for _, c := range op.Cells {
 					builds = append(builds, roomBuild{def: policy.ShellDoorDefinition, stuff: doorStuff, cell: c, rot: domain.North})
 				}
-			case policy.OpWallIn:
+			case policy.OpWallIn, policy.OpWallUp:
 				for _, c := range op.Cells {
 					builds = append(builds, roomBuild{def: policy.ShellWallDefinition, stuff: wallStuff, cell: c, rot: domain.North})
 				}

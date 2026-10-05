@@ -59,17 +59,22 @@ func PlannedRoleFor(role RoomRole) (PlannedRole, bool) {
 
 // GroundCensus is the walls and doors standing on the ground, by cell: the
 // geometry a PlannedRoom's ring is matched against.
-type GroundCensus struct{ walls, doors map[domain.Cell]bool }
+type GroundCensus struct {
+	walls, doors map[domain.Cell]bool
+	// stuff is the stuff of each standing wall, where the census names one.
+	stuff map[domain.Cell]string
+}
 
 // GroundOf reads the walls and doors out of the colony's built buildings.
 func GroundOf(buildings []CurrentBuilding) GroundCensus {
-	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}}
+	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, stuff: map[domain.Cell]string{}}
 	for _, b := range buildings {
 		def := b.Building.Definition()
 		for _, c := range b.Cells {
 			switch {
 			case def == "Wall":
 				g.walls[c] = true
+				g.stuff[c] = b.Building.Stuff()
 			case strings.Contains(strings.ToLower(def), "door"):
 				g.doors[c] = true
 			}

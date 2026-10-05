@@ -367,3 +367,38 @@ func (r ColonyProjection) BulkBuildStuff(name string, units int64) string {
 	}
 	return price.Stuff
 }
+
+// StuffUpgrade is whether replacing a built def made of have by want is an
+// upgrade the colony can afford (#2111): want ranks strictly above have under
+// the def's build criteria (equal ranks are no upgrade, so the tie-break by name
+// never swaps a wall back and forth) and the stock covers one of it. False when
+// either stuff is not an allowed option or the stock is unknown.
+func (r ColonyProjection) StuffUpgrade(name, have, want string) bool {
+	d, ok := r.Definition(name)
+	stock, known := r.Stock()
+	if !ok || !known || have == want {
+		return false
+	}
+	var haveOption, wantOption *StuffOption
+	for i := range d.StuffOptions {
+		switch d.StuffOptions[i].Stuff {
+		case have:
+			haveOption = &d.StuffOptions[i]
+		case want:
+			wantOption = &d.StuffOptions[i]
+		}
+	}
+	if haveOption == nil || wantOption == nil || !stocked(wantOption.Costs, stock) {
+		return false
+	}
+	var haveScores, wantScores []float64
+	for _, criterion := range d.BuildCriteria() {
+		h, herr := d.score(criterion, *haveOption)
+		w, werr := d.score(criterion, *wantOption)
+		if herr != nil || werr != nil {
+			return false
+		}
+		haveScores, wantScores = append(haveScores, h), append(wantScores, w)
+	}
+	return slices.Compare(haveScores, wantScores) < 0
+}

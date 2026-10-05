@@ -36,6 +36,7 @@ const (
 	OpDoorOut      OpKind = "door_out" // a ring door swapped for a wall in place
 	OpWallOut      OpKind = "wall_out"
 	OpWallIn       OpKind = "wall_in"
+	OpWallUp       OpKind = "wall_up" // a standing wall swapped in place for a better stuff (#2111)
 	OpDoorIn       OpKind = "door_in"
 	OpPack         OpKind = "pack"
 	OpFurnitureOut OpKind = "furniture_out" // deconstruct what cannot pack
@@ -44,7 +45,7 @@ const (
 	OpFloorIn      OpKind = "floor_in"
 	OpInstall      OpKind = "install"
 	OpBuild        OpKind = "build"
-	opKindsInOrder        = "roof_off door_out wall_out wall_in door_in pack furniture_out pack_in_use floor_out floor_in install build"
+	opKindsInOrder        = "roof_off door_out wall_out wall_in wall_up door_in pack furniture_out pack_in_use floor_out floor_in install build"
 )
 
 // WantedPiece is one piece of the room's furniture template: a def and the
@@ -100,6 +101,11 @@ type ReconcileInput struct {
 	// one (FloorKept, #2109); nil keeps only the exact def. A floor that stands
 	// in is no operation: no tear-up for a different adequate floor.
 	FloorKept func(have, want string) bool
+	// WallUpgrade says a standing wall of stuff have is replaced in place by the
+	// wanted stuff (#2111): the wanted stuff ranks strictly above it in the
+	// ladder and is in stock. Nil never swaps a wall. A wall whose stuff the
+	// census does not name is left.
+	WallUpgrade func(have string) bool
 	// Stock counts the packed pieces in storage by def (#2104).
 	Stock map[string]int
 }
@@ -189,6 +195,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	}
 
 	// Ring: walls and doors by cell.
+	ringStart := len(items)
 	var allWallOut []domain.Cell
 	for _, c := range rectCells(ring) {
 		if !onRing(c, ring) {
@@ -206,6 +213,18 @@ func Reconcile(in ReconcileInput) Reconciliation {
 			add(reconcileItem{kind: OpDoorOut, cell: c, target: ringTarget(rows, c, "Door")})
 		case !g.walls[c]:
 			add(reconcileItem{kind: OpWallIn, cell: c})
+		}
+	}
+	// Wall stuff: one standing wall of a lower ranked stuff is swapped in place,
+	// only on a ring with no other work, so enclosure holds at that one cell and
+	// the swaps never open two cells (adjacent or not) at once. The placement
+	// preview reports a stuff swap safe, so the diff itself finds it.
+	if in.WallUpgrade != nil && len(items) == ringStart {
+		for _, c := range rectCells(ring) {
+			if have := in.Ground.stuff[c]; onRing(c, ring) && !covered[c] && !doorWanted[c] && in.Ground.walls[c] && have != "" && in.WallUpgrade(have) {
+				add(reconcileItem{kind: OpWallUp, cell: c, ready: true})
+				break
+			}
 		}
 	}
 	// An otherwise complete ring never has more than one door gap open.
