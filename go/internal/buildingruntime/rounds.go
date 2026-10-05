@@ -131,6 +131,8 @@ type Rounder struct {
 	heatCleared    bool
 	// safety is the last safety layer sent (#824); see drawSafetyOverlay.
 	safety overlayState
+	// spots is the last work-spot layer sent; see drawSpotOverlay.
+	spots overlayState
 	// stock is the last stock layer sent (#825); see drawStockOverlay.
 	stock overlayState
 }
@@ -668,6 +670,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawSafetyOverlay(ctx, state.Snapshot, &reading.Projection, reading.Emergency)
 		r.drawStockOverlay(ctx, state.Snapshot, &reading.Projection, result)
+		r.drawSpotOverlay(ctx, state.Snapshot, &reading.Projection)
 	}
 	return result, err
 }
