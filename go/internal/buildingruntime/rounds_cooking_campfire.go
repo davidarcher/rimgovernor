@@ -208,7 +208,7 @@ func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, stat
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	clockSchedulerLog("%s: retire %s %s at %d,%d", goal.OwnerID(), label, campfire.ID, campfire.Cells[0].X, campfire.Cells[0].Z)
+	clockEvent(call, "building", "building_retire", "retiring "+label, "owner", goal.OwnerID(), "building", campfire.ID, "x", campfire.Cells[0].X, "z", campfire.Cells[0].Z)
 	facts := reading.Projection
 	return r.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }
