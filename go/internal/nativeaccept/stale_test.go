@@ -45,7 +45,6 @@ func writeNativeInputs(t *testing.T, repo string) {
 		"go/internal/protobufgen/cmd/generatecsharp/main.go":             "package main // generator",
 		"scripts/fixtures/QuietStorytellerFixture.cs":                    "class Quiet {}",
 		"scripts/fixtures/Fixtures.csproj":                               "<Project/>",
-		"scripts/fixtures/saves/Colony-a.rws":                            "ignored save",
 		"scripts/fixtures/obj/QuietStorytellerFixture.cs":                "ignored",
 		"THIRD_PARTY.md": "notices",
 		"integrations/rimgovernor-native/src/Bridge/BridgeTools/x/tool.dll": "ignored",

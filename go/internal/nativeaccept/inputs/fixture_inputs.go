@@ -11,15 +11,11 @@ import (
 )
 
 // FixtureRoot holds the test fixture sources (scripts/fixtures/<Name>Fixture.cs)
-// and the committed checkpoint saves (saves/). Which of
-// them a case depends on follows from the case's Go sources (#170): a
-// fixture source feeds a case when the case names one of its
-// [Tool("test/...")] ops, a save when the case names it, while any other
-// file directly under it feeds every case.
+// (no saves are committed; the harness generates them). Which fixture
+// source a case depends on follows from the case's Go sources (#170): it
+// feeds a case when the case names one of its [Tool("test/...")] ops, while
+// any other file directly under it feeds every case.
 const FixtureRoot = "scripts/fixtures"
-
-// fixtureSavesDir is where committed checkpoint saves live under FixtureRoot.
-const fixtureSavesDir = "saves"
 
 var (
 	// goStringLiteral is an interpreted Go string literal without escapes:
@@ -77,7 +73,7 @@ func FixtureNames(repo string) (map[string]bool, error) {
 }
 
 // FixtureRefs are the names a set of Go sources mention as string
-// literals; FixtureInputs matches them against the fixture ops and saves.
+// literals; FixtureInputs matches them against the fixture ops.
 type FixtureRefs map[string]bool
 
 // ScanFixtureRefs collects the string literals of every non-test Go file
@@ -109,8 +105,7 @@ func ScanFixtureRefs(dirs []string) (FixtureRefs, error) {
 // FixtureInputs lists, repo-relative with forward slashes and sorted, the
 // files under FixtureRoot that Go sources with the given refs depend on:
 // every build file, each fixture source registering a tool the refs name
-// (and, transitively, the fixture sources it mentions by class name), and
-// each committed save whose name (up to its first dot) the refs name.
+// (and, transitively, the fixture sources it mentions by class name).
 func FixtureInputs(repo string, refs FixtureRefs) ([]string, error) {
 	root := filepath.Join(repo, filepath.FromSlash(FixtureRoot))
 	entries, err := os.ReadDir(root)
@@ -164,20 +159,6 @@ func FixtureInputs(repo string, refs FixtureRefs) ([]string, error) {
 	}
 	for class := range needed {
 		files = append(files, FixtureRoot+"/"+class+".cs")
-	}
-	saves, err := os.ReadDir(filepath.Join(root, fixtureSavesDir))
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	for _, entry := range saves {
-		name := entry.Name()
-		if entry.IsDir() {
-			continue
-		}
-		save, _, _ := strings.Cut(name, ".")
-		if refs[save] {
-			files = append(files, FixtureRoot+"/"+fixtureSavesDir+"/"+name)
-		}
 	}
 	sort.Strings(files)
 	return files, nil

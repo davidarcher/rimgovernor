@@ -8,11 +8,11 @@ import (
 )
 
 // FixtureInputs follows tool names to sources, class mentions between
-// sources, and save names to saves; build files come with every set.
+// sources; build files come with every set.
 func TestFixtureInputs(t *testing.T) {
 	repo := t.TempDir()
 	dir := filepath.Join(repo, filepath.FromSlash(FixtureRoot))
-	if err := os.MkdirAll(filepath.Join(dir, "saves"), 0755); err != nil {
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	write := func(name, body string) {
@@ -24,10 +24,7 @@ func TestFixtureInputs(t *testing.T) {
 	write("AFixture.cs", `[Tool("test/a_prepare")] void A() { BHelper.Do(); }`)
 	write("BHelper.cs", `static class BHelper {}`)
 	write("CFixture.cs", `[Tool("test/c_prepare")] void C() {}`)
-	write("saves/Colony-a.rws", "")
-	write("saves/Colony-a.checkpoint.json", "{}")
-	write("saves/Colony-c.rws", "")
-	got, err := FixtureInputs(repo, FixtureRefs{"test/a_prepare": true, "Colony-a": true, "test/": true})
+	got, err := FixtureInputs(repo, FixtureRefs{"test/a_prepare": true, "test/": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,8 +32,6 @@ func TestFixtureInputs(t *testing.T) {
 		"scripts/fixtures/AFixture.cs",
 		"scripts/fixtures/BHelper.cs",
 		"scripts/fixtures/Fixtures.csproj",
-		"scripts/fixtures/saves/Colony-a.checkpoint.json",
-		"scripts/fixtures/saves/Colony-a.rws",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("FixtureInputs = %v, want %v", got, want)

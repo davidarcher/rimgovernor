@@ -197,17 +197,13 @@ func TestGeneratedStartCompatibilityAndStaging(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixtures, err := InventoryTree(filepath.Join(repo, "scripts", "fixtures", "saves"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	tree := t.TempDir()
 	starts := filepath.Join(tree, "starts")
 	os.Mkdir(starts, 0700)
 	name := "RimGovernor-debug-test.rws"
 	save := []byte(`<savegame><meta><modIds><li>ludeon.rimworld</li><li>davidarcher.rimgovernor.native</li></modIds></meta></savegame>`)
 	os.WriteFile(filepath.Join(starts, name), save, 0600)
-	s := Starts{SchemaVersion: 1, GameVersion: "1.6", NativeSourceSHA256: native, DependenciesSHA256: Digest(nil), CommittedFixtures: fixtures.Files, Generated: []File{{name, int64(len(save)), Digest(save)}}}
+	s := Starts{SchemaVersion: 1, GameVersion: "1.6", NativeSourceSHA256: native, DependenciesSHA256: Digest(nil), Generated: []File{{name, int64(len(save)), Digest(save)}}}
 	metadata := filepath.Join(starts, "compatibility.json")
 	if err := WriteJSON(metadata, s); err != nil {
 		t.Fatal(err)

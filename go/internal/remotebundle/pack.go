@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
@@ -33,7 +32,6 @@ type Starts struct {
 	GameVersion        string `json:"game_version"`
 	NativeSourceSHA256 string `json:"native_source_sha256"`
 	DependenciesSHA256 string `json:"dependencies_sha256"`
-	CommittedFixtures  []File `json:"committed_fixtures"`
 	// Root-local generated starts are deliberately not imported without provenance.
 	Generated []File `json:"generated"`
 }
@@ -97,11 +95,6 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if _, err := os.Stat(filepath.Join(tree, "bridge", "1.6", "Assemblies", "RimBridgeServer.Sdk.dll")); err != nil {
 		return m, fmt.Errorf("bridge SDK: %w", err)
 	}
-	// Committed fixtures are inventoried, not copied from any player's profile.
-	fixtures, err := InventoryTree(filepath.Join(o.Repo, "scripts", "fixtures", "saves"))
-	if err != nil {
-		return m, err
-	}
 	native, err := inputs.SourceTreeHash(o.Repo)
 	if err != nil {
 		return m, err
@@ -110,7 +103,7 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if err != nil {
 		return m, err
 	}
-	starts := Starts{SchemaVersion: 1, GameVersion: o.GameVersion, NativeSourceSHA256: native, DependenciesSHA256: dependencyHash, CommittedFixtures: fixtures.Files, Generated: []File{}}
+	starts := Starts{SchemaVersion: 1, GameVersion: o.GameVersion, NativeSourceSHA256: native, DependenciesSHA256: dependencyHash, Generated: []File{}}
 	if err := os.Mkdir(filepath.Join(tree, "starts"), 0700); err != nil {
 		return m, err
 	}
@@ -123,8 +116,8 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 		if err := Decode(b, &supplied); err != nil {
 			return m, err
 		}
-		if supplied.SchemaVersion != 1 || supplied.GameVersion != starts.GameVersion || supplied.NativeSourceSHA256 != native || supplied.DependenciesSHA256 != dependencyHash || !slices.Equal(supplied.CommittedFixtures, fixtures.Files) {
-			return m, fmt.Errorf("cached starts incompatible with dependencies/native source/fixtures; regenerate before packaging")
+		if supplied.SchemaVersion != 1 || supplied.GameVersion != starts.GameVersion || supplied.NativeSourceSHA256 != native || supplied.DependenciesSHA256 != dependencyHash {
+			return m, fmt.Errorf("cached starts incompatible with dependencies/native source; regenerate before packaging")
 		}
 		if err := checkGenerated(o.StartsDir, supplied.Generated); err != nil {
 			return m, err
@@ -197,15 +190,8 @@ func ValidateStarts(tree, repo string, m Manifest) (string, error) {
 	if native != s.NativeSourceSHA256 {
 		return "native inputs changed; generated starts will regenerate", nil
 	}
-	current, err := InventoryTree(filepath.Join(repo, "scripts", "fixtures", "saves"))
-	if err != nil {
-		return "", err
-	}
-	if !slices.Equal(s.CommittedFixtures, current.Files) {
-		return "committed fixtures changed; use tested checkout and regenerate starts", nil
-	}
 	if len(s.Generated) > 0 {
 		return "compatible generated starts ready to stage", nil
 	}
-	return "compatible committed fixtures; generated starts will regenerate on first use", nil
+	return "compatible; generated starts will regenerate on first use", nil
 }

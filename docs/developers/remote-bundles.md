@@ -78,8 +78,8 @@ assets; public ciphertext cannot be revoked if its identity is compromised.
 
 ## Fixtures and generated starts
 
-Committed saves are inventoried from `scripts/fixtures/saves` (none are committed now; the tribal8 baseline generates on first use) and used from the
-tested checkout. They are not copied out of a player's profile. By default the
+No saves are committed; the tribal8 baseline generates on first use and is never
+copied out of a player's profile. By default the
 bundle includes `starts/compatibility.json` with an empty `generated` list;
 bootstrap reports that generated debug starts will regenerate on first use.
 
@@ -87,7 +87,7 @@ bootstrap reports that generated debug starts will regenerate on first use.
 by `compatibility.json`. Preserve that metadata from the dependency/source
 revision that produced the starts; do not relabel old saves with current hashes.
 It contains schema version 1, exact `game_version`, `native_source_sha256`,
-`dependencies_sha256`, and `committed_fixtures`/`generated` arrays of
+`dependencies_sha256`, and a `generated` array of
 `{path, bytes, sha256}`. The dependency digest hashes sorted inventory lines
 `path\tbytes\tsha256\n` for all non-start components. The native digest is the
 existing native source-tree hash. Only named `RimGovernor-debug-*.rws` files are
@@ -96,7 +96,7 @@ RimGovernor stack only) must validate. Unrelated files
 in the input directory are never copied.
 
 Packaging rejects incompatible supplied starts. Bootstrap verifies the bundled
-dependency identity and generated save hashes; native-source or committed-save
+dependency identity and generated save hashes; native-source
 changes visibly skip staging and let the harness regenerate. Compatible saves
 are copied to the job's ordinary and headless profiles. Mutable generated saves
 never return to the shared encrypted dependency cache.
