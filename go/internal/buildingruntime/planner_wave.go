@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
@@ -120,6 +122,12 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 			return err
 		})
 		err := run()
+		if errors.Is(err, store.ErrStaleOwner) {
+			// Planners share a standard (foodAcquisition and fields), so a
+			// sibling's admission in the same wave moves the owner under a
+			// slow planner; it waits for the next round, not a failure.
+			reason, err = awaitingPlan("owner", "revision_changed"), nil
+		}
 		took := time.Since(start)
 		w.mu.Lock()
 		w.took[entry.name] = took

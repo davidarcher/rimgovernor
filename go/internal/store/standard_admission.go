@@ -37,6 +37,10 @@ type BuildingMethodDecision struct {
 	Refused  []policy.Refusal
 }
 
+// ErrStaleOwner is an ErrConflict raised when another planner changed the
+// method's owner after this one read it; the next round reads it afresh.
+var ErrStaleOwner = fmt.Errorf("%w: owner changed since it was read", ErrConflict)
+
 // AdmitBuildingMethod applies the same pure resource/geometry policy as Hands
 // inside the transaction that stores every method reservation and its plan.
 // Candidates can depend on future work in this method: admission reserves the
@@ -80,7 +84,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, err
 	}
 	if owner.OwnerRevision() != r.Owner.OwnerRevision() {
-		return BuildingMethodDecision{}, fmt.Errorf("%w: %s revision %d, method scoped to %d", ErrConflict, owner.ownerLabel(), owner.OwnerRevision(), r.Owner.OwnerRevision())
+		return BuildingMethodDecision{}, fmt.Errorf("%w: %s revision %d, method scoped to %d", ErrStaleOwner, owner.ownerLabel(), owner.OwnerRevision(), r.Owner.OwnerRevision())
 	}
 	old := owner.ownerSnapshot()
 	if old.Colony != r.Current.Colony || old.Map != r.Current.Map || r.Tick < ownerTick(owner) {

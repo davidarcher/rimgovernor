@@ -378,3 +378,18 @@ func (w *slowWindow) ReadPlanningWindow(ctx context.Context, id *c.Identity, rec
 	time.Sleep(w.delay)
 	return w.windowedScheduler.ReadPlanningWindow(ctx, id, rect)
 }
+
+// A planner whose owner moved under it (a sibling on the same standard
+// admitted in the wave) waits for the next round; it is not a failure.
+func TestClockSchedulerStaleOwnerIsNotAPlannerFailure(t *testing.T) {
+	s, _ := schedulerFixture(t)
+	stale := quickPlanner("fields", classOptional)
+	stale.run = func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
+		return Verdict{}, fmt.Errorf("standard x revision 2, method scoped to 1: %w", store.ErrStaleOwner)
+	}
+	s.catalog = []plannerEntry{quickPlanner("tend", classCritical), stale}
+	got, err := s.Step(context.Background())
+	if err != nil || len(got.PlannerFailures) != 0 {
+		t.Fatal(got.PlannerFailures, err)
+	}
+}
