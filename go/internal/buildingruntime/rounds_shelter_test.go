@@ -232,9 +232,12 @@ func TestRoundsShelterHoldsThroughWoodShortage(t *testing.T) {
 	}
 }
 
+// A stock count that moves between the ring's previews is not a refusal: the
+// bundle is funded from the lowest value (b93181dca,
+// TestMergeRoundsStockTakesTheLowestAvailable), so no stock-conflict case.
 func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	for _, change := range []string{"late-refusal", "footprint", "stock-conflict", "definition", "room-unknown", "terrain", "zone", "protected"} {
+	for _, change := range []string{"late-refusal", "footprint", "definition", "room-unknown", "terrain", "zone", "protected"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, n := shelterFixture(t)
 			base := n.onPreview
@@ -247,15 +250,13 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 					}
 				case "footprint":
 					v.Preview.Footprint = domain.Known([]domain.Cell{{X: 1, Z: 1}})
-				case "stock-conflict":
-					if n.previews == 32 {
-						v.Stock.Values[0].Available = domain.Known(int64(179))
-					}
 				}
 			}
 			switch change {
 			case "definition":
-				n.catalogRow("Door").Width = 2
+				// Any shell piece wider than one cell is refused; the wall, since
+				// the Core door row now states its own 1x1 size (#2122).
+				n.catalogRow("Wall").Width = 2
 			case "room-unknown":
 				n.cells.Cells[40].Indoors = domain.Unknown[bool]()
 			case "terrain":
