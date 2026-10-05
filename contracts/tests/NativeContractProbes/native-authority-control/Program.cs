@@ -21,12 +21,16 @@ internal static class NativeAuthorityControlProbe
     private static NativeControlAuthority state = null!;
     private static readonly Common.Identity Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 };
     private static void Check(bool condition, string text) { checks++; if (!condition) throw new Exception(text); }
-    private sealed class Context : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IMainThread
+    private sealed class Context : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IRimBridgeMainThread
     {
-        public Dictionary<string, object>? Arguments { get; set; } = new();
-        public RimGovernor.Host.Sdk.IMainThread MainThread => this;
+        public IDictionary<string, object> Arguments { get; set; } = new Dictionary<string, object>();
+        public RimGovernor.Host.Sdk.IRimBridgeMainThread MainThread => this;
         public string OperationId => "probe";
         public string CapabilityId => "probe";
+        public bool IsMainThread => true;
+        public Task InvokeAsync(Action action, CancellationToken token) => InvokeAsync<object>(() => { action(); return null!; }, token);
+        public RimGovernor.Host.Sdk.IRimBridgeToolClient Tools => throw new NotSupportedException();
+        public RimGovernor.Host.Sdk.IRimBridgeGameClock Game => throw new NotSupportedException();
         public int Invocations;
         public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
         { token.ThrowIfCancellationRequested(); Invocations++; return Task.FromResult(action()); }

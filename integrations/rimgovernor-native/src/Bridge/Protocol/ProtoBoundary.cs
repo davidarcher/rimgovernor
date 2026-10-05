@@ -26,8 +26,7 @@ namespace HomeBridge.BridgeTools
         {
             value = null;
             callerForm.Value = FormOf(ctx);
-            string? unavailable;
-            var arguments = BridgeCommon.RawArguments(ctx, out unavailable);
+            var arguments = ctx?.Arguments;
             if (arguments == null)
             {
                 failure = Fail(Common.FailureCode.Unavailable, "Original invocation arguments are unavailable.");
@@ -35,7 +34,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var key in arguments.Keys)
             {
-                if (key != "request" && key != TraceArgument && key != MainThreadAdmission.ClassArgument && key != EncodingArgument && key != "_rimBridgeTimeoutMs")
+                if (key != "request" && key != TraceArgument && key != MainThreadAdmission.ClassArgument && key != EncodingArgument)
                 {
                     failure = Fail(Common.FailureCode.InvalidRequest, "The sole caller argument must be request.");
                     return false;
@@ -149,7 +148,7 @@ namespace HomeBridge.BridgeTools
         // The reply form the caller asked for.
         internal static ReplyForm FormOf(IRimBridgeContext ctx)
         {
-            var arguments = BridgeCommon.RawArguments(ctx, out _);
+            var arguments = ctx?.Arguments;
             if (arguments == null || !arguments.TryGetValue(EncodingArgument, out var raw) || !TryString(raw, out var value)) return ReplyForm.Payload;
             if (string.Equals(value, BinaryEncoding, StringComparison.Ordinal)) return ReplyForm.Gzip;
             if (string.Equals(value, ShmEncoding, StringComparison.Ordinal)) return ReplyForm.Shm;
@@ -390,7 +389,7 @@ namespace HomeBridge.BridgeTools
         // The caller's class argument, or null when it sent none.
         internal static string? ClassOf(IRimBridgeContext ctx)
         {
-            var arguments = BridgeCommon.RawArguments(ctx, out _);
+            var arguments = ctx?.Arguments;
             if (arguments == null || !arguments.TryGetValue(MainThreadAdmission.ClassArgument, out var raw) || !TryString(raw, out var cls)) return null;
             return cls;
         }
@@ -411,7 +410,7 @@ namespace HomeBridge.BridgeTools
         // arguments are unreadable; a missing echo is never a failure.
         internal static string? TraceOf(IRimBridgeContext ctx)
         {
-            var arguments = BridgeCommon.RawArguments(ctx, out _);
+            var arguments = ctx?.Arguments;
             if (arguments == null || !arguments.TryGetValue(TraceArgument, out var raw) || !TryString(raw, out var trace)) return null;
             return trace.Length > 0 && trace.Length <= 64 ? trace : null;
         }

@@ -80,13 +80,14 @@ internal static class RimBridgeSdkHost
         return new Scope(previous);
     }
 
-    public static IRimBridgeContext CreateContext(OperationContextSnapshot snapshot)
+    public static IRimBridgeContext CreateContext(OperationContextSnapshot snapshot, IDictionary<string, object> arguments = null)
     {
         EnsureReady();
         snapshot ??= new OperationContextSnapshot();
         return new RimBridgeContext(
             snapshot.OperationId ?? string.Empty,
             snapshot.CapabilityId ?? string.Empty,
+            arguments,
             new RimBridgeToolClient(_registry, () => _registrationComplete),
             new RimBridgeGameClock(),
             new RimBridgeMainThreadClient());
@@ -104,12 +105,14 @@ internal sealed class RimBridgeContext : IRimBridgeContext
     public RimBridgeContext(
         string operationId,
         string capabilityId,
+        IDictionary<string, object> arguments,
         IRimBridgeToolClient tools,
         IRimBridgeGameClock game,
         IRimBridgeMainThread mainThread)
     {
         OperationId = operationId ?? string.Empty;
         CapabilityId = capabilityId ?? string.Empty;
+        Arguments = arguments ?? new Dictionary<string, object>(StringComparer.Ordinal);
         Tools = tools ?? throw new ArgumentNullException(nameof(tools));
         Game = game ?? throw new ArgumentNullException(nameof(game));
         MainThread = mainThread ?? throw new ArgumentNullException(nameof(mainThread));
@@ -118,6 +121,8 @@ internal sealed class RimBridgeContext : IRimBridgeContext
     public string OperationId { get; }
 
     public string CapabilityId { get; }
+
+    public IDictionary<string, object> Arguments { get; }
 
     public IRimBridgeToolClient Tools { get; }
 

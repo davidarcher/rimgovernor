@@ -108,12 +108,8 @@ internal static class RimBridgeCapabilities
             module: new ContextMenuCapabilityModule(),
             aliasMetadataType: typeof(RimBridgeTools),
             source: CapabilitySourceKind.Optional));
-        var reservedExtensionAliases = registry.GetCapabilities()
-            .SelectMany(descriptor => descriptor.Aliases)
-            .Where(alias => string.IsNullOrWhiteSpace(alias) == false)
-            .ToList();
         RimBridgeSdkHost.Initialize(registry);
-        var extensionProviders = RimBridgeExtensionDiscovery.DiscoverProviders(reservedExtensionAliases);
+        var extensionProviders = RimBridgeExtensionDiscovery.DiscoverProviders();
         var extensionTools = new List<AnnotatedExtensionCapabilityProvider.DiscoveredTool>();
 
         foreach (var provider in extensionProviders)

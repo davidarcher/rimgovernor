@@ -25,8 +25,10 @@ internal static class NativeReplyEncoderProbe
     // The host's main-thread dispatcher as the SDK presents it: work queues
     // until the probe pumps it on its own thread, or is dropped as a
     // shutting-down host drops it.
-    private sealed class FakeGameThread : IMainThread
+    private sealed class FakeGameThread : IRimBridgeMainThread
     {
+        public bool IsMainThread => false;
+        public Task InvokeAsync(Action action, CancellationToken token) => InvokeAsync<object>(() => { action(); return null; }, token);
         private readonly Queue<Action> queued = new Queue<Action>();
         private readonly List<Action> dropped = new List<Action>();
         public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
@@ -60,18 +62,21 @@ internal static class NativeReplyEncoderProbe
 
     private sealed class Context : IRimBridgeContext
     {
-        internal Context(IMainThread main) { MainThread = main; }
-        public IMainThread MainThread { get; }
-        public Dictionary<string, object> Arguments => null;
+        internal Context(IRimBridgeMainThread main) { MainThread = main; }
+        public IRimBridgeMainThread MainThread { get; }
+        public IDictionary<string, object> Arguments => arguments;
+        public IRimBridgeToolClient Tools => throw new NotSupportedException();
+        public IRimBridgeGameClock Game => throw new NotSupportedException();
         public string OperationId => "probe";
         public string CapabilityId => "rimgovernor/probe";
     }
 
     // Admission reads the caller's class from the raw arguments when it
     // queues the hop.
+    private static IDictionary<string, object> arguments;
     private static void As(string cls)
     {
-        BridgeCommon.Arguments = new Dictionary<string, object> { ["request"] = "{}", [MainThreadAdmission.ClassArgument] = cls };
+        arguments = new Dictionary<string, object> { ["request"] = "{}", [MainThreadAdmission.ClassArgument] = cls };
     }
 
     private static T Settle<T>(Task<T> task, string name)
@@ -98,7 +103,7 @@ internal static class NativeReplyEncoderProbe
         CancellationAndFailureReleaseCapacity();
         ShutdownFailsTheCapture();
         FrameAllowanceSpreadsReads();
-        BridgeCommon.Arguments = null;
+        arguments = null;
         Console.WriteLine("native-reply-encoder: " + checks + " checks passed");
     }
 

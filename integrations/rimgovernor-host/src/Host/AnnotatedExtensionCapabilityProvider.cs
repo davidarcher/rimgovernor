@@ -173,7 +173,7 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
         cancellationToken.ThrowIfCancellationRequested();
 
         var operationContext = OperationContext.Capture();
-        var sdkContext = RimBridgeSdkHost.CreateContext(operationContext);
+        var sdkContext = RimBridgeSdkHost.CreateContext(operationContext, CallerArguments(invocation.Arguments));
         var timeoutMs = ResolveExecutionTimeoutMs(invocation.Arguments);
 
         return _runner.RunAsync(
@@ -239,6 +239,22 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
     {
         var property = task.GetType().GetProperty("Result", BindingFlags.Instance | BindingFlags.Public);
         return property?.GetValue(task);
+    }
+
+    /// <summary>The caller's arguments as the tool sees them: all of them, minus the host's own timeout key.</summary>
+    private static IDictionary<string, object> CallerArguments(IDictionary<string, object> arguments)
+    {
+        var caller = new Dictionary<string, object>(StringComparer.Ordinal);
+        if (arguments != null)
+        {
+            foreach (var pair in arguments)
+            {
+                if (pair.Key != ExecutionTimeoutArgumentName)
+                    caller[pair.Key] = pair.Value;
+            }
+        }
+
+        return caller;
     }
 
     private static int ResolveExecutionTimeoutMs(IDictionary<string, object> arguments)

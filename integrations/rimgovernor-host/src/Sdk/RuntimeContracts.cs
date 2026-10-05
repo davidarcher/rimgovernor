@@ -16,6 +16,13 @@ public interface IRimBridgeContext
 
     string CapabilityId { get; }
 
+    /// <summary>
+    /// Every argument the caller sent, including keys the tool method does not
+    /// declare (the binder drops those from the method call). The host's own
+    /// control keys are removed. Empty outside a tool invocation.
+    /// </summary>
+    IDictionary<string, object> Arguments { get; }
+
     IRimBridgeToolClient Tools { get; }
 
     IRimBridgeGameClock Game { get; }

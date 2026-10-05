@@ -201,8 +201,8 @@ func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
 	// Under a running window the journal read is held (wait_ms): the poll
 	// returns as soon as a row lands, so a stop is seen near-push instead
-	// of at the next cadence. The companion dispatches its tools off the
-	// GABP reader (ExtensionDispatchPatch, issue #227; smoke/dispatch
+	// of at the next cadence. The vendored GABP server dispatches tools off
+	// its reader (GabpServer.HandleToolsCallAsync, issues #227/#2051; smoke/dispatch
 	// measures a read under a held poll), so the routine Worker's dispatch
 	// of the successor order and the epoch renew no longer queue behind
 	// the held read (the #115 stall that kept PollWait at zero, issue

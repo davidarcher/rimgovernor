@@ -8,6 +8,7 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-native/src</NativeSourceRoot>
+    <HostSourceRoot Condition="'$(HostSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-host/src</HostSourceRoot>
   </PropertyGroup>
   <!-- Windows infers RuntimeIdentifier win7-x86 for a net472 Exe; pin it on every OS so the
        locked restore graph is identical everywhere (same as tools/protobuf). -->
@@ -30,9 +31,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(HarmonyAssembly)' != '' AND '$(RimWorldManagedDir)' != ''">
     <DefineConstants>$(DefineConstants);HAVE_HARMONY_AND_RIMWORLD</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(RimWorldManagedDir)' != ''">
-    <DefineConstants>$(DefineConstants);HAVE_HOST_SDK</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -58,10 +56,19 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/RoofSupportGeometry.cs" Link="Production/RoofSupportGeometry.cs" />
   </ItemGroup>
 
+  <!-- The real host SDK and GABP server, compiled from the vendored source with no game inputs: the probes'
+       contexts implement the real IRimBridgeContext, and gab-dispatch runs the real GabpServer. A
+       ProjectReference would share this build's BaseIntermediateOutputPath (one project.assets.json). -->
+  <ItemGroup>
+    <PackageReference Include="Gabp.Runtime" Version="1.0.0" />
+    <Compile Include="$(HostSourceRoot)/Sdk/*.cs" Link="Host/Sdk/%(Filename)%(Extension)" />
+    <Compile Include="$(HostSourceRoot)/Gab/**/*.cs" Exclude="$(HostSourceRoot)/Gab/obj/**" Link="Host/Gab/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="NativeContractProbes/gab-dispatch/Program.cs" />
+  </ItemGroup>
+
   <!-- ==== Shared fakes (Category 1/4: in-process, no real Assembly-CSharp.dll) ==== -->
   <ItemGroup>
     <Compile Include="NativeContractProbes/Shared/FakeVerseStub.cs" />
-    <Compile Include="NativeContractProbes/Shared/FakeSdkStub.cs" />
   </ItemGroup>
   <!-- Excluded whenever a real Harmony is referenced below: FakeHarmonyStub.cs would otherwise
        collide with 0Harmony.dll's own HarmonyLib.Harmony. FakeAuthorityHooksStub.cs and
@@ -146,24 +153,5 @@
     <Compile Include="NativeContractProbes/native-proto-research/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-rooms/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-supplies/Program.cs" />
-  </ItemGroup>
-
-  <!-- ==== Externally-gated probes (pre-existing constraint: these could not
-       build standalone before the merge either, without a licensed RimWorld install / Harmony
-       assembly supplied by the caller). Gating their Compile/Reference
-       items keeps the default (no external inputs) build green for the other 20 probes. ==== -->
-
-  <!-- native-journal-cache: compiles the REAL BridgeCommon.cs and REAL RimGovernor.Host.Sdk (the vendored
-       integrations/rimgovernor-host/src/Sdk project) against a licensed RimWorldManagedDir, unlike every other probe here. Its real
-       IRimBridgeContext would conflict with the fake one in FakeSdkStub.cs if both were ever
-       compiled at once - gating keeps that latent conflict moot until a future caller actually
-       supplies RimWorldManagedDir alongside the always-on probes above (see the
-       consolidation commit message / final report). -->
-  <ItemGroup Condition="'$(RimWorldManagedDir)' != ''">
-    <ProjectReference Include="../../integrations/rimgovernor-host/src/Sdk/RimGovernor.Host.Sdk.csproj" />
-    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath></Reference>
-    <Compile Include="$(NativeSourceRoot)/Bridge/BridgeCommon.cs" Link="Production/BridgeCommon.cs" />
-    <Compile Include="NativeContractProbes/native-journal-cache/Program.cs" />
   </ItemGroup>
 </Project>

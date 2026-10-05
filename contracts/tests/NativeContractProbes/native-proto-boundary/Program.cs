@@ -11,12 +11,22 @@ using Common = RimGovernor.Protocol.Common;
 
 internal static class NativeProtoBoundaryProbe {
     static int checks;
+    // The caller's raw arguments as the host would hand them through the context.
+    static IDictionary<string, object> Raw;
+    sealed class Ctx : RimGovernor.Host.Sdk.IRimBridgeContext {
+        public IDictionary<string, object> Arguments => Raw;
+        public string OperationId => "probe";
+        public string CapabilityId => "probe";
+        public RimGovernor.Host.Sdk.IRimBridgeToolClient Tools => throw new NotSupportedException();
+        public RimGovernor.Host.Sdk.IRimBridgeGameClock Game => throw new NotSupportedException();
+        public RimGovernor.Host.Sdk.IRimBridgeMainThread MainThread => throw new NotSupportedException();
+    }
     static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
     static bool Parse(object request, out Common.Identity value, out Common.Failure failure) {
-        return ProtoBoundary.TryParse(null, "test", request, Common.Identity.Parser, out value, out failure);
+        return ProtoBoundary.TryParse(new Ctx(), "test", request, Common.Identity.Parser, out value, out failure);
     }
     static void Case(string name, string json, bool accepted) {
-        BridgeCommon.Arguments = new Dictionary<string,object> { ["request"] = json };
+        Raw = new Dictionary<string,object> { ["request"] = json };
         Common.Identity value; Common.Failure failure;
         Check(Parse(json, out value, out failure) == accepted, name);
         Check(accepted ? failure == null : failure.Code == Common.FailureCode.InvalidRequest && value == null, name+" outcome");
@@ -45,14 +55,16 @@ internal static class NativeProtoBoundaryProbe {
         Case("escaped reversed pair", "{\"colonyId\":\"\\udc00\\ud800\"}", false);
         Case("valid pair", "{\"colonyId\":\"\\ud83d\\ude00\"}", true);
         Common.Identity parsed; Common.Failure refusal;
-        BridgeCommon.Arguments=null;
+        Raw=null;
         Check(!Parse("{}",out parsed,out refusal) && refusal.Code==Common.FailureCode.Unavailable,"missing journal");
-        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",["other"]=true};
+        Raw=new Dictionary<string,object>{["request"]="{}",["other"]=true};
         Check(!Parse("{}",out parsed,out refusal),"unknown outer argument");
-        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]=new JValue("{}"),["_rimBridgeTimeoutMs"]=10};
+        Raw=new Dictionary<string,object>{["request"]=new JValue("{}")};
         Check(Parse("{}",out parsed,out refusal),"raw JValue exact string");
+        Raw=new Dictionary<string,object>{["request"]="{}",["_rimBridgeTimeoutMs"]=10};
+        Check(!Parse("{}",out parsed,out refusal),"host timeout key is not a caller argument");
         Check(!Parse(" {}",out parsed,out refusal),"raw/bound argument mismatch");
-        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]=new JObject()};
+        Raw=new Dictionary<string,object>{["request"]=new JObject()};
         Check(!Parse(new JObject(),out parsed,out refusal),"raw object not coerced");
         Check(!ProtoBoundary.IsIdentifier("\ud800"),"identifier surrogate");
         Check(!ProtoBoundary.IsIdentifier("a\0b"),"identifier NUL");
@@ -69,19 +81,19 @@ internal static class NativeProtoBoundaryProbe {
         using(var gz=new System.IO.Compression.GZipStream(new System.IO.MemoryStream(Convert.FromBase64String((string)binaryWire[ProtoBoundary.ProtoField])),System.IO.Compression.CompressionMode.Decompress))
             Check(reply.Equals(Common.Identity.Parser.ParseFrom(gz)),"binary gzip round trip");
         Check(ProtoBoundary.Encode(reply).ContainsKey("payload"),"binary form does not outlive its scope");
-        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
+        Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
         Check(Parse("{}",out parsed,out refusal),"encoding argument accepted");
-        Check(ProtoBoundary.FormOf(null)==ProtoBoundary.ReplyForm.Gzip,"encoding argument read");
-        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.ShmEncoding};
-        Check(ProtoBoundary.FormOf(null)==ProtoBoundary.ReplyForm.Shm,"shared-memory encoding read");
+        Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Gzip,"encoding argument read");
+        Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.ShmEncoding};
+        Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Shm,"shared-memory encoding read");
         var small=ProtoBoundary.WithForm(ProtoBoundary.ReplyForm.Shm,()=>ProtoBoundary.Encode(reply));
         Check(small.Count==1 && small[ProtoBoundary.ProtoField] is string,"small shm reply stays inline");
         var large=new Common.Failure{Detail=new string('x',ReplyRing.InlineBytes)};
         var slotted=ProtoBoundary.WithForm(ProtoBoundary.ReplyForm.Shm,()=>ProtoBoundary.Encode(large));
         Check(slotted.ContainsKey(ProtoBoundary.SlotField)||slotted.ContainsKey(ProtoBoundary.ProtoField),"large shm reply goes to a slot, or inline without a ring");
-        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]="json"};
-        Check(ProtoBoundary.FormOf(null)==ProtoBoundary.ReplyForm.Payload,"other encoding stays ProtoJSON");
-        BridgeCommon.Arguments=null;
+        Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]="json"};
+        Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Payload,"other encoding stays ProtoJSON");
+        Raw=null;
         Common.ObservationContext context; Common.Unavailable unavailable;
         Check(!ProtoBoundary.TryReadContext(null,out context,out unavailable) && unavailable.Reason==Common.UnavailableReason.NotLoaded,"unloaded read does not create authority");
         var game = new Verse.Game { Identity = new ColonyIdentity { ColonyId="colony",LoadToken="load" } };
@@ -132,7 +144,7 @@ internal static class NativeProtoBoundaryProbe {
             var args=new Dictionary<string,object>{["request"]=raw};
             var bound=(object[])binder.Invoke(null,new object[]{method,args,null,CancellationToken.None});
             Check(ReferenceEquals(bound[0],raw),"actual SDK object parameter preserves raw value");
-            BridgeCommon.Arguments=args;
+            Raw=args;
             Common.Identity parsed; Common.Failure failure;
             Check(Parse(bound[0],out parsed,out failure)==(raw is string),"bound value string-only validation");
         }

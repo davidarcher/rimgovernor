@@ -11,15 +11,6 @@ namespace RimGovernor.Host;
 
 internal static class RimBridgeExtensionDiscovery
 {
-    private sealed class DependencyScope
-    {
-        public string BridgeToolsRoot { get; set; }
-
-        public string BundleDirectory { get; set; }
-
-        public string OwnerId { get; set; }
-    }
-
     private sealed class LoadedCompanionAssembly
     {
         public Assembly Assembly { get; set; }
@@ -37,13 +28,14 @@ internal static class RimBridgeExtensionDiscovery
     }
 
     private static readonly object ResolverSync = new();
-    private static readonly Dictionary<string, DependencyScope> ScopesByAssemblyPath = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> BundleDirectories = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, Assembly> LoadedAssembliesByPath = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, CompanionDiscoveryDiagnostic> DiagnosticsByAssemblyPath = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, string> AssemblyPathsByProviderId = new(StringComparer.Ordinal);
     private static bool _resolverInstalled;
 
-    public static IReadOnlyList<AnnotatedExtensionCapabilityProvider> DiscoverProviders(IEnumerable<string> reservedAliases = null)
+    /// <summary>Loads the tool assemblies bundled in this mod's BridgeTools folder and builds a provider per assembly.</summary>
+    public static IReadOnlyList<AnnotatedExtensionCapabilityProvider> DiscoverProviders()
     {
         InstallResolver();
         ResetDiagnostics();
@@ -119,9 +111,8 @@ internal static class RimBridgeExtensionDiscovery
             StoreDiagnostic(diagnostic);
             try
             {
-                RegisterScope(candidate);
-                WarnAboutLocalSdk(candidate, diagnostic);
-                var assembly = LoadScopedAssembly(candidate.AssemblyPath, CreateScope(candidate));
+                RegisterBundleDirectories(candidate);
+                var assembly = LoadBundledAssembly(candidate.AssemblyPath);
                 if (assembly != null)
                 {
                     MarkLoaded(diagnostic, assembly);
@@ -143,30 +134,16 @@ internal static class RimBridgeExtensionDiscovery
         return result;
     }
 
+    /// <summary>This mod's own BridgeTools folders; the host loads no other mod's tools.</summary>
     private static IEnumerable<CompanionAssemblyCandidate> DiscoverCompanionCandidates()
     {
-        var globalRoot = TryGetGlobalBridgeToolsRoot();
-        if (string.IsNullOrWhiteSpace(globalRoot) == false)
+        var mod = LoadedModManager.GetMod<RimGovernorHostMod>()?.Content;
+        if (mod == null)
         {
-            foreach (var candidate in CompanionFileDiscovery.DiscoverBridgeToolsRoot(globalRoot, CompanionRootKind.Global, "global"))
-                yield return candidate;
+            Log.Error("[RimBridge] The RimGovernor mod content pack is not loaded; no tools will be registered.");
+            yield break;
         }
 
-        var runningMods = LoadedModManager.RunningModsListForReading?
-            .OfType<ModContentPack>()
-            .Where(mod => mod != null)
-            .ToList()
-            ?? [];
-
-        foreach (var mod in runningMods)
-        {
-            foreach (var candidate in DiscoverModBridgeTools(mod))
-                yield return candidate;
-        }
-    }
-
-    private static IEnumerable<CompanionAssemblyCandidate> DiscoverModBridgeTools(ModContentPack mod)
-    {
         var folders = mod.foldersToLoadDescendingOrder?
             .Where(folder => string.IsNullOrWhiteSpace(folder) == false)
             .ToList()
@@ -175,41 +152,20 @@ internal static class RimBridgeExtensionDiscovery
 
         for (var i = folders.Count - 1; i >= 0; i--)
         {
-            var folder = folders[i];
-            var root = Path.Combine(folder, CompanionFileDiscovery.BridgeToolsFolderName);
+            var root = Path.Combine(folders[i], CompanionFileDiscovery.BridgeToolsFolderName);
             foreach (var candidate in CompanionFileDiscovery.DiscoverBridgeToolsRoot(root, CompanionRootKind.Mod, CreateOwnerId(mod)))
-            {
                 discovered.Add((CreateRelativeKey(candidate), candidate));
-            }
         }
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var i = discovered.Count - 1; i >= 0; i--)
         {
-            var entry = discovered[i];
-            if (seen.Add(entry.RelativeKey) == false)
+            if (seen.Add(discovered[i].RelativeKey) == false)
                 discovered.RemoveAt(i);
         }
 
         foreach (var entry in discovered)
             yield return entry.Candidate;
-    }
-
-    private static string TryGetGlobalBridgeToolsRoot()
-    {
-        try
-        {
-            var modsFolder = GenFilePaths.ModsFolderPath;
-            var parent = Directory.GetParent(modsFolder);
-            return parent == null
-                ? null
-                : Path.Combine(parent.FullName, CompanionFileDiscovery.BridgeToolsFolderName);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"[RimBridge] Could not resolve global BridgeTools folder: {ex.Message}");
-            return null;
-        }
     }
 
     private static string CreateRelativeKey(CompanionAssemblyCandidate candidate)
@@ -386,131 +342,73 @@ internal static class RimBridgeExtensionDiscovery
             if (_resolverInstalled)
                 return;
 
-            AppDomain.CurrentDomain.AssemblyResolve += ResolveCompanionAssembly;
+            AppDomain.CurrentDomain.AssemblyResolve += ResolveBundledAssembly;
             _resolverInstalled = true;
         }
     }
 
-    private static Assembly ResolveCompanionAssembly(object sender, ResolveEventArgs args)
+    /// <summary>
+    /// Binds a bundled assembly's references by simple name: an assembly the game
+    /// already loaded (the host's SDK among them) wins, otherwise the DLL beside
+    /// the tools. Assembly.LoadFile registers no binding context of its own.
+    /// </summary>
+    private static Assembly ResolveBundledAssembly(object sender, ResolveEventArgs args)
     {
-        var requestedName = new AssemblyName(args.Name);
-        if (string.Equals(requestedName.Name, CompanionFileDiscovery.SdkAssemblyName, StringComparison.OrdinalIgnoreCase))
-            return typeof(ToolAttribute).Assembly;
-
-        var scope = TryGetScope(args.RequestingAssembly);
-        if (scope != null)
-        {
-            foreach (var directory in GetResolutionDirectories(scope))
-            {
-                var path = Path.Combine(directory, requestedName.Name + ".dll");
-                if (File.Exists(path))
-                    return LoadScopedAssembly(path, scope);
-            }
-        }
-
-        return AppDomain.CurrentDomain.GetAssemblies()
+        var requestedName = new AssemblyName(args.Name).Name;
+        var loaded = AppDomain.CurrentDomain.GetAssemblies()
             .FirstOrDefault(assembly =>
             {
                 try
                 {
-                    return string.Equals(assembly.GetName().FullName, args.Name, StringComparison.Ordinal);
+                    return assembly.IsDynamic == false
+                        && string.Equals(assembly.GetName().Name, requestedName, StringComparison.OrdinalIgnoreCase);
                 }
                 catch
                 {
                     return false;
                 }
             });
-    }
+        if (loaded != null)
+            return loaded;
 
-    private static IEnumerable<string> GetResolutionDirectories(DependencyScope scope)
-    {
-        if (string.IsNullOrWhiteSpace(scope.BundleDirectory) == false)
-            yield return scope.BundleDirectory;
-        if (string.IsNullOrWhiteSpace(scope.BridgeToolsRoot) == false)
-            yield return scope.BridgeToolsRoot;
-    }
+        string[] directories;
+        lock (ResolverSync)
+            directories = BundleDirectories.ToArray();
 
-    private static DependencyScope TryGetScope(Assembly requestingAssembly)
-    {
-        if (requestingAssembly == null || requestingAssembly.IsDynamic)
-            return null;
-
-        try
+        foreach (var directory in directories)
         {
-            var location = requestingAssembly.Location;
-            if (string.IsNullOrWhiteSpace(location))
-                return null;
+            var path = Path.Combine(directory, requestedName + ".dll");
+            if (File.Exists(path))
+                return LoadBundledAssembly(path);
+        }
 
-            lock (ResolverSync)
-            {
-                return ScopesByAssemblyPath.TryGetValue(Path.GetFullPath(location), out var scope)
-                    ? scope
-                    : null;
-            }
-        }
-        catch
-        {
-            return null;
-        }
+        return null;
     }
 
-    private static Assembly LoadScopedAssembly(string path, DependencyScope scope)
+    private static Assembly LoadBundledAssembly(string path)
     {
         var fullPath = Path.GetFullPath(path);
-        if (string.Equals(Path.GetFileName(fullPath), CompanionFileDiscovery.SdkAssemblyFileName, StringComparison.OrdinalIgnoreCase))
-            return typeof(ToolAttribute).Assembly;
-
         lock (ResolverSync)
         {
             if (LoadedAssembliesByPath.TryGetValue(fullPath, out var existing))
                 return existing;
-
-            ScopesByAssemblyPath[fullPath] = scope;
         }
 
         var assembly = Assembly.LoadFile(fullPath);
         lock (ResolverSync)
-        {
             LoadedAssembliesByPath[fullPath] = assembly;
-            ScopesByAssemblyPath[fullPath] = scope;
-        }
 
         return assembly;
     }
 
-    private static void RegisterScope(CompanionAssemblyCandidate candidate)
+    private static void RegisterBundleDirectories(CompanionAssemblyCandidate candidate)
     {
-        var scope = CreateScope(candidate);
         lock (ResolverSync)
         {
-            ScopesByAssemblyPath[Path.GetFullPath(candidate.AssemblyPath)] = scope;
-        }
-    }
-
-    private static DependencyScope CreateScope(CompanionAssemblyCandidate candidate)
-    {
-        return new DependencyScope
-        {
-            BridgeToolsRoot = candidate.BridgeToolsRoot,
-            BundleDirectory = candidate.BundleDirectory,
-            OwnerId = candidate.OwnerId
-        };
-    }
-
-    private static void WarnAboutLocalSdk(CompanionAssemblyCandidate candidate, CompanionDiscoveryDiagnostic diagnostic)
-    {
-        foreach (var directory in new[] { candidate.BundleDirectory, candidate.BridgeToolsRoot }
-            .Where(directory => string.IsNullOrWhiteSpace(directory) == false)
-            .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var sdkPath = Path.Combine(directory, CompanionFileDiscovery.SdkAssemblyFileName);
-            if (File.Exists(sdkPath))
-            {
-                diagnostic.LocalSdkPaths.Add(sdkPath);
-                diagnostic.Warnings.Add($"Ignoring companion-local SDK copy '{sdkPath}'. Companion tools must bind to the SDK shipped by RimGovernor.Host.");
-                Log.Warning($"[RimBridge] Ignoring companion-local SDK copy '{sdkPath}'. Companion tools must bind to the SDK shipped by RimGovernor.Host.");
-                Touch(diagnostic);
-            }
+            if (string.IsNullOrWhiteSpace(candidate.BundleDirectory) == false)
+                BundleDirectories.Add(candidate.BundleDirectory);
+            if (string.IsNullOrWhiteSpace(candidate.BridgeToolsRoot) == false)
+                BundleDirectories.Add(candidate.BridgeToolsRoot);
         }
     }
 
@@ -595,9 +493,7 @@ internal static class RimBridgeExtensionDiscovery
     {
         diagnostic.AssemblyName = assembly.GetName().Name ?? string.Empty;
         diagnostic.AssemblyVersion = assembly.GetName().Version?.ToString() ?? string.Empty;
-        diagnostic.ReferencedSdkVersion = FindReferencedSdkVersion(assembly);
         diagnostic.Status = "loaded";
-        CheckReferencedSdkVersion(diagnostic);
         Touch(diagnostic);
     }
 
@@ -655,40 +551,6 @@ internal static class RimBridgeExtensionDiscovery
 
         diagnostic.Errors.Add(exception.Message);
         Touch(diagnostic);
-    }
-
-    private static string FindReferencedSdkVersion(Assembly assembly)
-    {
-        try
-        {
-            return assembly
-                .GetReferencedAssemblies()
-                .FirstOrDefault(name => string.Equals(name.Name, CompanionFileDiscovery.SdkAssemblyName, StringComparison.OrdinalIgnoreCase))
-                ?.Version
-                ?.ToString()
-                ?? string.Empty;
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    private static void CheckReferencedSdkVersion(CompanionDiscoveryDiagnostic diagnostic)
-    {
-        if (string.IsNullOrWhiteSpace(diagnostic.ReferencedSdkVersion)
-            || string.IsNullOrWhiteSpace(diagnostic.HostSdkVersion))
-            return;
-
-        if (Version.TryParse(diagnostic.ReferencedSdkVersion, out var referenced) == false
-            || Version.TryParse(diagnostic.HostSdkVersion, out var host) == false)
-            return;
-
-        if (referenced.Major != host.Major || referenced.Minor != host.Minor)
-        {
-            diagnostic.Warnings.Add(
-                $"Companion references RimGovernor.Host.Sdk {diagnostic.ReferencedSdkVersion}, but the running host provides {diagnostic.HostSdkVersion}. Rebuild/redeploy the companion and restart RimWorld if tool calls fail.");
-        }
     }
 
     private static string GetInformationalVersion(Assembly assembly)

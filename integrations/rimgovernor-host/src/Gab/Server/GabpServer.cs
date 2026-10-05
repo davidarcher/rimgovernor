@@ -554,7 +554,12 @@ namespace RimGovernor.Host.Gab.Server
                     arguments = callParams.Arguments;
                 }
 
-                var result = await _toolRegistry.CallToolAsync(toolName, arguments);
+                // A tool handler may run synchronously for as long as it likes (a
+                // held long poll). The transport raises this message on the
+                // connection's reader, which parses nothing while we run inline,
+                // so the call always moves to the pool: the reader carries on to
+                // the next frame and replies are matched by request id.
+                var result = await Task.Run(() => _toolRegistry.CallToolAsync(toolName, arguments)).ConfigureAwait(false);
                 
                 await SendResponseAsync(connection, request.Id, result);
             }

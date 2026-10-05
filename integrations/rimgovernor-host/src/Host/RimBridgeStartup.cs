@@ -68,9 +68,21 @@ internal static class RimBridgeStartup
             if (server.Tools.HasTool(tool.Alias))
                 continue;
 
+            // The handler runs to completion; GabpServer calls it off the reader.
             server.Tools.RegisterTool(
                 tool.Alias,
-                parameters => TaskShim.FromResult<object>(LegacyToolExecution.InvokeAlias(tool.Alias, ReflectedCapabilityBinding.NormalizeInvocationArguments(parameters))),
+                parameters =>
+                {
+                    IdleExit.Begin();
+                    try
+                    {
+                        return TaskShim.FromResult<object>(LegacyToolExecution.InvokeAlias(tool.Alias, ReflectedCapabilityBinding.NormalizeInvocationArguments(parameters)));
+                    }
+                    finally
+                    {
+                        IdleExit.End();
+                    }
+                },
                 tool.ToolInfo);
         }
     }

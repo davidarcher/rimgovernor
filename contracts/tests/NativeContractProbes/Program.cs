@@ -63,14 +63,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-proto-rooms": return NativeProtoRoomsProbe.Invoke(rest);
                 case "native-proto-supplies": return NativeProtoSuppliesProbe.Invoke(rest);
 
-
-#if HAVE_HOST_SDK
-                case "native-journal-cache": NativeJournalCacheProbe.Invoke(); return 0;
-#else
-                case "native-journal-cache":
-                    Console.Error.WriteLine("native-journal-cache requires $(RimWorldManagedDir) to be supplied at build time; not available in this build.");
-                    return 1;
-#endif
+                case "gab-dispatch": GabDispatchProbe.Invoke(); return 0;
 
                 default:
                     Console.Error.WriteLine("Unknown probe: " + probe);
@@ -99,7 +92,7 @@ internal static class NativeContractProbesDispatcher
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",
             "native-proto-observations", "native-proto-placement", "native-proto-presentation",
             "native-proto-research", "native-population-outlook", "native-give-job", "native-proto-rooms", "native-proto-supplies",
-            "native-journal-cache",
+            "gab-dispatch",
         }) Console.Error.WriteLine("  " + name);
     }
 }

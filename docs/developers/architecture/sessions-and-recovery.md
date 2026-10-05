@@ -44,8 +44,8 @@ mistaken for the game) and speaks GABP to the GABP host directly
 id, so a held `clock_read_events` long poll does not stall planner reads
 behind it. The game is spawned detached and keeps running when
 the controller ends; a restarted controller reattaches through the endpoint
-record. The companion mod registers its tools off the GABP reader thread
-(`ExtensionDispatchPatch`), so a held journal read never delays the routine
+record. The vendored GABP server runs every tools/call off its reader thread
+(`GabpServer.HandleToolsCallAsync`), so a held journal read never delays the routine
 worker's dispatch or the lease renew. The service holds its journal read
 (`wait_ms`, 4 s) while a colony window it admitted is running, and keeps an
 unheld 1 s cadence between windows while the planners read.

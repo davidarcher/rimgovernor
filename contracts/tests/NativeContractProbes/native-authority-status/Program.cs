@@ -30,12 +30,16 @@ internal static class NativeAuthorityStatusProbe
             "Projection lost known tick/map zero");
         return status;
     }
-    private sealed class ContextStub : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IMainThread
+    private sealed class ContextStub : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IRimBridgeMainThread
     {
-        public Dictionary<string, object>? Arguments { get; set; } = new Dictionary<string, object>();
-        public RimGovernor.Host.Sdk.IMainThread MainThread => this;
+        public IDictionary<string, object> Arguments { get; set; } = new Dictionary<string, object>();
+        public RimGovernor.Host.Sdk.IRimBridgeMainThread MainThread => this;
         public string OperationId => "probe";
         public string CapabilityId => "probe";
+        public bool IsMainThread => true;
+        public Task InvokeAsync(Action action, CancellationToken token) => InvokeAsync<object>(() => { action(); return null!; }, token);
+        public RimGovernor.Host.Sdk.IRimBridgeToolClient Tools => throw new NotSupportedException();
+        public RimGovernor.Host.Sdk.IRimBridgeGameClock Game => throw new NotSupportedException();
         public int Invocations;
         public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
         {
