@@ -543,11 +543,20 @@ func IsolatedRoot(source, destination string) (string, error) {
 	if err := writeConfig(filepath.Join(destination, "config", "config.json"), config); err != nil {
 		return "", err
 	}
-	for _, relative := range []string{
+	required := []string{
 		filepath.Join("profile", "Config", "Prefs.xml"),
 		filepath.Join("profile", "Config", "ModsConfig.xml"),
-		filepath.Join("profile", "Saves", "RimGovernor-tribal8-baseline.rws"),
-	} {
+	}
+	// The baseline is generated on first use (Config.EnsureSave), so a source
+	// root that has not run a case yet has none to hand the worker; the worker
+	// then generates its own. A present baseline travels with its stamp.
+	if info, err := os.Stat(baselineSavePath(source)); err == nil && !info.IsDir() {
+		required = append(required, filepath.Join("profile", "Saves", BaselineSave))
+		if _, err := os.Stat(baselineStampPath(source)); err == nil {
+			required = append(required, filepath.Join("profile", "Saves", BaselineName+baselineStampSuffix))
+		}
+	}
+	for _, relative := range required {
 		target := filepath.Join(destination, relative)
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return "", err

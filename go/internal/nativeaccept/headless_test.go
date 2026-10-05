@@ -398,6 +398,20 @@ func TestIsolatedRootBuildsFreshWorker(t *testing.T) {
 	}
 }
 
+func TestIsolatedRootWithoutBaselineLeavesItToTheWorker(t *testing.T) {
+	source := writeSourceRoot(t)
+	if err := os.Remove(filepath.Join(source, "profile", "Saves", BaselineSave)); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(t.TempDir(), "worker")
+	if _, err := IsolatedRoot(source, destination); err != nil {
+		t.Fatalf("IsolatedRoot with no baseline: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destination, "profile", "Saves", BaselineSave)); !os.IsNotExist(err) {
+		t.Fatalf("worker should have no baseline yet: %v", err)
+	}
+}
+
 func TestIsolatedRootRefusesExistingDestination(t *testing.T) {
 	source := writeSourceRoot(t)
 	destination := t.TempDir() // already exists
