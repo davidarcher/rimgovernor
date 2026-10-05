@@ -1,7 +1,10 @@
 package policy
 
 import (
+	"math"
 	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // Herd sites (#1633). The animal pen, the barn and the vet room are
@@ -131,8 +134,100 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 	}
 	if short := VetBeds(animals) - plan.herdCapacity(ModuleVetRoom); short > 0 {
 		w, h := walledSide(herdSide(short))
-		if site, ok := u.site(w, h, false, false, cx, cz); ok {
+		// The vet room shares the barn's wall when a site beside it fits.
+		site, ok := Rectangle{}, false
+		if hasBarn {
+			site, ok = u.vetBesideBarn(*plan, barn, w, h)
+		}
+		if !ok {
+			site, ok = u.site(w, h, false, false, cx, cz)
+		}
+		if ok {
 			u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: site})
 		}
 	}
+}
+
+// sharedWallLink is the cell of the wall two reservations' outlines share
+// where a door joins them: the middle of the run between the corners both
+// walls stand on. False unless the outlines overlap in exactly one wall line.
+func sharedWallLink(a, b Rectangle) (domain.Cell, bool) {
+	run := func(a0, a1, b0, b1 int32) (int32, bool) {
+		lo, hi := max(a0, b0)+1, min(a1, b1)-1
+		return (lo + hi - 1) / 2, lo < hi
+	}
+	switch {
+	case a.X+a.Width-1 == b.X || b.X+b.Width-1 == a.X:
+		x := b.X
+		if b.X+b.Width-1 == a.X {
+			x = a.X
+		}
+		z, ok := run(a.Z, a.Z+a.Height, b.Z, b.Z+b.Height)
+		return domain.Cell{X: x, Z: z}, ok
+	case a.Z+a.Height-1 == b.Z || b.Z+b.Height-1 == a.Z:
+		z := b.Z
+		if b.Z+b.Height-1 == a.Z {
+			z = a.Z
+		}
+		x, ok := run(a.X, a.X+a.Width, b.X, b.X+b.Width)
+		return domain.Cell{X: x, Z: z}, ok
+	}
+	return domain.Cell{}, false
+}
+
+// vetBesideBarn is the nearest w x h outline sharing one wall with the barn
+// (no wall material is wasted on a second parallel wall): every other cell
+// must be free. The barn's own door never lands on the shared wall.
+func (u *utilityGrid) vetBesideBarn(plan LayoutPlan, barn Rectangle, w, h int32) (Rectangle, bool) {
+	barnRoom := plan.herdRoom(barn, ModuleBarn)
+	cx, cz := barn.X+barn.Width/2, barn.Z+barn.Height/2
+	best, bestCost, found := Rectangle{}, 0.0, false
+	for _, side := range []struct{ dx, dz int32 }{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+		x0, z0 := barn.X, barn.Z
+		switch {
+		case side.dx > 0:
+			x0 = barn.X + barn.Width - 1
+		case side.dx < 0:
+			x0 = barn.X - w + 1
+		case side.dz > 0:
+			z0 = barn.Z + barn.Height - 1
+		default:
+			z0 = barn.Z - h + 1
+		}
+		for off := int32(-h - barn.Height); off <= h+barn.Height+w+barn.Width; off++ {
+			r := Rectangle{X: x0, Z: z0 + off, Width: w, Height: h}
+			if side.dz != 0 {
+				r = Rectangle{X: x0 + off, Z: z0, Width: w, Height: h}
+			}
+			link, ok := sharedWallLink(r, barn)
+			if !ok || link == barnRoom.Door || !u.inset(r) || !u.freeBesideWall(r, barn) {
+				continue
+			}
+			dx, dz := float64(r.X+w/2-cx), float64(r.Z+h/2-cz)
+			if cost := math.Sqrt(dx*dx + dz*dz); !found || cost < bestCost {
+				best, bestCost, found = r, cost, true
+			}
+		}
+	}
+	return best, found
+}
+
+// freeBesideWall reports every cell of r free, bar the cells of barn's own
+// outline: the shared wall.
+func (u *utilityGrid) freeBesideWall(r, barn Rectangle) bool {
+	for z := r.Z; z < r.Z+r.Height; z++ {
+		for x := r.X; x < r.X+r.Width; x++ {
+			if x >= barn.X && x < barn.X+barn.Width && z >= barn.Z && z < barn.Z+barn.Height {
+				// Only the barn's wall may be shared, never its interior.
+				if x > barn.X && x < barn.X+barn.Width-1 && z > barn.Z && z < barn.Z+barn.Height-1 {
+					return false
+				}
+				continue
+			}
+			if !u.freeWhere(Rectangle{X: x, Z: z, Width: 1, Height: 1}, false, true) {
+				return false
+			}
+		}
+	}
+	return true
 }

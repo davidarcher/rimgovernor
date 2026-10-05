@@ -202,17 +202,76 @@ func (p LayoutPlan) herdRoom(area Rectangle, role ModuleRole) LayoutRoom {
 		tx, tz = cx, cz-1
 	}
 	dx, dz := tx-cx, tz-cz
+	east := herdDoor{domain.Cell{X: in.X + in.Width, Z: in.Z + in.Height/2}, domain.East, 1, 0, dx}
+	west := herdDoor{domain.Cell{X: in.X - 1, Z: in.Z + in.Height/2}, domain.West, -1, 0, -dx}
+	north := herdDoor{domain.Cell{X: in.X + in.Width/2, Z: in.Z + in.Height}, domain.North, 0, 1, dz}
+	south := herdDoor{domain.Cell{X: in.X + in.Width/2, Z: in.Z - 1}, domain.South, 0, -1, -dz}
+	var first herdDoor
 	switch {
 	case abs64(dx) > abs64(dz) && dx > 0:
-		room.Door, room.DoorRot = domain.Cell{X: in.X + in.Width, Z: in.Z + in.Height/2}, domain.East
+		first = east
 	case abs64(dx) > abs64(dz):
-		room.Door, room.DoorRot = domain.Cell{X: in.X - 1, Z: in.Z + in.Height/2}, domain.West
+		first = west
 	case dz > 0:
-		room.Door, room.DoorRot = domain.Cell{X: in.X + in.Width/2, Z: in.Z + in.Height}, domain.North
+		first = north
 	default:
-		room.Door, room.DoorRot = domain.Cell{X: in.X + in.Width/2, Z: in.Z - 1}, domain.South
+		first = south
+	}
+	// A vet room standing against a barn's wall opens into it through a
+	// door in the shared wall, besides its own door outside.
+	if role == ModuleVetRoom {
+		for _, r := range p.Reservations {
+			if r.Kind != ReserveBarn || r.Area == area {
+				continue
+			}
+			if link, ok := sharedWallLink(area, r.Area); ok {
+				room.Link = &link
+				break
+			}
+		}
+	}
+	// The door faces its target unless another reservation's walls stand
+	// right outside it; then the best side that opens on free ground.
+	room.Door, room.DoorRot = first.cell, first.rot
+	if !p.doorBlocked(first, area) {
+		return room
+	}
+	best, found := herdDoor{}, false
+	for _, d := range []herdDoor{east, west, north, south} {
+		if d.rot == first.rot || p.doorBlocked(d, area) || found && d.score <= best.score {
+			continue
+		}
+		best, found = d, true
+	}
+	if found {
+		room.Door, room.DoorRot = best.cell, best.rot
 	}
 	return room
+}
+
+// herdDoor is a candidate door: its wall cell, the side it faces, the step
+// to the cell outside it and how well it faces the room's target.
+type herdDoor struct {
+	cell   domain.Cell
+	rot    domain.Rotation
+	sx, sz int32
+	score  float64
+}
+
+// doorBlocked reports the cell outside d inside another reservation's area
+// (its walls), where the door would open on a wall nobody can walk through.
+func (p LayoutPlan) doorBlocked(d herdDoor, own Rectangle) bool {
+	out := domain.Cell{X: d.cell.X + d.sx, Z: d.cell.Z + d.sz}
+	for _, r := range p.Reservations {
+		a := r.Area
+		if a == own {
+			continue
+		}
+		if out.X >= a.X && out.X < a.X+a.Width && out.Z >= a.Z && out.Z < a.Z+a.Height {
+			return true
+		}
+	}
+	return false
 }
 
 func abs64(v float64) float64 {

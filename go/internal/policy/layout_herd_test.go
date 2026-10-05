@@ -50,12 +50,13 @@ func TestHerdSitesBarnAndVetRoom(t *testing.T) {
 		t.Fatal("vet room holds fewer than two beds", vet, VetRoomBeds(vet))
 	}
 	for _, r := range p.Reservations {
-		if r.Kind != ReserveVetRoom && rectsOverlap(r.Area, vet) {
+		// The barn's wall is the one thing the vet room may share.
+		if _, shared := sharedWallLink(r.Area, vet); r.Kind != ReserveVetRoom && rectsOverlap(r.Area, vet) && !(r.Kind == ReserveBarn && shared) {
 			t.Fatal("vet room overlaps", r.Kind)
 		}
 	}
 	for _, a := range p.AnimalAreas() {
-		if rectsOverlap(a, vet) {
+		if _, shared := sharedWallLink(a, vet); rectsOverlap(a, vet) && !shared {
 			t.Fatal("vet room is inside an animal area", a)
 		}
 	}

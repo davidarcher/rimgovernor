@@ -293,6 +293,8 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 		{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}},
 		{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
 		{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3}},
+		{Role: policy.ModuleBarn, Interior: policy.Rectangle{X: 70, Z: 70, Width: 3, Height: 3}},
+		{Role: policy.ModuleVetRoom, Interior: policy.Rectangle{X: 90, Z: 90, Width: 3, Height: 3}},
 	}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	cells := map[domain.Cell]bool{}
@@ -307,5 +309,8 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 	}
 	if cells[domain.Cell{X: 51, Z: 51}] {
 		t.Error("the shelter is closed to loose spots")
+	}
+	if !cells[domain.Cell{X: 71, Z: 71}] || !cells[domain.Cell{X: 91, Z: 91}] {
+		t.Error("the animal barn and vet room are open to loose colonist spots (they must be protected)")
 	}
 }

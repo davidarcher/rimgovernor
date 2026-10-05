@@ -2,6 +2,7 @@ package policy
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -184,5 +185,44 @@ func TestBarnAndVetRoomAreAnimalFurnitureRooms(t *testing.T) {
 	}
 	if _, ok := InteriorTemplateFor(RoomRoleVetRoom); !ok {
 		t.Fatal("vet room has a template")
+	}
+}
+
+// A vet room walled against the barn never opens its door on the barn's wall.
+func TestVetRoomDoorAvoidsNeighbourWall(t *testing.T) {
+	plan := LayoutPlan{Reservations: []LayoutReservation{
+		{Kind: ReserveBarn, Area: Rectangle{X: 0, Z: 10, Width: 8, Height: 8}},
+		{Kind: ReserveVetRoom, Area: Rectangle{X: 0, Z: 2, Width: 8, Height: 8}},
+	}}
+	rooms := plan.HerdRooms(ModuleVetRoom)
+	if len(rooms) != 1 {
+		t.Fatalf("vet rooms = %d", len(rooms))
+	}
+	door := rooms[0].Door
+	if door.Z == 9 && rooms[0].DoorRot == domain.North {
+		t.Fatalf("door %v faces the barn's wall", door)
+	}
+}
+
+// The planned vet room stands against the barn's wall: one shared wall with
+// a link door, and its own door still opens outside.
+func TestVetRoomSharesTheBarnWall(t *testing.T) {
+	plan := herdTestPlan(t, 20)
+	barns, vets := plan.HerdRooms(ModuleBarn), plan.HerdRooms(ModuleVetRoom)
+	if len(barns) == 0 || len(vets) == 0 {
+		t.Fatal("no barn or vet room", len(barns), len(vets))
+	}
+	vet := vets[0]
+	if vet.Link == nil {
+		t.Fatalf("vet room %v has no door into the barn %v", vet.Interior, barns[0].Interior)
+	}
+	if !contains(roomWalls(vet), *vet.Link) || !contains(roomWalls(barns[0]), *vet.Link) {
+		t.Fatalf("link %v is not on both walls", *vet.Link)
+	}
+	if *vet.Link == vet.Door || *vet.Link == barns[0].Door {
+		t.Fatalf("link %v doubles a room's own door", *vet.Link)
+	}
+	if got := plan.ShellDoors(vet); !slices.Contains(got, *vet.Link) {
+		t.Fatalf("shell doors %v omit the link", got)
 	}
 }
