@@ -191,7 +191,6 @@ namespace HomeBridge.BridgeTools {
    if(action.ProductionBill?.Patient!=null)return NativeSurgery.Validate(action.ProductionBill,context);
    if(NativeMechBills.Handles(action.ProductionBill))return NativeMechBills.Validate(action.ProductionBill!,context);
    var failure=Resolve(action.ProductionBill,context,out _);
-   if(failure!=null)Log.Message("[RimGovernor] production bill "+action.ProductionBill?.RecipeDef+" on "+action.ProductionBill?.BenchId+" refused: "+failure.Detail);
    return failure;
   }
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){

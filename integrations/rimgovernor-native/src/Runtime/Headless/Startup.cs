@@ -1,3 +1,4 @@
+using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
 
@@ -9,7 +10,7 @@ namespace HeadlessRim
         static HeadlessStartup()
         {
             if (!System.Linq.Enumerable.Contains(System.Environment.GetCommandLineArgs(), "-batchmode")) return;
-            Log.Message("[HeadlessRim] Test mode: rendering disabled, frame cap removed.");
+            ModLog.Info("startup", "test mode: rendering disabled, frame cap removed");
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = -1;
         }

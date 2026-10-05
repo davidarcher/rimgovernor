@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,7 +53,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception ex)
             {
-                Log.Error("[RimGovernor] Operation intent hooks failed: " + ex);
+                ModLog.Error("startup", "Operation intent hooks failed: " + ex);
             }
         }
 

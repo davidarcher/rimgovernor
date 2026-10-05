@@ -140,7 +140,7 @@ namespace HomeBridge.BridgeTools
         // without the game log; the full trace still goes to the game log.
         private static string Failed(string what, Exception e)
         {
-            Log.Warning("[RimGovernor] " + what + " read failed: " + e);
+            ModLog.Warn("observe", "" + what + " read failed: " + e);
             return what + " could not be read completely: " + PlacementPreviewOperation.Diagnostic(e.GetType().Name + ": " + e.Message);
         }
     }

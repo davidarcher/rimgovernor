@@ -165,7 +165,6 @@ namespace HomeBridge.BridgeTools
             if (wild.Count == 0) return;
             lastWhyTick = Find.TickManager.TicksGame;
             var lines = wild.GroupBy(p => p.def.defName + ": " + (Ineligible(p) ?? "eligible")).Take(8).Select(g => g.Key + " x" + g.Count());
-            Log.Message("[RimGovernor] no hunt rows with " + wild.Count + " wild animals on the map: " + string.Join(" | ", lines));
         }
         internal const string Kind = "Hunt";
         // Prepare is the apply-time precondition list for hunt

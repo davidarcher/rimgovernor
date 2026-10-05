@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using HarmonyLib;
 using RimWorld;
@@ -42,7 +43,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception ex)
             {
-                Log.Error("[RimGovernor] Status panel installation failed: " + ex);
+                ModLog.Error("startup", "Status panel installation failed: " + ex);
             }
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using HomeBridge.BridgeTools;
+using RimGovernor.Host.Sdk;
 
 // Phase accounting for the observation capture path (#642). Every clock here
 // is supplied, not measured: FrameAccounting.UpdateAt takes the monotonic
@@ -77,14 +78,17 @@ internal static class NativeObservationWorkProbe
         Check(ObservationWork.Current == null, "recording outside a hop is dropped");
     }
 
-    // A family that throws (#1337) yields a log line carrying the exception's
-    // stack, and the hop's account reports the section as failed, not absent.
+    // A family that throws (#1337) writes a mod log error row carrying the
+    // exception's stack, and the hop's account reports the section as failed, not absent.
     private static void FailedSectionIsReported()
     {
         var hop = ObservationWork.Begin();
-        string line;
+        ModLog.ResetForProbe();
         try { throw new InvalidOperationException("forced traders failure"); }
-        catch (Exception ex) { line = ObservationWork.Failed("traders", ex); }
+        catch (Exception ex) { ObservationWork.Failed("traders", ex); }
+        var rows = ModLog.Drain(true, out _, out _, out _, out _);
+        Check(rows.Count == 1 && rows[0].Level == ModLogLevel.Error, "one error row");
+        var line = rows[0].Message;
         ObservationWork.Captured("traders", Ticks(1), 0);
         ObservationWork.End();
         Check(line.Contains("traders") && line.Contains("forced traders failure") && line.Contains("FailedSectionIsReported"), "log line names the section and carries the stack");

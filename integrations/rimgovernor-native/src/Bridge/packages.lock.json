@@ -61,7 +61,10 @@
         "type": "Project"
       },
       "rimgovernor.runtime": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Host.Sdk": "[2.1.1, )"
+        }
       }
     }
   }

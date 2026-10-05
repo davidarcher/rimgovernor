@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using HarmonyLib;
 using Verse;
@@ -34,7 +35,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception ex)
             {
-                Log.Error("[RimGovernor] Authority shutdown hook installation failed: " + ex);
+                ModLog.Error("authority", "Authority shutdown hook installation failed: " + ex);
             }
         }
 
@@ -54,7 +55,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception ex)
             {
-                Log.Error("[RimGovernor] Authority shutdown revocation failed: " + ex);
+                ModLog.Error("authority", "Authority shutdown revocation failed: " + ex);
             }
         }
     }

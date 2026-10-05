@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 
 using System;
 using System.Collections.Generic;
@@ -99,7 +100,7 @@ namespace HomeBridge.BridgeTools
                 catch (Exception ex)
                 {
                     lock (HookErrors) HookErrors.Add(name + ": " + ex.GetType().Name + ": " + ex.Message);
-                    Log.Warning("RimGovernor combat mirror hook " + name + " not installed: " + ex.Message);
+                    ModLog.Warn("startup", "combat mirror hook " + name + " not installed: " + ex.Message);
                 }
             }
             Patch("Pawn_JobTracker.StartJob", AccessTools.Method(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob)), null, nameof(OnPawnTracker));

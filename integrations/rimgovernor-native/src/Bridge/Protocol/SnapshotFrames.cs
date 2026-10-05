@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
                 try { return read(); }
                 catch (System.Exception ex)
                 {
-                    Log.Error(ObservationWork.Failed(section, ex));
+                    ObservationWork.Failed(section, ex);
                     throw new SnapshotSectionException(section, ex);
                 }
             }
@@ -60,10 +60,10 @@ namespace HomeBridge.BridgeTools
             var referenced = NativeRef.Collect(() => read = ReadSections(map, request, context, observed));
             if (!read) return null;
             var thingsBegan = Now();
-            try { observed.Things = NativeObservationTools.Things(referenced, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("things", ex)); }
+            try { observed.Things = NativeObservationTools.Things(referenced, context); } catch (System.Exception ex) { ObservationWork.Failed("things", ex); }
             ObservationWork.Captured("things", Now() - thingsBegan, observed.Things != null ? observed.Things.Things.Count : 0);
             var gridBegan = Now();
-            try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("grid", ex)); }
+            try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { ObservationWork.Failed("grid", ex); }
             ObservationWork.Captured("grid", Now() - gridBegan, grid != null ? grid.Count : 0);
             return observed;
         }
@@ -174,7 +174,7 @@ namespace HomeBridge.BridgeTools
                     }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
             try { observed.CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context); }
-            catch (System.Exception ex) { Log.Error(ObservationWork.Failed("combatLinesOfFire", ex)); }
+            catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 
         // On the main thread. Adds the census families to observed, each
@@ -231,18 +231,18 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                try { observed.Traders = NativeTradeObservation.Traders(map, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("traders", ex)); }
+                try { observed.Traders = NativeTradeObservation.Traders(map, context); } catch (System.Exception ex) { ObservationWork.Failed("traders", ex); }
                 ObservationWork.Captured("traders", Now() - began, observed.Traders != null ? observed.Traders.Traders.Count : 0);
             }
             {
                 var began = Now();
-                try { observed.WorldProgression = NativeWorldProgressionObservation.Build(context, false); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("worldProgression", ex)); }
+                try { observed.WorldProgression = NativeWorldProgressionObservation.Build(context, false); } catch (System.Exception ex) { ObservationWork.Failed("worldProgression", ex); }
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
             {
                 var began = Now();
                 observed.IdeologyActive = ModsConfig.IdeologyActive;
-                try { observed.Ideology = NativeIdeologyObservation.Build(context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("ideology", ex)); }
+                try { observed.Ideology = NativeIdeologyObservation.Build(context); } catch (System.Exception ex) { ObservationWork.Failed("ideology", ex); }
                 ObservationWork.Captured("ideology", Now() - began, observed.Ideology != null ? observed.Ideology.Precepts.Count : 0);
             }
             {

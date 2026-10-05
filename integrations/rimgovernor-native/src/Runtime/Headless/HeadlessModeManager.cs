@@ -1,3 +1,4 @@
+using RimGovernor.Host.Sdk;
 using System;
 using System.Linq;
 using HarmonyLib;
@@ -19,9 +20,6 @@ namespace HeadlessRim
                 HomeBridge.BridgeTools.AcceptanceWorld.Install();
                 if (!args.Contains("-batchmode")) return;
 
-                Log.Message("--------------------------------------------------");
-                Log.Message("---                HEADLESS RIM                ---");
-                Log.Message("--------------------------------------------------");
 
                 // MINIMAL STARTUP PATCHES
                 var harmony = new Harmony("com.headlessrim.core");
@@ -34,17 +32,15 @@ namespace HeadlessRim
 
                 bootstrap.Patch(original, postfix: new HarmonyMethod(postfix));
 
-                Log.Message("[HeadlessRim] Bootstrap armed. Waiting for Main Menu...");
             }
             catch (Exception ex)
             {
-                Log.Error($"[HeadlessRim] Bootstrap Error: {ex}");
+                ModLog.Error("startup", $"bootstrap failed: {ex}");
             }
         }
 
         public static void OnMainMenuReady()
         {
-            Log.Message("[HeadlessRim] Main Menu reached...");
 
             try
             {
@@ -52,11 +48,11 @@ namespace HeadlessRim
                 var harmony = new Harmony("com.headlessrim.core");
                 HeadlessPatches.ApplyRuntimePatches(harmony);
 
-                Log.Message("[HeadlessRim] Headless mode active. Waiting for external control.");
+                ModLog.Info("startup", "headless mode active");
             }
             catch (Exception ex)
             {
-                Log.Error($"[HeadlessRim] Post-Init Error: {ex}");
+                ModLog.Error("startup", $"post-init failed: {ex}");
             }
         }
     }

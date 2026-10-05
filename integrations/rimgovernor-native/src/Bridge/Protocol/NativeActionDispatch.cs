@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error)
             {
-                Verse.Log.Error("[RimGovernor] Action " + action.IntentCase + " failed: " + error);
+                ModLog.Error("action", "Action " + action.IntentCase + " failed: " + error);
                 return new Operations.ActionResult { Key = action.Key, Failed = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Action failed: " + error.GetType().Name) };
             }
         }

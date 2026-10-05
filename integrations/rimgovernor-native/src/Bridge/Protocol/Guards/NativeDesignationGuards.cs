@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -176,7 +177,7 @@ namespace HomeBridge.BridgeTools
         private static void Cancel(GuardedDesignation r, Map map, string? blocker)
         {
             r.Blocker = blocker; r.Cancelled = true;
-            Log.Warning("[RimGovernor] " + r.Guard + " guard cancelled " + r.Designation + " at (" + r.X + "," + r.Z + ") on map " + r.MapId + ": " + blocker);
+            ModLog.Warn("guards", "" + r.Guard + " guard cancelled " + r.Designation + " at (" + r.X + "," + r.Z + ") on map " + r.MapId + ": " + blocker);
             var designation = Designation(r, map);
             if (designation != null) map.designationManager.RemoveDesignation(designation);
         }
@@ -276,7 +277,7 @@ namespace HomeBridge.BridgeTools
                             throw new InvalidOperationException("Native authority is unavailable.");
                         using (authority.Owned()) NativeDesignate.PlaceWall(__state, target.Map ?? Find.Maps.First(m => m.uniqueID == __state.MapId), __instance.pawn, queued: true);
                     }
-                    catch (Exception e) { Log.Warning("[RimGovernor] door-to-wall swap: " + e.Message); }
+                    catch (Exception e) { ModLog.Warn("guards", "door-to-wall swap: " + e.Message); }
             }
             return __exception;
         }

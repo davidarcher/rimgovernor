@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Research manager or player faction is unavailable.") });
                     return ProtoBoundary.Encode(new Obs.ResearchReply { Observed = Read(parsed, context, map, manager, player) });
                 }
-                catch (Exception thrown) { Log.Error("[RimGovernor] Research read failed: " + thrown); return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message)) }); }
+                catch (Exception thrown) { ModLog.Error("observe", "Research read failed: " + thrown); return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 

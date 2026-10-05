@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.PopulationReply { Failure = failure });
                 try { return ProtoBoundary.Encode(new Obs.PopulationReply { Observed = Population(map, parsed, context) }); }
-                catch (Exception error) { Log.Error("[RimGovernor] Population read failed: " + error); return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }); }
+                catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 

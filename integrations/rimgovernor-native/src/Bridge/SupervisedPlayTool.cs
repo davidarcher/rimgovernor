@@ -1306,7 +1306,7 @@ namespace HomeBridge.BridgeTools
                     if (!AttachOwnerlessEvent(row, kind, detail, payload)) return;
                     AppendRow(journal, row);
                 }
-                catch (Exception error) { Log.Warning("RimGovernor clock publication of " + kind + " failed: " + error.GetType().Name); }
+                catch (Exception error) { ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); }
             }
         }
         private static object Snapshot(State? s, bool success)
@@ -1378,7 +1378,7 @@ namespace HomeBridge.BridgeTools
             var t = s.Timing;
             var wall = Ms(System.Diagnostics.Stopwatch.GetTimestamp() - t.StartedAt);
             var ticks = s.LastTick - s.StartTick;
-            Log.Message(string.Format(CultureInfo.InvariantCulture,
+            ModLog.Info("clock", string.Format(CultureInfo.InvariantCulture,
                 "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} probes={11} probeMs={12:F1} maxProbeTickGap={13} blindBudget={14} maxBlind={15} throttles={16} digests={17} digestMs={18:F1}",
                 s.Epoch, kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
                 t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,

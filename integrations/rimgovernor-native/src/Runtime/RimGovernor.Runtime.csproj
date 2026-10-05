@@ -17,6 +17,7 @@
     <!-- Keep locked restore identical with and without an installed targeting pack. -->
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <ProjectReference Include="../../../rimgovernor-host/src/Sdk/RimGovernor.Host.Sdk.csproj"><Private>false</Private></ProjectReference>
     <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>

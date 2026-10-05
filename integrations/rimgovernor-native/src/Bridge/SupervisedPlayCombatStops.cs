@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 
 using System;
 using System.Collections.Generic;
@@ -95,7 +96,7 @@ namespace HomeBridge.BridgeTools
                 catch (Exception ex)
                 {
                     CombatHookErrors.Add(name + ": " + ex.GetType().Name + ": " + ex.Message);
-                    Log.Warning("RimGovernor combat stop hook " + name + " not installed: " + ex.Message);
+                    ModLog.Warn("startup", "combat stop hook " + name + " not installed: " + ex.Message);
                 }
             }
             Patch("PostApplyDamage", AccessTools.Method(typeof(Pawn_HealthTracker), nameof(Pawn_HealthTracker.PostApplyDamage)), nameof(OnDamagePrefix), nameof(OnDamagePostfix));

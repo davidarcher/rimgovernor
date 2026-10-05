@@ -161,7 +161,7 @@ namespace HomeBridge.BridgeTools
         {
             entry.Aborted = true;
             var refusal = error as Refusal;
-            Log.Warning("[RimGovernor] new colony " + entry.RequestId + " failed in " + entry.Phase + ": " + error);
+            ModLog.Warn("lifecycle", "new colony " + entry.RequestId + " failed in " + entry.Phase + ": " + error);
             // Back to a clean main menu so a later request can run.
             try { Current.Game = null; Current.ProgramState = ProgramState.Entry; } catch (Exception) { }
             Complete(entry, Fail(refusal?.Code ?? Common.FailureCode.NativeFailure,
@@ -277,7 +277,7 @@ namespace HomeBridge.BridgeTools
                         var bare = plain.Where(t => t.Mutators.Count == 0).ToList();
                         var pick = bare.Count > 0 ? bare : plain.Count > 0 ? plain : chosen;
                         if (pick != bare)
-                            Log.Warning("[RimGovernor] new colony: no " + (pick == plain ? "mutator-free flat" : "flat river-free") + " tile on this planet; settling a "
+                            ModLog.Warn("lifecycle", "new colony: no " + (pick == plain ? "mutator-free flat" : "flat river-free") + " tile on this planet; settling a "
                                 + (pick == plain ? "flat tile with mutators" : "tile of the roll's own terrain") + ".");
                         chosen = pick;
                     }
@@ -407,7 +407,7 @@ namespace HomeBridge.BridgeTools
                         catch (Exception error)
                         {
                             entry.Aborted = true;
-                            Log.Warning("[RimGovernor] new colony " + entry.RequestId + " failed in " + entry.Phase + ": " + error);
+                            ModLog.Warn("lifecycle", "new colony " + entry.RequestId + " failed in " + entry.Phase + ": " + error);
                             return Complete(entry, Fail(Common.FailureCode.NativeFailure,
                                 "New colony failed in " + entry.Phase + ": " + error.GetType().Name + ": " + error.Message));
                         }

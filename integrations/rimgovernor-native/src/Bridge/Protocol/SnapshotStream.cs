@@ -207,7 +207,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception e)
             {
                 Interlocked.Exchange(ref pending, 0);
-                Log.WarningOnce("[RimGovernor] snapshot frame capture failed: " + e.Message, 0x5e858);
+                ModLog.Warn("snapshot", "frame capture failed: " + e.Message);
                 return;
             }
             finally { ObservationWork.End(); }
@@ -225,7 +225,7 @@ namespace HomeBridge.BridgeTools
                     if (!failed) { SnapshotSections.Elide(frame, keyframe); CellGridEncoder.Attach(frame, grid, keyframe); }
                     r.Publish(frame, w, captureMicros);
                 }
-                catch (Exception e) { Log.WarningOnce("[RimGovernor] snapshot frame publish failed: " + e.Message, 0x5e859); }
+                catch (Exception e) { ModLog.Warn("snapshot", "frame publish failed: " + e.Message); }
                 finally { Interlocked.Exchange(ref pending, 0); }
             }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
         }
@@ -241,7 +241,7 @@ namespace HomeBridge.BridgeTools
 
         // NoteSlowCapture logs where a slow frame capture's game-thread time
         // went, family by family (#858), so the capture can be profiled from
-        // any run's Player.log.
+        // the flight stream.
         private static void NoteSlowCapture(uint micros, int tick, ObservationWork.Hop? hop)
         {
             if (micros < SlowCaptureMicros || hop == null || (tick >= slowLoggedTick && tick - slowLoggedTick < SlowLogTicks)) return;
@@ -249,7 +249,7 @@ namespace HomeBridge.BridgeTools
             var parts = new System.Text.StringBuilder();
             foreach (var s in hop.Sections.OrderByDescending(s => s.Ticks))
                 parts.Append(' ').Append(s.Name).Append('=').Append((s.Ticks * 1000.0 / Stopwatch.Frequency).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)).Append("ms/").Append(s.Rows);
-            Log.Message("[RimGovernor] snapshot frame capture " + (micros / 1000.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "ms at tick " + tick + ":" + parts);
+            ModLog.Info("snapshot", "frame capture " + (micros / 1000.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "ms at tick " + tick + ":" + parts);
         }
 
         // Elapsed microseconds since a Stopwatch timestamp, saturated.
@@ -315,7 +315,7 @@ namespace HomeBridge.BridgeTools
                         try { File.Delete(path); } catch (Exception) { }
                     }
                 }
-                catch (Exception e) { Log.WarningOnce("[RimGovernor] snapshot ring sweep failed: " + e.Message, 0x5e85b); }
+                catch (Exception e) { ModLog.Warn("snapshot", "ring sweep failed: " + e.Message); }
             }
 
             internal void WriteHeader(long offset, long value) { view.Write(offset, value); Thread.MemoryBarrier(); }
@@ -329,7 +329,7 @@ namespace HomeBridge.BridgeTools
                 var encodeMicros = Micros(encodeStarted);
                 if (payload.Length > SlotBytes - SlotHeaderBytes)
                 {
-                    Log.WarningOnce("[RimGovernor] snapshot frame of " + payload.Length + " bytes exceeds the " + SlotBytes + "-byte slot; not published.", 0x5e85a);
+                    ModLog.Warn("snapshot", "frame of " + payload.Length + " bytes exceeds the " + SlotBytes + "-byte slot; not published.");
                     return;
                 }
                 lock (writer)

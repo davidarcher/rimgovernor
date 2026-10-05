@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -116,7 +117,7 @@ namespace HomeBridge.BridgeTools
                     if (_epoch == long.MaxValue || _cursor == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock epoch or cursor is exhausted.");
                     foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ProtoBoundary.ResolveMap(request.Authority.Identity) ?? throw new InvalidOperationException("The requested map is not loaded."), ids);
                 }
-                catch (Exception error) { Log.Error("[RimGovernor] Clock start preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
+                catch (Exception error) { ModLog.Error("clock", "Clock start preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
                 return null;
             }
         }
@@ -221,7 +222,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Required native clock enforcement hooks are unavailable.");
                 }
-                catch (Exception error) { Log.Error("[RimGovernor] Clock hook verification failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native clock enforcement hooks could not be verified."); }
+                catch (Exception error) { ModLog.Error("clock", "Clock hook verification failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native clock enforcement hooks could not be verified."); }
                 if (requested.ExpectedGeneration != original.ExpectedGeneration)
                     return ProtoBoundary.Fail(Common.FailureCode.StaleGeneration, "A replacement authority generation cannot adopt an existing epoch.");
                 if (requested.Attempt == null
@@ -376,7 +377,7 @@ namespace HomeBridge.BridgeTools
                     page.OldestCursor = journal.Base + 1;
                     return new Clock.EventsReply { Page = page };
                 }
-                catch (Exception error) { Log.Error("[RimGovernor] Clock event journal read failed: " + error); return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
+                catch (Exception error) { ModLog.Error("clock", "Clock event journal read failed: " + error); return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
             }
         }
         private static bool TryParseStoredEvent(string canonical, out Clock.Event observed)

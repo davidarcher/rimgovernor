@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -86,7 +87,7 @@ namespace HomeBridge.BridgeTools
                 else if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.MortarFire)
                 {
                     try { refusal = MortarFire(map, order.MortarFire, out job); }
-                    catch (Exception error) { refusal = "native_refused"; Log.Warning("[RimGovernor] combat order " + i + " mortar_fire failed: " + error.GetType().Name); }
+                    catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " mortar_fire failed: " + error.GetType().Name); }
                 }
                 else if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Release || order.OrderCase == Operations.CombatOrder.OrderOneofCase.AnimalArea)
                 {
@@ -97,7 +98,7 @@ namespace HomeBridge.BridgeTools
                     if (refusal.Length == 0)
                     {
                         try { refusal = Animal(identity, map, admitted.pawn!, order, out job); }
-                        catch (Exception error) { refusal = "native_refused"; Log.Warning("[RimGovernor] combat order " + i + " animal order failed: " + error.GetType().Name); }
+                        catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " animal order failed: " + error.GetType().Name); }
                     }
                 }
                 else
@@ -110,7 +111,7 @@ namespace HomeBridge.BridgeTools
                     if (refusal.Length == 0 && !draft)
                     {
                         try { refusal = Apply(identity, context.Identity, map, admitted.pawn!, order, out job); }
-                        catch (Exception error) { refusal = "native_refused"; Log.Warning("[RimGovernor] combat order " + i + " failed: " + error.GetType().Name); }
+                        catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " failed: " + error.GetType().Name); }
                     }
                 }
                 result.Applied = refusal.Length == 0;
@@ -142,7 +143,7 @@ namespace HomeBridge.BridgeTools
         {
             if (NativePawnControlState.Observe(identity, pawn, out var before) != NativePawnControlResult.Ready || before == null || !before.Eligible) return "cannot_draft";
             try { if (!before.Drafted) pawn.drafter.Drafted = true; }
-            catch (Exception error) { Log.Warning("[RimGovernor] combat draft failed: " + error.GetType().Name); return "cannot_draft"; }
+            catch (Exception error) { ModLog.Warn("combat", "combat draft failed: " + error.GetType().Name); return "cannot_draft"; }
             return pawn.drafter.Drafted ? "" : "cannot_draft";
         }
 

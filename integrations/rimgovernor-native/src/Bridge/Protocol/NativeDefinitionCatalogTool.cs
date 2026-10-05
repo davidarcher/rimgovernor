@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
                 try { return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Observed = Read(context, player) }); }
                 catch (Exception ex)
                 {
-                    Log.Error(ObservationWork.Failed("definitionCatalog", ex));
+                    ObservationWork.Failed("definitionCatalog", ex);
                     return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "The definition catalog could not be read completely." } });
                 }
             }, cancellationToken).ConfigureAwait(false);

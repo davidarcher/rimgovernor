@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Linq;
 using System.Reflection;
@@ -27,7 +28,7 @@ namespace HomeBridge.BridgeTools {
    target=AccessTools.Method(typeof(GenRecipe),"MakeRecipeProducts",new[]{typeof(RecipeDef),typeof(Pawn),typeof(List<Thing>),typeof(Thing),typeof(IBillGiver),typeof(Precept_ThingStyle),typeof(ThingStyleDef),typeof(int?)});
    if(target==null)throw new MissingMethodException("Production hook missing");
    harmony.Patch(target,null,new HarmonyMethod(typeof(NativeProductionTracking),nameof(Products)));
-  }catch(Exception e){Log.Error("[RimGovernor] Production tracking unavailable: "+e);}}
+  }catch(Exception e){ModLog.Error("production", "Production tracking unavailable: "+e);}}
   internal static bool Ready=>target!=null&&Harmony.GetPatchInfo(target)?.Postfixes.Any(h=>h.owner==Owner)==true;
   internal static bool ManagedUnchanged(Bill bill)=>Current.Game!=null&&States.TryGetValue(Current.Game,out var state)&&state.Bills.TryGetValue(bill,out var r)&&!r.Retired&&OrdinaryMeal(bill.recipe)&&r.Giver.BillStack.Bills.Contains(bill)&&r.Index==r.Giver.BillStack.IndexOf(bill)&&r.Config==NativeProductionBills.Configuration(bill);
   // Replacement adopts any ordinary meal bill on the map by id, whoever wrote it (#461): a bill edited under Manual is

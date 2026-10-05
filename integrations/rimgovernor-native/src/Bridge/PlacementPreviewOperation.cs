@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
@@ -209,7 +210,7 @@ namespace HomeBridge.BridgeTools
                 // The controller only sees the message: name the exception and
                 // its innermost frame so a native fault is diagnosable from
                 // the scheduler log, and keep the full trace in the game log.
-                Log.Warning("[RimGovernor] placement preview failed: " + error);
+                ModLog.Warn("placement", "placement preview failed: " + error);
                 var frame = (error.StackTrace ?? "").Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "";
                 return new PlacementPreviewFailure("Placement preview could not be read: " + error.GetType().Name + ": " + error.Message + (frame.Length > 0 ? " (" + frame + ")" : ""));
             }

@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -79,7 +80,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!OverlayVisibility.Shown(group)) continue;
                 try { draw(map); }
-                catch (Exception ex) { Log.ErrorOnce("[RimGovernor] Overlay drawer " + group + " failed: " + ex, group.GetHashCode()); }
+                catch (Exception ex) { ModLog.Error("overlay", "overlay drawer " + group + " failed: " + ex, null, "overlay.drawer:" + group); }
             }
             foreach (var entry in layers)
             {
@@ -235,7 +236,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception ex)
             {
-                Log.Error("[RimGovernor] Overlay toggle installation failed: " + ex);
+                ModLog.Error("overlay", "Overlay toggle installation failed: " + ex);
             }
         }
 

@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error)
             {
-                Log.Warning("[RimGovernor] native save " + request.SaveName + " failed: " + error);
+                ModLog.Warn("lifecycle", "native save " + request.SaveName + " failed: " + error);
                 return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                     "Native save failed: " + error.GetType().Name) };
             }

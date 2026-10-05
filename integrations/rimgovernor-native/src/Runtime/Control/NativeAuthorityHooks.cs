@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -122,7 +123,7 @@ namespace HomeBridge.BridgeTools
                     catch (Exception ex)
                     {
                         var error = ex.GetType().Name + ": " + ex.Message;
-                        if (error != spec.Error) Log.Error("[RimGovernor] Authority invalidation hook " + spec.Name + " installation failed: " + ex);
+                        if (error != spec.Error) ModLog.Error("authority", "Authority invalidation hook " + spec.Name + " installation failed: " + ex);
                         spec.Error = error;
                     }
                 }
@@ -210,7 +211,7 @@ namespace HomeBridge.BridgeTools
             var settings = game.playSettings;
             if (settings == null || settings.useWorkPriorities) return false;
             settings.useWorkPriorities = true;
-            Log.Message("[RimGovernor] Autopilot control: work priorities switched to manual (numbered) mode");
+            ModLog.Info("authority", "Autopilot control: work priorities switched to manual (numbered) mode");
             return true;
         }
 

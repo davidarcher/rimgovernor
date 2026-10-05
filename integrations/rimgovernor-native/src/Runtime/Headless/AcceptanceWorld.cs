@@ -1,3 +1,4 @@
+using RimGovernor.Host.Sdk;
 using System;
 using HarmonyLib;
 using RimWorld;
@@ -112,12 +113,12 @@ namespace HomeBridge.BridgeTools
                 Patch(harmony, AccessTools.DeclaredMethod(typeof(Plant), name), nameof(WildPlant));
             foreach (var name in new[] { "Tick", "TickRare", "TickInterval" })
                 Patch(harmony, AccessTools.DeclaredMethod(typeof(Pawn), name), nameof(WildAnimal));
-            Log.Message("[RimGovernor] test acceleration world patches installed: no autosave tick; quiet-world wild tick skip armed.");
+            ModLog.Info("startup", "test acceleration world patches installed: no autosave tick; quiet-world wild tick skip armed.");
         }
 
         private static void Patch(Harmony harmony, System.Reflection.MethodBase? original, string prefix)
         {
-            if (original == null) { Log.Warning("[RimGovernor] test acceleration world patch target missing for " + prefix); return; }
+            if (original == null) { ModLog.Warn("startup", "test acceleration world patch target missing for " + prefix); return; }
             harmony.Patch(original, prefix: new HarmonyMethod(typeof(AcceptanceWorld), prefix));
         }
 

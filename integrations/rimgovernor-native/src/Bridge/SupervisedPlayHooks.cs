@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 
 using System;
 using System.Collections.Generic;
@@ -53,7 +54,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception ex)
             {
                 _hazardHookError = ex.GetType().Name + ": " + ex.Message;
-                Log.Warning("RimGovernor hazard hooks not installed; polled bounds only: " + _hazardHookError);
+                ModLog.Warn("startup", "hazard hooks not installed; polled bounds only: " + _hazardHookError);
             }
         }
 

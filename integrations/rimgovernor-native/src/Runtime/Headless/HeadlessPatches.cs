@@ -1,3 +1,4 @@
+using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using HarmonyLib;
@@ -14,7 +15,6 @@ namespace HeadlessRim
         // CRITICAL STARTUP PATCHES (Run Early)
         public static void ApplyStartupPatches(Harmony harmony)
         {
-            Log.Message("[HeadlessRim] Applying CRITICAL STARTUP patches...");
             // Def resolution creates build designators before the main menu.
             Patch(harmony, typeof(Designator_Build), "UpdateIcon", nameof(SkipPrefix));
             Patch(harmony, typeof(ResolutionUtility), "Update", nameof(SkipPrefix));
@@ -24,13 +24,11 @@ namespace HeadlessRim
             Patch(harmony, typeof(Graphic_Multi), "TryInsertIntoAtlas", nameof(SkipPrefix));
             Patch(harmony, typeof(Graphic_Collection), "TryInsertIntoAtlas", nameof(SkipPrefix));
 
-            Log.Message("[HeadlessRim] Finished applying patches for: [GlobalTextureAtlasManager, Graphic_Single, Graphic_Multi, Graphic_Collection]");
         }
 
         // RUNTIME PATCHES (Run Late)
         public static void ApplyRuntimePatches(Harmony harmony)
         {
-            Log.Message("[HeadlessRim] Applying RUNTIME patches (UI, Map, Audio)...");
 
             // UI LOOP & DRAWING
             // The alert readout is the one piece of the UI loop that observation
@@ -98,7 +96,6 @@ namespace HeadlessRim
             Patch(harmony, typeof(FloatMenuMakerWorld), "ChoicesAtFor",
                 new[] { typeof(Vector2), typeof(Caravan) }, nameof(EmptyWorldFloatMenuChoicesPrefix));
 
-            Log.Message("[HeadlessRim] Finished applying patches for: [UI Loop, Mesh generation, Audio, Portraits, World float menus]");
         }
 
         // Helpers
@@ -109,7 +106,7 @@ namespace HeadlessRim
                 var original = AccessTools.Method(type, methodName);
                 if (original != null) harmony.Patch(original, prefix: new HarmonyMethod(typeof(HeadlessPatches), patchMethodName));
             }
-            catch (Exception error) { Log.Warning("[HeadlessRim] Patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
+            catch (Exception error) { ModLog.Warn("startup", "headless patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
         }
 
         private static void Patch(Harmony harmony, Type type, string methodName, Type[] parameters, string patchMethodName)
@@ -119,7 +116,7 @@ namespace HeadlessRim
                 var original = AccessTools.Method(type, methodName, parameters);
                 if (original != null) harmony.Patch(original, prefix: new HarmonyMethod(typeof(HeadlessPatches), patchMethodName));
             }
-            catch (Exception error) { Log.Warning("[HeadlessRim] Patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
+            catch (Exception error) { ModLog.Warn("startup", "headless patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
         }
 
         public static bool SkipPrefix() => false;
@@ -132,7 +129,7 @@ namespace HeadlessRim
             {
                 // Once is enough: a readout that throws headless stays off for this process.
                 alertsUpdateFaulted = true;
-                Log.Warning("[HeadlessRim] AlertsReadoutUpdate threw; alerts stay off: " + error.Message);
+                ModLog.Warn("startup", "AlertsReadoutUpdate threw; alerts stay off: " + error.Message);
             }
             return false;
         }

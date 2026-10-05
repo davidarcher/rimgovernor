@@ -1,4 +1,5 @@
 #nullable enable
+using RimGovernor.Host.Sdk;
 
 using System;
 using System.Collections.Generic;
@@ -111,16 +112,16 @@ namespace HomeBridge.BridgeTools
             => Record(section, stopwatchTicks, rows, 0, false);
 
         /// The named section threw and is missing from the frame (#1337): the
-        /// hop's account reports it as failed rather than absent. Returns the
-        /// log line, with the exception's stack, for the caller to log.
-        internal static string Failed(string section, Exception ex)
+        /// hop's account reports it as failed rather than absent. Logs an
+        /// error row with the exception's stack, keyed per section so a sustained failure is rate-limited.
+        internal static void Failed(string section, Exception ex)
         {
             Record(section, 0, 0, 0, true);
             var hop = _current;
             if (hop != null)
                 foreach (var known in hop.Sections)
                     if (string.Equals(known.Name, section, StringComparison.Ordinal)) { known.Failures++; break; }
-            return "[RimGovernor] Snapshot section " + section + " failed: " + ex;
+            ModLog.Error("observe", "snapshot section " + section + " failed: " + ex, null, "observe.section:" + section);
         }
 
         private static void Record(string section, long stopwatchTicks, long rows, long candidates, bool capture)
