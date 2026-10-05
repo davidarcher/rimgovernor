@@ -56,7 +56,7 @@ its v1 payload and its readers.
 
 | Old kind | v2 kind | v2 shape and fields | Piece |
 |---|---|---|---|
-| `native_response`, `native_error`, `native_decode` | `native_call` | event row, one per completed call (landed, #2057; `Client.core` writes it, a typed call's row waits for its reply decode). `request` (sequence of the in-flight marker, only when one was written), `tool`, `native_tool`, `arguments`, `ok`, `error`, `refused_text`, `reply_type`, `result`, `timing` (the v1 phases plus `proto_decode_ms`, `payload_bytes`, `wire_bytes`, `proto_decode_error`). Every call writes it; the hot-poll denylist applies to HTTP rows only (#2055). `nativeaccept/postmortem` reads the error and failure cases from `native_call` rows until #2065 | #2057 |
+| `native_response`, `native_error`, `native_decode` | `native_call` | event row, one per completed call (landed, #2057; `Client.core` writes it, a typed call's row waits for its reply decode). `request` (sequence of the in-flight marker, only when one was written), `tool`, `native_tool`, `arguments`, `ok`, `error`, `refused_text`, `reply_type`, `result`, `timing` (the v1 phases plus `proto_decode_ms`, `payload_bytes`, `wire_bytes`, `proto_decode_error`). Every call writes it; the hot-poll denylist applies to HTTP rows only (#2055). `nativeaccept/postmortem` reads the error and failure cases from `native_call` rows (landed, #2065) | #2057 |
 | `native_request` | `native_request` (kept) | slow or outstanding marker only, written (durable) once a call has run past `bridge.slowCallMarker` (2 s): `tool`, `native_tool`, `arguments`. The completed `native_call` names it in `request`; a hung call leaves the marker last, and `trace` prints `(no reply recorded)` | #2057 |
 | `native_frame`, `native_frame_hit`, `native_frame_miss` | `native_frame` | event row. `outcome` (`decoded`, `hit`, `miss`), `native_tool`, `frame`, `why` (miss), plus the v1 decoded-frame fields | #2057 (landed) |
 | `native_cache_hit` | removed | no writer; the dead reader branch in `cmd/launcher/problems.go` goes | #2054 |
@@ -136,4 +136,4 @@ producer piece lands. Each legacy branch is deleted by the piece that moves its 
 
 | acceptance `stepevent`, `stepstall`, `failfast` | #2061 |
 | acceptance `farm/select` (reads `fields_select`), `combatlab` metrics and run-end stop (read `combat_stop`/`clock_stop`, `combat_order`, `worker_outcome`/`dispatch`, `combat_stops`/`combat_summary`; the bundle's `combat_flight.jsonl` replaces `service.log`) | #2062 (legacy names deleted with #2064, #2067) |
-| postmortem, `acceptance why` | #2065 |
+| postmortem, `acceptance why` (reads `native_call`, `worker_outcome`/`dispatch`, authority rows and `planner_step` `control_lost`; cites `flight.jsonl#<sequence>`; no service log) | #2065 (landed) |

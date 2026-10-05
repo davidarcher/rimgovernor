@@ -141,14 +141,14 @@ func TestArtifactsHashesEvidenceAndReferencedFilesOnly(t *testing.T) {
 	write("full/0001-call.json", strings.Repeat("y", 100))
 	write("flight.jsonl", strings.Repeat("z", 1000))
 	write("service.sqlite", "db")
-	write("service/stderr.log", "log")
+	write("service/cpu.pprof.txt", "log")
 	write("service-profile/Saves/checkpoint.rws", "save")
-	report := Report{"checkpoint": "service-profile/Saves/checkpoint.rws", "nested": map[string]any{"log": filepath.Join(dir, "service", "stderr.log")}, "missing": "nope.txt"}
+	report := Report{"checkpoint": "service-profile/Saves/checkpoint.rws", "nested": map[string]any{"log": filepath.Join(dir, "service", "cpu.pprof.txt")}, "missing": "nope.txt"}
 	hashes, err := Artifacts(dir, report)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"0001-call.json", "service/http-0001.json", "service-profile/Saves/checkpoint.rws", "service/stderr.log"}
+	want := []string{"0001-call.json", "service/http-0001.json", "service-profile/Saves/checkpoint.rws", "service/cpu.pprof.txt"}
 	if len(hashes) != len(want) {
 		t.Fatalf("hashed %v, want %v", hashes, want)
 	}

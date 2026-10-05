@@ -112,7 +112,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
 	// The outage and fungus holds are attributed from the scheduler's
-	// step-reason trace (serve --debug, on every launch).
+	// clock_step rows in the flight recording.
 	service, err = s.Launch(ctx, na.ServiceLaunch{
 		Families: []string{"lighting", "work"},
 		Extra:    na.ClockSpeedArgs(),

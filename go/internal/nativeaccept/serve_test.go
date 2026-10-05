@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -174,11 +175,15 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 	if entry["url"] != p.URL || entry["pid"] != p.PID || entry["state"] != "running" || entry["families"] != "haul,work" {
 		t.Fatalf("entry %#v", entry)
 	}
-	if argv, _ := entry["argv"].([]string); len(argv) < 2 || argv[1] != "serve" {
+	argv, _ := entry["argv"].([]string)
+	if len(argv) < 2 || argv[1] != "serve" {
 		t.Fatalf("argv %#v", entry["argv"])
 	}
-	if p.StatePath != filepath.Join(cfg.Output, "service.sqlite") || p.StderrPath() != filepath.Join(cfg.Output, "service", "stderr.log") {
-		t.Fatalf("paths %s %s", p.StatePath, p.StderrPath())
+	if slices.Contains(argv, "--debug") {
+		t.Fatalf("acceptance launches carry no debug text trace (#2065): %v", argv)
+	}
+	if p.StatePath != filepath.Join(cfg.Output, "service.sqlite") {
+		t.Fatalf("state path %s", p.StatePath)
 	}
 	if err := p.Exited(); err != nil {
 		t.Fatalf("running service reported exited: %v", err)
@@ -201,8 +206,8 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer q.Stop()
-	if q.StderrPath() != filepath.Join(cfg.Output, "service-2", "stderr.log") || report["service_2"] == nil {
-		t.Fatalf("restart paths %s %#v", q.StderrPath(), report["service_2"])
+	if report["service_2"] == nil {
+		t.Fatalf("restart entry %#v", report["service_2"])
 	}
 }
 

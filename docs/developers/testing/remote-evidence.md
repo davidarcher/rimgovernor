@@ -58,7 +58,10 @@ ZIP entries are streamed with declared-size, checksum and integer-overflow
 checks. This extension allowlist is not a content sanitizer:
 the trusted workflow must remove secrets and licensed contents before upload.
 Keep all attempt logs, metrics and flight recorder segments in the artifact;
-do not upload a whole game, profile or worker directory.
+do not upload a whole game, profile or worker directory. The flight segments
+are the diagnostic evidence (`acceptance why` cites them as
+`flight.jsonl#<sequence>`); a launch's `service/stderr.log` holds only the
+startup banner, fatals and panics, and no report or digest depends on it.
 
 ## Import an authenticated Actions artifact
 

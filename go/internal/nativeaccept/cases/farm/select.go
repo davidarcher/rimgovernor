@@ -71,8 +71,8 @@ func (sel selection) register(name string) cases.Case {
 		Start: start,
 		Keep:  []string{string(na.NeedFood)},
 		// The field family alone keeps the whole step budget for the
-		// selection under test; the planner explains its selection on the
-		// clock trace (service/stderr.log).
+		// selection under test; the planner explains its selection in
+		// fields_select rows.
 		Serve: &cases.ServeSpec{
 			Families: []string{"field"}, NativeTimeout: 30 * time.Second, Prefix: "farm-select",
 		},

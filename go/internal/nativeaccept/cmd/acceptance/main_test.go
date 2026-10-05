@@ -197,7 +197,7 @@ func TestWhyPrintsDigestForCaseDirectory(t *testing.T) {
 	if code := run([]string{"why", dir}, &stdout, &stderr); code != 0 {
 		t.Fatalf("why exit %d: %s", code, stderr.String())
 	}
-	if out := stdout.String(); !strings.HasPrefix(out, "case: a/b\nerror: it broke\n## revision\n") || !strings.Contains(out, "## pooled-job mismatches\n") {
+	if out := stdout.String(); !strings.HasPrefix(out, "case: a/b\nerror: it broke\n## revision\n") || !strings.Contains(out, "## authority generations\n") {
 		t.Fatalf("why output:\n%s", out)
 	}
 	stdout.Reset()
@@ -205,7 +205,7 @@ func TestWhyPrintsDigestForCaseDirectory(t *testing.T) {
 		t.Fatalf("why -json exit %d: %s", code, stderr.String())
 	}
 	var digest postmortem.Digest
-	if err := json.Unmarshal(stdout.Bytes(), &digest); err != nil || digest.Case != "a/b" || len(digest.Sections) != 9 {
+	if err := json.Unmarshal(stdout.Bytes(), &digest); err != nil || digest.Case != "a/b" || len(digest.Sections) != 8 {
 		t.Fatalf("why -json: %v %+v", err, digest)
 	}
 	if code := run([]string{"why", filepath.Join(dir, "missing")}, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "no result.json") {

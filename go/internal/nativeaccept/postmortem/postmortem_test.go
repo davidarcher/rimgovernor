@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -20,8 +21,8 @@ import (
 )
 
 // fixture writes a case output directory shaped like a failed serve-driven
-// run: result.json, service/stderr.log, a flight recording with a rotated
-// segment, and a service.sqlite holding only the tables the digest reads
+// run: result.json, a flight recording with a rotated segment, and a
+// service.sqlite holding only the tables the digest reads
 // (an old schema: no actions table at all).
 func fixture(t *testing.T) string {
 	t.Helper()
@@ -37,16 +38,25 @@ func fixture(t *testing.T) string {
 		}
 	}
 	write("result.json", `{"case":"storage/food","error":"no meal hauled","passed":false,"authority_reacquisitions":{"attempts":2}}`)
-	write("service/stderr.log", strings.Join([]string{
-		"[clock-scheduler] EvaluateClockWindow: work=false admitted=false refused=[] watched=0",
-		"[worker] routine-haul-abc-0 stage=pending attempt=0 receipt=- effect=- refused=[] err=native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured",
-		"[clock-scheduler] poll: interrupting gap=false events=*clockpb.Event_AuthorityChanged",
-		"[clock-worker] step failed: building authority changed or disabled",
-		"[worker] routine-haul-abc-1 stage=awaiting_observation err=bridge contract failure: pawn order job mismatch",
-		"[worker] routine-haul-abc-0 stage=pending attempt=0 receipt=- effect=- refused=[] err=native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured",
-	}, "\n")+"\n")
-	write("flight.jsonl.1", `{"version":1,"run":"r","sequence":1,"wall_time":1,"kind":"native_request","context":{},"payload":{}}`+"\n")
-	write("flight.jsonl", `{"version":1,"run":"r","sequence":2,"wall_time":2,"kind":"native_call","context":{},"payload":{"native_tool":"rimgovernor/orders_haul","error":"refused","refused_text":"the target is not a haulable item"}}`+"\n")
+	// The flight recording is the whole evidence: legacy rows (worker_outcome,
+	// authority_change) and v2 rows (dispatch, authority, planner_step) read
+	// side by side. An empty refused list and a completed outcome are not
+	// refusals.
+	row := func(seq int, kind, payload string) string {
+		return `{"version":2,"run":"r","sequence":` + strconv.Itoa(seq) + `,"wall_time":1,"kind":"` + kind + `","context":{},"payload":` + payload + "}\n"
+	}
+	const haulRefusal = `"native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured"`
+	write("flight.jsonl.1",
+		row(1, "native_request", `{}`)+
+			row(2, "worker_outcome", `{"action":"routine-haul-abc-0","stage":"pending","outcome":"refused","refused":"no_empty_place","err":`+haulRefusal+`}`)+
+			row(3, "authority_change", `{"reason":"Manual","active":true,"generation":4,"previous_generation":3}`))
+	write("flight.jsonl",
+		row(4, "dispatch", `{"verdict":"failed","reason":"contract","target":"routine-haul-abc-1","dur_ms":0,"attrs":{"stage":"awaiting_observation","error":"bridge contract failure: pawn order job mismatch"}}`)+
+			row(5, "planner_step", `{"verdict":"failed","reason":"control_lost","target":"rounds","dur_ms":1,"attrs":{"error":"control lost"}}`)+
+			row(6, "authority", `{"change":"lost","reason":"manual","generation":4}`)+
+			row(7, "native_call", `{"native_tool":"rimgovernor/orders_haul","error":"refused","refused_text":"the target is not a haulable item"}`)+
+			row(8, "worker_outcome", `{"action":"routine-haul-abc-0","stage":"pending","outcome":"refused","refused":"no_empty_place","err":`+haulRefusal+`}`)+
+			row(9, "worker_outcome", `{"action":"routine-haul-abc-2","stage":"done","outcome":"completed","refused":"","err":""}`))
 
 	db, err := sql.Open(store.DriverName, "file:"+filepath.ToSlash(filepath.Join(dir, "service.sqlite")))
 	if err != nil {
@@ -118,7 +128,7 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	for _, s := range d.Sections {
 		names = append(names, s.Name)
 	}
-	want := []string{"revision", "stage graph", "native refusals (last first)", "rounds", "colony extent", "unsuccessful plan stages", "native job failures", "authority generations", "pooled-job mismatches"}
+	want := []string{"revision", "stage graph", "native refusals (last first)", "rounds", "colony extent", "unsuccessful plan stages", "native job failures", "authority generations"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("sections = %v", names)
 	}
@@ -126,13 +136,13 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 		t.Fatalf("a report without a source revision should say so: %+v", s)
 	}
 	refusals := section(t, d, "native refusals (last first)")
-	if !hasLine(refusals, "JobFailReason: no empty place configured (x2)", "service/stderr.log:6") {
+	if !hasLine(refusals, "dispatch routine-haul-abc-0 refused [no_empty_place]: native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured (x2)", "flight.jsonl#8") {
 		t.Fatalf("refusals = %+v", refusals)
 	}
-	if hasLine(refusals, "EvaluateClockWindow", "") {
-		t.Fatalf("an empty refused=[] list is not a refusal: %+v", refusals)
+	if hasLine(refusals, "routine-haul-abc-2", "") || hasLine(refusals, "job mismatch", "") {
+		t.Fatalf("a completed outcome or a failed (not refused) dispatch is not a refusal: %+v", refusals)
 	}
-	if !hasLine(refusals, "native_error rimgovernor/orders_haul: the target is not a haulable item", "flight.jsonl:1 seq 2") {
+	if !hasLine(refusals, "native_error rimgovernor/orders_haul: the target is not a haulable item", "flight.jsonl#7") {
 		t.Fatalf("flight native_error missing: %+v", refusals)
 	}
 	review := section(t, d, "rounds")
@@ -153,22 +163,24 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 		t.Fatalf("stages = %+v", stages)
 	}
 	jobs := section(t, d, "native job failures")
-	if !hasLine(jobs, "JobFailReason", "service/stderr.log:2") {
+	if !hasLine(jobs, "dispatch routine-haul-abc-0 refused at pending: native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured (x2)", "flight.jsonl#8") ||
+		!hasLine(jobs, "dispatch routine-haul-abc-1 failed at awaiting_observation: bridge contract failure: pawn order job mismatch", "flight.jsonl#4") {
 		t.Fatalf("jobs = %+v", jobs)
+	}
+	if hasLine(jobs, "routine-haul-abc-2", "") {
+		t.Fatalf("a completed outcome is not a job failure: %+v", jobs)
 	}
 	authority := section(t, d, "authority generations")
 	if !hasLine(authority, "generation 3 -> 4", "transitions#3") || !hasLine(authority, "generation 3 first, 4 last, 1 flips", "transitions#4") {
 		t.Fatalf("authority = %+v", authority)
 	}
-	if !hasLine(authority, "1 poll lines carried AuthorityChanged", "service/stderr.log:3") || !hasLine(authority, "1 steps failed on authority", "service/stderr.log:4") {
-		t.Fatalf("authority log lines = %+v", authority)
+	if !hasLine(authority, "1 authority rows changed; last generation 4 (Manual)", "flight.jsonl.1#3") ||
+		!hasLine(authority, "1 authority rows lost; last generation 4 (manual)", "flight.jsonl#6") ||
+		!hasLine(authority, "1 Rounder steps failed on lost control", "flight.jsonl#5") {
+		t.Fatalf("authority rows = %+v", authority)
 	}
 	if !hasLine(authority, "authority_reacquisitions=map[attempts:2]", "result.json") {
 		t.Fatalf("report reacquisitions = %+v", authority)
-	}
-	pooled := section(t, d, "pooled-job mismatches")
-	if !hasLine(pooled, "pawn order job mismatch", "service/stderr.log:5") {
-		t.Fatalf("pooled = %+v", pooled)
 	}
 	text := d.Text()
 	if !strings.HasPrefix(text, "case: storage/food\nerror: no meal hauled\n## revision\n") || !strings.Contains(text, "  - a1 () unsuccessful at tick 40: native_failure  [service.sqlite transitions#3]\n") {
@@ -254,14 +266,14 @@ func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "flight.jsonl"), []byte(strings.Join(rows, "\n")+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	s := refusals(dir, nil)
+	s := refusals(dir, flightRows(dir))
 	if len(s.Lines) != 2 {
 		t.Fatalf("want two failure groups, got %+v", s)
 	}
-	if s.Lines[0] != (Line{Text: "native_response rimgovernor/colony_facts: FAILURE_CODE_STALE_IDENTITY: context changed (x2)", Evidence: "flight.jsonl:4 seq 4"}) {
+	if s.Lines[0] != (Line{Text: "native_response rimgovernor/colony_facts: FAILURE_CODE_STALE_IDENTITY: context changed (x2)", Evidence: "flight.jsonl#4"}) {
 		t.Fatalf("latest group: %+v", s.Lines[0])
 	}
-	if s.Lines[1] != (Line{Text: "native_response rimgovernor/orders_build: FAILURE_CODE_UNAVAILABLE: blocked", Evidence: "flight.jsonl:3 seq 3"}) {
+	if s.Lines[1] != (Line{Text: "native_response rimgovernor/orders_build: FAILURE_CODE_UNAVAILABLE: blocked", Evidence: "flight.jsonl#3"}) {
 		t.Fatalf("older group: %+v", s.Lines[1])
 	}
 }

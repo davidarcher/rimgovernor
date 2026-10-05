@@ -35,8 +35,9 @@ Row kinds a phase report reads:
 - `clock_read_events` replies: the ticks and paused status behind wall TPS and
   the paused fraction.
 
-`serve --debug` (every acceptance launch) prints the per-step tally on stderr
-(`[clock-scheduler] step reads: ...`) for a quick look without a recording.
+`serve --debug` (a player's launch; acceptance launches no longer pass it,
+#2065) prints the per-step tally on stderr (`[clock-scheduler] step reads:
+...`) for a quick look without a recording.
 
 ## Service events
 

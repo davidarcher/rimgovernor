@@ -133,8 +133,12 @@ passes ~140 characters (`setup` refuses one).
   `result.json` and `diagnosis.txt` beside it (`acceptance why
   <output>/<area>/<case>`, `-json` for structure): the run binary's revision
   against `main`, last native refusals, refused development rows and selected
-  concerns with no method, unsuccessful stages, native job failures, authority
-  generation flips and pooled-job mismatches, each naming its file and row.
+  concerns with no method, unsuccessful stages, failed dispatches (native job
+  failures, pooled-job mismatches) and authority generation flips and rows,
+  each naming its file and row; flight rows are cited `flight.jsonl#<sequence>`
+  (`rimgovernor log` prints the same numbers). A launch's `service/stderr.log`
+  keeps only the startup banner, fatals and panics: diagnose from the flight
+  segments, not from it.
   Failed step receipts name the native tool and separate fixture exceptions,
   blocking attentions (IDs, sample messages) and refusals. It reads
   `service.sqlite` raw, so an old schema does not stop it.

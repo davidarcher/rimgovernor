@@ -175,9 +175,8 @@ type phase struct {
 	Progress []progressRecord
 	// Mode is /api/state's mode when the phase ended.
 	Mode string
-	// Flight is the service's flight recording; Stderr its log's path.
+	// Flight is the service's flight recording.
 	Flight []na.FlightRow
-	Stderr string
 	// Keep is the keep-alive's counters (report authority_reacquisitions).
 	Keep map[string]any
 	// Err is the watch's own error (a fail-fast verdict, a stall).
@@ -254,7 +253,6 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 		c.intervene("keepalive-"+label, map[string]any{"kind": "authority_reacquired", "count": reacquired})
 	}
 	p.Flight, _ = na.ReadFlight(service.FlightPath)
-	p.Stderr = service.StderrPath()
 	row := map[string]any{"label": label, "launch": c.launches, "samples": len(p.Timeline), "window": p.Window, "mode": p.Mode,
 		"metrics": sustainedfood.DeriveMetrics(p.Timeline), "colony": sustainedfood.DeriveColonyOutcome(p.Timeline), "progress": p.Progress, "keepalive": p.Keep,
 		"clock": service.Entry()["clock"], "events": report["events"]}

@@ -238,11 +238,9 @@ func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec Serve
 		"--state", statePath,
 		"--listen", "127.0.0.1:0",
 		"--timeout", timeout.String(),
+		// The flight recording is the evidence (#2065): no --debug text
+		// trace, so stderr keeps the startup banner, fatals and panics.
 		"--flight-recorder", flightPath,
-		// The clock trace lands in service/stderr.log: a hold is attributed
-		// from it after the fact, and a planner explains its choice only
-		// there.
-		"--debug",
 	}
 	// A harness that names its own PlayerSpeed owns the test-acceleration
 	// flag too; one that passed ClockSpeedArgs in Extra already has it.
@@ -305,6 +303,9 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 	if err != nil {
 		return nil, err
 	}
+	// stderr.log is for the startup banner, fatals and panics only: nothing
+	// reads it and no report names it (the flight recording is the evidence,
+	// #2065).
 	stderrFile, err := os.Create(filepath.Join(serviceDir, "stderr.log"))
 	if err != nil {
 		return nil, err
@@ -545,9 +546,6 @@ func (p *ServiceProcess) AssertStopped() error {
 	}
 	return nil
 }
-
-// StderrPath is the service's stderr log.
-func (p *ServiceProcess) StderrPath() string { return filepath.Join(p.dir, "stderr.log") }
 
 // Store opens (once) the service's durable journal for concurrent read-only
 // verification; SQLite serves it alongside the running service. Stop closes

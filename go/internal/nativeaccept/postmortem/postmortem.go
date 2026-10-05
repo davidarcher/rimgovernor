@@ -37,7 +37,7 @@ type Digest struct {
 	Error string `json:"error,omitempty"`
 	// Sections are in the order the digest is read: revision, refusals,
 	// rounds, unsuccessful stages, job failures, authority
-	// generations, pooled-job mismatches.
+	// generations.
 	Sections []Section `json:"sections"`
 }
 
@@ -51,8 +51,9 @@ type Section struct {
 }
 
 // Line is one finding: Text is the reading, Evidence the file (relative to
-// the case directory) and row it came from ("service/stderr.log:1834",
-// "service.sqlite transitions#412", "flight.jsonl.2:77").
+// the case directory) and row it came from ("flight.jsonl#1834",
+// "service.sqlite transitions#412", "flight.jsonl.2#77"; a flight row's
+// number is its sequence).
 type Line struct {
 	Text     string `json:"text"`
 	Evidence string `json:"evidence"`
@@ -74,10 +75,10 @@ func Collect(ctx context.Context, dir string, report map[string]any) Digest {
 		}
 	}
 	d := Digest{Case: asString(report["case"]), Error: asString(report["error"])}
-	logs := serviceLogs(dir)
+	rows := flightRows(dir)
 	d.Sections = append(d.Sections, revision(ctx, report))
 	d.Sections = append(d.Sections, stageGraph(report))
-	d.Sections = append(d.Sections, refusals(dir, logs))
+	d.Sections = append(d.Sections, refusals(dir, rows))
 	db, storeNote := openRaw(dir)
 	if db != nil {
 		defer db.Close()
@@ -85,9 +86,8 @@ func Collect(ctx context.Context, dir string, report map[string]any) Digest {
 	d.Sections = append(d.Sections, roundsSection(ctx, db, storeNote))
 	d.Sections = append(d.Sections, extentEligibility(dir))
 	d.Sections = append(d.Sections, unsuccessfulStages(ctx, db, storeNote))
-	d.Sections = append(d.Sections, jobFailures(dir, logs))
-	d.Sections = append(d.Sections, authorityGenerations(ctx, db, storeNote, logs, report))
-	d.Sections = append(d.Sections, pooledJobs(logs))
+	d.Sections = append(d.Sections, jobFailures(rows))
+	d.Sections = append(d.Sections, authorityGenerations(ctx, db, storeNote, rows, report))
 	return d
 }
 
@@ -196,44 +196,40 @@ func short(rev string) string {
 
 // --- 2. refusals -------------------------------------------------------
 
-// logLine is one service log line with where it was read.
-type logLine struct {
+// flightRow is one decoded flight row with the recording it came from. A
+// row's evidence is "<file>#<sequence>": the sequence is the recorder's own,
+// so it is the number `rimgovernor log` and `trace` print.
+type flightRow struct {
 	file string // relative to the case directory
-	n    int
-	text string
+	rec  bridge.TimelineRecord
 }
 
-// serviceLogs reads every service*/stderr.log under dir, oldest launch
-// first, as the digest's log corpus.
-func serviceLogs(dir string) []logLine {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-	var names []string
-	for _, e := range entries {
-		if e.IsDir() && (e.Name() == "service" || strings.HasPrefix(e.Name(), "service-") && e.Name() != "service-profile") {
-			names = append(names, e.Name())
-		}
-	}
-	sort.Slice(names, func(i, j int) bool { return launchIndex(names[i]) < launchIndex(names[j]) })
-	var lines []logLine
-	for _, name := range names {
-		rel := filepath.ToSlash(filepath.Join(name, "stderr.log"))
-		f, err := os.Open(filepath.Join(dir, rel))
+func (r flightRow) evidence() string { return fmt.Sprintf("%s#%d", r.file, r.rec.Sequence) }
+
+// fields is the row's data as one flat map (a decision row's attrs with its
+// verdict, reason and target).
+func (r flightRow) fields() map[string]any { return bridge.RowFields(r.rec) }
+
+// flightRows decodes every flight recording under dir, oldest first (see
+// flightFiles). A line that is not a row is skipped: the digest is read from
+// whatever survived.
+func flightRows(dir string) []flightRow {
+	var rows []flightRow
+	for _, file := range flightFiles(dir) {
+		f, err := os.Open(filepath.Join(dir, file))
 		if err != nil {
 			continue
 		}
 		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 1<<20), 1<<20)
-		n := 0
+		scanner.Buffer(make([]byte, 1<<20), 8<<20)
 		for scanner.Scan() {
-			n++
-			lines = append(lines, logLine{file: rel, n: n, text: scanner.Text()})
+			if rec, ok := bridge.DecodeFlightLine(scanner.Bytes()); ok {
+				rows = append(rows, flightRow{file: file, rec: rec})
+			}
 		}
 		f.Close()
 	}
-	return lines
+	return rows
 }
 
 func launchIndex(name string) int {
@@ -244,63 +240,175 @@ func launchIndex(name string) int {
 	return i
 }
 
-// refusals lists the last native refusals: service log lines carrying a
-// refusal, flight-recorder native_error rows with refused text and
-// native_response rows carrying a failure code (grouped with a count). The
-// most recent come last, as in the log; distinct texts are counted so a
-// refusal repeated every window shows once with its count.
-func refusals(dir string, logs []logLine) Section {
+// refusals lists the last native refusals: refused step results, the
+// Worker's refused dispatch rows, and native_call rows that carry an error
+// or a failure code. Repeats collapse (distinct texts are counted) and the
+// most recent come first, so a refusal repeated every window shows once with
+// its count.
+func refusals(dir string, rows []flightRow) Section {
 	s := Section{Name: "native refusals (last first)"}
 	s.Lines = refusedSteps(dir)
-	type hit struct {
-		text  string
-		last  logLine
-		count int
-	}
-	var hits []*hit
-	index := map[string]*hit{}
-	for _, l := range logs {
-		if !isRefusal(l.text) {
-			continue
+	for _, read := range []func(flightRow) (string, bool){dispatchRefusal, nativeCallRefusal} {
+		for _, l := range groupRows(rows, read) {
+			if len(s.Lines) >= 2*maxLines {
+				break
+			}
+			s.Lines = append(s.Lines, l)
 		}
-		key := normalize(l.text)
-		h, ok := index[key]
-		if !ok {
-			h = &hit{text: strings.TrimSpace(l.text)}
-			index[key] = h
-			hits = append(hits, h)
-		}
-		h.count++
-		h.last = l
-	}
-	sort.SliceStable(hits, func(i, j int) bool {
-		return hits[i].last.n > hits[j].last.n || (hits[i].last.n == hits[j].last.n && hits[i].last.file > hits[j].last.file)
-	})
-	for i, h := range hits {
-		if i >= maxLines {
-			s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("... %d more distinct refusals", len(hits)-i), Evidence: "service*/stderr.log"})
-			break
-		}
-		text := clip(h.text)
-		if h.count > 1 {
-			text = fmt.Sprintf("%s (x%d)", text, h.count)
-		}
-		s.Lines = append(s.Lines, Line{Text: text, Evidence: fmt.Sprintf("%s:%d", h.last.file, h.last.n)})
-	}
-	flightErrors := flightNativeErrors(dir)
-	for i := len(flightErrors) - 1; i >= 0 && len(s.Lines) < 2*maxLines; i-- {
-		s.Lines = append(s.Lines, flightErrors[i])
-	}
-	for _, l := range flightFailures(dir) {
-		if len(s.Lines) >= 2*maxLines {
-			break
-		}
-		s.Lines = append(s.Lines, l)
 	}
 	if len(s.Lines) == 0 {
-		s.Note = "no refused step result, refusal in service*/stderr.log, native_error row or native_response failure in flight.jsonl*"
+		s.Note = "no refused step result, refused dispatch row, or native_call error or failure in flight.jsonl*"
 	}
 	return s
+}
+
+// groupRows reads every row with read and returns the distinct texts, most
+// recent first, each with its count and the evidence of its last row.
+func groupRows(rows []flightRow, read func(flightRow) (string, bool)) []Line {
+	type group struct {
+		text     string
+		evidence string
+		last     int
+		count    int
+	}
+	var groups []*group
+	index := map[string]*group{}
+	for i, row := range rows {
+		text, ok := read(row)
+		if !ok {
+			continue
+		}
+		key := normalize(text)
+		g, seen := index[key]
+		if !seen {
+			g = &group{text: text}
+			index[key] = g
+			groups = append(groups, g)
+		}
+		g.count++
+		g.last = i
+		g.evidence = row.evidence()
+	}
+	sort.SliceStable(groups, func(i, j int) bool { return groups[i].last > groups[j].last })
+	lines := make([]Line, 0, len(groups))
+	for _, g := range groups {
+		text := clip(g.text)
+		if g.count > 1 {
+			text = fmt.Sprintf("%s (x%d)", text, g.count)
+		}
+		lines = append(lines, Line{Text: text, Evidence: g.evidence})
+	}
+	return lines
+}
+
+// isOutcomeKind reports whether kind is the Worker's per-action outcome row:
+// the legacy worker_outcome or the v2 dispatch. (The per-run worker_dispatch
+// tally is not an outcome.)
+func isOutcomeKind(kind string) bool { return kind == "worker_outcome" || kind == "dispatch" }
+
+// outcome is one outcome row read under either shape: the legacy payload
+// (action, outcome, refused, err) or the v2 decision (target, verdict,
+// reason, attrs.error, attrs.refused).
+type outcome struct {
+	action, verdict, reason, refused, err, stage string
+}
+
+func readOutcome(row flightRow) (outcome, bool) {
+	if !isOutcomeKind(row.rec.Kind) {
+		return outcome{}, false
+	}
+	f := row.fields()
+	return outcome{
+		action:  firstText(f, "action", "target"),
+		verdict: firstText(f, "outcome", "verdict"),
+		reason:  firstText(f, "reason"),
+		refused: firstText(f, "refused"),
+		err:     firstText(f, "err", "error"),
+		stage:   firstText(f, "stage"),
+	}, true
+}
+
+// firstText is the first of keys the row carries as text; a list renders
+// comma-joined, and an empty list is no text.
+func firstText(fields map[string]any, keys ...string) string {
+	for _, key := range keys {
+		switch v := fields[key].(type) {
+		case string:
+			if v != "" {
+				return v
+			}
+		case []any:
+			parts := make([]string, 0, len(v))
+			for _, item := range v {
+				if s, ok := item.(string); ok && s != "" {
+					parts = append(parts, s)
+				}
+			}
+			if len(parts) > 0 {
+				return strings.Join(parts, ",")
+			}
+		case float64:
+			return strconv.FormatFloat(v, 'f', -1, 64)
+		case bool:
+			return strconv.FormatBool(v)
+		}
+	}
+	return ""
+}
+
+// dispatchRefusal reads a Worker outcome row the native side or the planner
+// turned down: verdict refused, or a non-empty refused list.
+func dispatchRefusal(row flightRow) (string, bool) {
+	o, ok := readOutcome(row)
+	if !ok || (o.verdict != "refused" && o.refused == "") {
+		return "", false
+	}
+	text := "dispatch " + o.action + " refused"
+	if o.refused != "" {
+		text += " [" + o.refused + "]"
+	}
+	if o.reason != "" {
+		text += ": " + o.reason
+	}
+	if o.err != "" {
+		text += ": " + o.err
+	}
+	return text, true
+}
+
+// nativeCallRefusal reads a native_call row that failed: a transport or
+// refusal error (the text the native side gave, when it gave one), or a
+// reply carrying a {"failure":{"code":...}} payload, a refusal the native
+// side answered rather than raised (#677).
+func nativeCallRefusal(row flightRow) (string, bool) {
+	if !bridge.IsNativeReply(row.rec.Kind) {
+		return "", false
+	}
+	payload := row.rec.Payload
+	tool := asString(payload["native_tool"])
+	if tool == "" {
+		tool = asString(payload["tool"])
+	}
+	if errText := asString(payload["error"]); errText != "" {
+		if refused := asString(payload["refused_text"]); refused != "" {
+			errText = refused
+		}
+		return fmt.Sprintf("native_error %s: %s", tool, clip(errText)), true
+	}
+	reply, ok := bridge.RecordedReply(payload)
+	if !ok {
+		return "", false
+	}
+	failure, _ := reply["failure"].(map[string]any)
+	code, _ := failure["code"].(string)
+	if code == "" {
+		return "", false
+	}
+	text := fmt.Sprintf("native_response %s: %s", tool, code)
+	if detail := asString(failure["detail"]); detail != "" {
+		text += ": " + clip(detail)
+	}
+	return text, true
 }
 
 func refusedSteps(dir string) []Line {
@@ -347,18 +455,6 @@ func refusedSteps(dir string) []Line {
 	return lines
 }
 
-// isRefusal matches a log line carrying a native refusal: the transport's
-// "native read/write refused" wrapping, a FAILURE_CODE_ payload, or a
-// non-empty refused=[...] list on a step or worker line (an empty list is
-// the normal case and not a refusal).
-func isRefusal(text string) bool {
-	if strings.Contains(text, "read refused") || strings.Contains(text, "write refused") || strings.Contains(text, "FAILURE_CODE_") {
-		return true
-	}
-	i := strings.Index(text, "refused=[")
-	return i >= 0 && i+len("refused=[") < len(text) && text[i+len("refused=[")] != ']'
-}
-
 // normalize strips ids and numbers so repeats of one refusal collapse.
 func normalize(text string) string {
 	var b strings.Builder
@@ -377,55 +473,6 @@ func clip(text string) string {
 		return text[:300] + "..."
 	}
 	return text
-}
-
-// flightNativeErrors scans the case's flight recording (retained segments
-// oldest first, then the active file) for native_error rows and returns
-// them in order with their file and line.
-func flightNativeErrors(dir string) []Line {
-	var lines []Line
-	for _, file := range flightFiles(dir) {
-		f, err := os.Open(filepath.Join(dir, file))
-		if err != nil {
-			continue
-		}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 1<<20), 8<<20)
-		n := 0
-		for scanner.Scan() {
-			n++
-			line := scanner.Bytes()
-			if !strings.Contains(string(line), `"kind":"native_call"`) {
-				continue
-			}
-			var row struct {
-				Sequence uint64 `json:"sequence"`
-				Payload  struct {
-					NativeTool  string `json:"native_tool"`
-					Tool        string `json:"tool"`
-					Error       string `json:"error"`
-					RefusedText string `json:"refused_text"`
-				} `json:"payload"`
-			}
-			// A native_call row is an error row when it carries an error text
-			// (the old native_error); the name stays in the evidence text
-			// until #2065 moves this reader to structured rows.
-			if json.Unmarshal(line, &row) != nil || row.Payload.Error == "" {
-				continue
-			}
-			tool := row.Payload.NativeTool
-			if tool == "" {
-				tool = row.Payload.Tool
-			}
-			text := row.Payload.Error
-			if row.Payload.RefusedText != "" {
-				text = row.Payload.RefusedText
-			}
-			lines = append(lines, Line{Text: fmt.Sprintf("native_error %s: %s", tool, clip(text)), Evidence: fmt.Sprintf("%s:%d seq %d", file, n, row.Sequence)})
-		}
-		f.Close()
-	}
-	return lines
 }
 
 // flightFiles lists every flight recording under dir (the case's own and
@@ -739,67 +786,66 @@ func unsuccessfulStages(ctx context.Context, db *sql.DB, note string) Section {
 
 // --- 5. job failures ---------------------------------------------------
 
-// jobFailures greps the service logs and flight recording for the native
-// JobFailReason a refused or abandoned pawn order carried (#189).
-func jobFailures(dir string, logs []logLine) Section {
+// jobFailures lists the Worker outcome rows that failed (verdict failed, or
+// an error text): the native refusal or contract failure a pawn order
+// carried (#189), and the pooled-job mismatch a completed order raised when
+// the native record read a pooled Job (#108), grouped by text with a count.
+func jobFailures(rows []flightRow) Section {
 	s := Section{Name: "native job failures"}
-	for _, l := range logs {
-		if !strings.Contains(l.text, "JobFailReason") && !strings.Contains(l.text, "job failed") {
-			continue
+	lines := groupRows(rows, func(row flightRow) (string, bool) {
+		o, ok := readOutcome(row)
+		if !ok || (o.verdict != "failed" && o.err == "") {
+			return "", false
 		}
-		if len(s.Lines) >= maxLines {
-			s.Lines = append(s.Lines, Line{Text: "... more", Evidence: "service*/stderr.log"})
+		text := "dispatch " + o.action + " " + o.verdict
+		if o.stage != "" {
+			text += " at " + o.stage
+		}
+		if o.err != "" {
+			text += ": " + o.err
+		}
+		return text, true
+	})
+	for i, l := range lines {
+		if i >= maxLines {
+			s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("... %d more distinct failures", len(lines)-i), Evidence: "flight.jsonl*"})
 			break
 		}
-		s.Lines = append(s.Lines, Line{Text: clip(l.text), Evidence: fmt.Sprintf("%s:%d", l.file, l.n)})
-	}
-	for _, file := range flightFiles(dir) {
-		if len(s.Lines) >= 2*maxLines {
-			break
-		}
-		f, err := os.Open(filepath.Join(dir, file))
-		if err != nil {
-			continue
-		}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 1<<20), 8<<20)
-		n := 0
-		for scanner.Scan() {
-			n++
-			text := scanner.Text()
-			i := strings.Index(text, "JobFailReason")
-			if i < 0 {
-				continue
-			}
-			start := i - 80
-			if start < 0 {
-				start = 0
-			}
-			end := i + 200
-			if end > len(text) {
-				end = len(text)
-			}
-			s.Lines = append(s.Lines, Line{Text: "..." + text[start:end] + "...", Evidence: fmt.Sprintf("%s:%d", file, n)})
-			if len(s.Lines) >= 2*maxLines {
-				break
-			}
-		}
-		f.Close()
+		s.Lines = append(s.Lines, l)
 	}
 	if len(s.Lines) == 0 {
-		s.Note = "no JobFailReason in service*/stderr.log or flight.jsonl*"
+		s.Note = "no failed dispatch row in flight.jsonl*"
 	}
 	return s
 }
 
 // --- 6. authority generations ------------------------------------------
 
+// authorityMovement reports how an authority row moved the grant: "changed"
+// (an AuthorityChanged event), "lost" or "retaken", under the legacy kinds
+// (authority_change, authority_lost, clock_retaken) or the v2 authority row's
+// change field.
+func authorityMovement(row flightRow) (string, bool) {
+	switch {
+	case row.rec.Kind == "authority_lost":
+		return "lost", true
+	case row.rec.Kind == "clock_retaken":
+		return "retaken", true
+	case bridge.IsAuthorityKind(row.rec.Kind):
+		if change := firstText(row.fields(), "change"); change != "" {
+			return change, true
+		}
+		return "changed", true
+	}
+	return "", false
+}
+
 // authorityGenerations reports how the native authority generation moved:
 // each distinct Snapshot.Native across transitions in sequence order, the
-// AuthorityChanged events and authority step failures in the log, and the
-// report's own reacquisition count. A thrashing generation (#119, #213)
-// invalidates every open attempt.
-func authorityGenerations(ctx context.Context, db *sql.DB, note string, logs []logLine, report map[string]any) Section {
+// authority rows (changed, lost, retaken) and the Rounder steps that failed
+// on a lost control, and the report's own reacquisition count. A thrashing
+// generation (#119, #213) invalidates every open attempt.
+func authorityGenerations(ctx context.Context, db *sql.DB, note string, rows []flightRow, report map[string]any) Section {
 	s := Section{Name: "authority generations"}
 	if v, ok := report["authority_reacquisitions"]; ok {
 		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("report authority_reacquisitions=%v", v), Evidence: "result.json authority_reacquisitions"})
@@ -848,24 +894,36 @@ func authorityGenerations(ctx context.Context, db *sql.DB, note string, logs []l
 	} else if note != "" {
 		s.Note = note
 	}
-	changed, failed := 0, 0
-	var lastChanged, lastFailed logLine
-	for _, l := range logs {
-		if strings.Contains(l.text, "AuthorityChanged") {
-			changed++
-			lastChanged = l
+	counts := map[string]int{}
+	last := map[string]flightRow{}
+	controlLost := 0
+	var lastControlLost flightRow
+	for _, row := range rows {
+		if change, ok := authorityMovement(row); ok {
+			counts[change]++
+			last[change] = row
 		}
-		lower := strings.ToLower(l.text)
-		if strings.Contains(lower, "authority changed") || strings.Contains(lower, "authority unavailable") || strings.Contains(lower, "authority generation") {
-			failed++
-			lastFailed = l
+		if row.rec.Kind == "planner_step" && firstText(row.fields(), "reason") == "control_lost" {
+			controlLost++
+			lastControlLost = row
 		}
 	}
-	if changed > 0 {
-		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("%d poll lines carried AuthorityChanged", changed), Evidence: fmt.Sprintf("%s:%d", lastChanged.file, lastChanged.n)})
+	for _, change := range []string{"changed", "lost", "retaken"} {
+		if counts[change] == 0 {
+			continue
+		}
+		f := last[change].fields()
+		text := fmt.Sprintf("%d authority rows %s; last", counts[change], change)
+		if g := firstText(f, "generation"); g != "" {
+			text += " generation " + g
+		}
+		if r := firstText(f, "reason"); r != "" {
+			text += " (" + r + ")"
+		}
+		s.Lines = append(s.Lines, Line{Text: text, Evidence: last[change].evidence()})
 	}
-	if failed > 0 {
-		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("%d steps failed on authority; last: %s", failed, clip(lastFailed.text)), Evidence: fmt.Sprintf("%s:%d", lastFailed.file, lastFailed.n)})
+	if controlLost > 0 {
+		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("%d Rounder steps failed on lost control", controlLost), Evidence: lastControlLost.evidence()})
 	}
 	if len(s.Lines) == 0 && s.Note == "" {
 		s.Note = "no authority movement recorded"
@@ -873,111 +931,7 @@ func authorityGenerations(ctx context.Context, db *sql.DB, note string, logs []l
 	return s
 }
 
-// --- 7. pooled-job mismatches ------------------------------------------
-
-// pooledJobs lists "pawn order job mismatch" (and the attack/movement
-// variants) worker errors: on a completed order these mean the native
-// record read a pooled Job, a native-record bug, not a Go contract one
-// (#108).
-func pooledJobs(logs []logLine) Section {
-	s := Section{Name: "pooled-job mismatches"}
-	count := 0
-	for _, l := range logs {
-		if !strings.Contains(l.text, "job mismatch") {
-			continue
-		}
-		count++
-		if len(s.Lines) < maxLines {
-			s.Lines = append(s.Lines, Line{Text: clip(l.text), Evidence: fmt.Sprintf("%s:%d", l.file, l.n)})
-		}
-	}
-	if count > len(s.Lines) {
-		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("... %d more", count-len(s.Lines)), Evidence: "service*/stderr.log"})
-	}
-	if count == 0 {
-		s.Note = "no job mismatch in service*/stderr.log"
-	}
-	return s
-}
-
 func asString(v any) string {
 	s, _ := v.(string)
 	return s
-}
-
-// flightFailures scans the flight recordings for native_response rows whose
-// result carries a {"failure":{"code":...}} payload, a refusal the native
-// side answered rather than raised (#677), and groups them by tool, code and
-// detail: most recent group first, each with its count and last evidence.
-func flightFailures(dir string) []Line {
-	type group struct {
-		text     string
-		evidence string
-		last     int
-		count    int
-	}
-	var groups []*group
-	index := map[string]*group{}
-	seen := 0
-	for _, file := range flightFiles(dir) {
-		f, err := os.Open(filepath.Join(dir, file))
-		if err != nil {
-			continue
-		}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 1<<20), 8<<20)
-		n := 0
-		for scanner.Scan() {
-			n++
-			line := string(scanner.Bytes())
-			if !strings.Contains(line, `"kind":"native_call"`) {
-				continue
-			}
-			var row struct {
-				Sequence uint64         `json:"sequence"`
-				Payload  map[string]any `json:"payload"`
-			}
-			if json.Unmarshal([]byte(line), &row) != nil {
-				continue
-			}
-			reply, ok := bridge.RecordedReply(row.Payload)
-			if !ok {
-				continue
-			}
-			failure, _ := reply["failure"].(map[string]any)
-			code, _ := failure["code"].(string)
-			if code == "" {
-				continue
-			}
-			tool := asString(row.Payload["native_tool"])
-			if tool == "" {
-				tool = asString(row.Payload["tool"])
-			}
-			text := fmt.Sprintf("native_response %s: %s", tool, code)
-			if detail := asString(failure["detail"]); detail != "" {
-				text += ": " + clip(detail)
-			}
-			g, ok := index[text]
-			if !ok {
-				g = &group{text: text}
-				index[text] = g
-				groups = append(groups, g)
-			}
-			seen++
-			g.count++
-			g.last = seen
-			g.evidence = fmt.Sprintf("%s:%d seq %d", file, n, row.Sequence)
-		}
-		f.Close()
-	}
-	sort.SliceStable(groups, func(i, j int) bool { return groups[i].last > groups[j].last })
-	lines := make([]Line, 0, len(groups))
-	for _, g := range groups {
-		text := g.text
-		if g.count > 1 {
-			text = fmt.Sprintf("%s (x%d)", text, g.count)
-		}
-		lines = append(lines, Line{Text: text, Evidence: g.evidence})
-	}
-	return lines
 }
