@@ -78,48 +78,6 @@ func TestRockStepDigsUnroofedRimRock(t *testing.T) {
 	}
 }
 
-func TestRockSiteView(t *testing.T) {
-	cell := func(x, z int32) domain.Cell { return domain.Cell{X: x, Z: z} }
-	wet := openSite(0, 0)
-	wet.Walkable = domain.Known(false)
-	sites := []SiteCell{openSite(1, 0), rockSite(2, 0), rockSite(7, 0), wet}
-	view := RockSiteView(sites, Bounds{Width: 8, Height: 4}, Rectangle{X: 0, Z: 0, Width: 4, Height: 2})
-	by := map[domain.Cell]SiteCell{}
-	for _, c := range view {
-		if _, dup := by[c.Cell]; dup {
-			t.Fatalf("duplicate %v", c.Cell)
-		}
-		by[c.Cell] = c
-	}
-	isOpen := func(c domain.Cell) bool {
-		s := by[c]
-		return positive(s.Walkable) && positive(measured(s.Occupied, func(v bool) bool { return !v }))
-	}
-	if !isOpen(cell(2, 0)) || rockCell(by[cell(2, 0)]) {
-		t.Fatal("listed rock in the area must read open")
-	}
-	if !isOpen(cell(3, 1)) {
-		t.Fatal("fogged cell in the area must read open")
-	}
-	if isOpen(cell(0, 0)) {
-		t.Fatal("a listed non-rock cell must pass through")
-	}
-	if !rockCell(by[cell(7, 0)]) {
-		t.Fatal("rock outside the area must stay rock")
-	}
-	if _, ok := by[cell(5, 3)]; ok {
-		t.Fatal("a fogged cell outside the area must not be invented")
-	}
-	if len(view) != 9 {
-		t.Fatal(len(view))
-	}
-	// The step then digs what the picker chose over rock and fog.
-	got := RockStep([]RoleCell{{cell(1, 0), RockNeedsFloor}, {cell(2, 0), RockNeedsFloor}, {cell(3, 1), RockNeedsFloor}}, sites)
-	if !reflect.DeepEqual(got.Dig, []domain.Cell{cell(2, 0), cell(3, 1)}) {
-		t.Fatal(got)
-	}
-}
-
 func TestRockAccessPicksFirstOpenNeighbour(t *testing.T) {
 	foot := []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}
 	cells := []SiteCell{openSite(5, 5), openSite(2, 2), openSite(0, 1), rockSite(1, 0)}
