@@ -10,5 +10,6 @@ RimGovernor extends the companion with guarded game operations, observations,
 saved identity, clock supervision and rendering. Current behavior belongs in the
 [developer docs](../../../../docs/README.md); changes and verification belong in commits.
 
-RimWorld, Harmony, RimBridgeServer and Newtonsoft.Json assemblies are referenced
-from installed dependencies. Their binaries, source and game artwork are not bundled.
+RimWorld and Harmony assemblies are referenced from installed dependencies; their
+binaries and game artwork are not bundled. The GABP host (a vendored fork of
+RimBridgeServer and Lib.GAB, with Newtonsoft.Json) is bundled; see `../host/PROVENANCE.md`.

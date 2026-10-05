@@ -27,6 +27,9 @@ func writeFile(t *testing.T, root, relative, content string) {
 func writeNativeInputs(t *testing.T, repo string) {
 	t.Helper()
 	for relative, content := range map[string]string{
+		"integrations/rimgovernor-host/Directory.Build.props":            "<Project/>",
+		"integrations/rimgovernor-host/src/Host/Host.cs":                 "class Host {}",
+		"integrations/rimgovernor-host/src/Host/obj/Host.cs":             "ignored build output",
 		"integrations/rimgovernor-native/src/Bridge/Tool.cs":             "class Tool {}",
 		"integrations/rimgovernor-native/src/Bridge/obj/Tool.cs":         "ignored build output",
 		"integrations/rimgovernor-native/src/Bridge/bin/Release/x.dll":   "ignored binary",
@@ -71,6 +74,8 @@ func TestSourceTreeHashMatchesTheBuildScriptsFormula(t *testing.T) {
 		"THIRD_PARTY.md\t" + sha("notices"),
 		"contracts/generated/protobuf/csharp/Clock.cs\t" + sha("generated"),
 		"contracts/proto/clock.proto\t" + sha("syntax = \"proto3\";"),
+		"integrations/rimgovernor-host/Directory.Build.props\t" + sha("<Project/>"),
+		"integrations/rimgovernor-host/src/Host/Host.cs\t" + sha("class Host {}"),
 		"integrations/rimgovernor-native/About/About.xml\t" + sha("<ModMetaData/>"),
 		"integrations/rimgovernor-native/Defs/Things.xml\t" + sha("<Defs/>"),
 		"integrations/rimgovernor-native/Notices/headless/LICENSE\t" + sha("MIT"),

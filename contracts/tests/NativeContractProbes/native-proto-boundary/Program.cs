@@ -96,7 +96,7 @@ internal static class NativeProtoBoundaryProbe {
         Check(ProtoBoundary.TryReadContext(map,out context,out unavailable) && context.NativeGeneration==owner.Status().Generation,"read reports existing owner generation");
         Check(!NativeControlAuthority.TryGetForGame(new Verse.Game(),out authority),"another game isolated");
         Check(!NativeControlAuthority.TryGetForGame(null,out authority),"null game unavailable");
-        if(args.Length!=1) throw new ArgumentException("Supply installed RimBridgeServer.dll for real SDK binder checks");
+        if(args.Length!=1) throw new ArgumentException("Supply installed RimGovernor.Host.dll for real SDK binder checks");
         CheckSdkBinder(args[0]);
         Console.WriteLine("Boundary probe passed: "+checks+" checks; actual SDK binder plus journal/game seams; no journal integration or gameplay acceptance.");
     }
@@ -125,7 +125,7 @@ internal static class NativeProtoBoundaryProbe {
         }
     }
     static void CheckSdkBinder(string serverPath) {
-        var provider=Assembly.LoadFrom(serverPath).GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true);
+        var provider=Assembly.LoadFrom(serverPath).GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider",true);
         var binder=provider.GetMethod("BindArguments",BindingFlags.NonPublic|BindingFlags.Static);
         var method=typeof(NativeProtoBoundaryProbe).GetMethod("RawTransport",BindingFlags.NonPublic|BindingFlags.Static);
         foreach(var raw in new object[]{"{}",new JObject(),new JArray(),null,17,true}) {

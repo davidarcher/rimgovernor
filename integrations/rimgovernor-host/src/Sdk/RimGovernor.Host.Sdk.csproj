@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Host.Sdk</RootNamespace>
+    <AssemblyName>RimGovernor.Host.Sdk</AssemblyName>
+  </PropertyGroup>
+</Project>

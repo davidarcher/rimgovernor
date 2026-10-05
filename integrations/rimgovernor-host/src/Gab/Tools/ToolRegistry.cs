@@ -1,0 +1,349 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+
+namespace RimGovernor.Host.Gab.Tools
+{
+    internal sealed class ToolParameterBindingException : Exception
+    {
+        public ToolParameterBindingException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Default implementation of the tool registry
+    /// </summary>
+    public class ToolRegistry : IToolRegistry
+    {
+        private readonly ConcurrentDictionary<string, RegisteredTool> _tools = new ConcurrentDictionary<string, RegisteredTool>();
+
+        private class RegisteredTool
+        {
+            public ToolInfo Info { get; set; } = new ToolInfo();
+            public Func<object, Task<object>> Handler { get; set; } = _ => Task.FromResult<object>(null);
+        }
+
+        public void RegisterTool(string name, Func<object, Task<object>> handler, ToolInfo info = null)
+        {
+            ToolNameValidator.EnsureValid(name, nameof(name));
+
+            if (handler == null)
+                throw new ArgumentNullException(nameof(handler));
+
+            var toolInfo = info ?? new ToolInfo { Name = name };
+            toolInfo.Name = name; // Ensure name matches
+
+            _tools[name] = new RegisteredTool
+            {
+                Info = toolInfo,
+                Handler = handler
+            };
+        }
+
+        public void RegisterToolsFromAssembly(Assembly assembly)
+        {
+            if (assembly == null)
+                throw new ArgumentNullException(nameof(assembly));
+
+            var types = assembly.GetTypes();
+            foreach (var type in types)
+            {
+                RegisterToolsFromType(type, null);
+            }
+        }
+
+        public void RegisterToolsFromInstance(object instance)
+        {
+            if (instance == null)
+                throw new ArgumentNullException(nameof(instance));
+
+            RegisterToolsFromType(instance.GetType(), instance);
+        }
+
+        private void RegisterToolsFromType(Type type, object instance)
+        {
+            var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+            
+            foreach (var method in methods)
+            {
+                var toolAttr = method.GetCustomAttribute<ToolAttribute>();
+                if (toolAttr == null) continue;
+
+                // Skip static methods if we have an instance, or instance methods if we don't
+                if ((instance == null && !method.IsStatic) || (instance != null && method.IsStatic))
+                    continue;
+
+                var toolInfo = new ToolInfo
+                {
+                    Name = toolAttr.Name,
+                    Title = toolAttr.Title,
+                    Description = toolAttr.Description,
+                    ResultDescription = toolAttr.ResultDescription,
+                    Tags = NormalizeTags(toolAttr.Tags),
+                    RequiresAuth = toolAttr.RequiresAuth,
+                    Parameters = GetParameterInfo(method),
+                    ResponseFields = GetResponseFieldInfo(method)
+                };
+
+                RegisterTool(toolAttr.Name, CreateHandler(method, instance, toolAttr.Name), toolInfo);
+            }
+        }
+
+        private static List<string> NormalizeTags(IEnumerable<string> tags)
+        {
+            if (tags == null)
+                return new List<string>();
+
+            return tags
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Select(tag => tag.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private List<ToolParameterInfo> GetParameterInfo(MethodInfo method)
+        {
+            var parameters = new List<ToolParameterInfo>();
+            
+            foreach (var param in method.GetParameters())
+            {
+                var paramAttr = param.GetCustomAttribute<ToolParameterAttribute>();
+                var defaultValue = GetDefaultValue(param, paramAttr);
+                
+                parameters.Add(new ToolParameterInfo
+                {
+                    Name = param.Name,
+                    Type = param.ParameterType,
+                    Description = paramAttr?.Description,
+                    Required = IsParameterRequired(param, paramAttr),
+                    DefaultValue = defaultValue
+                });
+            }
+            
+            return parameters;
+        }
+
+        private static bool IsParameterRequired(ParameterInfo parameter, ToolParameterAttribute parameterAttribute)
+        {
+            if (parameter.HasDefaultValue)
+            {
+                return false;
+            }
+
+            if (parameterAttribute?.DefaultValue != null)
+            {
+                return false;
+            }
+
+            return parameterAttribute?.Required ?? true;
+        }
+
+        private static object GetDefaultValue(ParameterInfo parameter, ToolParameterAttribute parameterAttribute)
+        {
+            if (parameter.HasDefaultValue)
+            {
+                return parameter.DefaultValue;
+            }
+
+            return parameterAttribute?.DefaultValue;
+        }
+
+        private List<ToolResponseFieldInfo> GetResponseFieldInfo(MethodInfo method)
+        {
+            var fields = new List<ToolResponseFieldInfo>();
+            foreach (var attr in method.GetCustomAttributes<ToolResponseAttribute>())
+            {
+                fields.Add(new ToolResponseFieldInfo
+                {
+                    Name = attr.Name,
+                    Type = attr.Type,
+                    Description = attr.Description,
+                    Always = attr.Always,
+                    Nullable = attr.Nullable
+                });
+            }
+            return fields;
+        }
+
+        private Func<object, Task<object>> CreateHandler(MethodInfo method, object instance, string toolName)
+        {
+            return async (parameters) =>
+            {
+                try
+                {
+                    var paramValues = ConvertParameters(method, parameters, toolName);
+                    var result = method.Invoke(instance, paramValues);
+                    
+                    if (result is Task task)
+                    {
+                        await task;
+                        
+                        // Check if it's Task<T>
+                        if (task.GetType().IsGenericType)
+                        {
+                            var prop = task.GetType().GetProperty("Result");
+                            return prop?.GetValue(task);
+                        }
+                        return null;
+                    }
+                    
+                    return result;
+                }
+                catch (ToolParameterBindingException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Error calling tool '{method.Name}': {ex.Message}", ex);
+                }
+            };
+        }
+
+        private object[] ConvertParameters(MethodInfo method, object parameters, string toolName)
+        {
+            var methodParams = method.GetParameters();
+            var paramValues = new object[methodParams.Length];
+            
+            if (parameters == null)
+            {
+                // Use default values
+                for (int i = 0; i < methodParams.Length; i++)
+                {
+                    paramValues[i] = GetDefaultValue(methodParams[i], methodParams[i].GetCustomAttribute<ToolParameterAttribute>());
+                }
+                return paramValues;
+            }
+
+            // Convert parameters from JSON object
+            var paramDict = new Dictionary<string, object>();
+            if (parameters is string jsonString)
+            {
+                paramDict = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonString) ?? new Dictionary<string, object>();
+            }
+            else
+            {
+                var json = JsonConvert.SerializeObject(parameters);
+                paramDict = JsonConvert.DeserializeObject<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+            }
+
+            // Warn about unrecognized keys that don't match any method parameter
+            var methodParamNames = methodParams.Select(p => p.Name).ToArray();
+            var exactMethodParamNames = new HashSet<string>(methodParamNames, StringComparer.Ordinal);
+            foreach (var key in paramDict.Keys)
+            {
+                if (exactMethodParamNames.Contains(key))
+                {
+                    continue;
+                }
+
+                var closest = methodParamNames
+                    .FirstOrDefault(n => n.Equals(key, StringComparison.OrdinalIgnoreCase));
+                if (closest != null)
+                {
+                    continue;
+                }
+
+                Trace.TraceWarning($"[ToolRegistry] Tool '{method.Name}': unrecognized parameter '{key}'. Known parameters: [{string.Join(", ", methodParamNames)}]");
+            }
+
+            for (int i = 0; i < methodParams.Length; i++)
+            {
+                var param = methodParams[i];
+
+                if (paramDict.ContainsKey(param.Name))
+                {
+                    try
+                    {
+                        var value = paramDict[param.Name];
+                        paramValues[i] = ConvertValue(value, param.ParameterType);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw CreateParameterBindingException(toolName, param, ex);
+                    }
+                }
+                else if (paramDict.Keys.FirstOrDefault(k => k.Equals(param.Name, StringComparison.OrdinalIgnoreCase)) is string caseInsensitiveMatch)
+                {
+                    // Case-insensitive fallback
+                    Trace.TraceWarning($"[ToolRegistry] Tool '{method.Name}': parameter '{caseInsensitiveMatch}' matched '{param.Name}' via case-insensitive fallback.");
+                    try
+                    {
+                        var value = paramDict[caseInsensitiveMatch];
+                        paramValues[i] = ConvertValue(value, param.ParameterType);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw CreateParameterBindingException(toolName, param, ex);
+                    }
+                }
+                else
+                {
+                    paramValues[i] = GetDefaultValue(param, param.GetCustomAttribute<ToolParameterAttribute>());
+                }
+            }
+            
+            return paramValues;
+        }
+
+        private static ToolParameterBindingException CreateParameterBindingException(
+            string toolName,
+            ParameterInfo parameter,
+            Exception innerException)
+        {
+            return new ToolParameterBindingException(
+                $"Invalid value for parameter '{parameter.Name}' in tool '{toolName}'; expected {parameter.ParameterType.Name}.",
+                innerException);
+        }
+
+        private object ConvertValue(object value, Type targetType)
+        {
+            if (value == null) return null;
+            if (targetType.IsAssignableFrom(value.GetType())) return value;
+            
+            // Handle basic type conversions
+            try
+            {
+                return Convert.ChangeType(value, targetType);
+            }
+            catch
+            {
+                // Try JSON deserialization as fallback
+                var json = JsonConvert.SerializeObject(value);
+                return JsonConvert.DeserializeObject(json, targetType);
+            }
+        }
+
+        public bool UnregisterTool(string name)
+        {
+            RegisteredTool removedTool;
+            return _tools.TryRemove(name, out removedTool);
+        }
+
+        public IList<ToolInfo> GetTools()
+        {
+            return _tools.Values.Select(t => t.Info).ToList();
+        }
+
+        public bool HasTool(string name)
+        {
+            return _tools.ContainsKey(name);
+        }
+
+        public async Task<object> CallToolAsync(string name, object parameters = null)
+        {
+            RegisteredTool tool;
+            if (!_tools.TryGetValue(name, out tool))
+                throw new ArgumentException($"Tool '{name}' not found", nameof(name));
+
+            return await tool.Handler(parameters);
+        }
+    }
+}

@@ -37,6 +37,8 @@ var (
 
 func notNativeBuildOutput(relative string) bool { return !nativeBuildDir.MatchString(relative) }
 
+func notBuildOutput(relative string) bool { return !buildOutputDir.MatchString(relative) }
+
 func contractSource(relative string) bool {
 	return !buildOutputDir.MatchString(relative) && !binaryExt[strings.ToLower(filepath.Ext(relative))]
 }
@@ -61,6 +63,8 @@ var nativeSourceInputs = []nativeSourceInput{
 	{repo: "integrations/rimgovernor-native/Textures", copy: "integrations/rimgovernor-native/Textures", keep: notNativeBuildOutput},
 	{repo: "integrations/rimgovernor-native/Notices", copy: "integrations/rimgovernor-native/Notices", keep: notNativeBuildOutput},
 	{repo: "integrations/rimgovernor-native/README.md", copy: "integrations/rimgovernor-native/README.md"},
+	{repo: "integrations/rimgovernor-host/src", copy: "integrations/rimgovernor-host/src", keep: notBuildOutput},
+	{repo: "integrations/rimgovernor-host/Directory.Build.props", copy: "integrations/rimgovernor-host/Directory.Build.props"},
 	{repo: "contracts/proto", copy: "contracts/proto", keep: contractSource},
 	{repo: "contracts/generated/protobuf/csharp", copy: "contracts/generated/protobuf/csharp", keep: committedBinding},
 	{repo: "tools/protobuf", copy: "tools/protobuf", keep: contractSource},

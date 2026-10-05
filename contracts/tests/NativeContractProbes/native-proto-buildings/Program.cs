@@ -54,8 +54,8 @@ internal static class NativeProtoBuildingsProbe
             Check(!Valid(request(fields)), "Invalid or unsupported request refused: " + fields);
         var ids = string.Join(",", Enumerable.Range(0, 257).Select(i => "\"thing" + i + "\""));
         Check(!Valid(request("\"ids\":[" + ids + "]")), "ID filter bound enforced");
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimBridgeServer.dll")).First(File.Exists));
-        var binder = server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
+        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
+        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
         foreach (var value in new object?[] { "{}", new Dictionary<string, object>(), new List<object>(), null, 17, true })
         {
             var bound = (object[])binder.Invoke(null, new object?[] { tools.GetMethod("ListBuildings"),
@@ -64,7 +64,7 @@ internal static class NativeProtoBuildingsProbe
         }
         var reply = Wire("ListBuildingsReply", "{\"observed\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{}}}");
         var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
-        var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
+        var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Check(normalized.Count == 1 && normalized["payload"] is string, "SDK retains sole ProtoJSON payload");
         var snapshot = Get(Wire("ListBuildingsReply", (string)normalized["payload"]!), "Observed");

@@ -64,11 +64,11 @@ internal static class NativeContractProbesDispatcher
                 case "native-proto-supplies": return NativeProtoSuppliesProbe.Invoke(rest);
 
 
-#if HAVE_RIMBRIDGE_SDK
+#if HAVE_HOST_SDK
                 case "native-journal-cache": NativeJournalCacheProbe.Invoke(); return 0;
 #else
                 case "native-journal-cache":
-                    Console.Error.WriteLine("native-journal-cache requires $(RimBridgeSdkDir) and $(RimWorldManagedDir) to be supplied at build time; not available in this build.");
+                    Console.Error.WriteLine("native-journal-cache requires $(RimWorldManagedDir) to be supplied at build time; not available in this build.");
                     return 1;
 #endif
 

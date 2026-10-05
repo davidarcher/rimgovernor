@@ -26,6 +26,12 @@
         "resolved": "1.0.3",
         "contentHash": "0E7evZXHXaDYYiLRfpyXvCh+yzM2rNTyuZDI+ZO7UUqSc6GfjePiXTdqJGtgIKUwdI81tzQKmaWprnUiPj9hAw=="
       },
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "requested": "[13.0.4, )",
+        "resolved": "13.0.4",
+        "contentHash": "pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A=="
+      },
       "System.Buffers": {
         "type": "Transitive",
         "resolved": "4.4.0",
@@ -50,6 +56,9 @@
         "type": "Transitive",
         "resolved": "4.5.2",
         "contentHash": "wprSFgext8cwqymChhrBLu62LMg/1u92bU+VOwyfBimSPVFXtsNqEWC92Pf9ofzJFlk4IHmJA75EDJn1b2goAQ=="
+      },
+      "rimgovernor.host.sdk": {
+        "type": "Project"
       },
       "rimgovernor.runtime": {
         "type": "Project"

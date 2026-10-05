@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Host.Extensions.Abstractions</RootNamespace>
+    <AssemblyName>RimGovernor.Host.Extensions.Abstractions</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Contracts/RimGovernor.Host.Contracts.csproj" />
+  </ItemGroup>
+</Project>

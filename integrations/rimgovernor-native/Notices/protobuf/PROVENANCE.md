@@ -22,9 +22,10 @@ and `THIRD-PARTY-NOTICES.TXT`. Their package versions and content hashes identif
 the source of those notices; no replacement license text is synthesized.
 
 Runtime DLLs live in `BridgeTools/RimGovernor` beside the Bridge assembly.
-The inspected RimBridgeServer.dll SHA-256 is
+The host is now vendored source (`integrations/rimgovernor-host`, see `../host/PROVENANCE.md`); the
+upstream RimBridgeServer.dll inspected for this check had SHA-256
 `bdd0ad19036a3554eff4abeb2a5f35e4d13c0e8a4559985bdc13340589f913e0`.
-Its `RimBridgeExtensionDiscovery.ResolveCompanionAssembly` searches the requesting
+Its (and the vendored `RimGovernor.Host`'s) `RimBridgeExtensionDiscovery.ResolveCompanionAssembly` searches the requesting
 assembly's bundle directory before the BridgeTools root; `LoadScopedAssembly`
 registers the same scope for loaded dependencies. This is a source-level loader
 check. Native package acceptance must still exercise discovery and actual

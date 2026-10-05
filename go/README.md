@@ -1,7 +1,7 @@
 # Go controller development
 
 `go/` is the RimGovernor runtime: it observes the colony over GABP from
-RimBridgeServer, runs deterministic routine policy, executes admitted work
+the GABP host, runs deterministic routine policy, executes admitted work
 through Hands, and serves the player API. The launcher (`cmd/launcher`, built as
 `RimGovernorLauncher.exe`) is the sole control surface and starts this binary
 directly. Start from the [source map](../docs/developers/source-map.md) and
@@ -41,7 +41,7 @@ go build -ldflags -H=windowsgui -o ..\RimGovernorLauncher.exe ./cmd/launcher
 The launcher rebuilds the controller, the production native mod and the game
 layout when stale, then starts `serve` with the settings in
 `.rimgovernor/launcher.json` ([setup](../docs/players/setup.md)). The controller
-launches RimWorld itself and talks GABP to RimBridgeServer directly.
+launches RimWorld itself and talks GABP to the GABP host directly.
 
 `serve -h` is the authoritative flag list. Two modes:
 

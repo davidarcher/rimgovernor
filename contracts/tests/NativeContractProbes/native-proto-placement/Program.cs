@@ -123,9 +123,9 @@ internal static class NativeProtoPlacementProbe
 
     private static void CheckSdk(string[] directories, object reply, string valid)
     {
-        var serverPath = directories.Select(d => Path.Combine(d, "RimBridgeServer.dll")).First(File.Exists);
+        var serverPath = directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists);
         var server = Assembly.LoadFrom(serverPath);
-        var provider = server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider", true)!;
+        var provider = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!;
         var binder = provider.GetMethod("BindArguments", Members)!;
         var method = bridge.GetType("HomeBridge.BridgeTools.PlacementPreviewsTools", true)!.GetMethod("Preview")!;
         var newtonsoft = Assembly.Load("Newtonsoft.Json");
@@ -143,7 +143,7 @@ internal static class NativeProtoPlacementProbe
         Assert(missing[2] == null, "Actual SDK passes missing optional CLR request to validation");
         var boundary = bridge.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!;
         var envelope = boundary.GetMethod("Encode", Members)!.Invoke(null, new[] { reply })!;
-        var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Members)!;
+        var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Members)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Assert(normalized.Count == 1 && normalized.Contains("payload") && normalized["payload"] is string,
             "Actual SDK retains sole ProtoJSON payload field, no reflected generated CLR union");

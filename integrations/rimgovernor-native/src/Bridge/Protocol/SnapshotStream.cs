@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
 using Common = RimGovernor.Protocol.Common;

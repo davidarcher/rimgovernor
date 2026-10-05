@@ -6,7 +6,7 @@ When a bridge hop (the body handed to `ProtoBoundary.OnMainThread`/`RunHop`)
 throws, the host replies with an ordinary tool result carrying `success: false`.
 The connection, the game thread and later calls are untouched, so **a rethrow is
 safe**: no catch is needed to protect the bridge. Verified by decompiling
-`RimBridgeServer.dll`/`RimBridgeServer.Core.dll` (`ilspycmd`) and by a scratch throw
+the upstream `RimBridgeServer.dll`/`RimBridgeServer.Core.dll` (now `RimGovernor.Host.dll`/`RimGovernor.Host.Core.dll`, vendored source; `ilspycmd`) and by a scratch throw
 in a hop body on the running game (the call after it answered normally).
 
 ## Path of a throw
@@ -24,7 +24,7 @@ in a hop body on the running game (the call after it answered normally).
    | any `Exception` | Failed | `capability.failed` |
    | `OperationCanceledException` | Cancelled | `capability.cancelled` |
    | `TimeoutException` | TimedOut | `capability.timed_out` |
-   | `MissingMethodException`/`TypeLoadException` naming `RimBridgeServer.Sdk` | | `capability.sdk_mismatch` |
+   | `MissingMethodException`/`TypeLoadException` naming `RimGovernor.Host.Sdk` | | `capability.sdk_mismatch` |
 
 4. `LegacyToolExecution.InvokeAlias` (the registered GABP handler) never throws
    for a failed envelope; it composes the reply below.

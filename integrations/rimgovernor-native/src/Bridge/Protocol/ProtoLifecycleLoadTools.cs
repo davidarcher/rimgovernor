@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
 using Lifecycle = RimGovernor.Protocol.Lifecycle;

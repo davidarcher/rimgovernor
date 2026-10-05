@@ -1,13 +1,16 @@
 # RimGovernor native mod
 
 One RimWorld 1.6 package, `davidarcher.rimgovernor.native`, contains the runtime
-assembly and RimBridgeServer tools. Harmony and RimBridgeServer load first.
+assembly, the GABP host (a vendored fork of RimBridgeServer and Lib.GAB, source in
+`integrations/rimgovernor-host`) and the RimGovernor tools. Harmony loads first. The mod is
+incompatible with `brrainz.rimbridgeserver`: two hosts would double-patch Harmony and fight over
+`GABP_SERVER_PORT`.
 Headless presentation suppression activates only with `-batchmode`.
 
 Build a complete local development package from the repository root:
 
 ```powershell
-./scripts/build_native_mod.ps1 -RimWorldManagedDir 'C:/path/to/RimWorldWin64_Data/Managed' -HarmonyAssembly 'C:/path/to/0Harmony.dll' -RimBridgeSdkDir 'C:/path/to/RimBridgeServer/1.6/Assemblies' -DotNet 'C:/path/to/dotnet.exe'
+./scripts/build_native_mod.ps1 -RimWorldManagedDir 'C:/path/to/RimWorldWin64_Data/Managed' -HarmonyAssembly 'C:/path/to/0Harmony.dll' -DotNet 'C:/path/to/dotnet.exe'
 ```
 
 The command prints the staged `RimGovernor` directory. `-OutputRoot` chooses a
@@ -21,13 +24,15 @@ Copy the complete staged directory into the game's `Mods` directory while every
 RimWorld instance is stopped, then enable RimGovernor after its dependencies.
 Fixtures change disposable scenario state; their manifest says `fixture`.
 The native entry assemblies are `Assemblies/RimGovernor.Runtime.dll` and
-`BridgeTools/RimGovernor/RimGovernor.Bridge.dll`. Source and retained notices are
-included under `Source` and `Notices`; external game/SDK/Harmony DLLs are not
+`BridgeTools/RimGovernor/RimGovernor.Bridge.dll`; the host is `Assemblies/RimGovernor.Host.dll` with
+its Core/Contracts/Abstractions/Sdk/Gab assemblies, Newtonsoft.Json, MoonSharp and Gabp.Runtime
+(notices under `Notices/host`). Source and retained notices are
+included under `Source` and `Notices`; game and Harmony DLLs are not
 bundled. The Bridge bundle also contains the locked Google.Protobuf 3.31.1 runtime
 and its four NuGet runtime dependencies, with notices under `Notices/protobuf`.
 MSBuild supplies the resolved runtime file list; the builder requires a retained
 license for each package/version and records each DLL hash in the manifest.
-Dependencies remain beside `RimGovernor.Bridge.dll` for RimBridgeServer's scoped
+Protobuf dependencies remain beside `RimGovernor.Bridge.dll` for the host's scoped
 assembly resolver. Do not move them into the mod's general `Assemblies` directory.
 
 The private build and bundled source include canonical `contracts/proto`, official
@@ -35,7 +40,7 @@ C# outputs, and `scripts/generate_protobuf.go` with its pinned tool project/lock
 Native compilation consumes those checked-in official outputs directly; it does
 not invoke an experimental JSON generator. Regenerate/check with the included
 Go program (`go run scripts/generate_protobuf.go`) and pinned .NET tooling, then rebuild using the included native
-script and your installed game/SDK/Harmony dependencies. Native restore is locked.
+script and your installed game/Harmony dependencies. Native restore is locked.
 A standalone Mono proof needs the standard netstandard framework facade; installed
 game loading and round trips require the fresh native acceptance run.
 

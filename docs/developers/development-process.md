@@ -75,9 +75,9 @@ for unavoidable wall-clock deadlines.
 every project; each project directory has its own `Taskfile.yml` with `build`
 (compilation plus the static gates) and `test` (tests only), so `task go:build`,
 `task protobuf:build` and so on run one project. Projects needing machine-local
-inputs (game managed assemblies, Harmony, RimBridgeServer SDK) report
-`unavailable` naming the missing path; override with `RIMWORLD_MANAGED_DIR`,
-`HARMONY_ASSEMBLY` and `RIMBRIDGE_SDK_DIR`. Outputs land under
+inputs (game managed assemblies, Harmony) report
+`unavailable` naming the missing path; override with `RIMWORLD_MANAGED_DIR`
+and `HARMONY_ASSEMBLY`. Outputs land under
 `.rimgovernor/task/`; the protobuf exchange and native build are
 checksum-skipped while inputs are unchanged (`task --force` reruns). The first
 table fails the gate; the second is reviewed by hand.

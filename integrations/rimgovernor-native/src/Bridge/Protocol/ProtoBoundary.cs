@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
 

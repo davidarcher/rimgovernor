@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
                     var driver = Find.CameraDriver;
                     if (Application.isBatchMode || Find.Camera == null || driver?.config == null)
                         return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = Unavailable("Graphical map camera unavailable.") });
-                    var server = AppDomain.CurrentDomain.GetAssemblies().SingleOrDefault(a => a.GetName().Name == "RimBridgeServer");
+                    var server = AppDomain.CurrentDomain.GetAssemblies().SingleOrDefault(a => a.GetName().Name == "RimGovernor.Host");
                     if (server == null || !TryZoomExtension(server, out var enabled))
                         return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = Unavailable("Native SDK camera extension state unavailable.") });
                     var position = driver.MapPosition;
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
         internal static bool TryZoomExtension(Assembly server, out bool enabled)
         {
             enabled = false;
-            var property = server.GetType("RimBridgeServer.RimBridgeCameraConfig", false)?.GetProperty("CameraZoomExtensionEnabled", BindingFlags.Public | BindingFlags.Static);
+            var property = server.GetType("RimGovernor.Host.RimBridgeCameraConfig", false)?.GetProperty("CameraZoomExtensionEnabled", BindingFlags.Public | BindingFlags.Static);
             if (property == null || property.PropertyType != typeof(bool) || property.GetIndexParameters().Length != 0
                 || property.GetGetMethod()?.IsStatic != true) return false;
             enabled = (bool)property.GetValue(null)!; // SDK getter is the audited _enabled field read, never SetZoomExtension.

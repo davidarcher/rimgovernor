@@ -6,11 +6,11 @@ longer has its own `.csproj`. This net472 executable compiles the production
 seams. It verifies malformed official ProtoJSON, Unicode and byte limits, exact
 raw/bound argument agreement, payload dictionary serialization, and nonallocating
 identity reads. It additionally invokes `BindArguments` from the supplied actual
-RimBridgeServer assembly to check that raw object parameters preserve strings
+RimGovernor.Host assembly to check that raw object parameters preserve strings
 and nonstrings.
 
 ```powershell
-dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto-boundary 'C:/path/to/RimBridgeServer.dll'
+dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto-boundary 'C:/path/to/RimGovernor.Host.dll'
 ```
 
 Use the installed SDK assembly directory intact so its dependencies can resolve.
@@ -26,7 +26,7 @@ exists. Looking up existing authority never initializes a clock; reading its
 status can still apply lease-expiry/context invalidation as intended by that
 owner. It does not create game components or issue orders.
 
-Note: without a real `RimBridgeServer.dll` path supplied as an argument, the
+Note: without a real `RimGovernor.Host.dll` path supplied as an argument, the
 probe throws before reaching its SDK binder checks (`ArgumentException: Supply
-installed RimBridgeServer.dll for real SDK binder checks`) — this matches its
+installed RimGovernor.Host.dll for real SDK binder checks`) — this matches its
 pre-consolidation behavior exactly and is not itself a regression.

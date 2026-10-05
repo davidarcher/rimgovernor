@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using HomeBridge.BridgeTools;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using Common = RimGovernor.Protocol.Common;
 
 // The detached reply boundary (#644): ProtoBoundary.CaptureOnMainThread reads

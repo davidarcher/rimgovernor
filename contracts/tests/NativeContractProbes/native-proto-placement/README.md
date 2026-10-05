@@ -13,7 +13,7 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -c Release -- n
 
 1. Private `BridgeTools/RimGovernor/RimGovernor.Bridge.dll` path.
 2. Private package `Assemblies` directory.
-3. RimBridgeServer SDK assemblies directory.
+3. RimGovernor.Host SDK assemblies directory.
 4. Licensed RimWorld managed assemblies directory.
 5. Harmony assemblies directory.
 

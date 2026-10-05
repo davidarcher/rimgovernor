@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HomeBridge.BridgeTools;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 
 internal static class NativeJournalCacheProbe
 {
@@ -17,7 +17,7 @@ internal static class NativeJournalCacheProbe
 
     internal static void Invoke()
     {
-        Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "RimBridgeServer"),
+        Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "RimGovernor.Host"),
             "probe must start in a fresh process without the real server assembly");
         var context = new Context("operation-a");
         string unavailable;
@@ -29,9 +29,9 @@ internal static class NativeJournalCacheProbe
         // The tested production reflection must discover this later-loaded internal
         // type. Do not reset private caches or replace the production lookup.
         var assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(
-            new AssemblyName("RimBridgeServer"), AssemblyBuilderAccess.Run);
+            new AssemblyName("RimGovernor.Host"), AssemblyBuilderAccess.Run);
         var module = assembly.DefineDynamicModule("JournalProbe");
-        var type = module.DefineType("RimBridgeServer.RimBridgeCapabilities",
+        var type = module.DefineType("RimGovernor.Host.RimBridgeCapabilities",
             TypeAttributes.NotPublic | TypeAttributes.Abstract | TypeAttributes.Sealed);
         var field = type.DefineField("CurrentJournal", typeof(object), FieldAttributes.Public | FieldAttributes.Static);
         var getter = type.DefineMethod("get_Journal", MethodAttributes.Public | MethodAttributes.Static |

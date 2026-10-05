@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 
 namespace HomeBridge.BridgeTools
 {

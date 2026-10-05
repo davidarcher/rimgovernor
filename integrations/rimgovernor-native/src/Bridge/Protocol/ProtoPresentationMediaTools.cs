@@ -2,7 +2,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
 using Common = RimGovernor.Protocol.Common;

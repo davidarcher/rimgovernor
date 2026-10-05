@@ -6,8 +6,9 @@ A clean checkout needs:
 
 - Go (`go/.go-version`) and the .NET SDK (for the native
   mod and the shared Protobuf contracts), both on `PATH`.
-- RimWorld 1.6 with Harmony and RimBridgeServer from Steam (the launcher finds
-  them through Steam's libraries).
+- RimWorld 1.6 with Harmony from Steam (the launcher finds them through Steam's
+  libraries). Do not also subscribe to RimBridgeServer: the RimGovernor mod
+  carries its own GABP host and is marked incompatible with it.
 - The Microsoft Edge WebView2 Runtime (preinstalled on Windows 11).
 
 There is no local-model requirement: the autopilot needs no model.

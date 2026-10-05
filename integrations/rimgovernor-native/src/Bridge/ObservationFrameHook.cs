@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
     ///
     /// The patch installs on the first main-thread hop (ProtoBoundary calls
     /// Ensure), not from a startup constructor: this assembly is loaded by
-    /// RimBridgeServer as a tool plugin rather than as a mod assembly, so
+    /// RimGovernor.Host as a tool plugin rather than as a mod assembly, so
     /// RimWorld never runs a [StaticConstructorOnStartup] here -- the first
     /// attempt at this hook was such a constructor and it never ran.
     public static class ObservationFrameHook

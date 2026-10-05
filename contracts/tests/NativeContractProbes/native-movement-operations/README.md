@@ -8,7 +8,7 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-movem
 ```
 
 where `<args...>` is the private compiled bridge DLL followed by dependency
-directories (game managed assemblies, RimBridgeServer SDK, Harmony, and private
+directories (game managed assemblies, RimGovernor.Host SDK, Harmony, and private
 runtime if separate). The tests load actual compiled adapters and generated
 Protobuf types.
 

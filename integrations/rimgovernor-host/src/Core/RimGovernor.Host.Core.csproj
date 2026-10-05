@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Host.Core</RootNamespace>
+    <AssemblyName>RimGovernor.Host.Core</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Contracts/RimGovernor.Host.Contracts.csproj" />
+    <ProjectReference Include="../Extensions.Abstractions/RimGovernor.Host.Extensions.Abstractions.csproj" />
+    <PackageReference Include="MoonSharp" Version="2.0.0" />
+  </ItemGroup>
+</Project>

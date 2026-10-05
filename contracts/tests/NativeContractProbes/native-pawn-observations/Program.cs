@@ -273,8 +273,8 @@ internal static class NativePawnObservationsProbe
         Check(Throws(()=>tools.GetMethod("Text",Flags)!.Invoke(null,new object[]{new string('x',4097)}),"ReadLimit"),"native labels are never silently truncated before matching");
         var complete=tools.GetMethod("Complete",Flags)!.Invoke(null,new object[]{0,7})!;
         Check((ulong)Get(complete,"Filtered")==7,"known empty exact-query completeness");
-        var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimBridgeServer.dll")).First(File.Exists));
-        var binder=server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
+        var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimGovernor.Host.dll")).First(File.Exists));
+        var binder=server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
         foreach(var value in new object?[]{"{}",new Dictionary<string,object>(),new List<object>(),null,17,true}) {
             var bound=(object[])binder.Invoke(null,new object?[]{tools.GetMethod("ListPawns"),new Dictionary<string,object?>{{"request",value}},null,CancellationToken.None})!;
             Check(ReferenceEquals(bound[2],value),"actual SDK binder preserves raw input");

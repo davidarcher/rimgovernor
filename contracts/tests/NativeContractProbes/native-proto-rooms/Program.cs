@@ -89,8 +89,8 @@ internal static class NativeProtoRoomsProbe
         foreach (var value in new[] { -20d, 0d, 100d }) Check((double)Call("Finite", value) == value, "Negative temperature/cleanliness and known zero preserved");
         foreach (var value in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity }) Refused(() => Call("Finite", value), "Nonfinite native fact cannot be a number");
         Refused(() => Wire("ListRoomsRequest", "{\"set\":true}"), "Mutation-shaped unknown field rejected");
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d,"RimBridgeServer.dll")).First(File.Exists));
-        var binder = server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
+        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d,"RimGovernor.Host.dll")).First(File.Exists));
+        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
         foreach (var value in new object?[] { "{}", new Dictionary<string,object>(), new List<object>(), null, 1, false })
         {
             var bound = (object[])binder.Invoke(null,new object?[] { tools.GetMethod("ListRooms"),new Dictionary<string,object?> { ["request"]=value },null,CancellationToken.None })!;

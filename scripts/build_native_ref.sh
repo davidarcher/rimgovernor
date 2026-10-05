@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Compile-checks the native mod (Bridge + Runtime) without a RimWorld install,
 # against public reference assemblies from NuGet: Krafs.Rimworld.Ref (game and
-# Unity), Lib.Harmony, RimBridgeServer.Sdk and Newtonsoft.Json. For Linux cloud
+# Unity) and Lib.Harmony; the vendored host (integrations/rimgovernor-host) builds from source. For Linux cloud
 # sessions; the output is never installed into a game. Windows builds keep
 # using build_native_mod.ps1 against the real install.
 #
@@ -13,8 +13,6 @@ set -euo pipefail
 
 RIMWORLD_REF_VERSION="${RIMWORLD_REF_VERSION:-1.6.4871}"
 HARMONY_VERSION="${HARMONY_VERSION:-2.3.6}"
-RIMBRIDGE_SDK_VERSION="${RIMBRIDGE_SDK_VERSION:-2.0.0}"
-NEWTONSOFT_VERSION="${NEWTONSOFT_VERSION:-13.0.3}"
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 cache="$repo/.rimgovernor/native-ref"
@@ -34,10 +32,6 @@ fetch() { # id version -> extracted dir
 
 managed="$(fetch krafs.rimworld.ref "$RIMWORLD_REF_VERSION")/ref/net472"
 harmony="$(fetch lib.harmony "$HARMONY_VERSION")/lib/net472/0Harmony.dll"
-sdk="$cache/rimbridge-sdk"
-mkdir -p "$sdk"
-cp "$(fetch rimbridgeserver.sdk "$RIMBRIDGE_SDK_VERSION")/lib/net472/RimBridgeServer.Sdk.dll" "$sdk/"
-cp "$(fetch newtonsoft.json "$NEWTONSOFT_VERSION")/lib/net45/Newtonsoft.Json.dll" "$sdk/"
 
 # Defs.cs (49 MB) is generated, not committed: build it with the pinned
 # Grpc.Tools protoc (generatecsharp) when missing or older than defs.proto.
@@ -52,4 +46,7 @@ fi
 
 dotnet build "$repo/integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj" \
   -c Release -nologo -o "$out" \
-  "-p:RimWorldManagedDir=$managed" "-p:HarmonyAssembly=$harmony" "-p:RimBridgeSdkDir=$sdk" "$@"
+  "-p:RimWorldManagedDir=$managed" "-p:HarmonyAssembly=$harmony" "$@"
+dotnet build "$repo/integrations/rimgovernor-host/src/Host/RimGovernor.Host.csproj" \
+  -c Release -nologo -o "$out/host" \
+  "-p:RimWorldManagedDir=$managed" "-p:HarmonyAssembly=$harmony"

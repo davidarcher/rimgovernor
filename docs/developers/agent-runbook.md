@@ -57,9 +57,9 @@ sources and fixture set, and refuses to install while a game runs from the copy.
 passes ~140 characters (`setup` refuses one).
 
 - **Game copy**, `.rimgovernor/native-rimworld/`: the Steam install's loose
-  files copied; `Data`, `RimWorldWin64_Data`, `MonoBleedingEdge` and
-  `Mods/RimBridgeServer` are NTFS junctions to Steam; `Mods/RimGovernor` is this
-  worktree's build.
+  files copied; `Data`, `RimWorldWin64_Data` and `MonoBleedingEdge` are NTFS
+  junctions to Steam; `Mods/RimGovernor` is this worktree's build (it carries
+  the GABP host; no RimBridgeServer install is needed or wanted).
 - **Bridge root**, `.rimgovernor/bridge/` (or `-root`): `config/config.json`
   (`games.<id>.target` is the private exe; the running game is recorded in
   `config/<id>/endpoint.json`), `profile/Config/{ModsConfig,Prefs}.xml` (Prefs

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Host</RootNamespace>
+    <AssemblyName>RimGovernor.Host</AssemblyName>
+    <OutputPath>../../Assemblies/</OutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="../Contracts/**;../Core/**;../Extensions.Abstractions/**;../Sdk/**;../Gab/**" />
+    <ProjectReference Include="../Contracts/RimGovernor.Host.Contracts.csproj" />
+    <ProjectReference Include="../Core/RimGovernor.Host.Core.csproj" />
+    <ProjectReference Include="../Extensions.Abstractions/RimGovernor.Host.Extensions.Abstractions.csproj" />
+    <ProjectReference Include="../Sdk/RimGovernor.Host.Sdk.csproj" />
+    <ProjectReference Include="../Gab/RimGovernor.Host.Gab.csproj" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
+    <!-- The host reads private game members (the vendored source was written against a publicised Assembly-CSharp); Mono does not enforce member visibility. -->
+    <PackageReference Include="TaskPubliciser" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="$(RimWorldManagedDir)/UnityEngine*.dll" Private="false" />
+    <Reference Include="Unity.Collections"><HintPath>$(RimWorldManagedDir)/Unity.Collections.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <Target Name="PubliciseAssemblyCSharp" BeforeTargets="ResolveAssemblyReferences;FindReferenceAssembliesForReferences">
+    <PropertyGroup>
+      <PubliciseDir>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)publicised/</PubliciseDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(PubliciseDir)" />
+    <Publicise TargetAssemblyPath="$(RimWorldManagedDir)/Assembly-CSharp.dll" OutputPath="$(PubliciseDir)" />
+    <ItemGroup>
+      <Reference Include="Assembly-CSharp"><HintPath>$(PubliciseDir)Assembly-CSharp_publicised.dll</HintPath><Private>false</Private></Reference>
+    </ItemGroup>
+  </Target>
+  <Target Name="RecordHostRuntimeDependencies" AfterTargets="Build">
+    <WriteLinesToFile File="$(OutputPath)runtime-dependencies.tsv"
+      Lines="@(ReferenceCopyLocalPaths->WithMetadataValue('Extension', '.dll')->'%(NuGetPackageId)|%(NuGetPackageVersion)|%(Filename)%(Extension)')"
+      Overwrite="true" />
+  </Target>
+</Project>

@@ -12,14 +12,14 @@ import (
 
 // PackOptions deliberately names dependencies, never a whole profile/worktree.
 type PackOptions struct {
-	Repo, GameDir, HarmonyDLL, BridgeDir, Output string
-	GameVersion, HarmonyVersion, BridgeVersion   string
-	Origin                                       Origin
-	Recipient, KeyID                             string
-	PartBytes                                    int64
-	Tools                                        Tools
-	StartsDir                                    string
-	HarmonyMod                                   string
+	Repo, GameDir, HarmonyDLL, Output string
+	GameVersion, HarmonyVersion       string
+	Origin                            Origin
+	Recipient, KeyID                  string
+	PartBytes                         int64
+	Tools                             Tools
+	StartsDir                         string
+	HarmonyMod                        string
 }
 
 // GamePaths is the conservative inclusion list. No Core/Unity media is removed.
@@ -38,7 +38,7 @@ type Starts struct {
 
 func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	m := Manifest{SchemaVersion: 1, Game: Game{o.GameVersion, "windows-x64", false}, Origin: o.Origin, Encryption: Encryption{"age-v1", o.KeyID}, Inventory: Reference{Path: "inventory.json"}}
-	if o.Recipient == "" || o.KeyID == "" || o.GameVersion == "" || o.HarmonyVersion == "" || o.BridgeVersion == "" {
+	if o.Recipient == "" || o.KeyID == "" || o.GameVersion == "" || o.HarmonyVersion == "" {
 		return m, fmt.Errorf("recipient, key ID and exact dependency versions are required")
 	}
 	if !repositoryPattern.MatchString(o.Origin.Repository) || o.Origin.ReleaseID <= 0 {
@@ -87,13 +87,10 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if want != got {
 		return m, fmt.Errorf("build Harmony DLL differs from the runtime package")
 	}
-	for _, pair := range [][2]string{{o.HarmonyMod, "harmony"}, {o.BridgeDir, "bridge"}} {
+	for _, pair := range [][2]string{{o.HarmonyMod, "harmony"}} {
 		if err := Materialize(pair[0], filepath.Join(tree, filepath.FromSlash(pair[1]))); err != nil {
 			return m, err
 		}
-	}
-	if _, err := os.Stat(filepath.Join(tree, "bridge", "1.6", "Assemblies", "RimBridgeServer.Sdk.dll")); err != nil {
-		return m, fmt.Errorf("bridge SDK: %w", err)
 	}
 	native, err := inputs.SourceTreeHash(o.Repo)
 	if err != nil {
@@ -132,7 +129,7 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if err := WriteJSON(filepath.Join(tree, "starts", "compatibility.json"), starts); err != nil {
 		return m, err
 	}
-	m.Components = []Component{{Name: "game", Version: o.GameVersion, PathPrefix: "game/"}, {Name: "harmony", Version: o.HarmonyVersion, PathPrefix: "harmony/"}, {Name: "bridge", Version: o.BridgeVersion, PathPrefix: "bridge/"}, {Name: "starts", Version: native, PathPrefix: "starts/"}}
+	m.Components = []Component{{Name: "game", Version: o.GameVersion, PathPrefix: "game/"}, {Name: "harmony", Version: o.HarmonyVersion, PathPrefix: "harmony/"}, {Name: "starts", Version: native, PathPrefix: "starts/"}}
 	inv, err := InventoryTree(tree)
 	if err != nil {
 		return m, err

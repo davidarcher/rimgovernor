@@ -10,7 +10,7 @@ flowchart LR
     Facts --> Policy[Deterministic policy]
     Policy --> Plan[Shared plan and validation]
     Plan --> Hands[Hands executor]
-    Hands --> Bridge[RimBridgeServer over GABP]
+    Hands --> Bridge[GABP host over GABP]
     Bridge --> Game
 ```
 
@@ -18,7 +18,7 @@ flowchart LR
 | --- | --- |
 | Go controller | Observations, concerns, resource accounting, execution, recovery and local API. |
 | Launcher | The player UI: starts and stops the controller and game, shows controller state and offers Resume, Pause and Acknowledge; last good data survives refreshes. |
-| RimBridgeServer (GABP) | Game-side tool server; the controller launches the game and calls its tools over GABP directly. |
+| GABP host (`RimGovernor.Host`) | Game-side tool server, vendored from RimBridgeServer and Lib.GAB; the controller launches the game and calls its tools over GABP directly. |
 | Native colony bridge | Colony-specific observations, guarded operations and saved identity. |
 | RimWorld | Simulation, legal placement and ordinary pawn work. |
 

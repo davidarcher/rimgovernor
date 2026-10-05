@@ -28,6 +28,7 @@ const NativePackage = "davidarcher.rimgovernor.native"
 // with the unified package in a fresh worker's Mods folder or ModsConfig.xml.
 var LegacyPackages = map[string]bool{
 	"davidarcher.rimgovernor.observations": true,
+	"brrainz.rimbridgeserver":              true,
 	"redeyedev.headlessrim":                true,
 }
 
@@ -152,8 +153,8 @@ func expansionRank(id string) int {
 }
 
 // PrepareNativeModConfig rewrites ModsConfig.xml's activeMods to the core game,
-// only the requested expansions, and exactly brrainz.harmony,
-// brrainz.rimbridgeserver and NativePackage, removing every other official
+// only the requested expansions, and exactly brrainz.harmony and
+// NativePackage, removing every other official
 // expansion plus legacy or duplicate entries first. The profile
 // preparers pass every installed expansion when a run names none (#1258).
 //
@@ -177,7 +178,7 @@ func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expans
 	if active == nil {
 		return fmt.Errorf("native profile is missing activeMods")
 	}
-	required := []string{"brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	required := []string{"brrainz.harmony", NativePackage}
 	drop := map[string]bool{}
 	for _, id := range required {
 		drop[casefold(id)] = true

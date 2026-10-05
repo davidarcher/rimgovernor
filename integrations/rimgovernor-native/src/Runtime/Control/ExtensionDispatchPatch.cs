@@ -18,13 +18,13 @@ namespace HomeBridge.BridgeTools
         public bool Installed { get; }
         /// <summary>Extension tools re-registered with the off-reader handler so far.</summary>
         public int Rewrapped { get; }
-        /// <summary>RimBridgeServer assembly version the patch resolved against.</summary>
+        /// <summary>RimGovernor.Host assembly version the patch resolved against.</summary>
         public string HostVersion { get; }
         public string Error { get; }
     }
 
     /// <summary>
-    /// RimBridgeServer 2.1.1 registers every companion (extension) tool with
+    /// RimGovernor.Host 2.1.1 registers every companion (extension) tool with
     /// Lib.GAB as a synchronous handler: RegisterExtensionTools hands
     /// server.Tools.RegisterTool a lambda that runs LegacyToolExecution.InvokeAlias
     /// to completion (CapabilityRegistry.Invoke = InvokeAsync().GetAwaiter().GetResult())
@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
     /// their transport and serialization, not their game-side work.
     ///
     /// Everything is resolved by name so the Runtime assembly needs no
-    /// reference to RimBridgeServer or Lib.GAB; a target that does not
+    /// reference to RimGovernor.Host or Lib.GAB; a target that does not
     /// resolve leaves the host serial, logs an error and reads as not
     /// installed (Status.Installed).
     /// </summary>
@@ -73,19 +73,19 @@ namespace HomeBridge.BridgeTools
             {
                 try
                 {
-                    var startup = AccessTools.TypeByName("RimBridgeServer.RimBridgeStartup") ?? throw new TypeLoadException("RimBridgeServer.RimBridgeStartup");
+                    var startup = AccessTools.TypeByName("RimGovernor.Host.RimBridgeStartup") ?? throw new TypeLoadException("RimGovernor.Host.RimBridgeStartup");
                     hostVersion = startup.Assembly.GetName().Version?.ToString() ?? "";
                     var register = AccessTools.Method(startup, "RegisterExtensionTools") ?? throw new MissingMethodException("RimBridgeStartup.RegisterExtensionTools");
                     // Open delegates rather than MethodInfo.Invoke, so a tool's
                     // exception reaches Lib.GAB unwrapped instead of as a
                     // TargetInvocationException.
                     invokeAlias = AccessTools.MethodDelegate<Func<string, IDictionary<string, object>, object>>(
-                        AccessTools.Method(AccessTools.TypeByName("RimBridgeServer.LegacyToolExecution"), "InvokeAlias", new[] { typeof(string), typeof(IDictionary<string, object>) })
+                        AccessTools.Method(AccessTools.TypeByName("RimGovernor.Host.LegacyToolExecution"), "InvokeAlias", new[] { typeof(string), typeof(IDictionary<string, object>) })
                         ?? throw new MissingMethodException("LegacyToolExecution.InvokeAlias"));
                     normalizeArguments = AccessTools.MethodDelegate<Func<object, Dictionary<string, object>>>(
-                        AccessTools.Method(AccessTools.TypeByName("RimBridgeServer.ReflectedCapabilityBinding"), "NormalizeInvocationArguments", new[] { typeof(object) })
+                        AccessTools.Method(AccessTools.TypeByName("RimGovernor.Host.ReflectedCapabilityBinding"), "NormalizeInvocationArguments", new[] { typeof(object) })
                         ?? throw new MissingMethodException("ReflectedCapabilityBinding.NormalizeInvocationArguments"));
-                    extensionTools = AccessTools.Property(AccessTools.TypeByName("RimBridgeServer.RimBridgeCapabilities"), "ExtensionTools")
+                    extensionTools = AccessTools.Property(AccessTools.TypeByName("RimGovernor.Host.RimBridgeCapabilities"), "ExtensionTools")
                         ?? throw new MissingMemberException("RimBridgeCapabilities.ExtensionTools");
                     new Harmony(Owner).Patch(register, postfix: new HarmonyMethod(typeof(ExtensionDispatchPatch), nameof(AfterRegister)));
                     installed = true;
@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
                 {
                     installed = false;
                     error = ex.GetType().Name + ": " + ex.Message;
-                    Log.Error("[RimGovernor] extension dispatch patch not installed against RimBridgeServer " + hostVersion + "; companion calls stay serial on the GABP reader: " + error);
+                    Log.Error("[RimGovernor] extension dispatch patch not installed against RimGovernor.Host " + hostVersion + "; companion calls stay serial on the GABP reader: " + error);
                 }
             }
         }
@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
                     }
                     rewrapped = count;
                     error = "";
-                    Log.Message("[RimGovernor] " + count + " extension tools dispatch off the GABP reader (RimBridgeServer " + hostVersion + ")");
+                    Log.Message("[RimGovernor] " + count + " extension tools dispatch off the GABP reader (RimGovernor.Host " + hostVersion + ")");
                 }
                 catch (Exception ex)
                 {
@@ -134,7 +134,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>
-        /// The same call RimBridgeServer's own lambda makes, on a pool thread.
+        /// The same call RimGovernor.Host's own lambda makes, on a pool thread.
         /// A thrown exception faults the task, which Lib.GAB's tools/call
         /// handler turns into the error response exactly as it did for a
         /// synchronous throw.

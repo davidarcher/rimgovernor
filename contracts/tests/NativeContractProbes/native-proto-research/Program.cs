@@ -83,8 +83,8 @@ internal static class NativeProtoResearchProbe
         knowledge[def] = float.NaN;
         Refused(() => Call("Progress", def, progress, knowledge, true), "Corrupt stored progress rejected");
 
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimBridgeServer.dll")).First(File.Exists));
-        var binder = server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
+        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
+        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
         foreach (var value in new object?[] { "{}", new Dictionary<string, object>(), new List<object>(), null, 17, true })
         {
             var bound = (object[])binder.Invoke(null, new object?[] { tools.GetMethod("ReadResearch"),

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Host.Gab</RootNamespace>
+    <AssemblyName>RimGovernor.Host.Gab</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Gabp.Runtime" Version="1.0.0" />
+  </ItemGroup>
+</Project>

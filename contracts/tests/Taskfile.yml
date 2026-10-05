@@ -1,5 +1,5 @@
 # Native contract probes. Built without game inputs: the csproj gates the five
-# probes that reference Harmony, the game assemblies or the RimBridgeServer SDK,
+# probes that reference Harmony, the game assemblies or the host SDK,
 # and their real types conflict with the shared fake stubs when compiled in the
 # same build (see the gating comments in NativeContractProbes.csproj), so the
 # ungated set is the only configuration that compiles as one project.
@@ -9,7 +9,7 @@ vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/probes'
   HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
-  RIMBRIDGE_SDK_DIR: '{{.RIMBRIDGE_SDK_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies"}}'
+  HOST_ASSEMBLY_DIR: '{{.HOST_ASSEMBLY_DIR | default (printf "%s/.rimgovernor/task/native/mod/RimGovernor/Assemblies" .REPO)}}'
 
 tasks:
   build:
@@ -39,10 +39,10 @@ tasks:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-threat-classifier'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-acquisition-token'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-ref-index'
-      # Binds against the installed RimBridgeServer.dll; like native:build,
-      # reports unavailable when the SDK is not installed.
+      # Binds against the host RimGovernor.Host.dll that native:build staged;
+      # reports unavailable when it has not been built.
       - |
-        server="{{.RIMBRIDGE_SDK_DIR}}/RimBridgeServer.dll"
+        server="{{.HOST_ASSEMBLY_DIR}}/RimGovernor.Host.dll"
         if [ ! -f "$server" ]; then
           echo "native-proto-boundary: unavailable (missing $server)"
           exit 0

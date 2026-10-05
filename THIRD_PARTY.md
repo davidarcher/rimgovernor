@@ -21,6 +21,7 @@ The build manifest records bundled runtime dependency versions and file hashes;
 actual native loading remains part of N01 package acceptance.
 
 - [Colony bridge source notice](integrations/rimgovernor-native/Notices/companion/PROVENANCE.md)
+- [GABP host (vendored RimBridgeServer and Lib.GAB, MIT) notices and commit SHAs](integrations/rimgovernor-native/Notices/host/PROVENANCE.md)
 - [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license
 
-Game files, artwork and installed SDK assemblies are supplied separately.
+Game files and artwork are supplied separately.

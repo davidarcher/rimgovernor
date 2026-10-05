@@ -114,7 +114,7 @@ func Run(ctx context.Context, o Options) (*Summary, error) {
 	fmt.Fprintf(o.Log, "worktree  %s\nrimworld  %s (%s)\nharmony   %s (%s)\n",
 		l.Repo, o.Inputs.RimWorldDir, o.Inputs.Sources["rimworld"], o.Inputs.Harmony, o.Inputs.Sources["harmony"])
 
-	if err := gameCopy(o.Inputs.RimWorldDir, l.GameCopy, o.Inputs.BridgeDir, note); err != nil {
+	if err := gameCopy(o.Inputs.RimWorldDir, l.GameCopy, note); err != nil {
 		return s, fmt.Errorf("game copy: %w", err)
 	}
 	if o.Inputs.HarmonyMod != "" {
@@ -149,28 +149,20 @@ const MaxGameCopyPath = 140
 
 // JunctionDirs are the install's directories the copy junctions to Steam
 // instead of copying: the bulk of the game, read-only for a DirectPath
-// launch. Mods/RimBridgeServer is junctioned too (bridgeMod).
+// launch.
 var JunctionDirs = []string{"Data", "RimWorldWin64_Data", "MonoBleedingEdge"}
-
-const bridgeMod = "RimBridgeServer"
 
 // gameCopy makes dest the private install: the loose top-level files
 // copied (refreshed when Steam's differ in size or mtime), JunctionDirs
-// and Mods/RimBridgeServer junctioned, every other top-level directory
-// copied, and any other mod left out (ModsConfig decides activation; the
-// copy holds only the bridge and our own package).
-func gameCopy(steam, dest, bridge string, note func(string, ...any)) error {
+// junctioned, every other top-level directory copied, and any mod left out
+// (ModsConfig decides activation; the copy holds only our own package, which
+// carries the GABP host).
+func gameCopy(steam, dest string, note func(string, ...any)) error {
 	if err := os.MkdirAll(filepath.Join(dest, "Mods"), 0755); err != nil {
 		return err
 	}
 	entries, err := os.ReadDir(steam)
 	if err != nil {
-		return err
-	}
-	if bridge == "" {
-		bridge = filepath.Join(steam, "Mods", bridgeMod)
-	}
-	if _, err := ensureJunction(filepath.Join(dest, "Mods", bridgeMod), bridge); err != nil {
 		return err
 	}
 	junction := map[string]bool{}
@@ -362,8 +354,8 @@ func RenderConfig(l Layout) string {
 	return string(out) + "\n"
 }
 
-// RenderModsConfig is a ModsConfig.xml activating the core game, Harmony,
-// RimBridgeServer and the native package, in load order.
+// RenderModsConfig is a ModsConfig.xml activating the core game, Harmony
+// and the native package, in load order.
 func RenderModsConfig(version string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="utf-8"?>
 <ModsConfigData>
@@ -371,7 +363,6 @@ func RenderModsConfig(version string) string {
   <activeMods>
     <li>ludeon.rimworld</li>
     <li>brrainz.harmony</li>
-    <li>brrainz.rimbridgeserver</li>
     <li>%s</li>
   </activeMods>
   <knownExpansions />
@@ -550,8 +541,8 @@ func runBuildScript(ctx context.Context, l Layout, in *Inputs, fixtures []string
 		}
 	}
 	q := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
-	command := fmt.Sprintf("& %s -RimWorldManagedDir %s -HarmonyAssembly %s -RimBridgeSdkDir %s -OutputRoot %s",
-		q(filepath.Join(l.Repo, filepath.FromSlash(BuildScript))), q(in.ManagedDir), q(in.Harmony), q(in.RimBridgeSDK), q(output))
+	command := fmt.Sprintf("& %s -RimWorldManagedDir %s -HarmonyAssembly %s -OutputRoot %s",
+		q(filepath.Join(l.Repo, filepath.FromSlash(BuildScript))), q(in.ManagedDir), q(in.Harmony), q(output))
 	if len(fixtures) > 0 {
 		var qs []string
 		for _, f := range fixtures {

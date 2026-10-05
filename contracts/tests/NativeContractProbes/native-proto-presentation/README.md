@@ -15,7 +15,7 @@ game state is created.
 Camera reads follow the audited SDK `RimWorldState.DescribeCamera`: native driver
 position, root/zoom sizes, configuration bounds, current zoom range and view rect.
 The only reflection is the exact static boolean
-`RimBridgeServer.RimBridgeCameraConfig.CameraZoomExtensionEnabled` property; absence
+`RimGovernor.Host.RimBridgeCameraConfig.CameraZoomExtensionEnabled` property; absence
 returns unavailable. It is the SDK's backing-field read, not its state-changing
 zoom extension setter. Headless camera and selection return Failure.Unavailable.
 

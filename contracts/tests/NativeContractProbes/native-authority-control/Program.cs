@@ -21,10 +21,10 @@ internal static class NativeAuthorityControlProbe
     private static NativeControlAuthority state = null!;
     private static readonly Common.Identity Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 };
     private static void Check(bool condition, string text) { checks++; if (!condition) throw new Exception(text); }
-    private sealed class Context : RimBridgeServer.Sdk.IRimBridgeContext, RimBridgeServer.Sdk.IMainThread
+    private sealed class Context : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IMainThread
     {
         public Dictionary<string, object>? Arguments { get; set; } = new();
-        public RimBridgeServer.Sdk.IMainThread MainThread => this;
+        public RimGovernor.Host.Sdk.IMainThread MainThread => this;
         public string OperationId => "probe";
         public string CapabilityId => "probe";
         public int Invocations;

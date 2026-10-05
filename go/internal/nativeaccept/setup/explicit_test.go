@@ -14,15 +14,13 @@ func TestExplicitDiscoveryNeedsEveryInput(t *testing.T) {
 	}
 	root := t.TempDir()
 	game := filepath.Join(root, "game")
-	bridge := filepath.Join(root, "bridge")
-	sdk := filepath.Join(root, "sdk")
 	harmonyMod := filepath.Join(root, "harmony")
 	for _, p := range []string{"About/About.xml", "Current/Assemblies/HarmonyMod.dll", "Current/Assemblies/0Harmony.dll"} {
 		file := filepath.Join(harmonyMod, filepath.FromSlash(p))
 		os.MkdirAll(filepath.Dir(file), 0700)
 		os.WriteFile(file, []byte("fixture"), 0600)
 	}
-	for _, p := range []string{filepath.Join(game, "RimWorldWin64.exe"), filepath.Join(game, "RimWorldWin64_Data", "Managed", "Assembly-CSharp.dll"), filepath.Join(bridge, "About", "About.xml"), filepath.Join(sdk, "RimBridgeServer.Sdk.dll"), filepath.Join(root, "harmony.dll")} {
+	for _, p := range []string{filepath.Join(game, "RimWorldWin64.exe"), filepath.Join(game, "RimWorldWin64_Data", "Managed", "Assembly-CSharp.dll"), filepath.Join(root, "harmony.dll")} {
 		if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
 			t.Fatal(err)
 		}
@@ -30,12 +28,12 @@ func TestExplicitDiscoveryNeedsEveryInput(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	o := Overrides{Explicit: true, RimWorldDir: game, BridgeDir: bridge, RimBridgeSDK: sdk, HarmonyMod: harmonyMod, Harmony: filepath.Join(harmonyMod, "Current", "Assemblies", "0Harmony.dll")}
+	o := Overrides{Explicit: true, RimWorldDir: game, HarmonyMod: harmonyMod, Harmony: filepath.Join(harmonyMod, "Current", "Assemblies", "0Harmony.dll")}
 	in, err := Discover(o)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !in.CleanProfile || in.RimBridgeSDK != absClean(sdk) || in.BridgeDir != bridge {
+	if !in.CleanProfile || in.RimWorldDir != absClean(game) {
 		t.Fatalf("explicit input mismatch: %+v", in)
 	}
 	os.Remove(filepath.Join(harmonyMod, "Current", "Assemblies", "HarmonyMod.dll"))

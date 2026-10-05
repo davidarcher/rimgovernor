@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using Verse;
 
 namespace HomeBridge.BridgeTools
@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     /// tool: it is the floor the tool files stand on.
     ///
     /// The one non-obvious member is <see cref="RawArguments"/>. The SDK binder
-    /// (RimBridgeServer.AnnotatedExtensionCapabilityProvider.BindArguments) hands
+    /// (RimGovernor.Host.AnnotatedExtensionCapabilityProvider.BindArguments) hands
     /// a tool method only the parameters it declares, by name, and drops every
     /// other key the caller sent without a word. IRimBridgeContext carries no
     /// argument dictionary, so the raw keys are unreachable through the SDK's
@@ -42,9 +42,9 @@ namespace HomeBridge.BridgeTools
         /// <summary>
         /// The caller's raw argument dictionary for the operation currently
         /// running, or null with a reason. Pure reflection: the companion does
-        /// not reference RimBridgeServer.dll or RimBridgeServer.Core.dll, and
+        /// not reference RimGovernor.Host.dll or RimGovernor.Host.Core.dll, and
         /// RimBridgeCapabilities is internal to the mod assembly.
-        /// Chain: RimBridgeServer.RimBridgeCapabilities.Journal (public static
+        /// Chain: RimGovernor.Host.RimBridgeCapabilities.Journal (public static
         /// on an internal type) -> OperationJournal.GetOperation(id, false) ->
         /// OperationEnvelope.Metadata["arguments"].
         /// </summary>
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
                 var journalProperty = JournalProperty();
                 if (journalProperty == null)
                 {
-                    unavailable = "RimBridgeServer.RimBridgeCapabilities.Journal was not found in the loaded bridge assembly";
+                    unavailable = "RimGovernor.Host.RimBridgeCapabilities.Journal was not found in the loaded bridge assembly";
                     return null;
                 }
 
@@ -146,11 +146,11 @@ namespace HomeBridge.BridgeTools
 
                 var assembly = AppDomain.CurrentDomain
                     .GetAssemblies()
-                    .FirstOrDefault(a => string.Equals(a.GetName().Name, "RimBridgeServer", StringComparison.Ordinal));
+                    .FirstOrDefault(a => string.Equals(a.GetName().Name, "RimGovernor.Host", StringComparison.Ordinal));
                 if (assembly == null)
                     return null;
 
-                var type = assembly.GetType("RimBridgeServer.RimBridgeCapabilities", false);
+                var type = assembly.GetType("RimGovernor.Host.RimBridgeCapabilities", false);
                 if (type == null)
                     return null;
 

@@ -31,7 +31,6 @@ go run ./cmd/remotebundle pack -repo C:\rg\src `
   -game C:\inputs\RimWorld -game-version '1.6.4871 rev590' `
   -harmony C:\inputs\Harmony\Current\Assemblies\0Harmony.dll `
   -harmony-mod C:\inputs\Harmony -harmony-version <assembly-version> `
-  -bridge C:\inputs\RimBridgeServer -bridge-version <version> `
   -origin davidarcher/rimgovernor -release-id <numeric-id> `
   -recipient <age-public-recipient> -key-id <rotation-label> `
   -7z C:\tools\7zr.exe -age C:\tools\age.exe -out C:\rg\bundle
@@ -43,8 +42,8 @@ expansion's data (the baseline save records all six), version and license
 notices. All Core/Unity media is retained, so rendered cases keep their
 textures/shaders but still need a suitable display/graphics environment;
 headless extraction does not prove rendered-case support. Other mods, profiles
-and player saves are not selected. Harmony and the bridge runtime/SDK are
-separate inventoried components. Source junctions are materialized into regular
+and player saves are not selected. Harmony is a
+separate inventoried component (the GABP host ships inside the RimGovernor package). Source junctions are materialized into regular
 files. Packaging never writes to the source install or copies branch-built
 RimGovernor binaries.
 
@@ -143,7 +142,7 @@ OS/architecture, CPU count, image version, tool-lock digest, cache hit and
 provision/restore/extract/build/total timings in `job/bootstrap.json`. It checks
 disk against declared archive/extracted sizes before extraction and runs
 `acceptance doctor` after setup. All dependencies are explicit through
-`acceptance setup -explicit -layout ... -rimworld ... -bridge ... -sdk ...
+`acceptance setup -explicit -layout ... -rimworld ...
 -harmony ... -harmony-mod ...`; Steam, sibling worktrees and player preferences are
 unused. The game copy's internal junctions target that job's verified extracted
 dependencies, never the developer machine.

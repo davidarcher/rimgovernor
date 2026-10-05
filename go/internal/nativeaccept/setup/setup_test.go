@@ -120,12 +120,15 @@ func TestRenderConfigLaunchesTheCopy(t *testing.T) {
 	}
 }
 
-func TestRenderModsConfigActivatesTheBridgeStack(t *testing.T) {
+func TestRenderModsConfigActivatesHarmonyAndTheNativePackage(t *testing.T) {
 	out := RenderModsConfig("1.6.4871 rev590")
-	for _, want := range []string{"<version>1.6.4871 rev590</version>", "<li>ludeon.rimworld</li>", "<li>brrainz.harmony</li>", "<li>brrainz.rimbridgeserver</li>", "<li>davidarcher.rimgovernor.native</li>"} {
+	for _, want := range []string{"<version>1.6.4871 rev590</version>", "<li>ludeon.rimworld</li>", "<li>brrainz.harmony</li>", "<li>davidarcher.rimgovernor.native</li>"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("ModsConfig lacks %s:\n%s", want, out)
 		}
+	}
+	if strings.Contains(out, "rimbridgeserver") {
+		t.Errorf("ModsConfig activates the external host, which the native package replaces:\n%s", out)
 	}
 }
 

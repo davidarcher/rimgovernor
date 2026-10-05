@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
-using RimBridgeServer.Sdk;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;

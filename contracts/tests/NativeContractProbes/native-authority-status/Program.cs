@@ -30,10 +30,10 @@ internal static class NativeAuthorityStatusProbe
             "Projection lost known tick/map zero");
         return status;
     }
-    private sealed class ContextStub : RimBridgeServer.Sdk.IRimBridgeContext, RimBridgeServer.Sdk.IMainThread
+    private sealed class ContextStub : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IMainThread
     {
         public Dictionary<string, object>? Arguments { get; set; } = new Dictionary<string, object>();
-        public RimBridgeServer.Sdk.IMainThread MainThread => this;
+        public RimGovernor.Host.Sdk.IMainThread MainThread => this;
         public string OperationId => "probe";
         public string CapabilityId => "probe";
         public int Invocations;

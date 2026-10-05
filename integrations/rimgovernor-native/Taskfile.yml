@@ -1,6 +1,6 @@
-# Native mod (Bridge + Runtime) packaged by scripts/build_native_mod.ps1.
-# Needs the game's managed assemblies, Harmony and the RimBridgeServer SDK;
-# without them the build reports `unavailable` naming the missing path.
+# Native mod (Bridge + Runtime + the vendored GABP host in integrations/rimgovernor-host)
+# packaged by scripts/build_native_mod.ps1. Needs the game's managed assemblies and
+# Harmony; without them the build reports `unavailable` naming the missing path.
 # Without a game (Linux cloud), scripts/build_native_ref.sh compile-checks
 # against public NuGet reference assemblies instead.
 version: '3'
@@ -10,13 +10,13 @@ vars:
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/native'
   RIMWORLD_MANAGED_DIR: '{{.RIMWORLD_MANAGED_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed"}}'
   HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
-  RIMBRIDGE_SDK_DIR: '{{.RIMBRIDGE_SDK_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies"}}'
 
 tasks:
   build:
     desc: Bridge and Runtime with warnings as errors and a locked restore, packaged with notices
     sources:
       - 'src/**/*'
+      - '{{.REPO}}/integrations/rimgovernor-host/**/*'
       - 'About/**/*'
       - 'Notices/**/*'
       - '{{.REPO}}/contracts/proto/**/*'
@@ -24,7 +24,6 @@ tasks:
       - '{{.REPO}}/scripts/build_native_mod.ps1'
       - '{{.RIMWORLD_MANAGED_DIR}}/*.dll'
       - '{{.HARMONY_ASSEMBLY}}'
-      - '{{.RIMBRIDGE_SDK_DIR}}/*.dll'
       - exclude: '**/bin/**'
       - exclude: '**/obj/**'
     generates:
@@ -32,7 +31,7 @@ tasks:
     cmds:
       - |
         missing=""
-        for input in "{{.RIMWORLD_MANAGED_DIR}}/Assembly-CSharp.dll" "{{.HARMONY_ASSEMBLY}}" "{{.RIMBRIDGE_SDK_DIR}}/RimBridgeServer.Sdk.dll"; do
+        for input in "{{.RIMWORLD_MANAGED_DIR}}/Assembly-CSharp.dll" "{{.HARMONY_ASSEMBLY}}"; do
           [ -f "$input" ] || missing="$missing $input"
         done
         if [ -n "$missing" ]; then
@@ -43,7 +42,7 @@ tasks:
         mkdir -p "{{.EVIDENCE}}"
         pwsh -NoProfile -File "{{.REPO}}/scripts/build_native_mod.ps1" \
           -RimWorldManagedDir "{{.RIMWORLD_MANAGED_DIR}}" -HarmonyAssembly "{{.HARMONY_ASSEMBLY}}" \
-          -RimBridgeSdkDir "{{.RIMBRIDGE_SDK_DIR}}" -OutputRoot "{{.EVIDENCE}}/mod"
+          -OutputRoot "{{.EVIDENCE}}/mod"
 
   test:
     desc: No unit tests; native behavior is verified by go/internal/nativeaccept harnesses against a real game

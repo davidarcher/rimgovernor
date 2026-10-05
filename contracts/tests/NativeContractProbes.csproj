@@ -31,8 +31,8 @@
   <PropertyGroup Condition="'$(HarmonyAssembly)' != '' AND '$(RimWorldManagedDir)' != ''">
     <DefineConstants>$(DefineConstants);HAVE_HARMONY_AND_RIMWORLD</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(RimBridgeSdkDir)' != '' AND '$(RimWorldManagedDir)' != ''">
-    <DefineConstants>$(DefineConstants);HAVE_RIMBRIDGE_SDK</DefineConstants>
+  <PropertyGroup Condition="'$(RimWorldManagedDir)' != ''">
+    <DefineConstants>$(DefineConstants);HAVE_HOST_SDK</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -150,17 +150,17 @@
 
   <!-- ==== Externally-gated probes (pre-existing constraint: these could not
        build standalone before the merge either, without a licensed RimWorld install / Harmony
-       assembly / RimBridgeServer SDK supplied by the caller). Gating their Compile/Reference
+       assembly supplied by the caller). Gating their Compile/Reference
        items keeps the default (no external inputs) build green for the other 20 probes. ==== -->
 
-  <!-- native-journal-cache: compiles the REAL BridgeCommon.cs and REAL RimBridgeServer.Sdk against
-       a licensed RimBridgeSdkDir/RimWorldManagedDir, unlike every other probe here. Its real
+  <!-- native-journal-cache: compiles the REAL BridgeCommon.cs and REAL RimGovernor.Host.Sdk (the vendored
+       integrations/rimgovernor-host/src/Sdk project) against a licensed RimWorldManagedDir, unlike every other probe here. Its real
        IRimBridgeContext would conflict with the fake one in FakeSdkStub.cs if both were ever
        compiled at once - gating keeps that latent conflict moot until a future caller actually
-       supplies RimBridgeSdkDir alongside the always-on probes above (see the
+       supplies RimWorldManagedDir alongside the always-on probes above (see the
        consolidation commit message / final report). -->
-  <ItemGroup Condition="'$(RimBridgeSdkDir)' != '' AND '$(RimWorldManagedDir)' != ''">
-    <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath></Reference>
+  <ItemGroup Condition="'$(RimWorldManagedDir)' != ''">
+    <ProjectReference Include="../../integrations/rimgovernor-host/src/Sdk/RimGovernor.Host.Sdk.csproj" />
     <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath></Reference>
     <Compile Include="$(NativeSourceRoot)/Bridge/BridgeCommon.cs" Link="Production/BridgeCommon.cs" />

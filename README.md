@@ -21,7 +21,7 @@ controls, saving and troubleshooting. Open work is in
 Use the [developer guide](docs/developers/README.md) to find the architecture,
 source and checks for your change. Go runs the production controller
 (started by `RimGovernorLauncher.exe`, built from `go/cmd/launcher`, which is also the player UI), and C#
-supplies native game tools through RimBridgeServer over GABP. See
+supplies native game tools through its GABP host (a vendored fork of RimBridgeServer) over GABP. See
 [the Go module guide](go/README.md) for building, running and testing it.
 
 You can run checks without installing the game from `go/`:

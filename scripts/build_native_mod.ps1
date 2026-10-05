@@ -2,7 +2,6 @@
 param(
     [Parameter(Mandatory = $true)][string]$RimWorldManagedDir,
     [Parameter(Mandatory = $true)][string]$HarmonyAssembly,
-    [Parameter(Mandatory = $true)][string]$RimBridgeSdkDir,
     [string]$DotNet = 'dotnet',
     [string]$OutputRoot = '',
     [ValidateSet('HomeCoverageFixture', 'SleepingFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'AnimalFeedFixture', 'ResearchObservationFixture', 'RoundsSleepingFixture', 'RoundsProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'GearFixture',
@@ -16,6 +15,8 @@ $ErrorActionPreference = 'Stop'
 $taskRepo = Split-Path $PSScriptRoot -Parent
 $taskSource = Join-Path $taskRepo 'integrations/rimgovernor-native'
 $taskProject = Join-Path $taskSource 'src/Bridge/RimGovernor.Bridge.csproj'
+$taskHostSource = Join-Path $taskRepo 'integrations/rimgovernor-host'
+$taskHostProject = Join-Path $taskHostSource 'src/Host/RimGovernor.Host.csproj'
 $taskFixtures = @($Fixture | Sort-Object -Unique)
 # Every fixture build carries test/quiet_storyteller: the acceptance harnesses
 # quiet the debug colony through it by default (issue #92).
@@ -28,10 +29,9 @@ $taskOutput = [IO.Path]::GetFullPath($OutputRoot)
 if (Test-Path -LiteralPath $taskOutput) { throw "Build output must be fresh: $taskOutput" }
 $RimWorldManagedDir = (Resolve-Path -LiteralPath $RimWorldManagedDir).Path
 $HarmonyAssembly = (Resolve-Path -LiteralPath $HarmonyAssembly).Path
-$RimBridgeSdkDir = (Resolve-Path -LiteralPath $RimBridgeSdkDir).Path
 foreach ($taskRequired in @($taskProject, (Join-Path $RimWorldManagedDir 'Assembly-CSharp.dll'),
-        $HarmonyAssembly, (Join-Path $RimBridgeSdkDir 'RimBridgeServer.Sdk.dll'),
-        (Join-Path $RimBridgeSdkDir 'Newtonsoft.Json.dll'),
+        $HarmonyAssembly, $taskHostProject,
+        (Join-Path $taskSource 'Notices/host/PROVENANCE.md'),
         (Join-Path $taskSource 'Notices/headless/LICENSE'),
         (Join-Path $taskSource 'Notices/headless/PROVENANCE.md'),
         (Join-Path $taskSource 'Notices/companion/PROVENANCE.md'))) {
@@ -59,6 +59,15 @@ foreach ($taskDirectory in @('src', 'About', 'Defs', 'Textures', 'Notices')) {
         New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
         Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
     }
+}
+# The vendored GABP host (fork of RimBridgeServer and Lib.GAB) builds from the same private copy.
+$taskCopyHost = Join-Path $taskCopyRoot 'integrations/rimgovernor-host'
+foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 'src') -Recurse -File | Where-Object {
+        $_.FullName -notmatch '[\\/](obj|bin)[\\/]'
+    }) + @(Get-Item -LiteralPath (Join-Path $taskHostSource 'Directory.Build.props'))) {
+    $taskTo = Join-Path $taskCopyHost $taskFile.FullName.Substring($taskHostSource.Length + 1)
+    New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
+    Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
 }
 # Canonical Protobuf sources and official generator inputs travel with the build.
 # No experimental JSON generator or second contract tree participates.
@@ -110,10 +119,15 @@ try {
     & go run (Join-Path $taskScripts 'generate_protobuf.go') -root $taskCopyRoot -dotnet $taskCompiler -output (Join-Path $taskBuild 'protobuf') *> (Join-Path $taskBuild 'generate.log')
     if ($LASTEXITCODE) { throw "Defs.cs generation failed; inspect $taskBuild/generate.log" }
 } finally { Pop-Location }
+$taskHostCompiled = Join-Path $taskBuild 'host-compiled'
+$taskHostArgs = @('build', (Join-Path $taskCopyHost 'src/Host/RimGovernor.Host.csproj'),
+    '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskHostCompiled/",
+    "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly")
+& $taskCompiler @taskHostArgs *> (Join-Path $taskBuild 'host-build.log')
+if ($LASTEXITCODE) { throw "Host build failed; inspect $taskBuild/host-build.log" }
 $taskArgs = @('build', (Join-Path $taskCopyNative 'src/Bridge/RimGovernor.Bridge.csproj'),
     '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
-    "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly",
-    "-p:RimBridgeSdkDir=$RimBridgeSdkDir")
+    "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly")
 foreach ($taskFlag in $taskFixtures) { $taskArgs += "-p:${taskFlag}=true" }
 & $taskCompiler @taskArgs *> (Join-Path $taskBuild 'build.log')
 if ($LASTEXITCODE) { throw "Native build failed; inspect $taskBuild/build.log" }
@@ -127,8 +141,25 @@ foreach ($taskItem in @(
     New-Item -ItemType Directory -Path $taskDestination -Force | Out-Null
     Copy-Item -LiteralPath $taskDll -Destination $taskDestination
 }
+# The host ships in the mod's general Assemblies/ (the game loads it as a mod assembly): its own
+# assemblies plus the resolved NuGet runtime DLLs, each with a retained notice.
+$taskHostAssemblies = Join-Path $taskPackage 'Assemblies'
+foreach ($taskDll in Get-ChildItem -LiteralPath $taskHostCompiled -Filter 'RimGovernor.Host*.dll' -File) {
+    Copy-Item -LiteralPath $taskDll.FullName -Destination $taskHostAssemblies
+}
+if (-not (Test-Path -LiteralPath (Join-Path $taskHostAssemblies 'RimGovernor.Host.dll') -PathType Leaf)) { throw 'Expected host output missing: RimGovernor.Host.dll' }
+$taskHostDependencies = @()
+foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskHostCompiled 'runtime-dependencies.tsv')) {
+    $taskFields = $taskLine.Split('|')
+    if ($taskFields.Count -ne 3) { throw "Malformed host runtime dependency: $taskLine" }
+    if (-not $taskFields[0]) { continue }
+    $taskNotice = Join-Path $taskCopyNative ('Notices/host/' + $taskFields[0].ToLowerInvariant() + '/' + $taskFields[1])
+    if (-not (Test-Path -LiteralPath (Join-Path $taskNotice 'LICENSE'))) { throw "Missing host dependency notice: $taskLine" }
+    Copy-Item -LiteralPath (Join-Path $taskHostCompiled $taskFields[2]) -Destination $taskHostAssemblies
+    $taskHostDependencies += [ordered]@{ package = $taskFields[0]; version = $taskFields[1]; file = $taskFields[2] }
+}
 # Only resolved NuGet runtime DLLs are redistributed, beside their requesting
-# Bridge assembly where RimBridgeServer's scoped resolver searches first.
+# Bridge assembly where the host's scoped resolver searches first.
 $taskRuntimeDependencies = @()
 foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime-dependencies.tsv')) {
     $taskFields = $taskLine.Split('|')
@@ -152,13 +183,14 @@ foreach ($taskFile in Get-ChildItem -LiteralPath $taskCopyRoot -Recurse -File | 
     New-Item -ItemType Directory -Path (Split-Path $taskDestination -Parent) -Force | Out-Null
     Copy-Item -LiteralPath $taskFile.FullName -Destination $taskDestination
 }
-$taskInputs = @($HarmonyAssembly) + @(Get-ChildItem -LiteralPath $RimWorldManagedDir, $RimBridgeSdkDir -Filter '*.dll' -File | ForEach-Object FullName)
+$taskInputs = @($HarmonyAssembly) + @(Get-ChildItem -LiteralPath $RimWorldManagedDir -Filter '*.dll' -File | ForEach-Object FullName)
 $taskManifest = [ordered]@{
     formatVersion = 1
     packageId = 'davidarcher.rimgovernor.native'
     role = $taskRole
     fixtures = $taskFixtures
     runtimeDependencies = $taskRuntimeDependencies
+    hostDependencies = $taskHostDependencies
     sourceRevision = (& git -C $taskRepo rev-parse HEAD)
     sourceDirty = [bool](& git -C $taskRepo status --porcelain)
     sourceTree = $taskSourceTree

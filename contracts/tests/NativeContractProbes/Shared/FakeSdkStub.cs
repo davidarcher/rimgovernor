@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-// Unified fake RimBridgeServer.Sdk surface + BridgeCommon double for the in-process probes
+// Unified fake RimGovernor.Host.Sdk surface + BridgeCommon double for the in-process probes
 // (native-authority-status, native-authority-control, native-clock, native-proto-boundary).
 // Reconciled from native-authority-status/BoundaryStub.cs (the fuller IRimBridgeContext shape,
 // kept as canonical) and native-proto-boundary/TestSeams.cs (a strict subset, safely replaced).
-namespace RimBridgeServer.Sdk
+namespace RimGovernor.Host.Sdk
 {
     [AttributeUsage(AttributeTargets.Method)]
     internal sealed class ToolAttribute : Attribute
@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
     {
         internal static IDictionary<string, object> Arguments;
 
-        internal static IDictionary<string, object> RawArguments(RimBridgeServer.Sdk.IRimBridgeContext ctx, out string unavailable)
+        internal static IDictionary<string, object> RawArguments(RimGovernor.Host.Sdk.IRimBridgeContext ctx, out string unavailable)
         {
             if (Arguments != null) { unavailable = null; return Arguments; }
             unavailable = ctx?.Arguments == null ? "Raw SDK arguments unavailable" : null;

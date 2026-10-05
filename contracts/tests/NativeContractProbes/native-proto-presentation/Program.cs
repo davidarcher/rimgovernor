@@ -44,7 +44,7 @@ internal static class NativeProtoPresentationProbe
             roster = Wire("ColonistRosterRequest", "{" + identity + ",\"currentMapOnly\":" + value + "}");
             Check((bool)Get(roster, "HasCurrentMapOnly") && (bool)Get(roster, "CurrentMapOnly") == (value == "true"), "Explicit map scope retained");
         }
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimBridgeServer.dll")).First(File.Exists));
+        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
         Check((bool)tools.GetMethod("TryZoomExtension", Flags)!.Invoke(null, new object?[] { server, null })!, "Exact actual SDK zoom property available");
         Check(!(bool)tools.GetMethod("TryZoomExtension", Flags)!.Invoke(null, new object?[] { typeof(NativeProtoPresentationProbe).Assembly, null })!, "Missing zoom property does not fabricate false");
         foreach (var value in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
@@ -56,7 +56,7 @@ internal static class NativeProtoPresentationProbe
         var listing = tools.GetMethod("Listing", Flags)!.Invoke(null, new object[] { 0 })!;
         Check((bool)Get(listing, "HasTotalCount") && (uint)Get(listing, "TotalCount") == 0
             && (bool)Get(listing, "Complete") && !(bool)Get(listing, "Truncated"), "Complete empty selection differs from unavailable");
-        var binder = server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
+        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
         foreach (var method in new[] { "Camera", "Selection", "Colonists" })
             foreach (var value in new object?[] { "{}", new Dictionary<string, object>(), new List<object>(), null, 17, true })
             {
@@ -66,7 +66,7 @@ internal static class NativeProtoPresentationProbe
             }
         var reply = Wire("SelectionReply", "{\"selection\":{\"listing\":{\"totalCount\":0,\"returnedCount\":0,\"complete\":true,\"truncated\":false}}}");
         var envelope = tools.GetMethod("Encode", Flags)!.Invoke(null, new[] { reply })!;
-        var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
+        var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Check(normalized.Count == 1 && normalized["payload"] is string, "SDK preserves sole ProtoJSON payload");
         var selected = Get(Wire("SelectionReply", (string)normalized["payload"]!), "Selection");

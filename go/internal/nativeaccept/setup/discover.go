@@ -34,11 +34,8 @@ const HarmonyWorkshopID = "2009463077"
 
 // Inputs are the machine's shared game files the setup reads from and
 // never writes: what build_native_mod.ps1 takes as -RimWorldManagedDir,
-// -HarmonyAssembly and -RimBridgeSdkDir, plus the install the copy
-// junctions into.
+// and -HarmonyAssembly, plus the install the copy junctions into.
 type Inputs struct {
-	// BridgeDir overrides the bridge runtime root for a self-contained bundle.
-	BridgeDir  string
 	HarmonyMod string
 	// CleanProfile prevents importing any machine-local player preferences.
 	CleanProfile bool
@@ -48,8 +45,6 @@ type Inputs struct {
 	ManagedDir string
 	// Harmony is 0Harmony.dll.
 	Harmony string
-	// RimBridgeSDK is RimWorldDir/Mods/RimBridgeServer/1.6/Assemblies.
-	RimBridgeSDK string
 	// How each input was found, for the summary.
 	Sources map[string]string
 }
@@ -57,9 +52,7 @@ type Inputs struct {
 // Overrides are the explicit paths the caller gives; empty fields are
 // discovered.
 type Overrides struct {
-	HarmonyMod   string
-	BridgeDir    string
-	RimBridgeSDK string
+	HarmonyMod string
 	// Explicit requires all dependency paths; no Steam or peer discovery occurs.
 	Explicit    bool
 	RimWorldDir string
@@ -76,8 +69,8 @@ func Discover(o Overrides) (*Inputs, error) {
 	var libraries []string
 	var libErr error
 	if o.Explicit {
-		if o.RimWorldDir == "" || o.Harmony == "" || o.HarmonyMod == "" || o.BridgeDir == "" || o.RimBridgeSDK == "" {
-			return nil, fmt.Errorf("explicit setup requires -rimworld, -harmony, -harmony-mod, -bridge and -sdk")
+		if o.RimWorldDir == "" || o.Harmony == "" || o.HarmonyMod == "" {
+			return nil, fmt.Errorf("explicit setup requires -rimworld, -harmony and -harmony-mod")
 		}
 		in.CleanProfile = true
 		if !isFile(filepath.Join(o.HarmonyMod, "About", "About.xml")) || !isFile(filepath.Join(o.HarmonyMod, "Current", "Assemblies", "HarmonyMod.dll")) {
@@ -114,20 +107,6 @@ func Discover(o Overrides) (*Inputs, error) {
 	in.ManagedDir = filepath.Join(dir, "RimWorldWin64_Data", "Managed")
 	if !isFile(filepath.Join(in.ManagedDir, "Assembly-CSharp.dll")) {
 		return nil, fmt.Errorf("%s holds no Assembly-CSharp.dll", in.ManagedDir)
-	}
-	in.RimBridgeSDK = filepath.Join(dir, "Mods", "RimBridgeServer", "1.6", "Assemblies")
-	if o.RimBridgeSDK != "" {
-		in.RimBridgeSDK = absClean(o.RimBridgeSDK)
-	}
-	in.BridgeDir = o.BridgeDir
-	if in.BridgeDir == "" {
-		in.BridgeDir = filepath.Join(dir, "Mods", "RimBridgeServer")
-	}
-	if !isFile(filepath.Join(in.BridgeDir, "About", "About.xml")) {
-		return nil, fmt.Errorf("bridge runtime %s holds no About/About.xml", in.BridgeDir)
-	}
-	if !isFile(filepath.Join(in.RimBridgeSDK, "RimBridgeServer.Sdk.dll")) {
-		return nil, fmt.Errorf("RimBridgeServer is not installed under %s (expected %s)", filepath.Join(dir, "Mods"), filepath.Join(in.RimBridgeSDK, "RimBridgeServer.Sdk.dll"))
 	}
 
 	harmony, source := o.Harmony, "-harmony"

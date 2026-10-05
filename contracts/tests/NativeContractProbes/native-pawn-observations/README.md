@@ -11,7 +11,7 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -c Release -- n
 ```
 
 where `<args...>` is the compiled `RimGovernor.Bridge.dll`, licensed game Managed
-directory, installed RimBridgeServer assembly directory, Harmony assembly
+directory, installed RimGovernor.Host assembly directory, Harmony assembly
 directory and the directory containing
 `RimGovernor.Runtime.dll` (`Mods/RimGovernor/Assemblies`). The bridge is under
 `Mods/RimGovernor/BridgeTools/RimGovernor`.

@@ -39,7 +39,7 @@ The controller launches RimWorld itself (`go/internal/gamehost`, from
 `games.<id>` in `<config>/config.json`) with `GABP_SERVER_PORT`, `GABP_TOKEN`
 and `GABS_GAME_ID` in its environment, records the endpoint in
 `<config>/<id>/endpoint.json` (pid plus start time, so a reused pid is never
-mistaken for the game) and speaks GABP to RimBridgeServer directly
+mistaken for the game) and speaks GABP to the GABP host directly
 (`go/internal/gabp`). The GABP connection correlates concurrent requests by
 id, so a held `clock_read_events` long poll does not stall planner reads
 behind it. The game is spawned detached and keeps running when

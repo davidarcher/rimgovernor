@@ -96,8 +96,8 @@ internal static class NativeProtoSuppliesProbe
         Check(ours(false, true, true, false, false), "Living player pawn held stock ours");
         Check(!ours(false, true, true, false, true), "Dead pawn held stock not ours");
         Check(!ours(false, true, false, true, false), "Trader held stock not ours");
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimBridgeServer.dll")).First(File.Exists));
-        var binder = server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
+        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
+        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
         foreach (var value in new object?[] { "{}", new Dictionary<string, object>(), new List<object>(), null, 17, true })
         {
             var bound = (object[])binder.Invoke(null, new object?[] { tools.GetMethod("ListSupplies"),
@@ -106,7 +106,7 @@ internal static class NativeProtoSuppliesProbe
         }
         var reply = Wire("ListSuppliesReply", "{\"observed\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":\"2147483648\",\"ours\":\"0\",\"issues\":[{\"field\":\"carried\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_NOT_REQUESTED\"}}]}]}}");
         var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
-        var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
+        var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Check(normalized.Count == 1 && normalized["payload"] is string, "SDK preserves ProtoJSON string");
         var snapshot = Get(Wire("ListSuppliesReply", (string)normalized["payload"]!), "Observed");
