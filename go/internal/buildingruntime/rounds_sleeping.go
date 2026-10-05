@@ -357,7 +357,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			// (#936); a shell already tried this epoch, or refused, leaves
 			// the cooling to go on.
 			if closet, owed := plannedMealCloset(facts); positiveFact(owed) {
-				result, err := r.reconcileRing(call, epoch, state, review, goal, reading, roomReconcile{room: closet, name: string(plannedRoomMethod(closet)), reason: "cold meal shelf"})
+				result, err := r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: closet, name: string(plannedRoomMethod(closet)), reason: "cold meal shelf"})
 				if err != nil || !result.Verdict.skipsToPlacement() {
 					return result, err
 				}
@@ -501,7 +501,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		// room's ring.
 		if module, ok := r.plannedRoomModule(); ok {
 			if room, owed := plannedRoomOwed(facts, module); owed {
-				result, err := r.reconcileRing(call, epoch, state, review, goal, reading, roomReconcile{room: room, name: string(plannedRoomMethod(room))})
+				result, err := r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))})
 				if err != nil || result.Verdict.Is(WaitMethodUsed) {
 					return result, err
 				}
@@ -521,7 +521,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		// interior without waiting for the walls. A shell already tried
 		// this epoch, or refused, leaves the usual placement to go on.
 		if room, owed := plannedRoomOwed(facts, module); owed {
-			result, err := r.reconcileRing(call, epoch, state, review, goal, reading, roomReconcile{room: room, name: string(plannedRoomMethod(room))})
+			result, err := r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))})
 			if err != nil || !result.Verdict.skipsToPlacement() {
 				return result, err
 			}

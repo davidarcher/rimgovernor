@@ -107,6 +107,6 @@ func (r *RoundsWastePlanner) stageDisposal(call, epoch context.Context, state Co
 	if !owed {
 		return RoundsWasteResult{}, false, nil
 	}
-	result, err := r.building.reconcileRing(call, epoch, state, review, goal, reading.ColonyReading, roomReconcile{room: room, name: string(incineratorMethod(room)), reason: "burn rotten and worn items", stuff: fireproofShellStuff})
+	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading.ColonyReading}, nil, roomReconcile{ringOnly: true, room: room, name: string(incineratorMethod(room)), reason: "burn rotten and worn items", stuff: fireproofShellStuff})
 	return RoundsWasteResult{Verdict: result.Verdict}, true, err
 }

@@ -171,13 +171,6 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, rr, ops)
 }
 
-// reconcileRing raises a planned room's ring and doors alone (ringOnly): the
-// path of the owners that furnish the room themselves.
-func (b *RoundsBuildingPlanner) reconcileRing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, rr roomReconcile) (RoundsBuildingResult, error) {
-	rr.ringOnly = true
-	return b.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, rr)
-}
-
 // methodOnce is true when the owner has not committed method yet.
 func (b *RoundsBuildingPlanner) methodOnce(call context.Context, goal store.WorkOwner, method domain.MethodID) (bool, error) {
 	if _, err := b.reviewer.player.journal.LoadOwnerMethod(call, goal, method); err == nil {

@@ -439,7 +439,7 @@ func (r *RoundsStockpilePlanner) shell(call, epoch context.Context, state Contro
 	if !owed {
 		return RoundsStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_room_built")}, false, nil
 	}
-	result, err := r.building.reconcileRing(call, epoch, state, review, goal, read.ColonyReading, roomReconcile{room: room, name: string(plannedRoomMethod(room)), reason: "storage-planner room"})
+	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: read.ColonyReading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room)), reason: "storage-planner room"})
 	telemetry.Decide(call, stockpileEditDecision("proposed", fmt.Sprint(result.Verdict), edit.Role, map[string]any{"kind": "room", "detail": edit.Explanation}))
 	if err != nil || shellLeavesZoneEdits(result.Verdict) {
 		return RoundsStockpileResult{Verdict: result.Verdict}, false, err
