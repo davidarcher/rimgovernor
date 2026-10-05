@@ -234,7 +234,8 @@ func (g coreGrid) seed() (domain.Cell, bool) {
 		if found && (d > bestD || d == bestD && (c.Z > best.Z || c.Z == best.Z && c.X > best.X)) {
 			continue
 		}
-		if g.column(c.X, c.Z) {
+		// The seed is a hallway end: its one-cell cap needs core too (#1982).
+		if g.column(c.X-1, c.Z) && g.column(c.X, c.Z) && g.column(c.X+1, c.Z) {
 			best, found, bestD = c, true, d
 		}
 	}

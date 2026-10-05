@@ -10,7 +10,6 @@ import (
 // A reported geyser near the core gets its enclosure inside the wall and
 // the planned generator on the geyser (#834).
 func TestDeriveLayoutPlanGeothermal(t *testing.T) {
-	t.Skip("fails below the production seed count: #2004")
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)

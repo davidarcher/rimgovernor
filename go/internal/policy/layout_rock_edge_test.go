@@ -68,7 +68,6 @@ func siteCellsOver(cells []DefenseCell) []SiteCell {
 // the rock step lists or a refusal in Go, and once dug the corridor is
 // walkable from its entry to the kill zone.
 func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
-	t.Skip("fails below the production seed count: #2004")
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for name, rock := range rockEdgeMaps {
 		t.Run(name, func(t *testing.T) {
@@ -132,7 +131,6 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 // ("corridor is not passable end to end"), the rock step lists exactly that
 // rock to dig, and the layout stands and walks once it is open.
 func TestRockAcrossTheKillboxCorridorIsDugNotBuiltOn(t *testing.T) {
-	t.Skip("fails below the production seed count: #2004")
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := rockEdgeSurvey(rockEdgeMaps["east mountain"])
 	plan := PlanPerimeter(SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp), s)

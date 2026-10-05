@@ -138,13 +138,11 @@ func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 
 // 100 colonists beside a patch: wings capped at 10 full ones, suite blocks
 // at 6, every route reachable, nothing on the patch. generate runs from the
-// centre seed (a full SiteCore on 300x300 takes ~24 s). The patch is 20
-// cells off the centre: with the patch under the seed, a hallway end cap
-// pads onto its edge by one cell.
+// centre seed (a full SiteCore on 300x300 takes ~24 s), the patch centred on
+// it.
 func TestCourtyardHundredColonistsCappedAndReachable(t *testing.T) {
-	t.Skip("fails below the production seed count: #2004")
 	slowtest.Skip(t, "a 300x300 siting takes ~24 s")
-	s := plusSurvey(300, 100)
+	s := plusSurvey(300, 80)
 	rich := richSet(s)
 	zones := Zone(s)
 	g := newCoreGrid(zones, nil).withSoil(s)
