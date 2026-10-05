@@ -51,7 +51,7 @@ func (e *AlreadyRunningError) Is(target error) bool { return target == ErrAlread
 
 // Spec describes one game launch. Env entries override the inherited
 // environment; GABP_SERVER_PORT, GABP_TOKEN and GABS_GAME_ID (the name
-// RimBridgeServer reads for its welcome agentId) are always set
+// the GABP host reads for its welcome agentId) are always set
 // by Launch.
 type Spec struct {
 	GameID     string

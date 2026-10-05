@@ -48,7 +48,7 @@ type Config struct {
 	ColonyStatus                 ColonyStatus
 	Lifecycle                    LifecycleWriter
 	// Attention, when set, lets a lifecycle mutation clear one blocking
-	// attention item (raised by RimBridgeServer for a game-side log line it treats as
+	// attention item (raised by the GABP host for a game-side log line it treats as
 	// noteworthy, e.g. an error-level message) and retry once rather than
 	// failing outright. A nil Attention preserves prior behavior.
 	Attention AttentionAcknowledger

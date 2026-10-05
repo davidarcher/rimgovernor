@@ -35,7 +35,7 @@ func dial(t *testing.T, s *gabptest.Server, opts gabp.Options) *gabp.Conn {
 
 func TestHandshake(t *testing.T) {
 	s := gabptest.Start(t, &gabptest.Server{Token: "tok", Welcome: map[string]any{
-		"serverInfo": map[string]any{"name": "RimBridgeServer", "version": "2.0"},
+		"serverInfo": map[string]any{"name": "RimGovernor.Host", "version": "2.0"},
 	}})
 	c := dial(t, s, gabp.Options{ClientVersion: "1.2"})
 	w := c.Welcome()

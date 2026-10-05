@@ -96,7 +96,7 @@ func jsonSchemaType(t string) string {
 }
 
 // CallTool calls tools/call with the arguments object under "parameters",
-// the key RimBridgeServer (Lib.GAB) reads first.
+// the key the GABP host (Lib.GAB) reads first.
 //
 // A server error response is a tool-level refusal, not a transport
 // failure: result is the error object's JSON ({code,message,data}) and

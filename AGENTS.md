@@ -196,7 +196,7 @@ Start with the [documentation map](docs/README.md), the
 [system overview](docs/developers/architecture/overview.md) and the
 [development process](docs/developers/development-process.md); read the
 component guide and contracts for the subsystem you change. Runtime: Go (`go/`,
-including the launcher), RimBridgeServer (over GABP) and
+including the launcher), the GABP host (`integrations/rimgovernor-host`, over GABP) and
 `integrations/rimgovernor-native`.
 
 Non-negotiables: RimWorld owns simulation and normal game rules hold (discover

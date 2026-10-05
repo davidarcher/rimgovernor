@@ -358,7 +358,7 @@ func TestConcurrentNativeCallsDoNotCrossTalk(t *testing.T) {
 // before the held one is released. The ordering is decided by synchronization
 // (the handler reports entry, the test releases it only after the independent
 // result is in hand), not by elapsed time; the deadlines here are hang guards.
-// The native case keeps the same claim over the installed RimBridgeServer
+// The native case keeps the same claim over the installed GABP host
 // path, where the handler cannot be instrumented.
 func TestIndependentCallAnsweredWhileLongPollHeld(t *testing.T) {
 	entered := make(chan struct{}, 1)
