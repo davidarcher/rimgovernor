@@ -91,6 +91,9 @@ type ColonyProjection struct {
 	// ColdMap is whether the seasonal outdoor temperature curve dips below
 	// freezing (policy.ColdMapCurve, #2044); unknown without the curve.
 	ColdMap domain.Fact[bool]
+	// HotMap is whether the curve peaks above HotEnter (policy.HotMapCurve,
+	// #2044); unknown without the curve.
+	HotMap domain.Fact[bool]
 
 	PendingHunts domain.Fact[int]
 
@@ -510,6 +513,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			temps[i] = float64(t)
 		}
 		r.ColdMap = domain.Known(policy.ColdMapCurve(temps))
+		r.HotMap = domain.Known(policy.HotMapCurve(temps))
 	}
 	colonyAcquisition(v, tables, &r)
 	colonyProduction(v, &r.Facts)

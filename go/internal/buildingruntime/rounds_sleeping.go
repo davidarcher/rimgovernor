@@ -932,6 +932,16 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if plan, known := facts.LayoutPlan.Value(); known && plan.Cold && r.definition == "Campfire" && (cookingCampfire || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat) {
 		slotOnly = len(standingShelterRooms(facts)) > 0
 	}
+	// A hot map's passive cooler for the shelter stands on the template's
+	// cooler slot (#2044); the powered wall cooler path is unchanged.
+	if plan, known := facts.LayoutPlan.Value(); known && plan.Hot && r.definition == "PassiveCooler" && r.temperature != nil && r.temperature.Method == policy.TemperatureCool {
+		for _, shelter := range standingShelterRooms(facts) {
+			for _, c := range r.temperature.Cells {
+				in := shelter.Interior
+				slotOnly = slotOnly || c.X >= in.X && c.X < in.X+in.Width && c.Z >= in.Z && c.Z < in.Z+in.Height
+			}
+		}
+	}
 	if slotOnly {
 		interiorRooms = standingShelterRooms(facts)
 	}

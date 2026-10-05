@@ -66,6 +66,8 @@ type MapSurvey struct {
 	// Cold is the map's climate (ColdMapCurve), set by the caller; a fresh
 	// plan latches it (LayoutPlan.Cold).
 	Cold bool
+	// Hot is the map's other climate end (HotMapCurve), latched the same way.
+	Hot bool
 }
 
 // ModuleRole is a planned room's role.

@@ -44,12 +44,12 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 		plan LayoutPlan
 		cold bool
 	}{{"cold", cold, true}, {"warm", warm, false}} {
-		got, want := shelterOf(t, c.plan).Interior, ShelterSizes(3, ShelterCampfires(c.cold))[0]
+		got, want := shelterOf(t, c.plan).Interior, ShelterSizes(3, ShelterCampfires(c.cold), 0)[0]
 		if got.Width != want[0] || got.Height != want[1] {
 			t.Errorf("%s shelter %dx%d, want %v", c.name, got.Width, got.Height, want)
 		}
 	}
-	if ShelterInteriorArea(3, ShelterCampfires(true)) <= ShelterInteriorArea(3, ShelterCampfires(false)) {
+	if ShelterInteriorArea(3, ShelterCampfires(true), 0) <= ShelterInteriorArea(3, ShelterCampfires(false), 0) {
 		t.Fatal("a cold shelter is no bigger than a normal one")
 	}
 	before := shelterOf(t, cold)
@@ -113,7 +113,7 @@ func TestDeriveLatchesTheSurveyClimate(t *testing.T) {
 		if !ok || plan.Cold != cold {
 			t.Fatalf("survey cold=%v: plan ok=%v cold=%v", cold, ok, plan.Cold)
 		}
-		got, want := shelterOf(t, plan).Interior, ShelterSizes(3, ShelterCampfires(cold))[0]
+		got, want := shelterOf(t, plan).Interior, ShelterSizes(3, ShelterCampfires(cold), 0)[0]
 		if got.Width != want[0] || got.Height != want[1] {
 			t.Errorf("survey cold=%v: shelter %dx%d, want %v", cold, got.Width, got.Height, want)
 		}

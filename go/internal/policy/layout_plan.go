@@ -110,6 +110,10 @@ type LayoutPlan struct {
 	// seasonal curve dips below ColdMapBelowC. The shelter is sized for it,
 	// so a replan never resizes or re-sites the room.
 	Cold bool `json:",omitempty"`
+	// Hot latches the other end of the climate the same way (#2044): the
+	// seasonal curve peaks above HotEnter, so the shelter holds a floor slot
+	// for a passive cooler.
+	Hot bool `json:",omitempty"`
 }
 
 // Anchor is the interior centre of the

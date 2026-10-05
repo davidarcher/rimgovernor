@@ -165,6 +165,13 @@ func shelterCampfires(facts observation.ColonyProjection) int {
 	return policy.ShelterCampfires(known && plan.Cold)
 }
 
+// shelterCoolers is how many passive coolers the shelter holds on its floor:
+// the plan's latched climate decides (#2044).
+func shelterCoolers(facts observation.ColonyProjection) int {
+	plan, known := facts.LayoutPlan.Value()
+	return policy.ShelterCoolers(known && plan.Hot)
+}
+
 // shelterInteriorRooms plans the standing room on the layout plan's shelter
 // interior as the shelter, whatever role the game scores it (a Barracks once
 // the bunks stand), so the research bench takes the template's research slot
@@ -181,7 +188,7 @@ func shelterInteriorRooms(rooms []policy.InteriorRoom, facts observation.ColonyP
 		for i := range rooms {
 			if rooms[i].Interior == planned.Interior {
 				rooms[i].Role = policy.RoomRoleShelter
-				rooms[i].Campfires = policy.ShelterCampfires(plan.Cold)
+				rooms[i].Campfires, rooms[i].Coolers = policy.ShelterCampfires(plan.Cold), policy.ShelterCoolers(plan.Hot)
 			}
 		}
 	}
@@ -214,7 +221,7 @@ func standingShelterRooms(facts observation.ColonyProjection) []policy.InteriorR
 			}
 			interior, ok := policy.InteriorRoomFromCensus(room, policy.RoomRoleShelter, doorways, census.Shapes)
 			if ok && interior.Interior == planned.Interior {
-				interior.Campfires = policy.ShelterCampfires(plan.Cold)
+				interior.Campfires, interior.Coolers = policy.ShelterCampfires(plan.Cold), policy.ShelterCoolers(plan.Hot)
 				out = append(out, interior)
 			}
 		}

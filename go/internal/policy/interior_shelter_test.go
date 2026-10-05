@@ -142,7 +142,7 @@ func TestShelterTemplateKeepsBunksWhenTheRoomIsCramped(t *testing.T) {
 
 func TestShelterSizesLeaveTheResearchTableItsDepth(t *testing.T) {
 	for n := 1; n < 12; n++ {
-		for _, s := range ShelterSizes(n, ShelterCampfires(true)) {
+		for _, s := range ShelterSizes(n, ShelterCampfires(true), 0) {
 			if s[1] < 4 {
 				t.Fatalf("%d colonists: %v is shallower than the 3x2 table and its front row", n, s)
 			}

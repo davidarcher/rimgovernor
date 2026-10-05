@@ -62,12 +62,12 @@ func ShellCornerCells(shell domain.RoomFootprint) []domain.Cell {
 // interior, the door, and the cells the template keeps clear (the starter
 // storage patch, the cells plan dig mines and reserved). False when the
 // interior is not a rectangle the door opens onto.
-func ShelterRoom(layout StarterLayout, shapes PieceShapes, occupants, campfires int, reserved []domain.Cell) (InteriorRoom, bool) {
+func ShelterRoom(layout StarterLayout, shapes PieceShapes, occupants, campfires, coolers int, reserved []domain.Cell) (InteriorRoom, bool) {
 	cells := layout.Shell.Interior()
 	if len(cells) == 0 {
 		return InteriorRoom{}, false
 	}
-	room := InteriorRoom{Role: RoomRoleShelter, Interior: cellsRectangle(cells), Doors: []domain.Cell{layout.Shell.Door()}, Shapes: shapes, Occupants: occupants, Campfires: campfires}
+	room := InteriorRoom{Role: RoomRoleShelter, Interior: cellsRectangle(cells), Doors: []domain.Cell{layout.Shell.Door()}, Shapes: shapes, Occupants: occupants, Campfires: campfires, Coolers: coolers}
 	if int64(len(cells)) != int64(room.Interior.Width)*int64(room.Interior.Height) {
 		return InteriorRoom{}, false
 	}
@@ -81,8 +81,8 @@ func ShelterRoom(layout StarterLayout, shapes PieceShapes, occupants, campfires 
 // PlanShelterBunks is the bunk slots of the layout's interior for up to
 // occupants sleepers (0 fills every bunk that fits), in world cells, best
 // first; reserved are further cells to keep clear.
-func PlanShelterBunks(layout StarterLayout, shapes PieceShapes, occupants, campfires int, reserved []domain.Cell) []InteriorPiece {
-	room, ok := ShelterRoom(layout, shapes, occupants, campfires, reserved)
+func PlanShelterBunks(layout StarterLayout, shapes PieceShapes, occupants, campfires, coolers int, reserved []domain.Cell) []InteriorPiece {
+	room, ok := ShelterRoom(layout, shapes, occupants, campfires, coolers, reserved)
 	if !ok {
 		return nil
 	}

@@ -51,6 +51,9 @@ type InteriorRoom struct {
 	// two on a cold map, none elsewhere. Derived from the layout plan's
 	// latched climate, never persisted.
 	Campfires int
+	// Coolers is how many passive cooler floor slots the shelter template
+	// plans (#2044): one on a hot map, none elsewhere, from the plan's latch.
+	Coolers int
 	// Reserved are floor cells (world) a template must keep clear: ground
 	// another plan holds, like the starter stockpile patch or rock yet to be
 	// mined. Cells outside the interior are ignored.
@@ -82,6 +85,8 @@ type InteriorFrame struct {
 	Occupants int
 	// Campfires is InteriorRoom.Campfires.
 	Campfires int
+	// Coolers is InteriorRoom.Coolers.
+	Coolers int
 	// Reserved is InteriorRoom.Reserved in canonical cells, those inside the
 	// frame only.
 	Reserved []domain.Cell
@@ -173,7 +178,7 @@ func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool
 	}
 	frame := x.frame()
 	frame.Dining, frame.Shapes, frame.Required = room.Dining, room.Shapes, room.Required
-	frame.Occupants, frame.Campfires = room.Occupants, room.Campfires
+	frame.Occupants, frame.Campfires, frame.Coolers = room.Occupants, room.Campfires, room.Coolers
 	for _, c := range room.Reserved {
 		if rc := x.toCanonical(c); rectContains(room.Interior, c) {
 			frame.Reserved = append(frame.Reserved, rc)

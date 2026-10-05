@@ -31,9 +31,14 @@ import (
 const (
 	shelterCampfireDef = "Campfire"
 	shelterCraftingDef = "CraftingSpot"
+	shelterCoolerDef   = "PassiveCooler"
 	// shelterBunkSlotPrefix names every bunk slot ("bunk.1", "bunk.2", ...).
 	shelterBunkSlotPrefix = "bunk."
 )
+
+// ShelterCoolerSlotPrefix names the passive cooler slots ("cooler.1", ...), a
+// hot map's floor slot for the temperature planner (#2044).
+const ShelterCoolerSlotPrefix = "cooler."
 
 // shelterBunkSize is a bunk's North footprint: the 1x2 of a SleepingSpot, a
 // Bed and a Bedroll.
@@ -113,6 +118,9 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 	single("craft", shelterCraftingDef)
 	for i := range f.Campfires {
 		single(fmt.Sprintf("campfire.%d", i+1), shelterCampfireDef)
+	}
+	for i := range f.Coolers {
+		single(fmt.Sprintf("%s%d", ShelterCoolerSlotPrefix, i+1), shelterCoolerDef)
 	}
 
 	bunkDef := f.Shapes.Furniture.PrimaryBed()

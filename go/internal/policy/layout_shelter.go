@@ -32,6 +32,7 @@ const (
 const (
 	shelterBunkCells    = 2
 	shelterCampfireCell = 1
+	shelterCoolerCell   = 1
 	shelterCraftCells   = 1
 	shelterResearchCell = 6
 )
@@ -63,19 +64,41 @@ func ShelterCampfires(cold bool) int {
 	return 0
 }
 
+// HotMapCurve reports whether a seasonal outdoor temperature curve peaks above
+// the temperature planner's HotEnter (#2044). An empty curve is not hot.
+func HotMapCurve(curve []float64) bool {
+	hot := DefaultRoundsPolicy().HotEnter
+	for _, t := range curve {
+		if t > hot {
+			return true
+		}
+	}
+	return false
+}
+
+// ShelterCoolers is how many passive coolers the shelter template holds on its
+// floor (#2044): one on a hot map, none elsewhere. A powered Cooler is
+// wall-mounted and needs no floor, but a tribal-tier shelter has none.
+func ShelterCoolers(hot bool) int {
+	if hot {
+		return 1
+	}
+	return 0
+}
+
 // ShelterInteriorArea is the interior cells a shelter for colonists needs:
 // its contents plus half again for the aisle and the door's approach. The
 // research bench is counted at its 3x2 footprint (#2042).
-func ShelterInteriorArea(colonists, campfires int) int {
-	contents := shelterBunkCells*max(colonists, 1) + shelterCampfireCell*max(campfires, 0) + shelterCraftCells + shelterResearchCell
+func ShelterInteriorArea(colonists, campfires, coolers int) int {
+	contents := shelterBunkCells*max(colonists, 1) + shelterCampfireCell*max(campfires, 0) + shelterCoolerCell*max(coolers, 0) + shelterCraftCells + shelterResearchCell
 	return (contents*3 + 1) / 2
 }
 
 // ShelterSizes are the shelter interiors (width, depth) holding at least
 // ShelterInteriorArea cells, best first: the fewest cells, then the aspect
 // nearest two thirds.
-func ShelterSizes(colonists, campfires int) [][2]int32 {
-	area := ShelterInteriorArea(colonists, campfires)
+func ShelterSizes(colonists, campfires, coolers int) [][2]int32 {
+	area := ShelterInteriorArea(colonists, campfires, coolers)
 	var out [][2]int32
 	for d := shelterMinDepth; d <= shelterMaxDepth; d++ {
 		w := max(int32((area+int(d)-1)/int(d)), shelterMinSide)
@@ -99,7 +122,7 @@ func ShelterSizes(colonists, campfires int) [][2]int32 {
 // takes an ordinary slot on a hallway (placeRole), so the first roof is never
 // delayed by a site that cannot be had. g is the core ground the rest of the
 // plan left; seed is the base's centre, the shelter's door faces it.
-func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, seed domain.Cell, colonists int, cold bool) ([]SpineSegment, []LayoutRoom) {
+func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, seed domain.Cell, colonists int, cold, hot bool) ([]SpineSegment, []LayoutRoom) {
 	if g.noShelter {
 		return spine, rooms
 	}
@@ -108,7 +131,7 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []
 			return spine, rooms
 		}
 	}
-	sizes := ShelterSizes(colonists, ShelterCampfires(cold))
+	sizes := ShelterSizes(colonists, ShelterCampfires(cold), ShelterCoolers(hot))
 	all := append([]LayoutRoom(nil), rooms...)
 	for _, w := range wings {
 		all = append(all, w.Rooms...)
