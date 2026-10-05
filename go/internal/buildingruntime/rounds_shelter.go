@@ -40,8 +40,8 @@ func NewRoundsExpansionPlanner(reviewer *Rounder, native RoundsBuildingSource) (
 // roomModule is the layout module this planner sites a shell as (#609): a
 // facility ladder's room role names it, the shelter and expansion
 // planners raise the shelter.
-func (r *RoundsBuildingPlanner) roomModule() (policy.ModuleRole, bool) {
-	return policy.ModuleRoleOf(r.roomRole())
+func (r *RoundsBuildingPlanner) roomModule() (policy.PlannedRole, bool) {
+	return policy.PlannedRoleOf(r.roomRole())
 }
 
 // roomRole is the room role a planner sites for (#637): a facility
@@ -78,14 +78,14 @@ func (r *RoundsBuildingPlanner) plannedRole() policy.RoomRole {
 // plannedRooms is the layout plan's rooms for this planner's role, in plan
 // order, with their footprints (#787). No plan means none: there is no
 // free search (#1231).
-func (r *RoundsBuildingPlanner) plannedRooms(facts observation.ColonyProjection) ([]policy.LayoutRoom, []domain.RoomFootprint) {
+func (r *RoundsBuildingPlanner) plannedRooms(facts observation.ColonyProjection) ([]policy.PlannedRoom, []domain.RoomFootprint) {
 	plan, known := facts.LayoutPlan.Value()
-	want, ok := policy.LayoutModule(r.plannedRole())
+	want, ok := policy.PlannedRoleFor(r.plannedRole())
 	if !known || !ok {
 		return nil, nil
 	}
-	roles := []policy.ModuleRole{want}
-	var rooms []policy.LayoutRoom
+	roles := []policy.PlannedRole{want}
+	var rooms []policy.PlannedRoom
 	var shells []domain.RoomFootprint
 	for _, role := range roles {
 		for _, room := range plan.AllRooms() {
@@ -112,20 +112,20 @@ func (r *RoundsBuildingPlanner) shellPlan(facts observation.ColonyProjection) []
 // offered as unoccupied whatever the census says (the shelter's own bunks,
 // #612). ok is false when there is no plan or every
 // planned room is blocked; the caller then refuses.
-func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observation.ColonyProjection, protected, free []domain.Cell, check func() error) (policy.StarterLayout, policy.LayoutRoom, bool, error) {
+func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observation.ColonyProjection, protected, free []domain.Cell, check func() error) (policy.StarterLayout, policy.PlannedRoom, bool, error) {
 	rooms, shells := r.plannedRooms(facts)
 	if len(shells) == 0 {
-		return policy.StarterLayout{}, policy.LayoutRoom{}, false, nil
+		return policy.StarterLayout{}, policy.PlannedRoom{}, false, nil
 	}
 	cells, err := r.shellRuinHolds(call, facts, shellSiteCells(facts, free), check)
 	if err != nil {
-		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
+		return policy.StarterLayout{}, policy.PlannedRoom{}, false, err
 	}
 	request := policy.StarterRequest{Bounds: facts.Bounds, Cells: cells, Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: shells}
 	snap.NoteShelter(call, request)
 	layout, ok, err := policy.PlannedLayout(request)
 	if err != nil || !ok {
-		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
+		return policy.StarterLayout{}, policy.PlannedRoom{}, false, err
 	}
 	return layout, rooms[layout.Planned], true, nil
 }
@@ -135,7 +135,7 @@ func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observa
 // claimable ruins of the ring's kind on its ring are claimed as wall
 // (#718). handled is false when there is nothing to prepare, so the ring
 // is sited this review.
-func (r *RoundsBuildingPlanner) prepareShell(call, epoch context.Context, s excavationStep, layout policy.StarterLayout, room policy.LayoutRoom, check func() error) (RoundsBuildingResult, bool, error) {
+func (r *RoundsBuildingPlanner) prepareShell(call, epoch context.Context, s excavationStep, layout policy.StarterLayout, room policy.PlannedRoom, check func() error) (RoundsBuildingResult, bool, error) {
 	if len(layout.Mined) > 0 {
 		plan, _ := s.facts.LayoutPlan.Value()
 		result, handled, err := r.digPlannedRoom(call, epoch, s, plan, room, check)

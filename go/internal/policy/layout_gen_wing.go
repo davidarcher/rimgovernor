@@ -16,7 +16,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // hallGround is whether a rectangle is core ground clear of rooms' walls
 // and of the hallways' bands (a north-south crossing keeps a room's depth
 // beyond each end, so rooms can still be placed along it).
-func (g coreGrid) hallGround(spine []SpineSegment, rooms []LayoutRoom) func(Rectangle) bool {
+func (g coreGrid) hallGround(spine []SpineSegment, rooms []PlannedRoom) func(Rectangle) bool {
 	taken := map[domain.Cell]bool{}
 	for _, r := range rooms {
 		for _, c := range rectCells(roomWalls(r)) {
@@ -55,7 +55,7 @@ type blockSite struct {
 // hallway's columns and both directions. count is how many rooms the wing
 // fits at a frame; a frame fitting none is no site. near is the cell the
 // wing wants to be close to (dining's door).
-func (g coreGrid) siteBlock(spine []SpineSegment, rooms []LayoutRoom, near domain.Cell, count func(wingFrame) int) (blockSite, bool) {
+func (g coreGrid) siteBlock(spine []SpineSegment, rooms []PlannedRoom, near domain.Cell, count func(wingFrame) int) (blockSite, bool) {
 	walls := map[domain.Cell]bool{}
 	for _, r := range rooms {
 		for _, c := range rectCells(roomWalls(r)) {
@@ -124,8 +124,8 @@ func openBlock(spine []SpineSegment, seg int, f wingFrame) []SpineSegment {
 
 // diningAnchor is dining's door, else the storage room's (#1178), else the
 // first hallway's middle: the cell housing wants to be near.
-func diningAnchor(spine []SpineSegment, rooms []LayoutRoom) domain.Cell {
-	for _, role := range []ModuleRole{ModuleDining, ModuleStorage} {
+func diningAnchor(spine []SpineSegment, rooms []PlannedRoom) domain.Cell {
+	for _, role := range []PlannedRole{PlannedDining, PlannedStorage} {
 		for _, r := range rooms {
 			if r.Role == role {
 				return r.Door
@@ -143,7 +143,7 @@ func diningAnchor(spine []SpineSegment, rooms []LayoutRoom) domain.Cell {
 // sited by siteBlock. Existing wings are never touched; rooms that do not
 // fit are left out. g is the core before any bedroom wing's ground is
 // carved out of it.
-func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
+func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
 	owed := pawns
 	for _, i := range bedroomWings(wings) {
 		owed -= len(wings[i].Rooms)
@@ -163,7 +163,7 @@ func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []LayoutRoom, wings [
 // siteBedWing sites one more bedroom wing of rooms of size, as siteBedWings
 // does, skipping every frame skip accepts (nil skips none). False means no
 // frame fits a room.
-func (g coreGrid) siteBedWing(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, size [2]int32, skip func(wingFrame) bool) ([]SpineSegment, []Wing, bool) {
+func (g coreGrid) siteBedWing(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, size [2]int32, skip func(wingFrame) bool) ([]SpineSegment, []Wing, bool) {
 	o := g.clone()
 	o.carveBedroomWings(wings)
 	o.carveSuiteWings(wings)
@@ -199,7 +199,7 @@ func (g coreGrid) siteBedWing(spine []SpineSegment, rooms []LayoutRoom, wings []
 // suiteMaxRooms suites sized by SuiteSize at siting (#1951). Existing
 // suites never move or change; suites that do not fit are left out. g is
 // the core with the existing wings' ground carved out.
-func (g coreGrid) siteSuiteBlocks(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, targets []float64) ([]SpineSegment, []Wing) {
+func (g coreGrid) siteSuiteBlocks(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, targets []float64) ([]SpineSegment, []Wing) {
 	have := 0
 	for _, i := range suiteWings(wings) {
 		have += len(wings[i].Rooms)
@@ -208,8 +208,8 @@ func (g coreGrid) siteSuiteBlocks(spine []SpineSegment, rooms []LayoutRoom, wing
 	for have < len(targets) {
 		chunk := targets[have:min(have+suiteMaxRooms, len(targets))]
 		free := g.hallGround(spine, rooms)
-		fitting := func(f wingFrame) []LayoutRoom {
-			var placed []LayoutRoom
+		fitting := func(f wingFrame) []PlannedRoom {
+			var placed []PlannedRoom
 			for _, r := range packSuites(f, chunk) {
 				v0, w := f.along(r)
 				if !free(roomWalls(r)) || !free(f.corridorTo(v0+w)) {
@@ -230,7 +230,7 @@ func (g coreGrid) siteSuiteBlocks(spine []SpineSegment, rooms []LayoutRoom, wing
 		for _, r := range fitting(f) {
 			r.Dug = g.dug(r)
 			trial := w
-			trial.Rooms = append(append([]LayoutRoom(nil), w.Rooms...), r)
+			trial.Rooms = append(append([]PlannedRoom(nil), w.Rooms...), r)
 			trial.Corridor.To = f.reach(trial.Rooms)
 			next := append(append([]Wing(nil), wings...), trial)
 			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Entrances: spineEntrances(grown), Rooms: rooms, Wings: next}); err != nil {

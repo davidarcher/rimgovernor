@@ -74,12 +74,12 @@ func (h hallFrame) facing(pos bool) domain.Rotation {
 
 // room is a w by d room at u on one side of the hallway, its door in the
 // hallway wall at the middle of its width.
-func (h hallFrame) room(role ModuleRole, u, w, d int32, pos bool) LayoutRoom {
+func (h hallFrame) room(role PlannedRole, u, w, d int32, pos bool) PlannedRoom {
 	a, wall := h.line-2-d, h.line-2
 	if pos {
 		a, wall = h.line+3, h.line+2
 	}
-	return LayoutRoom{Role: role, Interior: h.rect(u, a, w, d), Door: h.cell(u+w/2, wall), DoorRot: h.facing(pos)}
+	return PlannedRoom{Role: role, Interior: h.rect(u, a, w, d), Door: h.cell(u+w/2, wall), DoorRot: h.facing(pos)}
 }
 
 // packer is the core as one hallway sees it: the other hallways' bands (their
@@ -89,7 +89,7 @@ func (h hallFrame) room(role ModuleRole, u, w, d int32, pos bool) LayoutRoom {
 type packer struct {
 	g      coreGrid
 	h      hallFrame
-	mine   []LayoutRoom
+	mine   []PlannedRoom
 	barred []Rectangle
 	bands  []Rectangle
 	// junction is where another hallway crosses this one (u): rooms go to
@@ -98,7 +98,7 @@ type packer struct {
 	hasJunction bool
 }
 
-func (g coreGrid) packer(spine []SpineSegment, i int, rooms []LayoutRoom) packer {
+func (g coreGrid) packer(spine []SpineSegment, i int, rooms []PlannedRoom) packer {
 	own := spine[i]
 	p := packer{g: g, h: newHallFrame(own)}
 	half := coreHalf
@@ -166,7 +166,7 @@ func (p packer) open(r Rectangle) bool {
 
 // fits reports the room with its walls, and the hallway beside it, open
 // ground, and its interior not a slot SiteRoom has scored.
-func (p packer) fits(room LayoutRoom) bool {
+func (p packer) fits(room PlannedRoom) bool {
 	if p.g.skip[room.Interior] || !p.open(roomWalls(room)) {
 		return false
 	}
@@ -188,7 +188,7 @@ func (h *hallFrame) extend(a, b int32) {
 }
 
 // finish dresses a placed room: rock to dig, and the hallway grown over it.
-func (p *packer) finish(room LayoutRoom) LayoutRoom {
+func (p *packer) finish(room PlannedRoom) PlannedRoom {
 	u, w, _, _ := p.h.extent(room.Interior)
 	p.h.extend(u-1, u+w)
 	room.Dug = p.g.dug(room)
@@ -198,10 +198,10 @@ func (p *packer) finish(room LayoutRoom) LayoutRoom {
 // slot is the nearest free slot for a w by d room on the hallway: at
 // whichever end of the rooms keeps the hallway shortest (or nearest its
 // junction), the hallway growing out from its centre.
-func (p *packer) slot(role ModuleRole, w, d int32) (LayoutRoom, bool) {
-	pick, picked, pickGrow := LayoutRoom{}, false, int32(0)
+func (p *packer) slot(role PlannedRole, w, d int32) (PlannedRoom, bool) {
+	pick, picked, pickGrow := PlannedRoom{}, false, int32(0)
 	for _, east := range []bool{true, false} {
-		var best LayoutRoom
+		var best PlannedRoom
 		bestU, found := int32(0), false
 		for _, pos := range []bool{true, false} {
 			// Walls on this side: the next slot's near wall is the last
@@ -251,7 +251,7 @@ func (p *packer) slot(role ModuleRole, w, d int32) (LayoutRoom, bool) {
 		}
 	}
 	if !picked {
-		return LayoutRoom{}, false
+		return PlannedRoom{}, false
 	}
 	return p.finish(pick), true
 }
@@ -261,10 +261,10 @@ func (p *packer) slot(role ModuleRole, w, d int32) (LayoutRoom, bool) {
 // rule is unlinked; its back wall before or after the sides as the rule says.
 // It reports false for a role with no rule, without the neighbour or when no
 // wall fits (the caller then takes a plain slot).
-func (p *packer) against(rooms []LayoutRoom, role ModuleRole) (LayoutRoom, bool) {
+func (p *packer) against(rooms []PlannedRoom, role PlannedRole) (PlannedRoom, bool) {
 	rule, ok := besideRoles[role]
 	if !ok {
-		return LayoutRoom{}, false
+		return PlannedRoom{}, false
 	}
 	var k Rectangle
 	found := false
@@ -275,7 +275,7 @@ func (p *packer) against(rooms []LayoutRoom, role ModuleRole) (LayoutRoom, bool)
 		}
 	}
 	if !found {
-		return LayoutRoom{}, false
+		return PlannedRoom{}, false
 	}
 	if rule.backFirst {
 		if room, ok := p.behind(rooms, k, role, rule); ok {
@@ -308,7 +308,7 @@ func (p *packer) against(rooms []LayoutRoom, role ModuleRole) (LayoutRoom, bool)
 	if rule.backLast {
 		return p.behind(rooms, k, role, rule)
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }
 
 // behind places role against its neighbour's back wall, the one opposite the
@@ -316,7 +316,7 @@ func (p *packer) against(rooms []LayoutRoom, role ModuleRole) (LayoutRoom, bool)
 // behind the freezer: the butcher walks through the freezer, and carcasses
 // stay in the cold. A gear room (#1773) takes the back wall when the side
 // walls are taken. The room's own Door is the Link.
-func (p *packer) behind(rooms []LayoutRoom, k Rectangle, role ModuleRole, rule relationRule) (LayoutRoom, bool) {
+func (p *packer) behind(rooms []PlannedRoom, k Rectangle, role PlannedRole, rule relationSpec) (PlannedRoom, bool) {
 	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
 	ku, kw, ka, kd := p.h.extent(k)
 	pos := p.h.positive(k)
@@ -332,7 +332,7 @@ func (p *packer) behind(rooms []LayoutRoom, k Rectangle, role ModuleRole, rule r
 		columns = []int32{ku + kw - 1, ku - w + 1}
 	}
 	for _, u := range columns {
-		room := LayoutRoom{Role: role, Interior: p.h.rect(u, a, w, d), DoorRot: p.h.facing(pos)}
+		room := PlannedRoom{Role: role, Interior: p.h.rect(u, a, w, d), DoorRot: p.h.facing(pos)}
 		if !p.fits(room) || overlapsRooms(room, rooms) {
 			continue
 		}
@@ -345,19 +345,19 @@ func (p *packer) behind(rooms []LayoutRoom, k Rectangle, role ModuleRole, rule r
 		room.Dug = p.g.dug(room)
 		return room, true
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }
 
 // packRoom places one room of role on the nearest free slot, trying every
 // hallway and laying a crossing while no slot fits. fit reports that some
 // slot fit the role (a room that makes a thoroughfare, #780, still counts as
 // fit); placed that a room was added.
-func (g coreGrid) packRoom(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, role ModuleRole, size [2]int32) (_ []SpineSegment, _ []LayoutRoom, placed, fit bool) {
+func (g coreGrid) packRoom(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, role PlannedRole, size [2]int32) (_ []SpineSegment, _ []PlannedRoom, placed, fit bool) {
 	for !placed {
 		for i := range spine {
 			p := g.packer(spine, i, rooms)
 			ok := false
-			var room LayoutRoom
+			var room PlannedRoom
 			if i == 0 {
 				room, ok = p.against(rooms, role)
 			}
@@ -370,7 +370,7 @@ func (g coreGrid) packRoom(spine []SpineSegment, rooms []LayoutRoom, wings []Win
 			fit = true
 			// A room that makes a thoroughfare (#780) is left out; the
 			// next hallway (or role) tries its slot.
-			trial := append(append([]LayoutRoom(nil), rooms...), room)
+			trial := append(append([]PlannedRoom(nil), rooms...), room)
 			grown := append([]SpineSegment(nil), spine...)
 			grown[i] = p.h.segment()
 			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Entrances: spineEntrances(grown), Rooms: trial, Wings: wings}); err != nil {

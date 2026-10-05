@@ -12,22 +12,22 @@ import "errors"
 
 // demandCoreRooms are the rooms RoomGrowth.Core may ask for, in the order
 // they are added.
-var demandCoreRooms = []ModuleRole{
-	ModuleHospital, ModuleLab, ModuleRec, ModuleButchery, ModulePrison, ModuleMorgue, ModuleBattery,
+var demandCoreRooms = []PlannedRole{
+	PlannedHospital, PlannedLab, PlannedRec, PlannedButchery, PlannedPrison, PlannedMorgue, PlannedBattery,
 }
 
 // CoreRoomsOwed is the rooms of wanted that plan lacks, in demandCoreRooms
 // order. A role outside demandCoreRooms is ignored.
-func CoreRoomsOwed(plan LayoutPlan, wanted []ModuleRole) []ModuleRole {
-	want := map[ModuleRole]bool{}
+func CoreRoomsOwed(plan LayoutPlan, wanted []PlannedRole) []PlannedRole {
+	want := map[PlannedRole]bool{}
 	for _, r := range wanted {
 		want[r] = true
 	}
-	have := map[ModuleRole]bool{}
+	have := map[PlannedRole]bool{}
 	for _, r := range plan.AllRooms() {
 		have[r.Role] = true
 	}
-	var owed []ModuleRole
+	var owed []PlannedRole
 	for _, role := range demandCoreRooms {
 		if want[role] && !have[role] {
 			owed = append(owed, role)
@@ -39,7 +39,7 @@ func CoreRoomsOwed(plan LayoutPlan, wanted []ModuleRole) []ModuleRole {
 // growDemandRooms adds each room of wanted that plan lacks and gives a newly
 // cooled room its cooler exhaust. It reports whether a room was added and the
 // rooms it could not place.
-func growDemandRooms(plan LayoutPlan, s MapSurvey, sc *planScorer, wanted []ModuleRole) (LayoutPlan, bool, error) {
+func growDemandRooms(plan LayoutPlan, s MapSurvey, sc *planScorer, wanted []PlannedRole) (LayoutPlan, bool, error) {
 	if len(plan.Hallways()) == 0 {
 		return plan, false, nil
 	}
@@ -65,7 +65,7 @@ func growDemandRooms(plan LayoutPlan, s MapSurvey, sc *planScorer, wanted []Modu
 // WithCoreRooms is plan with the demand rooms of wanted grown on, for a
 // caller that audits a room the start plan no longer holds. It reports the
 // rooms it could not place.
-func WithCoreRooms(plan LayoutPlan, wanted ...ModuleRole) (LayoutPlan, error) {
+func WithCoreRooms(plan LayoutPlan, wanted ...PlannedRole) (LayoutPlan, error) {
 	grown, _, err := growDemandRooms(plan, MapSurvey{}, nil, wanted)
 	return grown, err
 }

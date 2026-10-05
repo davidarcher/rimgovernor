@@ -257,35 +257,35 @@ func InteriorRoomFromCensus(room Room, role RoomRole, doorways []domain.Cell, sh
 
 // moduleRoomRoles maps a v2 layout module to the census role its
 // furniture gives it.
-var moduleRoomRoles = map[ModuleRole]RoomRole{
-	ModuleBedroom:          RoomRoleBedroom,
-	ModuleSuite:            RoomRoleSuite,
-	ModuleShelter:          RoomRoleShelter,
-	ModuleDining:           RoomRoleDiningRoom,
-	ModuleRec:              RoomRoleRecRoom,
-	ModuleLab:              RoomRoleLaboratory,
-	ModuleTomb:             RoomRoleTomb,
-	ModuleThrone:           RoomRoleThroneRoom,
-	ModuleNursery:          RoomRoleNursery,
-	ModulePlayroom:         RoomRolePlayroom,
-	ModuleClassroom:        RoomRoleClassroom,
-	ModuleWorship:          RoomRoleWorshipRoom,
-	ModuleDeathrestChamber: RoomRoleDeathrestChamber,
-	ModuleContainmentCell:  RoomRoleContainmentCell,
-	ModuleIsolationRoom:    RoomRoleIsolationRoom,
-	ModuleHospital:         RoomRoleHospital,
-	ModuleKitchen:          RoomRoleKitchen,
-	ModuleWorkshop:         RoomRoleWorkshop,
-	ModuleStorage:          RoomRoleStoreroom,
-	ModuleArmory:           RoomRoleStoreroom,
-	ModuleWardrobe:         RoomRoleStoreroom,
-	ModulePrison:           RoomRolePrisonCell,
-	ModuleBarn:             RoomRoleBarn,
-	ModuleVetRoom:          RoomRoleVetRoom,
+var moduleRoomRoles = map[PlannedRole]RoomRole{
+	PlannedBedroom:          RoomRoleBedroom,
+	PlannedSuite:            RoomRoleSuite,
+	PlannedShelter:          RoomRoleShelter,
+	PlannedDining:           RoomRoleDiningRoom,
+	PlannedRec:              RoomRoleRecRoom,
+	PlannedLab:              RoomRoleLaboratory,
+	PlannedTomb:             RoomRoleTomb,
+	PlannedThrone:           RoomRoleThroneRoom,
+	PlannedNursery:          RoomRoleNursery,
+	PlannedPlayroom:         RoomRolePlayroom,
+	PlannedClassroom:        RoomRoleClassroom,
+	PlannedWorship:          RoomRoleWorshipRoom,
+	PlannedDeathrestChamber: RoomRoleDeathrestChamber,
+	PlannedContainmentCell:  RoomRoleContainmentCell,
+	PlannedIsolationRoom:    RoomRoleIsolationRoom,
+	PlannedHospital:         RoomRoleHospital,
+	PlannedKitchen:          RoomRoleKitchen,
+	PlannedWorkshop:         RoomRoleWorkshop,
+	PlannedStorage:          RoomRoleStoreroom,
+	PlannedArmory:           RoomRoleStoreroom,
+	PlannedWardrobe:         RoomRoleStoreroom,
+	PlannedPrison:           RoomRolePrisonCell,
+	PlannedBarn:             RoomRoleBarn,
+	PlannedVetRoom:          RoomRoleVetRoom,
 }
 
 // InteriorRoomFromLayout reads a v2 layout room as a plan input.
-func InteriorRoomFromLayout(r LayoutRoom, shapes PieceShapes) (InteriorRoom, bool) {
+func InteriorRoomFromLayout(r PlannedRoom, shapes PieceShapes) (InteriorRoom, bool) {
 	role, ok := moduleRoomRoles[r.Role]
 	if !ok || r.Interior.Width <= 0 || r.Interior.Height <= 0 {
 		return InteriorRoom{}, false
@@ -610,12 +610,12 @@ func InteriorSnapAnchors(room InteriorRoom, occupied []domain.Cell) []domain.Cel
 	return out
 }
 
-// ModuleRoleOf is the layout module a census room role is planned as, the
+// PlannedRoleOf is the layout module a census room role is planned as, the
 // inverse of moduleRoomRoles; Storeroom is the plain storage module. False
 // means no planned room carries the role.
-func ModuleRoleOf(role RoomRole) (ModuleRole, bool) {
+func PlannedRoleOf(role RoomRole) (PlannedRole, bool) {
 	if role == RoomRoleStoreroom {
-		return ModuleStorage, true
+		return PlannedStorage, true
 	}
 	for m, r := range moduleRoomRoles {
 		if r == role {

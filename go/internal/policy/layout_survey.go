@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // The map survey (#727) is the whole-map read the layout plan (#771) is
-// derived from, and ModuleRole names a planned room's role.
+// derived from, and PlannedRole names a planned room's role.
 
 // SurveyCell is one map cell of the settle-time survey. Absent cells are
 // unknown and score as unbuildable.
@@ -70,22 +70,22 @@ type MapSurvey struct {
 	Hot bool
 }
 
-// ModuleRole is a planned room's role.
-type ModuleRole string
+// PlannedRole is a planned room's role.
+type PlannedRole string
 
 const (
-	ModuleHospital ModuleRole = "hospital"
-	ModulePrison   ModuleRole = "prison"
-	ModuleKitchen  ModuleRole = "kitchen"
-	ModuleFreezer  ModuleRole = "freezer"
-	// ModuleButchery is the butcher room (butchering is filthy, so it is
+	PlannedHospital PlannedRole = "hospital"
+	PlannedPrison   PlannedRole = "prison"
+	PlannedKitchen  PlannedRole = "kitchen"
+	PlannedFreezer  PlannedRole = "freezer"
+	// PlannedButchery is the butcher room (butchering is filthy, so it is
 	// kept out of the kitchen): beside the freezer behind a Link door when
 	// a side is free, else on the hallway.
-	ModuleButchery ModuleRole = "butchery"
-	ModuleStorage  ModuleRole = "storage"
-	ModuleWorkshop ModuleRole = "workshop"
-	// ModuleReserve is sound ground held for growth.
-	ModuleReserve ModuleRole = "reserve"
+	PlannedButchery PlannedRole = "butchery"
+	PlannedStorage  PlannedRole = "storage"
+	PlannedWorkshop PlannedRole = "workshop"
+	// PlannedReserve is sound ground held for growth.
+	PlannedReserve PlannedRole = "reserve"
 )
 
 // LayoutEdgeMargin is how far from the map edge nothing is built: raiders

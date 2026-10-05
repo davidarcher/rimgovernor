@@ -8,13 +8,13 @@ package policy
 
 // plannedStorageRooms are the plan's storage rooms in plan order, the first
 // being the core room.
-func (r StorageRequest) plannedStorageRooms() []LayoutRoom {
+func (r StorageRequest) plannedStorageRooms() []PlannedRoom {
 	if r.Layout == nil || r.Rooms == nil {
 		return nil
 	}
-	var out []LayoutRoom
+	var out []PlannedRoom
 	for _, planned := range r.Layout.AllRooms() {
-		if planned.Role == ModuleStorage {
+		if planned.Role == PlannedStorage {
 			out = append(out, planned)
 		}
 	}
@@ -89,7 +89,7 @@ func (r StorageRequest) warehouseReading() warehouseReading {
 func StorageRoomsOwed(plan LayoutPlan, demand RoomDemand) int {
 	have := 0
 	for _, r := range plan.AllRooms() {
-		if r.Role == ModuleStorage {
+		if r.Role == PlannedStorage {
 			have++
 		}
 	}
@@ -105,5 +105,5 @@ func growStorageRooms(plan LayoutPlan, demand RoomDemand, sc *planScorer) (Layou
 	if len(plan.Hallways()) == 0 || StorageRoomsOwed(plan, demand) == 0 {
 		return plan, false, nil
 	}
-	return SiteRoom(plan, sc, ModuleStorage, coreRoomSize[ModuleStorage])
+	return SiteRoom(plan, sc, PlannedStorage, coreRoomSize[PlannedStorage])
 }

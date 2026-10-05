@@ -7,10 +7,10 @@ import (
 )
 
 func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
-	plan := LayoutPlan{Rooms: []LayoutRoom{
-		{Role: ModuleShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North},
-		{Role: ModuleBedroom, Interior: Rectangle{X: 10, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 5}, DoorRot: domain.North},
-		{Role: ModuleBedroom, Interior: Rectangle{X: 16, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 5}, DoorRot: domain.North},
+	plan := LayoutPlan{Rooms: []PlannedRoom{
+		{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North},
+		{Role: PlannedBedroom, Interior: Rectangle{X: 10, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 5}, DoorRot: domain.North},
+		{Role: PlannedBedroom, Interior: Rectangle{X: 16, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 5}, DoorRot: domain.North},
 	}}
 	bed := func(id string, owners ...PawnID) SleepingBed {
 		return SleepingBed{ID: id, Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Roofed: domain.Known(true), Owners: owners, AccessibleTo: []PawnID{"a", "b"}}
@@ -58,7 +58,7 @@ func TestBedroomStepHousesABedlessJoiner(t *testing.T) {
 	sleeping := SleepingObservation{Colonists: 6, BedBuildable: domain.Known(false)}
 	for i := int32(0); i < 6; i++ {
 		x := i * 6
-		plan.Rooms = append(plan.Rooms, LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: x + 2, Z: 5}, DoorRot: domain.North})
+		plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: x + 2, Z: 5}, DoorRot: domain.North})
 		if i == 5 {
 			continue
 		}
@@ -123,7 +123,7 @@ func TestBedroomStepNeverSplitsACouple(t *testing.T) {
 // last spot in the shell never reads as a bedroom (#1182).
 func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	plan, _, sleeping := bedroomFixture()
-	plan.Rooms[0] = LayoutRoom{Role: ModuleShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}
+	plan.Rooms[0] = PlannedRoom{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}
 	room := func(id string, x int32, beds ...string) Room {
 		var cells []domain.Cell
 		for cx := x; cx < x+5; cx++ {

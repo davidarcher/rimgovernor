@@ -7,11 +7,11 @@ import "testing"
 func TestSiteRoomKeepsTheBestScoringSlot(t *testing.T) {
 	p, s := scoredPlan(t)
 	sc := newPlanScorer(p.Zones, p.Reservations, s)
-	nearest, ok, err := SiteRoom(p, nil, ModuleThrone, [2]int32{6, 5})
+	nearest, ok, err := SiteRoom(p, nil, PlannedThrone, [2]int32{6, 5})
 	if !ok || err != nil {
 		t.Fatal("nearest slot:", ok, err)
 	}
-	best, ok, err := SiteRoom(p, &sc, ModuleThrone, [2]int32{6, 5})
+	best, ok, err := SiteRoom(p, &sc, PlannedThrone, [2]int32{6, 5})
 	if !ok || err != nil {
 		t.Fatal("scored slot:", ok, err)
 	}

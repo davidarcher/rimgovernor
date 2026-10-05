@@ -107,14 +107,14 @@ func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) 
 
 // bedroomMethod names a bedroom step's method: one per planned room, so a
 // room is shelled or furnished once per Episode.
-func bedroomMethod(kind policy.BedroomStepKind, room policy.LayoutRoom) domain.MethodID {
+func bedroomMethod(kind policy.BedroomStepKind, room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("bedroom-%s-%d-%d", kind, room.Interior.X, room.Interior.Z))
 }
 
 // bedroomRing is the planned room's wall ring, doors first, without the
 // cells a wall or door already stands on (a neighbour's shared wall) or
 // natural rock walls.
-func bedroomRing(room policy.LayoutRoom, doors map[domain.Cell]bool, order []domain.Cell, facts observation.ColonyProjection) []domain.Cell {
+func bedroomRing(room policy.PlannedRoom, doors map[domain.Cell]bool, order []domain.Cell, facts observation.ColonyProjection) []domain.Cell {
 	standing := map[domain.Cell]bool{}
 	if census, known := facts.Facts.CurrentConstruction.Value(); known {
 		for _, b := range census.Buildings {
@@ -158,7 +158,7 @@ func bedroomRing(room policy.LayoutRoom, doors map[domain.Cell]bool, order []dom
 // refused cell makes the slot no site this step.
 func (r *RoundsSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, error) {
 	// A suite is only started with its whole ring in stock (#1216).
-	if step.Room.Role == policy.ModuleSuite {
+	if step.Room.Role == policy.PlannedSuite {
 		in := step.Room.Interior
 		_, walls, _ := reading.Projection.StockedStuff("Wall")
 		if walls < int64(2*(in.Width+in.Height)+4) {
@@ -180,7 +180,7 @@ func bedroomShellReason(step policy.BedroomStep) string {
 // shellRoom previews and admits a planned room's walls and door once per
 // method; prefix names the plan (the tomb shares it, #832). reason is the
 // admission's short why for Operation.intent (#846).
-func (b *RoundsBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string) (RoundsBuildingResult, error) {
+func (b *RoundsBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, room policy.PlannedRoom, method domain.MethodID, reason string) (RoundsBuildingResult, error) {
 	choose := func(wall, door observation.PlanningDefinition) (string, string, Verdict, bool) {
 		return sharedShellStuff(reading.Projection, wall, door)
 	}
@@ -202,7 +202,7 @@ func sharedShellStuff(facts observation.ColonyProjection, wall, door observation
 }
 
 // shellRoomOf is shellRoom with the walls' and door's stuff chosen by stuff.
-func (b *RoundsBuildingPlanner) shellRoomOf(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string, choose shellStuff) (RoundsBuildingResult, error) {
+func (b *RoundsBuildingPlanner) shellRoomOf(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, room policy.PlannedRoom, method domain.MethodID, reason string, choose shellStuff) (RoundsBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {

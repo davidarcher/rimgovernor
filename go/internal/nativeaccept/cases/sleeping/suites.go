@@ -57,7 +57,7 @@ func init() {
 // suiteMove is the Greedy colonist's completed move into a suite.
 type suiteMove struct {
 	assign domain.Assign
-	room   policy.LayoutRoom
+	room   policy.PlannedRoom
 	// standard counts the completed standard-wing shells before it.
 	standard int
 }
@@ -90,7 +90,7 @@ func history(ctx context.Context, journal *store.Store) ([]store.PlanState, erro
 }
 
 // roomAt is the wing room of purpose whose interior starts at x,z.
-func roomAt(plan policy.LayoutPlan, purpose policy.WingPurpose, x, z int32) (policy.LayoutRoom, bool) {
+func roomAt(plan policy.LayoutPlan, purpose policy.WingPurpose, x, z int32) (policy.PlannedRoom, bool) {
 	for _, w := range plan.Wings {
 		if w.Purpose != purpose {
 			continue
@@ -101,7 +101,7 @@ func roomAt(plan policy.LayoutPlan, purpose policy.WingPurpose, x, z int32) (pol
 			}
 		}
 	}
-	return policy.LayoutRoom{}, false
+	return policy.PlannedRoom{}, false
 }
 
 // findSuiteMove reads the journal for pawn's completed move into a suite.
@@ -118,7 +118,7 @@ func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID
 	if err != nil {
 		return suiteMove{}, false, err
 	}
-	var suite policy.LayoutRoom
+	var suite policy.PlannedRoom
 	for _, w := range layout.Plan.Wings {
 		if w.Purpose == policy.WingSuites && len(w.Rooms) > 0 {
 			suite = w.Rooms[0]
@@ -266,18 +266,18 @@ func suites(ctx context.Context, s cases.Session) error {
 
 // newSuiteShelled finds a suite other than first whose shell plan
 // completed, and the plan's layout.
-func newSuiteShelled(ctx context.Context, journal *store.Store, first policy.LayoutRoom) (policy.LayoutRoom, bool, error) {
+func newSuiteShelled(ctx context.Context, journal *store.Store, first policy.PlannedRoom) (policy.PlannedRoom, bool, error) {
 	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return policy.LayoutRoom{}, false, nil
+		return policy.PlannedRoom{}, false, nil
 	}
 	layout, laid, err := journal.LayoutPlan(ctx, review.Snapshot, review.Tick)
 	if err != nil || !laid {
-		return policy.LayoutRoom{}, false, err
+		return policy.PlannedRoom{}, false, err
 	}
 	plans, err := history(ctx, journal)
 	if err != nil {
-		return policy.LayoutRoom{}, false, err
+		return policy.PlannedRoom{}, false, err
 	}
 	for _, plan := range plans {
 		var x, z int32
@@ -290,7 +290,7 @@ func newSuiteShelled(ctx context.Context, journal *store.Store, first policy.Lay
 			}
 		}
 	}
-	return policy.LayoutRoom{}, false, nil
+	return policy.PlannedRoom{}, false, nil
 }
 
 // auditNewSuite checks the journal and the plan: a second suite was

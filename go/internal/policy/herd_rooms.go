@@ -24,9 +24,9 @@ import (
 // can carry the flag natively), so colonists treat animals in it.
 
 const (
-	// ModuleBarn is the barn's plan role, ModuleVetRoom the vet room's.
-	ModuleBarn    ModuleRole = "barn"
-	ModuleVetRoom ModuleRole = "vet_room"
+	// PlannedBarn is the barn's plan role, PlannedVetRoom the vet room's.
+	PlannedBarn    PlannedRole = "barn"
+	PlannedVetRoom PlannedRole = "vet_room"
 	// RoomRoleVetRoom is the vet room's interior-template role. It is the
 	// controller's own, not a RoomRoleDef: the game scores a room of animal
 	// beds Barn, whichever of the two it is.
@@ -168,20 +168,20 @@ func herdSide(beds int) (w, h int32) {
 }
 
 // herdRole is the plan role of a herd reservation kind.
-func herdRole(kind ReservationKind) (ModuleRole, bool) {
+func herdRole(kind ReservationKind) (PlannedRole, bool) {
 	switch kind {
 	case ReserveBarn:
-		return ModuleBarn, true
+		return PlannedBarn, true
 	case ReserveVetRoom:
-		return ModuleVetRoom, true
+		return PlannedVetRoom, true
 	}
 	return "", false
 }
 
-// HerdRooms are the plan's rooms of role (ModuleBarn or ModuleVetRoom), one
+// HerdRooms are the plan's rooms of role (PlannedBarn or PlannedVetRoom), one
 // per reservation in plan order.
-func (p LayoutPlan) HerdRooms(role ModuleRole) []LayoutRoom {
-	var out []LayoutRoom
+func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
+	var out []PlannedRoom
 	for _, r := range p.Reservations {
 		if want, ok := herdRole(r.Kind); ok && want == role {
 			out = append(out, p.herdRoom(r.Area, role))
@@ -193,9 +193,9 @@ func (p LayoutPlan) HerdRooms(role ModuleRole) []LayoutRoom {
 // herdRoom is the room a barn or vet room reservation holds: the door in
 // the middle of the wall facing the first pen (barn) or the colony core
 // (vet room; the barn's centre when the plan has no core).
-func (p LayoutPlan) herdRoom(area Rectangle, role ModuleRole) LayoutRoom {
+func (p LayoutPlan) herdRoom(area Rectangle, role PlannedRole) PlannedRoom {
 	in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: area.Width - 2, Height: area.Height - 2}
-	room := LayoutRoom{Role: role, Interior: in}
+	room := PlannedRoom{Role: role, Interior: in}
 	cx, cz := float64(in.X)+float64(in.Width)/2, float64(in.Z)+float64(in.Height)/2
 	tx, tz, ok := p.herdTarget(role)
 	if !ok {
@@ -219,7 +219,7 @@ func (p LayoutPlan) herdRoom(area Rectangle, role ModuleRole) LayoutRoom {
 	}
 	// A vet room standing against a barn's wall opens into it through a
 	// door in the shared wall, besides its own door outside.
-	if role == ModuleVetRoom {
+	if role == PlannedVetRoom {
 		for _, r := range p.Reservations {
 			if r.Kind != ReserveBarn || r.Area == area {
 				continue
@@ -282,17 +282,17 @@ func abs64(v float64) float64 {
 }
 
 // herdTarget is the point a herd room's door faces.
-func (p LayoutPlan) herdTarget(role ModuleRole) (x, z float64, ok bool) {
+func (p LayoutPlan) herdTarget(role PlannedRole) (x, z float64, ok bool) {
 	centre := func(r Rectangle) (float64, float64, bool) {
 		return float64(r.X) + float64(r.Width)/2, float64(r.Z) + float64(r.Height)/2, true
 	}
-	if role == ModuleVetRoom {
+	if role == PlannedVetRoom {
 		if c, found := p.Core(); found {
 			return float64(c.X), float64(c.Z), true
 		}
 	}
 	want := ReservePen
-	if role == ModuleVetRoom {
+	if role == PlannedVetRoom {
 		want = ReserveBarn
 	}
 	for _, r := range p.Reservations {
@@ -306,7 +306,7 @@ func (p LayoutPlan) herdTarget(role ModuleRole) (x, z float64, ok bool) {
 // herdCapacity is the beds the plan's rooms of role hold, counting 1x1
 // beds: the sizes of the real definitions are read natively when a room is
 // furnished.
-func (p LayoutPlan) herdCapacity(role ModuleRole) int {
+func (p LayoutPlan) herdCapacity(role PlannedRole) int {
 	n := 0
 	for _, room := range p.HerdRooms(role) {
 		n += herdRoomBeds(room, PieceShapes{}, InteriorPieceDef{Def: "bed", Size: domain.Cell{X: 1, Z: 1}})
@@ -315,7 +315,7 @@ func (p LayoutPlan) herdCapacity(role ModuleRole) int {
 }
 
 // herdRoomBeds is the beds def's template holds in room.
-func herdRoomBeds(room LayoutRoom, shapes PieceShapes, def InteriorPieceDef) int {
+func herdRoomBeds(room PlannedRoom, shapes PieceShapes, def InteriorPieceDef) int {
 	in, ok := InteriorRoomFromLayout(room, shapes)
 	if !ok {
 		return 0
@@ -365,8 +365,8 @@ const (
 // HerdStep is one bounded step towards the barn and vet room.
 type HerdStep struct {
 	Kind  HerdStepKind
-	Role  ModuleRole
-	Room  LayoutRoom
+	Role  PlannedRole
+	Room  PlannedRoom
 	Piece InteriorPiece
 	// Bed is the census id of the bed a HerdMedical step flags.
 	Bed string
@@ -394,10 +394,10 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 		}
 	}
 	for _, site := range []struct {
-		role ModuleRole
+		role PlannedRole
 		def  InteriorPieceDef
 		beds int
-	}{{ModuleBarn, f.Spot, animals}, {ModuleVetRoom, f.Bed, VetBeds(animals)}} {
+	}{{PlannedBarn, f.Spot, animals}, {PlannedVetRoom, f.Bed, VetBeds(animals)}} {
 		want := site.beds
 		for _, room := range plan.HerdRooms(site.role) {
 			if want <= 0 {
@@ -417,7 +417,7 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 			if _, standing := PlannedRoomStanding(room, rooms); !standing {
 				return HerdStep{Kind: HerdShell, Role: site.role, Room: room}
 			}
-			if site.role == ModuleVetRoom {
+			if site.role == PlannedVetRoom {
 				if bed, due := unflaggedVetBed(room, built, sleeping, site.def.Def); due {
 					return HerdStep{Kind: HerdMedical, Role: site.role, Room: room, Bed: bed}
 				}
@@ -451,8 +451,8 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 // barnHeater is the climate piece a barn owes once its beds stand: the
 // planned heater slot while no heater of def stands in the room and its cells
 // are free. A catalog heater that is not buildable yet owes nothing.
-func barnHeater(role ModuleRole, def InteriorPieceDef, pieces []InteriorPiece, room LayoutRoom, built []CurrentBuilding, taken map[domain.Cell]bool) (InteriorPiece, bool) {
-	if role != ModuleBarn || def.Def == "" {
+func barnHeater(role PlannedRole, def InteriorPieceDef, pieces []InteriorPiece, room PlannedRoom, built []CurrentBuilding, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+	if role != PlannedBarn || def.Def == "" {
 		return InteriorPiece{}, false
 	}
 	for _, b := range built {
@@ -477,7 +477,7 @@ func barnHeater(role ModuleRole, def InteriorPieceDef, pieces []InteriorPiece, r
 // unflaggedVetBed is the first standing bed of def in room whose census row
 // reads not medical; a bed the census lacks or whose flag is unread is not
 // due yet.
-func unflaggedVetBed(room LayoutRoom, built []CurrentBuilding, sleeping []SleepingBed, def string) (string, bool) {
+func unflaggedVetBed(room PlannedRoom, built []CurrentBuilding, sleeping []SleepingBed, def string) (string, bool) {
 	for _, b := range built {
 		if b.Building.Definition() != def || len(b.Cells) == 0 || !rectInside(room.Interior, cellsRectangle(b.Cells)) {
 			continue

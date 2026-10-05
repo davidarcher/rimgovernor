@@ -95,10 +95,10 @@ func TestThroneRoomSizeMeetsTheArea(t *testing.T) {
 	}
 }
 
-func throneFixture() (LayoutPlan, LayoutRoom, ThroneNeed) {
-	room := LayoutRoom{Role: ModuleThrone, Interior: Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+func throneFixture() (LayoutPlan, PlannedRoom, ThroneNeed) {
+	room := PlannedRoom{Role: PlannedThrone, Interior: Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	need := ThroneNeed{Holder: "Alice", Title: "Knight", ThroneRequirements: ThroneRequirements{MinArea: 30, MinImpressiveness: 55, Things: []string{"Throne"}, Assigned: true}}
-	return LayoutPlan{Rooms: []LayoutRoom{room}}, room, need
+	return LayoutPlan{Rooms: []PlannedRoom{room}}, room, need
 }
 
 func throneDefs(size Bounds) []FurnitureDefinition {
@@ -276,10 +276,10 @@ func TestGrowThroneRoomAddsOneAndKeepsTheRest(t *testing.T) {
 }
 
 func TestThroneRoomRoleTables(t *testing.T) {
-	if role, ok := LayoutModule(RoomRoleThroneRoom); !ok || role != ModuleThrone {
+	if role, ok := PlannedRoleFor(RoomRoleThroneRoom); !ok || role != PlannedThrone {
 		t.Fatal("the ThroneRoom role has no layout module")
 	}
-	if moduleRoomRoles[ModuleThrone] != RoomRoleThroneRoom {
+	if moduleRoomRoles[PlannedThrone] != RoomRoleThroneRoom {
 		t.Fatal("throne room tables")
 	}
 	if f, err := Facility(RoomRoleThroneRoom); err != nil || f.Status != FacilityImplemented {

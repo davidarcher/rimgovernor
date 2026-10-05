@@ -94,7 +94,7 @@ func checkWing(t *testing.T, p LayoutPlan) Wing {
 	sharing := 0
 	step := map[domain.Rotation]domain.Cell{domain.North: {Z: 1}, domain.South: {Z: -1}, domain.East: {X: 1}, domain.West: {X: -1}}
 	for _, r := range w.Rooms {
-		if r.Role != ModuleBedroom {
+		if r.Role != PlannedBedroom {
 			t.Fatal("wing room role", r.Role)
 		}
 		s := step[r.DoorRot]
@@ -136,7 +136,7 @@ func TestBedroomWingHousesEachPawn(t *testing.T) {
 			t.Fatalf("%d pawns: wings %v, want one", pawns, got)
 		}
 		for _, r := range p.Rooms {
-			if r.Role == ModuleBedroom {
+			if r.Role == PlannedBedroom {
 				t.Fatal("a spine bedroom", r)
 			}
 		}
@@ -197,7 +197,7 @@ func TestKeepWingRoomsTrimsTheCorridor(t *testing.T) {
 	p := corePlan(coreTestZones(), 6, BuildTierCamp)
 	w := testBedroomWing(t, p)
 	last := w.Rooms[len(w.Rooms)-1]
-	kept := keepWingRooms(p.Wings, func(r LayoutRoom) bool {
+	kept := keepWingRooms(p.Wings, func(r PlannedRoom) bool {
 		return r.Interior != last.Interior && r.Interior != w.Rooms[len(w.Rooms)-2].Interior
 	})
 	if len(kept) != 1 || len(kept[0].Rooms) != 8 || kept[0].Corridor.To == w.Corridor.To {
@@ -219,9 +219,9 @@ func TestBedroomsClusterNearStorage(t *testing.T) {
 	for _, pawns := range []int{3, 5, 8} {
 		p := corePlan(coreTestZones(), pawns, BuildTierCamp)
 		w := checkWing(t, p)
-		var store *LayoutRoom
+		var store *PlannedRoom
 		for i, r := range p.Rooms {
-			if r.Role == ModuleStorage {
+			if r.Role == PlannedStorage {
 				store = &p.Rooms[i]
 			}
 		}

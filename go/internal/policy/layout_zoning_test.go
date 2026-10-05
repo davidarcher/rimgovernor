@@ -117,7 +117,7 @@ func TestZoneOpenPlains(t *testing.T) {
 	if patches != 1 || len(fields) != 40*40 || fields[domain.Cell{X: 12, Z: 12}] == 0 {
 		t.Fatal("one field", patches, len(fields))
 	}
-	if !(LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleKitchen, Interior: Rectangle{Width: 1, Height: 1}, DoorRot: domain.North}}, Zones: zones}).Valid() {
+	if !(LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedKitchen, Interior: Rectangle{Width: 1, Height: 1}, DoorRot: domain.North}}, Zones: zones}).Valid() {
 		t.Fatal("zones persist")
 	}
 }

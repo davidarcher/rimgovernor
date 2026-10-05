@@ -33,7 +33,7 @@ func growPlan(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float
 }
 
 // withRooms grows the demand-grown core rooms wanted onto plan.
-func withRooms(plan LayoutPlan, wanted ...ModuleRole) LayoutPlan {
+func withRooms(plan LayoutPlan, wanted ...PlannedRole) LayoutPlan {
 	plan, _, _ = growDemandRooms(plan, MapSurvey{}, nil, wanted)
 	return plan
 }

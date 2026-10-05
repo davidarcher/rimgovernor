@@ -9,8 +9,8 @@ import (
 // colonist holds or can claim a title that asks for one. It is the
 // sleeping planner's under MaintainHousing (NextThroneStep).
 
-// ModuleThrone is the throne room's plan role.
-const ModuleThrone ModuleRole = "throne"
+// PlannedThrone is the throne room's plan role.
+const PlannedThrone PlannedRole = "throne"
 
 // throneMinSide is the shortest throne room side.
 const throneMinSide int32 = 4
@@ -46,13 +46,13 @@ func ThroneRoomSizes(area int) [][2]int32 {
 
 // ThroneRoomFor is the plan's first throne room whose interior holds at
 // least area cells (the room a title's area requirement is met in).
-func (p LayoutPlan) ThroneRoomFor(area int) (LayoutRoom, bool) {
+func (p LayoutPlan) ThroneRoomFor(area int) (PlannedRoom, bool) {
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleThrone && int(r.Interior.Width)*int(r.Interior.Height) >= area {
+		if r.Role == PlannedThrone && int(r.Interior.Width)*int(r.Interior.Height) >= area {
 			return r, true
 		}
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }
 
 // growThroneRoom adds a throne room of at least area cells to plan unless
@@ -68,5 +68,5 @@ func growThroneRoom(plan LayoutPlan, area int, sc *planScorer) (LayoutPlan, bool
 	if _, ok := plan.ThroneRoomFor(area); ok {
 		return plan, false, nil
 	}
-	return SiteRoom(plan, sc, ModuleThrone, ThroneRoomSizes(area)...)
+	return SiteRoom(plan, sc, PlannedThrone, ThroneRoomSizes(area)...)
 }

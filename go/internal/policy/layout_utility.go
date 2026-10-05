@@ -8,7 +8,7 @@ import (
 
 // Utility reservations (#782, A6). After the core is laid out the plan
 // holds:
-//   - a battery room off the spine, a room like any other (ModuleBattery);
+//   - a battery room off the spine, a room like any other (PlannedBattery);
 //   - wind turbines in facing north/south pairs whose catch zones overlap
 //     in one shared lane, every zone cell a field and none roofed, walled,
 //     rock or core;
@@ -19,10 +19,10 @@ import (
 // band so the spine can keep growing along it, and the generator never builds over
 // a reservation.
 
-// ModuleBattery is the battery room: 5 wide, a 1-cell walkway from the
+// PlannedBattery is the battery room: 5 wide, a 1-cell walkway from the
 // door down the middle, batteries (1x2) along both sides with a stone
 // block between each, roofed, stone door.
-const ModuleBattery ModuleRole = "battery"
+const PlannedBattery PlannedRole = "battery"
 
 // ReserveExhaust is the cells behind a cooled room's back wall the cooler
 // dumps heat into: one open cell, or a shaft dug through rock to open
@@ -47,7 +47,7 @@ const (
 // coolingRoles are the rooms that need a cooler, most important first;
 // the tomb keeps colonist corpses frozen (#840), the meal closet the
 // dining room's meals (#936).
-var coolingRoles = []ModuleRole{ModuleFreezer, ModuleTomb, ModuleMorgue, ModuleMealCloset}
+var coolingRoles = []PlannedRole{PlannedFreezer, PlannedTomb, PlannedMorgue, PlannedMealCloset}
 
 // penCellsPerAnimal sizes the animal pen: cells per penned animal (#1593).
 const penCellsPerAnimal = 10
@@ -120,7 +120,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	if len(plan.Hallways()) == 0 {
 		return plan
 	}
-	plan.Rooms = append([]LayoutRoom(nil), plan.Rooms...)
+	plan.Rooms = append([]PlannedRoom(nil), plan.Rooms...)
 	plan.Reservations = append([]LayoutReservation(nil), plan.Reservations...)
 	plan.Zones = append([]LayoutZone(nil), plan.Zones...)
 	u := newUtilityGrid(plan)
@@ -237,7 +237,7 @@ func TurbinePlacement(area Rectangle, pairSouth bool) (domain.Cell, domain.Rotat
 // walkway on each side), nearest the door first; the rows between them
 // hold the stone blocks. A room on a crossing (east or west door) is the
 // same room transposed: 1x2 slots along z, rows stepping along x.
-func BatterySlots(r LayoutRoom) []Rectangle {
+func BatterySlots(r PlannedRoom) []Rectangle {
 	if r.DoorRot == domain.East || r.DoorRot == domain.West {
 		out := BatterySlots(transposeRoom(r))
 		for i, s := range out {
@@ -280,7 +280,7 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 	switch definition {
 	case BatteryDefinition:
 		for _, r := range plan.AllRooms() {
-			if r.Role != ModuleBattery {
+			if r.Role != PlannedBattery {
 				continue
 			}
 			slots := BatterySlots(r)
@@ -362,7 +362,7 @@ func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
 
 // backWall is room's back wall cell (the middle of the wall facing away
 // from its hallway), the step pointing out through it, and that direction.
-func backWall(room LayoutRoom) (domain.Cell, domain.Cell, domain.Rotation) {
+func backWall(room PlannedRoom) (domain.Cell, domain.Cell, domain.Rotation) {
 	in := room.Interior
 	switch room.DoorRot {
 	case domain.North: // room south of an east-west hallway
@@ -377,7 +377,7 @@ func backWall(room LayoutRoom) (domain.Cell, domain.Cell, domain.Rotation) {
 
 // CoolerExhaust is the cooler site in room's back wall and the exhaust the
 // plan reserved behind it; false when the plan reserved none.
-func (p LayoutPlan) CoolerExhaust(room LayoutRoom) (PlannedCoolerSite, Rectangle, bool) {
+func (p LayoutPlan) CoolerExhaust(room PlannedRoom) (PlannedCoolerSite, Rectangle, bool) {
 	wall, step, rot := backWall(room)
 	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
 	for _, e := range p.Reservations {
@@ -468,7 +468,7 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 	return u
 }
 
-func roomWalls(r LayoutRoom) Rectangle {
+func roomWalls(r PlannedRoom) Rectangle {
 	in := r.Interior
 	return Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}
 }
@@ -611,7 +611,7 @@ func (u *utilityGrid) skyRock(r Rectangle) int {
 // exhaust is the column behind r's back wall, away from the spine, out to
 // the first open cell: one cell on an outer face, a dug shaft through
 // rock. False when the back is planned or off the map.
-func (u *utilityGrid) exhaust(r LayoutRoom) (Rectangle, bool) {
+func (u *utilityGrid) exhaust(r PlannedRoom) (Rectangle, bool) {
 	wall, step, _ := backWall(r)
 	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
 	c := first

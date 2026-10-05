@@ -8,19 +8,19 @@ import (
 
 // hallRoom is a room of role at interior X ix on the east-west hallway at z0,
 // north of it or south, its door in the hallway wall.
-func hallRoom(role ModuleRole, ix, z0, w, d int32, north bool) LayoutRoom {
+func hallRoom(role PlannedRole, ix, z0, w, d int32, north bool) PlannedRoom {
 	return hallFrame{along: true, line: z0}.room(role, ix, w, d, north)
 }
 
 func TestPlannedShellsKeepThePlanRectangleAndDoor(t *testing.T) {
-	north := hallRoom(ModuleWorkshop, 20, 30, 7, 5, true)
-	south := hallRoom(ModuleWorkshop, 30, 30, 7, 5, false)
-	plan := LayoutPlan{Rooms: []LayoutRoom{hallRoom(ModuleKitchen, 10, 30, 6, 5, true), north, south}}
+	north := hallRoom(PlannedWorkshop, 20, 30, 7, 5, true)
+	south := hallRoom(PlannedWorkshop, 30, 30, 7, 5, false)
+	plan := LayoutPlan{Rooms: []PlannedRoom{hallRoom(PlannedKitchen, 10, 30, 6, 5, true), north, south}}
 	shells := plan.PlannedShells(RoomRoleWorkshop)
 	if len(shells) != 2 {
 		t.Fatalf("%d workshop shells", len(shells))
 	}
-	for i, r := range []LayoutRoom{north, south} {
+	for i, r := range []PlannedRoom{north, south} {
 		s := shells[i]
 		b := s.Bounds()
 		if s.Door() != r.Door || s.Entrance() != r.DoorRot || b.X != r.Interior.X-1 || b.Z != r.Interior.Z-1 || b.Width != r.Interior.Width+2 || b.Height != r.Interior.Height+2 {
@@ -58,13 +58,13 @@ func plannedGround(bounds Bounds, edit func(*SiteCell)) ([]SiteCell, []domain.Ce
 // with none buildable (or none planned) there is no site at all.
 func TestPlannedLayoutBuildsTheFirstBuildablePlannedRoom(t *testing.T) {
 	bounds := Bounds{Width: 60, Height: 60}
-	taken := hallRoom(ModuleWorkshop, 20, 30, 7, 5, true)
-	next := hallRoom(ModuleWorkshop, 20, 30, 7, 5, false)
+	taken := hallRoom(PlannedWorkshop, 20, 30, 7, 5, true)
+	next := hallRoom(PlannedWorkshop, 20, 30, 7, 5, false)
 	cells, hallway := plannedGround(bounds, func(c *SiteCell) {
 		in := taken.Interior
 		c.Occupied = domain.Known(c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height)
 	})
-	plan := LayoutPlan{Rooms: []LayoutRoom{taken, next}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{taken, next}}
 	layout, ok, err := PlannedLayout(StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)})
 	if err != nil || !ok {
 		t.Fatalf("no planned layout: %v", err)
@@ -86,8 +86,8 @@ func TestPlannedLayoutBuildsTheFirstBuildablePlannedRoom(t *testing.T) {
 // refused rather than searched for elsewhere.
 func TestShelterStandsOnThePlannedStoreroom(t *testing.T) {
 	bounds := Bounds{Width: 60, Height: 60}
-	storage := hallRoom(ModuleStorage, 20, 30, 9, 7, true)
-	plan := LayoutPlan{Rooms: []LayoutRoom{hallRoom(ModuleKitchen, 10, 30, 6, 5, true), storage}}
+	storage := hallRoom(PlannedStorage, 20, 30, 9, 7, true)
+	plan := LayoutPlan{Rooms: []PlannedRoom{hallRoom(PlannedKitchen, 10, 30, 6, 5, true), storage}}
 	cells, hallway := plannedGround(bounds, nil)
 	request := StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleStoreroom)}
 	layout, ok, err := PlannedLayout(request)
@@ -124,7 +124,7 @@ func TestShelterStandsOnThePlannedStoreroom(t *testing.T) {
 // home clearance removes it.
 func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 	bounds := Bounds{Width: 60, Height: 60}
-	room := hallRoom(ModuleWorkshop, 20, 30, 7, 5, true)
+	room := hallRoom(PlannedWorkshop, 20, 30, 7, 5, true)
 	shell, _ := room.Footprint()
 	b := shell.Bounds()
 	ruin := domain.Cell{X: b.X + 2, Z: b.Z + b.Height - 1}
@@ -142,7 +142,7 @@ func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 		return cells
 	}
 	_, hallway := plannedGround(bounds, nil)
-	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
 	request := StarterRequest{Bounds: bounds, Cells: ground("Wall", ""), Protected: hallway, WallDef: "Wall", Planned: plan.PlannedShells(RoomRoleWorkshop)}
 	layout, ok, err := PlannedLayout(request)
 	if err != nil || !ok {
@@ -160,12 +160,12 @@ func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 }
 
 func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
-	kitchen := hallRoom(ModuleKitchen, 10, 30, 6, 5, true)
-	freezer := hallRoom(ModuleFreezer, 17, 30, 5, 5, true)
+	kitchen := hallRoom(PlannedKitchen, 10, 30, 6, 5, true)
+	freezer := hallRoom(PlannedFreezer, 17, 30, 5, 5, true)
 	link := domain.Cell{X: 16, Z: kitchen.Interior.Z + 2}
 	freezer.Link = &link
-	jail := hallRoom(ModulePrison, 40, 30, 5, 5, true)
-	plan := LayoutPlan{Rooms: []LayoutRoom{kitchen, freezer, jail}}
+	jail := hallRoom(PlannedPrison, 40, 30, 5, 5, true)
+	plan := LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer, jail}}
 	has := func(doors []domain.Cell, c domain.Cell) bool {
 		for _, d := range doors {
 			if d == c {
@@ -186,15 +186,15 @@ func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
 }
 
 func TestNextPlannedRoomSkipsStandingRooms(t *testing.T) {
-	built := hallRoom(ModulePrison, 20, 30, 5, 5, true)
-	open := hallRoom(ModulePrison, 30, 30, 5, 5, true)
-	plan := LayoutPlan{Rooms: []LayoutRoom{built, open}}
+	built := hallRoom(PlannedPrison, 20, 30, 5, 5, true)
+	open := hallRoom(PlannedPrison, 30, 30, 5, 5, true)
+	plan := LayoutPlan{Rooms: []PlannedRoom{built, open}}
 	centre := domain.Cell{X: built.Interior.X + 2, Z: built.Interior.Z + 2}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "r", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
-	if r, ok := plan.NextPlannedRoom(ModulePrison, rooms); !ok || r.Interior != open.Interior {
+	if r, ok := plan.NextPlannedRoom(PlannedPrison, rooms); !ok || r.Interior != open.Interior {
 		t.Fatalf("next %+v %v", r, ok)
 	}
-	if _, ok := plan.NextPlannedRoom(ModuleKitchen, rooms); ok {
+	if _, ok := plan.NextPlannedRoom(PlannedKitchen, rooms); ok {
 		t.Fatal("no kitchen is planned")
 	}
 }

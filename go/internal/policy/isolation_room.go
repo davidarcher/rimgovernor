@@ -21,8 +21,8 @@ import (
 // hungry (a pawn restricted to an area treats food outside it as forbidden,
 // decompile: ForbidUtility.InAllowedArea).
 
-// ModuleIsolationRoom is the isolation room's plan role.
-const ModuleIsolationRoom ModuleRole = "isolation-room"
+// PlannedIsolationRoom is the isolation room's plan role.
+const PlannedIsolationRoom PlannedRole = "isolation-room"
 
 // IsolationAreaKey is the bot area key of the Isolation allowed area: the
 // plan's isolation room interior.
@@ -48,7 +48,7 @@ func IsolationRoomNeed(p IsolationPlanning, furniture []FurnitureDefinition) (Ch
 	if !known || len(pawns) == 0 || len(p.Beds) == 0 {
 		return ChildRoomNeed{}, false
 	}
-	need := ChildRoomNeed{Role: RoomRoleIsolationRoom, Module: ModuleIsolationRoom, Furniture: []ChildFurniture{{Defs: p.Beds, Count: 1}}}
+	need := ChildRoomNeed{Role: RoomRoleIsolationRoom, Module: PlannedIsolationRoom, Furniture: []ChildFurniture{{Defs: p.Beds, Count: 1}}}
 	if _, ok := need.resolve(furniture); !ok {
 		return ChildRoomNeed{}, false
 	}
@@ -85,7 +85,7 @@ func IsolationRoomStanding(plan LayoutPlan, rooms RoomObservation, built []Curre
 func (p LayoutPlan) IsolationRoomCells() []domain.Cell {
 	set := map[domain.Cell]bool{}
 	for _, room := range p.AllRooms() {
-		if room.Role != ModuleIsolationRoom {
+		if room.Role != PlannedIsolationRoom {
 			continue
 		}
 		for _, c := range rectCells(room.Interior) {

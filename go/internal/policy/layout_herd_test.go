@@ -104,8 +104,8 @@ func TestLargerHerdLargerPenAndTopUpAddsAPen(t *testing.T) {
 			t.Fatal("a placed reservation moved", r)
 		}
 	}
-	if grown.herdCapacity(ModuleBarn) < 30 || grown.herdCapacity(ModuleVetRoom) < VetBeds(30) {
-		t.Fatal("barn and vet beds follow the herd", grown.herdCapacity(ModuleBarn))
+	if grown.herdCapacity(PlannedBarn) < 30 || grown.herdCapacity(PlannedVetRoom) < VetBeds(30) {
+		t.Fatal("barn and vet beds follow the herd", grown.herdCapacity(PlannedBarn))
 	}
 	if again := PlanHerdSites(grown, 30); len(again.Reservations) != len(grown.Reservations) {
 		t.Fatal("top-up is not idempotent")

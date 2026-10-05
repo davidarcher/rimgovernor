@@ -114,7 +114,7 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 	}
 	// A barn holds a sleeping spot per animal and a vet room VetBeds of
 	// them; a herd the rooms outgrow gets another beside the first.
-	if short := animals - plan.herdCapacity(ModuleBarn); short > 0 {
+	if short := animals - plan.herdCapacity(PlannedBarn); short > 0 {
 		beds := short
 		if !hasBarn {
 			beds = max(beds, herdBarnMinBeds)
@@ -132,7 +132,7 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, animals int) {
 	if hasBarn {
 		cx, cz = barn.X+barn.Width/2, barn.Z+barn.Height/2
 	}
-	if short := VetBeds(animals) - plan.herdCapacity(ModuleVetRoom); short > 0 {
+	if short := VetBeds(animals) - plan.herdCapacity(PlannedVetRoom); short > 0 {
 		w, h := walledSide(herdSide(short))
 		// The vet room shares the barn's wall when a site beside it fits.
 		site, ok := Rectangle{}, false
@@ -179,7 +179,7 @@ func sharedWallLink(a, b Rectangle) (domain.Cell, bool) {
 // (no wall material is wasted on a second parallel wall): every other cell
 // must be free. The barn's own door never lands on the shared wall.
 func (u *utilityGrid) vetBesideBarn(plan LayoutPlan, barn Rectangle, w, h int32) (Rectangle, bool) {
-	barnRoom := plan.herdRoom(barn, ModuleBarn)
+	barnRoom := plan.herdRoom(barn, PlannedBarn)
 	cx, cz := barn.X+barn.Width/2, barn.Z+barn.Height/2
 	best, bestCost, found := Rectangle{}, 0.0, false
 	for _, side := range []struct{ dx, dz int32 }{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {

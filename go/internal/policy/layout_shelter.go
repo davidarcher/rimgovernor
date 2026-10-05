@@ -122,17 +122,17 @@ func ShelterSizes(colonists, campfires, coolers int) [][2]int32 {
 // takes an ordinary slot on a hallway (packRoom), so the first roof is never
 // delayed by a site that cannot be had. g is the core ground the rest of the
 // plan left; seed is the base's centre, the shelter's door faces it.
-func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, seed domain.Cell, colonists int, cold, hot bool) ([]SpineSegment, []LayoutRoom) {
+func (g coreGrid) siteShelter(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, seed domain.Cell, colonists int, cold, hot bool) ([]SpineSegment, []PlannedRoom) {
 	if g.noShelter {
 		return spine, rooms
 	}
 	for _, r := range rooms {
-		if r.Role == ModuleShelter {
+		if r.Role == PlannedShelter {
 			return spine, rooms
 		}
 	}
 	sizes := ShelterSizes(colonists, ShelterCampfires(cold), ShelterCoolers(hot))
-	all := append([]LayoutRoom(nil), rooms...)
+	all := append([]PlannedRoom(nil), rooms...)
 	for _, w := range wings {
 		all = append(all, w.Rooms...)
 	}
@@ -145,7 +145,7 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []
 		}
 	}
 	for _, size := range sizes {
-		if next, grown, placed, _ := g.packRoom(spine, rooms, wings, ModuleShelter, size); placed {
+		if next, grown, placed, _ := g.packRoom(spine, rooms, wings, PlannedShelter, size); placed {
 			return next, grown
 		}
 	}
@@ -155,7 +155,7 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []LayoutRoom, wings []
 // shelterOnOpenGround is the best site whose walls sit on core ground, clear
 // of the hallways and gap cells from every room: the fewest rich-soil cells,
 // then the nearest to seed. Its door is at the middle of the wall facing seed.
-func (g coreGrid) shelterOnOpenGround(rooms []LayoutRoom, halls []Rectangle, seed domain.Cell, size [2]int32, gap int32) (LayoutRoom, bool) {
+func (g coreGrid) shelterOnOpenGround(rooms []PlannedRoom, halls []Rectangle, seed domain.Cell, size [2]int32, gap int32) (PlannedRoom, bool) {
 	w, d := size[0], size[1]
 	var avoid []Rectangle
 	for _, r := range rooms {
@@ -164,7 +164,7 @@ func (g coreGrid) shelterOnOpenGround(rooms []LayoutRoom, halls []Rectangle, see
 	for _, h := range halls {
 		avoid = append(avoid, pad(h, 1))
 	}
-	best, bestRich, bestDist, found := LayoutRoom{}, 0, int32(0), false
+	best, bestRich, bestDist, found := PlannedRoom{}, 0, int32(0), false
 	for x := seed.X - shelterReach; x <= seed.X+shelterReach; x++ {
 		for z := seed.Z - shelterReach; z <= seed.Z+shelterReach; z++ {
 			in := Rectangle{X: x, Z: z, Width: w, Height: d}
@@ -220,10 +220,10 @@ func distanceToRect(c domain.Cell, r Rectangle) int32 {
 
 // shelterRoom is the room on interior in with its door at the middle of the
 // wall facing seed.
-func shelterRoom(in Rectangle, seed domain.Cell) LayoutRoom {
+func shelterRoom(in Rectangle, seed domain.Cell) PlannedRoom {
 	cx, cz := in.X+in.Width/2, in.Z+in.Height/2
 	dx, dz := seed.X-cx, seed.Z-cz
-	r := LayoutRoom{Role: ModuleShelter, Interior: in}
+	r := PlannedRoom{Role: PlannedShelter, Interior: in}
 	switch {
 	case abs32(dx) > abs32(dz) && dx > 0:
 		r.Door, r.DoorRot = domain.Cell{X: in.X + in.Width, Z: cz}, domain.East

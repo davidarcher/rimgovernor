@@ -91,7 +91,7 @@ func (r StorageRequest) gearRoomPending(demand RoomDemand) bool {
 		return false
 	}
 	for _, planned := range r.Layout.AllRooms() {
-		if planned.Role == ModuleArmory && demand.Armory || planned.Role == ModuleWardrobe && demand.Wardrobe {
+		if planned.Role == PlannedArmory && demand.Armory || planned.Role == PlannedWardrobe && demand.Wardrobe {
 			if _, ok := PlannedRoomStanding(planned, *r.Rooms); !ok {
 				return true
 			}
@@ -117,10 +117,10 @@ func (r StorageRequest) gearSites() ([]StockpileSite, error) {
 	var out []StockpileSite
 	var err error
 	for _, gear := range []struct {
-		module ModuleRole
+		module PlannedRole
 		prefix string
 		filter domain.StockpileFilter
-	}{{ModuleArmory, domain.ArmoryRolePrefix, r.Gear.Armory}, {ModuleWardrobe, domain.WardrobeRolePrefix, r.Gear.Wardrobe}} {
+	}{{PlannedArmory, domain.ArmoryRolePrefix, r.Gear.Armory}, {PlannedWardrobe, domain.WardrobeRolePrefix, r.Gear.Wardrobe}} {
 		for _, planned := range r.Layout.AllRooms() {
 			if planned.Role != gear.module {
 				continue
@@ -131,7 +131,7 @@ func (r StorageRequest) gearSites() ([]StockpileSite, error) {
 			}
 			free := roomPool(room.Cells, r.Cells, r.Protected)
 			pool := free
-			if gear.module == ModuleArmory {
+			if gear.module == PlannedArmory {
 				pool = nil
 				for _, c := range free {
 					if !nearPrison([]domain.Cell{c}, prisons) {

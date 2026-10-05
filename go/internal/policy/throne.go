@@ -207,7 +207,7 @@ const (
 // ThroneStep is one bounded step towards the title's throne room.
 type ThroneStep struct {
 	Kind  ThroneStepKind
-	Room  LayoutRoom
+	Room  PlannedRoom
 	Piece InteriorPiece
 	Need  ThroneNeed
 	// Throne is the standing throne to assign and PreviousThrone the
@@ -244,7 +244,7 @@ func (s ThroneStep) Detail() string {
 
 // throneIntruders are the standing buildings of a class need forbids with a
 // cell inside room's interior, in census order.
-func throneIntruders(room LayoutRoom, need ThroneNeed, built []CurrentBuilding) []CurrentBuilding {
+func throneIntruders(room PlannedRoom, need ThroneNeed, built []CurrentBuilding) []CurrentBuilding {
 	if len(need.ForbiddenDefs) == 0 {
 		return nil
 	}
@@ -328,7 +328,7 @@ func availableDefinition(things []string, defs []FurnitureDefinition) (InteriorP
 }
 
 // standingThroneIn is the standing throne of need inside r's interior.
-func standingThroneIn(r LayoutRoom, need ThroneNeed, built []CurrentBuilding) (CurrentBuilding, bool) {
+func standingThroneIn(r PlannedRoom, need ThroneNeed, built []CurrentBuilding) (CurrentBuilding, bool) {
 	for _, b := range built {
 		if len(b.Cells) == 0 || !rectInside(r.Interior, cellsRectangle(b.Cells)) {
 			continue
@@ -487,7 +487,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 
 // standingCount is the number of buildings of any of things standing inside
 // r's interior.
-func standingCount(r LayoutRoom, things []string, built []CurrentBuilding) int {
+func standingCount(r PlannedRoom, things []string, built []CurrentBuilding) int {
 	n := 0
 	for _, b := range built {
 		if len(b.Cells) > 0 && rectInside(r.Interior, cellsRectangle(b.Cells)) && slices.Contains(things, b.Building.Definition()) {

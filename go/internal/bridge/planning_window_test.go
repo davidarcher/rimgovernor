@@ -20,7 +20,7 @@ func TestPlanningWindowRectIsTheWholeMap(t *testing.T) {
 }
 
 func TestLayoutPlanExtentCoversRoomWalls(t *testing.T) {
-	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleRole("bedroom"), Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}}, {Role: policy.ModuleRole("bedroom"), Interior: policy.Rectangle{X: 128, Z: 131, Width: 9, Height: 7}}}}
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedRole("bedroom"), Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}}, {Role: policy.PlannedRole("bedroom"), Interior: policy.Rectangle{X: 128, Z: 131, Width: 9, Height: 7}}}}
 	if got, ok := plan.Extent(); !ok || got != (policy.Rectangle{X: 9, Z: 9, Width: 129, Height: 130}) {
 		t.Fatal(got, ok)
 	}

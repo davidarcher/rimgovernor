@@ -17,15 +17,15 @@ const besideAffinity = 5
 // after the neighbour whose wall it takes), with the affinity weight that
 // ranks the cluster's claim on the centre of the base.
 type roleCluster struct {
-	roles  []ModuleRole
+	roles  []PlannedRole
 	weight int
 }
 
 // roleAffinity is every role's total edge weight in the graph: its trips
 // (the entrance and housing ends included) and its besideRoles ties to a
 // role in set.
-func roleAffinity(set map[ModuleRole]bool) map[ModuleRole]int {
-	w := map[ModuleRole]int{}
+func roleAffinity(set map[PlannedRole]bool) map[PlannedRole]int {
+	w := map[PlannedRole]int{}
 	for _, t := range routeTrips {
 		w[t.from] += t.weight
 		w[t.to] += t.weight
@@ -43,15 +43,15 @@ func roleAffinity(set map[ModuleRole]bool) map[ModuleRole]int {
 // affinityClusters groups roles (distinct, in centrality order) into the
 // connected components of the affinity graph, heaviest first, ties in roles
 // order.
-func affinityClusters(roles []ModuleRole) []roleCluster {
-	set := map[ModuleRole]bool{}
-	index := map[ModuleRole]int{}
+func affinityClusters(roles []PlannedRole) []roleCluster {
+	set := map[PlannedRole]bool{}
+	index := map[PlannedRole]int{}
 	for i, r := range roles {
 		set[r], index[r] = true, i
 	}
-	parent := map[ModuleRole]ModuleRole{}
-	var find func(ModuleRole) ModuleRole
-	find = func(r ModuleRole) ModuleRole {
+	parent := map[PlannedRole]PlannedRole{}
+	var find func(PlannedRole) PlannedRole
+	find = func(r PlannedRole) PlannedRole {
 		if p, ok := parent[r]; ok && p != r {
 			parent[r] = find(p)
 			return parent[r]
@@ -59,7 +59,7 @@ func affinityClusters(roles []ModuleRole) []roleCluster {
 		parent[r] = r
 		return r
 	}
-	union := func(a, b ModuleRole) {
+	union := func(a, b PlannedRole) {
 		if set[a] && set[b] {
 			if ra, rb := find(a), find(b); ra != rb {
 				parent[rb] = ra
@@ -73,7 +73,7 @@ func affinityClusters(roles []ModuleRole) []roleCluster {
 		nb := rule.neighbour
 		union(role, nb)
 	}
-	byRoot := map[ModuleRole][]ModuleRole{}
+	byRoot := map[PlannedRole][]PlannedRole{}
 	for _, r := range roles {
 		byRoot[find(r)] = append(byRoot[find(r)], r)
 	}
@@ -81,12 +81,12 @@ func affinityClusters(roles []ModuleRole) []roleCluster {
 	var out []roleCluster
 	for _, members := range byRoot {
 		c := roleCluster{roles: members}
-		in := map[ModuleRole]bool{}
+		in := map[PlannedRole]bool{}
 		for _, r := range members {
 			in[r] = true
 			c.weight += aff[r]
 		}
-		depth := func(r ModuleRole) int {
+		depth := func(r PlannedRole) int {
 			d := 0
 			for nb, ok := besideOf(r); ok && in[nb]; nb, ok = besideOf(nb) {
 				d++
@@ -122,10 +122,10 @@ const clusterTries = 6
 // tried again from the next slot, up to clusterTries. A split cluster is
 // kept only when no slot kept it whole, so every room that fits is still
 // placed. It returns the grown plan and how many of c's rooms it placed.
-func (g coreGrid) placeCluster(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, c roleCluster) ([]SpineSegment, []LayoutRoom, int) {
+func (g coreGrid) placeCluster(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, c roleCluster) ([]SpineSegment, []PlannedRoom, int) {
 	type attempt struct {
 		spine  []SpineSegment
-		rooms  []LayoutRoom
+		rooms  []PlannedRoom
 		placed int
 		split  int
 	}
@@ -162,8 +162,8 @@ func (g coreGrid) placeCluster(spine []SpineSegment, rooms []LayoutRoom, wings [
 
 // splitPairs counts the besideRoles pairs inside c, among the rooms placed
 // for it, whose rooms do not share a wall.
-func splitPairs(placed []LayoutRoom, c roleCluster) int {
-	at := map[ModuleRole]Rectangle{}
+func splitPairs(placed []PlannedRoom, c roleCluster) int {
+	at := map[PlannedRole]Rectangle{}
 	for _, r := range placed {
 		at[r.Role] = r.Interior
 	}

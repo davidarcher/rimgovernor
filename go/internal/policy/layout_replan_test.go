@@ -89,7 +89,7 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 				}
 			}
 			next, _, _ := ReplanLayoutWithRooms(plan, s, growth, 0, pawns, 0, tier, nil, nil)
-			have := map[Rectangle]LayoutRoom{}
+			have := map[Rectangle]PlannedRoom{}
 			for _, r := range next.AllRooms() {
 				have[r.Interior] = r
 			}
@@ -158,7 +158,7 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 	if !changed {
 		t.Fatal("nothing re-sited")
 	}
-	have := map[Rectangle]LayoutRoom{}
+	have := map[Rectangle]PlannedRoom{}
 	for _, r := range next.AllRooms() {
 		have[r.Interior] = r
 	}

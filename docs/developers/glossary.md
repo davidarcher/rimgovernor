@@ -31,5 +31,6 @@
 | Storage planner | `policy.PlanStorage`: the one function that decides every room-bound stockpile (warehouse, yard, workstation, meal, medicine, food, gear); derived each pass, applied by `MaintainStockpiles`. See [storage](architecture/storage.md). |
 | Warehouse / yard | The roofed Low-priority general store (`indoor_only` filter) and the unroofed Low-priority store for items safe outside (`outdoor_safe` filter). |
 | Spoilage buffer | The margin `MaintainFoodStorage` tries to keep positive: perishable nutrition already stored, above the configured minimum share of total perishable nutrition on hand. |
+| Room / PlannedRoom | A Room is the game's own census room (`Room`, `RoomObservation`). A PlannedRoom is one room of the layout plan (`LayoutPlan.Rooms`), carrying a `PlannedRole`: the plan's intent, never an observation. |
 
 See [plans and Hands](architecture/plans-and-hands.md) for these terms in context.

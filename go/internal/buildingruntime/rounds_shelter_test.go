@@ -72,10 +72,10 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 // recordStoreroom records a layout plan whose only room is a storeroom
 // with the given interior and a south door mid-wall: the initial shelter's
 // planned room (#1231).
-func recordStoreroom(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, interior policy.Rectangle) policy.LayoutRoom {
+func recordStoreroom(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, interior policy.Rectangle) policy.PlannedRoom {
 	t.Helper()
-	room := policy.LayoutRoom{Role: policy.ModuleShelter, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
-	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{room}})
+	room := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
+	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}})
 	return room
 }
 
@@ -840,10 +840,10 @@ func TestRoundsShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	door := domain.Cell{X: 4, Z: 3}
 	// Two planned storerooms share the door: the square one and a taller one.
-	square := policy.LayoutRoom{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
+	square := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
 	tall := square
 	tall.Interior.Height = 9
-	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{square, tall}})
+	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{square, tall}})
 	shapes := make([]domain.RoomFootprint, 2)
 	shapes[0], _ = square.Footprint()
 	shapes[1], _ = tall.Footprint()
@@ -1212,8 +1212,8 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	n.last = snapshot
 	facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 21, Height: 21}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 10, Z: 10})), Identity: observation.Identity{Tick: domain.Tick(base.reply.GetObserved().Context.GetTick())}}
 	// The ring is the planned barracks these planners build (#1231).
-	barracks, _ := policy.LayoutModule(policy.RoomRoleShelter)
-	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7}, Door: ring.Door(), DoorRot: domain.South}}})
+	barracks, _ := policy.PlannedRoleFor(policy.RoomRoleShelter)
+	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Interior: policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7}, Door: ring.Door(), DoorRot: domain.South}}})
 	inside := policy.Room{ID: "hut", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}}
 	unroofed := inside
 	unroofed.Enclosed = domain.Known(false)

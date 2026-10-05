@@ -52,7 +52,7 @@ type RoomGrowth struct {
 	Demand    RoomDemand
 	// Core are the demand-grown core rooms (demandCoreRooms) the colony now
 	// needs: each the plan lacks is sited (layout_demand_rooms.go).
-	Core []ModuleRole
+	Core []PlannedRole
 	// Incinerator is the site of the incinerator the plan lacks (#1814).
 	Incinerator IncineratorSite
 	// Shapes are every resolved child-room need and Built the planned rooms
@@ -63,7 +63,7 @@ type RoomGrowth struct {
 	// Ended are the roles whose need is gone and InUse the planned rooms
 	// standing or furnished: an ended role's rooms outside InUse leave the
 	// plan (#1824). InUse is set only when an ended role has a room.
-	Ended []ModuleRole
+	Ended []PlannedRole
 	InUse map[Rectangle]bool
 	// Fixed are the interiors of every planned room with anything of ours
 	// on it (FixedRooms, #1943), set on every replan once the census is
@@ -111,13 +111,13 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 		}
 	}
 	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals)
-	var kept []LayoutRoom
+	var kept []PlannedRoom
 	for _, r := range plan.Rooms {
 		if !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) {
 			kept = append(kept, r)
 		}
 	}
-	wings := keepWingRooms(plan.Wings, func(r LayoutRoom) bool { return !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) })
+	wings := keepWingRooms(plan.Wings, func(r PlannedRoom) bool { return !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) })
 	next := plan
 	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zones, vents)
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
@@ -217,7 +217,7 @@ func blockedCells(plan LayoutPlan, occupied map[domain.Cell]bool) map[domain.Cel
 
 // sameInteriors reports whether a and b hold the same rooms in order: a
 // changed interior is not the same plan.
-func sameInteriors(a, b []LayoutRoom) bool {
+func sameInteriors(a, b []PlannedRoom) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -256,7 +256,7 @@ func samePerimeter(a, b LayoutPlan) bool {
 func (p LayoutPlan) LayoutOutgrown(pawns int) bool {
 	n := 0
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleBedroom {
+		if r.Role == PlannedBedroom {
 			n++
 		}
 	}

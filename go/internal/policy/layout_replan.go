@@ -88,7 +88,7 @@ func (rp replanner) better(old, cand LayoutPlan) bool {
 func bedroomCount(p LayoutPlan) int {
 	n := 0
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleBedroom {
+		if r.Role == PlannedBedroom {
 			n++
 		}
 	}
@@ -144,7 +144,7 @@ func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Ce
 }
 
 // linked reports a's Link door on b's walls.
-func linked(a, b LayoutRoom) bool {
+func linked(a, b PlannedRoom) bool {
 	return a.Link != nil && a.Interior != b.Interior && contains(roomWalls(b), *a.Link)
 }
 
@@ -162,7 +162,7 @@ func wingPinned(w Wing, pins map[Rectangle]bool) bool {
 // unpinned base rooms and the bedroom wings without a pinned room. Add-on
 // rooms and suite blocks stay where they are.
 func resiteInput(plan LayoutPlan, pins map[Rectangle]bool) LayoutPlan {
-	var rooms []LayoutRoom
+	var rooms []PlannedRoom
 	for _, r := range plan.Rooms {
 		if pins[r.Interior] || !searchRole(r.Role) {
 			rooms = append(rooms, r)

@@ -21,7 +21,7 @@ type DumpStore struct {
 	Anchor domain.Cell
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand (#1814); nil before.
-	Incinerator *LayoutRoom
+	Incinerator *PlannedRoom
 	// Planned is the layout plan's room ground (PlannedRoomGround): a dump
 	// never takes it, standing room or not.
 	Planned []domain.Cell

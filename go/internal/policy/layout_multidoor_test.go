@@ -10,24 +10,24 @@ import (
 // bridgedHallways are two parallel hallways with no other link; the entrance
 // opens onto the lower one. A room between them with a door on each side is
 // the only way across.
-func bridgedHallways(bridge ModuleRole) LayoutPlan {
+func bridgedHallways(bridge PlannedRole) LayoutPlan {
 	lower := []SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 30, Z: 0}}}
 	upper := SpineSegment{From: domain.Cell{X: 0, Z: 12}, To: domain.Cell{X: 30, Z: 12}}
 	return LayoutPlan{
 		Spine:     append(lower, upper),
 		Entrances: spineEntrances(lower),
-		Rooms: []LayoutRoom{
+		Rooms: []PlannedRoom{
 			{Role: bridge, Interior: Rectangle{X: 10, Z: 3, Width: 5, Height: 7},
 				Door: domain.Cell{X: 12, Z: 2}, DoorRot: domain.South,
 				Doors: []Door{{Cell: domain.Cell{X: 12, Z: 10}, Rot: domain.North}}},
-			{Role: ModuleStorage, Interior: Rectangle{X: 20, Z: 14, Width: 5, Height: 5},
+			{Role: PlannedStorage, Interior: Rectangle{X: 20, Z: 14, Width: 5, Height: 5},
 				Door: domain.Cell{X: 22, Z: 13}, DoorRot: domain.South},
 		},
 	}
 }
 
 func TestCheckRoutesRingBridgedByPassThroughRoom(t *testing.T) {
-	traffic, err := CheckRoutes(bridgedHallways(ModuleDining))
+	traffic, err := CheckRoutes(bridgedHallways(PlannedDining))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,14 +37,14 @@ func TestCheckRoutesRingBridgedByPassThroughRoom(t *testing.T) {
 }
 
 func TestCheckRoutesRingBridgedByBedroomIsThoroughfare(t *testing.T) {
-	_, err := CheckRoutes(bridgedHallways(ModuleBedroom))
+	_, err := CheckRoutes(bridgedHallways(PlannedBedroom))
 	if err == nil || !strings.Contains(err.Error(), "crosses bedroom") {
 		t.Fatal("a bedroom bridge passed", err)
 	}
 }
 
 func TestCheckRoutesWithoutSecondDoorIsUnreachable(t *testing.T) {
-	p := bridgedHallways(ModuleDining)
+	p := bridgedHallways(PlannedDining)
 	p.Rooms[0].Doors = nil
 	if _, err := CheckRoutes(p); err == nil || !strings.Contains(err.Error(), "no route") {
 		t.Fatal("storage reached without the second door", err)
@@ -57,10 +57,10 @@ func TestCheckRoutesTripsConsiderEveryRoomOfTheTargetRole(t *testing.T) {
 	p := LayoutPlan{
 		Spine:     []SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}},
 		Entrances: spineEntrances([]SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}}),
-		Rooms: []LayoutRoom{
-			{Role: ModuleBedroom, Interior: Rectangle{X: 0, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 2}, DoorRot: domain.South},
-			{Role: ModuleStorage, Interior: Rectangle{X: 0, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 19}, DoorRot: domain.South}, // walled off: no hallway or room touches its door
-			{Role: ModuleStorage, Interior: Rectangle{X: 8, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 10, Z: 2}, DoorRot: domain.South},
+		Rooms: []PlannedRoom{
+			{Role: PlannedBedroom, Interior: Rectangle{X: 0, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 2}, DoorRot: domain.South},
+			{Role: PlannedStorage, Interior: Rectangle{X: 0, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 19}, DoorRot: domain.South}, // walled off: no hallway or room touches its door
+			{Role: PlannedStorage, Interior: Rectangle{X: 8, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 10, Z: 2}, DoorRot: domain.South},
 		},
 	}
 	if _, err := CheckRoutes(p); err != nil {
@@ -69,7 +69,7 @@ func TestCheckRoutesTripsConsiderEveryRoomOfTheTargetRole(t *testing.T) {
 }
 
 func TestInteriorRoomFromLayoutKeepsExtraDoors(t *testing.T) {
-	r := bridgedHallways(ModuleDining).Rooms[0]
+	r := bridgedHallways(PlannedDining).Rooms[0]
 	in, ok := InteriorRoomFromLayout(r, testShapes)
 	in.Dining = testDining
 	if !ok || len(in.Doors) != 2 {
@@ -103,7 +103,7 @@ func TestInteriorRoomFromLayoutKeepsExtraDoors(t *testing.T) {
 }
 
 func TestRoomRockDigsEveryDoorAndThreshold(t *testing.T) {
-	p := bridgedHallways(ModuleDining)
+	p := bridgedHallways(PlannedDining)
 	room := p.Rooms[0]
 	room.Dug = true
 	dig := map[domain.Cell]bool{}
@@ -118,7 +118,7 @@ func TestRoomRockDigsEveryDoorAndThreshold(t *testing.T) {
 }
 
 func TestOverlayDrawsEveryDoor(t *testing.T) {
-	o := bridgedHallways(ModuleDining).Overlay(Bounds{Width: 60, Height: 60})
+	o := bridgedHallways(PlannedDining).Overlay(Bounds{Width: 60, Height: 60})
 	for _, l := range o.Layers {
 		if l.Label != "door" {
 			continue

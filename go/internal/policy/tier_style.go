@@ -13,7 +13,7 @@ import "sort"
 // The shell planners take wall and door stuff from the def stats
 // (ColonyProjection.BulkBuildStuff, not a tier rule); the flooring planner
 // prefers FloorDef's floor for a deficient room's role and
-// the lighting planner ModuleLighting's fixture (buildingruntime's
+// the lighting planner PlannedLighting's fixture (buildingruntime's
 // rounds_tier_style.go). The shape-family rules (double-module hall,
 // paired wings, courtyard) are shape_family.go's.
 
@@ -196,12 +196,12 @@ type LightingStyle struct {
 	Scope      LightingScope
 }
 
-// ModuleLighting is the lighting rule: nothing at Camp; a torch per module
+// PlannedLighting is the lighting rule: nothing at Camp; a torch per module
 // at Masonry; at Powered with a powered source, a standing lamp per 5x5
 // sub-cell, or one sun lamp per farm module. A powered rung without power
 // or the steel for a lamp falls back to the torch, and a torch without
 // wood to nothing.
-func ModuleLighting(tier BuildTier, farm bool, stock TierStyleStock, powered bool) (LightingStyle, bool) {
+func PlannedLighting(tier BuildTier, farm bool, stock TierStyleStock, powered bool) (LightingStyle, bool) {
 	const torchWood, lampSteel int64 = 20, 20
 	return oneRungDown(tier, func(t BuildTier) (LightingStyle, bool) {
 		switch {

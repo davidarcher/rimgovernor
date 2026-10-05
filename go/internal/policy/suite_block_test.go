@@ -41,7 +41,7 @@ func TestSitedSuiteBlockStaysPutAndKeepsItsGround(t *testing.T) {
 	}
 	ground := suiteWingGround(after)
 	for _, o := range g.AllRooms() {
-		if o.Role != ModuleSuite && rectsOverlap(ground, roomWalls(o)) {
+		if o.Role != PlannedSuite && rectsOverlap(ground, roomWalls(o)) {
 			t.Fatal("block ground taken by", o.Role, o.Interior)
 		}
 	}
@@ -82,7 +82,7 @@ func TestRisingTargetSitesANewSuiteAndKeepsTheBuiltOne(t *testing.T) {
 	w, d := SuiteSize(50)
 	found := false
 	for _, r := range grown.AllRooms() {
-		if r.Role == ModuleSuite && !slices.ContainsFunc(built, r.Same) {
+		if r.Role == PlannedSuite && !slices.ContainsFunc(built, r.Same) {
 			found = true
 			if r.Interior.Height != w || r.Interior.Width != d {
 				t.Fatalf("new suite %+v, want %dx%d", r.Interior, w, d)
@@ -115,7 +115,7 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 	}
 	// Index alignment: plan order across blocks is the targets' order.
 	// Each suite is sized along its block's corridor, whichever way it runs.
-	var suites []LayoutRoom
+	var suites []PlannedRoom
 	for _, i := range blocks {
 		if n := len(p.Wings[i].Rooms); n > suiteMaxRooms {
 			t.Fatalf("block of %d suites, cap %d", n, suiteMaxRooms)

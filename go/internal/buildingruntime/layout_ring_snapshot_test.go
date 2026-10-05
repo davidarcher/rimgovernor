@@ -30,7 +30,7 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 	recorded.Rooms = slices.Clone(recorded.Rooms)
 	for i, room := range recorded.Rooms {
 		if room.Role == "barracks" {
-			recorded.Rooms[i].Role = policy.ModuleShelter
+			recorded.Rooms[i].Role = policy.PlannedShelter
 			break
 		}
 	}

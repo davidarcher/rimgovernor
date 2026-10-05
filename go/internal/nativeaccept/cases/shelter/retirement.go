@@ -64,23 +64,23 @@ func retirement(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	record, err := waitPlan(ctx, service, planWait, func(p policy.LayoutPlan) bool {
-		return len(roomsOf(p, policy.ModuleShelter)) == 1 && len(roomsOf(p, policy.ModuleWorkshop)) > 0 && len(roomsOf(p, policy.ModuleLab)) > 0
+		return len(roomsOf(p, policy.PlannedShelter)) == 1 && len(roomsOf(p, policy.PlannedWorkshop)) > 0 && len(roomsOf(p, policy.PlannedLab)) > 0
 	})
 	report["keepalive_plan"] = service.Stop()
 	if err != nil {
 		return fmt.Errorf("wait for a plan with shelter, workshop and laboratory: %w", err)
 	}
 	plan := record.Plan
-	shelter := roomsOf(plan, policy.ModuleShelter)[0]
-	labs := roomsOf(plan, policy.ModuleLab)
-	report["plan"] = map[string]any{"tick": record.Tick, "shelter": shelter.Interior, "workshops": len(roomsOf(plan, policy.ModuleWorkshop)), "labs": len(labs)}
+	shelter := roomsOf(plan, policy.PlannedShelter)[0]
+	labs := roomsOf(plan, policy.PlannedLab)
+	report["plan"] = map[string]any{"tick": record.Tick, "shelter": shelter.Interior, "workshops": len(roomsOf(plan, policy.PlannedWorkshop)), "labs": len(labs)}
 
 	// 2. Stage the work rooms and leave a table and spots in the hut.
 	h, err := s.Reattach(ctx)
 	if err != nil {
 		return err
 	}
-	work := append(roomsOf(plan, policy.ModuleWorkshop), labs...)
+	work := append(roomsOf(plan, policy.PlannedWorkshop), labs...)
 	staged, err := stageRooms(ctx, h, "stage-work-rooms", work...)
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 			return false
 		}
 		final = rec.Plan
-		if len(ground) == 0 && len(roomsOf(final, policy.ModuleShelter)) == 0 && len(final.RetiredGround) > 0 {
+		if len(ground) == 0 && len(roomsOf(final, policy.PlannedShelter)) == 0 && len(final.RetiredGround) > 0 {
 			ground = append(ground, final.RetiredGround...)
 		}
 		return len(ground) > 0 && len(final.RetiredGround) == 0
@@ -139,7 +139,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 	}
 	if err != nil {
 		return fmt.Errorf("the shelter did not retire and clear (table tidy %q, retired ground %v, shelter planned %d, ground left %v): %w",
-			tidy.Status, ground, len(roomsOf(final, policy.ModuleShelter)), final.RetiredGround, err)
+			tidy.Status, ground, len(roomsOf(final, policy.PlannedShelter)), final.RetiredGround, err)
 	}
 	if tidy.Status != store.LayoutTidyDone {
 		return fmt.Errorf("the plan retired the shelter while the table's tidy is %q, not done: %+v", tidy.Status, tidy)
@@ -158,7 +158,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 	if !found || len(cells) == 0 {
 		return fmt.Errorf("research table %s no longer stands", table.id)
 	}
-	var lab *policy.LayoutRoom
+	var lab *policy.PlannedRoom
 	for i := range labs {
 		in := true
 		for _, c := range cells {

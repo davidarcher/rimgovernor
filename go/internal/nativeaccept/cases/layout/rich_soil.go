@@ -81,7 +81,7 @@ func richSoil(ctx context.Context, s cases.Session) error {
 	}
 
 	pawns, _ := facts.Facts.Colonists.Value()
-	at, ok := plan.Plan.Anchor(policy.ModuleBedroom, nil)
+	at, ok := plan.Plan.Anchor(policy.PlannedBedroom, nil)
 	if !ok {
 		return fmt.Errorf("the plan holds no bedroom to spawn the colonist in")
 	}

@@ -104,7 +104,7 @@ func floorStyle(facts observation.ColonyProjection) func(policy.RoomRole) (strin
 // styles no lamp.
 func lampStyle(facts observation.ColonyProjection) string {
 	powered, _ := poweredSource(facts).Value()
-	if lamp, ok := policy.ModuleLighting(styleTier(facts), false, styleStock(facts), powered); ok {
+	if lamp, ok := policy.PlannedLighting(styleTier(facts), false, styleStock(facts), powered); ok {
 		return lamp.Definition
 	}
 	return ""

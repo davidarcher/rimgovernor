@@ -13,7 +13,7 @@ import (
 func TestPlanCoreAnchorsOnPlan(t *testing.T) {
 	plan := policy.LayoutPlan{
 		Spine: []policy.SpineSegment{{From: domain.Cell{X: 10, Z: 20}, To: domain.Cell{X: 30, Z: 20}}},
-		Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 12, Z: 22, Width: 6, Height: 4}}},
+		Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 12, Z: 22, Width: 6, Height: 4}}},
 	}
 	if got, _ := planCore(observation.ColonyProjection{LayoutPlan: domain.Known(plan)}); got != (domain.Cell{X: 15, Z: 24}) {
 		t.Fatalf("planCore = %v, want storeroom centre", got)

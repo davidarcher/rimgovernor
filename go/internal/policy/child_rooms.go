@@ -44,14 +44,14 @@ func (d FurnitureDefinition) HasRole(role FurnitureRole) bool {
 	return slices.Contains(d.Roles, string(role))
 }
 
-// ModuleNursery, ModulePlayroom and ModuleClassroom are the child rooms'
+// PlannedNursery, PlannedPlayroom and PlannedClassroom are the child rooms'
 // plan roles.
 const (
-	ModuleNursery   ModuleRole = "nursery"
-	ModulePlayroom  ModuleRole = "playroom"
-	ModuleClassroom ModuleRole = "classroom"
-	// ModuleDeathrestChamber is the deathrest chamber's plan role (#1690).
-	ModuleDeathrestChamber ModuleRole = "deathrest-chamber"
+	PlannedNursery   PlannedRole = "nursery"
+	PlannedPlayroom  PlannedRole = "playroom"
+	PlannedClassroom PlannedRole = "classroom"
+	// PlannedDeathrestChamber is the deathrest chamber's plan role (#1690).
+	PlannedDeathrestChamber PlannedRole = "deathrest-chamber"
 )
 
 // minNurseryBeds is the baby bed count below which the game scores a room
@@ -76,7 +76,7 @@ type ChildFurniture struct {
 // ChildRoomNeed is the room one role is owed and what furnishes it.
 type ChildRoomNeed struct {
 	Role      RoomRole
-	Module    ModuleRole
+	Module    PlannedRole
 	Furniture []ChildFurniture
 }
 
@@ -117,16 +117,16 @@ func ChildRoomNeeds(pawns []WorkPawn) []ChildRoomNeed {
 	}
 	var out []ChildRoomNeed
 	if babies > 0 {
-		out = append(out, ChildRoomNeed{Role: RoomRoleNursery, Module: ModuleNursery, Furniture: []ChildFurniture{{Role: RoleBabyBed, Count: max(babies, minNurseryBeds)}}})
+		out = append(out, ChildRoomNeed{Role: RoomRoleNursery, Module: PlannedNursery, Furniture: []ChildFurniture{{Role: RoleBabyBed, Count: max(babies, minNurseryBeds)}}})
 	}
 	if toddlers > 0 {
-		out = append(out, ChildRoomNeed{Role: RoomRolePlayroom, Module: ModulePlayroom, Furniture: []ChildFurniture{{Role: RoleToy, Count: 1}, {Role: RoleDecoration, Count: 1}}})
+		out = append(out, ChildRoomNeed{Role: RoomRolePlayroom, Module: PlannedPlayroom, Furniture: []ChildFurniture{{Role: RoleToy, Count: 1}, {Role: RoleDecoration, Count: 1}}})
 	}
 	if children > 0 {
-		out = append(out, ChildRoomNeed{Role: RoomRoleClassroom, Module: ModuleClassroom, Furniture: []ChildFurniture{{Role: RoleBoard, Count: 1}, {Role: RoleDesk, Count: children}}})
+		out = append(out, ChildRoomNeed{Role: RoomRoleClassroom, Module: PlannedClassroom, Furniture: []ChildFurniture{{Role: RoleBoard, Count: 1}, {Role: RoleDesk, Count: children}}})
 	}
 	if caskets > 0 {
-		out = append(out, ChildRoomNeed{Role: RoomRoleDeathrestChamber, Module: ModuleDeathrestChamber, Furniture: []ChildFurniture{{Role: RoleDeathrestCasket, Count: caskets}, {Role: RoleDeathrestAccelerator, Count: accelerators, Optional: true}}})
+		out = append(out, ChildRoomNeed{Role: RoomRoleDeathrestChamber, Module: PlannedDeathrestChamber, Furniture: []ChildFurniture{{Role: RoleDeathrestCasket, Count: caskets}, {Role: RoleDeathrestAccelerator, Count: accelerators, Optional: true}}})
 	}
 	return out
 }
@@ -178,7 +178,7 @@ func (n ChildRoomNeed) resolve(defs []FurnitureDefinition) ([]childPiece, bool) 
 // ChildRoomShape is a room the plan must grow: its role and the footprints
 // it must hold.
 type ChildRoomShape struct {
-	Module ModuleRole
+	Module PlannedRole
 	Pieces []PieceCount
 }
 
@@ -238,7 +238,7 @@ const (
 type ChildRoomStep struct {
 	Kind  ChildRoomStepKind
 	Need  ChildRoomNeed
-	Room  LayoutRoom
+	Room  PlannedRoom
 	Piece InteriorPiece
 }
 
@@ -306,7 +306,7 @@ func cellsTaken(r Rectangle, taken map[domain.Cell]bool) bool {
 
 // standingChildPieces counts the buildings of any of defs inside the room's
 // interior.
-func standingChildPieces(r LayoutRoom, defs []string, built []CurrentBuilding) int {
+func standingChildPieces(r PlannedRoom, defs []string, built []CurrentBuilding) int {
 	n := 0
 	for _, b := range built {
 		if len(b.Cells) > 0 && rectInside(r.Interior, cellsRectangle(b.Cells)) && slices.Contains(defs, b.Building.Definition()) {

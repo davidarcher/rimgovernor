@@ -18,7 +18,7 @@ func TestRebuildFamiliesRoundTripsEachFamily(t *testing.T) {
 	w := extentWorld("colony", "load-1", 1)
 	plan := policy.LayoutPlan{
 		Spine: []policy.SpineSegment{{From: domain.Cell{X: 10, Z: 20}, To: domain.Cell{X: 40, Z: 20}}},
-		Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 12, Z: 22, Width: 7, Height: 5}, Door: domain.Cell{X: 15, Z: 21}, DoorRot: domain.South, Dug: true}},
+		Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 12, Z: 22, Width: 7, Height: 5}, Door: domain.Cell{X: 15, Z: 21}, DoorRot: domain.South, Dug: true}},
 	}
 	if err := source.RecordLayoutPlan(ctx, w, 100, plan); err != nil {
 		t.Fatal(err)

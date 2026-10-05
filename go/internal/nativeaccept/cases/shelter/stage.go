@@ -47,8 +47,8 @@ func waitPlan(ctx context.Context, service *na.ServiceProcess, ceiling time.Dura
 }
 
 // roomsOf lists the plan's rooms of role.
-func roomsOf(plan policy.LayoutPlan, role policy.ModuleRole) []policy.LayoutRoom {
-	var out []policy.LayoutRoom
+func roomsOf(plan policy.LayoutPlan, role policy.PlannedRole) []policy.PlannedRoom {
+	var out []policy.PlannedRoom
 	for _, r := range plan.AllRooms() {
 		if r.Role == role {
 			out = append(out, r)
@@ -59,7 +59,7 @@ func roomsOf(plan policy.LayoutPlan, role policy.ModuleRole) []policy.LayoutRoom
 
 // stageRooms raises each room finished, roofed and walled on its planned
 // interior and door.
-func stageRooms(ctx context.Context, h *na.Harness, label string, rooms ...policy.LayoutRoom) (map[string]any, error) {
+func stageRooms(ctx context.Context, h *na.Harness, label string, rooms ...policy.PlannedRoom) (map[string]any, error) {
 	parts := make([]string, 0, len(rooms))
 	for _, r := range rooms {
 		if r.Dug {

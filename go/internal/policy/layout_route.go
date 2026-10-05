@@ -11,30 +11,30 @@ import (
 // Entrances. Every trip pair gets a shortest path, and a path through a
 // private or clean room that is not one of its ends rejects the layout.
 
-// routeTrips are the room pairs pawns travel between; ModuleRole("") is
+// routeTrips are the room pairs pawns travel between; PlannedRole("") is
 // the entrance.
 // weight is the trip's frequency, the affinity between the two ends (#1952):
 // plan scoring weights each walking distance by it.
 var routeTrips = []routeTrip{
-	{ModuleBedroom, ModuleDining, 3},
-	{ModuleSuite, ModuleDining, 3},
-	{ModuleKitchen, ModuleFreezer, 3},
-	{"", ModuleFreezer, 2},
-	{ModuleStorage, ModuleWorkshop, 2},
-	{"", ModuleStorage, 1},
-	{ModuleHospital, "", 1},
+	{PlannedBedroom, PlannedDining, 3},
+	{PlannedSuite, PlannedDining, 3},
+	{PlannedKitchen, PlannedFreezer, 3},
+	{"", PlannedFreezer, 2},
+	{PlannedStorage, PlannedWorkshop, 2},
+	{"", PlannedStorage, 1},
+	{PlannedHospital, "", 1},
 }
 
 // routeTrip is one weighted edge of the affinity graph.
 type routeTrip struct {
-	from, to ModuleRole
+	from, to PlannedRole
 	weight   int
 }
 
 // noThroughfare are the roles nobody may walk through.
-var noThroughfare = map[ModuleRole]bool{
-	ModuleBedroom: true, ModuleSuite: true, ModuleShelter: true, ModulePrison: true,
-	ModuleKitchen: true, ModuleHospital: true, ModuleLab: true, ModuleThrone: true,
+var noThroughfare = map[PlannedRole]bool{
+	PlannedBedroom: true, PlannedSuite: true, PlannedShelter: true, PlannedPrison: true,
+	PlannedKitchen: true, PlannedHospital: true, PlannedLab: true, PlannedThrone: true,
 }
 
 // spineEntrances are the cells a plan may be entered from at worst: the
@@ -105,8 +105,8 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 
 // tripCells returns a role's trip end cells: the entrances for "", else one
 // single-cell group (the interior centre) per room of that role.
-func tripCells(p LayoutPlan, rooms []LayoutRoom) func(ModuleRole) [][]domain.Cell {
-	return func(role ModuleRole) [][]domain.Cell {
+func tripCells(p LayoutPlan, rooms []PlannedRoom) func(PlannedRole) [][]domain.Cell {
+	return func(role PlannedRole) [][]domain.Cell {
 		if role == "" {
 			if len(p.Entrances) == 0 {
 				return nil
@@ -125,7 +125,7 @@ func tripCells(p LayoutPlan, rooms []LayoutRoom) func(ModuleRole) [][]domain.Cel
 
 // routeWalk is the cells pawns walk over p, each mapped to its room index
 // (in p.AllRooms()), -1 for a hallway or door cell, with those rooms.
-func routeWalk(p LayoutPlan) (map[domain.Cell]int, []LayoutRoom) {
+func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 	walk := map[domain.Cell]int{}
 	rooms := p.AllRooms()
 	for _, s := range p.Hallways() {

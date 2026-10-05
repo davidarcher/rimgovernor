@@ -70,7 +70,7 @@ func disposal(ctx context.Context, s cases.Session) error {
 
 	// Window one: the layout plan reserves the incinerator and MaintainWaste
 	// shells it.
-	var room policy.LayoutRoom
+	var room policy.PlannedRoom
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainWaste, Until: func(sample map[string]any) bool { return methodCompleted(sample, "incinerator-shell-") }},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
@@ -151,23 +151,23 @@ func methodCompleted(sample map[string]any, prefix string) bool {
 }
 
 // plannedIncinerator is the layout plan's incinerator room.
-func plannedIncinerator(ctx context.Context, s cases.Session) (policy.LayoutRoom, error) {
+func plannedIncinerator(ctx context.Context, s cases.Session) (policy.PlannedRoom, error) {
 	journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
 	if err != nil {
-		return policy.LayoutRoom{}, fmt.Errorf("reopen journal: %w", err)
+		return policy.PlannedRoom{}, fmt.Errorf("reopen journal: %w", err)
 	}
 	defer journal.Close()
 	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return policy.LayoutRoom{}, fmt.Errorf("load rounds: %w", err)
+		return policy.PlannedRoom{}, fmt.Errorf("load rounds: %w", err)
 	}
 	record, ok, err := journal.LayoutPlan(ctx, review.Snapshot, review.Tick)
 	if err != nil || !ok {
-		return policy.LayoutRoom{}, fmt.Errorf("no layout plan recorded by tick %d: %v", review.Tick, err)
+		return policy.PlannedRoom{}, fmt.Errorf("no layout plan recorded by tick %d: %v", review.Tick, err)
 	}
 	rooms := record.Plan.IncineratorRooms()
 	if len(rooms) != 1 {
-		return policy.LayoutRoom{}, fmt.Errorf("the layout plan holds %d incinerators, want one", len(rooms))
+		return policy.PlannedRoom{}, fmt.Errorf("the layout plan holds %d incinerators, want one", len(rooms))
 	}
 	return rooms[0], nil
 }
@@ -253,7 +253,7 @@ type disposalReading struct {
 	door     int
 }
 
-func readDisposal(ctx context.Context, h *na.Harness, ids []string, room policy.LayoutRoom) (disposalReading, error) {
+func readDisposal(ctx context.Context, h *na.Harness, ids []string, room policy.PlannedRoom) (disposalReading, error) {
 	in := room.Interior
 	reply, err := h.Call(ctx, "disposal-read", disposalRead, map[string]any{
 		"ids": strings.Join(ids, ","), "minX": in.X, "minZ": in.Z, "maxX": in.X + in.Width - 1, "maxZ": in.Z + in.Height - 1,
@@ -306,7 +306,7 @@ func checkFreshStranger(read disposalReading, id string, report na.Report, when 
 // checkBurned proves the burn window: the rotten corpses and the seeded
 // apparel burned, the journal's burn was one ignite by a drafted burner, the
 // ash is cleaned, and the room is its own walled, doored, unroofed room.
-func checkBurned(ctx context.Context, s cases.Session, read disposalReading, staged map[string]string, seeded []string, room policy.LayoutRoom, report na.Report) error {
+func checkBurned(ctx context.Context, s cases.Session, read disposalReading, staged map[string]string, seeded []string, room policy.PlannedRoom, report na.Report) error {
 	for _, id := range append([]string{staged["animal"], staged["rottenStranger"]}, seeded...) {
 		if !read.gone(id) {
 			return fmt.Errorf("thing %s survived the burn: %#v", id, read.things[id])
@@ -334,7 +334,7 @@ func checkBurned(ctx context.Context, s cases.Session, read disposalReading, sta
 
 // checkRoom proves the incinerator interior resolves to one unroofed room of
 // its own (cell.GetRoom) and every wall and the door are non-flammable.
-func checkRoom(read disposalReading, room policy.LayoutRoom) error {
+func checkRoom(read disposalReading, room policy.PlannedRoom) error {
 	id := int(na.AsNumber(read.room["id"]))
 	if id < 0 || int(na.AsNumber(read.room["cellCount"])) != len(read.interior) {
 		return fmt.Errorf("the incinerator room is not its 3x3 interior: %#v over %d cells", read.room, len(read.interior))

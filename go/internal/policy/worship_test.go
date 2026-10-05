@@ -21,7 +21,7 @@ func worshipIdeoligion() Ideoligion {
 
 func TestWorshipRoomNeedIsOneOfEachRequiredBuilding(t *testing.T) {
 	need, ok := WorshipRoomNeed(worshipIdeoligion())
-	if !ok || need.Role != RoomRoleWorshipRoom || need.Module != ModuleWorship || len(need.Furniture) != 2 {
+	if !ok || need.Role != RoomRoleWorshipRoom || need.Module != PlannedWorship || len(need.Furniture) != 2 {
 		t.Fatalf("need: %+v", need)
 	}
 	if f := need.Furniture; f[0].Defs[0] != "TestAltar" || f[1].Defs[0] != "TestIdeogram" || f[0].Count != 1 || f[1].Count != 1 {
@@ -36,7 +36,7 @@ func TestWorshipRoomIsGrownShelledAndFurnishedLikeAChildRoom(t *testing.T) {
 	need, _ := WorshipRoomNeed(worshipIdeoligion())
 	defs := furnitureDefs(map[string]Bounds{"TestAltar": {Width: 1, Height: 2}, "TestIdeogram": {Width: 1, Height: 1}})
 	shape, ok := need.shape(defs)
-	if !ok || shape.Module != ModuleWorship {
+	if !ok || shape.Module != PlannedWorship {
 		t.Fatalf("shape: %+v", shape)
 	}
 	// Footprints come from the catalog; an unknown one owes nothing.
@@ -50,8 +50,8 @@ func TestWorshipRoomIsGrownShelledAndFurnishedLikeAChildRoom(t *testing.T) {
 	if len(sizes) == 0 {
 		t.Fatal("no room holds the buildings")
 	}
-	room := LayoutRoom{Role: ModuleWorship, Interior: Rectangle{X: 10, Z: 20, Width: sizes[0][0], Height: sizes[0][1]}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
-	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
+	room := PlannedRoom{Role: PlannedWorship, Interior: Rectangle{X: 10, Z: 20, Width: sizes[0][0], Height: sizes[0][1]}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
 	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
@@ -79,10 +79,10 @@ func TestGrowWorshipRoomAddsOneAndKeepsTheRest(t *testing.T) {
 }
 
 func TestWorshipRoomRoleTables(t *testing.T) {
-	if role, ok := LayoutModule(RoomRoleWorshipRoom); !ok || role != ModuleWorship {
+	if role, ok := PlannedRoleFor(RoomRoleWorshipRoom); !ok || role != PlannedWorship {
 		t.Fatal("the WorshipRoom role has no layout module")
 	}
-	if moduleRoomRoles[ModuleWorship] != RoomRoleWorshipRoom {
+	if moduleRoomRoles[PlannedWorship] != RoomRoleWorshipRoom {
 		t.Fatal("worship room tables")
 	}
 	if _, ok := InteriorTemplateFor(RoomRoleWorshipRoom); !ok {

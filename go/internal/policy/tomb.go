@@ -37,7 +37,7 @@ const (
 // TombStep is one bounded step towards a grave for every dead colonist.
 type TombStep struct {
 	Kind  TombStepKind
-	Room  LayoutRoom
+	Room  PlannedRoom
 	Piece InteriorPiece
 	// Dead is the unburied colonist corpses; Empty the empty graves and
 	// sarcophagi; Graves the plain graves standing.
@@ -79,7 +79,7 @@ func tombCensus(waste []WasteItem, built []CurrentBuilding, sarcophagus string) 
 }
 
 // tombSlot is the room's first template sarcophagus slot no grave stands on.
-func tombSlot(r LayoutRoom, shapes PieceShapes, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+func tombSlot(r PlannedRoom, shapes PieceShapes, taken map[domain.Cell]bool) (InteriorPiece, bool) {
 	in, ok := InteriorRoomFromLayout(r, shapes)
 	if !ok {
 		return InteriorPiece{}, false
@@ -117,7 +117,7 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 		return step
 	}
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleTomb {
+		if r.Role != PlannedTomb {
 			continue
 		}
 		piece, ok := tombSlot(r, shapes, taken)
@@ -140,7 +140,7 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 func (p LayoutPlan) TombRooms() int {
 	n := 0
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleTomb {
+		if r.Role == PlannedTomb {
 			n++
 		}
 	}

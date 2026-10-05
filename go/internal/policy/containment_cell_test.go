@@ -88,7 +88,7 @@ func planning(entities int, required float64) ContainmentPlanning {
 
 func TestContainmentCellIsOwedWhenTheDesignReachesTheEntity(t *testing.T) {
 	need, verdict := ContainmentCellNeed(planning(1, 100), platformFurniture())
-	if !verdict.Owed || verdict.Reason != "" || need.Role != RoomRoleContainmentCell || need.Module != ModuleContainmentCell || len(need.Furniture) != 2 || need.Furniture[0].Defs[0] != "HoldingPlatform" || need.Furniture[1].Defs[0] != ContainmentLampDefinition || !need.Furniture[1].Optional {
+	if !verdict.Owed || verdict.Reason != "" || need.Role != RoomRoleContainmentCell || need.Module != PlannedContainmentCell || len(need.Furniture) != 2 || need.Furniture[0].Defs[0] != "HoldingPlatform" || need.Furniture[1].Defs[0] != ContainmentLampDefinition || !need.Furniture[1].Optional {
 		t.Fatalf("%+v %+v", need, verdict)
 	}
 	// The predicted 176.67 reaches 116.6 plus the margin of 60.
@@ -168,10 +168,10 @@ func TestStandingPlatformThatReachesTheEntityOwesNoCell(t *testing.T) {
 }
 
 func TestContainmentCellRoleTables(t *testing.T) {
-	if role, ok := LayoutModule(RoomRoleContainmentCell); !ok || role != ModuleContainmentCell {
+	if role, ok := PlannedRoleFor(RoomRoleContainmentCell); !ok || role != PlannedContainmentCell {
 		t.Fatal("the ContainmentCell role has no layout module")
 	}
-	if moduleRoomRoles[ModuleContainmentCell] != RoomRoleContainmentCell {
+	if moduleRoomRoles[PlannedContainmentCell] != RoomRoleContainmentCell {
 		t.Fatal("containment cell tables")
 	}
 	if _, ok := InteriorTemplateFor(RoomRoleContainmentCell); !ok {
@@ -186,7 +186,7 @@ func TestContainmentCellIsStagedLikeAnyChildRoom(t *testing.T) {
 	need, _ := ContainmentCellNeed(planning(1, 100), platformFurniture())
 	defs := platformFurniture()
 	shape, ok := need.shape(defs)
-	if !ok || shape.Module != ModuleContainmentCell {
+	if !ok || shape.Module != PlannedContainmentCell {
 		t.Fatalf("shape %+v %v", shape, ok)
 	}
 	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
@@ -194,16 +194,16 @@ func TestContainmentCellIsStagedLikeAnyChildRoom(t *testing.T) {
 	if !added {
 		t.Fatal("no room grown for the platform")
 	}
-	var room LayoutRoom
+	var room PlannedRoom
 	for _, r := range grown.AllRooms() {
-		if r.Role == ModuleContainmentCell {
+		if r.Role == PlannedContainmentCell {
 			room = r
 		}
 	}
 	if room.Role == "" {
 		t.Fatal("grown plan has no containment cell")
 	}
-	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
 	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomShell {
 		t.Fatalf("unbuilt room: %+v", step)
 	}

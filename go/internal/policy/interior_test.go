@@ -94,7 +94,7 @@ func TestInteriorRoomFromCensus(t *testing.T) {
 }
 
 func TestInteriorRoomFromLayout(t *testing.T) {
-	room, ok := InteriorRoomFromLayout(LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Door: domain.Cell{X: 1, Z: -1}}, testShapes)
+	room, ok := InteriorRoomFromLayout(PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Door: domain.Cell{X: 1, Z: -1}}, testShapes)
 	if !ok || room.Role != RoomRoleBedroom {
 		t.Fatalf("room %+v %v", room, ok)
 	}

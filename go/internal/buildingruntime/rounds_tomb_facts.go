@@ -64,12 +64,12 @@ func strangerButchery(facts observation.ColonyProjection) bool {
 
 // plannedMorgue is the planned morgue a waiting fresh stranger corpse owes
 // a shell (#1820); false while the plan, rooms or waste census is unread.
-func plannedMorgue(facts observation.ColonyProjection) (policy.LayoutRoom, bool) {
+func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool) {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	waste, wk := facts.Facts.Waste.Value()
 	if !pk || !rk || !wk {
-		return policy.LayoutRoom{}, false
+		return policy.PlannedRoom{}, false
 	}
 	return policy.MorgueRoomOwed(plan, rooms, waste, strangerButchery(facts))
 }
@@ -91,15 +91,15 @@ func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 // plannedMealCloset is the planned meal closet MaintainRefrigeration owes a
 // shell (#936), once the colony can build coolers; known false without
 // coolers, unknown while the plan or room census is.
-func plannedMealCloset(facts observation.ColonyProjection) (policy.LayoutRoom, domain.Fact[bool]) {
+func plannedMealCloset(facts observation.ColonyProjection) (policy.PlannedRoom, domain.Fact[bool]) {
 	available, ak := facts.DefinitionAvailable("Cooler").Value()
 	if ak && !available {
-		return policy.LayoutRoom{}, domain.Known(false)
+		return policy.PlannedRoom{}, domain.Known(false)
 	}
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	if !ak || !pk || !rk {
-		return policy.LayoutRoom{}, domain.Unknown[bool]()
+		return policy.PlannedRoom{}, domain.Unknown[bool]()
 	}
 	room, owed := plan.MealClosetOwed(rooms)
 	return room, domain.Known(owed)

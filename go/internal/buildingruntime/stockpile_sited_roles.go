@@ -121,14 +121,14 @@ func findMealSpot(projection *observation.ColonyProjection) (mealSpot, bool) {
 // coldMealSpot is the standing meal closet, else the standing planned
 // freezer sharing a door with the standing planned dining room.
 func coldMealSpot(plan policy.LayoutPlan, rooms policy.RoomObservation) (mealSpot, bool) {
-	var dining *policy.LayoutRoom
+	var dining *policy.PlannedRoom
 	for i, planned := range plan.Rooms {
 		switch planned.Role {
-		case policy.ModuleMealCloset:
+		case policy.PlannedMealCloset:
 			if room, ok := policy.PlannedRoomStanding(planned, rooms); ok && len(room.Cells) > 0 {
 				return mealSpot{room: room, filter: mealShelfFilter(), size: len(room.Cells), whole: true}, true
 			}
-		case policy.ModuleDining:
+		case policy.PlannedDining:
 			if dining == nil {
 				dining = &plan.Rooms[i]
 			}

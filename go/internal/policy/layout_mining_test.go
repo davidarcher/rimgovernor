@@ -8,7 +8,7 @@ import (
 
 func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 	plan := LayoutPlan{
-		Rooms: []LayoutRoom{{Role: ModuleReserve, Interior: Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Dug: true}},
+		Rooms: []PlannedRoom{{Role: PlannedReserve, Interior: Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Dug: true}},
 		Zones: []LayoutZone{
 			{Kind: ZoneMining, Runs: []RowRun{{Z: 1, X: 0, Length: 2}}, Ore: true},
 			{Kind: ZoneMining, Runs: []RowRun{{Z: 9, X: 9, Length: 7}, {Z: 2, X: 2, Length: 3}}},
@@ -45,9 +45,9 @@ func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 // and nothing while its back wall is still rock.
 func TestPlannedDig(t *testing.T) {
 	p := PlanUtilities(corePlan(coreTestZones(), 3, BuildTierCamp), UtilityWants{})
-	var freezer LayoutRoom
+	var freezer PlannedRoom
 	for _, r := range p.Rooms {
-		if r.Role == ModuleFreezer {
+		if r.Role == PlannedFreezer {
 			freezer = r
 		}
 	}
@@ -100,7 +100,7 @@ func TestPlannedDig(t *testing.T) {
 // mountain and are dug like any rock, while listed non-rock cells are not.
 func TestRoomDigIncludesFoggedCells(t *testing.T) {
 	p := corePlan(utilityTestZones(), 3, BuildTierCamp)
-	var room LayoutRoom
+	var room PlannedRoom
 	for _, r := range p.AllRooms() {
 		room = r
 		break
@@ -128,9 +128,9 @@ func TestRoomDigIncludesFoggedCells(t *testing.T) {
 // the butchery's door unreachable).
 func TestRoomDigThroughLinkedNeighbour(t *testing.T) {
 	link := domain.Cell{X: 96, Z: 36}
-	freezer := LayoutRoom{Role: ModuleFreezer, Interior: Rectangle{X: 96, Z: 37, Width: 5, Height: 5}, Door: domain.Cell{X: 98, Z: 42}, DoorRot: domain.North}
-	butchery := LayoutRoom{Role: ModuleButchery, Interior: Rectangle{X: 93, Z: 32, Width: 4, Height: 4}, Door: link, Link: &link, DoorRot: domain.North}
-	p := LayoutPlan{Rooms: []LayoutRoom{freezer, butchery}}
+	freezer := PlannedRoom{Role: PlannedFreezer, Interior: Rectangle{X: 96, Z: 37, Width: 5, Height: 5}, Door: domain.Cell{X: 98, Z: 42}, DoorRot: domain.North}
+	butchery := PlannedRoom{Role: PlannedButchery, Interior: Rectangle{X: 93, Z: 32, Width: 4, Height: 4}, Door: link, Link: &link, DoorRot: domain.North}
+	p := LayoutPlan{Rooms: []PlannedRoom{freezer, butchery}}
 	dig := map[domain.Cell]bool{}
 	for _, c := range p.RoomRock(butchery, nil).Dig {
 		dig[c] = true

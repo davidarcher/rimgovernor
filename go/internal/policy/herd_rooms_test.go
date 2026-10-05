@@ -22,7 +22,7 @@ func herdTestPlan(t *testing.T, animals int) LayoutPlan {
 
 // standing is the room census of rooms standing enclosed on each room's
 // interior.
-func standing(rooms ...LayoutRoom) RoomObservation {
+func standing(rooms ...PlannedRoom) RoomObservation {
 	var out RoomObservation
 	for i, r := range rooms {
 		out.Rooms = append(out.Rooms, Room{ID: strconv.Itoa(i), Enclosed: domain.Known(true), Cells: rectCells(r.Interior)})
@@ -43,7 +43,7 @@ func TestHerdRoomsHaveADoorAndHoldTheirBeds(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, animals := range []int{10, 20, 45} {
 		plan := herdTestPlan(t, animals)
-		barns, vets := plan.HerdRooms(ModuleBarn), plan.HerdRooms(ModuleVetRoom)
+		barns, vets := plan.HerdRooms(PlannedBarn), plan.HerdRooms(PlannedVetRoom)
 		if len(barns) != 1 || len(vets) != 1 {
 			t.Fatal("want one barn and one vet room", animals, len(barns), len(vets))
 		}
@@ -66,7 +66,7 @@ func TestHerdRoomsHaveADoorAndHoldTheirBeds(t *testing.T) {
 
 func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	plan := herdTestPlan(t, 20)
-	barn, vet := plan.HerdRooms(ModuleBarn)[0], plan.HerdRooms(ModuleVetRoom)[0]
+	barn, vet := plan.HerdRooms(PlannedBarn)[0], plan.HerdRooms(PlannedVetRoom)[0]
 	const animals = 12
 	step := NextHerdStep(plan, RoomObservation{Shapes: testShapes}, nil, nil, animals, testHerdFurniture)
 	if step.Kind != HerdShell || !step.Room.Same(barn) {
@@ -76,7 +76,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	rooms := standing(barn)
 	for i := 0; i < animals; i++ {
 		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-		if step.Kind != HerdPlace || step.Role != ModuleBarn || step.Piece.Def != testAnimalSpot || !rectInside(barn.Interior, step.Piece.Rect) {
+		if step.Kind != HerdPlace || step.Role != PlannedBarn || step.Piece.Def != testAnimalSpot || !rectInside(barn.Interior, step.Piece.Rect) {
 			t.Fatal("barn sleeping spot", i, step)
 		}
 		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
@@ -88,7 +88,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	rooms = standing(barn, vet)
 	for i := 0; i < VetBeds(animals); i++ {
 		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-		if step.Kind != HerdPlace || step.Role != ModuleVetRoom || step.Piece.Def != testAnimalBed || !rectInside(vet.Interior, step.Piece.Rect) {
+		if step.Kind != HerdPlace || step.Role != PlannedVetRoom || step.Piece.Def != testAnimalBed || !rectInside(vet.Interior, step.Piece.Rect) {
 			t.Fatal("vet animal bed", i, step)
 		}
 		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
@@ -97,7 +97,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 		t.Fatal("every bed stands", step)
 	}
 	// The herd grows: the beds are topped up in the standing rooms.
-	if step = NextHerdStep(plan, rooms, built, nil, animals+3, testHerdFurniture); step.Kind != HerdPlace || step.Role != ModuleBarn {
+	if step = NextHerdStep(plan, rooms, built, nil, animals+3, testHerdFurniture); step.Kind != HerdPlace || step.Role != PlannedBarn {
 		t.Fatal("barn topped up", step)
 	}
 	if step = NextHerdStep(plan, rooms, nil, nil, 0, testHerdFurniture); step.Kind != HerdNone {
@@ -107,7 +107,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 
 func TestHerdStepFlagsEachStandingVetBedMedical(t *testing.T) {
 	plan := herdTestPlan(t, 20)
-	vet := plan.HerdRooms(ModuleVetRoom)[0]
+	vet := plan.HerdRooms(PlannedVetRoom)[0]
 	layout, ok := PlanInterior(mustInterior(t, vet), testHerdFurniture.Bed)
 	if !ok {
 		t.Fatal("no vet layout")
@@ -138,11 +138,11 @@ func TestHerdStepFlagsEachStandingVetBedMedical(t *testing.T) {
 func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 	small := herdTestPlan(t, 10)
 	grown := PlanHerdSites(small, 60)
-	if len(grown.HerdRooms(ModuleBarn)) < 2 {
-		t.Fatal("no second barn for a herd of 60", len(grown.HerdRooms(ModuleBarn)))
+	if len(grown.HerdRooms(PlannedBarn)) < 2 {
+		t.Fatal("no second barn for a herd of 60", len(grown.HerdRooms(PlannedBarn)))
 	}
-	if grown.herdCapacity(ModuleBarn) < 60 || grown.herdCapacity(ModuleVetRoom) < VetBeds(60) {
-		t.Fatal("rooms hold fewer beds than the herd", grown.herdCapacity(ModuleBarn), grown.herdCapacity(ModuleVetRoom))
+	if grown.herdCapacity(PlannedBarn) < 60 || grown.herdCapacity(PlannedVetRoom) < VetBeds(60) {
+		t.Fatal("rooms hold fewer beds than the herd", grown.herdCapacity(PlannedBarn), grown.herdCapacity(PlannedVetRoom))
 	}
 	for i, r := range small.Reservations {
 		if grown.Reservations[i] != r {
@@ -153,7 +153,7 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 		t.Fatal("top-up is not idempotent")
 	}
 	// The second barn is furnished once the first holds its share.
-	first, second := grown.HerdRooms(ModuleBarn)[0], grown.HerdRooms(ModuleBarn)[1]
+	first, second := grown.HerdRooms(PlannedBarn)[0], grown.HerdRooms(PlannedBarn)[1]
 	var built []CurrentBuilding
 	rooms := standing(first)
 	layout, ok := PlanInterior(mustInterior(t, first), testHerdFurniture.Spot)
@@ -169,7 +169,7 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 	}
 }
 
-func mustInterior(t *testing.T, r LayoutRoom) InteriorRoom {
+func mustInterior(t *testing.T, r PlannedRoom) InteriorRoom {
 	t.Helper()
 	in, ok := InteriorRoomFromLayout(r, testShapes)
 	if !ok {
@@ -194,7 +194,7 @@ func TestVetRoomDoorAvoidsNeighbourWall(t *testing.T) {
 		{Kind: ReserveBarn, Area: Rectangle{X: 0, Z: 10, Width: 8, Height: 8}},
 		{Kind: ReserveVetRoom, Area: Rectangle{X: 0, Z: 2, Width: 8, Height: 8}},
 	}}
-	rooms := plan.HerdRooms(ModuleVetRoom)
+	rooms := plan.HerdRooms(PlannedVetRoom)
 	if len(rooms) != 1 {
 		t.Fatalf("vet rooms = %d", len(rooms))
 	}
@@ -208,7 +208,7 @@ func TestVetRoomDoorAvoidsNeighbourWall(t *testing.T) {
 // a link door, and its own door still opens outside.
 func TestVetRoomSharesTheBarnWall(t *testing.T) {
 	plan := herdTestPlan(t, 20)
-	barns, vets := plan.HerdRooms(ModuleBarn), plan.HerdRooms(ModuleVetRoom)
+	barns, vets := plan.HerdRooms(PlannedBarn), plan.HerdRooms(PlannedVetRoom)
 	if len(barns) == 0 || len(vets) == 0 {
 		t.Fatal("no barn or vet room", len(barns), len(vets))
 	}

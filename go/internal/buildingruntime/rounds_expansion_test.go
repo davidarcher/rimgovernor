@@ -29,7 +29,7 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 		t.Fatal(n, id, reason)
 	}
 	// With a planned shelter room the shell is named for its interior (#2043).
-	f.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 12, Z: 34, Width: 7, Height: 7}}}})
+	f.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 12, Z: 34, Width: 7, Height: 7}}}})
 	if _, id, _ = r.selection(f); id != "expansion-shelter-shell-12-34" {
 		t.Fatal(id)
 	}
@@ -111,8 +111,8 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The expansion builds the planned barracks (#1231).
-	barracks, _ := policy.LayoutModule(policy.RoomRoleShelter)
-	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
+	barracks, _ := policy.PlannedRoleFor(policy.RoomRoleShelter)
+	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())
 	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
@@ -161,8 +161,8 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	barracks, _ := policy.LayoutModule(policy.RoomRoleShelter)
-	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
+	barracks, _ := policy.PlannedRoleFor(policy.RoomRoleShelter)
+	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())
 	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)

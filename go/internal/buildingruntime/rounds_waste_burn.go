@@ -107,7 +107,7 @@ func (r *RoundsWastePlanner) cleanAsh(call, epoch context.Context, state Control
 }
 
 // burnRoom plans one burn of a full incinerator.
-func (r *RoundsWastePlanner) burnRoom(call, epoch context.Context, state ControlState, goal store.StandardState, arbiter *stepArbiter, room policy.LayoutRoom, stored int, rows []*n.PawnState) (RoundsWasteResult, bool, error) {
+func (r *RoundsWastePlanner) burnRoom(call, epoch context.Context, state ControlState, goal store.StandardState, arbiter *stepArbiter, room policy.PlannedRoom, stored int, rows []*n.PawnState) (RoundsWasteResult, bool, error) {
 	identity := boundary.Identity(state.Snapshot)
 	things, err := frameThings(call, r.native, identity)
 	if err != nil {

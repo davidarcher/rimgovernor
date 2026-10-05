@@ -36,7 +36,7 @@ func plannedSite(plan policy.LayoutPlan, bounds policy.Bounds, size int32) (site
 func plannedBedrooms(plan policy.LayoutPlan) string {
 	var rooms []string
 	for _, r := range plan.AllRooms() {
-		if r.Role != policy.ModuleBedroom {
+		if r.Role != policy.PlannedBedroom {
 			continue
 		}
 		in := r.Interior

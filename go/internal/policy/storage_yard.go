@@ -93,7 +93,7 @@ func (r StorageRequest) yardSites() []StockpileSite {
 // standingWorkshop is the cells of the first standing planned workshop.
 func (r StorageRequest) standingWorkshop() ([]domain.Cell, bool) {
 	for _, planned := range r.Layout.AllRooms() {
-		if planned.Role != ModuleWorkshop {
+		if planned.Role != PlannedWorkshop {
 			continue
 		}
 		if room, ok := PlannedRoomStanding(planned, *r.Rooms); ok && len(room.Cells) > 0 {

@@ -10,15 +10,15 @@ import (
 // suiteFixture: a and b each own a 3x4 standard bedroom (r1, r2), the plan
 // holds one suite not built yet, and the barracks has a spare bed.
 func suiteFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
-	standard := func(x int32) LayoutRoom {
-		return LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 3, Height: 4}, Door: domain.Cell{X: x + 1, Z: 4}, DoorRot: domain.North}
+	standard := func(x int32) PlannedRoom {
+		return PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: x, Z: 0, Width: 3, Height: 4}, Door: domain.Cell{X: x + 1, Z: 4}, DoorRot: domain.North}
 	}
-	suite := LayoutRoom{Role: ModuleSuite, Interior: Rectangle{X: 30, Z: 0, Width: 7, Height: 8}, Door: domain.Cell{X: 33, Z: 8}, DoorRot: domain.North}
+	suite := PlannedRoom{Role: PlannedSuite, Interior: Rectangle{X: 30, Z: 0, Width: 7, Height: 8}, Door: domain.Cell{X: 33, Z: 8}, DoorRot: domain.North}
 	plan := LayoutPlan{
-		Rooms: []LayoutRoom{{Role: ModuleShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}},
+		Rooms: []PlannedRoom{{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}},
 		Wings: []Wing{
-			{Purpose: WingBedrooms, Rooms: []LayoutRoom{standard(10), standard(14)}},
-			{Purpose: WingSuites, Rooms: []LayoutRoom{suite}},
+			{Purpose: WingBedrooms, Rooms: []PlannedRoom{standard(10), standard(14)}},
+			{Purpose: WingSuites, Rooms: []PlannedRoom{suite}},
 		},
 	}
 	room := func(id string, x int32, beds ...string) Room {
@@ -107,7 +107,7 @@ func TestSuiteClaimantRoomGetsNoUpgrade(t *testing.T) {
 	if _, ok := kept["r2"]; !ok {
 		t.Fatalf("b's r2 dropped: %+v", kept)
 	}
-	if step := NextBedroomStep(plan, rooms, sleeping, owed, suiteTraits, nil, RoomGate{}); step.Kind != BedroomShell || step.Room.Role != ModuleSuite {
+	if step := NextBedroomStep(plan, rooms, sleeping, owed, suiteTraits, nil, RoomGate{}); step.Kind != BedroomShell || step.Room.Role != PlannedSuite {
 		t.Fatalf("step = %+v, want the suite's shell", step)
 	}
 }
@@ -132,7 +132,7 @@ func TestSuiteMoveShellsFurnishesAssignsThenReusesTheRoom(t *testing.T) {
 	plan, rooms, sleeping := suiteFixture()
 	targets := suiteTargetsFor(sleeping, suiteTraits)
 	step := NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, RoomGate{})
-	if step.Kind != BedroomShell || step.Room.Role != ModuleSuite {
+	if step.Kind != BedroomShell || step.Room.Role != PlannedSuite {
 		t.Fatalf("first step = %+v, want the suite's shell", step)
 	}
 	var cells []domain.Cell

@@ -38,7 +38,7 @@ func coolerSearch(t *testing.T, hot bool) (chosen domain.Cell, slots []domain.Ce
 	interior := policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
-	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Hot: hot, Rooms: []policy.LayoutRoom{{Role: policy.ModuleShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
+	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Hot: hot, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
 	room := policy.Room{ID: "1", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: rectangleCells(interior), Beds: []string{"bed1"}, Temperature: domain.Known(36.0), Contents: domain.Known([]policy.Amount{})}
 	observed := policy.RoomObservation{Shapes: testPieceShapes, EligibleBeds: domain.Known(room.Beds), Rooms: []policy.Room{room}}
 	facts.Rooms = domain.Known(observed)

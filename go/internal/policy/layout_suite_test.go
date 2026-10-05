@@ -65,7 +65,7 @@ func TestSuiteWingIsSeparateFromTheStandardWing(t *testing.T) {
 	corridor := spineRects([]SpineSegment{suites.Corridor})[0]
 	step := map[domain.Rotation]domain.Cell{domain.East: {X: 1}, domain.West: {X: -1}}
 	for i, r := range suites.Rooms {
-		if r.Role != ModuleSuite {
+		if r.Role != PlannedSuite {
 			t.Fatal("suite role", r.Role)
 		}
 		// Sized by target; width runs along the (north-south) corridor.
@@ -88,7 +88,7 @@ func TestSuiteWingIsSeparateFromTheStandardWing(t *testing.T) {
 	if in, ok := InteriorRoomFromLayout(suites.Rooms[0], testShapes); !ok || in.Role != RoomRoleSuite {
 		t.Fatal("suite interior role", in, ok)
 	}
-	if m, ok := LayoutModule(RoomRoleSuite); !ok || m != ModuleSuite {
-		t.Fatal("LayoutModule(Suite)", m, ok)
+	if m, ok := PlannedRoleFor(RoomRoleSuite); !ok || m != PlannedSuite {
+		t.Fatal("PlannedRoleFor(Suite)", m, ok)
 	}
 }

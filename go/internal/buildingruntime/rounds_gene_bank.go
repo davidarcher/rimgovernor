@@ -72,7 +72,7 @@ func geneBankAnchor(facts observation.ColonyProjection, biotech observation.Biot
 	if !planned {
 		return domain.Cell{}, false
 	}
-	return roomAnchor(facts, policy.ModuleWorkshop, center)
+	return roomAnchor(facts, policy.PlannedWorkshop, center)
 }
 
 func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsBuildingResult, error) {

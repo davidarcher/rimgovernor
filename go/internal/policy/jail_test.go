@@ -7,8 +7,8 @@ import (
 )
 
 func TestNextJailStepShellsMarksThenPlaces(t *testing.T) {
-	jail := hallRoom(ModulePrison, 10, 30, 5, 5, true)
-	plan := LayoutPlan{Rooms: []LayoutRoom{jail}}
+	jail := hallRoom(PlannedPrison, 10, 30, 5, 5, true)
+	plan := LayoutPlan{Rooms: []PlannedRoom{jail}}
 	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 0, nil, nil); s.Kind != JailNone {
 		t.Fatalf("no prisoner: %+v", s)
 	}
@@ -39,7 +39,7 @@ func TestNextJailStepShellsMarksThenPlaces(t *testing.T) {
 	}
 }
 
-func mustJailPieces(t *testing.T, r LayoutRoom) []InteriorPiece {
+func mustJailPieces(t *testing.T, r PlannedRoom) []InteriorPiece {
 	in, ok := InteriorRoomFromLayout(r, testShapes)
 	if !ok {
 		t.Fatal("jail room")

@@ -8,7 +8,7 @@ import (
 
 func TestVetRoomReadyNeedsAShelledRoomAndAMedicalBed(t *testing.T) {
 	plan := herdTestPlan(t, 20)
-	vet := plan.HerdRooms(ModuleVetRoom)[0]
+	vet := plan.HerdRooms(PlannedVetRoom)[0]
 	layout, ok := PlanInterior(mustInterior(t, vet), testHerdFurniture.Bed)
 	if !ok {
 		t.Fatal("no vet layout")
@@ -44,7 +44,7 @@ func TestVetRoomReadyNeedsAShelledRoomAndAMedicalBed(t *testing.T) {
 
 func TestVetRoomAreaCoversTheInteriorAndNotTheAnimalAreas(t *testing.T) {
 	plan := herdTestPlan(t, 20)
-	vet := plan.HerdRooms(ModuleVetRoom)[0]
+	vet := plan.HerdRooms(PlannedVetRoom)[0]
 	cells := plan.VetRoomCells()
 	if len(cells) != len(rectCells(vet.Interior)) {
 		t.Fatal("the area is the vet room interior", len(cells))

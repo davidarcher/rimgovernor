@@ -90,13 +90,13 @@ func TestDeathrestChamberFollowsDeathresters(t *testing.T) {
 		t.Fatalf("no deathrester owes no chamber: %+v", got)
 	}
 	needs := ChildRoomNeeds([]WorkPawn{deathresterPawn(3), deathresterPawn(1)})
-	if len(needs) != 1 || needs[0].Role != RoomRoleDeathrestChamber || needs[0].Module != ModuleDeathrestChamber {
+	if len(needs) != 1 || needs[0].Role != RoomRoleDeathrestChamber || needs[0].Module != PlannedDeathrestChamber {
 		t.Fatalf("deathresters owe a chamber: %+v", needs)
 	}
 	if f := needs[0].Furniture; f[0].Role != RoleDeathrestCasket || f[0].Count != 2 || f[1].Role != RoleDeathrestAccelerator || f[1].Count != 2 || !f[1].Optional {
 		t.Fatalf("a casket per deathrester, accelerators beyond capacity one: %+v", f)
 	}
-	plan, room := childRoomFixture(ModuleDeathrestChamber)
+	plan, room := childRoomFixture(PlannedDeathrestChamber)
 	defs := furnitureDefs(map[string]Bounds{"DeathrestCasket": {Width: 1, Height: 2}})
 	// The accelerator is optional: the catalog lacking one still furnishes caskets.
 	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) {
@@ -116,7 +116,7 @@ func TestChildRoomFurnitureComesFromCatalogRoles(t *testing.T) {
 	// A def is furniture by its catalog role, not its name.
 	defs := furnitureDefs(map[string]Bounds{"CosyCot": {Width: 1, Height: 1}})
 	defs[0].Roles = []string{"BabyBed"}
-	plan, room := childRoomFixture(ModuleNursery)
+	plan, room := childRoomFixture(PlannedNursery)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn"), stagePawn("Newborn")})[:1]
 	if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, defs); step.Kind != ChildRoomPlace || step.Piece.Def != "CosyCot" {
 		t.Fatalf("a role-carrying def is placed: %+v", step)
@@ -128,7 +128,7 @@ func TestChildRoomFurnitureComesFromCatalogRoles(t *testing.T) {
 }
 
 func TestChildRoomSizesHoldTheirFurniture(t *testing.T) {
-	shape := ChildRoomShape{Module: ModuleClassroom, Pieces: []PieceCount{{Size: domain.Cell{X: 2, Z: 1}, Count: 7}}}
+	shape := ChildRoomShape{Module: PlannedClassroom, Pieces: []PieceCount{{Size: domain.Cell{X: 2, Z: 1}, Count: 7}}}
 	sizes := ChildRoomSizes(shape)
 	if len(sizes) == 0 {
 		t.Fatal("no size holds seven desks")
@@ -144,15 +144,15 @@ func TestChildRoomSizesHoldTheirFurniture(t *testing.T) {
 			t.Fatalf("sizes not ordered by area: %v", sizes)
 		}
 	}
-	bigger := ChildRoomShape{Module: ModuleClassroom, Pieces: []PieceCount{{Size: domain.Cell{X: 2, Z: 1}, Count: 14}}}
+	bigger := ChildRoomShape{Module: PlannedClassroom, Pieces: []PieceCount{{Size: domain.Cell{X: 2, Z: 1}, Count: 14}}}
 	if a, b := sizes[0], ChildRoomSizes(bigger)[0]; a[0]*a[1] >= b[0]*b[1] {
 		t.Fatalf("more desks need more floor: %v then %v", a, b)
 	}
 }
 
-func childRoomFixture(role ModuleRole) (LayoutPlan, LayoutRoom) {
-	room := LayoutRoom{Role: role, Interior: Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
-	return LayoutPlan{Rooms: []LayoutRoom{room}}, room
+func childRoomFixture(role PlannedRole) (LayoutPlan, PlannedRoom) {
+	room := PlannedRoom{Role: role, Interior: Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
 func standingPiece(t *testing.T, def string, p InteriorPiece) CurrentBuilding {
@@ -165,7 +165,7 @@ func standingPiece(t *testing.T, def string, p InteriorPiece) CurrentBuilding {
 }
 
 func TestNextChildRoomStepShellsThenFurnishesTheNursery(t *testing.T) {
-	plan, room := childRoomFixture(ModuleNursery)
+	plan, room := childRoomFixture(PlannedNursery)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn"), stagePawn("Newborn")})[:1]
 	defs := furnitureDefs(childDefs)
 	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, needs, defs); step.Kind != ChildRoomShell || !step.Room.Same(room) || !step.Owed() {
@@ -201,7 +201,7 @@ func TestNextChildRoomStepShellsThenFurnishesTheNursery(t *testing.T) {
 }
 
 func TestNextChildRoomStepPlacesEachPieceTheRoleScores(t *testing.T) {
-	plan, room := childRoomFixture(ModuleClassroom)
+	plan, room := childRoomFixture(PlannedClassroom)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Child")})[1:]
 	if len(needs) != 1 || needs[0].Role != RoomRoleClassroom {
 		t.Fatalf("needs: %+v", needs)
@@ -227,7 +227,7 @@ func TestNextChildRoomStepPlacesEachPieceTheRoleScores(t *testing.T) {
 }
 
 func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
-	plan, room := childRoomFixture(ModuleNursery)
+	plan, room := childRoomFixture(PlannedNursery)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn")})[:1]
 	locked := []FurnitureDefinition{{Name: "Crib", Roles: []string{"BabyBed"}, Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
 	unknown := []FurnitureDefinition{{Name: "Crib", Roles: []string{"BabyBed"}, Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
@@ -242,12 +242,12 @@ func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
 		t.Fatalf("fallback bed: %+v", step)
 	}
 	// A plan with no nursery room leaves the room to the layout review.
-	empty, _ := childRoomFixture(ModulePlayroom)
+	empty, _ := childRoomFixture(PlannedPlayroom)
 	if step := NextChildRoomStep(empty, tombStanding(room), nil, needs, furnitureDefs(childDefs)); step.Kind != ChildRoomNone {
 		t.Fatalf("no planned nursery: %+v", step)
 	}
 	owed := ChildRoomsOwed(empty, needs, furnitureDefs(childDefs))
-	if len(owed) != 1 || owed[0].Module != ModuleNursery {
+	if len(owed) != 1 || owed[0].Module != PlannedNursery {
 		t.Fatalf("the plan owes a nursery: %+v", owed)
 	}
 	if owed := ChildRoomsOwed(plan, needs, furnitureDefs(childDefs)); len(owed) != 0 {
@@ -260,7 +260,7 @@ func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
 
 func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
 	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
-	shape := ChildRoomShape{Module: ModuleNursery, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 4}}}
+	shape := ChildRoomShape{Module: PlannedNursery, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 4}}}
 	grown, added, _ := growChildRoom(base, shape, nil)
 	if !added || len(grown.Rooms) != len(base.Rooms)+1 {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(base.Rooms), len(grown.Rooms))
@@ -279,7 +279,7 @@ func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
 	if again, added, _ := growChildRoom(grown, shape, nil); added || len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("a nursery already holds the cribs")
 	}
-	if _, added, _ := growChildRoom(grown, ChildRoomShape{Module: ModuleNursery}, nil); added {
+	if _, added, _ := growChildRoom(grown, ChildRoomShape{Module: PlannedNursery}, nil); added {
 		t.Fatal("no furniture, no room")
 	}
 }
@@ -288,7 +288,7 @@ func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
 // west); it must still count as holding the shape it was grown for, or every
 // review grows another.
 func TestChildRoomForTransposedRoom(t *testing.T) {
-	shape := ChildRoomShape{Module: ModuleWorship, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 6}}}
+	shape := ChildRoomShape{Module: PlannedWorship, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 6}}}
 	var size [2]int32
 	for _, s := range ChildRoomSizes(shape) {
 		if s[0] != s[1] {
@@ -299,8 +299,8 @@ func TestChildRoomForTransposedRoom(t *testing.T) {
 	if size == ([2]int32{}) {
 		t.Skip("every size holding the shape is square")
 	}
-	room := LayoutRoom{Role: ModuleWorship, Interior: Rectangle{X: 10, Z: 20, Width: size[1], Height: size[0]}, Door: domain.Cell{X: 9, Z: 21}, DoorRot: domain.East}
-	if _, ok := (LayoutPlan{Rooms: []LayoutRoom{room}}).ChildRoomFor(shape); !ok {
+	room := PlannedRoom{Role: PlannedWorship, Interior: Rectangle{X: 10, Z: 20, Width: size[1], Height: size[0]}, Door: domain.Cell{X: 9, Z: 21}, DoorRot: domain.East}
+	if _, ok := (LayoutPlan{Rooms: []PlannedRoom{room}}).ChildRoomFor(shape); !ok {
 		t.Fatalf("transposed %v room does not hold the shape", size)
 	}
 }

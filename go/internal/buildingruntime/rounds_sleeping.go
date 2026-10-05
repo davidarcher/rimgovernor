@@ -522,12 +522,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			if err != nil || !result.Verdict.skipsToPlacement() {
 				return result, err
 			}
-			if module == policy.ModuleKitchen || module == policy.ModuleButchery {
+			if module == policy.PlannedKitchen || module == policy.PlannedButchery {
 				kitchen := *r
 				kitchen.cells, kitchen.environment = plannedRoomInterior(room), policy.PlacementAnywhere
 				r = &kitchen
 			}
-		} else if module == policy.ModuleKitchen || module == policy.ModuleButchery {
+		} else if module == policy.PlannedKitchen || module == policy.PlannedButchery {
 			if cells := plannedRoomCells(facts, module); cells != nil {
 				kitchen := *r
 				kitchen.cells = cells
@@ -537,7 +537,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.cells == nil && len(r.paste) == 0 {
 		// The cooking campfire goes in the planned kitchen once it stands (#2044).
-		if cells := plannedRoomCells(facts, policy.ModuleKitchen); cells != nil {
+		if cells := plannedRoomCells(facts, policy.PlannedKitchen); cells != nil {
 			fire := *r
 			fire.cells = cells
 			r = &fire
@@ -545,7 +545,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if r.definition == "ButcherSpot" {
 		// The stand-in spot goes in the planned butchery once it stands (#2040).
-		if cells := plannedRoomCells(facts, policy.ModuleButchery); cells != nil {
+		if cells := plannedRoomCells(facts, policy.PlannedButchery); cells != nil {
 			spot := *r
 			spot.cells = cells
 			r = &spot
@@ -1452,7 +1452,7 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 	var cells []domain.Cell
 	for _, room := range plan.AllRooms() {
 		switch room.Role {
-		case policy.ModuleKitchen, policy.ModuleLab, policy.ModuleHospital, policy.ModulePrison, policy.ModuleDining, policy.ModuleRec, policy.ModuleFreezer, policy.ModuleWorkshop, policy.ModuleMealCloset, policy.ModuleButchery, policy.ModuleThrone, policy.ModuleNursery, policy.ModulePlayroom, policy.ModuleClassroom, policy.ModuleDeathrestChamber, policy.ModuleWorship, policy.ModuleContainmentCell, policy.ModuleIsolationRoom, policy.ModuleStorage, policy.ModuleArmory, policy.ModuleWardrobe, policy.ModuleBarn, policy.ModuleVetRoom:
+		case policy.PlannedKitchen, policy.PlannedLab, policy.PlannedHospital, policy.PlannedPrison, policy.PlannedDining, policy.PlannedRec, policy.PlannedFreezer, policy.PlannedWorkshop, policy.PlannedMealCloset, policy.PlannedButchery, policy.PlannedThrone, policy.PlannedNursery, policy.PlannedPlayroom, policy.PlannedClassroom, policy.PlannedDeathrestChamber, policy.PlannedWorship, policy.PlannedContainmentCell, policy.PlannedIsolationRoom, policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedBarn, policy.PlannedVetRoom:
 		default:
 			continue
 		}
@@ -1472,7 +1472,7 @@ func sleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 	var cells []domain.Cell
 	for _, room := range plan.AllRooms() {
 		switch room.Role {
-		case policy.ModuleShelter, policy.ModuleBedroom, policy.ModuleSuite:
+		case policy.PlannedShelter, policy.PlannedBedroom, policy.PlannedSuite:
 			cells = append(cells, plannedRoomInterior(room)...)
 		}
 	}

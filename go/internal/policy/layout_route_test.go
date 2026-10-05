@@ -32,9 +32,9 @@ func TestCheckRoutesRejectsThoroughfare(t *testing.T) {
 	p := LayoutPlan{
 		Spine:     []SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}},
 		Entrances: spineEntrances([]SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}}),
-		Rooms: []LayoutRoom{
-			{Role: ModuleBedroom, Interior: Rectangle{X: 0, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 2}, DoorRot: domain.South},
-			{Role: ModuleStorage, Interior: Rectangle{X: 0, Z: 9, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 8}, DoorRot: domain.South},
+		Rooms: []PlannedRoom{
+			{Role: PlannedBedroom, Interior: Rectangle{X: 0, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 2}, DoorRot: domain.South},
+			{Role: PlannedStorage, Interior: Rectangle{X: 0, Z: 9, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 8}, DoorRot: domain.South},
 		},
 	}
 	if _, err := CheckRoutes(p); err == nil || !strings.Contains(err.Error(), "crosses bedroom") {

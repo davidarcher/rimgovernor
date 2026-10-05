@@ -10,9 +10,9 @@ import (
 // south onto (22,19), and a bedroom beside it.
 func prisonPlan() LayoutPlan {
 	return LayoutPlan{
-		Rooms: []LayoutRoom{
-			{Role: ModulePrison, Interior: Rectangle{X: 20, Z: 21, Width: 5, Height: 5}, Door: domain.Cell{X: 22, Z: 20}, DoorRot: domain.South},
-			{Role: ModuleBedroom, Interior: Rectangle{X: 26, Z: 21, Width: 4, Height: 4}, Door: domain.Cell{X: 27, Z: 20}, DoorRot: domain.South},
+		Rooms: []PlannedRoom{
+			{Role: PlannedPrison, Interior: Rectangle{X: 20, Z: 21, Width: 5, Height: 5}, Door: domain.Cell{X: 22, Z: 20}, DoorRot: domain.South},
+			{Role: PlannedBedroom, Interior: Rectangle{X: 26, Z: 21, Width: 4, Height: 4}, Door: domain.Cell{X: 27, Z: 20}, DoorRot: domain.South},
 		},
 		Reservations: []LayoutReservation{
 			{Kind: ReservePerimeter, Area: Rectangle{X: 7, Z: 7, Width: 86, Height: 3}},
@@ -36,7 +36,7 @@ func TestPrisonTurrets(t *testing.T) {
 		}
 	}
 	// A second prison adds one more: three at most.
-	p.Rooms = append(p.Rooms, LayoutRoom{Role: ModulePrison, Interior: Rectangle{X: 40, Z: 21, Width: 5, Height: 5}, Door: domain.Cell{X: 42, Z: 20}, DoorRot: domain.South})
+	p.Rooms = append(p.Rooms, PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 40, Z: 21, Width: 5, Height: 5}, Door: domain.Cell{X: 42, Z: 20}, DoorRot: domain.South})
 	if n := len(PrisonTurretSites(p)); n != prisonTurretMax {
 		t.Fatal("cap", n)
 	}
@@ -84,14 +84,14 @@ func TestNoWeaponsNearPrison(t *testing.T) {
 func TestGrowGearRoomsKeepsTheArmoryClearOfPrisons(t *testing.T) {
 	t.Parallel()
 	plan := gearTestPlan()
-	if len(plan.roomsOf(ModulePrison)) == 0 {
+	if len(plan.roomsOf(PlannedPrison)) == 0 {
 		t.Fatal("the test plan has no prison")
 	}
 	grown, added, err := growGearRooms(plan, RoomDemand{Armory: true}, nil)
 	if err != nil || !added {
 		t.Fatalf("armory added=%v err=%v", added, err)
 	}
-	armory, _ := roomOf(grown, ModuleArmory)
+	armory, _ := roomOf(grown, PlannedArmory)
 	if nearPrison(rectCells(pad(armory.Interior, 1)), PrisonCells(grown)) {
 		t.Fatalf("armory %+v within the weapon clearance of a prison", armory.Interior)
 	}

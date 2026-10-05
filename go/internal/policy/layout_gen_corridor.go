@@ -258,7 +258,7 @@ func (p LayoutPlan) addSecondDoors(fixed map[Rectangle]bool) LayoutPlan {
 		}
 		return -1
 	}
-	rooms := append([]LayoutRoom(nil), p.Rooms...)
+	rooms := append([]PlannedRoom(nil), p.Rooms...)
 	p.Rooms = rooms
 	for i := range rooms {
 		r := rooms[i]
@@ -270,7 +270,7 @@ func (p LayoutPlan) addSecondDoors(fixed map[Rectangle]bool) LayoutPlan {
 			primary = hallAt(outside(r.Door, side))
 		}
 		for _, cand := range secondDoorCandidates(r, hallAt, primary) {
-			trial := append([]LayoutRoom(nil), rooms...)
+			trial := append([]PlannedRoom(nil), rooms...)
 			trial[i].Doors = append(append([]Door(nil), rooms[i].Doors...), cand)
 			q := p
 			q.Rooms = trial
@@ -305,7 +305,7 @@ func outside(d domain.Cell, side domain.Rotation) domain.Cell {
 // each hallway (other than primary) its wall touches, the middle wall cell
 // of the stretch beside that hallway. A corner, and a cell holding a door
 // or the link already, is never a door.
-func secondDoorCandidates(r LayoutRoom, hallAt func(domain.Cell) int, primary int) []Door {
+func secondDoorCandidates(r PlannedRoom, hallAt func(domain.Cell) int, primary int) []Door {
 	in := r.Interior
 	taken := map[domain.Cell]bool{r.Door: true}
 	for _, d := range r.Doors {

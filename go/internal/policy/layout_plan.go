@@ -21,9 +21,9 @@ type Door struct {
 	Rot  domain.Rotation
 }
 
-// LayoutRoom is one planned room.
-type LayoutRoom struct {
-	Role ModuleRole
+// PlannedRoom is one planned room.
+type PlannedRoom struct {
+	Role PlannedRole
 	// Interior is the room's floor, walls excluded.
 	Interior Rectangle
 	// Door is the primary door: the one furniture frames and rock planning
@@ -98,7 +98,7 @@ type LayoutPlan struct {
 	// until the plan is grown (#1946).
 	Entrances []domain.Cell `json:",omitempty"`
 	// Rooms are the rooms hung off the spine; a wing holds its own (#1213).
-	Rooms        []LayoutRoom
+	Rooms        []PlannedRoom
 	Wings        []Wing `json:",omitempty"`
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
@@ -121,8 +121,8 @@ type LayoutPlan struct {
 // plan order (the planner lists rooms nearest the spine's start first). A
 // full role falls back to reserve rooms; false means the plan holds no
 // slot.
-func (p LayoutPlan) Anchor(want ModuleRole, free func(room Rectangle) bool) (domain.Cell, bool) {
-	for _, role := range []ModuleRole{want, ModuleReserve} {
+func (p LayoutPlan) Anchor(want PlannedRole, free func(room Rectangle) bool) (domain.Cell, bool) {
+	for _, role := range []PlannedRole{want, PlannedReserve} {
 		for _, r := range p.AllRooms() {
 			if r.Role == role && (free == nil || free(r.Interior)) {
 				return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
@@ -139,7 +139,7 @@ func (p LayoutPlan) Anchor(want ModuleRole, free func(room Rectangle) bool) (dom
 // which on a fresh landing is the map centre. False means an empty plan.
 func (p LayoutPlan) Core() (domain.Cell, bool) {
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleStorage {
+		if r.Role == PlannedStorage {
 			return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
 		}
 	}
@@ -263,9 +263,9 @@ func RectUnion(rects ...Rectangle) (Rectangle, bool) {
 	return out, found
 }
 
-// Same reports whether two rooms are identical, the comparison LayoutRoom's
+// Same reports whether two rooms are identical, the comparison PlannedRoom's
 // slice of doors rules out for ==.
-func (r LayoutRoom) Same(o LayoutRoom) bool {
+func (r PlannedRoom) Same(o PlannedRoom) bool {
 	if (r.Link == nil) != (o.Link == nil) || r.Link != nil && *r.Link != *o.Link || len(r.Doors) != len(o.Doors) {
 		return false
 	}
@@ -282,8 +282,8 @@ func (r LayoutRoom) Same(o LayoutRoom) bool {
 // out occupied rooms (every room when nil). With no free room of that role it
 // falls back to the nearest free reserve room; false means the plan holds no
 // slot.
-func (p LayoutPlan) NearestAnchor(want ModuleRole, to domain.Cell, free func(room Rectangle) bool) (domain.Cell, bool) {
-	for _, role := range []ModuleRole{want, ModuleReserve} {
+func (p LayoutPlan) NearestAnchor(want PlannedRole, to domain.Cell, free func(room Rectangle) bool) (domain.Cell, bool) {
+	for _, role := range []PlannedRole{want, PlannedReserve} {
 		best, bestD, found := domain.Cell{}, int64(0), false
 		for _, r := range p.AllRooms() {
 			if r.Role != role || free != nil && !free(r.Interior) {

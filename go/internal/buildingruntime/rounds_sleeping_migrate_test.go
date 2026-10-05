@@ -11,12 +11,12 @@ import (
 // A pending wing migration keeps housing owed (#1244) though policy
 // BedroomsOwed counts no deficit.
 func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
-	room := func(x int32) policy.LayoutRoom {
-		return policy.LayoutRoom{Role: policy.ModuleBedroom, Interior: policy.Rectangle{X: x, Z: 0, Width: 4, Height: 4}}
+	room := func(x int32) policy.PlannedRoom {
+		return policy.PlannedRoom{Role: policy.PlannedBedroom, Interior: policy.Rectangle{X: x, Z: 0, Width: 4, Height: 4}}
 	}
 	plan := policy.LayoutPlan{Wings: []policy.Wing{
-		{Purpose: policy.WingBedroomsRetiring, Rooms: []policy.LayoutRoom{room(0)}},
-		{Purpose: policy.WingBedrooms, Rooms: []policy.LayoutRoom{room(20)}},
+		{Purpose: policy.WingBedroomsRetiring, Rooms: []policy.PlannedRoom{room(0)}},
+		{Purpose: policy.WingBedrooms, Rooms: []policy.PlannedRoom{room(20)}},
 	}}
 	standing := func(id string, x int32, beds ...string) policy.Room {
 		return policy.Room{ID: id, Role: domain.Known(policy.RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{{X: x + 2, Z: 2}}}

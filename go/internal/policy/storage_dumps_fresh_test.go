@@ -39,7 +39,7 @@ func TestFreshAnimalCorpseHasAHomeWithoutAFreezerShelf(t *testing.T) {
 	if fresh.Role == "" || fresh.Filter != domain.CorpseLarderFilter() || fresh.Priority != domain.LowPriority || !rotten || shelf {
 		t.Fatalf("no freezer: fresh %+v rotten %v shelf %v", fresh, rotten, shelf)
 	}
-	req.Layout.Rooms[0].Role = ModuleFreezer
+	req.Layout.Rooms[0].Role = PlannedFreezer
 	if fresh, rotten, shelf = roles(req); fresh.Role != "" || !rotten || !shelf {
 		t.Fatalf("freezer shelf standing: fresh %+v rotten %v shelf %v", fresh, rotten, shelf)
 	}

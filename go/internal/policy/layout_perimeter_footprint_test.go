@@ -28,14 +28,14 @@ func countCells(v []bool) int {
 	return n
 }
 
-func footprintRoom(role ModuleRole, x, z, w, h int32) LayoutRoom {
-	return LayoutRoom{Role: role, Interior: Rectangle{X: x, Z: z, Width: w, Height: h}}
+func footprintRoom(role PlannedRole, x, z, w, h int32) PlannedRoom {
+	return PlannedRoom{Role: role, Interior: Rectangle{X: x, Z: z, Width: w, Height: h}}
 }
 
 // A rectangular core encloses its bounding box and yard, as before.
 func TestCoreFootprintRectangularCoreMatchesTheBox(t *testing.T) {
 	t.Parallel()
-	plan := LayoutPlan{Rooms: []LayoutRoom{footprintRoom(ModuleWorkshop, 60, 60, 10, 10), footprintRoom(ModuleStorage, 72, 60, 10, 10)}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{footprintRoom(PlannedWorkshop, 60, 60, 10, 10), footprintRoom(PlannedStorage, 72, 60, 10, 10)}}
 	fp := coreFootprint(plan, 150, 150)
 	box := footprintBox(plan, 150, 150)
 	if got, want := countCells(fp), int(box.Width*box.Height); got != want {
@@ -51,9 +51,9 @@ func TestCoreFootprintRectangularCoreMatchesTheBox(t *testing.T) {
 // wide notch stays a notch.
 func TestCoreFootprintLShapeKeepsItsNotch(t *testing.T) {
 	t.Parallel()
-	plan := LayoutPlan{Rooms: []LayoutRoom{
-		footprintRoom(ModuleWorkshop, 40, 40, 50, 8),
-		footprintRoom(ModuleStorage, 40, 50, 8, 40),
+	plan := LayoutPlan{Rooms: []PlannedRoom{
+		footprintRoom(PlannedWorkshop, 40, 40, 50, 8),
+		footprintRoom(PlannedStorage, 40, 50, 8, 40),
 	}}
 	const n = 150
 	fp := coreFootprint(plan, n, n)
@@ -79,9 +79,9 @@ func TestCoreFootprintLShapeKeepsItsNotch(t *testing.T) {
 // A narrow notch is closed, as the old box closed it.
 func TestCoreFootprintNarrowNotchCloses(t *testing.T) {
 	t.Parallel()
-	plan := LayoutPlan{Rooms: []LayoutRoom{
-		footprintRoom(ModuleWorkshop, 40, 40, 10, 10),
-		footprintRoom(ModuleStorage, 54, 40, 10, 10),
+	plan := LayoutPlan{Rooms: []PlannedRoom{
+		footprintRoom(PlannedWorkshop, 40, 40, 10, 10),
+		footprintRoom(PlannedStorage, 54, 40, 10, 10),
 	}}
 	const n = 150
 	enc := coreEnclosure(plan, n, n)
@@ -97,11 +97,11 @@ func TestOuterRingSkipsPatchInsideTheFootprint(t *testing.T) {
 	t.Parallel()
 	const n = 150
 	patch := Rectangle{X: 70, Z: 70, Width: 8, Height: 8}
-	plan := LayoutPlan{Rooms: []LayoutRoom{
-		footprintRoom(ModuleWorkshop, 50, 50, 40, 8),
-		footprintRoom(ModuleStorage, 50, 90, 40, 8),
-		footprintRoom(ModuleKitchen, 50, 58, 8, 32),
-		footprintRoom(ModuleDining, 82, 58, 8, 32),
+	plan := LayoutPlan{Rooms: []PlannedRoom{
+		footprintRoom(PlannedWorkshop, 50, 50, 40, 8),
+		footprintRoom(PlannedStorage, 50, 90, 40, 8),
+		footprintRoom(PlannedKitchen, 50, 58, 8, 32),
+		footprintRoom(PlannedDining, 82, 58, 8, 32),
 	}}
 	zone := LayoutZone{Kind: ZoneField}
 	for z := patch.Z; z < patch.Z+patch.Height; z++ {

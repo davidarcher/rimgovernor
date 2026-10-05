@@ -18,7 +18,7 @@ const siteRoomCandidates = 12
 // rock to dig, the walk from the spawn edge through the dug rock, footprint,
 // room to grow), so a room does not pop through a mountain's face that the
 // first plan stayed behind. With no scorer the nearest slot is taken.
-func SiteRoom(plan LayoutPlan, sc *planScorer, role ModuleRole, sizes ...[2]int32) (LayoutPlan, bool, error) {
+func SiteRoom(plan LayoutPlan, sc *planScorer, role PlannedRole, sizes ...[2]int32) (LayoutPlan, bool, error) {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {
 		return plan, false, fmt.Errorf("the plan needs a %s room but the map survey left no core ground to place it on", role)
@@ -40,10 +40,10 @@ func SiteRoom(plan LayoutPlan, sc *planScorer, role ModuleRole, sizes ...[2]int3
 	found := false
 	for range limit {
 		var spine []SpineSegment
-		var rooms []LayoutRoom
+		var rooms []PlannedRoom
 		placed := false
 		for _, size := range sizes {
-			spine, rooms, placed, _ = g.packRoom(append([]SpineSegment(nil), plan.Spine...), append([]LayoutRoom(nil), plan.Rooms...), plan.Wings, role, size)
+			spine, rooms, placed, _ = g.packRoom(append([]SpineSegment(nil), plan.Spine...), append([]PlannedRoom(nil), plan.Rooms...), plan.Wings, role, size)
 			if placed {
 				break
 			}

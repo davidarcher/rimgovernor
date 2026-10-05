@@ -6,8 +6,8 @@ package policy
 // full size and never grows; a claim no planned suite answers sites another
 // block, and sited suites never move or deepen.
 
-// ModuleSuite is a suite's plan role.
-const ModuleSuite ModuleRole = "suite"
+// PlannedSuite is a suite's plan role.
+const PlannedSuite PlannedRole = "suite"
 
 // RoomRoleSuite is the room role a suite is built for. It is a plan role
 // only: RimWorld has no Suite RoomRoleDef, so the native census reports a
@@ -64,9 +64,9 @@ func (f wingFrame) corridorTo(v int32) Rectangle {
 // packSuites is one suite per target, sized by SuiteSize, packed outward
 // along the corridor of frame f: each takes the side nearer the main
 // hallway (east on a tie), sharing walls with its neighbour.
-func packSuites(f wingFrame, targets []float64) []LayoutRoom {
+func packSuites(f wingFrame, targets []float64) []PlannedRoom {
 	east, west := int32(3), int32(3)
-	var out []LayoutRoom
+	var out []PlannedRoom
 	for _, t := range targets {
 		w, d := SuiteSize(t)
 		onEast := east <= west
@@ -74,7 +74,7 @@ func packSuites(f wingFrame, targets []float64) []LayoutRoom {
 		if onEast {
 			v0 = east
 		}
-		out = append(out, f.roomAt(onEast, v0, w, d, ModuleSuite))
+		out = append(out, f.roomAt(onEast, v0, w, d, PlannedSuite))
 		if onEast {
 			east = v0 + w + 1
 		} else {

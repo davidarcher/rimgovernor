@@ -8,7 +8,7 @@ import (
 
 // shelterGapTo is the clear cells between the shelter's walls and the nearest
 // other room's walls (Chebyshev).
-func shelterGapTo(p LayoutPlan, shelter LayoutRoom) int32 {
+func shelterGapTo(p LayoutPlan, shelter PlannedRoom) int32 {
 	walls := roomWalls(shelter)
 	gap := int32(1 << 20)
 	near := func(o Rectangle) {
@@ -17,18 +17,18 @@ func shelterGapTo(p LayoutPlan, shelter LayoutRoom) int32 {
 		gap = min(gap, max(dx, dz))
 	}
 	for _, r := range p.AllRooms() {
-		if r.Role != ModuleShelter {
+		if r.Role != PlannedShelter {
 			near(roomWalls(r))
 		}
 	}
 	return gap
 }
 
-func shelterOf(t *testing.T, p LayoutPlan) LayoutRoom {
+func shelterOf(t *testing.T, p LayoutPlan) PlannedRoom {
 	t.Helper()
-	var found []LayoutRoom
+	var found []PlannedRoom
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleShelter {
+		if r.Role == PlannedShelter {
 			found = append(found, r)
 		}
 	}
@@ -51,7 +51,7 @@ func TestPlanHoldsOneShelterFiveTilesClearOnOpenGround(t *testing.T) {
 	if _, err := CheckRoutes(p); err != nil {
 		t.Fatal(err)
 	}
-	if !noThroughfare[ModuleShelter] {
+	if !noThroughfare[PlannedShelter] {
 		t.Fatal("the shelter is a thoroughfare")
 	}
 }
@@ -74,7 +74,7 @@ func TestShelterFallbackLadder(t *testing.T) {
 	base := open
 	base.Rooms = nil
 	for _, r := range open.Rooms {
-		if r.Role != ModuleShelter {
+		if r.Role != PlannedShelter {
 			base.Rooms = append(base.Rooms, r)
 		}
 	}

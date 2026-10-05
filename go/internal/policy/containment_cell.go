@@ -30,8 +30,8 @@ const (
 // the same standing lamp that stands beside a bed or throne.
 const ContainmentLampDefinition = standingLampDef
 
-// ModuleContainmentCell is the containment cell's plan role.
-const ModuleContainmentCell ModuleRole = "containment-cell"
+// PlannedContainmentCell is the containment cell's plan role.
+const PlannedContainmentCell PlannedRole = "containment-cell"
 
 // ContainmentDemand is what the colony's entities ask of a cell: how many
 // living entities the game lets the colony capture that no platform holds
@@ -116,7 +116,7 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition)
 	if strength < required {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: fmt.Sprintf("a cell of %s with the planned walls and door holds at most %.1f containment strength and an entity needs %.1f plus a margin of %.1f; facilities that add strength are not planned", defs.Holder, strength, demand.Required, margin)}
 	}
-	need := ChildRoomNeed{Role: RoomRoleContainmentCell, Module: ModuleContainmentCell, Furniture: []ChildFurniture{
+	need := ChildRoomNeed{Role: RoomRoleContainmentCell, Module: PlannedContainmentCell, Furniture: []ChildFurniture{
 		{Defs: []string{defs.Holder}, Count: 1},
 		// A lamp lights the cell (#1743): glow adds ten containment strength
 		// per unit of mean glow, and the power planner connects the lamp

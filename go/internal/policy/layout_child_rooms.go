@@ -99,20 +99,20 @@ func childRowDemand(s ChildRoomShape) int {
 }
 
 // ChildRoomFor is the plan's first room of the shape's role that holds it.
-func (p LayoutPlan) ChildRoomFor(s ChildRoomShape) (LayoutRoom, bool) {
+func (p LayoutPlan) ChildRoomFor(s ChildRoomShape) (PlannedRoom, bool) {
 	for _, r := range p.AllRooms() {
 		if w, d := frameDims(r); r.Role == s.Module && s.holds(w, d) {
 			return r, true
 		}
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }
 
 // frameDims are the room's interior as its furniture frame sees it: width
 // along the door's wall, depth away from it. A room beside a north-south
 // hallway is stored transposed, so its door faces east or west and the
 // frame's width is the interior's height.
-func frameDims(r LayoutRoom) (width, depth int32) {
+func frameDims(r PlannedRoom) (width, depth int32) {
 	if side, ok := doorSide(r.Interior, r.Door); ok && (side == domain.East || side == domain.West) {
 		return r.Interior.Height, r.Interior.Width
 	}

@@ -101,9 +101,9 @@ func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	var shop LayoutRoom
+	var shop PlannedRoom
 	for _, r := range plan.AllRooms() {
-		if r.Role == ModuleWorkshop {
+		if r.Role == PlannedWorkshop {
 			shop = r
 		}
 	}

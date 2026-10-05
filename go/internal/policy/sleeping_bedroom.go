@@ -17,7 +17,7 @@ import (
 func ShellBedIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	shell := map[string]bool{}
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleShelter {
+		if r.Role != PlannedShelter {
 			continue
 		}
 		if room, ok := PlannedRoomStanding(r, rooms); ok {
@@ -54,7 +54,7 @@ type BedroomStep struct {
 	Kind             BedroomStepKind
 	Pawn             PawnID
 	Bed, PreviousBed string
-	Room             LayoutRoom
+	Room             PlannedRoom
 	Cells            []domain.Cell
 	Unhoused         int
 }
@@ -154,7 +154,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	// A suite's bed is its claimant's, never an unhoused pawn's.
 	suiteBed := map[string]bool{}
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleSuite {
+		if r.Role != PlannedSuite {
 			continue
 		}
 		if room, ok := PlannedRoomStanding(r, rooms); ok {
@@ -181,14 +181,14 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			}
 		}
 	}
-	standing := func(r LayoutRoom) (Room, bool) { return PlannedRoomStanding(r, rooms) }
-	var empty []LayoutRoom
+	standing := func(r PlannedRoom) (Room, bool) { return PlannedRoomStanding(r, rooms) }
+	var empty []PlannedRoom
 	var emptyCells [][]domain.Cell
-	var unbuilt []LayoutRoom
+	var unbuilt []PlannedRoom
 	retiring := retiringRooms(plan)
 	for _, r := range plan.AllRooms() {
 		// A Retiring wing is never built out further (#1219).
-		if r.Role != ModuleBedroom || retiring[r.Interior] {
+		if r.Role != PlannedBedroom || retiring[r.Interior] {
 			continue
 		}
 		room, ok := standing(r)
@@ -230,7 +230,7 @@ func BedResearchRequest(needs []string, plan LayoutPlan, rooms RoomObservation, 
 			return needs
 		}
 	}
-	if step := NextBedroomStep(plan, rooms, sleeping, targets, nil, nil, RoomGate{}); step.Kind != BedroomNone && step.Room.Role != ModuleSuite || step.Unhoused > 0 {
+	if step := NextBedroomStep(plan, rooms, sleeping, targets, nil, nil, RoomGate{}); step.Kind != BedroomNone && step.Room.Role != PlannedSuite || step.Unhoused > 0 {
 		return needs
 	}
 	return append(append([]string(nil), needs...), BedResearch)

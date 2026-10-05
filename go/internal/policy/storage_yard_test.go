@@ -9,9 +9,9 @@ import (
 // yardField is a 100x100 open map with a workshop and a storeroom standing
 // as roofed rooms; zoned cells are flagged for the maintenance pass.
 func yardField(zoned map[domain.Cell]bool) (StorageRequest, Rectangle) {
-	workshop := LayoutRoom{Role: ModuleWorkshop, Interior: Rectangle{X: 40, Z: 40, Width: 7, Height: 5}}
-	storage := LayoutRoom{Role: ModuleStorage, Interior: Rectangle{X: 52, Z: 40, Width: 5, Height: 5}}
-	layout := LayoutPlan{Rooms: []LayoutRoom{workshop, storage}}
+	workshop := PlannedRoom{Role: PlannedWorkshop, Interior: Rectangle{X: 40, Z: 40, Width: 7, Height: 5}}
+	storage := PlannedRoom{Role: PlannedStorage, Interior: Rectangle{X: 52, Z: 40, Width: 5, Height: 5}}
+	layout := LayoutPlan{Rooms: []PlannedRoom{workshop, storage}}
 	var cells []SiteCell
 	rooms := RoomObservation{Shapes: testShapes}
 	for i, r := range layout.Rooms {

@@ -63,9 +63,9 @@ func siting(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("wait for the first layout plan: %w", err)
 	}
 	plan := record.Plan
-	var shelters []policy.LayoutRoom
+	var shelters []policy.PlannedRoom
 	for _, r := range plan.AllRooms() {
-		if r.Role == policy.ModuleShelter {
+		if r.Role == policy.PlannedShelter {
 			shelters = append(shelters, r)
 		}
 	}
@@ -82,7 +82,7 @@ func siting(ctx context.Context, s cases.Session) error {
 	}
 	gap := int32(-1)
 	for _, r := range plan.AllRooms() {
-		if r.Role == policy.ModuleShelter {
+		if r.Role == policy.PlannedShelter {
 			continue
 		}
 		o := r.Interior

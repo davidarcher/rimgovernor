@@ -30,14 +30,14 @@ func ringPlan(farApart bool) LayoutPlan {
 		{From: domain.Cell{X: 0, Z: -30}, To: domain.Cell{X: 0, Z: 30}},
 		{From: domain.Cell{X: 40, Z: -30}, To: domain.Cell{X: 40, Z: 30}},
 	}
-	p := LayoutPlan{Spine: spine, Rooms: []LayoutRoom{
-		{Role: ModuleKitchen, Interior: Rectangle{X: 3, Z: z, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: z + 2}, DoorRot: domain.West},
-		{Role: ModuleFreezer, Interior: Rectangle{X: 33, Z: z, Width: 5, Height: 5}, Door: domain.Cell{X: 38, Z: z + 2}, DoorRot: domain.East},
+	p := LayoutPlan{Spine: spine, Rooms: []PlannedRoom{
+		{Role: PlannedKitchen, Interior: Rectangle{X: 3, Z: z, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: z + 2}, DoorRot: domain.West},
+		{Role: PlannedFreezer, Interior: Rectangle{X: 33, Z: z, Width: 5, Height: 5}, Door: domain.Cell{X: 38, Z: z + 2}, DoorRot: domain.East},
 	}}
 	if farApart {
 		// More kitchens up the same crossing, each walking to the freezer.
 		for _, kz := range []int32{16, 10} {
-			p.Rooms = append(p.Rooms, LayoutRoom{Role: ModuleKitchen, Interior: Rectangle{X: 3, Z: kz, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: kz + 2}, DoorRot: domain.West})
+			p.Rooms = append(p.Rooms, PlannedRoom{Role: PlannedKitchen, Interior: Rectangle{X: 3, Z: kz, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: kz + 2}, DoorRot: domain.West})
 		}
 	}
 	p.Entrances = hallEntrances(spine)
@@ -110,18 +110,18 @@ func TestRouteRingsKeepsOffRoomsAndObstacles(t *testing.T) {
 }
 
 func TestAddSecondDoorsOnlyForPassThroughRooms(t *testing.T) {
-	for _, role := range []ModuleRole{ModuleDining, ModuleBedroom} {
+	for _, role := range []PlannedRole{PlannedDining, PlannedBedroom} {
 		p := bridgedHallways(role)
 		p.Rooms[0].Doors = nil
 		got := p.addSecondDoors(nil)
 		doors := len(got.Rooms[0].Doors)
-		if role == ModuleDining && doors != 1 {
+		if role == PlannedDining && doors != 1 {
 			t.Fatal("dining touches two hallways and should take a second door", doors)
 		}
-		if role == ModuleBedroom && doors != 0 {
+		if role == PlannedBedroom && doors != 0 {
 			t.Fatal("a bedroom never takes one", doors)
 		}
-		if role == ModuleDining {
+		if role == PlannedDining {
 			if _, err := CheckRoutes(got); err != nil {
 				t.Fatal(err)
 			}

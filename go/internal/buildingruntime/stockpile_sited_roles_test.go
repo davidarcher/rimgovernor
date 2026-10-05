@@ -124,9 +124,9 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 func TestMealSpotMovesIntoTheStandingCloset(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
-	dining := policy.LayoutRoom{Role: policy.ModuleDining, Interior: policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}, Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}
-	closet := policy.LayoutRoom{Role: policy.ModuleMealCloset, Interior: policy.Rectangle{X: 14, Z: 21, Width: 2, Height: 2}, Door: domain.Cell{X: 15, Z: 20}, DoorRot: domain.North}
-	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{dining, closet}})
+	dining := policy.PlannedRoom{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}, Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}
+	closet := policy.PlannedRoom{Role: policy.PlannedMealCloset, Interior: policy.Rectangle{X: 14, Z: 21, Width: 2, Height: 2}, Door: domain.Cell{X: 15, Z: 20}, DoorRot: domain.North}
+	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{dining, closet}})
 	rooms, _ := projection.Rooms.Value()
 	closetCells := []domain.Cell{{X: 14, Z: 21}, {X: 14, Z: 22}, {X: 15, Z: 21}, {X: 15, Z: 22}}
 	rooms.Rooms = append(rooms.Rooms, policy.Room{ID: "Room_9", Enclosed: domain.Known(true), Cells: closetCells})
@@ -155,9 +155,9 @@ func TestMealSpotMovesIntoTheStandingCloset(t *testing.T) {
 func TestMealSpotAtTheFreezerDoor(t *testing.T) {
 	t.Parallel()
 	link := domain.Cell{X: 15, Z: 12}
-	freezer := policy.LayoutRoom{Role: policy.ModuleFreezer, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 9}, DoorRot: domain.North}
-	dining := policy.LayoutRoom{Role: policy.ModuleDining, Interior: policy.Rectangle{X: 16, Z: 10, Width: 9, Height: 7}, Door: domain.Cell{X: 20, Z: 9}, DoorRot: domain.North, Link: &link}
-	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{freezer, dining}}
+	freezer := policy.PlannedRoom{Role: policy.PlannedFreezer, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 9}, DoorRot: domain.North}
+	dining := policy.PlannedRoom{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 16, Z: 10, Width: 9, Height: 7}, Door: domain.Cell{X: 20, Z: 9}, DoorRot: domain.North, Link: &link}
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{freezer, dining}}
 	standing := func(id string, r policy.Rectangle) policy.Room {
 		var cells []domain.Cell
 		for x := r.X; x < r.X+r.Width; x++ {

@@ -70,7 +70,7 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 
 // No planned room covers a geyser's enclosure, on a fresh plan or on a
 // replan of a plan laid out before the geyser was known.
-func TestLayoutRoomsKeepOffGeysers(t *testing.T) {
+func TestPlannedRoomsKeepOffGeysers(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)

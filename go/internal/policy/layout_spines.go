@@ -21,7 +21,7 @@ const maxCrossings = 3
 func alongX(s SpineSegment) bool { return s.From.Z == s.To.Z }
 
 // onSegment reports r's door opening onto s's hallway.
-func onSegment(r LayoutRoom, s SpineSegment) bool {
+func onSegment(r PlannedRoom, s SpineSegment) bool {
 	lo, hi := s.From, s.To
 	if alongX(s) {
 		d := r.Door.Z - s.From.Z
@@ -36,7 +36,7 @@ func onSegment(r LayoutRoom, s SpineSegment) bool {
 // nearest its try (searching out to reach cells either way) whose full
 // cross-section is core ground clear of every room; the main hallway is
 // stretched to meet it.
-func (g coreGrid) growSpine(spine []SpineSegment, rooms []LayoutRoom) ([]SpineSegment, bool) {
+func (g coreGrid) growSpine(spine []SpineSegment, rooms []PlannedRoom) ([]SpineSegment, bool) {
 	if len(spine) == 0 || len(spine) > maxCrossings || !alongX(spine[0]) {
 		return spine, false
 	}

@@ -24,18 +24,18 @@ func MorgueWaiting(waste []WasteItem, butchery bool) bool {
 
 // MorgueRoomOwed is the planned morgue that stands unbuilt while a fresh
 // stranger corpse waits and the butchery is open; false otherwise.
-func MorgueRoomOwed(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, butchery bool) (LayoutRoom, bool) {
+func MorgueRoomOwed(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, butchery bool) (PlannedRoom, bool) {
 	if !MorgueWaiting(waste, butchery) {
-		return LayoutRoom{}, false
+		return PlannedRoom{}, false
 	}
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleMorgue {
+		if r.Role != PlannedMorgue {
 			continue
 		}
 		if _, ok := PlannedRoomStanding(r, rooms); !ok {
 			return r, true
 		}
-		return LayoutRoom{}, false
+		return PlannedRoom{}, false
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }

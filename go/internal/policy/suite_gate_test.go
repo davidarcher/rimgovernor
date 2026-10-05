@@ -50,13 +50,13 @@ func TestSuiteClaimsStopAtTheOwnersShare(t *testing.T) {
 	if got := claim(poor); len(got) != 0 {
 		t.Fatalf("poor claims = %+v", got)
 	}
-	if step := NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, poor); step.Room.Role == ModuleSuite {
+	if step := NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, poor); step.Room.Role == PlannedSuite {
 		t.Fatalf("poor step = %+v", step)
 	}
 	if owed, _ := BedroomsOwed(domain.Known(plan), domain.Known(rooms), domain.Known(sleeping), targets, suiteTraits, nil, poor).Value(); owed {
 		t.Fatal("poor owner holds MaintainHousing open")
 	}
-	if step := NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, suiteGate(StageReserves, map[PawnID]float64{"a": 1000})); step.Kind != BedroomShell || step.Room.Role != ModuleSuite {
+	if step := NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, suiteGate(StageReserves, map[PawnID]float64{"a": 1000})); step.Kind != BedroomShell || step.Room.Role != PlannedSuite {
 		t.Fatalf("rich step = %+v", step)
 	}
 	// Charged steps begin at Reserves; an unknown share is necessities only.

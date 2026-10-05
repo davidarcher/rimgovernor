@@ -173,7 +173,7 @@ func (r StorageRequest) freezerSites() []StockpileSite {
 // goes to the dump.
 func (r StorageRequest) morgueSites() []StockpileSite {
 	for _, morgue := range r.Layout.AllRooms() {
-		if morgue.Role != ModuleMorgue {
+		if morgue.Role != PlannedMorgue {
 			continue
 		}
 		if room, ok := PlannedRoomStanding(morgue, *r.Rooms); ok && len(room.Cells) > 0 {
@@ -187,7 +187,7 @@ func (r StorageRequest) morgueSites() []StockpileSite {
 // tombSites are the first standing tomb's corpse store, the whole room.
 func (r StorageRequest) tombSites() []StockpileSite {
 	for _, tomb := range r.Layout.AllRooms() {
-		if tomb.Role != ModuleTomb {
+		if tomb.Role != PlannedTomb {
 			continue
 		}
 		if room, ok := PlannedRoomStanding(tomb, *r.Rooms); ok && len(room.Cells) > 0 {

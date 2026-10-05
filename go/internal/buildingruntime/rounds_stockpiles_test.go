@@ -289,12 +289,12 @@ func TestIsStockpileEditMethod(t *testing.T) {
 // storage room: it was the starter shell's room once, and furniture there
 // carves up the warehouse zone.
 func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
-	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
-		{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}},
-		{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
-		{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3}},
-		{Role: policy.ModuleBarn, Interior: policy.Rectangle{X: 70, Z: 70, Width: 3, Height: 3}},
-		{Role: policy.ModuleVetRoom, Interior: policy.Rectangle{X: 90, Z: 90, Width: 3, Height: 3}},
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
+		{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}},
+		{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
+		{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3}},
+		{Role: policy.PlannedBarn, Interior: policy.Rectangle{X: 70, Z: 70, Width: 3, Height: 3}},
+		{Role: policy.PlannedVetRoom, Interior: policy.Rectangle{X: 90, Z: 90, Width: 3, Height: 3}},
 	}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	cells := map[domain.Cell]bool{}
@@ -318,12 +318,12 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 // Loose sleeping spots are allowlisted: only the shelter, bedrooms and
 // suites are open to them, every other planned room is not.
 func TestSleepingPlannedCellsAllowlist(t *testing.T) {
-	at := func(role policy.ModuleRole, x int32) policy.LayoutRoom {
-		return policy.LayoutRoom{Role: role, Interior: policy.Rectangle{X: x, Z: 10, Width: 3, Height: 3}}
+	at := func(role policy.PlannedRole, x int32) policy.PlannedRoom {
+		return policy.PlannedRoom{Role: role, Interior: policy.Rectangle{X: x, Z: 10, Width: 3, Height: 3}}
 	}
-	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
-		at(policy.ModuleShelter, 10), at(policy.ModuleBedroom, 20), at(policy.ModuleSuite, 30),
-		at(policy.ModuleBarn, 40), at(policy.ModuleKitchen, 50), at(policy.ModuleReserve, 60),
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
+		at(policy.PlannedShelter, 10), at(policy.PlannedBedroom, 20), at(policy.PlannedSuite, 30),
+		at(policy.PlannedBarn, 40), at(policy.PlannedKitchen, 50), at(policy.PlannedReserve, 60),
 	}}
 	cells := map[domain.Cell]bool{}
 	for _, c := range sleepingPlannedCells(observation.ColonyProjection{LayoutPlan: domain.Known(plan)}) {

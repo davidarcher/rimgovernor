@@ -54,7 +54,7 @@ func knightMirror(t *testing.T) *bridge.DefinitionCatalog {
 // knightSnapshot is a colony whose Yeoman Alice is owed the Knight's room: a
 // 6x5 planned throne room standing, nothing built in it yet, every furnishing
 // definition available and a hauler at hand.
-func knightSnapshot(t *testing.T) (observation.ColonyProjection, policy.LayoutRoom, *bridge.DefinitionCatalog) {
+func knightSnapshot(t *testing.T) (observation.ColonyProjection, policy.PlannedRoom, *bridge.DefinitionCatalog) {
 	t.Helper()
 	catalog := knightMirror(t)
 	royalty, err := catalog.WithTitleDefs(policy.RoyaltyFacts{

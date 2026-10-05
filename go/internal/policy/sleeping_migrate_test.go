@@ -54,12 +54,12 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 }
 
 func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
-	room := func(x int32) LayoutRoom {
-		return LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 4, Height: 4}}
+	room := func(x int32) PlannedRoom {
+		return PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: x, Z: 0, Width: 4, Height: 4}}
 	}
 	plan := LayoutPlan{Wings: []Wing{
-		{Purpose: WingBedroomsRetiring, Rooms: []LayoutRoom{room(0), room(10)}},
-		{Purpose: WingBedrooms, Rooms: []LayoutRoom{room(20), room(30)}},
+		{Purpose: WingBedroomsRetiring, Rooms: []PlannedRoom{room(0), room(10)}},
+		{Purpose: WingBedrooms, Rooms: []PlannedRoom{room(20), room(30)}},
 	}}
 	standing := func(id string, x int32, beds ...string) Room {
 		return Room{ID: id, Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{{X: x + 2, Z: 2}}}

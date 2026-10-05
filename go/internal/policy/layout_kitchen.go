@@ -9,26 +9,26 @@ var mealClosetSizes = [][2]int32{{2, 2}, {2, 1}}
 // mealCloset places the closet behind the first dining room's back wall,
 // centred on it, once no freezer shares a door with a dining room and no
 // closet is planned yet. Its walls must stand on core candidates.
-func (g coreGrid) mealCloset(rooms []LayoutRoom) (LayoutRoom, bool) {
-	var dining *LayoutRoom
+func (g coreGrid) mealCloset(rooms []PlannedRoom) (PlannedRoom, bool) {
+	var dining *PlannedRoom
 	for i := range rooms {
 		switch rooms[i].Role {
-		case ModuleMealCloset:
-			return LayoutRoom{}, false
-		case ModuleDining:
+		case PlannedMealCloset:
+			return PlannedRoom{}, false
+		case PlannedDining:
 			if dining == nil {
 				dining = &rooms[i]
 			}
 		}
 	}
 	if dining == nil || (LayoutPlan{Rooms: rooms}).FreezerOpensInto(*dining) {
-		return LayoutRoom{}, false
+		return PlannedRoom{}, false
 	}
 	d := dining.Interior
 	for _, size := range mealClosetSizes {
 		w, h := size[0], size[1]
 		ix := d.X + d.Width/2 - w/2
-		room := LayoutRoom{Role: ModuleMealCloset, DoorRot: dining.DoorRot}
+		room := PlannedRoom{Role: PlannedMealCloset, DoorRot: dining.DoorRot}
 		if dining.DoorRot == domain.North {
 			room.Interior = Rectangle{X: ix, Z: d.Z - 1 - h, Width: w, Height: h}
 			room.Door = domain.Cell{X: ix + w/2, Z: d.Z - 1}
@@ -48,5 +48,5 @@ func (g coreGrid) mealCloset(rooms []LayoutRoom) (LayoutRoom, bool) {
 			return room, true
 		}
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }

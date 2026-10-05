@@ -273,7 +273,6 @@ func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 	return newEnclosure(closeRegion(grown, w, h, yard), w, h)
 }
 
-
 // outerClear is how far the outer ring needs a unit to stand off the core
 // footprint: the core ring's yard, its thickness, the gap and the outer ring's thickness.
 const outerClear = perimeterGap + perimeterThick + perimeterOuterGap + perimeterThick

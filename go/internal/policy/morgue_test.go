@@ -7,9 +7,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func morgueFixture() (LayoutPlan, LayoutRoom) {
-	room := LayoutRoom{Role: ModuleMorgue, Interior: Rectangle{X: 10, Z: 20, Width: 5, Height: 4}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
-	return LayoutPlan{Rooms: []LayoutRoom{room}}, room
+func morgueFixture() (LayoutPlan, PlannedRoom) {
+	room := PlannedRoom{Role: PlannedMorgue, Interior: Rectangle{X: 10, Z: 20, Width: 5, Height: 4}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
 func TestMorgueShelledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
@@ -28,7 +28,7 @@ func TestMorgueShelledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
 			t.Fatalf("owed for %+v", waste)
 		}
 	}
-	standing := tombStanding(LayoutRoom{Interior: room.Interior})
+	standing := tombStanding(PlannedRoom{Interior: room.Interior})
 	if _, owed := MorgueRoomOwed(plan, standing, fresh, true); owed {
 		t.Fatal("a standing morgue owes no shell")
 	}
@@ -36,7 +36,7 @@ func TestMorgueShelledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
 
 func TestMorgueIsCooledOnceStanding(t *testing.T) {
 	plan, room := morgueFixture()
-	rooms := tombStanding(LayoutRoom{Interior: room.Interior})
+	rooms := tombStanding(PlannedRoom{Interior: room.Interior})
 	rooms.Rooms[0].Temperature = domain.Known(18.0)
 	built := domain.Known(CurrentConstruction{Colony: true})
 	none := domain.Known([]WasteItem{})
@@ -51,7 +51,7 @@ func TestMorgueIsCooledOnceStanding(t *testing.T) {
 
 func TestMorgueSiteHoldsFreshStrangersAheadOfTheDump(t *testing.T) {
 	plan, room := morgueFixture()
-	rooms := tombStanding(LayoutRoom{Interior: room.Interior})
+	rooms := tombStanding(PlannedRoom{Interior: room.Interior})
 	sites := StorageRequest{Layout: &plan, Rooms: &rooms}.morgueSites()
 	if len(sites) != 1 || sites[0].Role != domain.MorgueRolePrefix+"r1" || sites[0].Filter != domain.MorgueCorpsesFilter() {
 		t.Fatalf("sites %+v", sites)
@@ -90,28 +90,28 @@ func containsSelector(rows []domain.FilterSelector, s domain.FilterSelector) boo
 
 func TestCoreGrowPlansAMorgueBesideTheTomb(t *testing.T) {
 	p := growPlan(corePlan(coreTestZones(), 3, BuildTierCamp), 3, 1, BuildTierCamp)
-	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []ModuleRole{ModuleMorgue})
+	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []PlannedRole{PlannedMorgue})
 	if err != nil || !grown {
 		t.Fatalf("morgue grown=%v err=%v", grown, err)
 	}
-	var morgue, tomb *LayoutRoom
+	var morgue, tomb *PlannedRoom
 	for i, r := range p.Rooms {
 		switch r.Role {
-		case ModuleMorgue:
+		case PlannedMorgue:
 			morgue = &p.Rooms[i]
-		case ModuleTomb:
+		case PlannedTomb:
 			tomb = &p.Rooms[i]
 		}
 	}
 	if morgue == nil || tomb == nil {
 		t.Fatal("morgue or tomb not planned")
 	}
-	if cold := coolingRoles; !containsRole(cold, ModuleMorgue) {
+	if cold := coolingRoles; !containsRole(cold, PlannedMorgue) {
 		t.Fatal("morgue not a cooled role")
 	}
 }
 
-func containsRole(roles []ModuleRole, r ModuleRole) bool {
+func containsRole(roles []PlannedRole, r PlannedRole) bool {
 	for _, x := range roles {
 		if x == r {
 			return true

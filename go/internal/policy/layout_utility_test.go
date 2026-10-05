@@ -19,7 +19,7 @@ func utilityTestZones() []LayoutZone {
 }
 
 func TestPlannedPowerSites(t *testing.T) {
-	p := PlanUtilities(withRooms(corePlan(utilityTestZones(), 3, BuildTierCamp), ModuleBattery), UtilityWants{TurbinePairs: 1, Solar: 1})
+	p := PlanUtilities(withRooms(corePlan(utilityTestZones(), 3, BuildTierCamp), PlannedBattery), UtilityWants{TurbinePairs: 1, Solar: 1})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
 		t.Fatal(batteries)
@@ -54,14 +54,14 @@ func TestPlannedPowerSites(t *testing.T) {
 // hallway the battery room still gets a site, on a crossing when needed,
 // its slots nearest the door first and every block beside its battery.
 func TestBatteryRoomOnCrossing(t *testing.T) {
-	p := PlanUtilities(withRooms(corePlan(coreTestZones(), 12, BuildTierCamp), ModuleBattery), UtilityWants{})
+	p := PlanUtilities(withRooms(corePlan(coreTestZones(), 12, BuildTierCamp), PlannedBattery), UtilityWants{})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 {
 		t.Fatal(batteries)
 	}
-	var room LayoutRoom
+	var room PlannedRoom
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleBattery {
+		if r.Role == PlannedBattery {
 			room = r
 		}
 	}
@@ -87,12 +87,12 @@ func TestBatteryRoomOnCrossing(t *testing.T) {
 // TestBatterySlotsCrossing: an east-door room's slots are the north-door
 // room's transposed, 1x2 along z, and plan north-facing batteries.
 func TestBatterySlotsCrossing(t *testing.T) {
-	room := LayoutRoom{Role: ModuleBattery, Interior: Rectangle{X: 10, Z: 20, Width: 7, Height: 5}, Door: domain.Cell{X: 17, Z: 22}, DoorRot: domain.East}
+	room := PlannedRoom{Role: PlannedBattery, Interior: Rectangle{X: 10, Z: 20, Width: 7, Height: 5}, Door: domain.Cell{X: 17, Z: 22}, DoorRot: domain.East}
 	slots := BatterySlots(room)
 	if len(slots) != 8 || slots[0] != (Rectangle{X: 16, Z: 20, Width: 1, Height: 2}) || slots[1] != (Rectangle{X: 16, Z: 23, Width: 1, Height: 2}) || slots[2].X != 14 {
 		t.Fatal(slots)
 	}
-	sites := PlannedPowerSites(LayoutPlan{Rooms: []LayoutRoom{room}}, BatteryDefinition)
+	sites := PlannedPowerSites(LayoutPlan{Rooms: []PlannedRoom{room}}, BatteryDefinition)
 	if sites[2].Rotation != domain.North || sites[2].Block != (Rectangle{X: 15, Z: 20, Width: 1, Height: 2}) {
 		t.Fatal(sites[2])
 	}
@@ -109,7 +109,7 @@ func TestPlannedCoolerSites(t *testing.T) {
 	}
 	for _, s := range sites {
 		c := RefrigerationCooler{Position: s.Cell, Rotation: s.Rotation}
-		var room *LayoutRoom
+		var room *PlannedRoom
 		for i, r := range p.Rooms {
 			if inRect(r.Interior, c.Cold()) {
 				room = &p.Rooms[i]
@@ -212,7 +212,7 @@ func TestTurbineWindCells(t *testing.T) {
 
 func TestPlanUtilities(t *testing.T) {
 	zones := utilityTestZones()
-	core := withRooms(growPlan(corePlan(zones, 0, BuildTierCamp), 0, 1, BuildTierCamp), ModuleBattery, ModuleMorgue)
+	core := withRooms(growPlan(corePlan(zones, 0, BuildTierCamp), 0, 1, BuildTierCamp), PlannedBattery, PlannedMorgue)
 	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
 	if !p.Valid() {
 		t.Fatal("invalid")
@@ -233,9 +233,9 @@ func TestPlanUtilities(t *testing.T) {
 		t.Fatal(count)
 	}
 	// Battery room: 5 wide off the spine, door on the walkway, no lane.
-	var battery *LayoutRoom
+	var battery *PlannedRoom
 	for i := range p.Rooms {
-		if p.Rooms[i].Role == ModuleBattery {
+		if p.Rooms[i].Role == PlannedBattery {
 			battery = &p.Rooms[i]
 		}
 	}

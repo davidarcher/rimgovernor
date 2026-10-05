@@ -57,7 +57,7 @@ func roomCellSites(room []domain.Cell, anchor domain.Cell, cells []SiteCell, avo
 // planned freezer stands yet.
 func rawFoodStockSites(layout LayoutPlan, rooms RoomObservation, bounds Bounds, cells []SiteCell, protected []domain.Cell) (Room, [][]domain.Cell, error) {
 	for _, planned := range layout.AllRooms() {
-		if planned.Role != ModuleFreezer {
+		if planned.Role != PlannedFreezer {
 			continue
 		}
 		room, ok := PlannedRoomStanding(planned, rooms)
@@ -138,7 +138,7 @@ func roomPool(room []domain.Cell, cells []SiteCell, avoid []domain.Cell) []domai
 // (into the freezer), else false.
 func butcheryDoor(layout LayoutPlan) (domain.Cell, bool) {
 	for _, r := range layout.AllRooms() {
-		if r.Role == ModuleButchery && r.Link != nil {
+		if r.Role == PlannedButchery && r.Link != nil {
 			return *r.Link, true
 		}
 	}

@@ -159,7 +159,7 @@ func PocketSections(plan LayoutPlan, wall string) ([]PerimeterSection, error) {
 func BaseRoomLamps(plan LayoutPlan) []domain.Cell {
 	var out []domain.Cell
 	for _, r := range plan.AllRooms() {
-		if r.Role == ModuleReserve {
+		if r.Role == PlannedReserve {
 			continue
 		}
 		in := r.Interior

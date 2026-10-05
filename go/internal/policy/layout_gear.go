@@ -13,21 +13,21 @@ import "errors"
 // full after the room stands asks for nothing more.
 
 const (
-	ModuleArmory   ModuleRole = "armory"
-	ModuleWardrobe ModuleRole = "wardrobe"
+	PlannedArmory   PlannedRole = "armory"
+	PlannedWardrobe PlannedRole = "wardrobe"
 )
 
 // gearRooms are the gear rooms in the order they are added.
-var gearRooms = []ModuleRole{ModuleArmory, ModuleWardrobe}
+var gearRooms = []PlannedRole{PlannedArmory, PlannedWardrobe}
 
 // GearRoomsOwed is the gear rooms demand asks for that plan lacks.
-func GearRoomsOwed(plan LayoutPlan, demand RoomDemand) []ModuleRole {
-	wanted := map[ModuleRole]bool{ModuleArmory: demand.Armory, ModuleWardrobe: demand.Wardrobe}
-	have := map[ModuleRole]bool{}
+func GearRoomsOwed(plan LayoutPlan, demand RoomDemand) []PlannedRole {
+	wanted := map[PlannedRole]bool{PlannedArmory: demand.Armory, PlannedWardrobe: demand.Wardrobe}
+	have := map[PlannedRole]bool{}
 	for _, r := range plan.AllRooms() {
 		have[r.Role] = true
 	}
-	var owed []ModuleRole
+	var owed []PlannedRole
 	for _, role := range gearRooms {
 		if wanted[role] && !have[role] {
 			owed = append(owed, role)

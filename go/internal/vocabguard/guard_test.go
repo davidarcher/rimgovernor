@@ -31,10 +31,11 @@ var goNames = []*regexp.Regexp{
 // goDeclOnly are retired words checked only in declared names, where a
 // substring is unambiguous; as prose in a string they are ordinary English.
 var goDeclOnly = []*regexp.Regexp{
-	regexp.MustCompile(`Routine`),    // Rounds
-	regexp.MustCompile(`Rule`),       // Safeguard (a veto)
-	regexp.MustCompile(`OwnerEpoch`), // OwnerEpisode (a Standard's recurrence count)
-	regexp.MustCompile(`^Epoch$`),    // Episode, outside the clock packages
+	regexp.MustCompile(`Routine`),               // Rounds
+	regexp.MustCompile(`Rule`),                  // Safeguard (a veto)
+	regexp.MustCompile(`OwnerEpoch`),            // OwnerEpisode (a Standard's recurrence count)
+	regexp.MustCompile(`^Epoch$`),               // Episode, outside the clock packages
+	regexp.MustCompile(`LayoutRoom|ModuleRole`), // PlannedRoom, PlannedRole (#2102)
 }
 
 // typeOnly are retired words checked in type names of the governor packages.

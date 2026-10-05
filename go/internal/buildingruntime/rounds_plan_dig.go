@@ -255,7 +255,7 @@ func exposedFirst(excavations []domain.Excavation, cells []policy.SiteCell) []do
 }
 
 // digMethod is the per-epoch method that mines what for room (#836).
-func digMethod(what string, room policy.LayoutRoom) domain.MethodID {
+func digMethod(what string, room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("plan-dig-%s-%s-%d-%d", what, room.Role, room.Interior.X, room.Interior.Z))
 }
 
@@ -270,7 +270,7 @@ func isRoomDigMethod(method domain.MethodID) bool {
 
 // digPlannedRoom mines a planned room's interior and door ahead of its
 // shell, reached from outside the door.
-func (b *RoundsBuildingPlanner) digPlannedRoom(call, epoch context.Context, s excavationStep, plan policy.LayoutPlan, room policy.LayoutRoom, check func() error) (RoundsBuildingResult, bool, error) {
+func (b *RoundsBuildingPlanner) digPlannedRoom(call, epoch context.Context, s excavationStep, plan policy.LayoutPlan, room policy.PlannedRoom, check func() error) (RoundsBuildingResult, bool, error) {
 	shell, err := room.Footprint()
 	if err != nil {
 		return RoundsBuildingResult{}, false, nil

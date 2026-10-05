@@ -101,9 +101,9 @@ func TestModuleLightingTable(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := ModuleLighting(tc.tier, tc.farm, tc.stock, tc.powered)
+			got, ok := PlannedLighting(tc.tier, tc.farm, tc.stock, tc.powered)
 			if ok != tc.ok || got != tc.want {
-				t.Fatalf("ModuleLighting = %+v %v, want %+v %v", got, ok, tc.want, tc.ok)
+				t.Fatalf("PlannedLighting = %+v %v, want %+v %v", got, ok, tc.want, tc.ok)
 			}
 		})
 	}

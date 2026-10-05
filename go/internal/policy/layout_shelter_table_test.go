@@ -26,7 +26,7 @@ func TestShelterTableRelocatesToTheLaboratoryThenTheShelterRetires(t *testing.T)
 		t.Fatalf("no relocation proposed: %+v", proposal)
 	}
 	move := proposal.Moves[0]
-	lab := f.plan.roomsOf(ModuleLab)[0].Interior
+	lab := f.plan.roomsOf(PlannedLab)[0].Interior
 	if move.Thing != "bench" || move.Def != "SimpleResearchBench" || !rectInside(lab, move.To) || move.From != cellsRectangle(table.Cells) {
 		t.Fatalf("move = %+v, lab %+v", move, lab)
 	}
@@ -63,7 +63,7 @@ func TestShelterTableRelocatesToTheLaboratoryThenTheShelterRetires(t *testing.T)
 		t.Fatal("moved table proposed again")
 	}
 	next, changed := f.replan(t, true, nil)
-	if !changed || len(next.roomsOf(ModuleShelter)) != 0 {
+	if !changed || len(next.roomsOf(PlannedShelter)) != 0 {
 		t.Fatalf("shelter kept after the move (changed=%v)", changed)
 	}
 }

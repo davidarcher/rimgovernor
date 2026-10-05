@@ -11,29 +11,29 @@ import (
 // colony needs now. Each reads the signal its own builder acts on, so the
 // room is planned when something is about to shell it and not before: a
 // planned room costs ground and, in rock, a dig.
-func coreRoomsWanted(projection observation.ColonyProjection) []policy.ModuleRole {
-	var wanted []policy.ModuleRole
-	want := func(on bool, role policy.ModuleRole) {
+func coreRoomsWanted(projection observation.ColonyProjection) []policy.PlannedRole {
+	var wanted []policy.PlannedRole
+	want := func(on bool, role policy.PlannedRole) {
 		if on {
 			wanted = append(wanted, role)
 		}
 	}
 	// A patient the bed ladder can only serve with a new hospital bed.
 	choice, err := policy.SelectHospitalBed(hospitalRequest(projection))
-	want(err == nil && choice.Method == policy.HospitalBuild, policy.ModuleHospital)
+	want(err == nil && choice.Method == policy.HospitalBuild, policy.PlannedHospital)
 	// No research bench stands yet: the research ladder shells the lab.
 	built, known := policy.ResearchBenchBuilt(projection.Facts.CurrentConstruction).Value()
-	want(known && !built, policy.ModuleLab)
-	want(recRoomWanted(projection), policy.ModuleRec)
+	want(known && !built, policy.PlannedLab)
+	want(recRoomWanted(projection), policy.PlannedRec)
 	benches, bk := projection.ButcheringBenches.Value()
-	want(bk && len(benches) > 0 && !butchersAllColocated(benches, projection.Rooms) && butcherTableWanted(projection, benches), policy.ModuleButchery)
+	want(bk && len(benches) > 0 && !butchersAllColocated(benches, projection.Rooms) && butcherTableWanted(projection, benches), policy.PlannedButchery)
 	prisoners, pk := projection.Facts.Prisoners.Value()
-	want(pk && heldPrisoners(prisoners) > 0, policy.ModulePrison)
+	want(pk && heldPrisoners(prisoners) > 0, policy.PlannedPrison)
 	waste, wk := projection.Facts.Waste.Value()
-	want(wk && policy.MorgueWaiting(waste, strangerButchery(projection)), policy.ModuleMorgue)
+	want(wk && policy.MorgueWaiting(waste, strangerButchery(projection)), policy.PlannedMorgue)
 	// A generator stands: batteries bank its surplus.
 	topology, tk := projection.PowerPlanning.Value()
-	want(tk && slices.ContainsFunc(topology.Buildings, generatorSite), policy.ModuleBattery)
+	want(tk && slices.ContainsFunc(topology.Buildings, generatorSite), policy.PlannedBattery)
 	return wanted
 }
 

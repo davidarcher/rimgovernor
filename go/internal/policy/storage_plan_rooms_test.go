@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func storageRooms(plan LayoutPlan) []LayoutRoom {
-	var out []LayoutRoom
+func storageRooms(plan LayoutPlan) []PlannedRoom {
+	var out []PlannedRoom
 	for _, r := range plan.AllRooms() {
-		if r.Role == ModuleStorage {
+		if r.Role == PlannedStorage {
 			out = append(out, r)
 		}
 	}
@@ -54,7 +54,7 @@ func TestStorageRoomAddedOnDemandKeepsTheCore(t *testing.T) {
 		}
 	}
 	rooms := storageRooms(grown)
-	if len(rooms) != 2 || rooms[1].Interior.Width*rooms[1].Interior.Height != coreRoomSize[ModuleStorage][0]*coreRoomSize[ModuleStorage][1] {
+	if len(rooms) != 2 || rooms[1].Interior.Width*rooms[1].Interior.Height != coreRoomSize[PlannedStorage][0]*coreRoomSize[PlannedStorage][1] {
 		t.Fatalf("storage rooms %+v", rooms)
 	}
 	if after, _ := grown.Core(); after != core {
@@ -80,7 +80,7 @@ func storeRequest(rooms int, stands int, zones ...StockpileZone) StorageRequest 
 	var census RoomObservation
 	for i := range rooms {
 		in := Rectangle{X: int32(10 + 10*i), Z: 10, Width: 3, Height: 3}
-		layout.Rooms = append(layout.Rooms, LayoutRoom{Role: ModuleStorage, Interior: in, Door: domain.Cell{X: in.X + 1, Z: 9}})
+		layout.Rooms = append(layout.Rooms, PlannedRoom{Role: PlannedStorage, Interior: in, Door: domain.Cell{X: in.X + 1, Z: 9}})
 		if i < stands {
 			census.Rooms = append(census.Rooms, Room{ID: []string{"first", "second"}[i], Enclosed: domain.Known(true), Cells: rectCells(in)})
 		}
@@ -123,8 +123,8 @@ func TestStorageRoomDemandFollowsTheFillThreshold(t *testing.T) {
 // storage module.
 func TestUnbuiltStorageRoomIsAShellEdit(t *testing.T) {
 	t.Parallel()
-	edits := stockpileShellEdits(StockpileRequest{Shells: []ModuleRole{ModuleStorage}})
-	if len(edits) != 1 || edits[0].Kind != StockpileShell || edits[0].Role != string(ModuleStorage) {
+	edits := stockpileShellEdits(StockpileRequest{Shells: []PlannedRole{PlannedStorage}})
+	if len(edits) != 1 || edits[0].Kind != StockpileShell || edits[0].Role != string(PlannedStorage) {
 		t.Fatalf("shell edits %+v", edits)
 	}
 }

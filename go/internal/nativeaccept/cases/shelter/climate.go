@@ -76,12 +76,12 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 		return err
 	}
 	defer service.Stop()
-	record, err := waitPlan(ctx, service, planWait, func(p policy.LayoutPlan) bool { return len(roomsOf(p, policy.ModuleShelter)) == 1 })
+	record, err := waitPlan(ctx, service, planWait, func(p policy.LayoutPlan) bool { return len(roomsOf(p, policy.PlannedShelter)) == 1 })
 	if err != nil {
 		return fmt.Errorf("wait for the first layout plan: %w", err)
 	}
 	plan := record.Plan
-	shelter := roomsOf(plan, policy.ModuleShelter)[0]
+	shelter := roomsOf(plan, policy.PlannedShelter)[0]
 	report["plan"] = map[string]any{"tick": record.Tick, "cold": plan.Cold, "hot": plan.Hot, "shelter": shelter.Interior,
 		"campfire_slots": policy.ShelterCampfires(plan.Cold), "cooler_slots": policy.ShelterCoolers(plan.Hot)}
 	if plan.Cold != c.cold || plan.Hot != c.hot {

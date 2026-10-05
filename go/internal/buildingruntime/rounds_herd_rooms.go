@@ -77,7 +77,7 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 	if !ak || !pk || !rk || !ck || !sk || !census.Colony {
 		return policy.HerdStep{}, false, nil
 	}
-	if len(animals) == 0 || len(plan.HerdRooms(policy.ModuleBarn))+len(plan.HerdRooms(policy.ModuleVetRoom)) == 0 {
+	if len(animals) == 0 || len(plan.HerdRooms(policy.PlannedBarn))+len(plan.HerdRooms(policy.PlannedVetRoom)) == 0 {
 		return policy.HerdStep{}, true, nil
 	}
 	furniture, usable, err := herdFurniture(facts)

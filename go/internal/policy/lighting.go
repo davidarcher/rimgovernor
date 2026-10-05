@@ -189,7 +189,7 @@ type LightingFacts struct {
 	// PoweredSource reports whether any power network currently has an
 	// active source; unknown defers powered lamps.
 	PoweredSource domain.Fact[bool]
-	// Styled is the fixture the tier style names (ModuleLighting, #610):
+	// Styled is the fixture the tier style names (PlannedLighting, #610):
 	// chosen ahead of the policy's lamps when it is known available, empty
 	// when the tier styles none.
 	Styled string

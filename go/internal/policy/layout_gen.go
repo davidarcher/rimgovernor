@@ -32,7 +32,7 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 		// A replan keeps the hallways its fixed rooms open onto (#1958).
 		spine = slices.Clone(plan.Spine)
 	}
-	rooms := append([]LayoutRoom(nil), plan.Rooms...)
+	rooms := append([]PlannedRoom(nil), plan.Rooms...)
 	wings := retireWings(plan.Wings, tier)
 	// Other rooms stay off the wings' ground.
 	g.carveSuiteWings(wings)
@@ -44,19 +44,19 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 			spine = next
 		}
 	}
-	have := map[ModuleRole]int{}
+	have := map[PlannedRole]int{}
 	for _, r := range rooms {
 		have[r.Role]++
 	}
-	var want []ModuleRole
+	var want []PlannedRole
 	for _, role := range coreBaseRooms {
 		if have[role] == 0 {
 			want = append(want, role)
 		}
 	}
 	clusters := affinityClusters(want)
-	for i := have[ModuleTomb]; i < tombs; i++ {
-		clusters = append(clusters, roleCluster{roles: []ModuleRole{ModuleTomb}})
+	for i := have[PlannedTomb]; i < tombs; i++ {
+		clusters = append(clusters, roleCluster{roles: []PlannedRole{PlannedTomb}})
 	}
 	housed := false
 	house := func() {
@@ -71,14 +71,14 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 		// The wing is sited right behind the storage room, so it takes the
 		// ground beside it before the later clusters do (#1178).
 		for _, role := range c.roles {
-			if role == ModuleStorage {
+			if role == PlannedStorage {
 				house()
 			}
 		}
 	}
 	house()
 	if closet, ok := g.mealCloset(rooms); ok {
-		trial := append(append([]LayoutRoom(nil), rooms...), closet)
+		trial := append(append([]PlannedRoom(nil), rooms...), closet)
 		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: trial, Wings: wings}); err == nil {
 			rooms = trial
 		}

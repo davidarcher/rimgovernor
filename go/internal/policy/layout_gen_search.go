@@ -81,7 +81,7 @@ func (g coreGrid) vary(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool) {
 }
 
 // searchRole reports the roles the operators move: the base rooms.
-func searchRole(role ModuleRole) bool {
+func searchRole(role PlannedRole) bool {
 	for _, r := range coreBaseRooms {
 		if r == role {
 			return true
@@ -93,8 +93,8 @@ func searchRole(role ModuleRole) bool {
 // moveCluster lifts one affinity cluster out of plan and places it again
 // on ground with its old first slot, padded by a random margin, struck.
 func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, bool) {
-	var roles []ModuleRole
-	seen := map[ModuleRole]bool{}
+	var roles []PlannedRole
+	seen := map[PlannedRole]bool{}
 	for _, r := range plan.Rooms {
 		if searchRole(r.Role) && !seen[r.Role] && !g.fixed[r.Interior] {
 			seen[r.Role] = true
@@ -106,10 +106,10 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 		return plan, false
 	}
 	c := clusters[rng.intn(len(clusters))]
-	taken := map[ModuleRole]bool{}
-	var kept []LayoutRoom
-	var first *LayoutRoom
-	in := map[ModuleRole]bool{}
+	taken := map[PlannedRole]bool{}
+	var kept []PlannedRoom
+	var first *PlannedRoom
+	in := map[PlannedRole]bool{}
 	for _, role := range c.roles {
 		in[role] = true
 	}

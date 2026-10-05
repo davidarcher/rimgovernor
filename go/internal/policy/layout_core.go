@@ -11,44 +11,44 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // zones give way to the core wherever they overlap it.
 
 // Room roles the v2 core adds beside the master-plan ones; the jail is
-// ModulePrison.
+// PlannedPrison.
 const (
-	ModuleBedroom ModuleRole = "bedroom"
-	// ModuleShelter is the temporary starter room (#2037), sited apart from the
+	PlannedBedroom PlannedRole = "bedroom"
+	// PlannedShelter is the temporary starter room (#2037), sited apart from the
 	// core (layout_shelter.go) so its ground frees cleanly once it is demolished.
-	ModuleShelter ModuleRole = "shelter"
-	ModuleDining  ModuleRole = "dining"
-	ModuleRec     ModuleRole = "rec"
-	ModuleLab     ModuleRole = "lab"
-	// ModuleTomb is the sarcophagus room (#832), shelled only once a
+	PlannedShelter PlannedRole = "shelter"
+	PlannedDining  PlannedRole = "dining"
+	PlannedRec     PlannedRole = "rec"
+	PlannedLab     PlannedRole = "lab"
+	// PlannedTomb is the sarcophagus room (#832), shelled only once a
 	// colonist lies dead.
-	ModuleTomb ModuleRole = "tomb"
-	// ModuleMorgue is the cold room for fresh stranger corpses (#1820),
+	PlannedTomb PlannedRole = "tomb"
+	// PlannedMorgue is the cold room for fresh stranger corpses (#1820),
 	// beside the tomb and shelled only once a butcherable stranger corpse
 	// lies waiting.
-	ModuleMorgue ModuleRole = "morgue"
+	PlannedMorgue PlannedRole = "morgue"
 )
 
 // coreRoomSize is a role's interior: width along the spine, depth away
 // from it. Bedrooms live in the wing (layout_wing.go).
-var coreRoomSize = map[ModuleRole][2]int32{
-	ModuleKitchen:  {6, 5},
-	ModuleFreezer:  {5, 5},
-	ModuleButchery: {4, 4},
-	ModuleDining:   {9, 7},
-	ModuleRec:      {9, 7},
-	ModuleHospital: {7, 5},
-	ModulePrison:   {5, 5},
-	ModuleWorkshop: {7, 5},
-	ModuleStorage:  {9, 7},
-	ModuleLab:      {6, 5},
-	ModuleTomb:     {5, 5},
-	ModuleMorgue:   {5, 4},
+var coreRoomSize = map[PlannedRole][2]int32{
+	PlannedKitchen:  {6, 5},
+	PlannedFreezer:  {5, 5},
+	PlannedButchery: {4, 4},
+	PlannedDining:   {9, 7},
+	PlannedRec:      {9, 7},
+	PlannedHospital: {7, 5},
+	PlannedPrison:   {5, 5},
+	PlannedWorkshop: {7, 5},
+	PlannedStorage:  {9, 7},
+	PlannedLab:      {6, 5},
+	PlannedTomb:     {5, 5},
+	PlannedMorgue:   {5, 4},
 	// The rooms below are added on demand (layout_demand_rooms.go,
 	// layout_gear.go), not in coreBaseRooms.
-	ModuleArmory:   {7, 5},
-	ModuleWardrobe: {7, 5},
-	ModuleBattery:  batteryRoomSize,
+	PlannedArmory:   {7, 5},
+	PlannedWardrobe: {7, 5},
+	PlannedBattery:  batteryRoomSize,
 }
 
 // coreBaseRooms is every colony's essential set, in placement order: pairs
@@ -57,9 +57,9 @@ var coreRoomSize = map[ModuleRole][2]int32{
 // wings are sited with them. Every other room is grown when a need shows
 // (demandCoreRooms), so nothing is dug or reserved for a room that is not
 // up for building.
-var coreBaseRooms = []ModuleRole{
-	ModuleKitchen, ModuleFreezer, ModuleDining,
-	ModuleWorkshop, ModuleStorage,
+var coreBaseRooms = []PlannedRole{
+	PlannedKitchen, PlannedFreezer, PlannedDining,
+	PlannedWorkshop, PlannedStorage,
 }
 
 // coreMaxDepth is the deepest interior, which bounds the core's cross-section.
@@ -195,7 +195,7 @@ func (g coreGrid) seed() (domain.Cell, bool) {
 	return best, found
 }
 
-func (g coreGrid) dug(r LayoutRoom) bool {
+func (g coreGrid) dug(r PlannedRoom) bool {
 	in := r.Interior
 	for x := in.X; x < in.X+in.Width; x++ {
 		for z := in.Z; z < in.Z+in.Height; z++ {

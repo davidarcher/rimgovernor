@@ -353,21 +353,21 @@ func (p *phase) stop(ctx context.Context, label string) (*na.Harness, error) {
 }
 
 // vetRoom is the plan's one vet room and its interior cells.
-func vetRoom(plan policy.LayoutPlan) (policy.LayoutRoom, []domain.Cell, error) {
-	rooms := plan.HerdRooms(policy.ModuleVetRoom)
+func vetRoom(plan policy.LayoutPlan) (policy.PlannedRoom, []domain.Cell, error) {
+	rooms := plan.HerdRooms(policy.PlannedVetRoom)
 	if len(rooms) != 1 {
-		return policy.LayoutRoom{}, nil, fmt.Errorf("layout plan has %d vet rooms, want 1", len(rooms))
+		return policy.PlannedRoom{}, nil, fmt.Errorf("layout plan has %d vet rooms, want 1", len(rooms))
 	}
 	cells := plan.VetRoomCells()
 	if len(cells) == 0 {
-		return policy.LayoutRoom{}, nil, fmt.Errorf("layout plan vet room has no interior cells")
+		return policy.PlannedRoom{}, nil, fmt.Errorf("layout plan vet room has no interior cells")
 	}
 	return rooms[0], cells, nil
 }
 
 // stageRing spawns the vet room's wall ring and door finished and drops the
 // build wood beside it.
-func stageRing(ctx context.Context, h *na.Harness, room policy.LayoutRoom, cells []domain.Cell, report na.Report) error {
+func stageRing(ctx context.Context, h *na.Harness, room policy.PlannedRoom, cells []domain.Cell, report na.Report) error {
 	footprint, err := domain.NewRoomFootprint(cells, room.Door, room.DoorRot)
 	if err != nil {
 		return fmt.Errorf("vet room is not a room footprint: %w", err)
@@ -449,11 +449,11 @@ func runPlan(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	var room policy.LayoutRoom
+	var room policy.PlannedRoom
 	var cells []domain.Cell
 	err = one.until(ctx, "layout plan with a vet room", func(review store.Rounds, _ []write) (bool, error) {
 		record, ok, err := one.st.LayoutPlan(ctx, review.Snapshot, review.Tick)
-		if err != nil || !ok || len(record.Plan.HerdRooms(policy.ModuleVetRoom)) == 0 {
+		if err != nil || !ok || len(record.Plan.HerdRooms(policy.PlannedVetRoom)) == 0 {
 			return false, err
 		}
 		room, cells, err = vetRoom(record.Plan)

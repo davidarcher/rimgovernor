@@ -5,57 +5,57 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // Room construction to plan shapes (#787, C3): a room builder raises the
 // planned room's exact rectangle and door instead of searching.
 
-// LayoutModule is the v2 plan role a builder's room role fills; false for
+// PlannedRoleFor is the v2 plan role a builder's room role fills; false for
 // a role the core plans no room for.
-func LayoutModule(role RoomRole) (ModuleRole, bool) {
+func PlannedRoleFor(role RoomRole) (PlannedRole, bool) {
 	switch role {
 	case RoomRoleBedroom:
-		return ModuleBedroom, true
+		return PlannedBedroom, true
 	case RoomRoleSuite:
-		return ModuleSuite, true
+		return PlannedSuite, true
 	case RoomRoleShelter:
-		return ModuleShelter, true
+		return PlannedShelter, true
 	case RoomRoleKitchen:
-		return ModuleKitchen, true
+		return PlannedKitchen, true
 	case RoomRoleDiningRoom:
-		return ModuleDining, true
+		return PlannedDining, true
 	case RoomRoleRecRoom:
-		return ModuleRec, true
+		return PlannedRec, true
 	case RoomRoleHospital:
-		return ModuleHospital, true
+		return PlannedHospital, true
 	case RoomRolePrisonCell, RoomRolePrisonBarracks:
-		return ModulePrison, true
+		return PlannedPrison, true
 	case RoomRoleWorkshop:
-		return ModuleWorkshop, true
+		return PlannedWorkshop, true
 	case RoomRoleStoreroom:
-		return ModuleStorage, true
+		return PlannedStorage, true
 	case RoomRoleLaboratory:
-		return ModuleLab, true
+		return PlannedLab, true
 	case RoomRoleTomb:
-		return ModuleTomb, true
+		return PlannedTomb, true
 	case RoomRoleThroneRoom:
-		return ModuleThrone, true
+		return PlannedThrone, true
 	case RoomRoleNursery:
-		return ModuleNursery, true
+		return PlannedNursery, true
 	case RoomRolePlayroom:
-		return ModulePlayroom, true
+		return PlannedPlayroom, true
 	case RoomRoleClassroom:
-		return ModuleClassroom, true
+		return PlannedClassroom, true
 	case RoomRoleWorshipRoom:
-		return ModuleWorship, true
+		return PlannedWorship, true
 	case RoomRoleDeathrestChamber:
-		return ModuleDeathrestChamber, true
+		return PlannedDeathrestChamber, true
 	case RoomRoleContainmentCell:
-		return ModuleContainmentCell, true
+		return PlannedContainmentCell, true
 	case RoomRoleIsolationRoom:
-		return ModuleIsolationRoom, true
+		return PlannedIsolationRoom, true
 	}
 	return "", false
 }
 
 // PlannedRoomStanding is the census room standing enclosed on the planned
 // room's centre cell and no larger than its interior.
-func PlannedRoomStanding(r LayoutRoom, rooms RoomObservation) (Room, bool) {
+func PlannedRoomStanding(r PlannedRoom, rooms RoomObservation) (Room, bool) {
 	centre := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
 	for _, room := range rooms.Rooms {
 		if len(room.Cells) > int(r.Interior.Width*r.Interior.Height) {
@@ -75,7 +75,7 @@ func PlannedRoomStanding(r LayoutRoom, rooms RoomObservation) (Room, bool) {
 
 // Footprint is the room's shell: its interior walled round, the door where
 // the plan put it.
-func (r LayoutRoom) Footprint() (domain.RoomFootprint, error) {
+func (r PlannedRoom) Footprint() (domain.RoomFootprint, error) {
 	in := r.Interior
 	cells := make([]domain.Cell, 0, int(in.Width*in.Height))
 	for z := in.Z; z < in.Z+in.Height; z++ {
@@ -93,7 +93,7 @@ func (r LayoutRoom) Footprint() (domain.RoomFootprint, error) {
 // PlannedShells lists the plan's rooms for role as shells, in plan order;
 // a room whose shell is invalid is skipped.
 func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
-	want, ok := LayoutModule(role)
+	want, ok := PlannedRoleFor(role)
 	if !ok {
 		return nil
 	}
@@ -112,7 +112,7 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 // NextPlannedRoom is the plan's first open-ground room of role with no
 // room standing in it yet (#835): the kitchen, freezer or jail its owning
 // goal shells before furnishing. A dug room is mined out first (#836).
-func (p LayoutPlan) NextPlannedRoom(role ModuleRole, rooms RoomObservation) (LayoutRoom, bool) {
+func (p LayoutPlan) NextPlannedRoom(role PlannedRole, rooms RoomObservation) (PlannedRoom, bool) {
 	for _, r := range p.AllRooms() {
 		if r.Role != role {
 			continue
@@ -121,13 +121,13 @@ func (p LayoutPlan) NextPlannedRoom(role ModuleRole, rooms RoomObservation) (Lay
 			return r, true
 		}
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }
 
 // ShellDoors is the cells of r's ring that take a door rather than a
 // wall: its own doors, its Link, and any other room's Link that lies in
 // r's ring (the kitchen's side of the freezer door, #835).
-func (p LayoutPlan) ShellDoors(r LayoutRoom) []domain.Cell {
+func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 	doors := []domain.Cell{r.Door}
 	for _, d := range r.Doors {
 		doors = append(doors, d.Cell)

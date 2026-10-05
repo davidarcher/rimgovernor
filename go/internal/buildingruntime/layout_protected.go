@@ -34,7 +34,7 @@ func fieldAnchor(facts observation.ColonyProjection) (domain.Cell, bool) {
 // roomAnchor is the centre of the nearest free planned room of the role to the
 // point to (reserve rooms when none is free), else the plan's centre; false
 // until a plan exists.
-func roomAnchor(facts observation.ColonyProjection, role policy.ModuleRole, to domain.Cell) (domain.Cell, bool) {
+func roomAnchor(facts observation.ColonyProjection, role policy.PlannedRole, to domain.Cell) (domain.Cell, bool) {
 	if plan, ok := facts.LayoutPlan.Value(); ok {
 		if anchor, ok := plan.NearestAnchor(role, to, layoutFree(facts)); ok {
 			return anchor, true

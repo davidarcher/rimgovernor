@@ -62,7 +62,7 @@ func TestButcherSpotSite(t *testing.T) {
 	}
 
 	storage := policy.Rectangle{X: 1, Z: 1, Width: 3, Height: 3}
-	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage, Interior: storage}}}
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Interior: storage}}}
 	bedroom := policy.Rectangle{X: 0, Z: 4, Width: 5, Height: 1}
 	cell, ok := place(plan, []policy.Room{enclosed("bed", bedroom)}, planner)
 	if !ok || inside(cell, storage) || inside(cell, bedroom) || cell.X < 0 || cell.X > 4 || cell.Z < 0 || cell.Z > 3 {
@@ -71,13 +71,13 @@ func TestButcherSpotSite(t *testing.T) {
 
 	// A standing planned butchery takes the spot inside it.
 	butchery := policy.Rectangle{X: 1, Z: 1, Width: 3, Height: 3}
-	plan = policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleButchery, Interior: butchery}}}
+	plan = policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedButchery, Interior: butchery}}}
 	rooms := []policy.Room{enclosed("butchery", butchery)}
 	facts := reading.Projection
 	facts.LayoutPlan = domain.Known(plan)
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: rooms})
 	room := *planner
-	room.cells = plannedRoomCells(facts, policy.ModuleButchery)
+	room.cells = plannedRoomCells(facts, policy.PlannedButchery)
 	if room.cells == nil {
 		t.Fatal("the planned butchery does not stand")
 	}
@@ -86,7 +86,7 @@ func TestButcherSpotSite(t *testing.T) {
 	}
 
 	// Every open cell lies past the core box plus the margin: unplaced.
-	far := policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 50, Z: 50, Width: 1, Height: 1}}}}
+	far := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 50, Z: 50, Width: 1, Height: 1}}}}
 	if cell, ok := place(far, nil, planner); ok {
 		t.Fatalf("spot at %v, want none outside the box", cell)
 	}

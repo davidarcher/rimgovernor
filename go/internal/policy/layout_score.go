@@ -66,9 +66,9 @@ var planWeights = struct {
 // are signed contributions to Total (costs negative).
 type PlanScore struct {
 	// Hard tier.
-	Missing   []ModuleRole // base rooms the plan lacks
-	RoutesErr string       // CheckRoutes' error, "" when the routes are valid
-	RichCells int          // rich-soil cells under rooms and hallways
+	Missing   []PlannedRole // base rooms the plan lacks
+	RoutesErr string        // CheckRoutes' error, "" when the routes are valid
+	RichCells int           // rich-soil cells under rooms and hallways
 	// Soft tier.
 	Soil, Footprint, Wall, Edge, Centre, Defense, Expansion int
 	// Walled reports whether Wall and Defense were scored (PlanPerimeter
@@ -121,7 +121,7 @@ func newPlanScorer(zones []LayoutZone, reserved []LayoutReservation, s MapSurvey
 func (sc planScorer) core(p LayoutPlan) PlanScore {
 	var out PlanScore
 	rooms := p.AllRooms()
-	have := map[ModuleRole]bool{}
+	have := map[PlannedRole]bool{}
 	for _, r := range rooms {
 		have[r.Role] = true
 	}
@@ -285,7 +285,7 @@ func routeDist(walk map[domain.Cell]int, goal []domain.Cell) map[domain.Cell]int
 // for every cell its dig or its walls expose to ground raiders can walk: a
 // mountain whose far face is open toward the spawn edge is no refuge. A cell
 // no raider can reach, natural rock left standing, costs nothing.
-func (sc planScorer) edgeCost(rooms []LayoutRoom, under map[domain.Cell]bool) int {
+func (sc planScorer) edgeCost(rooms []PlannedRoom, under map[domain.Cell]bool) int {
 	b := sc.s.Bounds
 	clear := min(planWeights.EdgeClear, int(min(b.Width, b.Height))/5)
 	cost := 0
@@ -320,7 +320,7 @@ func (sc planScorer) edgeCost(rooms []LayoutRoom, under map[domain.Cell]bool) in
 // stands closer to the map border than CentreClear, or a third of the map's
 // short side on a small map. Plain geometry: unlike edgeCost it ignores what
 // raiders can walk, so a mountain on the border gets no discount.
-func (sc planScorer) centreCost(rooms []LayoutRoom) int {
+func (sc planScorer) centreCost(rooms []PlannedRoom) int {
 	b := sc.s.Bounds
 	clear := min(planWeights.CentreClear, int(min(b.Width, b.Height))/3)
 	cost := 0
@@ -338,7 +338,7 @@ func (sc planScorer) centreCost(rooms []LayoutRoom) int {
 // expansion is the free ground a plan can still grow into: core cells
 // within ExpansionReach of a room that are neither under the plan, rock nor
 // rich soil, at most ExpansionCap of them.
-func (sc planScorer) expansion(rooms []LayoutRoom, under map[domain.Cell]bool) int {
+func (sc planScorer) expansion(rooms []PlannedRoom, under map[domain.Cell]bool) int {
 	near := map[domain.Cell]bool{}
 	for _, r := range rooms {
 		for _, c := range rectCells(pad(r.Interior, int32(planWeights.ExpansionReach))) {

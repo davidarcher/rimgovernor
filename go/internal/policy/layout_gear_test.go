@@ -10,17 +10,17 @@ import (
 
 func gearTestPlan() LayoutPlan {
 	plan := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
-	plan, _, _ = SiteRoom(plan, nil, ModulePrison, coreRoomSize[ModulePrison])
+	plan, _, _ = SiteRoom(plan, nil, PlannedPrison, coreRoomSize[PlannedPrison])
 	return plan
 }
 
-func roomOf(p LayoutPlan, role ModuleRole) (LayoutRoom, bool) {
+func roomOf(p LayoutPlan, role PlannedRole) (PlannedRoom, bool) {
 	for _, r := range p.Rooms {
 		if r.Role == role {
 			return r, true
 		}
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }
 
 // touches reports two rooms sharing a wall: their interiors a wall apart.
@@ -56,9 +56,9 @@ func gearBesidePlan() LayoutPlan {
 		Zones:     coreTestZones(),
 		Spine:     spine,
 		Entrances: spineEntrances(spine),
-		Rooms: []LayoutRoom{
-			hallRoom(ModuleStorage, 40, 59, 7, 5, false),
-			hallRoom(ModuleWorkshop, 70, 59, 7, 5, false),
+		Rooms: []PlannedRoom{
+			hallRoom(PlannedStorage, 40, 59, 7, 5, false),
+			hallRoom(PlannedWorkshop, 70, 59, 7, 5, false),
 		},
 	}
 }
@@ -75,7 +75,7 @@ func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 			t.Fatalf("room %d moved", i)
 		}
 	}
-	for role, anchor := range map[ModuleRole]ModuleRole{ModuleArmory: ModuleStorage, ModuleWardrobe: ModuleWorkshop} {
+	for role, anchor := range map[PlannedRole]PlannedRole{PlannedArmory: PlannedStorage, PlannedWardrobe: PlannedWorkshop} {
 		room, ok := roomOf(grown, role)
 		host, hok := roomOf(grown, anchor)
 		if !ok || !hok {
@@ -168,7 +168,7 @@ func TestGearRoomPendingHoldsBackAnotherStorageRoom(t *testing.T) {
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
 	req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))
 	req.Gear = &gear
-	req.Layout.Rooms = append(req.Layout.Rooms, LayoutRoom{Role: ModuleArmory, Interior: Rectangle{X: 30, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 31, Z: 9}})
+	req.Layout.Rooms = append(req.Layout.Rooms, PlannedRoom{Role: PlannedArmory, Interior: Rectangle{X: 30, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 31, Z: 9}})
 	if got := PlanStorage(req).RoomDemand; !got.Armory || got.Storage != 0 {
 		t.Fatalf("armory planned, not standing: %+v", got)
 	}

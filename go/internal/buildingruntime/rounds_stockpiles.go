@@ -149,7 +149,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
-	for _, module := range []policy.ModuleRole{policy.ModuleStorage, policy.ModuleArmory, policy.ModuleWardrobe} {
+	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe} {
 		if _, owed := plannedRoomOwed(*projection, module); owed {
 			request.Shells = append(request.Shells, module)
 		}
@@ -435,7 +435,7 @@ func (r *RoundsStockpilePlanner) shell(call, epoch context.Context, state Contro
 	if r.building == nil {
 		return RoundsStockpileResult{Verdict: fieldUnavailable("building_source")}, false, nil
 	}
-	room, owed := plannedRoomOwed(read.Projection, policy.ModuleRole(edit.Role))
+	room, owed := plannedRoomOwed(read.Projection, policy.PlannedRole(edit.Role))
 	if !owed {
 		return RoundsStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_room_built")}, false, nil
 	}

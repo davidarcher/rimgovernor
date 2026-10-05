@@ -12,7 +12,7 @@ import (
 // (#1947).
 func TestRingHallwaysNeedNoMainSpine(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	storage := LayoutRoom{Role: ModuleStorage, Interior: Rectangle{X: 90, Z: 90, Width: 6, Height: 6}, Door: domain.Cell{X: 82, Z: 93}, DoorRot: domain.West}
+	storage := PlannedRoom{Role: PlannedStorage, Interior: Rectangle{X: 90, Z: 90, Width: 6, Height: 6}, Door: domain.Cell{X: 82, Z: 93}, DoorRot: domain.West}
 	plan := LayoutPlan{
 		Zones: Zone(s),
 		Spine: []SpineSegment{
@@ -21,7 +21,7 @@ func TestRingHallwaysNeedNoMainSpine(t *testing.T) {
 			{From: domain.Cell{X: 110, Z: 110}, To: domain.Cell{X: 110, Z: 80}},
 			{From: domain.Cell{X: 110, Z: 80}, To: domain.Cell{X: 80, Z: 80}},
 		},
-		Rooms: []LayoutRoom{storage},
+		Rooms: []PlannedRoom{storage},
 	}
 	if c, ok := plan.Core(); !ok || c != (domain.Cell{X: 93, Z: 93}) {
 		t.Fatal("core", c, ok)

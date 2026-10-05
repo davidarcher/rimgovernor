@@ -49,21 +49,21 @@ func linksKeepWall(t *testing.T, p LayoutPlan) {
 }
 
 func TestAffinityClustersFollowTheTripTable(t *testing.T) {
-	if got := affinityClusters(coreBaseRooms)[0].roles; !reflect.DeepEqual(got, []ModuleRole{ModuleKitchen, ModuleFreezer, ModuleDining}) {
+	if got := affinityClusters(coreBaseRooms)[0].roles; !reflect.DeepEqual(got, []PlannedRole{PlannedKitchen, PlannedFreezer, PlannedDining}) {
 		t.Fatal("essential kitchen cluster", got)
 	}
 	// The trip table still ties the demand-grown rooms to their anchors.
-	all := append(append([]ModuleRole(nil), coreBaseRooms...), demandCoreRooms...)
+	all := append(append([]PlannedRole(nil), coreBaseRooms...), demandCoreRooms...)
 	clusters := affinityClusters(all)
 	var kitchen, store, hospital *roleCluster
 	for i, c := range clusters {
 		for _, r := range c.roles {
 			switch r {
-			case ModuleKitchen:
+			case PlannedKitchen:
 				kitchen = &clusters[i]
-			case ModuleStorage:
+			case PlannedStorage:
 				store = &clusters[i]
-			case ModuleHospital:
+			case PlannedHospital:
 				hospital = &clusters[i]
 			}
 		}
@@ -71,16 +71,16 @@ func TestAffinityClustersFollowTheTripTable(t *testing.T) {
 	if kitchen == nil || store == nil || hospital == nil {
 		t.Fatal("clusters", clusters)
 	}
-	if !reflect.DeepEqual(kitchen.roles, []ModuleRole{ModuleKitchen, ModuleFreezer, ModuleDining, ModuleButchery}) {
+	if !reflect.DeepEqual(kitchen.roles, []PlannedRole{PlannedKitchen, PlannedFreezer, PlannedDining, PlannedButchery}) {
 		t.Fatal("kitchen cluster", kitchen.roles)
 	}
-	if !reflect.DeepEqual(store.roles, []ModuleRole{ModuleWorkshop, ModuleStorage}) {
+	if !reflect.DeepEqual(store.roles, []PlannedRole{PlannedWorkshop, PlannedStorage}) {
 		t.Fatal("storage cluster", store.roles)
 	}
 	if len(hospital.roles) != 1 {
 		t.Fatal("hospital stands alone", hospital.roles)
 	}
-	if clusters[0].roles[0] != ModuleKitchen {
+	if clusters[0].roles[0] != PlannedKitchen {
 		t.Fatal("the kitchen cluster is the heaviest, so first", clusters[0].roles)
 	}
 	n := 0

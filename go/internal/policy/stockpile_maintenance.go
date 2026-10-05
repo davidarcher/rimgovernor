@@ -157,7 +157,7 @@ type StockpileRequest struct {
 	SiteErr error
 	// Shells are the planned storage-planner rooms (storage, armory and wardrobe,
 	// #1774) not yet standing: each is a StockpileShell edit.
-	Shells []ModuleRole
+	Shells []PlannedRole
 	// Opening stands the opening stockpiles (general store, corpse dump)
 	// while no owned zone of their kind stands; the runtime always sets it.
 	Opening bool

@@ -41,7 +41,7 @@ func fireproofRefusal(err error) Verdict {
 
 // incineratorRing is the planned incinerator's wall and door cells still to
 // raise.
-func incineratorRing(plan policy.LayoutPlan, room policy.LayoutRoom, facts observation.ColonyProjection) []domain.Cell {
+func incineratorRing(plan policy.LayoutPlan, room policy.PlannedRoom, facts observation.ColonyProjection) []domain.Cell {
 	order := plan.ShellDoors(room)
 	doors := make(map[domain.Cell]bool, len(order))
 	for _, d := range order {
@@ -52,7 +52,7 @@ func incineratorRing(plan policy.LayoutPlan, room policy.LayoutRoom, facts obser
 
 // incineratorRooms are the plan's incinerators; unknown without the plan and
 // the construction census.
-func incineratorRooms(facts observation.ColonyProjection) (plan policy.LayoutPlan, rooms []policy.LayoutRoom, known bool) {
+func incineratorRooms(facts observation.ColonyProjection) (plan policy.LayoutPlan, rooms []policy.PlannedRoom, known bool) {
 	plan, pk := facts.LayoutPlan.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	if !pk || !ck || !census.Colony {
@@ -63,22 +63,22 @@ func incineratorRooms(facts observation.ColonyProjection) (plan policy.LayoutPla
 
 // incineratorStep is the first planned incinerator whose ring is not yet
 // raised.
-func incineratorStep(facts observation.ColonyProjection) (policy.LayoutRoom, bool) {
+func incineratorStep(facts observation.ColonyProjection) (policy.PlannedRoom, bool) {
 	plan, rooms, known := incineratorRooms(facts)
 	if !known {
-		return policy.LayoutRoom{}, false
+		return policy.PlannedRoom{}, false
 	}
 	for _, room := range rooms {
 		if len(incineratorRing(plan, room, facts)) > 0 {
 			return room, true
 		}
 	}
-	return policy.LayoutRoom{}, false
+	return policy.PlannedRoom{}, false
 }
 
 // standingIncinerator is the first planned incinerator with its ring raised,
 // for the storage planner's zone.
-func standingIncinerator(facts observation.ColonyProjection) *policy.LayoutRoom {
+func standingIncinerator(facts observation.ColonyProjection) *policy.PlannedRoom {
 	plan, rooms, known := incineratorRooms(facts)
 	if !known {
 		return nil
@@ -101,7 +101,7 @@ func incineratorOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	return domain.Known(owed)
 }
 
-func incineratorMethod(room policy.LayoutRoom) domain.MethodID {
+func incineratorMethod(room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("incinerator-shell-%d-%d", room.Interior.X, room.Interior.Z))
 }
 

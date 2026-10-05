@@ -12,8 +12,8 @@ import (
 
 // The initial shelter tries the plan's shelter room at Camp, not the storage room.
 func TestStarterShellPlansTheShelterAtCamp(t *testing.T) {
-	storage := policy.LayoutRoom{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 116, Z: 130, Width: 9, Height: 7}, Door: domain.Cell{X: 120, Z: 129}, DoorRot: domain.South}
-	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{storage}}), BuildTier: domain.Known(policy.BuildTierCamp)}
+	storage := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 116, Z: 130, Width: 9, Height: 7}, Door: domain.Cell{X: 120, Z: 129}, DoorRot: domain.South}
+	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{storage}}), BuildTier: domain.Known(policy.BuildTierCamp)}
 	starter := &RoundsBuildingPlanner{shelter: true, phase: policy.HousingShelter}
 	shells := starter.shellPlan(facts)
 	want, _ := storage.Footprint()
@@ -23,28 +23,28 @@ func TestStarterShellPlansTheShelterAtCamp(t *testing.T) {
 }
 
 func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
-	kitchen := policy.LayoutRoom{Role: policy.ModuleKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
-	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{Shapes: testPieceShapes}), BuildTier: domain.Known(policy.BuildTierCamp)}
+	kitchen := policy.PlannedRoom{Role: policy.PlannedKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
+	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{Shapes: testPieceShapes}), BuildTier: domain.Known(policy.BuildTierCamp)}
 	for _, tier := range []policy.BuildTier{policy.BuildTierCamp, policy.BuildTierMasonry} {
 		facts.BuildTier = domain.Known(tier)
-		if r, owed := plannedRoomOwed(facts, policy.ModuleKitchen); !owed || r.Interior != kitchen.Interior {
+		if r, owed := plannedRoomOwed(facts, policy.PlannedKitchen); !owed || r.Interior != kitchen.Interior {
 			t.Fatal("the planned kitchen is not owed at tier", tier, r, owed)
 		}
 	}
-	if plannedRoomCells(facts, policy.ModuleKitchen) != nil {
+	if plannedRoomCells(facts, policy.PlannedKitchen) != nil {
 		t.Fatal("an unbuilt kitchen restricted the stove")
 	}
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "k", Cells: []domain.Cell{{X: 13, Z: 12}}, Enclosed: domain.Known(true)}}})
-	if _, owed := plannedRoomOwed(facts, policy.ModuleKitchen); owed {
+	if _, owed := plannedRoomOwed(facts, policy.PlannedKitchen); owed {
 		t.Fatal("a standing kitchen is still owed")
 	}
-	if cells := plannedRoomCells(facts, policy.ModuleKitchen); len(cells) != 30 {
+	if cells := plannedRoomCells(facts, policy.PlannedKitchen); len(cells) != 30 {
 		t.Fatal("the stove is not held to the kitchen interior", len(cells))
 	}
 }
 
 func TestPlannedRoomInteriorIsTheWholeRoom(t *testing.T) {
-	room := policy.LayoutRoom{Role: policy.ModuleKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}}
+	room := policy.PlannedRoom{Role: policy.PlannedKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}}
 	if cells := plannedRoomInterior(room); len(cells) != 30 || cells[0] != (domain.Cell{X: 10, Z: 10}) || cells[29] != (domain.Cell{X: 15, Z: 14}) {
 		t.Fatal(cells)
 	}

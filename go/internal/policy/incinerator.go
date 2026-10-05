@@ -17,8 +17,8 @@ import (
 const (
 	// ReserveIncinerator is the incinerator's walls and interior together.
 	ReserveIncinerator ReservationKind = "incinerator"
-	// ModuleIncinerator is the incinerator's plan role.
-	ModuleIncinerator ModuleRole = "incinerator"
+	// PlannedIncinerator is the incinerator's plan role.
+	PlannedIncinerator PlannedRole = "incinerator"
 )
 
 // incineratorSide is the interior side; the walled outline is two more.
@@ -41,10 +41,10 @@ func (s IncineratorSite) Reservation() LayoutReservation {
 
 // Room is the walled room the site holds: the interior inside the outline,
 // the door in the middle of the Facing wall.
-func (s IncineratorSite) Room() LayoutRoom {
+func (s IncineratorSite) Room() PlannedRoom {
 	a := s.Area
 	in := Rectangle{X: a.X + 1, Z: a.Z + 1, Width: a.Width - 2, Height: a.Height - 2}
-	room := LayoutRoom{Role: ModuleIncinerator, Interior: in, DoorRot: s.Facing}
+	room := PlannedRoom{Role: PlannedIncinerator, Interior: in, DoorRot: s.Facing}
 	switch s.Facing {
 	case domain.East:
 		room.Door = domain.Cell{X: in.X + in.Width, Z: in.Z + in.Height/2}
@@ -59,8 +59,8 @@ func (s IncineratorSite) Room() LayoutRoom {
 }
 
 // IncineratorRooms are the plan's incinerator rooms, in plan order.
-func (p LayoutPlan) IncineratorRooms() []LayoutRoom {
-	var out []LayoutRoom
+func (p LayoutPlan) IncineratorRooms() []PlannedRoom {
+	var out []PlannedRoom
 	for _, r := range p.Reservations {
 		if r.Kind == ReserveIncinerator {
 			out = append(out, IncineratorSite{Area: r.Area, Facing: r.Facing}.Room())

@@ -48,8 +48,8 @@ func suiteCells(target float64) int32 {
 
 // plannedRoomIDs maps the census id of each standing planned room of role
 // to its plan room.
-func plannedRoomIDs(plan LayoutPlan, rooms RoomObservation, role ModuleRole) map[string]LayoutRoom {
-	out := map[string]LayoutRoom{}
+func plannedRoomIDs(plan LayoutPlan, rooms RoomObservation, role PlannedRole) map[string]PlannedRoom {
+	out := map[string]PlannedRoom{}
 	for _, r := range plan.AllRooms() {
 		if r.Role != role {
 			continue
@@ -64,7 +64,7 @@ func plannedRoomIDs(plan LayoutPlan, rooms RoomObservation, role ModuleRole) map
 // SuiteRoomIDs is the census ids of the plan's standing suites.
 func SuiteRoomIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	out := map[string]bool{}
-	for id := range plannedRoomIDs(plan, rooms, ModuleSuite) {
+	for id := range plannedRoomIDs(plan, rooms, PlannedSuite) {
 		out[id] = true
 	}
 	return out
@@ -87,8 +87,8 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 			quality[r.ID] = q
 		}
 	}
-	standard := plannedRoomIDs(plan, rooms, ModuleBedroom)
-	suites := plannedRoomIDs(plan, rooms, ModuleSuite)
+	standard := plannedRoomIDs(plan, rooms, PlannedBedroom)
+	suites := plannedRoomIDs(plan, rooms, PlannedSuite)
 	var out []SuiteClaim
 	for _, s := range soloBedrooms(sleeping) {
 		t, tk := targets[s.room]
@@ -162,16 +162,16 @@ func UpgradeTargets(targets map[string]RoomTarget, sleeping SleepingObservation,
 
 // vacantSuites is the plan's suites nobody owns a bed in, in plan order:
 // unbuilt, standing empty, or holding only unowned beds.
-func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) []LayoutRoom {
+func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) []PlannedRoom {
 	owned := map[string]bool{}
 	for _, b := range sleeping.Beds {
 		if len(b.Owners) > 0 {
 			owned[b.ID] = true
 		}
 	}
-	var out []LayoutRoom
+	var out []PlannedRoom
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleSuite {
+		if r.Role != PlannedSuite {
 			continue
 		}
 		room, ok := PlannedRoomStanding(r, rooms)
@@ -190,7 +190,7 @@ func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObser
 func (p LayoutPlan) SuiteRooms() int {
 	n := 0
 	for _, r := range p.AllRooms() {
-		if r.Role == ModuleSuite {
+		if r.Role == PlannedSuite {
 			n++
 		}
 	}

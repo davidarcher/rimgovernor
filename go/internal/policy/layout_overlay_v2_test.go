@@ -9,9 +9,9 @@ import (
 func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T) {
 	plan := LayoutPlan{
 		Spine: []SpineSegment{{From: domain.Cell{X: 10, Z: 20}, To: domain.Cell{X: 40, Z: 20}}},
-		Rooms: []LayoutRoom{
-			{Role: ModuleBedroom, Interior: Rectangle{X: 12, Z: 23, Width: 5, Height: 5}, Door: domain.Cell{X: 14, Z: 22}, DoorRot: domain.South},
-			{Role: ModuleDining, Interior: Rectangle{X: 20, Z: 23, Width: 9, Height: 7}, Door: domain.Cell{X: 24, Z: 22}, DoorRot: domain.South},
+		Rooms: []PlannedRoom{
+			{Role: PlannedBedroom, Interior: Rectangle{X: 12, Z: 23, Width: 5, Height: 5}, Door: domain.Cell{X: 14, Z: 22}, DoorRot: domain.South},
+			{Role: PlannedDining, Interior: Rectangle{X: 20, Z: 23, Width: 9, Height: 7}, Door: domain.Cell{X: 24, Z: 22}, DoorRot: domain.South},
 		},
 		Zones: []LayoutZone{{Kind: ZoneField, Runs: []RowRun{{Z: 0, X: 0, Length: 50}, {Z: 1, X: 240, Length: 30}}}},
 		Reservations: []LayoutReservation{

@@ -25,7 +25,7 @@ func livingRoom(x0, z0 int32) Room {
 // plan's rooms, with its door in the wall facing the dump patch.
 func TestSiteIncineratorBesideDumpsClearOfLivingRooms(t *testing.T) {
 	bedroom := livingRoom(10, 10)
-	plan := LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleStorage, Interior: Rectangle{X: 20, Z: 14, Width: 4, Height: 4}}}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedStorage, Interior: Rectangle{X: 20, Z: 14, Width: 4, Height: 4}}}}
 	req := IncineratorSiteRequest{Plan: plan, Bounds: Bounds{Width: 40, Height: 30}, Cells: incineratorCensus(40, 30), Rooms: []Room{bedroom}, Anchor: domain.Cell{X: 12, Z: 22}, Toward: domain.Cell{X: 12, Z: 22}}
 	site, ok := SiteIncinerator(req)
 	if !ok || site.Area.Width != 5 || site.Area.Height != 5 {
@@ -44,7 +44,7 @@ func TestSiteIncineratorBesideDumpsClearOfLivingRooms(t *testing.T) {
 		}
 	}
 	room := site.Room()
-	if room.Interior.Width != 3 || room.Interior.Height != 3 || room.Role != ModuleIncinerator {
+	if room.Interior.Width != 3 || room.Interior.Height != 3 || room.Role != PlannedIncinerator {
 		t.Fatal(room)
 	}
 	// The door sits in the middle of the wall that faces the dump anchor.

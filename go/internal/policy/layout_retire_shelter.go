@@ -28,11 +28,11 @@ func ShelterRetirable(plan LayoutPlan, rooms RoomObservation, sleeping SleepingO
 // is housed and the work rooms stand, so only a table still in it keeps it
 // planned. The table's relocation (#2047) starts from here.
 func ShelterEmptied(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) bool {
-	shelters := plan.roomsOf(ModuleShelter)
+	shelters := plan.roomsOf(PlannedShelter)
 	if len(shelters) == 0 || len(sleeping.People) == 0 || len(sleeping.People) != sleeping.Colonists {
 		return false
 	}
-	for _, role := range []ModuleRole{ModuleWorkshop, ModuleLab} {
+	for _, role := range []PlannedRole{PlannedWorkshop, PlannedLab} {
 		planned := plan.roomsOf(role)
 		if len(planned) == 0 {
 			return false
@@ -70,7 +70,7 @@ func ShelterEmptied(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObs
 // shelterTables are the research tables standing inside a planned shelter.
 func shelterTables(plan LayoutPlan, built []CurrentBuilding) []CurrentBuilding {
 	var out []CurrentBuilding
-	for _, s := range plan.roomsOf(ModuleShelter) {
+	for _, s := range plan.roomsOf(PlannedShelter) {
 		for _, b := range built {
 			if len(b.Cells) > 0 && rectInside(s.Interior, cellsRectangle(b.Cells)) && strings.Contains(b.Building.Definition(), "ResearchBench") {
 				out = append(out, b)
@@ -101,7 +101,7 @@ func ShelterTableMove(plan LayoutPlan, rooms RoomObservation, sleeping SleepingO
 			size = domain.Cell{X: from.Height, Z: from.Width}
 		}
 		def := table.Building.Definition()
-		for _, lab := range plan.roomsOf(ModuleLab) {
+		for _, lab := range plan.roomsOf(PlannedLab) {
 			input, ok := InteriorRoomFromLayout(lab, rooms.Shapes)
 			if !ok {
 				continue
@@ -170,7 +170,7 @@ func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 	}
 	drop := map[Rectangle]bool{}
 	var ground []Rectangle
-	for _, r := range plan.roomsOf(ModuleShelter) {
+	for _, r := range plan.roomsOf(PlannedShelter) {
 		if !growth.InFlight[r.Interior] {
 			drop[r.Interior] = true
 			ground = append(ground, roomGround(r.Interior))

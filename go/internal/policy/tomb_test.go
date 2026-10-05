@@ -6,12 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func tombFixture() (LayoutPlan, LayoutRoom) {
-	room := LayoutRoom{Role: ModuleTomb, Interior: Rectangle{X: 10, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
-	return LayoutPlan{Rooms: []LayoutRoom{room}}, room
+func tombFixture() (LayoutPlan, PlannedRoom) {
+	room := PlannedRoom{Role: PlannedTomb, Interior: Rectangle{X: 10, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
-func tombStanding(room LayoutRoom) RoomObservation {
+func tombStanding(room PlannedRoom) RoomObservation {
 	var cells []domain.Cell
 	for z := room.Interior.Z; z < room.Interior.Z+room.Interior.Height; z++ {
 		for x := room.Interior.X; x < room.Interior.X+room.Interior.Width; x++ {
@@ -80,7 +80,7 @@ func TestTombOwedFallsBackToAGrave(t *testing.T) {
 }
 
 func TestCoreGrowPlansATomb(t *testing.T) {
-	if coreRoomSize[ModuleTomb] != [2]int32{5, 5} || containsRole(coreBaseRooms, ModuleTomb) {
+	if coreRoomSize[PlannedTomb] != [2]int32{5, 5} || containsRole(coreBaseRooms, PlannedTomb) {
 		t.Fatal("the tomb is grown on demand, not a base room")
 	}
 	if p := corePlan(coreTestZones(), 3, BuildTierCamp); p.TombRooms() != 0 {
@@ -89,7 +89,7 @@ func TestCoreGrowPlansATomb(t *testing.T) {
 	if p := growPlan(corePlan(coreTestZones(), 3, BuildTierCamp), 3, 1, BuildTierCamp); p.TombRooms() != 1 {
 		t.Fatal("a dead colonist grows one tomb", p.TombRooms())
 	}
-	if role, ok := LayoutModule(RoomRoleTomb); !ok || role != ModuleTomb {
+	if role, ok := PlannedRoleFor(RoomRoleTomb); !ok || role != PlannedTomb {
 		t.Fatal("the Tomb role has no layout module")
 	}
 }
@@ -112,7 +112,7 @@ func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 	if step := NextTombStep(plan, tombStanding(room), waste, built, testShapes, true); step.Kind != TombFull {
 		t.Fatalf("every slot filled: %+v", step)
 	}
-	second := LayoutRoom{Role: ModuleTomb, Interior: Rectangle{X: 16, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 19}, DoorRot: domain.North}
+	second := PlannedRoom{Role: PlannedTomb, Interior: Rectangle{X: 16, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 19}, DoorRot: domain.North}
 	plan.Rooms = append(plan.Rooms, second)
 	if step := NextTombStep(plan, tombStanding(room), waste, built, testShapes, true); step.Kind != TombShell || !step.Room.Same(second) {
 		t.Fatalf("second tomb: %+v", step)

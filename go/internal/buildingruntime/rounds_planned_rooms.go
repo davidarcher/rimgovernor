@@ -18,17 +18,17 @@ import (
 
 // plannedRoomModule is the planned room this planner's next method needs
 // standing first; false when it needs none.
-func (r *RoundsBuildingPlanner) plannedRoomModule() (policy.ModuleRole, bool) {
+func (r *RoundsBuildingPlanner) plannedRoomModule() (policy.PlannedRole, bool) {
 	switch {
 	case r.concern == policy.EnsureCooking && len(r.paste) == 0:
-		return policy.ModuleKitchen, true
+		return policy.PlannedKitchen, true
 	// The stand-in ButcherSpot is free and instant and gates hunting (#260): it
 	// stands outdoors now and never waits on the room being dug. Only the real
 	// table goes in the planned butchery.
 	case r.concern == policy.MaintainButcherSpot && r.definition == "TableButcher":
-		return policy.ModuleButchery, true
+		return policy.PlannedButchery, true
 	case r.concern == policy.MaintainRefrigeration && r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild:
-		return policy.ModuleFreezer, true
+		return policy.PlannedFreezer, true
 	}
 	return "", false
 }
@@ -45,17 +45,17 @@ func plannedLayout(facts observation.ColonyProjection) (policy.LayoutPlan, polic
 
 // plannedRoomOwed is the first planned room of module with nothing
 // standing in it yet.
-func plannedRoomOwed(facts observation.ColonyProjection, module policy.ModuleRole) (policy.LayoutRoom, bool) {
+func plannedRoomOwed(facts observation.ColonyProjection, module policy.PlannedRole) (policy.PlannedRoom, bool) {
 	plan, rooms, known := plannedLayout(facts)
 	if !known {
-		return policy.LayoutRoom{}, false
+		return policy.PlannedRoom{}, false
 	}
 	return plan.NextPlannedRoom(module, rooms)
 }
 
 // plannedRoomCells is the interior of the first standing planned room of
 // module; nil when none stands.
-func plannedRoomCells(facts observation.ColonyProjection, module policy.ModuleRole) []domain.Cell {
+func plannedRoomCells(facts observation.ColonyProjection, module policy.PlannedRole) []domain.Cell {
 	plan, rooms, known := plannedLayout(facts)
 	if !known {
 		return nil
@@ -80,7 +80,7 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.ModuleRo
 }
 
 // plannedRoomInterior is the room's interior cells.
-func plannedRoomInterior(room policy.LayoutRoom) []domain.Cell {
+func plannedRoomInterior(room policy.PlannedRoom) []domain.Cell {
 	in := room.Interior
 	cells := make([]domain.Cell, 0, int(in.Width*in.Height))
 	for z := in.Z; z < in.Z+in.Height; z++ {
@@ -113,7 +113,7 @@ func roomInteriorCells(facts observation.ColonyProjection) []domain.Cell {
 }
 
 // plannedRoomMethod names a planned room's shell: once per room per epoch.
-func plannedRoomMethod(room policy.LayoutRoom) domain.MethodID {
+func plannedRoomMethod(room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s-shell-%d-%d", room.Role, room.Interior.X, room.Interior.Z))
 }
 
@@ -130,7 +130,7 @@ func (r *RoundsBuildingPlanner) plannedDiningFurnishing(call, epoch context.Cont
 	if !known || len(policy.HostingCells(*r.facility, rooms)) > 0 {
 		return r, RoundsBuildingResult{}, false, nil
 	}
-	room, owed := plannedRoomOwed(facts, policy.ModuleDining)
+	room, owed := plannedRoomOwed(facts, policy.PlannedDining)
 	if !owed {
 		return r, RoundsBuildingResult{}, false, nil
 	}
@@ -151,7 +151,7 @@ func shelterShellSuffix(facts observation.ColonyProjection) string {
 		return ""
 	}
 	for _, room := range plan.AllRooms() {
-		if room.Role == policy.ModuleShelter {
+		if room.Role == policy.PlannedShelter {
 			return fmt.Sprintf("-%d-%d", room.Interior.X, room.Interior.Z)
 		}
 	}
@@ -182,7 +182,7 @@ func shelterInteriorRooms(rooms []policy.InteriorRoom, facts observation.ColonyP
 		return rooms
 	}
 	for _, planned := range plan.AllRooms() {
-		if planned.Role != policy.ModuleShelter {
+		if planned.Role != policy.PlannedShelter {
 			continue
 		}
 		for i := range rooms {
@@ -212,7 +212,7 @@ func standingShelterRooms(facts observation.ColonyProjection) []policy.InteriorR
 	}
 	var out []policy.InteriorRoom
 	for _, planned := range plan.AllRooms() {
-		if planned.Role != policy.ModuleShelter {
+		if planned.Role != policy.PlannedShelter {
 			continue
 		}
 		for _, room := range census.Rooms {

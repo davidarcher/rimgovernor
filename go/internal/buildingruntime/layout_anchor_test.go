@@ -29,7 +29,7 @@ func centrePlan(c domain.Cell) policy.LayoutPlan {
 // planned colony: the fixtures' colonies are planned, so nothing waits on a
 // plan. The plan is a single containment cell, a role no fixture plans for.
 func centreOn(r *Rounder, c domain.Cell) {
-	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleContainmentCell, Interior: policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}, DoorRot: domain.South}}}
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedContainmentCell, Interior: policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}, DoorRot: domain.South}}}
 	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
 		panic(err)
 	}
@@ -40,8 +40,8 @@ func centreOn(r *Rounder, c domain.Cell) {
 // spots stand only in a room planned to sleep in. It takes centreOn's
 // signature; the bedroom, not c, is the plan's centre.
 func sleepingSite(r *Rounder, _ domain.Cell) {
-	plan := policy.LayoutPlan{Rooms: []policy.LayoutRoom{
-		{Role: policy.ModuleBedroom, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
+		{Role: policy.PlannedBedroom, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
 	}}
 	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
 		panic(err)
@@ -50,10 +50,10 @@ func sleepingSite(r *Rounder, _ domain.Cell) {
 
 func anchorPlan() policy.LayoutPlan {
 	return policy.LayoutPlan{
-		Rooms: []policy.LayoutRoom{
-			{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}},
-			{Role: policy.ModuleShelter, Interior: policy.Rectangle{X: 20, Z: 10, Width: 5, Height: 5}},
-			{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 30, Z: 10, Width: 4, Height: 4}},
+		Rooms: []policy.PlannedRoom{
+			{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}},
+			{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 20, Z: 10, Width: 5, Height: 5}},
+			{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 30, Z: 10, Width: 4, Height: 4}},
 		},
 		Zones: []policy.LayoutZone{{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 70, X: 60, Length: 10}}}},
 	}
@@ -62,10 +62,10 @@ func anchorPlan() policy.LayoutPlan {
 func TestRoomAnchorIsTheNearestFreeRoomOfTheRole(t *testing.T) {
 	p := anchorProjection(policy.BuildTierMasonry)
 	p.LayoutPlan = domain.Known(anchorPlan())
-	if c, _ := roomAnchor(p, policy.ModuleShelter, domain.Cell{X: 40, Z: 12}); c != (domain.Cell{X: 22, Z: 12}) {
+	if c, _ := roomAnchor(p, policy.PlannedShelter, domain.Cell{X: 40, Z: 12}); c != (domain.Cell{X: 22, Z: 12}) {
 		t.Fatalf("nearest to the east %v", c)
 	}
-	if c, _ := roomAnchor(p, policy.ModuleShelter, domain.Cell{X: 0, Z: 12}); c != (domain.Cell{X: 12, Z: 12}) {
+	if c, _ := roomAnchor(p, policy.PlannedShelter, domain.Cell{X: 0, Z: 12}); c != (domain.Cell{X: 12, Z: 12}) {
 		t.Fatalf("nearest to the west %v", c)
 	}
 	// A wall in the nearest barracks makes the other one the nearest free room.
@@ -74,12 +74,12 @@ func TestRoomAnchorIsTheNearestFreeRoomOfTheRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "w", Building: wall, Cells: []domain.Cell{{X: 21, Z: 11}}}}})
-	if c, _ := roomAnchor(p, policy.ModuleShelter, domain.Cell{X: 40, Z: 12}); c != (domain.Cell{X: 12, Z: 12}) {
+	if c, _ := roomAnchor(p, policy.PlannedShelter, domain.Cell{X: 40, Z: 12}); c != (domain.Cell{X: 12, Z: 12}) {
 		t.Fatalf("occupied room not skipped %v", c)
 	}
 	// No workshop and no reserve room: the plan's centre anchors it.
 	centre, _ := p.Center().Value()
-	if c, _ := roomAnchor(p, policy.ModuleWorkshop, centre); c != centre {
+	if c, _ := roomAnchor(p, policy.PlannedWorkshop, centre); c != centre {
 		t.Fatalf("workshop %v", c)
 	}
 }
@@ -87,9 +87,9 @@ func TestRoomAnchorIsTheNearestFreeRoomOfTheRole(t *testing.T) {
 func TestRoomAnchorFallsBackToReserveRooms(t *testing.T) {
 	p := anchorProjection(policy.BuildTierMasonry)
 	plan := anchorPlan()
-	plan.Rooms = append(plan.Rooms, policy.LayoutRoom{Role: policy.ModuleReserve, Interior: policy.Rectangle{X: 50, Z: 50, Width: 4, Height: 4}})
+	plan.Rooms = append(plan.Rooms, policy.PlannedRoom{Role: policy.PlannedReserve, Interior: policy.Rectangle{X: 50, Z: 50, Width: 4, Height: 4}})
 	p.LayoutPlan = domain.Known(plan)
-	if c, _ := roomAnchor(p, policy.ModuleWorkshop, domain.Cell{}); c != (domain.Cell{X: 52, Z: 52}) {
+	if c, _ := roomAnchor(p, policy.PlannedWorkshop, domain.Cell{}); c != (domain.Cell{X: 52, Z: 52}) {
 		t.Fatalf("reserve fallback %v", c)
 	}
 }
@@ -113,7 +113,7 @@ func TestAnchorsWaitForAPlan(t *testing.T) {
 	if _, ok := fieldAnchor(p); ok {
 		t.Fatal("a field anchor without a plan")
 	}
-	if _, ok := roomAnchor(p, policy.ModuleShelter, domain.Cell{X: 1, Z: 1}); ok {
+	if _, ok := roomAnchor(p, policy.PlannedShelter, domain.Cell{X: 1, Z: 1}); ok {
 		t.Fatal("a room anchor without a plan")
 	}
 	if _, ok := p.Center().Value(); ok {
@@ -121,21 +121,21 @@ func TestAnchorsWaitForAPlan(t *testing.T) {
 	}
 }
 
-func TestModuleRoleOfInvertsRoomRoles(t *testing.T) {
+func TestPlannedRoleOfInvertsRoomRoles(t *testing.T) {
 	for _, role := range []policy.RoomRole{policy.RoomRoleShelter, policy.RoomRoleWorkshop, policy.RoomRoleStoreroom} {
-		m, ok := policy.ModuleRoleOf(role)
+		m, ok := policy.PlannedRoleOf(role)
 		if !ok {
 			t.Fatalf("%v has no module", role)
 		}
-		if role == policy.RoomRoleStoreroom && m != policy.ModuleStorage {
+		if role == policy.RoomRoleStoreroom && m != policy.PlannedStorage {
 			t.Fatalf("storeroom is %v", m)
 		}
 	}
 	// Barracks is the census role only: nothing plans one (#2045).
-	if _, ok := policy.ModuleRoleOf(policy.RoomRoleBarracks); ok {
+	if _, ok := policy.PlannedRoleOf(policy.RoomRoleBarracks); ok {
 		t.Fatal("the census Barracks role has a planned module")
 	}
-	if _, ok := policy.ModuleRoleOf(policy.RoomRoleCeremonialChamber); ok {
+	if _, ok := policy.PlannedRoleOf(policy.RoomRoleCeremonialChamber); ok {
 		t.Fatal("an unplanned role has a module")
 	}
 }

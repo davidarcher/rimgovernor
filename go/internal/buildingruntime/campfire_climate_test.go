@@ -38,7 +38,7 @@ func campfireSearch(t *testing.T, cold bool) (chosen domain.Cell, slots []domain
 	interior = policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
-	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: cold, Rooms: []policy.LayoutRoom{{Role: policy.ModuleShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
+	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: cold, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
 	room := policy.Room{ID: "1", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: rectangleCells(interior)}
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{room}})
 	facts.Cells = append([]policy.SiteCell(nil), facts.Cells...)

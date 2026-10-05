@@ -83,7 +83,7 @@ func TestIsolationRoomNeedAndStanding(t *testing.T) {
 	pawns := IsolationPlanning{Pawns: domain.Known([]PawnID{"7"}), Beds: []string{"Bed", "SleepingSpot"}}
 	defs := furnitureDefs(map[string]Bounds{"Bed": {Width: 1, Height: 2}})
 	need, owed := IsolationRoomNeed(pawns, defs)
-	if !owed || need.Role != RoomRoleIsolationRoom || need.Module != ModuleIsolationRoom || len(need.Furniture) != 1 || need.Furniture[0].Count != 1 {
+	if !owed || need.Role != RoomRoleIsolationRoom || need.Module != PlannedIsolationRoom || len(need.Furniture) != 1 || need.Furniture[0].Count != 1 {
 		t.Fatalf("need = %+v owed=%v", need, owed)
 	}
 	for name, p := range map[string]IsolationPlanning{
@@ -96,7 +96,7 @@ func TestIsolationRoomNeedAndStanding(t *testing.T) {
 			t.Errorf("%s owes a room", name)
 		}
 	}
-	plan, room := childRoomFixture(ModuleIsolationRoom)
+	plan, room := childRoomFixture(PlannedIsolationRoom)
 	if IsolationRoomStanding(plan, RoomObservation{Shapes: testShapes}, nil, need, defs) {
 		t.Fatal("an unbuilt room stands")
 	}

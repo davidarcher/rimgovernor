@@ -22,8 +22,8 @@ func throneRoyalty() domain.Fact[policy.RoyaltyFacts] {
 	})
 }
 
-func throneProjection(standing bool) (observation.ColonyProjection, policy.LayoutRoom) {
-	room := policy.LayoutRoom{Role: policy.ModuleThrone, Interior: policy.Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+func throneProjection(standing bool) (observation.ColonyProjection, policy.PlannedRoom) {
+	room := policy.PlannedRoom{Role: policy.PlannedThrone, Interior: policy.Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	rooms := policy.RoomObservation{Shapes: testPieceShapes}
 	if standing {
 		var cells []domain.Cell
@@ -35,7 +35,7 @@ func throneProjection(standing bool) (observation.ColonyProjection, policy.Layou
 		rooms.Rooms = []policy.Room{{ID: "r1", Enclosed: domain.Known(true), Cells: cells}}
 	}
 	facts := observation.ColonyProjection{
-		LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{room}}),
+		LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}),
 		Rooms:      domain.Known(rooms),
 		Royalty:    throneRoyalty(),
 		Definitions: []observation.PlanningDefinition{{

@@ -64,7 +64,7 @@ const (
 // JailStep is one bounded step towards a prisoner bed per prisoner.
 type JailStep struct {
 	Kind  JailStepKind
-	Room  LayoutRoom
+	Room  PlannedRoom
 	Piece InteriorPiece
 	Bed   string
 	// Held is the living prisoners; Beds the beds set for prisoners.
@@ -90,7 +90,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 		}
 	}
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModulePrison {
+		if r.Role != PlannedPrison {
 			continue
 		}
 		step.Room = r
@@ -117,7 +117,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 }
 
 // jailSlot is the room's first template bed slot nothing stands on.
-func jailSlot(r LayoutRoom, shapes PieceShapes, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+func jailSlot(r PlannedRoom, shapes PieceShapes, taken map[domain.Cell]bool) (InteriorPiece, bool) {
 	in, ok := InteriorRoomFromLayout(r, shapes)
 	if !ok {
 		return InteriorPiece{}, false

@@ -10,8 +10,8 @@ import (
 
 // Recorded ideology read: one building precept that took an altar. The def
 // names are fixture data; the planner reads whatever the game names.
-func worshipProjection(standing bool) (observation.ColonyProjection, policy.LayoutRoom) {
-	room := policy.LayoutRoom{Role: policy.ModuleWorship, Interior: policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 4}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+func worshipProjection(standing bool) (observation.ColonyProjection, policy.PlannedRoom) {
+	room := policy.PlannedRoom{Role: policy.PlannedWorship, Interior: policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 4}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	var rooms policy.RoomObservation
 	if standing {
 		var cells []domain.Cell
@@ -23,7 +23,7 @@ func worshipProjection(standing bool) (observation.ColonyProjection, policy.Layo
 		rooms.Rooms = []policy.Room{{ID: "r1", Enclosed: domain.Known(true), Cells: cells}}
 	}
 	facts := observation.ColonyProjection{
-		LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{room}}),
+		LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}),
 		Rooms:      domain.Known(rooms),
 		Definitions: []observation.PlanningDefinition{{
 			Name: "TestAltar", Available: domain.Known(true), Size: domain.Known(policy.Bounds{Width: 1, Height: 2}),

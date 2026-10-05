@@ -6,23 +6,23 @@ import "testing"
 // that does not crowd the kitchen.
 func TestPlanCorePlansButcheryApartFromKitchen(t *testing.T) {
 	p := corePlan(coreTestZones(), 0, BuildTierCamp)
-	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []ModuleRole{ModuleButchery})
+	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []PlannedRole{PlannedButchery})
 	if err != nil || !grown {
 		t.Fatalf("butchery grown=%v err=%v", grown, err)
 	}
-	var butchery, kitchen *LayoutRoom
+	var butchery, kitchen *PlannedRoom
 	for i, r := range p.Rooms {
 		switch r.Role {
-		case ModuleButchery:
+		case PlannedButchery:
 			butchery = &p.Rooms[i]
-		case ModuleKitchen:
+		case PlannedKitchen:
 			kitchen = &p.Rooms[i]
 		}
 	}
 	if butchery == nil || kitchen == nil {
 		t.Fatalf("butchery %v kitchen %v", butchery, kitchen)
 	}
-	if overlapsRooms(*butchery, []LayoutRoom{*kitchen}) {
+	if overlapsRooms(*butchery, []PlannedRoom{*kitchen}) {
 		t.Fatal("butchery crowds the kitchen")
 	}
 	t.Logf("butchery %+v link %v", butchery.Interior, butchery.Link)

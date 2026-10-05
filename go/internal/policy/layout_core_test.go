@@ -18,7 +18,7 @@ func coreTestZones() []LayoutZone {
 }
 
 // roomRect is a room with its walls.
-func roomRect(r LayoutRoom) Rectangle {
+func roomRect(r PlannedRoom) Rectangle {
 	in := r.Interior
 	return Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}
 }
@@ -37,14 +37,14 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 		}
 		return false
 	}
-	count := map[ModuleRole]int{}
+	count := map[PlannedRole]int{}
 	rooms := p.AllRooms()
 	for i, a := range rooms {
 		count[a.Role]++
 		// The door is in the wall and opens on a hallway.
 		step := map[domain.Rotation]domain.Cell{domain.North: {Z: 1}, domain.South: {Z: -1}, domain.East: {X: 1}, domain.West: {X: -1}}[a.DoorRot]
 		// The shelter stands apart from the hallways (layout_shelter.go).
-		if a.Role != ModuleShelter && !hall(domain.Cell{X: a.Door.X + step.X, Z: a.Door.Z + step.Z}) && (a.Link == nil || *a.Link != a.Door) {
+		if a.Role != PlannedShelter && !hall(domain.Cell{X: a.Door.X + step.X, Z: a.Door.Z + step.Z}) && (a.Link == nil || *a.Link != a.Door) {
 			t.Fatal("room off the spine", a)
 		}
 		for j, b := range rooms {
@@ -58,7 +58,7 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 			}
 		}
 	}
-	if want := (pawns + wingMaxRooms - 1) / wingMaxRooms * wingMaxRooms; count[ModuleBedroom] != want {
+	if want := (pawns + wingMaxRooms - 1) / wingMaxRooms * wingMaxRooms; count[PlannedBedroom] != want {
 		t.Fatal("bedrooms", count)
 	}
 	for _, role := range coreBaseRooms {
@@ -66,8 +66,8 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 			t.Fatal("missing", role)
 		}
 	}
-	if count[ModuleShelter] != 1 {
-		t.Fatal("shelters", count[ModuleShelter])
+	if count[PlannedShelter] != 1 {
+		t.Fatal("shelters", count[PlannedShelter])
 	}
 }
 
@@ -111,12 +111,12 @@ func TestGrowStopsAtEdge(t *testing.T) {
 // haulers, its link door the cook (#819).
 func TestFreezerLinksToTheKitchen(t *testing.T) {
 	p := corePlan(coreTestZones(), 3, BuildTierCamp)
-	var kitchen, freezer LayoutRoom
+	var kitchen, freezer PlannedRoom
 	for _, r := range p.Rooms {
 		switch r.Role {
-		case ModuleKitchen:
+		case PlannedKitchen:
 			kitchen = r
-		case ModuleFreezer:
+		case PlannedFreezer:
 			freezer = r
 		}
 	}
@@ -145,12 +145,12 @@ func TestFreezerLinksToTheKitchen(t *testing.T) {
 // table; no meal closet is planned then.
 func TestDiningOpensIntoTheFreezer(t *testing.T) {
 	p := corePlan(coreTestZones(), 3, BuildTierCamp)
-	var dining LayoutRoom
+	var dining PlannedRoom
 	for _, r := range p.Rooms {
-		if r.Role == ModuleDining {
+		if r.Role == PlannedDining {
 			dining = r
 		}
-		if r.Role == ModuleMealCloset {
+		if r.Role == PlannedMealCloset {
 			t.Fatal("closet planned beside a freezer door", r)
 		}
 	}
@@ -168,17 +168,17 @@ func TestDiningOpensIntoTheFreezer(t *testing.T) {
 func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 	p := corePlan(coreTestZones(), 3, BuildTierCamp)
 	for i := range p.Rooms {
-		if p.Rooms[i].Role == ModuleDining {
+		if p.Rooms[i].Role == PlannedDining {
 			p.Rooms[i].Link = nil
 		}
 	}
 	grown := growPlan(p, 3, 1, BuildTierCamp)
-	var dining, closet LayoutRoom
+	var dining, closet PlannedRoom
 	for _, r := range grown.Rooms {
 		switch r.Role {
-		case ModuleDining:
+		case PlannedDining:
 			dining = r
-		case ModuleMealCloset:
+		case PlannedMealCloset:
 			closet = r
 		}
 	}
@@ -211,7 +211,7 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 func TestCoreReservesCentreCrossing(t *testing.T) {
 	// The five base rooms all fit east of the crossing, so demand rooms fill
 	// the hallway out to its west side.
-	p := withRooms(corePlan(coreTestZones(), 3, BuildTierCamp), ModuleHospital, ModuleLab, ModuleTomb)
+	p := withRooms(corePlan(coreTestZones(), 3, BuildTierCamp), PlannedHospital, PlannedLab, PlannedTomb)
 	if len(p.Spine) != 2 || alongX(p.Spine[1]) {
 		t.Fatal("spine", p.Spine)
 	}
@@ -288,14 +288,14 @@ func TestDemandRoomsJoinTheCore(t *testing.T) {
 				if err != nil || !grown {
 					t.Fatalf("rock %d tier %v pawns %d: grown=%v err=%v", rock, tier, pawns, grown, err)
 				}
-				for _, role := range append([]ModuleRole{ModuleTomb}, demandCoreRooms...) {
+				for _, role := range append([]PlannedRole{PlannedTomb}, demandCoreRooms...) {
 					if len(p.roomsOf(role)) != 1 {
 						t.Errorf("rock %d tier %v pawns %d: %s rooms = %d", rock, tier, pawns, role, len(p.roomsOf(role)))
 					}
 				}
 				rooms := p.AllRooms()
 				for i, a := range rooms {
-					if overlapsRooms(a, append(append([]LayoutRoom(nil), rooms[:i]...), rooms[i+1:]...)) && a.Link == nil {
+					if overlapsRooms(a, append(append([]PlannedRoom(nil), rooms[:i]...), rooms[i+1:]...)) && a.Link == nil {
 						t.Errorf("rock %d tier %v pawns %d: %s overlaps another room", rock, tier, pawns, a.Role)
 					}
 				}

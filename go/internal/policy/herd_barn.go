@@ -20,7 +20,7 @@ const BarnAreaLabel = BarnAreaKey
 // not yet a room.
 func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 	set := map[domain.Cell]bool{}
-	for _, room := range p.HerdRooms(ModuleBarn) {
+	for _, room := range p.HerdRooms(PlannedBarn) {
 		if _, standing := PlannedRoomStanding(room, rooms); !standing {
 			continue
 		}

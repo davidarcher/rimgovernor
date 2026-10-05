@@ -42,7 +42,7 @@ func WarmTombs(shapes PieceShapes, coolers domain.Fact[bool], plan domain.Fact[L
 	}
 	var out []string
 	for _, planned := range p.AllRooms() {
-		if planned.Role != ModuleTomb && planned.Role != ModuleMorgue && planned.Role != ModuleMealCloset {
+		if planned.Role != PlannedTomb && planned.Role != PlannedMorgue && planned.Role != PlannedMealCloset {
 			continue
 		}
 		room, ok := PlannedRoomStanding(planned, r)
@@ -53,7 +53,7 @@ func WarmTombs(shapes PieceShapes, coolers domain.Fact[bool], plan domain.Fact[L
 		// empty or not: the meal stockpile moves in once it stands. The
 		// morgue (#1820) is shelled only for a waiting corpse, so it is
 		// cooled the same way.
-		occupied := planned.Role == ModuleMealCloset || planned.Role == ModuleMorgue
+		occupied := planned.Role == PlannedMealCloset || planned.Role == PlannedMorgue
 		inside := map[domain.Cell]bool{}
 		for _, c := range room.Cells {
 			inside[c] = true

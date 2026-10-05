@@ -44,7 +44,7 @@ func retireWings(wings []Wing, tier BuildTier) []Wing {
 type Wing struct {
 	Purpose  WingPurpose
 	Corridor SpineSegment
-	Rooms    []LayoutRoom
+	Rooms    []PlannedRoom
 }
 
 // WingRoomSize is a standard room's interior for tier (#1214, epic #1200):
@@ -67,11 +67,11 @@ func WingRoomSize(tier BuildTier) [2]int32 {
 const wingMaxRooms = 10
 
 // AllRooms is every planned room: the spine's, then each wing's.
-func (p LayoutPlan) AllRooms() []LayoutRoom {
+func (p LayoutPlan) AllRooms() []PlannedRoom {
 	if len(p.Wings) == 0 {
 		return p.Rooms
 	}
-	out := append([]LayoutRoom(nil), p.Rooms...)
+	out := append([]PlannedRoom(nil), p.Rooms...)
 	for _, w := range p.Wings {
 		out = append(out, w.Rooms...)
 	}
@@ -148,7 +148,7 @@ func (f wingFrame) orientRect(r Rectangle) Rectangle {
 }
 
 // orientRoom moves a room from the Z-axis frame to f's.
-func (f wingFrame) orientRoom(r LayoutRoom) LayoutRoom {
+func (f wingFrame) orientRoom(r PlannedRoom) PlannedRoom {
 	if f.horiz {
 		return transposeRoom(r)
 	}
@@ -170,18 +170,18 @@ func (f wingFrame) span(v0, n int32) (int32, int32) {
 
 // room is the wing's k-th room: even k east of the corridor, odd west,
 // k/2 slots out from the main hallway.
-func (f wingFrame) room(k int) LayoutRoom {
+func (f wingFrame) room(k int) PlannedRoom {
 	w := f.size[0]
-	return f.roomAt(k%2 == 0, 3+int32(k/2)*(w+1), w, f.size[1], ModuleBedroom)
+	return f.roomAt(k%2 == 0, 3+int32(k/2)*(w+1), w, f.size[1], PlannedBedroom)
 }
 
 // roomAt is a role room of interior w along the corridor by d away from
 // it, east or west of the corridor over v0..v0+w-1, its door mid-side in
 // the corridor wall.
-func (f wingFrame) roomAt(east bool, v0, w, d int32, role ModuleRole) LayoutRoom {
+func (f wingFrame) roomAt(east bool, v0, w, d int32, role PlannedRole) PlannedRoom {
 	z, h := f.span(v0, w)
 	door := domain.Cell{Z: f.z(v0 + w/2)}
-	r := LayoutRoom{Role: role}
+	r := PlannedRoom{Role: role}
 	if east {
 		r.Interior = Rectangle{X: f.cx + 3, Z: z, Width: d, Height: h}
 		door.X, r.DoorRot = f.cx+2, domain.West
@@ -194,7 +194,7 @@ func (f wingFrame) roomAt(east bool, v0, w, d int32, role ModuleRole) LayoutRoom
 }
 
 // along is r's first cell out along the corridor (v0) and its width there.
-func (f wingFrame) along(r LayoutRoom) (int32, int32) {
+func (f wingFrame) along(r PlannedRoom) (int32, int32) {
 	r = f.orientRoom(r)
 	if f.sign > 0 {
 		return r.Interior.Z - f.z0, r.Interior.Height
@@ -204,10 +204,10 @@ func (f wingFrame) along(r LayoutRoom) (int32, int32) {
 
 // reach is the corridor's open end serving rooms: the wall row past the
 // farthest one.
-func (f wingFrame) reach(rooms []LayoutRoom) domain.Cell { return f.cell(f.reachV(rooms)) }
+func (f wingFrame) reach(rooms []PlannedRoom) domain.Cell { return f.cell(f.reachV(rooms)) }
 
 // reachV is the wall row of reach, counted from the hallway.
-func (f wingFrame) reachV(rooms []LayoutRoom) int32 {
+func (f wingFrame) reachV(rooms []PlannedRoom) int32 {
 	v := int32(2)
 	for _, r := range rooms {
 		v0, w := f.along(r)
@@ -278,14 +278,14 @@ func (g coreGrid) clone() coreGrid {
 
 // planWing appends a wing framed f with up to wingMaxRooms standard rooms
 // to wings; the wing is left out when no room fits.
-func (g coreGrid) planWing(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, f wingFrame, fits func(wingFrame, int) bool) []Wing {
+func (g coreGrid) planWing(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, f wingFrame, fits func(wingFrame, int) bool) []Wing {
 	base := f.cell(2)
 	w := Wing{Purpose: WingBedrooms, Corridor: SpineSegment{From: base, To: base}}
 	for k := 0; k < wingMaxRooms && fits(f, k); k++ {
 		r := f.room(k)
 		r.Dug = g.dug(r)
 		trial := w
-		trial.Rooms = append(append([]LayoutRoom(nil), w.Rooms...), r)
+		trial.Rooms = append(append([]PlannedRoom(nil), w.Rooms...), r)
 		trial.Corridor.To = f.reach(trial.Rooms)
 		next := append(append([]Wing(nil), wings...), trial)
 		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: rooms, Wings: next}); err != nil {
@@ -301,10 +301,10 @@ func (g coreGrid) planWing(spine []SpineSegment, rooms []LayoutRoom, wings []Win
 
 // keepWingRooms keeps the rooms of each wing that keep accepts, shortening
 // the corridor to the last kept room; a wing left empty is dropped.
-func keepWingRooms(wings []Wing, keep func(LayoutRoom) bool) []Wing {
+func keepWingRooms(wings []Wing, keep func(PlannedRoom) bool) []Wing {
 	var out []Wing
 	for _, w := range wings {
-		var rooms []LayoutRoom
+		var rooms []PlannedRoom
 		for _, r := range w.Rooms {
 			if keep(r) {
 				rooms = append(rooms, r)

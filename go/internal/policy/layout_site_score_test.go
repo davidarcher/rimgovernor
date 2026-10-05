@@ -156,7 +156,7 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 func TestSiteEdgeCostIsWalkingDistance(t *testing.T) {
 	b := Bounds{Width: 200, Height: 200}
 	room := func(x int32) LayoutPlan {
-		return LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleStorage, Interior: Rectangle{X: x, Z: 100, Width: 3, Height: 3}}}}
+		return LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedStorage, Interior: Rectangle{X: x, Z: 100, Width: 3, Height: 3}}}}
 	}
 	// A rock band at x=10..15 spanning the whole west side except a gap at
 	// the top and bottom of the map, so the walk from the west edge is long.

@@ -19,10 +19,10 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	var worship []LayoutRoom
+	var worship []PlannedRoom
 	for i := int32(0); i < 9; i++ {
 		in := Rectangle{X: 20 + 12*(i%3), Z: 20 + 12*(i/3), Width: 3 + i%4, Height: 3 + i%3}
-		r := LayoutRoom{Role: ModuleWorship, Interior: in, Door: domain.Cell{X: in.X + 1, Z: in.Z - 1}, DoorRot: domain.South}
+		r := PlannedRoom{Role: PlannedWorship, Interior: in, Door: domain.Cell{X: in.X + 1, Z: in.Z - 1}, DoorRot: domain.South}
 		if i%2 == 1 {
 			r.Door, r.DoorRot = domain.Cell{X: in.X + in.Width, Z: in.Z + 1}, domain.East
 		}
@@ -35,7 +35,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	}
 	count := func(p LayoutPlan) (n int) {
 		for _, r := range p.AllRooms() {
-			if r.Role == ModuleWorship {
+			if r.Role == PlannedWorship {
 				n++
 			}
 		}
@@ -46,7 +46,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	if !changed || count(next) != 1 || len(next.Rooms) != other+1 {
 		t.Fatalf("changed=%v worship=%d rooms=%d", changed, count(next), len(next.Rooms))
 	}
-	kept := next.roomsOf(ModuleWorship)[0]
+	kept := next.roomsOf(PlannedWorship)[0]
 	if w, d := frameDims(kept); !shape.holds(w, d) {
 		t.Fatalf("kept room %+v does not hold the shape", kept)
 	}
@@ -64,7 +64,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	built := worship[8]
 	growth.Built = map[Rectangle]bool{built.Interior: true}
 	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, BuildTierCamp, nil, nil)
-	if got := next.roomsOf(ModuleWorship); len(got) != 1 || got[0].Interior != built.Interior {
+	if got := next.roomsOf(PlannedWorship); len(got) != 1 || got[0].Interior != built.Interior {
 		t.Fatalf("built room not kept: %+v", got)
 	}
 	growth.Built = map[Rectangle]bool{worship[0].Interior: true}
@@ -72,7 +72,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	// The sited core may legitimately plan another room over the spot.
 	planned := map[Rectangle]bool{}
 	for _, r := range next.AllRooms() {
-		if r.Role != ModuleWorship {
+		if r.Role != PlannedWorship {
 			planned[pad(r.Interior, 1)] = true
 		}
 	}

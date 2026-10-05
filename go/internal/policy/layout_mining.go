@@ -45,7 +45,7 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 // cell outside the door and the corridor outward from it. All of them are
 // built on or walked, so each needs a floor; rock on the rest of the ring
 // stays and walls the room. Dig is in that priority order.
-func (p LayoutPlan) RoomRock(room LayoutRoom, cells []SiteCell) RockStepResult {
+func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult {
 	var planned []RoleCell
 	add := func(c domain.Cell) { planned = append(planned, RoleCell{Cell: c, Role: RockNeedsFloor}) }
 	add(room.Door)
@@ -103,16 +103,16 @@ func (p LayoutPlan) RoomRock(room LayoutRoom, cells []SiteCell) RockStepResult {
 }
 
 // linkedNeighbour is the other room whose wall holds room's Link door.
-func (p LayoutPlan) linkedNeighbour(room LayoutRoom) (LayoutRoom, bool) {
+func (p LayoutPlan) linkedNeighbour(room PlannedRoom) (PlannedRoom, bool) {
 	if room.Link == nil {
-		return LayoutRoom{}, false
+		return PlannedRoom{}, false
 	}
 	for _, o := range p.AllRooms() {
 		if o.Interior != room.Interior && inWall(o.Interior, *room.Link) {
 			return o, true
 		}
 	}
-	return LayoutRoom{}, false
+	return PlannedRoom{}, false
 }
 
 func manhattan(a, b domain.Cell) int32 {
@@ -130,7 +130,7 @@ func manhattan(a, b domain.Cell) int32 {
 // wall cell and exhaust shaft (#836). The cooler cell is in Dig while the
 // room's back wall is still rock: mining it would open the room, so the
 // caller mines it only in the plan that places the cooler there (#874).
-func (p LayoutPlan) ExhaustRock(room LayoutRoom, cells []SiteCell) (RockStepResult, bool) {
+func (p LayoutPlan) ExhaustRock(room PlannedRoom, cells []SiteCell) (RockStepResult, bool) {
 	site, area, ok := p.CoolerExhaust(room)
 	if !ok {
 		return RockStepResult{}, false

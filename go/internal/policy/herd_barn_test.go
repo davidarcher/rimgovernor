@@ -9,7 +9,7 @@ import (
 
 func TestBarnCellsAreTheStandingBarnInterior(t *testing.T) {
 	plan := herdTestPlan(t, 20)
-	barn := plan.HerdRooms(ModuleBarn)[0]
+	barn := plan.HerdRooms(PlannedBarn)[0]
 	if got := plan.BarnCells(standing(barn)); len(got) != len(rectCells(barn.Interior)) {
 		t.Fatal("a standing barn's area is its interior", len(got))
 	}

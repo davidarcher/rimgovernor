@@ -116,7 +116,7 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	for _, b := range sleeping.Beds {
 		beds[b.ID] = b
 	}
-	var empty, unbuilt []LayoutRoom
+	var empty, unbuilt []PlannedRoom
 	var emptyCells [][]domain.Cell
 	var vacant []string
 	for _, w := range plan.Wings {

@@ -14,7 +14,7 @@ const VetRoomAreaLabel = VetRoomAreaKey
 // VetRoomCells are the interior cells of the plan's vet rooms, sorted.
 func (p LayoutPlan) VetRoomCells() []domain.Cell {
 	set := map[domain.Cell]bool{}
-	for _, room := range p.HerdRooms(ModuleVetRoom) {
+	for _, room := range p.HerdRooms(PlannedVetRoom) {
 		for _, c := range rectCells(room.Interior) {
 			set[c] = true
 		}
@@ -30,7 +30,7 @@ func (p LayoutPlan) VetRoomCells() []domain.Cell {
 // proves the room ready.
 func VetRoomReady(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, beds []SleepingBed, animalBed string) domain.Fact[bool] {
 	unread := false
-	for _, room := range plan.HerdRooms(ModuleVetRoom) {
+	for _, room := range plan.HerdRooms(PlannedVetRoom) {
 		if _, standing := PlannedRoomStanding(room, rooms); !standing {
 			continue
 		}

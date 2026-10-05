@@ -11,7 +11,7 @@ func inWall(r Rectangle, c domain.Cell) bool {
 
 // overlapsRooms reports r's interior within a cell of any room's interior;
 // a single shared wall between them is fine.
-func overlapsRooms(r LayoutRoom, rooms []LayoutRoom) bool {
+func overlapsRooms(r PlannedRoom, rooms []PlannedRoom) bool {
 	a := r.Interior
 	for _, o := range rooms {
 		b := o.Interior
@@ -40,7 +40,7 @@ func transposeRot(rot domain.Rotation) domain.Rotation {
 
 // transposeRoom swaps X and Z; a door facing its hallway to the south faces
 // it to the west once transposed, north to east, and back.
-func transposeRoom(r LayoutRoom) LayoutRoom {
+func transposeRoom(r PlannedRoom) PlannedRoom {
 	in := r.Interior
 	r.Interior = Rectangle{X: in.Z, Z: in.X, Width: in.Height, Height: in.Width}
 	r.Door = transposeCell(r.Door)

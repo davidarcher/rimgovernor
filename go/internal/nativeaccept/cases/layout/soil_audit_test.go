@@ -68,7 +68,7 @@ func TestRichOverlapBudget(t *testing.T) {
 		}
 	}
 	room := func(w int32) policy.LayoutPlan {
-		return policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage,
+		return policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage,
 			Interior: policy.Rectangle{X: 4, Z: 9, Width: w, Height: 1}}}}
 	}
 	if a := auditSoil(room(2), s, nil); a.RichBuiltN != 4 || a.err() != nil {
@@ -102,7 +102,7 @@ func TestAuditSoilCatchesSplitsAndGaps(t *testing.T) {
 		zone.Runs = append(zone.Runs, policy.RowRun{Z: z, X: 20, Length: 10})
 	}
 	plan := policy.LayoutPlan{
-		Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 22, Z: 22, Width: 2, Height: 2}}},
+		Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 22, Z: 22, Width: 2, Height: 2}}},
 		Zones: []policy.LayoutZone{north, south},
 	}
 	a := auditSoil(plan, s, [][]domain.Cell{{{X: 20, Z: 20}}, {{X: 22, Z: 20}}})
@@ -165,7 +165,7 @@ func TestAuditSoilCatchesPatchSplitByARoom(t *testing.T) {
 			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true, Fertility: f})
 		}
 	}
-	farm := func(room *policy.LayoutRoom) policy.LayoutPlan {
+	farm := func(room *policy.PlannedRoom) policy.LayoutPlan {
 		zone := policy.LayoutZone{Kind: policy.ZoneField}
 		for z := int32(10); z < 30; z++ {
 			for x := int32(10); x < 53; x++ {
@@ -180,14 +180,14 @@ func TestAuditSoilCatchesPatchSplitByARoom(t *testing.T) {
 		}
 		plan := policy.LayoutPlan{Zones: []policy.LayoutZone{zone}}
 		if room != nil {
-			plan.Rooms = []policy.LayoutRoom{*room}
+			plan.Rooms = []policy.PlannedRoom{*room}
 		}
 		return plan
 	}
 	if a := auditSoil(farm(nil), s, nil); a.err() != nil {
 		t.Fatalf("the whole patch failed: %v", a.err())
 	}
-	room := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 31, Z: 20, Width: 1, Height: 1}}
+	room := policy.PlannedRoom{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 31, Z: 20, Width: 1, Height: 1}}
 	a := auditSoil(farm(&room), s, nil)
 	if a.RichOverlap > richOverlapBudget {
 		t.Fatalf("the room is meant to stay inside the budget: %s", a.richOverlap())

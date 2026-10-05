@@ -18,14 +18,14 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
 	projection.Facts.Items = policy.ItemFacts{Armor: []policy.Resource{"Apparel_FlakVest"}}
-	armory := policy.LayoutRoom{Role: policy.ModuleArmory, Interior: policy.Rectangle{X: 0, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 5, Z: 2}}
-	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{armory}})
+	armory := policy.PlannedRoom{Role: policy.PlannedArmory, Interior: policy.Rectangle{X: 0, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 5, Z: 2}}
+	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{armory}})
 	gear, err := policy.NewGearStore(projection.Facts.Items, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, &gear, nil))
-	if len(request.Shells) != 1 || request.Shells[0] != policy.ModuleArmory {
+	if len(request.Shells) != 1 || request.Shells[0] != policy.PlannedArmory {
 		t.Fatalf("shells %v", request.Shells)
 	}
 	for _, e := range policy.PlanStockpileMaintenance(request).Edits {
