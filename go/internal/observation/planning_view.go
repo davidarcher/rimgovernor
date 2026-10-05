@@ -60,7 +60,7 @@ func amounts(rows []*o.Quantity) []policy.Amount {
 }
 
 // The stats a stuff option carries for the stuff criteria and the work read.
-var optionStats = []string{bridge.StatMaxHitPoints, bridge.StatFlammability, bridge.StatBedRestEffectiveness, bridge.StatWorkToBuild}
+var optionStats = []string{bridge.StatMaxHitPoints, bridge.StatFlammability, bridge.StatBedRestEffectiveness, bridge.StatWorkToBuild, bridge.StatDoorOpenSpeed}
 
 func thingView(catalog *bridge.DefinitionCatalog, name string, row *d.ThingDef) (PlanningDefinition, error) {
 	v := PlanningDefinition{Name: name, Research: append([]string{}, row.GetResearchPrerequisites()...), ConstructionSkill: domain.Known(row.GetConstructionSkillPrerequisite())}
@@ -157,7 +157,8 @@ func stuffView(catalog *bridge.DefinitionCatalog, v *PlanningDefinition, name st
 		if err != nil {
 			return err
 		}
-		option := StuffOption{Stuff: stuff, Costs: amounts(costs), Value: value, Stats: map[string]float64{}}
+		option := StuffOption{Stuff: stuff, Costs: amounts(costs), Value: value, Stats: map[string]float64{},
+			Common: catalog.ThingDef(stuff).GetStuffProps().GetCommonality() > 0}
 		for _, stat := range optionStats {
 			shown, ok, err := catalog.ShownStatValue(name, stuff, stat)
 			if err != nil {

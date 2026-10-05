@@ -11,8 +11,8 @@ import (
 
 // layout/ring (#1271): the expansion-phase MaintainHousing step that raised
 // the Masonry capacity ring, recorded from `acceptance run layout/ring`
-// (tick 15, issue-1271 branch on 8130fd810). The ring is one stone block definition throughout, a
-// stone Door at the planned door cell, exactly the planned room's walls,
+// (tick 15, issue-1271 branch on 8130fd810). The ring is one stone block definition throughout
+// apart from its Door at the planned door cell, exactly the planned room's walls,
 // its door onto a spine hallway.
 func TestLayoutRingStepIsMasonry(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -57,13 +57,17 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 		if !walls[b.Cell()] {
 			t.Fatalf("ring cell %v lies off the planned room's walls", b.Cell())
 		}
+		if b.Cell() == room.Door {
+			// The door takes its stuff from the door def's stats (wood opens fastest), not the wall's.
+			if b.Definition() != "Door" {
+				t.Fatalf("door cell %v holds %s, want a Door", room.Door, b.Definition())
+			}
+			continue
+		}
 		if !policy.StoneBlockResource(policy.Resource(b.Stuff())) {
 			t.Fatalf("%s at %v is %s, not stone blocks", b.Definition(), b.Cell(), b.Stuff())
 		}
 		stuffs[b.Stuff()] = true
-		if b.Cell() == room.Door && b.Definition() != "Door" {
-			t.Fatalf("door cell %v holds %s, want a stone Door", room.Door, b.Definition())
-		}
 	}
 	if len(stuffs) != 1 {
 		t.Fatalf("ring mixes block definitions %v", stuffs)

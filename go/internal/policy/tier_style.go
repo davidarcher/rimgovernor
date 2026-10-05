@@ -3,16 +3,16 @@ package policy
 import "sort"
 
 // Tier-styled buildings (#610): each build tier looks different because the
-// wall stuff, the floor under each room role, the door and the lighting
-// fixture advance with BuildTier, all through existing Core defs and stuff
-// choices. Every rule here is a pure f(tier, role, stock) -> def/stuff with
+// floor under each room role and the lighting fixture advance with
+// BuildTier, all through existing Core defs and stuff choices. Every rule here is a pure f(tier, role, stock) -> def/stuff with
 // one stock fallback: when the tier's rung names a material the colony does
 // not hold, the rung one tier down is tried, and nothing further. A rule
 // never proposes a stuff the colony has none of, so a Camp colony never
 // receives a stone, powered or floored proposal.
 //
-// The shell planners expand their rings with WallStuff and DoorDef, the
-// flooring planner prefers FloorDef's floor for a deficient room's role and
+// The shell planners take wall and door stuff from the def stats
+// (ColonyProjection.BulkBuildStuff, not a tier rule); the flooring planner
+// prefers FloorDef's floor for a deficient room's role and
 // the lighting planner ModuleLighting's fixture (buildingruntime's
 // rounds_tier_style.go). The shape-family rules (double-module hall,
 // paired wings, courtyard) are shape_family.go's.
@@ -56,16 +56,6 @@ func stoneSuffix(blocks Resource) string {
 	return string(blocks[len(prefix):])
 }
 
-// WallPart distinguishes the parts of a shell the Industrial rung accents in
-// steel (door frames and corners) from the plain runs between them.
-type WallPart int
-
-const (
-	WallRun WallPart = iota
-	WallCorner
-	WallDoorFrame
-)
-
 // oneRungDown tries rung(tier) and, when that rung names nothing the
 // colony holds, rung(tier-1) once; Camp has no rung below it.
 func oneRungDown[T any](tier BuildTier, rung func(BuildTier) (T, bool)) (T, bool) {
@@ -79,67 +69,10 @@ func oneRungDown[T any](tier BuildTier, rung func(BuildTier) (T, bool)) (T, bool
 	return zero, false
 }
 
-// WallStuff is the wall stuff ladder: wood at Camp, the quarried stone
-// blocks at Masonry and Powered, steel accents on corners and door frames
-// over stone runs at Industrial, plasteel at Spacer. The fallback is one
-// rung down; with nothing stocked on either rung there is no proposal.
-func WallStuff(tier BuildTier, part WallPart, stock TierStyleStock) (Resource, bool) {
-	return WallStuffFor(tier, part, stock, true)
-}
-
-// WoodShellBudget is the wood a colony needs within reach (felled trees plus
-// stock) before it builds its walls from wood: a shell and its rooms run to
-// a few hundred wall cells at 5 wood each. Under it the map is short of wood.
-const WoodShellBudget = 1000
-
-// WoodPlentiful measures whether the map offers wood to build with: the
-// standing trees the census holds plus the wood in stock reach
-// WoodShellBudget. Wood is the fast start, so a forested map builds from it.
-func WoodPlentiful(treeWood float64, stock TierStyleStock) bool {
-	return treeWood+float64(stock["WoodLog"]) >= WoodShellBudget
-}
-
-// WallStuffFor is WallStuff where woody says the map offers wood. On a map
-// short of wood the walls are the quarried stone at every tier (steel only
-// as the Industrial accent, never as the run); with no blocks held there is
-// no proposal, so the colony quarries before it builds.
-func WallStuffFor(tier BuildTier, part WallPart, stock TierStyleStock, woody bool) (Resource, bool) {
-	if woody {
-		return wallStuff(tier, part, stock)
-	}
-	stone, ok := stock.QuarriedStone()
-	if !ok {
-		return "", false
-	}
-	if tier >= BuildTierIndustrial && part != WallRun && stock.has("Steel", 1) {
-		return "Steel", true
-	}
-	return stone, true
-}
-
-func wallStuff(tier BuildTier, part WallPart, stock TierStyleStock) (Resource, bool) {
-	return oneRungDown(tier, func(t BuildTier) (Resource, bool) {
-		var want Resource
-		switch {
-		case t >= BuildTierSpacer:
-			want = "Plasteel"
-		case t >= BuildTierIndustrial && part != WallRun:
-			want = "Steel"
-		case t >= BuildTierMasonry:
-			stone, ok := stock.QuarriedStone()
-			if !ok {
-				return "", false
-			}
-			want = stone
-		default:
-			want = "WoodLog"
-		}
-		if !stock.has(want, 1) {
-			return "", false
-		}
-		return want, true
-	})
-}
+// ShellWallBudget is the wall placements a shell and its rooms run to: a
+// stuff builds the walls only when the stock, with the wood standing as
+// trees, covers this many (a few hundred cells at 5 units each).
+const ShellWallBudget int64 = 200
 
 // floorClass groups the room roles the floor rule tells apart.
 type floorClass int
@@ -244,38 +177,6 @@ func FloorDef(tier BuildTier, role RoomRole, stock TierStyleStock, facts FloorSt
 			return Carpet, true
 		}
 		return stoneFloor()
-	})
-}
-
-// DoorStyle is a door proposal: the definition and its stuff.
-type DoorStyle struct{ Definition, Stuff string }
-
-// DoorDef is the door ladder: a wood Door at Camp, a stone Door at Masonry
-// and Powered, a steel Door at Industrial, and an Autodoor (steel, plasteel
-// at Spacer) at Industrial once Autodoors is finished and the colony has
-// power. The fallback is one rung down.
-func DoorDef(tier BuildTier, stock TierStyleStock, autodoors, powered bool) (DoorStyle, bool) {
-	// autodoorSteel is the flat steel an Autodoor costs beside its stuff.
-	const autodoorSteel int64 = 40
-	return oneRungDown(tier, func(t BuildTier) (DoorStyle, bool) {
-		if t >= BuildTierIndustrial {
-			stuff := Resource("Steel")
-			if t >= BuildTierSpacer && stock.has("Plasteel", 1) {
-				stuff = "Plasteel"
-			}
-			if !stock.has(stuff, 1) {
-				return DoorStyle{}, false
-			}
-			if autodoors && powered && stock.has("Steel", autodoorSteel) {
-				return DoorStyle{"Autodoor", string(stuff)}, true
-			}
-			return DoorStyle{"Door", string(stuff)}, true
-		}
-		stuff, ok := WallStuff(t, WallRun, stock)
-		if !ok {
-			return DoorStyle{}, false
-		}
-		return DoorStyle{"Door", string(stuff)}, true
 	})
 }
 

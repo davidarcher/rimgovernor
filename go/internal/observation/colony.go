@@ -64,6 +64,11 @@ type StuffOption struct {
 	Costs []policy.Amount
 	// Value is the market value of Costs: what the cheapest criterion ranks by.
 	Value float64
+	// Common is whether the game generates the stuff as an ordinary material
+	// (StuffProperties.commonality above zero). Bioferrite is not: it is only
+	// ever made by an Anomaly colony, so a def is never planned from it while
+	// an ordinary stuff is allowed.
+	Common bool
 	// Stats are the stat values the game shows for the def made of this stuff
 	// (the StuffChoice criteria); a stat the game does not show is absent.
 	Stats map[string]float64

@@ -13,6 +13,7 @@ const (
 	StatMaxHitPoints         = "MaxHitPoints"
 	StatBedRestEffectiveness = "BedRestEffectiveness"
 	StatWorkToBuild          = "WorkToBuild"
+	StatDoorOpenSpeed        = "DoorOpenSpeed"
 )
 
 // The CLR classes the planning views match by base class, never by name.

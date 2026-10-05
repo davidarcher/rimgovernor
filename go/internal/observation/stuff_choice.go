@@ -3,6 +3,7 @@ package observation
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -24,6 +25,8 @@ const (
 	LowestFlammability
 	// MaxRestEffectiveness is the most BedRestEffectiveness.
 	MaxRestEffectiveness
+	// MaxDoorOpenSpeed is the most DoorOpenSpeed.
+	MaxDoorOpenSpeed
 )
 
 func (c StuffCriterion) String() string {
@@ -36,6 +39,8 @@ func (c StuffCriterion) String() string {
 		return "lowest flammability"
 	case MaxRestEffectiveness:
 		return "max rest effectiveness"
+	case MaxDoorOpenSpeed:
+		return "max door open speed"
 	}
 	return fmt.Sprintf("criterion %d", int(c))
 }
@@ -63,7 +68,7 @@ type StuffPrice struct {
 // tie goes to the lower stuff name. The def's rows lacking what the choice
 // needs is ErrNoStuffData; nothing stocked is ErrNoStuffInStock.
 func (d PlanningDefinition) StuffChoice(criterion StuffCriterion, stock map[policy.Resource]int64) (StuffPrice, error) {
-	return d.chooseStuff(criterion, func(option StuffOption) bool { return stocked(option.Costs, stock) })
+	return d.chooseStuff([]StuffCriterion{criterion}, func(option StuffOption) bool { return stocked(option.Costs, stock) })
 }
 
 // ErrFlammableStuff is FireproofStuff's refusal when even the least flammable
@@ -94,10 +99,12 @@ func (d PlanningDefinition) FireproofStuff() (string, error) {
 // UnstockedStuffChoice is StuffChoice over every allowed stuff, stocked or
 // not: the choice for a planner whose frame the game fills natively.
 func (d PlanningDefinition) UnstockedStuffChoice(criterion StuffCriterion) (StuffPrice, error) {
-	return d.chooseStuff(criterion, func(StuffOption) bool { return true })
+	return d.chooseStuff([]StuffCriterion{criterion}, func(StuffOption) bool { return true })
 }
 
-func (d PlanningDefinition) chooseStuff(criterion StuffCriterion, allowed func(StuffOption) bool) (StuffPrice, error) {
+// chooseStuff is the allowed option the criteria rank best, each criterion
+// breaking the ties of the one before it, the lower stuff name the last.
+func (d PlanningDefinition) chooseStuff(criteria []StuffCriterion, allowed func(StuffOption) bool) (StuffPrice, error) {
 	if len(d.StuffOptions) == 0 {
 		costs, known := d.Costs.Value()
 		if !known || d.Stuffed {
@@ -106,18 +113,25 @@ func (d PlanningDefinition) chooseStuff(criterion StuffCriterion, allowed func(S
 		return StuffPrice{Costs: slices.Clone(costs)}, nil
 	}
 	var best *StuffOption
-	var bestScore float64
+	var bestScores []float64
 	for i := range d.StuffOptions {
 		option := &d.StuffOptions[i]
 		if !allowed(*option) {
 			continue
 		}
-		score, err := d.score(criterion, *option)
-		if err != nil {
-			return StuffPrice{}, err
+		scores := make([]float64, len(criteria))
+		for j, criterion := range criteria {
+			var err error
+			if scores[j], err = d.score(criterion, *option); err != nil {
+				return StuffPrice{}, err
+			}
 		}
-		if best == nil || score > bestScore || score == bestScore && option.Stuff < best.Stuff {
-			best, bestScore = option, score
+		if best == nil {
+			best, bestScores = option, scores
+			continue
+		}
+		if c := slices.Compare(bestScores, scores); c < 0 || c == 0 && option.Stuff < best.Stuff {
+			best, bestScores = option, scores
 		}
 	}
 	if best == nil {
@@ -152,6 +166,8 @@ func (d PlanningDefinition) score(criterion StuffCriterion, option StuffOption) 
 		return -flammability, err
 	case MaxRestEffectiveness:
 		return stat(bridge.StatBedRestEffectiveness)
+	case MaxDoorOpenSpeed:
+		return stat(bridge.StatDoorOpenSpeed)
 	}
 	return 0, fmt.Errorf("%w: unknown stuff criterion %d", ErrNoStuffData, int(criterion))
 }
@@ -236,22 +252,116 @@ func (r ColonyProjection) Stock() (map[policy.Resource]int64, bool) {
 	return stock, known
 }
 
-// BuildStuff is the stuff an ordinary placement builds the def from: the
-// cheapest allowed stuff the colony stocks, else the cheapest allowed stuff
-// whatever the stock (RimWorld places the frame and holds it natively for
-// material, #602). A def not made from stuff, an unknown stock and a def the
-// rows cannot choose for yield the empty stuff, the way an unknown stuff did.
+// BuildCriteria is how an ordinary placement ranks the def's allowed stuffs,
+// read from the stats the game shows for the def made of each: a bed by rest
+// effectiveness and an unpowered door by open speed first, then every def by
+// hit points per cost; flammability breaks the ties. Beauty is no criterion:
+// ranked blind to cost it would spend trade gold on tables. A stat any option
+// lacks leaves its criterion out, and a def whose rows state none ranks by
+// cheapest.
+func (d PlanningDefinition) BuildCriteria() []StuffCriterion {
+	shown := func(stat string) bool {
+		return !slices.ContainsFunc(d.StuffOptions, func(o StuffOption) bool { _, ok := o.Stats[stat]; return !ok })
+	}
+	var criteria []StuffCriterion
+	switch powered, _ := d.NeedsPower.Value(); {
+	case shown(bridge.StatBedRestEffectiveness):
+		criteria = append(criteria, MaxRestEffectiveness)
+	case shown(bridge.StatDoorOpenSpeed) && !powered:
+		criteria = append(criteria, MaxDoorOpenSpeed)
+	}
+	if shown(bridge.StatMaxHitPoints) && !slices.ContainsFunc(d.StuffOptions, func(o StuffOption) bool { return o.Value <= 0 }) {
+		criteria = append(criteria, MaxHitPointsPerCost)
+	}
+	if shown(bridge.StatFlammability) {
+		criteria = append(criteria, LowestFlammability)
+	}
+	if len(criteria) == 0 {
+		return []StuffCriterion{CheapestStuff}
+	}
+	return criteria
+}
+
+// ordinaryStuff is the stuffs a def is planned from: the ordinary ones while
+// the def allows one (Bioferrite is cheap and durable, but a colony never
+// builds a bench, a bed or a wall from it), else any.
+func (d PlanningDefinition) ordinaryStuff() func(StuffOption) bool {
+	if slices.ContainsFunc(d.StuffOptions, func(o StuffOption) bool { return o.Common }) {
+		return func(o StuffOption) bool { return o.Common }
+	}
+	return func(StuffOption) bool { return true }
+}
+
+// BuildStuff is the stuff an ordinary placement builds the def from: the best
+// ranked allowed stuff the colony stocks (BuildCriteria), else the best ranked
+// allowed stuff whatever the stock (RimWorld places the frame and holds it
+// natively for material, #602). A def not made from stuff, an unknown stock and
+// a def the rows cannot choose for yield the empty stuff.
 func (r ColonyProjection) BuildStuff(name string) string {
+	if stuff, ok := r.StockedBuildStuff(name); ok {
+		return stuff
+	}
 	d, ok := r.Definition(name)
 	if !ok || len(d.StuffOptions) == 0 {
 		return ""
 	}
+	price, err := d.chooseStuff(d.BuildCriteria(), d.ordinaryStuff())
+	if err != nil {
+		return ""
+	}
+	return price.Stuff
+}
+
+// StockedBuildStuff is BuildStuff over the stuffs the colony stocks to build
+// the def once; false when none is stocked or the def has no stuff to choose.
+func (r ColonyProjection) StockedBuildStuff(name string) (string, bool) {
+	d, ok := r.Definition(name)
+	stock, known := r.Stock()
+	if !ok || len(d.StuffOptions) == 0 || !known {
+		return "", false
+	}
+	ordinary := d.ordinaryStuff()
+	price, err := d.chooseStuff(d.BuildCriteria(), func(o StuffOption) bool { return ordinary(o) && stocked(o.Costs, stock) })
+	return price.Stuff, err == nil
+}
+
+// BulkBuildStuff is BuildStuff for a def raised in bulk (a shell's walls): a
+// stuff competes only when the stock covers `units` placements of it, the
+// wood standing as trees counting toward wood (an unread acquisition census
+// reads as wooded). With none covered it is the best ranked ordinary stuff
+// whatever the stock, so the ring waits for it to be gathered: the stone
+// blocks of a map short of wood, once they are quarried.
+func (r ColonyProjection) BulkBuildStuff(name string, units int64) string {
+	d, ok := r.Definition(name)
+	if !ok || len(d.StuffOptions) == 0 {
+		return ""
+	}
+	criteria, ordinary := d.BuildCriteria(), d.ordinaryStuff()
 	if stock, known := r.Stock(); known {
-		if price, err := d.StuffChoice(CheapestStuff, stock); err == nil {
+		have := func(resource policy.Resource) float64 {
+			held := float64(stock[resource])
+			sources, read := r.Acquisition.Value()
+			if resource != "WoodLog" {
+				return held
+			}
+			if !read {
+				return math.Inf(1)
+			}
+			for _, s := range sources {
+				if s.Tree && s.Resource == string(resource) {
+					held += s.Yield
+				}
+			}
+			return held
+		}
+		covered := func(o StuffOption) bool {
+			return len(o.Costs) > 0 && !slices.ContainsFunc(o.Costs, func(a policy.Amount) bool { return have(a.Resource) < float64(a.Count*units) })
+		}
+		if price, err := d.chooseStuff(criteria, func(o StuffOption) bool { return ordinary(o) && covered(o) }); err == nil {
 			return price.Stuff
 		}
 	}
-	price, err := d.UnstockedStuffChoice(CheapestStuff)
+	price, err := d.chooseStuff(criteria, ordinary)
 	if err != nil {
 		return ""
 	}

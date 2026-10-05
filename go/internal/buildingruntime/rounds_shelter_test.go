@@ -25,7 +25,7 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 	// A wooded start: the shell builds from wood unless the map is short of it.
 	for _, row := range n.reply.GetObserved().GetResources() {
 		if row.GetDefName() == "WoodLog" {
-			row.Units = proto.Int64(policy.WoodShellBudget)
+			row.Units = proto.Int64(policy.ShellWallBudget * 5)
 		}
 	}
 	for _, name := range []string{"Wall", "Door"} {

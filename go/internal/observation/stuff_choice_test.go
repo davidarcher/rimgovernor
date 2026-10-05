@@ -144,3 +144,82 @@ func TestSharedStuffAndBuildStuff(t *testing.T) {
 		t.Fatal("a def with no stuff builds from none")
 	}
 }
+
+// statOption is an option carrying the stats BuildCriteria reads.
+func statOption(stuff string, value float64, common bool, stats map[string]float64) StuffOption {
+	o := option(stuff, 5, value, stats)
+	o.Common = common
+	return o
+}
+
+// The simple research bench has no stuff-driven research speed, so it ranks by
+// hit points per cost, and Bioferrite (cheap, durable, not an ordinary
+// material) never competes, stocked or not.
+func TestBuildStuffNeverChoosesAnExoticStuff(t *testing.T) {
+	hp := func(points, flammability float64) map[string]float64 {
+		return map[string]float64{bridge.StatMaxHitPoints: points, bridge.StatFlammability: flammability}
+	}
+	bench := stuffedDef("SimpleResearchBench",
+		statOption("Bioferrite", 0.75, false, hp(2, 0.75)),
+		statOption("WoodLog", 1.2, true, hp(0.65, 1)),
+		statOption("BlocksGranite", 0.9, true, hp(1.7, 0)))
+	p := ColonyProjection{Definitions: []PlanningDefinition{bench}}
+	p.Resources = domain.Known(map[policy.Resource]int64{"Bioferrite": 500})
+	if got := p.BuildStuff("SimpleResearchBench"); got != "BlocksGranite" {
+		t.Fatal("a stocked exotic stuff was chosen, or the ordinary ranking failed", got)
+	}
+	p.Resources = domain.Known(map[policy.Resource]int64{"Bioferrite": 500, "WoodLog": 100})
+	if got := p.BuildStuff("SimpleResearchBench"); got != "WoodLog" {
+		t.Fatal("the stocked ordinary stuff leads", got)
+	}
+	// A def that allows only exotic stuffs still builds from one.
+	only := stuffedDef("OnlyExotic", statOption("Bioferrite", 0.75, false, hp(2, 0.75)))
+	p.Definitions = append(p.Definitions, only)
+	if got := p.BuildStuff("OnlyExotic"); got != "Bioferrite" {
+		t.Fatal(got)
+	}
+}
+
+func TestBuildStuffRanksByTheStatsTheDefCarries(t *testing.T) {
+	stats := func(rest, speed, beauty, hp float64) map[string]float64 {
+		m := map[string]float64{bridge.StatMaxHitPoints: hp}
+		if rest > 0 {
+			m[bridge.StatBedRestEffectiveness] = rest
+		}
+		if speed > 0 {
+			m[bridge.StatDoorOpenSpeed] = speed
+		}
+		if beauty != 0 {
+			m[bridge.StatBeauty] = beauty
+		}
+		return m
+	}
+	for _, tc := range []struct {
+		name string
+		def  PlanningDefinition
+		want string
+	}{
+		{"bed by rest effectiveness", stuffedDef("Bed",
+			statOption("WoodLog", 1.2, true, stats(0.9, 0, 1, 100)), statOption("Cloth", 1.5, true, stats(1.1, 0, 1, 10))), "Cloth"},
+		{"door by open speed", stuffedDef("Door",
+			statOption("WoodLog", 1.2, true, stats(0, 1.2, 0, 65)), statOption("BlocksGranite", 0.9, true, stats(0, 0.45, 0, 170))), "WoodLog"},
+		{"decor by hit points per cost", stuffedDef("Table",
+			statOption("WoodLog", 1.2, true, stats(0, 0, 1, 65)), statOption("BlocksMarble", 0.9, true, stats(0, 0, 3, 120))), "BlocksMarble"},
+		{"utility by hit points per cost", stuffedDef("TableButcher",
+			statOption("WoodLog", 1.2, true, stats(0, 0, 0, 65)), statOption("BlocksGranite", 0.9, true, stats(0, 0, 0, 170))), "BlocksGranite"},
+	} {
+		p := ColonyProjection{Definitions: []PlanningDefinition{tc.def}}
+		if got := p.BuildStuff(tc.def.Name); got != tc.want {
+			t.Errorf("%s: %s, want %s", tc.name, got, tc.want)
+		}
+	}
+	// A powered door ignores open speed (the stat only slows an unpowered one)
+	// and ranks by durability, so stone Autodoors win over wood.
+	auto := stuffedDef("Autodoor",
+		statOption("WoodLog", 1.2, true, stats(0, 1.2, 0, 65)), statOption("BlocksGranite", 0.9, true, stats(0, 0.45, 0, 170)))
+	auto.NeedsPower = domain.Known(true)
+	p := ColonyProjection{Definitions: []PlanningDefinition{auto}}
+	if got := p.BuildStuff("Autodoor"); got != "BlocksGranite" {
+		t.Fatal("a powered door ranked by open speed", got)
+	}
+}

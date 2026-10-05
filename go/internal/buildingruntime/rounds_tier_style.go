@@ -55,55 +55,29 @@ func poweredSource(facts observation.ColonyProjection) domain.Fact[bool] {
 	return domain.Known(false)
 }
 
-// styleWoody measures whether the map offers wood to build with (the
-// felled-tree yield in the acquisition census plus the stock). An unknown
-// census reads as wooded, the old behaviour.
-func styleWoody(facts observation.ColonyProjection) bool {
-	sources, known := facts.Acquisition.Value()
-	if !known {
-		return true
-	}
-	trees := 0.0
-	for _, s := range sources {
-		if s.Tree && s.Resource == "WoodLog" {
-			trees += s.Yield
-		}
-	}
-	return policy.WoodPlentiful(trees, styleStock(facts))
-}
-
-// shellStyle is the wall and door style a shell planner expands a ring
-// with: the wall stuff ladder per part and the door ladder, with a wood
-// Door where the rules name nothing (the Camp rung with no wood stocked),
+// shellStyle is the wall and door style a shell planner expands a ring with:
+// the walls' stuff ranked by the Wall def's stats among the stuffs the stock
+// covers a whole shell of (BulkBuildStuff), and the door from the door def's
+// stats, an Autodoor once Autodoors is finished, a source generates and the
+// stock covers one. A wood Door and wall stand where the catalog names none,
 // which the placement preview then refuses on stock as it always has.
 func shellStyle(facts observation.ColonyProjection) domain.ShellStyle {
-	tier, stock := styleTier(facts), styleStock(facts)
-	powered, _ := poweredSource(facts).Value()
-	woody := styleWoody(facts)
 	style := domain.ShellStyle{WallDef: "Wall", DoorDef: "Door", DoorStuff: "WoodLog"}
-	autodoors := styleResearchFinished(facts, "Autodoors") && roundsDefinitionsAvailable(facts, []string{"Autodoor"}, true)
-	if door, ok := policy.DoorDef(tier, stock, autodoors, powered); ok {
-		style.DoorDef, style.DoorStuff = door.Definition, door.Stuff
+	if powered, _ := poweredSource(facts).Value(); powered && styleResearchFinished(facts, "Autodoors") && roundsDefinitionsAvailable(facts, []string{"Autodoor"}, true) {
+		if stuff, ok := facts.StockedBuildStuff("Autodoor"); ok {
+			style.DoorDef, style.DoorStuff = "Autodoor", stuff
+		}
 	}
-	style.WallStuff = func(part domain.ShellPart) string {
-		wallPart := policy.WallRun
-		switch part {
-		case domain.ShellCorner:
-			wallPart = policy.WallCorner
-		case domain.ShellDoorFrame:
-			wallPart = policy.WallDoorFrame
+	if style.DoorDef == "Door" {
+		if stuff := facts.BuildStuff("Door"); stuff != "" {
+			style.DoorStuff = stuff
 		}
-		if stuff, ok := policy.WallStuffFor(tier, wallPart, stock, woody); ok {
-			return string(stuff)
-		}
-		if !woody {
-			// No blocks yet on a map short of wood: name a block the stock
-			// check refuses, so the ring waits for quarrying and never
-			// falls back to wood.
-			return "BlocksGranite"
-		}
-		return "WoodLog"
 	}
+	wall := "WoodLog"
+	if stuff := facts.BulkBuildStuff(style.WallDef, policy.ShellWallBudget); stuff != "" {
+		wall = stuff
+	}
+	style.WallStuff = func(domain.ShellPart) string { return wall }
 	return style
 }
 
