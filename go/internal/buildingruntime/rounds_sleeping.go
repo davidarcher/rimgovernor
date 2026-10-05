@@ -68,8 +68,6 @@ type RoundsBuildingPlanner struct {
 	workshop *workshopSelection
 	// sleeping holds the housing bedroom choice this step builds for.
 	sleeping *policy.SleepingChoice
-	// bedroom is the planned bedroom a housing bedroom step furnishes (#786).
-	bedroom *policy.BedroomStep
 	// phase is the step of a phased goal (MaintainHousing, EnsureComfort) this
 	// planner serves; the review's latched phase decides which one runs.
 	// Empty for every other goal.

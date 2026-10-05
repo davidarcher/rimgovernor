@@ -179,7 +179,7 @@ func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, 
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "old_bed_removal")}, nil
 	}
 	// A real bed is packed, not deconstructed: the stored bed furnishes the
-	// next bedroom or bed spot (furnishFromShell, reinstallStoredBed).
+	// next bedroom or bed spot (packShellBed, reinstallStoredBed).
 	if rep.Def == "Bed" || rep.Def == policy.SleepingCoupleBedDefinition {
 		value, err := domain.NewMoveBuilding(rep.Bed, rep.Def, rep.Cell, domain.South)
 		if err != nil {

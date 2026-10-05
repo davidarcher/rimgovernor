@@ -34,14 +34,24 @@ func coupleBedFixture() (SleepingObservation, []TidyRoom) {
 	return obs, rooms
 }
 
+// coupleBedPlan plans the fixture's two bedrooms.
+var coupleBedPlan = LayoutPlan{Rooms: []PlannedRoom{
+	{Role: PlannedBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Door: domain.Cell{X: 0, Z: -1}},
+	{Role: PlannedBedroom, Interior: Rectangle{X: 10, Z: 0, Width: 5, Height: 4}, Door: domain.Cell{X: 10, Z: -1}},
+}}
+
 func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
 	obs, rooms := coupleBedFixture()
-	step, ok := NextCoupleBed(obs, rooms, nil, true)
+	step, ok := NextCoupleBed(obs, coupleBedPlan, rooms, nil, true)
 	if !ok || step.Kind != CouplePack || step.Room != "Room_1" || len(step.Pack) != 2 || step.Pack[0].Thing != "Bed_1" || step.Pack[1].Thing != "Bed_2" {
 		t.Fatalf("pack = %+v %v", step, ok)
 	}
-	if _, ok := NextCoupleBed(obs, rooms, nil, false); ok {
+	if _, ok := NextCoupleBed(obs, coupleBedPlan, rooms, nil, false); ok {
 		t.Fatal("packed with no DoubleBed buildable")
+	}
+	// A room outside the plan is never packed for: its install could not be reconciled.
+	if _, ok := NextCoupleBed(obs, LayoutPlan{}, rooms, nil, true); ok {
+		t.Fatal("packed in a room the plan lacks")
 	}
 
 	// Packed: nobody owns a bed; the pack's first cell names the room.
@@ -49,22 +59,22 @@ func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
 	obs.People[0].OwnedBed, obs.People[1].OwnedBed = domain.Known(""), domain.Known("")
 	obs.Beds = nil
 	rooms[0].Pieces, rooms[1].Pieces = nil, nil
-	install, ok := NextCoupleBed(obs, rooms, []domain.Cell{packedAt}, false)
-	if !ok || install.Kind != CoupleInstall || install.Room != "Room_1" || install.Anchor != step.Anchor || install.Rot != step.Rot {
-		t.Fatalf("install = %+v %v (pack slot %v %v)", install, ok, step.Anchor, step.Rot)
+	install, ok := NextCoupleBed(obs, coupleBedPlan, rooms, []domain.Cell{packedAt}, false)
+	if !ok || install.Kind != CoupleInstall || install.Room != "Room_1" || install.Planned.Interior != rooms[0].Room.Interior || len(install.Template) != 1 {
+		t.Fatalf("install = %+v %v", install, ok)
 	}
-	// The slot is the bedroom template's DoubleBed bed slot.
+	// The template is the bedroom template's DoubleBed bed slot.
 	plan, _ := PlanInterior(rooms[0].Room, testShapes.Defs["DoubleBed"])
-	if plan.Pieces[0].Slot != "bed" || plan.Pieces[0].Def != "DoubleBed" || plan.Pieces[0].Anchor() != install.Anchor {
+	if plan.Pieces[0].Slot != "bed" || plan.Pieces[0].Def != "DoubleBed" || install.Template[0].Anchor() != plan.Pieces[0].Anchor() || install.Template[0].DefName != "DoubleBed" {
 		t.Fatalf("slot %+v, install %+v", plan.Pieces[0], install)
 	}
-	if _, ok := NextCoupleBed(obs, rooms, nil, true); ok {
+	if _, ok := NextCoupleBed(obs, coupleBedPlan, rooms, nil, true); ok {
 		t.Fatal("install without a packed room")
 	}
 
 	// The double bed stands (owned by one, or nobody): assignment's turn.
 	obs.Beds = []SleepingBed{{ID: "Bed_3", Definition: "DoubleBed", Humanlike: domain.Known(true), Room: domain.Known("Room_1")}}
-	if s, ok := NextCoupleBed(obs, rooms, []domain.Cell{packedAt}, true); ok {
+	if s, ok := NextCoupleBed(obs, coupleBedPlan, rooms, []domain.Cell{packedAt}, true); ok {
 		t.Fatalf("double bed standing, step %+v", s)
 	}
 }
@@ -72,12 +82,12 @@ func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
 func TestCoupleBedIgnoresSinglesAndOthersBeds(t *testing.T) {
 	obs, rooms := coupleBedFixture()
 	obs.People[1].Partners = nil // not reciprocal
-	if s, ok := NextCoupleBed(obs, rooms, nil, true); ok {
+	if s, ok := NextCoupleBed(obs, coupleBedPlan, rooms, nil, true); ok {
 		t.Fatalf("no couple, step %+v", s)
 	}
 	obs, rooms = coupleBedFixture()
 	obs.Beds[1].Owners = []PawnID{"b", "c"} // shared with a third pawn
-	s, ok := NextCoupleBed(obs, rooms, nil, true)
+	s, ok := NextCoupleBed(obs, coupleBedPlan, rooms, nil, true)
 	if !ok || len(s.Pack) != 1 || s.Pack[0].Thing != "Bed_1" {
 		t.Fatalf("pack = %+v %v", s, ok)
 	}
@@ -99,7 +109,7 @@ func TestCoupleBedInstallsInTheRoomPackingEmptied(t *testing.T) {
 		return SleepingPerson{ID: id, OwnedBed: domain.Known(""), Partners: []PawnID{partner}, BedSharingAllowed: domain.Known(true)}
 	}
 	obs := SleepingObservation{Colonists: 2, People: []SleepingPerson{person("a", "b"), person("b", "a")}}
-	install, ok := NextCoupleBed(obs, CoupleBedRooms(rooms, census, cells), []domain.Cell{{X: 1, Z: 1}}, true)
+	install, ok := NextCoupleBed(obs, LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedBedroom, Interior: interior, Door: door}}}, CoupleBedRooms(rooms, census, cells), []domain.Cell{{X: 1, Z: 1}}, true)
 	if !ok || install.Kind != CoupleInstall || install.Room != "Room_1" {
 		t.Fatalf("install = %+v %v", install, ok)
 	}

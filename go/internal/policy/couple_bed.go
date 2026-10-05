@@ -31,44 +31,39 @@ const (
 )
 
 // CoupleBed is the next couple bed step. Pack lists the beds to uninstall
-// (the couple's room's first); Anchor and Rot are the DoubleBed slot of
-// Room, the room's census id.
+// (the couple's room's first); Room is the room's census id. An install is the
+// build side's (#2115): Planned is the couple's planned room and Template its
+// DoubleBed in the bedroom template's bed slot, which ReconcileRoom installs
+// from stock or builds.
 type CoupleBed struct {
 	Kind          CoupleBedKind
 	Pawn, Partner PawnID
 	Room          string
 	Pack          []TidyPiece
-	Anchor        domain.Cell
-	Rot           domain.Rotation
+	Planned       PlannedRoom
+	Template      []WantedPiece
 }
 
-// coupleBedSlot is the bedroom template's bed slot for a DoubleBed in room.
-func coupleBedSlot(room TidyRoom) (domain.Cell, domain.Rotation, bool) {
-	input := room.Room
-	input.Role = RoomRoleBedroom
-	input.Standing = nil
-	bed, ok := input.Piece(SleepingCoupleBedDefinition)
-	if !ok {
-		return domain.Cell{}, domain.South, false
-	}
-	plan, ok := PlanInterior(input, bed)
-	if !ok {
-		return domain.Cell{}, domain.South, false
-	}
-	for _, p := range plan.Pieces {
-		if p.Slot == "bed" && p.Def == SleepingCoupleBedDefinition {
-			return p.Anchor(), p.Rot, true
+// coupleBedSlot is the bedroom template's bed slot for a DoubleBed in room,
+// and the planned room of plan that room stands in; false when plan has none.
+func coupleBedSlot(plan LayoutPlan, room TidyRoom) (PlannedRoom, []WantedPiece, bool) {
+	for _, planned := range plan.AllRooms() {
+		if planned.Interior != room.Room.Interior {
+			continue
 		}
+		template, ok := BedroomTemplate(planned, room.Room.Shapes, SleepingCoupleBedDefinition)
+		return planned, template, ok
 	}
-	return domain.Cell{}, domain.South, false
+	return PlannedRoom{}, nil, false
 }
 
 // NextCoupleBed returns the first couple (by lower pawn id) bed step due,
-// false when none. rooms are the furniture rooms; packed are the cells of
-// the beds this Episode's completed pack steps uninstalled, the
+// false when none. rooms are the furniture rooms, each of which must stand in a
+// planned room of plan (its install is reconciled, #2115); packed are the cells
+// of the beds this Episode's completed pack steps uninstalled, the
 // couple's room's bed first; buildable reports that a DoubleBed can be
 // built, without which nothing is packed.
-func NextCoupleBed(obs SleepingObservation, rooms []TidyRoom, packed []domain.Cell, buildable bool) (CoupleBed, bool) {
+func NextCoupleBed(obs SleepingObservation, plan LayoutPlan, rooms []TidyRoom, packed []domain.Cell, buildable bool) (CoupleBed, bool) {
 	couples := sleepingCouples(obs.People)
 	owned := map[PawnID]string{}
 	for _, p := range obs.People {
@@ -134,8 +129,7 @@ func NextCoupleBed(obs SleepingObservation, rooms []TidyRoom, packed []domain.Ce
 			}
 		}
 		if len(step.Pack) > 0 {
-			var ok bool
-			if step.Anchor, step.Rot, ok = coupleBedSlot(home); !ok || !buildable {
+			if _, _, ok := coupleBedSlot(plan, home); !ok || !buildable {
 				continue
 			}
 			step.Kind = CouplePack
@@ -146,11 +140,11 @@ func NextCoupleBed(obs SleepingObservation, rooms []TidyRoom, packed []domain.Ce
 		}
 		for _, r := range rooms {
 			if cellInRect(r.Room.Interior, packed[0]) {
-				anchor, rot, ok := coupleBedSlot(r)
+				planned, template, ok := coupleBedSlot(plan, r)
 				if !ok {
 					break
 				}
-				return CoupleBed{Kind: CoupleInstall, Pawn: p, Partner: q, Room: r.ID, Anchor: anchor, Rot: rot}, true
+				return CoupleBed{Kind: CoupleInstall, Pawn: p, Partner: q, Room: r.ID, Planned: planned, Template: template}, true
 			}
 		}
 	}

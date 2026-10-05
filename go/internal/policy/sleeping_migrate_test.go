@@ -81,7 +81,7 @@ func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomNone || got.Unhoused != 0 {
 		t.Fatalf("bedroom step %+v, want none: retiring rooms house their pawns", got)
 	}
-	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomFurnish || got.Room.Interior.X != 20 || len(got.Cells) != 1 || got.Cells[0] != (domain.Cell{X: 22, Z: 2}) {
+	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomReconcile || got.Room.Interior.X != 20 {
 		t.Fatalf("empty active room = %+v, want furnish", got)
 	}
 	rooms.Rooms[2].Beds = []string{"nb1"}
@@ -92,7 +92,7 @@ func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	}
 	sleeping.People[0].OwnedBed = domain.Known("nb1")
 	sleeping.Beds[2].Owners, sleeping.Beds[0].Owners = []PawnID{"a"}, nil
-	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomShell || got.Room.Interior.X != 30 {
+	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomReconcile || got.Room.Interior.X != 30 {
 		t.Fatalf("next mover = %+v, want the next active room's shell", got)
 	}
 	// A vacated retiring bed takes no one new.

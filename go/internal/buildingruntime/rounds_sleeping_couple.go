@@ -59,7 +59,8 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sto
 		return RoundsBuildingResult{}, false, err
 	}
 	buildable, _ := facts.DefinitionAvailable(policy.SleepingCoupleBedDefinition).Value()
-	step, due := policy.NextCoupleBed(obs, policy.CoupleBedRooms(rooms, census, facts.Cells), packed, buildable)
+	plan, _ := facts.LayoutPlan.Value()
+	step, due := policy.NextCoupleBed(obs, plan, policy.CoupleBedRooms(rooms, census, facts.Cells), packed, buildable)
 	if !due {
 		return RoundsBuildingResult{}, false, nil
 	}
@@ -100,26 +101,15 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sto
 		}
 		return r.commitCouple(call, epoch, state, goal, method, id, actions)
 	case policy.CoupleInstall:
-		room := sha256.Sum256([]byte(fmt.Sprintf("%d,%d", step.Anchor.X, step.Anchor.Z)))
-		method := domain.MethodID(fmt.Sprintf("sleeping-couple-install-%x", room[:8]))
-		if done, err := used(method); err != nil || done {
-			return RoundsBuildingResult{}, false, err
-		}
-		move, stored, err := stock.Install(call, policy.PackedFurnitureDefinition, policy.SleepingCoupleBedDefinition, step.Anchor, step.Rot)
-		if err != nil {
-			return RoundsBuildingResult{}, false, err
-		}
-		if stored {
-			id := domain.MintPlanID()
-			action, err := domain.NewMoveBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", id)), move)
-			if err != nil {
-				return RoundsBuildingResult{}, false, err
-			}
-			return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
-		}
-		result, err := r.upgradeBedroom(call, epoch, state, review, goal, reading, policy.RoomUpgrade{Room: step.Room, Slot: "couple-bed", Def: policy.SleepingCoupleBedDefinition, Anchor: step.Anchor, Rot: step.Rot})
-		// A build already tried this epoch, or refused, leaves the
-		// ordinary choice to go on.
+		// The couple's room is reconciled to the DoubleBed in its bed slot: a
+		// stored one is installed, else one is built (#2115).
+		in := step.Planned.Interior
+		result, err := r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
+			room: step.Planned, template: step.Template,
+			name: fmt.Sprintf("sleeping-couple-install-%d-%d", in.X, in.Z), reason: "couple's double bed",
+		})
+		// A wave already tried this epoch, or refused, leaves the ordinary
+		// choice to go on.
 		return result, err != nil || result.Verdict == BuildingReasonAdmitted, err
 	}
 	return RoundsBuildingResult{}, false, nil

@@ -105,10 +105,11 @@ func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) 
 	return owed
 }
 
-// bedroomMethod names a bedroom step's method: one per planned room, so a
-// room is shelled or furnished once per Episode.
-func bedroomMethod(kind policy.BedroomStepKind, room policy.PlannedRoom) domain.MethodID {
-	return domain.MethodID(fmt.Sprintf("bedroom-%s-%d-%d", kind, room.Interior.X, room.Interior.Z))
+// bedroomReconcileName prefixes a bedroom room's reconcile methods. The
+// "bedroom-shell-<x>-<z>" stem is the one the sleeping acceptance cases read
+// the journal by; the build side appends the wave (removal, install, build).
+func bedroomReconcileName(room policy.PlannedRoom) string {
+	return fmt.Sprintf("bedroom-shell-%d-%d", room.Interior.X, room.Interior.Z)
 }
 
 // bedroomRing is the planned room's wall ring, doors first, without the
@@ -154,18 +155,49 @@ func bedroomRing(room policy.PlannedRoom, doors map[domain.Cell]bool, order []do
 	return ring
 }
 
-// shellBedroom previews and admits the planned room's walls and door. A
-// refused cell makes the slot no site this step.
-func (r *RoundsSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, error) {
+// reconcileBedroom answers a BedroomReconcile through the shared build side
+// (#2115): the room's ring, doors and floor and its bed are reconciled to the
+// plan and the bedroom template, the bed installed from packed stock first and
+// built on site only when none is stored. A vacant bed left in the starter
+// shell is packed to become that stock; a placement native refuses means wait.
+func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, error) {
+	facts := reading.Projection
 	// A suite is only started with its whole ring in stock (#1216).
 	if step.Room.Role == policy.PlannedSuite {
 		in := step.Room.Interior
-		_, walls, _ := reading.Projection.StockedStuff("Wall")
+		_, walls, _ := facts.StockedStuff("Wall")
 		if walls < int64(2*(in.Width+in.Height)+4) {
 			return RoundsBuildingResult{Verdict: BuildingSuiteStock}, nil
 		}
 	}
-	return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, bedroomMethod(step.Kind, step.Room), bedroomShellReason(step))
+	request, err := sleepingRequest(facts, review)
+	if err != nil {
+		return RoundsBuildingResult{}, err
+	}
+	bed, method := policy.SleepingDefinition(facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true)
+	if method == policy.SleepingUnknown {
+		return RoundsBuildingResult{Verdict: fieldUnavailable("bed_definitions")}, nil
+	}
+	if method != policy.SleepingBuild {
+		return RoundsBuildingResult{Verdict: BuildingSleepingUnavailable}, nil
+	}
+	rooms, known := facts.Rooms.Value()
+	if !known {
+		return RoundsBuildingResult{Verdict: fieldUnavailable("room_census")}, nil
+	}
+	template, ok := policy.BedroomTemplate(step.Room, rooms.Shapes, bed)
+	if !ok {
+		return RoundsBuildingResult{Verdict: noSpace("bedroom_template")}, nil
+	}
+	// Only once the room stands: until then the shelter's bed keeps its sleeper.
+	if _, standing := policy.CensusRoomIn(step.Room, rooms); standing {
+		if result, due, err := r.packShellBed(call, epoch, stock, state, goal, reading, bed); due || err != nil {
+			return result, err
+		}
+	}
+	return r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
+		room: step.Room, template: template, name: bedroomReconcileName(step.Room), reason: bedroomShellReason(step),
+	})
 }
 
 // bedroomShellReason is a bedroom shell's short why: the colonists still

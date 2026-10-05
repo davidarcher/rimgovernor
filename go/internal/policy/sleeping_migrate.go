@@ -89,8 +89,8 @@ func vacantColonistBed(b SleepingBed) bool {
 
 // NextMigrateStep is the next migration step: move a pawn owning a bed in
 // a Retiring wing's room to a vacant bed in an active wing's room; with
-// none vacant, furnish the first standing empty active room, else shell
-// the first unbuilt one. BedroomNone when no single pawn sleeps in a
+// none vacant, reconcile the first standing empty active room, else the
+// first unbuilt one (BedroomReconcile). BedroomNone when no single pawn sleeps in a
 // Retiring room (a couple keeps its double bed, #838). One pawn per step.
 func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) BedroomStep {
 	old := retiringBeds(plan, rooms)
@@ -117,7 +117,6 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		beds[b.ID] = b
 	}
 	var empty, unbuilt []PlannedRoom
-	var emptyCells [][]domain.Cell
 	var vacant []string
 	for _, w := range plan.Wings {
 		if w.Purpose != WingBedrooms {
@@ -131,7 +130,6 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			}
 			if len(room.Beds) == 0 {
 				empty = append(empty, r)
-				emptyCells = append(emptyCells, room.Cells)
 			}
 			for _, id := range room.Beds {
 				if b, ok := beds[id]; ok && vacantColonistBed(b) {
@@ -149,11 +147,8 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			}
 		}
 	}
-	if len(empty) > 0 {
-		return BedroomStep{Kind: BedroomFurnish, Room: empty[0], Cells: emptyCells[0]}
-	}
-	if len(unbuilt) > 0 {
-		return BedroomStep{Kind: BedroomShell, Room: unbuilt[0]}
+	if rooms := append(empty, unbuilt...); len(rooms) > 0 {
+		return BedroomStep{Kind: BedroomReconcile, Room: rooms[0]}
 	}
 	return BedroomStep{}
 }

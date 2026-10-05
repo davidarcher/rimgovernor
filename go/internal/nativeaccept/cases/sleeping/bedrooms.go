@@ -26,8 +26,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// bedroomShellPrefix starts a bedroom shell's method (buildingruntime
-// bedroomMethod); other bedroom- and sleeping- methods stage and assign
+// bedroomShellPrefix starts a bedroom room reconcile's methods (buildingruntime
+// bedroomReconcileName); other bedroom- and sleeping- methods stage and assign
 // beds (#987: plans are recognised by method, not plan id).
 const bedroomShellPrefix = "bedroom-shell-"
 

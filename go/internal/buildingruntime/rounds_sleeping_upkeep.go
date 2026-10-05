@@ -110,30 +110,6 @@ func (r *RoundsBuildingPlanner) selectSleeping(facts observation.ColonyProjectio
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	if bedroomsFirst(choice.Method) {
-		// A planned bedroom standing empty takes one bed (#786): the best
-		// on the ladder, else a spot its owner moves into (#1182).
-		// A wing migration furnishes its active-wing room the same way (#1244).
-		step := bedroomStep(facts, r.reviewer.stage)
-		if step.Kind == policy.BedroomNone && choice.Method == policy.SleepingNoDemand {
-			step = migrateStep(facts)
-		}
-		if step.Kind == policy.BedroomFurnish {
-			definition, method := policy.SleepingDefinition(facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true)
-			if method == policy.SleepingUnknown {
-				return nil, fieldUnavailable("bed_definitions"), nil
-			}
-			if method != policy.SleepingBuild {
-				return nil, BuildingSleepingUnavailable, nil
-			}
-			choice.Method, choice.Cells, choice.Definition = policy.SleepingBuild, step.Cells, definition
-			resolved, reason, err := r.resolveSleeping(facts, choice)
-			if resolved != nil {
-				resolved.bedroom = &step
-			}
-			return resolved, reason, err
-		}
-	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
 		return nil, fieldUnavailable(choice.Missing), nil
@@ -326,19 +302,11 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 		switch step.Kind {
 		case policy.BedroomMove:
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: step.Pawn, Bed: step.Bed, PreviousBed: step.PreviousBed}
-		case policy.BedroomFurnish:
-			// A bed left empty in the starter shell moves to the new room
-			// (packed, then reinstalled) rather than being built again.
-			if result, due, err := r.furnishFromShell(call, epoch, stock, state, goal, reading, step); due || err != nil {
-				return result, err
-			}
-			// The indoor rung alone: a bed the room refuses is no reason to
-			// raise some other shell.
-			indoor := *r.building
-			indoor.shelter, indoor.definition = false, "SleepingSpot"
-			return indoor.step(call, epoch, arbiter)
-		case policy.BedroomShell:
-			return r.shellBedroom(call, epoch, state, review, goal, reading, step)
+		case policy.BedroomReconcile:
+			// The room's ring, floor and bed through the shared build side; a
+			// bed left empty in the starter shell is packed and reinstalled
+			// rather than built again (#2115).
+			return r.reconcileBedroom(call, epoch, stock, state, review, goal, reading, step)
 		case policy.BedroomClear:
 			return r.removeOldBed(call, epoch, state, review, goal, reading, policy.BedReplacement{Room: "shell", Bed: step.Bed, Def: policy.SleepingSpotDefinition, Cell: step.Cells[0]})
 		default:

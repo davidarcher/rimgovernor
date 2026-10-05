@@ -28,10 +28,10 @@ func TestAcquisitionReasonNamesRunwayPestOrStock(t *testing.T) {
 }
 
 func TestBedroomShellReasonCountsUnhoused(t *testing.T) {
-	if got := bedroomShellReason(policy.BedroomStep{Kind: policy.BedroomShell, Unhoused: 2}); got != "room for 2 unhoused" {
+	if got := bedroomShellReason(policy.BedroomStep{Kind: policy.BedroomReconcile, Unhoused: 2}); got != "room for 2 unhoused" {
 		t.Fatal(got)
 	}
-	if got := bedroomShellReason(policy.BedroomStep{Kind: policy.BedroomShell}); got != "" {
+	if got := bedroomShellReason(policy.BedroomStep{Kind: policy.BedroomReconcile}); got != "" {
 		t.Fatal(got)
 	}
 }

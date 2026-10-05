@@ -107,7 +107,7 @@ func TestSuiteClaimantRoomGetsNoUpgrade(t *testing.T) {
 	if _, ok := kept["r2"]; !ok {
 		t.Fatalf("b's r2 dropped: %+v", kept)
 	}
-	if step := NextBedroomStep(plan, rooms, sleeping, owed, suiteTraits, nil, RoomGate{}); step.Kind != BedroomShell || step.Room.Role != PlannedSuite {
+	if step := NextBedroomStep(plan, rooms, sleeping, owed, suiteTraits, nil, RoomGate{}); step.Kind != BedroomReconcile || step.Room.Role != PlannedSuite {
 		t.Fatalf("step = %+v, want the suite's shell", step)
 	}
 }
@@ -132,7 +132,7 @@ func TestSuiteMoveShellsFurnishesAssignsThenReusesTheRoom(t *testing.T) {
 	plan, rooms, sleeping := suiteFixture()
 	targets := suiteTargetsFor(sleeping, suiteTraits)
 	step := NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, RoomGate{})
-	if step.Kind != BedroomShell || step.Room.Role != PlannedSuite {
+	if step.Kind != BedroomReconcile || step.Room.Role != PlannedSuite {
 		t.Fatalf("first step = %+v, want the suite's shell", step)
 	}
 	var cells []domain.Cell
@@ -142,7 +142,7 @@ func TestSuiteMoveShellsFurnishesAssignsThenReusesTheRoom(t *testing.T) {
 		}
 	}
 	rooms.Rooms = append(rooms.Rooms, Room{ID: "s1", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: cells})
-	if step = NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, RoomGate{}); step.Kind != BedroomFurnish || len(step.Cells) != 56 {
+	if step = NextBedroomStep(plan, rooms, sleeping, targets, suiteTraits, nil, RoomGate{}); step.Kind != BedroomReconcile {
 		t.Fatalf("standing suite = %+v, want furnish", step)
 	}
 	rooms.Rooms[3].Role, rooms.Rooms[3].Beds = domain.Known(RoomRoleBedroom), []string{"sbed"}

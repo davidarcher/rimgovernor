@@ -38,12 +38,11 @@ const (
 	BedroomNone BedroomStepKind = ""
 	// BedroomMove: assign Bed, a vacant bed in a Bedroom-role room, to Pawn.
 	BedroomMove BedroomStepKind = "move"
-	// BedroomFurnish: stage one bed in Room, a planned bedroom standing
-	// enclosed with no bed; Cells are its observed floor.
-	BedroomFurnish BedroomStepKind = "furnish"
-	// BedroomShell: raise the walls and door of Room, a planned bedroom not
-	// standing yet.
-	BedroomShell BedroomStepKind = "shell"
+	// BedroomReconcile: Room, a planned bedroom with no bed (not standing, or
+	// standing empty), is reconciled by the build side (ReconcileRoom) to the
+	// plan and a bed template (BedroomTemplate). Its state is whatever the diff
+	// leaves: no shell or furnish step (#2115).
+	BedroomReconcile BedroomStepKind = "reconcile"
 	// BedroomClear: deconstruct Bed, a vacant sleeping spot left in the
 	// starter shell (the planned shelter) at Cells[0] (#1182).
 	BedroomClear BedroomStepKind = "clear"
@@ -55,13 +54,14 @@ type BedroomStep struct {
 	Pawn             PawnID
 	Bed, PreviousBed string
 	Room             PlannedRoom
-	Cells            []domain.Cell
-	Unhoused         int
+	// Cells is a BedroomClear's one cell.
+	Cells    []domain.Cell
+	Unhoused int
 }
 
 // NextBedroomStep picks the next bedroom step from the plan, the room census
-// and the sleeping census. Move comes first (it costs nothing), then a bed in
-// a standing empty bedroom, then a new shell, and a shell only while the
+// and the sleeping census. Move comes first (it costs nothing), then a room
+// with no bed to reconcile (a standing empty one, then an unbuilt one), only while the
 // standing bedrooms cannot take every colonist still outside one; a room dug
 // into rock is a shell too, whose builder mines it first (#836). It reports BedroomNone whenever a
 // fact it needs is unknown.
@@ -182,9 +182,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		}
 	}
 	standing := func(r PlannedRoom) (Room, bool) { return CensusRoomIn(r, rooms) }
-	var empty []PlannedRoom
-	var emptyCells [][]domain.Cell
-	var unbuilt []PlannedRoom
+	var empty, unbuilt []PlannedRoom
 	retiring := retiringRooms(plan)
 	for _, r := range plan.AllRooms() {
 		// A Retiring wing is never built out further (#1219).
@@ -198,17 +196,39 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		}
 		if len(room.Beds) == 0 {
 			empty = append(empty, r)
-			emptyCells = append(emptyCells, room.Cells)
 		}
 	}
-	if len(empty) > 0 {
-		return BedroomStep{Kind: BedroomFurnish, Room: empty[0], Cells: emptyCells[0], Unhoused: len(unhoused)}
-	}
-	if len(unbuilt) > 0 {
-		return BedroomStep{Kind: BedroomShell, Room: unbuilt[0], Unhoused: len(unhoused)}
+	// A standing empty room first (it owes the least), then an unbuilt one.
+	if rooms := append(empty, unbuilt...); len(rooms) > 0 {
+		return BedroomStep{Kind: BedroomReconcile, Room: rooms[0], Unhoused: len(unhoused)}
 	}
 	// No slot left: Unhoused still counts who stays outside a bedroom.
 	return suiteStep()
+}
+
+// BedroomTemplate is the furniture template of a BedroomReconcile's room: bed
+// (a definition name) in the bedroom template's bed slot. Suites and the shelter
+// take the bedroom's slot too. False when the template does not fit the room.
+func BedroomTemplate(room PlannedRoom, shapes PieceShapes, bed string) ([]WantedPiece, bool) {
+	in, ok := InteriorRoomFromLayout(room, shapes)
+	if !ok {
+		return nil, false
+	}
+	in.Role = RoomRoleBedroom
+	piece, ok := in.Piece(bed)
+	if !ok {
+		return nil, false
+	}
+	plan, ok := PlanInterior(in, piece)
+	if !ok {
+		return nil, false
+	}
+	for _, p := range plan.Pieces {
+		if p.Slot == "bed" && p.Def == bed {
+			return []WantedPiece{{DefName: p.Def, Minimum: domain.Cell{X: p.Rect.X, Z: p.Rect.Z}, Maximum: domain.Cell{X: p.Rect.X + p.Rect.Width - 1, Z: p.Rect.Z + p.Rect.Height - 1}, Slot: p.Slot, Size: p.Size, Rot: p.Rot}}, true
+		}
+	}
+	return nil, false
 }
 
 // BedResearch unlocks Bed and DoubleBed.

@@ -24,7 +24,7 @@ func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 
 func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 10 {
 		t.Fatalf("first step = %+v, want the first slot's shell", got)
 	}
 	var cells []domain.Cell
@@ -34,7 +34,7 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 		}
 	}
 	rooms.Rooms = append(rooms.Rooms, Room{ID: "r1", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: cells})
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomFurnish || len(got.Cells) != 25 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile {
 		t.Fatalf("standing empty bedroom = %+v, want furnish", got)
 	}
 	rooms.Rooms[1].Role, rooms.Rooms[1].Beds = domain.Known(RoomRoleBedroom), []string{"r1bed"}
@@ -45,7 +45,7 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	}
 	sleeping.People[0].OwnedBed = domain.Known("r1bed")
 	sleeping.Beds[3].Owners = []PawnID{"a"}
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 16 {
 		t.Fatalf("second colonist = %+v, want the second slot's shell", got)
 	}
 }
@@ -69,11 +69,11 @@ func TestBedroomStepHousesABedlessJoiner(t *testing.T) {
 	}
 	sleeping.People = append(sleeping.People, SleepingPerson{ID: "joiner", OwnedBed: domain.Known("")})
 	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
-	if got.Kind != BedroomShell || got.Room.Interior.X != 30 || got.Unhoused != 1 {
+	if got.Kind != BedroomReconcile || got.Room.Interior.X != 30 || got.Unhoused != 1 {
 		t.Fatalf("bedless joiner = %+v, want the sixth slot's shell", got)
 	}
 	rooms.Rooms = append(rooms.Rooms, Room{ID: "r6", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: roomCells(30, 0, 5, 5)})
-	if got = NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomFurnish || len(got.Cells) != 25 {
+	if got = NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile {
 		t.Fatalf("standing shell = %+v, want its furnish", got)
 	}
 }
@@ -142,11 +142,11 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	}
 	sleeping.Beds = []SleepingBed{spot("b1", "a"), spot("b2", "b")}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 10 {
 		t.Fatalf("spot owners = %+v, want the first bedroom shelled", got)
 	}
 	rooms.Rooms = append(rooms.Rooms, room("r1", 10))
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomFurnish {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile {
 		t.Fatalf("empty bedroom = %+v, want furnish", got)
 	}
 	rooms.Rooms[1] = room("r1", 10, "s1")
@@ -163,7 +163,7 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	}
 	rooms.Rooms[0].Beds = []string{"b2"}
 	sleeping.Beds = sleeping.Beds[1:]
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 16 {
 		t.Fatalf("last shell spot owner = %+v, want the second bedroom shelled", got)
 	}
 }

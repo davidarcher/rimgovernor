@@ -290,6 +290,25 @@ a mode. A held entity whose held or studiable fact is unread makes the
 requirement unknown: the work review reports `study_work` unavailable and
 files a `routine_skip` row (`entity_study_unread`) at warn.
 
+### Bedrooms and sleeping upkeep
+
+A bedroom step (`NextBedroomStep`, `NextMigrateStep`, the suite claims) owes
+a planned room with no bed a `BedroomReconcile`; there is no shell or furnish
+step. The runtime (`reconcileBedroom`) picks the bed from the sleeping
+ladder, takes its slot from `policy.BedroomTemplate` (the bedroom template's
+bed slot, for suites and the shelter too) and hands the room to the shared
+build side (`reconcileRoom`, see Throne room below): ring, doors, floor and
+the bed, the bed installed from packed stock first. Once the room stands, a
+vacant `Bed` left in the starter shell is packed (`packShellBed`) so the next
+pass installs it instead of building another. The couple's double bed is the
+same: the pack step takes the two single beds up, the install is a
+reconcile of the couple's planned room to a `DoubleBed` template
+(`CoupleBed.Template`), and a couple whose room is outside the plan is never
+packed for. Move, clear and the bed replacement, sculpture and upgrade levers
+are unchanged. The starter shelter's bunk rungs (`rounds_shelter_bunks.go`)
+and the stand-in `SleepingSpot` keep their own guard (`standInBed`): the
+reconciler leaves a spot alone and the bunks are sited before a ring exists.
+
 ### Throne room
 
 A colonist who holds an Empire title, or has the favor to claim the next

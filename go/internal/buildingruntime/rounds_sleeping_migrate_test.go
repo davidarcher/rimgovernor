@@ -29,7 +29,7 @@ func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
 		Rooms:      domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{standing("o1", 0, "ob1"), standing("n1", 20)}}),
 	}
 	facts.Facts.Sleeping = domain.Known(sleeping)
-	if step := migrateStep(facts); step.Kind != policy.BedroomFurnish || step.Room.Interior.X != 20 {
+	if step := migrateStep(facts); step.Kind != policy.BedroomReconcile || step.Room.Interior.X != 20 {
 		t.Fatalf("migrate step = %+v, want the active room furnished", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {

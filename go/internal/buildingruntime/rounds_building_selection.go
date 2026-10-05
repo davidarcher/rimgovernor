@@ -158,9 +158,6 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 			if r.sleeping == nil {
 				return 0, "", fieldUnavailable("sleeping_proposal")
 			}
-			if r.bedroom != nil {
-				return 1, bedroomMethod(r.bedroom.Kind, r.bedroom.Room), Verdict{}
-			}
 			return 1, domain.MethodID(fmt.Sprintf("sleeping-%s-%d", r.definition, r.sleeping.Unhoused)), Verdict{}
 		}
 		capacity, known := facts.Facts.IndoorCapacity.Value()

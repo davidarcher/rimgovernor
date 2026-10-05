@@ -224,11 +224,8 @@ func nextSuiteStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObse
 		}
 		r := vacant[i]
 		room, ok := CensusRoomIn(r, rooms)
-		if !ok {
-			return BedroomStep{Kind: BedroomShell, Room: r}
-		}
-		if len(room.Beds) == 0 {
-			return BedroomStep{Kind: BedroomFurnish, Room: r, Cells: room.Cells}
+		if !ok || len(room.Beds) == 0 {
+			return BedroomStep{Kind: BedroomReconcile, Room: r}
 		}
 		ids := append([]string(nil), room.Beds...)
 		sort.Strings(ids)
