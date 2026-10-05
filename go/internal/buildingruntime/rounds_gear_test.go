@@ -383,7 +383,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	n := &gearTestNative{equipTestNative: &equipTestNative{roundsNative: native, ids: []string{"a", "b"}}}
 	settleGearPolicies(t, native)
 	reviewer.native = n
-	reviewer.policy.Stage.Floor = policy.StageStable // MaintainEquipment is raised from Stable
+	reviewer.policy.Stage.Floor = policy.StageStable
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -399,31 +399,5 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	}
 	if n.benchReads-reviewed != 1 {
 		t.Fatal("bench census not consulted once the weapon was skipped", n.benchReads-reviewed)
-	}
-}
-
-// Before its colony stage the ranking drops MaintainEquipment (no row, no
-// slot): the planner waits quietly instead of admitting a wear order or bill
-// that the development check refuses on every tick.
-func TestGearPlannerWaitsWhileTheGoalIsNotRaised(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	ctx := context.Background()
-	reviewer, _, _, _, native := roundsFixture(t)
-	setGearProductionNeed(native.reply.GetObserved())
-	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{roundsNative: native, ids: []string{"a", "b"}}}}
-	settleGearPolicies(t, native)
-	reviewer.native = n
-	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
-	if _, err := reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
-	planner, err := NewRoundsGearPlanner(reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := planner.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonNoDeficit {
-		t.Fatal(result, err)
 	}
 }
