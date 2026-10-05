@@ -23,7 +23,7 @@ func (g coreGrid) hallGround(spine []SpineSegment, rooms []LayoutRoom) func(Rect
 			taken[c] = true
 		}
 	}
-	half := SpineWidth/2 + coreMaxDepth + 2
+	half := coreHalf
 	for _, s := range spine {
 		band := spineRects([]SpineSegment{s})[0]
 		if !alongX(s) {

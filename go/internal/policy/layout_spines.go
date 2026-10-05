@@ -41,7 +41,7 @@ func (g coreGrid) growSpine(spine []SpineSegment, rooms []LayoutRoom) ([]SpineSe
 		return spine, false
 	}
 	main := newHallFrame(spine[0])
-	half := SpineWidth/2 + coreMaxDepth + 2
+	half := coreHalf
 	clear := func(cx int32) bool {
 		for _, s := range spine[1:] {
 			if cx-s.From.X < 2*SpineWidth && s.From.X-cx < 2*SpineWidth {

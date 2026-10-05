@@ -101,7 +101,7 @@ type packer struct {
 func (g coreGrid) packer(spine []SpineSegment, i int, rooms []LayoutRoom) packer {
 	own := spine[i]
 	p := packer{g: g, h: newHallFrame(own)}
-	half := SpineWidth/2 + coreMaxDepth + 2
+	half := coreHalf
 	for j, s := range spine {
 		if j == i {
 			continue

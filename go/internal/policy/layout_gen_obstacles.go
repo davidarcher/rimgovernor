@@ -5,7 +5,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // The new generator's obstacle map (#1955, epic #1938; absorbs #1921). The
 // obstacles are core cells a room or hallway should not stand on: rich soil,
 // the ore the plan will not dig, the field zones (soil worth farming) and,
-// already out of the core, the reserved sites. coreGrid.fits rejects any slot
+// already out of the core, the reserved sites. the packer rejects any slot
 // touching one, so a rich patch inside the best ground is left open (a
 // courtyard) rather than built over at soilCostRich. Obstacles are geometry
 // first and cost second: obstacleLevels tries the strictest map, then

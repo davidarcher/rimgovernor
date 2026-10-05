@@ -454,7 +454,7 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 	}
 	u.keepOut = outerKeepOut(plan, u.w, u.h)
 	u.clear = make([]bool, n)
-	ring := SpineWidth/2 + coreMaxDepth + 2
+	ring := coreHalf
 	for _, r := range spineRects(plan.Hallways()) {
 		for z := max(r.Z-ring, 0); z < min(r.Z+r.Height+ring, u.h); z++ {
 			for x := max(r.X-ring, 0); x < min(r.X+r.Width+ring, u.w); x++ {

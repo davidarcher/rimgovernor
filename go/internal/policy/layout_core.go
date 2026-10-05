@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Core spine and room slots (#779, A3). The core is a straight 3-wide main
+// Core spine and room packing (#779, A3; #2097). The core is a straight 3-wide main
 // hallway along X, crossed by north-south hallways as it fills (#952,
 // layout_spines.go), with rooms hung off both sides. Neighbouring rooms on a
 // side share their side walls; every room's door sits in its hallway wall,
@@ -64,6 +64,10 @@ var coreBaseRooms = []ModuleRole{
 
 // coreMaxDepth is the deepest interior, which bounds the core's cross-section.
 const coreMaxDepth int32 = 7
+
+// coreHalf is the core cross-section's half height about a hallway line: half
+// the hallway, the deepest room and a wall on each side.
+const coreHalf = SpineWidth/2 + coreMaxDepth + 2
 
 type coreGrid struct {
 	core, rock map[domain.Cell]bool
@@ -157,7 +161,7 @@ func newCoreGrid(zones []LayoutZone, reserved []LayoutReservation) coreGrid {
 // column reports the whole core cross-section at x around spine row z:
 // hallway plus the deepest room and its walls on both sides.
 func (g coreGrid) column(x, z int32) bool {
-	half := SpineWidth/2 + coreMaxDepth + 2
+	half := coreHalf
 	for dz := -half; dz <= half; dz++ {
 		if !g.core[domain.Cell{X: x, Z: z + dz}] {
 			return false
