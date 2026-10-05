@@ -97,7 +97,6 @@ func (w *Worker) arrivalRows(ctx context.Context, current domain.GenerationSnaps
 	}
 	reply, _, err := w.config.Pawns.ReadCombatPawns(ctx, boundary.Identity(current), ids)
 	if err != nil {
-		clockSchedulerLog("worker: arrival read failed: %v", err)
 		return rows, 0
 	}
 	observed := reply.GetObserved()
@@ -115,11 +114,8 @@ func (w *Worker) arrivalRows(ctx context.Context, current domain.GenerationSnaps
 
 func (w *Worker) resendMove(ctx context.Context, current domain.GenerationSnapshot, move arrivalMove, tick int64) {
 	key := fmt.Sprintf("%s/%s/%d", move.plan, move.action.ID(), tick)
-	action, err := bridge.IntentAction(key, move.action)
-	if err == nil {
-		_, _, err = w.config.Moves.Apply(ctx, boundary.Identity(current), []*o.Action{action})
-	}
-	if err != nil {
-		clockSchedulerLog("worker: move %s resend failed: %v", move.action.ID(), err)
+	// A failed resend is retried at the next arrival read.
+	if action, err := bridge.IntentAction(key, move.action); err == nil {
+		_, _, _ = w.config.Moves.Apply(ctx, boundary.Identity(current), []*o.Action{action})
 	}
 }

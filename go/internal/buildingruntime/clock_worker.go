@@ -354,9 +354,35 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 			proposals = append(proposals, outcome.Proposal+" "+outcome.Verdict.String()+" "+outcome.Waiting)
 		}
 	}
-	slog.Default().Log(ctx, level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
-		"err", err, "planner_failures", failures, "planner_unselected", unselected, "proposals", proposals, "cause", string(result.Reason.Cause), "admitted", result.Decision.Admitted, "running", result.Running,
-		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "retaken", result.Retaken, "combat", result.Combat, "window_ticks", result.Window.Ticks, "repeated", repeats)
+	// The readers (spectator now, phases, step stall) use admitted, running,
+	// window_ticks and planner_failures; every other field is written only
+	// when it says something.
+	attrs := []any{telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
+		"planner_failures", failures, "admitted", result.Decision.Admitted, "running", result.Running, "window_ticks", result.Window.Ticks}
+	if err != nil {
+		attrs = append(attrs, "err", err)
+	}
+	if len(unselected) > 0 {
+		attrs = append(attrs, "planner_unselected", unselected)
+	}
+	if len(proposals) > 0 {
+		attrs = append(attrs, "proposals", proposals)
+	}
+	if result.Reason.Cause != "" {
+		attrs = append(attrs, "cause", string(result.Reason.Cause))
+	}
+	for _, flag := range []struct {
+		name string
+		set  bool
+	}{{"reconciled", result.Reconciled}, {"cleaned", result.Cleaned}, {"deferred", result.Deferred}, {"retaken", result.Retaken}, {"combat", result.Combat}} {
+		if flag.set {
+			attrs = append(attrs, flag.name, true)
+		}
+	}
+	if repeats > 0 {
+		attrs = append(attrs, "repeated", repeats)
+	}
+	slog.Default().Log(ctx, level, message, attrs...)
 }
 
 func (w *ClockWorker) stepLoop() {
@@ -417,7 +443,6 @@ func (w *ClockWorker) stepLoop() {
 		// Worker's advance instead (issue #162).
 		if err == nil && (result.Reconciled || result.Cleaned) && !result.Deferred && !skipped {
 			skipped = true
-			clockSchedulerLog("step settled an epoch (reconciled=%v cleaned=%v): stepping again at once", result.Reconciled, result.Cleaned)
 			reason = StepReason{Cause: StepSettled}
 			continue
 		}

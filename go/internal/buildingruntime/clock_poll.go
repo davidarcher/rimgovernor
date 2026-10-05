@@ -234,9 +234,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		}
 	}
 	if page.GetGap() || clockPollInterruptsAfter(page, granted) {
-		if clockDebug() {
-			clockSchedulerLog("poll: interrupting gap=%v events=%s", page.GetGap(), clockPollEventKinds(page))
-		}
 		if err = invalidate("found interrupting events", "gap", page.GetGap(), "events", clockPollEventKinds(page), "granted_cursor", granted); err != nil {
 			return fail(err)
 		}

@@ -44,7 +44,6 @@ func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFac
 func refreshEntitySection[T proto.Message](f *clockFacts, scope facts.Scope, identity *c.Identity, section facts.Section, source string, read func() (bridge.EntityRows[T], error)) {
 	full, err := read()
 	if err != nil {
-		clockSchedulerLog("%s: read failed, keeping the held section: %v", section, err)
 		return
 	}
 	facts.PutKeyed(f.store, scope, string(section), full.Rows, facts.At(full.AsOf()))

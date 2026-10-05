@@ -50,7 +50,6 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 	window, _, err := p.native.ReadPlanningWindow(ctx, identity, region)
 	if err != nil {
 		if held, ok := facts.Read[observation.PlanningCells](ctx, p.store, facts.PlanningCells); ok && held.Value.Region == region {
-			clockSchedulerLog("planning window: read failed, serving the held window as of %d: %v", held.AsOf, err)
 			return held, nil
 		}
 		return facts.Held[observation.PlanningCells]{}, err

@@ -255,26 +255,13 @@ func (w *Worker) Close(ctx context.Context) error {
 func (w *Worker) steps() {
 	ticker := time.NewTicker(w.config.StepInterval)
 	defer ticker.Stop()
-	// The per-action outcome line already names the failing action; the
-	// step-level error only adds information when it changes.
-	previous, repeats := "", 0
 	burst := 0
 	for {
 		if w.ctx.Err() != nil {
 			return
 		}
-		err := w.step(w.ctx, time.Now())
+		_ = w.step(w.ctx, time.Now())
 		burst++
-		message := ""
-		if err != nil {
-			message = err.Error()
-		}
-		if message != previous {
-			clockSchedulerLog("worker step: err=%v%s", err, workerRepeats(repeats))
-			previous, repeats = message, 0
-		} else {
-			repeats++
-		}
 		// A wake steps at once; while focused actions remain, keep stepping
 		// so each of them is reconciled without waiting a StepInterval, and
 		// a step that advanced an action steps again so the successor it
@@ -400,8 +387,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
 			if authErr := (planAuthorizer{w.player.journal, w.config.RoundsMethods}).AuthorizeRoundsPlan(call, scope.Snapshot, target); authErr == nil {
 				planScope.Snapshot = target
-			} else if clockDebug() {
-				clockSchedulerLog("worker: authorize plan=%s root=%+v err=%v", plan.Spec.ID(), scope.Snapshot, authErr)
 			}
 		}
 		for _, progress := range plan.Progress {
@@ -410,9 +395,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				continue
 			}
 			roundsObservation := w.config.RoundsMethods && v.Unresolved && roundsExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
-			if clockDebug() && progress.Action().Kind() == domain.BuildingTemperatureAction {
-				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
-			}
 			if worldErr == nil && (roundsObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, plan: plan.Spec.ID(), kind: progress.Action().Kind(), action: progress.Action(), snapshot: planScope.Snapshot})
@@ -492,7 +474,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			break
 		}
 		if bounded && dispatched > 0 && time.Until(deadline) < longest {
-			clockSchedulerLog("worker: step budget short of a dispatch (%s left, longest %s): yielding after %d", time.Until(deadline).Round(time.Millisecond), longest.Round(time.Millisecond), dispatched)
 			break
 		}
 		if taken[lead.view.Action] || w.backedOff(lead, scope, now) {
@@ -613,7 +594,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				if _, cancelErr := w.player.journal.Cancel(call, v.Plan, v.Action); cancelErr != nil {
 					errs = append(errs, cancelErr)
 				} else {
-					slog.Default().Warn("worker settled a dispatch cancelled on every attempt", telemetry.ComponentKey, "worker", "action", string(v.Action), "stage", string(v.Stage), "attempts", cancelled, "err", err)
+					slog.Default().Warn("worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(v.Action), "stage", string(v.Stage), "outcome", "cancelled_settled", "attempts", cancelled, "err", err)
 					delete(w.waits, v.Action)
 					w.advanced = true
 					continue
@@ -645,13 +626,12 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 const workerFlushTimeout = 5 * time.Second
 
 // flush asks native to capture the step's deferred writes. A failure is
-// logged only: native captures them anyway within its 1 s safety net.
+// ignored (the native call records it): native captures them anyway within
+// its 1 s safety net.
 func (w *Worker) flush(call context.Context) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(call), workerFlushTimeout)
 	defer cancel()
-	if err := w.config.Flush(ctx); err != nil {
-		slog.Default().Warn("worker snapshot flush failed", telemetry.ComponentKey, "worker", "err", err)
-	}
+	_ = w.config.Flush(ctx)
 }
 
 // workerBatched reports whether candidate joins its plan's other plain
@@ -745,14 +725,6 @@ func workerOutcomeEvent(ctx context.Context, before, after domain.ProgressView, 
 		level = slog.LevelWarn
 	}
 	slog.Default().Log(ctx, level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "err", err, "repeated", repeats)
-}
-
-// workerRepeats renders how many unlogged runs restated the previous outcome.
-func workerRepeats(n int) string {
-	if n == 0 {
-		return ""
-	}
-	return fmt.Sprintf(" (previous outcome repeated %d more times)", n)
 }
 
 // workerSameView reports whether two views of one action describe the same

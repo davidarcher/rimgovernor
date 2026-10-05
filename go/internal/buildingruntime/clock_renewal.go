@@ -47,7 +47,6 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if s.config.Faults.DropRenewal {
 		// Injected authority loss (#633): the owned epoch is left to lapse,
 		// so native stops it lease_expired and revokes at the next generation.
-		clockSchedulerLog("renewal dropped by %s", FaultsEnv)
 		return out, nil
 	}
 	state := s.session.State()
