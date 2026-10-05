@@ -918,6 +918,12 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	roomCells := map[domain.Cell]bool{}
 	var interiorRooms []policy.InteriorRoom
 	restricted := r.temperature != nil || r.facility != nil || r.cells != nil
+	// The crafting spot takes the standing shelter's template slot (#2074);
+	// with no shelter, or its slot taken, it is placed as before.
+	slotOnly := r.concern == policy.EnsureBasicDefense && r.definition == craftingSpotDefinition && r.facility == nil
+	if slotOnly {
+		interiorRooms = standingShelterRooms(facts)
+	}
 	if r.temperature != nil {
 		for _, c := range r.temperature.Cells {
 			roomCells[c] = true
@@ -1231,7 +1237,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				}
 			}
 		}
-		if int64(len(selected)) < missing {
+		if int64(len(selected)) < missing && !slotOnly {
 			request := searchRequest
 			request.Anchors = anchors
 			snapSearch, err := policy.NewPlacementSearch(request)

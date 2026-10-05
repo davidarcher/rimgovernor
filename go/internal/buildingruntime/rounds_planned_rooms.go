@@ -179,3 +179,36 @@ func shelterInteriorRooms(rooms []policy.InteriorRoom, facts observation.ColonyP
 	}
 	return rooms
 }
+
+// standingShelterRooms are the enclosed census rooms standing on the layout
+// plan's shelter interior, planned as the shelter whatever role the game
+// scores them (#2074). Empty while no shelter stands.
+func standingShelterRooms(facts observation.ColonyProjection) []policy.InteriorRoom {
+	plan, known := facts.LayoutPlan.Value()
+	census, roomsKnown := facts.Rooms.Value()
+	if !known || !roomsKnown {
+		return nil
+	}
+	var doorways []domain.Cell
+	for _, c := range facts.Cells {
+		if doorway, _ := c.Doorway.Value(); doorway {
+			doorways = append(doorways, c.Cell)
+		}
+	}
+	var out []policy.InteriorRoom
+	for _, planned := range plan.AllRooms() {
+		if planned.Role != policy.ModuleShelter {
+			continue
+		}
+		for _, room := range census.Rooms {
+			if enclosed, _ := room.Enclosed.Value(); !enclosed {
+				continue
+			}
+			interior, ok := policy.InteriorRoomFromCensus(room, policy.RoomRoleShelter, doorways, census.Shapes)
+			if ok && interior.Interior == planned.Interior {
+				out = append(out, interior)
+			}
+		}
+	}
+	return out
+}
