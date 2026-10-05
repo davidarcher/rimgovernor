@@ -884,6 +884,9 @@ var plannerCatalog = []plannerEntry{
 		configured: func(c *ClockSchedulerConfig) bool { return c.Stockpiles != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Stockpiles.step(ctx, epoch, arbiter)
+			// Every early return is otherwise silent: a grow proposed for tens
+			// of thousands of ticks left no trace of the gate that held it.
+			clockEvent(ctx, "layout", "stockpiles", "stockpile step", "verdict", method.Verdict.String(), "edits", method.Edits, "err", err, "ctx_err", ctx.Err())
 			if err != nil {
 				return Verdict{}, err
 			}
