@@ -332,6 +332,11 @@ func floorTier(room FloorRoom, census map[string]Room) (FloorTier, bool) {
 	if !known {
 		return "", false
 	}
+	return roleFloorTier(role)
+}
+
+// roleFloorTier is the tier a room role alone requires.
+func roleFloorTier(role RoomRole) (FloorTier, bool) {
 	switch role {
 	case RoomRoleKitchen, RoomRoleHospital, RoomRoleLaboratory:
 		return FloorTierClean, true
@@ -774,94 +779,107 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 			continue
 		}
 		batch := min(len(d.Cells), p.MaxCellsPerPlan)
-		weights := p.Clean
-		switch d.Tier {
-		case FloorTierLiving, FloorTierThrone:
-			weights = p.Living
-		case FloorTierTraffic:
-			weights = p.Traffic
-		case FloorTierFirebreak, FloorTierIncinerator:
-			weights = firebreakWeights
-		}
-		type candidate struct {
-			name  string
-			cells int
-			score float64
-		}
-		var best *candidate
-		reason := FlooringResearchNeeded
-		unknown := false
-		// The tier style decides when it can be laid; the scored list is
-		// consulted only otherwise.
-		scored := p.Floors
-		if d.Tier == FloorTierEntry {
-			scored = p.EntryFloors
-		} else if d.Tier == FloorTierThrone {
-			// Any floor the mirror tags as the title requires, however
-			// the policy lists floors; none known is a fact gap.
-			scored = nil
-			for name, def := range facts.Definitions {
-				if hasAnyTag(def.Tags, d.Tags) {
-					scored = append(scored, name)
-				}
-			}
-			sort.Strings(scored)
-			if len(scored) == 0 {
-				unknown = true
-			}
-		} else if d.Floor != "" {
-			// The traffic tier lays the floor its payback was priced on.
-			scored = []string{d.Floor}
-		} else if name, ok := styledFloor(d, facts, batch, weights); ok && !d.Tier.fireproof() {
-			best, scored = &candidate{name, batch, 0}, nil
-		}
-		for _, name := range scored {
-			def, ok := facts.Definitions[name]
-			if !ok {
-				unknown = true
-				continue
-			}
-			available, ak := def.Available.Value()
-			terrain, tk := def.Terrain.Value()
-			if !ak || !tk {
-				unknown = true
-				continue
-			}
-			if !available || !terrain {
-				continue
-			}
-			score, meets := floorScore(d.Tier, def, weights)
-			if !meets {
-				continue
-			}
-			cells := affordableCells(def, facts.Stock, batch)
-			if cells < 0 {
-				cells = batch
-			}
-			if cells == 0 {
-				reason = FlooringMaterialsNeeded
-				continue
-			}
-			c := candidate{name, cells, score}
-			if best == nil || c.cells > best.cells || c.cells == best.cells && c.score > best.score {
-				best = &c
-			}
-		}
-		if best == nil {
-			if unknown {
-				reason = FlooringUnknown
-			}
+		name, count, reason := chooseFloor(d, facts, batch, p)
+		if name == "" {
 			deferred = firstFlooringReason(deferred, reason)
 			continue
 		}
-		cells := append([]domain.Cell(nil), d.Cells[:best.cells]...)
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d,%d/%d", d.Key, d.Tier, best.name, cells[0].X, cells[0].Z, len(cells))))
-		return FlooringProposal{Method: FlooringBuild, Key: domain.MethodID(fmt.Sprintf("flooring-%x", digest[:12])), Room: d.Room, Tier: d.Tier, Definition: best.name, Cells: cells}, nil
+		cells := append([]domain.Cell(nil), d.Cells[:count]...)
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d,%d/%d", d.Key, d.Tier, name, cells[0].X, cells[0].Z, len(cells))))
+		return FlooringProposal{Method: FlooringBuild, Key: domain.MethodID(fmt.Sprintf("flooring-%x", digest[:12])), Room: d.Room, Tier: d.Tier, Definition: name, Cells: cells}, nil
 	}
 	if deferred == "" {
 		return FlooringProposal{Method: FlooringNoMethod}, nil
 	}
 	return FlooringProposal{Method: deferred}, nil
+}
+
+// chooseFloor is the one floor decision: the floor, and how many of the
+// batch's cells it pays for, that a deficit's tier lays; no name and the
+// reason when none can be (research, materials or an unknown fact).
+// SelectFlooringMethod lays a batch of it; WantedFloors reads it for a
+// planned room's every cell.
+func chooseFloor(d FloorDeficit, facts FlooringFacts, batch int, p FlooringPolicy) (string, int, FlooringMethod) {
+	weights := p.Clean
+	switch d.Tier {
+	case FloorTierLiving, FloorTierThrone:
+		weights = p.Living
+	case FloorTierTraffic:
+		weights = p.Traffic
+	case FloorTierFirebreak, FloorTierIncinerator:
+		weights = firebreakWeights
+	}
+	type candidate struct {
+		name  string
+		cells int
+		score float64
+	}
+	var best *candidate
+	reason := FlooringResearchNeeded
+	unknown := false
+	// The tier style decides when it can be laid; the scored list is
+	// consulted only otherwise.
+	scored := p.Floors
+	if d.Tier == FloorTierEntry {
+		scored = p.EntryFloors
+	} else if d.Tier == FloorTierThrone {
+		// Any floor the mirror tags as the title requires, however
+		// the policy lists floors; none known is a fact gap.
+		scored = nil
+		for name, def := range facts.Definitions {
+			if hasAnyTag(def.Tags, d.Tags) {
+				scored = append(scored, name)
+			}
+		}
+		sort.Strings(scored)
+		if len(scored) == 0 {
+			unknown = true
+		}
+	} else if d.Floor != "" {
+		// The traffic tier lays the floor its payback was priced on.
+		scored = []string{d.Floor}
+	} else if name, ok := styledFloor(d, facts, batch, weights); ok && !d.Tier.fireproof() {
+		best, scored = &candidate{name, batch, 0}, nil
+	}
+	for _, name := range scored {
+		def, ok := facts.Definitions[name]
+		if !ok {
+			unknown = true
+			continue
+		}
+		available, ak := def.Available.Value()
+		terrain, tk := def.Terrain.Value()
+		if !ak || !tk {
+			unknown = true
+			continue
+		}
+		if !available || !terrain {
+			continue
+		}
+		score, meets := floorScore(d.Tier, def, weights)
+		if !meets {
+			continue
+		}
+		cells := affordableCells(def, facts.Stock, batch)
+		if cells < 0 {
+			cells = batch
+		}
+		if cells == 0 {
+			reason = FlooringMaterialsNeeded
+			continue
+		}
+		c := candidate{name, cells, score}
+		if best == nil || c.cells > best.cells || c.cells == best.cells && c.score > best.score {
+			best = &c
+		}
+	}
+	if best == nil {
+		if unknown {
+			reason = FlooringUnknown
+		}
+		return "", 0, reason
+	}
+	return best.name, best.cells, ""
 }
 
 func firstFlooringReason(current, next FlooringMethod) FlooringMethod {
