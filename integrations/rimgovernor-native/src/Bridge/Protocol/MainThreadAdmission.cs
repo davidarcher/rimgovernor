@@ -13,8 +13,7 @@ namespace HomeBridge.BridgeTools
     // for every one of them. Every hop is queued here instead and the host
     // is handed one pump per hop; each pump, when the game thread runs it,
     // executes the highest-class hop still pending (control before
-    // observation before the mirror poll (#795), arrival
-    // order within a class) rather than
+    // observation, arrival order within a class) rather than
     // its own. Pumps equal hops, so every hop runs exactly once; a hop
     // whose caller cancelled while queued is completed cancelled and
     // skipped. A pump that finds the frame's allowance spent (#988) runs
@@ -23,7 +22,7 @@ namespace HomeBridge.BridgeTools
     internal static class MainThreadAdmission
     {
         internal const string ClassArgument = "class";
-        internal const string Control = "control", Observation = "observation", Mirror = "mirror";
+        internal const string Control = "control", Observation = "observation";
 
         internal sealed class Hop
         {
@@ -40,7 +39,7 @@ namespace HomeBridge.BridgeTools
 
         private static readonly object Gate = new object();
         // One list per rank, arrival order within it.
-        private static readonly List<Hop>[] Pending = { new List<Hop>(), new List<Hop>(), new List<Hop>() };
+        private static readonly List<Hop>[] Pending = { new List<Hop>(), new List<Hop>() };
 
         // The rank of a caller's class argument: control first. An absent or
         // unknown class is observation, the bulk of typed traffic.
@@ -49,12 +48,11 @@ namespace HomeBridge.BridgeTools
             switch (cls)
             {
                 case Control: return 0;
-                case Mirror: return 2;
                 default: return 1;
             }
         }
 
-        internal static string ClassOf(int rank) => rank == 0 ? Control : rank == 2 ? Mirror : Observation;
+        internal static string ClassOf(int rank) => rank == 0 ? Control : Observation;
 
         // Queues body under rank and hands the host one pump. The returned
         // task completes with the body's reply (or its exception), or

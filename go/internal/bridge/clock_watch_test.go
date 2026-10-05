@@ -65,14 +65,6 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 	}
 }
 
-func TestClockEventsReadsAreNeverHeld(t *testing.T) {
-	request := clockEventsRequest()
-	request.WaitMs = proto.Uint32(1)
-	if _, _, err := (&Client{}).ReadClockEvents(t.Context(), request); !errors.Is(err, ErrContract) {
-		t.Fatal(err)
-	}
-}
-
 func TestClockPolicyResourceThresholdsBounded(t *testing.T) {
 	policy := clockTestPolicy()
 	for i := range ClockResourceThresholdsMax {

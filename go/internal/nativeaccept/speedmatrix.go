@@ -434,7 +434,7 @@ func stopLatency(event, stopped map[string]any, reason string, row bridge.Timeli
 	return out
 }
 
-// timingMs reads one leg of a native_response timing map, zero when absent.
+// timingMs reads one leg of a native_call timing map, zero when absent.
 func timingMs(timing map[string]any, key string) float64 {
 	if _, ok := timing[key]; !ok {
 		return 0

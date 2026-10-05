@@ -242,7 +242,7 @@ namespace HomeBridge.BridgeTools
         internal const string TraceArgument = "trace";
 
         // Hops are ordered by the caller's class argument (control,
-        // observation, mirror) through MainThreadAdmission, so a queued
+        // observation) through MainThreadAdmission, so a queued
         // renew or stop runs before the reads queued ahead of it.
         //
         // A reply the body built with Encode is encoded after the hop on an

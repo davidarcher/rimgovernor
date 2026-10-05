@@ -118,6 +118,9 @@ type Rounder struct {
 	suiteClaimsLogged string
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
+	// noRoomLogged is the last unplaced-rooms text logged as layout_plan
+	// refused/no_room, so a full map logs it once.
+	noRoomLogged string
 	// layoutOverlay draws the layout plan as a native overlay (#817); the
 	// overlay fields record the last draw. See drawLayoutOverlay.
 	layoutOverlay  bool

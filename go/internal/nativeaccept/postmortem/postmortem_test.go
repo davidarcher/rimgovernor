@@ -142,8 +142,8 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	if hasLine(refusals, "routine-haul-abc-2", "") || hasLine(refusals, "job mismatch", "") {
 		t.Fatalf("a completed outcome or a failed (not refused) dispatch is not a refusal: %+v", refusals)
 	}
-	if !hasLine(refusals, "native_error rimgovernor/orders_haul: the target is not a haulable item", "flight.jsonl#7") {
-		t.Fatalf("flight native_error missing: %+v", refusals)
+	if !hasLine(refusals, "native_call error rimgovernor/orders_haul: the target is not a haulable item", "flight.jsonl#7") {
+		t.Fatalf("flight native_call error missing: %+v", refusals)
 	}
 	review := section(t, d, "rounds")
 	if !hasLine(review, "EnsureComfort not selected: startup_survival", "Development.Rows[EnsureComfort]") {
@@ -270,10 +270,10 @@ func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 	if len(s.Lines) != 2 {
 		t.Fatalf("want two failure groups, got %+v", s)
 	}
-	if s.Lines[0] != (Line{Text: "native_response rimgovernor/colony_facts: FAILURE_CODE_STALE_IDENTITY: context changed (x2)", Evidence: "flight.jsonl#4"}) {
+	if s.Lines[0] != (Line{Text: "native_call refused rimgovernor/colony_facts: FAILURE_CODE_STALE_IDENTITY: context changed (x2)", Evidence: "flight.jsonl#4"}) {
 		t.Fatalf("latest group: %+v", s.Lines[0])
 	}
-	if s.Lines[1] != (Line{Text: "native_response rimgovernor/orders_build: FAILURE_CODE_UNAVAILABLE: blocked", Evidence: "flight.jsonl#3"}) {
+	if s.Lines[1] != (Line{Text: "native_call refused rimgovernor/orders_build: FAILURE_CODE_UNAVAILABLE: blocked", Evidence: "flight.jsonl#3"}) {
 		t.Fatalf("older group: %+v", s.Lines[1])
 	}
 }

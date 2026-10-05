@@ -27,9 +27,6 @@ func (client *Client) ReadClockEvents(ctx context.Context, request *k.EventsRequ
 	if request.AfterCursor == nil || request.GetAfterCursor() < 0 || request.Limit == nil || request.GetLimit() < 1 || request.GetLimit() > 128 {
 		return nil, Result{}, contract("clock events cursor/limit")
 	}
-	if request.WaitMs != nil {
-		return nil, Result{}, contract("clock events wait_ms is retired; reads are unheld")
-	}
 	reply := &k.EventsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/clock_read_events", request, reply)
 	if err != nil {

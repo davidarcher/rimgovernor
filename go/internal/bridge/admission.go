@@ -19,10 +19,6 @@ type AdmissionClass string
 const (
 	AdmissionControl     AdmissionClass = "control"
 	AdmissionObservation AdmissionClass = "observation"
-	// AdmissionMirror is the clock events read: ranked after
-	// observation, one call at a time, and outside the shared slots.
-	// It was the held long poll's class (#2070 made the read unheld).
-	AdmissionMirror AdmissionClass = "mirror"
 )
 
 // Slot layout: control may hold any of the MaxConcurrentCalls slots and
@@ -31,7 +27,6 @@ const (
 const (
 	admissionControlReserved = 1
 	admissionObservationMax  = MaxConcurrentCalls - admissionControlReserved
-	admissionMirrorMax       = 1
 )
 
 // admissionOutcome is what one admitted call learned about the queue: its
@@ -68,8 +63,6 @@ func (a *admission) classMax(class AdmissionClass) int {
 	switch class {
 	case AdmissionObservation:
 		return admissionObservationMax
-	case AdmissionMirror:
-		return admissionMirrorMax
 	default:
 		return a.capacity
 	}
@@ -79,14 +72,9 @@ func (a *admission) classMax(class AdmissionClass) int {
 // and, for a non-control class, with the other classes together leaving
 // the reserved control slots untouched.
 func (a *admission) admits(class AdmissionClass) bool {
-	if class == AdmissionMirror {
-		return a.held[class] < admissionMirrorMax
-	}
 	total := 0
-	for c, n := range a.held {
-		if c != AdmissionMirror {
-			total += n
-		}
+	for _, n := range a.held {
+		total += n
 	}
 	if total >= a.capacity || a.held[class] >= a.classMax(class) {
 		return false
@@ -157,7 +145,7 @@ func (a *admission) removeLocked(w *admissionWaiter) {
 }
 
 // wakeLocked admits every waiter a free slot can take by rank: control,
-// observation, mirror, and within a rank in arrival order.
+// observation, and within a rank in arrival order.
 func (a *admission) wakeLocked() {
 	for progressed := true; progressed; {
 		progressed = false
@@ -188,8 +176,6 @@ func admissionRank(class AdmissionClass) int {
 	switch class {
 	case AdmissionControl:
 		return 0
-	case AdmissionMirror:
-		return 2
 	}
 	return 1
 }
@@ -204,7 +190,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/clock_renew":                          AdmissionControl,
 	"rimgovernor/clock_change_speed":                   AdmissionControl,
 	"rimgovernor/clock_pause":                          AdmissionControl,
-	"rimgovernor/clock_read_events":                    AdmissionMirror,
+	"rimgovernor/clock_read_events":                    AdmissionControl,
 	"rimgovernor/clock_read_status":                    AdmissionControl,
 	"rimgovernor/clock_read_attempt":                   AdmissionControl,
 	"rimgovernor/authority_control":                    AdmissionControl,

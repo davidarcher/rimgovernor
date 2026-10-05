@@ -33,9 +33,8 @@ namespace HomeBridge.BridgeTools
             const string tool = "rimgovernor/clock_read_events";
             if (!ProtoBoundary.TryParse(ctx, tool, request, Clock.EventsRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Clock.EventsReply { Failure = failure });
-            if (!parsed.HasAfterCursor || parsed.AfterCursor < 0 || !parsed.HasLimit || parsed.Limit < 1 || parsed.Limit > 128
-                || parsed.HasWaitMs)
-                return ProtoBoundary.Encode(new Clock.EventsReply { Failure = Invalid("Event reads require explicit cursor>=0 and limit1..128; wait_ms is retired (subscribe to rimgovernor.clock).") });
+            if (!parsed.HasAfterCursor || parsed.AfterCursor < 0 || !parsed.HasLimit || parsed.Limit < 1 || parsed.Limit > 128)
+                return ProtoBoundary.Encode(new Clock.EventsReply { Failure = Invalid("Event reads require explicit cursor>=0 and limit1..128 (subscribe to rimgovernor.clock).") });
             return await ProtoBoundary.OnMainThread(ctx, () => Events(parsed), cancellationToken).ConfigureAwait(false);
         }
         private static object Events(Clock.EventsRequest parsed)

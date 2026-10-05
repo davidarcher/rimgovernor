@@ -304,6 +304,7 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 // it when it changed.
 func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
 	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
+	r.logNoRoom(ctx, pawns, unplaced)
 	if !changed {
 		return nil
 	}
@@ -311,11 +312,25 @@ func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSn
 		return err
 	}
 	extra := map[string]any{"tomb_short": max(tombs-next.TombRooms(), 0)}
-	if unplaced != nil {
-		extra["unplaced"] = fmt.Sprint(unplaced)
-	}
 	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), extra))
 	return nil
+}
+
+// logNoRoom writes a layout_plan refused/no_room row when a replan left
+// rooms unplaced (the map had no site for them), once per distinct
+// unplaced set so a plan that stays full does not repeat the row each
+// round. A replan that places everything clears the memory.
+func (r *Rounder) logNoRoom(ctx context.Context, colonists int, unplaced error) {
+	if unplaced == nil {
+		r.noRoomLogged = ""
+		return
+	}
+	text := unplaced.Error()
+	if text == r.noRoomLogged {
+		return
+	}
+	r.noRoomLogged = text
+	telemetry.Decide(ctx, layoutPlanDecision("refused", "no_room", colonists, "", map[string]any{"unplaced": text}))
 }
 
 // layoutPlanDecision is the layout_plan row of a plan derived (planned),

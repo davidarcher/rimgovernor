@@ -44,10 +44,9 @@ mistaken for the game) and speaks GABP to the GABP host directly
 id, so a slow call never stalls planner reads behind it. The game is spawned detached and keeps running when
 the controller ends; a restarted controller reattaches through the endpoint
 record. The vendored GABP server runs every tools/call off its reader thread
-(`GabpServer.HandleToolsCallAsync`), so a held journal read never delays the routine
-worker's dispatch or the lease renew. The service holds its journal read
-(`wait_ms`, 4 s) while a colony window it admitted is running, and keeps an
-unheld 1 s cadence between windows while the planners read.
+(`GabpServer.HandleToolsCallAsync`), so a journal read never delays the routine
+worker's dispatch or the lease renew. Journal reads are never held; the
+service reads on each `rimgovernor.clock` advance announcement.
 
 A game connection lost while the service runs (the GABP connection
 dropping) is recovered in-process: the bridge client drops the session as

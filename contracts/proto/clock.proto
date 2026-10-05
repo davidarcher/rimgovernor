@@ -581,10 +581,7 @@ message EventsRequest {
   rimgovernor.common.v1.Identity identity = 1;
   optional int64 after_cursor = 2;
   optional uint32 limit = 3;
-  // Long poll: when no event follows after_cursor, the reader waits up to
-  // wait_ms (0..5000) for one before answering. It never waits when a page is
-  // already available, and the bound stays well under the call ceiling.
-  optional uint32 wait_ms = 4;
+  reserved 4;
 }
 message EventsPage {
   rimgovernor.common.v1.ObservationContext context = 1;

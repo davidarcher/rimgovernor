@@ -393,7 +393,7 @@ func nativeCallRefusal(row flightRow) (string, bool) {
 		if refused := asString(payload["refused_text"]); refused != "" {
 			errText = refused
 		}
-		return fmt.Sprintf("native_error %s: %s", tool, clip(errText)), true
+		return fmt.Sprintf("native_call error %s: %s", tool, clip(errText)), true
 	}
 	reply, ok := bridge.RecordedReply(payload)
 	if !ok {
@@ -404,7 +404,7 @@ func nativeCallRefusal(row flightRow) (string, bool) {
 	if code == "" {
 		return "", false
 	}
-	text := fmt.Sprintf("native_response %s: %s", tool, code)
+	text := fmt.Sprintf("native_call refused %s: %s", tool, code)
 	if detail := asString(failure["detail"]); detail != "" {
 		text += ": " + clip(detail)
 	}

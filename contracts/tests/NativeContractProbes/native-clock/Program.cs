@@ -89,7 +89,6 @@ internal static class NativeClockProbe
         Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation, "initial event read changed clock or authority");
         foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u) }) Check(Events(pair.Item1, pair.Item2, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "malformed cursor/limit dispatched");
         Check(Events(long.MaxValue, 128).Failure != null, "cursor past the journal admitted");
-        Check(Call(new Clock.EventsRequest { Identity = Identity, AfterCursor = 0, Limit = 1, WaitMs = 1 }, (ctx, json) => Tools.ReadEvents(ctx, default, json), Clock.EventsReply.Parser, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "a held read dispatched");
         foreach (Action<Clock.StartRequest> mutation in new Action<Clock.StartRequest>[] { r => r.Speed = Clock.Speed.Unspecified, r => r.LeaseMs = 999,
             r => r.LeaseMs = 30001, r => r.MaxTicks = 0, r => r.Policy = null, r => r.Policy.HealthDropFraction = float.NaN,
             r => r.Policy.ClearHostileWithin(), r => r.Policy.Mode = (Clock.WatchMode)99, r => r.Policy.InjuryStopCooldownMs = 1800001 })

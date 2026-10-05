@@ -140,7 +140,7 @@ within the scanned window. An empty journal can report `oldest_cursor = 0` and
 `newest_cursor = 0`; an absent oldest cursor is also valid; a positive oldest cursor
 requires a nonempty journal, and zero is invalid for a nonempty one.
 
-Reads are never held: `EventsRequest.wait_ms` is retired and native refuses it.
+Reads are never held: `EventsRequest` has no wait field.
 The mod announces journal advances on the `rimgovernor.clock` GABP channel
 (`{type: advance, newest}`, coalesced; the current cursor is announced to each new
 subscriber) and the poll loop reads the page after its cursor when the announcement

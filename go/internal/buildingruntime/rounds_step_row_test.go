@@ -1,11 +1,14 @@
 package buildingruntime
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 // One planner_step row per Rounder step (#2066): ok when the review ran,
@@ -32,5 +35,28 @@ func TestLayoutPlanDecisionVerdicts(t *testing.T) {
 	attrs := p["attrs"].(map[string]any)
 	if d.Kind != "layout_plan" || p["verdict"] != "replanned" || p["reason"] != "outgrown" || attrs["colonists"] != 7 || attrs["unplaced"] != "x" {
 		t.Fatalf("%+v", p)
+	}
+}
+
+// A replan that leaves rooms unplaced writes one layout_plan refused/no_room
+// row per distinct unplaced set; placing everything clears the memory.
+func TestLogNoRoomOncePerUnplacedSet(t *testing.T) {
+	rows := telemetrytest.Install(t)
+	r := &Rounder{}
+	ctx := context.Background()
+	r.logNoRoom(ctx, 4, nil)
+	r.logNoRoom(ctx, 4, errors.New("no site for the vet room"))
+	r.logNoRoom(ctx, 4, errors.New("no site for the vet room"))
+	if got := rows.Of("layout_plan"); len(got) != 1 {
+		t.Fatalf("rows: %+v", got)
+	}
+	row := rows.Of("layout_plan")[0].Payload
+	if row["verdict"] != "refused" || row["reason"] != "no_room" || row["attrs"].(map[string]any)["unplaced"] != "no site for the vet room" {
+		t.Fatalf("%+v", row)
+	}
+	r.logNoRoom(ctx, 4, nil)
+	r.logNoRoom(ctx, 4, errors.New("no site for the vet room"))
+	if got := rows.Of("layout_plan"); len(got) != 2 {
+		t.Fatalf("rows after clear: %+v", got)
 	}
 }

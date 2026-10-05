@@ -31,8 +31,7 @@ for the exact identity/session/epoch even after automation revocation so cleanup
 can stop owned play. It cannot affect a replacement epoch or another owner.
 Epochs are positive signed 64-bit values; cursor zero is the initial position.
 Cursor arithmetic must not overflow. `ReadEvents` limits are 1–128 and rows are
-strictly after the requested cursor; `wait_ms` (0–5000) holds an empty read until
-a row lands or the wait lapses and never delays a page that has rows or loss. An invalid or regressed cursor is an explicit
+strictly after the requested cursor; reads are never held. An invalid or regressed cursor is an explicit
 failure; missing history reports loss. A complete page never silently drops rows.
 
 `Running`, `Stopping`, `Stopped`, `NeverStarted` and `Unavailable` are exclusive.

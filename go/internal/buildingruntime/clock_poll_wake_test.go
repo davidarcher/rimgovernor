@@ -43,9 +43,6 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 	if err != nil || result.Interrupted || !result.Captured || len(result.Review.Holds) != 0 || result.Review.ReviewedCursor != 3 || !s.session.State().Enabled {
 		t.Fatal(result, err, s.session.State())
 	}
-	if native.request.WaitMs != nil {
-		t.Fatal("the read must not be held", native.request)
-	}
 	if len(result.Wake) != 2 || result.Wake[0] != (WakeOutcome{Action: domain.ActionID("wall"), Attempt: 3, Terminal: true}) || !result.AuthorityChanged {
 		t.Fatal(result.Wake, result.AuthorityChanged)
 	}

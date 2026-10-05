@@ -128,7 +128,7 @@ func TestDurableRecordsFsyncImmediatelyNonDurableDoNot(t *testing.T) {
 		t.Fatalf("Event: %v", err)
 	}
 	stats := r.FlightRecorderStats()
-	// coverage + native_request are durable; native_response is not.
+	// coverage + native_request are durable; the native_call row is not.
 	if stats.DurableRecords != 2 {
 		t.Fatalf("expected 2 durable records, got %d", stats.DurableRecords)
 	}

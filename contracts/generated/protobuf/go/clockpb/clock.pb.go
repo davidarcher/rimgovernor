@@ -4963,14 +4963,10 @@ func (*Event_AuthorityChanged) isEvent_Event() {}
 func (*Event_ObservationInvalidated) isEvent_Event() {}
 
 type EventsRequest struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Identity    *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	AfterCursor *int64                 `protobuf:"varint,2,opt,name=after_cursor,json=afterCursor,proto3,oneof" json:"after_cursor,omitempty"`
-	Limit       *uint32                `protobuf:"varint,3,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	// Long poll: when no event follows after_cursor, the reader waits up to
-	// wait_ms (0..5000) for one before answering. It never waits when a page is
-	// already available, and the bound stays well under the call ceiling.
-	WaitMs        *uint32 `protobuf:"varint,4,opt,name=wait_ms,json=waitMs,proto3,oneof" json:"wait_ms,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Identity      *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	AfterCursor   *int64                 `protobuf:"varint,2,opt,name=after_cursor,json=afterCursor,proto3,oneof" json:"after_cursor,omitempty"`
+	Limit         *uint32                `protobuf:"varint,3,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5022,13 +5018,6 @@ func (x *EventsRequest) GetAfterCursor() int64 {
 func (x *EventsRequest) GetLimit() uint32 {
 	if x != nil && x.Limit != nil {
 		return *x.Limit
-	}
-	return 0
-}
-
-func (x *EventsRequest) GetWaitMs() uint32 {
-	if x != nil && x.WaitMs != nil {
-		return *x.WaitMs
 	}
 	return 0
 }
@@ -5676,16 +5665,13 @@ const file_clock_proto_rawDesc = "" +
 	"\a_cursorB\x16\n" +
 	"\x14_observed_at_unix_msB\t\n" +
 	"\a_detailB\x12\n" +
-	"\x10_age_at_reply_ms\"\xd4\x01\n" +
+	"\x10_age_at_reply_ms\"\xb0\x01\n" +
 	"\rEventsRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12&\n" +
 	"\fafter_cursor\x18\x02 \x01(\x03H\x00R\vafterCursor\x88\x01\x01\x12\x19\n" +
-	"\x05limit\x18\x03 \x01(\rH\x01R\x05limit\x88\x01\x01\x12\x1c\n" +
-	"\await_ms\x18\x04 \x01(\rH\x02R\x06waitMs\x88\x01\x01B\x0f\n" +
+	"\x05limit\x18\x03 \x01(\rH\x01R\x05limit\x88\x01\x01B\x0f\n" +
 	"\r_after_cursorB\b\n" +
-	"\x06_limitB\n" +
-	"\n" +
-	"\b_wait_ms\"\x86\x03\n" +
+	"\x06_limitJ\x04\b\x04\x10\x05\"\x86\x03\n" +
 	"\n" +
 	"EventsPage\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x123\n" +

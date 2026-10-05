@@ -167,7 +167,7 @@ func refuseUnknown(m protoreflect.Message) error {
 }
 
 // The reply type a protoCall decodes into rides the call's context so the
-// recorded native_response row names it ("reply_type"): the row keeps the
+// recorded native_call row names it ("reply_type"): the row keeps the
 // wrapper's binary "proto" as received (#774) and readers decode it with
 // RecordedReply.
 type recordedReplyKey struct{}
@@ -181,7 +181,7 @@ func recordedReplyType(ctx context.Context) string {
 	return name
 }
 
-// RecordedReplyJSON renders a recorded native_response row payload's reply
+// RecordedReplyJSON renders a recorded native_call row payload's reply
 // as ProtoJSON text: the binary "proto" decoded by the row's "reply_type",
 // (or "proto_raw", a reply read from the reply ring, #1344), or the
 // ProtoJSON "payload" a call without the encoding argument received.
