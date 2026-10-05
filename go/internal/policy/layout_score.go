@@ -23,9 +23,6 @@ var planWeights = struct {
 	// Soil: per soilCost point under a room or hallway, and per rock cell
 	// (a dig cost).
 	Soil, Rock int
-	// Walk: per cell of weighted door-to-door path (routeTrips weights);
-	// WalkUnreachable stands in for a trip with no path.
-	Walk, WalkUnreachable int
 	// Footprint per cell the ring would enclose; Wall per built wall cell.
 	Footprint, Wall int
 	// Edge: per step a room cell stands inside EdgeClear walking distance
@@ -54,10 +51,6 @@ var planWeights = struct {
 	// Rock is a dig, but its walls and floor come with it: a little dearer
 	// than the plain soil (Soil x soilCostNormal) a built room covers.
 	Soil: 3, Rock: 8,
-	// Walk is 0 until the replay harness (#1953) tunes it: weighted on, the
-	// base packs into the thin-roof lab's pocket and the first turbine has no
-	// rock to dig (TestThinRoofMountainLabPlansTurbineOnRockBesidePocket).
-	Walk: 0, WalkUnreachable: 200,
 	Footprint: 1, Wall: 10,
 	Edge: 3, EdgeClear: 50,
 	// A mountain on the border saves a long wall and a dig's worth of soil,
@@ -77,7 +70,7 @@ type PlanScore struct {
 	RoutesErr string       // CheckRoutes' error, "" when the routes are valid
 	RichCells int          // rich-soil cells under rooms and hallways
 	// Soft tier.
-	Soil, Walk, Footprint, Wall, Edge, Centre, Defense, Expansion int
+	Soil, Footprint, Wall, Edge, Centre, Defense, Expansion int
 	// Walled reports whether Wall and Defense were scored (PlanPerimeter
 	// ran); a cheap score leaves them zero.
 	Walled bool
@@ -90,7 +83,7 @@ func (s PlanScore) Passes() bool {
 
 // Total is the soft terms plus the hard-tier failure charges.
 func (s PlanScore) Total() int {
-	t := s.Soil + s.Walk + s.Footprint + s.Wall + s.Edge + s.Centre + s.Defense + s.Expansion
+	t := s.Soil + s.Footprint + s.Wall + s.Edge + s.Centre + s.Defense + s.Expansion
 	t -= planWeights.MissingRoom * len(s.Missing)
 	if s.RoutesErr != "" {
 		t -= planWeights.BadRoutes
@@ -108,8 +101,8 @@ func (s PlanScore) Better(o PlanScore) bool {
 }
 
 func (s PlanScore) String() string {
-	return fmt.Sprintf("pass=%v total=%d missing=%d routes=%q rich=%d soil=%d walk=%d footprint=%d wall=%d edge=%d centre=%d defense=%d expansion=%d",
-		s.Passes(), s.Total(), len(s.Missing), s.RoutesErr, s.RichCells, s.Soil, s.Walk, s.Footprint, s.Wall, s.Edge, s.Centre, s.Defense, s.Expansion)
+	return fmt.Sprintf("pass=%v total=%d missing=%d routes=%q rich=%d soil=%d footprint=%d wall=%d edge=%d centre=%d defense=%d expansion=%d",
+		s.Passes(), s.Total(), len(s.Missing), s.RoutesErr, s.RichCells, s.Soil, s.Footprint, s.Wall, s.Edge, s.Centre, s.Defense, s.Expansion)
 }
 
 // Score scores plan over the survey s: every term, the wall and defense
@@ -173,7 +166,6 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 		}
 	}
 
-	out.Walk = -planWeights.Walk * planWalk(p)
 	w, h := sc.s.Bounds.Width, sc.s.Bounds.Height
 	for _, in := range coreFootprint(p, w, h) {
 		if in {
@@ -222,12 +214,15 @@ func (sc planScorer) walled(p LayoutPlan, out PlanScore) PlanScore {
 	return out
 }
 
+// walkUnreachable is the cells a trip with no path counts as.
+const walkUnreachable = 200
+
 // planWalk is the affinity-weighted walking distance over p: for every
 // routeTrips edge, each room of the from role walks the shortest path over
 // the hallway graph to the nearest to end, so every bedroom of a wing
 // counts its own distance to dining. A trip with no path costs
-// WalkUnreachable; one whose ends the plan lacks costs nothing. Unweighted:
-// the Walk term applies planWeights.Walk.
+// walkUnreachable; one whose ends the plan lacks costs nothing. Not a score
+// term: the corridor generator measures its gain with it.
 func planWalk(p LayoutPlan) int {
 	walk, rooms := routeWalk(p)
 	cells := tripCells(p, rooms)
@@ -250,7 +245,7 @@ func planWalk(p LayoutPlan) int {
 				}
 			}
 			if best < 0 {
-				best = planWeights.WalkUnreachable
+				best = walkUnreachable
 			}
 			total += trip.weight * best
 		}

@@ -105,15 +105,6 @@ func TestScoreWalkRisesAsRoutesShorten(t *testing.T) {
 	if near >= far || near == 0 {
 		t.Fatal("walk cost: freezer near the kitchen", near, "far", far)
 	}
-	// The cost is a negative contribution to the score.
-	p := handPlan(50)
-	s := plainScoreSurvey()
-	sc := planScorer{g: newCoreGrid(nil, nil).withSoil(s), s: s, ground: newSiteGround(s)}
-	defer func(w int) { planWeights.Walk = w }(planWeights.Walk)
-	planWeights.Walk = 1
-	if a, b := sc.core(handPlan(12)).Walk, sc.core(p).Walk; a <= b {
-		t.Fatal("walk term: near", a, "far", b)
-	}
 }
 
 func TestScoreWallAndFootprintShrinkWithTheRing(t *testing.T) {
