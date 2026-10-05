@@ -16,12 +16,13 @@ import (
 // back wall, its front interaction cell kept clear (the bench row of the
 // workshop and laboratory templates). The crafting spot and the campfires
 // take the room's corners, the back ones first. Bunks then fill the floor
-// back to front, left to right, each a 1x2 footprint facing South with its
-// head on the cell farther from the entrance; when that leaves a colonist
-// unbedded, a second pass lays 2x1 bunks facing East into the gaps. A bunk
-// never takes a reserved cell, the cell inside any door, or a cell whose loss
-// would cut floor off from the doors. A campfire may sit beside bunks
-// (nothing models campfire flammability).
+// back to front, each row laid from its two ends toward the middle, so the
+// aisle from the door stays open. Every bunk in the room has one rotation:
+// 1x2 facing South (head on the cell farther from the entrance), or 2x1 facing
+// East when that sleeps more colonists. A bunk never takes a reserved cell,
+// the cell inside any door, or a cell whose loss would cut floor off from the
+// doors. A campfire may sit beside bunks (nothing models campfire
+// flammability).
 //
 // The bunk slots are shared: a bed replaces a sleeping spot on the same
 // cells, so the template plans one set of slots per occupant whatever stands
@@ -53,45 +54,98 @@ func (p InteriorPiece) IsBunk() bool {
 	return len(p.Slot) > len(shelterBunkSlotPrefix) && p.Slot[:len(shelterBunkSlotPrefix)] == shelterBunkSlotPrefix
 }
 
-func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	room := InteriorRoom{Interior: Rectangle{Width: f.Width, Height: f.Depth}, Doors: f.Doors}
-	kept := map[domain.Cell]bool{}
-	for _, c := range f.Reserved {
-		kept[c] = true
+// shelterPack is the floor state of a shelter plan in progress: the cells
+// pieces must keep clear, the cells they stand on and the pieces so far.
+type shelterPack struct {
+	f       InteriorFrame
+	room    InteriorRoom
+	kept    map[domain.Cell]bool
+	blocked map[domain.Cell]bool
+	pieces  []InteriorPiece
+}
+
+func (s *shelterPack) clone() *shelterPack {
+	c := *s
+	c.kept, c.blocked = map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	for k := range s.kept {
+		c.kept[k] = true
 	}
-	blocked := map[domain.Cell]bool{}
-	var pieces []InteriorPiece
-	try := func(p InteriorPiece) bool {
-		if !f.Contains(p.Rect) {
+	for k := range s.blocked {
+		c.blocked[k] = true
+	}
+	c.pieces = append([]InteriorPiece(nil), s.pieces...)
+	return &c
+}
+
+func (s *shelterPack) try(p InteriorPiece) bool {
+	if !s.f.Contains(p.Rect) {
+		return false
+	}
+	cells := rectCells(p.Rect)
+	for _, c := range cells {
+		if s.kept[c] || s.blocked[c] {
 			return false
 		}
-		cells := rectCells(p.Rect)
-		for _, c := range cells {
-			if kept[c] || blocked[c] {
-				return false
-			}
-		}
-		if !InteriorPlacementWalkable(room, blocked, cells) {
+	}
+	if !InteriorPlacementWalkable(s.room, s.blocked, cells) {
+		return false
+	}
+	// The worker's cell stays floor: no piece may stand on it later.
+	if ic, ok := p.Interaction(); ok {
+		if s.blocked[ic] || s.kept[ic] || rectContains(p.Rect, ic) {
 			return false
 		}
-		// The worker's cell stays floor: no piece may stand on it later.
-		if ic, ok := p.Interaction(); ok {
-			if blocked[ic] || kept[ic] || rectContains(p.Rect, ic) {
-				return false
+		s.kept[ic] = true
+	}
+	for _, c := range cells {
+		s.blocked[c] = true
+	}
+	s.pieces = append(s.pieces, p)
+	return true
+}
+
+// bunks fills the floor with bunks of one rotation, back to front, each row
+// from its two ends toward the middle, so the floor by the entrance aisle is
+// the last to fill. It stops at occupants
+// (0 fills every bunk that fits) and reports how many it placed.
+func (s *shelterPack) bunks(def string, rot domain.Rotation, occupants int) int {
+	w, h, _ := rotatedSize(shelterBunkSize, rot)
+	var starts []int32
+	for lo, hi := int32(0), s.f.Width-w; lo <= hi; lo, hi = lo+1, hi-1 {
+		starts = append(starts, lo)
+		if hi != lo {
+			starts = append(starts, hi)
+		}
+	}
+	count := 0
+	for v := s.f.Depth - h; v >= 0; v-- {
+		for _, u := range starts {
+			if occupants > 0 && count >= occupants {
+				return count
 			}
-			kept[ic] = true
+			if s.try(NewInteriorPiece(fmt.Sprintf("%s%d", shelterBunkSlotPrefix, count+1), def, shelterBunkSize, rot, domain.Cell{X: u, Z: v})) {
+				count++
+			}
 		}
-		for _, c := range cells {
-			blocked[c] = true
-		}
-		pieces = append(pieces, p)
-		return true
+	}
+	return count
+}
+
+func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
+	s := &shelterPack{
+		f:       f,
+		room:    InteriorRoom{Interior: Rectangle{Width: f.Width, Height: f.Depth}, Doors: f.Doors},
+		kept:    map[domain.Cell]bool{},
+		blocked: map[domain.Cell]bool{},
+	}
+	for _, c := range f.Reserved {
+		s.kept[c] = true
 	}
 
 	if def, ok := BenchRowDef(f, piece, RoomRoleLaboratory); ok {
 		if benches, _, _, ok := BenchRow(f, def, 0, 1, func(int) string { return "research" }); ok {
 			for _, b := range benches {
-				try(b)
+				s.try(b)
 			}
 		}
 	}
@@ -103,13 +157,13 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 			return
 		}
 		for _, c := range corners {
-			if try(NewInteriorPiece(slot, def, shape.Size, domain.North, c)) {
+			if s.try(NewInteriorPiece(slot, def, shape.Size, domain.North, c)) {
 				return
 			}
 		}
 		for v := f.Depth - 1; v >= 0; v-- {
 			for u := int32(0); u < f.Width; u++ {
-				if try(NewInteriorPiece(slot, def, shape.Size, domain.North, domain.Cell{X: u, Z: v})) {
+				if s.try(NewInteriorPiece(slot, def, shape.Size, domain.North, domain.Cell{X: u, Z: v})) {
 					return
 				}
 			}
@@ -130,20 +184,11 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 	if bunkDef == "" {
 		bunkDef = SleepingSpotDefinition
 	}
-	count := 0
-	full := func() bool { return f.Occupants > 0 && count >= f.Occupants }
-	// Bunks run north-south first. A second pass lays the rest east-west into
-	// the one-row gaps the first leaves, so a shallow or odd-width room still
-	// sleeps everyone.
-	for _, rot := range []domain.Rotation{domain.South, domain.East} {
-		for v := f.Depth - 1; v >= 0 && !full(); v-- {
-			for u := int32(0); u < f.Width && !full(); u++ {
-				bunk := NewInteriorPiece(fmt.Sprintf("%s%d", shelterBunkSlotPrefix, count+1), bunkDef, shelterBunkSize, rot, domain.Cell{X: u, Z: v})
-				if try(bunk) {
-					count++
-				}
-			}
-		}
+	// One rotation for the whole room: north-south unless east-west beds
+	// sleep more colonists.
+	ns, ew := s.clone(), s.clone()
+	if ew.bunks(bunkDef, domain.East, f.Occupants) > ns.bunks(bunkDef, domain.South, f.Occupants) {
+		return ew.pieces, true
 	}
-	return pieces, true
+	return ns.pieces, true
 }
