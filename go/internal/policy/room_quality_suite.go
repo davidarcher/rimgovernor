@@ -54,7 +54,7 @@ func plannedRoomIDs(plan LayoutPlan, rooms RoomObservation, role PlannedRole) ma
 		if r.Role != role {
 			continue
 		}
-		if room, ok := PlannedRoomStanding(r, rooms); ok {
+		if room, ok := CensusRoomIn(r, rooms); ok {
 			out[room.ID] = r
 		}
 	}
@@ -174,7 +174,7 @@ func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObser
 		if r.Role != PlannedSuite {
 			continue
 		}
-		room, ok := PlannedRoomStanding(r, rooms)
+		room, ok := CensusRoomIn(r, rooms)
 		taken := false
 		for _, b := range room.Beds {
 			taken = taken || ok && owned[b]
@@ -223,7 +223,7 @@ func nextSuiteStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObse
 			break
 		}
 		r := vacant[i]
-		room, ok := PlannedRoomStanding(r, rooms)
+		room, ok := CensusRoomIn(r, rooms)
 		if !ok {
 			return BedroomStep{Kind: BedroomShell, Room: r}
 		}

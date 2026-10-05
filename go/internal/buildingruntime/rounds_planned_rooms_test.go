@@ -22,9 +22,36 @@ func TestStarterShellPlansTheShelterAtCamp(t *testing.T) {
 	}
 }
 
+// ringConstruction is the colony's construction census with room's wall ring
+// standing as planned (walls all round, a door at its Door), or empty.
+func ringConstruction(room *policy.PlannedRoom) domain.Fact[policy.CurrentConstruction] {
+	census := policy.CurrentConstruction{Colony: true}
+	if room != nil {
+		in := room.Interior
+		for x := in.X - 1; x <= in.X+in.Width; x++ {
+			for z := in.Z - 1; z <= in.Z+in.Height; z++ {
+				if x != in.X-1 && x != in.X+in.Width && z != in.Z-1 && z != in.Z+in.Height {
+					continue
+				}
+				cell, def := domain.Cell{X: x, Z: z}, "Wall"
+				if cell == room.Door {
+					def = "Door"
+				}
+				b, err := domain.NewBuilding(def, cell, domain.North, "")
+				if err != nil {
+					panic(err)
+				}
+				census.Buildings = append(census.Buildings, policy.CurrentBuilding{Building: b, Cells: []domain.Cell{cell}})
+			}
+		}
+	}
+	return domain.Known(census)
+}
+
 func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
 	kitchen := policy.PlannedRoom{Role: policy.PlannedKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{Shapes: testPieceShapes}), BuildTier: domain.Known(policy.BuildTierCamp)}
+	facts.Facts.CurrentConstruction = ringConstruction(nil)
 	for _, tier := range []policy.BuildTier{policy.BuildTierCamp, policy.BuildTierMasonry} {
 		facts.BuildTier = domain.Known(tier)
 		if r, owed := plannedRoomOwed(facts, policy.PlannedKitchen); !owed || r.Interior != kitchen.Interior {
@@ -35,6 +62,7 @@ func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
 		t.Fatal("an unbuilt kitchen restricted the stove")
 	}
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "k", Cells: []domain.Cell{{X: 13, Z: 12}}, Enclosed: domain.Known(true)}}})
+	facts.Facts.CurrentConstruction = ringConstruction(&kitchen)
 	if _, owed := plannedRoomOwed(facts, policy.PlannedKitchen); owed {
 		t.Fatal("a standing kitchen is still owed")
 	}

@@ -96,7 +96,7 @@ func (r StorageRequest) standingWorkshop() ([]domain.Cell, bool) {
 		if planned.Role != PlannedWorkshop {
 			continue
 		}
-		if room, ok := PlannedRoomStanding(planned, *r.Rooms); ok && len(room.Cells) > 0 {
+		if room, ok := CensusRoomIn(planned, *r.Rooms); ok && len(room.Cells) > 0 {
 			return room.Cells, true
 		}
 	}

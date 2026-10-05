@@ -60,10 +60,10 @@ func (p LayoutPlan) MealClosetOwed(rooms RoomObservation) (PlannedRoom, bool) {
 	if closet == nil || dining == nil {
 		return PlannedRoom{}, false
 	}
-	if _, ok := PlannedRoomStanding(*dining, rooms); !ok {
+	if _, ok := CensusRoomIn(*dining, rooms); !ok {
 		return PlannedRoom{}, false
 	}
-	if _, ok := PlannedRoomStanding(*closet, rooms); ok {
+	if _, ok := CensusRoomIn(*closet, rooms); ok {
 		return PlannedRoom{}, false
 	}
 	return *closet, true

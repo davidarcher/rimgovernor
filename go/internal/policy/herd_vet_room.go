@@ -23,7 +23,7 @@ func (p LayoutPlan) VetRoomCells() []domain.Cell {
 }
 
 // VetRoomReady is VetRoom.Ready: known true when a vet room of the plan
-// stands shelled (PlannedRoomStanding) with at least one standing animal bed
+// stands shelled (CensusRoomIn) with at least one standing animal bed
 // whose census row reads medical. Known false when the plan has no vet room,
 // none stands, or none of its standing beds is flagged. Unknown when a
 // standing bed has no census row or an unread medical flag and no other bed
@@ -31,7 +31,7 @@ func (p LayoutPlan) VetRoomCells() []domain.Cell {
 func VetRoomReady(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, beds []SleepingBed, animalBed string) domain.Fact[bool] {
 	unread := false
 	for _, room := range plan.HerdRooms(PlannedVetRoom) {
-		if _, standing := PlannedRoomStanding(room, rooms); !standing {
+		if _, standing := CensusRoomIn(room, rooms); !standing {
 			continue
 		}
 		for _, b := range built {

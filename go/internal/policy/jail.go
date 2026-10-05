@@ -94,7 +94,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 			continue
 		}
 		step.Room = r
-		standing, ok := PlannedRoomStanding(r, rooms)
+		standing, ok := CensusRoomIn(r, rooms)
 		if !ok {
 			step.Kind = JailShell
 			return step

@@ -38,14 +38,14 @@ func ShelterEmptied(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObs
 			return false
 		}
 		for _, r := range planned {
-			if _, ok := PlannedRoomStanding(r, rooms); !ok {
+			if _, ok := CensusRoomIn(r, rooms); !ok {
 				return false
 			}
 		}
 	}
 	inShelter := map[string]bool{}
 	for _, s := range shelters {
-		if room, ok := PlannedRoomStanding(s, rooms); ok {
+		if room, ok := CensusRoomIn(s, rooms); ok {
 			for _, b := range room.Beds {
 				inShelter[b] = true
 			}

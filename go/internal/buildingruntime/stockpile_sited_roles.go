@@ -125,7 +125,7 @@ func coldMealSpot(plan policy.LayoutPlan, rooms policy.RoomObservation) (mealSpo
 	for i, planned := range plan.Rooms {
 		switch planned.Role {
 		case policy.PlannedMealCloset:
-			if room, ok := policy.PlannedRoomStanding(planned, rooms); ok && len(room.Cells) > 0 {
+			if room, ok := policy.CensusRoomIn(planned, rooms); ok && len(room.Cells) > 0 {
 				return mealSpot{room: room, filter: mealShelfFilter(), size: len(room.Cells), whole: true}, true
 			}
 		case policy.PlannedDining:
@@ -137,14 +137,14 @@ func coldMealSpot(plan policy.LayoutPlan, rooms policy.RoomObservation) (mealSpo
 	if dining == nil {
 		return mealSpot{}, false
 	}
-	if _, ok := policy.PlannedRoomStanding(*dining, rooms); !ok {
+	if _, ok := policy.CensusRoomIn(*dining, rooms); !ok {
 		return mealSpot{}, false
 	}
 	freezer, door, ok := plan.FreezerDoorInto(*dining)
 	if !ok {
 		return mealSpot{}, false
 	}
-	room, ok := policy.PlannedRoomStanding(freezer, rooms)
+	room, ok := policy.CensusRoomIn(freezer, rooms)
 	if !ok || len(room.Cells) == 0 {
 		return mealSpot{}, false
 	}

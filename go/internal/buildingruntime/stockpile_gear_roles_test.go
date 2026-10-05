@@ -11,15 +11,16 @@ import (
 )
 
 // A snapshot over a recorded colony (#1774): layout planned an armory over
-// (0..4, 0..4). Until its room stands the review owes its shell and plans no
+// (2..6, 2..6). Until its room stands the review owes its shell and plans no
 // zone; once the room stands the armory zone fills it, and the old 2x2 weapons
 // zone is deleted.
 func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
 	projection.Facts.Items = policy.ItemFacts{Armor: []policy.Resource{"Apparel_FlakVest"}}
-	armory := policy.PlannedRoom{Role: policy.PlannedArmory, Interior: policy.Rectangle{X: 0, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 5, Z: 2}}
+	armory := policy.PlannedRoom{Role: policy.PlannedArmory, Interior: policy.Rectangle{X: 2, Z: 2, Width: 5, Height: 5}, Door: domain.Cell{X: 7, Z: 4}}
 	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{armory}})
+	projection.Facts.CurrentConstruction = ringConstruction(nil)
 	gear, err := policy.NewGearStore(projection.Facts.Items, nil, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -35,14 +36,15 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	}
 
 	var room []domain.Cell
-	for x := int32(0); x < 5; x++ {
-		for z := int32(0); z < 5; z++ {
+	for x := int32(2); x < 7; x++ {
+		for z := int32(2); z < 7; z++ {
 			room = append(room, domain.Cell{X: x, Z: z})
 		}
 	}
 	rooms, _ := projection.Rooms.Value()
 	rooms.Rooms = append(rooms.Rooms, policy.Room{ID: "Room_5", Role: domain.Known(policy.RoomRoleStoreroom), Enclosed: domain.Known(true), Cells: room})
 	projection.Rooms = domain.Known(rooms)
+	projection.Facts.CurrentConstruction = ringConstruction(&armory)
 	zoneOn(projection, "Zone_7", false, domain.Cell{X: 20, Z: 20}, domain.Cell{X: 21, Z: 20}, domain.Cell{X: 20, Z: 21}, domain.Cell{X: 21, Z: 21})
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: domain.WeaponsRole, Filter: domain.GeneralFilter(), Priority: domain.PreferredPriority}}
 	request = withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, &gear, nil))

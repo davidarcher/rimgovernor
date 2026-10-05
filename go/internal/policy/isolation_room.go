@@ -68,7 +68,7 @@ func IsolationRoomStanding(plan LayoutPlan, rooms RoomObservation, built []Curre
 	if !ok {
 		return false
 	}
-	if _, standing := PlannedRoomStanding(room, rooms); !standing {
+	if _, standing := CensusRoomIn(room, rooms); !standing {
 		return false
 	}
 	pieces, _ := need.resolve(defs)

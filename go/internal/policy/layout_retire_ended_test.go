@@ -118,10 +118,10 @@ func TestRoomsInUseCountsFurnitureInside(t *testing.T) {
 		t.Fatal(err)
 	}
 	crib := CurrentBuilding{ID: "1", Building: b, Cells: []domain.Cell{{X: 21, Z: 21}}}
-	if RoomsInUse(plan, RoomObservation{}, nil, defs)[in] {
+	if RoomsInUse(plan, nil, defs)[in] {
 		t.Fatal("an empty planned room is in use")
 	}
-	if !RoomsInUse(plan, RoomObservation{}, []CurrentBuilding{crib}, defs)[in] {
+	if !RoomsInUse(plan, []CurrentBuilding{crib}, defs)[in] {
 		t.Fatal("a furnished room is not in use")
 	}
 }

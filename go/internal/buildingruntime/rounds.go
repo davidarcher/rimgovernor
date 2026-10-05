@@ -755,11 +755,11 @@ func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
 	if !known {
 		return nil
 	}
-	rooms, known := colony.Rooms.Value()
+	ground, known := colonyGround(colony)
 	if !known {
 		return nil
 	}
-	return policy.PlannedGround(plan, rooms)
+	return policy.PlannedGround(plan, ground)
 }
 
 // retiredGround is the recorded plan's retired ground (#2075) with its kept

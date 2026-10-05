@@ -32,7 +32,7 @@ func MorgueRoomOwed(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, b
 		if r.Role != PlannedMorgue {
 			continue
 		}
-		if _, ok := PlannedRoomStanding(r, rooms); !ok {
+		if _, ok := CensusRoomIn(r, rooms); !ok {
 			return r, true
 		}
 		return PlannedRoom{}, false

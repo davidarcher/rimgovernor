@@ -92,7 +92,7 @@ func (r StorageRequest) gearRoomPending(demand RoomDemand) bool {
 	}
 	for _, planned := range r.Layout.AllRooms() {
 		if planned.Role == PlannedArmory && demand.Armory || planned.Role == PlannedWardrobe && demand.Wardrobe {
-			if _, ok := PlannedRoomStanding(planned, *r.Rooms); !ok {
+			if _, ok := CensusRoomIn(planned, *r.Rooms); !ok {
 				return true
 			}
 		}
@@ -125,7 +125,7 @@ func (r StorageRequest) gearSites() ([]StockpileSite, error) {
 			if planned.Role != gear.module {
 				continue
 			}
-			room, ok := PlannedRoomStanding(planned, *r.Rooms)
+			room, ok := CensusRoomIn(planned, *r.Rooms)
 			if !ok || len(room.Cells) == 0 {
 				continue
 			}

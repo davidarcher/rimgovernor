@@ -18,25 +18,18 @@ func playerRow(id, def, class string, min, max domain.Cell, encloses bool) Clear
 }
 
 func TestPlannedGroundSkipsStandingRooms(t *testing.T) {
-	plan, rooms := groundFixture()
-	if got := PlannedGround(plan, rooms); !reflect.DeepEqual(got, []Rectangle{{X: 9, Z: 9, Width: 5, Height: 5}}) {
+	plan, _ := groundFixture()
+	if got := PlannedGround(plan, GroundCensus{}); !reflect.DeepEqual(got, []Rectangle{{X: 9, Z: 9, Width: 5, Height: 5}}) {
 		t.Fatalf("ground = %v", got)
 	}
-	var cells []domain.Cell
-	for x := int32(10); x < 13; x++ {
-		for z := int32(10); z < 13; z++ {
-			cells = append(cells, domain.Cell{X: x, Z: z})
-		}
-	}
-	rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: cells}}
-	if got := PlannedGround(plan, rooms); len(got) != 0 {
+	if got := PlannedGround(plan, ringWalls(plan, plan.Rooms[0])); len(got) != 0 {
 		t.Fatalf("a standing room needs no ground: %v", got)
 	}
 }
 
 func TestPlannedGroundTargetsUnplannedOnly(t *testing.T) {
-	plan, rooms := groundFixture()
-	ground := PlannedGround(plan, rooms)
+	plan, _ := groundFixture()
+	ground := PlannedGround(plan, GroundCensus{})
 	rows := []ClearanceTarget{
 		playerRow("bed", "Bed", "other", domain.Cell{X: 10, Z: 10}, domain.Cell{X: 10, Z: 11}, false),
 		// A wall on the planned ring is the room's own wall.
@@ -62,7 +55,7 @@ func TestPlannedGroundTargetsUnplannedOnly(t *testing.T) {
 
 func TestPlannedGroundStepOrder(t *testing.T) {
 	plan, rooms := groundFixture()
-	ground := PlannedGround(plan, rooms)
+	ground := PlannedGround(plan, GroundCensus{})
 	bed := playerRow("bed", "Bed", "other", domain.Cell{X: 10, Z: 10}, domain.Cell{X: 10, Z: 11}, false)
 	wall := playerRow("wall", "Wall", "ancient_wall_door", domain.Cell{X: 11, Z: 11}, domain.Cell{X: 11, Z: 11}, true)
 	floors := []ClearanceFloor{{Cell: domain.Cell{X: 12, Z: 12}, DefName: "WoodPlankFloor"}}
@@ -144,7 +137,7 @@ func TestSplitGroundRows(t *testing.T) {
 // the room stands: ground clearance leaves it.
 func TestPlannedGroundStepLeavesTheStandInBed(t *testing.T) {
 	plan, rooms := groundFixture()
-	ground := PlannedGround(plan, rooms)
+	ground := PlannedGround(plan, GroundCensus{})
 	spot := playerRow("spot", "SleepingSpot", "other", domain.Cell{X: 10, Z: 10}, domain.Cell{X: 10, Z: 11}, false)
 	if step, ok := PlannedGroundStep([]ClearanceTarget{spot}, nil, ground, PlannedDoors(plan), rooms, RetiredGround{}); ok {
 		t.Fatalf("cleared the stand-in bed: %+v", step)

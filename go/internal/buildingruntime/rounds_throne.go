@@ -176,7 +176,7 @@ func withThroneFloor(facts observation.ColonyProjection, v policy.FlooringObserv
 	if !ok {
 		return v
 	}
-	standing, ok := policy.PlannedRoomStanding(room, rooms)
+	standing, ok := policy.CensusRoomIn(room, rooms)
 	if !ok {
 		return v
 	}

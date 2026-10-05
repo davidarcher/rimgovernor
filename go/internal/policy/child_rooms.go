@@ -268,7 +268,7 @@ func NextChildRoomStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBu
 		if !ok {
 			continue
 		}
-		if _, standing := PlannedRoomStanding(room, rooms); !standing {
+		if _, standing := CensusRoomIn(room, rooms); !standing {
 			return ChildRoomStep{Kind: ChildRoomShell, Need: n, Room: room}
 		}
 		pieces, _ := n.resolve(defs)

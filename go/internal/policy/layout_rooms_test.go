@@ -189,12 +189,84 @@ func TestNextPlannedRoomSkipsStandingRooms(t *testing.T) {
 	built := hallRoom(PlannedPrison, 20, 30, 5, 5, true)
 	open := hallRoom(PlannedPrison, 30, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []PlannedRoom{built, open}}
-	centre := domain.Cell{X: built.Interior.X + 2, Z: built.Interior.Z + 2}
-	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "r", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
-	if r, ok := plan.NextPlannedRoom(PlannedPrison, rooms); !ok || r.Interior != open.Interior {
+	ground := ringWalls(plan, built)
+	if r, ok := plan.NextPlannedRoom(PlannedPrison, ground); !ok || r.Interior != open.Interior {
 		t.Fatalf("next %+v %v", r, ok)
 	}
-	if _, ok := plan.NextPlannedRoom(PlannedKitchen, rooms); ok {
+	if _, ok := plan.NextPlannedRoom(PlannedKitchen, ground); ok {
 		t.Fatal("no kitchen is planned")
+	}
+}
+
+// ringWalls is the ground census of plan's room r with its ring standing as
+// planned: a wall on every ring cell, a door on each of its door cells.
+func ringWalls(plan LayoutPlan, r PlannedRoom) GroundCensus {
+	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}}
+	doors := map[domain.Cell]bool{}
+	for _, d := range plan.ShellDoors(r) {
+		doors[d] = true
+	}
+	ring := roomWalls(r)
+	for _, c := range rectCells(ring) {
+		switch {
+		case !onRing(c, ring):
+		case doors[c]:
+			g.doors[c] = true
+		default:
+			g.walls[c] = true
+		}
+	}
+	return g
+}
+
+func TestGroundMatches(t *testing.T) {
+	room := hallRoom(PlannedPrison, 20, 30, 5, 5, true)
+	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
+	ring := func() GroundCensus { return ringWalls(plan, room) }
+	// A ring standing matches while the census lists no enclosed room yet.
+	if !plan.GroundMatches(room, ring()) {
+		t.Fatal("a complete ring matches")
+	}
+	if _, ok := CensusRoomIn(room, RoomObservation{Shapes: testShapes}); ok {
+		t.Fatal("no census room stands")
+	}
+	if plan.GroundMatches(room, GroundCensus{}) {
+		t.Fatal("empty ground does not match")
+	}
+	missing := ring()
+	delete(missing.walls, domain.Cell{X: room.Interior.X - 1, Z: room.Interior.Z + 1})
+	if plan.GroundMatches(room, missing) {
+		t.Fatal("a missing wall cell does not match")
+	}
+	extra, c := ring(), domain.Cell{X: room.Interior.X - 1, Z: room.Interior.Z + 1}
+	delete(extra.walls, c)
+	extra.doors[c] = true
+	if plan.GroundMatches(room, extra) {
+		t.Fatal("an extra door on the ring does not match")
+	}
+	wrong := ring()
+	delete(wrong.doors, room.Door)
+	wrong.walls[room.Door] = true
+	if plan.GroundMatches(room, wrong) {
+		t.Fatal("a wall where the plan has the door does not match")
+	}
+	gap := ring()
+	delete(gap.doors, room.Door)
+	if plan.GroundMatches(room, gap) {
+		t.Fatal("a missing door does not match")
+	}
+}
+
+func TestGroundOfReadsWallsAndDoors(t *testing.T) {
+	building := func(def string, x int32) CurrentBuilding {
+		b, err := domain.NewBuilding(def, domain.Cell{X: x, Z: 1}, domain.North, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return CurrentBuilding{Building: b, Cells: []domain.Cell{{X: x, Z: 1}}}
+	}
+	g := GroundOf([]CurrentBuilding{building("Wall", 1), building("Door", 2), building("Autodoor", 3), building("Bed", 4)})
+	if !g.walls[domain.Cell{X: 1, Z: 1}] || !g.doors[domain.Cell{X: 2, Z: 1}] || !g.doors[domain.Cell{X: 3, Z: 1}] || len(g.walls)+len(g.doors) != 3 {
+		t.Fatalf("ground %+v", g)
 	}
 }

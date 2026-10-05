@@ -76,8 +76,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 			planned[pad(r.Interior, 1)] = true
 		}
 	}
-	standing := RoomObservation{}
-	for _, g := range PlannedGround(next, standing) {
+	for _, g := range PlannedGround(next, GroundCensus{}) {
 		if planned[g] {
 			continue
 		}

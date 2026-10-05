@@ -20,7 +20,7 @@ func ShellBedIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 		if r.Role != PlannedShelter {
 			continue
 		}
-		if room, ok := PlannedRoomStanding(r, rooms); ok {
+		if room, ok := CensusRoomIn(r, rooms); ok {
 			for _, b := range room.Beds {
 				shell[b] = true
 			}
@@ -157,7 +157,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		if r.Role != PlannedSuite {
 			continue
 		}
-		if room, ok := PlannedRoomStanding(r, rooms); ok {
+		if room, ok := CensusRoomIn(r, rooms); ok {
 			for _, b := range room.Beds {
 				suiteBed[b] = true
 			}
@@ -181,7 +181,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			}
 		}
 	}
-	standing := func(r PlannedRoom) (Room, bool) { return PlannedRoomStanding(r, rooms) }
+	standing := func(r PlannedRoom) (Room, bool) { return CensusRoomIn(r, rooms) }
 	var empty []PlannedRoom
 	var emptyCells [][]domain.Cell
 	var unbuilt []PlannedRoom

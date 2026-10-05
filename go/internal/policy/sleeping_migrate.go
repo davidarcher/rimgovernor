@@ -32,7 +32,7 @@ func retiringBeds(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 			continue
 		}
 		for _, r := range w.Rooms {
-			if room, ok := PlannedRoomStanding(r, rooms); ok {
+			if room, ok := CensusRoomIn(r, rooms); ok {
 				for _, b := range room.Beds {
 					out[b] = true
 				}
@@ -65,7 +65,7 @@ func EmptiedRetiringWings(plan LayoutPlan, rooms domain.Fact[RoomObservation], s
 		}
 		empty := true
 		for _, r := range w.Rooms {
-			if room, ok := PlannedRoomStanding(r, census); ok {
+			if room, ok := CensusRoomIn(r, census); ok {
 				for _, b := range room.Beds {
 					empty = empty && !owned[b]
 				}
@@ -124,7 +124,7 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			continue
 		}
 		for _, r := range w.Rooms {
-			room, ok := PlannedRoomStanding(r, rooms)
+			room, ok := CensusRoomIn(r, rooms)
 			if !ok {
 				unbuilt = append(unbuilt, r)
 				continue

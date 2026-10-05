@@ -125,7 +125,7 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 			continue
 		}
 		step.Room = r
-		if _, ok := PlannedRoomStanding(r, rooms); !ok {
+		if _, ok := CensusRoomIn(r, rooms); !ok {
 			step.Kind = TombShell
 			return step
 		}

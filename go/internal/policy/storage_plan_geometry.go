@@ -60,7 +60,7 @@ func rawFoodStockSites(layout LayoutPlan, rooms RoomObservation, bounds Bounds, 
 		if planned.Role != PlannedFreezer {
 			continue
 		}
-		room, ok := PlannedRoomStanding(planned, rooms)
+		room, ok := CensusRoomIn(planned, rooms)
 		if !ok || len(room.Cells) == 0 {
 			continue
 		}

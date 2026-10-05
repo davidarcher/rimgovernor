@@ -189,7 +189,7 @@ func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	wall := playerRow("wall", "Wall", "ancient_wall_door", domain.Cell{X: ground.X, Z: ground.Z}, domain.Cell{X: ground.X, Z: ground.Z}, true)
 	floors := []ClearanceFloor{{Cell: domain.Cell{X: in.X, Z: in.Z + 2}, DefName: "WoodPlankFloor"}}
 	rooms := RoomObservation{Shapes: testShapes}
-	grounds := PlannedGround(next, rooms)
+	grounds := PlannedGround(next, GroundCensus{})
 	rg := RetiredGroundOf(next)
 	stepOf := func(rows ...ClearanceTarget) (GroundStep, bool) {
 		return PlannedGroundStep(rows, floors, grounds, PlannedDoors(next), rooms, rg)

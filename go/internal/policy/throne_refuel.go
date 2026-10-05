@@ -28,7 +28,7 @@ func NextThroneRefuel(plan LayoutPlan, rooms RoomObservation, need ThroneNeed, l
 	if !ok {
 		return ThroneStep{}
 	}
-	if _, ok := PlannedRoomStanding(room, rooms); !ok {
+	if _, ok := CensusRoomIn(room, rooms); !ok {
 		return ThroneStep{}
 	}
 	glow := need.GlowDefNames()

@@ -23,12 +23,12 @@ func ChildRoomShapes(needs []ChildRoomNeed, defs []FurnitureDefinition) []ChildR
 	return out
 }
 
-// BuiltRooms are the interiors of the plan's rooms with a census room
-// standing in them.
-func BuiltRooms(plan LayoutPlan, rooms RoomObservation) map[Rectangle]bool {
+// BuiltRooms are the interiors of the plan's rooms whose ring stands as
+// planned (GroundMatches).
+func BuiltRooms(plan LayoutPlan, ground GroundCensus) map[Rectangle]bool {
 	built := map[Rectangle]bool{}
 	for _, r := range plan.AllRooms() {
-		if _, ok := PlannedRoomStanding(r, rooms); ok {
+		if plan.GroundMatches(r, ground) {
 			built[r.Interior] = true
 		}
 	}
@@ -36,12 +36,12 @@ func BuiltRooms(plan LayoutPlan, rooms RoomObservation) map[Rectangle]bool {
 }
 
 // FixedRooms are the interiors of the plan's rooms with anything of ours on
-// them: a census room standing in one, or a cell of occupied (a building,
+// them: its ring standing as planned, or a cell of occupied (a building,
 // blueprint, frame, edifice, doorway or journal claim) on its walls or
 // floor. A replan must not move a fixed room; an untouched planned room is
 // not fixed.
-func FixedRooms(plan LayoutPlan, rooms RoomObservation, occupied map[domain.Cell]bool) map[Rectangle]bool {
-	fixed := BuiltRooms(plan, rooms)
+func FixedRooms(plan LayoutPlan, ground GroundCensus, occupied map[domain.Cell]bool) map[Rectangle]bool {
+	fixed := BuiltRooms(plan, ground)
 	for _, r := range plan.AllRooms() {
 		if !fixed[r.Interior] && rectHits(roomWalls(r), occupied) {
 			fixed[r.Interior] = true
@@ -212,10 +212,10 @@ func EndedRoomRoles(pawns domain.Fact[[]WorkPawn], ideology domain.Fact[Ideoligi
 	return ended
 }
 
-// RoomsInUse are the interiors of the plan's rooms that stand as a census
-// room or hold a building of furniture's definitions.
-func RoomsInUse(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, furniture []FurnitureDefinition) map[Rectangle]bool {
-	inUse := BuiltRooms(plan, rooms)
+// RoomsInUse are the interiors of the plan's rooms that stand as planned or
+// hold a building of furniture's definitions.
+func RoomsInUse(plan LayoutPlan, built []CurrentBuilding, furniture []FurnitureDefinition) map[Rectangle]bool {
+	inUse := BuiltRooms(plan, GroundOf(built))
 	var names []string
 	for _, d := range furniture {
 		names = append(names, d.Name)

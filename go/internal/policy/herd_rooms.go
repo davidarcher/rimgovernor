@@ -414,7 +414,7 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 			beds := herdBedPieces(layout.Pieces)
 			quota := min(want, len(beds))
 			want -= quota
-			if _, standing := PlannedRoomStanding(room, rooms); !standing {
+			if _, standing := CensusRoomIn(room, rooms); !standing {
 				return HerdStep{Kind: HerdShell, Role: site.role, Room: room}
 			}
 			if site.role == PlannedVetRoom {

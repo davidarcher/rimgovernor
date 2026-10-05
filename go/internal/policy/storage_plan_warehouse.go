@@ -20,7 +20,7 @@ import (
 func (r StorageRequest) warehouseSites() []StockpileSite {
 	var sites []StockpileSite
 	for i, planned := range r.plannedStorageRooms() {
-		room, ok := PlannedRoomStanding(planned, *r.Rooms)
+		room, ok := CensusRoomIn(planned, *r.Rooms)
 		if !ok || len(room.Cells) == 0 {
 			continue
 		}

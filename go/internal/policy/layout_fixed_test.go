@@ -14,19 +14,12 @@ func TestFixedRoomsAreTheTouchedOnes(t *testing.T) {
 	}
 	standing, onRing, onFloor, untouched := room(10), room(20), room(30), room(40)
 	plan := LayoutPlan{Rooms: []PlannedRoom{standing, onRing, untouched}, Wings: []Wing{{Rooms: []PlannedRoom{onFloor}}}}
-	var cells []domain.Cell
-	for z := int32(10); z < 15; z++ {
-		for x := int32(10); x < 15; x++ {
-			cells = append(cells, domain.Cell{X: x, Z: z})
-		}
-	}
-	rooms := RoomObservation{Rooms: []Room{{Cells: cells, Enclosed: domain.Known(true)}}}
 	occupied := map[domain.Cell]bool{
 		{X: 19, Z: 9}:   true, // the ring corner of onRing
 		{X: 32, Z: 12}:  true, // inside onFloor
 		{X: 100, Z: 12}: true, // nowhere near a room
 	}
-	fixed := FixedRooms(plan, rooms, occupied)
+	fixed := FixedRooms(plan, ringWalls(plan, standing), occupied)
 	for _, r := range []PlannedRoom{standing, onRing, onFloor} {
 		if !fixed[r.Interior] {
 			t.Fatalf("room at x=%d is not fixed", r.Interior.X)

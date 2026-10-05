@@ -294,7 +294,7 @@ func (b *RoundsBuildingPlanner) digExhaust(call, epoch context.Context, s excava
 		if !ok {
 			continue
 		}
-		if standing, ok := policy.PlannedRoomStanding(room, rooms); !ok || standing.ID != b.refrigeration.Room {
+		if standing, ok := policy.CensusRoomIn(room, rooms); !ok || standing.ID != b.refrigeration.Room {
 			continue
 		}
 		cooler := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}

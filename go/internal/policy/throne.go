@@ -391,7 +391,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 	// A forbidden class is never planned: its definitions are not offered.
 	defs = slices.DeleteFunc(slices.Clone(defs), func(d FurnitureDefinition) bool { return need.Forbids(d.Name) })
 	step := ThroneStep{Room: room, Need: need}
-	if _, ok := PlannedRoomStanding(room, rooms); !ok {
+	if _, ok := CensusRoomIn(room, rooms); !ok {
 		step.Kind = ThroneShell
 		return step
 	}
@@ -507,7 +507,7 @@ func ThroneRoomTargets(plan LayoutPlan, rooms RoomObservation, need ThroneNeed) 
 	if !ok || need.MinImpressiveness <= 0 {
 		return nil
 	}
-	standing, ok := PlannedRoomStanding(room, rooms)
+	standing, ok := CensusRoomIn(room, rooms)
 	if !ok {
 		return nil
 	}

@@ -46,11 +46,22 @@ func plannedLayout(facts observation.ColonyProjection) (policy.LayoutPlan, polic
 // plannedRoomOwed is the first planned room of module with nothing
 // standing in it yet.
 func plannedRoomOwed(facts observation.ColonyProjection, module policy.PlannedRole) (policy.PlannedRoom, bool) {
-	plan, rooms, known := plannedLayout(facts)
-	if !known {
+	plan, known := facts.LayoutPlan.Value()
+	ground, groundKnown := colonyGround(facts)
+	if !known || !groundKnown {
 		return policy.PlannedRoom{}, false
 	}
-	return plan.NextPlannedRoom(module, rooms)
+	return plan.NextPlannedRoom(module, ground)
+}
+
+// colonyGround is the walls and doors the colony's construction census holds;
+// unknown while the census is, so no room reads as unbuilt on a guess.
+func colonyGround(facts observation.ColonyProjection) (policy.GroundCensus, bool) {
+	construction, known := facts.Facts.CurrentConstruction.Value()
+	if !known || !construction.Colony {
+		return policy.GroundCensus{}, false
+	}
+	return policy.GroundOf(construction.Buildings), true
 }
 
 // plannedRoomCells is the interior of the first standing planned room of
@@ -64,7 +75,7 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.PlannedR
 		if r.Role != module {
 			continue
 		}
-		if _, ok := policy.PlannedRoomStanding(r, rooms); !ok {
+		if _, ok := policy.CensusRoomIn(r, rooms); !ok {
 			continue
 		}
 		in := r.Interior

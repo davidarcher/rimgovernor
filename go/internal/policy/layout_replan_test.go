@@ -80,7 +80,7 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 					occupied[domain.Cell{X: r.Interior.X - 1, Z: r.Interior.Z - 1}] = true
 				}
 			}
-			growth := RoomGrowth{Fixed: FixedRooms(plan, RoomObservation{}, occupied), Occupied: occupied}
+			growth := RoomGrowth{Fixed: FixedRooms(plan, GroundCensus{}, occupied), Occupied: occupied}
 			for _, r := range plan.AllRooms() {
 				if growth.Fixed[r.Interior] {
 					if _, ok := fixed[r.Interior]; !ok {

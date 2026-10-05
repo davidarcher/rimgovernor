@@ -16,12 +16,12 @@ const BarnAreaKey = "Barn"
 const BarnAreaLabel = BarnAreaKey
 
 // BarnCells are the interior cells of the plan's barns that stand shelled
-// (PlannedRoomStanding), sorted: an animal is never sent to a barn that is
+// (CensusRoomIn), sorted: an animal is never sent to a barn that is
 // not yet a room.
 func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 	set := map[domain.Cell]bool{}
 	for _, room := range p.HerdRooms(PlannedBarn) {
-		if _, standing := PlannedRoomStanding(room, rooms); !standing {
+		if _, standing := CensusRoomIn(room, rooms); !standing {
 			continue
 		}
 		for _, c := range rectCells(room.Interior) {

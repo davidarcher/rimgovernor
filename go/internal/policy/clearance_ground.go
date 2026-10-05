@@ -36,16 +36,16 @@ const (
 	GroundFloors GroundPhase = "floors"
 )
 
-// PlannedGround is the ground of every open-ground planned room with no room
-// standing in it yet, in plan order: its interior and its wall ring. A room
-// already standing holds its own buildings and is left alone.
-func PlannedGround(plan LayoutPlan, rooms RoomObservation) []Rectangle {
+// PlannedGround is the ground of every open-ground planned room whose ring
+// does not yet match the plan (GroundMatches), in plan order: its interior and
+// its wall ring. A room already built holds its own buildings and is left alone.
+func PlannedGround(plan LayoutPlan, ground GroundCensus) []Rectangle {
 	var out []Rectangle
 	for _, r := range plan.AllRooms() {
 		if r.Dug {
 			continue
 		}
-		if _, ok := PlannedRoomStanding(r, rooms); ok {
+		if plan.GroundMatches(r, ground) {
 			continue
 		}
 		out = append(out, roomGround(r.Interior))

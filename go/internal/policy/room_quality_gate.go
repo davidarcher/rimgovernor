@@ -70,7 +70,7 @@ func gateSuiteClaims(claims []SuiteClaim, plan LayoutPlan, rooms RoomObservation
 	var out []SuiteClaim
 	for _, c := range claims {
 		if i := len(out); i < len(vacant) {
-			if room, ok := PlannedRoomStanding(vacant[i], rooms); ok && len(room.Beds) > 0 {
+			if room, ok := CensusRoomIn(vacant[i], rooms); ok && len(room.Beds) > 0 {
 				out = append(out, c)
 				continue
 			}

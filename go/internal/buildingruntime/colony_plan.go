@@ -119,19 +119,18 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	if haveLayout {
 		needs, defs := childRoomNeeds(*projection), furnitureDefinitions(*projection)
 		growth.Child = policy.ChildRoomsOwed(layout.Plan, needs, defs)
-		if census, known := projection.Rooms.Value(); known && (policy.DuplicateRooms(layout.Plan) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
-			growth.Shapes, growth.Built = policy.ChildRoomShapes(needs, defs), policy.BuiltRooms(layout.Plan, census)
+		if ground, known := colonyGround(*projection); known && (policy.DuplicateRooms(layout.Plan) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
+			growth.Shapes, growth.Built = policy.ChildRoomShapes(needs, defs), policy.BuiltRooms(layout.Plan, ground)
 		}
 	}
 	// An unbuilt room whose need has ended (#1824) leaves the plan.
 	if haveLayout {
-		rooms, rk := projection.Rooms.Value()
 		construction, ck := projection.Facts.CurrentConstruction.Value()
-		if rk && ck && construction.Colony {
+		if ck && construction.Colony {
 			ended := policy.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, childRoomNeeds(*projection))
 			if policy.RoomsOfRoles(layout.Plan, ended) > 0 {
 				growth.Ended = ended
-				growth.InUse = policy.RoomsInUse(layout.Plan, rooms, construction.Buildings, furnitureDefinitions(*projection))
+				growth.InUse = policy.RoomsInUse(layout.Plan, construction.Buildings, furnitureDefinitions(*projection))
 			}
 		}
 	}
@@ -181,8 +180,8 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				// the journal's open plans, only once a replan is due. Nil while
 				// the census or the plan catalog is unknown keeps every room.
 				if occupied, origins, ok := r.layoutOccupied(ctx, *projection, layout.Plan); ok {
-					rooms, _ := projection.Rooms.Value()
-					growth.Fixed, growth.Occupied = policy.FixedRooms(layout.Plan, rooms, occupied), occupied
+					ground, _ := colonyGround(*projection)
+					growth.Fixed, growth.Occupied = policy.FixedRooms(layout.Plan, ground, occupied), occupied
 					growth.InFlight = policy.InFlightRooms(layout.Plan, origins)
 				} else {
 					// Open plans unknown: no shelter is dropped over work in flight.

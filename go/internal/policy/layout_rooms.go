@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // Room construction to plan shapes (#787, C3): a room builder raises the
 // planned room's exact rectangle and door instead of searching.
@@ -53,9 +57,53 @@ func PlannedRoleFor(role RoomRole) (PlannedRole, bool) {
 	return "", false
 }
 
-// PlannedRoomStanding is the census room standing enclosed on the planned
-// room's centre cell and no larger than its interior.
-func PlannedRoomStanding(r PlannedRoom, rooms RoomObservation) (Room, bool) {
+// GroundCensus is the walls and doors standing on the ground, by cell: the
+// geometry a PlannedRoom's ring is matched against.
+type GroundCensus struct{ walls, doors map[domain.Cell]bool }
+
+// GroundOf reads the walls and doors out of the colony's built buildings.
+func GroundOf(buildings []CurrentBuilding) GroundCensus {
+	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}}
+	for _, b := range buildings {
+		def := b.Building.Definition()
+		for _, c := range b.Cells {
+			switch {
+			case def == "Wall":
+				g.walls[c] = true
+			case strings.Contains(strings.ToLower(def), "door"):
+				g.doors[c] = true
+			}
+		}
+	}
+	return g
+}
+
+// GroundMatches is true when r's wall ring and doors stand as planned: a wall
+// on every ring cell, a door on each cell the plan holds one (ShellDoors) and
+// none elsewhere on the ring. Geometry only; floors and furniture are separate
+// diffs. No census room need be enclosed yet (a ring still unroofed matches).
+func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
+	doors := map[domain.Cell]bool{}
+	for _, d := range p.ShellDoors(r) {
+		doors[d] = true
+	}
+	ring := roomWalls(r)
+	for _, c := range rectCells(ring) {
+		if !onRing(c, ring) {
+			continue
+		}
+		if doors[c] != g.doors[c] || !doors[c] && !g.walls[c] {
+			return false
+		}
+	}
+	return true
+}
+
+// CensusRoomIn is the census room standing enclosed on the planned
+// room's centre cell and no larger than its interior: the lookup for the
+// room's role, quality and temperature. Whether the room is built is
+// GroundMatches.
+func CensusRoomIn(r PlannedRoom, rooms RoomObservation) (Room, bool) {
 	centre := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
 	for _, room := range rooms.Rooms {
 		if len(room.Cells) > int(r.Interior.Width*r.Interior.Height) {
@@ -110,14 +158,14 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 }
 
 // NextPlannedRoom is the plan's first open-ground room of role with no
-// room standing in it yet (#835): the kitchen, freezer or jail its owning
+// ring standing yet (#835): the kitchen, freezer or jail its owning
 // goal shells before furnishing. A dug room is mined out first (#836).
-func (p LayoutPlan) NextPlannedRoom(role PlannedRole, rooms RoomObservation) (PlannedRoom, bool) {
+func (p LayoutPlan) NextPlannedRoom(role PlannedRole, ground GroundCensus) (PlannedRoom, bool) {
 	for _, r := range p.AllRooms() {
 		if r.Role != role {
 			continue
 		}
-		if _, ok := PlannedRoomStanding(r, rooms); !ok {
+		if !p.GroundMatches(r, ground) {
 			return r, true
 		}
 	}
