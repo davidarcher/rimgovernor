@@ -71,6 +71,18 @@ busy. A failed poll marks the last good values stale. When a run goes from
 active to completed while the page watches, the page selects the new save in the
 Saved game picker (and so persists it as the load setting).
 
+The form has no save-name field. `Generate` derives the name in Go
+(`DeriveSaveName`): `RimGovernor-<scenario>-<biome, any or multi>-<seed slug>`
+within the save-name pattern, with `-2`, `-3`, ... appended when the launcher's
+saves folder (`ListSaves`, case-insensitive) already holds that name, so a
+generate never overwrites a save. The name travels in the wire spec as before
+(any caller-sent name is replaced) and shows in the progress as `saveName`.
+Map size and planet coverage are option lists (`mapSizes`, `planetCoverages`)
+copied from RimWorld's own pages (`Dialog_AdvancedGameConfig.MapSizes` 200 to
+325 in steps of 25; `Page_CreateWorldParams.PlanetCoverages` 0.3, 0.5, 1; the
+350/400 and 0.05 values are native test and dev-mode only). Temperature band,
+world temperature and planet coverage sit in a collapsed Advanced section.
+
 ## ControlsThe launcher has no bot or clock controls. In Autopilot it passes `serve --resume`, so thebot runs on every load, and serve runs every window at Ultrafast whatever speedthe native controls show; `--follow-player-speed` (acceptance harnesses) opts backinto the player's own speed (#875). Clock holds are not acknowledged from thelauncher. The player has no other control surface, and player edits get noexemption from the autopilot.
 ## Help
 

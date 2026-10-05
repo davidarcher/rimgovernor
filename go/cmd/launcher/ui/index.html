@@ -126,6 +126,8 @@
   .ncbiomes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin: 4px 0 8px; }
   .ncbiomes .check { margin: 2px 0; }
   .ncseed { display: flex; gap: 6px; }
+  section.colony details { margin: 6px 0; }
+  section.colony summary { cursor: pointer; color: var(--muted, inherit); margin-bottom: 6px; }
   section.colony .ncseed input { width: 130px; }
   .ncband { display: flex; gap: 6px; align-items: center; }
   .ncactions { display: flex; gap: 8px; margin-top: 12px; }
@@ -224,13 +226,15 @@
       <div class="ncbiomes" id="ncBiomes"></div>
       <div class="field"><label for="ncDifficulty">Difficulty</label><select id="ncDifficulty"></select></div>
       <div class="field"><label for="ncStoryteller">Storyteller</label><select id="ncStoryteller"></select></div>
-      <div class="field"><label for="ncMinTemp">Temperature band</label>
-        <span class="ncband"><input type="number" class="short" id="ncMinTemp" placeholder="min"><input type="number" class="short" id="ncMaxTemp" placeholder="max"></span></div>
-      <div class="field"><label for="ncWorldTemp">World temperature</label><select id="ncWorldTemp"></select></div>
-      <div class="field"><label for="ncMapSize">Map size</label><input type="number" class="short" id="ncMapSize"></div>
-      <div class="field"><label for="ncCoverage">Planet coverage</label><input type="number" class="short" id="ncCoverage" step="0.05"></div>
+      <div class="field"><label for="ncMapSize">Map size</label><select id="ncMapSize"></select></div>
       <div class="check"><input type="checkbox" id="ncFlat"><label for="ncFlat">Flat tile</label></div>
-      <div class="field"><label for="ncSaveName">Save name</label><input type="text" id="ncSaveName" spellcheck="false"></div>
+      <details id="ncAdvanced">
+        <summary>Advanced</summary>
+        <div class="field"><label for="ncMinTemp">Temperature band</label>
+          <span class="ncband"><input type="number" class="short" id="ncMinTemp" placeholder="min"><input type="number" class="short" id="ncMaxTemp" placeholder="max"></span></div>
+        <div class="field"><label for="ncWorldTemp">World temperature</label><select id="ncWorldTemp"></select></div>
+        <div class="field"><label for="ncCoverage">Planet coverage</label><select id="ncCoverage"></select></div>
+      </details>
     </fieldset>
     <div class="ncactions">
       <button class="primary" id="ncGenerate">Generate</button>
@@ -238,6 +242,7 @@
     </div>
     <div class="ncprogress" id="ncProgress" role="status" hidden>
       <div class="row"><b id="ncState"></b><span id="ncTimer"></span></div>
+      <div id="ncName" class="detail"></div>
       <div id="ncPhase"></div>
       <div class="detail" id="ncDetail"></div>
       <div class="detail" id="ncReroll"></div>
@@ -601,11 +606,11 @@ function ncFill(v) {
   $('ncDifficulty').innerHTML = o.difficulties.map(ncOpt).join('');
   $('ncStoryteller').innerHTML = o.storytellers.map(ncOpt).join('');
   $('ncWorldTemp').innerHTML = o.worldTemperatures.map(ncOpt).join('');
+  $('ncMapSize').innerHTML = o.mapSizes.map(ncOpt).join('');
+  $('ncCoverage').innerHTML = o.planetCoverages.map(ncOpt).join('');
   $('ncBiomes').innerHTML = o.biomes.map(b =>
     `<div class="check"><input type="checkbox" data-biome="${esc(b.value)}" id="ncb-${esc(b.value)}"><label for="ncb-${esc(b.value)}">${esc(b.label)}${b.requires ? ' (needs ' + esc(b.requires) + ')' : ''}</label></div>`).join('');
   $('ncColonists').min = r.colonistsMin; $('ncColonists').max = r.colonistsMax;
-  $('ncMapSize').min = r.mapSizeMin; $('ncMapSize').max = r.mapSizeMax;
-  $('ncCoverage').min = r.coverageMin; $('ncCoverage').max = r.coverageMax;
   $('ncMinTemp').min = $('ncMaxTemp').min = -r.temperatureAbs;
   $('ncMinTemp').max = $('ncMaxTemp').max = r.temperatureAbs;
   $('ncScenario').value = sp.scenario;
@@ -617,10 +622,9 @@ function ncFill(v) {
   $('ncMinTemp').value = sp.minTemperature ?? '';
   $('ncMaxTemp').value = sp.maxTemperature ?? '';
   $('ncWorldTemp').value = sp.worldTemperature;
-  $('ncMapSize').value = sp.mapSize;
-  $('ncCoverage').value = sp.planetCoverage;
+  $('ncMapSize').value = String(sp.mapSize);
+  $('ncCoverage').value = String(sp.planetCoverage);
   $('ncFlat').checked = !!sp.flatTile;
-  $('ncSaveName').value = sp.saveName;
 }
 function ncSpec() {
   const band = id => $(id).value.trim() === '' ? null : Number($(id).value);
@@ -629,7 +633,7 @@ function ncSpec() {
     biomes: [...document.querySelectorAll('#ncBiomes [data-biome]:checked')].map(c => c.dataset.biome),
     flatTile: $('ncFlat').checked, difficulty: $('ncDifficulty').value, storyteller: $('ncStoryteller').value,
     worldTemperature: $('ncWorldTemp').value, mapSize: Number($('ncMapSize').value),
-    planetCoverage: Number($('ncCoverage').value), saveName: $('ncSaveName').value.trim(),
+    planetCoverage: Number($('ncCoverage').value),
   };
   const lo = band('ncMinTemp'), hi = band('ncMaxTemp');
   if (lo !== null) spec.minTemperature = lo;
@@ -667,6 +671,7 @@ function ncRender(v) {
   box.hidden = p.state === 'idle';
   box.className = 'ncprogress ' + p.state + (p.stale ? ' stale' : '');
   $('ncState').textContent = p.state;
+  $('ncName').textContent = p.saveName ? 'Save name: ' + p.saveName : '';
   $('ncPhase').textContent = p.phase || '';
   $('ncDetail').textContent = p.detail || '';
   $('ncReroll').textContent = p.rerollCount ? 'rerolls: ' + p.rerollCount : '';

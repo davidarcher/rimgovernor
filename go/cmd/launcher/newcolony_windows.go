@@ -15,6 +15,7 @@ func (h colonyApp) Observe() bool {
 
 func (h colonyApp) CloseGame()                      { h.a.closeGame() }
 func (h colonyApp) BaseURL() string                 { return h.a.serveURL() }
+func (h colonyApp) SavesDir() string                { return h.a.savesDir() }
 func (h colonyApp) Logf(format string, args ...any) { h.a.logf(format, args...) }
 
 // StartController plays on the saved settings minus what would load or

@@ -43,12 +43,13 @@ type NewColonySpec struct {
 	SaveName         string   `json:"saveName"`
 }
 
-// DefaultNewColonySpec is the tribal-8 spec.
+// DefaultNewColonySpec is the tribal-8 spec. SaveName is empty: Generate
+// derives it (DeriveSaveName) and replaces any name a caller sends.
 func DefaultNewColonySpec() NewColonySpec {
 	return NewColonySpec{
 		Scenario: "LostTribe", ColonistCount: 8, Biomes: []string{"TemperateForest"},
 		Difficulty: "Medium", Storyteller: "Cassandra", WorldTemperature: "LittleBitColder",
-		MapSize: 250, PlanetCoverage: 0.3, SaveName: "RimGovernor-tribal8",
+		MapSize: 250, PlanetCoverage: 0.3,
 	}
 }
 
@@ -70,6 +71,11 @@ type NewColonyOptions struct {
 	Difficulties      []Option `json:"difficulties"`
 	Storytellers      []Option `json:"storytellers"`
 	WorldTemperatures []Option `json:"worldTemperatures"`
+	// MapSizes and PlanetCoverages are the values RimWorld's own pages offer
+	// (Dialog_AdvancedGameConfig.MapSizes, Page_CreateWorldParams.PlanetCoverages),
+	// with native's labels. Values are the numbers as text.
+	MapSizes        []Option `json:"mapSizes"`
+	PlanetCoverages []Option `json:"planetCoverages"`
 }
 
 var newColonyOptions = NewColonyOptions{
@@ -124,25 +130,35 @@ var newColonyOptions = NewColonyOptions{
 		{"Hot", "Hot", ""},
 		{"VeryHot", "Very hot", ""},
 	},
+	// Native MapSizes are 200 to 325 in steps of 25, labelled by the
+	// MapSizeDesc key ({0}x{0} ({1} cells)); 350 and 400 are test-only.
+	MapSizes: []Option{
+		{"200", "200x200 (40000 cells)", ""},
+		{"225", "225x225 (50625 cells)", ""},
+		{"250", "250x250 (62500 cells)", ""},
+		{"275", "275x275 (75625 cells)", ""},
+		{"300", "300x300 (90000 cells)", ""},
+		{"325", "325x325 (105625 cells)", ""},
+	},
+	// Native PlanetCoverages are 0.3, 0.5 and 1, labelled ToStringPercent;
+	// 0.05 is dev mode only.
+	PlanetCoverages: []Option{
+		{"0.3", "30%", ""},
+		{"0.5", "50%", ""},
+		{"1", "100%", ""},
+	},
 }
 
 // NewColonyRanges are the validation ranges the form shows.
 type NewColonyRanges struct {
-	ColonistsMin    int     `json:"colonistsMin"`
-	ColonistsMax    int     `json:"colonistsMax"`
-	MapSizeMin      int     `json:"mapSizeMin"`
-	MapSizeMax      int     `json:"mapSizeMax"`
-	CoverageMin     float64 `json:"coverageMin"`
-	CoverageMax     float64 `json:"coverageMax"`
-	TemperatureAbs  float64 `json:"temperatureAbs"`
-	SaveNamePattern string  `json:"saveNamePattern"`
+	ColonistsMin   int     `json:"colonistsMin"`
+	ColonistsMax   int     `json:"colonistsMax"`
+	TemperatureAbs float64 `json:"temperatureAbs"`
 }
 
 var newColonyRanges = NewColonyRanges{
 	ColonistsMin: 1, ColonistsMax: bridgepkg.NewColonyMaxColonists,
-	MapSizeMin: bridgepkg.NewColonyMinMapSize, MapSizeMax: bridgepkg.NewColonyMaxMapSize,
-	CoverageMin: bridgepkg.NewColonyMinCoverage, CoverageMax: bridgepkg.NewColonyMaxCoverage,
-	TemperatureAbs: bridgepkg.NewColonyMaxTemperature, SaveNamePattern: `^[A-Za-z0-9_-]{1,64}$`,
+	TemperatureAbs: bridgepkg.NewColonyMaxTemperature,
 }
 
 // Generation states. Active ones: restarting, connecting, generating.
@@ -190,6 +206,9 @@ type NewColonyView struct {
 // ValidateNewColonySpec refuses a spec the wire would refuse, before any
 // process is stopped. Whether a defName exists is native's call.
 func ValidateNewColonySpec(s NewColonySpec) error {
+	if s.SaveName == "" {
+		s.SaveName = savePrefix + "x"
+	}
 	_, err := wireSpec(s, "x")
 	return err
 }
@@ -215,6 +234,46 @@ func wireSpec(s NewColonySpec, seed string) (*l.NewColonySpec, error) {
 	return spec, nil
 }
 
+const savePrefix = "RimGovernor-"
+
+// DeriveSaveName is the save name for spec and seed: RimGovernor-<scenario>-
+// <biome, "any" for none, "multi" for several>-<seed slug>, within the wire's
+// save-name pattern. It is deterministic for a spec; when existing (the save
+// names in the saves folder, compared case-insensitively) holds that name it
+// appends -2, -3, ... so a generate never overwrites a save.
+func DeriveSaveName(spec NewColonySpec, seed string, existing []string) string {
+	biome := "any"
+	switch len(spec.Biomes) {
+	case 0:
+	case 1:
+		biome = spec.Biomes[0]
+	default:
+		biome = "multi"
+	}
+	slug := func(s string, max int) string {
+		var b strings.Builder
+		for _, c := range s {
+			if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') && b.Len() < max {
+				b.WriteRune(c)
+			}
+		}
+		if b.Len() == 0 {
+			return "x"
+		}
+		return b.String()
+	}
+	base := savePrefix + slug(spec.Scenario, 16) + "-" + slug(biome, 18) + "-" + slug(seed, 12)
+	taken := make(map[string]bool, len(existing))
+	for _, e := range existing {
+		taken[strings.ToLower(e)] = true
+	}
+	name := base
+	for n := 2; taken[strings.ToLower(name)]; n++ {
+		name = base + "-" + strconv.Itoa(n)
+	}
+	return name
+}
+
 // colonyHost is what the generation flow needs of the launcher app.
 type colonyHost interface {
 	Observe() bool
@@ -224,6 +283,8 @@ type colonyHost interface {
 	// state) and returns once it answers, or why it did not.
 	StartController() error
 	BaseURL() string
+	// SavesDir is the saves folder the launcher lists.
+	SavesDir() string
 	SaveSpec(NewColonySpec) error
 	Logf(format string, args ...any)
 }
@@ -293,6 +354,7 @@ func (r *colonyRunner) Generate(spec NewColonySpec) error {
 		rand.Read(b[:])
 		seed = hex.EncodeToString(b[:])
 	}
+	spec.SaveName = DeriveSaveName(spec, seed, ListSaves(r.host.SavesDir()))
 	if _, err := wireSpec(spec, seed); err != nil {
 		return err
 	}
@@ -304,7 +366,7 @@ func (r *colonyRunner) Generate(spec NewColonySpec) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	id := "launcher-new-" + strconv.FormatInt(r.now().UnixNano(), 36)
 	r.cancel, r.spec, r.started = cancel, spec, r.now()
-	r.progress = NewColonyProgress{State: ColonyRestarting, RequestID: id, Seed: seed}
+	r.progress = NewColonyProgress{State: ColonyRestarting, RequestID: id, Seed: seed, SaveName: spec.SaveName}
 	r.mu.Unlock()
 	if err := r.host.SaveSpec(spec); err != nil {
 		r.host.Logf("new colony: save the spec: %v", err)

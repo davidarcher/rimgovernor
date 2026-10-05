@@ -24,9 +24,13 @@ Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`.
 The **New colony** panel on the Launch tab generates a fresh colony without
 touching the RimWorld menus: pick the scenario, colonist count, seed (blank is
 random; **Random** fills one in), biomes, difficulty, storyteller (including
-Quiet), an optional temperature band, world temperature, map size, planet
-coverage, flat tile and a save name, then press **Generate**. Options marked
-"needs <DLC>" require that expansion; the game refuses one it lacks.
+Quiet), map size and flat tile, then press **Generate**. **Advanced** (collapsed)
+holds the temperature band, world temperature and planet coverage. Map size and
+planet coverage offer the same choices as RimWorld's own world creation. The
+save is named automatically (`RimGovernor-<scenario>-<biome>-<seed>`, with `-2`,
+`-3` added if that name exists, so nothing is overwritten) and the panel shows
+the name. Options marked "needs <DLC>" require that expansion; the game refuses
+one it lacks.
 
 Generation closes the running game and controller, restarts them, builds the
 world and saves the colony, so it needs Autopilot (Observe only shows a notice

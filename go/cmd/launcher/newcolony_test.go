@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +18,7 @@ type fakeColonyHost struct {
 	mu       sync.Mutex
 	observe  bool
 	base     string
+	saves    string
 	closes   int
 	starts   int
 	startErr error
@@ -28,7 +33,8 @@ func (h *fakeColonyHost) StartController() error {
 	h.starts++
 	return h.startErr
 }
-func (h *fakeColonyHost) BaseURL() string { return h.base }
+func (h *fakeColonyHost) BaseURL() string  { return h.base }
+func (h *fakeColonyHost) SavesDir() string { return h.saves }
 func (h *fakeColonyHost) SaveSpec(s NewColonySpec) error {
 	h.mu.Lock()
 	h.saved = append(h.saved, s)
@@ -58,7 +64,7 @@ func colonyFixture(t *testing.T, lifecycle func(w http.ResponseWriter, r *http.R
 		lifecycle(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	host := &fakeColonyHost{base: srv.URL}
+	host := &fakeColonyHost{base: srv.URL, saves: t.TempDir()}
 	r := newColonyRunner(host, DefaultNewColonySpec())
 	r.poll = time.Millisecond
 	return r, host
@@ -107,6 +113,90 @@ func TestNewColonyDefaultsAreValid(t *testing.T) {
 	}
 }
 
+func TestNewColonyListedValuesAreValid(t *testing.T) {
+	for _, m := range newColonyOptions.MapSizes {
+		n, err := strconv.Atoi(m.Value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := DefaultNewColonySpec()
+		s.MapSize = n
+		if err := ValidateNewColonySpec(s); err != nil {
+			t.Errorf("map size %s: %v", m.Value, err)
+		}
+	}
+	for _, c := range newColonyOptions.PlanetCoverages {
+		f, err := strconv.ParseFloat(c.Value, 32)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := DefaultNewColonySpec()
+		s.PlanetCoverage = float32(f)
+		if err := ValidateNewColonySpec(s); err != nil {
+			t.Errorf("coverage %s: %v", c.Value, err)
+		}
+	}
+	d := DefaultNewColonySpec()
+	has := func(opts []Option, v string) bool {
+		for _, o := range opts {
+			if o.Value == v {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(newColonyOptions.MapSizes, strconv.Itoa(d.MapSize)) || !has(newColonyOptions.PlanetCoverages, strconv.FormatFloat(float64(d.PlanetCoverage), 'g', -1, 32)) {
+		t.Fatal("defaults are not in the lists")
+	}
+}
+
+func TestDeriveSaveName(t *testing.T) {
+	pattern := regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+	spec := DefaultNewColonySpec()
+	name := DeriveSaveName(spec, "abc 123/../x", nil)
+	if name != "RimGovernor-LostTribe-TemperateForest-abc123x" || !pattern.MatchString(name) {
+		t.Fatal(name)
+	}
+	if DeriveSaveName(spec, "abc 123/../x", nil) != name {
+		t.Fatal("not deterministic")
+	}
+	spec.Biomes = nil
+	if n := DeriveSaveName(spec, "s", nil); n != "RimGovernor-LostTribe-any-s" {
+		t.Fatal(n)
+	}
+	spec.Biomes = []string{"Tundra", "Desert"}
+	if n := DeriveSaveName(spec, "", nil); n != "RimGovernor-LostTribe-multi-x" {
+		t.Fatal(n)
+	}
+	long := DeriveSaveName(NewColonySpec{Scenario: strings.Repeat("S", 80), Biomes: []string{strings.Repeat("B", 80)}}, strings.Repeat("9", 80), []string{"x"})
+	if !pattern.MatchString(long) {
+		t.Fatal(long)
+	}
+	// existing saves, case-insensitively, push the suffix up
+	taken := []string{name, strings.ToLower(name) + "-2"}
+	if n := DeriveSaveName(DefaultNewColonySpec(), "abc 123/../x", taken); n != name+"-3" || !pattern.MatchString(n) {
+		t.Fatal(n)
+	}
+}
+
+func TestNewColonyGenerateNeverOverwritesASave(t *testing.T) {
+	r, host := colonyFixture(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(pending("generating world", 0))) })
+	spec := DefaultNewColonySpec()
+	spec.Seed = "fixed"
+	first := "RimGovernor-LostTribe-TemperateForest-fixed"
+	if err := os.WriteFile(filepath.Join(host.saves, first+".rws"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Generate(spec); err != nil {
+		t.Fatal(err)
+	}
+	v := waitColony(t, r, ColonyGenerating)
+	if v.Progress.SaveName != first+"-2" || host.saved[0].SaveName != first+"-2" {
+		t.Fatalf("%+v %+v", v.Progress, host.saved)
+	}
+	r.Cancel()
+}
+
 func TestNewColonyValidationBeforeAnyStop(t *testing.T) {
 	r, host := colonyFixture(t, func(http.ResponseWriter, *http.Request) { t.Error("served") })
 	hot := float32(300)
@@ -115,7 +205,6 @@ func TestNewColonyValidationBeforeAnyStop(t *testing.T) {
 		"zero":      func(s *NewColonySpec) { s.ColonistCount = 0 },
 		"map":       func(s *NewColonySpec) { s.MapSize = 50 },
 		"coverage":  func(s *NewColonySpec) { s.PlanetCoverage = 1.5 },
-		"save":      func(s *NewColonySpec) { s.SaveName = "../x" },
 		"temp":      func(s *NewColonySpec) { s.MaxTemperature = &hot },
 		"scenario":  func(s *NewColonySpec) { s.Scenario = "" },
 	} {
@@ -170,7 +259,7 @@ func TestNewColonySuccessWithPhaseProgression(t *testing.T) {
 			var body map[string]any
 			json.NewDecoder(req.Body).Decode(&body)
 			spec := body["spec"].(map[string]any)
-			if body["requestId"] == "" || spec["seed"] == "" || spec["saveName"] != "RimGovernor-tribal8" || body["timeoutMs"].(float64) < 1000 {
+			if body["requestId"] == "" || spec["seed"] == "" || !strings.HasPrefix(spec["saveName"].(string), "RimGovernor-LostTribe-TemperateForest-") || body["timeoutMs"].(float64) < 1000 {
 				t.Errorf("body %v", body)
 			}
 			w.WriteHeader(202)
