@@ -20,7 +20,7 @@ import (
 // the check once it is built. Capture itself is not planned here.
 
 // ShellWallDefinition and ShellDoorDefinition are the defs a planned room's
-// shell is built from (the sleeping planner's shellRoom); the prediction
+// shell is built from (reconcileRoom); the prediction
 // reads their hit points.
 const (
 	ShellWallDefinition = "Wall"

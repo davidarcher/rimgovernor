@@ -60,7 +60,16 @@ func TestIncineratorStepFollowsTheRing(t *testing.T) {
 	}
 	room := site.Room()
 	var built []policy.CurrentBuilding
-	for _, c := range incineratorRing(plan, room, facts) {
+	in := room.Interior
+	var ring []domain.Cell
+	for x := in.X - 1; x <= in.X+in.Width; x++ {
+		for z := in.Z - 1; z <= in.Z+in.Height; z++ {
+			if x == in.X-1 || x == in.X+in.Width || z == in.Z-1 || z == in.Z+in.Height {
+				ring = append(ring, domain.Cell{X: x, Z: z})
+			}
+		}
+	}
+	for _, c := range ring {
 		def := "Wall"
 		if c == room.Door {
 			def = "Door"

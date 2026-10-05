@@ -33,6 +33,39 @@ type roomReconcile struct {
 	tags      []string
 	name      string
 	reason    string
+	// ringOnly reconciles the ring and its doors alone: no furniture template,
+	// floors or wall-stuff swaps, and no clearance read, so a caller that holds
+	// no packed stock (dining, kitchen, the gear rooms, the incinerator) can use
+	// it. A ring cell the native refuses is no_space, as for an outdoor ring.
+	ringOnly bool
+	// stuff overrides the wall's and door's stuff (the incinerator's fireproof
+	// choice); nil builds both from the one shared shell stuff.
+	stuff shellStuff
+}
+
+// roomRingInput is the ring-only diff input for room: the plan, the colony's
+// walls and doors with natural rock counted as wall; false while the construction
+// census is unknown.
+func roomRingInput(facts observation.ColonyProjection, plan policy.LayoutPlan, room policy.PlannedRoom) (policy.ReconcileInput, bool) {
+	buildings, known := colonyGround(facts)
+	if !known {
+		return policy.ReconcileInput{}, false
+	}
+	return policy.ReconcileInput{Plan: plan, Room: room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)), Rooms: colonyRooms(facts)}, true
+}
+
+// roomRingOwed is true while room's ring has a wall or door still to raise.
+func roomRingOwed(facts observation.ColonyProjection, plan policy.LayoutPlan, room policy.PlannedRoom) bool {
+	in, known := roomRingInput(facts, plan, room)
+	if !known {
+		return false
+	}
+	for _, op := range policy.Reconcile(in).Owed {
+		if op.Kind == policy.OpWallIn || op.Kind == policy.OpDoorIn {
+			return true
+		}
+	}
+	return false
 }
 
 // flooringFacts is the flooring review's view of the colony's floors: every
@@ -84,40 +117,38 @@ func roomWaiting(name string) RoundsBuildingResult {
 func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rr roomReconcile) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	plan, known := facts.LayoutPlan.Value()
-	buildings, bk := colonyGround(facts)
-	if !known || !bk {
+	in, ground := roomRingInput(facts, plan, rr.room)
+	if !known || !ground {
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 	}
-	source, ok := b.native.(observation.ClearanceSource)
-	if !ok {
-		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
-	}
-	read, err := observation.ObserveClearanceCensusOnGround(call, source, facts.Identity, false, []policy.Rectangle{rr.room.RoomGround()})
-	if err != nil {
-		return RoundsBuildingResult{}, err
-	}
-	census, known := read.Value()
-	if !known {
-		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
-	}
-	_, player := policy.SplitGroundRows(census.Targets)
-	in := policy.ReconcileInput{
-		Plan: plan, Room: rr.room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)),
-		Rows:   policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden),
-		Floors: census.Floors, Rooms: colonyRooms(facts), Furniture: rr.template,
-	}
-	if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
-		in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
-	}
-	if !rr.room.Outdoor {
-		in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
-	}
-	if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
-		return RoundsBuildingResult{}, err
-	} else if readable {
-		in.Stock = map[string]int{}
-		for _, item := range items {
-			in.Stock[item.InnerDef]++
+	if !rr.ringOnly {
+		source, ok := b.native.(observation.ClearanceSource)
+		if !ok {
+			return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
+		}
+		read, err := observation.ObserveClearanceCensusOnGround(call, source, facts.Identity, false, []policy.Rectangle{rr.room.RoomGround()})
+		if err != nil {
+			return RoundsBuildingResult{}, err
+		}
+		census, known := read.Value()
+		if !known {
+			return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
+		}
+		_, player := policy.SplitGroundRows(census.Targets)
+		in.Rows, in.Floors, in.Furniture = policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden), census.Floors, rr.template
+		if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
+			in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
+		}
+		if !rr.room.Outdoor {
+			in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
+		}
+		if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
+			return RoundsBuildingResult{}, err
+		} else if readable {
+			in.Stock = map[string]int{}
+			for _, item := range items {
+				in.Stock[item.InnerDef]++
+			}
 		}
 	}
 	ops := policy.ReconcileRoom(in)
@@ -137,6 +168,13 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 		}
 	}
 	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, rr, ops)
+}
+
+// reconcileRing raises a planned room's ring and doors alone (ringOnly): the
+// path of the owners that furnish the room themselves.
+func (b *RoundsBuildingPlanner) reconcileRing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, rr roomReconcile) (RoundsBuildingResult, error) {
+	rr.ringOnly = true
+	return b.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, rr)
 }
 
 // methodOnce is true when the owner has not committed method yet.
@@ -245,7 +283,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 	if wantWalls {
 		var refusal Verdict
 		var ok bool
-		if wallStuff, doorStuff, refusal, ok = shellMaterials(facts, wallDef, doorDef); !ok {
+		if wallStuff, doorStuff, refusal, ok = shellMaterials(facts, wallDef, doorDef, rr.stuff); !ok {
 			return RoundsBuildingResult{Verdict: refusal}, nil
 		}
 	}
@@ -275,6 +313,11 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		}
 	}
 	if len(builds) == 0 {
+		if rr.ringOnly {
+			// Nothing of the ring is ready (a door awaits the clear side's wall
+			// removal): the owner goes on to its own placement.
+			return RoundsBuildingResult{Verdict: noSpace("room_ring")}, nil
+		}
 		return roomWaiting(rr.name), nil
 	}
 	p := b.reviewer.player
@@ -319,7 +362,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
-			if build.ring && rr.room.Outdoor {
+			if build.ring && (rr.room.Outdoor || rr.ringOnly) {
 				// The planner sited this ring: a cell the native refuses is
 				// reported and left to the plan's replan, never moved to
 				// another site (#2120).
@@ -346,7 +389,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 
 // shellMaterials chooses the wall's and the door's stuff from the one stuff the
 // colony can raise a shell from; refusal names what is unavailable.
-func shellMaterials(facts observation.ColonyProjection, wall, door string) (wallStuff, doorStuff string, refusal Verdict, ok bool) {
+func shellMaterials(facts observation.ColonyProjection, wall, door string, choose shellStuff) (wallStuff, doorStuff string, refusal Verdict, ok bool) {
 	wallDef, wok := animalContainmentDefinition(facts.Definitions, wall)
 	doorDef, dok := animalContainmentDefinition(facts.Definitions, door)
 	if !wok || !dok {
@@ -356,6 +399,9 @@ func shellMaterials(facts observation.ColonyProjection, wall, door string) (wall
 	da, dak := doorDef.Available.Value()
 	if !wak || !dak || !wa || !da {
 		return "", "", fieldUnavailable("wall_door_availability"), false
+	}
+	if choose != nil {
+		return choose(wallDef, doorDef)
 	}
 	return sharedShellStuff(facts, wallDef, doorDef)
 }

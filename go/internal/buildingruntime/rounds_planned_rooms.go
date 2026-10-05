@@ -146,7 +146,7 @@ func (r *RoundsBuildingPlanner) plannedDiningFurnishing(call, epoch context.Cont
 	if !owed {
 		return r, RoundsBuildingResult{}, false, nil
 	}
-	result, err = r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
+	result, err = r.reconcileRing(call, epoch, state, review, goal, reading, roomReconcile{room: room, name: string(plannedRoomMethod(room))})
 	if err != nil || !result.Verdict.skipsToPlacement() {
 		return nil, result, true, err
 	}

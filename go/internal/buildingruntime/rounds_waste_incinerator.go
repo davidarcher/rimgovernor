@@ -39,17 +39,6 @@ func fireproofRefusal(err error) Verdict {
 	return fieldUnavailable("incinerator_stuff")
 }
 
-// incineratorRing is the planned incinerator's wall and door cells still to
-// raise.
-func incineratorRing(plan policy.LayoutPlan, room policy.PlannedRoom, facts observation.ColonyProjection) []domain.Cell {
-	order := plan.ShellDoors(room)
-	doors := make(map[domain.Cell]bool, len(order))
-	for _, d := range order {
-		doors[d] = true
-	}
-	return bedroomRing(room, doors, order, facts)
-}
-
 // incineratorRooms are the plan's incinerators; unknown without the plan and
 // the construction census.
 func incineratorRooms(facts observation.ColonyProjection) (plan policy.LayoutPlan, rooms []policy.PlannedRoom, known bool) {
@@ -69,7 +58,7 @@ func incineratorStep(facts observation.ColonyProjection) (policy.PlannedRoom, bo
 		return policy.PlannedRoom{}, false
 	}
 	for _, room := range rooms {
-		if len(incineratorRing(plan, room, facts)) > 0 {
+		if roomRingOwed(facts, plan, room) {
 			return room, true
 		}
 	}
@@ -84,7 +73,7 @@ func standingIncinerator(facts observation.ColonyProjection) *policy.PlannedRoom
 		return nil
 	}
 	for _, room := range rooms {
-		if len(incineratorRing(plan, room, facts)) == 0 {
+		if !roomRingOwed(facts, plan, room) {
 			return &room
 		}
 	}
@@ -118,6 +107,6 @@ func (r *RoundsWastePlanner) stageDisposal(call, epoch context.Context, state Co
 	if !owed {
 		return RoundsWasteResult{}, false, nil
 	}
-	result, err := r.building.shellRoomOf(call, epoch, state, review, goal, reading.ColonyReading, room, incineratorMethod(room), "burn rotten and worn items", fireproofShellStuff)
+	result, err := r.building.reconcileRing(call, epoch, state, review, goal, reading.ColonyReading, roomReconcile{room: room, name: string(incineratorMethod(room)), reason: "burn rotten and worn items", stuff: fireproofShellStuff})
 	return RoundsWasteResult{Verdict: result.Verdict}, true, err
 }
