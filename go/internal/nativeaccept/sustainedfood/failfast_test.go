@@ -1,6 +1,7 @@
 package sustainedfood
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,15 +140,28 @@ func TestFailFastUnsuccessfulStageSkipsReplannedReasons(t *testing.T) {
 	}
 }
 
+// stepRow is a scheduler_step flight row carrying the given planner failures.
+func stepRow(seq int, failures ...string) string {
+	if failures == nil {
+		failures = []string{}
+	}
+	line, _ := json.Marshal(map[string]any{
+		"sequence": seq, "kind": "scheduler_step",
+		"context": map[string]any{"level": "INFO", "tick": 4200},
+		"payload": map[string]any{"msg": "step done", "planner_failures": failures},
+	})
+	return string(line)
+}
+
 func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "stderr.log")
+	path := filepath.Join(t.TempDir(), "flight.jsonl")
 	write := func(lines ...string) {
 		if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	refused := `2026-09-18T19:46:03.123Z tick=4200 INFO [clock-worker] step done err=<nil> planner_failures="[resource: bridge read refused: bills/add_bill]" cause=timer`
-	clean := `2026-09-18T19:46:09.000Z tick=4300 INFO [clock-worker] step done err=<nil> planner_failures=[] cause=timer`
+	refused := stepRow(1, "resource: bridge read refused: bills/add_bill")
+	clean := stepRow(2)
 	f := newFailFast(FailFast{RefusalSamples: 3}, policy.MaintainResource, path)
 	sample := map[string]any{"method_count": 0, "need": "unmet", "status": "open"}
 	write(refused)
@@ -161,6 +175,7 @@ func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
 	if _, failed := f.check(sample); failed {
 		t.Fatal("a clean latest step is not a refusal")
 	}
+	refused = stepRow(3, "resource: bridge read refused: bills/add_bill")
 	write(refused, clean, refused)
 	for i := 0; i < 2; i++ {
 		if v, failed := f.check(sample); failed {

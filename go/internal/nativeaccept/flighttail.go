@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
@@ -90,6 +91,42 @@ func (t *FlightTail) Next() ([]FlightRow, error) {
 		}
 	}
 	return rows, nil
+}
+
+// lastFlightRow returns the last row of the recorder at path that match
+// accepts, with its JSON line. tail > 0 reads only that many trailing
+// bytes (the first, possibly partial, line is dropped); 0 reads the whole
+// segment. False when no row matches or the file cannot be read.
+func lastFlightRow(path string, tail int64, match func(FlightRow) bool) (FlightRow, string, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return FlightRow{}, "", false
+	}
+	defer file.Close()
+	skipFirst := false
+	if info, err := file.Stat(); err == nil && tail > 0 && info.Size() > tail {
+		if _, err := file.Seek(info.Size()-tail, io.SeekStart); err != nil {
+			return FlightRow{}, "", false
+		}
+		skipFirst = true
+	}
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64<<10), 64<<20)
+	var (
+		last  FlightRow
+		line  string
+		found bool
+	)
+	for scanner.Scan() {
+		if skipFirst {
+			skipFirst = false
+			continue
+		}
+		if row, ok := parseFlightRow(scanner.Bytes()); ok && match(row) {
+			last, line, found = row, strings.TrimSpace(scanner.Text()), true
+		}
+	}
+	return last, line, found
 }
 
 func parseFlightRow(line []byte) (FlightRow, bool) {

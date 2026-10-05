@@ -656,7 +656,7 @@ func (p *ServiceProcess) StepAdmitted(ctx context.Context, since time.Time) (boo
 		return true, nil
 	}
 	if p.Spec.StepStall > 0 && time.Since(since) >= p.Spec.StepStall {
-		return false, &StepStallError{Stall: p.Spec.StepStall, Families: strings.Join(p.Spec.Families, ","), LastFailure: lastStepFailure(p.StderrPath())}
+		return false, &StepStallError{Stall: p.Spec.StepStall, Families: strings.Join(p.Spec.Families, ","), LastFailure: lastStepFailure(p.FlightPath)}
 	}
 	return false, nil
 }

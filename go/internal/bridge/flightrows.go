@@ -39,6 +39,10 @@ func IsDispatchKind(kind string) bool {
 	return kind == "worker_dispatch" || kind == "worker_outcome" || kind == "dispatch"
 }
 
+// IsSchedulerStepKind reports whether kind is the clock worker's per-step
+// row (scheduler_step; the one place a rename follows).
+func IsSchedulerStepKind(kind string) bool { return kind == "scheduler_step" }
+
 // IsClockStopKind reports whether kind is a clock stop: the legacy
 // scheduler_stop (#2064) or the v2 clock_stop.
 func IsClockStopKind(kind string) bool { return kind == "scheduler_stop" || kind == "clock_stop" }

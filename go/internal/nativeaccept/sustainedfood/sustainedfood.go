@@ -194,7 +194,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	pending = append(pending, cfg.Checkpoints...)
 	var taken []map[string]any
 	stepped := false
-	failFast := newFailFast(cfg.FailFast, concernID, service.StderrPath())
+	failFast := newFailFast(cfg.FailFast, concernID, service.FlightPath)
 	tail := na.NewFlightTail(service.FlightPath)
 	stall := newTickStall(cfg.TickStall, time.Now())
 	cadence := map[string]any{"poll_ticks": cfg.PollTicks, "poll_ms": cfg.Poll.Milliseconds(), "wakes": 0, "tick_polls": 0, "wall_polls": 0}

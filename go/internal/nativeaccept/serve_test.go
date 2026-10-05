@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 	if mode := os.Getenv("RIMGOVERNOR_FAKE_SERVE"); mode != "" {
 		switch mode {
 		case "exit":
-			fmt.Fprintln(os.Stderr, "[clock-worker] step failed: Fields: context deadline exceeded")
+			fmt.Fprintln(os.Stderr, "service exiting")
 			os.Exit(3)
 		case "garbage":
 			fmt.Println("not a service")
@@ -233,11 +233,9 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 	if state, _ := report["service"].(map[string]any)["state"].(string); !strings.HasPrefix(state, "exited: ") {
 		t.Fatalf("state %q", state)
 	}
-	// The stall error names the last step failure in the stderr log.
-	if err := os.WriteFile(p.StderrPath(), []byte("[clock-worker] step failed: Fields: context deadline exceeded\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	stall := &StepStallError{Stall: time.Minute, Families: "haul,work", LastFailure: lastStepFailure(p.StderrPath())}
+	// The stall error names the last step failure in the flight recorder.
+	p.FlightPath = writeFlight(t, stepRowLine(1, "WARN", "step failed: Fields: context deadline exceeded", 4200))
+	stall := &StepStallError{Stall: time.Minute, Families: "haul,work", LastFailure: lastStepFailure(p.FlightPath)}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {
 		t.Fatalf("stall error %q", stall)
 	}

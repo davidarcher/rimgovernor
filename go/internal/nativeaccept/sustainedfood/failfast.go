@@ -90,7 +90,7 @@ func (v Verdict) Error() string { return "fail-fast (" + v.Shape + "): " + v.Rea
 type failFastState struct {
 	cfg     FailFast
 	concern policy.ConcernID
-	stderr  string
+	flight  string
 
 	lastRevision uint64
 	idleReviews  []uint64
@@ -102,7 +102,7 @@ type failFastState struct {
 	parkSamples int
 }
 
-func newFailFast(cfg FailFast, goal policy.ConcernID, stderrPath string) *failFastState {
+func newFailFast(cfg FailFast, goal policy.ConcernID, flightPath string) *failFastState {
 	if cfg.NoMethodReviews <= 0 {
 		cfg.NoMethodReviews = defaultNoMethodReviews
 	}
@@ -112,7 +112,7 @@ func newFailFast(cfg FailFast, goal policy.ConcernID, stderrPath string) *failFa
 	if cfg.ParkSamples <= 0 {
 		cfg.ParkSamples = defaultParkSamples
 	}
-	return &failFastState{cfg: cfg, concern: goal, stderr: stderrPath}
+	return &failFastState{cfg: cfg, concern: goal, flight: flightPath}
 }
 
 // check folds one sample (SampleGoal's shape, without an error) and the
@@ -130,8 +130,8 @@ func (f *failFastState) check(sample map[string]any) (Verdict, bool) {
 	if v, ok := f.emergencyPark(sample); ok {
 		return v, true
 	}
-	if f.stderr != "" {
-		if step, ok := na.LastSchedulerStepFile(f.stderr); ok {
+	if f.flight != "" {
+		if step, ok := na.LastSchedulerStepFile(f.flight); ok {
 			return f.refusal(step)
 		}
 	}

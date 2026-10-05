@@ -1,24 +1,24 @@
 package nativeaccept
 
 import (
-	"bufio"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
 // StepStallError is Run's fail-fast verdict when RunConfig.StepStall elapsed
 // without any scheduler step admitting a clock window (issue #103). It names
 // the family selection the service ran with and the last step failure the
-// clock worker logged, so a starved step budget reads as such instead of as
+// clock worker recorded, so a starved step budget reads as such instead of as
 // twenty minutes of an unchanged EnsureFoodSupply timeline.
 type StepStallError struct {
 	Stall    time.Duration
 	Families string
-	// LastFailure is the last "[clock-worker] step failed:" line from the
-	// service's stderr, empty when it logged none.
+	// LastFailure is the last WARN or ERROR scheduler_step row of the
+	// service's flight recorder, rendered by StepFailureText; empty when it
+	// recorded none.
 	LastFailure string
 }
 
@@ -32,31 +32,32 @@ func (e *StepStallError) Error() string {
 	return b.String()
 }
 
-// stepFailureMark is the unconditional "scheduler_step" line
-// ClockWorker.stepLoop writes when a step's error changes
-// (buildingruntime/clock_worker.go), after the line's time and tick stamp.
-const stepFailureMark = "[clock-worker] step failed:"
-
-// lastStepFailure returns the service's most recent step failure line from
-// its stderr log, or "" when the log has none or cannot be read.
+// lastStepFailure returns the service's most recent failed step from its
+// flight recorder at path, or "" when it has none or cannot be read.
 func lastStepFailure(path string) string {
-	f, err := os.Open(path)
-	if err != nil {
+	row, _, ok := lastFlightRow(path, 0, func(r FlightRow) bool {
+		level, _ := r.Context["level"].(string)
+		return bridge.IsSchedulerStepKind(r.Kind) && (level == "WARN" || level == "ERROR")
+	})
+	if !ok {
 		return ""
 	}
-	defer f.Close()
-	return LastStepFailure(f)
+	return StepFailureText(row)
 }
 
-// LastStepFailure scans a service stderr stream for its last step failure.
-func LastStepFailure(r io.Reader) string {
-	var last string
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for scanner.Scan() {
-		if line := strings.TrimSpace(scanner.Text()); strings.Contains(line, stepFailureMark) {
-			last = line
-		}
+// StepFailureText renders a failed scheduler_step row as
+// "<at> tick=<n> <LEVEL> <msg>" (the step message carries the error).
+func StepFailureText(row FlightRow) string {
+	level, _ := row.Context["level"].(string)
+	at, _ := row.Context["at"].(string)
+	msg, _ := row.Fields()["msg"].(string)
+	parts := []string{}
+	if at != "" {
+		parts = append(parts, at)
 	}
-	return last
+	if row.HasTick {
+		parts = append(parts, fmt.Sprintf("tick=%d", row.Tick))
+	}
+	parts = append(parts, level, msg)
+	return strings.Join(parts, " ")
 }
