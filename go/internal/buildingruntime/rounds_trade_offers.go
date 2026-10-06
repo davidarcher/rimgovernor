@@ -147,7 +147,7 @@ func (r *RoundsTradePlanner) plannedPurchases(call context.Context, state Contro
 // opened to buy from this trader) only as far as the plans opened them;
 // medicine, surgery parts, ingredient upgrades and every sale stay.
 func restrictToPlan(need policy.TradeNeed, planned map[policy.Resource]int64, food float64) policy.TradeNeed {
-	need.Food.Nutrition, need.Food.Browse = food, false
+	need.Food.Nutrition = food
 	var kept []policy.Amount
 	for _, short := range need.Shortfall {
 		if units := min(short.Count, planned[short.Resource]); units > 0 {

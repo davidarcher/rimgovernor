@@ -73,7 +73,7 @@ func TestStarvingTribalOpensHunterWeaponPrerequisite(t *testing.T) {
 	plan := func(hold policy.HuntHold) domain.Fact[policy.FoodPlan] {
 		p := *r.Projection
 		p.HuntHolds = []policy.HuntHold{hold}
-		return reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil)
+		return reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil, foodTrade{})
 	}
 	unarmed := plan(policy.HuntHold{ID: "deer", Reason: policy.HuntHoldNoHunter, Detail: []string{"p1 hunting_inactive", "p2 no_hunting_weapon"}, Source: deer})
 	if !policy.HuntArming(unarmed) {

@@ -271,7 +271,7 @@ func (r *Rounder) observeOwned(ctx context.Context, source observation.RoundsSou
 	reading, err := observation.ObserveRoundsOwned(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
 		r.census.serveLayout(&reading.Projection)
-		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+		r.planFood(&reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
 		r.reviewBabyFeeding(&reading.Projection)
@@ -334,7 +334,7 @@ func (r *Rounder) observeRooms(ctx context.Context, source observation.RoundsSou
 	reading, err := observation.ObserveRoundsRooms(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
 		r.census.serveLayout(&reading.Projection)
-		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+		r.planFood(&reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
 		r.reviewBabyFeeding(&reading.Projection)
@@ -362,7 +362,7 @@ func (r *Rounder) observeColony(ctx context.Context, source observation.ColonySo
 	reading, err := observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true)
 	if err == nil {
 		r.census.serveLayout(&reading.Projection)
-		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+		r.planFood(&reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
 		r.reviewBabyFeeding(&reading.Projection)

@@ -38,10 +38,13 @@ const (
 // review reads it: CanTrade is native's own verdict that a session can be
 // opened with it now (CanTradeNow, not dismissed, arrived), Travelling
 // that its caravan is still walking to its trade spot, GoodsStacks the
-// size of what it carries.
+// size of what it carries. Unpriced marks a tradeable caravan whose sheet the
+// negotiator has no fresh record of: the always-browse phase opens a session
+// to read it (the Rounder sets it from its offer book).
 type TraderFacts struct {
 	ID, Kind, Faction    string
 	CanTrade, Travelling bool
+	Unpriced             bool
 	GoodsStacks          int64
 }
 
@@ -195,7 +198,7 @@ func ShedArtNeed(need domain.Fact[TradeNeed], headroom domain.Fact[float64], sal
 }
 
 func (n TradeNeed) Any() bool {
-	return n.FavorGold > 0 || n.FavorPrisoners > 0 || n.ShedArt > 0 || n.SurplusAnimals > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || n.Food.Browse || len(n.Food.Missing) > 0
+	return n.FavorGold > 0 || n.FavorPrisoners > 0 || n.ShedArt > 0 || n.SurplusAnimals > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other
@@ -263,7 +266,8 @@ func (n *TradeNeed) retain(resource Resource, count int64) {
 
 // TradeRecovered is TradeWithCaravan's recovered fact: known true when no
 // tradeable or arriving caravan is present or nothing is worth trading,
-// known false while both hold, unknown while the need is. A caravan still
+// known false while both hold or while a tradeable caravan is unpriced (the
+// always-browse session), unknown while the need is. A caravan still
 // travelling counts as present so the goal stands (and the planner keeps
 // the clock moving) until it arrives. An unknown trader census (a source
 // without bridge.ListTraders) also reads as recovered: there is no caravan
@@ -274,9 +278,10 @@ func TradeRecovered(traders domain.Fact[[]TraderFacts], need domain.Fact[TradeNe
 	if !known {
 		return domain.Known(true)
 	}
-	present := false
+	present, browse := false, false
 	for _, row := range rows {
 		present = present || row.CanTrade || row.Travelling
+		browse = browse || row.CanTrade && row.Unpriced
 	}
 	if !present {
 		return domain.Known(true)
@@ -285,7 +290,7 @@ func TradeRecovered(traders domain.Fact[[]TraderFacts], need domain.Fact[TradeNe
 	if !known {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(!n.Any())
+	return domain.Known(!n.Any() && !browse)
 }
 
 // SelectTrader picks the caravan to open with: tradeable, not already

@@ -515,7 +515,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	// The food plan reads the caravans on the census as present, the session's
 	// priced by the offers just recorded from this sheet.
 	projection.Facts.Traders = domain.Known(traders)
-	projection.Facts.FoodPlan = r.reviewer.planFood(projection)
+	r.reviewer.planFood(&projection)
 	seasonal := r.reviewer.seasonal(projection.Facts)
 	construction, _, err := r.native.ReadConstructionDeficits(call, identity)
 	if err != nil {

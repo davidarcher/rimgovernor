@@ -20,9 +20,7 @@ type TradeFoodContext struct {
 }
 
 type TradeFoodNeed struct {
-	Nutrition float64
-	// Browse asks for a session to read a present caravan's prices.
-	Browse              bool
+	Nutrition           float64
 	Missing             []FoodIngredientSlot
 	IngredientNutrition float64
 }
@@ -86,10 +84,9 @@ func TradeMealIngredients(benches domain.Fact[[]ProductionBench]) domain.Fact[[]
 }
 
 // reviewTradeFood reads the food plan's trade candidates: Nutrition is what
-// the plan opened to buy from the traders it has priced offers of. Under the
-// food minimum with a gap and no trade candidate on the plan, Browse asks for
-// a look at the caravan's sheet (the always-browse session), which records the
-// offers the plan then ranks.
+// the plan opened to buy from the traders it has priced offers of. Unpriced
+// caravans are browsed by TradeRecovered (the always-browse session), which
+// records the offers the plan then ranks.
 func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 	plan, pk := r.Plan.Value()
 	runway, rk := r.RunwayDays.Value()
@@ -101,17 +98,14 @@ func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 		return TradeFoodNeed{}
 	}
 	need := TradeFoodNeed{}
-	priced := false
 	for _, entry := range plan.Portfolio {
 		if entry.Channel.Kind != FoodTrade {
 			continue
 		}
-		priced = true
 		if stock, known := entry.Channel.StockCap.Value(); known && entry.Decision == FoodPlanOpen {
 			need.Nutrition += float64(stock)
 		}
 	}
-	need.Browse = !priced && runway < r.MinDays && plan.GapPerDay > 0 && len(plan.Unknown) == 0
 	// Ingredient upgrades cannot sell away an emergency reserve.
 	if runway <= r.TargetDays || !fieldPositive(r.IngredientNutrition) {
 		return need

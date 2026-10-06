@@ -391,7 +391,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	}
 	r.logBuildTier(ctx, reading.Projection)
 	r.logOdysseySkips(ctx, reading.Projection.Facts)
-	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+	r.planFood(&reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
 	if err = r.reviewRoyalty(ctx, state.Snapshot, &reading); err != nil {

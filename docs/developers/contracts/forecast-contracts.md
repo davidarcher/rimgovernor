@@ -228,11 +228,11 @@ id): cheapest-per-nutrition food rows, lead 0, silver priced as upfront labor,
 stock capped by the trader's goods, the silver above the reserve and the gap
 over the plan's window (`FoodPlan.HorizonDays`). `TradeFoodNeed.Nutrition` is
 the stock of the candidates the plan opened; the session buys only its own
-trader's (`PlannedTradeNutrition`). Under the seasonal minimum with a positive
-gap, no unknown rows and no priced trade candidate on the plan, `Browse` asks
-for a session to read the caravan's sheet (the offers are recorded there and
-the plan rebuilt). An unpriced or travelling caravan, or an unprompted
-arrival, has no candidate: windfalls are never planned for.
+trader's (`PlannedTradeNutrition`). A tradeable caravan with no fresh record is
+browsed by the always-browse session whatever the food state ([trade
+offers](../architecture/supply-model.md#trade-offers)); until its sheet is
+recorded, and for a travelling caravan, it has no candidate: windfalls are
+never planned for.
 
 Desired recipe ingredient slots use the meal policy's alternatives. Above the
 food target, missing meat/animal-product slots create ingredient purchases.

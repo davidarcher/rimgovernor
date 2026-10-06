@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -88,5 +89,27 @@ func TestRestrictToPlan(t *testing.T) {
 	}
 	if none := restrictToPlan(need, nil, 0); len(none.Shortfall) != 0 || none.ComponentShortfall != 0 {
 		t.Errorf("unplanned purchases stayed: %+v", none)
+	}
+}
+
+// A tradeable caravan with no fresh record is marked for the always-browse
+// session; one whose sheet was recorded, and one that cannot trade, are not.
+func TestMarkUnpriced(t *testing.T) {
+	t.Parallel()
+	r := &Rounder{}
+	p := observation.ColonyProjection{Identity: observation.Identity{Colony: "c", Load: "l", Map: 1, Tick: 100}}
+	p.Facts.Items = policy.CoreItemFacts()
+	p.Facts.Resources = domain.Known([]policy.Amount{{Resource: p.Facts.Items.Currency, Count: 1000}})
+	traders := presentTraders("seen", "new")
+	traders = append(traders, policy.TraderFacts{ID: "gone", GoodsStacks: 20})
+	p.Facts.Traders = domain.Known(traders)
+	r.tradeOffers.record(domain.GenerationSnapshot{Colony: "c", Load: "l", Map: 1}, bookedOffers("seen", 90))
+	r.markUnpriced(&p)
+	got, _ := p.Facts.Traders.Value()
+	if got[0].Unpriced || !got[1].Unpriced || got[2].Unpriced {
+		t.Fatalf("unpriced flags %+v", got)
+	}
+	if traders[1].Unpriced {
+		t.Fatal("the census slice was mutated")
 	}
 }

@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,7 +15,14 @@ import (
 
 // planFood retains one complete review per observed tick and invalidation
 // generation, independently of additional definition/room reads by planners.
-func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.FoodPlan] {
+// It also marks the tradeable caravans the offer book has no fresh record of
+// as Unpriced, so the always-browse phase reads their sheets.
+func (r *Rounder) planFood(p *observation.ColonyProjection) {
+	p.Facts.FoodPlan = r.foodPlan(*p)
+	r.markUnpriced(p)
+}
+
+func (r *Rounder) foodPlan(p observation.ColonyProjection) domain.Fact[policy.FoodPlan] {
 	s := &r.census
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -61,6 +69,27 @@ func (r *Rounder) foodTrade(p observation.ColonyProjection) foodTrade {
 	}
 	out.revision = r.tradeOffers.version()
 	return out
+}
+
+// markUnpriced flags each tradeable caravan on the census without a fresh
+// offer record. With the colony's silver unknown no record can be judged
+// fresh, so nothing is flagged.
+func (r *Rounder) markUnpriced(p *observation.ColonyProjection) {
+	traders, tk := p.Facts.Traders.Value()
+	silver, sk := p.Facts.Silver().Value()
+	if !tk || !sk {
+		return
+	}
+	world := domain.GenerationSnapshot{Colony: p.Identity.Colony, Map: p.Identity.Map, Load: p.Identity.Load}
+	priced := map[string]bool{}
+	for _, o := range r.tradeOffers.fresh(world, p.Identity.Tick, silver, traders) {
+		priced[o.Trader] = true
+	}
+	marked := slices.Clone(traders)
+	for i := range marked {
+		marked[i].Unpriced = marked[i].CanTrade && !priced[marked[i].ID]
+	}
+	p.Facts.Traders = domain.Known(marked)
 }
 
 // reviewFoodPlan budgets the complete competing-consumer census. It is called

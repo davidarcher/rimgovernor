@@ -128,6 +128,13 @@ func TestTradeRecoveredNeedsBothCaravanAndNeed(t *testing.T) {
 	if v, known := TradeRecovered(caravan, none).Value(); !known || !v {
 		t.Fatal("caravan with nothing to trade should be recovered")
 	}
+	unpriced := domain.Known([]TraderFacts{{ID: "Trader_1", CanTrade: true, Unpriced: true}})
+	if v, known := TradeRecovered(unpriced, none).Value(); !known || v {
+		t.Fatal("an unpriced caravan should be browsed even with nothing to trade")
+	}
+	if v, known := TradeRecovered(domain.Known([]TraderFacts{{ID: "Trader_1", Unpriced: true}}), none).Value(); !known || !v {
+		t.Fatal("an untradeable caravan is never browsed")
+	}
 	if v, known := TradeRecovered(dismissed, need).Value(); !known || !v {
 		t.Fatal("untradeable caravan should be recovered")
 	}

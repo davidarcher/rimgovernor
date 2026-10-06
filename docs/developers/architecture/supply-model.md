@@ -198,6 +198,15 @@ stacks within `TradeOffersShift` (25%) of the recorded values. A trader that
 leaves the census, a settled session (accept or end) and a new generation drop
 the record. #2166 presents traders on the model from the same records.
 
+Browsing is general: the Round marks every tradeable caravan on the census with
+no fresh record `TraderFacts.Unpriced` (`Rounder.markUnpriced`), and
+`TradeRecovered` keeps the TradeWithCaravan goal standing while one is present,
+whatever the colony needs. The negotiator opens a session, the sheet read
+records the offers and the plan is rebuilt; lines stage only for what the plan
+(or a sale) opened, and otherwise the session is cancelled. A caravan whose
+session ended is settled for the occurrence and is not reopened until its
+record goes stale.
+
 `policy.TradeOfferCandidates` turns the fresh records into candidates for each
 resource in deficit: yield is the cheapest priced row of that def, capped at
 `min(deficit, units held, silver above the trade reserve / price)`; the upfront
