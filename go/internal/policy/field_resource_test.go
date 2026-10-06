@@ -71,3 +71,54 @@ func TestPlanFieldByResource(t *testing.T) {
 		}
 	})
 }
+
+func TestResourceFieldCandidateServesAClothingFloor(t *testing.T) {
+	cotton := resourceCrop("Plant_Cotton", "Cloth", 5.8, 8)
+	cotton.HarvestWork = domain.Known(200.0)
+	plan, ok := PlanFieldByResource(resourceRequest(50, cotton))
+	if !ok {
+		t.Fatal(plan.Explain())
+	}
+	field, ok := ResourceFieldCandidate("Cloth", plan)
+	if !ok || field.ID != ResourceFieldPrefix+"Plant_Cotton" || field.Kind != CandidateHarvest {
+		t.Fatalf("%+v %v", field, ok)
+	}
+	if lead, _ := field.LeadDays.Value(); lead != 5.8 {
+		t.Fatalf("lead %v", lead)
+	}
+	if setup, _ := field.UpfrontCost.LaborTicks.Value(); setup != 7*FieldSowTicksPerCell {
+		t.Fatalf("setup %v", setup)
+	}
+	if work, _ := field.LaborPerDay.Value(); work != 200*7/5.8 {
+		t.Fatalf("work %v", work)
+	}
+	open := func(candidates ...SupplyCandidate) map[string]bool {
+		p, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: "Cloth", Deficit: 50, HorizonDays: 5.8, Candidates: candidates}}, domain.Known(100000.0))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p.OpenedIDs("Cloth", CandidateHarvest)
+	}
+	if got := open(field); !got[field.ID] {
+		t.Fatalf("no wild cotton: the field opens, got %v", got)
+	}
+	wild := AcquisitionSourceCandidates("Cloth", []AcquisitionSource{{ID: "wild", Resource: "Cloth", Yield: 60}}, domain.Cell{}, domain.Known(int64(1000)))
+	if got := open(append(wild, field)...); !got["wild"] || got[field.ID] {
+		t.Fatalf("wild cotton is cheaper: got %v", got)
+	}
+	// An unknown harvest work prices nothing.
+	plan.Crop.HarvestWork = domain.Unknown[float64]()
+	if _, ok := ResourceFieldCandidate("Cloth", plan); ok {
+		t.Fatal("priced a field on an unknown harvest work")
+	}
+}
+
+func TestStandingFieldYield(t *testing.T) {
+	cotton := resourceCrop("Plant_Cotton", "Cloth", 5.8, 8)
+	if got := StandingFieldYield(cotton, "Cloth", domain.Known(uint32(5))); got != 40 {
+		t.Fatalf("standing yield %v", got)
+	}
+	if StandingFieldYield(cotton, "Medicine", domain.Known(uint32(5))) != 0 || StandingFieldYield(cotton, "Cloth", domain.Unknown[uint32]()) != 0 {
+		t.Fatal("another resource or unknown cells count nothing")
+	}
+}

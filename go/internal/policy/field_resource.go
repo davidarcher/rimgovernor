@@ -69,6 +69,42 @@ func PlanFieldByResource(r ResourceFieldRequest) (FieldPlan, bool) {
 	return rankField(plan, false)
 }
 
+// ResourceFieldPrefix starts the ID of a resource field candidate: the prefix
+// plus the crop name, so the executor (#2285) reads the plan it priced by ID.
+const ResourceFieldPrefix = "field:"
+
+// ResourceFieldCandidate prices a planned resource field as a harvest
+// candidate (#2284): the plan's cells, the crop's grow days and units per cell,
+// the sowing as upfront labor (FieldSowTicksPerCell) and the harvest work over
+// the grow time as daily labor. False when the plan has no cells or a crop fact
+// is unknown; a field is never priced on a guess.
+func ResourceFieldCandidate(resource Resource, plan FieldPlan) (SupplyCandidate, bool) {
+	days, dk := plan.Crop.GrowDays.Value()
+	units, uk := plan.Crop.UnitsPerCell.Value()
+	work, wk := plan.Crop.HarvestWork.Value()
+	cells := plan.Sites.Cells
+	if !dk || !uk || !wk || !fieldPositive(days) || !fieldPositive(units) || work < 0 || cells <= 0 {
+		return SupplyCandidate{}, false
+	}
+	return FieldHarvestCandidate(resource, ResourceFieldPrefix+plan.Crop.Name, FieldHarvest{
+		Cells: int64(cells), GrowDays: days, UnitsPerCell: units,
+		SetupTicks: float64(cells) * FieldSowTicksPerCell, WorkPerDay: work * float64(cells) / days,
+	})
+}
+
+// StandingFieldYield is the units one standing field of crop on cells usable
+// cells delivers per harvest toward resource: zero when the crop harvests
+// something else or a fact is unknown.
+func StandingFieldYield(crop CropChoice, resource Resource, cells domain.Fact[uint32]) float64 {
+	harvests, hk := crop.Harvests.Value()
+	units, uk := crop.UnitsPerCell.Value()
+	n, nk := cells.Value()
+	if !hk || !uk || !nk || harvests != resource || !fieldPositive(units) {
+		return 0
+	}
+	return units * float64(n)
+}
+
 // resourceCropViable screens one crop that harvests the demanded resource,
 // returning the viable crop or the reason it is excluded.
 func resourceCropViable(crop CropChoice, deficit, season float64) (viableCrop, string) {

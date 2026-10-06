@@ -438,6 +438,11 @@ func (r *Rounder) acquisitionReading(call context.Context, state ControlState, r
 		return observation.Identity{}, observation.ColonyProjection{}, err
 	}
 	definitions := roundsProjectDefinitions(plans, state.Snapshot, playerPlans)
+	crops, err := r.sowableCrops(call, state.Snapshot)
+	if err != nil {
+		return observation.Identity{}, observation.ColonyProjection{}, err
+	}
+	definitions = uniqueFieldDefinitions(append(definitions, crops...))
 	expected, err := stepScope(call, r.native)
 	if err != nil {
 		return observation.Identity{}, observation.ColonyProjection{}, err

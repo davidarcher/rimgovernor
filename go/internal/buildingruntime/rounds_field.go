@@ -105,38 +105,10 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	projection := read.Projection
 	recordStepRead("field", policy.EnsureFoodSupply, state.Snapshot, projection)
-	held, err := p.journal.BuildingReservations(call, state.Snapshot)
+	protected, err := r.reviewer.fieldProtected(call, state, review, projection, claims)
 	if err != nil {
 		return RoundsFieldResult{}, err
 	}
-	var protected []domain.Cell
-	for _, h := range held {
-		protected = append(protected, h.Footprint...)
-	}
-	var shells []store.PlanState
-	for _, binding := range review.Standards {
-		if binding.Concern != policy.MaintainHousing {
-			continue
-		}
-		shelter, err := p.journal.LoadStandard(call, binding.Standard)
-		if err != nil {
-			return RoundsFieldResult{}, err
-		}
-		for _, method := range shelter.Methods {
-			plan, err := p.journal.LoadPlan(call, method.Plan)
-			if err != nil {
-				return RoundsFieldResult{}, err
-			}
-			shells = append(shells, plan)
-		}
-	}
-	claimed, _ := claims.Value()
-	protected = append(protected, shellInteriors(shells, claimed)...)
-	ring, err := firebreakRing(projection)
-	if err != nil {
-		return RoundsFieldResult{}, err
-	}
-	protected = append(protected, ring...)
 	// The cross-crop ledger (#1308): hay and social shortfalls compete with
 	// the food block for the plan's field patches in one ranked order.
 	others, err := r.otherFieldShortfalls(call, review, projection)

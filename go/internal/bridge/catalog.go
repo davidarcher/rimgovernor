@@ -143,6 +143,22 @@ func (catalog *DefinitionCatalog) Packable() map[string]bool {
 	return out
 }
 
+// SowableCrops are the sowable plants that harvest a thing (#2284), sorted: the
+// crops a resource deficit can be planted for, whatever they are eaten as.
+func (catalog *DefinitionCatalog) SowableCrops() []string {
+	if catalog == nil {
+		return nil
+	}
+	var out []string
+	for name, def := range catalog.ThingDefs {
+		if plant := def.GetPlant(); len(plant.GetSowTags()) > 0 && plant.GetHarvestedThingDef() != "" {
+			out = append(out, name)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // TerrainDef is name's generated def row, nil when the catalog has none.
 func (catalog *DefinitionCatalog) TerrainDef(name string) *d.TerrainDef {
 	if catalog == nil {

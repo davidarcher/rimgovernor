@@ -40,6 +40,9 @@ type resourceSupplyRow struct {
 	open []policy.AcquisitionSource
 	// busy: a census designation of the resource is still in flight.
 	busy bool
+	// fields are the new fields the plan priced (#2284) by candidate ID: the
+	// crop, cells and patches the executor of an opened field (#2285) sows.
+	fields map[string]policy.FieldPlan
 }
 
 type resourceSupply struct {
@@ -147,6 +150,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	}
 	var reach policy.RemoteWorkRequest
 	reachRead := false
+	fieldPlanner := r.newResourceFieldPlanner(call, state, review, expected, projection)
 	var inputs []policy.ResourceSupplyInput
 	for _, target := range ranked {
 		resource := target.Resource
@@ -194,6 +198,24 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 			} else if !held[source.ID] && !(source.Hunt && out.hunts <= 0) {
 				row.open = append(row.open, source)
 				priced = append(priced, offered)
+			}
+		}
+		// Standing fields of the resource's crops count like designated
+		// sources; a new field is priced for what is still short.
+		need -= fieldPlanner.standing(resource)
+		if need > 0 && fieldPlanner.serves(resource) {
+			candidate, plan, ok, err := fieldPlanner.candidate(resource, need)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				input.Candidates = append(input.Candidates, candidate)
+				row.fields = map[string]policy.FieldPlan{candidate.ID: plan}
+				// A field's lead is its grow time: the floor is wanted that far
+				// ahead or no field could serve it.
+				if lead, _ := candidate.LeadDays.Value(); lead > input.HorizonDays {
+					input.HorizonDays = lead
+				}
 			}
 		}
 		input.Deficit = max(need, 0)
