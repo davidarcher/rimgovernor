@@ -112,14 +112,14 @@ func TestAcquisitionPricesFeedWithNoOwnedAnimal(t *testing.T) {
 	in.Owned = domain.Known([]UpkeepAnimal{})
 	in.Wild = domain.Known([]UpkeepAnimal{wildYoung("Cow", "Female", 0.5)})
 	tame := TameFoodChannels(in)
-	if len(tame) != 1 || tame[0].Kind != FoodTame {
+	if len(tame) != 1 || tame[0].Kind != CandidateTame {
 		t.Fatalf("tame channels %v", tame)
 	}
-	if n, _ := tame[0].NutritionPerDay.Value(); n != 3 {
+	if n, _ := tame[0].Nutrition().PerDay.Value(); n != 3 {
 		t.Errorf("net rate %v, want 5 milk - 2 feed", n)
 	}
 	buy := AnimalPurchaseFoodChannels([]TradeOffers{{Trader: "caravan", Rows: []TradeOffer{{Def: "Cow", Count: 1, Price: 50, Pawn: true, Gender: "Female"}}}}, in, 1000, 200)
-	if len(buy) != 1 || buy[0].Kind != FoodAnimalBuy {
+	if len(buy) != 1 || buy[0].Kind != CandidateAnimalBuy {
 		t.Fatalf("buy channels %v", buy)
 	}
 }

@@ -150,8 +150,10 @@ func huntChannel(id string, prey []AcquisitionSource, formation bool, weather fl
 	products := map[Resource]float64{}
 	var defs []Resource
 	c := FoodCandidate(CandidateHunt, id, domain.Unknown[float64]())
-	c.LeadDays, c.State = domain.Known(0.0), FoodState(domain.Known(false), domain.Unknown[bool]())
+	c.LeadDays, c.Source = domain.Known(0.0), HuntSource
+	designated := true
 	for _, s := range prey {
+		designated = designated && s.Designated
 		w := FoodHuntWorkTicks / (1 + s.WeaponRange/25)
 		if s.Downed {
 			w = FoodForageWorkTicks
@@ -172,7 +174,10 @@ func huntChannel(id string, prey []AcquisitionSource, formation bool, weather fl
 			c.Prey = append(c.Prey, s.ID)
 		}
 	}
+	c.State = FoodState(domain.Known(false), domain.Known(designated))
 	c.Yields[0].PerDay, c.LaborPerDay = domain.Known(nutrition/FoodHuntCycleDays), domain.Known(work/FoodHuntCycleDays)
+	// The animals in reach are all the candidate can deliver: a finite source.
+	c.Yields[0].StockCap = domain.Known(int64(math.Ceil(nutrition)))
 	for _, def := range defs {
 		c.Yields = append(c.Yields, CandidateYield{Good: ResourceKey{Def: def}, PerDay: domain.Known(products[def] / FoodHuntCycleDays)})
 	}

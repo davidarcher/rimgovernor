@@ -106,8 +106,8 @@ type Rounder struct {
 	foodGapZero bool
 	// foodCredit is the delivery credit's factors (#2157), in memory only.
 	foodCredit policy.DeliveryCredit
-	// huntDelivery is the formation hunt's admitted and delivering state (#2163), in memory only.
-	huntDelivery policy.HuntDelivery
+	// huntAdmission is the formation hunts the plan opened (#2163), in memory only.
+	huntAdmission policy.HuntAdmission
 	// tradeOffers is the caravans' priced offers the supply plan reads as
 	// trade candidates, in memory only (#2168).
 	tradeOffers tradeOfferBook

@@ -124,13 +124,18 @@ const MaxHuntRows = 48
 // ranged Hunting-capable colonist (the HunterFor profiles), less the hunts
 // already designated, at most MaxHuntRows.
 func HuntBudget(profiles []PawnProfile, pendingHunts int) int {
-	hunters := 0
+	return max(0, min(MaxHuntRows, Hunters(profiles)*HuntsPerHunter)-pendingHunts)
+}
+
+// Hunters counts the ranged Hunting-capable colonists (HunterFor's profiles).
+func Hunters(profiles []PawnProfile) int {
+	n := 0
 	for _, p := range profiles {
 		if p.Ranged && p.Capable(WorkHunting, 0) {
-			hunters++
+			n++
 		}
 	}
-	return max(0, min(MaxHuntRows, hunters*HuntsPerHunter)-pendingHunts)
+	return n
 }
 
 // UpgradeRoleWeight scales a body part's surgery value by the pawn's role

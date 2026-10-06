@@ -32,9 +32,9 @@ func (r *Rounder) foodPlan(p observation.ColonyProjection) domain.Fact[policy.Fo
 		s.foodMin == seasonal.FoodMinDays && s.foodTarget == seasonal.FoodTargetDays && sameObservedIdentity(s.foodIdentity, p.Identity) {
 		return s.foodPlan
 	}
-	plan := reviewFoodPlan(p, r.policy, &r.foodCredit, &r.huntDelivery, trade)
+	plan := reviewFoodPlan(p, r.policy, &r.foodCredit, &r.huntAdmission, trade)
 	if v, known := plan.Value(); known {
-		r.huntDelivery.Admit(policy.HuntRequest(domain.Known(v)))
+		r.huntAdmission.Admit(policy.HuntRequest(domain.Known(v)))
 	}
 	logFoodCredit(r.foodCredit.Drain())
 	if v, known := plan.Value(); known && r.foodGapZero {
@@ -95,7 +95,7 @@ func (r *Rounder) markUnpriced(p *observation.ColonyProjection) {
 // reviewFoodPlan budgets the complete competing-consumer census. It is called
 // by the rounds, before its reading is retained for method planners.
 // A missing census never becomes an empty portfolio that certifies surplus.
-func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy, credit *policy.DeliveryCredit, hunt *policy.HuntDelivery, trade foodTrade) domain.Fact[policy.FoodPlan] {
+func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy, credit *policy.DeliveryCredit, hunt *policy.HuntAdmission, trade foodTrade) domain.Fact[policy.FoodPlan] {
 	supply, sk := p.CombinedFoodSupply.Value()
 	sources, ak := p.Acquisition.Value()
 	if !sk || !ak {
@@ -115,9 +115,10 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	if human, hk := p.FoodSupply.Value(); hk {
 		forecast = forecast.GateOnColonists(foodConsumerIDs(human), thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodMinDays)
 	}
-	var gunners int
+	var gunners, hunters int
 	if pawns, known := p.WorkPawns.Value(); known {
-		gunners = policy.SquadGunners(policy.Profiles(pawns))
+		profiles := policy.Profiles(pawns)
+		gunners, hunters = policy.SquadGunners(profiles), policy.Hunters(profiles)
 	}
 	var weatherAccuracy domain.Fact[float64]
 	if env, known := p.Environment.Value(); known {
@@ -125,6 +126,8 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	}
 	channels := append(policy.ForageChannels(sources), policy.HuntCandidates(sources, gunners, weatherAccuracy)...)
 	channels = append(channels, policy.HuntPrerequisiteCandidates(p.HuntHolds)...)
+	hunting := foodHuntInput(p)
+	channels = policy.HuntThroughput(channels, hunters, policy.HuntCadence(hunting.kills, hunters, int64(p.Identity.Tick)))
 	if benches, bk := p.ProductionBenches.Value(); bk {
 		if human, hk := p.FoodSupply.Value(); hk {
 			var ids []policy.PawnID
@@ -172,8 +175,8 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	} {
 		channels = append(channels, policy.FoodSupportCandidate(support.kind, support.id))
 	}
-	channels = credit.Apply(channels, foodCreditInput(p))
-	channels = hunt.Apply(channels, huntKills(p))
+	channels = hunt.Apply(channels)
+	channels = credit.Apply(channels, foodCreditInput(p, credit, hunting))
 	// Work capacity is a planning budget, not a promise of pawn work. Eight
 	// hours per available worker leaves the rest of the day for sleep and needs.
 	seasonal := thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions)
@@ -218,10 +221,30 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	return domain.Known(plan)
 }
 
+// huntInput is the ledger's kills and butchers as the hunt credit reads them.
+type huntInput struct {
+	kills    []policy.HuntKill
+	butchers []policy.HuntButcher
+}
+
+func foodHuntInput(p observation.ColonyProjection) huntInput {
+	var in huntInput
+	if ledger, known := p.DeliveryLedger.Value(); known {
+		for _, k := range ledger.Kills {
+			in.kills = append(in.kills, policy.HuntKill{CorpseID: k.CorpseID, Potential: k.PotentialNutrition, Tick: k.Tick})
+		}
+		for _, b := range ledger.Butchers {
+			in.butchers = append(in.butchers, policy.HuntButcher{CorpseID: b.CorpseID, MeatNutrition: b.MeatNutrition})
+		}
+	}
+	return in
+}
+
 // foodCreditInput is the review's delivery ledger as the credit tracker reads
 // it: cumulative nutrition per counter group, keyed "<kind>:<source id>" as the
-// channel builders name their Source from their own census.
-func foodCreditInput(p observation.ColonyProjection) policy.CreditInput {
+// channel builders name their Source from their own census. Hunting is the
+// kill and butcher records credited per corpse (policy.HuntDelivered).
+func foodCreditInput(p observation.ColonyProjection, credit *policy.DeliveryCredit, hunting huntInput) policy.CreditInput {
 	ledger, known := p.DeliveryLedger.Value()
 	in := policy.CreditInput{Tick: p.Identity.Tick, Known: known}
 	if !known {
@@ -232,20 +255,13 @@ func foodCreditInput(p observation.ColonyProjection) policy.CreditInput {
 	for key, count := range ledger.Counts {
 		in.Delivered[string(key.Kind)+":"+key.SourceID] += count.Nutrition
 	}
+	var stocks []policy.FoodStock
+	complete := false
+	if supply, ok := p.CombinedFoodSupply.Value(); ok {
+		stocks, complete = supply.Stocks, supply.Complete == domain.Known(true)
+	}
+	in.Delivered[policy.HuntSource] = credit.HuntDelivered(hunting.kills, hunting.butchers, stocks, complete)
 	return in
-}
-
-// huntKills is the pawn ids the delivery ledger records as killed.
-func huntKills(p observation.ColonyProjection) map[string]bool {
-	ledger, known := p.DeliveryLedger.Value()
-	if !known {
-		return nil
-	}
-	out := make(map[string]bool, len(ledger.Kills))
-	for _, k := range ledger.Kills {
-		out[k.PawnID] = true
-	}
-	return out
 }
 
 // logFoodCredit writes one food_credit row per factor move, state change or

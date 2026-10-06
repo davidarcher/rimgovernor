@@ -216,7 +216,10 @@ leather units, tick). Each window holds the newest 256 records in tick order, wi
 `kills_total` and `butchers_total` counting the whole epoch. Go links a kill to its
 butcher by corpse id; hauling a corpse never counts. `CorpseHandling.in_storage` tells a
 corpse in a stockpile from one in the field; rot is read from the existing
-corpse census.
+corpse census. The plan credits the `hunt` group from these records: a kill at its
+corpse's potential yield times its rot clock, replaced by the butchered meat; a kill
+cadence over the trailing 14 days feeds the hunters' throughput
+([hunting](../architecture/supply-model.md#hunting)).
 
 ## Trade food policy
 

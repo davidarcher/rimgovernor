@@ -72,7 +72,13 @@ type srcSpec struct {
 	window supplysim.Window
 	hidden bool    // kept out of the projection by native gates
 	reach  float64 // the longest weapon reach among the hunters who qualify
+	// unbutchered is a hunt whose corpses nobody butchers (no butcher bill):
+	// it kills, but only the corpse is ever delivered, so it rots in the field.
+	unbutchered bool
 }
+
+// huntCorpseRotTicks is how long a field corpse lasts before it rots away.
+const huntCorpseRotTicks = int64(2.5 * domain.TicksPerDay)
 
 type foodScenario struct {
 	name      string
@@ -145,6 +151,11 @@ type foodAdapter struct {
 	// carries no rate for a fishing region after the shock).
 	groups    map[string]string
 	minFactor map[string]float64
+	// kills and butchers are the sim's native hunt records; corpses are the
+	// kills still lying unbutchered.
+	kills    []observation.Kill
+	butchers []observation.Butcher
+	corpses  []observation.Kill
 }
 
 func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
@@ -167,7 +178,10 @@ func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 	for _, s := range v.Sources {
 		open[s.ID] = s.Open
 	}
+	// A source with several rows (a herd's animals) opens when any row opens and
+	// closes only when every row that names it closes.
 	var cmds []supplysim.Command
+	opened, closed := map[string]bool{}, map[string]bool{}
 	for _, e := range plan.Portfolio {
 		id, ok := ids[string(e.Channel.Kind)+"/"+e.Channel.ID]
 		if !ok {
@@ -180,6 +194,10 @@ func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 		}
 		switch e.Decision {
 		case policy.FoodPlanOpen:
+			if opened[id] {
+				continue
+			}
+			opened[id] = true
 			cmds = append(cmds, supplysim.Command{Kind: supplysim.Open, Source: id})
 			if !open[id] {
 				d.opened = append(d.opened, id)
@@ -188,6 +206,10 @@ func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 			if e.Channel.Kind == policy.CandidateAnimalProduct {
 				continue // animals keep producing; the planner cannot stop them
 			}
+			if closed[id] {
+				continue
+			}
+			closed[id] = true
 			cmds = append(cmds, supplysim.Command{Kind: supplysim.Close, Source: id})
 			d.closed = append(d.closed, id)
 			if plan.GapPerDay > 0 || v.Runway[supplysim.Nutrition] < policy.DefaultRoundsPolicy().FoodMinDays {
@@ -195,6 +217,9 @@ func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 			}
 		}
 	}
+	// Open wins over Close for one source.
+	cmds = slices.DeleteFunc(cmds, func(c supplysim.Command) bool { return c.Kind == supplysim.Close && opened[c.Source] })
+	d.closed = slices.DeleteFunc(d.closed, func(id string) bool { return opened[id] })
 	a.days = append(a.days, d)
 	return cmds
 }
@@ -247,22 +272,32 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 	var gatherable []observation.GatherableAnimal
 	var kept []policy.UpkeepAnimal
 	var window *supplysim.Window
+	hunters := 0
 	for _, s := range sc.specs {
 		sv, id := views[s.src.ID], s.src.ID
 		if sv.Removed || s.hidden {
 			continue
 		}
 		switch s.kind {
-		case policy.CandidateForage, policy.CandidateHunt:
+		case policy.CandidateHunt:
+			// The herd in reach: one animal per row, far enough apart that none
+			// is a squad's prey. The last may be a fraction of an animal.
+			a.kill(v, s, sv)
+			a.groups[policy.HuntSource] = id
+			hunters += int(math.Ceil(sv.Rate/supplysim.KillsPerHunterDay - 1e-9))
+			for i := 0; float64(i) < sv.Stock-1e-9; i++ {
+				row := fmt.Sprintf("%s-%d", id, i)
+				acquisition = append(acquisition, policy.AcquisitionSource{ID: row, Definition: id, Food: true, Hunt: true, Cell: domain.Cell{X: int32(i * 20)},
+					NutritionYield: min(1, sv.Stock-float64(i)) * s.nutr, WeaponRange: s.reach, Designated: sv.Open})
+				ids[string(s.kind)+"/"+row] = id
+			}
+		case policy.CandidateForage:
 			if sv.Rate <= 0 {
 				continue
 			}
-			hunt := s.kind == policy.CandidateHunt
-			acquisition = append(acquisition, policy.AcquisitionSource{ID: id, Definition: id, Food: true, Hunt: hunt, NutritionYield: sv.Rate * s.nutr, WeaponRange: s.reach, Designated: sv.Open})
-			if !hunt {
-				count(observation.DeliveryKey{Kind: observation.DeliveryForage, SourceID: id, Def: id}, sv, s.nutr)
-				a.groups["forage:"+id] = id
-			}
+			acquisition = append(acquisition, policy.AcquisitionSource{ID: id, Definition: id, Food: true, NutritionYield: sv.Rate * s.nutr, WeaponRange: s.reach, Designated: sv.Open})
+			count(observation.DeliveryKey{Kind: observation.DeliveryForage, SourceID: id, Def: id}, sv, s.nutr)
+			a.groups["forage:"+id] = id
 			ids[string(s.kind)+"/"+id] = id
 		case policy.CandidateFishing:
 			regionID := policy.FishingRegionID(domain.Cell{X: int32(len(water.Regions))})
@@ -302,7 +337,26 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 			ids[string(s.kind)+"/"+id] = id
 		}
 	}
+	// Corpses nobody butchered lie in the field until they rot away.
+	var corpses []observation.Kill
+	for _, c := range a.corpses {
+		if left := huntCorpseRotTicks - (int64(v.Tick) - c.Tick); left > 0 {
+			corpses = append(corpses, c)
+			supply.Stocks = append(supply.Stocks, policy.FoodStock{ID: c.CorpseID, Corpse: true, Nutrition: domain.Known(c.PotentialNutrition), Holder: domain.Known(policy.PawnID("")),
+				Perishable: domain.Known(true), RotTicks: domain.Known(left), Forbidden: domain.Known(false), Eaters: pawns})
+		}
+	}
+	a.corpses = corpses
+	p.CombinedFoodSupply, p.FoodSupply = domain.Known(supply), domain.Known(supply)
+	ledger.Kills, ledger.Butchers = a.kills, a.butchers
+	ledger.KillsTotal, ledger.ButchersTotal = uint64(len(a.kills)), uint64(len(a.butchers))
 	p.DeliveryLedger = domain.Known(ledger)
+	// The herd's hunters carry bows; the rest of the colony does not hunt.
+	var workPawns []policy.WorkPawn
+	for i, id := range pawns {
+		workPawns = append(workPawns, policy.WorkPawn{ID: id, Available: domain.Known(true), Applies: domain.Known(true), Ranged: domain.Known(i < hunters), Hunts: domain.Known(i < hunters)})
+	}
+	p.WorkPawns = domain.Known(workPawns)
 	p.Facts.AnimalUpkeep.Animals = domain.Known(kept)
 	p.Acquisition = domain.Known(acquisition)
 	p.FoodFields = domain.Known(fields)
@@ -311,6 +365,21 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 		p.Facts.Calendar = domain.Known(calendarOn(*window, v.Day))
 	}
 	return p, ids
+}
+
+// kill records the previous day's kills of a hunt in the sim's native ledger:
+// butchered at once, or left as a corpse when nobody butchers.
+func (a *foodAdapter) kill(v supplysim.WorldView, s srcSpec, sv supplysim.SourceView) {
+	if sv.Last <= 0 {
+		return
+	}
+	k := observation.Kill{CorpseID: fmt.Sprintf("%s-corpse-%d", s.src.ID, len(a.kills)), Race: s.src.ID, PotentialNutrition: sv.Last * s.nutr, Tick: int64(v.Tick)}
+	a.kills = append(a.kills, k)
+	if s.unbutchered {
+		a.corpses = append(a.corpses, k)
+		return
+	}
+	a.butchers = append(a.butchers, observation.Butcher{CorpseID: k.CorpseID, MeatNutrition: k.PotentialNutrition, Tick: k.Tick})
 }
 
 // daysUntilGrowing is the wait for the next growing day (0 inside the window).
@@ -529,7 +598,24 @@ func huntScenarios(size int) []foodScenario {
 	hidden.specs[2].hidden = true
 	bows := mixScenario(fmt.Sprintf("hunt/only-bows/n%d", size), size, 1, foodShare, []policy.CandidateKind{policy.CandidateHunt})
 	bows.specs[0].reach = bowReach
-	return []foodScenario{hidden, bows}
+	// A herd that drains on kills and regrows by what the colony needs a day
+	// (breeding, migration) is a sustained source.
+	regrowing := mixScenario(fmt.Sprintf("hunt/regrowing-herd/n%d", size), size, 1, foodShare, []policy.CandidateKind{policy.CandidateHunt})
+	regrowing.specs[0].reach = bowReach
+	regrowing.specs[0].src.Regen = foodNutritionPerColonist * float64(size) * foodShare / regrowing.specs[0].nutr
+	return []foodScenario{hidden, bows, regrowing}
+}
+
+// butcherBillMissing is a colony fed by hunting alone whose hunters kill but
+// whose corpses nobody butchers: no meat ever reaches the larder, so the sim
+// delivers nothing. It is judged by its own test, not the matrix assertions:
+// the kills credit the plan before the corpses rot, which the plan reads as
+// surplus while the larder stays empty.
+func butcherBillMissing(size int) foodScenario {
+	sc := mixScenario(fmt.Sprintf("hunt/only-butcher-bill-missing/n%d", size), size, 1, foodShare, []policy.CandidateKind{policy.CandidateHunt})
+	sc.specs[0].reach, sc.specs[0].unbutchered = bowReach, true
+	sc.specs[0].src.Yields[0].PerUnit = 0
+	return sc
 }
 
 var foodDemandLevels = map[string]float64{"base": 1, "high": 1.5}
@@ -775,5 +861,41 @@ func TestFoodMatrixStarvingTribalStarvesWithoutHunt(t *testing.T) {
 	}
 	if !res.viable {
 		t.Fatal("the starving colony is not viable even for an oracle, so the starvation proves nothing")
+	}
+}
+
+// A hunt whose corpses are never butchered credits each kill at its potential
+// yield, which its rot clock then takes to zero: the group's factor falls to the
+// floor, the plan stops counting on the hunt and holds its rows while the gap
+// stays open (#2161).
+func TestFoodMatrixHuntOnlyButcherBillMissing(t *testing.T) {
+	sc := butcherBillMissing(8)
+	a := &foodAdapter{sc: sc}
+	supplysim.Run(sc.world(1), a, foodShortHorizon)
+	if f, seen := a.minFactor["hunt"]; !seen || f > foodCreditFloor {
+		t.Fatalf("hunt factor %v (seen %v) after its corpses rotted, want <= %v", f, seen, foodCreditFloor)
+	}
+	// The herd is exhausted by the end: read the last day that still lists its rows.
+	var last policy.FoodPlan
+	for _, plan := range a.plans {
+		if slices.ContainsFunc(plan.Portfolio, func(e policy.FoodPlanEntry) bool { return e.Channel.Kind == policy.CandidateHunt }) {
+			last = plan
+		}
+	}
+	held := 0
+	for _, e := range last.Portfolio {
+		if e.Channel.Kind != policy.CandidateHunt {
+			continue
+		}
+		if e.Decision == policy.FoodPlanOpen {
+			t.Fatalf("hunt row %s opened after its corpses rotted", e.Channel.ID)
+		}
+		if rate, _ := e.Channel.Nutrition().PerDay.Value(); rate > 0.1*foodNutritionPerColonist {
+			t.Fatalf("hunt row %s still credited %v nutrition a day", e.Channel.ID, rate)
+		}
+		held++
+	}
+	if held == 0 || last.GapPerDay <= 0 {
+		t.Fatalf("held %d hunt rows with gap %v: want the rows held and the gap open", held, last.GapPerDay)
 	}
 }

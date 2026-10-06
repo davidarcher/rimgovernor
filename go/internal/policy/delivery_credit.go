@@ -96,6 +96,8 @@ type DeliveryCredit struct {
 	groups  map[string]*creditHistory
 	results map[string]CreditResult
 	changes []CreditChange
+	// rotPeak is the most rot ticks seen per unbutchered hunt corpse (HuntDelivered).
+	rotPeak map[string]int64
 }
 
 func creditWindowDays(c CreditChannel) float64 {
@@ -301,8 +303,12 @@ func committed(c SupplyCandidate) bool {
 	return known && (s == CandidateDesignated || s == CandidateDelivering)
 }
 
-// cycleDays is the days between a crop channel's deliveries, from its Terms.
+// cycleDays is the days between a crop channel's deliveries, from its Terms;
+// hunting is judged over HuntCreditWindowDays.
 func cycleDays(c SupplyCandidate) float64 {
+	if c.Kind == CandidateHunt {
+		return HuntCreditWindowDays - LedgerReplantDays
+	}
 	for _, t := range c.Terms {
 		if t.Name == "grow_days" {
 			return t.Value

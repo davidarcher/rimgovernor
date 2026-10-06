@@ -134,9 +134,10 @@ expected rate x factor`.
 - **Attribution** is each builder's own census, named in `SupplyCandidate.Source`:
   growing-zone id for a crop field, water-body root for a fishing region, plant
   def for forage (every plant of a def shares one group), animal race for an
-  animal product. Hunts are not counted by this ledger and keep factor 1.
+  animal product, `hunt` for every hunt channel (see [Hunting](#hunting)).
 - **Window**: `LedgerWindowDays` = 3 days; a bursty channel is judged over at
-  least its cycle plus a replant day (a crop's grow days).
+  least its cycle plus a replant day (a crop's grow days); hunting over
+  `HuntCreditWindowDays` = 6 days, so a kill every few days averages out.
 - **Warm-up**: a group is judged only after its lead plus one window since the
   plan opened it (`Opened`) or it was first seen delivering, so a candidate
   nobody asked for is never penalised; until then the factor holds.
@@ -145,6 +146,36 @@ expected rate x factor`.
   lost. A group no longer in the census is forgotten.
 - **Flight**: a `food_credit` decision row per group when its factor moves by 0.1
   or more, its state changes, or a hold ends a window it was judged over.
+
+### Hunting
+
+Hunting is hunter throughput over a finite, live stock of wildlife
+(`policy/hunt_credit.go`, `hunt_squad.go`):
+
+- **Stock**: each hunt channel (one per animal or squad group) carries
+  `StockCap`, the nutrition of its animals in reach from the wildlife census,
+  rebuilt every Round, so the ranker prices it as a finite source
+  (`min(rate, stock / horizon)`). Kills shrink it; regrowth and migration
+  refill it through the next census.
+- **Rate**: `HuntThroughput` caps the channels' summed rate at hunters x kills
+  per hunter-day x the meat of an average prey and scales each channel's
+  nutrition, work and products by the same share. Hunters are the ranged,
+  Hunting-capable colonists (`policy.Hunters`). Kills per hunter-day is the
+  ledger's trailing cadence (`HuntCadence`: kills of the last 14 days over
+  hunters and the days they span) once it holds three kills, else
+  `HuntKillsPerHunterDay` (1). A channel waiting on a hunter's weapon is not
+  scaled.
+- **Credit**: the `hunt` group is credited per corpse id in two stages
+  (`DeliveryCredit.HuntDelivered`). A KILL credits the corpse at its potential
+  yield times its rot clock (rot ticks over the most seen; a frozen or
+  non-perishable corpse does not decay; a corpse the complete census no longer
+  lists is worth nothing); the BUTCHER record for that corpse id replaces it
+  with the meat made. A corpse hauled twice is credited once and humanlike
+  corpses stay the human-butchery channel's. A corpse rotting unbutchered takes
+  the group's factor to zero, so the plan holds the hunt and the butcher bill or
+  cook shows as the blocker. The group is `delivering` from the first credited
+  kill; a formation hunt is `designated` once the plan opens its prey
+  (`HuntAdmission`).
 
 ### Husbandry candidates
 
