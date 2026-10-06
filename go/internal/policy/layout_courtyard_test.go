@@ -91,8 +91,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 	}
 }
 
-// The farmed patch is not yard room: the yard is sited on open ground, and
-// the field cells are excluded from it.
+// The farmed patch is not yard room: the yard is sited on open ground.
 func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140, 0)
@@ -101,36 +100,14 @@ func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	var shop PlannedRoom
-	for _, r := range plan.AllRooms() {
-		if r.Role == PlannedWorkshop {
-			shop = r
-		}
-	}
-	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "shop", Enclosed: domain.Known(true), Cells: rectCells(shop.Interior)}}}
-	roofed := map[domain.Cell]bool{}
-	for _, c := range rooms.Rooms[0].Cells {
-		roofed[c] = true
-	}
-	var cells []SiteCell
-	for _, c := range s.Cells {
-		cells = append(cells, SiteCell{Cell: c.Cell, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false),
-			Roofed: domain.Known(roofed[c.Cell]), Indoors: domain.Known(roofed[c.Cell]), StorageEmpty: domain.Known(true)})
-	}
-	r := StorageRequest{Bounds: Bounds{Width: 140, Height: 140}, Cells: cells, Layout: &plan, Rooms: &rooms}
-	site := yardSite(t, r)
-	if len(site.Room) == 0 {
+	yards := plan.YardRooms()
+	if len(yards) == 0 {
 		t.Fatal("no yard room")
 	}
-	for _, c := range site.Room {
-		if rich[c] {
-			t.Fatalf("yard room on the farmed patch at %v", c)
-		}
-	}
-	for _, cand := range site.Candidates {
-		for _, c := range cand {
+	for _, yard := range yards {
+		for _, c := range rectCells(yard.Interior) {
 			if rich[c] {
-				t.Fatalf("yard candidate on the farmed patch at %v", c)
+				t.Fatalf("yard room on the farmed patch at %v", c)
 			}
 		}
 	}

@@ -135,7 +135,7 @@ func TestDeclaredStorageDemandWaitsOnAStandingRoom(t *testing.T) {
 	t.Parallel()
 	store := testStore()
 	store.Further = PlannedStorage
-	if d := DeclaredDemand(StorageRequest{}, []Store{store}); d.Storage != 0 || d.StorageIdle || !d.Known {
+	if d := DeclaredDemand(StorageRequest{}, []Store{store}); d.Storage != 0 || d.StorageIdle || d.Known {
 		t.Fatalf("a room with no zone is a wait: %+v", d)
 	}
 	if d := DeclaredDemand(StorageRequest{Zones: []StockpileZone{declaredZone("z", testStoreRoom, 1)}}, []Store{store}); !d.StorageIdle || d.Storage != 0 {

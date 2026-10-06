@@ -123,20 +123,3 @@ func TestOuterRingSkipsPatchInsideTheFootprint(t *testing.T) {
 		t.Fatal("no core ring")
 	}
 }
-
-// The yard is never sited on farmland.
-func TestYardSitesSkipFieldCells(t *testing.T) {
-	t.Parallel()
-	r, _ := yardField(nil)
-	full := yardSite(t, r)
-	field := LayoutZone{Kind: ZoneField}
-	for _, c := range full.Room {
-		field.Runs = append(field.Runs, RowRun{Z: c.Z, X: c.X, Length: 1})
-	}
-	r.Layout.Zones = append(r.Layout.Zones, field)
-	for _, site := range PlanStorage(r).Sites {
-		if site.Role == domain.YardRole {
-			t.Fatalf("yard sited on farmland: %d room cells", len(site.Room))
-		}
-	}
-}

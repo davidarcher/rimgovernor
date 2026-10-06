@@ -49,7 +49,7 @@ func GraveyardSlots(in Rectangle) []Rectangle {
 
 // outdoorRoles are the roles planned as an Outdoor room (PlannedRoom.Outdoor):
 // a fence and a gate ring, no roof, no floor owed.
-var outdoorRoles = map[PlannedRole]bool{PlannedPen: true, PlannedGraveyard: true, PlannedWasteYard: true}
+var outdoorRoles = map[PlannedRole]bool{PlannedPen: true, PlannedGraveyard: true, PlannedWasteYard: true, PlannedYard: true}
 
 // IsOutdoor reports whether a room of role is planned as an Outdoor room.
 func (r PlannedRole) IsOutdoor() bool { return outdoorRoles[r] }

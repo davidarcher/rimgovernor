@@ -189,11 +189,12 @@ func (f StockpileFilter) Quality() (min, max Quality, ok bool) {
 func FoodFilter() StockpileFilter { return StockpileFilter{base: BaseFood} }
 
 // GeneralFilter is the warehouse's: every storable that is not safe outside,
-// plus packed buildings (#2103). A building def cannot deteriorate, so the
-// indoor_only preset never lists one; the Buildings category adds the packed
-// furniture, benches and art clearance leaves behind.
+// plus packed buildings (#2103), less what burns (#2192): the waste yard takes
+// the burnable. A building def cannot deteriorate, so the indoor_only preset
+// never lists one; the Buildings category adds the packed furniture, benches
+// and art clearance leaves behind.
 func GeneralFilter() StockpileFilter {
-	f, _ := NewStockpileFilter(BaseIndoorOnly, []FilterSelector{CategoryDef("Buildings")}, nil)
+	f, _ := NewStockpileFilter(BaseIndoorOnly, []FilterSelector{CategoryDef("Buildings")}, []FilterSelector{SpecialFilter(BurnableFilterDef)})
 	return f
 }
 

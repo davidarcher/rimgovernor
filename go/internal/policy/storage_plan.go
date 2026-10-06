@@ -67,8 +67,11 @@ type StorageRequest struct {
 type RoomDemand struct {
 	Armory, Wardrobe bool
 	// Storage is the storage rooms the plan should hold, 0 for no demand
-	// (a further warehouse, #1772; see storageRoomsWanted).
+	// (a further warehouse, #1772).
 	Storage int
+	// Yard is the materials yards the plan should hold, 0 for no demand
+	// (a further yard, #2192; see YardRoomsWanted).
+	Yard int
 	// Known is set when the gear census was read, so a false Armory or
 	// Wardrobe is a reading and not a gap (#1825). StorageIdle is set when a
 	// standing storage room has warehouse space to spare: a true no-demand
@@ -92,12 +95,7 @@ type StoragePlan struct {
 // catch-all, the tomb's corpse store, and the food stockpile beside the
 // kitchen. The dumps stand outdoors while things wait for them.
 func PlanStorage(r StorageRequest) StoragePlan {
-	warehouse := r.warehouseReading()
 	var plan StoragePlan
-	plan.RoomDemand.Storage, plan.RoomDemand.StorageIdle = warehouse.storageRoomsWanted()
-	if r.gearRoomPending(militaryOwner{}.RoomDemand(r)) {
-		plan.RoomDemand.Storage = 0
-	}
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}
@@ -111,8 +109,6 @@ func PlanStorage(r StorageRequest) StoragePlan {
 		plan.Sites = append(plan.Sites, freezer...)
 		plan.Sites = append(plan.Sites, r.tombSites()...)
 		plan.Sites = append(plan.Sites, r.morgueSites()...)
-		plan.Sites = append(plan.Sites, r.warehouseSites()...)
-		plan.Sites = append(plan.Sites, r.yardSites()...)
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)

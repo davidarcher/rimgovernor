@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -99,21 +100,48 @@ func warehouseZone(id, role string, in Rectangle, stored int) StockpileZone {
 	return StockpileZone{ID: id, Role: role, Cells: cells, Stored: cells[:stored], Filter: domain.GeneralFilter(), Priority: domain.LowPriority}
 }
 
+// storageDemand is the room demand layout reads: the planner's reading with
+// the declared stores' answer over it.
+func storageDemand(req StorageRequest) RoomDemand {
+	return DeclareStores(req).Apply(PlanStorage(req).RoomDemand)
+}
+
+func createdRoles(review StockpileReview) map[string]StockpileEdit {
+	out := map[string]StockpileEdit{}
+	for _, e := range review.Edits {
+		if e.Kind == StockpileCreate {
+			out[e.Role] = e
+		}
+	}
+	return out
+}
+
+// stockpileOf is the maintenance request for a storage view: its declared
+// stores over the view's ground and zones, the opening stores already standing.
+func stockpileOf(req StorageRequest) StockpileRequest {
+	r := freshColonyStockpiles()
+	r.Zones = []StockpileZone{{ID: "Zone_dump", Role: domain.CorpseDumpRole, Cells: []domain.Cell{{X: 30, Z: 20}}, Filter: domain.CorpseDumpFilter(), Priority: domain.LowPriority}}
+	r.Cells, r.Bounds = req.Cells, req.Bounds
+	r.Zones = append(slices.Clone(r.Zones), req.Zones...)
+	r.Stores = DeclareStores(req).Stores
+	return r
+}
+
 func TestStorageRoomDemandFollowsTheFillThreshold(t *testing.T) {
 	t.Parallel()
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
-	// 8 of 9 cells used is over the threshold and the room has no cell left
-	// to grow onto; 7 of 9 is under it.
-	if got := PlanStorage(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))).RoomDemand.Storage; got != 2 {
+	// 8 of 9 cells used is over the threshold; 7 of 9 is under it.
+	if got := storageDemand(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))).Storage; got != 2 {
 		t.Fatalf("full warehouse wants %d rooms, want 2", got)
 	}
-	if got := PlanStorage(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 7))).RoomDemand.Storage; got != 0 {
+	if got := storageDemand(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 7))).Storage; got != 0 {
 		t.Fatalf("a warehouse under the threshold wants %d rooms", got)
 	}
-	if got := PlanStorage(storeRequest(1, 0, warehouseZone("a", domain.GeneralRole, first, 9))).RoomDemand.Storage; got != 0 {
-		t.Fatalf("no standing room, wants %d", got)
+	// The zone stands on open ground before its room: its fill is the demand.
+	if got := storageDemand(storeRequest(1, 0, warehouseZone("a", domain.GeneralRole, first, 9))).Storage; got != 2 {
+		t.Fatalf("a full zone in an unbuilt room wants %d rooms, want 2", got)
 	}
-	if got := PlanStorage(storeRequest(1, 1)).RoomDemand.Storage; got != 0 {
+	if got := storageDemand(storeRequest(1, 1)).Storage; got != 0 {
 		t.Fatalf("no warehouse zone yet, wants %d", got)
 	}
 }
@@ -129,71 +157,75 @@ func TestUnbuiltStorageRoomIsAShellEdit(t *testing.T) {
 	}
 }
 
-func TestStorageRoomDemandWaitsForRoomToGrow(t *testing.T) {
-	t.Parallel()
-	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
-	small := warehouseZone("a", domain.GeneralRole, first, 4)
-	small.Cells = small.Cells[:4]
-	small.Stored = small.Stored[:4]
-	if got := PlanStorage(storeRequest(1, 1, small)).RoomDemand.Storage; got != 0 {
-		t.Fatalf("a full warehouse that can still grow in its room wants %d rooms", got)
-	}
-}
-
 func TestSecondWarehouseFollowsTheSecondRoom(t *testing.T) {
 	t.Parallel()
 	first, second := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}, Rectangle{X: 20, Z: 10, Width: 3, Height: 3}
 	full := warehouseZone("a", domain.GeneralRole, first, 9)
-	// The second room is planned but not standing: no site, no more demand.
+	// The second room is planned but holds no zone yet: no more demand.
 	req := storeRequest(2, 1, full)
-	plan := PlanStorage(req)
-	if plan.RoomDemand.Storage != 0 {
-		t.Fatalf("a planned room answers the demand: %d", plan.RoomDemand.Storage)
+	if got := storageDemand(req).Storage; got != 0 {
+		t.Fatalf("a planned room answers the demand: %d", got)
 	}
-	for _, s := range plan.Sites {
-		if s.Role != domain.GeneralRole {
-			t.Fatalf("site %q before the second room stands", s.Role)
-		}
-	}
-	// Standing: the second warehouse site exists, served by no zone yet, and
-	// the planner waits on its zone before asking for a third room.
-	req = storeRequest(2, 2, full)
-	plan = PlanStorage(req)
-	var site StockpileSite
-	for _, s := range plan.Sites {
-		if s.Role == domain.GeneralRole+":second" {
-			site = s
-		}
-	}
-	if site.Role == "" || site.Supersedes != domain.OpeningGeneralRole || site.Filter != domain.GeneralFilter() || site.Priority != domain.LowPriority {
-		t.Fatalf("second warehouse site %+v", site)
-	}
-	if plan.RoomDemand.Storage != 0 {
-		t.Fatalf("unserved second room still asks: %d", plan.RoomDemand.Storage)
-	}
-	// The zone created in the second room fills in turn: a third room.
-	zone := warehouseZone("b", domain.GeneralRole+":second", second, 9)
-	if got := PlanStorage(storeRequest(2, 2, full, zone)).RoomDemand.Storage; got != 3 {
+	// Both warehouses stand with a zone and are full: a third room.
+	zone := warehouseZone("b", domain.GeneralRole, second, 9)
+	if got := storageDemand(storeRequest(2, 2, full, zone)).Storage; got != 3 {
 		t.Fatalf("both warehouses full want %d rooms, want 3", got)
 	}
 	zone.Stored = zone.Stored[:2]
-	if got := PlanStorage(storeRequest(2, 2, full, zone)).RoomDemand.Storage; got != 0 {
+	if got := storageDemand(storeRequest(2, 2, full, zone)).Storage; got != 0 {
 		t.Fatalf("second warehouse has room, wants %d", got)
 	}
 }
 
-// A standing second room gets its warehouse zone from the shared site diff.
+// The warehouse covers the whole interior of its planned room: created on
+// open ground at plan time (the room need not stand), Low priority, on the
+// indoor-only filter without the burnable, and the opening store is not raised
+// beside it.
+func TestWarehouseIsOneZoneOverItsWholeRoom(t *testing.T) {
+	t.Parallel()
+	req := storeRequest(1, 0)
+	created := createdRoles(PlanStockpileMaintenance(stockpileOf(req)))
+	zone, ok := created[domain.GeneralRole]
+	if !ok || len(zone.Cells) != 9 || zone.Priority != domain.LowPriority || zone.Filter != domain.GeneralFilter() || zone.Filter.Base() != domain.BaseIndoorOnly {
+		t.Fatalf("created %+v", created)
+	}
+	if !slices.Contains(zone.Filter.Disallow(), domain.SpecialFilter(domain.BurnableFilterDef)) {
+		t.Fatalf("warehouse filter %+v allows the burnable", zone.Filter)
+	}
+	if _, raised := created[domain.OpeningGeneralRole]; raised {
+		t.Fatal("opening store raised beside a planned warehouse")
+	}
+}
+
+// A zone over its room is never grown, shrunk or merged; it is only
+// retargeted when its settings drift.
+func TestWarehouseIsNeverResized(t *testing.T) {
+	t.Parallel()
+	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
+	for _, stored := range []int{0, 4, 9} {
+		zone := warehouseZone("a", domain.GeneralRole, first, stored)
+		if edits := PlanStockpileMaintenance(stockpileOf(storeRequest(1, 1, zone))).Edits; len(edits) != 0 {
+			t.Fatalf("%d stored: %+v", stored, edits)
+		}
+	}
+	// A smaller standing zone is left as it is: no growth onto the room.
+	small := warehouseZone("a", domain.GeneralRole, first, 4)
+	small.Cells, small.Stored = small.Cells[:4], small.Stored[:4]
+	for _, e := range PlanStockpileMaintenance(stockpileOf(storeRequest(1, 1, small))).Edits {
+		if e.Kind == StockpileGrow || e.Kind == StockpileShrink || e.Kind == StockpileMerge {
+			t.Fatalf("resized: %+v", e)
+		}
+	}
+}
+
+// A standing second room gets its warehouse zone, over its whole room.
 func TestSecondWarehouseZoneIsCreated(t *testing.T) {
 	t.Parallel()
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
-	storage := storeRequest(2, 2, warehouseZone("a", domain.GeneralRole, first, 9))
-	r := freshColonyStockpiles()
-	r.Cells, r.Bounds, r.Zones = storage.Cells, storage.Bounds, storage.Zones
-	r.Sited = PlanStorage(storage).Sites
-	created := createdRoles(PlanStockpileMaintenance(r))
-	zone, ok := created[domain.GeneralRole+":second"]
-	if !ok || len(zone.Cells) == 0 || zone.Priority != domain.LowPriority {
-		t.Fatalf("created %+v", created)
+	req := storeRequest(2, 2, warehouseZone("a", domain.GeneralRole, first, 9))
+	zone, ok := createdRoles(PlanStockpileMaintenance(stockpileOf(req)))[domain.GeneralRole]
+	if !ok || len(zone.Cells) != 9 || zone.Priority != domain.LowPriority {
+		t.Fatalf("created %+v", zone)
 	}
 	for _, c := range zone.Cells {
 		if c.X < 20 || c.X > 22 || c.Z < 10 || c.Z > 12 {
@@ -202,23 +234,54 @@ func TestSecondWarehouseZoneIsCreated(t *testing.T) {
 	}
 }
 
-// Sites sharing the warehouse prefix keep a zone standing in any of their
-// rooms, and the opening store is not raised beside a further warehouse
-// zone (#1798).
+// A zone in a further warehouse room is kept, and counts as the general store
+// so the opening store is not raised beside it (#1798).
 func TestFurtherWarehouseZoneIsKeptAndCountsAsGeneral(t *testing.T) {
 	t.Parallel()
-	first, second := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}, Rectangle{X: 20, Z: 10, Width: 3, Height: 3}
-	zone := warehouseZone("b", domain.GeneralRole+":second", second, 9)
-	r := freshColonyStockpiles()
-	r.Zones = []StockpileZone{zone}
-	r.Sited = []StockpileSite{
-		{Role: domain.GeneralRole, Room: rectCells(first), Supersedes: domain.OpeningGeneralRole},
-		{Role: domain.GeneralRole + ":second", Room: rectCells(second), Supersedes: domain.OpeningGeneralRole},
+	second := Rectangle{X: 20, Z: 10, Width: 3, Height: 3}
+	req := storeRequest(2, 2, warehouseZone("b", domain.GeneralRole, second, 9))
+	r := stockpileOf(req)
+	for _, e := range PlanStockpileMaintenance(r).Edits {
+		if e.Kind == StockpileDelete || e.Role == domain.OpeningGeneralRole {
+			t.Fatalf("a zone in a further warehouse room was moved or the opening store raised: %+v", e)
+		}
 	}
-	if moves := stockpileSiteMoves(r); len(moves) != 0 {
-		t.Fatalf("a zone in a further warehouse room moved: %+v", moves)
+}
+
+// The opening general store is deleted once the warehouse zone stands.
+func TestWarehouseSupersedesTheOpeningStore(t *testing.T) {
+	t.Parallel()
+	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
+	opening := StockpileZone{ID: "open", Role: domain.OpeningGeneralRole, Cells: []domain.Cell{{X: 30, Z: 30}}, Filter: domain.OpeningStoreFilter(), Priority: domain.NormalPriority}
+	req := storeRequest(1, 1, opening)
+	if edits := PlanStockpileMaintenance(stockpileOf(req)).Edits; slices.ContainsFunc(edits, func(e StockpileEdit) bool { return e.Kind == StockpileDelete }) {
+		t.Fatalf("deleted before the warehouse stands: %+v", edits)
 	}
-	if _, ok := createdRoles(PlanStockpileMaintenance(r))[domain.OpeningGeneralRole]; ok {
-		t.Fatal("opening store raised beside a further warehouse zone")
+	req = storeRequest(1, 1, opening, warehouseZone("a", domain.GeneralRole, first, 2))
+	edits := PlanStockpileMaintenance(stockpileOf(req)).Edits
+	if !slices.ContainsFunc(edits, func(e StockpileEdit) bool { return e.Kind == StockpileDelete && e.Zone == "open" }) {
+		t.Fatalf("opening store kept beside the warehouse: %+v", edits)
+	}
+}
+
+// A dug warehouse gets no zone until its whole interior is open.
+func TestDugWarehouseWaitsForItsInterior(t *testing.T) {
+	t.Parallel()
+	req := storeRequest(1, 0)
+	for i, c := range req.Cells {
+		if c.Cell == (domain.Cell{X: 11, Z: 11}) {
+			req.Cells[i].Walkable, req.Cells[i].Occupied, req.Cells[i].NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
+		}
+	}
+	if created := createdRoles(PlanStockpileMaintenance(stockpileOf(req))); len(created) != 0 && created[domain.GeneralRole].Role != "" {
+		t.Fatalf("zone over a half-dug room: %+v", created)
+	}
+	for i, c := range req.Cells {
+		if c.Cell == (domain.Cell{X: 11, Z: 11}) {
+			req.Cells[i].Walkable, req.Cells[i].Occupied, req.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known(false)
+		}
+	}
+	if created := createdRoles(PlanStockpileMaintenance(stockpileOf(req))); len(created[domain.GeneralRole].Cells) != 9 {
+		t.Fatalf("no zone over the open room: %+v", created)
 	}
 }

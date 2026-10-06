@@ -385,7 +385,7 @@ func (p LayoutPlan) herdTarget(role PlannedRole) (x, z float64, ok bool) {
 	centre := func(r Rectangle) (float64, float64, bool) {
 		return float64(r.X) + float64(r.Width)/2, float64(r.Z) + float64(r.Height)/2, true
 	}
-	if role == PlannedVetRoom {
+	if role == PlannedVetRoom || role == PlannedYard {
 		if c, found := p.Core(); found {
 			return float64(c.X), float64(c.Z), true
 		}

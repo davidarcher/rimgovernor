@@ -12,8 +12,8 @@ import (
 // owned zone of its kind stands (the food stockpile is a planner site,
 // storage_plan_food.go):
 //   - the general store, outdoors is fine, nearest the colony anchor; the
-//     warehouse replaces it once the storage room stands (StockpileSite
-//     Supersedes), so none is raised while a warehouse site is planned;
+//     warehouse replaces it once the storage room stands (Store.Supersedes), so
+//     none is raised while a warehouse store is declared;
 //   - the corpse dump, outdoors at least openingDumpDistance from the
 //     anchor and clear of living rooms.
 //
@@ -42,6 +42,9 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 	}
 	for _, site := range r.Sited {
 		general = general || isWarehouseRole(site.Role)
+	}
+	for _, store := range r.Stores {
+		general = general || isWarehouseRole(store.Role)
 	}
 	var out []StockpileEdit
 	take := func(role string, filter domain.StockpileFilter, priority domain.StockpilePriority, site Rectangle, where string) {

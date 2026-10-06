@@ -30,9 +30,6 @@ type StockpileSite struct {
 	// may take, and the zone created is every pool cell still open once the
 	// sites ahead of it have taken theirs.
 	Remainder bool
-	// Supersedes is a role prefix whose zones are deleted once the site is
-	// served: the stand-in it replaces.
-	Supersedes string
 	// Keyed makes Role a stable identity (a bench ID, unlike a census room
 	// ID that RimWorld renumbers): zones are matched to the site by the
 	// whole role key, so several sites may share a prefix.

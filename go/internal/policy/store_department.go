@@ -1,6 +1,9 @@
 package policy
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // A department that owns stockpiles is an entity (epic #2176, #2191): it
 // declares its Stores and publishes its RoomDemand, and MaintainStockpiles
@@ -22,6 +25,9 @@ type Store struct {
 	// zones of its role are deleted. Absence is never retirement, so a
 	// department that cannot read its room yet simply declares nothing.
 	Retired bool
+	// Supersedes is a role whose zones are deleted once the store stands (the
+	// opening general store, until the old planner is deleted, #2206).
+	Supersedes string
 }
 
 // StoreOwner is a department that declares stockpiles. The view is the storage
@@ -37,16 +43,6 @@ type StoreOwner interface {
 
 // storeOwners is the one registry of departments that declare stores.
 var storeOwners = []StoreOwner{storageOwner{}, militaryOwner{}, industryOwner{}}
-
-// storageOwner is the Storage department: the warehouse and materials yard
-// migrate onto it (#2192); it declares none yet.
-type storageOwner struct{}
-
-func (storageOwner) Department() Department        { return DepartmentStorage }
-func (storageOwner) Stores(StorageRequest) []Store { return nil }
-func (o storageOwner) RoomDemand(v StorageRequest) RoomDemand {
-	return DeclaredDemand(v, o.Stores(v))
-}
 
 // StoreDeclaration is every owner's stores and room demand, merged.
 type StoreDeclaration struct {
@@ -86,6 +82,7 @@ func declareStores(owners []StoreOwner, view StorageRequest) StoreDeclaration {
 		d.Demand.Armory = d.Demand.Armory || got.Armory
 		d.Demand.Wardrobe = d.Demand.Wardrobe || got.Wardrobe
 		d.Demand.Storage = max(d.Demand.Storage, got.Storage)
+		d.Demand.Yard = max(d.Demand.Yard, got.Yard)
 		d.Demand.StorageIdle = d.Demand.StorageIdle || got.StorageIdle
 		d.Demand.Known = d.Demand.Known || got.Known
 	}
@@ -97,6 +94,9 @@ func declareStores(owners []StoreOwner, view StorageRequest) StoreDeclaration {
 func (d StoreDeclaration) Apply(old RoomDemand) RoomDemand {
 	if d.covers[PlannedStorage] {
 		old.Storage, old.StorageIdle = d.Demand.Storage, d.Demand.StorageIdle
+	}
+	if d.covers[PlannedYard] {
+		old.Yard = d.Demand.Yard
 	}
 	if d.covers[PlannedArmory] {
 		old.Armory = d.Demand.Armory
@@ -127,17 +127,18 @@ func (s Store) Reading(zones []StockpileZone) StoreReading {
 }
 
 // DeclaredDemand is the capacity-based room demand of stores: an armory or
-// wardrobe store at capacity asks for its room; storage stores ask for one
-// more room than the plan holds once every one stands and is full. A store
+// wardrobe store at capacity asks for its room (Known: a gear store reads the
+// gear census, a storage or yard store does not); storage and yard stores ask for
+// one more room than the plan holds once every one stands and is full. A store
 // whose room does not stand yet is a wait, never a demand or an idle reading.
 func DeclaredDemand(view StorageRequest, stores []Store) RoomDemand {
 	var demand RoomDemand
 	storage, full, idle, pending := 0, 0, false, false
+	yards, fullYards, waiting := 0, 0, false
 	for _, s := range stores {
 		if s.Retired || s.Further == "" {
 			continue
 		}
-		demand.Known = true
 		reading := s.Reading(view.Zones)
 		switch s.Further {
 		case PlannedStorage:
@@ -150,15 +151,26 @@ func DeclaredDemand(view StorageRequest, stores []Store) RoomDemand {
 			default:
 				idle = true
 			}
+		case PlannedYard:
+			yards++
+			if reading.Full {
+				fullYards++
+			}
+			waiting = waiting || !reading.Standing
 		case PlannedArmory:
+			demand.Known = true
 			demand.Armory = demand.Armory || reading.Full
 		case PlannedWardrobe:
+			demand.Known = true
 			demand.Wardrobe = demand.Wardrobe || reading.Full
 		}
 	}
 	demand.StorageIdle = idle
 	if storage > 0 && !pending && !idle && full == storage {
 		demand.Storage = len(view.plannedStorageRooms()) + 1
+	}
+	if yards > 0 && !waiting && fullYards == yards {
+		demand.Yard = len(view.Layout.YardRooms()) + 1
 	}
 	return demand
 }
@@ -214,4 +226,21 @@ func (s Store) roleOf(z StockpileZone) bool {
 		return z.Role == s.Role
 	}
 	return stockpileRolePrefix(z.Role) == stockpileRolePrefix(s.Role)
+}
+
+// stockpileSupersededDeletes deletes the zones a served store supersedes.
+func stockpileSupersededDeletes(r StockpileRequest) []StockpileEdit {
+	var out []StockpileEdit
+	for _, store := range r.Stores {
+		if store.Supersedes == "" || store.Retired || !storeServed(r.Zones, store.StoreSite) {
+			continue
+		}
+		for _, z := range r.Zones {
+			if z.Role != "" && stockpileRolePrefix(z.Role) == store.Supersedes {
+				out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, Hauls: z.Used(),
+					Explanation: fmt.Sprintf("stockpile %s (%s): superseded by %s, delete; %d used cells rehome", z.ID, z.Role, store.Role, z.Used())})
+			}
+		}
+	}
+	return out
 }

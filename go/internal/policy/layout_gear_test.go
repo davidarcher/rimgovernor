@@ -189,11 +189,11 @@ func TestGearRoomPendingHoldsBackAnotherStorageRoom(t *testing.T) {
 	req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))
 	req.Gear = &gear
 	req.Layout.Rooms = append(req.Layout.Rooms, PlannedRoom{Role: PlannedArmory, Interior: Rectangle{X: 30, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 31, Z: 9}})
-	if got := PlanStorage(req).RoomDemand; got.Storage != 0 {
+	if got := storageDemand(req); got.Storage != 0 {
 		t.Fatalf("armory planned, not standing: %+v", got)
 	}
 	req.Rooms.Rooms = append(req.Rooms.Rooms, Room{ID: "armory", Enclosed: domain.Known(true), Cells: rectCells(Rectangle{X: 30, Z: 10, Width: 3, Height: 3})})
-	if got := PlanStorage(req).RoomDemand; got.Storage != 2 {
+	if got := storageDemand(req); got.Storage != 2 {
 		t.Fatalf("armory standing: %+v", got)
 	}
 }

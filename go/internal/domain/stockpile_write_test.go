@@ -16,8 +16,9 @@ func TestWarehouseFilterAcceptsPackedFurniture(t *testing.T) {
 	if got := f.Allow(); len(got) != 1 || got[0] != CategoryDef("Buildings") {
 		t.Fatalf("allow %v", got)
 	}
-	if len(f.Disallow()) != 0 {
-		t.Fatal("warehouse disallows nothing")
+	// The burnable belongs to the waste yard (#2192).
+	if got := f.Disallow(); len(got) != 1 || got[0] != SpecialFilter(BurnableFilterDef) {
+		t.Fatalf("disallow %v, want only the burnable special", got)
 	}
 }
 

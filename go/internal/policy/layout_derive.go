@@ -36,6 +36,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 	scorer := newPlanScorer(plan.Zones, plan.Reservations, s)
 	want.scorer = &scorer
 	plan = PlanUtilities(plan, want)
+	plan = PlanYardSites(plan, YardRoomsWanted(RoomDemand{}))
 	plan, _ = growOutskirts(plan, OutskirtsSize())
 	plan, _ = growOutskirtsRooms(plan, want.ThickRoof)
 	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s)
@@ -121,6 +122,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 		}
 	}
 	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals, growth.HerdUnits)
+	plan, yards := topUpYards(plan, coreWithout(zones, vents), YardRoomsWanted(growth.Demand))
+	sited = sited || yards
 	var kept []PlannedRoom
 	for _, r := range plan.Rooms {
 		if !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) {
@@ -191,6 +194,13 @@ func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []int
 	if animals <= 0 && len(herds) == 0 {
 		return plan, false
 	}
+	return topUpSites(plan, core, func(p LayoutPlan) LayoutPlan { return PlanHerdSites(p, animals, herds...) })
+}
+
+// topUpSites runs add over plan with the fresh core candidates and the
+// reservations the perimeter does not own, and keeps the reservations it
+// added. It reports whether it added any.
+func topUpSites(plan LayoutPlan, core []LayoutZone, add func(LayoutPlan) LayoutPlan) (LayoutPlan, bool) {
 	var inner []LayoutReservation
 	for _, r := range plan.Reservations {
 		if !perimeterKinds[r.Kind] {
@@ -199,7 +209,7 @@ func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []int
 	}
 	sitePlan := plan
 	sitePlan.Zones, sitePlan.Reservations = core, inner
-	topped := PlanHerdSites(sitePlan, animals, herds...)
+	topped := add(sitePlan)
 	if len(topped.Reservations) == len(inner) {
 		return plan, false
 	}
