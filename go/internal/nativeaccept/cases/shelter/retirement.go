@@ -80,7 +80,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	work := append(roomsOf(plan, policy.PlannedWorkshop), labs...)
+	work := append(append(roomsOf(plan, policy.PlannedWorkshop), labs...), shelter)
 	staged, err := stageRooms(ctx, h, "stage-work-rooms", work...)
 	if err != nil {
 		return err
@@ -194,14 +194,13 @@ type shelterTable struct {
 }
 
 // furnishShelter spawns a research table and one of each loose spot inside
-// both the fixture hut and the planned shelter interior (the hut's 7x7 floor
-// is not the plan's), clear of the campfire the fixture stood, and returns the
+// the planned shelter interior (staged with the work rooms; the plan sites it
+// wherever it likes, not on the fixture hut), clear of the fixture campfire, and returns the
 // table and the spots' ids in retireSpots order.
 func furnishShelter(ctx context.Context, s cases.Session, h *na.Harness, prepared map[string]any, planned policy.Rectangle) (shelterTable, []string, error) {
-	origin, _ := na.AsMap(prepared["hutOrigin"])
-	size := int32(na.AsNumber(prepared["hutSize"]))
-	hut := policy.Rectangle{X: int32(na.AsNumber(origin["x"])) + 1, Z: int32(na.AsNumber(origin["z"])) + 1, Width: size - 2, Height: size - 2}
-	room := intersect(hut, planned)
+	// The plan's shelter need not overlap the fixture hut: furnish the planned
+	// interior the stage raised.
+	room := planned
 	expansion, _ := na.AsMap(prepared["expansion"])
 	var fire domain.Cell
 	var y int32
@@ -227,7 +226,7 @@ func furnishShelter(ctx context.Context, s cases.Session, h *na.Harness, prepare
 		}
 	}
 	if !placed {
-		return shelterTable{}, nil, fmt.Errorf("no 3x2 floor for the research table in the hut and planned shelter overlap %+v (hut %+v, planned %+v)", room, hut, planned)
+		return shelterTable{}, nil, fmt.Errorf("no 3x2 floor for the research table in the planned shelter %+v", planned)
 	}
 	id, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: retireTableDef, X: int(anchor.X), Z: int(anchor.Z)})
 	if err != nil {
@@ -264,7 +263,7 @@ func furnishShelter(ctx context.Context, s cases.Session, h *na.Harness, prepare
 			}
 		}
 		if !spawned {
-			return shelterTable{}, nil, fmt.Errorf("no free hut cell for a %s", def)
+			return shelterTable{}, nil, fmt.Errorf("no free shelter cell for a %s", def)
 		}
 	}
 	return shelterTable{id: id, cells: cells}, ids, nil

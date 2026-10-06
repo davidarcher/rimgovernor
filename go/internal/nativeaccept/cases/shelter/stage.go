@@ -83,16 +83,6 @@ func inside(r policy.Rectangle, c domain.Cell) bool {
 	return c.X >= r.X && c.X < r.X+r.Width && c.Z >= r.Z && c.Z < r.Z+r.Height
 }
 
-// intersect is the overlap of a and b, zero-sized when they are apart.
-func intersect(a, b policy.Rectangle) policy.Rectangle {
-	x, z := max(a.X, b.X), max(a.Z, b.Z)
-	w, d := min(a.X+a.Width, b.X+b.Width)-x, min(a.Z+a.Height, b.Z+b.Height)-z
-	if w <= 0 || d <= 0 {
-		return policy.Rectangle{}
-	}
-	return policy.Rectangle{X: x, Z: z, Width: w, Height: d}
-}
-
 // buildingCells reads the cells the building id occupies; found is false when
 // no such building stands.
 func buildingCells(ctx context.Context, h *na.Harness, identity map[string]any, label, id string) (cells []domain.Cell, found bool, err error) {
