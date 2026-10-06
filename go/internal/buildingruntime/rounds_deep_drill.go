@@ -155,33 +155,59 @@ func deepDrillFootprint(cells []policy.SiteCell, footprint []domain.Cell, anchor
 	return onLump
 }
 
-func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state ControlState, goal store.StandardState, review store.Rounds, started time.Time) (RoundsResourceResult, bool, error) {
+// deepDrillPlacement is one site a drill can be placed on: the candidate and
+// method id, the lump, and what shared building admission needs.
+type deepDrillPlacement struct {
+	id       string
+	site     observation.DeepResourceLump
+	distance float64
+	snapshot domain.GenerationSnapshot
+	plan     domain.PlanSpec
+	preview  bridge.BuildingPreview
+}
+
+// deepDrillReading is the Round's drill facts: the gate's reads, the lumps of
+// the metals in deficit and, while no drill stands, the sites a preview
+// accepts, nearest first. The Round's supply plan prices those sites as
+// candidates and deepDrill places the ones the plan opened.
+type deepDrillReading struct {
+	native deepDrillBuildingSource
+	f      observation.ColonyProjection
+	sites  []observation.DeepResourceLump
+	// built: a drill or drill blueprint stands, so no further drill is placed.
+	built     bool
+	placeable []deepDrillPlacement
+}
+
+// deepDrillReading reads the drill gate; nil when no metal runway is in
+// deficit, the native cannot drill, or no lump of a needed metal is scanned.
+func (r *RoundsResourcePlanner) deepDrillReading(call context.Context, state ControlState, review store.Rounds) (*deepDrillReading, error) {
 	if len(policy.DeepDrillingResearch(nil, review.ResourceRunwayState())) == 0 {
-		return RoundsResourceResult{}, false, nil
+		return nil, nil
 	}
 	native, ok := r.native.(deepDrillBuildingSource)
 	if !ok {
-		return RoundsResourceResult{}, false, nil
+		return nil, nil
 	}
 	id, _, err := native.Identity(call)
 	if err != nil {
-		return RoundsResourceResult{}, true, err
+		return nil, err
 	}
 	expected, err := observation.DecodeIdentity(id)
 	if err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoundsResourceResult{}, true, fmt.Errorf("%w: deepDrill: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+		return nil, fmt.Errorf("%w: deepDrillReading: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	reading, err := r.reviewer.observeColony(call, native, expected, []string{"DeepDrill"})
 	if err != nil {
-		return RoundsResourceResult{}, true, err
+		return nil, err
 	}
 	f := reading.Projection
 	research, _, err := native.ReadResearch(call, boundary.Identity(state.Snapshot))
 	if err != nil {
-		return RoundsResourceResult{}, true, err
+		return nil, err
 	}
 	if _, err := boundary.Context(research.Context, state.Snapshot); err != nil || !roundsCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity.Tick) {
-		return RoundsResourceResult{}, true, fmt.Errorf("%w: deepDrill: err != nil || !roundsCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity", ErrControl)
+		return nil, fmt.Errorf("%w: deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity", ErrControl)
 	}
 	finished := policy.ResearchFacts{}
 	for _, name := range research.Finished {
@@ -189,87 +215,108 @@ func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state Con
 	}
 	f.Facts.Research = domain.Known(finished)
 	recordStepRead("deepdrill", policy.MaintainResource, state.Snapshot, f)
-	if result, handled, err := r.removeExhaustedDrill(call, epoch, state, goal, f, started); err != nil || handled {
-		return result, handled, err
-	}
-	if len(deepDrillSites(f, review.ResourceRunwayState())) == 0 {
-		return RoundsResourceResult{}, false, nil
+	out := &deepDrillReading{native: native, f: f}
+	out.sites = deepDrillSites(f, review.ResourceRunwayState())
+	if len(out.sites) == 0 {
+		return out, nil
 	}
 	buildings, _, err := native.ReadBuildings(call, boundary.Identity(state.Snapshot))
 	if err != nil {
-		return RoundsResourceResult{}, true, err
+		return nil, err
 	}
 	if _, err := boundary.Context(buildings.Context, state.Snapshot); err != nil || !roundsCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick) {
-		return RoundsResourceResult{}, true, fmt.Errorf("%w: deepDrill: err != nil || !roundsCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick)", ErrControl)
+		return nil, fmt.Errorf("%w: deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick)", ErrControl)
 	}
 	// Any remaining drill or drill blueprint holds placement: a working drill
 	// is not multiplied, and an exhausted drill already designated for removal
 	// leaves the census once demolished.
 	for row := range buildings.Rows.Values() {
 		if row.GetBuilding().GetDefName() == "DeepDrill" || row.GetBuildDefName() == "DeepDrill" {
-			return RoundsResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil
+			out.built = true
+			return out, nil
 		}
 	}
-	runways := review.ResourceRunwayState()
 	center, _ := f.Center().Value()
-	for _, site := range deepDrillSites(f, runways) {
-		// The drill is one catalog row (#728): a deposit, bill, tree or
-		// caravan the other planners bid higher for the same metal wins.
-		resource := policy.Resource(site.Definition)
-		deficit := int64(0)
-		for _, row := range runways {
-			if row.Resource == resource {
-				stock, _ := f.ResourceStock(resource).Value()
-				deficit = row.Target - stock
-			}
+	for _, site := range out.sites {
+		placement, ok, err := r.deepDrillPlacement(call, native, state, f, site, math.Hypot(float64(site.Centre.X-center.X), float64(site.Centre.Z-center.Z)))
+		if err != nil {
+			return nil, err
 		}
-		if candidate, ok := policy.DeepDrillCandidate(resource, site.Definition, min(site.Count, deficit), math.Hypot(float64(site.Centre.X-center.X), float64(site.Centre.Z-center.Z)), domain.Unknown[int64]()); ok {
-			ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, deficit), []policy.AcquisitionCandidate{candidate}, policy.AcquisitionCompetition{})
-			if err != nil {
-				return RoundsResourceResult{}, true, err
-			}
-			score := 0.0
-			if len(ranked) > 0 {
-				score = ranked[0].Score
-			}
-			if _, yield := r.reviewer.bids.outranked(state.Snapshot, resource, bidDeepDrill, score, f.Identity.Tick); yield {
-				continue
-			}
+		if ok {
+			out.placeable = append(out.placeable, placement)
 		}
-		method := domain.MethodID(fmt.Sprintf("deep-drill-%s-%d-%d", site.Definition, site.Centre.X, site.Centre.Z))
-		if _, err := r.reviewer.player.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	}
+	return out, nil
+}
+
+// deepDrillPlacement previews a drill over the lump's centre; ok is false when
+// native refuses it, it is unreachable or its footprint is not clear.
+func (r *RoundsResourcePlanner) deepDrillPlacement(call context.Context, native deepDrillBuildingSource, state ControlState, f observation.ColonyProjection, site observation.DeepResourceLump, distance float64) (deepDrillPlacement, bool, error) {
+	planID := domain.MintPlanID()
+	snapshot := state.Snapshot
+	snapshot.Plan, snapshot.Revision = planID, 1
+	building, err := domain.NewBuilding("DeepDrill", site.Centre, domain.North, "")
+	if err != nil {
+		return deepDrillPlacement{}, false, err
+	}
+	action, err := domain.NewBuildingAction(domain.ActionID(string(planID)+"-0"), building)
+	if err != nil {
+		return deepDrillPlacement{}, false, err
+	}
+	preview, _, err := native.PreviewBuilding(call, action, snapshot)
+	if err != nil {
+		return deepDrillPlacement{}, false, err
+	}
+	p := preview.Preview
+	footprint, fk := p.Footprint.Value()
+	legal, lk := p.CanPlace.Value()
+	safe, sk := p.SafeToPlace.Value()
+	reachable, rk := p.WatchCellsAccessible.Value()
+	if !fk || !lk || !legal || !sk || !safe || !rk || !reachable || !deepDrillFootprint(f.Cells, footprint, site.Centre) {
+		return deepDrillPlacement{}, false, nil
+	}
+	plan, err := domain.NewPlan(planID, 1, []domain.Action{action})
+	if err != nil {
+		return deepDrillPlacement{}, false, err
+	}
+	return deepDrillPlacement{id: fmt.Sprintf("deep-drill-%s-%d-%d", site.Definition, site.Centre.X, site.Centre.Z), site: site, distance: distance, snapshot: snapshot, plan: plan, preview: preview}, true, nil
+}
+
+// deepDrill removes an exhausted drill and places the drill the Round's supply
+// plan opened: the plan decides whether a lump beats the mines, bills and
+// caravans for the metal; this step only executes it.
+func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state ControlState, goal store.StandardState, review store.Rounds, started time.Time) (RoundsResourceResult, bool, error) {
+	if len(policy.DeepDrillingResearch(nil, review.ResourceRunwayState())) == 0 {
+		return RoundsResourceResult{}, false, nil
+	}
+	supply, err := r.reviewer.resourceSupply(call, state, review, goal)
+	if err != nil {
+		return RoundsResourceResult{}, true, err
+	}
+	drill := supply.drill
+	if drill == nil {
+		return RoundsResourceResult{}, false, nil
+	}
+	if result, handled, err := r.removeExhaustedDrill(call, epoch, state, goal, drill.f, started); err != nil || handled {
+		return result, handled, err
+	}
+	if len(drill.sites) == 0 {
+		return RoundsResourceResult{}, false, nil
+	}
+	if drill.built {
+		return RoundsResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil
+	}
+	for _, e := range supply.plan.Plan.Portfolio {
+		if e.Candidate.Kind != policy.CandidateDeepDrill || e.Decision != policy.SupplyOpen {
+			continue
+		}
+		place, ok := drill.place(e.Candidate.ID)
+		if !ok {
+			continue
+		}
+		if _, err := r.reviewer.player.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, domain.MethodID(place.id)); err == nil {
 			return RoundsResourceResult{Verdict: waitFor(WaitMethodUsed, "deep_drill_method")}, true, nil
 		} else if !errors.Is(err, store.ErrNotFound) {
-			return RoundsResourceResult{}, true, err
-		}
-		planID := domain.MintPlanID()
-		snapshot := state.Snapshot
-		snapshot.Plan, snapshot.Revision = planID, 1
-		building, err := domain.NewBuilding("DeepDrill", site.Centre, domain.North, "")
-		if err != nil {
-			return RoundsResourceResult{}, true, err
-		}
-		action, err := domain.NewBuildingAction(domain.ActionID(string(planID)+"-0"), building)
-		if err != nil {
-			return RoundsResourceResult{}, true, err
-		}
-		preview, _, err := native.PreviewBuilding(call, action, snapshot)
-		if err != nil {
-			return RoundsResourceResult{}, true, err
-		}
-		p := preview.Preview
-		footprint, fk := p.Footprint.Value()
-		legal, lk := p.CanPlace.Value()
-		safe, sk := p.SafeToPlace.Value()
-		reachable, rk := p.WatchCellsAccessible.Value()
-		if !fk || !lk || !legal || !sk || !safe || !rk || !reachable {
-			continue
-		}
-		if !deepDrillFootprint(f.Cells, footprint, site.Centre) {
-			continue
-		}
-		plan, err := domain.NewPlan(planID, 1, []domain.Action{action})
-		if err != nil {
 			return RoundsResourceResult{}, true, err
 		}
 		player := r.reviewer.player
@@ -280,14 +327,23 @@ func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state Con
 		if player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoundsResourceResult{}, true, fmt.Errorf("%w: deepDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		decision, err := admitMethod(call, player.journal, store.BuildingMethodRequest{Owner: goal, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: preview.Stock, Previews: []policy.Preview{p}, Purpose: policy.Rounds})
+		decision, err := admitMethod(call, player.journal, store.BuildingMethodRequest{Owner: goal, Method: domain.MethodID(place.id), Plan: place.plan, Current: place.snapshot, Tick: drill.f.Identity.Tick, Bounds: domain.Known(drill.f.Bounds), Stock: place.preview.Stock, Previews: []policy.Preview{place.preview.Preview}, Purpose: policy.Rounds})
 		if err != nil {
 			return RoundsResourceResult{}, true, err
 		}
 		if !decision.Admitted {
 			return RoundsResourceResult{Verdict: admissionRefused(decision)}, true, nil
 		}
-		return RoundsResourceResult{Verdict: BuildingReasonAdmitted, Plan: planID}, true, nil
+		return RoundsResourceResult{Verdict: BuildingReasonAdmitted, Plan: place.plan.ID()}, true, nil
 	}
 	return RoundsResourceResult{}, false, nil
+}
+
+func (d *deepDrillReading) place(id string) (deepDrillPlacement, bool) {
+	for _, p := range d.placeable {
+		if p.id == id {
+			return p, true
+		}
+	}
+	return deepDrillPlacement{}, false
 }

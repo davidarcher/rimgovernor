@@ -26,10 +26,11 @@ func SalvageContext(p RoundsPolicy, f RoundsFacts) (RemoteWorkRequest, error) {
 // Holds carry the explicit remote reasons (RemoteHoldReason): a known threat
 // first, then roof support, native route safety, the reach stage and demand.
 func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]ClearanceTarget, []ClearanceHold, error) {
-	reach, demand := r.Reach, r.Demand
+	reach := r.Reach
 	out := append([]ClearanceTarget(nil), rows...)
+	reasons := make([]string, len(out))
 	var candidates []AcquisitionCandidate
-	var holds []ClearanceHold
+	var remote []int
 	for i := range out {
 		row := &out[i]
 		row.SalvageSelected = false
@@ -59,29 +60,31 @@ func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]Clearan
 				reason = RemoteHoldReason(RemoteSalvage, decision.Reason)
 			}
 		}
-		if reason != "" {
-			holds = append(holds, ClearanceHold{row.EntityID, reason})
-			continue
+		if reasons[i] = reason; reason == "" {
+			candidate := row.Salvage.Candidate
+			candidate.ID, candidate.Kind = row.EntityID, AcquisitionSalvage
+			candidates = append(candidates, candidate)
+			remote = append(remote, i)
 		}
-		candidate := row.Salvage.Candidate
-		candidate.ID, candidate.Kind = row.EntityID, AcquisitionSalvage
-		score, err := ScoreResourceCandidate(demand, candidate, r.Competition)
-		if err != nil {
-			return nil, nil, err
-		}
-		if score.Score <= 0 {
-			holds = append(holds, ClearanceHold{row.EntityID, RemoteHoldReason(RemoteSalvage, "demand:"+score.Hold)})
-			continue
-		}
-		candidates = append(candidates, candidate)
 	}
-	ranked, err := RankResourceCandidates(demand, candidates, r.Competition)
+	supply, err := PlanRemoteSupply(r, candidates)
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(ranked) > 0 {
+	for j, i := range remote {
+		if reason, held := supply.Held[candidates[j].ID]; held {
+			reasons[i] = RemoteHoldReason(RemoteSalvage, "demand:"+reason)
+		}
+	}
+	var holds []ClearanceHold
+	for i, reason := range reasons {
+		if reason != "" {
+			holds = append(holds, ClearanceHold{out[i].EntityID, reason})
+		}
+	}
+	if len(supply.Opened) > 0 {
 		for i := range out {
-			out[i].SalvageSelected = out[i].EntityID == ranked[0].ID
+			out[i].SalvageSelected = out[i].EntityID == supply.Opened[0]
 		}
 	}
 	return out, holds, nil

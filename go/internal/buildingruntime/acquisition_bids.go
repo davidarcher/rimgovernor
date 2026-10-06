@@ -9,10 +9,10 @@ import (
 
 // A MaintainResource floor is acquired by the Round's supply plan (the resource
 // planner's mines and bills, the acquisition planner's chops, harvests and
-// hunts), a deep drill and a caravan (#728). The plan's winner is the single
-// resource bid; the drill and the trade planner post their own best catalog
-// score, and a resource goes to a fresh strictly higher bid. Rows 30 and 31 of
-// epic #2140 move the drill and the caravan onto the plan and delete the board.
+// hunts), a deep drill (a plan candidate placed by deepDrill) and a caravan
+// (#728). The plan's winner is the single resource bid; the trade planner posts
+// its own best catalog score, and a resource goes to a fresh strictly higher
+// bid. The caravan moves onto the plan and row 31 of epic #2140 deletes the board.
 type acquisitionBidder string
 
 const (

@@ -38,22 +38,35 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 	if !known {
 		return observed, nil, nil
 	}
+	reasons := make([]string, len(rows))
+	var candidates []AcquisitionCandidate
+	var remote []int
+	for i, row := range rows {
+		if !row.SafetyKnown || !row.SafeToHaul || !row.Forbidden || lootInsideExtent(r.Reach.Extent, row.Supply.Cell) {
+			continue
+		}
+		if reasons[i] = remoteLootReachHold(r, row); reasons[i] == "" {
+			candidates = append(candidates, lootCandidate(row))
+			remote = append(remote, i)
+		}
+	}
+	supply, err := PlanRemoteSupply(r, candidates)
+	if err != nil {
+		return domain.Unknown[[]LootItem](), nil, err
+	}
+	for j, i := range remote {
+		if reason, held := supply.Held[candidates[j].ID]; held {
+			reasons[i] = RemoteHoldReason(RemoteLoot, "demand:"+reason)
+		}
+	}
 	var kept []LootItem
 	var holds []LootHold
-	for _, row := range rows {
-		if !row.SafetyKnown || !row.SafeToHaul || !row.Forbidden || lootInsideExtent(r.Reach.Extent, row.Supply.Cell) {
+	for i, row := range rows {
+		if reasons[i] == "" {
 			kept = append(kept, row)
 			continue
 		}
-		reason, err := remoteLootHold(r, row)
-		if err != nil {
-			return domain.Unknown[[]LootItem](), nil, err
-		}
-		if reason == "" {
-			kept = append(kept, row)
-			continue
-		}
-		holds = append(holds, LootHold{Thing: row.Supply.Thing, Definition: row.Supply.Definition, Cell: row.Supply.Cell, Reason: reason})
+		holds = append(holds, LootHold{Thing: row.Supply.Thing, Definition: row.Supply.Definition, Cell: row.Supply.Cell, Reason: reasons[i]})
 	}
 	sort.Slice(holds, func(i, j int) bool { return holds[i].Thing < holds[j].Thing })
 	return domain.Known(kept), holds, nil
@@ -106,31 +119,30 @@ func lootInsideExtent(extent domain.Fact[ColonyExtent], cell domain.Cell) bool {
 	return false
 }
 
-// remoteLootHold returns the empty string when the stack may be allowed. The
-// native safety verdict is this candidate's eligibility and route evidence:
-// the census only reports SafeToHaul after walking a colonist's route. A
-// known threat is reported before the reach stage it collapses.
-func remoteLootHold(r RemoteWorkRequest, row LootItem) (string, error) {
+// remoteLootReachHold returns the empty string when the stack passes the
+// reach stage. The native safety verdict is this candidate's eligibility and
+// route evidence: the census only reports SafeToHaul after walking a
+// colonist's route. A known threat is reported before the reach stage it
+// collapses.
+func remoteLootReachHold(r RemoteWorkRequest, row LootItem) string {
 	if reason := remoteThreatHold(r.Reach); reason != "" {
-		return reason, nil
+		return reason
 	}
 	filter := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: row.Supply.Cell, Eligible: domain.Known(true), RouteObservedPassable: domain.Known(true)})
 	if !filter.Allowed {
-		return RemoteHoldReason(RemoteLoot, filter.Reason), nil
+		return RemoteHoldReason(RemoteLoot, filter.Reason)
 	}
-	candidate := AcquisitionCandidate{
-		ID: row.Supply.Definition, Kind: AcquisitionLoot,
+	return ""
+}
+
+// lootCandidate is a stack as a supply candidate: its census count, hauled to
+// the storage headroom the census reports, no labor beyond the haul.
+func lootCandidate(row LootItem) AcquisitionCandidate {
+	return AcquisitionCandidate{
+		ID: row.Supply.Thing, Kind: AcquisitionLoot,
 		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: Resource(row.Supply.Definition)}, Count: row.Count}, Headroom: row.StorageHeadroom}},
 		PathDistance: row.PathLength, Labor: domain.Known(0.0), NeedsHaul: true, UnitsPerTrip: lootUnitsPerTrip,
 	}
-	score, err := ScoreResourceCandidate(r.Demand, candidate, r.Competition)
-	if err != nil {
-		return "", err
-	}
-	if score.Score <= 0 {
-		return RemoteHoldReason(RemoteLoot, "demand:"+score.Hold), nil
-	}
-	return "", nil
 }
 
 // LootDemand builds the demand remote loot scores against: the effective

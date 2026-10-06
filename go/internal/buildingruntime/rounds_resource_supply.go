@@ -16,8 +16,9 @@ import (
 // MaintainResource floor, planned after the food plan against the labor it
 // leaves. The resource planner executes the mine and produce candidates the
 // plan opened, the acquisition planner the chop, harvest and hunt candidates;
-// neither ranks on its own. Deep drill, trade, loot and salvage stay on the
-// bid board, which the plan's winner per resource joins as the single bid.
+// neither ranks on its own. A deep drill is a candidate too (placeable sites
+// only) and deepDrill places the ones the plan opened. Trade stays on the bid
+// board, which the plan's winner per resource joins as the single bid.
 
 // unboundedLabor stands for a work budget the review could not read: the
 // workers are unknown, so the plan does not ration labor.
@@ -49,6 +50,8 @@ type resourceSupply struct {
 	tokens map[string]string
 	// hunts is how many hunts may be admitted.
 	hunts int
+	// drill is the deep drill gate's reading, nil when no metal is in deficit.
+	drill *deepDrillReading
 }
 
 type resourceSupplyKey struct {
@@ -121,6 +124,11 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	center, centered := projection.Center().Value()
 	rows, _ := projection.Acquisition.Value()
 
+	if planner.native != nil {
+		if out.drill, err = planner.deepDrillReading(call, state, review); err != nil {
+			return nil, err
+		}
+	}
 	var reach policy.RemoteWorkRequest
 	reachRead := false
 	var inputs []policy.ResourceSupplyInput
@@ -168,12 +176,36 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		if centered {
 			input.Candidates = append(input.Candidates, policy.AcquisitionSourceCandidates(resource, row.open, center, domain.Known(need))...)
 		}
+		input.Candidates = append(input.Candidates, out.drill.candidates(resource, deficit, row)...)
 		inputs = append(inputs, input)
 	}
 	if out.plan, err = policy.PlanResourceSupply(inputs, resourceLabor(projection)); err != nil {
 		return nil, fmt.Errorf("%w: buildResourceSupply: %w", ErrControl, err)
 	}
 	return out, nil
+}
+
+// candidates are the catalog rows of the placeable drill sites over resource,
+// each yielding the lump up to the deficit. The output lands where the mines'
+// does, so it is hauled to that storage's headroom.
+func (d *deepDrillReading) candidates(resource policy.Resource, deficit int64, row *resourceSupplyRow) []policy.AcquisitionCandidate {
+	if d == nil {
+		return nil
+	}
+	headroom := domain.Unknown[int64]()
+	if row.selKnown {
+		headroom = domain.Known(row.sel.storage.Capacity)
+	}
+	var out []policy.AcquisitionCandidate
+	for _, place := range d.placeable {
+		if policy.Resource(place.site.Definition) != resource {
+			continue
+		}
+		if c, ok := policy.DeepDrillCandidate(resource, place.id, min(place.site.Count, deficit), place.distance, headroom); ok {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // resourceLabor is the daily work budget the food plan leaves: workers *

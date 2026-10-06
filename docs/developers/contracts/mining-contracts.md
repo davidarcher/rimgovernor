@@ -56,7 +56,8 @@ the derived research needs.
 - The planner requires both projects and a built ground scanner before considering positive scanned
   lumps of the needed resource, ordered by distance from the colony centre. It previews a drill at the
   reported resource cell and requires native reachability plus a completely observed, clear,
-  unroofed footprint.
+  unroofed footprint. Each placeable site is a candidate of the Round's resource supply plan
+  (yield `min(lump, deficit)`, labor 100 per unit); the planner places the one the plan opened.
 - Shared building admission keeps spending limits and footprint reservations; the power planner
   includes the pending drill's declared draw. An existing drill or drill blueprint prevents another
   placement.

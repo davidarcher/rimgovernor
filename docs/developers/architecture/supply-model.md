@@ -44,9 +44,10 @@ builds the channel rows and `policy.SupplyFoodPlan` plans them through
 `FoodPlan` that the player API and the method planners consume. Resource
 mines, bills, chops, harvests and hunts run on it through the Round's resource
 supply plan (`policy.PlanResourceSupply`, [space and resources](space-and-resources.md#resource-demand-and-acquisition-scoring));
-deep drill, trade, loot and salvage still use `RankResourceCandidates` until
-their cut-overs (#2168), and the resource simulator matrix runs through a
-`PlanSupply` adapter.
+deep drill runs on it as a candidate, and remote loot and salvage plan their
+stacks and targets through `policy.PlanRemoteSupply`. Trade still uses the bid
+board until its cut-over (#2168), and the resource simulator matrix runs through
+a `PlanSupply` adapter.
 
 ### Demands
 

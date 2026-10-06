@@ -298,7 +298,6 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 	var resourceExtra []policy.AcquisitionCandidate
 	var produce *policy.AcquisitionCandidate
 	trade := resBid{}
-	drill := resBid{}
 	for _, id := range yielding {
 		s, sv, spec := p.source(id), views[id], p.spec[id]
 		if sv.Open || !live(id) {
@@ -351,29 +350,18 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 			if !p.research || !deficitRunway || p.world.Power <= 0 || row.Resource != "Steel" && row.Resource != "Plasteel" {
 				continue
 			}
-			// PlanSupply credits no demand to a hauled candidate whose storage
-			// headroom is unknown (the baselined drill score of 0), so its
-			// cut-over must pass the headroom the drill's destination reports.
-			known := domain.Fact[int64](domain.Unknown[int64]())
-			if p.supply {
-				known = headroom
-			}
-			c, ok := policy.DeepDrillCandidate(row.Resource, string(row.Resource), min(units, deficit), spec.Distance, known)
-			score := 0.0
-			if ok {
-				if ranked := p.rank(row.Resource, deficit, []policy.AcquisitionCandidate{c}); len(ranked) > 0 {
-					score = ranked[0].Score
-				}
-			}
-			if p.supply {
-				if ok {
-					c.ID = id
-					p.batch.add(row.Resource, deficitRunway, c, id)
-				}
+			// The drill is a candidate of the resource planner's pool: its
+			// metal lands in the storage the mines' does.
+			c, ok := policy.DeepDrillCandidate(row.Resource, id, min(units, deficit), spec.Distance, headroom)
+			if !ok {
 				continue
 			}
-			p.drillScores = append(p.drillScores, score)
-			drill = resBid{score, policy.AcquisitionDeepDrill, []string{id}, true}
+			if ranked := p.rank(row.Resource, deficit, []policy.AcquisitionCandidate{c}); len(ranked) > 0 {
+				p.drillScores = append(p.drillScores, ranked[0].Score)
+			} else {
+				p.drillScores = append(p.drillScores, 0)
+			}
+			resourceExtra = append(resourceExtra, c)
 		}
 	}
 
@@ -421,7 +409,7 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 		}
 	}
 
-	if !trade.candidate && !acq.candidate && !res.candidate && !drill.candidate {
+	if !trade.candidate && !acq.candidate && !res.candidate {
 		p.hold(v.Day, g, "no_source")
 		for _, b := range []acquisitionBidder{bidTrade, bidAcquisition, bidResource} {
 			p.board.bid(p.snapshot, row.Resource, b, 0, "", tick)
@@ -432,26 +420,17 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 	order := []struct {
 		who acquisitionBidder
 		bid resBid
-	}{{bidTrade, trade}, {bidAcquisition, acq}, {bidResource, res}, {bidDeepDrill, drill}}
+	}{{bidTrade, trade}, {bidAcquisition, acq}, {bidResource, res}}
 	// Every planner posts first; the second pass is the step that dispatches.
 	for _, o := range order {
-		if o.who != bidDeepDrill {
-			p.board.bid(p.snapshot, row.Resource, o.who, o.bid.score, o.bid.kind, tick)
-		}
+		p.board.bid(p.snapshot, row.Resource, o.who, o.bid.score, o.bid.kind, tick)
 	}
 	var cmds []supplysim.Command
 	for _, o := range order {
 		if !o.bid.candidate {
 			continue
 		}
-		var rival acquisitionBid
-		var yield bool
-		if o.who == bidDeepDrill {
-			rival, yield = p.board.outranked(p.snapshot, row.Resource, o.who, o.bid.score, tick)
-		} else {
-			rival, yield = p.board.bid(p.snapshot, row.Resource, o.who, o.bid.score, o.bid.kind, tick)
-		}
-		if yield {
+		if rival, yield := p.board.bid(p.snapshot, row.Resource, o.who, o.bid.score, o.bid.kind, tick); yield {
 			p.yields = append(p.yields, resYield{v.Day, g, o.who, rival, tick})
 			continue
 		}

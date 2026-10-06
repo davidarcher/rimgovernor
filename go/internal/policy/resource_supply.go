@@ -5,8 +5,8 @@ import (
 )
 
 // ResourceSupplyInput is one unmet MaintainResource floor and the candidates
-// that can cover it: mines, bench bills, chops, harvests and hunts. Deep drill,
-// trade, loot and salvage stay on the bid board and are not candidates here.
+// that can cover it: mines, bench bills, chops, harvests, hunts and deep drills.
+// Trade stays on the bid board and is not a candidate here.
 type ResourceSupplyInput struct {
 	Resource   Resource
 	Deficit    int64

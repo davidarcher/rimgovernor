@@ -22,6 +22,12 @@ type drillNative struct {
 func (n *drillNative) ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error) {
 	return bridge.ResearchRead{Context: n.reply.GetObserved().Context, Finished: []string{"DeepDrilling", "GroundPenetratingScanner"}}, bridge.Result{}, nil
 }
+
+// The drill lands its metal where the mines' does: storage with room.
+func (n *drillNative) ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error) {
+	return nil, policy.ResourceStorage{Capacity: 1000}, bridge.Result{}, nil
+}
+
 func (n *drillNative) ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
 	rows := map[string]*o.BuildingState{}
 	if n.existing {

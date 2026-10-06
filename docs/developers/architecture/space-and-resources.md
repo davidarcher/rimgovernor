@@ -69,17 +69,22 @@ open; the planners do not rank:
 - `RoundsAcquisitionPlanner` designates the chop, harvest and hunt candidates the
   plan opened (`resourceSelection`), at most eight rows and the free hunt slots.
   A resource with a designation in flight is existing work for it.
-- Deep drill, trade, loot and salvage stay on the bid board until their cut-overs
-  ([supply model](supply-model.md)). The plan's winner for a resource is posted as
-  the single resource bid, and a fresh strictly higher deep-drill or trade bid
-  holds the resource back from both planners.
+- A deep drill is a candidate for each lump of a metal in deficit that a preview
+  accepts (research, scanner and no standing drill gate the lumps; yield
+  `min(lump, deficit)`, labor prior 100 per unit, hauled to the mines' storage
+  headroom). `deepDrill` places the one the plan opened, nearest first through the
+  plan's rank; the drill's power draw is charged by shared building admission.
+- Trade stays on the bid board until its cut-over ([supply model](supply-model.md)).
+  The plan's winner for a resource is posted as the single resource bid, and a
+  fresh strictly higher trade bid holds the resource back from both planners.
 - #728 holds: a shelter or bench short of a non-wood resource raises exactly that
   shortfall as a floor (`DependencyNeeds`), and the wood latch (`WoodMin`,
   `WoodTarget`, seasonal scaling) is a floor like any other.
 
 Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
-ranker that still scores loot, salvage and the drill (`RankResourceCandidates`).
-Remote loot consumes it through the
+plan (`UrgentPriority`); remote loot and salvage plan their stacks and targets
+through it too (`PlanRemoteSupply`: threat and reach holds first, then the plan's
+demand holds). Remote loot consumes it through the
 [supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach).
 Surface mining uses the same reach ceiling and one-rock demand batches
 ([mining contract](../contracts/mining-contracts.md)); salvage reads the
@@ -91,7 +96,7 @@ The resource matrix (`buildingruntime/supplysim_resource_test.go`) is the guard
 for this ranker: wood, stone, steel, components and plasteel run over source
 mixes (chop, mine, bill, deep drill, trade, loot, salvage) and the supplysim
 shocks through the real demand functions, catalog candidates, rankers and the
-joint bid board, asserting that floors are restored, a shortfall edge raises
+joint bid board (the deep drill ranks with the mines and bills), asserting that floors are restored, a shortfall edge raises
 only the missing resource, one planner dispatches a resource at a time, bids
 expire with their TTL, a missing source is a hold, and a deep drill needs a
 runway deficit, research and power. Failures that hold today are recorded in
