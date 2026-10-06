@@ -82,6 +82,10 @@ type RoomGrowth struct {
 	// #2122): each gets a pen, barn and vet area of its own beside the misc
 	// unit's.
 	HerdUnits []int
+	// Outskirts is the outline (width, height) of the off-core cluster the
+	// plan is asked to hold (#2183); zero asks for none, and a cluster the
+	// plan holds never moves.
+	Outskirts [2]int32
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
@@ -161,6 +165,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	unplaced = append(unplaced, err)
 	next, incinerator := growIncinerator(next, growth.Incinerator)
 	dropped = dropped || incinerator
+	next, outskirts := growOutskirts(next, growth.Outskirts)
+	dropped = dropped || outskirts
 	next.Zones = zones
 	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {

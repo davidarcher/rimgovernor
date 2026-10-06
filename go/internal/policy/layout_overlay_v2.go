@@ -68,6 +68,7 @@ var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveMortar:       {planRed, "mortar"},
 	ReserveCoverClear:   {planGray, "clear cover"},
 	ReservePocketWall:   {planRed, "pocket wall"},
+	ReserveOutskirts:    {planBrown, "outskirts"},
 }
 
 // Overlay draws p inside bounds. Layer order is zones, reservations,
