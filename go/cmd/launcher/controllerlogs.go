@@ -7,12 +7,6 @@ import (
 	"strings"
 )
 
-// keepControllerLogs is how many starts' controller-*.out.log/.err.log pairs
-// survive a new start. The files hold only what the controller prints to
-// stderr (the startup banner, fatals and panics); the launcher names one in
-// a failed start's error and never parses it.
-const keepControllerLogs = 5
-
 // pruneControllerLogs deletes all but the newest keep starts' controller
 // logs in dir. The stamp in the name (controller-YYYYMMDD-HHMMSS) sorts
 // chronologically, so the name is the age.

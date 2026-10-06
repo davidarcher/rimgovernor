@@ -26,6 +26,12 @@ func kill(pid int) {
 	}
 }
 
+// keepControllerLogs is how many starts' controller-*.out.log/.err.log pairs
+// survive a new start. The files hold only what the controller prints to
+// stderr (the startup banner, fatals and panics); the launcher names one in
+// a failed start's error and never parses it.
+const keepControllerLogs = 5
+
 // profileOwnerPIDFile is buildingruntime.ProfileOwnerPIDFile, copied so the
 // launcher does not link the controller's packages.
 const profileOwnerPIDFile = "rimgovernor-controller.pid"
