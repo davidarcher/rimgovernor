@@ -45,7 +45,12 @@ const (
 	OpFloorIn      OpKind = "floor_in"
 	OpInstall      OpKind = "install"
 	OpBuild        OpKind = "build"
-	opKindsInOrder        = "roof_off door_out wall_out wall_in wall_up door_in pack furniture_out pack_in_use floor_out floor_in install build"
+	// The foreign-thing kinds (#2268): claim a ruin as ring wall, cut an
+	// impassable plant, move a haulable item off the ground.
+	OpClaim        OpKind = "claim"
+	OpCut          OpKind = "cut"
+	OpHaulOut      OpKind = "haul_out"
+	opKindsInOrder        = "roof_off door_out wall_out claim cut haul_out wall_in wall_up door_in pack furniture_out pack_in_use floor_out floor_in install build"
 )
 
 // WantedPiece is one piece of the room's furniture template: a def and the
@@ -106,13 +111,21 @@ type ReconcileInput struct {
 	// ladder and is in stock. Nil never swaps a wall. A wall whose stuff the
 	// census does not name is left.
 	WallUpgrade func(have string) bool
+	// Cells are the mirror's cells on the room's ground: their foreign things
+	// are cleared, claimed or held by the obstruction policy (#2268). Nil sees
+	// none.
+	Cells []SiteCell
 	// Stock counts the packed pieces in storage by def (#2104).
 	Stock map[string]int
 }
 
 // Reconciliation is what a room owes (Owed) and the part of it whose
 // prerequisites hold now (Ready): one operation per kind, in table order.
-type Reconciliation struct{ Owed, Ready []Operation }
+type Reconciliation struct {
+	Owed, Ready []Operation
+	// Holds are the foreign things left standing, with the reason.
+	Holds []ReconcileHold
+}
 
 type reconcileItem struct {
 	kind   OpKind
@@ -121,7 +134,9 @@ type reconcileItem struct {
 	floor  ClearanceFloor
 	piece  WantedPiece
 	fed    bool // an install fed by a piece this pass packs
-	ready  bool
+	// foreign is a thing that is not the colony's (#2268): it feeds no install.
+	foreign bool
+	ready   bool
 }
 
 // Reconcile diffs the room against the ground.
@@ -189,7 +204,14 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		removals = append(removals, add(reconcileItem{kind: kind, target: row}))
 		removedRows = append(removedRows, row)
 	}
+	foreign := foreignThings(in, ring, wallDef, doorWanted)
+	for i := range foreign.items {
+		removals = append(removals, add(foreign.items[i]))
+	}
 	removalCells := map[domain.Cell]bool{}
+	for c := range foreign.blocked {
+		removalCells[c] = true
+	}
 	for _, row := range removedRows {
 		for _, c := range rectCells(Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}) {
 			removalCells[c] = true
@@ -212,7 +234,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 			add(reconcileItem{kind: OpDoorIn, cell: c})
 		case doors[c]:
 			add(reconcileItem{kind: OpDoorOut, cell: c, target: ringTarget(rows, c, doorDef)})
-		case !walls[c]:
+		case !walls[c] && !foreign.claimed[c]:
 			add(reconcileItem{kind: OpWallIn, cell: c})
 		}
 	}
@@ -290,7 +312,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	}
 	freed := map[string]int{}
 	for _, rm := range removals {
-		if rm.kind != OpFurnitureOut {
+		if rm.kind != OpFurnitureOut && !rm.foreign {
 			freed[rm.target.DefName]++
 		}
 	}
@@ -338,7 +360,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		case OpWallIn:
 			it.ready = !removalCells[it.cell]
 		case OpDoorIn:
-			it.ready = !walls[it.cell]
+			it.ready = !walls[it.cell] && !removalCells[it.cell]
 		case OpPack, OpFurnitureOut:
 			it.ready = true
 		case OpPackInUse:
@@ -358,7 +380,9 @@ func Reconcile(in ReconcileInput) Reconciliation {
 			it.ready = ready
 		}
 	}
-	return groupItems(items)
+	out := groupItems(items)
+	out.Holds = foreign.holds
+	return out
 }
 
 // ringTarget is the census row of the wall or door on ring cell c, or a stand-in
@@ -402,6 +426,9 @@ func addToOp(op *Operation, it *reconcileItem) {
 	case OpInstall, OpBuild:
 		op.Pieces = append(op.Pieces, it.piece)
 		op.Cells = append(op.Cells, it.piece.cells()...)
+	case OpClaim, OpCut, OpHaulOut:
+		op.Targets = append(op.Targets, it.target)
+		op.Cells = append(op.Cells, it.cell)
 	case OpPack, OpFurnitureOut, OpPackInUse:
 		op.Targets = append(op.Targets, it.target)
 		op.Cells = append(op.Cells, it.target.Minimum)
@@ -422,7 +449,7 @@ func kindLabel(k OpKind) GroundPhase {
 		return GroundPack
 	case OpDoorOut, OpDoorIn:
 		return GroundDoors
-	case OpWallOut, OpWallIn, OpRoofOff:
+	case OpWallOut, OpWallIn, OpRoofOff, OpClaim:
 		return GroundWalls
 	case OpFloorOut, OpFloorIn:
 		return GroundFloors
