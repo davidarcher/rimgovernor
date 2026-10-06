@@ -54,6 +54,11 @@ type Building struct {
 	Rotation    int      `json:"rotation,omitempty"`
 	Quality     *int     `json:"quality,omitempty"`
 	HitFraction *float64 `json:"hitFraction,omitempty"`
+	// Foreign leaves the thing unowned and a plant fully grown: a tree, a ruin
+	// or a casket, what a room's ground holds that the colony did not build.
+	Foreign bool `json:"foreign,omitempty"`
+	// Filled loads an ancient casket with friendly contents.
+	Filled bool `json:"filled,omitempty"`
 }
 
 // Floor lays Def on Cells.
@@ -223,6 +228,9 @@ func RingOf(plan policy.LayoutPlan, room policy.PlannedRoom) Ring {
 	}
 	return ring
 }
+
+// RotationNumber is a rotation as the fixture's 0..3 (north, east, south, west).
+func RotationNumber(r domain.Rotation) int { return rotationNumber(r) }
 
 func rotationNumber(r domain.Rotation) int {
 	switch r {

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -35,16 +34,13 @@ const (
 	builtTicks = 60000
 )
 
-// shell is the shelter plan's geometry as recovered from the durable plan.
+// shell is the shelter's planned ring as the recorded layout plan holds it.
 type shell struct {
-	planID    domain.PlanID
-	concernID domain.ConcernID
 	footprint domain.RoomFootprint
-	cells     map[domain.Cell]int // shell cell -> action index
-	shape     string
-	seen      map[domain.PlanID]bool // every shell plan the store has listed
-	ignore    map[domain.PlanID]bool // run 0's plan, from the world before the reload
-	staged    map[domain.Cell]bool   // ring cells the fixture spawned finished
+	cells     map[domain.Cell]bool // the ring: every wall cell and the door
+	// pattern is the method glob of the ring's build waves
+	// ("shelter-shell-<x>-<z>-build-<hash>", plannedRoomMethod).
+	pattern string
 }
 
 // waits are the run's wall-clock ceilings and its stall budget; each wait
@@ -60,8 +56,7 @@ func (w waits) wait(ceiling time.Duration, service *na.ServiceProcess) na.Wait {
 // describe is the shell's geometry for the report.
 func (sh *shell) describe() map[string]any {
 	return map[string]any{
-		"plan": string(sh.planID), "concern": string(sh.concernID), "shape": sh.shape,
-		"door": sh.footprint.Door(), "entrance": string(sh.footprint.Entrance()),
+		"pattern": sh.pattern, "door": sh.footprint.Door(), "entrance": string(sh.footprint.Entrance()),
 		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
 		"bounds": sh.footprint.Bounds(),
 	}
@@ -88,101 +83,48 @@ func start(ctx context.Context, s cases.Session, previous *na.ServiceProcess) (*
 	return proc, nil
 }
 
-// lineage is every shell plan the controller has issued on run 1's ring. A
-// world interruption or a restart invalidates the shelter goal and cancels
-// its plan; the next review adopts the standing walls and issues a successor
-// for the missing cells, so the shell's history is a chain of plans, at most
-// one of them live. Cells ordered natively are the union of every dispatch
-// attempt; a dispatch whose receipt never arrived, or whose effect was never
-// observed, may or may not stand in the game and is undecided; a cell
-// whose receipt arrived but whose completion has not is acknowledged.
+// lineage is the ring's build waves the controller has issued. A world
+// interruption or a restart cancels a live wave and the next review issues a
+// successor for the cells still missing, so the ring's history is a chain of
+// waves; the union of their completed cells is the ring placed.
 type lineage struct {
-	plans        map[domain.PlanID]bool
-	byID         map[domain.PlanID]store.PlanState
-	ordered      map[domain.Cell]bool
-	undecided    map[domain.Cell]bool
-	acknowledged map[domain.Cell]bool
-	completed    map[domain.Cell]bool
-	live         *store.PlanState
+	plans     int
+	ordered   int
+	completed map[domain.Cell]bool
 }
 
-// shellLineage reads the lineage from the store. Any shell plan with a cell
-// off run 1's ring is a second shell and fails the run.
+// shellLineage reads the ring's waves from the plan history, retired ones
+// included. A wave ordering anything but a wall or door on the ring is a second
+// shell and fails the run.
 func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, error) {
-	// The catalog lists live plans only; a plan retired by an interruption
-	// stays part of the lineage, so every shell plan ever seen is reloaded.
-	live, err := st.LoadPlans(ctx, 256)
+	plans, err := st.PlanHistoryWithMethods(ctx, 256, sh.pattern)
 	if err != nil {
 		return lineage{}, err
 	}
-	for _, plan := range live {
-		if buildingruntime.IsShellMethod(plan.Method) {
-			sh.seen[plan.Spec.ID()] = true
-		}
-	}
-	var plans []store.PlanState
-	for id := range sh.seen {
-		if sh.ignore[id] {
-			continue
-		}
-		plan, err := st.LoadPlan(ctx, id)
-		if err != nil {
-			return lineage{}, err
-		}
-		plans = append(plans, plan)
-	}
-	l := lineage{plans: map[domain.PlanID]bool{}, byID: map[domain.PlanID]store.PlanState{}, ordered: map[domain.Cell]bool{}, undecided: map[domain.Cell]bool{}, acknowledged: map[domain.Cell]bool{}, completed: map[domain.Cell]bool{}}
+	l := lineage{plans: len(plans), completed: map[domain.Cell]bool{}}
 	for _, plan := range plans {
-		cancelled, gap := false, false
 		for i, a := range plan.Spec.Actions() {
 			b, ok := a.Building()
-			if !ok || b.Stuff() != "WoodLog" || (b.Definition() != "Wall" && b.Definition() != "Door") {
-				return lineage{}, fmt.Errorf("shell plan %s holds a non-shell action", plan.Spec.ID())
+			if !ok || b.Definition() != "Wall" && b.Definition() != "Door" {
+				return lineage{}, fmt.Errorf("ring wave %s holds a non-ring action", plan.Spec.ID())
 			}
-			if _, onRing := sh.cells[b.Cell()]; !onRing {
-				return lineage{}, fmt.Errorf("shell plan %s orders %v off the sited ring (a second shell)", plan.Spec.ID(), b.Cell())
-			}
-			if sh.staged[b.Cell()] {
-				return lineage{}, fmt.Errorf("shell plan %s orders %v, which stands staged", plan.Spec.ID(), b.Cell())
+			if !sh.cells[b.Cell()] {
+				return lineage{}, fmt.Errorf("ring wave %s orders %v off the planned ring (a second shell)", plan.Spec.ID(), b.Cell())
 			}
 			v := plan.Progress[i].View()
-			if v.Stage == domain.Cancelled {
-				cancelled = true
-			}
 			if v.Stage == domain.Completed {
 				l.completed[b.Cell()] = true
-			} else if !domain.StandardWorkOpen([]domain.Progress{plan.Progress[i]}) {
-				gap = true
 			}
-			if v.Attempt == 0 {
-				continue
+			if v.Attempt > 0 {
+				l.ordered++
 			}
-			l.ordered[b.Cell()] = true
-			_, known := v.Receipt.Value()
-			if !known || v.Unresolved || v.Stage != domain.Completed {
-				l.undecided[b.Cell()] = true
-			}
-			if known && v.Stage != domain.Completed {
-				l.acknowledged[b.Cell()] = true
-			}
-		}
-		l.plans[plan.Spec.ID()] = true
-		l.byID[plan.Spec.ID()] = plan
-		// A plan settled with a gap (a cell unsuccessful) is history: the
-		// repair that closes it is the live plan.
-		if !plan.Retired && !cancelled && !(gap && !domain.StandardWorkOpen(plan.Progress)) {
-			if l.live != nil {
-				return lineage{}, fmt.Errorf("two live shell plans: %s and %s", l.live.Spec.ID(), plan.Spec.ID())
-			}
-			p := plan
-			l.live = &p
 		}
 	}
 	return l, nil
 }
 
-// waitLineage polls the shell lineage until done; the progress signature is
-// the live plan and its stage counts.
+// waitLineage polls the ring's waves until done; the progress signature is
+// the wave count and the cells placed.
 func waitLineage(ctx context.Context, st *store.Store, sh *shell, w na.Wait, done func(lineage) bool) error {
 	var last lineage
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
@@ -194,39 +136,16 @@ func waitLineage(ctx context.Context, st *store.Store, sh *shell, w na.Wait, don
 		if done(l) {
 			return "", true, nil
 		}
-		live := "none"
-		if l.live != nil {
-			live = fmt.Sprintf("%s %v", l.live.Spec.ID(), stagesOf(ctx, st, l.live.Spec.ID()))
-		}
-		return na.Signature(len(l.plans), len(l.ordered), live), false, nil
+		return na.Signature(l.plans, l.ordered, len(l.completed)), false, nil
 	})
 	if err != nil {
-		live := "none"
-		if last.live != nil {
-			live = fmt.Sprintf("%s %+v", last.live.Spec.ID(), stagesOf(ctx, st, last.live.Spec.ID()))
-		}
-		return fmt.Errorf("plans=%d ordered=%d live=%s: %w", len(last.plans), len(last.ordered), live, err)
+		return fmt.Errorf("ring waves=%d ordered=%d placed=%d of %d: %w", last.plans, last.ordered, len(last.completed), len(sh.cells), err)
 	}
 	return nil
 }
 
-func isShellPlan(p store.PlanState) bool {
-	actions := p.Spec.Actions()
-	if len(actions) < 9 {
-		return false
-	}
-	for i, a := range actions {
-		b, ok := a.Building()
-		if !ok || b.Stuff() != "WoodLog" || (i == 0) != (b.Definition() == "Door") || (i > 0 && b.Definition() != "Wall") {
-			return false
-		}
-	}
-	return true
-}
-
-// waitShell polls the store until the shelter goal binds a shell plan and
-// reconstructs the footprint from its placements. The progress signature is
-// the shelter goal's binding and how many methods it has tried.
+// waitShell polls the store until the recorded layout plan holds the shelter
+// and reads its ring: the interior and door the planner raises the walls on.
 func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) {
 	var found *shell
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
@@ -234,99 +153,31 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 		if err != nil {
 			return na.Signature("no-review", err), false, nil
 		}
-		for _, binding := range review.Standards {
-			if binding.Concern != policy.MaintainHousing {
-				continue
-			}
-			goal, err := st.LoadStandard(ctx, binding.Standard)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", false, err
-			}
-			if errors.Is(err, store.ErrNotFound) {
-				return na.Signature(binding.Standard, "unbound"), false, nil
-			}
-			// Retired bindings too: a shell plan completes on its placement
-			// receipts and retires at once, as the bunk rungs do (8221a21).
-			methods, err := st.LoadMethods(ctx, binding.Standard, goal.Standard.Episode)
-			if err != nil {
-				return "", false, err
-			}
-			for _, m := range methods {
-				plan, err := st.LoadPlan(ctx, m.Plan)
-				if err != nil || !isShellPlan(plan) {
-					continue
-				}
-				sh, err := classify(plan)
-				if err != nil {
-					return "", false, err
-				}
-				sh.planID, sh.concernID = m.Plan, binding.Standard
-				sh.seen = map[domain.PlanID]bool{m.Plan: true}
-				found = sh
-				return "", true, nil
-			}
-			return na.Signature(binding.Standard, len(methods)), false, nil
+		record, ok, err := st.LayoutPlan(ctx, review.Snapshot, review.Tick)
+		if err != nil || !ok {
+			return na.Signature("no-plan", err), false, nil
 		}
-		return na.Signature("unbound", len(review.Standards)), false, nil
+		rooms := roomsOf(record.Plan, policy.PlannedShelter)
+		if len(rooms) == 0 {
+			return na.Signature("no-shelter", record.Tick), false, nil
+		}
+		room := rooms[0]
+		footprint, err := room.Footprint()
+		if err != nil {
+			return "", false, fmt.Errorf("the planned shelter %+v is no room footprint: %w", room.Interior, err)
+		}
+		cells := map[domain.Cell]bool{footprint.Door(): true}
+		for _, c := range footprint.Walls() {
+			cells[c] = true
+		}
+		found = &shell{footprint: footprint, cells: cells,
+			pattern: fmt.Sprintf("%s-shell-%d-%d-build-*", room.Role, room.Interior.X, room.Interior.Z)}
+		return "", true, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("no shell plan admitted for MaintainHousing: %w", err)
+		return nil, fmt.Errorf("no layout plan holds a shelter: %w", err)
 	}
 	return found, nil
-}
-
-// classify recovers the interior as the cells the wall ring encloses and
-// classify recovers the interior as the cells the wall ring encloses; every
-// shell stands on a planned room (#1231).
-func classify(plan store.PlanState) (*shell, error) {
-	actions := plan.Spec.Actions()
-	door, _ := actions[0].Building()
-	cells := map[domain.Cell]int{}
-	minX, minZ, maxX, maxZ := door.Cell().X, door.Cell().Z, door.Cell().X, door.Cell().Z
-	for i, a := range actions {
-		b, _ := a.Building()
-		if _, dup := cells[b.Cell()]; dup {
-			return nil, fmt.Errorf("duplicate shell cell %v", b.Cell())
-		}
-		cells[b.Cell()] = i
-		minX, minZ = min(minX, b.Cell().X), min(minZ, b.Cell().Z)
-		maxX, maxZ = max(maxX, b.Cell().X), max(maxZ, b.Cell().Z)
-	}
-	// Flood the exterior from outside the bounding box; what remains is inside.
-	outside := map[domain.Cell]bool{}
-	queue := []domain.Cell{{X: minX - 1, Z: minZ - 1}}
-	outside[queue[0]] = true
-	for len(queue) > 0 {
-		c := queue[0]
-		queue = queue[1:]
-		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
-			if n.X < minX-1 || n.X > maxX+1 || n.Z < minZ-1 || n.Z > maxZ+1 || outside[n] {
-				continue
-			}
-			if _, wall := cells[n]; wall {
-				continue
-			}
-			outside[n] = true
-			queue = append(queue, n)
-		}
-	}
-	var interior []domain.Cell
-	for x := minX; x <= maxX; x++ {
-		for z := minZ; z <= maxZ; z++ {
-			c := domain.Cell{X: x, Z: z}
-			if _, wall := cells[c]; !wall && !outside[c] {
-				interior = append(interior, c)
-			}
-		}
-	}
-	footprint, err := domain.NewRoomFootprint(interior, door.Cell(), door.Rotation())
-	if err != nil {
-		return nil, fmt.Errorf("shell placements do not form a room footprint: %w", err)
-	}
-	if len(footprint.Walls()) != len(cells) {
-		return nil, fmt.Errorf("plan places %d shell cells but the footprint needs %d", len(cells), len(footprint.Walls()))
-	}
-	return &shell{footprint: footprint, cells: cells, shape: "planned"}, nil
 }
 
 // allowSupplies has test/hut_shell_fixture unforbid the starting supplies
@@ -559,18 +410,6 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	}
 	report["native_ring"] = map[string]any{"cells": len(ring), "built": len(standing)}
 	return nil
-}
-
-func stagesOf(ctx context.Context, st *store.Store, id domain.PlanID) map[string]int {
-	out := map[string]int{}
-	plan, err := st.LoadPlan(ctx, id)
-	if err != nil {
-		return out
-	}
-	for _, p := range plan.Progress {
-		out[string(p.View().Stage)]++
-	}
-	return out
 }
 
 func boolOf(v any) bool { b, _ := na.AsBool(v); return b }

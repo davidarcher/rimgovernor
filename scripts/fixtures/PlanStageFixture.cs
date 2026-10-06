@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
     // compares before and after the reconciler ran.
     public sealed class PlanStageFixture
     {
-        [Tool("test/plan_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable plan-staging fixture (#2118). action stage takes spec JSON {research:[ResearchProjectDef], walls:[{x,z,stuff}], doors:[{x,z,rotation 0..3,stuff}], roof:[{minX,minZ,maxX,maxZ}], floor:[{def,cells:[{x,z}]}], things:[{def,stuff,x,z,rotation,quality 0..6,hitFraction 0..1}], drops:[{def,count,x,z}], stockpile:{minX,minZ,maxX,maxZ}} and replies the staged things' load ids; walls, doors and things become finished player buildings, moving pawns and items off their cells. action audit takes {ids:[load id],cells:[{x,z}]} and replies each id's def, stuff, quality, hit points, cell and whether it is packed (a minified item) or spawned, and each cell's edifice (def, stuff, id), terrain, roof and room (id, role, enclosed).")]
+        [Tool("test/plan_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable plan-staging fixture (#2118). action stage takes spec JSON {research:[ResearchProjectDef], walls:[{x,z,stuff}], doors:[{x,z,rotation 0..3,stuff}], roof:[{minX,minZ,maxX,maxZ}], floor:[{def,cells:[{x,z}]}], things:[{def,stuff,x,z,rotation,quality 0..6,hitFraction 0..1,foreign (true leaves the thing unowned and a plant fully grown),filled (true loads an ancient casket with friendly contents)}], drops:[{def,count,x,z}], stockpile:{minX,minZ,maxX,maxZ}} and replies the staged things' load ids; walls, doors and things become finished player buildings, moving pawns and items off their cells. action audit takes {ids:[load id],cells:[{x,z}]} and replies each id's def, stuff, quality, hit points, cell and whether it is packed (a minified item) or spawned, and each cell's edifice (def, stuff, id), terrain, roof and room (id, role, enclosed).")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "stage", string spec = "{}")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -73,11 +73,25 @@ namespace HomeBridge.BridgeTools
             foreach (var t in cell.GetThingList(map).Where(t => t is Plant || t is Filth || t is Blueprint || t is Frame).ToList()) t.Destroy(DestroyMode.Vanish);
         }
 
-        private static Thing Build(Map map, ThingDef def, ThingDef stuff, IntVec3 cell, Rot4 rot)
+        private static Thing Build(Map map, ThingDef def, ThingDef stuff, IntVec3 cell, Rot4 rot, bool foreign = false)
         {
             var thing = ThingMaker.MakeThing(def, stuff);
-            thing.SetFaction(Faction.OfPlayer);
+            if (!foreign) thing.SetFaction(Faction.OfPlayer);
+            if (thing is Plant plant) plant.Growth = 1f;
             return GenSpawn.Spawn(thing, cell, map, rot);
+        }
+
+        // Fill loads an ancient casket with friendly pod contents, so the
+        // reconciler meets a casket that still holds something (#2278).
+        private static void Fill(Map map, Building_AncientCryptosleepCasket casket)
+        {
+            var parms = default(ThingSetMakerParams);
+            parms.podContentsType = PodContentsType.AncientFriendly;
+            parms.tile = map.Tile;
+            foreach (var thing in ThingSetMakerDefOf.MapGen_AncientPodContents.root.Generate(parms))
+                if (!casket.TryAcceptThing(thing, false)) throw new InvalidOperationException("Casket refused its contents.");
+            if (casket.Faction != null) casket.SetFaction(null);
+            if (!casket.HasAnyContents) throw new InvalidOperationException("Casket holds nothing.");
         }
 
         private static object Stage(Map map, JObject spec)
@@ -123,7 +137,9 @@ namespace HomeBridge.BridgeTools
                 var def = DefOf((string)row["def"]);
                 var cell = CellOf(map, row);
                 Vacate(map, cell, avoid);
-                var thing = Build(map, def, StuffFor(def, (string)row["stuff"]), cell, new Rot4((int?)row["rotation"] ?? 0));
+                var foreign = (bool?)row["foreign"] == true;
+                var thing = Build(map, def, StuffFor(def, (string)row["stuff"]), cell, new Rot4((int?)row["rotation"] ?? 0), foreign);
+                if ((bool?)row["filled"] == true && thing is Building_AncientCryptosleepCasket casket) Fill(map, casket);
                 if ((int?)row["quality"] is int quality && thing.TryGetComp<CompQuality>() is CompQuality comp)
                     comp.SetQuality((QualityCategory)Math.Max(0, Math.Min(6, quality)), ArtGenerationContext.Colony);
                 if ((double?)row["hitFraction"] is double fraction && def.useHitPoints)

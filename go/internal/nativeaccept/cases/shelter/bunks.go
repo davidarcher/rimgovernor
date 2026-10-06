@@ -24,9 +24,9 @@ const bunkWood = 200
 func init() {
 	cases.Register(cases.Case{
 		Name: "shelter/bunks-first",
-		Scope: "Issues #612 and #615: the one complete-construction path. From the tribal " + sustained.BaselineSave +
+		Scope: "Issues #612, #615 and #2278: the one complete-construction path. From the tribal " + sustained.BaselineSave +
 			" baseline, which houses nobody indoors at the start (asserted), the initial shelter places sleeping spots at " +
-			"the first review, admits the wooden beds next and raises the shell around them without waiting for the beds " +
+			"the first review on the planned shelter interior, admits the wooden beds next on the same slots and raises the ring (the planned room's waves) around them without waiting for the beds " +
 			"to stand (#641) -- every wall and the door by ordinary pawn work, nothing staged; " +
 			"the game roofs the room and the native census then holds one bed per colonist inside it.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
@@ -125,6 +125,22 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["shell"] = sh.describe()
+	// The spots and beds were furnished from the plan before any wall: every
+	// one stands on the planned interior the ring is raised around (#2264).
+	planned := map[domain.Cell]bool{}
+	for _, c := range sh.footprint.Interior() {
+		planned[c] = true
+	}
+	for _, rung := range [][]bunk{spots, placed} {
+		for _, b := range rung {
+			for _, c := range b.cells {
+				if !planned[c] {
+					service.Stop()
+					return fmt.Errorf("bunk cell %v lies outside the planned shelter interior %v", c, sh.footprint.Bounds())
+				}
+			}
+		}
+	}
 	// 3. Every wall, the door and every bed is placed (built natively below).
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
 		return len(l.completed) == len(sh.cells)
