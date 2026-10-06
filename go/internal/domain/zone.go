@@ -108,6 +108,25 @@ func NewFishingZone(cells []Cell) (ZoneCreate, error) {
 
 const FishingPopulationFloor = 0.6
 
+// TreeLatticePitch is the sowing lattice of a blockAdjacentSow plant (every
+// tree): the native sower offers only cells whose offsets from the growing
+// zone's minimum corner are both multiples of the pitch, so a zone holds one
+// tree per TreeLatticePitch^2 cells and fills completely. Mirrors
+// TreeLatticeSowing.Pitch in the native mod (a test compares them, #2290).
+const TreeLatticePitch = 2
+
+// TreeCellsPerTree is the zone area one lattice tree takes.
+const TreeCellsPerTree = TreeLatticePitch * TreeLatticePitch
+
+// TreeLatticeCount is how many trees a width x height rectangular growing
+// zone holds on the lattice.
+func TreeLatticeCount(width, height int) int {
+	if width <= 0 || height <= 0 {
+		return 0
+	}
+	return (width + TreeLatticePitch - 1) / TreeLatticePitch * ((height + TreeLatticePitch - 1) / TreeLatticePitch)
+}
+
 // NewFishingZoneExtension names the exact existing zone and the complete final
 // footprint. Native admission requires a strict superset in the same body.
 func NewFishingZoneExtension(zoneID string, cells []Cell) (ZoneCreate, error) {
