@@ -195,3 +195,32 @@ func TestFishingBelowFloorExpectsNothing(t *testing.T) {
 		t.Fatalf("no below-floor term: %+v", row.Terms)
 	}
 }
+
+// A designated lake that stops yielding catches loses credit while the census
+// still reports a healthy population; rising FISH counters make it Delivering.
+func TestFishingFactorFallsWhenCatchesStop(t *testing.T) {
+	r := fishingRequest()
+	r.Regions[0].Designated = domain.Known(true)
+	r.Regions[0].Source = "fish:0,0"
+	rows, err := FishingChannels(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d DeliveryCredit
+	in := func(day domain.Tick, fish float64) CreditInput {
+		return CreditInput{Tick: day * creditDay, Epoch: "e", Known: true, Delivered: map[string]float64{"fish:0,0": fish}}
+	}
+	d.Apply(rows, in(0, 0))
+	d.groups["fish:0,0"].armOnce(0)
+	out := d.Apply(rows, in(4, 0))
+	if f := d.results["fish:0,0"].Factor; f != 0 {
+		t.Fatalf("factor with no catches = %v", f)
+	}
+	if out[0].State() == domain.Known(CandidateDelivering) {
+		t.Fatalf("a zone with no catches is not delivering: %+v", out[0])
+	}
+	out = d.Apply(rows, in(5, 3))
+	if out[0].State() != domain.Known(CandidateDelivering) {
+		t.Fatalf("rising FISH counters mean delivering: %+v", out[0])
+	}
+}
