@@ -36,8 +36,10 @@ type StoreSite struct {
 	// size inside Interior nearest Anchor; zero covers the whole interior.
 	Width, Height int32
 	Anchor        domain.Cell
-	Filter        domain.StockpileFilter
-	Priority      domain.StockpilePriority
+	// Roofed limits a rectangle to roofed ground.
+	Roofed   bool
+	Filter   domain.StockpileFilter
+	Priority domain.StockpilePriority
 
 	// room and exact adapt a StockpileSite still produced by the storage
 	// planner: its explicit cells stand in for Interior, and a keyed site
@@ -103,7 +105,11 @@ func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
 	}
 	within := open
 	within.only = cellSet(s.footprint())
-	sites := rectangleSites(within, s.Anchor, s.Width, s.Height, nil, 1)
+	var allow func(SiteCell) bool
+	if s.Roofed {
+		allow = func(c SiteCell) bool { roofed, known := c.Roofed.Value(); return known && roofed }
+	}
+	sites := rectangleSites(within, s.Anchor, s.Width, s.Height, allow, 1)
 	if len(sites) == 0 {
 		return nil
 	}

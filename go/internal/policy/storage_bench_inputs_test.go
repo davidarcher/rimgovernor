@@ -48,52 +48,86 @@ func TestDeriveBenchInputs(t *testing.T) {
 	}
 }
 
-// The stonecutter gets a chunk stockpile and a recipe bench its inputs
-// zone, each a keyed Important allow-list site on a roofed patch of the
-// bench's room, above the general store's Low priority.
-func TestPlanStorageWorkstationStockpiles(t *testing.T) {
+func benchStores(view StorageRequest) []Store { return industryOwner{}.Stores(view) }
+
+// The stonecutter gets a chunk store and a recipe bench its inputs store, each a
+// keyed Important allow-list 2x2 on roofed ground of the bench's room, above
+// the general store's Low priority, the first beside its bench.
+func TestIndustryDeclaresBenchStores(t *testing.T) {
 	t.Parallel()
 	room, cells := workshopRoom(8, 4)
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{room}}
-	plan := PlanStorage(StorageRequest{Bounds: Bounds{Width: 10, Height: 10}, Cells: cells, Rooms: &rooms, BenchInputs: []BenchInput{
+	view := StorageRequest{Bounds: Bounds{Width: 10, Height: 10}, Cells: cells, Rooms: &rooms, BenchInputs: []BenchInput{
 		{Bench: "Bench_1", Cell: domain.Cell{X: 0, Z: 0}, Inputs: []string{"ChunkGranite"}},
 		{Bench: "Bench_2", Cell: domain.Cell{X: 7, Z: 3}, Inputs: []string{"Steel"}},
 		{Bench: "Bench_3", Cell: domain.Cell{X: 40, Z: 40}, Inputs: []string{"Steel"}},
-	}})
-	if len(plan.Sites) != 2 {
-		t.Fatalf("planned %+v", plan.Sites)
+	}}
+	stores := benchStores(view)
+	if len(stores) != 2 {
+		t.Fatalf("declared %+v", stores)
 	}
+	open := newStockpileOpen(StockpileRequest{Cells: cells, Bounds: view.Bounds})
 	for i, want := range []struct{ role, def string }{{"ingredients:Bench_1", "ChunkGranite"}, {"ingredients:Bench_2", "Steel"}} {
-		site := plan.Sites[i]
-		allow, ok := site.Filter.AllowOnlyDefinitions()
-		if site.Role != want.role || !site.Keyed || site.Priority != domain.ImportantPriority || !ok || !slices.Equal(allow, []string{want.def}) || len(site.Candidates) == 0 || len(site.Candidates[0]) != 4 {
-			t.Fatalf("site %d: %+v", i, site)
+		store := stores[i]
+		allow, ok := store.Filter.AllowOnlyDefinitions()
+		if store.Role != want.role || !store.exact || store.Priority != domain.ImportantPriority || store.Retired || !ok || !slices.Equal(allow, []string{want.def}) || len(store.Cells(open)) != 4 {
+			t.Fatalf("store %d: %+v", i, store)
 		}
 	}
-	if near := plan.Sites[0].Candidates[0]; !slices.Contains(near, domain.Cell{X: 0, Z: 1}) && !slices.Contains(near, domain.Cell{X: 1, Z: 0}) && !slices.Contains(near, domain.Cell{X: 1, Z: 1}) {
+	if near := stores[0].Cells(open); !slices.Contains(near, domain.Cell{X: 0, Z: 1}) && !slices.Contains(near, domain.Cell{X: 1, Z: 0}) && !slices.Contains(near, domain.Cell{X: 1, Z: 1}) {
 		t.Fatalf("first patch is not beside its bench: %v", near)
 	}
-	if got := PlanStorage(StorageRequest{BenchInputs: []BenchInput{{Bench: "Bench_1", Inputs: []string{"Steel"}}}}).Sites; len(got) != 0 {
-		t.Fatalf("planned without a room census: %+v", got)
+	if got := benchStores(StorageRequest{BenchInputs: []BenchInput{{Bench: "Bench_1", Inputs: []string{"Steel"}}}}); len(got) != 0 {
+		t.Fatalf("declared without a room census: %+v", got)
+	}
+	if demand := (industryOwner{}).RoomDemand(view); demand != (RoomDemand{}) {
+		t.Fatalf("bench stores ask layout for rooms: %+v", demand)
 	}
 }
 
-// Keyed sites sharing a prefix are served, moved and created per bench.
-func TestKeyedSitesAreMatchedByWholeRole(t *testing.T) {
+// A store is created per bench, never served by another bench's zone, and
+// retires only when its bench is gone from the census; an unread census retires
+// nothing, and a bench with its bill paused keeps its zone.
+func TestBenchStoresAreKeyedAndRetireWithTheirBench(t *testing.T) {
 	t.Parallel()
 	room, cells := workshopRoom(8, 4)
-	other := []domain.Cell{{X: 20, Z: 20}}
-	first := StockpileSite{Role: "ingredients:Bench_1", Keyed: true, Room: room.Cells, Priority: domain.ImportantPriority, Candidates: [][]domain.Cell{{{X: 0, Z: 0}}}}
-	second := StockpileSite{Role: "ingredients:Bench_2", Keyed: true, Room: room.Cells, Priority: domain.ImportantPriority, Candidates: [][]domain.Cell{{{X: 5, Z: 0}}}}
-	r := StockpileRequest{Bounds: Bounds{Width: 30, Height: 30}, Cells: cells, Sited: []StockpileSite{first, second},
-		Zones: []StockpileZone{{ID: "Zone_1", Role: "ingredients:Bench_1", Cells: []domain.Cell{{X: 0, Z: 0}}}}}
-	edits := stockpileSiteEdits(r, newStockpileOpen(r))
-	if len(edits) != 1 || edits[0].Role != "ingredients:Bench_2" || edits[0].Kind != StockpileCreate {
-		t.Fatalf("one bench's zone must not serve the other: %+v", edits)
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{room}}
+	steel, err := domain.AllowOnlyFilter([]string{"Steel"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	r.Zones = append(r.Zones, StockpileZone{ID: "Zone_2", Role: "ingredients:Bench_2", Cells: other})
-	moves := stockpileSiteMoves(r)
-	if len(moves) != 1 || moves[0].Zone != "Zone_2" || moves[0].Kind != StockpileDelete {
-		t.Fatalf("only the zone outside its own bench's room moves: %+v", moves)
+	zone := StockpileZone{ID: "Zone_1", Role: "ingredients:Bench_1", Cells: []domain.Cell{{X: 0, Z: 0}, {X: 0, Z: 1}, {X: 1, Z: 0}, {X: 1, Z: 1}}, Filter: steel, Priority: domain.ImportantPriority}
+	view := StorageRequest{Bounds: Bounds{Width: 30, Height: 30}, Cells: cells, Rooms: &rooms, Zones: []StockpileZone{zone},
+		Benches: domain.Known(map[string]bool{"Bench_1": true, "Bench_2": true}),
+		BenchInputs: []BenchInput{
+			{Bench: "Bench_1", Cell: domain.Cell{X: 0, Z: 0}, Inputs: []string{"Steel"}},
+			{Bench: "Bench_2", Cell: domain.Cell{X: 7, Z: 3}, Inputs: []string{"Steel"}},
+		}}
+	open := newStockpileOpen(StockpileRequest{Cells: cells, Bounds: view.Bounds})
+	edits, _ := declaredStoreEdits(view.Zones, benchStores(view), open)
+	creates := 0
+	for _, e := range edits {
+		if e.Kind != StockpileCreate || e.Role != "ingredients:Bench_2" {
+			t.Fatalf("one bench's zone must not serve the other: %+v", edits)
+		}
+		creates++
+	}
+	if creates != 1 {
+		t.Fatalf("edits %+v", edits)
+	}
+	// Bill paused: the bench stands, no input, the zone stays.
+	view.BenchInputs = nil
+	if edits, _ := declaredStoreEdits(view.Zones, benchStores(view), open); len(edits) != 0 {
+		t.Fatalf("a paused bench lost its store: %+v", edits)
+	}
+	// Bench demolished: the zone is deleted.
+	view.Benches = domain.Known(map[string]bool{"Bench_2": true})
+	edits, _ = declaredStoreEdits(view.Zones, benchStores(view), open)
+	if len(edits) != 1 || edits[0].Kind != StockpileDelete || edits[0].Zone != "Zone_1" {
+		t.Fatalf("demolished bench: %+v", edits)
+	}
+	view.Benches = domain.Unknown[map[string]bool]()
+	if edits, _ := declaredStoreEdits(view.Zones, benchStores(view), open); len(edits) != 0 {
+		t.Fatalf("retired over an unread census: %+v", edits)
 	}
 }

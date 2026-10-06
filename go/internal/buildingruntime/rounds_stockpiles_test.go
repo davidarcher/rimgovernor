@@ -156,8 +156,7 @@ func TestStockpileRolesResolveByPrefix(t *testing.T) {
 }
 
 // The registered owners publish every role's desired state (#724/#725): a
-// medicine zone retires with its hospital, an ingredients zone with its
-// bench, the general store, covered fallbacks, gear and dumps keep fixed
+// medicine zone retires with its hospital, the general store, covered fallbacks, gear and dumps keep fixed
 // settings; an unknown census publishes nothing.
 func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 	projection := &observation.ColonyProjection{}
@@ -180,8 +179,8 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{"medicine:Room_2", true, true, medicine, domain.ImportantPriority},
 		{"medicine:Room_9", true, true, medicine, domain.ImportantPriority},
 		{"medicine:Room_3", false, false, domain.StockpileFilter{}, ""},
-		{"ingredients:Bench_1", false, false, domain.StockpileFilter{}, ""},
-		{"ingredients:Bench_2", true, true, domain.StockpileFilter{}, ""},
+		// Ingredient stores are the Industry department's declared stores.
+		{"ingredients:Bench_2", false, false, domain.StockpileFilter{}, ""},
 		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.LowPriority},
 		{domain.OpeningGeneralRole, true, false, domain.OpeningStoreFilter(), domain.NormalPriority},
 		// The 2x2 gear zones the armory and wardrobe replaced retire (#1774); with
@@ -206,7 +205,7 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		}
 	}
 	unknown := stockpileRoles(StockpileRoleInput{Projection: &observation.ColonyProjection{}})
-	for _, role := range []string{"medicine:Room_1", "ingredients:Bench_2"} {
+	for _, role := range []string{"medicine:Room_1"} {
 		if _, ok := unknown(role); ok {
 			t.Errorf("%s published over an unknown census", role)
 		}

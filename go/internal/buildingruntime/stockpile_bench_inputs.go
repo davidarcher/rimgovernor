@@ -1,8 +1,6 @@
 package buildingruntime
 
 import (
-	"strings"
-
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -33,18 +31,4 @@ func benchInputs(census []bridge.GearBenchRead, projection *observation.ColonyPr
 		benches = append(benches, row.Bench)
 	}
 	return policy.DeriveBenchInputs(benches, at, excluded)
-}
-
-// An ingredients:<benchID> stockpile retires once the bench census no
-// longer lists its bench; its allow-list stays the creating planner's, so
-// the role otherwise publishes nothing.
-func init() {
-	RegisterStockpileRole("ingredients", func(in StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
-		_, bench, _ := strings.Cut(role, ":")
-		standing, known := in.Benches.Value()
-		if !known || bench == "" || standing[bench] {
-			return policy.StockpileRoleState{}, false
-		}
-		return policy.StockpileRoleState{Retired: true}, true
-	})
 }

@@ -36,7 +36,7 @@ type StoreOwner interface {
 }
 
 // storeOwners is the one registry of departments that declare stores.
-var storeOwners = []StoreOwner{storageOwner{}, militaryOwner{}}
+var storeOwners = []StoreOwner{storageOwner{}, militaryOwner{}, industryOwner{}}
 
 // storageOwner is the Storage department: the warehouse and materials yard
 // migrate onto it (#2192); it declares none yet.

@@ -40,8 +40,11 @@ type StorageRequest struct {
 	Rooms     *RoomObservation
 	// Meals is nil when no meal store is wanted or its facts are unknown.
 	Meals *MealStore
-	// BenchInputs are the benches consuming stored inputs (#1775).
+	// BenchInputs are the benches consuming stored inputs (#1775), and
+	// Benches the benches standing (unknown holds every bench store); both
+	// are read by the Industry department's stores.
 	BenchInputs []BenchInput
+	Benches     domain.Fact[map[string]bool]
 	// Sleeping is nil while the bed census is unknown; the medicine store
 	// needs it with Rooms.
 	Sleeping *SleepingObservation
@@ -85,7 +88,6 @@ type StoragePlan struct {
 }
 
 // PlanStorage returns the room demand and the desired storage sites: the meal store, the
-// workstation stockpiles beside the benches, the
 // freezer's raw meat, raw vegetable and corpse shelves and its perishables
 // catch-all, the tomb's corpse store, and the food stockpile beside the
 // kitchen. The dumps stand outdoors while things wait for them.
@@ -99,7 +101,6 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}
-	plan.Sites = append(plan.Sites, r.benchInputSites()...)
 	plan.Sites = append(plan.Sites, r.medicineSites()...)
 	shelved := false
 	if r.Layout != nil && r.Rooms != nil {
