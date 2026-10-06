@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -77,7 +78,11 @@ func runRoomObstruction(ctx context.Context, s cases.Session) error {
 	}
 
 	// The bed slot the bedroom template holds: a Bed is one by two.
-	shapes := policy.PieceShapes{Defs: map[string]policy.InteriorPieceDef{"Bed": {Def: "Bed", Size: domain.Cell{X: 1, Z: 2}, Family: policy.RoomRoleBedroom}}}
+	// The core furniture rows, the catalog shapes the template lays the room out from.
+	shapes, err := bridge.FixtureCatalog("room-obstruction", bridge.WithCoreFurniture(nil)...).PieceShapes()
+	if err != nil {
+		return err
+	}
 	slots, ok := policy.BedroomTemplate(bedroom, shapes, "Bed")
 	if !ok || len(slots) != 1 {
 		return fmt.Errorf("the bedroom template does not fit planned room %+v", bedroom.Interior)

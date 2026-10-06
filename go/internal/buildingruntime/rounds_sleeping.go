@@ -744,7 +744,9 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 		// shortfall so the ranking orders that resource's acquisition ahead
 		// of unrelated optional work (#651). The review keeps an edge
 		// only while its actions stay open.
-		if a.purpose == policy.Shelter {
+		// A Project owner (the planned kitchen's shell under EnsureCooking) has
+		// no Standard: the edge records Episodes, so it records none.
+		if a.purpose == policy.Shelter && decision.Standard.Standard.ID != "" {
 			for _, resource := range previewResources(a.selected) {
 				if rec, short := store.ShortfallDependency(r.concern, decision.Standard.Standard, a.method, plan.ID(), a.selected, a.stock, resource, a.facts.Identity.Tick); short {
 					if err = p.journal.RecordDependency(call, a.review.Revision, rec); err != nil && !errors.Is(err, store.ErrConflict) {

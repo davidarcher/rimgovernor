@@ -369,6 +369,9 @@ func (p *Phase) Until(ctx context.Context, what string, done func(review store.R
 func (p *Phase) Plan(ctx context.Context, what string, want func(policy.LayoutPlan) bool) (policy.LayoutPlan, error) {
 	var plan policy.LayoutPlan
 	err := p.Until(ctx, what, func(review store.Rounds) (string, bool, error) {
+		if review.Revision == 0 {
+			return "no-review", false, nil // the controller has not reviewed yet: no world identity to scope the plan by
+		}
 		record, ok, err := p.St.LayoutPlan(ctx, review.Snapshot, review.Tick)
 		if err != nil || !ok {
 			return "no-plan", false, err
