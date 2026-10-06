@@ -3,7 +3,6 @@ package policy
 import (
 	"cmp"
 	"slices"
-	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -36,9 +35,6 @@ type foreignWork struct {
 	holds   []ReconcileHold
 }
 
-// thingTargetID is the native entity id of a listed thing.
-func thingTargetID(t Thing) string { return "Thing_" + strconv.FormatUint(t.ID, 10) }
-
 func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted map[domain.Cell]bool) foreignWork {
 	w := foreignWork{blocked: map[domain.Cell]bool{}, claimed: map[domain.Cell]bool{}}
 	ground := roomGround(in.Room.Interior)
@@ -64,7 +60,7 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 		}
 		index[k] = len(w.items)
 		w.items = append(w.items, reconcileItem{kind: kind, cell: c, ready: true, foreign: true, target: ClearanceTarget{
-			EntityID: thingTargetID(t), DefName: t.Def, Minimum: c, Maximum: c, Class: "foreign", Deconstructible: t.Has(FlagDeconstructible), Count: int64(t.Count),
+			EntityID: t.LoadID(), DefName: t.Def, Minimum: c, Maximum: c, Class: "foreign", Deconstructible: t.Has(FlagDeconstructible), Count: int64(t.Count),
 			InHome: true, Designated: t.Has(FlagDesignated), Packable: packable, AncientDanger: t.Has(FlagAncientDanger),
 		}})
 	}

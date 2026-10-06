@@ -30,7 +30,7 @@ func TestReconcileForeignRuinOnWallCellIsClaimed(t *testing.T) {
 	in.Cells = []SiteCell{foreignCell(wall, ruinThing(7, ShellWallDefinition, FlagClaimable))}
 	rec := Reconcile(in)
 	op := readyOp(t, rec, OpClaim)
-	if !kindsEqual(readyKinds(rec), OpClaim) || len(op.Targets) != 1 || op.Targets[0].EntityID != "Thing_7" || op.Cells[0] != wall {
+	if !kindsEqual(readyKinds(rec), OpClaim) || len(op.Targets) != 1 || op.Targets[0].EntityID != "Thing_"+ShellWallDefinition+"7" || op.Cells[0] != wall {
 		t.Fatalf("claim, no wall_in: %+v", rec.Ready)
 	}
 	// A ruin of another wall kind is deconstructed and its wall raised after.
@@ -95,7 +95,7 @@ func TestReconcileForeignHaulableItemMoves(t *testing.T) {
 	kept := Thing{ID: 6, Def: "Silver", Category: ThingItem, Flags: FlagHaulable | FlagForbidden}
 	in.Cells = []SiteCell{foreignCell(domain.Cell{X: 10, Z: 10}, steel, kept)}
 	rec := Reconcile(in)
-	if op := readyOp(t, rec, OpHaulOut); len(op.Targets) != 1 || op.Targets[0].EntityID != "Thing_5" {
+	if op := readyOp(t, rec, OpHaulOut); len(op.Targets) != 1 || op.Targets[0].EntityID != "Thing_Steel5" {
 		t.Fatalf("haul the unforbidden stack: %+v", rec.Ready)
 	}
 }
@@ -137,5 +137,13 @@ func TestReconcileForeignRemovalPrecedesWallInAndBuild(t *testing.T) {
 	}
 	if len(readyOp(t, rec, OpFurnitureOut).Targets) != 1 {
 		t.Fatalf("removal ready: %+v", rec.Ready)
+	}
+}
+
+// The id form is vanilla GetUniqueLoadID: the def sits between the prefix and
+// the number, so RefIndex.Thing resolves a foreign claim or cut target (#2293).
+func TestThingLoadIDIsVanillaForm(t *testing.T) {
+	if got := (Thing{ID: 44693, Def: "Husky"}).LoadID(); got != "Thing_Husky44693" {
+		t.Fatalf("LoadID = %q", got)
 	}
 }

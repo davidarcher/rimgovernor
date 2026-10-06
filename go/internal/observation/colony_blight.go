@@ -1,8 +1,6 @@
 package observation
 
 import (
-	"strconv"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
@@ -33,7 +31,7 @@ func blightCensus(p ColonyProjection) domain.Fact[[]policy.BlightedPlant] {
 			if thing.Category != policy.ThingPlant || !thing.Plant.Blighted || thing.ID == 0 {
 				continue
 			}
-			plants = append(plants, policy.BlightedPlant{ID: "Thing_" + thing.Def + strconv.FormatUint(thing.ID, 10), Definition: thing.Def,
+			plants = append(plants, policy.BlightedPlant{ID: thing.LoadID(), Definition: thing.Def,
 				Cell: cell.Cell, Zone: zone, Designated: thing.Has(policy.FlagDesignated), Eligible: true})
 		}
 	}

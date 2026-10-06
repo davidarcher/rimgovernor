@@ -1,6 +1,9 @@
 package policy
 
-import "slices"
+import (
+	"slices"
+	"strconv"
+)
 
 // ThingCategory is what a Thing is (the mirror wire's ThingCategory, #2260).
 // Spawned pawns are never listed.
@@ -101,6 +104,12 @@ type BuildingState struct {
 	Needed []Material `json:",omitempty"`
 	Casket []string   `json:",omitempty"`
 }
+
+// LoadID is the native entity id of a listed thing: vanilla's
+// Thing.GetUniqueLoadID, "Thing_" + defName + thingIDNumber. The one Go builder
+// of the form; census rows and the mirror's things resolve through RefIndex.Thing
+// by it.
+func (t Thing) LoadID() string { return "Thing_" + t.Def + strconv.FormatUint(t.ID, 10) }
 
 // Has reports whether every flag in f is set.
 func (t Thing) Has(f ThingFlags) bool { return t.Flags&f == f }
