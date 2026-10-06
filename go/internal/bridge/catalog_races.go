@@ -148,6 +148,26 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 	if race.Products, err = catalog.raceProducts(row); err != nil {
 		return race, err
 	}
+	nutritionOf := func(def string) (domain.Fact[float64], error) {
+		n, shown, err := catalog.ShownStatValue(def, "", StatNutrition)
+		if err != nil || !shown || n <= 0 {
+			return domain.Unknown[float64](), err
+		}
+		return domain.Known(float64(n)), nil
+	}
+	for i := range race.Products {
+		if race.Products[i].Kind == "wool" {
+			continue
+		}
+		if race.Products[i].NutritionPerUnit, err = nutritionOf(string(race.Products[i].Def)); err != nil {
+			return race, err
+		}
+	}
+	if race.MeatDef != "" {
+		if race.MeatNutritionPerUnit, err = nutritionOf(string(race.MeatDef)); err != nil {
+			return race, err
+		}
+	}
 	for _, item := range produced {
 		if !slices.Contains(race.Edible, item) {
 			continue

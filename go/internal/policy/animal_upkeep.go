@@ -293,6 +293,9 @@ type RaceProduct struct {
 	Def          Resource
 	Amount       domain.Fact[float64]
 	IntervalDays domain.Fact[float64]
+	// NutritionPerUnit is the Nutrition stat of Def (catalog def stat table);
+	// unknown for a def the game shows none for, wool.
+	NutritionPerUnit domain.Fact[float64]
 	// Eggs only (#1897), from the egg layer and hatcher comp defs:
 	// FertilizedDef is the egg a fertilized hen lays (empty when the layer
 	// cannot be fertilized), FertilizationCountMax the eggs one mating
@@ -370,6 +373,9 @@ type AnimalRace struct {
 	// MeatAmount the MeatAmount stat of the race def, before butcher efficiency.
 	MeatDef    Resource
 	MeatAmount domain.Fact[float64]
+	// MeatNutritionPerUnit is the Nutrition stat of MeatDef (the catalog's
+	// def stat table, no native read).
+	MeatNutritionPerUnit domain.Fact[float64]
 }
 
 // AnimalInteraction is the game's constants of one animal interaction job

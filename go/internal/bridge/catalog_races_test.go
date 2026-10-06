@@ -114,6 +114,9 @@ func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 	wolf.AdultMinAgeTicks, wolf.ReproductiveMinAgeTicks, wolf.MilkableMinAgeTicks = 7200000, &reproductive, &milkable
 	wolf.TamenessCanDecay, wolf.TamenessDecayPeriodTicks, wolf.TameChanceFactor = true, 450000, 0.25
 	wolf.MeatDef, wolf.MeatAmount = "Meat_Wolf", 70
+	reply.ThingDefs = append(reply.ThingDefs, &d.ThingDef{DefName: "Meat_Wolf"})
+	reply.StatValues.Stats = append(reply.StatValues.Stats, StatNutrition)
+	reply.StatValues.Rows = append(reply.StatValues.Rows, &o.DefStatRow{DefName: "Meat_Wolf", Stat: []int32{4}, Value: []float32{0.05}})
 	catalog, err := DecodeDefinitionCatalog(reply, pbIdentity())
 	if err != nil {
 		t.Fatal(err)
@@ -146,6 +149,9 @@ func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 	}
 	if v, ok := race.MeatAmount.Value(); !ok || v != 70 || race.MeatDef != "Meat_Wolf" {
 		t.Fatalf("meat %q %v %v", race.MeatDef, v, ok)
+	}
+	if v, ok := race.MeatNutritionPerUnit.Value(); !ok || float32(v) != 0.05 {
+		t.Fatalf("meat nutrition %v %v", v, ok)
 	}
 	beaver, _ := races.Race("Alphabeaver")
 	if _, ok := beaver.MeatAmount.Value(); ok || beaver.MeatDef != "" {

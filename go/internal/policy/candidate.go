@@ -17,6 +17,8 @@ const (
 	CandidateAnimalProduct CandidateKind = "animal_product"
 	CandidateFishing       CandidateKind = "fishing"
 	CandidateTrade         CandidateKind = "trade"
+	CandidateTame          CandidateKind = "tame"
+	CandidateAnimalBuy     CandidateKind = "animal_buy"
 	CandidateCorpse        CandidateKind = "corpse"
 	CandidateReserve       CandidateKind = "reserve"
 	CandidateCook          CandidateKind = "cook"
@@ -121,7 +123,7 @@ type SupplyCandidate struct {
 
 var foodCandidateKinds = map[FoodChannelKind]CandidateKind{
 	FoodForage: CandidateForage, FoodHunt: CandidateHunt, FoodSlaughter: CandidateSlaughter, FoodCrop: CandidateCrop,
-	FoodAnimalProduct: CandidateAnimalProduct, FoodFishing: CandidateFishing, FoodTrade: CandidateTrade,
+	FoodAnimalProduct: CandidateAnimalProduct, FoodFishing: CandidateFishing, FoodTrade: CandidateTrade, FoodTame: CandidateTame, FoodAnimalBuy: CandidateAnimalBuy,
 	FoodCorpse: CandidateCorpse, FoodReserve: CandidateReserve, FoodCook: CandidateCook,
 }
 

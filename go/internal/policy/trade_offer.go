@@ -32,6 +32,10 @@ type TradeOffer struct {
 	Def   string
 	Count int64
 	Price float64
+	// Pawn is a live pawn row (Def is its race, Gender its sex), what an
+	// animal purchase candidate prices.
+	Pawn   bool
+	Gender string
 	// Food classifies a food row (TradeFoodGood); unknown for any other row.
 	Food domain.Fact[TradeFoodGood]
 }

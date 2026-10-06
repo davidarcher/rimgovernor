@@ -19,6 +19,8 @@ const (
 	FoodAnimalProduct FoodChannelKind = "AnimalProduct"
 	FoodFishing       FoodChannelKind = "Fishing"
 	FoodTrade         FoodChannelKind = "Trade"
+	FoodTame          FoodChannelKind = "Tame"
+	FoodAnimalBuy     FoodChannelKind = "AnimalBuy"
 	FoodCorpse        FoodChannelKind = "Corpse"
 	FoodReserve       FoodChannelKind = "Reserve"
 	FoodCook          FoodChannelKind = "Cook"
@@ -172,7 +174,7 @@ func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
 
 func validFoodChannelKind(k FoodChannelKind) bool {
 	switch k {
-	case FoodForage, FoodHunt, FoodSlaughter, FoodCrop, FoodAnimalProduct, FoodFishing, FoodTrade, FoodCorpse, FoodReserve, FoodCook:
+	case FoodForage, FoodHunt, FoodSlaughter, FoodCrop, FoodAnimalProduct, FoodFishing, FoodTrade, FoodTame, FoodAnimalBuy, FoodCorpse, FoodReserve, FoodCook:
 		return true
 	}
 	return false

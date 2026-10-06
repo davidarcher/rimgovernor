@@ -115,6 +115,9 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 		choice = policy.FoodSlaughterChoice(read.Projection.Facts.FoodPlan, animals, herd)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
+		choice = policy.FoodTameChoice(read.Projection.Facts.FoodPlan, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), handlers)
+	}
+	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.PrioritizeSlaughterChoice(animals, handlers)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {

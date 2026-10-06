@@ -196,6 +196,10 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 			offers = policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herdPolicyOf(p.Facts, plan))
 		}
 		offers = append(offers, policy.TradeFoodChannels(trade.offers, trade.silver, trade.reserve, plan.GapPerDay*plan.HorizonDays)...)
+		// Animals the colony could acquire: a wild one to tame, a trader's to buy.
+		acquire := policy.AnimalAcquisition{Races: p.Facts.AnimalUpkeep.AnimalRaces, Owned: p.Facts.AnimalUpkeep.Animals, Wild: p.Facts.AnimalUpkeep.WildAnimals, Herd: herdPolicyOf(p.Facts, plan), Handlers: p.Facts.WorkProfiles}
+		offers = append(offers, policy.TameFoodChannels(acquire)...)
+		offers = append(offers, policy.AnimalPurchaseFoodChannels(trade.offers, acquire, trade.silver, trade.reserve)...)
 		if len(offers) > 0 {
 			channels = append(channels, offers...)
 			plan, err = policy.SupplyFoodPlan(policy.FoodPlanRequest{Demand: forecast, MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, EmergencyDays: seasonal.FootholdFoodDays, Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})

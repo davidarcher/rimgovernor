@@ -122,7 +122,7 @@ func (r *RoundsTradePlanner) recordOffers(call context.Context, state ControlSta
 		if err != nil {
 			return err
 		}
-		offers.Rows = append(offers.Rows, policy.TradeOffer{Def: row.DefName, Count: row.TraderCount, Price: row.BuyPrice, Food: food})
+		offers.Rows = append(offers.Rows, policy.TradeOffer{Def: row.DefName, Count: row.TraderCount, Price: row.BuyPrice, Pawn: row.PawnKnown && row.Pawn, Gender: row.PawnGender, Food: food})
 	}
 	r.reviewer.tradeOffers.record(state.Snapshot, offers)
 	return nil

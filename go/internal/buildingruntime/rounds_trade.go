@@ -599,7 +599,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 		}
 	}
 	facts.SaleGear = policy.SaleGear(rows, warehouses)
-	facts.HerdWants = policy.HerdWants(herd)
+	facts.HerdWants = append(policy.HerdWants(herd), policy.PlannedAnimalPurchases(projection.Facts.FoodPlan, trader)...)
 	if need.SurplusAnimals > 0 {
 		facts.SaleAnimals = make(map[string]bool, len(saleAnimals))
 		for id := range saleAnimals {

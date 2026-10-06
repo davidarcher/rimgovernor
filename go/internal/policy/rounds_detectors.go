@@ -784,6 +784,9 @@ func inspectHerd(c *roundsRun) error {
 	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, herd); choice.Method == domain.HusbandrySlaughter {
 		recovered = domain.Known(false)
 	}
+	if choice := FoodTameChoice(f.FoodPlan, f.AnimalUpkeep.WildAnimals, HerdFeedShort(c.animals), f.WorkProfiles); choice.Method == domain.HusbandryTame {
+		recovered = domain.Known(false)
+	}
 	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, herd, f.FoodPlan); choice.Method != "" {
 		recovered = domain.Known(false)
 	} else if choice.Reason == HusbandryUnknown {
