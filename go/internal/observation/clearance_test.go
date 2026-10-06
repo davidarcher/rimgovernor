@@ -20,6 +20,32 @@ func (s clearanceSource) ReadClearanceTargets(context.Context, *c.Identity, bool
 	return s.reply, bridge.Result{}, s.err
 }
 
+// A ruin standing in Home carries yield evidence like any other (#2295).
+func TestClearanceHomeRuinCarriesSalvageEvidence(t *testing.T) {
+	native := &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(1)}, Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}
+	expected, err := contextIdentity(native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cell := &c.Cell{X: proto.Int32(3), Z: proto.Int32(4)}
+	row := &o.ClearanceTarget{
+		EntityId: proto.String("Thing_Wall1"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: cell, Maximum: cell},
+		Deconstructible: proto.Bool(true), InHome: proto.Bool(true), AncientDanger: proto.Bool(false), Designated: proto.Bool(false),
+		Class:   o.ClearanceClass_CLEARANCE_CLASS_OTHER,
+		Salvage: &o.SalvageEvidence{Safe: true, PathLength: 12, Labor: 90, Yields: []*o.SalvageYield{{DefName: "Steel", Count: 3, UnitValue: 1.9, StorageHeadroom: 40}}},
+	}
+	reply := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: &o.ClearanceTargetsSnapshot{Context: native, Targets: []*o.ClearanceTarget{row}}}}
+	fact, err := ObserveClearanceCensusOnGround(context.Background(), clearanceSource{reply: reply}, expected, true, nil)
+	census, known := fact.Value()
+	if err != nil || !known || len(census.Targets) != 1 {
+		t.Fatal(fact, err)
+	}
+	got := census.Targets[0]
+	if !got.InHome || got.Salvage == nil || len(got.Salvage.Candidate.Yields) != 1 {
+		t.Fatalf("home ruin lost its salvage evidence: %+v", got)
+	}
+}
+
 func TestClearanceUnknownEmptyAndChanged(t *testing.T) {
 	native := &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(1)}, Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}
 	expected, err := contextIdentity(native)

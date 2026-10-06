@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
                         var blocker = RoofSupportSafety.Blocker(building, out _);
                         roofTicks += Now() - phase;
                         if (blocker != null) row.RoofBlocker = blocker;
-                        if (!row.InHome && salvage != null) {
+                        if (salvage != null) {
                             phase = Now();
                             var evidence = salvage.Evidence(building);
                             if (evidence != null) row.Salvage = evidence;
@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
         // Cross-read salvage cache (#984): salvage evidence costs ~1 ms per
-        // out-of-Home ruin (colonist path searches, return routes, storage
+        // ruin (colonist path searches, return routes, storage
         // headroom), so it is kept per building thingIDNumber for one map of
         // one game and refreshed over frames by RefreshSalvage (driven from
         // ObservationFrameHook, main thread) instead of inside a Read. An
@@ -171,14 +171,21 @@ namespace HomeBridge.BridgeTools
         // entry keeps serving its old value until the refresher reaches it,
         // oldest first, within salvageFrameBudgetMs per update. Read serves
         // every cached entry and computes only rows with no entry, capped at
-        // salvageInlineBudgetMs except on a Read that starts with an empty
-        // cache; a row past the cap carries no Salvage (remote salvage holds
-        // it as salvage_unknown) and the refresher fills it for the next
-        // Read. The refresher only walks targets a Read listed, so a colony
-        // that never asks pays nothing.
+        // salvageInlineBudgetMs, except a Read that starts with an empty cache
+        // (the one-shot census), which runs to salvageCensusBudgetMs. Every
+        // ruin on the map, Home or not, gets evidence. The census cap is 250
+        // ms: ~1 ms per ruin covers a few hundred ruins in one read, and one
+        // such stall at the first read costs less than serving hundreds of
+        // rows as salvage_unknown for the many frames the 1.5 ms refresher
+        // would need; bounded rather than unbounded so a map with tens of
+        // thousands of ruins cannot stall the main thread. A row past the cap
+        // carries no Salvage (remote salvage holds it as salvage_unknown) and
+        // the refresher fills it for the next Read. The refresher only walks
+        // targets a Read listed, so a colony that never asks pays nothing.
         private const int salvageMaxAgeTicks = 4 * GenDate.TicksPerHour;
         private const double salvageFrameBudgetMs = 1.5;
         private const double salvageInlineBudgetMs = 5;
+        private const double salvageCensusBudgetMs = 250;
         private const int salvageSignatureEveryTicks = 60;
         private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal int Computed; internal Obs.SalvageEvidence Evidence = null!; }
         private static readonly Dictionary<int, SalvageEntry> salvageCache = new Dictionary<int, SalvageEntry>();
@@ -257,10 +264,10 @@ namespace HomeBridge.BridgeTools
         private sealed class SalvageRead
         {
             private readonly Map map;
-            private readonly bool unbounded;
+            private readonly bool census;
             private readonly HashSet<int> seen = new HashSet<int>();
-            private long inline, served, inlineTicks;
-            private SalvageRead(Map map, bool unbounded) { this.map = map; this.unbounded = unbounded; }
+            private long inline, served, inlineTicks, capped;
+            private SalvageRead(Map map, bool census) { this.map = map; this.census = census; }
 
             internal static SalvageRead Begin(Map map)
             {
@@ -280,7 +287,7 @@ namespace HomeBridge.BridgeTools
                 seen.Add(id);
                 salvageTargets[id] = b;
                 if (salvageCache.TryGetValue(id, out var e)) { served++; return e.Evidence.Clone(); }
-                if (!unbounded && Ms(inlineTicks) >= salvageInlineBudgetMs) return null;
+                if (Ms(inlineTicks) >= (census ? salvageCensusBudgetMs : salvageInlineBudgetMs)) { capped++; return null; }
                 var began = Now();
                 var evidence = Store(map, b, LocalSignature(b));
                 inlineTicks += Now() - began;
@@ -293,7 +300,8 @@ namespace HomeBridge.BridgeTools
             internal void End()
             {
                 Forget(salvageTargets.Keys.Where(k => !seen.Contains(k)));
-                ObservationWork.Captured("clearanceSalvageRecompute", 0, inline, served + inline);
+                ObservationWork.Captured("clearanceSalvageRecompute", inlineTicks, inline, served + inline);
+                if (capped > 0) ObservationWork.Captured("clearanceSalvageCapped", 0, capped, census ? 1 : 0);
                 ObservationWork.Captured("clearanceSalvageBackground", backgroundTicks, backgroundRows);
                 backgroundTicks = backgroundRows = 0;
             }
