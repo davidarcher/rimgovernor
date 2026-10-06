@@ -132,7 +132,8 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 			if tier.Remove && (fresh[defenseBuildingKey(b)] || !wood[defenseBuildingKey(b)]) {
 				t.Fatal("removes", b)
 			}
-			if !tier.Remove && b.Stuff == policy.PerimeterLightStuff {
+			// The killbox fence (#2231) is wood on any ground; it is no wall.
+			if !tier.Remove && b.Stuff == policy.PerimeterLightStuff && b.Definition != defenseDefinitions.Fence {
 				t.Fatal("wood on dried ground", b)
 			}
 		}
@@ -250,7 +251,7 @@ func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 				t.Fatal("deconstructs", b)
 			case stage == 1 && b.Definition != policy.PerimeterBridge:
 				t.Fatal("lifts", b)
-			case stage == 2 && (b.Definition == policy.PerimeterBridge || b.Stuff == policy.PerimeterLightStuff):
+			case stage == 2 && (b.Definition == policy.PerimeterBridge || b.Stuff == policy.PerimeterLightStuff && b.Definition != defenseDefinitions.Fence):
 				t.Fatal("builds", b)
 			}
 			if stage == 0 {
