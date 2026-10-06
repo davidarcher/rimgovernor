@@ -143,7 +143,9 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	}
 	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)
-	request.Sited, request.RoomDemand, request.Incinerator, request.SiteErr = plan.Sites, plan.RoomDemand, plan.Incinerator, plan.Err
+	declared := policy.DeclareStores(storage)
+	request.Stores = declared.Stores
+	request.Sited, request.RoomDemand, request.Incinerator, request.SiteErr = plan.Sites, declared.Apply(plan.RoomDemand), plan.Incinerator, plan.Err
 	return request
 }
 

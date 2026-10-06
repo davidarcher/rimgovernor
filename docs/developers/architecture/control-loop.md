@@ -148,6 +148,15 @@ Concerns or budgets labor.
 | Sanitation | `MaintainCleanFacilities`, `ManagePollution`, `MaintainWaste` |
 | System (no panel section) | `AnswerDialog`, `ConfirmColonyNames` |
 
+A Department that owns stockpiles is also an entity (`policy.StoreOwner`,
+registered in `storeOwners`): it declares its `Stores` (a `policy.Store`: role,
+planned room or rectangle, filter, priority, and the room it asks for when full)
+and its `RoomDemand` from capacity (`DeclaredDemand`). `MaintainStockpiles` is
+the one applier: it creates a declared store's zone, retargets it, and deletes
+it only when the department declares it `Retired`; it never grows, shrinks or
+merges one. A declared room's demand replaces `PlanStorage`'s fill-based reading
+and feeds layout as before. A Department that owns no store stays a grouping tag.
+
 ## Execute under supervision
 
 Execution uses bounded native tick windows and a renewable wall-clock lease. Lease

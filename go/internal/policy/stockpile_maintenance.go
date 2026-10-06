@@ -144,6 +144,9 @@ type StockpileRequest struct {
 	// Shelves are the built shelves inside the zones (#721): each carries
 	// its zone's desired settings, patched until it does.
 	Shelves []StockpileShelf
+	// Stores are the declared stores of the departments that own stockpiles
+	// (DeclareStores), applied beside Sited until PlanStorage is deleted.
+	Stores []Store
 	// Sited are the room-bound roles (#917) created while absent.
 	Sited []StockpileSite
 	// Gear is the planner's gear-room demand for layout (#1773); the review
@@ -287,6 +290,17 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 			return true
 		}
 		return false
+	}
+	declared, owned := declaredStoreEdits(zones, r.Stores, open)
+	for _, e := range declared {
+		if e.Kind == StockpileCreate {
+			candidates = append(candidates, e)
+		} else {
+			take(e, true)
+		}
+	}
+	for id := range owned {
+		touched[id] = true
 	}
 	for _, e := range stockpileSiteMoves(r) {
 		take(e, true)
