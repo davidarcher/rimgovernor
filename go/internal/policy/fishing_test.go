@@ -208,7 +208,7 @@ func TestFishingFactorFallsWhenCatchesStop(t *testing.T) {
 	}
 	var d DeliveryCredit
 	in := func(day domain.Tick, fish float64) CreditInput {
-		return CreditInput{Tick: day * creditDay, Epoch: "e", Known: true, Delivered: map[string]float64{"fish:0,0": fish}}
+		return CreditInput{Tick: day * creditDay, LoadToken: "e", Known: true, Delivered: map[string]float64{"fish:0,0": fish}}
 	}
 	d.Apply(rows, in(0, 0))
 	d.groups["fish:0,0"].armOnce(0)

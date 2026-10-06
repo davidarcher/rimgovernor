@@ -36,12 +36,12 @@ type CreditChannel struct {
 }
 
 // CreditInput is one Round's read of the delivery ledger. Delivered is the
-// cumulative nutrition per counter group within the load token Epoch; Lost is
+// cumulative nutrition per counter group within the load token LoadToken; Lost is
 // the ledger's count of rows beyond its key bound. An unavailable ledger is
 // Known false and holds every factor.
 type CreditInput struct {
 	Tick      domain.Tick
-	Epoch     string
+	LoadToken string
 	Known     bool
 	Delivered map[string]float64
 	Lost      uint64
@@ -89,13 +89,13 @@ type creditHistory struct {
 // [0,1], starting at 1. It lives in memory only; a restart starts every group
 // again at factor 1 and Designated, which the ledger corrects within a window.
 type DeliveryCredit struct {
-	epoch   string
-	lost    uint64
-	last    domain.Tick
-	seen    bool
-	groups  map[string]*creditHistory
-	results map[string]CreditResult
-	changes []CreditChange
+	loadToken string
+	lost      uint64
+	last      domain.Tick
+	seen      bool
+	groups    map[string]*creditHistory
+	results   map[string]CreditResult
+	changes   []CreditChange
 	// rotPeak is the most rot ticks seen per unbutchered hunt corpse (HuntDelivered).
 	rotPeak map[string]int64
 }
@@ -117,9 +117,9 @@ func (d *DeliveryCredit) Observe(in CreditInput, channels []CreditChannel) map[s
 	}
 	rebaselined, lostRaised := false, false
 	if in.Known {
-		rebaselined = d.epoch != "" && in.Epoch != d.epoch
+		rebaselined = d.loadToken != "" && in.LoadToken != d.loadToken
 		lostRaised = !rebaselined && in.Lost > d.lost
-		d.epoch, d.lost = in.Epoch, in.Lost
+		d.loadToken, d.lost = in.LoadToken, in.Lost
 	}
 	live := map[string]bool{}
 	d.results = make(map[string]CreditResult, len(channels))

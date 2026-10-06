@@ -101,7 +101,7 @@ func TestHuntRottingCorpseLowersTheGroupFactor(t *testing.T) {
 		if rot <= 0 {
 			stocks = nil
 		}
-		in := CreditInput{Tick: domain.Tick(day * float64(domain.TicksPerDay)), Epoch: "a", Known: true,
+		in := CreditInput{Tick: domain.Tick(day * float64(domain.TicksPerDay)), LoadToken: "a", Known: true,
 			Delivered: map[string]float64{HuntSource: d.HuntDelivered(kills, nil, stocks, true)}}
 		if day == 0 {
 			in.Delivered[HuntSource] = 0

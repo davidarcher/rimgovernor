@@ -250,7 +250,7 @@ func foodCreditInput(p observation.ColonyProjection, credit *policy.DeliveryCred
 	if !known {
 		return in
 	}
-	in.Epoch, in.Lost = ledger.LoadToken, ledger.Lost
+	in.LoadToken, in.Lost = ledger.LoadToken, ledger.Lost
 	in.Delivered = map[string]float64{}
 	for key, count := range ledger.Counts {
 		in.Delivered[string(key.Kind)+":"+key.SourceID] += count.Nutrition

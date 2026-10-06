@@ -28,7 +28,7 @@ func newCreditRun(rate, lead float64) *creditRun {
 // group on the first step unless asked not to.
 func (r *creditRun) step(day float64, deliver float64) CreditResult {
 	r.cum += deliver
-	in := CreditInput{Tick: domain.Tick(day * float64(creditDay)), Epoch: r.epoch, Known: true, Lost: r.lost, Delivered: map[string]float64{"g": r.cum}}
+	in := CreditInput{Tick: domain.Tick(day * float64(creditDay)), LoadToken: r.epoch, Known: true, Lost: r.lost, Delivered: map[string]float64{"g": r.cum}}
 	res := r.d.Observe(in, []CreditChannel{{Source: "g", Expected: r.rate, LeadDays: r.lead}})
 	if r.armed {
 		r.d.groups["g"].armOnce(in.Tick)
@@ -83,7 +83,7 @@ func TestCreditOpenedByPlanArmsAtThatTick(t *testing.T) {
 	z1.Source, z1.State, z1.LeadDays = "crop:z1", domain.Known(CandidateDesignated), domain.Known(0.0)
 	ch := []SupplyCandidate{z1}
 	in := func(day int) CreditInput {
-		return CreditInput{Tick: domain.Tick(day) * creditDay, Epoch: "a", Known: true, Delivered: map[string]float64{}}
+		return CreditInput{Tick: domain.Tick(day) * creditDay, LoadToken: "a", Known: true, Delivered: map[string]float64{}}
 	}
 	d.Apply(ch, in(0))
 	d.Apply(ch, in(5)) // unopened: held at 1
@@ -151,7 +151,7 @@ func TestCreditRebaselineHoldsTheFactor(t *testing.T) {
 func TestCreditLostRowsHoldAGroupWithoutARow(t *testing.T) {
 	var d DeliveryCredit
 	in := func(day int, lost uint64, delivered map[string]float64) CreditInput {
-		return CreditInput{Tick: domain.Tick(day) * creditDay, Epoch: "a", Known: true, Lost: lost, Delivered: delivered}
+		return CreditInput{Tick: domain.Tick(day) * creditDay, LoadToken: "a", Known: true, Lost: lost, Delivered: delivered}
 	}
 	g := []CreditChannel{{Source: "g", Expected: 1}}
 	d.Observe(in(0, 0, nil), g)
@@ -228,7 +228,7 @@ func TestCreditApplyAttributesByCounterGroupAndRisk(t *testing.T) {
 	closed := FoodCandidate(CandidateHunt, "deer", domain.Known(9.0))
 	closed.State = domain.Known(CandidateClosed)
 	channels := []SupplyCandidate{forage("a"), forage("b"), risky, closed}
-	in := CreditInput{Tick: 0, Epoch: "e", Known: true, Delivered: map[string]float64{"forage:Berry": 1}}
+	in := CreditInput{Tick: 0, LoadToken: "e", Known: true, Delivered: map[string]float64{"forage:Berry": 1}}
 	out := d.Apply(channels, in)
 	for _, i := range []int{0, 1} {
 		if out[i].Source != "forage:Berry" || out[i].State != domain.Known(CandidateDelivering) {
@@ -249,7 +249,7 @@ func TestCreditApplyAttributesByCounterGroupAndRisk(t *testing.T) {
 	// Expected is risk-adjusted: the crop expects 5, the forage def 8 (two plants).
 	d.groups["forage:Berry"].armOnce(0)
 	d.groups["crop:z"].armOnce(0)
-	d.Apply(channels, CreditInput{Tick: 3 * creditDay, Epoch: "e", Known: true, Delivered: map[string]float64{"forage:Berry": 25, "crop:z": 5}})
+	d.Apply(channels, CreditInput{Tick: 3 * creditDay, LoadToken: "e", Known: true, Delivered: map[string]float64{"forage:Berry": 25, "crop:z": 5}})
 	got := d.results
 	if !near(got["forage:Berry"].Factor, 1.0) || !near(got["crop:z"].Factor, 5.0/15.0) {
 		t.Fatalf("results = %+v", got)
@@ -265,8 +265,8 @@ func TestCreditApplyScalesTheRateAndNilIsANoOp(t *testing.T) {
 		t.Fatal("a nil credit must return the channels as given")
 	}
 	var d DeliveryCredit
-	d.Apply(ch, CreditInput{Tick: 0, Epoch: "e", Known: true})
-	out := d.Apply(ch, CreditInput{Tick: 4 * creditDay, Epoch: "e", Known: true})
+	d.Apply(ch, CreditInput{Tick: 0, LoadToken: "e", Known: true})
+	out := d.Apply(ch, CreditInput{Tick: 4 * creditDay, LoadToken: "e", Known: true})
 	if rate, _ := out[0].Nutrition().PerDay.Value(); rate != 8 {
 		t.Fatalf("a group no plan opened keeps its rate, got %v", rate)
 	}
