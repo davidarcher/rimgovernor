@@ -26,6 +26,9 @@ const (
 	// PlannedMorgue is the room for human corpses (#1820), planned from the
 	// start in the outskirts cluster and shelled only once one lies waiting.
 	PlannedMorgue PlannedRole = "morgue"
+	// PlannedGraveyard is the fenced, unfloored Outdoor room of graves (#2186),
+	// planned from the start in the outskirts cluster.
+	PlannedGraveyard PlannedRole = "graveyard"
 )
 
 // coreRoomSize is a role's interior: width along the spine, depth away

@@ -294,7 +294,7 @@ func (p LayoutPlan) sharedRing(r PlannedRoom) map[domain.Cell]bool {
 // (vet room; the barn's centre when the plan has no core).
 func (p LayoutPlan) herdRoom(area Rectangle, role PlannedRole) PlannedRoom {
 	in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: area.Width - 2, Height: area.Height - 2}
-	room := PlannedRoom{Role: role, Interior: in, Outdoor: role == PlannedPen}
+	room := PlannedRoom{Role: role, Interior: in, Outdoor: role.IsOutdoor()}
 	cx, cz := float64(in.X)+float64(in.Width)/2, float64(in.Z)+float64(in.Height)/2
 	tx, tz, ok := p.herdTarget(role)
 	if !ok {

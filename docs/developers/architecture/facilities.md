@@ -413,6 +413,14 @@ The morgue is shelled when any human corpse waits (`MorgueWaiting`), cooling
 never gates a shell, and `WarmCoolingRooms` owes a cooler to every standing
 tomb, morgue and meal closet that measures above `TombMaxC`, empty or not.
 
+The graveyard (`layout_graveyard.go`, #2186) is the cluster's first-slot Outdoor
+room: `PlannedGraveyard`, a fence and gate ring (`RingDefs`), no roof and no floor
+owed, because graves need diggable soil. `GraveyardSlots` is its template: 12
+plain graves (`GraveDefinition`, 1x2) in two bands of six on an 11x7 interior,
+each beside an aisle column joined to the gate row. It never grows; a further
+graveyard is the burial concern's request (#2196). `PlannedRole.IsOutdoor`
+lists the Outdoor roles.
+
 The tomb, the jail and the morgue use the same shared build side as the throne
 room (`reconcileRoom`); their steps shrink to a furniture template.
 `NextTombStep` reports `TombReconcile` with the next free sarcophagus slot as

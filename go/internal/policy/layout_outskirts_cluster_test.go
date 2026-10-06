@@ -83,7 +83,7 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 			t.Errorf("%s has no cooler exhaust", r.Role)
 		}
 		for _, other := range plan.AllRooms() {
-			if other.Role != PlannedTomb && other.Role != PlannedMorgue && rectsOverlap(pad(roomWalls(r), outskirtsGap-1), roomWalls(other)) {
+			if other.Role != PlannedTomb && other.Role != PlannedMorgue && other.Role != PlannedGraveyard && rectsOverlap(pad(roomWalls(r), outskirtsGap-1), roomWalls(other)) {
 				t.Errorf("%s within the gap of %s", r.Role, other.Role)
 			}
 		}

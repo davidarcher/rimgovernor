@@ -37,6 +37,7 @@ var roomOverlay = map[PlannedRole]overlayStyle{
 	PlannedReserve:          {planGray, "reserve"},
 	PlannedTomb:             {planGray, "tomb"},
 	PlannedMorgue:           {planCyan, "morgue"},
+	PlannedGraveyard:        {planGreen, "graveyard"},
 	PlannedThrone:           {planAmber, "throne room"},
 	PlannedNursery:          {planGreen, "nursery"},
 	PlannedPlayroom:         {planYellow, "playroom"},

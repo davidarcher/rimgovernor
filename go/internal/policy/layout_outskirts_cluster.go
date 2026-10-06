@@ -42,8 +42,8 @@ import (
 // holds for every room.
 
 const (
-	// GraveyardW and GraveyardH are the graveyard's interior (#2186): 12 graves
-	// with an aisle beside each long side. #2186 may adjust them.
+	// GraveyardW and GraveyardH are the graveyard's interior (#2186): the
+	// 12-grave template of GraveyardSlots fills it.
 	GraveyardW int32 = 11
 	GraveyardH int32 = 7
 	// WasteYardW and WasteYardH are the waste yard's interior (#2187); the
@@ -116,15 +116,15 @@ func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 	return l, true
 }
 
-// OutskirtsOwed reports whether plan lacks the outskirts cluster or its tomb
-// or morgue: a plan that already holds a room of a role elsewhere (a core
+// OutskirtsOwed reports whether plan lacks the outskirts cluster or its tomb,
+// morgue or graveyard: a plan that already holds a room of a role elsewhere (a core
 // tomb) is not owed another.
 func OutskirtsOwed(plan LayoutPlan) bool {
 	_, has := plan.OutskirtsArea()
-	return !has || len(plan.roomsOf(PlannedTomb)) == 0 || len(plan.roomsOf(PlannedMorgue)) == 0
+	return !has || len(plan.roomsOf(PlannedTomb)) == 0 || len(plan.roomsOf(PlannedMorgue)) == 0 || len(plan.roomsOf(PlannedGraveyard)) == 0
 }
 
-// growOutskirtsRooms places the tomb and the morgue in their slots of the
+// growOutskirtsRooms places the tomb, the morgue and the graveyard in their slots of the
 // cluster plan holds, unless the plan already holds a room of the role, and
 // reserves each a cooler exhaust. The slots are never on rock: the cluster is
 // sited on open core ground, so neither room is dug. It reports whether it
@@ -143,11 +143,11 @@ func growOutskirtsRooms(plan LayoutPlan, thick map[domain.Cell]bool) (LayoutPlan
 	for _, want := range []struct {
 		role PlannedRole
 		slot OutskirtsSlot
-	}{{PlannedTomb, l.Tomb}, {PlannedMorgue, l.Morgue}} {
+	}{{PlannedTomb, l.Tomb}, {PlannedMorgue, l.Morgue}, {PlannedGraveyard, l.Graveyard}} {
 		if slices.ContainsFunc(plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == want.role }) {
 			continue
 		}
-		rooms = append(rooms, PlannedRoom{Role: want.role, Interior: want.slot.Interior, Door: want.slot.Door, DoorRot: want.slot.DoorRot})
+		rooms = append(rooms, PlannedRoom{Role: want.role, Interior: want.slot.Interior, Door: want.slot.Door, DoorRot: want.slot.DoorRot, Outdoor: want.role.IsOutdoor()})
 		added = true
 	}
 	if !added {
