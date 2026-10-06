@@ -89,34 +89,39 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 	}
 }
 
-func TestRemoteLootScoresAgainstDemand(t *testing.T) {
+// A safe stack is released whatever the demand (#2299): covered, unknown or
+// absent demand and an unknown path hold nothing; only storage headroom and
+// urgent colony work throttle it.
+func TestRemoteLootReleasesWithoutDemand(t *testing.T) {
 	r := tribal8Reach()
 	r.Armed = domain.Known(int64(6))
 	r.FreeHaulers = domain.Known(int64(2))
 	remote := domain.Cell{X: 95, Z: 95}
+	noHeadroom := remoteLootRow("s", remote, true, true)
+	noHeadroom.StorageHeadroom = domain.Known(int64(0))
+	unknownHeadroom := remoteLootRow("s", remote, true, true)
+	unknownHeadroom.StorageHeadroom = domain.Unknown[int64]()
+	unknownPath := remoteLootRow("s", remote, true, true)
+	unknownPath.PathLength = domain.Unknown[float64]()
+	urgent := AcquisitionCompetition{UrgentPriority: UrgentWorkPriority}
 	for _, tt := range []struct {
-		name   string
-		row    LootItem
-		demand domain.Fact[[]ResourceDemand]
-		reason string
+		name        string
+		row         LootItem
+		demand      domain.Fact[[]ResourceDemand]
+		competition AcquisitionCompetition
+		reason      string
 	}{
-		{"unknown demand", remoteLootRow("s", remote, true, true), domain.Unknown[[]ResourceDemand](), "demand:unknown_demand_or_cost"},
-		{"no demand", remoteLootRow("s", remote, true, true), domain.Known([]ResourceDemand{}), "demand:no_demand"},
-		{"other demand", remoteLootRow("s", remote, true, true), domain.Known([]ResourceDemand{{Key: ResourceKey{Def: "WoodLog"}, Count: 50, Priority: 2}}), "demand:no_demand"},
-		{"no storage", func() LootItem {
-			row := remoteLootRow("s", remote, true, true)
-			row.StorageHeadroom = domain.Known(int64(0))
-			return row
-		}(), steelDemand(), "missing_storage"},
-		{"unknown path", func() LootItem {
-			row := remoteLootRow("s", remote, true, true)
-			row.PathLength = domain.Unknown[float64]()
-			return row
-		}(), steelDemand(), "demand:unknown_demand_or_cost"},
-		{"demanded", remoteLootRow("s", remote, true, true), steelDemand(), ""},
+		{"unknown demand", remoteLootRow("s", remote, true, true), domain.Unknown[[]ResourceDemand](), AcquisitionCompetition{}, ""},
+		{"no demand", remoteLootRow("s", remote, true, true), domain.Known([]ResourceDemand{}), AcquisitionCompetition{}, ""},
+		{"other demand", remoteLootRow("s", remote, true, true), domain.Known([]ResourceDemand{{Key: ResourceKey{Def: "WoodLog"}, Count: 50, Priority: 2}}), AcquisitionCompetition{}, ""},
+		{"covered resource", remoteLootRow("s", remote, true, true), steelDemand(), AcquisitionCompetition{}, ""},
+		{"unknown path", unknownPath, steelDemand(), AcquisitionCompetition{}, ""},
+		{"no storage", noHeadroom, steelDemand(), AcquisitionCompetition{}, "missing_storage"},
+		{"unknown storage", unknownHeadroom, steelDemand(), AcquisitionCompetition{}, "missing_storage"},
+		{"urgent work", remoteLootRow("s", remote, true, true), steelDemand(), urgent, "urgent_competing_work"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), RemoteWorkRequest{Reach: r, Demand: tt.demand})
+			kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), RemoteWorkRequest{Reach: r, Demand: tt.demand, Competition: tt.competition})
 			if err != nil {
 				t.Fatal(err)
 			}

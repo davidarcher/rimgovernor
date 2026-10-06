@@ -29,9 +29,10 @@ const lootUnitsPerTrip = 75
 // Allow side: an unsafe stack still forbids, an already allowed stack is not
 // re-forbidden by reach, and a safe forbidden stack inside the established
 // extent is allowed as before. A safe forbidden stack outside the extent is
-// allowed only when the reach stage admits its cell and it scores against
-// unmet demand; otherwise it stays forbidden and is reported as a hold with
-// an explicit reason (RemoteHoldReason). The returned rows are the census the
+// allowed when the reach stage admits its cell, whatever the colony's demand
+// (#2299, epic #2291): only missing storage headroom and urgent colony work
+// keep it forbidden, reported as a hold with an explicit reason
+// (RemoteHoldReason). The returned rows are the census the
 // safety review should act on.
 func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (domain.Fact[[]LootItem], []LootHold, error) {
 	rows, known := observed.Value()
@@ -39,24 +40,13 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 		return observed, nil, nil
 	}
 	reasons := make([]string, len(rows))
-	var candidates []SupplyCandidate
-	var remote []int
 	for i, row := range rows {
 		if !row.SafetyKnown || !row.SafeToHaul || !row.Forbidden || lootInsideExtent(r.Reach.Extent, row.Supply.Cell) {
 			continue
 		}
-		if reasons[i] = remoteLootReachHold(r, row); reasons[i] == "" {
-			candidates = append(candidates, lootCandidate(row))
-			remote = append(remote, i)
-		}
-	}
-	supply, err := PlanRemoteSupply(r, candidates)
-	if err != nil {
-		return domain.Unknown[[]LootItem](), nil, err
-	}
-	for j, i := range remote {
-		if reason, held := supply.Held[candidates[j].ID]; held {
-			reasons[i] = RemoteHoldReason(RemoteLoot, "demand:"+reason)
+		reasons[i] = remoteLootReachHold(r, row)
+		if reasons[i] == "" {
+			reasons[i] = remoteLootThrottleHold(r, row)
 		}
 	}
 	var kept []LootItem
@@ -131,6 +121,18 @@ func remoteLootReachHold(r RemoteWorkRequest, row LootItem) string {
 	filter := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: row.Supply.Cell, Eligible: domain.Known(true), RouteObservedPassable: domain.Known(true)})
 	if !filter.Allowed {
 		return RemoteHoldReason(RemoteLoot, filter.Reason)
+	}
+	return ""
+}
+
+// remoteLootThrottleHold is the per-stack throttle that outlives the demand
+// gate: no known storage headroom for the stack, or urgent colony work.
+func remoteLootThrottleHold(r RemoteWorkRequest, row LootItem) string {
+	if units, known := row.StorageHeadroom.Value(); !known || units <= 0 {
+		return RemoteHoldMissingStorage
+	}
+	if r.Competition.UrgentPriority > 0 {
+		return RemoteHoldUrgentWork
 	}
 	return ""
 }
