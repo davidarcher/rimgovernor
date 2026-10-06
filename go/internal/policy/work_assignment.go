@@ -29,10 +29,10 @@ type WorkPriority struct {
 	Order int
 }
 type WorkPawn struct {
-	ID                                 PawnID
+	ID                                        PawnID
 	Available, Applies, Manual, Ranged, Hunts domain.Fact[bool]
-	Skills                             domain.Fact[[]WorkSkill]
-	Work                               domain.Fact[[]WorkPriority]
+	Skills                                    domain.Fact[[]WorkSkill]
+	Work                                      domain.Fact[[]WorkPriority]
 	// Traits, Incapable (backstory work types) and Age feed the pawn profile;
 	// unknown rows degrade the planner to skill-only ordering rather than
 	// making the review unknown.
