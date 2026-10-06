@@ -131,6 +131,9 @@ type viableCrop struct {
 	crop   CropChoice
 	days   float64
 	needed int
+	// units is the resource units one cell yields per harvest when the crop is
+	// planned for a resource deficit (#2283); zero plans it for nutrition.
+	units float64
 }
 
 // viableCrops screens the request's crops. With indoor set the remaining
@@ -186,7 +189,7 @@ func viableCrops(r FieldRequest, indoor bool) (viables []viableCrop, excluded []
 		if needed <= 0 {
 			return nil, nil, false
 		}
-		viables = append(viables, viableCrop{crop, days, needed})
+		viables = append(viables, viableCrop{crop: crop, days: days, needed: needed})
 	}
 	return viables, excluded, true
 }
@@ -219,22 +222,37 @@ func planField(r FieldRequest, indoor bool) (FieldPlan, bool) {
 	urgent := fieldUrgency(r, viables, indoor)
 	plan.Urgent = urgent
 	for _, v := range viables {
-		site := r.Site
-		sites := sitePick(site, v, func(s SiteCell) bool { return siteKnownFalse(s.Roofed) && (site.Fields == nil || site.Fields[s.Cell]) }, nil, false)
-		c := FieldCandidate{Crop: v.crop, Needed: v.needed, Sites: sites, Urgent: urgent}
-		if sites.Cells == 0 {
-			c.Reason = "no plantable soil"
-		} else {
-			c.Terms = append(siteTerms(sites), cropChoiceTerms(r, v.crop, sites.Cells)...)
-			total := 0.0
-			for _, term := range c.Terms {
-				total += term.Value
-			}
-			c.Score = total / float64(v.needed)
-			c.Reason = fmt.Sprintf("net %.4f/day over %d patches", total, len(sites.Patches))
-		}
+		c := fieldCandidate(r, v, urgent)
 		plan.Candidates = append(plan.Candidates, c)
 	}
+	return rankField(plan, urgent)
+}
+
+// fieldCandidate sites one viable crop on unroofed free soil (the plan field
+// blocks when set) and scores it per needed cell.
+func fieldCandidate(r FieldRequest, v viableCrop, urgent bool) FieldCandidate {
+	site := r.Site
+	sites := sitePick(site, v, func(s SiteCell) bool { return siteKnownFalse(s.Roofed) && (site.Fields == nil || site.Fields[s.Cell]) }, nil, false)
+	c := FieldCandidate{Crop: v.crop, Needed: v.needed, Sites: sites, Urgent: urgent}
+	if sites.Cells == 0 {
+		c.Reason = "no plantable soil"
+		return c
+	}
+	c.Terms = siteTerms(sites)
+	if v.units == 0 {
+		c.Terms = append(c.Terms, cropChoiceTerms(r, v.crop, sites.Cells)...)
+	}
+	total := 0.0
+	for _, term := range c.Terms {
+		total += term.Value
+	}
+	c.Score = total / float64(v.needed)
+	c.Reason = fmt.Sprintf("net %.4f/day over %d patches", total, len(sites.Patches))
+	return c
+}
+
+// rankField orders the plan's candidates and adopts the best plantable one.
+func rankField(plan FieldPlan, urgent bool) (FieldPlan, bool) {
 	sort.Slice(plan.Candidates, func(i, j int) bool {
 		return fieldCandidateLess(plan.Candidates[i], plan.Candidates[j], urgent)
 	})

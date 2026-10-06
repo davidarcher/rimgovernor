@@ -294,8 +294,14 @@ func siteTerms(sites FarmSitePlan) []FarmSiteTerm {
 }
 
 func cropRate(crop CropChoice, soil float64) float64 {
-	days, _ := crop.GrowDays.Value()
 	yield, _ := crop.HarvestNutrition.Value()
+	return cropYieldRate(crop, yield, soil)
+}
+
+// cropYieldRate is the per-day yield of one cell at the given soil fertility
+// for a harvest worth yield (nutrition or resource units).
+func cropYieldRate(crop CropChoice, yield, soil float64) float64 {
+	days, _ := crop.GrowDays.Value()
 	sensitivity, _ := crop.FertilitySensitivity.Value()
 	return yield * math.Max(0, 1+(soil-1)*sensitivity) / days
 }
@@ -731,12 +737,18 @@ func sitePick(site FarmSiteRequest, v viableCrop, keep func(SiteCell) bool, prot
 			picked[c] = true
 		}
 	}
-	unit := cropRate(v.crop, 1)
+	rate := func(soil float64) float64 {
+		if v.units > 0 {
+			return cropYieldRate(v.crop, v.units, soil)
+		}
+		return cropRate(v.crop, soil)
+	}
+	unit := rate(1)
 	plan := FarmSitePlan{}
 	for _, patch := range siteMergeRects(picked) {
 		reward, walk := 0.0, 0
 		for _, c := range rectCells(patch) {
-			reward += cropRate(v.crop, soil[c])
+			reward += rate(soil[c])
 			walk += siteManhattan(c, anchor)
 		}
 		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -siteTravelWeight * unit * float64(walk)}}
