@@ -92,7 +92,7 @@ func TestStockpileReviewCountsZonesByRoleKind(t *testing.T) {
 		{ID: "d", Cells: []domain.Cell{cell(4)}},
 	}
 	want := []StockpileRoleCount{{"general", 2, 3, 1}, {"medicine", 1, 1, 0}, {"untagged", 1, 1, 0}}
-	if got := stockpileRoleCounts(zones); !reflect.DeepEqual(got, want) {
+	if got := StockpileRoleCounts(zones); !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v want %v", got, want)
 	}
 }

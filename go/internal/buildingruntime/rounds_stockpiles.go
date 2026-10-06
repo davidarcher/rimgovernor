@@ -95,6 +95,22 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	return request
 }
 
+// censusStockpileZones files the owned zones per role kind on the projection,
+// whether or not the stockpile method is served.
+func (r *Rounder) censusStockpileZones(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
+	projection.Facts.StockpileZones = domain.Unknown[[]policy.StockpileRoleCount]()
+	claims, err := r.player.journal.ZoneClaims(ctx, snapshot, projection.Identity.Tick)
+	if err != nil {
+		return err
+	}
+	owned, ok := claims.Value()
+	if !ok || len(projection.Cells) == 0 {
+		return nil
+	}
+	projection.Facts.StockpileZones = domain.Known(policy.StockpileRoleCounts(ownedStockpileZones(projection, owned, nil)))
+	return nil
+}
+
 // reviewStockpiles serves the MaintainStockpiles review (#725) on the
 // projection when the method is served; otherwise the fact stays unknown
 // and the goal is never assessed active.

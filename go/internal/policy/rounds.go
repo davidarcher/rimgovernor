@@ -442,6 +442,9 @@ type RoundsFacts struct {
 	// Stockpiles is the MaintainStockpiles review (#725): this cycle's
 	// stockpile edits and the planned rooms owed a shell, or why none stands.
 	Stockpiles domain.Fact[StockpileReview]
+	// StockpileZones counts the owned stockpile zones by role kind for the
+	// colony status census; unknown until the zone claims are read.
+	StockpileZones domain.Fact[[]StockpileRoleCount]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods domain.Fact[[]ConcernID]
 	Upkeep           UpkeepObservation

@@ -185,9 +185,6 @@ type StockpileReview struct {
 	// before the zone edits go on.
 	Rooms  []PlannedRole `json:",omitempty"`
 	Reason string
-	// Zones counts the owned stockpile zones by role kind as the review
-	// read them, for the colony review's zone-count report.
-	Zones []StockpileRoleCount `json:",omitempty"`
 }
 
 // StockpileRoleCount is the owned zones of one role kind (the role key up
@@ -200,7 +197,8 @@ type StockpileRoleCount struct {
 	Used  int
 }
 
-func stockpileRoleCounts(zones []StockpileZone) []StockpileRoleCount {
+// StockpileRoleCounts counts the owned zones by role kind, sorted by role.
+func StockpileRoleCounts(zones []StockpileZone) []StockpileRoleCount {
 	byRole := map[string]*StockpileRoleCount{}
 	for _, z := range zones {
 		kind, _, _ := strings.Cut(z.Role, ":")
@@ -228,7 +226,7 @@ func stockpileRoleCounts(zones []StockpileZone) []StockpileRoleCount {
 // urgency order (delete, retarget and shelf patch, create; ties by zone id).
 // Deterministic over its input.
 func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
-	review := StockpileReview{Known: true, Zones: stockpileRoleCounts(r.Zones), Rooms: r.Rooms}
+	review := StockpileReview{Known: true, Rooms: r.Rooms}
 	zones := append([]StockpileZone(nil), r.Zones...)
 	sort.Slice(zones, func(i, j int) bool { return zones[i].ID < zones[j].ID })
 	open := newStockpileOpen(r)

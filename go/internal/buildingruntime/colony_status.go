@@ -71,7 +71,7 @@ type ColonyStatusReport struct {
 	PlayerTechLevel domain.Fact[string]
 	BuildTier       domain.Fact[policy.BuildTier]
 	// Stockpiles counts the owned stockpile zones by role kind as the last
-	// stockpile review read them, and ForbiddenSupplies is whether the loot
+	// rounds read them, and ForbiddenSupplies is whether the loot
 	// census held a safe stack forbidden at the last rounds; both are
 	// unknown until a review with the fact has filed.
 	Stockpiles        domain.Fact[[]policy.StockpileRoleCount]
@@ -177,9 +177,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 				report.BuildTier = held.Value.BuildTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
 				report.ForbiddenSupplies = forbiddenSupplies(held.Value.Facts.EventLoot)
-				if review, known := held.Value.Facts.Stockpiles.Value(); known && review.Known {
-					report.Stockpiles = domain.Known(review.Zones)
-				}
+				report.Stockpiles = held.Value.Facts.StockpileZones
 				if animals, known := held.Value.Facts.AnimalUpkeep.Animals.Value(); known {
 					report.PetLabels = map[policy.PawnID]string{}
 					for _, animal := range animals {

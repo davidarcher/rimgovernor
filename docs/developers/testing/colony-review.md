@@ -31,10 +31,9 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   colonist's mood and food and every concern's state) and `run.json`;
   `site -runs <dir> -out <site>` indexes run dirs. Flags mark hours worth a
   look: a colonist lost, food runway under two days, a downed colonist, low
-  mood, a concern in deficit twelve hours, a role's stockpile zone count
-  falling, starting supplies still forbidden after a day. The storage
+  mood, a concern in deficit twelve hours, starting supplies still forbidden after a day. The storage
   section lists the final zone count per role from the census's
-  `stockpiles` block (see [storage](../architecture/storage.md)). Flags gate
+  `stockpiles` block, counted from the standing owned zones each round (see [storage](../architecture/storage.md)). Flags gate
   nothing.
 - **Score** `run.json` carries `score`: `components` computed from the
   timeline plus a weighted `scalar` (0-100) for ranking. Signal only. Each
