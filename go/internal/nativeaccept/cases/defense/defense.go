@@ -676,22 +676,33 @@ func launchService(ctx context.Context, s cases.Session, name string, identity m
 // as progress while the clock advances: three game days.
 const layoutBuildTicks = 3 * 60000
 
-// buildProgress is a tier's native construction as wait progress. A plan's
+// buildProgress is the layout's construction as wait progress. A plan's
 // stages all read completed once its blueprints are placed, and the
 // colonists then build them over game hours with nothing in the journal
-// changing; the advancing tick is that progress while some tier plan is
-// open, for layoutBuildTicks after the open set last changed.
+// changing; a raid mid-build parks the layout planner (an emergency vetoes
+// it) while the fight itself takes minutes of wall time, and a built tier's
+// plan is retired before the next tier is admitted (#2134). The advancing
+// tick is that progress for layoutBuildTicks after the open plans or the
+// record's built and attempted tiers last changed; a stopped clock or a
+// layout that never moves again still stalls.
 type buildProgress struct {
-	open  string
+	key   string
 	since domain.Tick
 }
 
-func (b *buildProgress) signature(open []string, tick domain.Tick) string {
-	key := strings.Join(open, ",")
-	if key != b.open {
-		b.open, b.since = key, tick
+func (b *buildProgress) signature(open []string, record store.DefenseLayoutRecord, tick domain.Tick) string {
+	built, attempts := 0, 0
+	for _, t := range record.Tiers {
+		if t.Built {
+			built++
+		}
+		attempts += t.Attempts
 	}
-	if key == "" || tick-b.since > layoutBuildTicks {
+	key := fmt.Sprintf("%s|built=%d|attempts=%d", strings.Join(open, ","), built, attempts)
+	if key != b.key {
+		b.key, b.since = key, tick
+	}
+	if tick-b.since > layoutBuildTicks {
 		return ""
 	}
 	return fmt.Sprint(tick)
@@ -744,7 +755,7 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 			}
 		}
 		sort.Strings(open)
-		return na.Signature(projectID, tiers, stored, record.Complete, building.signature(open, review.Tick)), false, nil
+		return na.Signature(projectID, tiers, stored, record.Complete, building.signature(open, record, review.Tick)), false, nil
 	})
 	if err != nil {
 		return record, fmt.Errorf("layout not complete (project=%q stored=%v): %w", projectID, stored, err)
