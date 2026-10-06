@@ -209,7 +209,7 @@ unavailable or malformed ledger, never zero, and lives in memory only.
 
 Hunting is counted in two stages, each keyed by the corpse's thing id (the food census's
 stock id): a `KillRecord` when a player pawn kills an animal (a hunt, or a slaughter
-that leaves a corpse; race, body size, potential nutrition as meat amount x meat
+that leaves a corpse; the animal's `pawn_id`, race, body size, potential nutrition as meat amount x meat
 nutrition, tick) and a `ButcherRecord` where `GenRecipe.MakeRecipeProducts` makes a
 butcher recipe's products (any bill, any butcher; meat def, units and nutrition,
 leather units, tick). Each window holds the newest 256 records in tick order, with

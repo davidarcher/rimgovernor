@@ -106,6 +106,8 @@ type Rounder struct {
 	foodGapZero bool
 	// foodCredit is the delivery credit's factors (#2157), in memory only.
 	foodCredit policy.DeliveryCredit
+	// huntDelivery is the formation hunt's admitted and delivering state (#2163), in memory only.
+	huntDelivery policy.HuntDelivery
 	// bids is MaintainResource's joint ranking across its two planners
 	// (#728); see acquisitionBoard.
 	bids acquisitionBoard

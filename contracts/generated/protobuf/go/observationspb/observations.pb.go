@@ -32997,7 +32997,8 @@ func (x *DeliveryRow) GetLastTick() int64 {
 // A player pawn killed an animal (a hunt, or a slaughter that leaves a corpse).
 // corpse_id is the corpse's thing id (the food census's stock id), race the
 // animal's def, body_size its body size and potential_nutrition the meat it
-// would yield (meat amount x meat nutrition); tick is the game tick of death.
+// would yield (meat amount x meat nutrition); tick is the game tick of death and
+// pawn_id the killed animal's own thing id (a hunt row's source id).
 type KillRecord struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	CorpseId           *string                `protobuf:"bytes,1,opt,name=corpse_id,json=corpseId,proto3,oneof" json:"corpse_id,omitempty"`
@@ -33005,6 +33006,7 @@ type KillRecord struct {
 	BodySize           *float64               `protobuf:"fixed64,3,opt,name=body_size,json=bodySize,proto3,oneof" json:"body_size,omitempty"`
 	PotentialNutrition *float64               `protobuf:"fixed64,4,opt,name=potential_nutrition,json=potentialNutrition,proto3,oneof" json:"potential_nutrition,omitempty"`
 	Tick               *int64                 `protobuf:"varint,5,opt,name=tick,proto3,oneof" json:"tick,omitempty"`
+	PawnId             *string                `protobuf:"bytes,6,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -33072,6 +33074,13 @@ func (x *KillRecord) GetTick() int64 {
 		return *x.Tick
 	}
 	return 0
+}
+
+func (x *KillRecord) GetPawnId() string {
+	if x != nil && x.PawnId != nil {
+		return *x.PawnId
+	}
+	return ""
 }
 
 // A butcher recipe made its products from one corpse, counted where the
@@ -49130,21 +49139,24 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_nutritionB\f\n" +
 	"\n" +
-	"_last_tick\"\xfe\x01\n" +
+	"_last_tick\"\xa8\x02\n" +
 	"\n" +
 	"KillRecord\x12 \n" +
 	"\tcorpse_id\x18\x01 \x01(\tH\x00R\bcorpseId\x88\x01\x01\x12\x17\n" +
 	"\x04race\x18\x02 \x01(\tH\x01R\x04race\x88\x01\x01\x12 \n" +
 	"\tbody_size\x18\x03 \x01(\x01H\x02R\bbodySize\x88\x01\x01\x124\n" +
 	"\x13potential_nutrition\x18\x04 \x01(\x01H\x03R\x12potentialNutrition\x88\x01\x01\x12\x17\n" +
-	"\x04tick\x18\x05 \x01(\x03H\x04R\x04tick\x88\x01\x01B\f\n" +
+	"\x04tick\x18\x05 \x01(\x03H\x04R\x04tick\x88\x01\x01\x12\x1c\n" +
+	"\apawn_id\x18\x06 \x01(\tH\x05R\x06pawnId\x88\x01\x01B\f\n" +
 	"\n" +
 	"_corpse_idB\a\n" +
 	"\x05_raceB\f\n" +
 	"\n" +
 	"_body_sizeB\x16\n" +
 	"\x14_potential_nutritionB\a\n" +
-	"\x05_tick\"\xe4\x02\n" +
+	"\x05_tickB\n" +
+	"\n" +
+	"\b_pawn_id\"\xe4\x02\n" +
 	"\rButcherRecord\x12 \n" +
 	"\tcorpse_id\x18\x01 \x01(\tH\x00R\bcorpseId\x88\x01\x01\x12\x1b\n" +
 	"\x06recipe\x18\x02 \x01(\tH\x01R\x06recipe\x88\x01\x01\x12\x1e\n" +

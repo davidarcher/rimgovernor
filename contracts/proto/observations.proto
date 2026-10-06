@@ -1502,8 +1502,9 @@ message DeliveryRow { optional DeliverySourceKind source_kind = 1; optional stri
 // A player pawn killed an animal (a hunt, or a slaughter that leaves a corpse).
 // corpse_id is the corpse's thing id (the food census's stock id), race the
 // animal's def, body_size its body size and potential_nutrition the meat it
-// would yield (meat amount x meat nutrition); tick is the game tick of death.
-message KillRecord { optional string corpse_id = 1; optional string race = 2; optional double body_size = 3; optional double potential_nutrition = 4; optional int64 tick = 5; }
+// would yield (meat amount x meat nutrition); tick is the game tick of death and
+// pawn_id the killed animal's own thing id (a hunt row's source id).
+message KillRecord { optional string corpse_id = 1; optional string race = 2; optional double body_size = 3; optional double potential_nutrition = 4; optional int64 tick = 5; optional string pawn_id = 6; }
 // A butcher recipe made its products from one corpse, counted where the
 // products are made (any bill, any butcher). meat_units and meat_nutrition are
 // the produced meat (meat_def) stack and its nutrition, leather_units the

@@ -148,7 +148,7 @@ type foodAdapter struct {
 
 func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 	p, ids := a.projection(v)
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &a.credit).Value()
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &a.credit, nil).Value()
 	for _, c := range a.credit.Drain() {
 		if id, ok := a.groups[c.Source]; ok {
 			if f, seen := a.minFactor[id]; !seen || c.Factor < f {

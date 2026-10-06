@@ -33,9 +33,10 @@ type DeliveryCount struct {
 }
 
 // Kill is a player pawn's kill of an animal, keyed by its corpse's thing id (the
-// food census's stock id). PotentialNutrition is the meat it would yield.
+// food census's stock id) and carrying the animal's own pawn id.
+// PotentialNutrition is the meat it would yield.
 type Kill struct {
-	CorpseID, Race               string
+	CorpseID, PawnID, Race       string
 	BodySize, PotentialNutrition float64
 	Tick                         int64
 }
@@ -82,7 +83,7 @@ func colonyDeliveryLedger(section *o.DeliveryLedgerSection, tick int64) domain.F
 	r := DeliveryLedger{LoadToken: f.GetEpoch(), Counts: make(map[DeliveryKey]DeliveryCount, len(f.Rows)), Lost: f.GetLost(),
 		KillsTotal: f.GetKillsTotal(), ButchersTotal: f.GetButchersTotal()}
 	for _, k := range f.Kills {
-		r.Kills = append(r.Kills, Kill{CorpseID: k.GetCorpseId(), Race: k.GetRace(), BodySize: k.GetBodySize(), PotentialNutrition: k.GetPotentialNutrition(), Tick: k.GetTick()})
+		r.Kills = append(r.Kills, Kill{CorpseID: k.GetCorpseId(), PawnID: k.GetPawnId(), Race: k.GetRace(), BodySize: k.GetBodySize(), PotentialNutrition: k.GetPotentialNutrition(), Tick: k.GetTick()})
 	}
 	for _, b := range f.Butchers {
 		r.Butchers = append(r.Butchers, Butcher{CorpseID: b.GetCorpseId(), Recipe: b.GetRecipe(), MeatDef: b.GetMeatDef(), MeatUnits: b.GetMeatUnits(),

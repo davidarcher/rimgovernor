@@ -44,7 +44,7 @@ func validHuntRecords(f *o.DeliveryLedgerFacts, tick int64) bool {
 	}
 	killed := map[string]bool{}
 	for _, k := range f.Kills {
-		if k == nil || validID(k.GetCorpseId()) != nil || killed[k.GetCorpseId()] || validID(k.GetRace()) != nil || k.BodySize == nil || !combatNumber(k.BodySize, true) ||
+		if k == nil || validID(k.GetCorpseId()) != nil || killed[k.GetCorpseId()] || validID(k.GetRace()) != nil || validID(k.GetPawnId()) != nil || k.BodySize == nil || !combatNumber(k.BodySize, true) ||
 			k.PotentialNutrition == nil || !combatNumber(k.PotentialNutrition, true) || k.Tick == nil || k.GetTick() < 0 || k.GetTick() > tick {
 			return false
 		}

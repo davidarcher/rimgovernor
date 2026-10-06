@@ -23,7 +23,10 @@ func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.Fo
 		s.foodMin == seasonal.FoodMinDays && s.foodTarget == seasonal.FoodTargetDays && sameObservedIdentity(s.foodIdentity, p.Identity) {
 		return s.foodPlan
 	}
-	plan := reviewFoodPlan(p, r.policy, &r.foodCredit)
+	plan := reviewFoodPlan(p, r.policy, &r.foodCredit, &r.huntDelivery)
+	if v, known := plan.Value(); known {
+		r.huntDelivery.Admit(policy.HuntRequest(domain.Known(v)))
+	}
 	logFoodCredit(r.foodCredit.Drain())
 	if v, known := plan.Value(); known && r.foodGapZero {
 		v.GapPerDay = 0
@@ -39,7 +42,7 @@ func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.Fo
 // reviewFoodPlan budgets the complete competing-consumer census. It is called
 // by the rounds, before its reading is retained for method planners.
 // A missing census never becomes an empty portfolio that certifies surplus.
-func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy, credit *policy.DeliveryCredit) domain.Fact[policy.FoodPlan] {
+func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy, credit *policy.DeliveryCredit, hunt *policy.HuntDelivery) domain.Fact[policy.FoodPlan] {
 	supply, sk := p.CombinedFoodSupply.Value()
 	sources, ak := p.Acquisition.Value()
 	if !sk || !ak {
@@ -118,6 +121,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 			Terms: []policy.FoodPlanTerm{{Name: "supporting_method", Value: 1}}})
 	}
 	channels = credit.Apply(channels, foodCreditInput(p))
+	channels = hunt.Apply(channels, huntKills(p))
 	// Work capacity is a planning budget, not a promise of pawn work. Eight
 	// hours per available worker leaves the rest of the day for sleep and needs.
 	seasonal := thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions)
@@ -168,6 +172,19 @@ func foodCreditInput(p observation.ColonyProjection) policy.CreditInput {
 		in.Delivered[string(key.Kind)+":"+key.SourceID] += count.Nutrition
 	}
 	return in
+}
+
+// huntKills is the pawn ids the delivery ledger records as killed.
+func huntKills(p observation.ColonyProjection) map[string]bool {
+	ledger, known := p.DeliveryLedger.Value()
+	if !known {
+		return nil
+	}
+	out := make(map[string]bool, len(ledger.Kills))
+	for _, k := range ledger.Kills {
+		out[k.PawnID] = true
+	}
+	return out
 }
 
 // logFoodCredit writes one food_credit row per factor move, state change or

@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
                     || (__instance.Faction != null && !__instance.Faction.IsPlayer)) return;
                 var state = States.GetOrCreateValue(Current.Game);
                 var meat = __instance.RaceProps.meatDef;
-                var record = new Obs.KillRecord { CorpseId = corpse.GetUniqueLoadID(), Race = __instance.def.defName, BodySize = __instance.BodySize,
+                var record = new Obs.KillRecord { CorpseId = corpse.GetUniqueLoadID(), PawnId = __instance.GetUniqueLoadID(), Race = __instance.def.defName, BodySize = __instance.BodySize,
                     PotentialNutrition = meat == null ? 0 : Math.Max(0, __instance.GetStatValue(StatDefOf.MeatAmount)) * meat.GetStatValueAbstract(StatDefOf.Nutrition),
                     Tick = Find.TickManager.TicksGame };
                 state.KillsTotal++;

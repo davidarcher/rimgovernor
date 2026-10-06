@@ -187,3 +187,36 @@ func TestLoneHunterIsNotGatedByFormation(t *testing.T) {
 		}
 	}
 }
+
+// A formation is Designated from admission and Delivering from the first
+// kill of an admitted animal; it ends when no admitted animal stands.
+func TestHuntDeliveryLifecycle(t *testing.T) {
+	rows := []AcquisitionSource{
+		{ID: "a", Hunt: true, Food: true, NutritionYield: 100}, {ID: "b", Hunt: true, Food: true, NutritionYield: 100}, {ID: "c", Hunt: true, Food: true, NutritionYield: 100},
+		{ID: "d", Hunt: true, Food: true, NutritionYield: 100},
+	}
+	var h HuntDelivery
+	state := func(killed map[string]bool, rows []AcquisitionSource) CandidateState {
+		s, _ := h.Apply(HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{}), killed)[0].State().Value()
+		return s
+	}
+	if got := state(nil, rows); got != CandidateClosed {
+		t.Fatal(got)
+	}
+	h.Admit([]domain.PawnID{"a", "b", "c", "d"})
+	if got := state(map[string]bool{"zz": true}, rows); got != CandidateDesignated {
+		t.Fatal(got)
+	}
+	if got := state(map[string]bool{"a": true}, rows[1:]); got != CandidateDelivering {
+		t.Fatal(got)
+	}
+	// Sticky while an admitted animal stands, over by itself once none does.
+	if got := state(nil, rows[1:]); got != CandidateDelivering {
+		t.Fatal(got)
+	}
+	h.Apply(nil, nil)
+	h.Apply(HuntCandidates(nil, SquadHuntMinGunners, domain.Fact[float64]{}), nil)
+	if got := state(nil, rows); got != CandidateClosed {
+		t.Fatal(got)
+	}
+}

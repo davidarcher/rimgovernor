@@ -53,12 +53,12 @@ func TestDeliveryLedgerDecodeAndUnknown(t *testing.T) {
 		t.Fatalf("fish counter %+v", got)
 	}
 	hunted := good()
-	hunted.Kills = []*o.KillRecord{{CorpseId: proto.String("Corpse1"), Race: proto.String("Deer"), BodySize: proto.Float64(1.2), PotentialNutrition: proto.Float64(1.6), Tick: proto.Int64(4)}}
+	hunted.Kills = []*o.KillRecord{{CorpseId: proto.String("Corpse1"), PawnId: proto.String("Deer1"), Race: proto.String("Deer"), BodySize: proto.Float64(1.2), PotentialNutrition: proto.Float64(1.6), Tick: proto.Int64(4)}}
 	hunted.Butchers = []*o.ButcherRecord{{CorpseId: proto.String("Corpse1"), Recipe: proto.String("ButcherCorpseFlesh"), MeatDef: proto.String("Meat_Deer"), MeatUnits: proto.Int64(60),
 		MeatNutrition: proto.Float64(1.2), LeatherUnits: proto.Int64(20), Tick: proto.Int64(6)}}
 	hunted.KillsTotal, hunted.ButchersTotal = proto.Uint64(3), proto.Uint64(1)
 	if l, known := decode(observed(hunted)).Value(); !known || l.KillsTotal != 3 || l.ButchersTotal != 1 || len(l.Kills) != 1 || len(l.Butchers) != 1 ||
-		l.Kills[0] != (Kill{CorpseID: "Corpse1", Race: "Deer", BodySize: 1.2, PotentialNutrition: 1.6, Tick: 4}) ||
+		l.Kills[0] != (Kill{CorpseID: "Corpse1", PawnID: "Deer1", Race: "Deer", BodySize: 1.2, PotentialNutrition: 1.6, Tick: 4}) ||
 		l.Butchers[0] != (Butcher{CorpseID: "Corpse1", Recipe: "ButcherCorpseFlesh", MeatDef: "Meat_Deer", MeatUnits: 60, MeatNutrition: 1.2, LeatherUnits: 20, Tick: 6}) {
 		t.Fatalf("hunt records %+v known=%v", l, known)
 	}
@@ -102,7 +102,7 @@ func TestDeliveryLedgerDecodeAndUnknown(t *testing.T) {
 		"too many kills": func(f *o.DeliveryLedgerFacts) {
 			huntFacts(f)
 			for i := 0; i < bridge.MaxHuntRecords; i++ {
-				f.Kills = append(f.Kills, &o.KillRecord{CorpseId: proto.String(fmt.Sprintf("C%d", i)), Race: proto.String("Deer"), BodySize: proto.Float64(1), PotentialNutrition: proto.Float64(1), Tick: proto.Int64(1)})
+				f.Kills = append(f.Kills, &o.KillRecord{CorpseId: proto.String(fmt.Sprintf("C%d", i)), PawnId: proto.String(fmt.Sprintf("D%d", i)), Race: proto.String("Deer"), BodySize: proto.Float64(1), PotentialNutrition: proto.Float64(1), Tick: proto.Int64(1)})
 			}
 			f.KillsTotal = proto.Uint64(1000)
 		},
@@ -125,7 +125,7 @@ func TestDeliveryLedgerDecodeAndUnknown(t *testing.T) {
 
 // huntFacts adds one valid kill and its butcher record to a ledger read at tick 7.
 func huntFacts(f *o.DeliveryLedgerFacts) {
-	f.Kills = []*o.KillRecord{{CorpseId: proto.String("Corpse1"), Race: proto.String("Deer"), BodySize: proto.Float64(1.2), PotentialNutrition: proto.Float64(1.6), Tick: proto.Int64(4)}}
+	f.Kills = []*o.KillRecord{{CorpseId: proto.String("Corpse1"), PawnId: proto.String("Deer1"), Race: proto.String("Deer"), BodySize: proto.Float64(1.2), PotentialNutrition: proto.Float64(1.6), Tick: proto.Int64(4)}}
 	f.Butchers = []*o.ButcherRecord{{CorpseId: proto.String("Corpse1"), Recipe: proto.String("ButcherCorpseFlesh"), MeatDef: proto.String("Meat_Deer"), MeatUnits: proto.Int64(60),
 		MeatNutrition: proto.Float64(1.2), LeatherUnits: proto.Int64(20), Tick: proto.Int64(6)}}
 	f.KillsTotal, f.ButchersTotal = proto.Uint64(1), proto.Uint64(1)

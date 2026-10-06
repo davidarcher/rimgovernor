@@ -466,6 +466,10 @@ squad (12-cell linkage, three or more standing animals); every other animal is l
 A gunner is a colonist whose primary weapon hunts (`WeaponDef.Hunts`: ranged, not
 explosive, not incendiary); the candidate and `huntFormation` share that predicate, and the
 three-gunner minimum applies to formation prey only (a lone bow hunter is never gated).
+A formation candidate is `Designated` once the plan opens its prey (`HuntRequest`, which
+raises the hunt origin) and `Delivering` from the first ledger KILL whose `pawn_id` is an
+admitted animal (`policy.HuntDelivery`, in memory); Delivering keeps the hunt open while
+its fight runs, and stall and timeout handling stay on `HuntProgress`.
 Below three gunners a formation is a Hold with a `needs_gunners` term (the gunners it
 lacks, plus the `held_nutrition_per_day` it would deliver) and no yield. A candidate yields
 the meat nutrition and the animal's leather and butcher products; labor is charged once.
