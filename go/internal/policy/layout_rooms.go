@@ -65,7 +65,7 @@ type GroundCensus struct {
 	// fences and gates are the ring of an outdoor room (PlannedRoom.Outdoor).
 	fences, gates map[domain.Cell]bool
 	// flaps are the animal flaps standing (#2122), kept apart from doors: a
-	// pen's barn wall takes one where a room's ring takes a door.
+	// barn's wall takes one where a room's ring takes a door.
 	flaps map[domain.Cell]bool
 	// stuff is the stuff of each standing wall, where the census names one.
 	stuff map[domain.Cell]string
@@ -115,19 +115,12 @@ func withCells(set map[domain.Cell]bool) map[domain.Cell]bool {
 	return out
 }
 
-// ring is the standing walls and doors r's ring is matched against: a pen's
-// fences and gates, and its barn's wall the pen shares counts as a standing
-// wall; a barn's flap cells count as a door where a flap stands (#2122).
+// ring is the standing walls and doors r's ring is matched against: an
+// outdoor room's fences and gates; a barn's flap cells count as a door where a
+// flap stands (#2122).
 func (p LayoutPlan) ring(r PlannedRoom, g GroundCensus) (walls, doors map[domain.Cell]bool) {
 	if r.Outdoor {
-		walls, doors = g.fences, g.gates
-		if shared := p.sharedRing(r); len(shared) > 0 {
-			walls = withCells(walls)
-			for c := range shared {
-				walls[c] = true
-			}
-		}
-		return walls, doors
+		return g.fences, g.gates
 	}
 	walls, doors = g.walls, g.doors
 	if flaps := p.FlapCells(r); len(flaps) > 0 {
@@ -252,7 +245,6 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 		doors = append(doors, *r.Link)
 	}
 	doors = append(doors, p.FlapCells(r)...)
-	doors = append(doors, p.penBarnDoors(r)...)
 	in := r.Interior
 	for _, o := range p.roomsWithHerd() {
 		if o.Link == nil || o.Interior == in {

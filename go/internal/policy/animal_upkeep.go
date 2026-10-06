@@ -187,11 +187,9 @@ const (
 	// ContainmentWaitingNativePen is the ordinary wait once a handler exists;
 	// native AI, not the controller, delivers an already-suitable-penned animal.
 	ContainmentWaitingNativePen AnimalContainmentReason = "waiting_for_native_pen_delivery"
-	// ContainmentExceedsBound ports the explicit >8 bounded admission refusal.
-	ContainmentExceedsBound  AnimalContainmentReason = "herd_exceeds_bounded_pen_admission"
-	ContainmentBuildShell    AnimalContainmentReason = "build_pen_shell"
-	ContainmentAwaitingShell AnimalContainmentReason = "awaiting_shell_completion"
-	ContainmentPlaceMarker   AnimalContainmentReason = "place_pen_marker"
+	ContainmentBuildShell       AnimalContainmentReason = "build_pen_shell"
+	ContainmentAwaitingShell    AnimalContainmentReason = "awaiting_shell_completion"
+	ContainmentPlaceMarker      AnimalContainmentReason = "place_pen_marker"
 	// ContainmentMarkerExhausted is the blocked outcome once a marker
 	// method was already attempted with no observed suitable enclosure yet.
 	ContainmentMarkerExhausted AnimalContainmentReason = "marker_placed_awaiting_native_pen"
@@ -214,12 +212,9 @@ type AnimalContainmentMethod struct {
 	Animals []PawnID
 }
 
-const maxAnimalContainmentHerd = 8
-
 // SelectAnimalContainmentMethod ports animal_upkeep.containment_method: an
 // already-suitable herd only ever waits for an enabled Handling worker and
-// then native delivery; construction is bounded to a small starting herd and
-// proceeds shell-then-marker, never duplicating a completed shell or retrying
+// then native delivery; construction proceeds wall-then-marker, never duplicating a completed shell or retrying
 // an attempted marker without a fresh observation. Native pen eligibility,
 // footprint legality and construction admission remain the building family's.
 func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable domain.Fact[bool], shell AnimalContainmentShellStage, markerAttempted bool) (AnimalContainmentMethod, error) {
@@ -269,9 +264,6 @@ func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable doma
 			return AnimalContainmentMethod{Reason: ContainmentWaitingHandler, Animals: ids}, nil
 		}
 		return AnimalContainmentMethod{Reason: ContainmentWaitingNativePen, Animals: ids}, nil
-	}
-	if len(rows) > maxAnimalContainmentHerd {
-		return AnimalContainmentMethod{Reason: ContainmentExceedsBound, Animals: ids}, nil
 	}
 	switch shell {
 	case ContainmentShellNone:

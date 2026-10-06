@@ -187,7 +187,7 @@ func turbinePairInsideCoreRing(t *testing.T, pawns int) {
 }
 
 // The pen, barn and vet room stand inside the core ring.
-func TestCoreRingEnclosesPenBarnAndVetRoom(t *testing.T) {
+func TestCoreRingEnclosesBarnAndVetRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
@@ -197,7 +197,7 @@ func TestCoreRingEnclosesPenBarnAndVetRoom(t *testing.T) {
 	ring := coreRingBox(t, plan)
 	n := 0
 	for _, r := range plan.Reservations {
-		if r.Kind != ReservePen && r.Kind != ReserveBarn && r.Kind != ReserveVetRoom {
+		if r.Kind != ReserveBarn && r.Kind != ReserveVetRoom {
 			continue
 		}
 		n++
@@ -207,8 +207,8 @@ func TestCoreRingEnclosesPenBarnAndVetRoom(t *testing.T) {
 			}
 		}
 	}
-	if n < 3 {
-		t.Fatal("pen, barn and vet room reservations", n)
+	if n < 2 {
+		t.Fatal("barn and vet room reservations", n)
 	}
 }
 

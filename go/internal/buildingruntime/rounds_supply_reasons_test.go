@@ -54,7 +54,6 @@ func TestContainmentWaitsReadInPlainEnglish(t *testing.T) {
 		policy.ContainmentWaitingHandler:   "no colonist free to do it (animal handler)",
 		policy.ContainmentWaitingNativePen: "waiting on native pen (delivery)",
 		policy.ContainmentMarkerExhausted:  "waiting on native pen (marker placed)",
-		policy.ContainmentExceedsBound:     "waiting on pen (herd exceeds planning limit)",
 		policy.ContainmentAwaitingShell:    "waiting on paddock (wall closed)",
 		policy.ContainmentBuildShell:       "waiting on paddock (wall closed)",
 	} {

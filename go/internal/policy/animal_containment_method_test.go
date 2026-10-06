@@ -41,30 +41,25 @@ func TestSelectAnimalContainmentMethodAllSuitableWaitsForHandlerThenNative(t *te
 	}
 }
 
-func TestSelectAnimalContainmentMethodBoundedHerdAndShellStaging(t *testing.T) {
+func TestSelectAnimalContainmentMethodShellStaging(t *testing.T) {
 	var large []UpkeepAnimal
 	for i := 0; i < 9; i++ {
 		large = append(large, containmentAnimal(PawnID("muffalo-"+string(rune('0'+i))), true, false, ""))
 	}
-	m, err := SelectAnimalContainmentMethod(large, domain.Known(true), ContainmentShellNone, false)
-	if err != nil || m.Reason != ContainmentExceedsBound || len(m.Animals) != 9 {
-		t.Fatalf("%+v %v", m, err)
-	}
 
-	small := large[:8]
-	m, err = SelectAnimalContainmentMethod(small, domain.Known(true), ContainmentShellNone, false)
-	if err != nil || m.Reason != ContainmentBuildShell || len(m.Animals) != 8 {
+	m, err := SelectAnimalContainmentMethod(large, domain.Known(true), ContainmentShellNone, false)
+	if err != nil || m.Reason != ContainmentBuildShell || len(m.Animals) != 9 {
 		t.Fatalf("%+v %v", m, err)
 	}
-	m, err = SelectAnimalContainmentMethod(small, domain.Known(true), ContainmentShellPending, false)
+	m, err = SelectAnimalContainmentMethod(large, domain.Known(true), ContainmentShellPending, false)
 	if err != nil || m.Reason != ContainmentAwaitingShell {
 		t.Fatalf("%+v %v", m, err)
 	}
-	m, err = SelectAnimalContainmentMethod(small, domain.Known(true), ContainmentShellComplete, false)
+	m, err = SelectAnimalContainmentMethod(large, domain.Known(true), ContainmentShellComplete, false)
 	if err != nil || m.Reason != ContainmentPlaceMarker {
 		t.Fatalf("%+v %v", m, err)
 	}
-	m, err = SelectAnimalContainmentMethod(small, domain.Known(true), ContainmentShellComplete, true)
+	m, err = SelectAnimalContainmentMethod(large, domain.Known(true), ContainmentShellComplete, true)
 	if err != nil || m.Reason != ContainmentMarkerExhausted {
 		t.Fatalf("%+v %v", m, err)
 	}

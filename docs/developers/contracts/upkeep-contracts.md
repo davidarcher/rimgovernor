@@ -354,18 +354,18 @@ designations and bill receipts never prove replenishment.
 `MaintainAnimalContainment` observes pen membership for eligible starting animals. Pets and
 animals marked for release or slaughter get no pen request. Suitable existing pens are
 reused through native handling (Handling joins shared allocation without overriding disabled
-work); with none, one bounded 6x6 fence/gate enclosure and pen marker may be built through
+work); with none, one pen marker claims the yard inside the defensive wall once it is closed (#2233, #2235), built through
 the supply-room enclosure checks. Fences or a marker do not complete the concern: the animal
 must be observed in a suitable pen. No breeding, bonding, master or removal setting changes.
 
-Herd layout (`HerdPlan.PenAnimals`, summed population ceilings, at least six): pens at 10
-cells per animal (placed sites never move), a roofed barn with a sleeping spot per animal (at
-least eight), and a vet room with animal beds (one per 10 animals, at least two), all inside
+Herd layout (`HerdPlan.PenAnimals`, summed population ceilings, at least six):
+a roofed barn with a sleeping spot per animal and an animal flap into the paddock (at
+least eight; placed sites never move), and a vet room with animal beds (one per 10 animals, at least two), all inside
 the outer ring; a herd the rooms cannot hold gets an extra reservation, never a resized one.
 The vet room is outside animal areas (animals enter when carried or via the bot-owned
 `VetRoom` allowed area, `VetRoomAreaKey`).
 
-- Once the pen stands, containment reconciles each barn and vet room (`policy.HerdRooms`)
+- Containment reconciles each barn and vet room (`policy.HerdRooms`)
   through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
   template: the `AnimalSleepingSpot`s or `AnimalBed`s and the barn's heater;
   `buildingruntime/rounds_herd_rooms.go` calls `reconcileRoom`), so a lost wall is rebuilt

@@ -131,8 +131,6 @@ func containmentWait(reason policy.AnimalContainmentReason) Verdict {
 		return awaitingPlan("native_pen", "delivery")
 	case policy.ContainmentMarkerExhausted:
 		return awaitingPlan("native_pen", "marker_placed")
-	case policy.ContainmentExceedsBound:
-		return awaitingPlan("pen", "herd_exceeds_planning_limit")
 	case policy.ContainmentBuildShell, policy.ContainmentAwaitingShell:
 		return awaitingPlan("paddock", "wall_closed")
 	}
@@ -238,7 +236,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 		}
 		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
 	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
-		policy.ContainmentExceedsBound, policy.ContainmentMarkerExhausted:
+		policy.ContainmentMarkerExhausted:
 		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
 	case policy.ContainmentPlaceMarker:
 		if !sited {

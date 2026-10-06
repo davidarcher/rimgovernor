@@ -21,15 +21,14 @@ const (
 	perimeterOuterYard int32 = 1
 )
 
-// outerEnclosed are the reservation kinds the outer ring walls in whole: the
-// animal yards (a new yard kind, such as the barn, registers here) and the
-// geothermal enclosures.
+// outerEnclosed are the reservation kinds the outer ring walls in whole: the geothermal
+// enclosures.
 var outerEnclosed = map[ReservationKind]bool{ReserveGeothermal: true}
 
 // innerEnclosed are the reservations the core ring walls in with the rooms:
-// the animal yards and the turbine pairs with their lanes stand beside the
-// core, inside its wall, not out in the fields.
-var innerEnclosed = map[ReservationKind]bool{ReservePen: true, ReserveYard: true, ReserveBarn: true, ReserveVetRoom: true, ReserveTurbine: true, ReserveTurbineLane: true}
+// the materials yard, the barns and vet rooms and the turbine pairs with their
+// lanes stand beside the core, inside its wall, not out in the fields.
+var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReserveVetRoom: true, ReserveTurbine: true, ReserveTurbineLane: true}
 
 // planOuterRing returns the outer ring's reservations: walls and gates around
 // the units within twice perimeterFieldReach of the core ring. core is the core

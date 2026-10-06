@@ -49,15 +49,9 @@ const (
 // dining room's meals (#936).
 var coolingRoles = []PlannedRole{PlannedFreezer, PlannedTomb, PlannedMorgue, PlannedMealCloset}
 
-// penCellsPerAnimal sizes the animal pen: cells per penned animal (#1593).
-const penCellsPerAnimal = 10
-
-// ReservePen is the animal pen, sited beside the core inside its ring.
-const ReservePen ReservationKind = "pen"
-
 // UtilityWants is what PlanUtilities reserves: turbine pairs, solar plots,
-// the steam geysers (each the geyser's 2x2 footprint) and a pen for
-// PenAnimals animals.
+// the steam geysers (each the geyser's 2x2 footprint) and the herd units (barn
+// and vet room) for PenAnimals animals.
 type UtilityWants struct {
 	TurbinePairs, Solar int
 	PenAnimals          int
@@ -82,21 +76,6 @@ func ThickRoofCells(s MapSurvey) map[domain.Cell]bool {
 		}
 	}
 	return out
-}
-
-// penSide is the pen reservation whose interior holds at least animals x
-// penCellsPerAnimal cells: the near-square interior plus the fence ring, which
-// is the reservation's outline (#2120, #2132).
-func penSide(animals int) (w, h int32) { return walledSide(squareSide(animals * penCellsPerAnimal)) }
-
-// penInterior is the cells inside a pen reservation's fence ring: what the pen
-// holds animals in, and what penSide sizes.
-func penInterior(a Rectangle) int { return int(max(a.Width-2, 0) * max(a.Height-2, 0)) }
-
-// squareSide is the near-square rectangle holding at least n cells.
-func squareSide(n int) (w, h int32) {
-	w = int32(math.Ceil(math.Sqrt(float64(n))))
-	return w, int32((n + int(w) - 1) / int(w))
 }
 
 // reserveExhausts gives each cooling room that has none a cooler exhaust.

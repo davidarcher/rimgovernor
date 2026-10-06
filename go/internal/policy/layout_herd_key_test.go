@@ -34,7 +34,7 @@ func TestHerdKeyKeepsASecondUnitWithItsHerd(t *testing.T) {
 	}
 	// A boxed-in unit founds a second one (#2212): key both units A, as a herd
 	// that founded its second unit is, so the plan holds [A, A2].
-	grown := PlanHerdSites(herdTestPlan(t, 10), 30)
+	grown := PlanHerdSites(boxedInHerdPlan(t, 10), 30)
 	if len(grown.herdUnits()) != 2 {
 		t.Fatal("the unit is boxed in and founds a second", len(grown.herdUnits()))
 	}
@@ -76,7 +76,7 @@ func TestHerdKeysMigrateAPlanSavedWithoutThem(t *testing.T) {
 		legacy.Reservations[i].Herd = ""
 	}
 	housed, isLegacy := legacy.housedUnits(newUtilityGrid(legacy), herds)
-	if !isLegacy || len(housed) != 3 || len(housed[1].pens) == 0 || len(housed[2].pens) == 0 {
+	if !isLegacy || len(housed) != 3 || len(housed[1].barns) == 0 || len(housed[2].barns) == 0 {
 		t.Fatal("units match by order", isLegacy, housed)
 	}
 	next := PlanHerdSites(legacy, 10, herds...)

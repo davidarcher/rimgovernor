@@ -10,8 +10,8 @@ import (
 
 // The barn and the vet room as real rooms (#1633). Each ReserveBarn and
 // ReserveVetRoom reservation is a walled room: its interior is the
-// reservation without the ring, its door faces the pen (barn) or the colony
-// core (vet room). The room is derived from the reservation, never stored
+// reservation without the ring, its door faces the colony core. The barn also
+// takes an animal flap beside its door, into the paddock (#2229). The room is derived from the reservation, never stored
 // (HerdRooms). The animal-bed planner (NextHerdStep) reconciles each room: its
 // ring and door, then animal sleeping spots in the barn, up to one per kept animal, and
 // animal beds in the vet room, VetBeds per herd, nearest the door first, through
@@ -29,10 +29,9 @@ const (
 	// PlannedBarn is the barn's plan role, PlannedVetRoom the vet room's.
 	PlannedBarn    PlannedRole = "barn"
 	PlannedVetRoom PlannedRole = "vet_room"
-	// PlannedPen is the animal pen's plan role (#2120): the ReservePen
-	// reservation viewed as an outdoor room, ringed by fences round its gate.
-	// It is no part of roomsWithHerd: the clear side leaves a pen's ring and
-	// marker to the pen's own reconcile.
+	// PlannedPen is the paddock marker's plan role (#2233): the outdoor room the
+	// build side reconciles the one PenMarker through. It is no part of
+	// roomsWithHerd and no reservation holds one.
 	PlannedPen PlannedRole = "pen"
 	// RoomRoleVetRoom is the vet room's interior-template role. It is the
 	// controller's own, not a RoomRoleDef: the game scores a room of animal
@@ -181,14 +180,12 @@ func herdRole(kind ReservationKind) (PlannedRole, bool) {
 		return PlannedBarn, true
 	case ReserveVetRoom:
 		return PlannedVetRoom, true
-	case ReservePen:
-		return PlannedPen, true
 	}
 	return "", false
 }
 
-// HerdRooms are the plan's rooms of role (PlannedBarn, PlannedVetRoom or
-// PlannedPen), one per reservation in plan order.
+// HerdRooms are the plan's rooms of role (PlannedBarn or PlannedVetRoom),
+// one per reservation in plan order.
 func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range p.Reservations {
@@ -205,53 +202,56 @@ func (p LayoutPlan) roomsWithHerd() []PlannedRoom {
 	return append(append(slices.Clone(p.AllRooms()), p.HerdRooms(PlannedBarn)...), p.HerdRooms(PlannedVetRoom)...)
 }
 
-// penBarnOpenings are the two cells each pen and barn that share a wall open
-// through (#2122): the animal flap, which lets animals through but no colonist,
-// and beside it a regular door for the colonists. A pair sharing fewer than two
-// wall cells has none.
-func (p LayoutPlan) penBarnOpenings() (flaps, doors []domain.Cell) {
-	for _, pen := range p.Reservations {
-		if pen.Kind != ReservePen {
+// barnFlap is the cell of a barn's ring that takes its animal flap (#2229):
+// beside the barn's own door, so it opens onto the same ground, the paddock.
+// The flap lets animals through but no colonist; the door is the colonists'.
+// The cell is on the wall's straight run (never a corner), no other
+// reservation stands right outside it.
+func (p LayoutPlan) barnFlap(area Rectangle) (domain.Cell, bool) {
+	room := p.herdRoom(area, PlannedBarn)
+	var step, along domain.Cell
+	switch room.DoorRot {
+	case domain.East:
+		step, along = domain.Cell{X: 1}, domain.Cell{Z: 1}
+	case domain.West:
+		step, along = domain.Cell{X: -1}, domain.Cell{Z: 1}
+	case domain.North:
+		step, along = domain.Cell{Z: 1}, domain.Cell{X: 1}
+	default:
+		step, along = domain.Cell{Z: -1}, domain.Cell{X: 1}
+	}
+	in := room.Interior
+	for _, sign := range []int32{1, -1} {
+		c := domain.Cell{X: room.Door.X + sign*along.X, Z: room.Door.Z + sign*along.Z}
+		if along.X != 0 && (c.X < in.X || c.X >= in.X+in.Width) || along.Z != 0 && (c.Z < in.Z || c.Z >= in.Z+in.Height) {
 			continue
 		}
-		for _, barn := range p.Reservations {
-			if barn.Kind != ReserveBarn {
-				continue
-			}
-			run := sharedWallRun(pen.Area, barn.Area)
-			if len(run) < 2 {
-				continue
-			}
-			i := (len(run) - 1) / 2
-			flaps = append(flaps, run[i])
-			if i+1 < len(run) {
-				doors = append(doors, run[i+1])
-			} else {
-				doors = append(doors, run[i-1])
-			}
+		if p.doorBlocked(herdDoor{cell: c, sx: step.X, sz: step.Z}, area) {
+			continue
+		}
+		return c, true
+	}
+	return domain.Cell{}, false
+}
+
+// flaps are the animal flap cells of every barn, in plan order.
+func (p LayoutPlan) flaps() []domain.Cell {
+	var out []domain.Cell
+	for _, r := range p.Reservations {
+		if r.Kind != ReserveBarn {
+			continue
+		}
+		if c, ok := p.barnFlap(r.Area); ok {
+			out = append(out, c)
 		}
 	}
-	return flaps, doors
+	return out
 }
 
-func (p LayoutPlan) flaps() []domain.Cell {
-	flaps, _ := p.penBarnOpenings()
-	return flaps
-}
-
-// FlapCells are the cells of r's ring that take an animal flap: the flap links
-// of a barn's walls, none for an outdoor room (its shared wall is the barn's,
-// sharedRing).
+// FlapCells are the cells of r's ring that take an animal flap: a barn's flap
+// beside its door, none for any other room.
 func (p LayoutPlan) FlapCells(r PlannedRoom) []domain.Cell {
-	flaps, _ := p.penBarnOpenings()
-	return p.ringCells(r, flaps)
-}
-
-// penBarnDoors are the cells of a barn's ring that take the colonists' door
-// into the pen beside the flap (#2122); none for an outdoor room.
-func (p LayoutPlan) penBarnDoors(r PlannedRoom) []domain.Cell {
-	_, doors := p.penBarnOpenings()
-	return p.ringCells(r, doors)
+	return p.ringCells(r, p.flaps())
 }
 
 func (p LayoutPlan) ringCells(r PlannedRoom, cells []domain.Cell) []domain.Cell {
@@ -268,27 +268,6 @@ func (p LayoutPlan) ringCells(r PlannedRoom, cells []domain.Cell) []domain.Cell 
 	return out
 }
 
-// sharedRing are the cells of an outdoor room's ring that lie on a barn's
-// outline: the barn's wall (or the flap in it), never a fence (#2122).
-func (p LayoutPlan) sharedRing(r PlannedRoom) map[domain.Cell]bool {
-	if !r.Outdoor {
-		return nil
-	}
-	ring := roomWalls(r)
-	out := map[domain.Cell]bool{}
-	for _, barn := range p.Reservations {
-		if barn.Kind != ReserveBarn {
-			continue
-		}
-		for _, c := range rectCells(ring) {
-			if onRing(c, ring) && onRing(c, barn.Area) {
-				out[c] = true
-			}
-		}
-	}
-	return out
-}
-
 // herdRoom is the room a barn or vet room reservation holds: the door in
 // the middle of the wall facing the first pen (barn) or the colony core
 // (vet room; the barn's centre when the plan has no core).
@@ -296,7 +275,7 @@ func (p LayoutPlan) herdRoom(area Rectangle, role PlannedRole) PlannedRoom {
 	in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: area.Width - 2, Height: area.Height - 2}
 	room := PlannedRoom{Role: role, Interior: in, Outdoor: role.IsOutdoor()}
 	cx, cz := float64(in.X)+float64(in.Width)/2, float64(in.Z)+float64(in.Height)/2
-	tx, tz, ok := p.herdTarget(role)
+	tx, tz, ok := p.herdTarget()
 	if !ok {
 		tx, tz = cx, cz-1
 	}
@@ -380,30 +359,10 @@ func abs64(v float64) float64 {
 	return v
 }
 
-// herdTarget is the point a herd room's door faces.
-func (p LayoutPlan) herdTarget(role PlannedRole) (x, z float64, ok bool) {
-	centre := func(r Rectangle) (float64, float64, bool) {
-		return float64(r.X) + float64(r.Width)/2, float64(r.Z) + float64(r.Height)/2, true
-	}
-	if role == PlannedVetRoom || role == PlannedYard {
-		if c, found := p.Core(); found {
-			return float64(c.X), float64(c.Z), true
-		}
-	}
-	// The barn opens onto the pen and the pen onto the barn, else the core.
-	want := ReservePen
-	if role != PlannedBarn {
-		want = ReserveBarn
-	}
-	for _, r := range p.Reservations {
-		if r.Kind == want {
-			return centre(r.Area)
-		}
-	}
-	if role == PlannedPen {
-		if c, found := p.Core(); found {
-			return float64(c.X), float64(c.Z), true
-		}
+// herdTarget is the point a herd room's door faces: the colony core.
+func (p LayoutPlan) herdTarget() (x, z float64, ok bool) {
+	if c, found := p.Core(); found {
+		return float64(c.X), float64(c.Z), true
 	}
 	return 0, 0, false
 }

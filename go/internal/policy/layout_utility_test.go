@@ -310,59 +310,44 @@ func TestPlanUtilities(t *testing.T) {
 	}
 }
 
-func TestPlanUtilitiesPen(t *testing.T) {
+func TestPlanUtilitiesHerdUnit(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
 	p := PlanUtilities(core, UtilityWants{Solar: 1, PenAnimals: 30})
-	var pen *LayoutReservation
+	var barn *LayoutReservation
 	for i, r := range p.Reservations {
-		if r.Kind == ReservePen {
-			pen = &p.Reservations[i]
+		if r.Kind == ReserveBarn {
+			barn = &p.Reservations[i]
 		}
 	}
-	if pen == nil {
-		t.Fatal("no pen")
+	if barn == nil {
+		t.Fatal("no barn")
 	}
-	if w, h := penSide(30); penInterior(Rectangle{Width: w, Height: h}) < 30*penCellsPerAnimal || h > w || w-h > 1 {
-		t.Fatal("pen not near-square", w, h)
+	if p.herdCapacity(PlannedBarn) < 30 {
+		t.Fatal("barn too small", barn.Area)
 	}
-	if a := pen.Area; penInterior(a) < 30*penCellsPerAnimal {
-		t.Fatal("pen too small", a)
-	}
-	// A herd unit's rooms share one wall line by design (#2122): the pen and
-	// its barn overlap in exactly that line, never in an interior.
+	// A herd unit's rooms share one wall line by design (#2122): the barn and
+	// its vet room overlap in exactly that line, never in an interior.
 	for _, r := range p.Reservations {
-		if _, shared := sharedWallLink(r.Area, pen.Area); r.Kind != ReservePen && rectsOverlap(r.Area, pen.Area) && !shared {
-			t.Fatal("pen overlaps", r)
+		if _, shared := sharedWallLink(r.Area, barn.Area); r.Kind != ReserveBarn && rectsOverlap(r.Area, barn.Area) && !shared {
+			t.Fatal("barn overlaps", r)
 		}
 	}
 	for _, r := range p.AllRooms() {
-		if _, shared := sharedWallLink(roomWalls(r), pen.Area); rectsOverlap(roomWalls(r), pen.Area) && !shared {
-			t.Fatal("pen overlaps room", r.Role)
+		if _, shared := sharedWallLink(roomWalls(r), barn.Area); rectsOverlap(roomWalls(r), barn.Area) && !shared {
+			t.Fatal("barn overlaps room", r.Role)
 		}
 	}
 	u := newUtilityGrid(core)
-	if !u.free(pen.Area, true) {
-		t.Fatal("pen in the hallway clearance", pen.Area)
+	if !u.free(barn.Area, true) {
+		t.Fatal("barn in the hallway clearance", barn.Area)
 	}
 	// The site search follows the centre it is given.
-	w, h := penSide(30)
+	w, h := walledSide(herdSide(30))
 	near, _ := u.site(w, h, false, false, 10, 10)
 	far, _ := u.site(w, h, false, false, 70, 110)
 	if near.X >= far.X && near.Z >= far.Z || near == far {
 		t.Fatal("site ignores its centre", near, far)
-	}
-	found := false
-	for _, l := range p.Overlay(Bounds{Width: 400, Height: 400}).Layers {
-		found = found || l.Label == "animal pen"
-	}
-	if !found {
-		t.Fatal("overlay lacks the pen")
-	}
-	for _, r := range PlanUtilities(core, UtilityWants{PenAnimals: 2000}).Reservations {
-		if r.Kind == ReservePen {
-			t.Fatal("pen reserved with no room")
-		}
 	}
 }
 

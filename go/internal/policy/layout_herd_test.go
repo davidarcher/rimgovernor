@@ -17,14 +17,6 @@ func herdReservations(p LayoutPlan, kind ReservationKind) []LayoutReservation {
 	return out
 }
 
-func penCells(p LayoutPlan) int {
-	n := 0
-	for _, r := range herdReservations(p, ReservePen) {
-		n += penInterior(r.Area)
-	}
-	return n
-}
-
 func TestPenAnimalsFollowsThePlanCeilings(t *testing.T) {
 	plan := HerdPlan{Policy: HerdPolicy{PopulationMax: map[Resource]int64{"Cow": 14, "Alpaca": 8}}}
 	if got := plan.PenAnimals(); got != 22 {
@@ -60,8 +52,8 @@ func TestHerdSitesBarnAndVetRoom(t *testing.T) {
 			t.Fatal("vet room is inside an animal area", a)
 		}
 	}
-	if len(p.AnimalAreas()) != len(herdReservations(p, ReservePen))+1 {
-		t.Fatal("animal areas are the pens and the barn")
+	if len(p.AnimalAreas()) != 1 {
+		t.Fatal("animal areas are the barn")
 	}
 	found := map[string]bool{}
 	for _, l := range p.Overlay(Bounds{Width: 400, Height: 400}).Layers {
@@ -88,10 +80,10 @@ func TestVetBedsScaleWithTheHerd(t *testing.T) {
 }
 
 // A unit boxed in by the core has no room beside it: the outgrown herd founds
-// one second unit (barn, vet area and pen), the nearest unit takes it as its
+// one second unit (barn and vet area), the nearest unit takes it as its
 // own, and a repeat top-up is a no-op (#2212).
 func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
-	small := herdTestPlan(t, 10)
+	small := boxedInHerdPlan(t, 10)
 	grown := PlanHerdSites(small, 30)
 	u := newUtilityGrid(grown)
 	if groups := grown.herdUnits(); len(groups) != 2 {
@@ -100,8 +92,8 @@ func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
 	if housed, _ := grown.housedUnits(u, nil); len(housed) != 1 || len(housed[0].barns) != 2 || len(housed[0].vets) != 2 {
 		t.Fatal("the second unit is the first one's overflow", housed)
 	}
-	if grown.herdCapacity(PlannedBarn) < 30 || grown.herdCapacity(PlannedVetRoom) < VetBeds(30) || penCells(grown) < 30*penCellsPerAnimal {
-		t.Fatal("the herd is not housed", grown.herdCapacity(PlannedBarn), penCells(grown))
+	if grown.herdCapacity(PlannedBarn) < 30 || grown.herdCapacity(PlannedVetRoom) < VetBeds(30) {
+		t.Fatal("the herd is not housed", grown.herdCapacity(PlannedBarn), grown.herdCapacity(PlannedVetRoom))
 	}
 	if again := PlanHerdSites(grown, 30); len(again.Reservations) != len(grown.Reservations) {
 		t.Fatal("top-up is not idempotent")
@@ -118,15 +110,15 @@ func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
 	}
 }
 
-// No unit stands without all three: every pen touches a barn, every barn has a
-// pen and a vet area, however the herd outgrows its rooms.
-func TestUnitsAreAlwaysBarnVetAndPen(t *testing.T) {
+// No unit stands without both parts: every barn has a vet area against it,
+// however the herd outgrows its rooms.
+func TestUnitsAreAlwaysBarnAndVet(t *testing.T) {
 	for _, animals := range []int{10, 30, 31, 60} {
 		p := herdTestPlan(t, 10)
 		p = PlanHerdSites(p, animals)
 		for k, g := range p.herdUnits() {
-			if len(g.pens) == 0 || len(g.barns) == 0 || len(g.vets) == 0 {
-				t.Fatal("a unit lacks a part", animals, k, len(g.pens), len(g.barns), len(g.vets))
+			if len(g.barns) == 0 || len(g.vets) == 0 {
+				t.Fatal("a unit lacks a part", animals, k, len(g.barns), len(g.vets))
 			}
 		}
 	}
@@ -134,26 +126,21 @@ func TestUnitsAreAlwaysBarnVetAndPen(t *testing.T) {
 	p := herdTestPlan(t, 10)
 	p = PlanHerdSites(p, 5000)
 	for k, g := range p.herdUnits() {
-		if len(g.pens) == 0 || len(g.barns) == 0 || len(g.vets) == 0 {
-			t.Fatal("a detached part", k, len(g.pens), len(g.barns), len(g.vets))
+		if len(g.barns) == 0 || len(g.vets) == 0 {
+			t.Fatal("a detached part", k, len(g.barns), len(g.vets))
 		}
 	}
 }
 
-func TestLargerHerdLargerPenAndTopUpAddsAPen(t *testing.T) {
-	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
-	large := PlanUtilities(core, UtilityWants{PenAnimals: 30})
-	small := roomyHerdPlan(t, 10)
-	if penCells(large) <= penCells(small) || penCells(small) < 10*penCellsPerAnimal {
-		t.Fatal("pen does not follow the herd", penCells(small), penCells(large))
-	}
-	// The plan outgrows its pen: a second pen is added, nothing moves.
+func TestTopUpAddsABarnBesideTheUnit(t *testing.T) {
+	small := herdTestPlan(t, 10)
+	// The plan outgrows its barn: a second barn is added, nothing moves.
 	grown := PlanHerdSites(small, 30)
 	if units := grown.herdUnits(); len(units) != 1 {
 		t.Fatal("the extra reservations stand beside the unit", len(units))
 	}
-	if len(herdReservations(grown, ReservePen)) != 2 || penCells(grown) < 30*penCellsPerAnimal {
-		t.Fatal("no extra pen", len(herdReservations(grown, ReservePen)), penCells(grown))
+	if len(herdReservations(grown, ReserveBarn)) != 2 {
+		t.Fatal("no extra barn", len(herdReservations(grown, ReserveBarn)))
 	}
 	for i, r := range small.Reservations {
 		if grown.Reservations[i] != r {
@@ -171,22 +158,5 @@ func TestLargerHerdLargerPenAndTopUpAddsAPen(t *testing.T) {
 	}
 	if none := PlanHerdSites(small, 0); len(none.Reservations) != len(small.Reservations) {
 		t.Fatal("zero animals plans nothing")
-	}
-}
-
-// A pen reservation's interior, inside its fence ring, holds penCellsPerAnimal
-// per animal (#2132): the ring is part of the outline, so the side grows by 2.
-func TestPenReservationInteriorHoldsItsAnimals(t *testing.T) {
-	for _, n := range []int{1, 3, 10, 22, 30, 45} {
-		w, h := penSide(n)
-		if got := penInterior(Rectangle{Width: w, Height: h}); got < n*penCellsPerAnimal {
-			t.Fatal("interior too small", n, w, h, got)
-		}
-	}
-	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
-	for _, n := range []int{10, 30} {
-		if got := penCells(PlanUtilities(core, UtilityWants{PenAnimals: n})); got < n*penCellsPerAnimal {
-			t.Fatal("planned pen interior too small", n, got)
-		}
 	}
 }

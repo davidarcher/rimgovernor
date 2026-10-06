@@ -20,19 +20,28 @@ func herdTestPlan(t *testing.T, animals int) LayoutPlan {
 	return PlanUtilities(core, UtilityWants{PenAnimals: animals})
 }
 
-// roomyHerdPlan is the herd plan with its vet area left out: the first vet
-// area boxes the barn in against the core, so without it the unit has room
-// for a top-up beside it.
-func roomyHerdPlan(t *testing.T, animals int) LayoutPlan {
+// boxedInHerdPlan is the herd plan with solar plots hugging its barn and vet
+// area on every side, so nothing fits beside the unit and a herd that
+// outgrows it must found a second unit elsewhere (#2212).
+func boxedInHerdPlan(t *testing.T, animals int) LayoutPlan {
 	t.Helper()
 	p := herdTestPlan(t, animals)
-	var keep []LayoutReservation
+	x0, z0, x1, z1 := int32(1<<30), int32(1<<30), int32(-1<<30), int32(-1<<30)
 	for _, r := range p.Reservations {
-		if r.Kind != ReserveVetRoom {
-			keep = append(keep, r)
+		if _, ok := herdRole(r.Kind); ok {
+			x0, z0 = min(x0, r.Area.X), min(z0, r.Area.Z)
+			x1, z1 = max(x1, r.Area.X+r.Area.Width), max(z1, r.Area.Z+r.Area.Height)
 		}
 	}
-	p.Reservations = keep
+	const thick = 40
+	for _, a := range []Rectangle{
+		{X: x0 - thick, Z: z0 - thick, Width: thick, Height: z1 - z0 + 2*thick},
+		{X: x1, Z: z0 - thick, Width: thick, Height: z1 - z0 + 2*thick},
+		{X: x0, Z: z0 - thick, Width: x1 - x0, Height: thick},
+		{X: x0, Z: z1, Width: x1 - x0, Height: thick},
+	} {
+		p.Reservations = append(p.Reservations, LayoutReservation{Kind: ReserveSolar, Area: a})
+	}
 	return p
 }
 
@@ -244,7 +253,7 @@ func TestHerdStepFlagsEachStandingVetBedMedical(t *testing.T) {
 }
 
 func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
-	small := roomyHerdPlan(t, 10)
+	small := herdTestPlan(t, 10)
 	grown := PlanHerdSites(small, 60)
 	if units := grown.herdUnits(); len(units) != 1 {
 		t.Fatal("an outgrown unit grows beside itself, never a second unit", len(units))
