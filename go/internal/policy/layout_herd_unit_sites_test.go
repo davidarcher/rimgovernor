@@ -10,7 +10,7 @@ import (
 func unitCells(rs []Rectangle) int {
 	n := 0
 	for _, r := range rs {
-		n += int(r.Width * r.Height)
+		n += penInterior(r)
 	}
 	return n
 }

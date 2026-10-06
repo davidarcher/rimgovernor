@@ -12,7 +12,8 @@ import (
 // holds every animal that is no herd's, and each herd (HerdPlan.Herds) gets a
 // unit of its own, sized from its policy ceiling. A unit is a pen with a barn
 // built against its wall (the two joined by an animal flap) and a vet area
-// against the barn. Pens hold the unit's herd at penCellsPerAnimal each; the
+// against the barn. Pens hold the unit's herd at penCellsPerAnimal interior cells each (the fence
+// ring is the reservation's outline, #2132); the
 // barn (roofed, an animal sleeping spot per animal) and the vet area (clean,
 // animal beds, VetBeds per barn) are walls and interior together. A
 // reservation never changes or moves: a herd its unit cannot hold gets another
@@ -323,7 +324,7 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, anim
 	}
 	held := 0
 	for _, a := range pens {
-		held += int(a.Width * a.Height)
+		held += penInterior(a)
 	}
 	// found raises the second unit for the animals the unit cannot hold, all
 	// or nothing: a pen is never left without its barn and vet area.

@@ -20,7 +20,7 @@ func herdReservations(p LayoutPlan, kind ReservationKind) []LayoutReservation {
 func penCells(p LayoutPlan) int {
 	n := 0
 	for _, r := range herdReservations(p, ReservePen) {
-		n += int(r.Area.Width * r.Area.Height)
+		n += penInterior(r.Area)
 	}
 	return n
 }
@@ -171,5 +171,22 @@ func TestLargerHerdLargerPenAndTopUpAddsAPen(t *testing.T) {
 	}
 	if none := PlanHerdSites(small, 0); len(none.Reservations) != len(small.Reservations) {
 		t.Fatal("zero animals plans nothing")
+	}
+}
+
+// A pen reservation's interior, inside its fence ring, holds penCellsPerAnimal
+// per animal (#2132): the ring is part of the outline, so the side grows by 2.
+func TestPenReservationInteriorHoldsItsAnimals(t *testing.T) {
+	for _, n := range []int{1, 3, 10, 22, 30, 45} {
+		w, h := penSide(n)
+		if got := penInterior(Rectangle{Width: w, Height: h}); got < n*penCellsPerAnimal {
+			t.Fatal("interior too small", n, w, h, got)
+		}
+	}
+	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
+	for _, n := range []int{10, 30} {
+		if got := penCells(PlanUtilities(core, UtilityWants{PenAnimals: n})); got < n*penCellsPerAnimal {
+			t.Fatal("planned pen interior too small", n, got)
+		}
 	}
 }

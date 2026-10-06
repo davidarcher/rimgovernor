@@ -323,10 +323,10 @@ func TestPlanUtilitiesPen(t *testing.T) {
 	if pen == nil {
 		t.Fatal("no pen")
 	}
-	if w, h := penSide(30); w*h < 30*penCellsPerAnimal || h > w || w-h > 1 {
+	if w, h := penSide(30); penInterior(Rectangle{Width: w, Height: h}) < 30*penCellsPerAnimal || h > w || w-h > 1 {
 		t.Fatal("pen not near-square", w, h)
 	}
-	if a := pen.Area; a.Width*a.Height < 30*penCellsPerAnimal {
+	if a := pen.Area; penInterior(a) < 30*penCellsPerAnimal {
 		t.Fatal("pen too small", a)
 	}
 	// A herd unit's rooms share one wall line by design (#2122): the pen and

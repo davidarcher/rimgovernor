@@ -84,9 +84,14 @@ func ThickRoofCells(s MapSurvey) map[domain.Cell]bool {
 	return out
 }
 
-// penSide is the near-square rectangle holding at least animals x
-// penCellsPerAnimal cells.
-func penSide(animals int) (w, h int32) { return squareSide(animals * penCellsPerAnimal) }
+// penSide is the pen reservation whose interior holds at least animals x
+// penCellsPerAnimal cells: the near-square interior plus the fence ring, which
+// is the reservation's outline (#2120, #2132).
+func penSide(animals int) (w, h int32) { return walledSide(squareSide(animals * penCellsPerAnimal)) }
+
+// penInterior is the cells inside a pen reservation's fence ring: what the pen
+// holds animals in, and what penSide sizes.
+func penInterior(a Rectangle) int { return int(max(a.Width-2, 0) * max(a.Height-2, 0)) }
 
 // squareSide is the near-square rectangle holding at least n cells.
 func squareSide(n int) (w, h int32) {
