@@ -13,7 +13,7 @@ import (
 // tameable wild animal on the map while the herd's feed forecast reports no
 // shortfall; and any race above its wealth-scaled cap (PlanHerd) with a
 // removable animal (herdSurplusCandidates). Removal needs no opt-in: it is
-// slaughter whenever native SafeToSlaughter allows it, release only when
+// slaughter whenever SafeToSlaughter allows it, release only when
 // slaughter is refused and SafeToRelease allows it, and never breaks the last
 // breeding pair. Native checks eligibility again when the HusbandryIntent
 // applies.

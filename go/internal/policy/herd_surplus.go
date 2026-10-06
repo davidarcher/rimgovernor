@@ -169,12 +169,12 @@ type herdRemoval struct {
 	method domain.HusbandryMethod
 }
 
-// herdRemovalMethod is slaughter whenever native allows it (SafeToSlaughter,
-// which refuses a bonded animal) and the player ideo's precepts neither
+// herdRemovalMethod is slaughter whenever SafeToSlaughter allows it (it
+// refuses a bonded animal) and the player ideo's precepts neither
 // penalise nor forbid it (SlaughterBarred), else release when native allows
 // that, else none. ok is false when a needed native fact is unknown.
 func herdRemovalMethod(a UpkeepAnimal) (domain.HusbandryMethod, bool) {
-	slaughter, sk := a.SafeToSlaughter.Value()
+	slaughter, sk := a.SafeToSlaughter().Value()
 	if !sk {
 		return "", false
 	}

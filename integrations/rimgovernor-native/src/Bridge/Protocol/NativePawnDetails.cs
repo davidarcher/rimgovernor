@@ -517,13 +517,13 @@ namespace HomeBridge.BridgeTools
             }
             var milk=pawn.GetComp<CompMilkable>();if(milk!=null) row.MilkFullness=Number(milk.Fullness);else row.Issues.Add(Issue("milk_fullness",Common.UnavailableReason.NotApplicable,"No milk component."));
             var wool=pawn.GetComp<CompShearable>();if(wool!=null) row.WoolFullness=Number(wool.Fullness);else row.Issues.Add(Issue("wool_fullness",Common.UnavailableReason.NotApplicable,"No wool component."));
-            foreach(var field in new[]{"fertile_adult","pregnant","gestation","parent_ids"}) row.Issues.Add(Unsupported(field,"Animal reproduction detail is not projected."));
+            foreach(var field in new[]{"fertile_adult","gestation","parent_ids"}) row.Issues.Add(Unsupported(field,"Animal reproduction detail is not projected."));
             // Live spawned animals only: the guards and pen reads assume one.
             if(pawn.Dead || !pawn.Spawned) return row;
             if(pawn.Faction!=null && pawn.Faction==Faction.OfPlayerSilentFail) {
                 var eligible=NativeHusbandryOperations.Eligible(pawn);
                 row.SafeToRelease=eligible && NativeHusbandryOperations.SafeToRelease(pawn);
-                row.SafeToSlaughter=eligible && NativeHusbandryOperations.SafeToSlaughter(pawn);
+                if(eligible) NativeHusbandryOperations.SlaughterFacts(pawn,row);
                 // Medical care cap inputs (#1301).
                 if(pawn.playerSettings!=null) row.MedicalCare=NativeEnums.Care(pawn.playerSettings.medCare);
                 var bondPartners=pawn.relations?.DirectRelations.Where(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead && r.otherPawn.RaceProps.Humanlike).Select(r => r.otherPawn.GetUniqueLoadID()).OrderBy(i => i,System.StringComparer.Ordinal).ToList();
@@ -536,7 +536,7 @@ namespace HomeBridge.BridgeTools
                     if(pen!=null) row.PenId=Id(pen.parent.GetUniqueLoadID());
                 }
                 // Area reconciliation (#500): the saved restriction.
-                if(eligible) {row.AllowedAreaId=NativeHusbandryOperations.AreaId(pawn);row.SupportsAllowedAreas=NativeHusbandryOperations.SupportsAllowedAreas(pawn);}
+                if(eligible) {row.MasterId=NativeHusbandryOperations.MasterId(pawn);row.AllowedAreaId=NativeHusbandryOperations.AreaId(pawn);row.SupportsAllowedAreas=NativeHusbandryOperations.SupportsAllowedAreas(pawn);}
             } else if(pawn.Faction==null) {
                 // The tame target facts a MaintainHerd tame write needs.
                 row.Tameable=NativeHusbandryOperations.Tameable(pawn);

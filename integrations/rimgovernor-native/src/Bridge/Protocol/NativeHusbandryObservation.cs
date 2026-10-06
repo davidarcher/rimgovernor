@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
                 row.Release = designations.Any(d => d.def == DesignationDefOf.ReleaseAnimalToWild);
                 row.Tame = designations.Any(d => d.def == DesignationDefOf.Tame);
             }
-            row.SafeToSlaughter = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToSlaughter(animal);
+            if (NativeHusbandryOperations.Eligible(animal)) NativeHusbandryOperations.SlaughterFacts(animal, row);
             row.SafeToRelease = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToRelease(animal);
             row.Tameable = NativeHusbandryOperations.Tameable(animal);
             if (animal.Faction == Faction.OfPlayer)

@@ -51,6 +51,37 @@ func PlanHayField(need domain.Fact[float64], crop CropChoice, climate CropClimat
 	return FieldPlan{Crop: crop, Needed: int(math.Min(4096, math.Ceil(n/yield)))}, true
 }
 
+// SlaughterFacts are native's raw per-animal flags the slaughter exclusion
+// reads; Designatable is Designator_Slaughter's own acceptance.
+type SlaughterFacts struct {
+	Downed, InMentalState, Pregnant, Mastered, ColonistBonded, Designatable domain.Fact[bool]
+}
+
+// SafeToSlaughter is the slaughter exclusion: a downed, mentally broken,
+// pregnant, mastered, colonist-bonded or release-designated animal, or one the
+// slaughter designator refuses, is protected. A known blocker decides even
+// when another fact is unknown; otherwise unknown facts leave it unknown.
+func (a UpkeepAnimal) SafeToSlaughter() domain.Fact[bool] {
+	f := a.SlaughterFacts
+	unknown := false
+	for _, blocker := range []domain.Fact[bool]{f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded, a.Release} {
+		if v, ok := blocker.Value(); !ok {
+			unknown = true
+		} else if v {
+			return domain.Known(false)
+		}
+	}
+	if v, ok := f.Designatable.Value(); !ok {
+		unknown = true
+	} else if !v {
+		return domain.Known(false)
+	}
+	if unknown {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(true)
+}
+
 type SlaughterFoodAnimal struct {
 	ID                                          PawnID
 	Race                                        Resource
@@ -67,14 +98,14 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 	}
 	pending := map[PawnID]bool{}
 	// Re-price existing orders too. These copies are planning offers only;
-	// fresh destructive admission still requires native SafeToSlaughter.
+	// fresh destructive admission still requires SafeToSlaughter.
 	observed = append([]UpkeepAnimal(nil), observed...)
 	for i := range observed {
 		a := &observed[i]
 		if slaughter, known := a.Slaughter.Value(); known && slaughter {
 			pending[a.ID] = true
 			a.Slaughter = domain.Known(false)
-			a.SafeToSlaughter = domain.Known(true)
+			a.SlaughterFacts.Designatable = domain.Known(true)
 		}
 	}
 	floors := herdFoodLimits(observed, herd)

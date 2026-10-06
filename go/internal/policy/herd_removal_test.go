@@ -50,9 +50,9 @@ func TestReconcileHerdRemoval(t *testing.T) {
 
 // cows is a herd of one bull and n cows, none designated.
 func cows(n int) []UpkeepAnimal {
-	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false), EatingBarred: domain.Known(false)}}}
+	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SlaughterFacts: safeSlaughter(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false), EatingBarred: domain.Known(false)}}}
 	for i := range n {
-		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false), EatingBarred: domain.Known(false)}})
+		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SlaughterFacts: safeSlaughter(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false), EatingBarred: domain.Known(false)}})
 	}
 	return rows
 }
@@ -95,7 +95,7 @@ func TestPendingRemovalBudgetsAndPolicyChanges(t *testing.T) {
 
 func TestFoodOfferRetainsPendingSlaughterWithoutDuplicate(t *testing.T) {
 	herdRows := cows(3)
-	herdRows[1].Slaughter, herdRows[1].SafeToSlaughter = domain.Known(true), domain.Known(false)
+	herdRows[1].Slaughter, herdRows[1].SlaughterFacts = domain.Known(true), safeSlaughter(false)
 	animals := domain.Known(herdRows)
 	rows := []SlaughterFoodAnimal{{ID: "cowa", Race: "Cow", MeatNutrition: domain.Known(15.0), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(10.0)}}
 	herd := HerdPolicy{}
@@ -151,14 +151,14 @@ func TestPrioritizeSlaughterChoice(t *testing.T) {
 func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	bonded := bondedAs(planAnimal("a1", "Cow", "None"), true)
 	bonded.BondedPawns = []string{"p1"}
-	bonded.SafeToSlaughter, bonded.SafeToRelease = domain.Known(false), domain.Known(false)
+	bonded.SlaughterFacts, bonded.SafeToRelease = safeSlaughter(false), domain.Known(false)
 	free := bondedAs(planAnimal("a2", "Cow", "None"), false)
 	limits := map[Resource]int64{"Cow": 1}
 	got, unknown := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, HerdPolicy{})
 	if unknown || len(got) != 1 || got[0].animal.ID != "a2" {
 		t.Fatalf("surplus pick = %+v, want a2", got)
 	}
-	free.SafeToSlaughter, free.SafeToRelease = domain.Known(false), domain.Known(true)
+	free.SlaughterFacts, free.SafeToRelease = safeSlaughter(false), domain.Known(true)
 	if got, _ := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, HerdPolicy{}); len(got) != 1 || got[0].animal.ID != "a2" || got[0].method != domain.HusbandryRelease {
 		t.Fatalf("release pick = %+v, want a2", got)
 	}
@@ -185,7 +185,7 @@ func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
 		rows[i].Herd.SlaughterBarred = domain.Known(true)
 		rows[i].Herd.Venerated = domain.Known(true)
 	}
-	rows[1].Slaughter, rows[1].SafeToSlaughter = domain.Known(true), domain.Known(false)
+	rows[1].Slaughter, rows[1].SlaughterFacts = domain.Known(true), safeSlaughter(false)
 	animals := domain.Known(rows)
 	handler := domain.Known([]PawnProfile{{ID: "h", WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 9}}}})
 	if got := PrioritizeSlaughterChoice(animals, handler); got.Method != "" {

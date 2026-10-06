@@ -77,3 +77,43 @@ func TestSlaughterRanksFeedEfficiencyThenReproduction(t *testing.T) {
 		t.Fatal(channels)
 	}
 }
+
+// safeSlaughter is a fully known fact set: all clear when ok, else downed.
+func safeSlaughter(ok bool) SlaughterFacts {
+	f := func(v bool) domain.Fact[bool] { return domain.Known(v) }
+	return SlaughterFacts{Downed: f(!ok), InMentalState: f(false), Pregnant: f(false), Mastered: f(false), ColonistBonded: f(false), Designatable: f(true)}
+}
+
+func TestSafeToSlaughterExclusions(t *testing.T) {
+	clear := func(mutate func(*UpkeepAnimal)) domain.Fact[bool] {
+		a := UpkeepAnimal{SlaughterFacts: safeSlaughter(true), Release: domain.Known(false)}
+		mutate(&a)
+		return a.SafeToSlaughter()
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*UpkeepAnimal)
+		want   bool
+	}{
+		{"clear", func(*UpkeepAnimal) {}, true},
+		{"downed", func(a *UpkeepAnimal) { a.SlaughterFacts.Downed = domain.Known(true) }, false},
+		{"mental state", func(a *UpkeepAnimal) { a.SlaughterFacts.InMentalState = domain.Known(true) }, false},
+		{"pregnant", func(a *UpkeepAnimal) { a.SlaughterFacts.Pregnant = domain.Known(true) }, false},
+		{"mastered", func(a *UpkeepAnimal) { a.SlaughterFacts.Mastered = domain.Known(true) }, false},
+		{"colonist bond", func(a *UpkeepAnimal) { a.SlaughterFacts.ColonistBonded = domain.Known(true) }, false},
+		{"release designated", func(a *UpkeepAnimal) { a.Release = domain.Known(true) }, false},
+		{"designator refuses", func(a *UpkeepAnimal) { a.SlaughterFacts.Designatable = domain.Known(false) }, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if v, ok := clear(tc.mutate).Value(); !ok || v != tc.want {
+				t.Fatalf("got %v %v", v, ok)
+			}
+		})
+	}
+	if _, ok := clear(func(a *UpkeepAnimal) { a.SlaughterFacts.Pregnant = domain.Unknown[bool]() }).Value(); ok {
+		t.Fatal("unknown flag became safe")
+	}
+	if v, ok := clear(func(a *UpkeepAnimal) { a.SlaughterFacts.Pregnant = domain.Unknown[bool](); a.SlaughterFacts.Downed = domain.Known(true) }).Value(); !ok || v {
+		t.Fatal("known blocker did not decide")
+	}
+}

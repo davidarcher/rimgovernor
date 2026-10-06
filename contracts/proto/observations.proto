@@ -388,7 +388,8 @@ message AnimalState {
   optional double gestation = 5; optional double milk_fullness = 6; optional double wool_fullness = 7;
   optional string pen_id = 8; optional bool contained = 9; repeated string parent_ids = 10;
   repeated TrainingEntry training = 11; optional bool release = 12; optional bool slaughter = 13;
-  optional bool safe_to_slaughter = 14; repeated ReadIssue issues = 16;
+  reserved 14; reserved "safe_to_slaughter";
+  repeated ReadIssue issues = 16;
   optional bool tameable = 18; optional bool tame = 19; optional bool safe_to_release = 20;
   // Player-animal settings the SetAnimalArea/Master/Following writes target:
   // the current allowed area and master (empty when unassigned), the follow
@@ -410,6 +411,13 @@ message AnimalState {
   // Sterilized hediff present, and a queued sterilize surgery bill on the
   // animal (the husbandry sterilize order).
   optional bool sterilized = 37; optional bool sterilize_queued = 38;
+  // Raw slaughter facts of a player animal; policy decides who is protected
+  // (FoodSlaughterChoice). downed and in_mental_state are the live Pawn
+  // flags, colonist_bonded is TrainableUtility.GetAllColonistBondsFor
+  // non-empty, slaughter_designatable is Designator_Slaughter's own
+  // acceptance (false while a slaughter designation stands).
+  optional bool downed = 39; optional bool in_mental_state = 40;
+  optional bool colonist_bonded = 41; optional bool slaughter_designatable = 42;
   // Ids of the living humanlike pawns this animal has a Bond relation with
   // (any faction or status; the planner keeps those on the colony roster).
   repeated string bonded_pawn_ids = 36;

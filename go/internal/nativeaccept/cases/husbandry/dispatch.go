@@ -114,8 +114,8 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 
 	// --- Preconditions: the fixture's dog genuinely has an available,
-	// not-yet-wanted Obedience trainable; the cow is genuinely safe to
-	// slaughter; the mother is genuinely protected (near-term pregnancy). ---
+	// not-yet-wanted Obedience trainable; the cow is genuinely slaughterable;
+	// the mother reads pregnant (policy protects her, native does not refuse). ---
 	dogRow, err := herdRow("dog-before", dogID)
 	if err != nil {
 		return err
@@ -139,8 +139,13 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	cowAnimal, _ := na.AsMap(cowRow["animal"])
-	if safe, _ := na.AsBool(cowAnimal["safeToSlaughter"]); !safe {
-		return fmt.Errorf("cow-before: expected the fixture cow to be safe to slaughter, got %#v", cowAnimal)
+	if designatable, _ := na.AsBool(cowAnimal["slaughterDesignatable"]); !designatable {
+		return fmt.Errorf("cow-before: expected the slaughter designator to accept the fixture cow, got %#v", cowAnimal)
+	}
+	for _, flag := range []string{"downed", "inMentalState", "pregnant", "colonistBonded"} {
+		if set, _ := na.AsBool(cowAnimal[flag]); set {
+			return fmt.Errorf("cow-before: expected %s clear on the fixture cow, got %#v", flag, cowAnimal)
+		}
 	}
 	if slaughter, _ := na.AsBool(cowAnimal["slaughter"]); slaughter {
 		return fmt.Errorf("cow-before: expected no pre-existing slaughter designation, got %#v", cowAnimal)
@@ -151,8 +156,8 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	motherAnimal, _ := na.AsMap(motherRow["animal"])
-	if safe, _ := na.AsBool(motherAnimal["safeToSlaughter"]); safe {
-		return fmt.Errorf("mother-before: expected the near-term-pregnant mother to be protected, got %#v", motherAnimal)
+	if pregnant, _ := na.AsBool(motherAnimal["pregnant"]); !pregnant {
+		return fmt.Errorf("mother-before: expected the raw pregnant fact on the near-term mother, got %#v", motherAnimal)
 	}
 
 	// apply sends one HusbandryIntent on Actions/Apply (#941) and returns
@@ -207,14 +212,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return nil
 	}
 
-	// Refusal: the near-term-pregnant mother's own SafeToSlaughter=false
-	// fact refuses a slaughter designation outright.
-	if err := refused("protected-mother", "husbandry-protected", motherID, "SLAUGHTER", nil,
-		"FAILURE_CODE_INVALID_REQUEST", "Husbandry refused: animal is protected or native slaughter eligibility refused it"); err != nil {
-		return err
-	}
-	report["negative_protected_animal"] = motherID
-
 	// Train: the real native SetWantedRecursive write, read back at once:
 	// a direct write with no native job, so no game ticks are needed.
 	trainEffect, err := applied("apply-train", "husbandry-train", dogID, "TRAIN", map[string]any{"trainableDef": "Obedience"})
@@ -240,7 +237,7 @@ func run(ctx context.Context, s cases.Session) error {
 	report["training_dispatched"] = true
 
 	// --- Slaughter: the same immediate-write shape, on the fixture's
-	// genuinely safe-to-slaughter cow; resending applies again. ---
+	// genuinely slaughterable cow; resending applies again. ---
 	for _, label := range []string{"apply-slaughter", "reapply-slaughter"} {
 		effect, err := applied(label, "husbandry-"+label, cowID, "SLAUGHTER", nil)
 		if err != nil {
@@ -371,9 +368,6 @@ func run(ctx context.Context, s cases.Session) error {
 	afterReleaseAnimal, _ := na.AsMap(afterReleaseRow["animal"])
 	if release, _ := na.AsBool(afterReleaseAnimal["release"]); !release {
 		return fmt.Errorf("father-after-release: expected the release designation to be observable, got %#v", afterReleaseAnimal)
-	}
-	if safe, _ := na.AsBool(afterReleaseAnimal["safeToSlaughter"]); safe {
-		return fmt.Errorf("father-after-release: a release-designated animal must no longer be safe to slaughter, got %#v", afterReleaseAnimal)
 	}
 	report["release_dispatched"] = true
 

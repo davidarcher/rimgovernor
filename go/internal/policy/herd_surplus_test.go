@@ -7,11 +7,11 @@ import (
 )
 
 func herdAnimal(id, gender string, slaughter, release bool) UpkeepAnimal {
-	return UpkeepAnimal{ID: PawnID(id), Definition: "Muffalo", Gender: gender, Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(slaughter), SafeToRelease: domain.Known(release), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}
+	return UpkeepAnimal{ID: PawnID(id), Definition: "Muffalo", Gender: gender, Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SlaughterFacts: safeSlaughter(slaughter), SafeToRelease: domain.Known(release), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}
 }
 
 func playerAnimal(id string, def Resource, safeRelease bool) UpkeepAnimal {
-	return UpkeepAnimal{ID: PawnID(id), Definition: def, Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(safeRelease), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}
+	return UpkeepAnimal{ID: PawnID(id), Definition: def, Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SlaughterFacts: safeSlaughter(true), SafeToRelease: domain.Known(safeRelease), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}
 }
 
 func TestHerdSurplusSlaughtersFirstAndKeepsBreedingPair(t *testing.T) {
@@ -46,7 +46,7 @@ func TestHerdSurplusReleasesOnlyWhenSlaughterRefused(t *testing.T) {
 	if len(got) != 1 || got[0].animal.ID != "m1" || got[0].method != domain.HusbandryRelease {
 		t.Fatal(got)
 	}
-	rows[1].SafeToSlaughter = domain.Unknown[bool]()
+	rows[1].SlaughterFacts = SlaughterFacts{}
 	if _, unknown := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": 2}, false, HerdPolicy{}); !unknown {
 		t.Fatal("unknown eligibility stays unknown")
 	}

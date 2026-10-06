@@ -6317,25 +6317,24 @@ func (x *TrainingEntry) GetReason() string {
 }
 
 type AnimalState struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Gender          *string                `protobuf:"bytes,1,opt,name=gender,proto3,oneof" json:"gender,omitempty"`
-	AgeYears        *float64               `protobuf:"fixed64,2,opt,name=age_years,json=ageYears,proto3,oneof" json:"age_years,omitempty"`
-	FertileAdult    *bool                  `protobuf:"varint,3,opt,name=fertile_adult,json=fertileAdult,proto3,oneof" json:"fertile_adult,omitempty"`
-	Pregnant        *bool                  `protobuf:"varint,4,opt,name=pregnant,proto3,oneof" json:"pregnant,omitempty"`
-	Gestation       *float64               `protobuf:"fixed64,5,opt,name=gestation,proto3,oneof" json:"gestation,omitempty"`
-	MilkFullness    *float64               `protobuf:"fixed64,6,opt,name=milk_fullness,json=milkFullness,proto3,oneof" json:"milk_fullness,omitempty"`
-	WoolFullness    *float64               `protobuf:"fixed64,7,opt,name=wool_fullness,json=woolFullness,proto3,oneof" json:"wool_fullness,omitempty"`
-	PenId           *string                `protobuf:"bytes,8,opt,name=pen_id,json=penId,proto3,oneof" json:"pen_id,omitempty"`
-	Contained       *bool                  `protobuf:"varint,9,opt,name=contained,proto3,oneof" json:"contained,omitempty"`
-	ParentIds       []string               `protobuf:"bytes,10,rep,name=parent_ids,json=parentIds,proto3" json:"parent_ids,omitempty"`
-	Training        []*TrainingEntry       `protobuf:"bytes,11,rep,name=training,proto3" json:"training,omitempty"`
-	Release         *bool                  `protobuf:"varint,12,opt,name=release,proto3,oneof" json:"release,omitempty"`
-	Slaughter       *bool                  `protobuf:"varint,13,opt,name=slaughter,proto3,oneof" json:"slaughter,omitempty"`
-	SafeToSlaughter *bool                  `protobuf:"varint,14,opt,name=safe_to_slaughter,json=safeToSlaughter,proto3,oneof" json:"safe_to_slaughter,omitempty"`
-	Issues          []*ReadIssue           `protobuf:"bytes,16,rep,name=issues,proto3" json:"issues,omitempty"`
-	Tameable        *bool                  `protobuf:"varint,18,opt,name=tameable,proto3,oneof" json:"tameable,omitempty"`
-	Tame            *bool                  `protobuf:"varint,19,opt,name=tame,proto3,oneof" json:"tame,omitempty"`
-	SafeToRelease   *bool                  `protobuf:"varint,20,opt,name=safe_to_release,json=safeToRelease,proto3,oneof" json:"safe_to_release,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Gender        *string                `protobuf:"bytes,1,opt,name=gender,proto3,oneof" json:"gender,omitempty"`
+	AgeYears      *float64               `protobuf:"fixed64,2,opt,name=age_years,json=ageYears,proto3,oneof" json:"age_years,omitempty"`
+	FertileAdult  *bool                  `protobuf:"varint,3,opt,name=fertile_adult,json=fertileAdult,proto3,oneof" json:"fertile_adult,omitempty"`
+	Pregnant      *bool                  `protobuf:"varint,4,opt,name=pregnant,proto3,oneof" json:"pregnant,omitempty"`
+	Gestation     *float64               `protobuf:"fixed64,5,opt,name=gestation,proto3,oneof" json:"gestation,omitempty"`
+	MilkFullness  *float64               `protobuf:"fixed64,6,opt,name=milk_fullness,json=milkFullness,proto3,oneof" json:"milk_fullness,omitempty"`
+	WoolFullness  *float64               `protobuf:"fixed64,7,opt,name=wool_fullness,json=woolFullness,proto3,oneof" json:"wool_fullness,omitempty"`
+	PenId         *string                `protobuf:"bytes,8,opt,name=pen_id,json=penId,proto3,oneof" json:"pen_id,omitempty"`
+	Contained     *bool                  `protobuf:"varint,9,opt,name=contained,proto3,oneof" json:"contained,omitempty"`
+	ParentIds     []string               `protobuf:"bytes,10,rep,name=parent_ids,json=parentIds,proto3" json:"parent_ids,omitempty"`
+	Training      []*TrainingEntry       `protobuf:"bytes,11,rep,name=training,proto3" json:"training,omitempty"`
+	Release       *bool                  `protobuf:"varint,12,opt,name=release,proto3,oneof" json:"release,omitempty"`
+	Slaughter     *bool                  `protobuf:"varint,13,opt,name=slaughter,proto3,oneof" json:"slaughter,omitempty"`
+	Issues        []*ReadIssue           `protobuf:"bytes,16,rep,name=issues,proto3" json:"issues,omitempty"`
+	Tameable      *bool                  `protobuf:"varint,18,opt,name=tameable,proto3,oneof" json:"tameable,omitempty"`
+	Tame          *bool                  `protobuf:"varint,19,opt,name=tame,proto3,oneof" json:"tame,omitempty"`
+	SafeToRelease *bool                  `protobuf:"varint,20,opt,name=safe_to_release,json=safeToRelease,proto3,oneof" json:"safe_to_release,omitempty"`
 	// Player-animal settings the SetAnimalArea/Master/Following writes target:
 	// the current allowed area and master (empty when unassigned), the follow
 	// flags, whether Obedience is learned (master/follow eligibility) and
@@ -6365,6 +6364,15 @@ type AnimalState struct {
 	// animal (the husbandry sterilize order).
 	Sterilized      *bool `protobuf:"varint,37,opt,name=sterilized,proto3,oneof" json:"sterilized,omitempty"`
 	SterilizeQueued *bool `protobuf:"varint,38,opt,name=sterilize_queued,json=sterilizeQueued,proto3,oneof" json:"sterilize_queued,omitempty"`
+	// Raw slaughter facts of a player animal; policy decides who is protected
+	// (FoodSlaughterChoice). downed and in_mental_state are the live Pawn
+	// flags, colonist_bonded is TrainableUtility.GetAllColonistBondsFor
+	// non-empty, slaughter_designatable is Designator_Slaughter's own
+	// acceptance (false while a slaughter designation stands).
+	Downed                *bool `protobuf:"varint,39,opt,name=downed,proto3,oneof" json:"downed,omitempty"`
+	InMentalState         *bool `protobuf:"varint,40,opt,name=in_mental_state,json=inMentalState,proto3,oneof" json:"in_mental_state,omitempty"`
+	ColonistBonded        *bool `protobuf:"varint,41,opt,name=colonist_bonded,json=colonistBonded,proto3,oneof" json:"colonist_bonded,omitempty"`
+	SlaughterDesignatable *bool `protobuf:"varint,42,opt,name=slaughter_designatable,json=slaughterDesignatable,proto3,oneof" json:"slaughter_designatable,omitempty"`
 	// Ids of the living humanlike pawns this animal has a Bond relation with
 	// (any faction or status; the planner keeps those on the colony roster).
 	BondedPawnIds []string `protobuf:"bytes,36,rep,name=bonded_pawn_ids,json=bondedPawnIds,proto3" json:"bonded_pawn_ids,omitempty"`
@@ -6489,13 +6497,6 @@ func (x *AnimalState) GetRelease() bool {
 func (x *AnimalState) GetSlaughter() bool {
 	if x != nil && x.Slaughter != nil {
 		return *x.Slaughter
-	}
-	return false
-}
-
-func (x *AnimalState) GetSafeToSlaughter() bool {
-	if x != nil && x.SafeToSlaughter != nil {
-		return *x.SafeToSlaughter
 	}
 	return false
 }
@@ -6629,6 +6630,34 @@ func (x *AnimalState) GetSterilized() bool {
 func (x *AnimalState) GetSterilizeQueued() bool {
 	if x != nil && x.SterilizeQueued != nil {
 		return *x.SterilizeQueued
+	}
+	return false
+}
+
+func (x *AnimalState) GetDowned() bool {
+	if x != nil && x.Downed != nil {
+		return *x.Downed
+	}
+	return false
+}
+
+func (x *AnimalState) GetInMentalState() bool {
+	if x != nil && x.InMentalState != nil {
+		return *x.InMentalState
+	}
+	return false
+}
+
+func (x *AnimalState) GetColonistBonded() bool {
+	if x != nil && x.ColonistBonded != nil {
+		return *x.ColonistBonded
+	}
+	return false
+}
+
+func (x *AnimalState) GetSlaughterDesignatable() bool {
+	if x != nil && x.SlaughterDesignatable != nil {
+		return *x.SlaughterDesignatable
 	}
 	return false
 }
@@ -45492,7 +45521,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_wantedB\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\xd4\x0e\n" +
+	"\a_reason\"\xa8\x10\n" +
 	"\vAnimalState\x12\x1b\n" +
 	"\x06gender\x18\x01 \x01(\tH\x00R\x06gender\x88\x01\x01\x12 \n" +
 	"\tage_years\x18\x02 \x01(\x01H\x01R\bageYears\x88\x01\x01\x12(\n" +
@@ -45509,31 +45538,34 @@ const file_observations_proto_rawDesc = "" +
 	"\btraining\x18\v \x03(\v2*.rimgovernor.observations.v1.TrainingEntryR\btraining\x12\x1d\n" +
 	"\arelease\x18\f \x01(\bH\tR\arelease\x88\x01\x01\x12!\n" +
 	"\tslaughter\x18\r \x01(\bH\n" +
-	"R\tslaughter\x88\x01\x01\x12/\n" +
-	"\x11safe_to_slaughter\x18\x0e \x01(\bH\vR\x0fsafeToSlaughter\x88\x01\x01\x12>\n" +
+	"R\tslaughter\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x10 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12\x1f\n" +
-	"\btameable\x18\x12 \x01(\bH\fR\btameable\x88\x01\x01\x12\x17\n" +
-	"\x04tame\x18\x13 \x01(\bH\rR\x04tame\x88\x01\x01\x12+\n" +
-	"\x0fsafe_to_release\x18\x14 \x01(\bH\x0eR\rsafeToRelease\x88\x01\x01\x12+\n" +
-	"\x0fallowed_area_id\x18\x15 \x01(\tH\x0fR\rallowedAreaId\x88\x01\x01\x12 \n" +
-	"\tmaster_id\x18\x16 \x01(\tH\x10R\bmasterId\x88\x01\x01\x12*\n" +
-	"\x0efollow_drafted\x18\x17 \x01(\bH\x11R\rfollowDrafted\x88\x01\x01\x12.\n" +
-	"\x10follow_fieldwork\x18\x18 \x01(\bH\x12R\x0ffollowFieldwork\x88\x01\x01\x12\x1f\n" +
-	"\bobedient\x18\x19 \x01(\bH\x13R\bobedient\x88\x01\x01\x129\n" +
-	"\x16supports_allowed_areas\x18\x1a \x01(\bH\x14R\x14supportsAllowedAreas\x88\x01\x01\x12\x17\n" +
-	"\x04sick\x18\x1c \x01(\bH\x15R\x04sick\x88\x01\x01\x12.\n" +
-	"\x10slaughter_barred\x18\x1d \x01(\bH\x16R\x0fslaughterBarred\x88\x01\x01\x12!\n" +
-	"\tvenerated\x18\x1e \x01(\bH\x17R\tvenerated\x88\x01\x01\x12\x19\n" +
-	"\x05adult\x18  \x01(\bH\x18R\x05adult\x88\x01\x01\x12N\n" +
-	"\fmedical_care\x18! \x01(\x0e2&.rimgovernor.operations.v1.MedicalCareH\x19R\vmedicalCare\x88\x01\x01\x12\x1b\n" +
-	"\x06bonded\x18\" \x01(\bH\x1aR\x06bonded\x88\x01\x01\x12G\n" +
+	"\btameable\x18\x12 \x01(\bH\vR\btameable\x88\x01\x01\x12\x17\n" +
+	"\x04tame\x18\x13 \x01(\bH\fR\x04tame\x88\x01\x01\x12+\n" +
+	"\x0fsafe_to_release\x18\x14 \x01(\bH\rR\rsafeToRelease\x88\x01\x01\x12+\n" +
+	"\x0fallowed_area_id\x18\x15 \x01(\tH\x0eR\rallowedAreaId\x88\x01\x01\x12 \n" +
+	"\tmaster_id\x18\x16 \x01(\tH\x0fR\bmasterId\x88\x01\x01\x12*\n" +
+	"\x0efollow_drafted\x18\x17 \x01(\bH\x10R\rfollowDrafted\x88\x01\x01\x12.\n" +
+	"\x10follow_fieldwork\x18\x18 \x01(\bH\x11R\x0ffollowFieldwork\x88\x01\x01\x12\x1f\n" +
+	"\bobedient\x18\x19 \x01(\bH\x12R\bobedient\x88\x01\x01\x129\n" +
+	"\x16supports_allowed_areas\x18\x1a \x01(\bH\x13R\x14supportsAllowedAreas\x88\x01\x01\x12\x17\n" +
+	"\x04sick\x18\x1c \x01(\bH\x14R\x04sick\x88\x01\x01\x12.\n" +
+	"\x10slaughter_barred\x18\x1d \x01(\bH\x15R\x0fslaughterBarred\x88\x01\x01\x12!\n" +
+	"\tvenerated\x18\x1e \x01(\bH\x16R\tvenerated\x88\x01\x01\x12\x19\n" +
+	"\x05adult\x18  \x01(\bH\x17R\x05adult\x88\x01\x01\x12N\n" +
+	"\fmedical_care\x18! \x01(\x0e2&.rimgovernor.operations.v1.MedicalCareH\x18R\vmedicalCare\x88\x01\x01\x12\x1b\n" +
+	"\x06bonded\x18\" \x01(\bH\x19R\x06bonded\x88\x01\x01\x12G\n" +
 	"\n" +
 	"conditions\x18# \x01(\v2'.rimgovernor.observations.v1.PawnHealthR\n" +
 	"conditions\x12#\n" +
 	"\n" +
-	"sterilized\x18% \x01(\bH\x1bR\n" +
+	"sterilized\x18% \x01(\bH\x1aR\n" +
 	"sterilized\x88\x01\x01\x12.\n" +
-	"\x10sterilize_queued\x18& \x01(\bH\x1cR\x0fsterilizeQueued\x88\x01\x01\x12&\n" +
+	"\x10sterilize_queued\x18& \x01(\bH\x1bR\x0fsterilizeQueued\x88\x01\x01\x12\x1b\n" +
+	"\x06downed\x18' \x01(\bH\x1cR\x06downed\x88\x01\x01\x12+\n" +
+	"\x0fin_mental_state\x18( \x01(\bH\x1dR\rinMentalState\x88\x01\x01\x12,\n" +
+	"\x0fcolonist_bonded\x18) \x01(\bH\x1eR\x0ecolonistBonded\x88\x01\x01\x12:\n" +
+	"\x16slaughter_designatable\x18* \x01(\bH\x1fR\x15slaughterDesignatable\x88\x01\x01\x12&\n" +
 	"\x0fbonded_pawn_ids\x18$ \x03(\tR\rbondedPawnIdsB\t\n" +
 	"\a_genderB\f\n" +
 	"\n" +
@@ -45550,8 +45582,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_releaseB\f\n" +
 	"\n" +
-	"_slaughterB\x14\n" +
-	"\x12_safe_to_slaughterB\v\n" +
+	"_slaughterB\v\n" +
 	"\t_tameableB\a\n" +
 	"\x05_tameB\x12\n" +
 	"\x10_safe_to_releaseB\x12\n" +
@@ -45570,7 +45601,11 @@ const file_observations_proto_rawDesc = "" +
 	"\r_medical_careB\t\n" +
 	"\a_bondedB\r\n" +
 	"\v_sterilizedB\x13\n" +
-	"\x11_sterilize_queued\"\xef\x14\n" +
+	"\x11_sterilize_queuedB\t\n" +
+	"\a_downedB\x12\n" +
+	"\x10_in_mental_stateB\x12\n" +
+	"\x10_colonist_bondedB\x19\n" +
+	"\x17_slaughter_designatableJ\x04\b\x0e\x10\x0fR\x11safe_to_slaughter\"\xef\x14\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x124\n" +

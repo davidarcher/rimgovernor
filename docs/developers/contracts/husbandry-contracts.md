@@ -106,9 +106,10 @@ fails the reading loudly like any other required native read.
   the lines already selected). No joiner-capacity gate and no `allow_pawns`
   (only giving a pawn away needs it). An unbuildable race catalog fails the
   reading.
-- **Removal.** Above the cap, surplus goes by `slaughter` whenever native
-  `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
-  designated) and the player ideoligion's precepts do not bar it; otherwise by `release` when `SafeToRelease`
+- **Removal.** Above the cap, surplus goes by `slaughter` whenever
+  `UpkeepAnimal.SafeToSlaughter` allows it (policy over native's raw `AnimalState` flags `downed`,
+  `in_mental_state`, `pregnant`, `colonist_bonded`, `slaughter_designatable`, plus `master_id` and the
+  release designation: not bonded, no master, not pregnant, not downed, not designated) and the player ideoligion's precepts do not bar it; otherwise by `release` when `SafeToRelease`
   allows it (same exclusions). The bar is `policy.ActionStance` ([ideology contracts](ideology-contracts.md#precept-rule))
   applied once per frame (`ApplyHerdPrecepts`) to the history events slaughter raises:
   `SlaughteredAnimal`, plus `SlaughteredVeneratedAnimal` for a race `AnimalState.venerated` names.
@@ -293,7 +294,8 @@ slaughter or release and add wild animals already designated for taming, so a
 pending write is never duplicated. Native eligibility is checked again at
 apply: bonded, mastered, pregnant, downed and already-designated animals are
 excluded from removal by RimWorld's own designator rules plus the master/bond
-exclusions `SafeToSlaughter`/`SafeToRelease` add; a tame candidate must pass
+exclusions policy's `SafeToSlaughter` and native's `SafeToRelease` add. The slaughter
+order itself keeps only physical validity (alive, ours, `Designator_Slaughter` acceptance); a tame candidate must pass
 `TameUtility.CanTame` and carry no tame or hunt designation. Masters, allowed
 areas, following, sterilization and breeding separation are ordinary game
 settings: while native authority reads Auto the controller may change any of
