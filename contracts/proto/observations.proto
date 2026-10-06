@@ -1368,8 +1368,31 @@ message LootSection { oneof outcome { LootCensus observed = 1; rimgovernor.commo
 // absent. Water rows aggregate fishable cells by native water body; population
 // is shared by that body, not multiplied by its shallow cells. FishableWater
 // is absent without Odyssey. Pollution uses the clipped center +/-22 window.
-message FishableRegion { rimgovernor.common.v1.Cell root = 1; optional double population = 2; optional double max_population = 3; optional bool zoned = 4; optional uint32 cell_count = 5; optional bool reachable = 6; optional bool frozen = 7; optional double nutrition_per_fish = 8; optional double fish_per_batch = 9; optional double work_ticks_per_batch = 10; repeated rimgovernor.common.v1.Cell proposed_cells = 11; optional bool delivering = 12; optional double pawn_fish_work_capacity = 13; optional uint32 concurrent_fishers = 14; optional double nearest_distance_squared = 15; }
-message FishableWater { repeated FishableRegion regions = 1; optional bool fishing_researched = 2; optional double research_lead_days = 3; }
+// Raw fishing facts; policy chooses the footprint, verdicts and research lead.
+// cells are the water body's fishable cells (vanilla's Designator_ZoneAdd_Fishing
+// rule) with whether any fisher can reach and is not forbidden from each.
+// reachable is any fisher reaching any non-fogged body cell; frozen is every such
+// cell being thin ice. yield_curve_value is the population-to-yield curve at
+// the body's population; zones are the fishing zones touching the body.
+message FishableCell { rimgovernor.common.v1.Cell cell = 1; optional bool reachable = 2; optional double distance_squared = 3; }
+message FishingZoneFacts { optional bool allowed = 1; optional bool do_forever = 2; optional double target_population_pct = 3; optional bool has_fishable_cells = 4; }
+message FishableRegion {
+  reserved 11, 12, 13, 14;
+  rimgovernor.common.v1.Cell root = 1; optional double population = 2; optional double max_population = 3; optional bool zoned = 4; optional uint32 cell_count = 5; optional bool reachable = 6; optional bool frozen = 7; optional double nutrition_per_fish = 8; optional double fish_per_batch = 9; optional double work_ticks_per_batch = 10; optional double nearest_distance_squared = 15;
+  repeated FishableCell cells = 16; repeated FishingZoneFacts zones = 17; optional double yield_curve_value = 18;
+}
+// fishers are the colonists able to fish; researcher_speeds the ResearchSpeed of
+// colonists able to research. Research lead in days is
+// max(0, base_cost - progress) * cost_factor / (max speed * points_per_work_tick
+// * difficulty_speed_factor * work ticks per day).
+message FisherFacts { optional double fishing_yield = 1; optional double fishing_speed = 2; }
+message FishableWater {
+  reserved 3;
+  repeated FishableRegion regions = 1; optional bool fishing_researched = 2;
+  optional double research_base_cost = 4; optional double research_progress = 5; optional double research_cost_factor = 6;
+  repeated double researcher_speeds = 7; optional double research_points_per_work_tick = 8; optional double research_difficulty_speed_factor = 9;
+  repeated FisherFacts fishers = 10; optional double base_fishing_duration_ticks = 11;
+}
 message GatherableAnimal { optional string pawn_id = 1; optional string race = 2; optional double fullness = 3; optional string resource = 4; optional bool handler_reachable = 5; optional double nutrition_per_day = 6; optional double work_per_day = 7; optional double lead_days = 8; optional bool active = 9; }
 message EggLayerAnimal { optional string pawn_id = 1; optional string race = 2; optional bool can_lay_now = 3; optional double progress = 4; optional double nutrition_per_day = 5; optional double lead_days = 6; optional bool active = 7; optional bool fertilized = 8; }
 message PasteDispenser { optional string building_id = 1; optional bool powered = 2; optional double hopper_nutrition = 3; optional string adjacent_room_id = 4; }

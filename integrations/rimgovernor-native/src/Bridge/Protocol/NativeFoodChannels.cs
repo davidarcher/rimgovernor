@@ -13,8 +13,6 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeFoodChannels
     {
-        // The planning assumption for one colonist-day of work: eight work hours.
-        private const double WorkTicksPerDay = 8 * GenDate.TicksPerHour;
         private static readonly FieldInfo? EggProgress = BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "eggProgress");
         private static readonly PropertyInfo? Resource = typeof(CompHasGatherableBodyResource).GetProperty("ResourceDef", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly PropertyInfo? GatherActive = typeof(CompHasGatherableBodyResource).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -136,16 +134,17 @@ namespace HomeBridge.BridgeTools
                     if (research != null)
                     {
                         water.FishingResearched = research.IsFinished;
-                        if (research.IsFinished) water.ResearchLeadDays = 0;
-                        else
-                        {
-                            var speed = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research))
-                                .Select(p => p.GetStatValue(StatDefOf.ResearchSpeed)).DefaultIfEmpty(0).Max();
-                            if (speed > 0) water.ResearchLeadDays = Finite(Math.Max(0, research.baseCost - Find.ResearchManager.GetProgress(research))
-                                * research.CostFactor(Faction.OfPlayer.def.techLevel) / (speed * ResearchManager.ResearchPointsPerWorkTick * WorkTicksPerDay * Find.Storyteller.difficulty.researchSpeedFactor));
-                        }
+                        water.ResearchBaseCost = Finite(research.baseCost);
+                        water.ResearchProgress = Finite(Find.ResearchManager.GetProgress(research));
+                        water.ResearchCostFactor = Finite(research.CostFactor(Faction.OfPlayer.def.techLevel));
+                        water.ResearcherSpeeds.AddRange(workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research)).Select(p => Finite(p.GetStatValue(StatDefOf.ResearchSpeed))));
+                        water.ResearchPointsPerWorkTick = Finite(ResearchManager.ResearchPointsPerWorkTick);
+                        water.ResearchDifficultySpeedFactor = Finite(Find.Storyteller.difficulty.researchSpeedFactor);
                     }
                     var fishers = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Fishing) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
+                    water.BaseFishingDurationTicks = Finite(FishingUtility.BaseFishingDurationTicks);
+                    foreach (var p in fishers)
+                        water.Fishers.Add(new Obs.FisherFacts { FishingYield = Finite(p.GetStatValue(StatDefOf.FishingYield)), FishingSpeed = Finite(p.GetStatValue(StatDefOf.FishingSpeed)) });
                     foreach (var body in map.waterBodyTracker.Bodies.Where(b => b.HasFish).OrderBy(b => b.rootCell.x).ThenBy(b => b.rootCell.z))
                     {
                         var cells = body.cells.Where(c => !c.Fogged(map) && c.GetTerrain(map).passability != Traversability.Impassable).ToList();
@@ -154,11 +153,12 @@ namespace HomeBridge.BridgeTools
                         var row = new Obs.FishableRegion { Root = new Common.Cell { X = body.rootCell.x, Z = body.rootCell.z },
                             Population = Finite(body.Population), MaxPopulation = Finite(body.MaxPopulation), CellCount = (uint)cells.Count,
                             Zoned = zones.Count > 0, Frozen = cells.All(c => c.GetTerrain(map) == TerrainDefOf.ThinIce),
-                            Delivering = zones.Any(z => z.Allowed && z.repeatMode == FishRepeatMode.DoForever && z.HasAnyFishableCells),
-                            Reachable = fishers.Any(p => cells.Any(c => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None))) };
+                            Reachable = fishers.Any(p => cells.Any(c => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None))),
+                            YieldCurveValue = Finite(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)) };
+                        foreach (var z in zones)
+                            row.Zones.Add(new Obs.FishingZoneFacts { Allowed = z.Allowed, DoForever = z.repeatMode == FishRepeatMode.DoForever, TargetPopulationPct = Finite(z.targetPopulationPct), HasFishableCells = z.HasAnyFishableCells });
                         var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
                         if (fish.Count > 0 && fish.All(humanFood)) row.NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition)));
-                        row.ConcurrentFishers = (uint)fishers.Count;
                         row.NearestDistanceSquared = cells.Min(c => c.DistanceToSquared(center));
                         if (fishers.Count > 0)
                         {
@@ -166,27 +166,10 @@ namespace HomeBridge.BridgeTools
                             var speed = fishers.Min(p => p.GetStatValue(StatDefOf.FishingSpeed));
                             if (speed > 0) row.WorkTicksPerBatch = Finite(FishingUtility.BaseFishingDurationTicks / speed);
                         }
-                        if (row.HasNutritionPerFish)
-                            row.PawnFishWorkCapacity = Finite(fishers.Sum(p => WorkTicksPerDay * Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)
-                                * p.GetStatValue(StatDefOf.FishingYield))) * row.NutritionPerFish * p.GetStatValue(StatDefOf.FishingSpeed) / FishingUtility.BaseFishingDurationTicks));
-                        // A connected spot per available fisher is access capacity,
-                        // never a population or sustainable-yield multiplier.
-                        var free = cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)
-                            && fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)))
-                            .OrderBy(c => c.DistanceToSquared(center)).ThenBy(c => c.x).ThenBy(c => c.z).ToList();
-                        if (free.Count > 0)
-                        {
-                            var first = free[0];
-                            var available = new HashSet<IntVec3>(free);
-                            var pending = new Queue<IntVec3>(); pending.Enqueue(first); available.Remove(first);
-                            while (pending.Count > 0 && row.ProposedCells.Count < fishers.Count)
-                            {
-                                var c = pending.Dequeue();
-                                row.ProposedCells.Add(new Common.Cell { X = c.x, Z = c.z });
-                                foreach (var delta in GenAdj.CardinalDirections) if (available.Remove(c + delta)) pending.Enqueue(c + delta);
-                            }
-                        }
-                        if (zones.Count == 0 && row.ProposedCells.Count < fishers.Count) row.Reachable = false;
+                        // Vanilla's fishing-zone cell rule; policy chooses the footprint.
+                        foreach (var c in cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)).OrderBy(c => c.x).ThenBy(c => c.z))
+                            row.Cells.Add(new Obs.FishableCell { Cell = new Common.Cell { X = c.x, Z = c.z }, DistanceSquared = c.DistanceToSquared(center),
+                                Reachable = fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)) });
                         water.Regions.Add(row);
                     }
                     result.FishableWater = water;

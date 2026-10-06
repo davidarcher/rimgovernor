@@ -223,13 +223,25 @@ contribution. Frozen or unreachable water contributes nothing and carries an
 explanation term; missing facts stay unknown and invalid known values fail.
 On Core, Odyssey water and its fishing channels are absent.
 
+Native reports raw fishing facts and never chooses (`FishableWater` in
+`observations.proto`): per water body its root, fishable cells with a per-cell
+reachability flag and distance to the colony centre, population, nutrition per
+fish, batch yield and work, the population yield-curve value, frozen state and
+the touching zones (allowed, repeat mode, population floor, fishable cells);
+globally the fishers' yield and speed, the batch duration, and the Fishing
+project's cost, progress, cost factor, researcher speeds and points per tick.
+`policy/fishing_facts.go` decides from them when the colony projection is
+built: the footprint, the reachability verdict, delivery (the observed zone
+state), per-body fisher capacity and the research lead.
+
 The shared tick food plan includes these rows. An admitted Open channel requests
-Fishing through EnsureResearch when needed; research lead is estimated from
-remaining native research work. The field family creates the selected fishing
+Fishing through EnsureResearch when needed; research lead is the remaining project
+cost over the fastest researcher's daily points. The field family creates the selected fishing
 zone through the shared concern, admission and zone Hands path. Work allocation
-uses the native `Fishing` type and Animals skill. The proposed connected footprint
-has one safely reachable cell per available concurrent fisher; area never
-multiplies yield. Existing player zones are not reconfigured by the planner.
+uses the native `Fishing` type and Animals skill. The proposed footprint is the
+nearest reachable fishable cell and its cardinally connected reachable
+neighbours, one cell per available fisher; area never multiplies yield. An
+unzoned body with a shorter footprint is unreachable. Existing player zones are not reconfigured by the planner.
 
 Typed fishing zone creation and extension use the zone-map CAS token. Extension
 names the exact existing zone and supplies its complete final footprint, a strict

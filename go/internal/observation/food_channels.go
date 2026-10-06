@@ -79,19 +79,7 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 		r.Slaughter = append(r.Slaughter, policy.SlaughterFoodAnimal{ID: policy.PawnID(row.GetPawnId()), Race: policy.Resource(row.GetRace()), MeatNutrition: optional(row.MeatNutrition), FeedPerDay: optional(row.FeedPerDay), ReproductionDays: optional(row.ReproductionDays)})
 	}
 	if water := v.FishableWater; water != nil {
-		w := FishableWater{FishingResearched: optional(water.FishingResearched), ResearchLeadDays: optional(water.ResearchLeadDays)}
-		for _, row := range water.Regions {
-			w.Regions = append(w.Regions, FishableRegion{Root: domain.Cell{X: row.Root.GetX(), Z: row.Root.GetZ()}, Population: optional(row.Population), MaxPopulation: optional(row.MaxPopulation), Zoned: optional(row.Zoned), Reachable: optional(row.Reachable), CellCount: optional(row.CellCount)})
-			last := &w.Regions[len(w.Regions)-1]
-			last.Frozen, last.Delivering = optional(row.Frozen), optional(row.Delivering)
-			last.PawnFishWorkCapacity, last.ConcurrentFishers = optional(row.PawnFishWorkCapacity), optional(row.ConcurrentFishers)
-			last.DistanceSquared = optional(row.NearestDistanceSquared)
-			last.NutritionPerFish, last.FishPerBatch, last.WorkTicksPerBatch = optional(row.NutritionPerFish), optional(row.FishPerBatch), optional(row.WorkTicksPerBatch)
-			for _, cell := range row.ProposedCells {
-				last.ProposedCells = append(last.ProposedCells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-			}
-		}
-		r.FishableWater = domain.Known(w)
+		r.FishableWater = domain.Known(colonyFishableWater(water))
 	}
 	for _, row := range v.Gatherable {
 		r.Gatherable = append(r.Gatherable, GatherableAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), Fullness: optional(row.Fullness), Resource: optional(row.Resource), HandlerReachable: optional(row.HandlerReachable), NutritionPerDay: optional(row.NutritionPerDay), WorkPerDay: optional(row.WorkPerDay), LeadDays: optional(row.LeadDays), Active: optional(row.Active)})
@@ -106,6 +94,39 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 		r.Forage = append(r.Forage, ForagePlant{DefName: row.GetDefName(), GrowingTwelfths: append([]int32{}, row.GrowingTwelfths...), GrowingNow: optional(row.GrowingNow)})
 	}
 	return domain.Known(r)
+}
+
+// colonyFishableWater applies the policy decisions to native's raw fishing
+// facts: research lead, footprint, reachability verdict, delivery and capacity.
+func colonyFishableWater(water *o.FishableWater) FishableWater {
+	w := FishableWater{FishingResearched: optional(water.FishingResearched)}
+	w.ResearchLeadDays = policy.FishingResearchLeadDays(policy.FishingResearchInputs{Researched: w.FishingResearched,
+		BaseCost: optional(water.ResearchBaseCost), Progress: optional(water.ResearchProgress), CostFactor: optional(water.ResearchCostFactor),
+		ResearcherSpeeds: water.ResearcherSpeeds, PointsPerWorkTick: optional(water.ResearchPointsPerWorkTick), Difficulty: optional(water.ResearchDifficultySpeedFactor)})
+	fishers := make([]policy.Fisher, 0, len(water.Fishers))
+	for _, f := range water.Fishers {
+		fishers = append(fishers, policy.Fisher{Yield: f.GetFishingYield(), Speed: f.GetFishingSpeed()})
+	}
+	for _, row := range water.Regions {
+		region := FishableRegion{Root: domain.Cell{X: row.Root.GetX(), Z: row.Root.GetZ()}, Population: optional(row.Population), MaxPopulation: optional(row.MaxPopulation),
+			Zoned: optional(row.Zoned), CellCount: optional(row.CellCount), Frozen: optional(row.Frozen),
+			NutritionPerFish: optional(row.NutritionPerFish), FishPerBatch: optional(row.FishPerBatch), WorkTicksPerBatch: optional(row.WorkTicksPerBatch),
+			DistanceSquared: optional(row.NearestDistanceSquared), ConcurrentFishers: domain.Known(uint32(len(fishers)))}
+		cells := make([]policy.FishingCell, 0, len(row.Cells))
+		for _, c := range row.Cells {
+			cells = append(cells, policy.FishingCell{Cell: domain.Cell{X: c.Cell.GetX(), Z: c.Cell.GetZ()}, Reachable: c.GetReachable(), DistanceSquared: c.GetDistanceSquared()})
+		}
+		region.ProposedCells = policy.FishingFootprint(cells, len(fishers))
+		region.Reachable = policy.FishingReachable(optional(row.Reachable), region.Zoned, len(region.ProposedCells), len(fishers))
+		zones := make([]policy.FishingZoneState, 0, len(row.Zones))
+		for _, z := range row.Zones {
+			zones = append(zones, policy.FishingZoneState{Allowed: z.GetAllowed(), DoForever: z.GetDoForever(), HasFishableCells: z.GetHasFishableCells()})
+		}
+		region.Delivering = domain.Known(policy.FishingDelivering(zones))
+		region.PawnFishWorkCapacity = policy.FishingWorkCapacity(fishers, optional(row.YieldCurveValue), region.NutritionPerFish, optional(water.BaseFishingDurationTicks))
+		w.Regions = append(w.Regions, region)
+	}
+	return w
 }
 
 // AnimalProducts keeps native unknown rates unknown. Non-food comps and inactive

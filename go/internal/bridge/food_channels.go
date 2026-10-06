@@ -77,8 +77,20 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 			}
 		}
 		if water := f.FishableWater; water != nil {
-			if !combatNumber(water.ResearchLeadDays, true) {
-				return contract("invalid fishing research lead")
+			if !combatNumber(water.ResearchBaseCost, true) || !combatNumber(water.ResearchProgress, true) || !combatNumber(water.ResearchCostFactor, true) ||
+				!combatNumber(water.ResearchPointsPerWorkTick, true) || !combatNumber(water.ResearchDifficultySpeedFactor, true) || !combatNumber(water.BaseFishingDurationTicks, true) ||
+				len(water.ResearcherSpeeds) > 256 || len(water.Fishers) > 256 {
+				return contract("invalid fishing research")
+			}
+			for _, speed := range water.ResearcherSpeeds {
+				if !combatNumber(&speed, true) {
+					return contract("invalid researcher speed")
+				}
+			}
+			for _, f := range water.Fishers {
+				if f == nil || !combatNumber(f.FishingYield, true) || !combatNumber(f.FishingSpeed, true) {
+					return contract("invalid fisher")
+				}
 			}
 			roots := map[[2]int32]bool{}
 			for _, row := range water.Regions {
@@ -86,15 +98,15 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 					return contract("invalid fishable region")
 				}
 				root := [2]int32{row.Root.GetX(), row.Root.GetZ()}
-				if !combatNumber(row.NutritionPerFish, false) || !combatNumber(row.FishPerBatch, false) || !combatNumber(row.WorkTicksPerBatch, false) || !combatNumber(row.PawnFishWorkCapacity, true) || row.GetConcurrentFishers() > 256 {
+				if !combatNumber(row.NutritionPerFish, false) || !combatNumber(row.FishPerBatch, false) || !combatNumber(row.WorkTicksPerBatch, false) || !combatNumber(row.YieldCurveValue, true) || !combatNumber(row.NearestDistanceSquared, true) || len(row.Zones) > 256 {
 					return contract("invalid fishing rates or footprint")
 				}
 				seenCells := map[[2]int32]bool{}
-				for _, cell := range row.ProposedCells {
-					if !colonyCell(cell, v.MapSize) {
+				for _, fc := range row.Cells {
+					if fc == nil || !colonyCell(fc.Cell, v.MapSize) || !combatNumber(fc.DistanceSquared, true) {
 						return contract("invalid fishing cell")
 					}
-					key := [2]int32{cell.GetX(), cell.GetZ()}
+					key := [2]int32{fc.Cell.GetX(), fc.Cell.GetZ()}
 					if seenCells[key] {
 						return contract("duplicate fishing cell")
 					}

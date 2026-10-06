@@ -105,3 +105,42 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 		t.Fatal("unavailable census became known")
 	}
 }
+
+func TestColonyFishableWaterAppliesPolicy(t *testing.T) {
+	cell := func(x, z int32, reachable bool) *o.FishableCell {
+		return &o.FishableCell{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Reachable: proto.Bool(reachable), DistanceSquared: proto.Float64(float64(x*x + z*z))}
+	}
+	fisher := &o.FisherFacts{FishingYield: proto.Float64(1), FishingSpeed: proto.Float64(1)}
+	water := colonyFishableWater(&o.FishableWater{
+		FishingResearched: proto.Bool(false), ResearchBaseCost: proto.Float64(400), ResearchProgress: proto.Float64(100), ResearchCostFactor: proto.Float64(1),
+		ResearcherSpeeds: []float64{1}, ResearchPointsPerWorkTick: proto.Float64(0.00825), ResearchDifficultySpeedFactor: proto.Float64(1),
+		Fishers: []*o.FisherFacts{fisher, fisher}, BaseFishingDurationTicks: proto.Float64(7500),
+		Regions: []*o.FishableRegion{
+			{Root: &c.Cell{X: proto.Int32(1), Z: proto.Int32(0)}, Zoned: proto.Bool(false), Reachable: proto.Bool(true), NutritionPerFish: proto.Float64(0.25), YieldCurveValue: proto.Float64(6),
+				Cells: []*o.FishableCell{cell(1, 0, true), cell(2, 0, true), cell(3, 0, true)}},
+			{Root: &c.Cell{X: proto.Int32(9), Z: proto.Int32(9)}, Zoned: proto.Bool(false), Reachable: proto.Bool(true), Cells: []*o.FishableCell{cell(9, 9, true)},
+				Zones: []*o.FishingZoneFacts{{Allowed: proto.Bool(true), DoForever: proto.Bool(true), HasFishableCells: proto.Bool(true)}}},
+		}})
+	if lead, known := water.ResearchLeadDays.Value(); !known || lead <= 0 {
+		t.Fatalf("research lead %v %v", lead, known)
+	}
+	first, second := water.Regions[0], water.Regions[1]
+	if len(first.ProposedCells) != 2 || first.ProposedCells[0] != (domain.Cell{X: 1}) || first.ProposedCells[1] != (domain.Cell{X: 2}) {
+		t.Fatalf("footprint %v", first.ProposedCells)
+	}
+	if v, _ := first.Reachable.Value(); !v {
+		t.Fatal("full footprint lost reachability")
+	}
+	if v, _ := first.Delivering.Value(); v {
+		t.Fatal("unzoned water delivers")
+	}
+	if v, k := first.PawnFishWorkCapacity.Value(); !k || v != 2*20000*6*0.25/7500 {
+		t.Fatalf("capacity %v %v", v, k)
+	}
+	if v, _ := second.Reachable.Value(); v {
+		t.Fatal("one-cell body reachable for two fishers without a zone")
+	}
+	if v, _ := second.Delivering.Value(); !v {
+		t.Fatal("open zone not delivering")
+	}
+}
