@@ -245,7 +245,7 @@ func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.P
 	}
 	edifice := map[domain.Cell]string{}
 	for _, c := range facts.Cells {
-		if d, known := c.PlayerEdifice.Value(); known && d != "" {
+		if d := c.PlayerEdifice(); d != "" {
 			edifice[c.Cell] = d
 		}
 	}

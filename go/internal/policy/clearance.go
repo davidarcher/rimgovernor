@@ -193,28 +193,6 @@ func shellRuinHold(row ClearanceTarget) string {
 // claimHold reports a shell hold that refuses a claim as well as a clearing.
 func claimHold(hold string) bool { return hold == "ancient_danger" || hold == "casket" }
 
-// ShellRuinHolds stamps each site cell a census building covers with that
-// building's shell hold (#718), so the planned ring counts a ruin
-// claimed exactly where PlannedLayout and ShellClaims would act on it. A cell
-// under several buildings keeps a claim-refusing hold over any other, and
-// otherwise the first in identity order.
-func ShellRuinHolds(rows []ClearanceTarget, cells []SiteCell) []SiteCell {
-	ordered := append([]ClearanceTarget(nil), rows...)
-	sort.Slice(ordered, func(i, j int) bool { return ordered[i].EntityID < ordered[j].EntityID })
-	out := append([]SiteCell(nil), cells...)
-	for i := range out {
-		for _, row := range ordered {
-			if !coversAny(row, []domain.Cell{out[i].Cell}) {
-				continue
-			}
-			if hold := shellRuinHold(row); hold != "" && (out[i].RuinHold == "" || claimHold(hold) && !claimHold(out[i].RuinHold)) {
-				out[i].RuinHold = hold
-			}
-		}
-	}
-	return out
-}
-
 func coversAny(row ClearanceTarget, cells []domain.Cell) bool {
 	for _, c := range cells {
 		if c.X >= row.Minimum.X && c.X <= row.Maximum.X && c.Z >= row.Minimum.Z && c.Z <= row.Maximum.Z {

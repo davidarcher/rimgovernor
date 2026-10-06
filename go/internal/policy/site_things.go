@@ -121,11 +121,67 @@ func (c SiteCell) Equal(o SiteCell) bool {
 	return c.Cell == o.Cell && c.Walkable == o.Walkable && c.Occupied == o.Occupied && c.Zone == o.Zone && c.Roofed == o.Roofed &&
 		c.Indoors == o.Indoors && c.SupportsLight == o.SupportsLight && c.StorageEmpty == o.StorageEmpty && c.Doorway == o.Doorway &&
 		c.Fertility == o.Fertility && c.Polluted == o.Polluted && c.Glow == o.Glow && c.Roof == o.Roof && c.ZoneID == o.ZoneID &&
-		c.Room == o.Room && c.NaturalRock == o.NaturalRock && c.Ruin == o.Ruin && c.PlayerEdifice == o.PlayerEdifice &&
-		c.ClaimableRuin == o.ClaimableRuin && c.RuinHold == o.RuinHold && c.Terrain == o.Terrain && c.InHome == o.InHome &&
+		c.Room == o.Room && c.NaturalRock == o.NaturalRock && c.Terrain == o.Terrain && c.InHome == o.InHome &&
 		c.FoundationAffordances == o.FoundationAffordances && c.SnowDepth == o.SnowDepth && c.TopLayerRemovable == o.TopLayerRemovable &&
 		ThingsEqual(c.Things, o.Things)
 }
 
 // ThingsEqual reports whether two thing lists are identical.
 func ThingsEqual(a, b []Thing) bool { return slices.EqualFunc(a, b, Thing.Equal) }
+
+// edifice is the cell's edifice (#2262): the thing the native edifice grid
+// holds there.
+func (c SiteCell) edifice() (Thing, bool) {
+	for _, t := range c.Things {
+		if t.Has(FlagEdifice) {
+			return t, true
+		}
+	}
+	return Thing{}, false
+}
+
+// PlayerEdifice names the definition of the player-owned edifice on the
+// cell, empty for none (#709): a ring of that wall kind stands on it.
+func (c SiteCell) PlayerEdifice() string {
+	if t, ok := c.edifice(); ok && t.Faction == FactionPlayer {
+		return t.Def
+	}
+	return ""
+}
+
+// Ruin reports an unowned edifice the player may deconstruct, outside any
+// ancient danger (#709).
+func (c SiteCell) Ruin() bool {
+	t, ok := c.edifice()
+	return ok && t.Faction != FactionPlayer && t.Has(FlagDeconstructible) && !t.Has(FlagAncientDanger)
+}
+
+// ClaimableRuin names the definition of a ruin the player may claim, empty
+// for none (#718): a ring of that wall kind claims it and keeps it as wall
+// instead of clearing it.
+func (c SiteCell) ClaimableRuin() string {
+	if t, ok := c.edifice(); ok && c.Ruin() && t.Has(FlagClaimable) {
+		return t.Def
+	}
+	return ""
+}
+
+// RuinHold is the hold on the unowned building covering the cell that a
+// claim honours, empty for none (#718): "ancient_danger", or "casket" for a
+// casket still holding contents. A ring claims a ruin only where the claim
+// would act on it.
+func (c SiteCell) RuinHold() string {
+	hold := ""
+	for _, t := range c.Things {
+		if t.Category != ThingBuilding || t.Faction == FactionPlayer || t.Building == nil || t.Has(FlagBlueprint) || t.Has(FlagFrame) {
+			continue
+		}
+		switch {
+		case t.Has(FlagAncientDanger):
+			return "ancient_danger"
+		case len(t.Building.Casket) > 0:
+			hold = "casket"
+		}
+	}
+	return hold
+}

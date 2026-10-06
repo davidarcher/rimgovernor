@@ -36,8 +36,8 @@ namespace HomeBridge.BridgeTools
         // columns by these positions.
         internal const int Cell = 0, Walkable = 1, Occupied = 2, Zone = 3, Roofed = 4, Indoors = 5, SupportsLight = 6,
             StorageEmpty = 7, Doorway = 8, Fertility = 9, Polluted = 10, Glow = 11, Roof = 12, ZoneId = 13, NaturalRock = 14,
-            Ruin = 15, PlayerEdifice = 16, ClaimableRuin = 17, RuinHold = 18, Room = 19, Terrain = 20, InHome = 21,
-            FoundationAffordances = 22, SnowDepth = 23, TopLayerRemovable = 24;
+            Room = 15, Terrain = 16, InHome = 17,
+            FoundationAffordances = 18, SnowDepth = 19, TopLayerRemovable = 20;
 
         private static readonly (string Name, Kind Kind, Action<Mirror.CellGrid, Mirror.FieldArray> Set)[] Fields =
         {
@@ -56,10 +56,6 @@ namespace HomeBridge.BridgeTools
             ("roof", Kind.Index, (g, a) => g.Roof = a),
             ("zone_id", Kind.Index, (g, a) => g.ZoneId = a),
             ("natural_rock", Kind.Code, (g, a) => g.NaturalRock = a),
-            ("ruin", Kind.Code, (g, a) => g.Ruin = a),
-            ("player_edifice", Kind.Index, (g, a) => g.PlayerEdifice = a),
-            ("claimable_ruin", Kind.Index, (g, a) => g.ClaimableRuin = a),
-            ("ruin_hold", Kind.Index, (g, a) => g.RuinHold = a),
             ("room", Kind.Index, (g, a) => g.Room = a),
             ("terrain", Kind.Index, (g, a) => g.Terrain = a),
             ("in_home", Kind.Code, (g, a) => g.InHome = a),
@@ -72,7 +68,7 @@ namespace HomeBridge.BridgeTools
         internal static int FieldCount => Fields.Length;
 
         /// One field's values over the map: codes, numbers (NaN unknown) or
-        /// strings (null unknown; ruin_hold null is empty).
+        /// strings (null unknown).
         internal sealed class Column
         {
             internal byte[]? Codes;
@@ -124,7 +120,6 @@ namespace HomeBridge.BridgeTools
             byte B(bool value) => value ? (byte)2 : (byte)1;
             var player = Faction.OfPlayerSilentFail;
             var biotech = ModsConfig.BiotechActive;
-            List<RectTrigger>? triggers = null;
             var things = new ThingReader(map, player);
             var terrainGrid = map.terrainGrid;
             var affordances = new Dictionary<TerrainDef, string>();
@@ -152,12 +147,6 @@ namespace HomeBridge.BridgeTools
                     var edifice = map.edificeGrid[cell];
                     var naturalRock = edifice?.def.building?.isNaturalRock == true;
                     c[NaturalRock].Codes![j] = B(naturalRock);
-                    var ruin = false;
-                    if (edifice != null && player != null && edifice.Faction != player && !naturalRock && !edifice.def.mineable && edifice.DeconstructibleBy(player))
-                        ruin = !NativeClearanceObservationTools.AncientDanger(map, edifice, player, triggers ??= NativeClearanceObservationTools.TempleTriggers(map));
-                    c[Ruin].Codes![j] = B(ruin);
-                    c[PlayerEdifice].Strings![j] = edifice != null && player != null && edifice.Faction == player ? Identifier(edifice.def.defName) : "";
-                    c[ClaimableRuin].Strings![j] = ruin && edifice!.ClaimableBy(player) ? Identifier(edifice.def.defName) : "";
                     var zone = map.zoneManager.ZoneAt(cell);
                     c[Zone].Codes![j] = B(zone != null);
                     if (zone != null) c[ZoneId].Strings![j] = zone.GetUniqueLoadID();

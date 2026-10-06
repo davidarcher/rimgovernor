@@ -37,7 +37,7 @@ func readInterior(interior Rectangle, lookup func(domain.Cell) (SiteCell, bool))
 	for _, cell := range rectCells(interior) {
 		c, listed := lookup(cell)
 		walkable, known := c.Walkable.Value()
-		ruin, _ := c.Ruin.Value()
+		ruin := c.Ruin()
 		switch {
 		case !listed || !known:
 			r.Pending = append(r.Pending, cell)

@@ -117,11 +117,7 @@ func (r *RoundsBuildingPlanner) plannedShell(call context.Context, facts observa
 	if len(shells) == 0 {
 		return policy.StarterLayout{}, policy.PlannedRoom{}, false, nil
 	}
-	cells, err := r.shellRuinHolds(call, facts, shellSiteCells(facts, free), check)
-	if err != nil {
-		return policy.StarterLayout{}, policy.PlannedRoom{}, false, err
-	}
-	request := policy.StarterRequest{Bounds: facts.Bounds, Cells: cells, Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: shells}
+	request := policy.StarterRequest{Bounds: facts.Bounds, Cells: shellSiteCells(facts, free), Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: shells}
 	snap.NoteShelter(call, request)
 	layout, ok, err := policy.PlannedLayout(request)
 	if err != nil || !ok {
@@ -306,8 +302,7 @@ func shellSiteCells(facts observation.ColonyProjection, free []domain.Cell) []po
 	for _, c := range facts.Cells {
 		indoors, indoorKnown := c.Indoors.Value()
 		roof, roofKnown := c.Roofed.Value()
-		edifice, _ := c.PlayerEdifice.Value()
-		if !(indoorKnown && !indoors && roofKnown && !roof) && !positiveFact(c.NaturalRock) && !positiveFact(c.Ruin) && edifice == "" {
+		if !(indoorKnown && !indoors && roofKnown && !roof) && !positiveFact(c.NaturalRock) && !c.Ruin() && c.PlayerEdifice() == "" {
 			continue
 		}
 		if freed[c.Cell] {

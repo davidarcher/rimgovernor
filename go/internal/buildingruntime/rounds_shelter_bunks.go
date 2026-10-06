@@ -355,36 +355,6 @@ func onBunkSlot(cell domain.Cell, bunks []shelterBunk) bool {
 	return false
 }
 
-// shellRuinHolds stamps the site cells with the clearance census holds a
-// claim honours (#718), so a ring never counts on claiming a ruin the claim
-// would leave alone. Without ruins on the site or a known census, the cells
-// are returned unchanged.
-func (r *RoundsBuildingPlanner) shellRuinHolds(call context.Context, facts observation.ColonyProjection, cells []policy.SiteCell, check func() error) ([]policy.SiteCell, error) {
-	ruins := false
-	for _, c := range cells {
-		ruins = ruins || positiveFact(c.Ruin)
-	}
-	if !ruins {
-		return cells, nil
-	}
-	source, ok := r.native.(observation.ClearanceSource)
-	if !ok {
-		return nil, fmt.Errorf("%w: shellRuinHolds: native lacks the clearance census", ErrControl)
-	}
-	read, err := observation.ObserveClearanceCensus(call, source, facts.Identity, false)
-	if err != nil {
-		return nil, err
-	}
-	if err := check(); err != nil {
-		return nil, err
-	}
-	census, known := read.Value()
-	if !known {
-		return cells, nil
-	}
-	return policy.ShellRuinHolds(census.Targets, cells), nil
-}
-
 // shellClaimReader refreshes a claimable building's CAS token.
 type shellClaimReader interface {
 	ReadClaimBuildingTarget(context.Context, *c.Identity, string) (bridge.ClaimBuildingTarget, bridge.Result, error)

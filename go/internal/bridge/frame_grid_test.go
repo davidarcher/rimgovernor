@@ -20,8 +20,8 @@ import (
 type nativeCell struct {
 	fogged                                                    bool
 	walkable, occupied, doorway, light, storageEmpty, indoors bool
-	polluted, naturalRock, ruin                               bool
-	roof, zone, room, edifice, claimable                      string
+	polluted, naturalRock                                     bool
+	roof, zone, room                                          string
 	glow, fertility                                           float64 // glow artificial only
 	terrain, foundation                                       string
 	inHome, topRemovable                                      bool
@@ -43,10 +43,10 @@ func gridTestMap() []nativeCell {
 	cells[9].things = []policy.Thing{rice, wall}
 	cells[1] = nativeCell{fogged: true}                                                                                               // (1,0)
 	cells[2] = nativeCell{walkable: true, light: true, roof: "RoofConstructed", indoors: true, room: "4", glow: 0.42, zone: "Zone_9"} // (2,0) roofed, lit
-	cells[5] = nativeCell{occupied: true, edifice: "Wall", light: true, roof: "RoofConstructed"}                                      // (1,1) wall
-	cells[6] = nativeCell{walkable: true, occupied: true, doorway: true, light: true, edifice: "Door", room: "", glow: 0.6}           // (2,1) door, art > sky
+	cells[5] = nativeCell{occupied: true, light: true, roof: "RoofConstructed"}                                                       // (1,1) wall
+	cells[6] = nativeCell{walkable: true, occupied: true, doorway: true, light: true, room: "", glow: 0.6}                            // (2,1) door, art > sky
 	cells[7] = nativeCell{occupied: true, naturalRock: true, roof: "RoofRockThick"}                                                   // (3,1)
-	cells[10] = nativeCell{occupied: true, ruin: true, claimable: "Wall", polluted: true, fertility: 0.7, room: "1"}                  // (2,2) ruin
+	cells[10] = nativeCell{occupied: true, polluted: true, fertility: 0.7, room: "1"}                                                 // (2,2) ruin
 	return cells
 }
 
@@ -73,9 +73,9 @@ func gridBand(cells []nativeCell, rect policy.Rectangle, sky float64) ([]policy.
 				glow = math.Max(glow, sky)
 			}
 			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(n.walkable), Occupied: domain.Known(n.occupied), Doorway: domain.Known(n.doorway),
-				SupportsLight: domain.Known(n.light), NaturalRock: domain.Known(n.naturalRock), Ruin: domain.Known(n.ruin), StorageEmpty: domain.Known(n.storageEmpty),
+				SupportsLight: domain.Known(n.light), NaturalRock: domain.Known(n.naturalRock), StorageEmpty: domain.Known(n.storageEmpty),
 				Indoors: domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
-				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room), PlayerEdifice: domain.Known(n.edifice), ClaimableRuin: domain.Known(n.claimable),
+				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room),
 				Terrain: named(n.terrain), InHome: domain.Known(n.inHome), FoundationAffordances: named(n.foundation), SnowDepth: domain.Known(n.snow), TopLayerRemovable: domain.Known(n.topRemovable), Things: n.things}
 			if n.fertility > 0 {
 				cell.Fertility = domain.Known(n.fertility)
@@ -157,10 +157,6 @@ func gridWire(cells []nativeCell) *mp.CellGrid {
 	g.Roof = str(named(func(n nativeCell) string { return n.roof }))
 	g.ZoneId = str(named(func(n nativeCell) string { return n.zone }))
 	g.NaturalRock = code(func(n nativeCell) bool { return n.naturalRock })
-	g.Ruin = code(func(n nativeCell) bool { return n.ruin })
-	g.PlayerEdifice = str(func(n nativeCell) (string, bool) { return n.edifice, true })
-	g.ClaimableRuin = str(func(n nativeCell) (string, bool) { return n.claimable, true })
-	g.RuinHold = str(func(nativeCell) (string, bool) { return "", false })
 	g.Room = str(named(func(n nativeCell) string { return n.room }))
 	g.Terrain = str(named(func(n nativeCell) string { return n.terrain }))
 	g.InHome = code(func(n nativeCell) bool { return n.inHome })
@@ -236,16 +232,13 @@ func TestFrameGridMatchesTheBand(t *testing.T) {
 	// A wall goes up at (2,2) (was the ruin): the delta, against the
 	// keyframe, carries only the arrays that changed, sparse.
 	key := gridWire(cells)
-	cells[10] = nativeCell{occupied: true, light: true, edifice: "Wall", fertility: 0.7}
+	cells[10] = nativeCell{occupied: true, light: true, fertility: 0.7}
 	next := gridWire(cells)
-	delta := &mp.CellGrid{Rect: next.Rect, Strings: []string{"Wall", ""}}
+	delta := &mp.CellGrid{Rect: next.Rect}
 	delta.Walkable = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
 	delta.SupportsLight = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{2}}}}
 	delta.StorageEmpty = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
 	delta.Polluted = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
-	delta.Ruin = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
-	delta.PlayerEdifice = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
-	delta.ClaimableRuin = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{2}}}}
 	delta.Room = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{0}}}}
 	if proto.Equal(key, next) {
 		t.Fatal("the wall changed nothing")

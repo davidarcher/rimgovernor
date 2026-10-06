@@ -294,8 +294,7 @@ message SparseArray {
 //   cell: 0 not held, 1 held;
 //   Fact[bool] codes: 0 unknown, 1 false, 2 true;
 //   Fact[float64] numbers: NaN unknown (native values are finite);
-//   Fact[string] indexes: 0 unknown, k for strings[k-1];
-//   ruin_hold (a plain string): 0 empty, k for strings[k-1].
+//   Fact[string] indexes: 0 unknown, k for strings[k-1].
 // A keyframe carries every array; a delta, on the same rect, only the
 // arrays that differ from its keyframe's (deltas are cumulative against
 // the keyframe, never chained), and never every array: a frame whose grid
@@ -323,10 +322,7 @@ message CellGrid {
   FieldArray roof = 15;
   FieldArray zone_id = 16;
   FieldArray natural_rock = 17;
-  FieldArray ruin = 18;
-  FieldArray player_edifice = 19;
-  FieldArray claimable_ruin = 20;
-  FieldArray ruin_hold = 21;
+  reserved 18, 19, 20, 21; // ruin, player_edifice, claimable_ruin, ruin_hold: predicates over things (#2262)
   FieldArray room = 22;
   // Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
   // epic #2241); a keyframe carries every one, things included. A fogged cell

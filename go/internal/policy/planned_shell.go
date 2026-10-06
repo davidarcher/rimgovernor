@@ -30,19 +30,6 @@ type SiteCell struct {
 	// planned ring on it keeps it as wall; inside the room plan dig mines it
 	// (#836).
 	NaturalRock domain.Fact[bool]
-	// Ruin reports an unowned edifice the player may deconstruct (#709).
-	Ruin domain.Fact[bool]
-	// PlayerEdifice names the definition of a player-owned edifice on the
-	// cell, empty for none (#709): a ring of that wall kind stands on it.
-	PlayerEdifice domain.Fact[string]
-	// ClaimableRuin names the definition of a ruin the player may claim,
-	// empty for none (#718): a ring of that wall kind claims it and keeps
-	// it as wall instead of clearing it.
-	ClaimableRuin domain.Fact[string]
-	// RuinHold is the clearance census hold on the ruin covering the cell,
-	// empty for none (#718): a ring claims a ruin only where the claim
-	// would act on it (ShellRuinHolds).
-	RuinHold string
 	// The per-cell thing list and the tile columns that join it (#2260, epic
 	// #2241). Terrain names the terrain def; InHome is inside the home area;
 	// FoundationAffordances is the comma-joined, sorted affordances a
@@ -198,13 +185,11 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 			return true
 		}
 		c, exists := cells[p]
-		def, known := c.PlayerEdifice.Value()
-		return exists && known && r.WallDef != "" && def == r.WallDef && !protected[p] && unzoned(c)
+		return exists && r.WallDef != "" && c.PlayerEdifice() == r.WallDef && !protected[p] && unzoned(c)
 	}
 	claim := func(p domain.Cell) bool {
 		c, exists := cells[p]
-		def, known := c.ClaimableRuin.Value()
-		return exists && known && r.WallDef != "" && def == r.WallDef && !protected[p] && !claimHold(c.RuinHold) && positive(c.Ruin) && unzoned(c)
+		return exists && r.WallDef != "" && c.ClaimableRuin() == r.WallDef && !protected[p] && !claimHold(c.RuinHold()) && c.Ruin() && unzoned(c)
 	}
 	var blocked []string
 	why := func(p domain.Cell) string {

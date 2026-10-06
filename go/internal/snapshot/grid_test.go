@@ -110,7 +110,7 @@ func TestGridRoundTripsCommittedCells(t *testing.T) {
 						v.Glow = domain.Known(float64(i) / 3)
 					case 1:
 						v.ZoneID = domain.Known("Zone_" + string(rune('a'+i)))
-						v.RuinHold = "hold"
+						v.InHome = domain.Known(true)
 					case 2:
 						delete(next, k)
 						continue

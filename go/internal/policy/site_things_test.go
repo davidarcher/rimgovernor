@@ -11,8 +11,8 @@ import (
 // a field added without it fails here.
 func TestSiteCellEqualCoversEveryField(t *testing.T) {
 	typ := reflect.TypeOf(SiteCell{})
-	if typ.NumField() != 26 {
-		t.Fatalf("SiteCell has %d fields, Equal was written for 26: extend Equal and this count", typ.NumField())
+	if typ.NumField() != 22 {
+		t.Fatalf("SiteCell has %d fields, Equal was written for 22: extend Equal and this count", typ.NumField())
 	}
 	base := SiteCell{Cell: domain.Cell{X: 1}}
 	if !base.Equal(base) {

@@ -135,7 +135,7 @@ func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 		cells, _ := plannedGround(bounds, func(c *SiteCell) {
 			switch c.Cell {
 			case ruin:
-				c.Occupied, c.Ruin, c.ClaimableRuin, c.RuinHold = domain.Known(true), domain.Known(true), domain.Known(def), hold
+				c.Occupied, c.Things = domain.Known(true), ruinThings(def, hold)
 			case rock, inner:
 				c.Walkable, c.Occupied, c.NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
 			}
@@ -152,7 +152,7 @@ func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 	if len(layout.Claimed) != 1 || layout.Claimed[0] != ruin || len(layout.Reused) != 1 || layout.Reused[0] != rock || len(layout.Mined) != 1 || layout.Mined[0] != inner {
 		t.Fatalf("claimed %v reused %v mined %v", layout.Claimed, layout.Reused, layout.Mined)
 	}
-	for _, blocked := range []struct{ def, hold string }{{"Wall", "ancient_danger"}, {"SandbagWall", ""}, {"", ""}} {
+	for _, blocked := range []struct{ def, hold string }{{"Wall", "ancient_danger"}, {"Wall", "casket"}, {"SandbagWall", ""}, {"", ""}} {
 		request.Cells = ground(blocked.def, blocked.hold)
 		if _, ok, err := PlannedLayout(request); err != nil || ok {
 			t.Fatalf("ruin %+v on the ring did not block the room (%v)", blocked, err)

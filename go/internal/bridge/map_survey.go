@@ -88,8 +88,8 @@ func surveyCells(read cellsRead, roofs policy.RoofRules) ([]policy.SurveyCell, e
 	cells := make([]policy.SurveyCell, 0, len(held))
 	for _, cell := range held {
 		ground := read.foundation(cell.Cell)
-		rock, ruin := value(cell.NaturalRock), value(cell.Ruin)
-		edifice, roof := value(cell.PlayerEdifice), value(cell.Roof)
+		rock, ruin := value(cell.NaturalRock), cell.Ruin()
+		edifice, roof := cell.PlayerEdifice(), value(cell.Roof)
 		footing := policy.FootingFirm
 		if ground&foundationHeavy == 0 {
 			footing = policy.FootingNone

@@ -100,7 +100,7 @@ func occupiedCells(projection observation.ColonyProjection) (map[domain.Cell]boo
 		}
 	}
 	for _, c := range projection.Cells {
-		edifice, _ := c.PlayerEdifice.Value()
+		edifice := c.PlayerEdifice()
 		door, _ := c.Doorway.Value()
 		if edifice != "" || door {
 			built[c.Cell] = true

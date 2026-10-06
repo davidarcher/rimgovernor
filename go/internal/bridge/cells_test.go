@@ -49,7 +49,7 @@ func cellsSnapshot(t *testing.T, rect policy.Rectangle, fogged func(domain.Cell)
 	cells := map[domain.Cell]policy.SiteCell{}
 	for z := rect.Z; z < rect.Z+rect.Height; z++ {
 		for x := rect.X; x < rect.X+rect.Width; x++ {
-			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), PlayerEdifice: domain.Known(""), ClaimableRuin: domain.Known("")}
+			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true)}
 			if fogged != nil && fogged(cell.Cell) {
 				continue
 			}
@@ -179,7 +179,7 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 			case domain.Cell{X: 1, Z: 1}:
 				cell.NaturalRock, cell.Occupied, cell.Walkable, cell.Roof = domain.Known(true), domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
 			case domain.Cell{X: 2, Z: 1}:
-				cell.Occupied, cell.Ruin = domain.Known(true), domain.Known(false)
+				cell.Occupied = domain.Known(true)
 			case domain.Cell{X: 3, Z: 1}:
 				cell.Fertility = domain.Known(1.4)
 			}

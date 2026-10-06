@@ -524,7 +524,7 @@ func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []Site
 		if positive(c.Doorway) {
 			doorways = append(doorways, c.Cell)
 		}
-		if d, known := c.PlayerEdifice.Value(); known && d != "" {
+		if d := c.PlayerEdifice(); d != "" {
 			edifice[c.Cell] = d
 		}
 	}

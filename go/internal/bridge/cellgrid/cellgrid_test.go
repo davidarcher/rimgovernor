@@ -19,7 +19,7 @@ func empty() *mp.FieldArray { return sparse(nil, nil, nil) }
 func keyframeGrid() *mp.CellGrid {
 	g := &mp.CellGrid{Rect: WireRect(policy.Rectangle{X: 5, Z: 7, Width: 2, Height: 1}), Strings: []string{"RoofConstructed", "", "Wall"}}
 	g.Cell = codes(1, 0)
-	for _, set := range []**mp.FieldArray{&g.Walkable, &g.Occupied, &g.Zone, &g.Roofed, &g.Indoors, &g.SupportsLight, &g.StorageEmpty, &g.Doorway, &g.Polluted, &g.NaturalRock, &g.Ruin} {
+	for _, set := range []**mp.FieldArray{&g.Walkable, &g.Occupied, &g.Zone, &g.Roofed, &g.Indoors, &g.SupportsLight, &g.StorageEmpty, &g.Doorway, &g.Polluted, &g.NaturalRock} {
 		*set = codes(1, 0)
 	}
 	g.Walkable = codes(2, 0)
@@ -27,9 +27,6 @@ func keyframeGrid() *mp.CellGrid {
 	g.Glow = &mp.FieldArray{Form: &mp.FieldArray_Numbers{Numbers: &mp.PackedDouble{Values: []float64{0.25, math.NaN()}}}}
 	g.Roof = sparse([]uint32{0}, []uint32{1}, nil)
 	g.ZoneId = empty()
-	g.PlayerEdifice = sparse([]uint32{0}, []uint32{2}, nil)
-	g.ClaimableRuin = sparse([]uint32{0}, []uint32{2}, nil)
-	g.RuinHold = empty()
 	g.Room = empty()
 	g.Terrain, g.FoundationAffordances = empty(), empty()
 	g.InHome, g.TopLayerRemovable = empty(), empty()
@@ -50,19 +47,19 @@ func TestApplyCellGridKeyframeAndDelta(t *testing.T) {
 	got := cells[0]
 	want := policy.SiteCell{Cell: domain.Cell{X: 5, Z: 7}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(false),
 		Indoors: domain.Known(false), SupportsLight: domain.Known(false), StorageEmpty: domain.Known(false), Doorway: domain.Known(false), Polluted: domain.Known(false),
-		NaturalRock: domain.Known(false), Ruin: domain.Known(false), Glow: domain.Known(0.25), Roof: domain.Known("RoofConstructed"), PlayerEdifice: domain.Known(""), ClaimableRuin: domain.Known("")}
+		NaturalRock: domain.Known(false), Glow: domain.Known(0.25), Roof: domain.Known("RoofConstructed")}
 	if !got.Equal(want) {
 		t.Fatalf("cell = %+v\nwant %+v", got, want)
 	}
 
 	// A delta carries only the changed arrays, sparse over the held ones.
-	delta := &mp.CellGrid{Rect: WireRect(grid.Rect), Strings: []string{"Wall", "7"}, Cell: sparse([]uint32{1}, []uint32{1}, nil), PlayerEdifice: sparse([]uint32{0}, []uint32{1}, nil), ZoneId: sparse([]uint32{1}, []uint32{2}, nil)}
+	delta := &mp.CellGrid{Rect: WireRect(grid.Rect), Strings: []string{"Wall", "7"}, Cell: sparse([]uint32{1}, []uint32{1}, nil), Terrain: sparse([]uint32{0}, []uint32{1}, nil), ZoneId: sparse([]uint32{1}, []uint32{2}, nil)}
 	next, err := Apply(grid, false, delta)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cells = next.Cells()
-	if len(cells) != 2 || cells[0].PlayerEdifice != domain.Known("Wall") || cells[0].Walkable != domain.Known(true) || cells[1].Cell != (domain.Cell{X: 6, Z: 7}) || cells[1].ZoneID != domain.Known("7") || cells[1].Walkable != domain.Unknown[bool]() {
+	if len(cells) != 2 || cells[0].Terrain != domain.Known("Wall") || cells[0].Walkable != domain.Known(true) || cells[1].Cell != (domain.Cell{X: 6, Z: 7}) || cells[1].ZoneID != domain.Known("7") || cells[1].Walkable != domain.Unknown[bool]() {
 		t.Fatalf("delta cells = %+v", cells)
 	}
 }

@@ -30,11 +30,11 @@ type kind uint8
 const (
 	kindCode   kind = iota // presence and Fact[bool]
 	kindNumber             // Fact[float64]
-	kindIndex              // Fact[string], and ruin_hold
+	kindIndex              // Fact[string]
 )
 
 // column is one array of a Grid: codes, numbers (NaN unknown) or string
-// indexes into the grid's table (0 unknown, or ruin_hold empty).
+// indexes into the grid's table (0 unknown).
 type column struct {
 	codes []uint8
 	nums  []float64
@@ -131,12 +131,6 @@ var arrays = []array{
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Roof }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Roof }),
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.ZoneId }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.ZoneID }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.NaturalRock }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.NaturalRock }),
-	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Ruin }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Ruin }),
-	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.PlayerEdifice }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.PlayerEdifice }),
-	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.ClaimableRuin }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.ClaimableRuin }),
-	{kind: kindIndex, slot: func(g *mp.CellGrid) **mp.FieldArray { return &g.RuinHold },
-		str:    func(c *policy.SiteCell) (string, bool) { return c.RuinHold, c.RuinHold != "" },
-		setStr: func(c *policy.SiteCell, s string, _ bool) { c.RuinHold = s }},
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Room }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Room }),
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Terrain }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Terrain }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.InHome }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.InHome }),

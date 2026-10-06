@@ -122,7 +122,7 @@ func TestInteriorEntrancePrefersTheHallwayDoor(t *testing.T) {
 		{ID: "f", Role: domain.Known(RoomRoleWorkshop), Enclosed: domain.Known(true), Cells: freezer},
 		{ID: "h", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: hallway},
 	}}
-	cells := []SiteCell{{Cell: inner, Doorway: domain.Known(true)}, {Cell: hall, Doorway: domain.Known(true)}, {Cell: domain.Cell{X: 1, Z: 3}, PlayerEdifice: domain.Known("FueledStove")}}
+	cells := []SiteCell{{Cell: inner, Doorway: domain.Known(true)}, {Cell: hall, Doorway: domain.Known(true)}, {Cell: domain.Cell{X: 1, Z: 3}, Things: []Thing{{Def: "FueledStove", Category: ThingBuilding, Faction: FactionPlayer, Flags: FlagEdifice}}}}
 	got := InteriorRoomsFor(FacilityRequirement{Role: RoomRoleKitchen}, rooms, cells)
 	if len(got) != 1 || len(got[0].InnerDoors) != 1 || got[0].InnerDoors[0] != inner || len(got[0].Standing) != 1 || got[0].Standing[0] != "FueledStove" {
 		t.Fatalf("rooms %+v", got)

@@ -152,7 +152,8 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 	ruin := domain.Cell{X: 0, Z: 4}
 	for i, cell := range n.cells.Cells {
 		if cell.Cell == ruin {
-			n.cells.Cells[i].Walkable, n.cells.Cells[i].Ruin, n.cells.Cells[i].ClaimableRuin = domain.Known(false), domain.Known(true), domain.Known("Wall")
+			n.cells.Cells[i].Walkable = domain.Known(false)
+			n.cells.Cells[i].Things = []policy.Thing{{Def: "Wall", Category: policy.ThingBuilding, Flags: policy.FlagEdifice | policy.FlagImpassable | policy.FlagDeconstructible | policy.FlagClaimable, Count: 1, Building: &policy.BuildingState{}}}
 		}
 	}
 	row := &o.ClearanceTarget{EntityId: proto.String("ruin"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(ruin.X), Z: proto.Int32(ruin.Z)}, Maximum: &c.Cell{X: proto.Int32(ruin.X), Z: proto.Int32(ruin.Z)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(true), AncientDanger: proto.Bool(false), Designated: proto.Bool(false)}
