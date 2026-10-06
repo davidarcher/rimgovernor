@@ -44,8 +44,8 @@ func runFishing(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("unusable fishing capacity: %v", region)
 	}
 	s.Report()["fishing_region"] = region
-	// Review without the field writer first, so Open is observed before the
-	// normal next review changes an already-delivering source to Hold.
+	// Review without the field writer first: the unzoned region opens, neither
+	// designated nor delivering, before the zone exists.
 	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"work"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func runFishing(ctx context.Context, s cases.Session) error {
 		plan, _ := na.AsMap(colony["foodPlan"])
 		for _, raw := range na.AsSlice(plan["portfolio"]) {
 			row, _ := na.AsMap(raw)
-			if row["kind"] == "Fishing" && row["id"] == id && row["decision"] == "Open" {
+			if row["kind"] == "Fishing" && row["id"] == id && row["decision"] == "Open" && row["open"] != true {
 				if math.Abs(na.AsNumber(row["nutritionPerDay"])-rate) > 1e-5 {
 					return fmt.Errorf("ledger rate is not regeneration/capacity derived: %v want %v", row, rate)
 				}

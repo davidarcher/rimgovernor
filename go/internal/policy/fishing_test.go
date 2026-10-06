@@ -19,7 +19,7 @@ func fishingRequest() FishingRequest {
 
 func TestFishingDraw(t *testing.T) {
 	for _, tc := range []struct{ maximum, population, nutrition, work float64 }{
-		{300, 300, 1.875, 9375}, {100, 100, 0.625, 3125}, {300, 2, 1.875, 9375}, {0, 0, 0, 0},
+		{300, 300, 1.875, 9375}, {100, 100, 0.625, 3125}, {300, 181, 1.875, 9375}, {300, 180, 0, 0}, {300, 2, 0, 0}, {0, 0, 0, 0},
 	} {
 		r := fishingRequest()
 		r.Regions[0].Population, r.Regions[0].MaxPopulation = domain.Known(tc.population), domain.Known(tc.maximum)
@@ -170,5 +170,28 @@ func TestFishingRejectsInvalidFacts(t *testing.T) {
 		if _, err := FishingChannels(r); err == nil {
 			t.Fatalf("accepted invalid facts: %+v", r)
 		}
+	}
+}
+
+// At or below the floor native pauses fishing: the candidate expects nothing,
+// says why, and its factor falls once the ledger sees no catch.
+func TestFishingBelowFloorExpectsNothing(t *testing.T) {
+	r := fishingRequest()
+	r.Regions[0].Population = domain.Known(120.0)
+	r.Regions[0].Designated = domain.Known(true)
+	rows, err := FishingChannels(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := rows[0]
+	if row.NutritionPerDay != domain.Known(0.0) || row.Open != domain.Known(false) {
+		t.Fatalf("%+v", row)
+	}
+	var below bool
+	for _, term := range row.Terms {
+		below = below || term.Name == "fishing_below_floor"
+	}
+	if !below {
+		t.Fatalf("no below-floor term: %+v", row.Terms)
 	}
 }

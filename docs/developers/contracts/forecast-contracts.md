@@ -260,6 +260,12 @@ Native fish yield and fishing speed determine work and capacity (eight working
 hours per available fisher per day). Cooking gains remain a separate ledger
 contribution. Frozen or unreachable water contributes nothing and carries an
 explanation term; missing facts stay unknown and invalid known values fail.
+At or below the population floor (`domain.FishingPopulationFloor`, 0.6 of the
+maximum) native pauses fishing, so the row expects 0 with term
+`fishing_below_floor` until the lake regrows. A fishing row is Designated while
+a zone exists and Delivering once the ledger's `fish:<root>` counters rise
+([credit and state](../architecture/supply-model.md#credit-and-state)); a zone
+over a lake below its floor delivers nothing, so its factor falls.
 On Core, Odyssey water and its fishing channels are absent.
 
 Native reports raw fishing facts and never chooses (`FishableWater` in

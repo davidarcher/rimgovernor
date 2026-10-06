@@ -83,6 +83,11 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 			if fk && frozen {
 				channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_frozen", Value: 1})
 			}
+		} else if pk && mk && population <= maximum*domain.FishingPopulationFloor {
+			// Native pauses fishing at or below the floor until the lake
+			// regrows: no catch, so the zone is not delivering meanwhile.
+			channel.NutritionPerDay, channel.WorkPerDay = domain.Known(0.0), domain.Known(0.0)
+			channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_below_floor", Value: population / maximum})
 		} else if pk && mk && nk && bk && wk && rk && fk && capKnown {
 			// This is the sustainable average, not today's catch quota. Native
 			// population-floor control permits bursts and subsequent recovery.
