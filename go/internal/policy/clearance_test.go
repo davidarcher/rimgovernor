@@ -117,37 +117,6 @@ func TestChunkHoldsAndPendingDeficit(t *testing.T) {
 	}
 }
 
-func TestSelectChunkDumpSizesAndConnectsFootprint(t *testing.T) {
-	var rows []ClearanceChunk
-	for i := 0; i < 6; i++ {
-		rows = append(rows, ClearanceChunk{EntityID: string(rune('a' + i)), DefName: "ChunkGranite"})
-	}
-	rows[0].DefName = "ChunkSandstone"
-	rows[5].Destination = true
-	// A held footprint splits the native flood; only the run from the first
-	// free cell is kept, and it is bounded by the pending count.
-	var sites []domain.Cell
-	for x := int32(0); x < 12; x++ {
-		sites = append(sites, domain.Cell{X: x, Z: 0})
-	}
-	cells, allow, ok := SelectChunkDump(rows, sites, []domain.Cell{{X: 3, Z: 0}})
-	if !ok || len(cells) != 3 || cells[0] != (domain.Cell{X: 0, Z: 0}) || cells[2] != (domain.Cell{X: 2, Z: 0}) {
-		t.Fatal(cells, ok)
-	}
-	if len(allow) != 3 || allow[0] != "ChunkGranite" || allow[1] != "ChunkSandstone" || allow[2] != "ChunkSlagSteel" {
-		t.Fatal(allow)
-	}
-	if cells, _, ok = SelectChunkDump(rows[:1], sites, nil); !ok || len(cells) != minChunkDumpCells {
-		t.Fatal(cells, ok)
-	}
-	if _, _, ok = SelectChunkDump(rows[5:], sites, nil); ok {
-		t.Fatal("no pending chunk")
-	}
-	if _, _, ok = SelectChunkDump(rows, sites[:1], sites[:1]); ok {
-		t.Fatal("no free cell")
-	}
-}
-
 func TestHaulableChunksNeedADestination(t *testing.T) {
 	rows := []ClearanceChunk{
 		{EntityID: "b", Destination: true},

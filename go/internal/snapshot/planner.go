@@ -30,9 +30,6 @@ type Planner struct {
 	Excavation []policy.ExcavationSiteRequest
 	// Sites is every native excavation site read, in order.
 	Sites []ExcavationRead
-	// ChunkDumps is every policy.SelectChunkDump call: the census chunks,
-	// native dump sites and reserved footprints it chose among (#746).
-	ChunkDumps []ChunkDumpCall
 	// AnimalFeed is every policy.SelectAnimalFeedMethod call.
 	AnimalFeed []AnimalFeedCall
 	// ShrineSquads is every shrine defender read, in order.
@@ -92,7 +89,7 @@ func StartPlanner(ctx context.Context, goal policy.ConcernID) (context.Context, 
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
+		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.AnimalFeed)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
 			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
@@ -134,24 +131,12 @@ func NoteSite(ctx context.Context, purpose string, target policy.ExcavationTarge
 	})
 }
 
-// ChunkDumpCall is one policy.SelectChunkDump call's inputs.
-type ChunkDumpCall struct {
-	Chunks    []policy.ClearanceChunk
-	DumpSites []domain.Cell
-	Protected []domain.Cell
-}
-
 // AnimalFeedCall is one policy.SelectAnimalFeedMethod call's inputs.
 type AnimalFeedCall struct {
 	Group  policy.AnimalFeedGroup
 	Stocks []policy.FoodStock
 	Have   map[policy.Resource]int64
 	Races  policy.AnimalRaceCatalog
-}
-
-// NoteChunkDump records a chunk dump selection's inputs.
-func NoteChunkDump(ctx context.Context, c ChunkDumpCall) {
-	recorder(ctx).add(func(p *Planner) { p.ChunkDumps = append(p.ChunkDumps, c) })
 }
 
 // NoteAnimalFeed records an animal feed method selection's inputs.

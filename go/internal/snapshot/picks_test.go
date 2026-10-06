@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"reflect"
-	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -62,35 +61,6 @@ func TestPickFeedZoneThenDelivery(t *testing.T) {
 	m = animalFeed(t, "testdata/planner-feed-delivered-zoned.json")
 	if len(m.Benches) != 0 || !m.Delivered {
 		t.Errorf("zoned %+v, want delivery", m)
-	}
-}
-
-// clearance/chunk-dump, tick 15: the three fixture chunks no store takes
-// get one dump allowing exactly their kinds (slag is always allowed,
-// #702), on four native dump sites clear of every reserved footprint.
-func TestPickChunkDumpForUnstoredKinds(t *testing.T) {
-	p := planner(t, "testdata/planner-chunk-dump.json")
-	if len(p.ChunkDumps) != 1 {
-		t.Fatalf("%d dump selections", len(p.ChunkDumps))
-	}
-	c := p.ChunkDumps[0]
-	cells, allow, ok := policy.SelectChunkDump(c.Chunks, c.DumpSites, c.Protected)
-	if !ok {
-		t.Fatal("no dump selected")
-	}
-	if pending := policy.PendingChunks(c.Chunks); len(pending) != 3 {
-		t.Errorf("pending %v, want the three fixture chunks", pending)
-	}
-	if !reflect.DeepEqual(allow, []string{"ChunkGranite", "ChunkLimestone", "ChunkSlagSteel"}) {
-		t.Errorf("dump allows %v", allow)
-	}
-	if len(cells) != 4 {
-		t.Errorf("dump cells %v", cells)
-	}
-	for _, cell := range cells {
-		if slices.Contains(c.Protected, cell) || !slices.Contains(c.DumpSites, cell) {
-			t.Errorf("dump cell %v is reserved or not a native dump site", cell)
-		}
 	}
 }
 

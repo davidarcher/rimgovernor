@@ -10,12 +10,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // RoundsClearanceSource is the clearance census plus the zone preview the
-// chunk dump needs.
+// clearance plans need.
 type RoundsClearanceSource interface {
 	observation.ColonySource
 	observation.ClearanceSource
@@ -327,36 +326,15 @@ func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.Gr
 }
 
 // dump is the chunk half of the clearance goal (#394): chunks are hauls, not
-// deconstructions, so when a pending stack (in Home, allowed, unstored, no
-// store will take it) remains, one low-priority dumping stockpile allowing
-// the pending chunk kinds and steel slag is admitted on the native outdoor
-// footprint, outside held building footprints, and ordinary hauling clears
-// the stacks. The method is content-addressed by cells and allow list.
+// deconstructions. A pending stack (in Home, allowed, unstored, no store will
+// take it) has no store yet: the materials yard takes chunks and slag, so the
+// planner makes no zone and refuses no_space until one stands. Once a store
+// takes every stack, ordinary hauling clears them under a Haul designation.
 func (r *RoundsClearancePlanner) dump(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, census policy.ClearanceCensus, started time.Time) (RoundsClearanceResult, error) {
 	if len(policy.PendingChunks(census.Chunks)) == 0 {
 		return r.haulChunks(call, epoch, state, goal, census, started)
 	}
-	held, err := r.reviewer.player.journal.BuildingReservations(call, state.Snapshot)
-	if err != nil {
-		return RoundsClearanceResult{}, err
-	}
-	var protected []domain.Cell
-	for _, h := range held {
-		protected = append(protected, h.Footprint...)
-	}
-	snap.NoteChunkDump(call, snap.ChunkDumpCall{Chunks: census.Chunks, DumpSites: census.DumpSites, Protected: protected})
-	cells, allow, ok := policy.SelectChunkDump(census.Chunks, census.DumpSites, protected)
-	if !ok {
-		return RoundsClearanceResult{Verdict: noSpace("chunk_dump_site")}, nil
-	}
-	value, err := allowListZone(domain.LowPriority, allow, cells)
-	if err != nil {
-		return RoundsClearanceResult{}, err
-	}
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%v/%v", allow, cells)))
-	method := domain.MethodID(fmt.Sprintf("chunk-dump-%x", hash[:16]))
-	result, err := admitZoneMethod(r.reviewer, r.native, call, epoch, state, goal, reviewTick, value, method, started)
-	return RoundsClearanceResult{Verdict: result.Verdict, Plan: result.Plan}, err
+	return RoundsClearanceResult{Verdict: noSpace("chunk_dump_site")}, nil
 }
 
 // chunkHaulWorkTicks bounds one clock window spent letting ordinary hauling

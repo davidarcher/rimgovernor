@@ -32,15 +32,12 @@ import (
 // This planner covers the resource method's bench/recipe
 // fallback branch (policy.SelectResourceMethod), the same bench-production
 // path GearProduce/MaintainMedicalReserves dispatch through, plus its native
-// mine-source acquisition branch (policy.SelectResourceSources) and its
-// material-storage zoning branch (policy.SelectResourceStorageZone). Whenever
+// mine-source acquisition branch (policy.SelectResourceSources). Whenever
 // the bench/recipe path cannot fund the deficit and a fresh source selection
-// includes a "mine" source, that source's covered storage is checked first
-// (materialStorageZoneFallback): if a new stockpile zone is needed, it is
-// admitted and mine acquisition is deferred to a later tick (the storage
-// zone-build action takes the place of an acquisition action whenever storage is
-// inadequate). Only once storage already covers the deficit (or no mine
-// source was selected) does this planner dispatch a
+// includes a "mine" source, that source's storage is checked first
+// (materialStorageBlocked): with no hauler or free cell the verdict is
+// no_space; otherwise the warehouse and materials yard hold the yield. This
+// planner then dispatches a
 // domain.MineAcquisitionAction against the mine source through the second,
 // independently-registered mine-acquisition vertical. Extraction development
 // is still not dispatched here.
@@ -69,11 +66,8 @@ type RoundsResourceResult struct {
 	// sources that could cover the outstanding deficit. When the selection
 	// includes a "mine" source (the only method carrying a Cell/Token), this
 	// same read's StorageCapacity payload is checked first
-	// (materialStorageZoneFallback): if hauling that source's yield needs a
-	// new covered stockpile zone, that zone is admitted (Reason/Plan set
-	// exactly like the bench/recipe path) and the mine source itself is not
-	// yet dispatched. Once storage already covers the deficit, the mine
-	// source is actually dispatched (dispatchMineSource) -- see Reason/Plan
+	// (materialStorageBlocked): a blocked store refuses no_space, otherwise
+	// the mine source is dispatched (dispatchMineSource) -- see Reason/Plan
 	// -- against the second, independently-registered mine-acquisition
 	// vertical; any other selected method is still surfaced here for
 	// observability only, since only mine sources carry the cell
@@ -242,15 +236,10 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 		if err != nil {
 			return RoundsResourceResult{}, err
 		}
-		zone, needed, blocked, err := policy.SelectStockpileCapacity(max(0, target-storage.Stored), storage)
-		if err != nil {
+		if _, _, blocked, err := policy.SelectStockpileCapacity(max(0, target-storage.Stored), storage); err != nil {
 			return RoundsResourceResult{}, err
-		}
-		if blocked {
+		} else if blocked {
 			return RoundsResourceResult{Verdict: noSpace("gear_spares_storage")}, nil
-		}
-		if needed {
-			return r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "gear-spares-storage")
 		}
 	}
 	beer := resource == "Beer"
@@ -333,9 +322,6 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 			}
 			pre = &sel
 			selected, sourceStorage := sel.selected, sel.storage
-			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, target-resourceCount(stock, resource), started); err != nil || handled {
-				return result, err
-			}
 			ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, target-resourceCount(stock, resource)), policy.MineCandidates(resource, selected, domain.Known(sourceStorage.Capacity)), policy.AcquisitionCompetition{})
 			if err != nil {
 				return RoundsResourceResult{}, err
@@ -359,11 +345,6 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 		sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 		selected, sourceStorage := sel.selected, sel.storage
 		deficit := target - resourceCount(stock, resource)
-		if ok {
-			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, deficit, started); err != nil || handled && result.Verdict == BuildingReasonAdmitted {
-				return result, err
-			}
-		}
 		candidates := policy.MineCandidates(resource, selected, domain.Known(sourceStorage.Capacity))
 		if produce, found := policy.ProduceCandidate(choice, deficit); found {
 			candidates = append(candidates, produce)
@@ -474,7 +455,7 @@ func (r *RoundsResourcePlanner) acquireFromSources(call, epoch context.Context, 
 		pre = &sel
 	}
 	selected := pre.selected
-	zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, reviewTick, resource, selected, pre.storage, target-resourceCount(stock, resource), started)
+	zoneResult, handled, err := materialStorageBlocked(selected, pre.storage)
 	if err != nil {
 		return RoundsResourceResult{}, false, err
 	}
@@ -511,7 +492,7 @@ func (r *RoundsResourcePlanner) acquireFromSources(call, epoch context.Context, 
 // half of the resource method (its bill-listing
 // fallback, which SelectResourceMethod above already covers, is only reached
 // once this source loop finds nothing to select). Neither this method nor
-// materialStorageZoneFallback dispatches the mine itself --
+// materialStorageBlocked dispatches the mine itself --
 // dispatchMineSource is what actually acts on the selection once storage is
 // adequate -- so a native read failure here is deliberately swallowed
 // (ok=false) rather than surfaced, preserving the bench/recipe outcome the
@@ -591,66 +572,23 @@ func (r *RoundsResourcePlanner) miningReach(ctx context.Context, state ControlSt
 	return request, nil
 }
 
-// materialStorageZoneFallback is the resource method's
-// storage branch: once the bench/recipe path can't fund the
-// dynamically-selected resource, a fresh source selection that includes a
-// "mine" source is checked against the same read's StorageCapacity payload
-// (NativeResourceSourcesTool.Storage) to see whether hauling that source's
-// yield needs a new covered stockpile zone (policy.SelectResourceStorageZone).
-// It builds the zone
-// (allowListZone/PreviewZone/AdmitBuildingMethod, not
-// CommitMethod, since a zone carries footprint like a building), but the
-// candidate cells come directly from native's own hauler-reachable, roofed,
-// unreserved scan rather than policy.CoveredStorageSites -- no geometry is
-// recomputed here. The zone's method ID is content-addressed by resource and
-// cells (fingerprint dedup), not attempt-numbered, since
-// the candidate set is whatever native reports fresh each call, not
-// something this planner deliberately retries several times per episode.
-// With no mine source to size it by, a deficit whose storage is full still
-// gets one stack of capacity (#796), so remote salvage and loot can land.
-// handled is false when nothing applies this tick (no mine source selected
-// and capacity left, or existing capacity already covers the deficit) -- the caller should then
-// fall through to dispatchMineSource instead: the storage zone-build takes
-// the place of an acquisition action only when storage is inadequate.
-func (r *RoundsResourcePlanner) materialStorageZoneFallback(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, resource policy.Resource, selected []policy.ResourceSource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoundsResourceResult, bool, error) {
-	zone, needed, blocked, err := policy.SelectResourceStorageZone(selected, 0, storage)
-	if err != nil {
+// materialStorageBlocked is the resource method's storage check: once the
+// bench/recipe path can't fund the dynamically-selected resource, a fresh
+// source selection that includes a "mine" source is checked against the same
+// read's StorageCapacity payload (NativeResourceSourcesTool.Storage). Where
+// no hauler or free storage cell can take the yield it refuses no_space; the
+// warehouse and materials yard hold the stock otherwise, so no zone is made.
+func materialStorageBlocked(selected []policy.ResourceSource, storage policy.ResourceStorage) (RoundsResourceResult, bool, error) {
+	_, _, blocked, err := policy.SelectResourceStorageZone(selected, 0, storage)
+	if err != nil || !blocked {
 		return RoundsResourceResult{}, false, err
 	}
-	if blocked {
-		return RoundsResourceResult{Verdict: noSpace("material_storage")}, true, nil
-	}
-	if !needed {
-		if zone, needed, err = policy.SelectFullStorageZone(deficit, storage); err != nil || !needed {
-			return RoundsResourceResult{}, false, err
-		}
-	}
-	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage")
-	return result, true, err
-}
-
-// storageFloor runs the full-storage floor (#796, policy.SelectFullStorageZone)
-// ahead of every acquisition bid: a deficit whose accepting storage is full
-// leaves bills, salvage, loot and trade nowhere to land, so remote salvage
-// holds missing_storage forever, and a rival trade or deep-drill bid used to
-// outrank this planner's zero-score mining bid before the storage branch was
-// reached. Native's candidate cells already admit unroofed ground for a
-// definition that does not deteriorate outdoors (DeteriorationRate 0: steel,
-// plasteel, precious metals, uranium, jade, stone chunks and blocks), so this
-// is the outdoor stockpile for those; a deteriorating resource gets roofed
-// cells only. handled is true when a zone was admitted or refused.
-func (r *RoundsResourcePlanner) storageFloor(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, resource policy.Resource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoundsResourceResult, bool, error) {
-	zone, needed, err := policy.SelectFullStorageZone(deficit, storage)
-	if err != nil || !needed {
-		return RoundsResourceResult{}, false, err
-	}
-	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage")
-	return result, true, err
+	return RoundsResourceResult{Verdict: noSpace("material_storage")}, true, nil
 }
 
 // admitStorageZone admits one allow-listed stockpile zone for resource on
 // cells (an already-selected connected footprint), the zone-build shape the
-// material-storage and animal-feed delivery fallbacks share: cells under a
+// animal-feed and human-corpse delivery fallbacks share: cells under a
 // held building reservation are dropped, the method ID is content-addressed
 // by resource and cells (methodPrefix; fingerprint dedup reports
 // WaitMethodUsed), and the zone is previewed against the live zone-map
@@ -771,8 +709,7 @@ func admitZoneMethod(reviewer *Rounder, native zoneMethodNative, call, epoch con
 // acquisition Designate needs (policy.SelectResourceSources populates them for
 // "mine" rows only); any other selected method is left to the caller's
 // observability-only Sources reporting. The caller only reaches this once
-// materialStorageZoneFallback reports handled=false, i.e. either no mine
-// source was selected or its covered storage already suffices. dispatched is
+// materialStorageBlocked reports handled=false. dispatched is
 // false, with a zero result and nil error, when there is nothing to dispatch
 // -- the caller then falls back to its own WaitMethodUsed reporting.
 func (r *RoundsResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.StandardState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoundsResourceResult, bool, error) {

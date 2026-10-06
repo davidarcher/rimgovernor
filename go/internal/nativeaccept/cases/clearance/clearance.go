@@ -138,7 +138,7 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 	if err != nil {
 		return err
 	}
-	admitted, designated := false, false
+	designated := false
 	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRounds(ctx)
 		if err != nil {
@@ -152,20 +152,15 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 			if err != nil {
 				return "", false, err
 			}
-			plans, err := journal.PlanHistoryWithMethods(ctx, 256, "chunk-dump-*")
-			if err != nil {
-				return "", false, err
-			}
-			admitted = admitted || len(plans) > 0
-			// A dump alone never moves a chunk (#702): the haul plan designates
-			// them, so the service must run until it is admitted too.
+			// A store alone never moves a chunk (#702): the haul plan designates
+			// them, so the service must run until it is admitted.
 			hauls, err := journal.PlanHistoryWithMethods(ctx, 256, "chunk-haul-*")
 			if err != nil {
 				return "", false, err
 			}
 			designated = designated || len(hauls) > 0
 			s.Report()["chunk_standard"] = goal.Standard
-			return na.Signature(goal.Standard.Finding, len(goal.Methods), designated), admitted && designated && goal.Standard.Finding == domain.FindingMet, nil
+			return na.Signature(goal.Standard.Finding, len(goal.Methods), designated), designated && goal.Standard.Finding == domain.FindingMet, nil
 		}
 		return "waiting for chunk standard", false, nil
 	})
@@ -176,8 +171,9 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 	if err = reattach(ctx, s); err != nil {
 		return err
 	}
-	// Goal recovery means a destination exists. Ordinary native hauling must
-	// still move all three items; never equate zone admission with storage.
+	// Goal recovery means a destination exists (the materials yard takes
+	// chunks and slag; no dump zone is created). Ordinary native hauling must
+	// still move all three items; never equate a store with storage.
 	err = na.WaitProgress(ctx, na.Wait{Ceiling: time.Minute, Stall: 30 * time.Second}, func(ctx context.Context) (string, bool, error) {
 		live, err := audit(ctx, s, fixture, "chunks_after")
 		if err != nil {
@@ -211,43 +207,28 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 	return nil
 }
 
+// checkDump asserts the planner made no dumping stockpile and that all three
+// fixture chunks sit in a store whose allow list takes every fixture kind and
+// steel slag: the materials yard.
 func checkDump(live, fixture map[string]any) error {
-	var want []string
+	want := []string{"ChunkSlagSteel"}
 	for _, raw := range na.AsSlice(fixture["defs"]) {
 		want = append(want, na.AsString(raw))
 	}
-	slices.Sort(want)
-	// A stray baseline chunk of another kind earns its own dump (#702), so
-	// the fixture's dump is the one allowing exactly the fixture kinds.
-	var zone map[string]any
+	takes := map[string]bool{}
 	for _, raw := range na.AsSlice(live["zones"]) {
 		z, _ := na.AsMap(raw)
+		if z["label"] == "Dumping" {
+			return fmt.Errorf("a dumping stockpile was created: %v", z)
+		}
 		var allow []string
 		for _, def := range na.AsSlice(z["allow"]) {
 			allow = append(allow, na.AsString(def))
 		}
-		slices.Sort(allow)
-		if slices.Equal(allow, want) {
-			if zone != nil {
-				return fmt.Errorf("two dumping stockpiles allow %v", want)
-			}
-			zone = z
-		}
-	}
-	if zone == nil {
-		return fmt.Errorf("no dumping stockpile allows exactly %v: %v", want, live["zones"])
-	}
-	if zone["label"] != "Dumping" || zone["priority"] != "Low" {
-		return fmt.Errorf("incorrect dumping settings: %v", zone)
-	}
-	cells := na.AsSlice(zone["cells"])
-	if len(cells) < 4 || len(cells) > 16 {
-		return fmt.Errorf("dump has %d cells", len(cells))
-	}
-	for _, raw := range cells {
-		c, _ := na.AsMap(raw)
-		if !boolean(c["home"]) || boolean(c["roofed"]) || boolean(c["building"]) {
-			return fmt.Errorf("invalid dump cell: %v", c)
+		if label := na.AsString(z["label"]); label != "" && slices.ContainsFunc(want, func(d string) bool { return !slices.Contains(allow, d) }) {
+			continue
+		} else if label != "" {
+			takes[label] = true
 		}
 	}
 	chunks := na.AsSlice(live["chunks"])
@@ -256,8 +237,9 @@ func checkDump(live, fixture map[string]any) error {
 	}
 	for _, raw := range chunks {
 		c, _ := na.AsMap(raw)
-		if !boolean(c["stored"]) || c["zone"] != "Dumping" {
-			return fmt.Errorf("chunk not hauled to dump: %v", c)
+		zone := na.AsString(c["zone"])
+		if !boolean(c["stored"]) || !takes[zone] {
+			return fmt.Errorf("chunk not hauled to the yard: %v (stores taking %v: %v)", c, want, takes)
 		}
 	}
 	return nil

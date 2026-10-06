@@ -322,26 +322,3 @@ func TestSelectResourceMethodUnknownBenchesRefuseGuessing(t *testing.T) {
 		t.Fatalf("got %v %v", method, err)
 	}
 }
-
-// #796: a Steel deficit whose only stockpile filled (no mine source on the
-// map) adds one stack of storage so the held remote salvage can land.
-func TestSelectFullStorageZoneAddsOneStackWhenFull(t *testing.T) {
-	storage := ResourceStorage{Capacity: 0, StackLimit: 75, Haulers: 6, Candidates: []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}}
-	zone, needed, err := SelectFullStorageZone(1525, storage)
-	if err != nil || !needed || len(zone.Cells) != 1 || zone.Cells[0] != (domain.Cell{X: 1, Z: 1}) {
-		t.Fatalf("zone=%v needed=%v err=%v", zone, needed, err)
-	}
-	for _, c := range []struct {
-		deficit int64
-		storage ResourceStorage
-	}{
-		{1525, ResourceStorage{Capacity: 33, StackLimit: 75, Haulers: 6, Candidates: storage.Candidates}},
-		{0, storage},
-		{1525, ResourceStorage{StackLimit: 75, Haulers: 0, Candidates: storage.Candidates}},
-		{1525, ResourceStorage{StackLimit: 75, Haulers: 6}},
-	} {
-		if _, needed, err := SelectFullStorageZone(c.deficit, c.storage); err != nil || needed {
-			t.Errorf("deficit %d storage %+v: needed=%v err=%v", c.deficit, c.storage, needed, err)
-		}
-	}
-}

@@ -97,11 +97,10 @@ func TestRoundsClearanceBatchesAncientTargetsNearestFirstAndJournalsHolds(t *tes
 }
 
 // Chunks are hauls: with no deconstructible target and a pending chunk (in
-// Home, allowed, unstored, no store will take it), the planner admits one
-// low-priority dumping stockpile on the native outdoor footprint sized for
-// the pending stacks; a chunk ordinary hauling already has a destination for
-// is no deficit at all.
-func TestRoundsClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
+// Home, allowed, unstored, no store will take it), the planner makes no zone
+// (the materials yard is the store) and refuses no_space; a chunk ordinary
+// hauling already has a destination for is no deficit at all.
+func TestRoundsClearanceRefusesPendingChunksWithoutAStore(t *testing.T) {
 	reviewer, db, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
@@ -145,25 +144,8 @@ func TestRoundsClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err, review.Review.Development.Rows)
-	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil || len(plan.Progress) != 1 {
-		t.Fatal(plan, err)
-	}
-	zone, ok := plan.Spec.Actions()[0].ZoneCreate()
-	if !ok || zone.Priority() != domain.LowPriority || zone.Label() != "Dumping" || len(zone.Cells()) != 4 || zone.Cells()[0] != (domain.Cell{X: 50, Z: 60}) {
-		t.Fatal(zone, ok)
-	}
-	if allow := allowOf(zone); len(allow) != 2 || allow[0] != "ChunkGranite" || allow[1] != "ChunkSlagSteel" {
-		t.Fatal(allow)
-	}
-	if len(source.previews) != 1 {
-		t.Fatal(source.previews)
-	}
-	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
-		t.Fatal(next, err)
+	if err != nil || result.Verdict != noSpace("chunk_dump_site") || len(source.previews) != 0 {
+		t.Fatal(result, err, source.previews, review.Review.Development.Rows)
 	}
 }
 
