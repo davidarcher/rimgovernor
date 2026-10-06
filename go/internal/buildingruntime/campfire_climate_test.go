@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -94,5 +95,25 @@ func TestCookingCampfireWaitsForTheKitchenOnANormalMap(t *testing.T) {
 	}
 	if wait != BuildingNoLayoutPlan || got != (domain.Cell{}) {
 		t.Fatalf("campfire at %v wait %q, want a wait for the kitchen", got, wait)
+	}
+}
+
+// Loose sleeping spots keep off the shelter's campfire slots: a spot on one
+// left a cold map's cooking campfire to fall through to the kitchen (#2138).
+func TestShelterFurnitureCellsCoverTheCampfireSlotsNotTheBunks(t *testing.T) {
+	t.Parallel()
+	facts := observation.ColonyProjection{}
+	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter,
+		Interior: policy.Rectangle{X: 62, Z: 79, Width: 6, Height: 4}, Door: domain.Cell{X: 65, Z: 78}, DoorRot: domain.South}}})
+	facts.Shapes = testPieceShapes
+	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
+	cells := shelterFurnitureCells(facts)
+	for _, want := range []domain.Cell{{X: 62, Z: 82}, {X: 67, Z: 79}} {
+		if !slices.Contains(cells, want) {
+			t.Fatalf("campfire slot %v is not protected from loose spots: %v", want, cells)
+		}
+	}
+	if slices.Contains(cells, domain.Cell{X: 63, Z: 82}) {
+		t.Fatalf("a bunk slot is protected: %v", cells)
 	}
 }

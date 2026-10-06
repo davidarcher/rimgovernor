@@ -891,6 +891,12 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		// room's own furnishing, and furniture there carves up its warehouse zone.
 		protected = append(append([]domain.Cell(nil), protected...), nonSleepingPlannedCells(facts)...)
 	}
+	if looseSpot {
+		// A loose spot off the template's bed slots must not take the shelter's
+		// campfire, cooler, crafting or bench slot: a cold map's cooking campfire
+		// then finds its slot taken and falls through to the kitchen (#2138).
+		protected = append(append([]domain.Cell(nil), protected...), shelterFurnitureCells(facts)...)
+	}
 	if r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "TableButcher")...)
 	}
@@ -1459,6 +1465,24 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 			continue
 		}
 		cells = append(cells, plannedRoomInterior(room)...)
+	}
+	return cells
+}
+
+// shelterFurnitureCells are the cells of the planned shelter template's pieces
+// that are not bunks: its campfire, cooler, crafting spot and research bench.
+func shelterFurnitureCells(facts observation.ColonyProjection) []domain.Cell {
+	var cells []domain.Cell
+	for _, room := range plannedShelterRooms(facts) {
+		full, ok := policy.PlanInterior(room, policy.InteriorPieceDef{})
+		if !ok {
+			continue
+		}
+		for _, p := range full.Pieces {
+			if !p.IsBunk() {
+				cells = append(cells, rectCells(p.Rect)...)
+			}
+		}
 	}
 	return cells
 }

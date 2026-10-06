@@ -46,7 +46,7 @@ func init() {
 			On:   cases.Save{Name: sustained.BaselineSave}},
 		RequiredOps: []string{"test/layout_grid_prepare", "test/layout_grid_audit", stageRoomsOp, na.LabSpawnTool},
 		Keep:        []string{string(na.NeedFood)},
-		Serve:       &cases.ServeSpec{Families: []string{"shelter", "sleeping", "clearance"}, NativeTimeout: 30 * time.Second, Prefix: "shelter-retirement"},
+		Serve:       &cases.ServeSpec{Families: []string{"shelter", "sleeping", "clearance", "naming"}, NativeTimeout: 30 * time.Second, Prefix: "shelter-retirement"},
 		Budget:      50 * time.Minute,
 		Reason:      "three stages on one journal: the plan the controller records, the rooms staged on it, then pawn work (a Reinstall and a deconstruction of the hut) to the retirement's end",
 		Run:         retirement,
@@ -106,6 +106,10 @@ func retirement(ctx context.Context, s cases.Session) error {
 	var final policy.LayoutPlan
 	var readErr error
 	_, err = service.WaitReview(ctx, na.Wait{Ceiling: retireWait}, func(r store.Rounds) bool {
+		// A review before the first plan carries no plan identity yet.
+		if r.Snapshot.Validate() != nil {
+			return false
+		}
 		rec, ok, err := journal.LayoutPlan(ctx, r.Snapshot, r.Tick)
 		if err != nil {
 			readErr = err

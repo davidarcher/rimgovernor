@@ -21,7 +21,9 @@ import (
 // the placement search (buildingruntime campfire_climate_test.go); only a real
 // map reads the curve, and only the native accepts the placement.
 const (
-	climateFamilies = "shelter,sleeping,cooking,temperature"
+	// The naming family answers the settlement naming dialog the game raises
+	// about four days in, which stops the clock until it is confirmed.
+	climateFamilies = "shelter,sleeping,cooking,temperature,naming"
 	climateWait     = 15 * time.Minute
 	// campfireMargin is how far outside the planned core a mild map's cooking
 	// campfire may stand (the stand-in margin was deleted in #2266; #2278 revisits the case).
@@ -49,7 +51,12 @@ func init() {
 			start: quietStart(na.DebugStart{MapSize: 150, PlanetCoverage: 0.05, Biomes: "Tundra,BorealForest,ColdBog,IceSheet", Seed: "shelter-cold-2076"})},
 		{name: "shelter/climate-hot", hot: true, stage: true, build: "PassiveCooler",
 			scope: "the plan latches Hot, the shelter template holds a cooler slot and, the shelter standing, the temperature planner's passive cooler is placed inside it",
-			start: quietStart(na.DebugStart{MapSize: 150, PlanetCoverage: 0.05, Biomes: "ExtremeDesert,Desert", Seed: "shelter-hot-2076"})},
+			// A desert tile at a high latitude is neither hot nor warm all year;
+			// a very hot planet puts the whole small patch past HotEnter.
+			start: cases.Fixture{Op: na.QuietWorldTool, On: cases.Scenario{Spec: na.ScenarioStart{
+				Scenario: na.DebugScenario, Count: na.DebugColonists, Seed: "shelter-hot-2076", Difficulty: na.DebugDifficulty,
+				Biome: "ExtremeDesert,Desert", WorldTemperature: "VeryHot",
+				Size: na.DebugStart{MapSize: 150, PlanetCoverage: 0.05}, SaveName: "shelter-hot-2076"}}}},
 	} {
 		c := c
 		cases.Register(cases.Case{
@@ -93,6 +100,12 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 	if got, want := policy.ShelterCampfires(plan.Cold), map[bool]int{true: 2, false: 0}[plan.Cold]; got != want {
 		return fmt.Errorf("the shelter template plans %d campfire slots, want %d", got, want)
 	}
+	// A mild map's cooking campfire waits for the planned kitchen (#2266) and
+	// the template holds no campfire slot: the latch and the slot count are the
+	// whole assertion (#2278 covers the kitchen's campfire).
+	if !c.cold && !c.hot {
+		return nil
+	}
 	// Plans admitted before the shelter stands place on the unstaged map.
 	earlier := map[domain.PlanID]bool{}
 	if c.stage {
@@ -104,8 +117,11 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 		if err != nil {
 			return err
 		}
+		// The cold map's slots key on the planned interior, walled or not (#2264): its
+		// cooking campfire may be planned before the stage and holds the goal, so
+		// only the hot map skips earlier plans.
 		for _, p := range plans {
-			earlier[p.Spec.ID()] = true
+			earlier[p.Spec.ID()] = c.hot
 		}
 		report["keepalive_plan"] = service.Stop()
 		h, err := s.Reattach(ctx)
