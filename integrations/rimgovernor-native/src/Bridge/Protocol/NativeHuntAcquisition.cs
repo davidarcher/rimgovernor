@@ -29,26 +29,6 @@ namespace HomeBridge.BridgeTools
                     hunter.jobs.EndCurrentJob(JobCondition.InterruptForced);
         }
         private static int Pending(Map map) => map.mapPawns.AllPawnsSpawned.Count(Designated);
-        private static bool OrdinaryWeapon(Pawn pawn)
-        {
-            var weapon = pawn.equipment?.Primary;
-            if (weapon?.def.IsRangedWeapon != true) return false;
-            return OrdinaryVerbs(weapon.def.Verbs);
-        }
-        internal static bool OrdinaryVerbs(IEnumerable<VerbProperties> definitions)
-        {
-            var verbs = definitions.Where(v => !v.IsMeleeAttack && v.ai_IsWeapon).ToArray();
-            return verbs.Length > 0 && verbs.All(v => v.defaultProjectile?.thingClass == typeof(Bullet) && v.defaultProjectile.projectile.explosionRadius == 0 && v.defaultProjectile.projectile.damageDef?.workerClass != typeof(DamageWorker_Flame));
-        }
-        private static bool ButcherReady(Pawn prey) => prey.Map.listerThings.AllThings.OfType<Building>().Any(b =>
-            b is IBillGiver giver && !b.IsForbidden(Faction.OfPlayer) && giver.CurrentlyUsableForBills()
-            && giver.BillStack.Bills.OfType<Bill_Production>().Any(bill => NativeRecipeRoles.ButcherFlesh(bill.recipe)
-                && !bill.suspended && !bill.paused && bill.ingredientFilter.Allows(prey.RaceProps.corpseDef)
-                && (bill.repeatMode == BillRepeatModeDefOf.Forever
-                    || bill.repeatMode == BillRepeatModeDefOf.RepeatCount && bill.repeatCount > 0
-                    || bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count && count < bill.targetCount))
-            && prey.Map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.InMentalState
-                && DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking") is WorkTypeDef cooking && p.workSettings?.WorkIsActive(cooking) == true && p.CanReach(b, PathEndMode.InteractionCell, Danger.None)));
         // Food prey is wild and edible. Revenge and predation are policy costs
         // (the census flags them; a lone hunter never designates either, a squad
         // may take them); RouteSafe still rejects hazards and non-ordinary death
@@ -74,46 +54,6 @@ namespace HomeBridge.BridgeTools
         // or bare hands can run it down. This is the wiki's day-one interim
         // food; it never covers a pest or anything the safe-prey rule rejects.
         internal static bool Meleeable(Pawn prey) => SafePrey(prey) && !prey.RaceProps.predator && (prey.Downed || prey.RaceProps.manhunterOnDamageChance == 0 && prey.BodySize <= 1.0f);
-        private static bool MeleeArmed(Pawn p, Pawn prey) => Meleeable(prey) && (p.equipment?.Primary == null || p.equipment.Primary.def.IsMeleeWeapon);
-        // Hunter is the colonist rule (a drafted squad still counts: its own
-        // draft must not withdraw the prey it is hunting): hunting enabled, an ordinary bullet
-        // weapon (or a melee weapon or bare hands against meleeable prey),
-        // within 100 cells over a safe route. A pest is hunted wherever it
-        // is on the map (the pack arrives at the edge and works inward);
-        // the route still has to be safe.
-        private static bool Hunter(Pawn p, Pawn prey) => !p.Downed && !p.InMentalState
-            && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true && (OrdinaryWeapon(p) || MeleeArmed(p, prey))
-            && (Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) && HuntingSafety.RouteSafe(p, prey);
-        // Ineligible names the first hunt rule the prey (or every colonist
-        // against it) fails, null when the census would offer it: what the
-        // test fixtures report when a staged animal never becomes a row.
-        internal static string? Ineligible(Pawn prey)
-        {
-            if (!prey.Spawned) return "not spawned";
-            if (prey.Dead) return "dead";
-            if (prey.Position.Fogged(prey.Map)) return "fogged";
-            if (!Pest(prey))
-            {
-                if (!SafePrey(prey)) return "not safe prey";
-                if (!ButcherReady(prey)) return "no butcher bill";
-            }
-            var colonists = prey.Map.mapPawns.FreeColonistsSpawned.ToList();
-            if (colonists.Count == 0) return "no colonist";
-            var reasons = colonists.Select(p =>
-                p.Downed ? "downed" : p.InMentalState ? "mental state"
-                : p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) != true ? "hunting inactive"
-                : !OrdinaryWeapon(p) && !MeleeArmed(p, prey) ? "no ordinary ranged weapon (" + (p.equipment?.Primary?.def.defName ?? "unarmed") + ")" + (Meleeable(prey) ? "" : " and the prey is not meleeable")
-                : !(Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) ? "too far"
-                : !HuntingSafety.RouteSafe(p, prey) ? "no safe route" : (string?)null).ToList();
-            if (reasons.Any(r => r == null)) return null;
-            return "no hunter: " + string.Join("; ", colonists.Zip(reasons, (p, r) => p.GetUniqueLoadID() + " " + r));
-        }
-        private static bool Eligible(Pawn prey)
-        {
-            if (!prey.Spawned || prey.Dead || prey.Position.Fogged(prey.Map)) return false;
-            if (!Pest(prey) && (!SafePrey(prey) || !ButcherReady(prey))) return false;
-            return prey.Map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, prey));
-        }
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
         private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
             // A hunt follows its animal (#321): the token binds the animal,
@@ -121,65 +61,131 @@ namespace HomeBridge.BridgeTools
             // census read, which move every tick under a running clock.
             Context = context.Clone(), EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity,
                 prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, 0, 0, 0, 1, Designated(prey)) };
+        // A hunt row is a wild animal that bears a corpse and is a food source or a pest, whatever
+        // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
+        private static bool Candidate(Pawn prey) => prey.Spawned && !prey.Dead && prey.Faction == null && prey.RaceProps.Animal
+            && prey.RaceProps.corpseDef != null && (PestRace(prey.RaceProps) || prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true);
+        // The hunting reach: a food hunter works within 100 cells; a pest is hunted wherever it is.
+        // Route evidence is gathered only inside it (a pathfinding cost bound), the reach policy applies.
+        private static bool InReach(Pawn hunter, Pawn prey) => PestRace(prey.RaceProps) || hunter.Position.DistanceToSquared(prey.Position) <= 10000;
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center)
         {
             result.PendingHunts = (uint)Pending(map);
-            // Food prey within 100 cells of the colony (the hunter rule's own
-            // reach; tribal8's game grazes 60-100 cells out, #260), then every pest on
-            // the map: a pest row is a hunt of one unit of nothing edible
-            // (food false, no nutrition), so the food and wood selections
-            // pass it over and only the pest concern takes it.
-            var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && Eligible(p))
+            // Wild animals by food-prey order (body size over distance, then id), then every pest by
+            // distance: a pest row is a hunt of one unit of nothing edible (food false, no nutrition),
+            // so the food and wood selections pass it over and only the pest concern takes it.
+            var prey = map.mapPawns.AllPawnsSpawned.Where(p => !PestRace(p.RaceProps) && Candidate(p))
                 .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
-                .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber));
-            var offered = candidates.ToList();
-            LogWhyNoPrey(map, center, offered.Count);
-            foreach (var prey in offered)
+                .Concat(map.mapPawns.AllPawnsSpawned.Where(p => PestRace(p.RaceProps) && Candidate(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber))
+                .ToList();
+            foreach (var animal in prey)
             {
-                var designated = Designated(prey);
+                var designated = Designated(animal);
                 var row = new Obs.AcquisitionFacts {
-                Source = NativeRef.Thing(prey), SourceSnapshot = Snapshot(prey, result.Context),
-                Resource = prey.RaceProps.corpseDef.defName, Tree = false, Food = !Pest(prey), Hunt = true,
-                Yield = 1, NutritionYield = Pest(prey) ? 0 : Nutrition(prey), Designated = designated,
-                RevengeChance = prey.RaceProps.manhunterOnDamageChance,
-                HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == prey.def && p.Position.DistanceToSquared(prey.Position) <= 625),
-                MeleeOnly = Meleeable(prey), Downed = prey.Downed,
-                BodySize = prey.BodySize, Sleeping = !prey.Awake(), Predator = prey.RaceProps.predator,
-                WeaponRange = map.mapPawns.FreeColonistsSpawned.Where(p => Hunter(p, prey) && OrdinaryWeapon(p))
-                    .SelectMany(p => p.equipment.Primary.def.Verbs).Where(v => !v.IsMeleeAttack && v.ai_IsWeapon)
-                    .Select(v => (double)v.range).DefaultIfEmpty(0).Max(), Taken = ResourceAcquisitionTools.Taken(prey) };
-                var tick = ResourceAcquisitionTools.DesignatedTick(prey, designated);
+                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, result.Context),
+                Resource = animal.RaceProps.corpseDef.defName, Tree = false, Food = !PestRace(animal.RaceProps), Hunt = true,
+                Yield = 1, NutritionYield = PestRace(animal.RaceProps) ? 0 : Nutrition(animal), Designated = designated,
+                RevengeChance = animal.RaceProps.manhunterOnDamageChance,
+                HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= 625),
+                MeleeOnly = Meleeable(animal), Downed = animal.Downed,
+                BodySize = animal.BodySize, Sleeping = !animal.Awake(), Predator = animal.RaceProps.predator,
+                // Go derives the reach of the hunters that qualify from the census hunters.
+                WeaponRange = 0, Taken = ResourceAcquisitionTools.Taken(animal),
+                Fogged = animal.Position.Fogged(map), InMentalState = animal.InMentalState };
+                var tick = ResourceAcquisitionTools.DesignatedTick(animal, designated);
                 if (tick.HasValue) row.DesignatedTick = tick.Value;
                 result.Acquisition.Add(row);
             }
+            result.HuntCensus = Census(map, prey);
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
-        private static int lastWhyTick = int.MinValue;
-        // With no hunt row offered, names once per game hour why each wild
-        // animal species on the map was left out, so "animals around but
-        // no hunting" shows its rule in the game log.
-        private static void LogWhyNoPrey(Map map, IntVec3 center, int offered)
+        internal static Obs.HuntProjectileKind ProjectileKind(ThingDef? projectile)
         {
-            if (offered > 0 || Find.TickManager.TicksGame - lastWhyTick < GenDate.TicksPerHour) return;
-            var wild = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Faction == null && p.RaceProps.Animal && !p.Dead).ToList();
-            if (wild.Count == 0) return;
-            lastWhyTick = Find.TickManager.TicksGame;
-            var lines = wild.GroupBy(p => p.def.defName + ": " + (Ineligible(p) ?? "eligible")).Take(8).Select(g => g.Key + " x" + g.Count());
+            if (projectile == null) return Obs.HuntProjectileKind.Unspecified;
+            if (projectile.thingClass != typeof(Bullet)) return Obs.HuntProjectileKind.Other;
+            return projectile.projectile?.damageDef?.defName?.StartsWith("Arrow", StringComparison.Ordinal) == true
+                ? Obs.HuntProjectileKind.Arrow : Obs.HuntProjectileKind.Bullet;
+        }
+        internal static Obs.HuntVerbFacts VerbFacts(VerbProperties verb)
+        {
+            var projectile = verb.defaultProjectile;
+            var facts = new Obs.HuntVerbFacts { Melee = verb.IsMeleeAttack, AiWeapon = verb.ai_IsWeapon, Range = verb.range,
+                ProjectileKind = ProjectileKind(projectile), Warmup = verb.warmupTime };
+            if (projectile?.projectile != null)
+            {
+                facts.ExplosionRadius = projectile.projectile.explosionRadius;
+                if (projectile.projectile.damageDef != null)
+                {
+                    facts.DamageDef = projectile.projectile.damageDef.defName;
+                    if (projectile.projectile.damageDef.workerClass != null) facts.DamageWorker = projectile.projectile.damageDef.workerClass.FullName;
+                }
+            }
+            return facts;
+        }
+        private static Obs.HuntWeaponFacts? WeaponFacts(Pawn pawn)
+        {
+            var weapon = pawn.equipment?.Primary;
+            if (weapon == null) return null;
+            var facts = new Obs.HuntWeaponFacts { DefName = weapon.def.defName, Ranged = weapon.def.IsRangedWeapon, Melee = weapon.def.IsMeleeWeapon };
+            foreach (var verb in weapon.def.Verbs) facts.Verbs.Add(VerbFacts(verb));
+            return facts;
+        }
+        // Raw facts per free colonist and per butcher bench. Route evidence is skipped for a colonist
+        // who is downed, in a mental state or has Hunting off: policy refuses each of those before it
+        // reads a route, so the skip loses nothing.
+        private static Obs.HuntCensus Census(Map map, List<Pawn> prey)
+        {
+            var census = new Obs.HuntCensus();
+            var corpses = prey.Select(p => p.RaceProps.corpseDef).Distinct().ToList();
+            var benches = map.listerThings.AllThings.OfType<Building>()
+                .Where(b => b is IBillGiver giver && giver.BillStack.Bills.OfType<Bill_Production>().Any(bill => NativeRecipeRoles.ButcherFlesh(bill.recipe)))
+                .OrderBy(b => b.thingIDNumber).ToList();
+            foreach (var bench in benches)
+            {
+                var row = new Obs.HuntButcherBench { BenchId = bench.GetUniqueLoadID(), Usable = !bench.IsForbidden(Faction.OfPlayer) && ((IBillGiver)bench).CurrentlyUsableForBills() };
+                foreach (var bill in ((IBillGiver)bench).BillStack.Bills.OfType<Bill_Production>().Where(b => NativeRecipeRoles.ButcherFlesh(b.recipe)))
+                {
+                    var facts = new Obs.HuntButcherBill { Suspended = bill.suspended, Paused = bill.paused, RepeatMode = NativeEnums.Repeat(bill.repeatMode),
+                        RepeatCount = bill.repeatCount, TargetCount = bill.targetCount };
+                    if (bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count) facts.ProductCount = count;
+                    facts.AllowedCorpses.Add(corpses.Where(bill.ingredientFilter.Allows).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal));
+                    row.Bills.Add(facts);
+                }
+                census.Benches.Add(row);
+            }
+            var cooking = DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking");
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
+            {
+                var settings = pawn.workSettings;
+                var hunter = new Obs.HunterFacts { PawnId = pawn.GetUniqueLoadID(), Position = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
+                    Downed = pawn.Downed, InMentalState = pawn.InMentalState, Drafted = pawn.Drafted,
+                    HuntingPriority = settings?.GetPriority(WorkTypeDefOf.Hunting) ?? 0, HuntingActive = settings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
+                    HuntingDisabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hunting),
+                    CookingActive = cooking != null && settings?.WorkIsActive(cooking) == true,
+                    HasHuntingWeapon = WorkGiver_HunterHunt.HasHuntingWeapon(pawn), RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
+                var weapon = WeaponFacts(pawn);
+                if (weapon != null) hunter.Weapon = weapon;
+                if (hunter.CookingActive && !pawn.Downed && !pawn.InMentalState)
+                    foreach (var bench in benches.Where(b => pawn.CanReach(b, PathEndMode.InteractionCell, Danger.None))) hunter.ReachableBenches.Add(bench.GetUniqueLoadID());
+                if (hunter.HuntingActive && !pawn.Downed && !pawn.InMentalState)
+                    foreach (var animal in prey.Where(a => !a.Position.Fogged(map) && InReach(pawn, a) && HuntingSafety.RouteSafe(pawn, a)))
+                        hunter.RouteSafePrey.Add(animal.GetUniqueLoadID());
+                census.Hunters.Add(hunter);
+            }
+            return census;
         }
         internal const string Kind = "Hunt";
-        // Prepare is the apply-time precondition list for hunt
-        // (action-contracts.md): Eligible plus the request's resource and
-        // designation rules, one rule at a time. The request's cell is where
-        // the controller planned the animal, a hint only: the hunt follows
-        // the animal by identity wherever it is on the map (#321), and the
-        // hunter rule still bounds food prey to 100 cells.
+        // Prepare is the apply-time precondition list for hunt (action-contracts.md): physical
+        // validity of the exact animal (spawned, alive, not fogged, not designated, the native
+        // designator accepts it) plus the request's resource, one rule at a time. Whether a hunt is
+        // wanted (butcher bill, hunter, weapon, pending cap) is Go policy (policy.HuntGate). The
+        // request's cell is a hint only: the hunt follows the animal by identity (#321).
         internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {
-            prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot, enabled hunter, butcher bill (food prey) and fewer than two outstanding hunts.");
+            prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot.");
             var map = ProtoBoundary.LoadedMap(context);
             var found = map.mapPawns.AllPawnsSpawned.ById(command.SourceId);
             var rules = new ApplyPreconditions(Kind)
-                .Require(() => Pending(map) < 2, "two hunts are already outstanding on this map")
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact animal is no longer spawned on this map")
                 .Require(() => !found!.Dead, "the animal is dead")
@@ -187,9 +193,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => found!.RaceProps.corpseDef.defName == command.ResourceDefName, "the animal's corpse is not the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the animal's cell is fogged")
                 .Require(() => !Designated(found!), "the animal is already designated for hunting")
-                .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal")
-                .Require(() => Pest(found!) || ButcherReady(found!), "no usable butcher bill with an assigned cook accepts the corpse")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon (or a melee weapon or bare hands against meleeable prey) has a safe route to the animal");
+                .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             prey = found;
             return true;

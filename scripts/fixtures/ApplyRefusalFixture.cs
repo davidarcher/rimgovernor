@@ -229,8 +229,7 @@ namespace HomeBridge.BridgeTools
                 var butcher = (Bill_Production)recipe.MakeNewBill(null);
                 butcher.repeatMode = BillRepeatModeDefOf.Forever;
                 giver.BillStack.AddBill(butcher);
-                var ineligible = NativeHuntAcquisition.Ineligible(prey);
-                if (ineligible != null) return Refuse("Fixture prey is not huntable: " + ineligible);
+                if (!new Designator_Hunt().CanDesignateThing(prey).Accepted) return Refuse("Fixture prey is not huntable.");
 
                 var potDef = DefDatabase<ThingDef>.GetNamedSilentFail("PlantPot");
                 if (potDef == null) return Refuse("PlantPot is unavailable in this ruleset.");

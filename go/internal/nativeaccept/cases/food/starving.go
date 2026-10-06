@@ -23,8 +23,8 @@ const (
 func init() {
 	cases.Register(cases.Case{Name: "food/starving-tribal",
 		Scope: "Diagnosis (#2141), asserts only that the report was produced: a starving tribal colony (tribal8, no food, no weapons, no butcher bill, six wild deer) is sampled every half day for three days with the live foodPlan portfolio (kind, id, decision, reason, terms, DeliveredPerDay, gap, runway), " +
-			"the native no-prey reason per wild animal (NativeHuntAcquisition.Ineligible), which hunt blockers hold (butcher bill, Cooking worker, ordinary ranged weapon, three gunners, pending-hunt cap), pawn weapons and work state, wildlife counts and the food channel census. " +
-			"A Go snapshot test over recorded colony facts cannot cover it: the no-prey reasons are a native read contract and the weapon, work and wildlife state only exist on a live map; the recorded facts it yields become the replay snapshot.",
+			"which hunt blockers hold (butcher bill, Cooking worker, ordinary ranged weapon, three gunners, pending-hunt cap), pawn weapons and work state, wildlife counts and the food channel census. " +
+			"A Go snapshot test over recorded colony facts cannot cover it: the weapon, work and wildlife state only exist on a live map; the recorded facts it yields become the replay snapshot.",
 		Start: EmptyChannels("MealSurvivalPack", 0), RequiredOps: []string{starvingPrepareOp, starvingObserveOp}, Keep: []string{"Food"},
 		Service: true, Budget: 15 * time.Minute, Stall: 2 * time.Minute, Run: runStarvingTribal})
 }
@@ -189,11 +189,6 @@ func huntBlockers(observed map[string]any) map[string]any {
 			butcher++
 		}
 	}
-	reasons := map[string]int{}
-	for _, raw := range na.AsSlice(observed["animals"]) {
-		a, _ := na.AsMap(raw)
-		reasons[na.AsString(a["race"])+": "+na.AsString(a["ineligible"])]++
-	}
 	return map[string]any{
 		"noButcherBill":      butcher == 0,
 		"noCookingWorker":    cooks == 0,
@@ -202,7 +197,6 @@ func huntBlockers(observed map[string]any) map[string]any {
 		"underSquadFloor":    gunners < policy.SquadHuntMinGunners,
 		"pendingHuntCapHit":  na.AsNumber(observed["pendingHunts"]) >= 2,
 		"rangedPawns":        gunners,
-		"noPreyReasons":      reasons,
 		"squadHuntMinGunner": policy.SquadHuntMinGunners,
 	}
 }

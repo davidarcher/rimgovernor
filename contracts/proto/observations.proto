@@ -1244,7 +1244,44 @@ message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable
 // zone_id is the growing zone the plant stands in, absent on home ground.
 // designated: a CutPlant or HarvestPlant designation already exists.
 message BlightedPlant { rimgovernor.common.v1.Ref plant = 1; rimgovernor.common.v1.Ref zone = 2; optional bool designated = 3; optional double growth = 4; SnapshotRef plant_snapshot = 5; }
-message AcquisitionFacts { rimgovernor.common.v1.Ref source = 1; SnapshotRef source_snapshot = 16; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; optional double weapon_range = 13; optional int64 designated_tick = 14; optional bool taken = 15; optional double body_size = 17; optional bool sleeping = 18; optional bool predator = 19; }
+message AcquisitionFacts { rimgovernor.common.v1.Ref source = 1; SnapshotRef source_snapshot = 16; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; optional double weapon_range = 13; optional int64 designated_tick = 14; optional bool taken = 15; optional double body_size = 17; optional bool sleeping = 18; optional bool predator = 19;
+  // Raw hunt prey facts (#2144): a hunt row is every wild animal that bears a corpse, whatever
+  // policy then decides. fogged and in_mental_state are native's current reading of the animal.
+  optional bool fogged = 20; optional bool in_mental_state = 21; }
+// Raw hunt census (#2144): what Go needs to decide whether a hunt row is offered. Native states
+// facts and keeps only physical validity; butcher readiness, weapon rules, hunter eligibility and
+// the pending-hunt cap are Go policy (policy.HuntGate).
+// HuntProjectileKind classifies a verb's default projectile by its ThingDef class: BULLET is
+// exactly RimWorld.Bullet; ARROW is a Bullet-class projectile whose damage def is an arrow
+// damage (DamageDef.defName starting "Arrow"); anything else is OTHER.
+enum HuntProjectileKind { HUNT_PROJECTILE_KIND_UNSPECIFIED = 0; HUNT_PROJECTILE_KIND_BULLET = 1; HUNT_PROJECTILE_KIND_ARROW = 2; HUNT_PROJECTILE_KIND_OTHER = 3; }
+message HuntVerbFacts { optional bool melee = 1; optional bool ai_weapon = 2; optional double range = 3; optional HuntProjectileKind projectile_kind = 4; optional double explosion_radius = 5; optional string damage_def = 6; optional string damage_worker = 7; optional double warmup = 8; }
+message HuntWeaponFacts { optional string def_name = 1; optional bool ranged = 2; optional bool melee = 3; repeated HuntVerbFacts verbs = 4; }
+// One free colonist. hunting_priority is the raw work priority (0 is off); hunting_active is
+// WorkIsActive; hunting_disabled is WorkTypeIsDisabled. weapon is absent for an unarmed pawn.
+// has_hunting_weapon and ranged_blocking_shield mirror WorkGiver_HunterHunt.HasHuntingWeapon and
+// HasShieldAndRangedWeapon. route_safe_prey lists the hunt row sources the colonist has a safe
+// route to (HuntingSafety.RouteSafe, a pathing fact), evaluated only within the hunting reach
+// (100 cells) or for a pest: a bound on pathfinding cost, the same reach policy applies.
+// reachable_benches lists the butcher benches the colonist can reach.
+message HunterFacts {
+  optional string pawn_id = 1; rimgovernor.common.v1.Cell position = 2;
+  optional bool downed = 3; optional bool in_mental_state = 4; optional bool drafted = 5;
+  optional int32 hunting_priority = 6; optional bool hunting_active = 7; optional bool hunting_disabled = 8;
+  optional bool cooking_active = 9;
+  HuntWeaponFacts weapon = 10; optional bool has_hunting_weapon = 11; optional bool ranged_blocking_shield = 12;
+  repeated string route_safe_prey = 13; repeated string reachable_benches = 14;
+}
+// A butcher-flesh bill on a bench; allowed_corpses are the corpse defs of the census's wild
+// animals the bill's ingredient filter allows; product_count is BillCommon.ProductCount for a
+// target-count bill.
+message HuntButcherBill {
+  optional bool suspended = 1; optional bool paused = 2;
+  optional rimgovernor.operations.v1.RepeatMode repeat_mode = 3; optional int32 repeat_count = 4; optional int32 target_count = 5; optional int32 product_count = 6;
+  repeated string allowed_corpses = 7;
+}
+message HuntButcherBench { optional string bench_id = 1; optional bool usable = 2; repeated HuntButcherBill bills = 3; }
+message HuntCensus { repeated HunterFacts hunters = 1; repeated HuntButcherBench benches = 2; }
 message ButcheringFacts { rimgovernor.common.v1.Ref bench = 1; SnapshotRef bench_snapshot = 11; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; repeated rimgovernor.common.v1.Cell human_storage_cells = 8; optional bool human_storage_ready = 9; optional string human_corpse_def = 10; }
 message HumanButcherCandidate { reserved 2, 3; reserved "precept_acceptable"; string pawn_id = 1; optional bool can_work = 4; repeated Trait pawn_traits = 5; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
@@ -1482,6 +1519,8 @@ message ColonyFactsSnapshot {
   RoyaltySection royalty = 54;
   // Cumulative production-site delivery counters (DeliveryLedgerFacts); absent means unknown.
   DeliveryLedgerSection delivery_ledger = 55;
+  // Raw hunt facts for policy.HuntGate (#2144); always present on a native read.
+  HuntCensus hunt_census = 56;
 }
 // Odyssey colony facts (#1709), a keyed colony section (#1347). A scalar
 // absent is unknown, never zero.

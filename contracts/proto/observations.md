@@ -137,7 +137,11 @@ a depleted drill for removal from the deep drill step's recorded read.
 - Colony scalars: colonist/worker counts, open resource quantities and
   policy definition labels, environment conditions, climate/growing inputs,
   farm productivity, cooking products/nutrition/rot and bills, butchering bills,
-  harvestable acquisition items, food corpses, Boolean qualifying food storage,
+  harvestable acquisition items, hunt rows (every wild animal bearing a corpse, with
+  fogged and mental-state flags) and the raw `hunt_census` (per colonist: Hunting
+  and Cooking work state, primary weapon verbs, shield and route-safe prey; per
+  butcher bench: usability and bills) that policy decides hunts from (#2144),
+  food corpses, Boolean qualifying food storage,
   forbidden supply cells, the bounded `blighted_plants` census (up to 64
   blighted plants in growing zones or the home area with position, zone and
   designation state), the player faction's tech level (`player_tech_level`,

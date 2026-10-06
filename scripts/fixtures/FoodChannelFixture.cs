@@ -205,7 +205,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        [Tool("test/food_starving_observe", Description = "Read what gates a hunt on the starving-tribal fixture (#2141); no mutations. Per colonist: weapon, Hunting and Cooking work priorities, food level; per wild animal: position and NativeHuntAcquisition.Ineligible; the butcher bills, pending hunt designations, wildlife counts and corpses.")]
+        [Tool("test/food_starving_observe", Description = "Read what gates a hunt on the starving-tribal fixture (#2141); no mutations. Per colonist: weapon, Hunting and Cooking work priorities, food level; per wild animal: position and designation; the butcher bills, pending hunt designations, wildlife counts and corpses.")]
         public async Task<object> StarvingObserve(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -219,7 +219,7 @@ namespace HomeBridge.BridgeTools
                     food = p.needs?.food?.CurLevelPercentage ?? -1f, job = p.CurJob?.def.defName ?? "" }).ToList();
                 var wild = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == null && p.RaceProps.Animal && !p.Dead).ToList();
                 var animals = wild.Select(p => new { id = p.GetUniqueLoadID(), race = p.def.defName, x = p.Position.x, z = p.Position.z,
-                    designated = NativeHuntAcquisition.Designated(p), ineligible = NativeHuntAcquisition.Ineligible(p) ?? "eligible" }).ToList();
+                    designated = NativeHuntAcquisition.Designated(p) }).ToList();
                 var bills = map.listerThings.AllThings.OfType<IBillGiver>().SelectMany(g => g.BillStack.Bills.OfType<Bill_Production>()
                     .Select(b => new { bench = (g as Thing)?.def.defName ?? "", recipe = b.recipe.defName, butcher = NativeRecipeRoles.ButcherFlesh(b.recipe), suspended = b.suspended, paused = b.paused })).ToList();
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists, animals, bills,

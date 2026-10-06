@@ -29,22 +29,28 @@ internal static class AcquisitionProof
             verbType.GetField("defaultProjectile")!.SetValue(value,definition);
             return value;
         };
-        Func<object[],bool> ordinary=values=> {
-            var list=Array.CreateInstance(verbType,values.Length);for(var i=0;i<values.Length;i++) list.SetValue(values[i],i);
-            return (bool)bridge.GetType("HomeBridge.BridgeTools.NativeHuntAcquisition",true)!.GetMethod("OrdinaryVerbs",flags)!.Invoke(null,new object[]{list})!;
-        };
+        // The raw verb facts Go's ordinary-weapon rule reads (policy.OrdinaryHuntVerbs): bullet-class
+        // projectile, no blast radius, no flame damage worker. An arrow is a Bullet-class projectile
+        // with an arrow damage def, so it passes the same projectile-class test a bullet does.
+        Func<object,string,object?> fact=(value,name)=>value.GetType().GetProperty(name)!.GetValue(value);
+        Func<object,object> facts=v=>bridge.GetType("HomeBridge.BridgeTools.NativeHuntAcquisition",true)!.GetMethod("VerbFacts",flags)!.Invoke(null,new object[]{v})!;
         var bullet=verb("RimWorld.Bullet",0);var explosive=verb("Verse.Projectile_Explosive",2);
-        check(ordinary(new[]{bullet}),"ordinary hunting projectile accepted");
-        check(!ordinary(new[]{explosive}),"explosive hunting projectile excluded");
-        check(!ordinary(new[]{bullet,explosive}),"secondary safe verb cannot admit explosive weapon");
-        check(!ordinary(new[]{verb("RimWorld.Bullet",1)}),"bullet with blast radius excluded");
-        check(!ordinary(Array.Empty<object>()),"missing hunting projectile unavailable");
+        check(fact(facts(bullet),"ProjectileKind")!.ToString()=="Bullet","bullet projectile classified");
+        check(fact(facts(explosive),"ProjectileKind")!.ToString()=="Other","explosive projectile classified other");
+        check(Convert.ToDouble(fact(facts(explosive),"ExplosionRadius"))==2,"blast radius reported");
+        check((bool)fact(facts(bullet),"AiWeapon")!,"ai weapon verb reported");
+        var arrowDamage = FormatterServices.GetUninitializedObject(damageType);
+        damageType.GetField("defName")!.SetValue(arrowDamage, "Arrow");
+        var arrow = verb("RimWorld.Bullet", 0);
+        var arrowProjectile = thingDef.GetField("projectile")!.GetValue(verbType.GetField("defaultProjectile")!.GetValue(arrow)!)!;
+        projectileType.GetField("damageDef")!.SetValue(arrowProjectile, arrowDamage);
+        check(fact(facts(arrow),"ProjectileKind")!.ToString()=="Arrow","arrow projectile classified");
         var fire = verb("RimWorld.Bullet", 0);
-        var fireDef = verbType.GetField("defaultProjectile")!.GetValue(fire)!;
-        var fireProjectile = thingDef.GetField("projectile")!.GetValue(fireDef)!;
+        var fireProjectile = thingDef.GetField("projectile")!.GetValue(verbType.GetField("defaultProjectile")!.GetValue(fire)!)!;
         projectileType.GetField("damageDef")!.SetValue(fireProjectile, flameDamage);
-        check(!ordinary(new[]{fire}), "incendiary bullet excluded");
-        check(!ordinary(new[]{bullet,fire}), "secondary incendiary verb excludes weapon");
-
+        check((string?)fact(facts(fire),"DamageWorker")=="Verse.DamageWorker_Flame","incendiary damage worker reported");
+        var noProjectile=Activator.CreateInstance(verbType)!;
+        verbType.GetField("verbClass")!.SetValue(noProjectile,native.GetType("Verse.Verb_Shoot",true));
+        check(fact(facts(noProjectile),"ProjectileKind")!.ToString()=="Unspecified","missing projectile unclassified");
     }
 }

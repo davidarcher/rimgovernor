@@ -104,7 +104,9 @@ type ColonyProjection struct {
 	// DeliveryLedger is native's cumulative delivery counters; unknown when the census is missing or malformed.
 	DeliveryLedger domain.Fact[DeliveryLedger]
 
-	Acquisition                            domain.Fact[[]policy.AcquisitionSource]
+	Acquisition domain.Fact[[]policy.AcquisitionSource]
+	// HuntHolds are the hunt rows policy.HuntGate holds, with the gate that failed.
+	HuntHolds                              []policy.HuntHold `json:",omitempty"`
 	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
 	WorkPawns                              domain.Fact[[]policy.WorkPawn]
 	// MechCatalog is the Biotech catalog's mech kinds (#1686); the zero value without Biotech.
