@@ -2,16 +2,14 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,17 +21,13 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 	if n != 1 || id != "expansion-indoor-sleeping-4-1" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
+	// The shelter planner counts the same shortfall; its ring names its own
+	// methods through the planned room's reconcile (#2277).
 	r.shelter = true
 	n, id, reason = r.selection(f)
-	if n != 32 || id != "expansion-shelter-shell" || !reason.IsZero() {
+	if n != 1 || id != "" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
-	// With a planned shelter room the shell is named for its interior (#2043).
-	f.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 12, Z: 34, Width: 7, Height: 7}}}})
-	if _, id, _ = r.selection(f); id != "expansion-shelter-shell-12-34" {
-		t.Fatal(id)
-	}
-	f.LayoutPlan = domain.Unknown[policy.LayoutPlan]()
 	f.Facts.IndoorCapacity = domain.Known(int64(4))
 	if _, _, reason = r.selection(f); reason != BuildingReasonNoDeficit {
 		t.Fatal(reason)
@@ -123,69 +117,5 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	}
 	if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
-	}
-}
-
-// ruinNative offers one claimable ruin wall to a shell planner's
-// clearance census and claim-token read.
-type ruinNative struct {
-	*sleepingNative
-	rows []*o.ClearanceTarget
-}
-
-func (n *ruinNative) ReadClearanceTargets(_ context.Context, _ *c.Identity, _ bool) (*o.ClearanceTargetsReply, bridge.Result, error) {
-	return &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: &o.ClearanceTargetsSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.rows}}}, bridge.Result{}, nil
-}
-
-func (n *ruinNative) ReadClaimBuildingTarget(_ context.Context, _ *c.Identity, thing string) (bridge.ClaimBuildingTarget, bridge.Result, error) {
-	return bridge.ClaimBuildingTarget{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Thing: thing, Token: "claim-" + thing}, bridge.Result{}, nil
-}
-
-// A claimable ruin wall of the ring's kind standing on a non-shelter
-// planned room's ring is claimed as wall before the ring is built, not
-// deconstructed (#718, #1231).
-func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	base, db, n := shelterSiteFixture(t)
-	prepareExpansionReview(t, db, n)
-	ruin := domain.Cell{X: 0, Z: 4}
-	for i, cell := range n.cells.Cells {
-		if cell.Cell == ruin {
-			n.cells.Cells[i].Walkable = domain.Known(false)
-			n.cells.Cells[i].Things = []policy.Thing{{Def: "Wall", Category: policy.ThingBuilding, Flags: policy.FlagEdifice | policy.FlagImpassable | policy.FlagDeconstructible | policy.FlagClaimable, Count: 1, Building: &policy.BuildingState{}}}
-		}
-	}
-	row := &o.ClearanceTarget{EntityId: proto.String("ruin"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(ruin.X), Z: proto.Int32(ruin.Z)}, Maximum: &c.Cell{X: proto.Int32(ruin.X), Z: proto.Int32(ruin.Z)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(true), AncientDanger: proto.Bool(false), Designated: proto.Bool(false)}
-	native := &ruinNative{sleepingNative: n, rows: []*o.ClearanceTarget{row}}
-	r, err := NewRoundsExpansionPlanner(base.reviewer, native)
-	if err != nil {
-		t.Fatal(err)
-	}
-	barracks, _ := policy.PlannedRoleFor(policy.RoomRoleShelter)
-	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
-	got, err := r.Step(context.Background())
-	if err != nil || got.Verdict != BuildingReasonAdmitted {
-		t.Fatal(got, err)
-	}
-	var claim *store.PlanState
-	for _, m := range got.Decision.Standard.Methods {
-		if m.Method == shellClaimMethod(domain.Cell{}) {
-			plan, err := db.LoadPlan(context.Background(), m.Plan)
-			if err != nil {
-				t.Fatal(err)
-			}
-			claim = &plan
-		}
-	}
-	if claim == nil {
-		t.Fatal("no shell-claim method admitted", got.Decision.Standard.Methods)
-	}
-	actions := claim.Spec.Actions()
-	if len(actions) != 1 {
-		t.Fatal(actions)
-	}
-	if target, ok := actions[0].ClaimBuilding(); !ok || target.Thing() != "ruin" {
-		t.Fatal("the ruin is not claimed", actions[0])
 	}
 }

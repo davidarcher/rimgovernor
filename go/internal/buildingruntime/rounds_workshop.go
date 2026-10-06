@@ -74,7 +74,7 @@ func NewRoundsWorkshopPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 	if _, ok := native.(RoundsWorkshopSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsWorkshopPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainResource, definition: "Wall", shelter: true}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainResource}, nil
 }
 
 // prepareWorkshop reads the deficit resource, the current bench census and

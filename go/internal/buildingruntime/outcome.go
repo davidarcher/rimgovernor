@@ -5,8 +5,6 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // Outcome is what a planner's step came to: the closed set every routine
@@ -156,11 +154,6 @@ func mustValid(v Verdict) Verdict {
 func fieldUnavailable(field string) Verdict { return refuse(RefusalFieldUnavailable, field, "") }
 func noSpace(subject string) Verdict        { return refuse(RefusalNoSpace, subject, "") }
 
-// noPlannedShell refuses a shell with no sitable planned room, naming each
-// planned room's first blocking cell when the siting found one.
-func noPlannedShell(refused policy.StarterLayout) Verdict {
-	return refuse(RefusalNoSpace, "planned_shell_room", strings.Join(refused.Blocked, "; "))
-}
 func rockNotDug(subject, detail string) Verdict { return refuse(RefusalRockNotDug, subject, detail) }
 func noWorker(subject string) Verdict           { return refuse(RefusalNoWorker, subject, "") }
 func siteBlocked(subject, detail string) Verdict {

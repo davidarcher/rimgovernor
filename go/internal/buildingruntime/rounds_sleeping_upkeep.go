@@ -35,7 +35,7 @@ func NewRoundsSleepingUpkeepPlanner(reviewer *Rounder, native RoundsBuildingSour
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsSleepingUpkeepPlanner: !ok", ErrControl)
 	}
-	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingSleeping, definition: "Wall", shelter: true}
+	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingSleeping}
 	return &RoundsSleepingUpkeepPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 

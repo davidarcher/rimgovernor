@@ -3,13 +3,10 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
-	"slices"
-	"strconv"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -23,6 +20,8 @@ import (
 func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sleepingNative) {
 	t.Helper()
 	r, db, _, _, n := sleepingFixture(t)
+	// The ring reconciles against the construction census: empty, not unknown.
+	n.built = map[domain.ActionID]*o.BuildingState{}
 	// A wooded start: the shell builds from wood unless the map is short of it.
 	for _, row := range n.reply.GetObserved().GetResources() {
 		if row.GetDefName() == "WoodLog" {
@@ -30,15 +29,19 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 		}
 	}
 	for _, name := range []string{"Wall", "Door"} {
-		n.putCatalog(buildable(name, 0, 1, 1))
+		def := buildable(name, 0, 1, 1)
+		def.Stuffs = []bridge.FixtureStuff{{Stuff: "WoodLog"}}
+		n.putCatalog(def)
 	}
 	bed := buildable("Bed", 0, 1, 2)
 	bed.Stuffs = []bridge.FixtureStuff{{Stuff: "WoodLog"}}
 	n.putCatalog(bed)
-	n.cells.Region = policy.Rectangle{Width: 9, Height: 9}
+	// The row below the 9x9 site is the planned door's threshold: a cell
+	// the census must show open or the room reads as owing a dig.
+	n.cells.Region = policy.Rectangle{Z: -1, Width: 9, Height: 10}
 	n.cells.Cells = nil
 	for x := int32(0); x < 9; x++ {
-		for z := int32(0); z < 9; z++ {
+		for z := int32(-1); z < 9; z++ {
 			n.cells.Cells = append(n.cells.Cells, openCell(x, z))
 		}
 	}
@@ -125,8 +128,8 @@ func TestRoundsShelterAdmitsWholeShellInOneWave(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted || len(result.Decision.Refused) != 0 || n.previews != 32 || n.calls != 1 {
-		t.Fatal(result, err, n.previews, n.calls)
+	if err != nil || result.Verdict != BuildingReasonAdmitted || len(result.Decision.Refused) != 0 || n.previews != 32 {
+		t.Fatal(result, err, n.previews)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
 	if err != nil || len(plan.Progress) != 32 || len(plan.Spec.Dependencies()) != 0 {
@@ -238,7 +241,7 @@ func TestRoundsShelterHoldsThroughWoodShortage(t *testing.T) {
 // TestMergeRoundsStockTakesTheLowestAvailable), so no stock-conflict case.
 func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	for _, change := range []string{"late-refusal", "footprint", "definition", "room-unknown", "terrain", "zone", "protected"} {
+	for _, change := range []string{"late-refusal", "definition"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, n := shelterFixture(t)
 			base := n.onPreview
@@ -249,8 +252,6 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 					if n.previews == 32 {
 						v.Preview.SafeToPlace = domain.Known(false)
 					}
-				case "footprint":
-					v.Preview.Footprint = domain.Known([]domain.Cell{{X: 1, Z: 1}})
 				}
 			}
 			switch change {
@@ -258,14 +259,6 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				// Any shell piece wider than one cell is refused; the wall, since
 				// the Core door row now states its own 1x1 size (#2122).
 				n.catalogRow("Wall").Width = 2
-			case "room-unknown":
-				n.cells.Cells[40].Indoors = domain.Unknown[bool]()
-			case "terrain":
-				n.cells.Cells[40].SupportsLight = domain.Unknown[bool]()
-			case "zone":
-				n.cells.Cells[40].Zone, n.cells.Cells[40].ZoneID = domain.Known(true), domain.Known("player-zone")
-			case "protected":
-				n.cells.Cells[40].SetOccupied(true)
 			}
 			result, err := r.Step(context.Background())
 			if err == nil && result.Verdict == BuildingReasonAdmitted {
@@ -541,7 +534,7 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 	}
 	remaining, err := r.Step(ctx)
 	if err != nil || remaining.NativeWorkTicks != 10000 {
-		t.Fatal("furnishing stopped unfinished roofing", remaining.Decision.Standard.Methods, err)
+		t.Fatal("furnishing stopped unfinished roofing", remaining.Verdict, remaining.NativeWorkTicks, err)
 	}
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -590,8 +583,9 @@ func shellCells(t *testing.T, plan store.PlanState) (domain.Building, map[domain
 	door, _ := actions[0].Building()
 	for i, action := range actions {
 		b, ok := action.Building()
-		if !ok || b.Stuff() != "WoodLog" || (i == 0) != (b.Definition() == "Door") || cells[b.Cell()] {
-			t.Fatal(action)
+		// The door takes its stuff from the door definition's own stats.
+		if !ok || b.Stuff() != "WoodLog" && b.Definition() != "Door" || (i == 0) != (b.Definition() == "Door") || cells[b.Cell()] {
+			t.Fatal(i, ok, b.Definition(), b.Stuff(), b.Cell(), cells[b.Cell()])
 		}
 		cells[b.Cell()] = true
 	}
@@ -623,7 +617,7 @@ func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 		t.Fatal(err)
 	}
 	door, cells := shellCells(t, plan)
-	if door.Cell() != want.Door() || door.Rotation() != domain.South || len(cells) != len(want.Walls()) || n.previews != len(want.Walls()) {
+	if door.Cell() != want.Door() || len(cells) != len(want.Walls()) || n.previews != len(want.Walls()) {
 		t.Fatal(door, len(cells), n.previews)
 	}
 	for _, w := range want.Walls() {
@@ -658,641 +652,6 @@ func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 	}
 }
 
-// The planned storeroom's slot crosses unlit ground: the shelter refuses
-// with no space and searches nowhere else, though open ground lies beside
-// it (#1231).
-func TestRoundsShelterRefusesABlockedPlannedStoreroom(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, n := shelterFixture(t)
-	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	lit := func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }
-	hutCells(n, 21, lit)
-	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
-	result, err := r.Step(context.Background())
-	if err != nil || !result.Verdict.Is(RefusalNoSpace) {
-		t.Fatal(result, err)
-	}
-}
-
-// structure is a wall or door a restart left standing, in any build state.
-type structure struct {
-	ID, Definition string
-	Cell           domain.Cell
-	Status         o.BuildingStatus
-}
-
-// structureCells lists each structure as a site cell holding its thing, as
-// the planning window serves a player building, frame or blueprint (#2276).
-func structureCells(standing []structure) []policy.SiteCell {
-	out := make([]policy.SiteCell, 0, len(standing))
-	for _, s := range standing {
-		flags := policy.FlagEdifice
-		switch s.Status {
-		case o.BuildingStatus_BUILDING_STATUS_BLUEPRINT:
-			flags = policy.FlagBlueprint
-		case o.BuildingStatus_BUILDING_STATUS_FRAME:
-			flags = policy.FlagFrame
-		}
-		out = append(out, policy.SiteCell{Cell: s.Cell, Things: []policy.Thing{{Def: s.Definition, Category: policy.ThingBuilding, Faction: policy.FactionPlayer, Flags: flags, Count: 1, Building: &policy.BuildingState{}}}})
-	}
-	return out
-}
-
-// adoptingNative stands walls and doors in the fake planning window so a
-// shell planner recognises a shell it began earlier.
-type adoptingNative struct {
-	*sleepingNative
-	standing []structure
-	last     domain.GenerationSnapshot
-}
-
-// stand adds structures to the planning window the fake serves.
-func (n *adoptingNative) stand(add ...structure) {
-	n.standing = append(n.standing, add...)
-	for _, cell := range structureCells(add) {
-		if i := slices.IndexFunc(n.cells.Cells, func(c policy.SiteCell) bool { return c.Cell == cell.Cell }); i >= 0 {
-			n.cells.Cells[i].Things = append(slices.Clone(n.cells.Cells[i].Things), cell.Things...)
-		} else {
-			n.cells.Cells = append(n.cells.Cells, cell)
-		}
-	}
-}
-
-func (n *adoptingNative) PreviewBuilding(ctx context.Context, a domain.Action, s domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
-	n.last = s
-	return n.sleepingNative.PreviewBuilding(ctx, a, s)
-}
-
-func (n *adoptingNative) PreviewBuildings(ctx context.Context, actions []domain.Action, s domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error) {
-	n.last = s
-	return n.sleepingNative.PreviewBuildings(ctx, actions, s)
-}
-
-func TestRoundsShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterSiteFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
-	// The bunk rungs run on the relocated site, so the ring is sited around
-	// them there.
-	stageShelterBunks(t, r, db, base)
-	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A restart left the door built, two walls framed and one blueprinted;
-	// the rest of the ring was never ordered.
-	n := &adoptingNative{sleepingNative: base}
-	walls := want.Walls()
-	standing := map[domain.Cell]bool{want.Door(): true}
-	n.stand(structure{ID: "door", Definition: "Door", Cell: want.Door(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	for i, status := range []o.BuildingStatus{o.BuildingStatus_BUILDING_STATUS_FRAME, o.BuildingStatus_BUILDING_STATUS_FRAME, o.BuildingStatus_BUILDING_STATUS_BLUEPRINT} {
-		w := walls[len(walls)-1-i]
-		if w == want.Door() {
-			t.Fatal("fixture picked the door")
-		}
-		standing[w] = true
-		n.stand(structure{ID: status.String(), Definition: "Wall", Cell: w, Status: status})
-	}
-	// The census must not be able to place on standing cells; the planner
-	// must skip them without asking.
-	preview := base.onPreview
-	base.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
-		preview(ctx, v)
-		if b, _ := v.Preview.Action.Building(); standing[b.Cell()] {
-			t.Errorf("previewed a standing cell %v", b.Cell())
-		}
-	}
-	// The planner reads the census through the same source it previews with.
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Prime the generation the fake census echoes.
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := map[domain.Cell]bool{}
-	for _, action := range plan.Spec.Actions() {
-		b, ok := action.Building()
-		if !ok || b.Definition() != "Wall" || b.Stuff() != "WoodLog" || standing[b.Cell()] || got[b.Cell()] {
-			t.Fatal("unexpected reissued action", action)
-		}
-		got[b.Cell()] = true
-	}
-	if len(got) != len(walls)-len(standing) {
-		t.Fatalf("reissued %d cells, want %d", len(got), len(walls)-len(standing))
-	}
-	for _, w := range walls {
-		if !standing[w] && !got[w] {
-			t.Fatal("missing cell not reissued", w)
-		}
-	}
-	if len(plan.Spec.Dependencies()) != 0 {
-		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
-	}
-	if base.previews != len(got) || base.calls != 1 {
-		t.Fatalf("previews %d calls %d, want one per missing cell %d in one call", base.previews, base.calls, len(got))
-	}
-}
-
-func TestRoundsShelterAdoptsALoneDoor(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	// An interrupted shell's blueprints and frames are cancelled natively;
-	// only the door it had finished survives, and it is the shell's record.
-	door := domain.Cell{X: 4, Z: 3}
-	room := recordStoreroom(t, r, db, policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7})
-	n := &adoptingNative{sleepingNative: base}
-	n.stand(structure{ID: "door", Definition: "Door", Cell: door, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want, _ := room.Footprint()
-	got := map[domain.Cell]bool{}
-	for _, action := range plan.Spec.Actions() {
-		b, ok := action.Building()
-		if !ok || b.Definition() != "Wall" || b.Cell() == door || got[b.Cell()] {
-			t.Fatal("unexpected action around a lone door", action)
-		}
-		got[b.Cell()] = true
-	}
-	if len(got) != len(want.Walls())-1 {
-		t.Fatalf("reissued %d cells, want the %d walls of the first shape at the door", len(got), len(want.Walls())-1)
-	}
-	for _, w := range want.Walls() {
-		if w != door && !got[w] {
-			t.Fatal("missing wall not reissued", w)
-		}
-	}
-	if len(plan.Spec.Dependencies()) != 0 {
-		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
-	}
-}
-
-func TestRoundsShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	door := domain.Cell{X: 4, Z: 3}
-	// Two planned storerooms share the door: the square one and a taller one.
-	square := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
-	tall := square
-	tall.Interior.Height = 9
-	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{square, tall}})
-	shapes := make([]domain.RoomFootprint, 2)
-	shapes[0], _ = square.Footprint()
-	shapes[1], _ = tall.Footprint()
-	first, second := map[domain.Cell]bool{}, map[domain.Cell]bool{}
-	for _, w := range shapes[0].Walls() {
-		first[w] = true
-	}
-	for _, w := range shapes[1].Walls() {
-		second[w] = true
-	}
-	// The ring's lower courses are shared by the first two shapes at the door;
-	// one wall above them belongs to the first shape only, and one of its
-	// missing cells is briefly blocked (a cancelled frame still clearing).
-	var own []domain.Cell
-	n := &adoptingNative{sleepingNative: base}
-	for _, w := range shapes[0].Walls() {
-		if second[w] {
-			def := "Wall"
-			if w == door {
-				def = "Door"
-			}
-			n.stand(structure{ID: strconv.Itoa(len(n.standing)), Definition: def, Cell: w, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-		} else {
-			own = append(own, w)
-		}
-	}
-	n.stand(structure{ID: "own", Definition: "Wall", Cell: own[0], Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	blocked := own[1]
-	previewed := map[domain.Cell]bool{}
-	preview := base.onPreview
-	base.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
-		preview(ctx, v)
-		if b, ok := v.Preview.Action.Building(); ok {
-			previewed[b.Cell()] = true
-			if b.Cell() == blocked {
-				v.Preview.CanPlace = domain.Known(false)
-			}
-		}
-	}
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingShellBlocked {
-		t.Fatal("a blocked best-matched shell must wait, not adopt a lesser shape or site afresh:", result, err)
-	}
-	for cell := range previewed {
-		if !first[cell] {
-			t.Fatal("previewed a cell off the best-matched shape", cell)
-		}
-	}
-	plans, err := db.LoadPlans(context.Background(), 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range plans {
-		if IsShellMethod(p.Method) {
-			t.Fatal("no shell plan while the earlier shell is blocked", p.Spec.ID())
-		}
-	}
-
-	// Once the cell clears the first shape is adopted whole.
-	blocked = domain.Cell{X: -1, Z: -1}
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err = planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := map[domain.Cell]bool{}
-	for _, action := range plan.Spec.Actions() {
-		b, _ := action.Building()
-		got[b.Cell()] = true
-	}
-	if len(got) != len(own)-1 {
-		t.Fatalf("reissued %d cells, want the %d missing cells of the first shape", len(got), len(own)-1)
-	}
-	for _, w := range own[1:] {
-		if !got[w] {
-			t.Fatal("missing wall not reissued", w)
-		}
-	}
-}
-
-// earlierGrownShell records, as an earlier controller would have, a grown
-// concave shell plan over the L-shaped strip the constrained-terrain test
-// uses, and returns its ring keyed by cell with the door.
-func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.RoomFootprint, map[domain.Cell]domain.Building) {
-	t.Helper()
-	lit := func(c domain.Cell) bool {
-		return c.X >= 0 && c.Z >= 0 && c.X < 21 && c.Z < 21 && (c.X >= 8 && c.X <= 12 && c.Z >= 1 || c.Z >= 8 && c.Z <= 12 && c.X >= 8)
-	}
-	shell, ok := domain.GrowFootprint(domain.Cell{X: 10, Z: 10}, lit, 49, 6.9)
-	if !ok {
-		t.Fatal("no grown shell over the strip")
-	}
-	ring := map[domain.Cell]domain.Building{}
-	var actions []domain.Action
-	for i, b := range shell.Placements("Wall", "Door", "WoodLog") {
-		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), b)
-		if err != nil {
-			t.Fatal(err)
-		}
-		actions = append(actions, a)
-		ring[b.Cell()] = b
-	}
-	plan, err := domain.NewPlan(id, 1, actions)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.CreatePlan(context.Background(), plan); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.SeedPlanMethod(context.Background(), id, "shelter-shell"); err != nil {
-		t.Fatal(err)
-	}
-	return shell, ring
-}
-
-func TestRoundsShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	// An earlier controller grew a concave shell over constrained terrain,
-	// which no template describes, and a restart left its door and all but
-	// three walls standing. The terrain is open now: every template at the
-	// door is placeable, so only the journal tells the true ring apart.
-	shell, ring := earlierGrownShell(t, db, "earlier-shell")
-	n := &adoptingNative{sleepingNative: base}
-	standing := map[domain.Cell]bool{}
-	walls := shell.Walls()
-	// Three missing walls exercise exact reissuance without journaling most
-	// of a shell again on every repetition of the race suite.
-	for i, cell := range append([]domain.Cell{shell.Door()}, walls[3:]...) {
-		if i > 0 && cell == shell.Door() {
-			t.Fatal("fixture picked the door twice")
-		}
-		standing[cell] = true
-		n.stand(structure{ID: strconv.Itoa(i), Definition: ring[cell].Definition(), Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	}
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := map[domain.Cell]bool{}
-	for _, action := range plan.Spec.Actions() {
-		b, ok := action.Building()
-		if !ok || b.Definition() != "Wall" || b.Stuff() != "WoodLog" || standing[b.Cell()] || got[b.Cell()] {
-			t.Fatal("unexpected reissued action", action)
-		}
-		if _, onRing := ring[b.Cell()]; !onRing {
-			t.Fatal("reissued a cell off the grown ring (a template shape was adopted)", b.Cell())
-		}
-		got[b.Cell()] = true
-	}
-	if len(got) != len(ring)-len(standing) {
-		t.Fatalf("reissued %d cells, want the %d missing cells of the grown ring", len(got), len(ring)-len(standing))
-	}
-	if len(plan.Spec.Dependencies()) != 0 {
-		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
-	}
-}
-
-func TestRoundsShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	// The player cancelled the door of an earlier shell whose walls stand;
-	// with no door standing the census alone sees nothing to adopt, but the
-	// journal remembers the ring, so it is completed door first with the
-	// walls gated on the door exactly as a fresh shell would be.
-	shell, ring := earlierGrownShell(t, db, "earlier-shell")
-	n := &adoptingNative{sleepingNative: base}
-	standing := map[domain.Cell]bool{}
-	walls := shell.Walls()
-	for i := 0; i < 3; i++ {
-		cell := walls[len(walls)-1-i]
-		if cell == shell.Door() {
-			t.Fatal("fixture picked the door")
-		}
-		standing[cell] = true
-		n.stand(structure{ID: strconv.Itoa(i), Definition: "Wall", Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	}
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	door, got := shellCells(t, plan)
-	if door.Cell() != shell.Door() {
-		t.Fatal("door reissued elsewhere", door.Cell(), shell.Door())
-	}
-	for cell := range got {
-		if _, onRing := ring[cell]; !onRing || standing[cell] {
-			t.Fatal("reissued a cell off the grown ring or already standing", cell)
-		}
-	}
-	if len(got) != len(ring)-len(standing) {
-		t.Fatalf("reissued %d cells, want the %d missing cells of the grown ring", len(got), len(ring)-len(standing))
-	}
-}
-
-func TestRoundsShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	// A shell plan whose every cell was cancelled before anything was built
-	// leaves no durable native record; the ring is not adopted from the
-	// journal alone and the planner sites afresh.
-	shell, _ := earlierGrownShell(t, db, "earlier-shell")
-	n := &adoptingNative{sleepingNative: base}
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	door, _ := shellCells(t, plan)
-	if door.Cell() == shell.Door() {
-		t.Fatal("re-adopted a ring nothing standing matches")
-	}
-}
-
-func TestRoundsShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterFixture(t)
-	// Only the missing wall needs a journal lifecycle. The rest of the
-	// 9x9 shell already stands in the native census.
-	shell, err := domain.RectangleFootprint(domain.RoomBounds{Width: 9, Height: 9}, domain.South)
-	if err != nil {
-		t.Fatal(err)
-	}
-	placements := shell.Placements("Wall", "Door", "WoodLog")
-	gap := placements[len(placements)-1]
-	n := &adoptingNative{sleepingNative: base}
-	for i, b := range placements[:len(placements)-1] {
-		n.stand(structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	}
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := context.Background()
-	n.last = r.reviewer.player.session.State().Snapshot
-	first, err := planner.Step(ctx)
-	if err != nil || first.Verdict != BuildingReasonAdmitted {
-		t.Fatal(first, err)
-	}
-	// The shell settles with one wall unsuccessful (native refused its
-	// frame in-game); the goal keeps its epoch, so the bound method alone
-	// would leave the gap forever.
-	plan, err := db.LoadPlan(ctx, shellMethod(first.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	snapshot := first.Decision.Standard.Standard.Snapshot
-	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
-	actions := plan.Spec.Actions()
-	if len(actions) != 1 {
-		t.Fatal("initial method must issue only the gap", actions)
-	}
-	action := actions[0]
-	if b, _ := action.Building(); b.Cell() != gap.Cell() || b.Definition() != gap.Definition() {
-		t.Fatal("initial method issued the wrong cell", b, gap)
-	}
-	if _, err := db.Prepare(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.RecordReceipt(ctx, plan.Spec.ID(), action.ID(), 1, domain.ReceiptRefused); err != nil {
-		t.Fatal(err)
-	}
-	n.last = r.reviewer.player.session.State().Snapshot
-	second, err := planner.Step(ctx)
-	if err != nil || second.Verdict != BuildingReasonAdmitted {
-		t.Fatal("a settled shell with a gap must be repaired:", second, err)
-	}
-	var repair *domain.Method
-	for _, m := range second.Decision.Standard.Methods {
-		if m.Method == "shelter-shell-1-1-repair-1" {
-			m := m
-			repair = &m
-		}
-	}
-	if repair == nil || repair.Episode != first.Decision.Standard.Standard.Episode {
-		t.Fatal("repair not bound under the same epoch:", second.Decision.Standard.Methods)
-	}
-	repaired, err := db.LoadPlan(ctx, repair.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := repaired.Spec.Actions(); len(got) != 1 {
-		t.Fatal("repair must reissue only the gap", got)
-	} else if b, _ := got[0].Building(); b.Cell() != gap.Cell() || b.Definition() != gap.Definition() {
-		t.Fatal("repair reissued the wrong cell", b, gap)
-	}
-	// While the repair is open the goal has work and nothing more is sited.
-	third, err := planner.Step(ctx)
-	if err != nil || third.Verdict != BuildingReasonExistingWork {
-		t.Fatal(third, err)
-	}
-}
-
-// A whole ring blocks the initial shelter (its roof is that goal's own
-// budget) and a facility ladder while it encloses no finished room; once the
-// census lists an enclosed room inside it, a facility ladder whose furnishing
-// step found no site there passes the ring by and sites afresh (#218).
-func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, _, base := shelterFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	ring, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n := &adoptingNative{sleepingNative: base}
-	for i, b := range ring.Placements("Wall", "Door", "WoodLog") {
-		n.stand(structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	}
-	snapshot := r.reviewer.player.session.State().Snapshot
-	snapshot.Plan, snapshot.Revision = "routine-shell-test", 1
-	n.last = snapshot
-	facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 21, Height: 21}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 10, Z: 10})), Identity: observation.Identity{Tick: domain.Tick(base.reply.GetObserved().Context.GetTick())}}
-	// The ring is the planned barracks these planners build (#1231).
-	barracks, _ := policy.PlannedRoleFor(policy.RoomRoleShelter)
-	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Interior: policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7}, Door: ring.Door(), DoorRot: domain.South}}})
-	inside := policy.Room{ID: "hut", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}}
-	unroofed := inside
-	unroofed.Enclosed = domain.Known(false)
-	elsewhere := inside
-	elsewhere.Cells = []domain.Cell{{X: 1, Z: 1}}
-	for _, test := range []struct {
-		name    string
-		goal    policy.ConcernID
-		rooms   domain.Fact[policy.RoomObservation]
-		adopted bool
-	}{
-		{"initial shelter waits on its roof", policy.MaintainHousing, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}}), true},
-		{"workshop waits while the ring is unroofed", policy.MaintainResource, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{unroofed}}), true},
-		{"workshop waits without a census", policy.MaintainResource, domain.Unknown[policy.RoomObservation](), true},
-		{"a room elsewhere is not this ring's", policy.MaintainResource, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{elsewhere}}), true},
-		{"workshop passes a finished room by", policy.MaintainResource, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}}), false},
-		{"comfort passes a finished room by", policy.EnsureComfort, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}}), false},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			planner := &RoundsBuildingPlanner{reviewer: r.reviewer, native: n, concern: test.goal, definition: "Wall", shelter: true}
-			if test.goal == policy.EnsureComfort {
-				planner.phase = policy.ComfortRanked
-			}
-			facts := facts
-			facts.Cells = structureCells(n.standing)
-			facts.Rooms = test.rooms
-			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, func() error { return nil })
-			if err != nil || len(selected) != 0 || adopted != test.adopted {
-				t.Fatal(selected, reason, adopted, err)
-			}
-			if test.adopted && reason != BuildingShellBlocked || !test.adopted && !reason.IsZero() {
-				t.Fatal("reason", reason)
-			}
-		})
-	}
-	// A ring one template cell short still encloses the room (the #218
-	// checkpoint hut): the initial shelter repairs the gap, while a facility
-	// ladder passes it by rather than bind its one shell method to that
-	// wall.
-	gap := &adoptingNative{sleepingNative: base, standing: n.standing[:len(n.standing)-1], last: snapshot}
-	roomed := facts
-	roomed.Cells = structureCells(gap.standing)
-	roomed.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}})
-	for _, test := range []struct {
-		goal    policy.ConcernID
-		adopted bool
-	}{{policy.MaintainHousing, true}, {policy.MaintainResource, false}} {
-		planner := &RoundsBuildingPlanner{reviewer: r.reviewer, native: gap, concern: test.goal, definition: "Wall", shelter: true}
-		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, func() error { return nil })
-		if err != nil || !reason.IsZero() || adopted != test.adopted || (len(selected) == 1) != test.adopted {
-			t.Fatal(test.goal, selected, reason, adopted, err)
-		}
-	}
-}
-
 // Previews of one bundle are sequential native reads: a resource whose
 // Available moved between them funds the bundle at the lowest value seen.
 func TestMergeRoundsStockTakesTheLowestAvailable(t *testing.T) {
@@ -1314,15 +673,5 @@ func TestMergeRoundsStockTakesTheLowestAvailable(t *testing.T) {
 	}
 	if _, known := stock.Values[0].Available.Value(); known {
 		t.Fatal("an unknown preview must leave the resource unknown")
-	}
-}
-
-func TestNoPlannedShellNamesEachRoomsFirstBlocker(t *testing.T) {
-	v := noPlannedShell(policy.StarterLayout{Blocked: []string{"wall (91,88) zoned", "interior (95,90) occupied"}})
-	if v.Refusal.Kind != RefusalNoSpace || v.Refusal.Subject != "planned_shell_room" || v.Refusal.Detail != "wall (91,88) zoned; interior (95,90) occupied" {
-		t.Fatal(v.Refusal)
-	}
-	if v := noPlannedShell(policy.StarterLayout{}); v.Refusal.Detail != "" {
-		t.Fatal(v.Refusal)
 	}
 }

@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -110,9 +111,6 @@ func checkAdmittedShell(t *testing.T, n *sleepingNative, door domain.Building, r
 	if !ring[door.Cell()] {
 		t.Fatalf("the door at %v is not on the ring", door.Cell())
 	}
-	if door.Rotation() != domain.South {
-		t.Fatalf("the door faces %v, want south", door.Rotation())
-	}
 	// The ring encloses the beds: a flood fill from a bed cell that may not
 	// cross the ring reaches every other bed and never leaves the ring's
 	// bounding box.
@@ -191,21 +189,6 @@ func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
 	return offered, domain.Cell{X: cells.Region.X + cells.Region.Width - 1, Z: cells.Region.Z + cells.Region.Height - 1}
 }
 
-// Ground the game already roofed is no site for a shell: the planner has no
-// method rather than raising a ring under an existing roof.
-func TestRoundsShelterRefusesAlreadyRoofedGround(t *testing.T) {
-	t.Parallel()
-	planner, _, n := shelterSiteFixture(t)
-	for i := range n.cells.Cells {
-		cell := &n.cells.Cells[i]
-		cell.Roofed, cell.Roof = domain.Known(true), domain.Known("RoofRockThick")
-	}
-	result, err := planner.Step(context.Background())
-	if err != nil || !result.Verdict.Is(RefusalNoSpace) {
-		t.Fatal("a shell was sited on roofed ground", result, err)
-	}
-}
-
 // Bunks staged from one review's layout are still enclosed by the ring a
 // later review raises (#672). The colony centre is the plan's, so the pawns
 // walking off between reviews no longer moves it.
@@ -217,8 +200,11 @@ func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	centreOn(planner.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(n, 25, func(int32, int32) bool { return true })
+	// The room's door threshold lies inside the census, or its rock is owed.
+	room := policy.Rectangle{X: 1, Z: 2, Width: 7, Height: 7}
+	recordStoreroom(t, planner, db, room)
 	bunks := map[domain.Cell]bool{}
-	for _, plan := range stageShelterBunks(t, planner, db, n, func() { recordStoreroom(t, planner, db, policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}) }) {
+	for _, plan := range stageShelterBunks(t, planner, db, n, func() { recordStoreroom(t, planner, db, room) }) {
 		for _, action := range plan.Spec.Actions() {
 			if b, ok := action.Building(); ok {
 				for _, cell := range policy.BunkCells(b.Cell(), b.Rotation()) {

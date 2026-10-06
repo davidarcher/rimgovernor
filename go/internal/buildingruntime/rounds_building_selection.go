@@ -110,33 +110,18 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		if r.phase == policy.ComfortBasic {
 			return 1, domain.MethodID("basic-comfort-" + r.definition), Verdict{}
 		}
-		if r.shelter {
-			return 32, "comfort-shell", Verdict{}
-		}
 		return 1, domain.MethodID("comfort-" + r.definition), Verdict{}
 	case policy.MaintainResource, policy.MaintainEquipment:
-		if r.shelter {
-			return 32, "workshop-shell", Verdict{}
-		}
 		return 1, domain.MethodID("workshop-" + r.definition), Verdict{}
 	case policy.MaintainMedicalReserves:
-		if r.shelter {
-			return 32, "hospital-shell", Verdict{}
-		}
 		return 1, domain.MethodID("hospital-" + r.definition), Verdict{}
 	case policy.EnsureResearch:
-		if r.shelter {
-			return 32, "laboratory-shell", Verdict{}
-		}
 		return 1, domain.MethodID("laboratory-" + r.definition), Verdict{}
 	case policy.MaintainHousing:
 		// The three housing phases share the goal's epoch, so each names
 		// its own methods: the starter shell and its bunks, then the
 		// bedrooms, then the spare expansion room.
 		if r.phase == policy.HousingSleeping {
-			if r.shelter {
-				return 32, "sleeping-shell", Verdict{}
-			}
 			// One method per bed still owed: the count falls once a staged
 			// bed is assigned, so the next bed is a new method in the same
 			// epoch.
@@ -170,7 +155,8 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 			return 0, "", noSpace("housing_bound")
 		}
 		if r.shelter {
-			return 32, domain.MethodID(prefix + "shelter-shell" + shelterShellSuffix(facts)), Verdict{}
+			// The planned shelter room's ring names its own methods.
+			return missing, "", Verdict{}
 		}
 		return missing, domain.MethodID(fmt.Sprintf("%sindoor-sleeping-%d-%d", prefix, count, missing)), Verdict{}
 	case policy.EnsureCooking:

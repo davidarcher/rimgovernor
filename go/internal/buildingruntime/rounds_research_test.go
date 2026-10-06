@@ -237,9 +237,6 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 		t.Fatal("the research bench walks the facility ladder")
 	}
 	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "laboratory-shell" || !reason.IsZero() {
-		t.Fatal(missing, method, reason)
-	}
 	bench := &RoundsBuildingPlanner{concern: policy.EnsureResearch, definition: "SimpleResearchBench"}
 	if missing, method, reason := bench.selection(facts); missing != 1 || method != "laboratory-SimpleResearchBench" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)

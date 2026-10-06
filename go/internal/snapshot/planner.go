@@ -14,18 +14,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Planner is one shelter planner step as recorded (#745): the pure
-// decisions it made and the inputs each took, the native site reads
-// among them. The rounds's facts (Routine) say which goals open;
-// this says where the shelter is sited and how an excavation proceeds,
-// which the planner decides from its own colony read at step time.
+// Planner is one planner step as recorded (#745): the pure decisions it
+// made and the inputs each took, the native site reads among them. The
+// rounds's facts (Routine) say which goals open; this says how an excavation
+// proceeds, which the planner decides from its own colony read at step time.
 type Planner struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
 	Concern  policy.ConcernID
-	// Shelter is every starter search the step ran, in order.
-	Shelter []policy.StarterRequest
 	// Excavation is the tunnel corridor search the step ran, if any.
 	Excavation []policy.ExcavationSiteRequest
 	// Sites is every native excavation site read, in order.
@@ -89,7 +86,7 @@ func StartPlanner(ctx context.Context, goal policy.ConcernID) (context.Context, 
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.AnimalFeed)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
+		if len(p.Excavation)+len(p.Sites)+len(p.AnimalFeed)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
 			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
@@ -111,11 +108,6 @@ func (rec *plannerRecorder) add(f func(*Planner)) {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	f(&rec.p)
-}
-
-// NoteShelter records a starter search's request.
-func NoteShelter(ctx context.Context, r policy.StarterRequest) {
-	recorder(ctx).add(func(p *Planner) { p.Shelter = append(p.Shelter, r) })
 }
 
 // NoteExcavation records a tunnel corridor search's request.

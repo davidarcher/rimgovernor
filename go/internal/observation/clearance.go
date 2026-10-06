@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -35,15 +36,6 @@ type ClearanceSource interface {
 // GroundClearanceSource widens the census to planned ground (#1365).
 type GroundClearanceSource interface {
 	ReadClearanceTargetsOnGround(context.Context, *c.Identity, bool, []*o.Rectangle) (*o.ClearanceTargetsReply, bridge.Result, error)
-}
-
-// ObserveClearanceCensus tolerates an explicit unavailable native stub as
-// unknown. Transport, malformed-contract and identity errors remain errors.
-// includeSalvage asks native for the out-of-Home salvage evidence (#984);
-// without it every row's Salvage is nil, which remote salvage reads as
-// salvage_unknown, so only callers that never read Salvage pass false.
-func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expected Identity, includeSalvage bool) (domain.Fact[ClearanceCensus], error) {
-	return ObserveClearanceCensusOnGround(ctx, source, expected, includeSalvage, nil)
 }
 
 // ObserveClearanceCensusOnGround also reads the player's buildings (Player

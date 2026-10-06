@@ -24,35 +24,33 @@ func BunkCells(anchor domain.Cell, rot domain.Rotation) []domain.Cell {
 	return rectCells(BunkRect(anchor, rot))
 }
 
-// ShelterRoom reads a starter layout as the shelter template's input: its
+// ShelterRoom reads a planned shelter room as the shelter template's input: its
 // interior, the door, and the cells the template keeps clear (the starter
 // storage patch, the cells plan dig mines and reserved). False when the
 // interior is not a rectangle the door opens onto.
-func ShelterRoom(layout StarterLayout, shapes PieceShapes, occupants, campfires, coolers int, reserved []domain.Cell) (InteriorRoom, bool) {
-	cells := layout.Shell.Interior()
-	if len(cells) == 0 {
+func ShelterRoom(room PlannedRoom, mined []domain.Cell, shapes PieceShapes, occupants, campfires, coolers int, reserved []domain.Cell) (InteriorRoom, bool) {
+	shell, err := room.Footprint()
+	if err != nil || room.Interior.Width <= 0 || room.Interior.Height <= 0 {
 		return InteriorRoom{}, false
 	}
-	room := InteriorRoom{Role: RoomRoleShelter, Interior: cellsRectangle(cells), Doors: []domain.Cell{layout.Shell.Door()}, Shapes: shapes, Occupants: occupants, Campfires: campfires, Coolers: coolers}
-	if int64(len(cells)) != int64(room.Interior.Width)*int64(room.Interior.Height) {
+	interior := InteriorRoom{Role: RoomRoleShelter, Interior: room.Interior, Doors: []domain.Cell{room.Door}, Shapes: shapes, Occupants: occupants, Campfires: campfires, Coolers: coolers}
+	if _, ok := doorSide(interior.Interior, room.Door); !ok {
 		return InteriorRoom{}, false
 	}
-	if _, ok := doorSide(room.Interior, room.Doors[0]); !ok {
-		return InteriorRoom{}, false
-	}
-	room.Reserved = append(append(append([]domain.Cell(nil), rectCells(layout.Storage)...), layout.Mined...), reserved...)
-	return room, true
+	interior.Reserved = append(append(append([]domain.Cell(nil), rectCells(starterStorage(shell))...), mined...), reserved...)
+	return interior, true
 }
 
-// PlanShelterBunks is the bunk slots of the layout's interior for up to
+// PlanShelterBunks is the bunk slots of the room's interior for up to
 // occupants sleepers (0 fills every bunk that fits), in world cells, best
-// first; reserved are further cells to keep clear.
-func PlanShelterBunks(layout StarterLayout, shapes PieceShapes, occupants, campfires, coolers int, reserved []domain.Cell) []InteriorPiece {
-	room, ok := ShelterRoom(layout, shapes, occupants, campfires, coolers, reserved)
+// first; mined are the cells plan dig still mines and reserved further cells
+// to keep clear.
+func PlanShelterBunks(room PlannedRoom, mined []domain.Cell, shapes PieceShapes, occupants, campfires, coolers int, reserved []domain.Cell) []InteriorPiece {
+	interior, ok := ShelterRoom(room, mined, shapes, occupants, campfires, coolers, reserved)
 	if !ok {
 		return nil
 	}
-	plan, ok := PlanInterior(room, InteriorPieceDef{})
+	plan, ok := PlanInterior(interior, InteriorPieceDef{})
 	if !ok {
 		return nil
 	}
@@ -63,26 +61,4 @@ func PlanShelterBunks(layout StarterLayout, shapes PieceShapes, occupants, campf
 		}
 	}
 	return bunks
-}
-
-// BunkLayout picks the first layout whose interior holds every bunk
-// footprint: the shell a later rung raises around the bunks an earlier one
-// placed. ok is false when no layout does.
-func BunkLayout(layouts []StarterLayout, bunks []Rectangle) (StarterLayout, bool) {
-	for _, layout := range layouts {
-		interior := map[domain.Cell]bool{}
-		for _, c := range layout.Shell.Interior() {
-			interior[c] = true
-		}
-		fits := true
-		for _, bunk := range bunks {
-			for _, p := range rectCells(bunk) {
-				fits = fits && interior[p]
-			}
-		}
-		if fits {
-			return layout, true
-		}
-	}
-	return StarterLayout{}, false
 }

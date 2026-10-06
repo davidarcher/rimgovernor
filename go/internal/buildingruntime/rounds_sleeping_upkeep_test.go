@@ -342,14 +342,13 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	ctx := context.Background()
 	planner, _, native := sleepingUpkeepFixture(t)
 	// A room outside the sleeper's comfortable band is not a site: no bed is
-	// previewed there and the ladder falls through to its shell rung, which
-	// waits: the shelter phase has passed, and the
-	// fixture colony has no known stage prerequisites for a new shell.
+	// previewed there and the ladder has no site (no shell rung remains: the
+	// planned rooms' rings are the facility planners', #2277).
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
 	planner.reviewer.census.invalidate()
 	result, err := planner.Step(ctx)
-	if err != nil || (result.Verdict != BuildingShellBlocked && !result.Verdict.Is(RefusalFieldUnavailable) && result.Verdict != awaitingPlan("Wall", "unavailable")) || native.previews != 0 {
+	if err != nil || (!result.Verdict.Is(RefusalNoSpace) && !result.Verdict.Is(RefusalFieldUnavailable)) || native.previews != 0 {
 		t.Fatalf("%+v %v %d", result, err, native.previews)
 	}
 }

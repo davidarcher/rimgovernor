@@ -192,21 +192,6 @@ func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProject
 	return false
 }
 
-// shelterShellSuffix is "-X-Z" of the layout plan's first shelter room, so
-// the shell reads shelter-shell-X-Z (#2043); empty while no plan holds one.
-func shelterShellSuffix(facts observation.ColonyProjection) string {
-	plan, known := facts.LayoutPlan.Value()
-	if !known {
-		return ""
-	}
-	for _, room := range plan.AllRooms() {
-		if room.Role == policy.PlannedShelter {
-			return fmt.Sprintf("-%d-%d", room.Interior.X, room.Interior.Z)
-		}
-	}
-	return ""
-}
-
 // shelterCampfires is how many campfires the shelter holds indoors: the plan's
 // latched climate decides (#2044).
 func shelterCampfires(facts observation.ColonyProjection) int {

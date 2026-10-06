@@ -57,7 +57,7 @@ func NewRoundsComfortPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsComfortPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureComfort, phase: policy.ComfortRanked}, nil
 }
 
 // A definition needs one available pawn whose observed Construction setting

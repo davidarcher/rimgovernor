@@ -63,7 +63,7 @@ func NewRoundsResearchPlanner(reviewer *Rounder, native RoundsResearchSource) (*
 	planner := &RoundsResearchPlanner{reviewer: reviewer, native: native}
 	if source, ok := native.(RoundsBuildingSource); ok {
 		if _, rooms := native.(observation.RoundsSource); rooms {
-			planner.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, concern: policy.EnsureResearch, definition: "Wall", shelter: true}
+			planner.building = &RoundsBuildingPlanner{reviewer: reviewer, native: source, concern: policy.EnsureResearch}
 		}
 	}
 	return planner, nil

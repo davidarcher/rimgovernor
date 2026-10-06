@@ -3,11 +3,12 @@ package observation
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 type clearanceSource struct {
@@ -29,21 +30,21 @@ func TestClearanceUnknownEmptyAndChanged(t *testing.T) {
 	complete := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: snapshot}}
 	stub := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}
 	for _, source := range []clearanceSource{{reply: stub}, {err: bridge.ErrUnavailable}} {
-		fact, err := ObserveClearanceCensus(context.Background(), source, expected, true)
+		fact, err := ObserveClearanceCensusOnGround(context.Background(), source, expected, true, nil)
 		if _, known := fact.Value(); known || err != nil {
 			t.Fatal(fact, err)
 		}
 	}
-	fact, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected, true)
+	fact, err := ObserveClearanceCensusOnGround(context.Background(), clearanceSource{reply: complete}, expected, true, nil)
 	if census, known := fact.Value(); !known || len(census.Targets) != 0 || err != nil {
 		t.Fatal(fact, err)
 	}
 	native.NativeGeneration = proto.Uint64(2)
-	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected, true); !errors.Is(err, ErrChanged) {
+	if _, err := ObserveClearanceCensusOnGround(context.Background(), clearanceSource{reply: complete}, expected, true, nil); !errors.Is(err, ErrChanged) {
 		t.Fatal(err)
 	}
 	transport := errors.New("transport failed")
-	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{err: transport}, expected, true); !errors.Is(err, transport) {
+	if _, err := ObserveClearanceCensusOnGround(context.Background(), clearanceSource{err: transport}, expected, true, nil); !errors.Is(err, transport) {
 		t.Fatal(err)
 	}
 }

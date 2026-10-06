@@ -2,18 +2,16 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"slices"
+	"strings"
 	"testing"
 
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"google.golang.org/protobuf/proto"
 )
 
 // bunkAnchors are the cells and rotations a bunk rung's plan places, which
@@ -60,7 +58,7 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 		t.Fatal(shell, err)
 	}
 	// The first-round shell stands on the planned shelter room (#2043).
-	if shell.Method != "shelter-shell-1-1" {
+	if !strings.HasPrefix(string(shell.Method), "shelter-shell-1-1-build-") {
 		t.Fatal("shell method", shell.Method)
 	}
 	// The ring encloses every bunk, and no bunk shares a cell with another or
@@ -236,47 +234,6 @@ func TestRoundsShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	}
 }
 
-// A ring begun earlier is adopted as before: no bunk rung runs on a site
-// whose shell already stands, however incomplete.
-func TestRoundsShelterAdoptionSkipsBunks(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, base := shelterSiteFixture(t)
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
-	hutCells(base, 21, func(int32, int32) bool { return true })
-	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
-	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n := &adoptingNative{sleepingNative: base}
-	n.stand(structure{ID: "door", Definition: "Door", Cell: want.Door(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
-	for i, w := range want.Walls() {
-		if w != want.Door() && i%2 == 0 {
-			n.stand(structure{ID: "frame", Definition: "Wall", Cell: w, Status: o.BuildingStatus_BUILDING_STATUS_FRAME})
-		}
-	}
-	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n.last = r.reviewer.player.session.State().Snapshot
-	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted || false {
-		t.Fatal(result, err)
-	}
-	for _, m := range result.Decision.Standard.Methods {
-		if m.Method == shelterSpotsMethod || m.Method == shelterBedsMethod {
-			t.Fatal("bunk rung ran on an adopted shell", m)
-		}
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil || !IsShellMethod(plan.Method) {
-		t.Fatal(plan.Spec.ID(), err)
-	}
-}
-
 // A bed rung admitted and still open does not hold the ring (#641): the
 // review after it admits the shell around the pending bunks, and the review
 // after that adds nothing, neither a second shell nor a second bed rung.
@@ -369,9 +326,13 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 		b, _ := action.Building()
 		wall[b.Cell()] = true
 	}
-	for _, c := range record.cells() {
-		if wall[c] {
-			t.Fatal("ring on a recorded bunk", c)
+	for _, bunks := range record.placed {
+		for _, bunk := range bunks {
+			for _, c := range policy.BunkCells(bunk.anchor, bunk.rot) {
+				if wall[c] {
+					t.Fatal("ring on a recorded bunk", c)
+				}
+			}
 		}
 	}
 	if again, err := restarted.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {

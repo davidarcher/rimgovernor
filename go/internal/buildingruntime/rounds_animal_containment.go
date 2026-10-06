@@ -33,7 +33,7 @@ func NewRoundsAnimalContainmentPlanner(reviewer *Rounder, native RoundsBuildingS
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsAnimalContainmentPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainAnimalContainment, definition: "Wall", shelter: true}
+	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainAnimalContainment}
 	return &RoundsAnimalContainmentPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 

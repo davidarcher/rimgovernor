@@ -225,9 +225,6 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 		}
 	}
 	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "hospital-shell" || !reason.IsZero() {
-		t.Fatal(missing, method, reason)
-	}
 	spot := &RoundsBuildingPlanner{concern: policy.MaintainMedicalReserves, definition: "SleepingSpot"}
 	if missing, method, reason := spot.selection(facts); missing != 1 || method != "hospital-SleepingSpot" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)

@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -14,9 +13,6 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(DirEnv, dir)
 	ctx, finish := StartPlanner(context.Background(), policy.MaintainHousing)
-	shelter := policy.StarterRequest{WallDef: "Wall",
-		Cells: []policy.SiteCell{{Cell: domain.Cell{X: 1, Z: 2}, Walkable: domain.Known(true)}}}
-	NoteShelter(ctx, shelter)
 	target := policy.ExcavationTarget{Access: domain.Cell{X: 9, Z: 9}}
 	NoteSite(ctx, "verify", target, []domain.Cell{{X: 1, Z: 1}}, bridge.ExcavationSite{AccessReachable: true, Cells: []bridge.ExcavationSiteCell{{Cell: domain.Cell{X: 1, Z: 1}, Eligible: true}}})
 	if err := finish(domain.GenerationSnapshot{Colony: "c"}, 120); err != nil {
@@ -25,9 +21,6 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	p, err := LoadPlanner(dir + "/planner-MaintainHousing-120-1.json")
 	if err != nil {
 		t.Fatal(err)
-	}
-	if len(p.Shelter) != 1 || !reflect.DeepEqual(p.Shelter[0].Cells, shelter.Cells) {
-		t.Fatalf("shelter %+v", p.Shelter)
 	}
 	if len(p.Sites) != 1 || p.Sites[0].Purpose != "verify" || !p.Sites[0].Site.AccessReachable {
 		t.Fatalf("sites %+v", p.Sites)
@@ -61,7 +54,7 @@ func TestPlannerRecordsProductionAndResearchInputs(t *testing.T) {
 func TestPlannerRecordsNothingWhenUnset(t *testing.T) {
 	t.Setenv(DirEnv, "")
 	ctx, finish := StartPlanner(context.Background(), policy.MaintainHousing)
-	NoteShelter(ctx, policy.StarterRequest{})
+	NoteSite(ctx, "verify", policy.ExcavationTarget{}, nil, bridge.ExcavationSite{})
 	if err := finish(domain.GenerationSnapshot{}, 1); err != nil {
 		t.Fatal(err)
 	}

@@ -224,7 +224,7 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	if err != nil || !reason.IsZero() || selected.definition != "CraftingSpot" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleWorkshop {
 		t.Fatal(selected, reason, err)
 	}
-	if planner.definition != "Wall" || planner.facility != nil {
+	if planner.definition != "" || planner.facility != nil {
 		t.Fatal("selection mutated reusable compiler", planner)
 	}
 	if ladder, ok, err := planner.reviewer.player.journal.LoadProductionLadder(ctx, world); err != nil || !ok || ladder.Bench != "CraftingSpot" || len(ladder.Research) != 0 {

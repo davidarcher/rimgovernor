@@ -10,18 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The initial shelter tries the plan's shelter room at Camp, not the storage room.
-func TestStarterShellPlansTheShelterAtCamp(t *testing.T) {
-	storage := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 116, Z: 130, Width: 9, Height: 7}, Door: domain.Cell{X: 120, Z: 129}, DoorRot: domain.South}
-	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{storage}}), BuildTier: domain.Known(policy.BuildTierCamp)}
-	starter := &RoundsBuildingPlanner{shelter: true, phase: policy.HousingShelter}
-	shells := starter.shellPlan(facts)
-	want, _ := storage.Footprint()
-	if len(shells) != 1 || !domain.SameRoomFootprint(shells[0], want) || shells[0].Door() != storage.Door {
-		t.Fatalf("starter shells %v, want the storage room", shells)
-	}
-}
-
 // ringConstruction is the colony's construction census with room's wall ring
 // standing as planned (walls all round, a door at its Door), or empty.
 func ringConstruction(room *policy.PlannedRoom) domain.Fact[policy.CurrentConstruction] {

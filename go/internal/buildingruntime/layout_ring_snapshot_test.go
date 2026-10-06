@@ -39,12 +39,17 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 	if tier := styleTier(facts); tier != policy.BuildTierMasonry {
 		t.Fatalf("build tier %v, want Masonry", tier)
 	}
-	planner := &RoundsBuildingPlanner{reviewer: &Rounder{policy: r.Policy}, concern: policy.MaintainHousing, phase: policy.HousingExpansion, shelter: true, definition: "Wall"}
-	rooms, shells := planner.plannedRooms(facts)
-	if len(rooms) == 0 {
-		t.Fatal("no planned room for the capacity ring")
+	var room policy.PlannedRoom
+	for _, candidate := range recorded.Rooms {
+		if candidate.Role == policy.PlannedShelter {
+			room = candidate
+			break
+		}
 	}
-	room, shell := rooms[0], shells[0]
+	shell, err := room.Footprint()
+	if err != nil {
+		t.Fatalf("no planned room for the capacity ring: %v", err)
+	}
 	placements := shell.StyledPlacements(shellStyle(facts))
 	if len(placements) != len(shell.Walls()) {
 		t.Fatalf("%d placements for %d planned walls", len(placements), len(shell.Walls()))

@@ -6,19 +6,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func bunkLayout(t *testing.T, shell domain.RoomFootprint, err error) StarterLayout {
-	t.Helper()
-	if err != nil {
-		t.Fatal(err)
-	}
-	b := shell.Bounds()
-	return StarterLayout{Room: Rectangle{b.X, b.Z, b.Width, b.Height}, Storage: starterStorage(shell), Shell: shell}
+// bunkRoom is a 9x9 planned shelter on the hallway at z 30, its door in the
+// hallway wall.
+func bunkRoom() PlannedRoom {
+	return hallRoom(PlannedShelter, 20, 30, 9, 9, true)
 }
 
 func TestPlanShelterBunksKeepsOffAisleAndStorage(t *testing.T) {
-	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
-	layout := bunkLayout(t, shell, err)
-	bunks := PlanShelterBunks(layout, testShapes, 8, 1, 0, nil)
+	room := bunkRoom()
+	shell, err := room.Footprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	bunks := PlanShelterBunks(room, nil, testShapes, 8, 1, 0, nil)
 	if len(bunks) != 8 {
 		t.Fatalf("bunks %+v", bunks)
 	}
@@ -26,7 +26,7 @@ func TestPlanShelterBunksKeepsOffAisleAndStorage(t *testing.T) {
 	for _, c := range shell.Interior() {
 		interior[c] = true
 	}
-	for _, c := range rectCells(layout.Storage) {
+	for _, c := range rectCells(starterStorage(shell)) {
 		forbidden[c] = true
 	}
 	for _, c := range DoorwayAisles(Bounds{Width: 100, Height: 100}, []SiteCell{{Cell: shell.Door(), Doorway: domain.Known(true)}}) {
@@ -43,15 +43,14 @@ func TestPlanShelterBunksKeepsOffAisleAndStorage(t *testing.T) {
 	}
 }
 
-func TestPlanShelterBunksHonoursReservedCells(t *testing.T) {
-	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
-	layout := bunkLayout(t, shell, err)
-	first := PlanShelterBunks(layout, testShapes, 4, 1, 0, nil)
+func TestPlanShelterBunksHonoursReservedAndMinedCells(t *testing.T) {
+	room := bunkRoom()
+	first := PlanShelterBunks(room, nil, testShapes, 4, 1, 0, nil)
 	var reserved []domain.Cell
 	for _, bunk := range first {
 		reserved = append(reserved, rectCells(bunk.Rect)...)
 	}
-	second := PlanShelterBunks(layout, testShapes, 8, 1, 0, reserved)
+	second := PlanShelterBunks(room, nil, testShapes, 8, 1, 0, reserved)
 	if len(second) != 8 {
 		t.Fatalf("bunks %+v", second)
 	}
@@ -66,22 +65,13 @@ func TestPlanShelterBunksHonoursReservedCells(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestBunkLayoutPrefersTheShellAroundTheBunks(t *testing.T) {
-	near, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
-	far, err2 := domain.RectangleFootprint(domain.RoomBounds{X: 30, Z: 30, Width: 9, Height: 9}, domain.South)
-	a, b := bunkLayout(t, near, err), bunkLayout(t, far, err2)
-	var rects []Rectangle
-	for _, bunk := range PlanShelterBunks(b, testShapes, 3, 1, 0, nil) {
-		rects = append(rects, bunk.Rect)
-	}
-	chosen, ok := BunkLayout([]StarterLayout{a, b}, rects)
-	if !ok || chosen.Room != b.Room {
-		t.Fatalf("chose %+v ok=%v", chosen.Room, ok)
-	}
-	// A bunk outside the interior disqualifies the layout.
-	if _, ok := BunkLayout([]StarterLayout{a}, []Rectangle{{X: 10, Z: 11, Width: 1, Height: 2}}); ok {
-		t.Fatal("a bunk on the wall fitted the rectangle")
+	// The cells plan dig still mines are kept clear alike.
+	mined := PlanShelterBunks(room, reserved, testShapes, 8, 1, 0, nil)
+	for _, bunk := range mined {
+		for _, p := range rectCells(bunk.Rect) {
+			if held[p] {
+				t.Fatalf("bunk cell %v lies on a mined cell", p)
+			}
+		}
 	}
 }
