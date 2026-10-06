@@ -2,7 +2,6 @@ package policy
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -11,7 +10,7 @@ import (
 // armory (#1773) stands, one zone over its free cells keeps weapons and armor
 // there; the same for clothing in the wardrobe. They replace the fixed 2x2
 // weapons and apparel zones: until the rooms stand, gear stays in the general
-// store. The armor-versus-clothing split is the catalog's (ItemFacts.Armor),
+// store (the stores are the Military department's, store_military.go). The armor-versus-clothing split is the catalog's (ItemFacts.Armor),
 // and the gear quality and hit-point floors ride the filters
 // (domain.ArmoryFilter, domain.WardrobeFilter).
 
@@ -72,17 +71,6 @@ func NewGearStore(items ItemFacts, stored []GearStock, weapons int) (GearStore, 
 	return g, nil
 }
 
-// demand asks for a gear room once the warehouse can no longer hold what the
-// colony has (full, see warehouseReading) and serviceable gear of the room's
-// kind is held: weapons and armor ask for the armory, clothing for the
-// wardrobe (#1803).
-func (g *GearStore) demand(full bool) RoomDemand {
-	if g == nil || !full {
-		return RoomDemand{}
-	}
-	return RoomDemand{Armory: g.Weapons+g.ArmorHeld > 0, Wardrobe: g.Clothing > 0}
-}
-
 // gearRoomPending reports a gear room demand asks for that the plan holds but
 // does not yet stand: it will take gear out of the warehouse, so the
 // warehouse waits before asking for another storage room.
@@ -99,55 +87,4 @@ func (r StorageRequest) gearRoomPending(demand RoomDemand) bool {
 		}
 	}
 	return false
-}
-
-// ErrArmoryNearPrison is a standing armory with every free cell within the
-// weapon clearance of a prison: layout keeps the armory clear of prisons, so
-// this names a plan that predates the rule or ground it could not clear.
-var ErrArmoryNearPrison = errors.New("the armory has no free cell clear of a prison, so no armory stockpile can be sited")
-
-// gearSites are the armory and wardrobe zones: each standing gear room is
-// one site over its free cells. The armory never takes a cell within the
-// weapon clearance of a prison (nearPrison); a room whose free cells all are
-// is reported (ErrArmoryNearPrison), not silently left unzoned.
-func (r StorageRequest) gearSites() ([]StockpileSite, error) {
-	if r.Layout == nil || r.Rooms == nil || r.Gear == nil {
-		return nil, nil
-	}
-	prisons := PrisonCells(*r.Layout)
-	var out []StockpileSite
-	var err error
-	for _, gear := range []struct {
-		module PlannedRole
-		prefix string
-		filter domain.StockpileFilter
-	}{{PlannedArmory, domain.ArmoryRolePrefix, r.Gear.Armory}, {PlannedWardrobe, domain.WardrobeRolePrefix, r.Gear.Wardrobe}} {
-		for _, planned := range r.Layout.AllRooms() {
-			if planned.Role != gear.module {
-				continue
-			}
-			// Census: the stockpile zone is the room's own cells.
-			room, ok := CensusRoomIn(planned, *r.Rooms)
-			if !ok || len(room.Cells) == 0 {
-				continue
-			}
-			free := roomPool(room.Cells, r.Cells, r.Protected)
-			pool := free
-			if gear.module == PlannedArmory {
-				pool = nil
-				for _, c := range free {
-					if !nearPrison([]domain.Cell{c}, prisons) {
-						pool = append(pool, c)
-					}
-				}
-				if len(free) > 0 && len(pool) == 0 {
-					err = fmt.Errorf("%w (room %s)", ErrArmoryNearPrison, room.ID)
-				}
-			}
-			out = append(out, StockpileSite{Role: gear.prefix + room.ID, Room: room.Cells, Filter: gear.filter, Priority: domain.PreferredPriority, Remainder: true,
-				Candidates: [][]domain.Cell{pool}})
-			break
-		}
-	}
-	return out, err
 }

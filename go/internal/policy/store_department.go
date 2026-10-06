@@ -1,5 +1,7 @@
 package policy
 
+import "errors"
+
 // A department that owns stockpiles is an entity (epic #2176, #2191): it
 // declares its Stores and publishes its RoomDemand, and MaintainStockpiles
 // applies every declaration in one pass. A department that owns no store stays
@@ -34,7 +36,7 @@ type StoreOwner interface {
 }
 
 // storeOwners is the one registry of departments that declare stores.
-var storeOwners = []StoreOwner{storageOwner{}}
+var storeOwners = []StoreOwner{storageOwner{}, militaryOwner{}}
 
 // storageOwner is the Storage department: the warehouse and materials yard
 // migrate onto it (#2192); it declares none yet.
@@ -50,6 +52,8 @@ func (o storageOwner) RoomDemand(v StorageRequest) RoomDemand {
 type StoreDeclaration struct {
 	Stores []Store
 	Demand RoomDemand
+	// Err joins what an owner could not site (ErrArmoryNearPrison).
+	Err error
 	// covers are the room roles whose demand a declared store now owns; the
 	// fill-based reading of PlanStorage yields for exactly these.
 	covers map[PlannedRole]bool
@@ -70,6 +74,14 @@ func declareStores(owners []StoreOwner, view StorageRequest) StoreDeclaration {
 			}
 		}
 		d.Stores = append(d.Stores, stores...)
+		if e, ok := o.(interface{ RoomsAsked() []PlannedRole }); ok {
+			for _, role := range e.RoomsAsked() {
+				d.covers[role] = true
+			}
+		}
+		if e, ok := o.(interface{ StoreErr(StorageRequest) error }); ok {
+			d.Err = errors.Join(d.Err, e.StoreErr(view))
+		}
 		got := o.RoomDemand(view)
 		d.Demand.Armory = d.Demand.Armory || got.Armory
 		d.Demand.Wardrobe = d.Demand.Wardrobe || got.Wardrobe

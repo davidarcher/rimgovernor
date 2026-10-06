@@ -42,13 +42,13 @@ func gearField(t *testing.T, prison *PlannedRoom) StorageRequest {
 	return StorageRequest{Bounds: Bounds{Width: 100, Height: 100}, Cells: cells, Layout: &layout, Rooms: &rooms, Gear: &gear}
 }
 
-func gearSite(r StorageRequest, prefix string) (StockpileSite, bool) {
-	for _, site := range PlanStorage(r).Sites {
-		if len(site.Role) > len(prefix) && site.Role[:len(prefix)] == prefix {
-			return site, true
+func gearSite(r StorageRequest, prefix string) (Store, bool) {
+	for _, store := range (militaryOwner{}).Stores(r) {
+		if len(store.Role) > len(prefix) && store.Role[:len(prefix)] == prefix {
+			return store, true
 		}
 	}
-	return StockpileSite{}, false
+	return Store{}, false
 }
 
 // A standing armory is one zone over the whole room, weapons and armor above
@@ -59,11 +59,11 @@ func TestPlanStorageGearStoresFillTheirRooms(t *testing.T) {
 	r := gearField(t, nil)
 	armory, ok := gearSite(r, domain.ArmoryRolePrefix)
 	armoryFilter, wardrobeFilter, _ := GearFilters(gearTestItems.Armor)
-	if !ok || armory.Filter != armoryFilter || armory.Priority != domain.PreferredPriority || !armory.Remainder || len(armory.Candidates) != 1 || len(armory.Candidates[0]) != 25 {
+	if !ok || armory.Filter != armoryFilter || armory.Priority != domain.PreferredPriority || armory.Further != PlannedArmory || len(armory.footprint()) != 25 {
 		t.Fatalf("armory %+v", armory)
 	}
 	wardrobe, ok := gearSite(r, domain.WardrobeRolePrefix)
-	if !ok || wardrobe.Filter != wardrobeFilter || wardrobe.Priority != domain.PreferredPriority || len(wardrobe.Candidates[0]) != 25 {
+	if !ok || wardrobe.Filter != wardrobeFilter || wardrobe.Priority != domain.PreferredPriority || wardrobe.Further != PlannedWardrobe || len(wardrobe.footprint()) != 25 {
 		t.Fatalf("wardrobe %+v", wardrobe)
 	}
 	rooms := *r.Rooms
@@ -112,6 +112,11 @@ func TestGearFiltersSplitArmorFromClothingAndKeepTheFloors(t *testing.T) {
 	if !has(armory.Disallow(), domain.SpecialFilter("AllowBiocodedWeapons")) || !has(wardrobe.Disallow(), domain.SpecialFilter("AllowDeadmansApparel")) {
 		t.Fatal("biocoded weapons and tainted apparel are refused")
 	}
+	for _, f := range []domain.StockpileFilter{armory, wardrobe} {
+		if !has(f.Disallow(), domain.SpecialFilter(domain.BurnableFilterDef)) {
+			t.Fatalf("a gear store takes burnable gear: disallows %v", f.Disallow())
+		}
+	}
 	if !domain.IsArmoryFilter(armory) || domain.IsArmoryFilter(wardrobe) || !domain.IsWardrobeFilter(wardrobe) || domain.IsWardrobeFilter(armory) {
 		t.Fatal("the label shapes tell the stores apart")
 	}
@@ -127,7 +132,7 @@ func TestPlanStorageArmoryKeepsAwayFromPrisons(t *testing.T) {
 	if !ok {
 		t.Fatal("no armory site")
 	}
-	pool := armory.Candidates[0]
+	pool := armory.footprint()
 	if len(pool) == 0 || len(pool) >= 25 {
 		t.Fatalf("armory pool %d cells: some, not all, are clear of the prison", len(pool))
 	}
@@ -135,8 +140,8 @@ func TestPlanStorageArmoryKeepsAwayFromPrisons(t *testing.T) {
 		t.Fatalf("armory cell near the prison: %v", pool)
 	}
 	wardrobe, _ := gearSite(r, domain.WardrobeRolePrefix)
-	if len(wardrobe.Candidates[0]) != 25 {
-		t.Fatalf("wardrobe pool %d", len(wardrobe.Candidates[0]))
+	if len(wardrobe.footprint()) != 25 {
+		t.Fatalf("wardrobe pool %d", len(wardrobe.footprint()))
 	}
 }
 
@@ -145,11 +150,17 @@ func TestPlanStorageArmoryKeepsAwayFromPrisons(t *testing.T) {
 func TestPlanStorageNamesAnArmoryNearAPrison(t *testing.T) {
 	t.Parallel()
 	prison := PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 58, Z: 40, Width: 3, Height: 3}}
-	plan := PlanStorage(gearField(t, &prison))
-	if !errors.Is(plan.Err, ErrArmoryNearPrison) {
-		t.Fatalf("plan error %v", plan.Err)
+	r := gearField(t, &prison)
+	if err := (militaryOwner{}).StoreErr(r); !errors.Is(err, ErrArmoryNearPrison) {
+		t.Fatalf("plan error %v", err)
 	}
-	if err := PlanStorage(gearField(t, nil)).Err; err != nil {
+	if _, ok := gearSite(r, domain.ArmoryRolePrefix); ok {
+		t.Fatal("an armory with no clear cell has no store")
+	}
+	if err := DeclareStores(r).Err; !errors.Is(err, ErrArmoryNearPrison) {
+		t.Fatalf("declaration error %v", err)
+	}
+	if err := (militaryOwner{}).StoreErr(gearField(t, nil)); err != nil {
 		t.Fatalf("plan error %v with no prison", err)
 	}
 }
@@ -160,11 +171,10 @@ func TestPlanStorageNamesAnArmoryNearAPrison(t *testing.T) {
 func TestMaintenanceFillsGearRoomsAndDeletesTheOldZones(t *testing.T) {
 	t.Parallel()
 	r := gearField(t, nil)
-	plan := PlanStorage(r)
 	legacy := func(id, role string) StockpileZone {
 		return StockpileZone{ID: id, Role: role, Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}, Filter: domain.GeneralFilter(), Priority: domain.PreferredPriority}
 	}
-	request := StockpileRequest{Tick: 100, Bounds: r.Bounds, Cells: r.Cells, Colonists: domain.Known(int64(100)), Sited: plan.Sites,
+	request := StockpileRequest{Tick: 100, Bounds: r.Bounds, Cells: r.Cells, Colonists: domain.Known(int64(100)), Stores: (militaryOwner{}).Stores(r),
 		Zones: []StockpileZone{legacy("Zone_1", domain.WeaponsRole), legacy("Zone_2", domain.ApparelRole)},
 		Roles: func(role string) (StockpileRoleState, bool) {
 			if role == domain.WeaponsRole || role == domain.ApparelRole {
@@ -186,7 +196,7 @@ func TestMaintenanceFillsGearRoomsAndDeletesTheOldZones(t *testing.T) {
 		t.Fatalf("edits %+v", review.Edits)
 	}
 	request.Zones = nil
-	request.Sited = nil
+	request.Stores = nil
 	request.Shells = []PlannedRole{PlannedArmory}
 	review = PlanStockpileMaintenance(request)
 	if !review.Active || len(review.Edits) != 1 || review.Edits[0].Kind != StockpileShell || review.Edits[0].Role != string(PlannedArmory) {

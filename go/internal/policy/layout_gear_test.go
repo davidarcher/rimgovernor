@@ -111,7 +111,7 @@ func TestGearRoomRolesAreRegistered(t *testing.T) {
 	}
 }
 
-func TestPlanStorageSignalsGearDemand(t *testing.T) {
+func TestMilitaryDemandAsksForGearRoomsFromCapacity(t *testing.T) {
 	t.Parallel()
 	items := ItemFacts{Armor: []Resource{"Apparel_FlakVest"}}
 	stock := func(def Resource, quality, hp, count int) GearStock {
@@ -134,26 +134,46 @@ func TestPlanStorageSignalsGearDemand(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: store %v", tc.name, err)
 		}
-		first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
-		req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))
+		req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, Rectangle{X: 10, Z: 10, Width: 3, Height: 3}, 8))
 		req.Gear = &gear
-		want := tc.want
-		want.Storage = 2
-		if got := PlanStorage(req).RoomDemand; got != want {
-			t.Errorf("%s, warehouse full: %+v, want %+v", tc.name, got, want)
-		}
-		// While the warehouse can still take the gear, no gear room is asked for.
-		req = storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 7))
-		req.Gear = &gear
-		if got := PlanStorage(req).RoomDemand; got != (RoomDemand{Known: true, StorageIdle: true}) {
-			t.Errorf("%s, warehouse with room: %+v", tc.name, got)
+		if got := (militaryOwner{}).RoomDemand(req); got != tc.want {
+			t.Errorf("%s: %+v, want %+v", tc.name, got, tc.want)
 		}
 	}
 	if _, err := NewGearStore(ItemFacts{}, nil, 9); !errors.Is(err, ErrNoArmorDefs) {
 		t.Errorf("a catalog without armor must fail with ErrNoArmorDefs: %v", err)
 	}
-	if got := PlanStorage(StorageRequest{}).RoomDemand; got != (RoomDemand{}) {
+	if got := (militaryOwner{}).RoomDemand(StorageRequest{}); got != (RoomDemand{}) {
 		t.Errorf("no gear store asks for rooms: %+v", got)
+	}
+}
+
+// A standing gear room asks for another only once its store is full: while the
+// store has room, gear is the store's to hold.
+func TestMilitaryDemandAsksForAnotherRoomWhenTheStoreIsFull(t *testing.T) {
+	t.Parallel()
+	r := gearField(t, nil)
+	gear, err := NewGearStore(ItemFacts{Armor: []Resource{"Apparel_FlakVest"}}, []GearStock{{Definition: "Apparel_Parka", Quality: 2, HPBand: 9, Count: 4}}, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Gear = &gear
+	armoryRoom := Rectangle{X: 52, Z: 40, Width: 5, Height: 5}
+	zone := func(role string, room Rectangle, used int) StockpileZone {
+		cells := rectCells(room)
+		return StockpileZone{ID: "Zone_" + role, Role: role + ":x", Cells: cells, Stored: cells[:used], Filter: gear.Armory, Priority: domain.PreferredPriority}
+	}
+	r.Zones = []StockpileZone{zone("armory", armoryRoom, 10), zone("wardrobe", Rectangle{X: 40, Z: 50, Width: 5, Height: 5}, 10)}
+	if got := (militaryOwner{}).RoomDemand(r); got.Armory || got.Wardrobe {
+		t.Fatalf("stores with room: %+v", got)
+	}
+	r.Zones = []StockpileZone{zone("armory", armoryRoom, 25), zone("wardrobe", Rectangle{X: 40, Z: 50, Width: 5, Height: 5}, 25)}
+	if got := (militaryOwner{}).RoomDemand(r); !got.Armory || !got.Wardrobe {
+		t.Fatalf("full stores: %+v", got)
+	}
+	// Applied to layout's demand, the declared reading stands.
+	if got := DeclareStores(r).Apply(RoomDemand{}); !got.Armory || !got.Wardrobe || !got.Known {
+		t.Fatalf("applied: %+v", got)
 	}
 }
 
@@ -169,11 +189,11 @@ func TestGearRoomPendingHoldsBackAnotherStorageRoom(t *testing.T) {
 	req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))
 	req.Gear = &gear
 	req.Layout.Rooms = append(req.Layout.Rooms, PlannedRoom{Role: PlannedArmory, Interior: Rectangle{X: 30, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 31, Z: 9}})
-	if got := PlanStorage(req).RoomDemand; !got.Armory || got.Storage != 0 {
+	if got := PlanStorage(req).RoomDemand; got.Storage != 0 {
 		t.Fatalf("armory planned, not standing: %+v", got)
 	}
 	req.Rooms.Rooms = append(req.Rooms.Rooms, Room{ID: "armory", Enclosed: domain.Known(true), Cells: rectCells(Rectangle{X: 30, Z: 10, Width: 3, Height: 3})})
-	if got := PlanStorage(req).RoomDemand; !got.Armory || got.Storage != 2 {
+	if got := PlanStorage(req).RoomDemand; got.Storage != 2 {
 		t.Fatalf("armory standing: %+v", got)
 	}
 }

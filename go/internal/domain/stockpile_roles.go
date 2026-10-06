@@ -89,7 +89,8 @@ func hasSelector(rows []FilterSelector, s FilterSelector) bool {
 }
 
 // ArmoryFilter is usable weapons and armor: no biocoded weapons or apparel,
-// no tainted (dead man's) apparel, hit points and quality above the gear
+// no tainted (dead man's) apparel, nothing burnable (the sell and burn
+// boundary, #2176), hit points and quality above the gear
 // floors. armor names the apparel defs that count as armor (the catalog's
 // ItemFacts.Armor); every other apparel def is the wardrobe's.
 func ArmoryFilter(armor []string) (StockpileFilter, error) {
@@ -97,13 +98,13 @@ func ArmoryFilter(armor []string) (StockpileFilter, error) {
 	for _, def := range armor {
 		allow = append(allow, ThingDef(def))
 	}
-	return gearFilter(allow, SpecialFilter("AllowBiocodedWeapons"), SpecialFilter("AllowBiocodedApparel"), SpecialFilter("AllowDeadmansApparel"))
+	return gearFilter(allow, SpecialFilter("AllowBiocodedWeapons"), SpecialFilter("AllowBiocodedApparel"), SpecialFilter("AllowDeadmansApparel"), SpecialFilter(BurnableFilterDef))
 }
 
 // WardrobeFilter is wearable clothing: all apparel but the armor defs, no
 // tainted or biocoded pieces, hit points and quality above the gear floors.
 func WardrobeFilter(armor []string) (StockpileFilter, error) {
-	disallow := []FilterSelector{SpecialFilter("AllowDeadmansApparel"), SpecialFilter("AllowBiocodedApparel")}
+	disallow := []FilterSelector{SpecialFilter("AllowDeadmansApparel"), SpecialFilter("AllowBiocodedApparel"), SpecialFilter(BurnableFilterDef)}
 	for _, def := range armor {
 		disallow = append(disallow, ThingDef(def))
 	}

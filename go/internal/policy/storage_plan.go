@@ -88,14 +88,12 @@ type StoragePlan struct {
 // workstation stockpiles beside the benches, the
 // freezer's raw meat, raw vegetable and corpse shelves and its perishables
 // catch-all, the tomb's corpse store, and the food stockpile beside the
-// kitchen. The armory and wardrobe stores fill their standing rooms, and the
-// dumps stand outdoors while things wait for them.
+// kitchen. The dumps stand outdoors while things wait for them.
 func PlanStorage(r StorageRequest) StoragePlan {
 	warehouse := r.warehouseReading()
-	plan := StoragePlan{RoomDemand: r.Gear.demand(warehouse.full)}
-	plan.RoomDemand.Known = r.Gear != nil
+	var plan StoragePlan
 	plan.RoomDemand.Storage, plan.RoomDemand.StorageIdle = warehouse.storageRoomsWanted()
-	if r.gearRoomPending(plan.RoomDemand) {
+	if r.gearRoomPending(militaryOwner{}.RoomDemand(r)) {
 		plan.RoomDemand.Storage = 0
 	}
 	if r.Meals != nil && r.Meals.Room.ID != "" {
@@ -114,8 +112,6 @@ func PlanStorage(r StorageRequest) StoragePlan {
 		plan.Sites = append(plan.Sites, r.morgueSites()...)
 		plan.Sites = append(plan.Sites, r.warehouseSites()...)
 		plan.Sites = append(plan.Sites, r.yardSites()...)
-		gear, err := r.gearSites()
-		plan.Sites, plan.Err = append(plan.Sites, gear...), err
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)
