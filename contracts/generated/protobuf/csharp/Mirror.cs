@@ -9104,11 +9104,9 @@ namespace RimGovernor.Protocol.Mirror {
     public const int TerrainFieldNumber = 23;
     private global::RimGovernor.Protocol.Mirror.FieldArray terrain_;
     /// <summary>
-    /// Columns 23 on were appended by #2260 (the per-cell thing list, epic
-    /// #2241). A keyframe may omit them (an absent column is the default: terrain
-    /// and the facts unknown, no things); once the native encoder writes them
-    /// (#2261) it carries every one. A fogged cell (cell code 0) stays unknown,
-    /// distinct from a held cell with no things.
+    /// Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
+    /// epic #2241); a keyframe carries every one, things included. A fogged cell
+    /// (cell code 0) stays unknown, distinct from a held cell with no things.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -10468,6 +10466,8 @@ namespace RimGovernor.Protocol.Mirror {
   /// <summary>
   /// One thing on a cell. def and the string fields below are string table
   /// indexes (k for strings[k-1]; 0 is refused). state must match category.
+  /// A blueprint or frame lists the def it builds. A thing spanning cells is listed
+  /// on each, with the same id. Fractions are held to 1/100.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class Thing : pb::IMessage<Thing>

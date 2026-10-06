@@ -31,6 +31,10 @@ func keyframeGrid() *mp.CellGrid {
 	g.ClaimableRuin = sparse([]uint32{0}, []uint32{2}, nil)
 	g.RuinHold = empty()
 	g.Room = empty()
+	g.Terrain, g.FoundationAffordances = empty(), empty()
+	g.InHome, g.TopLayerRemovable = empty(), empty()
+	g.SnowDepth = empty()
+	g.Things = &mp.ThingList{Offsets: []uint32{0}}
 	return g
 }
 

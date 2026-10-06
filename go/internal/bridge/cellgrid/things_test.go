@@ -149,7 +149,7 @@ func TestThingsFoggedIsNotEmpty(t *testing.T) {
 	}
 }
 
-func TestKeyframeWithoutThingColumnsHoldsNone(t *testing.T) {
+func TestKeyframeOfUnknownTileColumnsHoldsNone(t *testing.T) {
 	grid, err := Apply(nil, true, keyframeGrid())
 	if err != nil {
 		t.Fatal(err)
@@ -159,7 +159,12 @@ func TestKeyframeWithoutThingColumnsHoldsNone(t *testing.T) {
 		t.Fatalf("cell = %+v", c)
 	}
 	if !Complete(keyframeGrid()) {
-		t.Fatal("a keyframe without the appended columns is not complete")
+		t.Fatal("a keyframe with every column is not complete")
+	}
+	g := keyframeGrid()
+	g.Things = nil
+	if Complete(g) {
+		t.Fatal("a keyframe without its thing list is complete")
 	}
 }
 

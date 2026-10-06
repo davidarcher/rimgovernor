@@ -2235,11 +2235,9 @@ type CellGrid struct {
 	ClaimableRuin *FieldArray            `protobuf:"bytes,20,opt,name=claimable_ruin,json=claimableRuin,proto3" json:"claimable_ruin,omitempty"`
 	RuinHold      *FieldArray            `protobuf:"bytes,21,opt,name=ruin_hold,json=ruinHold,proto3" json:"ruin_hold,omitempty"`
 	Room          *FieldArray            `protobuf:"bytes,22,opt,name=room,proto3" json:"room,omitempty"`
-	// Columns 23 on were appended by #2260 (the per-cell thing list, epic
-	// #2241). A keyframe may omit them (an absent column is the default: terrain
-	// and the facts unknown, no things); once the native encoder writes them
-	// (#2261) it carries every one. A fogged cell (cell code 0) stays unknown,
-	// distinct from a held cell with no things.
+	// Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
+	// epic #2241); a keyframe carries every one, things included. A fogged cell
+	// (cell code 0) stays unknown, distinct from a held cell with no things.
 	Terrain               *FieldArray `protobuf:"bytes,23,opt,name=terrain,proto3" json:"terrain,omitempty"`                                                          // string: the terrain def
 	InHome                *FieldArray `protobuf:"bytes,24,opt,name=in_home,json=inHome,proto3" json:"in_home,omitempty"`                                              // bool codes: inside the home area
 	FoundationAffordances *FieldArray `protobuf:"bytes,25,opt,name=foundation_affordances,json=foundationAffordances,proto3" json:"foundation_affordances,omitempty"` // string: the terrain affordances a foundation may stand on, comma-joined and sorted
@@ -2545,6 +2543,8 @@ func (x *ThingList) GetThings() []*Thing {
 
 // One thing on a cell. def and the string fields below are string table
 // indexes (k for strings[k-1]; 0 is refused). state must match category.
+// A blueprint or frame lists the def it builds. A thing spanning cells is listed
+// on each, with the same id. Fractions are held to 1/100.
 type Thing struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Def      uint32                 `protobuf:"varint,1,opt,name=def,proto3" json:"def,omitempty"`

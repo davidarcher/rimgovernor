@@ -69,7 +69,52 @@ namespace HomeBridge.BridgeTools
                     arrays.Add(new { field = name, form = array.FormCase.ToString(), entries = array.FormCase == RimGovernor.Protocol.Mirror.FieldArray.FormOneofCase.Sparse ? array.Sparse.Index.Count : -1,
                         wallCell = array.FormCase == RimGovernor.Protocol.Mirror.FieldArray.FormOneofCase.Sparse && array.Sparse.Index.Contains((uint)(z * map.Size.x + x)) });
                 }
+                // The thing list is not a column: it rides the delta as sparse cell lists.
+                if (delta.Things != null)
+                    arrays.Add(new { field = "things", form = "Sparse", entries = delta.Things.Cells.Count, wallCell = delta.Things.Cells.Contains((uint)(z * map.Size.x + x)) });
                 return new { success = true, wall = wall.GetUniqueLoadID(), keyframeBytes = keyframe.CalculateSize(), deltaBytes = delta.CalculateSize(), arrays };
+            }, cancellationToken);
+
+        // The thing list probe (#2261): spawns one of each thing category on a
+        // row of seven cells from cell ("x,z") eastward (item, wall, wall
+        // blueprint, wall frame, plant, filth, corpse) and replies the row as
+        // a keyframe grid (base64 mirror.CellGrid), for the case to decode on
+        // the Go side and compare with what was spawned. Also replies the
+        // timed capture of the whole map (ms).
+        [Tool("test/grid_things", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2261): spawn one of each thing category on seven cells east of cell (\"x,z\") and reply that row as a base64 mirror.CellGrid keyframe plus the whole-map read and encode cost. Test builds only.")]
+        public async Task<object> GridThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var p = (cell ?? "").Split(',');
+                if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x + 6, 0, z).InBounds(map) || !new IntVec3(x, 0, z).InBounds(map))
+                    return new { success = false, error = "Expected one in-bounds x,z cell with six cells free to its east on the current map" };
+                IntVec3 At(int i) => new IntVec3(x + i, 0, z);
+                var steel = ThingMaker.MakeThing(ThingDefOf.Steel); steel.stackCount = 25;
+                GenSpawn.Spawn(steel, At(0), map);
+                var wall = (Building)ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
+                wall.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(wall, At(1), map);
+                GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, At(2), map, Rot4.North, Faction.OfPlayer, ThingDefOf.WoodLog);
+                var frame = (Frame)ThingMaker.MakeThing(ThingDefOf.Wall.frameDef, ThingDefOf.WoodLog);
+                frame.SetFactionDirect(Faction.OfPlayer);
+                frame.SetStuffDirect(ThingDefOf.WoodLog);
+                GenSpawn.Spawn(frame, At(3), map);
+                var plant = (Plant)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Plant_Potato"));
+                GenSpawn.Spawn(plant, At(4), map);
+                plant.Growth = 0.5f;
+                GenSpawn.Spawn(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Filth_Dirt")), At(5), map);
+                var animal = PawnGenerator.GeneratePawn(PawnKindDef.Named("Muffalo"));
+                GenSpawn.Spawn(animal, At(6), map);
+                animal.Kill(null);
+                var row = CellGridEncoder.Encode(CellGridEncoder.Read(map, x, z, 7, 1), null)!;
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var whole = CellGridEncoder.Read(map);
+                var readMs = watch.Elapsed.TotalMilliseconds;
+                watch.Restart();
+                var wire = CellGridEncoder.Encode(whole, null)!;
+                var encodeMs = watch.Elapsed.TotalMilliseconds;
+                return new { success = true, grid = Convert.ToBase64String(Google.Protobuf.MessageExtensions.ToByteArray(row)),
+                    frameId = frame.thingIDNumber, wallId = wall.thingIDNumber, steelId = steel.thingIDNumber, readMs, encodeMs, keyframeBytes = wire.CalculateSize() };
             }, cancellationToken);
 
         [Tool("test/roof_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1366): with set, put a constructed roof over exact cells (\"x,z;x,z\"); always reply how many of them are roofed. Test builds only.")]

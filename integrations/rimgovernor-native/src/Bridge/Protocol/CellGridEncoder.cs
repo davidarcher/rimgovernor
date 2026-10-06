@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Google.Protobuf;
 using RimWorld;
 using Verse;
@@ -35,7 +36,8 @@ namespace HomeBridge.BridgeTools
         // columns by these positions.
         internal const int Cell = 0, Walkable = 1, Occupied = 2, Zone = 3, Roofed = 4, Indoors = 5, SupportsLight = 6,
             StorageEmpty = 7, Doorway = 8, Fertility = 9, Polluted = 10, Glow = 11, Roof = 12, ZoneId = 13, NaturalRock = 14,
-            Ruin = 15, PlayerEdifice = 16, ClaimableRuin = 17, RuinHold = 18, Room = 19;
+            Ruin = 15, PlayerEdifice = 16, ClaimableRuin = 17, RuinHold = 18, Room = 19, Terrain = 20, InHome = 21,
+            FoundationAffordances = 22, SnowDepth = 23, TopLayerRemovable = 24;
 
         private static readonly (string Name, Kind Kind, Action<Mirror.CellGrid, Mirror.FieldArray> Set)[] Fields =
         {
@@ -59,6 +61,11 @@ namespace HomeBridge.BridgeTools
             ("claimable_ruin", Kind.Index, (g, a) => g.ClaimableRuin = a),
             ("ruin_hold", Kind.Index, (g, a) => g.RuinHold = a),
             ("room", Kind.Index, (g, a) => g.Room = a),
+            ("terrain", Kind.Index, (g, a) => g.Terrain = a),
+            ("in_home", Kind.Code, (g, a) => g.InHome = a),
+            ("foundation_affordances", Kind.Index, (g, a) => g.FoundationAffordances = a),
+            ("snow_depth", Kind.Number, (g, a) => g.SnowDepth = a),
+            ("top_layer_removable", Kind.Code, (g, a) => g.TopLayerRemovable = a),
         };
 
         internal static string FieldName(int field) => Fields[field].Name;
@@ -88,6 +95,8 @@ namespace HomeBridge.BridgeTools
             internal int MapId, X, Z, Width, Height;
             internal double SkyGlow;
             internal Column[] Columns = Array.Empty<Column>();
+            // The things on each cell (null for none), row-major like the columns.
+            internal ThingRec[]?[] Things = Array.Empty<ThingRec[]?>();
             internal int Count => Width * Height;
         }
 
@@ -99,7 +108,7 @@ namespace HomeBridge.BridgeTools
         internal static GridRead Read(Map map, int x0, int z0, int w, int h)
         {
             int n = w * h, mapWidth = map.Size.x;
-            var read = new GridRead { MapId = map.uniqueID, X = x0, Z = z0, Width = w, Height = h, SkyGlow = Finite(map.skyManager.CurSkyGlow), Columns = new Column[Fields.Length] };
+            var read = new GridRead { MapId = map.uniqueID, X = x0, Z = z0, Width = w, Height = h, SkyGlow = Finite(map.skyManager.CurSkyGlow), Columns = new Column[Fields.Length], Things = new ThingRec[]?[n] };
             for (int i = 0; i < Fields.Length; i++)
             {
                 var column = new Column();
@@ -116,6 +125,10 @@ namespace HomeBridge.BridgeTools
             var player = Faction.OfPlayerSilentFail;
             var biotech = ModsConfig.BiotechActive;
             List<RectTrigger>? triggers = null;
+            var things = new ThingReader(map, player);
+            var terrainGrid = map.terrainGrid;
+            var affordances = new Dictionary<TerrainDef, string>();
+            var home = map.areaManager.Home;
             // A room's key is the whole-map index (row-major) of its first
             // held cell in the read, not Room.ID: RimWorld regenerates rooms
             // near any edifice change with fresh ids, which would make every
@@ -158,6 +171,17 @@ namespace HomeBridge.BridgeTools
                     c[Indoors].Codes![j] = B(CellTracking.Indoors(room));
                     c[Polluted].Codes![j] = B(biotech && map.pollutionGrid.IsPolluted(cell));
                     c[Glow].Numbers![j] = Finite(map.glowGrid.GroundGlowAt(cell, false, true));
+                    var terrain = terrainGrid.TerrainAt(cell);
+                    c[Terrain].Strings![j] = Identifier(terrain.defName);
+                    c[InHome].Codes![j] = B(home[cell]);
+                    var baseTerrain = terrainGrid.BaseTerrainAt(cell);
+                    if (!affordances.TryGetValue(baseTerrain, out var affordance))
+                        affordances[baseTerrain] = affordance = string.Join(",", baseTerrain.affordances.Select(a => Identifier(a.defName)).OrderBy(a => a, StringComparer.Ordinal));
+                    c[FoundationAffordances].Strings![j] = affordance;
+                    // Held to 1/100: snowfall would otherwise re-send the column every frame.
+                    c[SnowDepth].Numbers![j] = Math.Round(Finite(map.snowGrid.GetDepth(cell)) * 100.0) / 100.0;
+                    c[TopLayerRemovable].Codes![j] = B(terrainGrid.CanRemoveTopLayerAt(cell));
+                    read.Things[j] = things.At(cell);
                     var fertility = map.fertilityGrid.FertilityAt(cell);
                     if (fertility > 0f) c[Fertility].Numbers![j] = Finite(fertility);
                 }
@@ -203,6 +227,11 @@ namespace HomeBridge.BridgeTools
             var table = new Dictionary<string, uint>(StringComparer.Ordinal);
             var carried = 0;
             var changed = new List<int>();
+            uint Put(string s)
+            {
+                if (!table.TryGetValue(s, out var k)) { grid.Strings.Add(s); k = (uint)grid.Strings.Count; table[s] = k; }
+                return k;
+            }
             for (int i = 0; i < Fields.Length; i++)
             {
                 var column = read.Columns[i];
@@ -214,7 +243,26 @@ namespace HomeBridge.BridgeTools
                 carried++;
                 Fields[i].Set(grid, EncodeArray(Fields[i].Kind, column, changed, n, grid, table));
             }
-            return against != null && carried == Fields.Length ? null : grid;
+            // The things: the cells whose list differs from the keyframe's
+            // (a keyframe lists every cell with any), each list replaced whole.
+            changed.Clear();
+            for (int j = 0; j < n; j++)
+                if (against != null ? !ThingRec.SameList(read.Things[j], against.Things[j]) : read.Things[j] != null) changed.Add(j);
+            if (against == null || changed.Count > 0)
+            {
+                carried++;
+                var list = new Mirror.ThingList();
+                uint offset = 0;
+                list.Offsets.Add(0);
+                foreach (var j in changed)
+                {
+                    list.Cells.Add((uint)j);
+                    foreach (var thing in read.Things[j] ?? Array.Empty<ThingRec>()) { list.Things.Add(thing.Wire(Put)); offset++; }
+                    list.Offsets.Add(offset);
+                }
+                grid.Things = list;
+            }
+            return against != null && carried == Fields.Length + 1 ? null : grid;
         }
 
         // One array, dense or sparse over changed, whichever encodes

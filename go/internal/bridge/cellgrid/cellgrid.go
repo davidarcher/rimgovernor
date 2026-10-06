@@ -46,11 +46,7 @@ type column struct {
 // into (put) and written from (set) a code, a number or a string.
 type array struct {
 	kind kind
-	// optional marks a column a keyframe may omit (it then holds the
-	// sentinel everywhere): the columns #2260 appended, until the native
-	// encoder writes them (#2261).
-	optional bool
-	slot     func(*mp.CellGrid) **mp.FieldArray
+	slot func(*mp.CellGrid) **mp.FieldArray
 	// code/num/str read a SiteCell field; known false is the sentinel.
 	code func(*policy.SiteCell) uint8
 	num  func(*policy.SiteCell) float64
@@ -142,16 +138,11 @@ var arrays = []array{
 		str:    func(c *policy.SiteCell) (string, bool) { return c.RuinHold, c.RuinHold != "" },
 		setStr: func(c *policy.SiteCell, s string, _ bool) { c.RuinHold = s }},
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Room }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Room }),
-	optionalArray(strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Terrain }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Terrain })),
-	optionalArray(boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.InHome }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.InHome })),
-	optionalArray(strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.FoundationAffordances }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.FoundationAffordances })),
-	optionalArray(numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.SnowDepth }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.SnowDepth })),
-	optionalArray(boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.TopLayerRemovable }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.TopLayerRemovable })),
-}
-
-func optionalArray(a array) array {
-	a.optional = true
-	return a
+	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Terrain }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Terrain }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.InHome }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.InHome }),
+	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.FoundationAffordances }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.FoundationAffordances }),
+	numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.SnowDepth }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.SnowDepth }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.TopLayerRemovable }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.TopLayerRemovable }),
 }
 
 // Grid is a decoded grid: its rect, every array, and the string table its
@@ -371,11 +362,11 @@ func validRect(r *mp.CellRect) bool {
 // Complete reports whether g carries every array: a keyframe.
 func Complete(g *mp.CellGrid) bool {
 	for _, a := range arrays {
-		if !a.optional && a.wire(g) == nil {
+		if a.wire(g) == nil {
 			return false
 		}
 	}
-	return true
+	return g.Things != nil
 }
 
 // Apply lays a wire grid over held: a keyframe (held ignored) must carry
@@ -416,8 +407,6 @@ func Apply(held *Grid, key bool, g *mp.CellGrid) (*Grid, error) {
 			switch {
 			case !key:
 				out.cols[i] = *base
-			case field.optional:
-				out.cols[i] = newColumn(field.kind, n)
 			default:
 				return nil, contract("mirror cell grid keyframe missing an array")
 			}

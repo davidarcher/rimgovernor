@@ -10,7 +10,7 @@ import (
 
 // gridDeltaUnchanged are the cell grid arrays one wall on open soil never
 // changes: its delta must not carry them.
-var gridDeltaUnchanged = []string{"cell", "zone", "roofed", "supports_light", "polluted", "glow", "roof", "zone_id", "natural_rock", "ruin", "claimable_ruin", "ruin_hold"}
+var gridDeltaUnchanged = []string{"cell", "zone", "roofed", "supports_light", "polluted", "glow", "roof", "zone_id", "natural_rock", "ruin", "claimable_ruin", "ruin_hold", "terrain", "foundation_affordances", "snow_depth"}
 
 func init() {
 	cases.Register(cases.Case{
