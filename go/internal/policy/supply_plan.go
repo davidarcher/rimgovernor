@@ -24,8 +24,7 @@ type SupplyDemand struct {
 	// amortised over (at least one day).
 	HorizonDays float64
 	// Emergency opens the demand's candidates breadth first, one per kind
-	// before a second of any, and credits a one-shot hunt or forage only once
-	// it delivers.
+	// before a second of any, and credits a candidate only once it delivers.
 	Emergency bool
 	// Cover is reported as the target_cover term (nutrition's target coverage).
 	Cover float64
@@ -638,8 +637,8 @@ func breadthFirst(cands []*supplyCand, demands []SupplyDemand) []*supplyCand {
 	return out
 }
 
-// admit credits the share toward the demands. A one-shot hunt or forage under
-// an emergency is not food until delivered, so it covers nothing.
+// admit credits the share toward the demands. Under an emergency a candidate
+// that is not yet delivering is not food until delivered, so it covers nothing.
 func (c *supplyCand) admit(s supplyShare, opening bool, demands []SupplyDemand, remaining []int64, delivered []float64) {
 	c.credited = make([]float64, len(demands))
 	for i, d := range demands {
@@ -647,7 +646,7 @@ func (c *supplyCand) admit(s supplyShare, opening bool, demands []SupplyDemand, 
 		if amount == 0 || opening && !c.ok[i] {
 			continue
 		}
-		if opening && d.Emergency && d.flow() && (c.c.Kind == CandidateHunt || c.c.Kind == CandidateForage) {
+		if opening && d.Emergency && d.flow() {
 			c.entry.Terms = append(c.entry.Terms, CandidateTerm{"uncredited_until_delivered", amount})
 			continue
 		}

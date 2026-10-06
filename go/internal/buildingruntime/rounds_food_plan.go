@@ -1,12 +1,14 @@
 package buildingruntime
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // planFood retains one complete review per observed tick and invalidation
@@ -20,7 +22,8 @@ func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.Fo
 		s.foodMin == seasonal.FoodMinDays && s.foodTarget == seasonal.FoodTargetDays && sameObservedIdentity(s.foodIdentity, p.Identity) {
 		return s.foodPlan
 	}
-	plan := reviewFoodPlan(p, r.policy)
+	plan := reviewFoodPlan(p, r.policy, &r.foodCredit)
+	logFoodCredit(r.foodCredit.Drain())
 	if v, known := plan.Value(); known && r.foodGapZero {
 		v.GapPerDay = 0
 		plan = domain.Known(v)
@@ -35,7 +38,7 @@ func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.Fo
 // reviewFoodPlan budgets the complete competing-consumer census. It is called
 // by the rounds, before its reading is retained for method planners.
 // A missing census never becomes an empty portfolio that certifies surplus.
-func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy) domain.Fact[policy.FoodPlan] {
+func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy, credit *policy.DeliveryCredit) domain.Fact[policy.FoodPlan] {
 	supply, sk := p.CombinedFoodSupply.Value()
 	sources, ak := p.Acquisition.Value()
 	if !sk || !ak {
@@ -80,7 +83,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 			request := policy.FishingRequest{Researched: water.FishingResearched, ResearchLeadDays: water.ResearchLeadDays}
 			for _, region := range water.Regions {
 				request.Regions = append(request.Regions, policy.FishingRegion{ID: policy.FishingRegionID(region.Root), Population: region.Population, MaxPopulation: region.MaxPopulation,
-					NutritionPerFish: region.NutritionPerFish, FishPerBatch: region.FishPerBatch, WorkTicksPerBatch: region.WorkTicksPerBatch, PawnFishWorkCapacity: region.PawnFishWorkCapacity, Reachable: region.Reachable, Frozen: region.Frozen, Open: region.Delivering, DistanceSquared: region.DistanceSquared})
+					NutritionPerFish: region.NutritionPerFish, FishPerBatch: region.FishPerBatch, WorkTicksPerBatch: region.WorkTicksPerBatch, PawnFishWorkCapacity: region.PawnFishWorkCapacity, Reachable: region.Reachable, Frozen: region.Frozen, Designated: region.Delivering, Source: fmt.Sprintf("fish:%d,%d", region.Root.X, region.Root.Z), DistanceSquared: region.DistanceSquared})
 			}
 			fishing, err := policy.FishingChannels(request)
 			if err != nil {
@@ -109,6 +112,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 			NutritionPerDay: domain.Known(0.0), WorkPerDay: domain.Known(0.0), LeadDays: domain.Known(0.0), Open: domain.Known(false),
 			Terms: []policy.FoodPlanTerm{{Name: "supporting_method", Value: 1}}})
 	}
+	channels = credit.Apply(channels, foodCreditInput(p))
 	// Work capacity is a planning budget, not a promise of pawn work. Eight
 	// hours per available worker leaves the rest of the day for sleep and needs.
 	seasonal := thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions)
@@ -118,6 +122,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	if err != nil {
 		return domain.Unknown[policy.FoodPlan]()
 	}
+	credit.Opened(plan, channels, p.Identity.Tick)
 	// A food slaughter offer protects productive animals selected
 	// by the non-destructive portfolio before adding a single removal method.
 	if animals, known := p.FoodChannels.Value(); known && plan.GapPerDay > 0 {
@@ -141,6 +146,36 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 		}
 	}
 	return domain.Known(plan)
+}
+
+// foodCreditInput is the review's delivery ledger as the credit tracker reads
+// it: cumulative nutrition per counter group, keyed "<kind>:<source id>" as the
+// channel builders name their Source from their own census.
+func foodCreditInput(p observation.ColonyProjection) policy.CreditInput {
+	ledger, known := p.DeliveryLedger.Value()
+	in := policy.CreditInput{Tick: p.Identity.Tick, Known: known}
+	if !known {
+		return in
+	}
+	in.Epoch, in.Lost = ledger.LoadToken, ledger.Lost
+	in.Delivered = map[string]float64{}
+	for key, count := range ledger.Counts {
+		in.Delivered[string(key.Kind)+":"+key.SourceID] += count.Nutrition
+	}
+	return in
+}
+
+// logFoodCredit writes one food_credit row per factor move, state change or
+// held factor.
+func logFoodCredit(changes []policy.CreditChange) {
+	for _, c := range changes {
+		telemetry.Decide(context.Background(), foodCreditDecision(c))
+	}
+}
+
+func foodCreditDecision(c policy.CreditChange) telemetry.Decision {
+	return telemetry.Decision{Kind: "food_credit", Component: "routine", Verdict: "credited", Reason: c.Reason, Target: c.Source,
+		Attrs: map[string]any{"expected": c.Expected, "observed": c.Observed, "factor": c.Factor, "window_days": c.WindowDays, "state": c.State}}
 }
 
 func foodPlanSupport(p domain.Fact[policy.FoodPlan], kind policy.FoodChannelKind, id string) bool {

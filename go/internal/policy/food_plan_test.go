@@ -188,8 +188,16 @@ func TestFoodPlanEmergencyOpensChannelsInParallel(t *testing.T) {
 		}
 		kinds[e.Channel.Kind] = true
 	}
-	if len(kinds) != 3 || p.DeliveredPerDay != 3 || p.GapPerDay <= 0 {
-		t.Fatalf("emergency: only fishing is credited: %s", p.Explain())
+	if len(kinds) != 3 || p.DeliveredPerDay != 0 || p.GapPerDay <= 0 {
+		t.Fatalf("emergency: nothing is credited until delivering: %s", p.Explain())
+	}
+	// A channel observed delivering keeps its credit.
+	delivering := append([]FoodChannel(nil), rows...)
+	delivering[3].Open = domain.Known(true)
+	dr := r
+	dr.Channels = domain.Known(delivering)
+	if p, err = SupplyFoodPlan(dr); err != nil || p.DeliveredPerDay != 3 {
+		t.Fatalf("emergency: only the delivering fishing is credited: %s %v", p.Explain(), err)
 	}
 	// The labor budget still binds, breadth first: one row per kind.
 	r.Labor = domain.Known(3900 + 2500 + 5000.0)
@@ -290,7 +298,7 @@ func TestFoodPlanAdaptersAndInputOwnership(t *testing.T) {
 	if len(f) != 1 || len(h) != 1 {
 		t.Fatalf("%+v %+v", f, h)
 	}
-	if open, _ := f[0].Open.Value(); open {
+	if open, _ := f[0].Open.Value(); open || f[0].State() != domain.Known(CandidateDesignated) {
 		t.Fatal("designation counted as delivery")
 	}
 	field := FoodField{ID: "rice", Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(4.5), HarvestNutrition: domain.Known(0.3)}, Sites: FarmSitePlan{Cells: 30}}, RemainingGrowDays: domain.Known(2.0), WorkPerDay: domain.Known(100.0), Open: domain.Known(false)}

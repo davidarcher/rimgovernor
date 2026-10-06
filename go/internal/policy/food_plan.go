@@ -50,8 +50,15 @@ type FoodChannel struct {
 	ID                                    string
 	NutritionPerDay, WorkPerDay, LeadDays domain.Fact[float64]
 	Risk                                  []FoodRisk
-	Open                                  domain.Fact[bool]
-	Terms                                 []FoodPlanTerm
+	// Open is true once the channel is observed delivering (the delivery
+	// ledger); Designated is a committed channel not yet seen delivering; a
+	// channel that is neither is closed (see State).
+	Open, Designated domain.Fact[bool]
+	// Source names the ledger counter group that counts the channel's
+	// deliveries ("crop:<zone>", "fish:<x,z>", "forage:<def>",
+	// "animal_product:<race>"); empty for a channel the ledger does not count.
+	Source string
+	Terms  []FoodPlanTerm
 	// DistanceSquared is the nearest source cell to the colony centre;
 	// fishing regions of equal lead rank nearest-first on it.
 	DistanceSquared domain.Fact[float64]
@@ -69,7 +76,7 @@ type FoodPlanRequest struct {
 	Demand                           FoodForecast
 	ReserveDays, MinDays, TargetDays float64
 	// EmergencyDays is the stage's starvation line (FootholdFoodDays).
-	// Under it a new hunt or forage is not credited toward the target --
+	// Under it a channel not yet delivering is not credited toward the target --
 	// only delivered food counts -- and the lead-0 channels open one per
 	// kind first, so hunting, fishing, foraging and harvest run in parallel
 	// up to the labor budget. Zero disables the emergency.
@@ -93,6 +100,12 @@ type FoodPlanEntry struct {
 	Reason          string
 	Terms           []FoodPlanTerm
 	DeliveredPerDay float64 // Risk-adjusted contribution admitted to this plan.
+}
+
+// Selected is whether the plan relies on the channel: it credits it, or opens it
+// (an uncredited channel opened under an emergency until it delivers).
+func (e FoodPlanEntry) Selected() bool {
+	return e.DeliveredPerDay > 0 || e.Decision == FoodPlanOpen
 }
 
 type FoodPlan struct {
@@ -187,8 +200,12 @@ func ForageChannels(sources []AcquisitionSource) []FoodChannel {
 	var out []FoodChannel
 	for _, s := range sources {
 		if s.Food && !s.Tree && !s.Hunt {
-			out = append(out, FoodChannel{Kind: FoodForage, ID: s.ID, NutritionPerDay: domain.Known(s.NutritionYield / FoodForageCycleDays), WorkPerDay: domain.Known(FoodForageWorkTicks / FoodForageCycleDays), LeadDays: domain.Known(0.0), Open: domain.Known(false),
-				Terms: []FoodPlanTerm{{"estimated_cycle_days", FoodForageCycleDays}, {"estimated_work_ticks", FoodForageWorkTicks}}})
+			c := FoodChannel{Kind: FoodForage, ID: s.ID, NutritionPerDay: domain.Known(s.NutritionYield / FoodForageCycleDays), WorkPerDay: domain.Known(FoodForageWorkTicks / FoodForageCycleDays), LeadDays: domain.Known(0.0), Open: domain.Known(false), Designated: domain.Known(s.Designated),
+				Terms: []FoodPlanTerm{{"estimated_cycle_days", FoodForageCycleDays}, {"estimated_work_ticks", FoodForageWorkTicks}}}
+			if s.Definition != "" {
+				c.Source = "forage:" + s.Definition
+			}
+			out = append(out, c)
 		}
 	}
 	return out
@@ -312,7 +329,10 @@ func CropChannels(fields []FoodField, kitchen CropKitchen) []FoodChannel {
 				}
 			}
 		}
-		c := FoodChannel{Kind: FoodCrop, ID: f.ID, NutritionPerDay: nutrition, WorkPerDay: work, LeadDays: f.RemainingGrowDays, Open: f.Open, StockCap: domain.Unknown[int64](), Terms: terms}
+		c := FoodChannel{Kind: FoodCrop, ID: f.ID, NutritionPerDay: nutrition, WorkPerDay: work, LeadDays: f.RemainingGrowDays, Open: f.Open, StockCap: domain.Unknown[int64](), Designated: domain.Known(true), Source: "crop:" + f.ID, Terms: terms}
+		if dk && fieldPositive(days) {
+			c.Terms = append(c.Terms, FoodPlanTerm{"grow_days", days})
+		}
 		if n, nk := nutrition.Value(); nk && foodNumber(n) {
 			rot, rk := f.Plan.Crop.RotDays.Value()
 			perishable, pk := f.Plan.Crop.Perishable.Value()

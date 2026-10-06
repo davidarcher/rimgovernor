@@ -10,10 +10,11 @@ package buildingruntime
 // reaches it:
 //
 //   - Trade has no plan row, so a trade source is never opened.
-//   - AnimalProduct rows are always Open, so products deliver from day 0 and
-//     their rows are never acted on.
-//   - Crop rows are never Open and Hunt/Forage rows carry no state, so those
-//     rows reopen daily (a no-op for an open source).
+//   - AnimalProduct rows are never acted on: animals keep producing.
+//   - A planned Open row reopens daily (a no-op for an open source). The
+//     adapter feeds the planner the delivery ledger the source would have
+//     counted (cumulative nutrition per counter group), so a row is Open once
+//     it has delivered and its credit follows what it delivers.
 //   - A hidden source (a hunt the native gates refuse: no butcher bill, no
 //     ranged hunter, Hunting priority 0) never reaches Acquisition.
 //
@@ -89,6 +90,10 @@ type foodScenario struct {
 	kitchen bool
 	// shockedIDs are the sources a shock touches.
 	shockedIDs []string
+	// overestimates are the shocked sources whose planned rate the shock makes
+	// false (they deliver far less than the plan expects): the delivery credit
+	// must take their factor to ~0.
+	overestimates []string
 }
 
 func (sc foodScenario) world(demandScale float64) supplysim.World {
@@ -100,7 +105,7 @@ func (sc foodScenario) world(demandScale float64) supplysim.World {
 	}
 	for _, s := range sc.specs {
 		src := s.src
-		// Products are always Open in the planner; every other source starts closed.
+		// Products are produced by animals the colony already keeps; every other source starts closed.
 		src.Open = s.kind == policy.FoodAnimalProduct
 		w.Sources = append(w.Sources, src)
 	}
@@ -131,11 +136,26 @@ type foodAdapter struct {
 	sc    foodScenario
 	days  []foodDay
 	plans []policy.FoodPlan
+	// credit is the planner's delivery credit; delivered is the cumulative
+	// nutrition each ledger counter has seen (the sim's native ledger).
+	credit    policy.DeliveryCredit
+	delivered map[observation.DeliveryKey]float64
+	// groups names the world source behind each ledger counter group; minFactor
+	// is the lowest factor the credit reported for a source.
+	groups    map[string]string
+	minFactor map[string]float64
 }
 
 func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 	p, ids := a.projection(v)
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy()).Value()
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &a.credit).Value()
+	for _, c := range a.credit.Drain() {
+		if id, ok := a.groups[c.Source]; ok {
+			if f, seen := a.minFactor[id]; !seen || c.Factor < f {
+				a.minFactor[id] = c.Factor
+			}
+		}
+	}
 	a.plans = append(a.plans, plan)
 	d := foodDay{known: known, gap: plan.GapPerDay, runway: v.Runway[supplysim.Nutrition]}
 	if !known {
@@ -194,6 +214,19 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 			Perishable: domain.Known(false), Eaters: pawns}}
 	}
 	p := observation.ColonyProjection{Workers: domain.Known(sc.colonists), CombinedFoodSupply: domain.Known(supply), FoodSupply: domain.Known(supply)}
+	p.Identity.Tick = v.Tick
+	ledger := observation.DeliveryLedger{LoadToken: "sim", Counts: map[observation.DeliveryKey]observation.DeliveryCount{}}
+	if a.delivered == nil {
+		a.delivered = map[observation.DeliveryKey]float64{}
+		a.groups, a.minFactor = map[string]string{}, map[string]float64{}
+	}
+	// count adds the units a source delivered the previous day to its ledger counter.
+	count := func(key observation.DeliveryKey, sv supplysim.SourceView, nutr float64) {
+		a.delivered[key] += sv.Last * nutr
+		if n := a.delivered[key]; n > 0 {
+			ledger.Counts[key] = observation.DeliveryCount{Nutrition: n, LastTick: int64(v.Tick)}
+		}
+	}
 	if sc.kitchen {
 		meal := policy.ProductionRecipe{Name: "CookMealSimple", Role: domain.RoleOrdinaryMeal, Available: domain.Known(true),
 			NutrientEfficiency: domain.Known(1.0), WorkPerNutrition: domain.Known(100.0),
@@ -218,21 +251,30 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 				continue
 			}
 			hunt := s.kind == policy.FoodHunt
-			acquisition = append(acquisition, policy.AcquisitionSource{ID: id, Food: true, Hunt: hunt, NutritionYield: sv.Rate * s.nutr, WeaponRange: s.reach, Designated: sv.Open})
+			acquisition = append(acquisition, policy.AcquisitionSource{ID: id, Definition: id, Food: true, Hunt: hunt, NutritionYield: sv.Rate * s.nutr, WeaponRange: s.reach, Designated: sv.Open})
+			if !hunt {
+				count(observation.DeliveryKey{Kind: observation.DeliveryForage, SourceID: id, Def: id}, sv, s.nutr)
+				a.groups["forage:"+id] = id
+			}
 			ids[string(s.kind)+"/"+id] = id
 		case policy.FoodFishing:
 			regionID := policy.FishingRegionID(domain.Cell{X: int32(len(water.Regions))})
-			// A fishing row is Open while the region delivers: open and above its floor.
-			delivering := sv.Open && sv.Stock >= s.src.Floor*sv.Max
+			// A fishing zone is designated while the source is open; whether it
+			// delivers (above its population floor) is for the ledger to say.
+			root := domain.Cell{X: int32(len(water.Regions))}
+			count(observation.DeliveryKey{Kind: observation.DeliveryFish, SourceID: fmt.Sprintf("%d,%d", root.X, root.Z), Def: "fish"}, sv, s.nutr)
+			a.groups[fmt.Sprintf("fish:%d,%d", root.X, root.Z)] = id
 			water.Regions = append(water.Regions, observation.FishableRegion{Root: domain.Cell{X: int32(len(water.Regions))},
 				Population: domain.Known(sv.Stock), MaxPopulation: domain.Known(sv.Max), Reachable: domain.Known(true), Frozen: domain.Known(false),
-				Delivering: domain.Known(delivering), NutritionPerFish: domain.Known(s.nutr), FishPerBatch: domain.Known(1.0),
+				Delivering: domain.Known(sv.Open), NutritionPerFish: domain.Known(s.nutr), FishPerBatch: domain.Known(1.0),
 				WorkTicksPerBatch: domain.Known(supplysim.FishLaborPerFisher / supplysim.FishPerFisherDay), PawnFishWorkCapacity: domain.Known(sv.Rate * s.nutr),
 				DistanceSquared: domain.Known(float64(len(water.Regions)))})
 			ids[string(s.kind)+"/"+regionID] = id
 		case policy.FoodAnimalProduct:
 			gatherable = append(gatherable, observation.GatherableAnimal{PawnID: id, Race: id, Active: domain.Known(true), HandlerReachable: domain.Known(true),
 				NutritionPerDay: domain.Known(sv.Rate * s.nutr), WorkPerDay: domain.Known(s.src.Labor), LeadDays: domain.Known(0.0)})
+			count(observation.DeliveryKey{Kind: observation.DeliveryAnimalProduct, SourceID: id, Def: id}, sv, s.nutr)
+			a.groups["animal_product:"+id] = id
 			ids[string(s.kind)+"/"+id] = id
 		case policy.FoodCrop:
 			w := s.window
@@ -246,9 +288,12 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 			fields = append(fields, policy.FoodField{ID: id, RemainingGrowDays: domain.Known(lead), WorkPerDay: domain.Known(s.cells * supplysim.CropHarvestWork / float64(s.grow)), Open: domain.Known(false),
 				Plan: policy.FieldPlan{Crop: policy.CropChoice{Name: id, Edible: domain.Known(true), GrowDays: domain.Known(float64(s.grow)), HarvestNutrition: domain.Known(s.nutr)},
 					Sites: policy.FarmSitePlan{Cells: int(s.cells)}}})
+			count(observation.DeliveryKey{Kind: observation.DeliveryCrop, SourceID: id, Def: id}, sv, s.nutr)
+			a.groups["crop:"+id] = id
 			ids[string(s.kind)+"/"+id] = id
 		}
 	}
+	p.DeliveryLedger = domain.Known(ledger)
 	p.Acquisition = domain.Known(acquisition)
 	p.FoodFields = domain.Known(fields)
 	p.FoodChannels = domain.Known(observation.FoodChannels{FishableWater: domain.Known(water), Gatherable: gatherable})
@@ -293,14 +338,15 @@ var oracle = supplysim.PlannerFunc(func(v supplysim.WorldView) []supplysim.Comma
 })
 
 type foodResult struct {
-	rep    supplysim.Report
-	days   []foodDay
-	viable bool
+	rep       supplysim.Report
+	days      []foodDay
+	viable    bool
+	minFactor map[string]float64
 }
 
 func runFood(sc foodScenario, horizon int) foodResult {
 	a := &foodAdapter{sc: sc}
-	r := foodResult{rep: supplysim.Run(sc.world(1), a, horizon), days: a.days}
+	r := foodResult{rep: supplysim.Run(sc.world(1), a, horizon), days: a.days, minFactor: a.minFactor}
 	r.viable = !supplysim.Run(sc.world(foodViabilityMargin), oracle, horizon).Starved(supplysim.Nutrition)
 	return r
 }
@@ -312,7 +358,11 @@ const (
 	failShockBetter  = "shock-improves-runway"
 	failNoAlt        = "no-alternative-opened-after-shock"
 	failSurplusClose = "surplus-close-while-short"
+	failCreditStuck  = "over-estimating-channel-stays-credited"
 )
+
+// foodCreditFloor is the factor an over-estimating channel must reach.
+const foodCreditFloor = 0.1
 
 // foodFailures evaluates every assertion that applies to sc.
 func foodFailures(sc foodScenario, res map[string]foodResult) []string {
@@ -330,6 +380,14 @@ func foodFailures(sc foodScenario, res map[string]foodResult) []string {
 	if len(sc.shockedIDs) > 0 && !openedAlternative(sc, r) {
 		fails = append(fails, failNoAlt)
 	}
+	for _, id := range sc.overestimates {
+		// A source the planner had not opened before the shock has no history to
+		// penalise: it is not judged before its lead plus one window.
+		if f, seen := r.minFactor[id]; openedBeforeShock(r, id) && (!seen || f > foodCreditFloor) {
+			fails = append(fails, failCreditStuck)
+			break
+		}
+	}
 	for _, d := range r.days {
 		if d.closedAtGap {
 			fails = append(fails, failSurplusClose)
@@ -337,6 +395,15 @@ func foodFailures(sc foodScenario, res map[string]foodResult) []string {
 		}
 	}
 	return fails
+}
+
+func openedBeforeShock(r foodResult, id string) bool {
+	for _, d := range r.days[:min(foodShockDay, len(r.days))] {
+		if slices.Contains(d.opened, id) {
+			return true
+		}
+	}
+	return false
 }
 
 // openedAlternative holds when a source the shock left alone was closed at the
@@ -462,19 +529,24 @@ var foodDemandLevels = map[string]float64{"base": 1, "high": 1.5}
 var foodShocks = map[string]struct {
 	shocks  []supplysim.Shock
 	touched []string
+	// over names the touched sources the shock leaves delivering almost nothing
+	// while the plan still expects their rate.
+	over []string
 }{
-	"overfishing": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.DestroyStock, Source: "fishing", Factor: 0.95}}, []string{"fishing"}},
+	"overfishing":    {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.DestroyStock, Source: "fishing", Factor: 0.95}}, []string{"fishing"}, []string{"fishing"}},
+	"pond-collapse":  {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.DestroyStock, Source: "fishing", Factor: 0.99}}, []string{"fishing"}, []string{"fishing"}},
+	"fallout-fields": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.DestroyStock, Source: "crop", Factor: 1}, {Day: foodShockDay, Kind: supplysim.PauseGrowth, Source: "crop", Days: 40}}, []string{"crop"}, []string{"crop"}},
 	"eclipse": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.PauseGrowth, Source: "crop", Days: 4}, {Day: foodShockDay, Kind: supplysim.PauseGrowth, Source: "forage", Days: 4}},
-		[]string{"crop", "forage"}},
+		[]string{"crop", "forage"}, nil},
 	"toxic-fallout": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.DestroyStock, Source: "crop", Factor: 0.8}, {Day: foodShockDay, Kind: supplysim.PauseGrowth, Source: "crop", Days: 15},
-		{Day: foodShockDay, Kind: supplysim.ScaleCapacity, Source: "forage", Factor: 0.5}}, []string{"crop", "forage"}},
+		{Day: foodShockDay, Kind: supplysim.ScaleCapacity, Source: "forage", Factor: 0.5}}, []string{"crop", "forage"}, []string{"crop"}},
 	"volcanic-winter": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.PauseGrowth, Source: "crop", Days: 20}, {Day: foodShockDay, Kind: supplysim.ScaleCapacity, Source: "forage", Factor: 0.2},
 		{Day: foodShockDay, Kind: supplysim.ScaleCapacity, Source: "hunt", Factor: 0.5}, {Day: foodShockDay, Kind: supplysim.ScaleCapacity, Source: "fishing", Factor: 0.5}},
-		[]string{"crop", "forage", "hunt", "fishing"}},
-	"no-huntable-animals": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.RemoveSource, Source: "hunt"}}, []string{"hunt"}},
-	"no-farmland":         {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.RemoveSource, Source: "crop"}}, []string{"crop"}},
+		[]string{"crop", "forage", "hunt", "fishing"}, nil},
+	"no-huntable-animals": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.RemoveSource, Source: "hunt"}}, []string{"hunt"}, nil},
+	"no-farmland":         {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.RemoveSource, Source: "crop"}}, []string{"crop"}, nil},
 	"no-soil": {[]supplysim.Shock{{Day: foodShockDay, Kind: supplysim.RemoveSource, Source: "crop"}, {Day: foodShockDay, Kind: supplysim.RemoveSource, Source: "forage"}},
-		[]string{"crop", "forage"}},
+		[]string{"crop", "forage"}, nil},
 }
 
 var foodShockMix = []policy.FoodChannelKind{policy.FoodFishing, policy.FoodCrop, policy.FoodHunt, policy.FoodForage}
@@ -553,6 +625,7 @@ func foodScenarios(t testing.TB) []foodScenario {
 			base := mixScenario(fmt.Sprintf("shock-twin/n%d", size), size, 1, foodShockShare, foodShockMix)
 			sc := mixScenario(fmt.Sprintf("shock/%s/n%d", shock, size), size, 1, foodShockShare, foodShockMix)
 			sc.shocks, sc.shockedIDs, sc.twin = foodShocks[shock].shocks, foodShocks[shock].touched, base.name
+			sc.overestimates = foodShocks[shock].over
 			if !slices.ContainsFunc(out, func(s foodScenario) bool { return s.name == base.name }) {
 				out = append(out, base)
 			}

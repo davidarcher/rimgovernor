@@ -281,6 +281,16 @@ func (e Entry) Words() string {
 		if ms, _ := e.Payload[telemetry.DurMsKey].(float64); ms > 0 && e.Count == 1 {
 			fmt.Fprintf(&b, " %.1fms", ms)
 		}
+		if e.Kind == "food_credit" {
+			// A credit row's point is the factor the ledger moved the channel to.
+			attrs, _ := e.Payload[telemetry.AttrsKey].(map[string]any)
+			if factor, ok := attrs["factor"].(float64); ok {
+				fmt.Fprintf(&b, " factor %.2f", factor)
+			}
+			if state, ok := attrs["state"].(string); ok {
+				b.WriteString(" (" + state + ")")
+			}
+		}
 	} else if text := compactPayload(e.Payload); text != "" {
 		b.WriteString(" " + text)
 	}

@@ -19,7 +19,8 @@ type FishingRegion struct {
 	Population, MaxPopulation                         domain.Fact[float64]
 	NutritionPerFish, FishPerBatch, WorkTicksPerBatch domain.Fact[float64]
 	PawnFishWorkCapacity                              domain.Fact[float64] // raw nutrition/day
-	Reachable, Frozen, Open                           domain.Fact[bool]
+	Reachable, Frozen, Designated                     domain.Fact[bool]    // Designated: a zone is set to fish it
+	Source                                            string               // ledger counter group of its deliveries
 	DistanceSquared                                   domain.Fact[float64] // nearest cell to the colony centre
 }
 
@@ -58,14 +59,14 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 		if pk && mk && population > maximum || nk && nutrition == 0 || bk && batch == 0 || wk && work == 0 {
 			return nil, ErrFoodPlanFacts
 		}
-		channel := FoodChannel{Kind: FoodFishing, ID: region.ID, Open: region.Open, DistanceSquared: region.DistanceSquared}
+		channel := FoodChannel{Kind: FoodFishing, ID: region.ID, Open: notDelivering(region.Designated), Designated: region.Designated, Source: region.Source, DistanceSquared: region.DistanceSquared}
 		channel.Terms = []FoodPlanTerm{{Name: "fish_regeneration_fraction", Value: FishingRegenerationPerDay}}
 		if researched, known := r.Researched.Value(); known {
 			channel.LeadDays = r.ResearchLeadDays
 			if researched {
 				channel.LeadDays = domain.Known(0.0)
 			} else {
-				channel.Open = domain.Known(false)
+				channel.Open, channel.Designated = domain.Known(false), domain.Known(false)
 				channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_research_required", Value: 1})
 			}
 		}
@@ -74,7 +75,7 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 		if rk && !reachable || fk && frozen || pk && population == 0 || mk && maximum == 0 {
 			// Preserve an explicit explanation without presenting an unusable
 			// region as an observed-open source of food.
-			channel.Open = domain.Known(false)
+			channel.Open, channel.Designated = domain.Known(false), domain.Known(false)
 			channel.NutritionPerDay, channel.WorkPerDay = domain.Known(0.0), domain.Known(0.0)
 			if rk && !reachable {
 				channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_unreachable", Value: 1})
@@ -103,6 +104,15 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 	return channels, nil
 }
 
+// notDelivering is a channel's Open before the ledger: not delivering, unknown
+// when its designation is.
+func notDelivering(designated domain.Fact[bool]) domain.Fact[bool] {
+	if _, known := designated.Value(); !known {
+		return designated
+	}
+	return domain.Known(false)
+}
+
 // FishingResearchRequest asks the existing research goal to open a selected
 // source. A deferred, closed or unknown channel cannot change research intent.
 func FishingResearchRequest(plan FoodPlan, researched domain.Fact[bool]) string {
@@ -110,7 +120,7 @@ func FishingResearchRequest(plan FoodPlan, researched domain.Fact[bool]) string 
 		return ""
 	}
 	for _, row := range plan.Portfolio {
-		if row.Channel.Kind == FoodFishing && row.Decision == FoodPlanOpen && row.DeliveredPerDay > 0 {
+		if row.Channel.Kind == FoodFishing && row.Decision == FoodPlanOpen {
 			return "Fishing"
 		}
 	}

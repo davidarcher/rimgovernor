@@ -58,14 +58,14 @@ func AnimalProductChannels(animals []AnimalProduct) []FoodChannel {
 	var channels []FoodChannel
 	for _, race := range keys {
 		r := byRace[race]
-		c := FoodChannel{Kind: FoodAnimalProduct, ID: race, Terms: []FoodPlanTerm{{Name: "productive_animals", Value: float64(len(r.pawns))}}}
+		c := FoodChannel{Kind: FoodAnimalProduct, ID: race, Source: "animal_product:" + race, Terms: []FoodPlanTerm{{Name: "productive_animals", Value: float64(len(r.pawns))}}}
 		if !r.unknown || math.IsNaN(r.nutrition) {
 			c.NutritionPerDay = domain.Known(r.nutrition)
 		}
 		if !r.unknown {
 			c.WorkPerDay = domain.Known(r.work)
 			c.LeadDays = domain.Known(r.lead)
-			c.Open = domain.Known(true)
+			c.Open, c.Designated = domain.Known(false), domain.Known(true)
 		}
 		channels = append(channels, c)
 	}
@@ -96,7 +96,7 @@ func FoodHerdPolicy(herd HerdPolicy, fact domain.Fact[FoodPlan]) HerdPolicy {
 		marginalCrop = 0
 	}
 	for _, e := range plan.Portfolio {
-		if e.Channel.Kind != FoodAnimalProduct || e.Decision == FoodPlanClose || e.DeliveredPerDay <= 0 {
+		if e.Channel.Kind != FoodAnimalProduct || e.Decision == FoodPlanClose || !e.Selected() {
 			continue
 		}
 		n, nk := e.Channel.NutritionPerDay.Value()

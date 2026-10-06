@@ -13,7 +13,7 @@ func fishingRequest() FishingRequest {
 		ID: "coast", Population: domain.Known(300.0), MaxPopulation: domain.Known(300.0),
 		NutritionPerFish: domain.Known(0.25), FishPerBatch: domain.Known(6.0), WorkTicksPerBatch: domain.Known(7500.0),
 		PawnFishWorkCapacity: domain.Known(8.0),
-		Reachable:            domain.Known(true), Frozen: domain.Known(false), Open: domain.Known(false),
+		Reachable:            domain.Known(true), Frozen: domain.Known(false), Designated: domain.Known(false),
 	}}}
 }
 
@@ -58,7 +58,7 @@ func TestFishingAvailability(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := fishingRequest()
-			r.Regions[0].Open = domain.Known(true)
+			r.Regions[0].Designated = domain.Known(true)
 			tc.change(&r)
 			rows, err := FishingChannels(r)
 			if err != nil {

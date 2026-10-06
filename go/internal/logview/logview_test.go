@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 type row struct {
@@ -232,5 +233,14 @@ func TestFollowEmitsOnlyNewRowsWithGap(t *testing.T) {
 	}
 	if fmt.Sprint(kinds) != "[recording_gap new]" {
 		t.Fatalf("got %v", kinds)
+	}
+}
+
+func TestFoodCreditRowShowsFactorAndState(t *testing.T) {
+	rec := bridge.TimelineRecord{Kind: "food_credit", Context: map[string]any{"component": "routine"}, Payload: map[string]any{
+		telemetry.VerdictKey: "credited", telemetry.ReasonKey: "window", telemetry.TargetKey: "crop:z7",
+		telemetry.AttrsKey: map[string]any{"factor": 0.25, "state": "delivering", "expected": 4.0, "observed": 1.0, "window_days": 7.0}}}
+	if got := NewEntry(rec).Words(); got != "food_credit credited window crop:z7 factor 0.25 (delivering)" {
+		t.Fatalf("Words = %q", got)
 	}
 }

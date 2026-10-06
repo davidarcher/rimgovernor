@@ -21,7 +21,11 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 	p.Facts.AnimalUpkeep.Animals = domain.Known([]policy.UpkeepAnimal{cow("cow", "Female"), cow("bull", "Male")})
 	p.Facts.AnimalUpkeep.AnimalRaces = policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{"Cow": {Def: "Cow", BodySize: domain.Known(2.5),
 		Products: []policy.RaceProduct{{Kind: "milk", Def: "Milk", Amount: domain.Known(12.0), IntervalDays: domain.Known(1.0)}}}}}
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy()).Value()
+	// The cows are seen delivering, so the emergency (no stock) still credits them.
+	p.DeliveryLedger = domain.Known(observation.DeliveryLedger{LoadToken: "t", Counts: map[observation.DeliveryKey]observation.DeliveryCount{
+		{Kind: observation.DeliveryAnimalProduct, SourceID: "Cow", Def: "Milk"}: {Nutrition: 1}}})
+	var credit policy.DeliveryCredit
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit).Value()
 	if !known || !strings.Contains(plan.Explain(), "MaintainHerd-Cow floor 3") {
 		t.Fatal(plan.Explain(), known)
 	}
@@ -58,7 +62,7 @@ func foodPlanFixture(v *o.ColonyFactsSnapshot) {
 func TestFoodPlanReviewBudgetsAnimalsAndUnknownDemand(t *testing.T) {
 	p := observation.ColonyProjection{Workers: domain.Known(2), Acquisition: domain.Known([]policy.AcquisitionSource{{ID: "berry", Food: true, NutritionYield: 2}, {ID: "deer", Food: true, Hunt: true, NutritionYield: 4}}),
 		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(1.0)}, {ID: "animal", NutritionPerDay: domain.Known(2.0)}}})}
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy()).Value()
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil).Value()
 	if !known || plan.DemandPerDay != 3 {
 		t.Fatalf("plan = %+v, known=%v", plan, known)
 	}
@@ -66,7 +70,7 @@ func TestFoodPlanReviewBudgetsAnimalsAndUnknownDemand(t *testing.T) {
 		t.Fatal("missing cooking support")
 	}
 	p.CombinedFoodSupply = domain.Unknown[policy.FoodSupply]()
-	if _, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy()).Value(); known {
+	if _, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil).Value(); known {
 		t.Fatal("unknown demand became a plan")
 	}
 }
@@ -90,5 +94,55 @@ func TestFoodPlanExpansionWaitsForGap(t *testing.T) {
 	p.Facts.FoodPlan = domain.Known(policy.FoodPlan{GapPerDay: 0})
 	if _, _, reason := r.selection(p); !reason.IsZero() {
 		t.Fatal(reason)
+	}
+}
+
+// The ledger's counters reach the channels through each builder's own census:
+// zone id -> crop field, water body root -> fishing region, plant def ->
+// forage, race -> animal product. A counter under another key credits nothing.
+func TestFoodCreditAttributesLedgerCountersToChannels(t *testing.T) {
+	p := observation.ColonyProjection{Workers: domain.Known(2),
+		Acquisition:        domain.Known([]policy.AcquisitionSource{{ID: "plant-1", Definition: "Berry", Food: true, NutritionYield: 2, Designated: true}, {ID: "plant-2", Definition: "Corn", Food: true, NutritionYield: 2, Designated: true}}),
+		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(4.0)}}}),
+		FoodFields: domain.Known([]policy.FoodField{{ID: "z7", RemainingGrowDays: domain.Known(1.0), WorkPerDay: domain.Known(100.0), Open: domain.Known(false),
+			Plan: policy.FieldPlan{Crop: policy.CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(5.0), HarvestNutrition: domain.Known(1.0)}, Sites: policy.FarmSitePlan{Cells: 10}}}}),
+		FoodChannels: domain.Known(observation.FoodChannels{
+			FishableWater: domain.Known(observation.FishableWater{FishingResearched: domain.Known(true), Regions: []observation.FishableRegion{{Root: domain.Cell{X: 5, Z: 8}, Population: domain.Known(300.0), MaxPopulation: domain.Known(300.0),
+				NutritionPerFish: domain.Known(.25), FishPerBatch: domain.Known(6.0), WorkTicksPerBatch: domain.Known(1000.0), PawnFishWorkCapacity: domain.Known(2.0), Reachable: domain.Known(true), Frozen: domain.Known(false), Delivering: domain.Known(true)}}}),
+			Gatherable: []observation.GatherableAnimal{{PawnID: "cow", Race: "Cow", Active: domain.Known(true), HandlerReachable: domain.Known(true), NutritionPerDay: domain.Known(0.9), WorkPerDay: domain.Known(400.0), LeadDays: domain.Known(0.0)}}})}
+	count := func(kind observation.DeliveryKind, source string) observation.DeliveryKey {
+		return observation.DeliveryKey{Kind: kind, SourceID: source, Def: "x"}
+	}
+	p.DeliveryLedger = domain.Known(observation.DeliveryLedger{LoadToken: "t", Counts: map[observation.DeliveryKey]observation.DeliveryCount{
+		count(observation.DeliveryCrop, "z7"):           {Nutrition: 3},
+		count(observation.DeliveryFish, "5,8"):          {Nutrition: 3},
+		count(observation.DeliveryForage, "Berry"):      {Nutrition: 3},
+		count(observation.DeliveryAnimalProduct, "Cow"): {Nutrition: 3},
+		count(observation.DeliveryCrop, "other-zone"):   {Nutrition: 3},
+	}})
+	var credit policy.DeliveryCredit
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit).Value()
+	if !known {
+		t.Fatal("plan unknown")
+	}
+	got := map[string]bool{}
+	for _, e := range plan.Portfolio {
+		open, _ := e.Channel.Open.Value()
+		got[string(e.Channel.Kind)+"/"+e.Channel.ID] = open
+	}
+	for _, id := range []string{"Crop/z7", "Fishing/water-5-8", "AnimalProduct/Cow", "Forage/plant-1"} {
+		if !got[id] {
+			t.Errorf("%s is not delivering although the ledger counts its source: %v", id, got)
+		}
+	}
+	if got["Forage/plant-2"] {
+		t.Errorf("a forage def with no counter is delivering: %v", got)
+	}
+}
+
+func TestFoodCreditRowShape(t *testing.T) {
+	d := foodCreditDecision(policy.CreditChange{Source: "crop:z7", Reason: policy.CreditWindow, State: "delivering", Expected: 4, Observed: 1, Factor: 0.25, WindowDays: 7})
+	if d.Kind != "food_credit" || d.Reason != "window" || d.Target != "crop:z7" || d.Attrs["factor"] != 0.25 || d.Attrs["window_days"] != 7.0 || d.Attrs["state"] != "delivering" {
+		t.Fatalf("%+v", d)
 	}
 }

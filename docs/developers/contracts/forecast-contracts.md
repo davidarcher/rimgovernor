@@ -171,7 +171,10 @@ consumer allocation when available. The portfolio is the food view
 (`policy.SupplyFoodPlan`) of one `PlanSupply` call over the Nutrition demand
 ([supply model](../architecture/supply-model.md)); the slaughter offer re-runs it.
 
-Acquisition admits Open sources. Field and cooking capacity and stock protection
+Each Round the portfolio credits a channel by what it delivers
+([credit](../architecture/supply-model.md#credit-and-state)): `Open` is true once
+the delivery ledger shows the channel delivering, and the channel's rate is scaled
+by its observed/expected factor. Acquisition admits Open sources. Field and cooking capacity and stock protection
 are zero-contribution Hold rows: their own observed preconditions and existing
 resource/labor admission still apply. Extra housing waits while GapPerDay is
 positive. A second pending field is admitted only when the gap remains positive
@@ -200,7 +203,8 @@ def, animal race) and delivered def, with units, human-edible nutrition and the
 last delivery tick. At most 512 keys; later keys fold into an `other` row and `lost`
 counts those deliveries. The `epoch` changes on load or restart, so a reader diffs
 within an epoch and re-baselines on a change. Go maps source to channel from its own
-census. `observation.ColonyProjection.DeliveryLedger` is Unknown for a missing,
+census: the channel builders name their counter group (`Source`: `crop:<zone>`,
+`fish:<x,z>` as `water-<x>-<z>`, `forage:<plant def>`, `animal_product:<race>`). `observation.ColonyProjection.DeliveryLedger` is Unknown for a missing,
 unavailable or malformed ledger, never zero, and lives in memory only.
 
 Hunting is counted in two stages, each keyed by the corpse's thing id (the food census's

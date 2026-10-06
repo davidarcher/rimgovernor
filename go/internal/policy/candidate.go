@@ -132,8 +132,7 @@ var acquisitionCandidateKinds = map[AcquisitionKind]CandidateKind{
 
 // SupplyCandidateOfFood is a food channel as a candidate. An unrecognised kind maps
 // to an empty CandidateKind, which FoodChannelOfSupply rejects; SupplyFoodPlan refuses it
-// first. Open true is Delivering, false is Closed (the channel records no
-// committed-but-silent state).
+// first. Open is Delivering, Designated is Designated, neither is Closed.
 func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 	out := SupplyCandidate{
 		Kind: foodCandidateKinds[c.Kind], ID: c.ID,
@@ -141,12 +140,7 @@ func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 		LeadDays: c.LeadDays, LaborPerDay: c.WorkPerDay, DistanceSquared: c.DistanceSquared,
 		Prey: append([]string(nil), c.Prey...),
 	}
-	if open, known := c.Open.Value(); known {
-		out.State = domain.Known(CandidateClosed)
-		if open {
-			out.State = domain.Known(CandidateDelivering)
-		}
-	}
+	out.State = c.State()
 	for _, r := range c.Risk {
 		out.Risk = append(out.Risk, CandidateRisk{Kind: CandidateRiskKind(r.Kind), Weight: r.Weight})
 	}
@@ -154,6 +148,21 @@ func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 		out.Terms = append(out.Terms, CandidateTerm(t))
 	}
 	return out
+}
+
+// State is the channel's standing: Delivering when Open, else Designated when
+// committed, else Closed; unknown when Open is.
+func (c FoodChannel) State() domain.Fact[CandidateState] {
+	open, known := c.Open.Value()
+	switch designated, _ := c.Designated.Value(); {
+	case !known:
+		return domain.Unknown[CandidateState]()
+	case open:
+		return domain.Known(CandidateDelivering)
+	case designated:
+		return domain.Known(CandidateDesignated)
+	}
+	return domain.Known(CandidateClosed)
 }
 
 // FoodChannelOfSupply is the food channel of a candidate whose first yield is
@@ -172,6 +181,9 @@ func FoodChannelOfSupply(c SupplyCandidate) (FoodChannel, bool) {
 	}
 	if state, known := c.State.Value(); known {
 		out.Open = domain.Known(state == CandidateDelivering)
+		if state == CandidateDesignated {
+			out.Designated = domain.Known(true)
+		}
 	}
 	for _, r := range c.Risk {
 		out.Risk = append(out.Risk, FoodRisk{Kind: FoodRiskKind(r.Kind), Weight: r.Weight})

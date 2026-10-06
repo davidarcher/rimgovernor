@@ -19,9 +19,8 @@ build on it.
 | `PathDistance`, `DistanceSquared`, `NeedsHaul`, `UnitsPerTrip` | Reach and haul. |
 | `Terms`, `Prey` | Explanation numbers; a formation hunt's animals (its mode: one without prey is a lone hunt). |
 
-The type carries state, never credit: which states earn credit (today a
-fishing or product channel counts when opened, a hunt or forage when
-delivered) is the ranker's and ledger's rule.
+The type carries state, never credit: which states earn credit is the ranker's
+and ledger's rule ([Credit and state](#credit-and-state)).
 
 ## Adapters
 
@@ -30,8 +29,9 @@ delivered) is the ranker's and ledger's rule.
 `FoodChannel` and `AcquisitionCandidate` losslessly. `RankResourceCandidates`
 still consumes the old type; the snapshot golden test proves the food plan and
 the ranking identical through the adapters on every recorded food plan and
-acquisition census. An open food channel maps to `delivering`, a closed one
-to `closed`; an acquisition candidate is a lead-0 one-shot whose labor is its
+acquisition census. A food channel maps to `delivering` when `Open` (observed
+delivering), `designated` when committed and not yet delivering, else `closed`;
+an acquisition candidate is a lead-0 one-shot whose labor is its
 upfront cost, with hunt revenge risk left inside that labor.
 
 ## The ranker
@@ -101,8 +101,8 @@ Delivering candidates keep their observed contribution, even over the labor
 budget (the excess is a Hold with a `labor_excess` term); a strict surplus
 (delivered minus target greater than the contribution) closes the least
 efficient first, so a boundary never churns. Closed candidates over budget add
-nothing. Under an emergency a one-shot hunt or forage opens but earns no credit
-(`uncredited_until_delivered`) until it delivers.
+nothing. Under an emergency a candidate that is not yet delivering opens but earns no
+credit (`uncredited_until_delivered`) until it delivers.
 
 Hold reasons are stable words: `no risk-adjusted <good>`, `lead exceeds
 runway`, `target covered`, `labor budget`, `no_demand`, `no_storage_headroom`,
@@ -114,10 +114,32 @@ when the demand itself is unknown. Explain terms are `risk_discount`,
 
 ### Credit and state
 
-Credit keeps the food plan's rules: a delivering candidate counts, a designated
-or closed one is credited when the plan opens it, and the emergency rule above
-withholds a one-shot's credit. The explicit designated/delivering credit factor
-is row 11 (#2157).
+A candidate is `designated` (committed, not yet seen delivering) until the
+[delivery ledger](../contracts/forecast-contracts.md#delivery-ledger) shows its
+counter group delivering, then `delivering`; the state is kept while nothing
+arrives, and a closed channel is never credited. Under an emergency (runway
+below `EmergencyDays`) every candidate that is not delivering is uncredited.
+
+`policy.DeliveryCredit` (`delivery_credit.go`, Go memory only, never persisted)
+credits a counter group by its factor: the nutrition the ledger counted over a
+trailing window divided by the risk-adjusted nutrition the group's committed
+channels expected over it, clamped to [0,1], starting at 1. `credited rate =
+expected rate x factor`.
+
+- **Attribution** is each builder's own census, named in `FoodChannel.Source`:
+  growing-zone id for a crop field, water-body root for a fishing region, plant
+  def for forage (every plant of a def shares one group), animal race for an
+  animal product. Hunts are not counted by this ledger and keep factor 1.
+- **Window**: `LedgerWindowDays` = 3 days; a bursty channel is judged over at
+  least its cycle plus a replant day (a crop's grow days).
+- **Warm-up**: a group is judged only after its lead plus one window since the
+  plan opened it (`Opened`) or it was first seen delivering, so a candidate
+  nobody asked for is never penalised; until then the factor holds.
+- **Holds**: a factor holds while the ledger is unavailable, after a load
+  (re-baseline: the epoch changed) and for a group without a row while rows were
+  lost. A group no longer in the census is forgotten.
+- **Flight**: a `food_credit` decision row per group when its factor moves by 0.1
+  or more, its state changes, or a hold ends a window it was judged over.
 
 ### Crop candidates
 

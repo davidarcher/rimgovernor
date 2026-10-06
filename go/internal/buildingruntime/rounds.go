@@ -104,6 +104,8 @@ type Rounder struct {
 	// foodGapZero is the acceptance fault that pins the food plan's gap to
 	// zero (Faults.FoodGapZero); the scheduler sets it.
 	foodGapZero bool
+	// foodCredit is the delivery credit's factors (#2157), in memory only.
+	foodCredit policy.DeliveryCredit
 	// bids is MaintainResource's joint ranking across its two planners
 	// (#728); see acquisitionBoard.
 	bids acquisitionBoard
