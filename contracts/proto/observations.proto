@@ -583,7 +583,7 @@ message ResourceStock {
   optional int64 carried = 5; optional int64 in_container = 6; optional int64 ours = 7; optional int64 ours_unforbidden = 8;
   optional int64 forbidden = 9; optional int64 player_faction = 10; optional int64 other_faction = 11;
   optional int64 trader_stock = 12; optional int64 fogged = 13; optional int64 reserved = 14;
-  optional int64 in_stockpile = 15; optional int64 in_home_area = 16; repeated StockItem items = 29;
+  reserved 15, 16; repeated StockItem items = 29;
   repeated HeldStock holders = 18; repeated CorpseState corpses = 19;
   repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24;
@@ -706,10 +706,7 @@ message ZoneState {
   optional string id = 2; optional string label = 3; optional string type = 4; Rectangle bounds = 5;
   optional string priority = 6; optional string crop_def_name = 7; optional bool explicitly_set_crop = 8;
   optional bool allow_sow = 9; optional bool allow_cut = 10; StockpileFilter filter = 11;
-  optional uint32 slot_group_cells = 14; optional uint32 haul_grid_cells = 15; optional bool consistent = 16;
-  optional bool contiguous = 17; repeated Quantity contents = 19;
-  optional uint32 free_cells = 20; optional uint32 blocked_cells = 21; optional uint32 impassable_cells = 22;
-  optional uint32 crop_plants_in_listed_cells = 23; optional uint32 crop_plants_in_grid_cells = 24;
+  reserved 14, 15, 16, 17, 20, 21, 22, 23, 24; repeated Quantity contents = 19;
   repeated ReadIssue issues = 27;
   FarmFacts farm = 28; optional bool food_storage = 29;
 }

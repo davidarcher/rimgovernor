@@ -88,12 +88,6 @@ namespace HomeBridge.BridgeTools
             row.FoodStorage = zone is Zone_Stockpile storage && storage.GetStoreSettings()?.filter != null
                 && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => humanFood(d) && d.GetCompProperties<CompProperties_Rottable>() != null && storage.GetStoreSettings().filter.Allows(d));
 
-            var ordered = cells.OrderBy(c => c.x).ThenBy(c => c.z).ToArray();
-            var gridCells = map.AllCells.Where(c => map.zoneManager.ZoneAt(c) == zone).ToArray();
-            var phantom = ordered.Count(c => map.zoneManager.ZoneAt(c) != zone);
-            row.Consistent = phantom == 0 && gridCells.Length == ordered.Length;
-            row.Contiguous = Contiguous(ordered);
-
             if (zone is Zone_Growing growing)
             {
                 var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
@@ -130,27 +124,9 @@ namespace HomeBridge.BridgeTools
             else row.Issues.Add(Issue("type", Common.UnavailableReason.Unsupported, "Zone subtype is not a growing or stockpile zone."));
 
             if (!(zone is Zone_Stockpile)) row.Issues.Add(Issue("filter", Common.UnavailableReason.NotApplicable, "Only stockpile zones have a filter."));
-            foreach (var field in new[] { "contents", "anomalies", "free_cells", "blocked_cells", "impassable_cells", "crop_plants_in_listed_cells", "crop_plants_in_grid_cells", "slot_group_cells", "haul_grid_cells" })
+            foreach (var field in new[] { "contents", "anomalies" })
                 row.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Typed fact is not implemented by this read adapter."));
             return row;
-        }
-
-        private static bool Contiguous(IntVec3[] cells)
-        {
-            if (cells.Length == 0) return false;
-            var selected = new HashSet<IntVec3>(cells);
-            var reached = new HashSet<IntVec3> { cells[0] };
-            var queue = new Queue<IntVec3>(); queue.Enqueue(cells[0]);
-            while (queue.Count > 0)
-            {
-                var c = queue.Dequeue();
-                foreach (var offset in GenAdj.CardinalDirections)
-                {
-                    var next = c + offset;
-                    if (selected.Contains(next) && reached.Add(next)) queue.Enqueue(next);
-                }
-            }
-            return reached.Count == selected.Count;
         }
 
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;

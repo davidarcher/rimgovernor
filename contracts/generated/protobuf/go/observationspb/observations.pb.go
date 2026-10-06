@@ -8463,8 +8463,6 @@ type ResourceStock struct {
 	TraderStock     *int64                 `protobuf:"varint,12,opt,name=trader_stock,json=traderStock,proto3,oneof" json:"trader_stock,omitempty"`
 	Fogged          *int64                 `protobuf:"varint,13,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
 	Reserved        *int64                 `protobuf:"varint,14,opt,name=reserved,proto3,oneof" json:"reserved,omitempty"`
-	InStockpile     *int64                 `protobuf:"varint,15,opt,name=in_stockpile,json=inStockpile,proto3,oneof" json:"in_stockpile,omitempty"`
-	InHomeArea      *int64                 `protobuf:"varint,16,opt,name=in_home_area,json=inHomeArea,proto3,oneof" json:"in_home_area,omitempty"`
 	Items           []*StockItem           `protobuf:"bytes,29,rep,name=items,proto3" json:"items,omitempty"`
 	Holders         []*HeldStock           `protobuf:"bytes,18,rep,name=holders,proto3" json:"holders,omitempty"`
 	Corpses         []*CorpseState         `protobuf:"bytes,19,rep,name=corpses,proto3" json:"corpses,omitempty"`
@@ -8601,20 +8599,6 @@ func (x *ResourceStock) GetFogged() int64 {
 func (x *ResourceStock) GetReserved() int64 {
 	if x != nil && x.Reserved != nil {
 		return *x.Reserved
-	}
-	return 0
-}
-
-func (x *ResourceStock) GetInStockpile() int64 {
-	if x != nil && x.InStockpile != nil {
-		return *x.InStockpile
-	}
-	return 0
-}
-
-func (x *ResourceStock) GetInHomeArea() int64 {
-	if x != nil && x.InHomeArea != nil {
-		return *x.InHomeArea
 	}
 	return 0
 }
@@ -11631,32 +11615,23 @@ func (*ListRoomsReply_Unavailable) isListRoomsReply_Outcome() {}
 func (*ListRoomsReply_Failure) isListRoomsReply_Outcome() {}
 
 type ZoneState struct {
-	state                   protoimpl.MessageState `protogen:"open.v1"`
-	Id                      *string                `protobuf:"bytes,2,opt,name=id,proto3,oneof" json:"id,omitempty"`
-	Label                   *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	Type                    *string                `protobuf:"bytes,4,opt,name=type,proto3,oneof" json:"type,omitempty"`
-	Bounds                  *Rectangle             `protobuf:"bytes,5,opt,name=bounds,proto3" json:"bounds,omitempty"`
-	Priority                *string                `protobuf:"bytes,6,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
-	CropDefName             *string                `protobuf:"bytes,7,opt,name=crop_def_name,json=cropDefName,proto3,oneof" json:"crop_def_name,omitempty"`
-	ExplicitlySetCrop       *bool                  `protobuf:"varint,8,opt,name=explicitly_set_crop,json=explicitlySetCrop,proto3,oneof" json:"explicitly_set_crop,omitempty"`
-	AllowSow                *bool                  `protobuf:"varint,9,opt,name=allow_sow,json=allowSow,proto3,oneof" json:"allow_sow,omitempty"`
-	AllowCut                *bool                  `protobuf:"varint,10,opt,name=allow_cut,json=allowCut,proto3,oneof" json:"allow_cut,omitempty"`
-	Filter                  *StockpileFilter       `protobuf:"bytes,11,opt,name=filter,proto3" json:"filter,omitempty"`
-	SlotGroupCells          *uint32                `protobuf:"varint,14,opt,name=slot_group_cells,json=slotGroupCells,proto3,oneof" json:"slot_group_cells,omitempty"`
-	HaulGridCells           *uint32                `protobuf:"varint,15,opt,name=haul_grid_cells,json=haulGridCells,proto3,oneof" json:"haul_grid_cells,omitempty"`
-	Consistent              *bool                  `protobuf:"varint,16,opt,name=consistent,proto3,oneof" json:"consistent,omitempty"`
-	Contiguous              *bool                  `protobuf:"varint,17,opt,name=contiguous,proto3,oneof" json:"contiguous,omitempty"`
-	Contents                []*Quantity            `protobuf:"bytes,19,rep,name=contents,proto3" json:"contents,omitempty"`
-	FreeCells               *uint32                `protobuf:"varint,20,opt,name=free_cells,json=freeCells,proto3,oneof" json:"free_cells,omitempty"`
-	BlockedCells            *uint32                `protobuf:"varint,21,opt,name=blocked_cells,json=blockedCells,proto3,oneof" json:"blocked_cells,omitempty"`
-	ImpassableCells         *uint32                `protobuf:"varint,22,opt,name=impassable_cells,json=impassableCells,proto3,oneof" json:"impassable_cells,omitempty"`
-	CropPlantsInListedCells *uint32                `protobuf:"varint,23,opt,name=crop_plants_in_listed_cells,json=cropPlantsInListedCells,proto3,oneof" json:"crop_plants_in_listed_cells,omitempty"`
-	CropPlantsInGridCells   *uint32                `protobuf:"varint,24,opt,name=crop_plants_in_grid_cells,json=cropPlantsInGridCells,proto3,oneof" json:"crop_plants_in_grid_cells,omitempty"`
-	Issues                  []*ReadIssue           `protobuf:"bytes,27,rep,name=issues,proto3" json:"issues,omitempty"`
-	Farm                    *FarmFacts             `protobuf:"bytes,28,opt,name=farm,proto3" json:"farm,omitempty"`
-	FoodStorage             *bool                  `protobuf:"varint,29,opt,name=food_storage,json=foodStorage,proto3,oneof" json:"food_storage,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                *string                `protobuf:"bytes,2,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	Label             *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	Type              *string                `protobuf:"bytes,4,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	Bounds            *Rectangle             `protobuf:"bytes,5,opt,name=bounds,proto3" json:"bounds,omitempty"`
+	Priority          *string                `protobuf:"bytes,6,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
+	CropDefName       *string                `protobuf:"bytes,7,opt,name=crop_def_name,json=cropDefName,proto3,oneof" json:"crop_def_name,omitempty"`
+	ExplicitlySetCrop *bool                  `protobuf:"varint,8,opt,name=explicitly_set_crop,json=explicitlySetCrop,proto3,oneof" json:"explicitly_set_crop,omitempty"`
+	AllowSow          *bool                  `protobuf:"varint,9,opt,name=allow_sow,json=allowSow,proto3,oneof" json:"allow_sow,omitempty"`
+	AllowCut          *bool                  `protobuf:"varint,10,opt,name=allow_cut,json=allowCut,proto3,oneof" json:"allow_cut,omitempty"`
+	Filter            *StockpileFilter       `protobuf:"bytes,11,opt,name=filter,proto3" json:"filter,omitempty"`
+	Contents          []*Quantity            `protobuf:"bytes,19,rep,name=contents,proto3" json:"contents,omitempty"`
+	Issues            []*ReadIssue           `protobuf:"bytes,27,rep,name=issues,proto3" json:"issues,omitempty"`
+	Farm              *FarmFacts             `protobuf:"bytes,28,opt,name=farm,proto3" json:"farm,omitempty"`
+	FoodStorage       *bool                  `protobuf:"varint,29,opt,name=food_storage,json=foodStorage,proto3,oneof" json:"food_storage,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ZoneState) Reset() {
@@ -11759,74 +11734,11 @@ func (x *ZoneState) GetFilter() *StockpileFilter {
 	return nil
 }
 
-func (x *ZoneState) GetSlotGroupCells() uint32 {
-	if x != nil && x.SlotGroupCells != nil {
-		return *x.SlotGroupCells
-	}
-	return 0
-}
-
-func (x *ZoneState) GetHaulGridCells() uint32 {
-	if x != nil && x.HaulGridCells != nil {
-		return *x.HaulGridCells
-	}
-	return 0
-}
-
-func (x *ZoneState) GetConsistent() bool {
-	if x != nil && x.Consistent != nil {
-		return *x.Consistent
-	}
-	return false
-}
-
-func (x *ZoneState) GetContiguous() bool {
-	if x != nil && x.Contiguous != nil {
-		return *x.Contiguous
-	}
-	return false
-}
-
 func (x *ZoneState) GetContents() []*Quantity {
 	if x != nil {
 		return x.Contents
 	}
 	return nil
-}
-
-func (x *ZoneState) GetFreeCells() uint32 {
-	if x != nil && x.FreeCells != nil {
-		return *x.FreeCells
-	}
-	return 0
-}
-
-func (x *ZoneState) GetBlockedCells() uint32 {
-	if x != nil && x.BlockedCells != nil {
-		return *x.BlockedCells
-	}
-	return 0
-}
-
-func (x *ZoneState) GetImpassableCells() uint32 {
-	if x != nil && x.ImpassableCells != nil {
-		return *x.ImpassableCells
-	}
-	return 0
-}
-
-func (x *ZoneState) GetCropPlantsInListedCells() uint32 {
-	if x != nil && x.CropPlantsInListedCells != nil {
-		return *x.CropPlantsInListedCells
-	}
-	return 0
-}
-
-func (x *ZoneState) GetCropPlantsInGridCells() uint32 {
-	if x != nil && x.CropPlantsInGridCells != nil {
-		return *x.CropPlantsInGridCells
-	}
-	return 0
 }
 
 func (x *ZoneState) GetIssues() []*ReadIssue {
@@ -45769,7 +45681,7 @@ const file_observations_proto_rawDesc = "" +
 	"_humanlikeB\x0f\n" +
 	"\r_was_colonistB\f\n" +
 	"\n" +
-	"_rot_stage\"\xde\t\n" +
+	"_rot_stage\"\xf9\b\n" +
 	"\rResourceStock\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -45788,10 +45700,7 @@ const file_observations_proto_rawDesc = "" +
 	"\ftrader_stock\x18\f \x01(\x03H\n" +
 	"R\vtraderStock\x88\x01\x01\x12\x1b\n" +
 	"\x06fogged\x18\r \x01(\x03H\vR\x06fogged\x88\x01\x01\x12\x1f\n" +
-	"\breserved\x18\x0e \x01(\x03H\fR\breserved\x88\x01\x01\x12&\n" +
-	"\fin_stockpile\x18\x0f \x01(\x03H\rR\vinStockpile\x88\x01\x01\x12%\n" +
-	"\fin_home_area\x18\x10 \x01(\x03H\x0eR\n" +
-	"inHomeArea\x88\x01\x01\x12<\n" +
+	"\breserved\x18\x0e \x01(\x03H\fR\breserved\x88\x01\x01\x12<\n" +
 	"\x05items\x18\x1d \x03(\v2&.rimgovernor.observations.v1.StockItemR\x05items\x12@\n" +
 	"\aholders\x18\x12 \x03(\v2&.rimgovernor.observations.v1.HeldStockR\aholders\x12B\n" +
 	"\acorpses\x18\x13 \x03(\v2(.rimgovernor.observations.v1.CorpseStateR\acorpses\x12>\n" +
@@ -45813,9 +45722,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_other_factionB\x0f\n" +
 	"\r_trader_stockB\t\n" +
 	"\a_foggedB\v\n" +
-	"\t_reservedB\x0f\n" +
-	"\r_in_stockpileB\x0f\n" +
-	"\r_in_home_area\"\x84\x04\n" +
+	"\t_reservedJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11\"\x84\x04\n" +
 	"\vStockFilter\x12\x1b\n" +
 	"\tdef_names\x18\x01 \x03(\tR\bdefNames\x12K\n" +
 	"\bcategory\x18\x02 \x01(\x0e2*.rimgovernor.observations.v1.StockCategoryH\x00R\bcategory\x88\x01\x01\x12N\n" +
@@ -46257,8 +46164,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.RoomsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xe3\n" +
-	"\n" +
+	"\aoutcome\"\xb8\x06\n" +
 	"\tZoneState\x12\x13\n" +
 	"\x02id\x18\x02 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x03 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x17\n" +
@@ -46270,26 +46176,11 @@ const file_observations_proto_rawDesc = "" +
 	"\tallow_sow\x18\t \x01(\bH\x06R\ballowSow\x88\x01\x01\x12 \n" +
 	"\tallow_cut\x18\n" +
 	" \x01(\bH\aR\ballowCut\x88\x01\x01\x12D\n" +
-	"\x06filter\x18\v \x01(\v2,.rimgovernor.observations.v1.StockpileFilterR\x06filter\x12-\n" +
-	"\x10slot_group_cells\x18\x0e \x01(\rH\bR\x0eslotGroupCells\x88\x01\x01\x12+\n" +
-	"\x0fhaul_grid_cells\x18\x0f \x01(\rH\tR\rhaulGridCells\x88\x01\x01\x12#\n" +
-	"\n" +
-	"consistent\x18\x10 \x01(\bH\n" +
-	"R\n" +
-	"consistent\x88\x01\x01\x12#\n" +
-	"\n" +
-	"contiguous\x18\x11 \x01(\bH\vR\n" +
-	"contiguous\x88\x01\x01\x12A\n" +
-	"\bcontents\x18\x13 \x03(\v2%.rimgovernor.observations.v1.QuantityR\bcontents\x12\"\n" +
-	"\n" +
-	"free_cells\x18\x14 \x01(\rH\fR\tfreeCells\x88\x01\x01\x12(\n" +
-	"\rblocked_cells\x18\x15 \x01(\rH\rR\fblockedCells\x88\x01\x01\x12.\n" +
-	"\x10impassable_cells\x18\x16 \x01(\rH\x0eR\x0fimpassableCells\x88\x01\x01\x12A\n" +
-	"\x1bcrop_plants_in_listed_cells\x18\x17 \x01(\rH\x0fR\x17cropPlantsInListedCells\x88\x01\x01\x12=\n" +
-	"\x19crop_plants_in_grid_cells\x18\x18 \x01(\rH\x10R\x15cropPlantsInGridCells\x88\x01\x01\x12>\n" +
+	"\x06filter\x18\v \x01(\v2,.rimgovernor.observations.v1.StockpileFilterR\x06filter\x12A\n" +
+	"\bcontents\x18\x13 \x03(\v2%.rimgovernor.observations.v1.QuantityR\bcontents\x12>\n" +
 	"\x06issues\x18\x1b \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12:\n" +
 	"\x04farm\x18\x1c \x01(\v2&.rimgovernor.observations.v1.FarmFactsR\x04farm\x12&\n" +
-	"\ffood_storage\x18\x1d \x01(\bH\x11R\vfoodStorage\x88\x01\x01B\x05\n" +
+	"\ffood_storage\x18\x1d \x01(\bH\bR\vfoodStorage\x88\x01\x01B\x05\n" +
 	"\x03_idB\b\n" +
 	"\x06_labelB\a\n" +
 	"\x05_typeB\v\n" +
@@ -46299,17 +46190,8 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_allow_sowB\f\n" +
 	"\n" +
-	"_allow_cutB\x13\n" +
-	"\x11_slot_group_cellsB\x12\n" +
-	"\x10_haul_grid_cellsB\r\n" +
-	"\v_consistentB\r\n" +
-	"\v_contiguousB\r\n" +
-	"\v_free_cellsB\x10\n" +
-	"\x0e_blocked_cellsB\x13\n" +
-	"\x11_impassable_cellsB\x1e\n" +
-	"\x1c_crop_plants_in_listed_cellsB\x1c\n" +
-	"\x1a_crop_plants_in_grid_cellsB\x0f\n" +
-	"\r_food_storage\"\xe1\x01\n" +
+	"_allow_cutB\x0f\n" +
+	"\r_food_storageJ\x04\b\x0e\x10\x0fJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17J\x04\b\x17\x10\x18J\x04\b\x18\x10\x19\"\xe1\x01\n" +
 	"\rZonesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05zones\x18\x02 \x03(\v2&.rimgovernor.observations.v1.ZoneStateR\x05zones\x12M\n" +

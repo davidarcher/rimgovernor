@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             internal Thing? Holder;
             internal string? HolderKind;
             internal IntVec3 Position;
-            internal bool Ours, Forbidden, Fogged, InHome, InStockpile, PlayerFaction, OtherFaction, Trader;
+            internal bool Ours, Forbidden, Fogged, PlayerFaction, OtherFaction, Trader;
         }
         private sealed class Holder
         {
@@ -130,8 +130,7 @@ namespace HomeBridge.BridgeTools
                 var other = holder?.Other ?? (thing.Faction != null && thing.Faction != player);
                 result.Add(new StockEntry { Thing = thing, Holder = holder?.Thing, HolderKind = holder?.Kind,
                     Position = position, Ours = IsOurs(fogged, holder != null, ownFaction, other, holder?.Dead ?? false),
-                    Forbidden = forbidden, Fogged = fogged, InHome = map.areaManager.Home[position],
-                    InStockpile = holder == null && map.zoneManager.ZoneAt(position) is Zone_Stockpile,
+                    Forbidden = forbidden, Fogged = fogged,
                     PlayerFaction = ownFaction, OtherFaction = other, Trader = holder?.Trader ?? false });
             }
             private void Walk(IThingHolder holder, Thing root, Holder? inherited, int depth)
@@ -195,7 +194,7 @@ namespace HomeBridge.BridgeTools
             var first = entries[0].Thing.def;
             var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName), Label = PlacementPreviewOperation.Diagnostic(first.LabelCap) },
                 Units = 0, Stacks = entries.Count, Spawned = 0, Ours = 0, OursUnforbidden = 0, Forbidden = 0,
-                PlayerFaction = 0, OtherFaction = 0, Fogged = 0, Reserved = 0, InStockpile = 0, InHomeArea = 0 };
+                PlayerFaction = 0, OtherFaction = 0, Fogged = 0, Reserved = 0 };
             if (includeHeld) { row.Carried = 0; row.InContainer = 0; row.TraderStock = 0; }
             else foreach (var field in new[] { "carried", "in_container", "trader_stock" })
                 row.Issues.Add(Issue(field, Common.UnavailableReason.NotRequested, "Held stock was excluded from this census scope."));
@@ -215,8 +214,6 @@ namespace HomeBridge.BridgeTools
                     if (entry.OtherFaction) row.OtherFaction += units;
                     if (entry.Trader) row.TraderStock += units;
                     if (entry.Fogged) row.Fogged += units;
-                    if (entry.InHome) row.InHomeArea += units;
-                    if (entry.InStockpile) row.InStockpile += units;
                     if (entry.Ours && reserved.Contains(entry.Thing)) row.Reserved += units;
                 }
                 row.Items.Add(Item(entry.Thing, entry.Position));
