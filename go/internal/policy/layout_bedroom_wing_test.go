@@ -211,26 +211,28 @@ func TestKeepWingRoomsTrimsTheCorridor(t *testing.T) {
 	}
 }
 
-// bedroomWingReach bounds the wing's distance from the storage door
-// (#1178): the wing is sited at the nearest column that fits it.
+// bedroomWingReach bounds the wing's distance from the dining door: siteBlock
+// takes the most rooms, then the cheapest ground, then the column nearest
+// dining's door. Storage is no anchor, so a wider warehouse moves its door
+// without moving the wing.
 const bedroomWingReach = 20
 
-func TestBedroomsClusterNearStorage(t *testing.T) {
+func TestBedroomsClusterNearDining(t *testing.T) {
 	for _, pawns := range []int{3, 5, 8} {
 		p := corePlan(coreTestZones(), pawns, BuildTierCamp)
 		w := checkWing(t, p)
-		var store *PlannedRoom
+		var dining *PlannedRoom
 		for i, r := range p.Rooms {
-			if r.Role == PlannedStorage {
-				store = &p.Rooms[i]
+			if r.Role == PlannedDining {
+				dining = &p.Rooms[i]
 			}
 		}
-		if store == nil {
-			t.Fatal("no storage")
+		if dining == nil {
+			t.Fatal("no dining")
 		}
-		d := math.Hypot(float64(w.Corridor.From.X-store.Door.X), float64(w.Corridor.From.Z-store.Door.Z))
+		d := math.Hypot(float64(w.Corridor.From.X-dining.Door.X), float64(w.Corridor.From.Z-dining.Door.Z))
 		if d > bedroomWingReach {
-			t.Errorf("%d: wing base %.1f cells from storage, want <= %d", pawns, d, bedroomWingReach)
+			t.Errorf("%d: wing base %.1f cells from dining, want <= %d", pawns, d, bedroomWingReach)
 		}
 	}
 }

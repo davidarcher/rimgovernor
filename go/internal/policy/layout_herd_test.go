@@ -87,15 +87,36 @@ func TestVetBedsScaleWithTheHerd(t *testing.T) {
 	}
 }
 
+// A unit boxed in by the core has no room beside it: an outgrown herd adds
+// nothing, never a detached reservation, and a repeat top-up is a no-op.
+func TestBoxedInUnitAddsNothingDetached(t *testing.T) {
+	small := herdTestPlan(t, 10)
+	grown := PlanHerdSites(small, 30)
+	if units := grown.herdUnits(); len(units) != 1 {
+		t.Fatal("a reservation stands off the unit", len(units))
+	}
+	if again := PlanHerdSites(grown, 30); len(again.Reservations) != len(grown.Reservations) {
+		t.Fatal("top-up is not idempotent")
+	}
+	for i, r := range small.Reservations {
+		if grown.Reservations[i] != r {
+			t.Fatal("a placed reservation moved", r)
+		}
+	}
+}
+
 func TestLargerHerdLargerPenAndTopUpAddsAPen(t *testing.T) {
 	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
-	small := PlanUtilities(core, UtilityWants{PenAnimals: 10})
 	large := PlanUtilities(core, UtilityWants{PenAnimals: 30})
+	small := roomyHerdPlan(t, 10)
 	if penCells(large) <= penCells(small) || penCells(small) < 10*penCellsPerAnimal {
 		t.Fatal("pen does not follow the herd", penCells(small), penCells(large))
 	}
 	// The plan outgrows its pen: a second pen is added, nothing moves.
 	grown := PlanHerdSites(small, 30)
+	if units := grown.herdUnits(); len(units) != 1 {
+		t.Fatal("the extra reservations stand beside the unit", len(units))
+	}
 	if len(herdReservations(grown, ReservePen)) != 2 || penCells(grown) < 30*penCellsPerAnimal {
 		t.Fatal("no extra pen", len(herdReservations(grown, ReservePen)), penCells(grown))
 	}

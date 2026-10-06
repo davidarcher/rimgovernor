@@ -20,6 +20,22 @@ func herdTestPlan(t *testing.T, animals int) LayoutPlan {
 	return PlanUtilities(core, UtilityWants{PenAnimals: animals})
 }
 
+// roomyHerdPlan is the herd plan with its vet area left out: the first vet
+// area boxes the barn in against the core, so without it the unit has room
+// for a top-up beside it.
+func roomyHerdPlan(t *testing.T, animals int) LayoutPlan {
+	t.Helper()
+	p := herdTestPlan(t, animals)
+	var keep []LayoutReservation
+	for _, r := range p.Reservations {
+		if r.Kind != ReserveVetRoom {
+			keep = append(keep, r)
+		}
+	}
+	p.Reservations = keep
+	return p
+}
+
 // standing is the room census of rooms standing enclosed on each room's
 // interior.
 func standing(rooms ...PlannedRoom) RoomObservation {
@@ -228,8 +244,11 @@ func TestHerdStepFlagsEachStandingVetBedMedical(t *testing.T) {
 }
 
 func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
-	small := herdTestPlan(t, 10)
+	small := roomyHerdPlan(t, 10)
 	grown := PlanHerdSites(small, 60)
+	if units := grown.herdUnits(); len(units) != 1 {
+		t.Fatal("an outgrown unit grows beside itself, never a second unit", len(units))
+	}
 	if len(grown.HerdRooms(PlannedBarn)) < 2 {
 		t.Fatal("no second barn for a herd of 60", len(grown.HerdRooms(PlannedBarn)))
 	}
