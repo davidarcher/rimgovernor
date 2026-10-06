@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -98,6 +99,45 @@ func TestPerimeterOpenPlains(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	if again := PlanPerimeter(p, s); len(again.Reservations) != len(p.Reservations) {
 		t.Fatal("replan duplicated")
+	}
+}
+
+// The opening carries a fence flush with the wall (#2231): three cells
+// across the lane, the killbox's width in the wall, and nothing else of the
+// plan changes. The census reads a Fence cell as Passable (PassThroughOnly,
+// not Impassable), so the arrival flood and LayoutKillbox, which read the
+// plan's walls and approach legs only, are the same with the fence in place.
+func TestPerimeterFencesTheOpening(t *testing.T) {
+	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	fences := reserved(p, ReserveKillboxFence)
+	if len(fences) != 1 || fences[0].Width*fences[0].Height != 3 {
+		t.Fatal("fence", fences)
+	}
+	walls := reservedCells(p, ReservePerimeter)
+	for c := range reservedCells(p, ReserveKillboxFence) {
+		if walls[c] {
+			t.Fatal("fence on a wall cell", c)
+		}
+	}
+	bounds := Bounds{Width: 200, Height: 200}
+	k, region, home, ok := LayoutKillbox(p, bounds)
+	if !ok {
+		t.Fatal("no killbox")
+	}
+	bare := p
+	bare.Reservations = nil
+	for _, r := range p.Reservations {
+		if r.Kind != ReserveKillboxFence {
+			bare.Reservations = append(bare.Reservations, r)
+		}
+	}
+	k2, region2, home2, _ := LayoutKillbox(bare, bounds)
+	if !reflect.DeepEqual(k, k2) || region != region2 || home != home2 {
+		t.Fatal("fence changed the killbox read", k, k2)
+	}
+	sections, err := FenceSections(p, "Fence", "WoodLog")
+	if err != nil || len(sections) != 1 || len(sections[0].Buildings) != 3 || !IsPerimeterTier(sections[0].Name) || IsCorePerimeterTier(sections[0].Name) {
+		t.Fatal(sections, err)
 	}
 }
 

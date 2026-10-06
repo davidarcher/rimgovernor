@@ -31,6 +31,11 @@ import (
 // Reservation kinds A5 adds beside A1's.
 const (
 	ReserveKillboxApproach ReservationKind = "killbox_approach"
+	// ReserveKillboxFence marks the fence across the opening (#2231): a
+	// Fence is PassThroughOnly (path cost 80), so only roamers
+	// (FenceBlocked) are stopped and raiders still walk through; the cost
+	// is a penalty, not a block, and the census reads the cell as Passable.
+	ReserveKillboxFence ReservationKind = "killbox_fence"
 	// ReservePerimeterLight marks wall cells on light footing: the wall
 	// there is wood.
 	ReservePerimeterLight ReservationKind = "perimeter_light"
@@ -45,7 +50,7 @@ const (
 )
 
 // perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true, ReserveOuterWall: true, ReserveOuterGate: true}
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveKillboxFence: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true, ReserveOuterWall: true, ReserveOuterGate: true}
 
 const (
 	perimeterThick int32 = 3
@@ -421,6 +426,9 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		// the wall, so the lane breaks line of sight into the killbox.
 		add(ReserveKillboxApproach, rectOf(at(-1, -1), at(-approachLeg, 1)))
 		add(ReserveKillboxApproach, rectOf(at(-approachLeg+2, 2), at(-approachLeg, approachLeg+1)))
+		// The fence closes the opening on its outer face, flush with the
+		// wall: the one lane stays the single way through.
+		add(ReserveKillboxFence, rectOf(at(0, -1), at(0, 1)))
 	}
 
 	// axes are where the hallways, run straight on, meet sd: the east-west

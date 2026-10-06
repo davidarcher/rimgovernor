@@ -394,6 +394,32 @@ func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain
 	return out, nil
 }
 
+// TierFencePrefix names the killbox opening's fence section under the
+// perimeter's prefix (#2231).
+const TierFencePrefix = TierPerimeterPrefix + "fence-"
+
+// FenceSections is one section for the fence cells across the killbox
+// opening (ReserveKillboxFence): a Fence is PassThroughOnly, stopping only
+// roamers, so the lane stays the raiders' way in.
+func FenceSections(plan LayoutPlan, fence, stuff string) ([]PerimeterSection, error) {
+	var out []PerimeterSection
+	for _, r := range plan.Reservations {
+		if r.Kind != ReserveKillboxFence {
+			continue
+		}
+		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierFencePrefix, len(out)))}
+		for _, c := range rectCells(r.Area) {
+			b, err := domain.NewBuilding(fence, c, domain.North, stuff)
+			if err != nil {
+				return nil, err
+			}
+			s.Buildings = append(s.Buildings, b)
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
 func unionRect(a, b Rectangle) Rectangle {
 	if a.Width == 0 {
 		return b

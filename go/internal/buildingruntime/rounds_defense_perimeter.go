@@ -198,6 +198,11 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	if err != nil {
 		return false, err
 	}
+	// The fence across the killbox opening (#2231) stops roamers only.
+	fences, err := policy.FenceSections(plan, defenseDefinitions.Fence, defenseDefinitions.FenceStuff)
+	if err != nil {
+		return false, err
+	}
 	// The dark bait room away from the base (#1069): stools around an
 	// incendiary IED; jelly (spike traps) is not wanted yet.
 	bait, err := policy.BaitRoomSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, defenseDefinitions.Bait, false)
@@ -211,7 +216,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 		}
 		sections = append(sections, ring...)
 	}
-	sections = append(append(append(sections, pockets...), lights...), bait...)
+	sections = slices.Concat(sections, pockets, lights, bait, fences)
 	// A later pump's run may ride an earlier one's, so the cut stops at the
 	// first new pump spare power cannot carry.
 	for i, s := range pumps {

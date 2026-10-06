@@ -69,6 +69,7 @@ var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReservePerimeterGap: {planYellow, "open gap"},
 	ReserveMoisturePump: {planCyan, "moisture pump"},
 	ReserveKillbox:      {planRed, "killbox"},
+	ReserveKillboxFence: {planYellow, "killbox fence"},
 	ReserveMortar:       {planRed, "mortar"},
 	ReserveCoverClear:   {planGray, "clear cover"},
 	ReservePocketWall:   {planRed, "pocket wall"},
