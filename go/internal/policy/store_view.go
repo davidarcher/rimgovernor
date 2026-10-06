@@ -41,9 +41,6 @@ type StoreView struct {
 	// Shapes are the piece shapes the hospital template plans its beds with
 	// (the medicine store sits nearest them).
 	Shapes PieceShapes
-	// Food is nil when the colony's food storage stands or its fact is
-	// known to be met; see FoodStore.
-	Food *FoodStore
 	// Gear is the serviceable gear held and the gear stores' filters; nil
 	// while the gear census is unread (see GearStore).
 	Gear *GearStore

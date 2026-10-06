@@ -7,8 +7,7 @@ import (
 )
 
 // foodOwner is the Food department's stockpiles (#2193, #2219): the meal
-// closet, the table cell, the freezer's shelves and perishables catch-all, and
-// the food store. Each is declared once and sited from the layout plan at plan
+// closet, the table cell, the freezer's shelves and perishables catch-all. Each is declared once and sited from the layout plan at plan
 // time, at its real priority, sized once; only the table cell reads a built
 // fact (the table).
 type foodOwner struct{}
@@ -21,8 +20,8 @@ func (o foodOwner) RoomDemand(v StoreView) RoomDemand {
 
 // Stores are, most important first: the meal store, the freezer's Critical
 // shelves nearest the kitchen door (raw meat, raw vegetables, animal and
-// insect corpses by the butcher's door), the perishables catch-all over the
-// rest of the freezer, then the food store.
+// insect corpses by the butcher's door), then the perishables catch-all over
+// the rest of the freezer.
 func (foodOwner) Stores(v StoreView) []Store {
 	var out []Store
 	if v.Layout != nil {
@@ -34,9 +33,6 @@ func (foodOwner) Stores(v StoreView) []Store {
 	if v.Layout != nil {
 		out = append(out, v.freezerMealShelf()...)
 		out = append(out, v.freezerStores()...)
-	}
-	if food, ok := v.foodStore(); ok {
-		out = append(out, food)
 	}
 	return out
 }

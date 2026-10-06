@@ -43,10 +43,9 @@ observed need recovery.
   opt-in compiler builds a table, adjacent chair or recreation furniture through shared
   building admission; existing inaccessible furniture blocks duplicates; a finite wait
   after construction allows use without asserting need recovery.
-- **Food stockpile** is the Food department's food store (a 3x3 in the planned kitchen
-  at its door, Preferred), created by `MaintainStockpiles` once the room's interior is
-  open while the native food-storage fact is unmet. Siting, sizing and deletion rules:
-  [storage](../architecture/storage.md). Native readback establishes the storage gate.
+- **Food warehouse** is the planned freezer (shelves and perishables catch-all, from plan time);
+  the kitchen keeps only its bench ingredient stockpiles. Siting, sizing and deletion rules:
+  [storage](../architecture/storage.md).
 
 Optional concerns (classes 3 and 4: basic equipment defense, wood, comfort, expansion,
 maintained research and resource targets) share a deterministic admission order.

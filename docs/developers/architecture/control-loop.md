@@ -156,7 +156,8 @@ the one applier: it creates a declared store's zone, retargets it, and deletes
 it only when the department declares it `Retired`; it never grows, shrinks or
 merges one. A declared room's demand (a store's zones at 85% used) feeds layout. Food declares the meal closet, the table cell, the freezer shelves
 (raw meat, raw vegetables, animal corpses, the meal shelf at the dining door)
-with their perishables catch-all, and the food store; Medical declares the
+with their perishables catch-all (the freezer is the food warehouse; the kitchen
+holds only its bench stockpiles); Medical declares the
 medicine store. All but the table cell (one cell by the built dining table) are
 sited from the planned room at plan time, never from the room census. A Department that owns no store stays a grouping tag.
 

@@ -140,21 +140,3 @@ func TestMealClosetIsZonedFromThePlan(t *testing.T) {
 		t.Fatalf("review %+v", review)
 	}
 }
-
-// The food stockpile is planned while the colony's food storage is unmet or
-// unknown, and not at all once the fact reads met.
-func TestStorageRequestPlansFoodUntilStorageIsMet(t *testing.T) {
-	t.Parallel()
-	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 7, Z: 8}))}
-	for _, fact := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
-		projection.Facts.FoodStorage = fact
-		food := storeView(projection, nil).Food
-		if food == nil {
-			t.Fatalf("food %+v", food)
-		}
-	}
-	projection.Facts.FoodStorage = domain.Known(true)
-	if food := storeView(projection, nil).Food; food != nil {
-		t.Fatalf("food planned with storage met: %+v", food)
-	}
-}

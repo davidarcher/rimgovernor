@@ -32,13 +32,12 @@ delete on a move. Headroom is another room: see below.
 | Meal store | `meals:*` | The planned meal closet whole, a 2x2 in the freezer at its dining door, or one cell beside the dining table off the chairs (the one store sited from a built fact, the table); each from plan time | Critical | Prepared meals |
 | Freezer shelves | `rawmeat:*`, `rawveg:*`, `corpses:*`, `perishables:*` | The freezer | Critical, perishables Preferred | Raw meat, raw vegetables, the corpse larder, the perishables catch-all |
 | Medicine store | `medicine:*` | A 2x2 in the planned hospital, nearest the template's bed slots by walking distance (nearest the door without slots), from plan time | Important | Medicine |
-| Food store | `food` | A 3x3 in the planned kitchen at its door, from plan time | Preferred | Food, until the colony's food storage is met |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
 | Gear | `apparel`, `weapons` | The storage room (apparel) and armory (weapons) | Preferred | Clothing and armor, weapons |
 | Waste dump | `wastedump` | The waste yard interior outside the incinerator outline (the Sanitation department's declared store, planned room cover from plan time) | Low | Everything storable except the native not-burnable special |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
-workstation, medicine and food stockpiles draw their items first, and
+workstation and medicine stockpiles draw their items first, and
 hauling (which RimWorld owns) moves the rest to the warehouse or yard.
 
 The one waste dump is a declared store sized once over the yard, so waste

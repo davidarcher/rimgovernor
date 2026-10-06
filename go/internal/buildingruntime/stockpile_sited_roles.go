@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The room-bound stockpile roles (#917). The meal closet, the table cell, the
-// medicine store and the food store are declared by their departments from the
+// The room-bound stockpile roles (#917). The meal closet, the table cell and the
+// medicine store are declared by their departments from the
 // layout plan (policy.foodOwner, policy.medicalOwner); the one still reading a
 // built fact is the table cell (tableMeal). The raw-food role (#722) is a 2x2
 // Critical stockpile of raw meat and raw plant food inside the planned freezer:
@@ -118,8 +118,7 @@ func centroid(cells []domain.Cell) domain.Cell {
 }
 
 // storeView is the colony view the storage planner reads: the cells,
-// the layout plan and room census when known, the table meal store's spot and
-// the food stockpile while the colony's food storage is not met.
+// the layout plan and room census when known, and the table meal store's spot.
 func storeView(projection *observation.ColonyProjection, protected []domain.Cell) policy.StoreView {
 	request := policy.StoreView{Bounds: projection.Bounds, Cells: projection.Cells, Protected: protected}
 	if plan, rooms, known := plannedLayout(*projection); known {
@@ -127,8 +126,5 @@ func storeView(projection *observation.ColonyProjection, protected []domain.Cell
 	}
 	request.Shapes = projection.Shapes
 	request.Meals = tableMeal(projection)
-	if met, known := projection.Facts.FoodStorage.Value(); !known || !met {
-		request.Food = &policy.FoodStore{}
-	}
 	return request
 }
