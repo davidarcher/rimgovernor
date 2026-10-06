@@ -230,9 +230,9 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 // package exposes. Every entry has an admission class in
 // nativeAdmissionClass (admission.go).
 var reviewedNativeMethods = map[string]bool{
-	clearanceTool:                                      true,
-	shrinesTool:                                        true,
-	"rimgovernor/observations_list_supplies":           true,
+	clearanceTool:                            true,
+	shrinesTool:                              true,
+	"rimgovernor/observations_list_supplies": true,
 	"rimgovernor/observations_read_colony_facts":       true,
 	"rimgovernor/observations_list_buildings":          true,
 	"rimgovernor/observations_list_rooms":              true,
