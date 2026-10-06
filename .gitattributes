@@ -7,3 +7,4 @@ contracts/generated/** text eol=lf
 *.sh text eol=lf
 *.rws text eol=lf -diff
 *.jsonl text eol=lf
+go/internal/supplysim/testdata/*.json text eol=lf
