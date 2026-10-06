@@ -69,8 +69,12 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	governorBlob := `{"probe":[` + strings.Repeat(`{"id":"p","payload":{}},`, 200) + `{}]}`
-	if blobs, err := governorState(ctx, h, "governor-state-put", "lifecycle_put_governor_state", map[string]any{"key": "probe", "blob": governorBlob}); err != nil || blobs["probe"] != governorBlob {
-		return fmt.Errorf("governor-state-put: blob not stored: %v", err)
+	// The put reply carries no blobs (#1362): read them back to prove it stored.
+	if _, err := governorState(ctx, h, "governor-state-put", "lifecycle_put_governor_state", map[string]any{"key": "probe", "blob": governorBlob}); err != nil {
+		return fmt.Errorf("governor-state-put: %w", err)
+	}
+	if blobs, err := governorState(ctx, h, "governor-state-readback", "lifecycle_read_governor_state", map[string]any{}); err != nil || blobs["probe"] != governorBlob {
+		return fmt.Errorf("governor-state-readback: blob not stored: %v", err)
 	}
 
 	// Setup: a trusted checkpoint save this run then loads back.
