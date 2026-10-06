@@ -24,7 +24,7 @@ const (
 	climateFamilies = "shelter,sleeping,cooking,temperature"
 	climateWait     = 15 * time.Minute
 	// campfireMargin is how far outside the planned core a mild map's cooking
-	// campfire may stand (butcherSpotCoreMargin in buildingruntime).
+	// campfire may stand (the stand-in margin was deleted in #2266; #2278 revisits the case).
 	campfireMargin = 3
 )
 

@@ -1045,8 +1045,8 @@ const ButcherTableWood int64 = 120
 // butcherSpotMet is MaintainButcherSpot's recovery: a butcher bench stands
 // that does not share a room with a cooking bench. A butcher bench inside
 // the kitchen keeps the colony fed but not clean, so the goal stays open for
-// a separate spot; the free, instant spot is always wanted, whatever the
-// food runway, because hunts and hides are processed on it.
+// a separate table (#2266), wanted whatever the food runway because hunts and
+// hides are processed on it.
 func butcherSpotMet(f RoundsFacts) domain.Fact[bool] {
 	benches, known := f.ButcherBenches.Value()
 	if !known {
@@ -1063,25 +1063,10 @@ func butcherSpotMet(f RoundsFacts) domain.Fact[bool] {
 	for _, room := range shared {
 		colocated[room.ID] = true
 	}
-	apart, table, spot := false, false, false
 	for _, bench := range benches {
 		if room, known := bench.Room.Value(); !known || !colocated[room] {
-			apart = true
-			table = table || bench.Definition != "ButcherSpot"
-			spot = spot || bench.Definition == "ButcherSpot"
+			return domain.Known(true)
 		}
 	}
-	if !apart {
-		return domain.Known(false)
-	}
-	// A table standing beside its stand-in spot owes the spot's removal.
-	if table && spot {
-		return domain.Known(false)
-	}
-	// Only a stand-in spot stands apart: with the wood to build one, the
-	// goal stays open for the butcher table.
-	if wood, ok := f.Wood.Value(); !table && ok && wood >= ButcherTableWood {
-		return domain.Known(false)
-	}
-	return domain.Known(true)
+	return domain.Known(false)
 }

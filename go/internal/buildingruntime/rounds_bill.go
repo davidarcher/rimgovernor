@@ -205,21 +205,6 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			}
 			return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
 		}
-		// A butcher bench that shares a cooking room feeds the colony but keeps
-		// the kitchen dirty (issue #6 slice 2). While every bench is co-located
-		// the separated-spot build owns the goal: the bill waits until that
-		// method has been tried (admitted, completed or failed) and then
-		// prefers whichever bench stands apart. A forever bill would otherwise
-		// hold the goal open until a corpse arrives.
-		if rows, known := projection.ProductionBenches.Value(); known && policy.AllButchersColocated(rows) {
-			tried, triedErr := p.butcherSpotSeparated(call, review)
-			if triedErr != nil {
-				return RoundsBillResult{}, triedErr
-			}
-			if !tried {
-				return RoundsBillResult{Verdict: BuildingReasonSeparation}, nil
-			}
-		}
 	}
 	benches, atRisk := projection.ProductionBenches, projection.FoodAtRiskNutrition
 	if r.purpose == policy.CookAheadFood {
@@ -453,23 +438,4 @@ func (r *RoundsBillPlanner) unclaimedBenches(ctx context.Context, snapshot domai
 		out = append(out, bench)
 	}
 	return domain.Known(out), nil
-}
-
-// butcherSpotSeparated reports whether MaintainButcherSpot has tried its
-// separated-spot method this epoch; a review that binds no such goal has
-// nothing left to try.
-func (p *Player) butcherSpotSeparated(ctx context.Context, review store.Rounds) (bool, error) {
-	id, bound := review.ProjectFor(policy.MaintainButcherSpot)
-	if !bound {
-		return true, nil
-	}
-	project, err := p.journal.LoadProject(ctx, id)
-	if err != nil {
-		return false, err
-	}
-	_, err = p.journal.LoadOwnerMethod(ctx, project, "butcher-spot-separated")
-	if errors.Is(err, store.ErrNotFound) {
-		return false, nil
-	}
-	return err == nil, err
 }

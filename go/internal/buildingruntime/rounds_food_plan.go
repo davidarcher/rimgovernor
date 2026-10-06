@@ -323,7 +323,7 @@ func foodPlanFieldRoom(p observation.ColonyProjection, plans []store.PlanState) 
 				}
 				cells = len(edit.Cells())
 			} else {
-				if b, building := progress.Action().Building(); building && b.Definition() != "ButcherSpot" {
+				if b, building := progress.Action().Building(); building && b.Definition() != "TableButcher" {
 					return false
 				}
 				continue

@@ -8,32 +8,37 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The butcher spot is owed whenever the goal is, whatever the food runway (#260): an unarmed
-// colony short of food still gets the spot, so the bill and then the hunt
-// rows follow as soon as the equip family arms someone.
-func TestButcherSpotSelectionIgnoresArmedCount(t *testing.T) {
+// The butcher table is owed whenever the goal is, whatever the food runway
+// (#260), once the wood and a builder are there; there is no stand-in (#2266),
+// so without them the goal waits.
+func TestButcherTableSelectionIgnoresArmedCount(t *testing.T) {
 	t.Parallel()
-	r := &RoundsBuildingPlanner{reviewer: &Rounder{policy: policy.DefaultRoundsPolicy()}, concern: policy.MaintainButcherSpot, definition: "ButcherSpot"}
-	f := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(8)), FoodDays: domain.Known(1.75), Armed: domain.Known(int64(0))}}
+	r := &RoundsBuildingPlanner{reviewer: &Rounder{policy: policy.DefaultRoundsPolicy()}, concern: policy.MaintainButcherSpot, definition: "TableButcher"}
+	f := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(8)), FoodDays: domain.Known(1.75), Armed: domain.Known(int64(0)), Wood: domain.Known(policy.ButcherTableWood)}}
 	f.ButcheringBenches = domain.Known([]observation.CookingBench{})
-	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || !reason.IsZero() {
-		t.Fatal(n, id, reason)
-	}
-	f.Facts.Armed = domain.Unknown[int64]()
-	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || !reason.IsZero() {
-		t.Fatal(n, id, reason)
+	f.Definitions = []observation.PlanningDefinition{{Name: "TableButcher", Available: domain.Known(true), ConstructionSkill: domain.Known(int32(0))}}
+	f.WorkPawns = domain.Known([]policy.WorkPawn{{Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]policy.WorkPriority{{Work: policy.WorkConstruction, Priority: 1}})}})
+	for _, armed := range []domain.Fact[int64]{domain.Known(int64(0)), domain.Unknown[int64]()} {
+		f.Facts.Armed = armed
+		if n, id, reason := r.selection(f); n != 1 || id != "butcher-table" || !reason.IsZero() {
+			t.Fatal(n, id, reason)
+		}
 	}
 	f.Facts.FoodDays = domain.Known(10.0)
-	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || !reason.IsZero() {
-		t.Fatal("the spot waited on the food runway", n, id, reason)
+	if n, id, reason := r.selection(f); n != 1 || id != "butcher-table" || !reason.IsZero() {
+		t.Fatal("the table waited on the food runway", n, id, reason)
+	}
+	f.Facts.Wood = domain.Known(policy.ButcherTableWood - 1)
+	if n, _, reason := r.selection(f); n != 0 || reason != BuildingExistingFacility {
+		t.Fatal("no wood still raised a table", n, reason)
 	}
 }
 
-// An open butcher-spot build under MaintainButcherSpot does not block the next
+// An open butcher-table build under MaintainButcherSpot does not block the next
 // field batch; open zone work still does.
-func TestFieldBlockingWorkIgnoresButcherSpot(t *testing.T) {
+func TestFieldBlockingWorkIgnoresButcherTable(t *testing.T) {
 	t.Parallel()
-	spot, err := domain.NewBuilding("ButcherSpot", domain.Cell{X: 1, Z: 1}, domain.North, "")
+	spot, err := domain.NewBuilding("TableButcher", domain.Cell{X: 1, Z: 1}, domain.North, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +63,7 @@ func TestFieldBlockingWorkIgnoresButcherSpot(t *testing.T) {
 		t.Fatal(err)
 	}
 	if fieldBlockingWork([]domain.Progress{spotOpen}) {
-		t.Fatal("butcher spot blocked the field planner")
+		t.Fatal("butcher table blocked the field planner")
 	}
 	zoneOpen, err := domain.NewProgress(plan, "a-zone")
 	if err != nil {

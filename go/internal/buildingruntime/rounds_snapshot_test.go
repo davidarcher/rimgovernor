@@ -212,23 +212,23 @@ func loadStep(t *testing.T, name string, goal policy.ConcernID) snapshot.Step {
 
 // clean/separation: the kitchen holds both a stove and the only butcher
 // spot. The food-supply step reads rooms (the review does not), sees every
-// butcher bench share a room with cooking and admits a separated
-// ButcherSpot, which the placement keeps out of the protected kitchen;
-// over the review's projection alone the selector answers
+// butcher bench share a room with cooking and admits no stand-in spot (#2266;
+// a separate table goes in the planned butchery once wood and a builder
+// allow); over the review's projection alone the selector answers
 // existing_facility. Recorded at ecef484fd plus this change (review tick 28157, step tick
 // 34157).
-func TestSnapshotCleanSeparationAdmitsSeparatedSpot(t *testing.T) {
+func TestSnapshotCleanSeparationAdmitsNoStandInSpot(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "clean-separation-colocated")
 	step := loadStep(t, "clean-separation-step-butcher", policy.EnsureFoodSupply)
 	planner := recordedPlanner(r, policy.EnsureFoodSupply)
-	planner.concern, planner.definition = policy.MaintainButcherSpot, "ButcherSpot"
+	planner.concern, planner.definition = policy.MaintainButcherSpot, "TableButcher"
 	benches, known := step.Projection.ButcheringBenches.Value()
 	if !known || len(benches) == 0 || !butchersAllColocated(benches, step.Projection.Rooms) {
 		t.Fatalf("step read: benches %+v, want every butcher bench in the kitchen", benches)
 	}
-	if _, method, reason := planner.selection(step.Projection); method != "butcher-spot-separated" {
-		t.Fatalf("step read: method %q reason %q, want butcher-spot-separated", method, reason)
+	if _, method, reason := planner.selection(step.Projection); method == "butcher-spot-separated" || method == "butcher-spot" {
+		t.Fatalf("step read: method %q reason %q, want no stand-in spot", method, reason)
 	}
 	if _, method, reason := planner.selection(*r.Projection); reason != BuildingExistingFacility {
 		t.Fatalf("review projection: method %q reason %q, want %s", method, reason, BuildingExistingFacility)

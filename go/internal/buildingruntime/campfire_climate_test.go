@@ -14,7 +14,7 @@ import (
 // the sleeping fixture's 5x5 site with a 4x4 shelter standing on the layout
 // plan, and returns the chosen cell and the shelter template's campfire slot
 // anchors for the plan's climate.
-func campfireSearch(t *testing.T, cold bool) (chosen domain.Cell, slots []domain.Cell, interior policy.Rectangle) {
+func campfireSearch(t *testing.T, cold bool) (chosen domain.Cell, slots []domain.Cell, interior policy.Rectangle, wait Verdict) {
 	t.Helper()
 	ctx := context.Background()
 	planner, _, session, _, n := sleepingFixture(t)
@@ -58,18 +58,24 @@ func campfireSearch(t *testing.T, cold bool) (chosen domain.Cell, slots []domain
 	snapshot := session.State().Snapshot
 	snapshot.Plan, snapshot.Revision = "cooking-campfire", 1
 	selected, _, reason, err := planner.previewSearch(ctx, snapshot, facts, nil, 1, func() error { return nil })
-	if err != nil || !reason.IsZero() || len(selected) != 1 {
-		t.Fatalf("selected %v %q %v", selected, reason, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(selected) == 0 {
+		return domain.Cell{}, slots, interior, reason
+	}
+	if !reason.IsZero() || len(selected) != 1 {
+		t.Fatalf("selected %v %q", selected, reason)
 	}
 	b, _ := selected[0].Action.Building()
-	return b.Cell(), slots, interior
+	return b.Cell(), slots, interior, reason
 }
 
 // A cold map's cooking campfire stands indoors on a shelter template slot,
 // and the template holds two (#2044).
 func TestCookingCampfireTakesTheShelterSlotOnAColdMap(t *testing.T) {
 	t.Parallel()
-	got, slots, _ := campfireSearch(t, true)
+	got, slots, _, _ := campfireSearch(t, true)
 	if len(slots) != 2 {
 		t.Fatalf("a cold shelter template holds %d campfire slots, want 2", len(slots))
 	}
@@ -78,15 +84,15 @@ func TestCookingCampfireTakesTheShelterSlotOnAColdMap(t *testing.T) {
 	}
 }
 
-// On a normal map the template holds no campfire slot and the cooking
-// campfire stands outside every room, within the core box (#2044).
-func TestCookingCampfireStandsOutsideOnANormalMap(t *testing.T) {
+// On a normal map the template holds no campfire slot and no kitchen stands:
+// the cooking campfire has no outdoor stand-in and waits for the room (#2266).
+func TestCookingCampfireWaitsForTheKitchenOnANormalMap(t *testing.T) {
 	t.Parallel()
-	got, slots, interior := campfireSearch(t, false)
+	got, slots, _, wait := campfireSearch(t, false)
 	if len(slots) != 0 {
 		t.Fatalf("a normal shelter template holds campfire slots %v", slots)
 	}
-	if got.X >= interior.X && got.X < interior.X+interior.Width && got.Z >= interior.Z && got.Z < interior.Z+interior.Height {
-		t.Fatalf("campfire at %v stands inside the shelter %v", got, interior)
+	if wait != BuildingNoLayoutPlan || got != (domain.Cell{}) {
+		t.Fatalf("campfire at %v wait %q, want a wait for the kitchen", got, wait)
 	}
 }

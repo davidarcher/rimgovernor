@@ -34,7 +34,7 @@ func NewRoundsButcherPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsButcherPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainButcherSpot, definition: "ButcherSpot", environment: policy.PlacementAnywhere}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainButcherSpot, definition: "TableButcher", environment: policy.PlacementAnywhere}, nil
 }
 func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (int64, domain.MethodID, Verdict) {
 	count, known := facts.Facts.Colonists.Value()
@@ -43,37 +43,22 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 	}
 	switch r.concern {
 	case policy.MaintainButcherSpot:
-		if r.definition != "ButcherSpot" {
-			return 0, "", fieldUnavailable("butcher_spot_definition")
+		if r.definition != "TableButcher" {
+			return 0, "", fieldUnavailable("butcher_table_definition")
 		}
-		// The spot is free and instant, and the butcher bill is the hunt
-		// row's precondition (#260): it is owed whenever the goal is, not on
-		// the food runway (the colony has the spot standing before it runs
-		// short) and not on anyone being armed yet. Whether a colonist can
-		// hunt is native's rule on the hunt row, after the equip family arms
-		// them.
+		// The butcher bill is the hunt row's precondition (#260), so the real
+		// table is owed whenever the goal is: there is no stand-in (#2266),
+		// the table waits for wood and a builder and goes into the planned
+		// butchery. A standing table, shared with the kitchen or not, is the
+		// facility.
 		benches, bk := facts.ButcheringBenches.Value()
 		if !bk {
 			return 0, "", fieldUnavailable("butchering_benches")
 		}
-		if len(benches) > 0 {
-			// A butcher bench that shares a room with a cooking bench keeps
-			// the colony fed but not clean (issue #6 slice 2): when every
-			// bench is co-located and the census can say so, a separate
-			// butcher spot is admitted outside. Deconstructing the shared
-			// one needs a generic deconstruct action (follow-up).
-			if !butchersAllColocated(benches, facts.Rooms) {
-				if _, retire := standingButcherSpot(facts); retire {
-					return 1, "butcher-spot-retire", Verdict{}
-				}
-				if butcherTableWanted(facts, benches) {
-					return 1, "butcher-table", Verdict{}
-				}
-				return 0, "", BuildingExistingFacility
-			}
-			return 1, "butcher-spot-separated", Verdict{}
+		if butcherTableWanted(facts, benches) {
+			return 1, "butcher-table", Verdict{}
 		}
-		return 1, "butcher-spot", Verdict{}
+		return 0, "", BuildingExistingFacility
 
 	case policy.EnsureBasicDefense:
 		// Reached only from RoundsEquipPlanner once no loose weapon and no
@@ -275,44 +260,15 @@ func campfireIntentStanding(claims domain.Fact[[]policy.ConstructionClaim], obse
 	return false
 }
 
-// butcherTableWanted is true once a butcher spot stands apart and the colony
+// butcherTableWanted is true while no butcher table stands and the colony
 // can raise the real table: the table is built from stuff, so the wood must
 // be in stock, and a builder able to raise it must be at work.
 func butcherTableWanted(facts observation.ColonyProjection, benches []observation.CookingBench) bool {
 	for _, b := range benches {
-		if b.Definition == "TableButcher" {
+		if b.Definition == "TableButcher" && !butchersAllColocated([]observation.CookingBench{b}, facts.Rooms) {
 			return false
 		}
 	}
 	wood, known := facts.Facts.Wood.Value()
 	return known && wood >= policy.ButcherTableWood && comfortBuilderAvailable(facts, "TableButcher")
-}
-
-// standingButcherSpot is a standing butcher spot, found in the building
-// census, once a butcher table stands apart as well: the stand-in spot is
-// deconstructed then.
-func standingButcherSpot(facts observation.ColonyProjection) (policy.CurrentBuilding, bool) {
-	benches, bk := facts.ButcheringBenches.Value()
-	census, ck := facts.Facts.CurrentConstruction.Value()
-	if !bk || !ck {
-		return policy.CurrentBuilding{}, false
-	}
-	table := false
-	for _, bench := range benches {
-		table = table || bench.Definition == "TableButcher"
-	}
-	if !table {
-		return policy.CurrentBuilding{}, false
-	}
-	for _, bench := range benches {
-		if bench.Definition != "ButcherSpot" {
-			continue
-		}
-		for _, b := range census.Buildings {
-			if b.ID == bench.ID && len(b.Cells) > 0 {
-				return b, true
-			}
-		}
-	}
-	return policy.CurrentBuilding{}, false
 }

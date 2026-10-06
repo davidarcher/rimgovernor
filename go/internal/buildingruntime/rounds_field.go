@@ -625,8 +625,8 @@ func fieldBlockingWork(progress []domain.Progress) bool {
 		_, grow := p.Action().ZoneCellEdit()
 		zone = zone || grow
 		building, isBuilding := p.Action().Building()
-		// The butcher spot shares the goal but not the field (#260).
-		if isBuilding && building.Definition() == "ButcherSpot" {
+		// The butcher table shares the goal but not the field (#260).
+		if isBuilding && building.Definition() == "TableButcher" {
 			continue
 		}
 		if (zone || isBuilding) && pendingWork(p) {

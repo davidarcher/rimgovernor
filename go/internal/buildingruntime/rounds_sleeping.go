@@ -482,14 +482,8 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		return result, err
 	}
 	missing, method, reason := r.selection(facts)
-	if method == "butcher-spot-retire" {
-		if spot, owed := standingButcherSpot(facts); owed {
-			return r.retireBuilding(call, epoch, state, review, goal, reading, spot, "butcher-spot-retire", "stand-in butcher spot")
-		}
-	}
 	if method == "butcher-table" {
-		// A stand-in spot stands apart: the real table goes in the same room (the
-		// planned butchery) once the wood is in stock.
+		// The real table goes in the planned butchery once the wood is in stock.
 		table := *r
 		table.definition = "TableButcher"
 		table.stuff = facts.BuildStuff(table.definition)
@@ -511,11 +505,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !reason.IsZero() {
 		return RoundsBuildingResult{Verdict: reason}, nil
 	}
-	// The stand-in campfire is free and instant and the colony cooks on it
-	// while the kitchen is dug: it goes down outdoors now, and the ring is
-	// shelled once it stands (the existing-facility path above).
-	standIn := r.concern == policy.EnsureCooking && method == "campfire"
-	if module, ok := r.plannedRoomModule(); ok && !standIn {
+	if module, ok := r.plannedRoomModule(); ok {
 		// The planned room is raised and furnished together (#835): the
 		// ring is admitted, and the stove or cooler goes onto the room's
 		// interior without waiting for the walls. A shell already tried
@@ -544,14 +534,6 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			fire := *r
 			fire.cells = cells
 			r = &fire
-		}
-	}
-	if r.definition == "ButcherSpot" {
-		// The stand-in spot goes in the planned butchery once it stands (#2040).
-		if cells := plannedRoomCells(facts, policy.PlannedButchery); cells != nil {
-			spot := *r
-			spot.cells = cells
-			r = &spot
 		}
 	}
 	if r.concern == policy.EnsureCooking {
@@ -901,26 +883,10 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "TableButcher")...)
 	}
-	var spotBox policy.Rectangle
-	// The cooking campfire stands like the butcher spot (#2044): in the planned
-	// kitchen when it stands, else outside every room within the core box.
+	// The cooking campfire stands in the planned kitchen (#2044); on a cold map
+	// it takes the shelter's template slot. It has no outdoor stand-in (#2266).
 	cookingCampfire := r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.facility == nil && len(r.paste) == 0
-	spotOutside := (r.definition == "ButcherSpot" || cookingCampfire) && r.cells == nil
 	slotProtected := protected
-	if spotOutside {
-		// The stand-in spot stands outside every room, within the planned
-		// core's box plus a margin, never map-wide (#2040).
-		plan, ok := facts.LayoutPlan.Value()
-		if !ok {
-			return nil, policy.StockObservation{}, BuildingNoLayoutPlan, nil
-		}
-		core, ok := plan.CoreBounds()
-		if !ok {
-			return nil, policy.StockObservation{}, BuildingNoLayoutPlan, nil
-		}
-		spotBox = policy.Rectangle{X: core.X - butcherSpotCoreMargin, Z: core.Z - butcherSpotCoreMargin, Width: core.Width + 2*butcherSpotCoreMargin, Height: core.Height + 2*butcherSpotCoreMargin}
-		protected = append(append([]domain.Cell(nil), protected...), roomInteriorCells(facts)...)
-	}
 	var cells []policy.SiteCell
 	adjacent := map[domain.Cell]bool{}
 	for _, c := range r.adjacent {
@@ -953,6 +919,10 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				slotOnly = slotOnly || c.X >= in.X && c.X < in.X+in.Width && c.Z >= in.Z && c.Z < in.Z+in.Height
 			}
 		}
+	}
+	if cookingCampfire && r.cells == nil && !slotOnly {
+		// Cooking waits for the planned kitchen (#2266).
+		return nil, policy.StockObservation{}, BuildingNoLayoutPlan, nil
 	}
 	// The slots come from the planned interior, not a standing census room, so
 	// they place before any wall does (#2264).
@@ -1013,9 +983,6 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		if restricted && !roomCells[c.Cell] {
 			continue
 		}
-		if spotOutside && (c.Cell.X < spotBox.X || c.Cell.X >= spotBox.X+spotBox.Width || c.Cell.Z < spotBox.Z || c.Cell.Z >= spotBox.Z+spotBox.Height) {
-			continue
-		}
 		if comfortFurniture(facts).IsChair(r.definition) && !adjacent[c.Cell] {
 			continue
 		}
@@ -1040,15 +1007,12 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 		searchRequest.Center = anchor
 	}
-	if r.concern == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" || r.definition == "TableButcher" {
-		// The cooking campfire and the butcher spot stand by the base, not the landing
+	if r.concern == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "TableButcher" {
+		// The cooking campfire and the butcher table stand by the base, not the landing
 		// centroid (#1534).
 		if anchor, ok := planCore(facts); ok {
 			searchRequest.Center = anchor
 		}
-	}
-	if spotOutside {
-		searchRequest.Radius = max(spotBox.Width, spotBox.Height)
 	}
 	if r.cells != nil {
 		// The room is fixed: search around it, wherever it stands (#838).

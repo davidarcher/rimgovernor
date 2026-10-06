@@ -24,9 +24,7 @@ func (r *RoundsBuildingPlanner) plannedRoomModule() (policy.PlannedRole, bool) {
 	switch {
 	case r.concern == policy.EnsureCooking && len(r.paste) == 0:
 		return policy.PlannedKitchen, true
-	// The stand-in ButcherSpot is free and instant and gates hunting (#260): it
-	// stands outdoors now and never waits on the room being dug. Only the real
-	// table goes in the planned butchery.
+	// The butcher table goes in the planned butchery, ring and table together.
 	case r.concern == policy.MaintainButcherSpot && r.definition == "TableButcher":
 		return policy.PlannedButchery, true
 	case r.concern == policy.MaintainRefrigeration && r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild:
@@ -123,27 +121,6 @@ func plannedInteriorSiteCells(facts observation.ColonyProjection, rooms []policy
 		}
 	}
 	return out
-}
-
-// butcherSpotCoreMargin is how far past the planned core's bounding box the
-// stand-in butcher spot may stand (#2040).
-const butcherSpotCoreMargin = 3
-
-// roomInteriorCells are the cells inside any observed room or planned room
-// interior, built or not.
-func roomInteriorCells(facts observation.ColonyProjection) []domain.Cell {
-	var cells []domain.Cell
-	if census, known := facts.Rooms.Value(); known {
-		for _, room := range census.Rooms {
-			cells = append(cells, room.Cells...)
-		}
-	}
-	if plan, ok := facts.LayoutPlan.Value(); ok {
-		for _, room := range plan.AllRooms() {
-			cells = append(cells, plannedRoomInterior(room)...)
-		}
-	}
-	return cells
 }
 
 // plannedRoomMethod names a planned room's shell: once per room per epoch.
