@@ -12,7 +12,7 @@ var gearTestItems = ItemFacts{Armor: []Resource{"Apparel_FlakVest", "Apparel_Pla
 // gearField is a 100x100 open map with a shelter, an armory and a wardrobe
 // standing as roofed rooms (and a prison when set), under a gear store with
 // the catalog's armor split.
-func gearField(t *testing.T, prison *PlannedRoom) StorageRequest {
+func gearField(t *testing.T, prison *PlannedRoom) StoreView {
 	t.Helper()
 	layout := LayoutPlan{Rooms: []PlannedRoom{
 		{Role: PlannedShelter, Interior: Rectangle{X: 40, Z: 40, Width: 7, Height: 5}},
@@ -39,10 +39,10 @@ func gearField(t *testing.T, prison *PlannedRoom) StorageRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return StorageRequest{Bounds: Bounds{Width: 100, Height: 100}, Cells: cells, Layout: &layout, Rooms: &rooms, Gear: &gear}
+	return StoreView{Bounds: Bounds{Width: 100, Height: 100}, Cells: cells, Layout: &layout, Rooms: &rooms, Gear: &gear}
 }
 
-func gearSite(r StorageRequest, prefix string) (Store, bool) {
+func gearSite(r StoreView, prefix string) (Store, bool) {
 	for _, store := range (militaryOwner{}).Stores(r) {
 		if len(store.Role) > len(prefix) && store.Role[:len(prefix)] == prefix {
 			return store, true
@@ -54,7 +54,7 @@ func gearSite(r StorageRequest, prefix string) (Store, bool) {
 // A standing armory is one zone over the whole room, weapons and armor above
 // the gear floors, Preferred; the wardrobe the same for clothing. Neither
 // stands without its room or without the catalog's armor split.
-func TestPlanStorageGearStoresFillTheirRooms(t *testing.T) {
+func TestStoresGearStoresFillTheirRooms(t *testing.T) {
 	t.Parallel()
 	r := gearField(t, nil)
 	armory, ok := gearSite(r, domain.ArmoryRolePrefix)
@@ -124,7 +124,7 @@ func TestGearFiltersSplitArmorFromClothingAndKeepTheFloors(t *testing.T) {
 
 // Weapons keep their away-from-prison rule: the armory zone leaves out every
 // cell within the weapon clearance of a prison; the wardrobe is unaffected.
-func TestPlanStorageArmoryKeepsAwayFromPrisons(t *testing.T) {
+func TestStoresArmoryKeepsAwayFromPrisons(t *testing.T) {
 	t.Parallel()
 	prison := PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 60, Z: 40, Width: 3, Height: 3}}
 	r := gearField(t, &prison)
@@ -147,7 +147,7 @@ func TestPlanStorageArmoryKeepsAwayFromPrisons(t *testing.T) {
 
 // An armory whose every free cell is within the weapon clearance of a prison
 // is a named failure of the plan, not a silent absence of the zone (#1805).
-func TestPlanStorageNamesAnArmoryNearAPrison(t *testing.T) {
+func TestStoresNamesAnArmoryNearAPrison(t *testing.T) {
 	t.Parallel()
 	prison := PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 58, Z: 40, Width: 3, Height: 3}}
 	r := gearField(t, &prison)
@@ -165,34 +165,20 @@ func TestPlanStorageNamesAnArmoryNearAPrison(t *testing.T) {
 	}
 }
 
-// With the armory standing the maintenance pass fills it and deletes the old
-// 2x2 weapons zone (a retired role); the same for the wardrobe. A planned
-// room not yet standing is owed its shell.
-func TestMaintenanceFillsGearRoomsAndDeletesTheOldZones(t *testing.T) {
+// With the armory standing the maintenance pass fills it; the same for the
+// wardrobe. A planned room not yet standing is owed its shell.
+func TestMaintenanceFillsGearRooms(t *testing.T) {
 	t.Parallel()
 	r := gearField(t, nil)
-	legacy := func(id, role string) StockpileZone {
-		return StockpileZone{ID: id, Role: role, Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}, Filter: domain.GeneralFilter(), Priority: domain.PreferredPriority}
-	}
-	request := StockpileRequest{Tick: 100, Bounds: r.Bounds, Cells: r.Cells, Stores: (militaryOwner{}).Stores(r),
-		Zones: []StockpileZone{legacy("Zone_1", domain.WeaponsRole), legacy("Zone_2", domain.ApparelRole)},
-		Roles: func(role string) (StockpileRoleState, bool) {
-			if role == domain.WeaponsRole || role == domain.ApparelRole {
-				return StockpileRoleState{Retired: true}, true
-			}
-			return StockpileRoleState{}, false
-		}}
+	request := StockpileRequest{Tick: 100, Bounds: r.Bounds, Cells: r.Cells, Stores: (militaryOwner{}).Stores(r)}
 	review := PlanStockpileMaintenance(request)
-	deleted, created := map[string]bool{}, map[string]int{}
+	created := map[string]int{}
 	for _, e := range review.Edits {
-		switch e.Kind {
-		case StockpileDelete:
-			deleted[e.Zone] = true
-		case StockpileCreate:
+		if e.Kind == StockpileCreate {
 			created[stockpileRolePrefix(e.Role)] = len(e.Cells)
 		}
 	}
-	if !deleted["Zone_1"] || !deleted["Zone_2"] || created["armory"] != 25 || created["wardrobe"] != 25 {
+	if created["armory"] != 25 || created["wardrobe"] != 25 {
 		t.Fatalf("edits %+v", review.Edits)
 	}
 	request.Zones = nil

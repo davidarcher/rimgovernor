@@ -19,7 +19,7 @@ func unroofedGround() []SiteCell {
 
 // storeCreates are the creates the declared stores make on open ground, by
 // role prefix.
-func storeCreates(view StorageRequest) map[string]StockpileEdit {
+func storeCreates(view StoreView) map[string]StockpileEdit {
 	view.Bounds, view.Cells = Bounds{Width: 40, Height: 40}, unroofedGround()
 	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Protected: view.Protected, Stores: DeclareStores(view).Stores})
 	out := map[string]StockpileEdit{}
@@ -46,7 +46,7 @@ func withinRect(cells []domain.Cell, r Rectangle) bool {
 func TestFoodStoreIsSitedInThePlannedKitchenAtPlanTime(t *testing.T) {
 	t.Parallel()
 	kitchen := PlannedRoom{Role: PlannedKitchen, Interior: Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 15}, DoorRot: domain.South}
-	view := StorageRequest{Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}, Food: &FoodStore{}}
+	view := StoreView{Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}, Food: &FoodStore{}}
 	food, ok := storeCreates(view)[domain.FoodRole]
 	if !ok || len(food.Cells) != 9 || food.Filter != domain.FoodFilter() || food.Priority != domain.PreferredPriority || !withinRect(food.Cells, kitchen.Interior) {
 		t.Fatalf("food %+v", food)
@@ -59,10 +59,10 @@ func TestFoodStoreIsSitedInThePlannedKitchenAtPlanTime(t *testing.T) {
 		t.Fatalf("food not at the kitchen door: %v", food.Cells)
 	}
 	// No kitchen planned, or storage already met: nothing.
-	if got := storeCreates(StorageRequest{Layout: &LayoutPlan{}, Food: &FoodStore{}}); len(got) != 0 {
+	if got := storeCreates(StoreView{Layout: &LayoutPlan{}, Food: &FoodStore{}}); len(got) != 0 {
 		t.Fatalf("%+v", got)
 	}
-	if got := storeCreates(StorageRequest{Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}}); len(got) != 0 {
+	if got := storeCreates(StoreView{Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}}); len(got) != 0 {
 		t.Fatalf("storage met: %+v", got)
 	}
 }
@@ -72,7 +72,7 @@ func TestFoodStoreIsSitedInThePlannedKitchenAtPlanTime(t *testing.T) {
 func TestFoodStoreStandingInTheKitchenIsLeftAlone(t *testing.T) {
 	t.Parallel()
 	kitchen := PlannedRoom{Role: PlannedKitchen, Interior: Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 15}}
-	view := StorageRequest{Bounds: Bounds{Width: 40, Height: 40}, Cells: unroofedGround(), Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}, Food: &FoodStore{}}
+	view := StoreView{Bounds: Bounds{Width: 40, Height: 40}, Cells: unroofedGround(), Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}, Food: &FoodStore{}}
 	zone := StockpileZone{ID: "food", Role: domain.FoodRole, Cells: rectCells(Rectangle{X: 10, Z: 12, Width: 3, Height: 3}), Filter: domain.FoodFilter(), Priority: domain.PreferredPriority}
 	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Zones: []StockpileZone{zone}, Stores: DeclareStores(view).Stores})
 	if len(review.Edits) != 0 {

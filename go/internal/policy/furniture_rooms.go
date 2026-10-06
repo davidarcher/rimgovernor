@@ -85,10 +85,3 @@ func FurnitureRooms(rooms RoomObservation, census CurrentConstruction, cells []S
 func rectInside(outer, inner Rectangle) bool {
 	return inner.X >= outer.X && inner.Z >= outer.Z && inner.X+inner.Width <= outer.X+outer.Width && inner.Z+inner.Height <= outer.Z+outer.Height
 }
-
-func absInt32(v int32) int32 {
-	if v < 0 {
-		return -v
-	}
-	return v
-}

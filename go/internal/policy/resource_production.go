@@ -212,7 +212,7 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 // whether hauling a selected mine source's yield needs a new covered
 // stockpile zone. Candidates are native's own hauler-reachable, roofed,
 // unreserved cell scan near an existing hauler -- not recomputed by
-// policy.CoveredStorageSites, the generic site-search this narrower,
+// a generic covered-site search, which this narrower,
 // deposit-adjacent placement does not need.
 type ResourceStorage struct {
 	Resource   Resource

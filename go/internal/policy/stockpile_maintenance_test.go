@@ -54,16 +54,9 @@ func TestStockpileRetargetsAndDeletesByRoleAndSkipsLegacy(t *testing.T) {
 		{ID: "Zone_3", Cells: stockpileRect(30, 30, 3, 3), Filter: general, Priority: domain.NormalPriority},
 	}
 	r := stockpileField(zones...)
-	r.Roles = func(role string) (StockpileRoleState, bool) {
-		switch role {
-		case "ingredients:Bench_1":
-			return StockpileRoleState{Filter: food, Priority: domain.ImportantPriority}, true
-		case "dump:worn":
-			return StockpileRoleState{Retired: true}, true
-		case "":
-			t.Fatal("a legacy zone's role was resolved")
-		}
-		return StockpileRoleState{}, false
+	r.Stores = []Store{
+		{StoreSite: StoreSite{Role: "ingredients:Bench_1", Interior: Rectangle{X: 0, Z: 0, Width: 3, Height: 3}, Filter: food, Priority: domain.ImportantPriority, exact: true}},
+		{StoreSite: StoreSite{Role: "dump:worn", exact: true}, Retired: true},
 	}
 	review := PlanStockpileMaintenance(r)
 	if len(review.Edits) != 2 {

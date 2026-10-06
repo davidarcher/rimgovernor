@@ -28,12 +28,6 @@ func allowOnly(definitions ...string) domain.StockpileFilter {
 	return f
 }
 
-func init() {
-	rawFood := policy.StockpileRoleState{Filter: domain.RawFoodFilter(), Priority: domain.CriticalPriority}
-	RegisterStockpileRole(domain.YardRole, fixedStockpileRole(domain.YardFilter(), domain.LowPriority))
-	RegisterStockpileRole("rawfood", func(StockpileRoleInput, string) (policy.StockpileRoleState, bool) { return rawFood, true })
-}
-
 // tableMeal is the one-cell meal store by the dining table (#936), nil while a
 // fact it needs is unknown: a spot in the planned dining room holding the
 // table, while the colony eats at least mealSpotMinPerDay meals a day, else a
@@ -123,11 +117,11 @@ func centroid(cells []domain.Cell) domain.Cell {
 	return domain.Cell{X: int32(sumX / int64(len(cells))), Z: int32(sumZ / int64(len(cells)))}
 }
 
-// storageRequest is the colony view the storage planner reads: the cells,
+// storeView is the colony view the storage planner reads: the cells,
 // the layout plan and room census when known, the table meal store's spot and
 // the food stockpile while the colony's food storage is not met.
-func storageRequest(projection *observation.ColonyProjection, protected []domain.Cell) policy.StorageRequest {
-	request := policy.StorageRequest{Bounds: projection.Bounds, Cells: projection.Cells, Protected: protected}
+func storeView(projection *observation.ColonyProjection, protected []domain.Cell) policy.StoreView {
+	request := policy.StoreView{Bounds: projection.Bounds, Cells: projection.Cells, Protected: protected}
 	if plan, rooms, known := plannedLayout(*projection); known {
 		request.Layout, request.Rooms = &plan, &rooms
 	}

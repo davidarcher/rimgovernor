@@ -6,9 +6,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func hospitalView(shapes PieceShapes) (StorageRequest, PlannedRoom) {
+func hospitalView(shapes PieceShapes) (StoreView, PlannedRoom) {
 	hospital := PlannedRoom{Role: PlannedHospital, Interior: Rectangle{X: 10, Z: 10, Width: 7, Height: 5}, Door: domain.Cell{X: 13, Z: 15}, DoorRot: domain.South}
-	return StorageRequest{Layout: &LayoutPlan{Rooms: []PlannedRoom{hospital}}, Shapes: shapes}, hospital
+	return StoreView{Layout: &LayoutPlan{Rooms: []PlannedRoom{hospital}}, Shapes: shapes}, hospital
 }
 
 // The medicine store is declared from the planned hospital at plan time,
@@ -62,7 +62,7 @@ func TestMedicalStoreFallsBackToTheDoorAndNeedsAHospital(t *testing.T) {
 			t.Fatal("medicine away from the door", edit.Cells)
 		}
 	}
-	if got := storeCreates(StorageRequest{Layout: &LayoutPlan{}}); len(got) != 0 {
+	if got := storeCreates(StoreView{Layout: &LayoutPlan{}}); len(got) != 0 {
 		t.Fatalf("no hospital planned %+v", got)
 	}
 }

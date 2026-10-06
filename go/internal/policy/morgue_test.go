@@ -51,14 +51,14 @@ func TestMorgueIsCooledOnceStanding(t *testing.T) {
 
 func TestMorgueStoreHoldsEveryHumanCorpseBelowGraves(t *testing.T) {
 	plan, room := morgueFixture()
-	stores := burialOwner{}.Stores(StorageRequest{Layout: &plan})
+	stores := burialOwner{}.Stores(StoreView{Layout: &plan})
 	if len(stores) != 1 || stores[0].Role != domain.MorgueRolePrefix+"10_20" || stores[0].Interior != room.Interior || stores[0].Filter != domain.MorgueCorpsesFilter() {
 		t.Fatalf("stores %+v", stores)
 	}
 	if stores[0].Priority != MorguePriority || MorguePriority == domain.CriticalPriority {
 		t.Fatalf("priority %v", stores[0].Priority)
 	}
-	if got := (burialOwner{}).Stores(StorageRequest{Layout: &LayoutPlan{}}); len(got) != 0 {
+	if got := (burialOwner{}).Stores(StoreView{Layout: &LayoutPlan{}}); len(got) != 0 {
 		t.Fatalf("no planned morgue, no store: %+v", got)
 	}
 }

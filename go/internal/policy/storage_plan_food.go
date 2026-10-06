@@ -18,7 +18,7 @@ type FoodStore struct{}
 
 // foodStore is the food stockpile: a 3x3 inside the first planned kitchen,
 // nearest its door.
-func (r StorageRequest) foodStore() (Store, bool) {
+func (r StoreView) foodStore() (Store, bool) {
 	if r.Food == nil || r.Layout == nil {
 		return Store{}, false
 	}

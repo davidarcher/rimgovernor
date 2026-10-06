@@ -11,9 +11,8 @@ import (
 // MaintainStockpiles applies the stockpile zones the departments declare
 // (#725, DeclareStores): a zone is created once at its store's size, a zone
 // whose role's desired filter or priority changed is patched, a zone whose
-// role's purpose is gone is deleted, and a fixed role the colony has things
-// for but no zone of is created (#724), as is a room-bound role whose room
-// stands without one (#917, StockpileSite). A zone is never grown, shrunk or
+// role's purpose is gone is deleted, and a store no zone serves is created
+// (#724, #917). A zone is never grown, shrunk or
 // merged: its empty cells are its headroom. It acts on the zones the colony
 // created (store.OwnedZone), role-keyed; a role-less legacy claim stands as
 // created. It is a Standard whose target is no outstanding work: no zone edit
@@ -31,20 +30,6 @@ const stockpileDeficit = 0.1
 // standing zones count as full and the department asks layout for further
 // room.
 const StockpileFurtherRoomFill = 0.85
-
-// StockpileRoleState is the desired state of one role, published by the
-// planner that owns the role (#721 shelves, #723 siting, #724 filters and
-// dumps): the filter and priority its zones should carry, or Retired once
-// the role's purpose is gone (the bench demolished, the dump unneeded).
-type StockpileRoleState struct {
-	Filter   domain.StockpileFilter
-	Priority domain.StockpilePriority
-	Retired  bool
-}
-
-// StockpileRoles resolves a role key to its desired state; false leaves the
-// zone's settings alone (no owner published the role).
-type StockpileRoles func(role string) (StockpileRoleState, bool)
 
 // StockpileZone is one owned stockpile as the census holds it now: its
 // cells (the planning cells naming it), the cells holding things (Stored:
@@ -96,33 +81,26 @@ type StockpileEdit struct {
 type StockpileRequest struct {
 	Tick      domain.Tick
 	Zones     []StockpileZone
-	Roles     StockpileRoles
 	Cells     []SiteCell
 	Bounds    Bounds
 	Protected []domain.Cell
-	// Anchor sites the opening general store.
-	Anchor domain.Cell
 	// Shelves are the built shelves inside the zones (#721): each carries
 	// its zone's desired settings, patched until it does.
 	Shelves []StockpileShelf
 	// Stores are the declared stores of the departments that own stockpiles
-	// (DeclareStores), applied beside Sited until PlanStorage is deleted.
+	// (DeclareStores): each store's filter and priority are defined once, on
+	// the store.
 	Stores []Store
-	// Sited are the room-bound roles (#917) created while absent.
-	Sited []StockpileSite
-	// Gear is the planner's gear-room demand for layout (#1773); the review
-	// itself does not read it.
+	// RoomDemand is the departments' room demand for layout (#1773); the
+	// review itself does not read it.
 	RoomDemand RoomDemand
-	// SiteErr is the storage planner's report of sites it could not make
-	// usable (StoragePlan.Err); the review itself does not read it.
+	// SiteErr is the departments' report of stores they could not make usable
+	// (StoreDeclaration.Err); the review itself does not read it.
 	SiteErr error
-	// Rooms are the planned storage-planner rooms (storage, armory and wardrobe,
+	// Rooms are the planned storage rooms (storage, armory and wardrobe,
 	// #1774; the materials yard's fence ring, #2215) not yet standing: the
 	// planner raises their shells (StockpileReview.Rooms).
 	Rooms []PlannedRole
-	// Opening stands the opening stockpiles (the general store)
-	// while no owned zone of its kind stands; the runtime always sets it.
-	Opening bool
 }
 
 // StockpileShelf is one built shelf serving an owned zone and the settings
@@ -141,9 +119,8 @@ type StockpileShelf struct {
 const StockpileShelfPatch StockpileEditKind = "shelf"
 
 // stockpileShelfEdits patches every shelf whose settings differ from its
-// zone's desired ones: the zone role's published state, else the zone's
-// own settings. A shelf of a zone that is gone or retiring waits.
-func stockpileShelfEdits(roles StockpileRoles, zones []StockpileZone, shelves []StockpileShelf) []StockpileEdit {
+// zone's desired ones: its declared store's, else the zone's own settings. A shelf of a zone that is gone or retiring waits.
+func stockpileShelfEdits(stores []Store, zones []StockpileZone, shelves []StockpileShelf) []StockpileEdit {
 	byID := map[string]StockpileZone{}
 	for _, z := range zones {
 		byID[z.ID] = z
@@ -157,13 +134,11 @@ func stockpileShelfEdits(roles StockpileRoles, zones []StockpileZone, shelves []
 			continue
 		}
 		filter, priority := z.Filter, z.Priority
-		if z.Role != "" && roles != nil {
-			if want, published := roles(z.Role); published {
-				if want.Retired {
-					continue
-				}
-				filter, priority = want.Filter, want.Priority
+		if store, declared := storeOfZone(stores, z); declared {
+			if store.Retired {
+				continue
 			}
+			filter, priority = store.Filter, store.Priority
 		}
 		if s.Patched && s.Filter == filter && s.Priority == priority {
 			continue
@@ -251,20 +226,9 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for id := range owned {
 		touched[id] = true
 	}
-	for _, e := range stockpileSiteMoves(r) {
+	for _, e := range stockpileShelfEdits(r.Stores, zones, r.Shelves) {
 		take(e, true)
 	}
-	for _, e := range stockpileSupersededDeletes(r) {
-		take(e, true)
-	}
-	for _, z := range zones {
-		take(stockpileSettingsEdit(r.Roles, z))
-	}
-	for _, e := range stockpileShelfEdits(r.Roles, zones, r.Shelves) {
-		take(e, true)
-	}
-	candidates = append(candidates, stockpileOpeningEdits(r, open)...)
-	candidates = append(candidates, stockpileSiteEdits(r, open)...)
 	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2}
 	// A moved zone's delete follows its replacement's create.
 	order := func(e StockpileEdit) int {
@@ -291,25 +255,18 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	return review
 }
 
-// stockpileSettingsEdit deletes a zone whose role retired and retargets one
-// whose role's desired settings differ from those last applied.
-func stockpileSettingsEdit(roles StockpileRoles, z StockpileZone) (StockpileEdit, bool) {
-	if z.Role == "" || roles == nil {
-		return StockpileEdit{}, false
-	}
-	want, ok := roles(z.Role)
-	if !ok {
-		return StockpileEdit{}, false
-	}
-	if want.Retired {
+// stockpileSettingsEdit deletes a zone whose store retired and retargets one
+// whose store's filter or priority differ from those last applied.
+func stockpileSettingsEdit(s Store, z StockpileZone) (StockpileEdit, bool) {
+	if s.Retired {
 		return StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role,
 			Explanation: fmt.Sprintf("stockpile %s (%s): role retired, delete; %d used cells rehome", z.ID, z.Role, z.Used())}, true
 	}
-	if want.Filter == z.Filter && want.Priority == z.Priority {
+	if s.Filter == z.Filter && s.Priority == z.Priority {
 		return StockpileEdit{}, false
 	}
-	return StockpileEdit{Kind: StockpileRetarget, Zone: z.ID, Role: z.Role, Filter: want.Filter, Priority: want.Priority,
-		Explanation: fmt.Sprintf("stockpile %s (%s): desired settings changed (priority %s -> %s), patch; %d used cells may rehome", z.ID, z.Role, z.Priority, want.Priority, z.Used())}, true
+	return StockpileEdit{Kind: StockpileRetarget, Zone: z.ID, Role: z.Role, Filter: s.Filter, Priority: s.Priority,
+		Explanation: fmt.Sprintf("stockpile %s (%s): desired settings changed (priority %s -> %s), patch; %d used cells may rehome", z.ID, z.Role, z.Priority, s.Priority, z.Used())}, true
 }
 
 func stockpileNeighbours(c domain.Cell) []domain.Cell {

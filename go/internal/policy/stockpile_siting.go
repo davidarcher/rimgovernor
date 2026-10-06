@@ -44,15 +44,11 @@ type StoreSite struct {
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 
-	// room and exact adapt a StockpileSite still produced by the storage
-	// planner: its explicit cells stand in for Interior, and a keyed site
-	// matches the whole role.
+	// room, when set, stands in for Interior as the site's explicit cells, and
+	// exact matches a zone by the whole role key (a bench ID, unlike a census
+	// room ID that RimWorld renumbers) instead of its prefix.
 	room  []domain.Cell
 	exact bool
-}
-
-func (s StockpileSite) store() StoreSite {
-	return StoreSite{Role: s.Role, Filter: s.Filter, Priority: s.Priority, room: s.Room, exact: s.Keyed}
 }
 
 // footprint is the ground that identifies the site.

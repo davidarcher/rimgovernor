@@ -13,11 +13,11 @@ func TestIncinerationOwnerDeclaresTheZoneOnceWallsStand(t *testing.T) {
 	if owner.Department() != DepartmentSanitation {
 		t.Fatal(owner.Department())
 	}
-	if got := owner.Stores(StorageRequest{}); len(got) != 0 {
+	if got := owner.Stores(StoreView{}); len(got) != 0 {
 		t.Fatal("a store before the walls stand", got)
 	}
 	room := incineratorRoom(Rectangle{X: 30, Z: 4, Width: 5, Height: 5})
-	stores := DeclareStores(StorageRequest{Incinerator: &room}).Stores
+	stores := DeclareStores(StoreView{Incinerator: &room}).Stores
 	var zone *Store
 	for i, s := range stores {
 		if s.Role == domain.IncineratorRole {
@@ -29,11 +29,6 @@ func TestIncinerationOwnerDeclaresTheZoneOnceWallsStand(t *testing.T) {
 	}
 	if zone.Priority != domain.PreferredPriority || zone.Filter != domain.IncineratorFilter() {
 		t.Fatal(zone.Priority, zone.Filter)
-	}
-	for _, s := range PlanStorage(StorageRequest{Bounds: Bounds{Width: 40, Height: 30}, Incinerator: &room}).Sites {
-		if s.Role == domain.IncineratorRole {
-			t.Fatal("the storage planner still sites the incinerator")
-		}
 	}
 }
 
@@ -64,7 +59,7 @@ func TestIncinerationOwnerDeclaresOneDumpOverTheYard(t *testing.T) {
 		t.Fatal("no layout")
 	}
 	plan := LayoutPlan{Rooms: outskirtsRooms(layout)}
-	view := StorageRequest{Layout: &plan}
+	view := StoreView{Layout: &plan}
 	var dumps []Store
 	for _, s := range DeclareStores(view).Stores {
 		if s.Role == domain.DumpRole {
@@ -87,7 +82,7 @@ func TestIncinerationOwnerDeclaresOneDumpOverTheYard(t *testing.T) {
 			t.Fatalf("dump cell %v inside the incinerator outline", c)
 		}
 	}
-	if len((incinerationOwner{}).Stores(StorageRequest{})) != 0 {
+	if len((incinerationOwner{}).Stores(StoreView{})) != 0 {
 		t.Fatal("a dump without a plan")
 	}
 }

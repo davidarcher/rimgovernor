@@ -22,7 +22,7 @@ type militaryOwner struct{}
 
 func (militaryOwner) Department() Department { return DepartmentMilitary }
 
-func (o militaryOwner) Stores(view StorageRequest) []Store {
+func (o militaryOwner) Stores(view StoreView) []Store {
 	stores, _ := o.gearStores(view)
 	return stores
 }
@@ -32,7 +32,7 @@ func (o militaryOwner) Stores(view StorageRequest) []Store {
 func (militaryOwner) RoomsAsked() []PlannedRole { return gearRooms }
 
 // StoreErr names a standing armory no store can be sited in (ErrArmoryNearPrison).
-func (o militaryOwner) StoreErr(view StorageRequest) error {
+func (o militaryOwner) StoreErr(view StoreView) error {
 	_, err := o.gearStores(view)
 	return err
 }
@@ -40,7 +40,7 @@ func (o militaryOwner) StoreErr(view StorageRequest) error {
 // RoomDemand asks for a gear room while none stands and serviceable gear of
 // its kind is held (weapons and armor for the armory, clothing for the
 // wardrobe), and for a further one when every store of the kind is full.
-func (o militaryOwner) RoomDemand(view StorageRequest) RoomDemand {
+func (o militaryOwner) RoomDemand(view StoreView) RoomDemand {
 	g := view.Gear
 	if g == nil || view.Layout == nil || view.Rooms == nil {
 		return RoomDemand{Known: g != nil}
@@ -62,7 +62,7 @@ func (o militaryOwner) RoomDemand(view StorageRequest) RoomDemand {
 // each kind, over its free cells. The armory never takes a cell within the
 // weapon clearance of a prison (nearPrison); a room whose free cells all are is
 // reported (ErrArmoryNearPrison), not silently left without a store.
-func (militaryOwner) gearStores(r StorageRequest) ([]Store, error) {
+func (militaryOwner) gearStores(r StoreView) ([]Store, error) {
 	if r.Layout == nil || r.Rooms == nil || r.Gear == nil {
 		return nil, nil
 	}

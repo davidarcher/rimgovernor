@@ -51,7 +51,7 @@ type animalOwner struct{}
 
 func (animalOwner) Department() Department { return DepartmentPeople }
 
-func (animalOwner) Stores(v StorageRequest) []Store {
+func (animalOwner) Stores(v StoreView) []Store {
 	var out []Store
 	for _, f := range v.AnimalFeed {
 		defs := make([]string, len(f.Feed))
@@ -67,4 +67,4 @@ func (animalOwner) Stores(v StorageRequest) []Store {
 	return out
 }
 
-func (animalOwner) RoomDemand(StorageRequest) RoomDemand { return RoomDemand{} }
+func (animalOwner) RoomDemand(StoreView) RoomDemand { return RoomDemand{} }

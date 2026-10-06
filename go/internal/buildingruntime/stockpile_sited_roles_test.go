@@ -70,7 +70,7 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	t.Parallel()
 	projection, adjacent := mealSpotColony(1.6, 1.6)
 	simple := allowOnly("MealSimple")
-	review := policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil)))
+	review := policy.PlanStockpileMaintenance(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil))
 	if len(review.Edits) != 1 {
 		t.Fatalf("review %+v", review)
 	}
@@ -92,24 +92,24 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	zoneOn(projection, "Zone_7", false, shelf...)
 	zoneOn(projection, "Zone_7", true, shelf[0])
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:10_10", Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}}
-	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil)))
+	review = policy.PlanStockpileMaintenance(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileRetarget || review.Edits[0].Filter != simple || review.Edits[0].Zone != "Zone_7" {
 		t.Fatalf("shelf not retargeted: %+v", review)
 	}
 	patches := map[string]store.AppliedStockpile{"Zone_7": {Target: "Zone_7", Kind: domain.StorageZoneTarget, Filter: simple, Priority: domain.CriticalPriority, Role: "meals:10_10"}}
-	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil, nil)))
+	review = policy.PlanStockpileMaintenance(stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil, nil))
 	if review.Active {
 		t.Fatalf("a standing store is sized once, never shrunk: %+v", review)
 	}
 
 	few, _ := mealSpotColony(1.6)
 	zoneOn(few, "Zone_7", false, shelf...)
-	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil, nil)))
+	review = policy.PlanStockpileMaintenance(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil, nil))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileDelete || review.Edits[0].Zone != "Zone_7" {
 		t.Fatalf("under 3 meals a day the shelf stays: %+v", review)
 	}
 	few.FoodSupply = domain.Unknown[policy.FoodSupply]()
-	if review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil, nil))); review.Active {
+	if review = policy.PlanStockpileMaintenance(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil, nil)); review.Active {
 		t.Fatalf("unknown demand edited: %+v", review)
 	}
 }
@@ -124,7 +124,7 @@ func TestMealClosetIsZonedFromThePlan(t *testing.T) {
 	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{dining, closet}})
 	zoneOn(projection, "Zone_7", true, domain.Cell{X: 13, Z: 15})
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:10_10", Filter: allowOnly("MealSimple"), Priority: domain.CriticalPriority}}
-	review := policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil)))
+	review := policy.PlanStockpileMaintenance(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil))
 	var deleted, created bool
 	for _, e := range review.Edits {
 		switch {
@@ -141,13 +141,6 @@ func TestMealClosetIsZonedFromThePlan(t *testing.T) {
 	}
 }
 
-// withoutOpening drops the opening stockpiles so a test sees only the
-// sited roles' edits.
-func withoutOpening(r policy.StockpileRequest) policy.StockpileRequest {
-	r.Opening = false
-	return r
-}
-
 // The food stockpile is planned while the colony's food storage is unmet or
 // unknown, and not at all once the fact reads met.
 func TestStorageRequestPlansFoodUntilStorageIsMet(t *testing.T) {
@@ -155,13 +148,13 @@ func TestStorageRequestPlansFoodUntilStorageIsMet(t *testing.T) {
 	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 7, Z: 8}))}
 	for _, fact := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
 		projection.Facts.FoodStorage = fact
-		food := storageRequest(projection, nil).Food
+		food := storeView(projection, nil).Food
 		if food == nil {
 			t.Fatalf("food %+v", food)
 		}
 	}
 	projection.Facts.FoodStorage = domain.Known(true)
-	if food := storageRequest(projection, nil).Food; food != nil {
+	if food := storeView(projection, nil).Food; food != nil {
 		t.Fatalf("food planned with storage met: %+v", food)
 	}
 }

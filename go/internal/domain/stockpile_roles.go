@@ -4,10 +4,7 @@ package domain
 // parameterized roles append ":<key>".
 const (
 	// GeneralRole is the warehouse: the roofed general store (#1770).
-	GeneralRole = "general"
-	// OpeningGeneralRole is the opening outdoor general store, deleted once
-	// the warehouse stands.
-	OpeningGeneralRole    = "opening_general"
+	GeneralRole           = "general"
 	IngredientsPrefix     = "ingredients:"
 	MealsRolePrefix       = "meals:"
 	RawFoodRolePrefix     = "rawfood:"
@@ -21,18 +18,8 @@ const (
 	MedicineRolePrefix    = "medicine:"
 	ArmoryRolePrefix      = "armory:"   // the armory (#1774): weapons and armor, filling its room
 	WardrobeRolePrefix    = "wardrobe:" // the wardrobe (#1774): clothing, filling its room
-	// ApparelRole and WeaponsRole are the retired fixed 2x2 gear zones: the
-	// armory and wardrobe replaced them, and a zone still claimed under them
-	// is deleted (see the role registry).
-	ApparelRole = "apparel"
-	WeaponsRole = "weapons"
-	// DumpRole is the waste yard's one dump zone, a Sanitation store. Its
-	// prefix differs from the retired "dump:" roles on purpose: the registry
-	// retires those.
+	// DumpRole is the waste yard's one dump zone, a Sanitation store.
 	DumpRole = "wastedump"
-	// LegacyDumpRolePrefix keys the four retired dump roles (dump:worn,
-	// dump:rotten, dump:corpses, dump:fresh) still standing in older saves.
-	LegacyDumpRolePrefix = "dump"
 	// IncineratorRole is the walled incinerator's zone (#1814), a Sanitation store.
 	IncineratorRole = "incinerator"
 	// FoodRole is the opening food stockpile: Preferred, so an indoor food
@@ -125,12 +112,4 @@ func DumpFilter() StockpileFilter { return IncineratorFilter() }
 // waste hauls in from it.
 func IncineratorFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseEverything, nil, []FilterSelector{SpecialFilter(NotBurnableFilterDef)}))
-}
-
-// StockpileRoleSpec is the filter and priority a role's zone is created
-// with.
-type StockpileRoleSpec struct {
-	Role     string
-	Filter   StockpileFilter
-	Priority StockpilePriority
 }

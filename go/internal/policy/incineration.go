@@ -33,7 +33,7 @@ func (incinerationOwner) Department() Department { return DepartmentSanitation }
 // room's outline at Low priority, taking all storable items but the native
 // not-burnable ones. The incinerator's whole interior is Preferred, above the
 // dump so waste hauls in from it, taking what the native rule calls burnable.
-func (incinerationOwner) Stores(v StorageRequest) []Store {
+func (incinerationOwner) Stores(v StoreView) []Store {
 	var out []Store
 	if dump, ok := wasteDumpSite(v.Layout); ok {
 		out = append(out, Store{StoreSite: dump})
@@ -64,6 +64,6 @@ func wasteDumpSite(plan *LayoutPlan) (StoreSite, bool) {
 	return StoreSite{Role: domain.DumpRole, Interior: yard, Filter: domain.DumpFilter(), Priority: domain.LowPriority, room: cells, exact: true}, true
 }
 
-func (o incinerationOwner) RoomDemand(v StorageRequest) RoomDemand {
+func (o incinerationOwner) RoomDemand(v StoreView) RoomDemand {
 	return DeclaredDemand(v, o.Stores(v))
 }

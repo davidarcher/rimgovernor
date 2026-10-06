@@ -22,7 +22,7 @@ func (industryOwner) Department() Department { return DepartmentIndustry }
 // benchStoreSize is the side of a bench store's square patch.
 const benchStoreSize int32 = 2
 
-func (industryOwner) Stores(view StorageRequest) []Store {
+func (industryOwner) Stores(view StoreView) []Store {
 	var out []Store
 	if view.Rooms != nil {
 		for _, input := range view.BenchInputs {
@@ -46,7 +46,7 @@ func (industryOwner) Stores(view StorageRequest) []Store {
 
 // retiredBenchStores are the stores whose standing zone names a bench the
 // census no longer lists. An unread census retires nothing.
-func retiredBenchStores(view StorageRequest) []Store {
+func retiredBenchStores(view StoreView) []Store {
 	standing, known := view.Benches.Value()
 	if !known {
 		return nil
@@ -65,7 +65,7 @@ func retiredBenchStores(view StorageRequest) []Store {
 	return out
 }
 
-func (o industryOwner) RoomDemand(v StorageRequest) RoomDemand {
+func (o industryOwner) RoomDemand(v StoreView) RoomDemand {
 	return DeclaredDemand(v, o.Stores(v))
 }
 

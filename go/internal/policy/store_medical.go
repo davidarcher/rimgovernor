@@ -6,11 +6,11 @@ type medicalOwner struct{}
 
 func (medicalOwner) Department() Department { return DepartmentMedical }
 
-func (o medicalOwner) RoomDemand(v StorageRequest) RoomDemand {
+func (o medicalOwner) RoomDemand(v StoreView) RoomDemand {
 	return DeclaredDemand(v, o.Stores(v))
 }
 
-func (medicalOwner) Stores(v StorageRequest) []Store {
+func (medicalOwner) Stores(v StoreView) []Store {
 	if medicine, ok := v.medicineStore(); ok {
 		return []Store{medicine}
 	}

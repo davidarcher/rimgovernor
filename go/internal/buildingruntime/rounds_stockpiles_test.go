@@ -21,7 +21,7 @@ func stockpileSiteCell(x, z int32, zone string, stored bool) policy.SiteCell {
 // zone's cells and the storage-empty flag its used ones; the owned
 // stockpile claims (not field zones, not zones the census lost) become
 // the review's zones, a later patch supersedes the created settings and
-// role, and a nearly full claimed zone grows through the registered role.
+// role
 func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2)), FoodStorage: domain.Known(true)}}
 	projection.Identity.Tick = 5000
@@ -41,7 +41,7 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 	}
 	food := domain.FoodFilter()
 	owned := []store.OwnedZone{
-		{ID: "Zone_1", Kind: domain.StockpileZone, Role: domain.OpeningGeneralRole, Filter: domain.OpeningStoreFilter(), Priority: domain.NormalPriority},
+		{ID: "Zone_1", Kind: domain.StockpileZone, Role: "general", Filter: domain.OpeningStoreFilter(), Priority: domain.NormalPriority},
 		{ID: "Zone_2", Kind: domain.StockpileZone, Filter: domain.GeneralFilter(), Priority: domain.NormalPriority},
 		{ID: "Zone_3", Kind: domain.GrowingZone, Crop: "Plant_Rice"},
 		{ID: "Zone_9", Kind: domain.StockpileZone, Role: "general"},
@@ -52,7 +52,7 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 		t.Fatalf("request zones %+v", request.Zones)
 	}
 	one, two := request.Zones[0], request.Zones[1]
-	if one.ID != "Zone_1" || len(one.Cells) != 4 || one.Used() != 4 || one.Role != domain.OpeningGeneralRole {
+	if one.ID != "Zone_1" || len(one.Cells) != 4 || one.Used() != 4 || one.Role != "general" {
 		t.Fatalf("zone 1 %+v", one)
 	}
 	if two.ID != "Zone_2" || len(two.Cells) != 4 || two.Used() != 1 || two.Role != "kitchen" || two.Filter != food || two.Priority != domain.PreferredPriority {
@@ -83,103 +83,6 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 		}
 		if p, ok := a.StockpilePatch(); ok && (p.Role() != "kitchen" || p.TargetKind() != want || p.Target() != tc.edit.Zone) {
 			t.Fatalf("patch %+v", p)
-		}
-	}
-}
-
-func TestStockpileRolesResolveByPrefix(t *testing.T) {
-	RegisterStockpileRole("test-role", func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
-		return policy.StockpileRoleState{Retired: role == "test-role:gone"}, true
-	})
-	roles := stockpileRoles(StockpileRoleInput{Projection: &observation.ColonyProjection{}})
-	if state, ok := roles("test-role:gone"); !ok || !state.Retired {
-		t.Fatal("prefixed role unresolved")
-	}
-	if state, ok := roles("test-role"); !ok || state.Retired {
-		t.Fatal("bare role unresolved")
-	}
-	if _, ok := roles("test-roleX"); ok {
-		t.Fatal("unregistered role resolved")
-	}
-	defer func() {
-		if recover() == nil {
-			t.Fatal("double registration accepted")
-		}
-	}()
-	RegisterStockpileRole("test-role", func(StockpileRoleInput, string) (policy.StockpileRoleState, bool) {
-		return policy.StockpileRoleState{}, false
-	})
-}
-
-// The registered owners publish every role's desired state (#724/#725): a
-// medicine zone retires with its hospital, the general store, covered fallbacks, gear and dumps keep fixed
-// settings; an unknown census publishes nothing.
-func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
-	projection := &observation.ColonyProjection{}
-	projection.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{
-		{ID: "Room_1", Role: domain.Known(policy.RoomRoleHospital)},
-		{ID: "Room_2", Role: domain.Known(policy.RoomRoleKitchen)},
-		{ID: "Room_3", Role: domain.Unknown[policy.RoomRole]()},
-	}})
-	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{})
-	roles := stockpileRoles(StockpileRoleInput{Projection: projection, Benches: domain.Known(map[string]bool{"Bench_1": true})})
-	medicine := domain.MedicineFilter()
-	for _, tc := range []struct {
-		role      string
-		published bool
-		retired   bool
-		filter    domain.StockpileFilter
-		priority  domain.StockpilePriority
-	}{
-		{"medicine:Room_1", true, false, medicine, domain.ImportantPriority},
-		{"medicine:Room_2", true, true, medicine, domain.ImportantPriority},
-		{"medicine:Room_9", true, true, medicine, domain.ImportantPriority},
-		{"medicine:Room_3", false, false, domain.StockpileFilter{}, ""},
-		// Ingredient stores are the Industry department's declared stores.
-		{"ingredients:Bench_2", false, false, domain.StockpileFilter{}, ""},
-		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.LowPriority},
-		{domain.OpeningGeneralRole, true, false, domain.OpeningStoreFilter(), domain.NormalPriority},
-		// The 2x2 gear zones the armory and wardrobe replaced retire (#1774); with
-		// no armor in the catalog the new stores publish nothing.
-		{domain.ApparelRole, true, true, domain.StockpileFilter{}, ""},
-		{domain.WeaponsRole, true, true, domain.StockpileFilter{}, ""},
-		{"armory:Room_1", false, false, domain.StockpileFilter{}, ""},
-		// A zone left by the removed covered fallback retires (#1778).
-		{"covered:WoodLog", true, true, domain.StockpileFilter{}, ""},
-		// The four retired dump roles retire; the one dump is a declared store.
-		{"dump:worn", true, true, domain.StockpileFilter{}, ""},
-		{"dump:other", true, true, domain.StockpileFilter{}, ""},
-		// The meal stores are the Food department's declared stores.
-		{"meals:Room_1", false, false, domain.StockpileFilter{}, ""},
-		{"rawfood:Room_1", true, false, domain.RawFoodFilter(), domain.CriticalPriority},
-	} {
-		state, ok := roles(tc.role)
-		if ok != tc.published || state.Retired != tc.retired || ok && !tc.retired && (state.Filter != tc.filter || state.Priority != tc.priority) {
-			t.Errorf("%s: %+v %v", tc.role, state, ok)
-		}
-	}
-	unknown := stockpileRoles(StockpileRoleInput{Projection: &observation.ColonyProjection{}})
-	for _, role := range []string{"medicine:Room_1"} {
-		if _, ok := unknown(role); ok {
-			t.Errorf("%s published over an unknown census", role)
-		}
-	}
-}
-
-// The armory and wardrobe publish the catalog-split gear filters at Preferred
-// once the catalog names armor (#1774).
-func TestGearStoreRolesPublishTheCatalogSplit(t *testing.T) {
-	projection := &observation.ColonyProjection{}
-	projection.Facts.Items = policy.ItemFacts{Armor: []policy.Resource{"Apparel_FlakVest"}}
-	armory, wardrobe, err := policy.GearFilters(projection.Facts.Items.Armor)
-	if err != nil {
-		t.Fatal(err)
-	}
-	roles := stockpileRoles(StockpileRoleInput{Projection: projection})
-	for role, want := range map[string]domain.StockpileFilter{"armory:Room_1": armory, "wardrobe:Room_2": wardrobe} {
-		state, ok := roles(role)
-		if !ok || state.Retired || state.Filter != want || state.Priority != domain.PreferredPriority {
-			t.Errorf("%s: %+v %v", role, state, ok)
 		}
 	}
 }

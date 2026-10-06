@@ -4,12 +4,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The storage planner (#1765, #1769): one deterministic function from the
-// colony view to the full desired set of room-bound storage sites. Planner
-// output is derived state, recomputed every pass in Go memory; the standing
-// zones are the only record, and MaintainStockpiles applies the diff
-// (StockpileRequest.Sited). The role registry supplies each role's filter
-// and priority; a site names them for the zones it creates.
+// The colony view the departments declare their stores from (DeclareStores).
+// Declarations are derived state, recomputed every pass in Go memory; the
+// standing zones are the only record, and MaintainStockpiles applies the diff.
 
 // MealStore is the one-cell meal store by the dining table, resolved by the
 // caller from the dining facts: the table is a built-furniture fact, so this
@@ -25,10 +22,10 @@ type MealStore struct {
 	Retired bool
 }
 
-// StorageRequest is the colony view the planner reads. Layout and Rooms are
-// nil while the layout plan or the room census is unknown, and no site that
-// needs them is planned.
-type StorageRequest struct {
+// StoreView is the colony view the departments read. Layout and Rooms are
+// nil while the layout plan or the room census is unknown, and no store that
+// needs them is declared.
+type StoreView struct {
 	Bounds    Bounds
 	Cells     []SiteCell
 	Protected []domain.Cell
@@ -63,9 +60,9 @@ type StorageRequest struct {
 	AnimalFeed []AnimalFeedStore
 }
 
-// RoomDemand is the planner's signal to layout that stored goods outgrew
+// RoomDemand is the departments' signal to layout that stored goods outgrew
 // the warehouse (#1773, #1774): the armory for weapons and armor, the
-// wardrobe for clothing. The planner never plans the rooms; layout adds them
+// wardrobe for clothing. The departments never plan the rooms; layout adds them
 // (GearRoomsOwed).
 type RoomDemand struct {
 	Armory, Wardrobe bool
@@ -84,21 +81,4 @@ type RoomDemand struct {
 	// reading, unlike a Storage of 0 that waits on a planned room not yet
 	// built.
 	Known, StorageIdle bool
-}
-
-// StoragePlan is the desired storage, most important site first.
-type StoragePlan struct {
-	Sites      []StockpileSite
-	RoomDemand RoomDemand
-	// Err joins the sites the planner could not make usable (a room that
-	// stands but cannot host its store, ErrArmoryNearPrison); the rest of the
-	// plan stands.
-	Err error
-}
-
-// PlanStorage returns the desired storage sites. Every store is declared by its
-// department (DeclareStores), so no site is left for it to plan; it goes with
-// the role registry (#2206).
-func PlanStorage(r StorageRequest) StoragePlan {
-	return StoragePlan{}
 }

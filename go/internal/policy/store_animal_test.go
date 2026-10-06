@@ -15,7 +15,7 @@ func TestAnimalFeedStoreDeclaredWhenNothingDeliversFeed(t *testing.T) {
 	if len(got) != 1 || got[0].Race != "Husky" || !reflect.DeepEqual(got[0].Cells, cells) || len(got[0].Feed) == 0 {
 		t.Fatalf("stores %+v", got)
 	}
-	stores := animalOwner{}.Stores(StorageRequest{AnimalFeed: got})
+	stores := animalOwner{}.Stores(StoreView{AnimalFeed: got})
 	if len(stores) != 1 || stores[0].Role != FeedRolePrefix+"Husky" || stores[0].Priority != domain.ImportantPriority || stores[0].Width != FeedStoreWidth || stores[0].Height != FeedStoreHeight {
 		t.Fatalf("declared %+v", stores)
 	}

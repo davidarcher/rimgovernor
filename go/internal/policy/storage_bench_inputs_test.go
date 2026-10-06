@@ -15,6 +15,27 @@ func benchWithBill(id, recipe string, active domain.Fact[bool], ingredients ...[
 	}
 }
 
+func coveredSiteCell(x, z int32, walkable, occupied, zone, roofed, storageEmpty bool) SiteCell {
+	return SiteCell{
+		Cell:         domain.Cell{X: x, Z: z},
+		Walkable:     domain.Known(walkable),
+		Occupied:     domain.Known(occupied),
+		Zone:         domain.Known(zone),
+		Roofed:       domain.Known(roofed),
+		StorageEmpty: domain.Known(storageEmpty),
+	}
+}
+
+func coveredStorageGrid(width, height int32, fn func(x, z int32) SiteCell) []SiteCell {
+	var cells []SiteCell
+	for x := int32(0); x < width; x++ {
+		for z := int32(0); z < height; z++ {
+			cells = append(cells, fn(x, z))
+		}
+	}
+	return cells
+}
+
 func workshopRoom(width, height int32) (Room, []SiteCell) {
 	room := Room{ID: "Room_1"}
 	cells := coveredStorageGrid(width, height, func(x, z int32) SiteCell {
@@ -48,7 +69,7 @@ func TestDeriveBenchInputs(t *testing.T) {
 	}
 }
 
-func benchStores(view StorageRequest) []Store { return industryOwner{}.Stores(view) }
+func benchStores(view StoreView) []Store { return industryOwner{}.Stores(view) }
 
 // The stonecutter gets a chunk store and a recipe bench its inputs store, each a
 // keyed Important allow-list 2x2 on roofed ground of the bench's room, above
@@ -57,7 +78,7 @@ func TestIndustryDeclaresBenchStores(t *testing.T) {
 	t.Parallel()
 	room, cells := workshopRoom(8, 4)
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{room}}
-	view := StorageRequest{Bounds: Bounds{Width: 10, Height: 10}, Cells: cells, Rooms: &rooms, BenchInputs: []BenchInput{
+	view := StoreView{Bounds: Bounds{Width: 10, Height: 10}, Cells: cells, Rooms: &rooms, BenchInputs: []BenchInput{
 		{Bench: "Bench_1", Cell: domain.Cell{X: 0, Z: 0}, Inputs: []string{"ChunkGranite"}},
 		{Bench: "Bench_2", Cell: domain.Cell{X: 7, Z: 3}, Inputs: []string{"Steel"}},
 		{Bench: "Bench_3", Cell: domain.Cell{X: 40, Z: 40}, Inputs: []string{"Steel"}},
@@ -77,7 +98,7 @@ func TestIndustryDeclaresBenchStores(t *testing.T) {
 	if near := stores[0].Cells(open); !slices.Contains(near, domain.Cell{X: 0, Z: 1}) && !slices.Contains(near, domain.Cell{X: 1, Z: 0}) && !slices.Contains(near, domain.Cell{X: 1, Z: 1}) {
 		t.Fatalf("first patch is not beside its bench: %v", near)
 	}
-	if got := benchStores(StorageRequest{BenchInputs: []BenchInput{{Bench: "Bench_1", Inputs: []string{"Steel"}}}}); len(got) != 0 {
+	if got := benchStores(StoreView{BenchInputs: []BenchInput{{Bench: "Bench_1", Inputs: []string{"Steel"}}}}); len(got) != 0 {
 		t.Fatalf("declared without a room census: %+v", got)
 	}
 	if demand := (industryOwner{}).RoomDemand(view); demand != (RoomDemand{}) {
@@ -97,7 +118,7 @@ func TestBenchStoresAreKeyedAndRetireWithTheirBench(t *testing.T) {
 		t.Fatal(err)
 	}
 	zone := StockpileZone{ID: "Zone_1", Role: "ingredients:Bench_1", Cells: []domain.Cell{{X: 0, Z: 0}, {X: 0, Z: 1}, {X: 1, Z: 0}, {X: 1, Z: 1}}, Filter: steel, Priority: domain.ImportantPriority}
-	view := StorageRequest{Bounds: Bounds{Width: 30, Height: 30}, Cells: cells, Rooms: &rooms, Zones: []StockpileZone{zone},
+	view := StoreView{Bounds: Bounds{Width: 30, Height: 30}, Cells: cells, Rooms: &rooms, Zones: []StockpileZone{zone},
 		Benches: domain.Known(map[string]bool{"Bench_1": true, "Bench_2": true}),
 		BenchInputs: []BenchInput{
 			{Bench: "Bench_1", Cell: domain.Cell{X: 0, Z: 0}, Inputs: []string{"Steel"}},

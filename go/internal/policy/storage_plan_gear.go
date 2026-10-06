@@ -33,7 +33,7 @@ func GearFilters(armor []Resource) (armory, wardrobe domain.StockpileFilter, err
 }
 
 // GearStore is the colony's serviceable gear (hit points and quality over the
-// gear floors) and the gear stores' filters. Nil on a StorageRequest while the
+// gear floors) and the gear stores' filters. Nil on a StoreView while the
 // gear census is unread: neither gear room is then asked for or stocked.
 type GearStore struct {
 	Armory, Wardrobe domain.StockpileFilter
@@ -74,7 +74,7 @@ func NewGearStore(items ItemFacts, stored []GearStock, weapons int) (GearStore, 
 // gearRoomPending reports a gear room demand asks for that the plan holds but
 // does not yet stand: it will take gear out of the warehouse, so the
 // warehouse waits before asking for another storage room.
-func (r StorageRequest) gearRoomPending(demand RoomDemand) bool {
+func (r StoreView) gearRoomPending(demand RoomDemand) bool {
 	if r.Layout == nil || r.Rooms == nil {
 		return false
 	}

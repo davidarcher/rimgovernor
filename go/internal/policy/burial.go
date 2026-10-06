@@ -69,7 +69,7 @@ type burialOwner struct{}
 
 func (burialOwner) Department() Department { return DepartmentPeople }
 
-func (burialOwner) Stores(v StorageRequest) []Store {
+func (burialOwner) Stores(v StoreView) []Store {
 	if v.Layout == nil {
 		return nil
 	}
@@ -93,7 +93,7 @@ func (burialOwner) Stores(v StorageRequest) []Store {
 	return out
 }
 
-func (burialOwner) RoomDemand(v StorageRequest) RoomDemand {
+func (burialOwner) RoomDemand(v StoreView) RoomDemand {
 	if v.Layout == nil || v.Burial == nil {
 		return RoomDemand{}
 	}

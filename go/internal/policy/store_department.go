@@ -2,14 +2,13 @@ package policy
 
 import (
 	"errors"
-	"fmt"
 )
 
 // A department that owns stockpiles is an entity (epic #2176, #2191): it
 // declares its Stores and publishes its RoomDemand, and MaintainStockpiles
 // applies every declaration in one pass. A department that owns no store stays
-// a grouping tag. A store migrating out of PlanStorage is declared here once,
-// and the one definition serves create, retarget and retire.
+// a grouping tag. A store is declared here once, and the one definition serves create,
+// retarget and retire.
 
 // Store is one declared stockpile: its site (role, planned room or clean
 // rectangle inside it, filter, priority) and what the department does when it
@@ -25,9 +24,6 @@ type Store struct {
 	// zones of its role are deleted. Absence is never retirement, so a
 	// department that cannot read its room yet simply declares nothing.
 	Retired bool
-	// Supersedes is a role whose zones are deleted once the store stands (the
-	// opening general store, until the old planner is deleted, #2206).
-	Supersedes string
 }
 
 // StoreOwner is a department that declares stockpiles. The view is the storage
@@ -35,10 +31,10 @@ type Store struct {
 type StoreOwner interface {
 	Department() Department
 	// Stores are the department's declared stores, most important first.
-	Stores(view StorageRequest) []Store
+	Stores(view StoreView) []Store
 	// RoomDemand is the department's ask of layout, from capacity: usually
 	// DeclaredDemand over its own stores.
-	RoomDemand(view StorageRequest) RoomDemand
+	RoomDemand(view StoreView) RoomDemand
 }
 
 // storeOwners is the one registry of departments that declare stores.
@@ -50,17 +46,16 @@ type StoreDeclaration struct {
 	Demand RoomDemand
 	// Err joins what an owner could not site (ErrArmoryNearPrison).
 	Err error
-	// covers are the room roles whose demand a declared store now owns; the
-	// fill-based reading of PlanStorage yields for exactly these.
+	// covers are the room roles whose demand a declared store owns.
 	covers map[PlannedRole]bool
 }
 
 // DeclareStores collects the registered departments' declarations.
-func DeclareStores(view StorageRequest) StoreDeclaration {
+func DeclareStores(view StoreView) StoreDeclaration {
 	return declareStores(storeOwners, view)
 }
 
-func declareStores(owners []StoreOwner, view StorageRequest) StoreDeclaration {
+func declareStores(owners []StoreOwner, view StoreView) StoreDeclaration {
 	d := StoreDeclaration{covers: map[PlannedRole]bool{}}
 	for _, o := range owners {
 		stores := o.Stores(view)
@@ -75,7 +70,7 @@ func declareStores(owners []StoreOwner, view StorageRequest) StoreDeclaration {
 				d.covers[role] = true
 			}
 		}
-		if e, ok := o.(interface{ StoreErr(StorageRequest) error }); ok {
+		if e, ok := o.(interface{ StoreErr(StoreView) error }); ok {
 			d.Err = errors.Join(d.Err, e.StoreErr(view))
 		}
 		got := o.RoomDemand(view)
@@ -133,7 +128,7 @@ func (s Store) Reading(zones []StockpileZone) StoreReading {
 // gear census, a storage or yard store does not); storage and yard stores ask for
 // one more room than the plan holds once every one stands and is full. A store
 // whose room does not stand yet is a wait, never a demand or an idle reading.
-func DeclaredDemand(view StorageRequest, stores []Store) RoomDemand {
+func DeclaredDemand(view StoreView, stores []Store) RoomDemand {
 	var demand RoomDemand
 	storage, full, idle, pending := 0, 0, false, false
 	yards, fullYards, waiting := 0, 0, false
@@ -177,11 +172,6 @@ func DeclaredDemand(view StorageRequest, stores []Store) RoomDemand {
 	return demand
 }
 
-// state is a declared store's desired state for a zone it serves.
-func (s Store) state() StockpileRoleState {
-	return StockpileRoleState{Filter: s.Filter, Priority: s.Priority, Retired: s.Retired}
-}
-
 // declaredStoreEdits are the edits of the declared stores, one set of rules:
 // a zone outside every live site of its role is deleted once the replacement
 // stands (create before delete), a zone of a retired role is deleted, one
@@ -207,7 +197,7 @@ func declaredStoreEdits(zones []StockpileZone, stores []Store, open stockpileOpe
 			}
 			if s.Retired || s.serves(z) {
 				touched[z.ID] = true
-				if e, ok := stockpileSettingsEdit(func(string) (StockpileRoleState, bool) { return s.state(), true }, z); ok {
+				if e, ok := stockpileSettingsEdit(s, z); ok {
 					edits = append(edits, e)
 				}
 				break
@@ -230,19 +220,23 @@ func (s Store) roleOf(z StockpileZone) bool {
 	return stockpileRolePrefix(z.Role) == stockpileRolePrefix(s.Role)
 }
 
-// stockpileSupersededDeletes deletes the zones a served store supersedes.
-func stockpileSupersededDeletes(r StockpileRequest) []StockpileEdit {
-	var out []StockpileEdit
-	for _, store := range r.Stores {
-		if store.Supersedes == "" || store.Retired || !storeServed(r.Zones, store.StoreSite) {
+// storeOfZone is the declared store a zone belongs to: the one serving it,
+// else the first of its role.
+func storeOfZone(stores []Store, z StockpileZone) (Store, bool) {
+	var first *Store
+	for i, s := range stores {
+		if !s.roleOf(z) {
 			continue
 		}
-		for _, z := range r.Zones {
-			if z.Role != "" && stockpileRolePrefix(z.Role) == store.Supersedes {
-				out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role,
-					Explanation: fmt.Sprintf("stockpile %s (%s): superseded by %s, delete; %d used cells rehome", z.ID, z.Role, store.Role, z.Used())})
-			}
+		if s.serves(z) {
+			return s, true
+		}
+		if first == nil {
+			first = &stores[i]
 		}
 	}
-	return out
+	if first == nil {
+		return Store{}, false
+	}
+	return *first, true
 }

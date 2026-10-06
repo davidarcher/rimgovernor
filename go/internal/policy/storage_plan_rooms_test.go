@@ -75,7 +75,7 @@ func TestStorageRoomAddedOnDemandKeepsTheCore(t *testing.T) {
 // storeColony is two 3x3 storage rooms, the second planned only when two is
 // set, standing when stands is set, each with a warehouse zone over its
 // whole room that is full when full is set.
-func storeRequest(rooms int, stands int, zones ...StockpileZone) StorageRequest {
+func storeRequest(rooms int, stands int, zones ...StockpileZone) StoreView {
 	var cells []SiteCell
 	layout := LayoutPlan{}
 	var census RoomObservation
@@ -92,7 +92,7 @@ func storeRequest(rooms int, stands int, zones ...StockpileZone) StorageRequest 
 			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(roofed), Indoors: domain.Known(roofed), StorageEmpty: domain.Known(true)})
 		}
 	}
-	return StorageRequest{Bounds: Bounds{Width: 40, Height: 40}, Cells: cells, Layout: &layout, Rooms: &census, Zones: zones}
+	return StoreView{Bounds: Bounds{Width: 40, Height: 40}, Cells: cells, Layout: &layout, Rooms: &census, Zones: zones}
 }
 
 func warehouseZone(id, role string, in Rectangle, stored int) StockpileZone {
@@ -100,10 +100,9 @@ func warehouseZone(id, role string, in Rectangle, stored int) StockpileZone {
 	return StockpileZone{ID: id, Role: role, Cells: cells, Stored: cells[:stored], Filter: domain.GeneralFilter(), Priority: domain.LowPriority}
 }
 
-// storageDemand is the room demand layout reads: the planner's reading with
-// the declared stores' answer over it.
-func storageDemand(req StorageRequest) RoomDemand {
-	return DeclareStores(req).Apply(PlanStorage(req).RoomDemand)
+// storageDemand is the room demand layout reads: the declared stores' answer.
+func storageDemand(req StoreView) RoomDemand {
+	return DeclareStores(req).Apply(RoomDemand{})
 }
 
 func createdRoles(review StockpileReview) map[string]StockpileEdit {
@@ -117,9 +116,9 @@ func createdRoles(review StockpileReview) map[string]StockpileEdit {
 }
 
 // stockpileOf is the maintenance request for a storage view: its declared
-// stores over the view's ground and zones, the opening stores already standing.
-func stockpileOf(req StorageRequest) StockpileRequest {
-	r := freshColonyStockpiles()
+// stores over the view's ground and zones, the waste dump already standing.
+func stockpileOf(req StoreView) StockpileRequest {
+	r := StockpileRequest{Tick: 100000}
 	r.Zones = []StockpileZone{{ID: "Zone_dump", Role: domain.DumpRole, Cells: []domain.Cell{{X: 30, Z: 20}}, Filter: domain.DumpFilter(), Priority: domain.LowPriority}}
 	r.Cells, r.Bounds = req.Cells, req.Bounds
 	r.Zones = append(slices.Clone(r.Zones), req.Zones...)
@@ -181,9 +180,6 @@ func TestWarehouseIsOneZoneOverItsWholeRoom(t *testing.T) {
 	if !slices.Contains(zone.Filter.Disallow(), domain.SpecialFilter(domain.BurnableFilterDef)) {
 		t.Fatalf("warehouse filter %+v allows the burnable", zone.Filter)
 	}
-	if _, raised := created[domain.OpeningGeneralRole]; raised {
-		t.Fatal("opening store raised beside a planned warehouse")
-	}
 }
 
 // A zone over its room is never grown, shrunk or merged; it is only
@@ -221,33 +217,16 @@ func TestSecondWarehouseZoneIsCreated(t *testing.T) {
 	}
 }
 
-// A zone in a further warehouse room is kept, and counts as the general store
-// so the opening store is not raised beside it (#1798).
+// A zone in a further warehouse room is kept (#1798).
 func TestFurtherWarehouseZoneIsKeptAndCountsAsGeneral(t *testing.T) {
 	t.Parallel()
 	second := Rectangle{X: 20, Z: 10, Width: 3, Height: 3}
 	req := storeRequest(2, 2, warehouseZone("b", domain.GeneralRole, second, 9))
 	r := stockpileOf(req)
 	for _, e := range PlanStockpileMaintenance(r).Edits {
-		if e.Kind == StockpileDelete || e.Role == domain.OpeningGeneralRole {
-			t.Fatalf("a zone in a further warehouse room was moved or the opening store raised: %+v", e)
+		if e.Kind == StockpileDelete {
+			t.Fatalf("a zone in a further warehouse room was moved: %+v", e)
 		}
-	}
-}
-
-// The opening general store is deleted once the warehouse zone stands.
-func TestWarehouseSupersedesTheOpeningStore(t *testing.T) {
-	t.Parallel()
-	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
-	opening := StockpileZone{ID: "open", Role: domain.OpeningGeneralRole, Cells: []domain.Cell{{X: 30, Z: 30}}, Filter: domain.OpeningStoreFilter(), Priority: domain.NormalPriority}
-	req := storeRequest(1, 1, opening)
-	if edits := PlanStockpileMaintenance(stockpileOf(req)).Edits; slices.ContainsFunc(edits, func(e StockpileEdit) bool { return e.Kind == StockpileDelete }) {
-		t.Fatalf("deleted before the warehouse stands: %+v", edits)
-	}
-	req = storeRequest(1, 1, opening, warehouseZone("a", domain.GeneralRole, first, 2))
-	edits := PlanStockpileMaintenance(stockpileOf(req)).Edits
-	if !slices.ContainsFunc(edits, func(e StockpileEdit) bool { return e.Kind == StockpileDelete && e.Zone == "open" }) {
-		t.Fatalf("opening store kept beside the warehouse: %+v", edits)
 	}
 }
 

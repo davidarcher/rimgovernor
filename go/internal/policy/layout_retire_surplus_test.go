@@ -91,7 +91,7 @@ func TestRetireSurplusStorageRooms(t *testing.T) {
 // not yet built is a wait, not a reading.
 func TestStorageIdleSeparatesNoDemandFromAnUnbuiltRoom(t *testing.T) {
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
-	idle := func(req StorageRequest) bool { return storageDemand(req).StorageIdle }
+	idle := func(req StoreView) bool { return storageDemand(req).StorageIdle }
 	if !idle(storeRequest(2, 1, warehouseZone("a", "general", first, 7))) {
 		t.Fatal("a warehouse under the threshold beside an unbuilt room is no demand")
 	}

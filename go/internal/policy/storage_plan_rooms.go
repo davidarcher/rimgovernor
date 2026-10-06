@@ -8,7 +8,7 @@ package policy
 
 // plannedStorageRooms are the plan's storage rooms in plan order, the first
 // being the core room.
-func (r StorageRequest) plannedStorageRooms() []PlannedRoom {
+func (r StoreView) plannedStorageRooms() []PlannedRoom {
 	if r.Layout == nil {
 		return nil
 	}

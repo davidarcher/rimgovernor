@@ -143,7 +143,7 @@ func TestMilitaryDemandAsksForGearRoomsFromCapacity(t *testing.T) {
 	if _, err := NewGearStore(ItemFacts{}, nil, 9); !errors.Is(err, ErrNoArmorDefs) {
 		t.Errorf("a catalog without armor must fail with ErrNoArmorDefs: %v", err)
 	}
-	if got := (militaryOwner{}).RoomDemand(StorageRequest{}); got != (RoomDemand{}) {
+	if got := (militaryOwner{}).RoomDemand(StoreView{}); got != (RoomDemand{}) {
 		t.Errorf("no gear store asks for rooms: %+v", got)
 	}
 }

@@ -27,7 +27,7 @@ func TestStockOverlayTintsEveryStockpileByItsTarget(t *testing.T) {
 		// A hospital's medicine stockpile: medicine met.
 		{ID: "d", Role: "medicine:room1", Cells: block(30, 0)},
 		// Apparel has no target: a label, no tint.
-		{ID: "e", Role: domain.ApparelRole, Cells: block(40, 0)},
+		{ID: "e", Role: "apparel", Cells: block(40, 0)},
 		// A player's stockpile with an unread filter and a non-ASCII label.
 		{ID: "f", Label: "Lager ä", Cells: block(50, 0)},
 	}

@@ -10,7 +10,7 @@ const maxMedicineHaulConsumers = 64
 // the first planned hospital, nearest the template's bed slots by
 // traffic-weighted walking distance (#723), off the planned beds and monitors.
 // Without bed slots (no template fit) it sits nearest the hospital's door.
-func (r StorageRequest) medicineStore() (Store, bool) {
+func (r StoreView) medicineStore() (Store, bool) {
 	if r.Layout == nil {
 		return Store{}, false
 	}
