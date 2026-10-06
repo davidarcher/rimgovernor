@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -171,7 +172,7 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 	if !ok {
 		t.Fatalf("report[service] = %#v", report["service"])
 	}
-	if entry["url"] != p.URL || entry["pid"] != p.PID || entry["state"] != "running" || entry["families"] != "haul,work" {
+	if entry["url"] != p.URL || entry["pid"] != p.PID || entry["state"] != "running" || entry["families"] != "haul,work,naming" {
 		t.Fatalf("entry %#v", entry)
 	}
 	argv, _ := entry["argv"].([]string)
@@ -239,5 +240,17 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 	stall := &StepStallError{Stall: time.Minute, Families: "haul,work", LastFailure: lastStepFailure(p.FlightPath)}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {
 		t.Fatalf("stall error %q", stall)
+	}
+}
+
+func TestWithNamingFamilyAddsNamingUnlessDialogOrPresent(t *testing.T) {
+	in := []string{"supply", "shelter"}
+	if got := withNamingFamily(in); !slices.Equal(got, []string{"supply", "shelter", "naming"}) || len(in) != 2 {
+		t.Fatalf("got %v, input %v", got, in)
+	}
+	for _, kept := range [][]string{{"naming", "supply"}, {"dialog", "supply"}} {
+		if got := withNamingFamily(kept); !slices.Equal(got, kept) {
+			t.Fatalf("%v changed to %v", kept, got)
+		}
 	}
 }

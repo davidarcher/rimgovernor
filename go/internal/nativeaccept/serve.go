@@ -295,7 +295,7 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 		cmd.Env = append(cmd.Env, snapshot.DirEnv+"="+filepath.Join(dir, filepath.Base(filepath.Dir(output)), filepath.Base(output)))
 	}
 	if spec.Families != nil {
-		families := strings.Join(spec.Families, ",")
+		families := strings.Join(withNamingFamily(spec.Families), ",")
 		cmd.Env = append(cmd.Env, "RIMGOVERNOR_ROUTINE_FAMILIES="+families)
 		entry["families"] = families
 	}
@@ -729,4 +729,17 @@ func ConfirmColonyNames(ctx context.Context, h *Harness, report Report) (map[str
 		report["confirmed_colony_names"] = "no pending naming dialog"
 	}
 	return facts, nil
+}
+
+// withNamingFamily composes the naming family into every restricted family
+// list: the loaded start raises a colony-naming dialog that halts the clock,
+// and a case that forgot the family stalled behind it (#2138). The dialog
+// case answers its own dialogs, so a list naming it is left as given.
+func withNamingFamily(families []string) []string {
+	for _, family := range families {
+		if family == "naming" || family == "dialog" {
+			return families
+		}
+	}
+	return append(append([]string(nil), families...), "naming")
 }
