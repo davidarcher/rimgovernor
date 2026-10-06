@@ -64,7 +64,7 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 		}
 		index[k] = len(w.items)
 		w.items = append(w.items, reconcileItem{kind: kind, cell: c, ready: true, foreign: true, target: ClearanceTarget{
-			EntityID: thingTargetID(t), DefName: t.Def, Minimum: c, Maximum: c, Class: "foreign", Deconstructible: t.Has(FlagDeconstructible),
+			EntityID: thingTargetID(t), DefName: t.Def, Minimum: c, Maximum: c, Class: "foreign", Deconstructible: t.Has(FlagDeconstructible), Count: int64(t.Count),
 			InHome: true, Designated: t.Has(FlagDesignated), Packable: packable, AncientDanger: t.Has(FlagAncientDanger),
 		}})
 	}

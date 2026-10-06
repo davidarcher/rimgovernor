@@ -33,6 +33,8 @@ type ClearanceTarget struct {
 	// with an active bill.
 	Packable, InUse bool
 	Salvage         *SalvageEvidence
+	// Count is the stack a foreign item holds (#2270); zero when unknown.
+	Count           int64
 	SalvageSelected bool
 }
 
