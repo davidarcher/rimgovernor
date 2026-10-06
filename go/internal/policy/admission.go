@@ -72,7 +72,7 @@ type Preview struct {
 
 // PlacementBlocker is one thing the previewed placement would disturb.
 type PlacementBlocker struct {
-	Category                           string
+	Category, DefName                  string
 	Wiped, Blueprint, Frame, Cancelled bool
 }
 type Candidate struct {

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // The build side of the reconciler as a shared library (#2109, epic #2101): an
@@ -111,8 +113,52 @@ func naturalRock(facts observation.ColonyProjection) []domain.Cell {
 
 // roomWaiting is the wait of a room whose next operation has no ready cell:
 // a prerequisite is outstanding or the native preview refused the placements.
-func roomWaiting(name string) RoundsBuildingResult {
-	return RoundsBuildingResult{Verdict: waitFor(WaitExistingWork, name+"_reconcile")}
+func roomWaiting(name string, refused ...refusedPlacement) RoundsBuildingResult {
+	subject := name + "_reconcile"
+	if len(refused) > 0 {
+		subject += ":blocked:" + refused[0].key()
+	}
+	return RoundsBuildingResult{Verdict: waitFor(WaitExistingWork, subject)}
+}
+
+// refusedPlacement is a furniture cell the native preview refused and the
+// thing it reported in the way (#2271).
+type refusedPlacement struct {
+	def     string
+	cell    domain.Cell
+	blocker string
+}
+
+func (r refusedPlacement) key() string { return fmt.Sprintf("%s@%d,%d", r.def, r.cell.X, r.cell.Z) }
+
+// describeBlockers names what the preview reported in the way.
+func describeBlockers(blockers []policy.PlacementBlocker) string {
+	if len(blockers) == 0 {
+		return "unreported"
+	}
+	parts := make([]string, 0, len(blockers))
+	for _, b := range blockers {
+		name := b.DefName
+		if name == "" {
+			name = b.Category
+		}
+		switch {
+		case b.Blueprint:
+			name += " blueprint"
+		case b.Frame:
+			name += " frame"
+		}
+		parts = append(parts, name)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// reportRefused records a refused furniture cell in the service log and
+// returns it for the wait key.
+func reportRefused(ctx context.Context, build roomBuild, v policy.Preview) refusedPlacement {
+	r := refusedPlacement{def: build.def, cell: build.cell, blocker: describeBlockers(v.Blockers)}
+	slog.Default().InfoContext(ctx, "furniture cell refused: "+r.key()+" blocked by "+r.blocker, telemetry.ComponentKey, "building-planner", telemetry.KindKey, "placement_refused")
+	return r
 }
 
 // roomWork is one room of a reconcile with the operations its diff leaves.
@@ -446,6 +492,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		return true
 	}
 	previewed := 0
+	var refused []refusedPlacement
 	for _, build := range ordered {
 		rr := works[build.work].rr
 		priceKey := build.def + "/" + build.stuff
@@ -478,6 +525,12 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 				// another site (#2120).
 				return RoundsBuildingResult{Verdict: noSpace("pen_enclosure")}, nil
 			}
+			if !build.ring {
+				r := reportRefused(call, build, v)
+				if len(refused) == 0 {
+					refused = append(refused, r)
+				}
+			}
 			continue
 		}
 		if err := mergeRoundsStock(&stock, preview.Stock, previewed == 0); err != nil {
@@ -498,7 +551,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		fmt.Fprintf(&key, "%s@%d,%d;", build.def, build.cell.X, build.cell.Z)
 	}
 	if len(selected) == 0 {
-		return roomWaiting(works[0].rr.name), nil
+		return roomWaiting(works[0].rr.name, refused...), nil
 	}
 	rr := works[0].rr
 	digest := sha256.Sum256([]byte(key.String()))

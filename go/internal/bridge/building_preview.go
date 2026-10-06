@@ -130,7 +130,7 @@ func buildingPreviewRow(action domain.Action, snapshot domain.GenerationSnapshot
 			safe = false
 		}
 		out.NativeWorkPending = out.NativeWorkPending || blocker.GetIsBlueprint() || blocker.GetIsFrame()
-		out.Preview.Blockers = append(out.Preview.Blockers, policy.PlacementBlocker{Category: blocker.GetCategory(), Wiped: blocker.GetWouldBeWiped(), Blueprint: blocker.GetIsBlueprint(), Frame: blocker.GetIsFrame(), Cancelled: blocker.GetFrameWouldBeCancelled()})
+		out.Preview.Blockers = append(out.Preview.Blockers, policy.PlacementBlocker{Category: blocker.GetCategory(), DefName: blocker.GetDefName(), Wiped: blocker.GetWouldBeWiped(), Blueprint: blocker.GetIsBlueprint(), Frame: blocker.GetIsFrame(), Cancelled: blocker.GetFrameWouldBeCancelled()})
 	}
 	// Even a zero-cost evaluation cannot turn an unreadable material scan into
 	// authorization. The next complete preview can release this unknown hold.
