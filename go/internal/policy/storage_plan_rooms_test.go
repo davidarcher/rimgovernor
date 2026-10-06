@@ -120,7 +120,7 @@ func createdRoles(review StockpileReview) map[string]StockpileEdit {
 // stores over the view's ground and zones, the opening stores already standing.
 func stockpileOf(req StorageRequest) StockpileRequest {
 	r := freshColonyStockpiles()
-	r.Zones = []StockpileZone{{ID: "Zone_dump", Role: domain.CorpseDumpRole, Cells: []domain.Cell{{X: 30, Z: 20}}, Filter: domain.CorpseDumpFilter(), Priority: domain.LowPriority}}
+	r.Zones = []StockpileZone{{ID: "Zone_dump", Role: domain.DumpRole, Cells: []domain.Cell{{X: 30, Z: 20}}, Filter: domain.DumpFilter(), Priority: domain.LowPriority}}
 	r.Cells, r.Bounds = req.Cells, req.Bounds
 	r.Zones = append(slices.Clone(r.Zones), req.Zones...)
 	r.Stores = DeclareStores(req).Stores

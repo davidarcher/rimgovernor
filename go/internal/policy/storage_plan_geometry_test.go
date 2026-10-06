@@ -16,7 +16,7 @@ func freezerStoreCreates(layout LayoutPlan) map[string]StockpileEdit {
 		}
 	}
 	view := StorageRequest{Bounds: Bounds{Width: 30, Height: 30}, Cells: cells, Layout: &layout}
-	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: cells, Colonists: domain.Known(int64(3)), Rooms: domain.Unknown[[]Room](), Stores: DeclareStores(view).Stores})
+	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: cells, Colonists: domain.Known(int64(3)), Stores: DeclareStores(view).Stores})
 	out := map[string]StockpileEdit{}
 	for _, e := range review.Edits {
 		out[stockpileRolePrefix(e.Role)] = e

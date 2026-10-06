@@ -20,8 +20,8 @@ import (
 // onto MaintainIncineration): corpse disposal end to end on the tribal
 // baseline colony. The fixture lays a rotten animal corpse, a rotten and a
 // fresh stranger corpse and a worn apparel in the open, plus stone blocks for
-// the walls. MaintainStockpiles sites the dumps and MaintainIncineration
-// shells the planned incinerator in the waste yard (first window), whose
+// the walls. MaintainStockpiles creates the waste yard's one dump zone from
+// the plan (a declared Sanitation store) and MaintainIncineration shells the planned incinerator in the waste yard (first window), whose
 // declared Sanitation zone takes burnable waste at Preferred priority; the case
 // fills the incinerator with worn apparel and a loose molotov and
 // MaintainIncineration burns it and has the ash cleaned (second window).
@@ -40,8 +40,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "waste/incineration",
 		Scope: "Issues #1817 and #2197 on the tribal " + sustained.BaselineSave + " colony: rotten animal and rotten stranger corpses are burned in the incinerator " +
-			"and a fresh stranger is never put there; the corpse dump takes humanlike corpses and the rotten dump animal ones; the worn dump " +
-			"stands unroofed; a full incinerator (6+ cells) is burned once by a molotov-equipped burner with a standby and its ash cleaned; " +
+			"and a fresh stranger is never put there; the waste yard holds one Low dump zone over the yard interior outside the incinerator outline, " +
+			"allowing corpses and apparel (the not-burnable special is refused) and unroofed; a full incinerator (6+ cells) is burned once by a molotov-equipped burner with a standby and its ash cleaned; " +
 			"the enclosed unroofed incinerator interior is its own room (cell.GetRoom) walled and doored with non-flammable edifices, " +
 			"and its stockpile zone is the declared Preferred store over the whole interior. " +
 			"A native end-to-end signal (vanilla fire, rot, rooms and hauling); no Go snapshot covers it.",
@@ -73,16 +73,16 @@ func disposal(ctx context.Context, s cases.Session) error {
 
 	// Window one: the layout plan reserves the incinerator and
 	// MaintainIncineration shells it.
-	var room policy.PlannedRoom
+	var room, yard policy.PlannedRoom
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainIncineration, Until: func(sample map[string]any) bool { return methodCompleted(sample, "incinerator-shell-") }},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			var err error
-			if room, err = plannedIncinerator(ctx, s); err != nil {
+			if room, yard, err = plannedWasteYard(ctx, s); err != nil {
 				return err
 			}
 			report["incinerator"] = fmt.Sprintf("%+v", room)
-			if err := checkDumps(ctx, s, h, report, animalDef, room.Interior); err != nil {
+			if err := checkDump(ctx, s, h, report, animalDef, yard.Interior, room.Interior); err != nil {
 				return err
 			}
 			read, err := readDisposal(ctx, h, ids, room)
@@ -156,33 +156,35 @@ func methodCompleted(sample map[string]any, prefix string) bool {
 	return false
 }
 
-// plannedIncinerator is the layout plan's incinerator room.
-func plannedIncinerator(ctx context.Context, s cases.Session) (policy.PlannedRoom, error) {
+// plannedWasteYard is the layout plan's incinerator room and the waste yard
+// that holds it.
+func plannedWasteYard(ctx context.Context, s cases.Session) (policy.PlannedRoom, policy.PlannedRoom, error) {
 	journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
 	if err != nil {
-		return policy.PlannedRoom{}, fmt.Errorf("reopen journal: %w", err)
+		return policy.PlannedRoom{}, policy.PlannedRoom{}, fmt.Errorf("reopen journal: %w", err)
 	}
 	defer journal.Close()
 	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return policy.PlannedRoom{}, fmt.Errorf("load rounds: %w", err)
+		return policy.PlannedRoom{}, policy.PlannedRoom{}, fmt.Errorf("load rounds: %w", err)
 	}
 	record, ok, err := journal.LayoutPlan(ctx, review.Snapshot, review.Tick)
 	if err != nil || !ok {
-		return policy.PlannedRoom{}, fmt.Errorf("no layout plan recorded by tick %d: %v", review.Tick, err)
+		return policy.PlannedRoom{}, policy.PlannedRoom{}, fmt.Errorf("no layout plan recorded by tick %d: %v", review.Tick, err)
 	}
-	rooms := record.Plan.IncineratorRooms()
-	if len(rooms) != 1 {
-		return policy.PlannedRoom{}, fmt.Errorf("the layout plan holds %d incinerators, want one", len(rooms))
+	rooms, yards := record.Plan.IncineratorRooms(), record.Plan.WasteYardRooms()
+	if len(rooms) != 1 || len(yards) != 1 {
+		return policy.PlannedRoom{}, policy.PlannedRoom{}, fmt.Errorf("the layout plan holds %d incinerators and %d waste yards, want one each", len(rooms), len(yards))
 	}
-	return rooms[0], nil
+	return rooms[0], yards[0], nil
 }
 
-// checkDumps proves the dump retargeting (#1812) and the unroofed worn dump
-// (#1813) on the zones the window ended with. A dump is a Low priority
-// stockpile outside the incinerator; the gear stores keep a hit point floor.
-func checkDumps(ctx context.Context, s cases.Session, h *na.Harness, report na.Report, animalDef string, interior policy.Rectangle) error {
-	const humanCorpse, molotov, pants = "Corpse_Human", policy.MolotovDef, "Apparel_Pants"
+// checkDump proves the one dump zone: a Low stockpile over exactly the yard
+// interior outside the incinerator's 5x5 outline, unroofed, allowing humanlike
+// and animal corpses and apparel (everything but the not-burnable special),
+// and the only Low zone outside the incinerator.
+func checkDump(ctx context.Context, s cases.Session, h *na.Harness, report na.Report, animalDef string, yard, incinerator policy.Rectangle) error {
+	const humanCorpse, pants = "Corpse_Human", "Apparel_Pants"
 	reply, err := h.Wire(ctx, "dump-zones", "observations_list_zones", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}, "includeFilter": true})
 	if err != nil {
 		return err
@@ -202,12 +204,21 @@ func checkDumps(ctx context.Context, s cases.Session, h *na.Harness, report na.R
 		}
 	}
 	zoneCells := na.ZoneCells(grid)
+	want := map[domain.Cell]bool{}
+	outline := map[domain.Cell]bool{}
+	for _, c := range policy.RectangleCells(policy.Rectangle{X: incinerator.X - 1, Z: incinerator.Z - 1, Width: incinerator.Width + 2, Height: incinerator.Height + 2}) {
+		outline[c] = true
+	}
+	for _, c := range policy.RectangleCells(yard) {
+		if !outline[c] {
+			want[c] = true
+		}
+	}
 	inside := map[domain.Cell]bool{}
-	for _, c := range policy.RectangleCells(interior) {
+	for _, c := range policy.RectangleCells(incinerator) {
 		inside[c] = true
 	}
-	var corpseDumps, rottenDumps, wornDumps int
-	var rows []string
+	var dumps []string
 	for _, raw := range na.AsSlice(observed["zones"]) {
 		row, _ := na.AsMap(raw)
 		if !strings.EqualFold(na.AsString(row["type"]), "stockpile") || !strings.Contains(strings.ToLower(na.AsString(row["priority"])), "low") {
@@ -222,34 +233,32 @@ func checkDumps(ctx context.Context, s cases.Session, h *na.Harness, report na.R
 		for _, d := range na.AsSlice(filter["allowedDefNames"]) {
 			allowed[na.AsString(d)] = true
 		}
-		rows = append(rows, fmt.Sprintf("%v cells=%d human=%v animal=%v apparel=%v weapon=%v", row["id"], len(cells), allowed[humanCorpse], allowed[animalDef], allowed[pants], allowed[molotov]))
-		switch {
-		case allowed[humanCorpse] && allowed[animalDef]:
-			return fmt.Errorf("low dump zone %v allows both humanlike and animal corpses", row["id"])
-		case allowed[humanCorpse]:
-			corpseDumps++
-		case allowed[animalDef]:
-			rottenDumps++
+		dumps = append(dumps, fmt.Sprintf("%v cells=%d human=%v animal=%v apparel=%v", row["id"], len(cells), allowed[humanCorpse], allowed[animalDef], allowed[pants]))
+		if len(cells) != len(want) {
+			return fmt.Errorf("dump zone %v holds %d cells, want the %d of the yard outside the incinerator", row["id"], len(cells), len(want))
 		}
-		if allowed[pants] && allowed[molotov] {
-			wornDumps++
-			for _, c := range cells {
-				if roofed[c] {
-					return fmt.Errorf("worn dump %v has a roofed cell %v", row["id"], c)
-				}
+		for _, c := range cells {
+			if !want[c] {
+				return fmt.Errorf("dump zone %v has cell %v outside the yard interior or inside the incinerator outline", row["id"], c)
+			}
+			if roofed[c] {
+				return fmt.Errorf("dump zone %v has a roofed cell %v", row["id"], c)
 			}
 		}
+		if !allowed[humanCorpse] || !allowed[animalDef] || !allowed[pants] {
+			return fmt.Errorf("dump zone %v refuses corpses or apparel: %v", row["id"], dumps)
+		}
 	}
-	report["dump_zones"] = rows
-	if corpseDumps == 0 || rottenDumps == 0 || wornDumps == 0 {
-		return fmt.Errorf("dump zones: corpse %d, rotten %d, worn %d (each wants one): %v", corpseDumps, rottenDumps, wornDumps, rows)
+	report["dump_zones"] = dumps
+	if len(dumps) != 1 {
+		return fmt.Errorf("want exactly one Low dump zone, got %d: %v", len(dumps), dumps)
 	}
 	return nil
 }
 
 // checkIncineratorZone proves the declared Sanitation store: a stockpile zone
 // over the whole incinerator interior at Preferred priority, above the Low
-// dumps so waste hauls in from them.
+// dump so waste hauls in from it.
 func checkIncineratorZone(ctx context.Context, s cases.Session, h *na.Harness, report na.Report, interior policy.Rectangle) error {
 	reply, err := h.Wire(ctx, "incinerator-zone", "observations_list_zones", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
 	if err != nil {

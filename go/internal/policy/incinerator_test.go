@@ -54,3 +54,40 @@ func TestIncineratorRoomIsPlannedOnceAndInTheYard(t *testing.T) {
 		}
 	}
 }
+
+// The waste yard's one dump is a Sanitation store declared from the plan: the
+// yard interior outside the incinerator's outline, Low priority, everything
+// but the not-burnable special, and no dump role or siting remains.
+func TestIncinerationOwnerDeclaresOneDumpOverTheYard(t *testing.T) {
+	layout, ok := OutskirtsSlots(Rectangle{X: 10, Z: 10, Width: 40, Height: 30})
+	if !ok {
+		t.Fatal("no layout")
+	}
+	plan := LayoutPlan{Rooms: outskirtsRooms(layout)}
+	view := StorageRequest{Layout: &plan}
+	var dumps []Store
+	for _, s := range DeclareStores(view).Stores {
+		if s.Role == domain.DumpRole {
+			dumps = append(dumps, s)
+		}
+	}
+	if len(dumps) != 1 {
+		t.Fatalf("%d dump stores, want one", len(dumps))
+	}
+	dump := dumps[0]
+	if dump.Priority != domain.LowPriority || dump.Filter != domain.DumpFilter() || dump.Retired {
+		t.Fatalf("dump store: %+v", dump)
+	}
+	if got, want := len(dump.footprint()), int(WasteYardW*WasteYardH-IncineratorOutline*IncineratorOutline); got != want {
+		t.Fatalf("dump covers %d cells, want %d (yard less the incinerator outline)", got, want)
+	}
+	outline := cellSet(rectCells(layout.Incinerator))
+	for _, c := range dump.footprint() {
+		if outline[c] {
+			t.Fatalf("dump cell %v inside the incinerator outline", c)
+		}
+	}
+	if len((incinerationOwner{}).Stores(StorageRequest{})) != 0 {
+		t.Fatal("a dump without a plan")
+	}
+}

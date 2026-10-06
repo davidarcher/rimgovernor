@@ -13,7 +13,7 @@ type GearStock struct {
 }
 
 // Serviceable reports stock over the gear floors (domain.GearHitPointFloor,
-// Normal quality): what the gear stores keep; the rest is for the worn dump.
+// Normal quality): what the gear stores keep; the rest is sale gear or burnable waste.
 func (s GearStock) Serviceable() bool {
 	return float64(s.HPBand) >= domain.GearHitPointFloor*10 && s.Quality >= 2
 }

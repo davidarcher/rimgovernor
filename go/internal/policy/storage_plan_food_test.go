@@ -90,7 +90,7 @@ func TestFoodSiteMovesIndoorsOnceAndThenStays(t *testing.T) {
 	outdoor := []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}, {X: 7, Z: 5}, {X: 5, Z: 6}, {X: 6, Z: 6}, {X: 7, Z: 6}, {X: 5, Z: 7}, {X: 6, Z: 7}, {X: 7, Z: 7}}
 	r.Zones = []StockpileZone{
 		{ID: "gen", Role: domain.GeneralRole, Cells: []domain.Cell{{X: 0, Z: 0}}, Filter: domain.GeneralFilter(), Priority: domain.NormalPriority},
-		{ID: "dump", Role: domain.CorpseDumpRole, Cells: []domain.Cell{{X: 0, Z: 4}}, Filter: domain.CorpseDumpFilter(), Priority: domain.LowPriority},
+		{ID: "dump", Role: domain.DumpRole, Cells: []domain.Cell{{X: 0, Z: 4}}, Filter: domain.DumpFilter(), Priority: domain.LowPriority},
 		{ID: "food", Role: domain.FoodRole, Cells: outdoor, Filter: domain.FoodFilter(), Priority: domain.PreferredPriority},
 	}
 	r.Stores = DeclareStores(s).Stores

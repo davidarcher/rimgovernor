@@ -27,15 +27,17 @@ when it needs another room.
 | Food store | `food` | Beside the kitchen | Preferred | Food, until a roofed food store stands |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
 | Gear | `apparel`, `weapons` | The storage room (apparel) and armory (weapons) | Preferred | Clothing and armor, weapons |
-| Dumps | `dump:worn`, `dump:rotten`, `dump:corpses`, `dump:fresh` | A free outdoor 2x2 patch clear of living rooms, nearest the warehouse; sited only while something waits for it (worn-out apparel, spoiled items and rotting animal carcasses, human corpses, fresh animal carcasses while no freezer shelf stands) | Low | Worn gear, rotten items, corpses, fresh animal corpses |
+| Waste dump | `wastedump` | The waste yard interior outside the incinerator outline (the Sanitation department's declared store, planned room cover from plan time) | Low | Everything storable except the native not-burnable special |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
 workstation, medicine and food stockpiles draw their items first, and
 hauling (which RimWorld owns) moves the rest to the warehouse or yard.
 
-A dump's site room is the outdoor ground at least six cells from every
-living room, so a dump a new bedroom or kitchen crowds is deleted and sited
-again. The opening corpse dump (no planner yet) stands from the first pass.
+The one waste dump is a declared store sized once over the yard, so waste
+hauls to it from anywhere and the incinerator zone (Preferred) draws the
+burnable part off it. Fresh animal corpses use the freezer shelf and the
+butchery; there is no dump role for them. Zones of the retired `dump:*` roles
+in older saves are deleted.
 
 ## Gear rooms
 

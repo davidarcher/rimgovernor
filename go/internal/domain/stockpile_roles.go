@@ -24,14 +24,15 @@ const (
 	// ApparelRole and WeaponsRole are the retired fixed 2x2 gear zones: the
 	// armory and wardrobe replaced them, and a zone still claimed under them
 	// is deleted (see the role registry).
-	ApparelRole    = "apparel"
-	WeaponsRole    = "weapons"
-	WornDumpRole   = "dump:worn"
-	RottenDumpRole = "dump:rotten"
-	CorpseDumpRole = "dump:corpses"
-	// FreshDumpRole holds fresh animal and insect corpses for the butcher
-	// while no freezer corpse shelf stands.
-	FreshDumpRole = "dump:fresh"
+	ApparelRole = "apparel"
+	WeaponsRole = "weapons"
+	// DumpRole is the waste yard's one dump zone, a Sanitation store. Its
+	// prefix differs from the retired "dump:" roles on purpose: the registry
+	// retires those.
+	DumpRole = "wastedump"
+	// LegacyDumpRolePrefix keys the four retired dump roles (dump:worn,
+	// dump:rotten, dump:corpses, dump:fresh) still standing in older saves.
+	LegacyDumpRolePrefix = "dump"
 	// IncineratorRole is the walled incinerator's zone (#1814), a Sanitation store.
 	IncineratorRole = "incinerator"
 	// FoodRole is the opening food stockpile: Preferred, so an indoor food
@@ -40,7 +41,7 @@ const (
 )
 
 // Gear stockpiles keep serviceable gear only: at least half its hit points
-// and Normal quality. What falls below lands in the worn dump.
+// and Normal quality. What falls below is burnable waste or sale gear.
 const GearHitPointFloor = 0.5
 
 var GearQualityFloor Quality = "Normal"
@@ -111,20 +112,11 @@ func WardrobeFilter(armor []string) (StockpileFilter, error) {
 	return gearFilter([]FilterSelector{CategoryDef("Apparel")}, disallow...)
 }
 
-// WornDumpFilter takes every apparel and weapon; at Low priority it only
-// keeps what the gear stockpiles refuse (tainted, worn, poor, biocoded)
-// to disintegrate in the weather on the unroofed dump site (#1813).
-func WornDumpFilter() StockpileFilter {
-	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons")}, nil))
-}
-
-// RottenDumpFilter takes rotten food and rotten non-human corpses only. The
-// incinerator (#1814) takes the same things off it.
-func RottenDumpFilter() StockpileFilter {
-	return mustFilter(NewStockpileFilter(BaseNothing,
-		[]FilterSelector{CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("Foods")},
-		[]FilterSelector{SpecialFilter("AllowFresh")}))
-}
+// DumpFilter is the waste yard dump's filter: all storable items except what
+// the native rule calls not burnable, so the burnable waste lies there for the
+// incinerator and the rest stays in the warehouse. It is the incinerator's
+// filter at Low priority.
+func DumpFilter() StockpileFilter { return IncineratorFilter() }
 
 // IncineratorFilter is what the incinerator takes: everything the mod's native
 // burnable rule does not refuse (NotBurnableFilterDef). Burnable is defined
@@ -135,30 +127,10 @@ func IncineratorFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseEverything, nil, []FilterSelector{SpecialFilter(NotBurnableFilterDef)}))
 }
 
-// CorpseDumpFilter takes humanlike corpses only, the ones with no better
-// home yet: strangers wait for the butcher or the incinerator and colonists
-// for the tomb, so none lie in a room colonists sleep or eat in. Animal and
-// insect corpses are not here (#1812): fresh ones belong on the freezer
-// shelf or the fresh dump, and a rotting one goes to the rotten dump.
-func CorpseDumpFilter() StockpileFilter {
-	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil))
-}
-
 // StockpileRoleSpec is the filter and priority a role's zone is created
 // with.
 type StockpileRoleSpec struct {
 	Role     string
 	Filter   StockpileFilter
 	Priority StockpilePriority
-}
-
-// DumpRoles are the fixed-filter dump roles #724 adds, below the general
-// store. The gear stores are room-bound sites of the storage planner.
-func DumpRoles() []StockpileRoleSpec {
-	return []StockpileRoleSpec{
-		{WornDumpRole, WornDumpFilter(), LowPriority},
-		{RottenDumpRole, RottenDumpFilter(), LowPriority},
-		{CorpseDumpRole, CorpseDumpFilter(), LowPriority},
-		{FreshDumpRole, CorpseLarderFilter(), LowPriority},
-	}
 }

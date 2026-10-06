@@ -132,14 +132,9 @@ type StockpileRequest struct {
 	Cells     []SiteCell
 	Bounds    Bounds
 	Protected []domain.Cell
-	// Planned is the layout plan's room ground (PlannedRoomGround); the
-	// outdoor dumps keep off it.
-	Planned []domain.Cell
 	// Colonists sizes the haul budget; unknown holds every edit.
 	Colonists domain.Fact[int64]
-	// Rooms sites the opening corpse dump clear of living rooms.
-	Rooms domain.Fact[[]Room]
-	// Anchor sites the opening stores.
+	// Anchor sites the opening general store.
 	Anchor domain.Cell
 	// Shelves are the built shelves inside the zones (#721): each carries
 	// its zone's desired settings, patched until it does.
@@ -158,8 +153,8 @@ type StockpileRequest struct {
 	// Shells are the planned storage-planner rooms (storage, armory and wardrobe,
 	// #1774; the materials yard's fence ring, #2215) not yet standing: each is a StockpileShell edit.
 	Shells []PlannedRole
-	// Opening stands the opening stockpiles (general store, corpse dump)
-	// while no owned zone of their kind stands; the runtime always sets it.
+	// Opening stands the opening stockpiles (the general store)
+	// while no owned zone of its kind stands; the runtime always sets it.
 	Opening bool
 }
 

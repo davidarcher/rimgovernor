@@ -242,11 +242,10 @@ with no cell in the site's room is deleted (the site moved), and one larger than
 site shrinks to it, keeping its stocked cells. A role whose site cannot be found
 retires and its zone is deleted.
 
-**Dump roles** (`dump:worn`, `dump:rotten`, `dump:corpses`, `dump:fresh`) are fixed
-and created when the colony has things for one and no zone of it. A dump takes the
-nearest free outdoor 2x2 patch six cells clear of any living room
-(`policy.OutdoorDumpSites`), never while the room census is unknown. A create ranks
-after retargets and before grows. Warehouse gear (apparel or weapons in a `general`
+**Waste dump** (`wastedump`) is the Sanitation department's declared store: one Low zone over
+the waste yard interior outside the incinerator outline, allowing all storable items except
+the native not-burnable special (`domain.DumpFilter`), created from the plan. The four
+`dump:*` roles are retired. Warehouse gear (apparel or weapons in a `general`
 zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`,
 `export_thing_ids`); unknown hit points or quality is not sale gear.
 

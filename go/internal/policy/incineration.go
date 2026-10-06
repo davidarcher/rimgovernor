@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // MaintainIncineration is the Sanitation department's incinerator concern: it
 // shells the waste yard and the incinerator inside it, burns a full incinerator
@@ -19,19 +23,45 @@ func inspectIncineration(c *roundsRun) error {
 	return nil
 }
 
-// incinerationOwner is the Sanitation department's stores: the incinerator
-// zone once its walls stand.
+// incinerationOwner is the Sanitation department's stores: the waste yard's one
+// dump zone from plan time, and the incinerator zone once its walls stand.
 type incinerationOwner struct{}
 
 func (incinerationOwner) Department() Department { return DepartmentSanitation }
 
-// Stores: the incinerator's whole interior at Preferred, above the Low dump so
-// waste hauls in from it, taking what the native rule calls burnable.
+// Stores: the dump covers the waste yard interior outside the incinerator
+// room's outline at Low priority, taking all storable items but the native
+// not-burnable ones. The incinerator's whole interior is Preferred, above the
+// dump so waste hauls in from it, taking what the native rule calls burnable.
 func (incinerationOwner) Stores(v StorageRequest) []Store {
-	if v.Incinerator == nil {
-		return nil
+	var out []Store
+	if dump, ok := wasteDumpSite(v.Layout); ok {
+		out = append(out, Store{StoreSite: dump})
 	}
-	return []Store{{StoreSite: StoreSite{Role: domain.IncineratorRole, Interior: v.Incinerator.Interior, Filter: domain.IncineratorFilter(), Priority: domain.PreferredPriority, exact: true}}}
+	if v.Incinerator != nil {
+		out = append(out, Store{StoreSite: StoreSite{Role: domain.IncineratorRole, Interior: v.Incinerator.Interior, Filter: domain.IncineratorFilter(), Priority: domain.PreferredPriority, exact: true}})
+	}
+	return out
+}
+
+// wasteDumpSite is the dump's site: the first planned waste yard's interior
+// less the planned incinerator's outline (its walls and interior). It reads
+// the plan, so the zone stands before the yard is fenced.
+func wasteDumpSite(plan *LayoutPlan) (StoreSite, bool) {
+	if plan == nil {
+		return StoreSite{}, false
+	}
+	yards := plan.roomsOf(PlannedWasteYard)
+	if len(yards) == 0 {
+		return StoreSite{}, false
+	}
+	yard := yards[0].Interior
+	cells := rectCells(yard)
+	for _, inc := range plan.roomsOf(PlannedIncinerator) {
+		outline := cellSet(rectCells(pad(inc.Interior, 1)))
+		cells = slices.DeleteFunc(cells, func(c domain.Cell) bool { return outline[c] })
+	}
+	return StoreSite{Role: domain.DumpRole, Interior: yard, Filter: domain.DumpFilter(), Priority: domain.LowPriority, room: cells, exact: true}, true
 }
 
 func (o incinerationOwner) RoomDemand(v StorageRequest) RoomDemand {

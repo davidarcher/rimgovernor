@@ -9,28 +9,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// The #724 dump role filters (the gear stores are the catalog-split armory and wardrobe, #1774) reach native as category and special-filter
-// selectors with their hit-point and quality floors.
-func TestGearAndDumpRoleFiltersWire(t *testing.T) {
-	want := map[string]string{
-		domain.WornDumpRole:   `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"Apparel"},{"categoryDef":"Weapons"}]}}`,
-		domain.RottenDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesAnimal"},{"categoryDef":"CorpsesInsect"},{"categoryDef":"Foods"}],"disallow":[{"specialFilterDef":"AllowFresh"}]}}`,
-		domain.CorpseDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesHumanlike"}]}}`,
-		domain.FreshDumpRole:  `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesAnimal"},{"categoryDef":"CorpsesInsect"},{"specialFilterDef":"AllowFresh"}],"disallow":[{"specialFilterDef":"AllowRotten"}]}}`,
-	}
-	for _, spec := range domain.DumpRoles() {
-		z, err := domain.NewFilteredStockpileZone(spec.Filter, spec.Priority, []domain.Cell{{X: 1, Z: 1}})
-		if err != nil {
-			t.Fatal(spec.Role, err)
-		}
-		got, _ := protojson.Marshal(stockpileSettings(z))
-		var a, b any
-		if json.Unmarshal(got, &a) != nil || json.Unmarshal([]byte(want[spec.Role]), &b) != nil || !reflect.DeepEqual(a, b) {
-			t.Fatalf("%s wire:\n got %s", spec.Role, got)
-		}
-	}
-}
-
 // The armory and wardrobe filters reach native as category selectors with the
 // armor defs split between them and the biocoded, worn-out and burnable gear excluded.
 func TestArmoryAndWardrobeFiltersWire(t *testing.T) {

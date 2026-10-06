@@ -190,11 +190,9 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{"armory:Room_1", false, false, domain.StockpileFilter{}, ""},
 		// A zone left by the removed covered fallback retires (#1778).
 		{"covered:WoodLog", true, true, domain.StockpileFilter{}, ""},
-		{domain.WornDumpRole, true, false, domain.WornDumpFilter(), domain.LowPriority},
-		{domain.RottenDumpRole, true, false, domain.RottenDumpFilter(), domain.LowPriority},
-		{domain.CorpseDumpRole, true, false, domain.CorpseDumpFilter(), domain.LowPriority},
-		{domain.FreshDumpRole, true, false, domain.CorpseLarderFilter(), domain.LowPriority},
-		{"dump:other", false, false, domain.StockpileFilter{}, ""},
+		// The four retired dump roles retire; the one dump is a declared store.
+		{"dump:worn", true, true, domain.StockpileFilter{}, ""},
+		{"dump:other", true, true, domain.StockpileFilter{}, ""},
 		// No dining table and no cold spot: the meal stockpile retires (#936).
 		{"meals:Room_1", true, true, domain.StockpileFilter{}, ""},
 		{"rawfood:Room_1", true, false, domain.RawFoodFilter(), domain.CriticalPriority},
@@ -208,31 +206,6 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 	for _, role := range []string{"medicine:Room_1"} {
 		if _, ok := unknown(role); ok {
 			t.Errorf("%s published over an unknown census", role)
-		}
-	}
-}
-
-// Needs count poor stored apparel and worn-out garments for the worn dump, spoiled items and
-// rotting animal corpses for the rotten dump and humanlike corpses for the
-// corpse dump; buried corpses wait for nothing.
-func TestStockpileNeedsFromColonyFacts(t *testing.T) {
-	facts := policy.RoundsFacts{
-		Gear: domain.Known(policy.GearObservation{
-			Stored: domain.Known([]policy.GearStock{{Definition: "Apparel_Parka", Quality: 2, HPBand: 7, Count: 2}, {Definition: "Apparel_Pants", Quality: 1, HPBand: 9, Count: 1}}),
-			Pawns:  []policy.GearPawn{{Apparel: domain.Known([]policy.GearApparel{{Definition: "Apparel_Shirt", Condition: 0.3}, {Definition: "Apparel_Pants", Condition: 0.9}})}},
-		}),
-		Waste: domain.Known([]policy.WasteItem{
-			{Kind: "spoiled", State: policy.WasteExposed},
-			{Kind: "corpse", CorpseOf: domain.CorpseAnimal, State: policy.WasteExposed},
-			{Kind: "corpse", CorpseOf: domain.CorpseStranger, State: policy.WasteExposed},
-			{Kind: "corpse", CorpseOf: domain.CorpseColonist, State: policy.WasteBuried},
-		}),
-	}
-	needs := policy.DumpNeeds(facts)
-	want := map[string]int{domain.WornDumpRole: 2, domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
-	for role, n := range want {
-		if needs[role] != n {
-			t.Errorf("%s: %d, want %d (%v)", role, needs[role], n, needs)
 		}
 	}
 }

@@ -50,10 +50,9 @@ func TestStockpileLabelsFollowFilters(t *testing.T) {
 	cells := []Cell{{X: 1, Z: 1}}
 	larder, _ := NewFilteredStockpileZone(CorpseLarderFilter(), ImportantPriority, cells)
 	dump, _ := allowListZone(LowPriority, []string{"ChunkGranite"}, cells)
-	other, _ := NewFilteredStockpileZone(WornDumpFilter(), LowPriority, cells)
 	supplies, _ := allowListZone(ImportantPriority, []string{"WoodLog", "Steel", "Cloth"}, cells)
 	many, _ := allowListZone(ImportantPriority, []string{"WoodLog", "Steel", "Cloth", "Silver", "Gold"}, cells)
-	for z, want := range map[ZoneCreate]string{larder: "Corpse larder", dump: "Dumping", other: "Worn gear dump", supplies: "Cloth, Steel, WoodLog", many: "Cloth, Gold, Silver +2 more"} {
+	for z, want := range map[ZoneCreate]string{larder: "Corpse larder", dump: "Dumping", supplies: "Cloth, Steel, WoodLog", many: "Cloth, Gold, Silver +2 more"} {
 		if z.Label() != want {
 			t.Fatal(z.Label(), want)
 		}

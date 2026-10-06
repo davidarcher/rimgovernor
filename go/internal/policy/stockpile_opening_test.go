@@ -10,7 +10,7 @@ import (
 // open ground, no zone of any kind, a roofed 4x4 overhang at (30,30) and
 // the colonists gathered at (10,10).
 func freshColonyStockpiles() StockpileRequest {
-	r := StockpileRequest{Tick: 39, Bounds: Bounds{Width: 40, Height: 40}, Colonists: domain.Known(int64(3)), Anchor: domain.Cell{X: 10, Z: 10}, Rooms: domain.Unknown[[]Room](), Opening: true}
+	r := StockpileRequest{Tick: 39, Bounds: Bounds{Width: 40, Height: 40}, Colonists: domain.Known(int64(3)), Anchor: domain.Cell{X: 10, Z: 10}, Opening: true}
 	for x := int32(0); x < 40; x++ {
 		for z := int32(0); z < 40; z++ {
 			roofed := x >= 30 && x < 34 && z >= 30 && z < 34
@@ -21,23 +21,16 @@ func freshColonyStockpiles() StockpileRequest {
 }
 
 // The first review of a fresh colony stands the general store near the
-// colonists and the corpse dump well clear of the shelter, both in one
-// review and none deferred by the haul budget. The food stockpile is a
-// planner site (storage_plan_food_test.go).
+// colonists in one review, none deferred by the haul budget. The food stockpile
+// is a planner site (storage_plan_food_test.go) and the dump a declared
+// Sanitation store (incineration_test.go).
 func TestFreshColonyFirstReviewAdmitsOpeningStockpiles(t *testing.T) {
 	review := PlanStockpileMaintenance(freshColonyStockpiles())
-	got := map[string]StockpileEdit{}
-	for _, e := range review.Edits {
-		if e.Kind != StockpileCreate {
-			t.Fatalf("unexpected edit %+v", e)
-		}
-		got[e.Role] = e
-	}
-	if !review.Active || review.Deferred != 0 || len(got) != 2 {
+	if len(review.Edits) != 1 || !review.Active || review.Deferred != 0 {
 		t.Fatalf("review %+v", review)
 	}
-	general := got[domain.OpeningGeneralRole]
-	if general.Filter != domain.OpeningStoreFilter() || general.Priority != domain.NormalPriority || len(general.Cells) != 25 {
+	general := review.Edits[0]
+	if general.Kind != StockpileCreate || general.Role != domain.OpeningGeneralRole || general.Filter != domain.OpeningStoreFilter() || general.Priority != domain.NormalPriority || len(general.Cells) != 25 {
 		t.Fatalf("general %+v", general)
 	}
 	for _, c := range general.Cells {
@@ -45,24 +38,13 @@ func TestFreshColonyFirstReviewAdmitsOpeningStockpiles(t *testing.T) {
 			t.Fatalf("general store not near the colony: %v", general.Cells)
 		}
 	}
-	dump := got[domain.CorpseDumpRole]
-	if dump.Filter != domain.CorpseDumpFilter() || dump.Priority != domain.LowPriority || len(dump.Cells) != 9 {
-		t.Fatalf("dump %+v", dump)
-	}
-	for _, c := range dump.Cells {
-		if max(absInt32(c.X-10), absInt32(c.Z-10)) < openingDumpDistance {
-			t.Fatalf("dump inside the shelter's clearance: %v", dump.Cells)
-		}
-	}
 }
 
-// Once a general store and a corpse dump stand, no opening zone is proposed
-// again.
+// Once a general store stands, no opening zone is proposed again.
 func TestOpeningStockpilesStopOnceStanding(t *testing.T) {
 	r := freshColonyStockpiles()
 	r.Zones = []StockpileZone{
 		{ID: "Zone_1", Role: domain.GeneralRole, Cells: []domain.Cell{{X: 0, Z: 0}}, Filter: domain.GeneralFilter(), Priority: domain.NormalPriority},
-		{ID: "Zone_3", Role: domain.CorpseDumpRole, Cells: []domain.Cell{{X: 0, Z: 4}}, Filter: domain.CorpseDumpFilter(), Priority: domain.LowPriority},
 	}
 	for _, e := range PlanStockpileMaintenance(r).Edits {
 		if e.Kind == StockpileCreate {

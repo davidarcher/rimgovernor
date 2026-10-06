@@ -52,8 +52,6 @@ type StorageRequest struct {
 	Gear *GearStore
 	// Zones are the standing stockpile zones, read for the warehouse siting.
 	Zones []StockpileZone
-	// Dumps is nil while the room census is unknown (see DumpStore).
-	Dumps *DumpStore
 	// Burial is the burial census; nil while the waste or construction
 	// census is unread (see BurialCensus).
 	Burial *BurialCensus
@@ -95,9 +93,9 @@ type StoragePlan struct {
 	Err error
 }
 
-// PlanStorage returns the desired storage sites: the dumps, which stand
-// outdoors while things wait for them. Every other store is declared by its
-// department (DeclareStores).
+// PlanStorage returns the desired storage sites. Every store is declared by its
+// department (DeclareStores), so no site is left for it to plan; it goes with
+// the role registry (#2206).
 func PlanStorage(r StorageRequest) StoragePlan {
-	return StoragePlan{Sites: r.dumpSites(r.freezerStands())}
+	return StoragePlan{}
 }

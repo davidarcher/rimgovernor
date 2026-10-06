@@ -116,15 +116,9 @@ func (m *stockpileMemory) fill(world string, zones []policy.StockpileZone) {
 // claims, their settings superseded by the latest patch of each; the
 // registered roles judge on the projection and benches.
 func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell) policy.StockpileRequest {
-	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists, Rooms: domain.Unknown[[]policy.Room]()}
+	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists}
 	if core, planned := planCore(*projection); planned {
 		request.Anchor = core
-	}
-	if plan, known := projection.LayoutPlan.Value(); known {
-		request.Planned = policy.PlannedRoomGround(plan)
-	}
-	if rooms, ok := projection.Rooms.Value(); ok {
-		request.Rooms = domain.Known(rooms.Rooms)
 	}
 	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedYard} {
 		if _, owed := plannedRoomOwed(*projection, module); owed {
@@ -136,9 +130,6 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	storage := storageRequest(projection, request.Protected)
 	storage.Gear = gear
 	storage.Zones = request.Zones
-	if rooms, ok := request.Rooms.Value(); ok {
-		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor, Planned: request.Planned}
-	}
 	storage.Incinerator = standingIncinerator(*projection)
 	storage.BenchInputs, storage.Benches = inputs, benches
 	storage.Burial = burialCensus(*projection)
@@ -344,16 +335,11 @@ func (r *Rounder) benchCensus(ctx context.Context, snapshot domain.GenerationSna
 	return rows, err
 }
 
-// The dumps are MaintainStockpiles' own roles (#724): fixed settings, never
-// retired.
+// The four dump roles of earlier saves are retired: the waste yard's one dump
+// is a declared Sanitation store (policy/incineration.go).
 func init() {
-	specs := map[string]domain.StockpileRoleSpec{}
-	for _, spec := range domain.DumpRoles() {
-		specs[spec.Role] = spec
-	}
-	RegisterStockpileRole("dump", func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
-		spec, ok := specs[role]
-		return policy.StockpileRoleState{Filter: spec.Filter, Priority: spec.Priority}, ok
+	RegisterStockpileRole(domain.LegacyDumpRolePrefix, func(StockpileRoleInput, string) (policy.StockpileRoleState, bool) {
+		return policy.StockpileRoleState{Retired: true}, true
 	})
 }
 

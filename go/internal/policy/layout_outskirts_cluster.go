@@ -59,6 +59,9 @@ const (
 // holds the dump zone's ground and the incinerator room.
 const PlannedWasteYard PlannedRole = "waste_yard"
 
+// WasteYardRooms are the plan's waste yards.
+func (p LayoutPlan) WasteYardRooms() []PlannedRoom { return p.roomsOf(PlannedWasteYard) }
+
 // OutskirtsSlot is one room's slot: the outline it stands in, its interior, and
 // the wall cell its door (an Outdoor room's gate) takes with the side it faces.
 type OutskirtsSlot struct {

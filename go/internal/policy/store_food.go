@@ -121,17 +121,3 @@ func (r StorageRequest) freezerStores() []Store {
 	return append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.PerishablesRolePrefix, freezer.Interior), Interior: freezer.Interior,
 		Filter: domain.PerishablesFilter(), Priority: domain.PreferredPriority}})
 }
-
-// freezerStands reports the planned freezer standing as a census room: the
-// corpse shelf is then there, so fresh corpses need no dump.
-func (r StorageRequest) freezerStands() bool {
-	if r.Layout == nil || r.Rooms == nil {
-		return false
-	}
-	freezer, ok := r.freezer()
-	if !ok {
-		return false
-	}
-	room, ok := CensusRoomIn(freezer, *r.Rooms)
-	return ok && len(room.Cells) > 0
-}

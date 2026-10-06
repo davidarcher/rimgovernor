@@ -33,19 +33,3 @@ func TestSplitGroundRows(t *testing.T) {
 		t.Fatalf("split = %v / %v", others, player)
 	}
 }
-
-// An outdoor dump keeps off the plan's room ground even before the room
-// stands.
-func TestDumpProtectedAddsPlannedGround(t *testing.T) {
-	plan, _ := groundFixture()
-	ground := PlannedRoomGround(plan)
-	if len(ground) == 0 {
-		t.Fatal("no planned ground")
-	}
-	room := plan.AllRooms()[0].Interior
-	cell := domain.Cell{X: room.X, Z: room.Z}
-	blocked := outdoorDumpBlocked(nil, dumpProtected(nil, ground))
-	if !blocked[cell] {
-		t.Fatal("dump may take planned room ground", cell)
-	}
-}
