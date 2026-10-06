@@ -17,7 +17,7 @@ build on it.
 | `LaborPerDay`, `UpfrontCost` | Steady work of a delivering candidate; labor-equivalent ticks and resources to establish it. |
 | `Risk` | `{Kind, Weight}` hazards; summed weights discount the yield. |
 | `PathDistance`, `DistanceSquared`, `NeedsHaul`, `UnitsPerTrip` | Reach and haul. |
-| `Terms`, `Prey` | Explanation numbers; a squad hunt's animals. |
+| `Terms`, `Prey` | Explanation numbers; a formation hunt's animals (its mode: one without prey is a lone hunt). |
 
 The type carries state, never credit: which states earn credit (today a
 fishing or product channel counts when opened, a hunt or forage when

@@ -27532,7 +27532,6 @@ type AcquisitionFacts struct {
 	HerdSize       *uint32                `protobuf:"varint,10,opt,name=herd_size,json=herdSize,proto3,oneof" json:"herd_size,omitempty"`
 	MeleeOnly      *bool                  `protobuf:"varint,11,opt,name=melee_only,json=meleeOnly,proto3,oneof" json:"melee_only,omitempty"`
 	Downed         *bool                  `protobuf:"varint,12,opt,name=downed,proto3,oneof" json:"downed,omitempty"`
-	WeaponRange    *float64               `protobuf:"fixed64,13,opt,name=weapon_range,json=weaponRange,proto3,oneof" json:"weapon_range,omitempty"`
 	DesignatedTick *int64                 `protobuf:"varint,14,opt,name=designated_tick,json=designatedTick,proto3,oneof" json:"designated_tick,omitempty"`
 	Taken          *bool                  `protobuf:"varint,15,opt,name=taken,proto3,oneof" json:"taken,omitempty"`
 	BodySize       *float64               `protobuf:"fixed64,17,opt,name=body_size,json=bodySize,proto3,oneof" json:"body_size,omitempty"`
@@ -27665,13 +27664,6 @@ func (x *AcquisitionFacts) GetDowned() bool {
 		return *x.Downed
 	}
 	return false
-}
-
-func (x *AcquisitionFacts) GetWeaponRange() float64 {
-	if x != nil && x.WeaponRange != nil {
-		return *x.WeaponRange
-	}
-	return 0
 }
 
 func (x *AcquisitionFacts) GetDesignatedTick() int64 {
@@ -48513,7 +48505,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06growth\x18\x04 \x01(\x01H\x01R\x06growth\x88\x01\x01\x12O\n" +
 	"\x0eplant_snapshot\x18\x05 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\rplantSnapshotB\r\n" +
 	"\v_designatedB\t\n" +
-	"\a_growth\"\xa7\b\n" +
+	"\a_growth\"\x82\b\n" +
 	"\x10AcquisitionFacts\x122\n" +
 	"\x06source\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06source\x12Q\n" +
 	"\x0fsource_snapshot\x18\x10 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\x0esourceSnapshot\x12\x1f\n" +
@@ -48532,15 +48524,14 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"melee_only\x18\v \x01(\bH\tR\tmeleeOnly\x88\x01\x01\x12\x1b\n" +
 	"\x06downed\x18\f \x01(\bH\n" +
-	"R\x06downed\x88\x01\x01\x12&\n" +
-	"\fweapon_range\x18\r \x01(\x01H\vR\vweaponRange\x88\x01\x01\x12,\n" +
-	"\x0fdesignated_tick\x18\x0e \x01(\x03H\fR\x0edesignatedTick\x88\x01\x01\x12\x19\n" +
-	"\x05taken\x18\x0f \x01(\bH\rR\x05taken\x88\x01\x01\x12 \n" +
-	"\tbody_size\x18\x11 \x01(\x01H\x0eR\bbodySize\x88\x01\x01\x12\x1f\n" +
-	"\bsleeping\x18\x12 \x01(\bH\x0fR\bsleeping\x88\x01\x01\x12\x1f\n" +
-	"\bpredator\x18\x13 \x01(\bH\x10R\bpredator\x88\x01\x01\x12\x1b\n" +
-	"\x06fogged\x18\x14 \x01(\bH\x11R\x06fogged\x88\x01\x01\x12+\n" +
-	"\x0fin_mental_state\x18\x15 \x01(\bH\x12R\rinMentalState\x88\x01\x01B\v\n" +
+	"R\x06downed\x88\x01\x01\x12,\n" +
+	"\x0fdesignated_tick\x18\x0e \x01(\x03H\vR\x0edesignatedTick\x88\x01\x01\x12\x19\n" +
+	"\x05taken\x18\x0f \x01(\bH\fR\x05taken\x88\x01\x01\x12 \n" +
+	"\tbody_size\x18\x11 \x01(\x01H\rR\bbodySize\x88\x01\x01\x12\x1f\n" +
+	"\bsleeping\x18\x12 \x01(\bH\x0eR\bsleeping\x88\x01\x01\x12\x1f\n" +
+	"\bpredator\x18\x13 \x01(\bH\x0fR\bpredator\x88\x01\x01\x12\x1b\n" +
+	"\x06fogged\x18\x14 \x01(\bH\x10R\x06fogged\x88\x01\x01\x12+\n" +
+	"\x0fin_mental_state\x18\x15 \x01(\bH\x11R\rinMentalState\x88\x01\x01B\v\n" +
 	"\t_resourceB\a\n" +
 	"\x05_treeB\a\n" +
 	"\x05_foodB\b\n" +
@@ -48552,8 +48543,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_herd_sizeB\r\n" +
 	"\v_melee_onlyB\t\n" +
-	"\a_downedB\x0f\n" +
-	"\r_weapon_rangeB\x12\n" +
+	"\a_downedB\x12\n" +
 	"\x10_designated_tickB\b\n" +
 	"\x06_takenB\f\n" +
 	"\n" +
@@ -48561,7 +48551,7 @@ const file_observations_proto_rawDesc = "" +
 	"\t_sleepingB\v\n" +
 	"\t_predatorB\t\n" +
 	"\a_foggedB\x12\n" +
-	"\x10_in_mental_state\"\xd8\x03\n" +
+	"\x10_in_mental_stateJ\x04\b\r\x10\x0eR\fweapon_range\"\xd8\x03\n" +
 	"\rHuntVerbFacts\x12\x19\n" +
 	"\x05melee\x18\x01 \x01(\bH\x00R\x05melee\x88\x01\x01\x12 \n" +
 	"\tai_weapon\x18\x02 \x01(\bH\x01R\baiWeapon\x88\x01\x01\x12\x19\n" +

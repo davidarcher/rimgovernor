@@ -299,9 +299,9 @@ and the threatened ActiveCombat review.
 ### Combat extensions
 
 **Squad hunt.** A squad hunt is the `ActiveCombat` incident's hunt origin: while no
-hostile stands and the food plan opens a squad `Hunt` channel (a group of three or
+hostile stands and the food plan opens a formation `Hunt` candidate (a group of three or
 more wild animals, or any animal a lone hunter must not designate, with three ranged
-colonists able to form the squad), the review asserts the deficit with the channel's
+colonists able to form the squad; with fewer it Holds as `needs_gunners`), the review asserts the deficit with the channel's
 prey as the occurrence's payload (`store.HuntPrey`). The fight runs through
 `admitFight` with `CombatView.Hunt` set and the prey as its threats; the frame's
 detail rows cover the open hunt census rows. A hostile in the frame, or the plan no

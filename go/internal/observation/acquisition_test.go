@@ -11,8 +11,8 @@ import (
 
 // A census row carries its designation age and taken flag (#1043).
 func TestColonyAcquisitionMapsDesignationAgeAndTaken(t *testing.T) {
-	v := &o.ColonyFactsSnapshot{Acquisition: []*o.AcquisitionFacts{
-		{Source: bridge.NewRef("deer"), Hunt: proto.Bool(true), Food: proto.Bool(true), Designated: proto.Bool(true), DesignatedTick: proto.Int64(1200), Taken: proto.Bool(true)},
+	v := &o.ColonyFactsSnapshot{HuntCensus: huntCensusFacts(true).HuntCensus, Acquisition: []*o.AcquisitionFacts{
+		{Source: bridge.NewRef("deer"), Resource: proto.String("Corpse_Deer"), Hunt: proto.Bool(true), Food: proto.Bool(true), Fogged: proto.Bool(false), InMentalState: proto.Bool(false), Designated: proto.Bool(true), DesignatedTick: proto.Int64(1200), Taken: proto.Bool(true)},
 		{Source: bridge.NewRef("oak"), Designated: proto.Bool(false), Taken: proto.Bool(false)},
 	}}
 	rows, ok := ColonyAcquisition(v, heads(&o.EntityRef{Id: proto.String("deer"), DefName: proto.String("Deer")}, &o.EntityRef{Id: proto.String("oak")})).Value()

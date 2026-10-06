@@ -89,8 +89,7 @@ namespace HomeBridge.BridgeTools
                 HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= 625),
                 MeleeOnly = Meleeable(animal), Downed = animal.Downed,
                 BodySize = animal.BodySize, Sleeping = !animal.Awake(), Predator = animal.RaceProps.predator,
-                // Go derives the reach of the hunters that qualify from the census hunters.
-                WeaponRange = 0, Taken = ResourceAcquisitionTools.Taken(animal),
+                Taken = ResourceAcquisitionTools.Taken(animal),
                 Fogged = animal.Position.Fogged(map), InMentalState = animal.InMentalState };
                 var tick = ResourceAcquisitionTools.DesignatedTick(animal, designated);
                 if (tick.HasValue) row.DesignatedTick = tick.Value;

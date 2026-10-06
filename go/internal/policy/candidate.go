@@ -114,7 +114,7 @@ type SupplyCandidate struct {
 	NeedsHaul    bool
 	UnitsPerTrip int64
 	Terms        []CandidateTerm
-	// Prey is a squad hunt's animals, sorted.
+	// Prey is a formation hunt's animals, sorted.
 	Prey []string
 }
 
@@ -137,7 +137,7 @@ var acquisitionCandidateKinds = map[AcquisitionKind]CandidateKind{
 func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 	out := SupplyCandidate{
 		Kind: foodCandidateKinds[c.Kind], ID: c.ID,
-		Yields:   []CandidateYield{{Good: ResourceKey{Def: CandidateNutrition}, PerDay: c.NutritionPerDay, StockCap: c.StockCap}},
+		Yields:   append([]CandidateYield{{Good: ResourceKey{Def: CandidateNutrition}, PerDay: c.NutritionPerDay, StockCap: c.StockCap}}, c.Products...),
 		LeadDays: c.LeadDays, LaborPerDay: c.WorkPerDay, DistanceSquared: c.DistanceSquared,
 		Prey: append([]string(nil), c.Prey...),
 	}
@@ -156,16 +156,19 @@ func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 	return out
 }
 
-// FoodChannelOfSupply is the food channel of a candidate whose only yield is
-// nutrition; ok is false for any other candidate.
+// FoodChannelOfSupply is the food channel of a candidate whose first yield is
+// nutrition, the rest its Products; ok is false for any other candidate.
 func FoodChannelOfSupply(c SupplyCandidate) (FoodChannel, bool) {
 	kind, ok := foodKindOf(c.Kind)
-	if !ok || len(c.Yields) != 1 || c.Yields[0].Good != (ResourceKey{Def: CandidateNutrition}) {
+	if !ok || len(c.Yields) == 0 || c.Yields[0].Good != (ResourceKey{Def: CandidateNutrition}) {
 		return FoodChannel{}, false
 	}
 	out := FoodChannel{
 		Kind: kind, ID: c.ID, NutritionPerDay: c.Yields[0].PerDay, StockCap: c.Yields[0].StockCap, WorkPerDay: c.LaborPerDay, LeadDays: c.LeadDays,
 		DistanceSquared: c.DistanceSquared, Prey: append([]string(nil), c.Prey...),
+	}
+	if len(c.Yields) > 1 {
+		out.Products = append([]CandidateYield(nil), c.Yields[1:]...)
 	}
 	if state, known := c.State.Value(); known {
 		out.Open = domain.Known(state == CandidateDelivering)

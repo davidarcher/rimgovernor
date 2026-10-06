@@ -11,49 +11,109 @@ func preyRow(id string, x, z int32, revenge float64) AcquisitionSource {
 	return AcquisitionSource{ID: id, Resource: "Corpse_" + id, Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 10, RevengeChance: revenge, HerdSize: 1, Cell: domain.Cell{X: x, Z: z}}
 }
 
-func TestSquadHuntsGroupMixedSpeciesAndKeepLoneHunters(t *testing.T) {
+func huntByID(channels []FoodChannel) map[string]FoodChannel {
+	out := map[string]FoodChannel{}
+	for _, c := range channels {
+		out[c.ID] = c
+	}
+	return out
+}
+
+func TestHuntCandidatesOnePerGroupWithMode(t *testing.T) {
 	rows := []AcquisitionSource{
 		preyRow("deer", 10, 10, 0.05), preyRow("hare", 14, 12, 0.01), preyRow("ibex", 18, 10, 0.1),
 		preyRow("pair-a", 80, 80, 0.05), preyRow("pair-b", 82, 80, 0.05),
 		preyRow("moose", 150, 150, 0.5),
 	}
-	// A designated or taken animal is not squad prey.
+	// A taken animal is not squad prey: it stays a lone candidate.
 	taken := preyRow("taken", 12, 12, 0.05)
 	taken.Taken = true
 	rows = append(rows, taken)
-	channels, lone := SquadHunts(rows, SquadHuntMinGunners, domain.Fact[float64]{})
-	if len(channels) != 2 {
-		t.Fatalf("channels = %+v", channels)
+	by := huntByID(HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{}))
+	if len(by) != 5 {
+		t.Fatalf("candidates = %+v", by)
 	}
-	if got := channels[0].Prey; !reflect.DeepEqual(got, []string{"deer", "hare", "ibex"}) {
-		t.Fatalf("mixed group = %v", got)
+	if g := by["squad:deer"]; g.Mode() != HuntFormation || !reflect.DeepEqual(g.Prey, []string{"deer", "hare", "ibex"}) {
+		t.Fatalf("mixed group = %+v", g)
 	}
-	if got := channels[1].Prey; !reflect.DeepEqual(got, []string{"moose"}) {
-		t.Fatalf("high-revenge single = %v", got)
+	if g := by["squad:moose"]; g.Mode() != HuntFormation || !reflect.DeepEqual(g.Prey, []string{"moose"}) {
+		t.Fatalf("high-revenge single = %+v", g)
 	}
-	if n, _ := channels[0].NutritionPerDay.Value(); n != 30 {
+	for _, id := range []string{"pair-a", "pair-b", "taken"} {
+		if by[id].Mode() != HuntLone || by[id].Prey != nil {
+			t.Fatalf("%s = %+v", id, by[id])
+		}
+	}
+	g := by["squad:deer"]
+	if n, _ := g.NutritionPerDay.Value(); n != 30 {
 		t.Fatalf("group nutrition = %v", n)
 	}
-	if channels[0].Kind != FoodHunt || len(channels[0].Risk) != 1 || channels[0].Risk[0].Kind != FoodRevenge {
-		t.Fatalf("channel risk = %+v", channels[0])
+	if g.Kind != FoodHunt || len(g.Risk) != 1 || g.Risk[0].Kind != FoodRevenge {
+		t.Fatalf("channel risk = %+v", g)
 	}
-	// The pair stays with designation hunting, as does a taken animal.
-	var ids []string
-	for _, s := range lone {
-		ids = append(ids, s.ID)
+}
+
+// Below the squad's gunners a formation is a Hold row carrying needs_gunners,
+// never a vanished candidate and never one that yields.
+func TestHuntFormationHoldsWithoutGunners(t *testing.T) {
+	rows := []AcquisitionSource{preyRow("a", 1, 1, 0.05), preyRow("b", 2, 2, 0.05), preyRow("c", 3, 3, 0.05), preyRow("moose", 150, 150, 0.5), preyRow("hare", 90, 90, 0.01)}
+	by := huntByID(HuntCandidates(rows, SquadHuntMinGunners-1, domain.Fact[float64]{}))
+	if len(by) != 3 {
+		t.Fatalf("candidates = %+v", by)
 	}
-	if !reflect.DeepEqual(ids, []string{"pair-a", "pair-b", "taken"}) {
-		t.Fatalf("lone = %v", ids)
+	for _, id := range []string{"squad:a", "squad:moose"} {
+		c := by[id]
+		terms := map[string]float64{}
+		for _, term := range c.Terms {
+			terms[term.Name] = term.Value
+		}
+		if n, _ := c.NutritionPerDay.Value(); c.Mode() != HuntFormation || n != 0 || terms["needs_gunners"] != 1 || terms["held_nutrition_per_day"] <= 0 {
+			t.Fatalf("%s = %+v", id, c)
+		}
 	}
-	// Without a squad's gunners nothing is grouped.
-	if channels, lone = SquadHunts(rows, SquadHuntMinGunners-1, domain.Fact[float64]{}); len(channels) != 0 || len(lone) != len(rows) {
-		t.Fatalf("squad without gunners: %v", channels)
+	if hare := by["hare"]; hare.Mode() != HuntLone {
+		t.Fatalf("hare = %+v", hare)
+	}
+	plan, err := SupplyFoodPlan(FoodPlanRequest{Demand: foodPlanRequest().Demand, MinDays: 2, TargetDays: 5, Channels: domain.Known(HuntCandidates(rows, 0, domain.Fact[float64]{})), Labor: domain.Known(1e6)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range plan.Portfolio {
+		if e.Channel.Mode() == HuntFormation && e.Decision != FoodPlanHold {
+			t.Fatalf("formation without gunners is %s: %+v", e.Decision, e)
+		}
+	}
+}
+
+// A hunt yields the animal's meat and its butcher products; labor is one cost.
+func TestHuntCandidateYieldsMeatAndLeather(t *testing.T) {
+	deer := preyRow("deer", 10, 10, 0.05)
+	deer.Products = []SourceProduct{{Def: "Leather_Plain", Amount: 40}}
+	hare := preyRow("hare", 50, 50, 0.01)
+	hare.Products = []SourceProduct{{Def: "Leather_Light", Amount: 5}}
+	by := huntByID(HuntCandidates([]AcquisitionSource{deer, hare}, 0, domain.Fact[float64]{}))
+	candidate := SupplyCandidateOfFood(by["deer"])
+	if len(candidate.Yields) != 2 || candidate.Yields[0].Good.Def != CandidateNutrition || candidate.Yields[1].Good.Def != "Leather_Plain" {
+		t.Fatalf("yields = %+v", candidate.Yields)
+	}
+	if leather, _ := candidate.Yields[1].PerDay.Value(); leather != 40 {
+		t.Fatalf("leather = %v", leather)
+	}
+	if back, ok := FoodChannelOfSupply(candidate); !ok || !reflect.DeepEqual(back.Products, by["deer"].Products) {
+		t.Fatalf("round trip = %+v %v", back, ok)
+	}
+	// A formation sums its animals' products.
+	rows := []AcquisitionSource{deer, preyRow("b", 11, 11, 0.05), preyRow("c", 12, 12, 0.05)}
+	rows[1].Products = []SourceProduct{{Def: "Leather_Plain", Amount: 2}}
+	g := HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{})[0]
+	if g.Mode() != HuntFormation || len(g.Products) != 1 || g.Products[0].PerDay != domain.Known(42.0) {
+		t.Fatalf("formation products = %+v", g)
 	}
 }
 
 func TestHuntRequestAndCombatCleared(t *testing.T) {
 	rows := []AcquisitionSource{preyRow("a", 1, 1, 0.05), preyRow("b", 2, 2, 0.05), preyRow("c", 3, 3, 0.05)}
-	squads, _ := SquadHunts(rows, 4, domain.Fact[float64]{})
+	squads := HuntCandidates(rows, 4, domain.Fact[float64]{})
 	plan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: squads[0], Decision: FoodPlanOpen}}})
 	if got := HuntRequest(plan); !reflect.DeepEqual(got, []domain.PawnID{"a", "b", "c"}) {
 		t.Fatalf("request = %v", got)

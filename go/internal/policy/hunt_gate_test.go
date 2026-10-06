@@ -8,7 +8,7 @@ import (
 )
 
 func gateRifle() *HuntWeapon {
-	return &HuntWeapon{DefName: "Gun_BoltActionRifle", Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 36, Projectile: HuntProjectileBullet}}}
+	return &HuntWeapon{DefName: "Gun_BoltActionRifle", Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 36, Projectile: HuntProjectileBullet, DamageDef: "Bullet"}}}
 }
 
 func gateDeer() HuntPrey {
@@ -88,7 +88,7 @@ func TestHuntGateNoHunterNamesEachColonistsFirstReason(t *testing.T) {
 	// The cook is a colonist too; every colonist is listed.
 	c.Hunters[3].CookingActive, c.Hunters[3].ReachableBenches = true, map[string]bool{"bench": true}
 	v := c.Gate(gateDeer())
-	want := []string{"a downed", "b mental_state", "c hunting_inactive", "d no_ordinary_weapon", "e too_far", "f no_safe_route"}
+	want := []string{"a downed", "b mental_state", "c hunting_inactive", "d no_hunting_weapon", "e too_far", "f no_safe_route"}
 	if v.Hold == nil || v.Hold.Reason != HuntHoldNoHunter || !reflect.DeepEqual(v.Hold.Detail, want) {
 		t.Fatal(v.Hold)
 	}
@@ -125,10 +125,11 @@ func TestHuntGateGatesRunInOrder(t *testing.T) {
 }
 
 func TestHuntGateWeaponRules(t *testing.T) {
-	arrow := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 25, Projectile: HuntProjectileArrow}}}
+	arrow := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 25, Projectile: HuntProjectileArrow, DamageDef: "Arrow"}}}
 	grenade := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 12, Projectile: HuntProjectileOther, ExplosionRadius: 2}}}
-	incendiary := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 20, Projectile: HuntProjectileBullet, DamageWorker: flameDamageWorker}}}
-	mixed := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Projectile: HuntProjectileBullet}, {AIWeapon: true, Projectile: HuntProjectileOther, ExplosionRadius: 1}}}
+	incendiary := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 20, Projectile: HuntProjectileBullet, DamageDef: "Flame", DamageWorker: flameDamageWorker}}}
+	mixed := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Projectile: HuntProjectileBullet, DamageDef: "Bullet"}, {AIWeapon: true, Projectile: HuntProjectileOther, ExplosionRadius: 1}}}
+	harmless := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 20, Projectile: HuntProjectileBullet}}}
 	noVerb := &HuntWeapon{Ranged: true}
 	knife := &HuntWeapon{Melee: true}
 	for name, tc := range map[string]struct {
@@ -137,6 +138,7 @@ func TestHuntGateWeaponRules(t *testing.T) {
 		offer  bool
 	}{
 		"arrow":                        {arrow, nil, true},
+		"non-damaging projectile":      {harmless, nil, false},
 		"grenade":                      {grenade, nil, false},
 		"incendiary":                   {incendiary, nil, false},
 		"mixed verbs":                  {mixed, nil, false},
@@ -155,6 +157,21 @@ func TestHuntGateWeaponRules(t *testing.T) {
 		if v := c.Gate(prey); (v.Hold == nil) != tc.offer {
 			t.Fatal(name, v.Hold)
 		}
+	}
+}
+
+// A shield that blocks ranged weapons holds the shooter, with its own reason; a bow hunter
+// without one qualifies, and the offered reach is the bow's.
+func TestHuntGateBowHunterQualifiesAndShieldDoesNot(t *testing.T) {
+	c := gateCensus()
+	c.Hunters[0].Weapon = &HuntWeapon{DefName: "Bow_Short", Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 25.9, Projectile: HuntProjectileArrow, DamageDef: "Arrow"}}}
+	if v := c.Gate(gateDeer()); v.Hold != nil || v.WeaponRange != 25.9 {
+		t.Fatal(v)
+	}
+	c.Hunters[0].RangedBlockingShield = true
+	v := c.Gate(gateDeer())
+	if v.Hold == nil || v.Hold.Reason != HuntHoldNoHunter || !reflect.DeepEqual(v.Hold.Detail, []string{"ann ranged_blocking_shield"}) {
+		t.Fatal(v.Hold)
 	}
 }
 

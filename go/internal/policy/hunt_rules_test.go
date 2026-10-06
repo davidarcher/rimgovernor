@@ -36,8 +36,8 @@ func TestSquadHuntSleepingPreyIsCheaperNotGated(t *testing.T) {
 		}
 		return rows
 	}
-	day, _ := SquadHunts(mk(false), SquadHuntMinGunners, domain.Fact[float64]{})
-	night, _ := SquadHunts(mk(true), SquadHuntMinGunners, domain.Fact[float64]{})
+	day := HuntCandidates(mk(false), SquadHuntMinGunners, domain.Fact[float64]{})
+	night := HuntCandidates(mk(true), SquadHuntMinGunners, domain.Fact[float64]{})
 	if len(day) != 1 || len(night) != 1 {
 		t.Fatalf("day %v night %v", day, night)
 	}
@@ -53,7 +53,7 @@ func TestSquadHuntSleepingPreyIsCheaperNotGated(t *testing.T) {
 func TestSquadHuntBadWeatherIsCostlierNotGated(t *testing.T) {
 	rows := []AcquisitionSource{preyRow("a", 1, 1, 0.05), preyRow("b", 2, 2, 0.05), preyRow("c", 3, 3, 0.05)}
 	work := func(w domain.Fact[float64]) float64 {
-		channels, _ := SquadHunts(rows, SquadHuntMinGunners, w)
+		channels := HuntCandidates(rows, SquadHuntMinGunners, w)
 		if len(channels) != 1 {
 			t.Fatalf("weather %v: channels %v", w, channels)
 		}

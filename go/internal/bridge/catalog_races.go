@@ -16,6 +16,7 @@ const (
 	StatCarryingCapacity     = "CarryingCapacity"
 	StatWildness             = "Wildness"
 	StatMinimumHandlingSkill = "MinimumHandlingSkill"
+	StatLeatherAmount        = "LeatherAmount"
 )
 
 // AnimalRaces is every animal race of the catalog (#1722): a ThingDef with
@@ -105,6 +106,24 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 	}
 	if shown && skill >= 0 {
 		race.MinimumHandlingSkill = domain.Known(int(math.Round(float64(skill))))
+	}
+	if leather := props.GetLeatherDef(); leather != "" {
+		amount, shown, err := catalog.ShownStatValue(name, "", StatLeatherAmount)
+		if err != nil {
+			return race, err
+		}
+		if shown && amount > 0 {
+			race.Butchery = append(race.Butchery, policy.SourceProduct{Def: policy.Resource(leather), Amount: float64(amount)})
+		}
+	}
+	for _, product := range row.GetButcherProducts() {
+		if def, count := product.GetValue().GetThingDef(), product.GetValue().GetCount(); def != "" && count > 0 {
+			amount := float64(count)
+			if chance := product.GetValue().Chance; chance != nil {
+				amount *= float64(*chance)
+			}
+			race.Butchery = append(race.Butchery, policy.SourceProduct{Def: policy.Resource(def), Amount: amount})
+		}
 	}
 	if p, ok := power[name]; ok {
 		race.CombatPower = domain.Known(p)

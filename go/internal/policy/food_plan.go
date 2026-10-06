@@ -55,8 +55,11 @@ type FoodChannel struct {
 	// DistanceSquared is the nearest source cell to the colony centre;
 	// fishing regions of equal lead rank nearest-first on it.
 	DistanceSquared domain.Fact[float64]
-	// Prey is a squad hunt's animals (SquadHunts), sorted.
+	// Prey is a formation hunt's animals (HuntCandidates), sorted.
 	Prey []string
+	// Products are the goods a channel yields beside its nutrition (a hunted
+	// deer's leather).
+	Products []CandidateYield
 	// StockCap bounds the nutrition the channel can hold at once (a perishable
 	// harvest); Unknown is no known bound.
 	StockCap domain.Fact[int64]
@@ -181,33 +184,12 @@ const (
 )
 
 func ForageChannels(sources []AcquisitionSource) []FoodChannel {
-	return acquisitionFoodChannels(sources, false)
-}
-func HuntChannels(sources []AcquisitionSource) []FoodChannel {
-	return acquisitionFoodChannels(sources, true)
-}
-
-func acquisitionFoodChannels(sources []AcquisitionSource, hunt bool) []FoodChannel {
 	var out []FoodChannel
 	for _, s := range sources {
-		if !s.Food || s.Tree || s.Hunt != hunt {
-			continue
+		if s.Food && !s.Tree && !s.Hunt {
+			out = append(out, FoodChannel{Kind: FoodForage, ID: s.ID, NutritionPerDay: domain.Known(s.NutritionYield / FoodForageCycleDays), WorkPerDay: domain.Known(FoodForageWorkTicks / FoodForageCycleDays), LeadDays: domain.Known(0.0), Open: domain.Known(false),
+				Terms: []FoodPlanTerm{{"estimated_cycle_days", FoodForageCycleDays}, {"estimated_work_ticks", FoodForageWorkTicks}}})
 		}
-		kind, cycle, work := FoodForage, FoodForageCycleDays, FoodForageWorkTicks
-		if hunt {
-			kind, cycle, work = FoodHunt, FoodHuntCycleDays, FoodHuntWorkTicks
-			// Range reduces pursuit work; downed prey needs only collection.
-			work /= 1 + s.WeaponRange/25
-			if s.Downed {
-				work = FoodForageWorkTicks
-			}
-		}
-		c := FoodChannel{Kind: kind, ID: s.ID, NutritionPerDay: domain.Known(s.NutritionYield / cycle), WorkPerDay: domain.Known(work / cycle), LeadDays: domain.Known(0.0), Open: domain.Known(false), Terms: []FoodPlanTerm{{"estimated_cycle_days", cycle}, {"estimated_work_ticks", work}}}
-		if hunt {
-			c.Risk = []FoodRisk{{FoodRevenge, math.Min(1, s.HuntRevengeCost())}}
-			c.Terms = append(c.Terms, FoodPlanTerm{"revenge_chance", s.RevengeChance}, FoodPlanTerm{"herd_size", float64(s.HerdSize)}, FoodPlanTerm{"revenge_cost", s.HuntRevengeCost()}, FoodPlanTerm{"weapon_range", s.WeaponRange})
-		}
-		out = append(out, c)
 	}
 	return out
 }

@@ -58,13 +58,13 @@ func TestHuntSelectionSkipsRetaliatingPrey(t *testing.T) {
 	}
 }
 
-func TestHuntChannelsExposeRiskAndPursuitWork(t *testing.T) {
+func TestHuntCandidatesExposeRiskAndPursuitWork(t *testing.T) {
 	sources := []AcquisitionSource{
 		{ID: "melee", Hunt: true, Food: true, NutritionYield: 10, MeleeOnly: true, HerdSize: 1},
 		{ID: "ranged", Hunt: true, Food: true, NutritionYield: 10, WeaponRange: 25, RevengeChance: 0.05, HerdSize: 3},
 		{ID: "down", Hunt: true, Food: true, NutritionYield: 10, Downed: true, RevengeChance: 0.5, HerdSize: 3},
 	}
-	rows := HuntChannels(sources)
+	rows := HuntCandidates(sources, SquadHuntMinGunners, domain.Fact[float64]{})
 	melee, _ := rows[0].WorkPerDay.Value()
 	ranged, _ := rows[1].WorkPerDay.Value()
 	down, _ := rows[2].WorkPerDay.Value()

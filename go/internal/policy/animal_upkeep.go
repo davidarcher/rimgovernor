@@ -305,6 +305,13 @@ type RaceProduct struct {
 	HatchPawn             Resource
 }
 
+// SourceProduct is a good a source yields beside its main one, in units
+// (leather from a hunted deer).
+type SourceProduct struct {
+	Def    Resource
+	Amount float64
+}
+
 // AnimalRace is the static facts of one animal race (#1625), the same for
 // every animal of it and fixed for a map load. An unread value is unknown,
 // never zero.
@@ -322,6 +329,9 @@ type AnimalRace struct {
 	// Trainables are the training the race can ever learn (sorted).
 	Trainables []string
 	Products   []RaceProduct
+	// Butchery is what butchering a standing animal yields besides meat:
+	// its leather (the LeatherAmount stat) and the def's butcher products.
+	Butchery []SourceProduct
 	// FeedItems are the items the race can eat that a recipe produces (sorted
 	// by definition name): the feed a bench can make for it.
 	FeedItems []RaceFeedItem

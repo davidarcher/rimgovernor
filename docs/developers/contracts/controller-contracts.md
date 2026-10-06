@@ -445,22 +445,35 @@ bills (suspended, paused, repeat mode, counts, corpses the filter allows). `poli
 decides from them, in this order: fogged; safe prey (not in a mental state, edible; a pest
 waives it); a usable bench with a running bill accepting the corpse and a Cooking worker (a
 pest waives it); a colonist; a colonist who can hunt it: not downed, not in a mental state,
-Hunting active, an ordinary weapon (ranged, every attack verb a bullet or arrow with no
-blast radius and no flame damage) or a melee weapon or bare hands against meleeable prey
+Hunting active, vanilla's hunting weapon (a ranged primary whose attack verbs are all damaging
+projectiles, bullets and arrows alike, with no blast radius and no flame damage, and no
+ranged-blocking shield) or a melee weapon or bare hands against meleeable prey
 (body size <= 1.0, which flees), within 100 cells (a pest anywhere) and a safe route. A
 held row is not a source; the projection's `HuntHolds` names the first failing gate
 (`fogged`, `not_safe_prey`, `no_butcher_bill`, `no_colonist`, `no_hunter` with each
-colonist's `downed`, `mental_state`, `hunting_inactive`, `no_ordinary_weapon`, `too_far` or
-`no_safe_route`). Selection caps outstanding hunts at two. Supervised play pauses when an
+colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield`, `too_far`
+or `no_safe_route`). Selection caps outstanding hunts at two. Supervised play pauses when an
 active hunt loses its route.
 
 Acquisition reports revenge chance, same-race herd size within 25 cells (including the
-prey), melee eligibility, downed state and the longest ordinary weapon range among
-eligible hunters (derived by Go from the hunters; native sends 0). Food selection keeps forage priority, then downed animals, then lower
-revenge chance times herd size. Hunt channels cap exposure at one for Revenge risk and
-estimate pursuit as 7500 / (1 + range / 25) pawn ticks (2500 for downed prey): planning
-estimates, not proof of a kill. Incendiary weapons are excluded; already-dead fresh
-corpses stay pending butcher material.
+prey), melee eligibility and downed state; Go derives the longest weapon range among the
+eligible hunters from the census, and the animal's leather and butcher products from its
+race row. Food selection keeps forage priority, then downed animals, then lower revenge
+chance times herd size.
+
+One Hunt candidate stands per animal or prey group (`policy.HuntCandidates`), with a mode:
+`lone` (a designation; id the animal's) or `formation` (id `squad:<first prey>`, run as a
+`HuntRequest` of drafted gunners). A formation is required for prey that retaliates
+(a predator, or revenge chance above 0.2) and for a group the clustering marks worth a
+squad (12-cell linkage, three or more standing animals); every other animal is lone.
+Below three gunners a formation is a Hold with a `needs_gunners` term (the gunners it
+lacks, plus the `held_nutrition_per_day` it would deliver) and no yield. A candidate yields
+the meat nutrition and the animal's leather and butcher products; labor is charged once.
+Hunt candidates cap exposure at one for Revenge risk and estimate pursuit as
+7500 / (1 + range / 25) pawn ticks per animal (2500 for downed prey, halved for sleeping
+prey, scaled up for bad weather on a formation): planning estimates, not proof of a kill.
+Incendiary weapons are excluded; already-dead fresh corpses stay pending butcher
+material.
 
 ## Pest clearance
 

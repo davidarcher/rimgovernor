@@ -34,7 +34,7 @@ func TestFoodPlanTribalBridge(t *testing.T) {
 		t.Run(fmt.Sprintf("hunt=%t", hunt), func(t *testing.T) {
 			rows := ForageChannels(sources)
 			if hunt {
-				rows = append(rows, HuntChannels(sources)...)
+				rows = append(rows, HuntCandidates(sources, SquadHuntMinGunners, domain.Fact[float64]{})...)
 			}
 			rows = append(rows, CropChannels(fields, CropKitchen{})...)
 			r := foodPlanRequest(rows...)
@@ -286,7 +286,7 @@ func TestFoodPlanUnknownAndInvalid(t *testing.T) {
 
 func TestFoodPlanAdaptersAndInputOwnership(t *testing.T) {
 	sources := []AcquisitionSource{{ID: "plant", Food: true, NutritionYield: 2, Designated: true}, {ID: "deer", Food: true, Hunt: true, NutritionYield: 8}, {ID: "pest", Hunt: true}, {ID: "tree", Tree: true}}
-	f, h := ForageChannels(sources), HuntChannels(sources)
+	f, h := ForageChannels(sources), HuntCandidates(sources, SquadHuntMinGunners, domain.Fact[float64]{})
 	if len(f) != 1 || len(h) != 1 {
 		t.Fatalf("%+v %+v", f, h)
 	}

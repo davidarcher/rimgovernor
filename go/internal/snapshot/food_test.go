@@ -96,13 +96,11 @@ func TestCorpseLarderReleasesOneFrozenCorpse(t *testing.T) {
 
 // Recorded from acceptance run food/starving-tribal (#2141, tick 55502): the
 // tribal8 baseline with no food, no weapons and no butcher bill, a day and a
-// half in. Today's behaviour, pinned so the supply children (#2140) flip it:
-// the plan has a nutrition gap but no Hunt, Forage or Fishing row at all, so
-// no Open Hunt row and nothing delivered; crops are held because their lead
-// exceeds the runway. The native no-prey reasons ('hunting inactive',
-// NativeHuntAcquisition.Ineligible) and the hunt blockers (no butcher bill,
-// no gunners) live in the native-observed report of the case, not in this
-// snapshot, so they are not pinned here.
+// half in. The recording holds no hunt row (the wild deer were refused before
+// they reached the census), so its plan has a nutrition gap but no Hunt, Forage
+// or Fishing row, and crops are held because their lead exceeds the runway.
+// The hunt channel's behaviour on this colony is replayed in
+// buildingruntime.TestStarvingTribalHuntsWithBowsAndHoldsFormations.
 func TestStarvingTribalOpensNoHunt(t *testing.T) {
 	r, err := Load("testdata/food-starving-tribal-no-hunt-row.json.gz")
 	if err != nil {
@@ -119,7 +117,7 @@ func TestStarvingTribalOpensNoHunt(t *testing.T) {
 	for _, row := range plan.Portfolio {
 		switch row.Channel.Kind {
 		case policy.FoodHunt, policy.FoodForage, policy.FoodFishing:
-			t.Fatalf("today's plan has no %s row: %+v", row.Channel.Kind, row)
+			t.Fatalf("the recorded plan has no %s row: %+v", row.Channel.Kind, row)
 		case policy.FoodCrop:
 			if row.Channel.ID != "field-capacity" {
 				crops++

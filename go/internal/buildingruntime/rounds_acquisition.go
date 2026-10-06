@@ -318,7 +318,8 @@ func foodPlanAcquisition(plan policy.FoodPlan, sources domain.Fact[[]policy.Acqu
 	}
 	open := map[string]bool{}
 	for _, entry := range plan.Portfolio {
-		if (entry.Channel.Kind == policy.FoodForage || entry.Channel.Kind == policy.FoodHunt) && entry.Decision == policy.FoodPlanOpen {
+		// A formation hunt executes as a HuntRequest, never as designations.
+		if (entry.Channel.Kind == policy.FoodForage || entry.Channel.Kind == policy.FoodHunt && entry.Channel.Mode() == policy.HuntLone) && entry.Decision == policy.FoodPlanOpen {
 			open[entry.Channel.ID] = true
 		}
 	}

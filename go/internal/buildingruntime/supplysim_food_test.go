@@ -69,7 +69,8 @@ type srcSpec struct {
 	cells  float64 // crop field cells
 	grow   int     // crop grow days
 	window supplysim.Window
-	hidden bool // kept out of the projection by native gates
+	hidden bool    // kept out of the projection by native gates
+	reach  float64 // the longest weapon reach among the hunters who qualify
 }
 
 type foodScenario struct {
@@ -217,7 +218,7 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 				continue
 			}
 			hunt := s.kind == policy.FoodHunt
-			acquisition = append(acquisition, policy.AcquisitionSource{ID: id, Food: true, Hunt: hunt, NutritionYield: sv.Rate * s.nutr, Designated: sv.Open})
+			acquisition = append(acquisition, policy.AcquisitionSource{ID: id, Food: true, Hunt: hunt, NutritionYield: sv.Rate * s.nutr, WeaponRange: s.reach, Designated: sv.Open})
 			ids[string(s.kind)+"/"+id] = id
 		case policy.FoodFishing:
 			regionID := policy.FishingRegionID(domain.Cell{X: int32(len(water.Regions))})
@@ -439,6 +440,21 @@ var foodChains = map[string][]policy.FoodChannelKind{
 
 var foodSizes = []int{3, 8, 16}
 
+// bowReach is a short bow's range: the reach the gate offers a colony whose
+// only hunters carry bows (hunting is vanilla ranged-only, arrows included).
+const bowReach = 25.9
+
+// huntScenarios are the colonies the hunt channel decides: wild animals the
+// gates never offer (no butcher bill, no qualifying hunter), and a colony fed
+// by hunting alone with bow hunters.
+func huntScenarios(size int) []foodScenario {
+	hidden := mixScenario(fmt.Sprintf("hunt/no-huntable-animals/n%d", size), size, 1, 1, []policy.FoodChannelKind{policy.FoodForage, policy.FoodCrop, policy.FoodHunt})
+	hidden.specs[2].hidden = true
+	bows := mixScenario(fmt.Sprintf("hunt/only-bows/n%d", size), size, 1, foodShare, []policy.FoodChannelKind{policy.FoodHunt})
+	bows.specs[0].reach = bowReach
+	return []foodScenario{hidden, bows}
+}
+
 var foodDemandLevels = map[string]float64{"base": 1, "high": 1.5}
 
 // foodShocks are dated at foodShockDay on a four-channel colony; each lists
@@ -532,6 +548,7 @@ func foodScenarios(t testing.TB) []foodScenario {
 				}
 			}
 		}
+		out = append(out, huntScenarios(size)...)
 		for _, shock := range slices.Sorted(maps.Keys(foodShocks)) {
 			base := mixScenario(fmt.Sprintf("shock-twin/n%d", size), size, 1, foodShockShare, foodShockMix)
 			sc := mixScenario(fmt.Sprintf("shock/%s/n%d", shock, size), size, 1, foodShockShare, foodShockMix)

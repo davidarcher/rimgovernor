@@ -16,7 +16,7 @@ func TestRoundsHuntOrigin(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "hunt.db"))
 	r := roundsRequest()
 	rows := []policy.AcquisitionSource{{ID: "a", Hunt: true, Food: true, NutritionYield: 10, Yield: 1}, {ID: "b", Hunt: true, Food: true, NutritionYield: 10, Yield: 1}, {ID: "c", Hunt: true, Food: true, NutritionYield: 10, Yield: 1}}
-	squads, _ := policy.SquadHunts(rows, policy.SquadHuntMaxGunners, domain.Fact[float64]{})
+	squads := policy.HuntCandidates(rows, policy.SquadHuntMaxGunners, domain.Fact[float64]{})
 	r.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: squads[0], Decision: policy.FoodPlanOpen}}})
 	out := reviewRounds(t, s, &r)
 	b, ok := out.Review.Incident(policy.ActiveCombat)

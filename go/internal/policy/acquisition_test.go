@@ -92,14 +92,14 @@ func TestResourceAcquisitionSelectsOnlyTheNamedHarvest(t *testing.T) {
 func TestHuntSelectionPrefersTheSafeDeerOverTheHerd(t *testing.T) {
 	var rows []AcquisitionSource
 	for i := 0; i < 3; i++ {
-		rows = append(rows, AcquisitionSource{ID: fmt.Sprint("muffalo", i), Definition: "Muffalo", Resource: "Corpse_Muffalo", Token: "m", Food: true, Hunt: true, Yield: 1, NutritionYield: 9, RevengeChance: 0.1, HerdSize: 3, Cell: domain.Cell{X: 10 + int32(i), Z: 10}})
+		rows = append(rows, AcquisitionSource{ID: fmt.Sprint("muffalo", i), Definition: "Muffalo", Resource: "Corpse_Muffalo", Token: "m", Food: true, Hunt: true, Yield: 1, NutritionYield: 9, RevengeChance: 0.1, HerdSize: 3, Cell: domain.Cell{X: 10 + 20*int32(i), Z: 10}})
 	}
-	rows = append(rows, AcquisitionSource{ID: "deer", Definition: "Deer", Resource: "Corpse_Deer", Token: "d", Food: true, Hunt: true, Yield: 1, NutritionYield: 4, RevengeChance: 0.05, HerdSize: 1, Cell: domain.Cell{X: 9, Z: 10}})
+	rows = append(rows, AcquisitionSource{ID: "deer", Definition: "Deer", Resource: "Corpse_Deer", Token: "d", Food: true, Hunt: true, Yield: 1, NutritionYield: 4, RevengeChance: 0.05, HerdSize: 1, Cell: domain.Cell{X: 100, Z: 10}})
 	selected, err := SelectAcquisition(domain.Known(rows), domain.Known(0.1), domain.Known(0.0), true, nil, domain.Known(1))
 	if err != nil || len(selected) != 1 || selected[0].ID != "deer" {
 		t.Fatal("safe deer not selected first", selected, err)
 	}
-	channels := HuntChannels(rows)
+	channels := HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{})
 	if len(channels) != 4 {
 		t.Fatal(channels)
 	}

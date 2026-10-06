@@ -24,6 +24,9 @@ type AcquisitionSource struct {
 	// BodySize, Sleeping and Predator describe a hunt row for squad planning.
 	BodySize           float64
 	Sleeping, Predator bool
+	// Products are what butchering the animal yields besides meat (leather),
+	// from its race row.
+	Products []SourceProduct `json:",omitempty"`
 	// Pest is the source's race row flag (AnimalRace.Pest, #1722).
 	Pest bool `json:",omitempty"`
 	// DesignatedTick is the tick native first saw the designation (reset on

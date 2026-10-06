@@ -100,44 +100,92 @@ func SquadPreyGroups(sources []AcquisitionSource) [][]AcquisitionSource {
 	return out
 }
 
-// SquadHunts are the food channels of the groups worth a squad when gunners
-// can form one, and the sources left to designation hunting. A grouped
-// animal is credited once, in its group's channel. Bad weather (rain, snow,
-// fog) mildly raises the work of a hunt.
-func SquadHunts(sources []AcquisitionSource, gunners int, weatherAccuracy domain.Fact[float64]) ([]FoodChannel, []AcquisitionSource) {
-	if gunners < SquadHuntMinGunners {
-		return nil, sources
+// HuntMode is how a hunt candidate executes: a lone hunter's designation, or a
+// drafted formation (HuntRequest).
+type HuntMode string
+
+const (
+	HuntLone      HuntMode = "lone"
+	HuntFormation HuntMode = "formation"
+)
+
+// Mode is the hunt's mode: a formation is the candidate that names its prey.
+func (c FoodChannel) Mode() HuntMode {
+	if len(c.Prey) > 0 {
+		return HuntFormation
 	}
+	return HuntLone
+}
+
+// HuntCandidates are the hunt channels of the offered food prey, one per
+// animal or per group: a group worth a squad (SquadPreyGroups) is one
+// formation channel `squad:<first id>`, every other animal a lone channel
+// named by its id. A grouped animal is credited once, in its group's channel.
+// With fewer than SquadHuntMinGunners gunners a formation is a Hold: it
+// yields nothing and carries a needs_gunners term, the gunners it lacks, and
+// the nutrition it would deliver. Bad weather (rain, snow, fog) mildly raises
+// the work of a formation. A hunt yields the animal's meat and its Products.
+func HuntCandidates(sources []AcquisitionSource, gunners int, weatherAccuracy domain.Fact[float64]) []FoodChannel {
 	grouped := map[string]bool{}
-	var channels []FoodChannel
+	var out []FoodChannel
 	for _, g := range SquadPreyGroups(sources) {
-		var nutrition, work, risk float64
-		c := FoodChannel{Kind: FoodHunt, LeadDays: domain.Known(0.0), Open: domain.Known(false)}
 		for _, s := range g {
 			grouped[s.ID] = true
-			nutrition += s.NutritionYield
-			w := FoodHuntWorkTicks / (1 + s.WeaponRange/25)
-			if s.Sleeping {
-				w *= squadSleepingWork
+		}
+		out = append(out, huntChannel("squad:"+g[0].ID, g, true, SquadWeatherWork(weatherAccuracy), gunners))
+	}
+	for _, s := range sources {
+		if s.Hunt && s.Food && !s.Tree && !grouped[s.ID] {
+			out = append(out, huntChannel(s.ID, []AcquisitionSource{s}, false, 1, gunners))
+		}
+	}
+	return out
+}
+
+// huntChannel prices the prey as one cycle's hunt: each animal's pursuit work
+// (shortened by weapon reach, halved asleep, only collection when downed)
+// scaled by weather, the worst revenge exposure among them as risk.
+func huntChannel(id string, prey []AcquisitionSource, formation bool, weather float64, gunners int) FoodChannel {
+	var nutrition, work, risk float64
+	products := map[Resource]float64{}
+	var defs []Resource
+	c := FoodChannel{Kind: FoodHunt, ID: id, LeadDays: domain.Known(0.0), Open: domain.Known(false)}
+	for _, s := range prey {
+		w := FoodHuntWorkTicks / (1 + s.WeaponRange/25)
+		if s.Downed {
+			w = FoodForageWorkTicks
+		}
+		if s.Sleeping {
+			w *= squadSleepingWork
+		}
+		nutrition += s.NutritionYield
+		work += w * weather
+		risk = math.Max(risk, s.HuntRevengeCost())
+		for _, p := range s.Products {
+			if _, seen := products[p.Def]; !seen {
+				defs = append(defs, p.Def)
 			}
-			work += w * SquadWeatherWork(weatherAccuracy)
-			risk = math.Max(risk, s.HuntRevengeCost())
+			products[p.Def] += p.Amount
+		}
+		if formation {
 			c.Prey = append(c.Prey, s.ID)
 		}
-		c.ID = "squad:" + g[0].ID
-		c.NutritionPerDay = domain.Known(nutrition / FoodHuntCycleDays)
-		c.WorkPerDay = domain.Known(work / FoodHuntCycleDays)
-		c.Risk = []FoodRisk{{FoodRevenge, math.Min(1, risk)}}
-		c.Terms = []FoodPlanTerm{{"estimated_cycle_days", FoodHuntCycleDays}, {"estimated_work_ticks", work}, {"squad_prey", float64(len(g))}, {"revenge_cost", risk}}
-		channels = append(channels, c)
 	}
-	rest := make([]AcquisitionSource, 0, len(sources))
-	for _, s := range sources {
-		if !grouped[s.ID] {
-			rest = append(rest, s)
-		}
+	c.NutritionPerDay, c.WorkPerDay = domain.Known(nutrition/FoodHuntCycleDays), domain.Known(work/FoodHuntCycleDays)
+	for _, def := range defs {
+		c.Products = append(c.Products, CandidateYield{Good: ResourceKey{Def: def}, PerDay: domain.Known(products[def] / FoodHuntCycleDays)})
 	}
-	return channels, rest
+	c.Risk = []FoodRisk{{FoodRevenge, math.Min(1, risk)}}
+	c.Terms = []FoodPlanTerm{{"estimated_cycle_days", FoodHuntCycleDays}, {"estimated_work_ticks", work}, {"prey", float64(len(prey))}, {"revenge_cost", risk}}
+	if len(prey) == 1 {
+		s := prey[0]
+		c.Terms = append(c.Terms, FoodPlanTerm{"revenge_chance", s.RevengeChance}, FoodPlanTerm{"herd_size", float64(s.HerdSize)}, FoodPlanTerm{"weapon_range", s.WeaponRange})
+	}
+	if formation && gunners < SquadHuntMinGunners {
+		c.Terms = append(c.Terms, FoodPlanTerm{"needs_gunners", float64(SquadHuntMinGunners - gunners)}, FoodPlanTerm{"held_nutrition_per_day", nutrition / FoodHuntCycleDays})
+		c.NutritionPerDay, c.WorkPerDay, c.Products = domain.Known(0.0), domain.Known(0.0), nil
+	}
+	return c
 }
 
 // HuntRequest is the squad prey the food plan opens: the union of the open

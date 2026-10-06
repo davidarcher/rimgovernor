@@ -38,10 +38,10 @@ type HuntWeapon struct {
 	Verbs         []HuntVerb
 }
 
-// Ordinary reports the weapon a lone hunter may use: ranged, with at least
-// one attack verb and every attack verb a plain projectile (bullet or arrow,
-// no blast radius, no flame damage).
-func (w HuntWeapon) Ordinary() bool {
+// Hunts reports the vanilla hunting weapon: ranged, with at least one attack
+// verb and every attack verb a damaging projectile (bullet or arrow, no blast
+// radius, no flame damage).
+func (w HuntWeapon) Hunts() bool {
 	if !w.Ranged {
 		return false
 	}
@@ -51,7 +51,7 @@ func (w HuntWeapon) Ordinary() bool {
 			continue
 		}
 		n++
-		if v.Projectile != HuntProjectileBullet && v.Projectile != HuntProjectileArrow || v.ExplosionRadius != 0 || v.DamageWorker == flameDamageWorker {
+		if v.Projectile != HuntProjectileBullet && v.Projectile != HuntProjectileArrow || v.ExplosionRadius != 0 || v.DamageDef == "" || v.DamageWorker == flameDamageWorker {
 			return false
 		}
 	}
@@ -116,7 +116,8 @@ const (
 	huntHunterDowned    = "downed"
 	huntHunterMental    = "mental_state"
 	huntHunterInactive  = "hunting_inactive"
-	huntHunterNoWeapon  = "no_ordinary_weapon"
+	huntHunterNoWeapon  = "no_hunting_weapon"
+	huntHunterShield    = "ranged_blocking_shield"
 	huntHunterTooFar    = "too_far"
 	huntHunterNoRoute   = "no_safe_route"
 )
@@ -136,8 +137,8 @@ type HuntPrey struct {
 }
 
 // HuntVerdict is the gate's answer for one hunt row. A nil Hold offers the row,
-// with WeaponRange the longest reach among the colonists who can hunt it with an
-// ordinary weapon.
+// with WeaponRange the longest reach among the colonists who can hunt it with a
+// ranged weapon.
 type HuntVerdict struct {
 	Hold        *HuntHold
 	WeaponRange float64
@@ -183,10 +184,12 @@ func (b HuntBill) running(corpse string) bool {
 }
 
 // hunterReason is why a colonist cannot hunt the prey, "" when they can; order
-// is the gate's: downed, mental state, Hunting off, weapon, reach, route.
+// is the gate's: downed, mental state, Hunting off, weapon (a shield blocks a
+// ranged one), reach, route.
 func (c HuntCensus) hunterReason(h HuntHunter, prey HuntPrey) string {
 	meleeable := prey.Source.MeleeOnly
-	armed := h.Weapon != nil && h.Weapon.Ordinary() || meleeable && (h.Weapon == nil || h.Weapon.Melee)
+	shooter := h.Weapon != nil && h.Weapon.Hunts()
+	armed := shooter && !h.RangedBlockingShield || meleeable && (h.Weapon == nil || h.Weapon.Melee)
 	dx, dz := int64(h.Cell.X-prey.Source.Cell.X), int64(h.Cell.Z-prey.Source.Cell.Z)
 	switch {
 	case h.Downed:
@@ -195,6 +198,8 @@ func (c HuntCensus) hunterReason(h HuntHunter, prey HuntPrey) string {
 		return huntHunterMental
 	case !h.HuntingActive:
 		return huntHunterInactive
+	case !armed && shooter:
+		return huntHunterShield
 	case !armed:
 		return huntHunterNoWeapon
 	case !prey.pest() && dx*dx+dz*dz > huntReachSquared:
@@ -235,7 +240,7 @@ func (c HuntCensus) Gate(prey HuntPrey) HuntVerdict {
 			continue
 		}
 		offered = true
-		if h.Weapon != nil && h.Weapon.Ordinary() {
+		if h.Weapon != nil && h.Weapon.Hunts() {
 			for _, v := range h.Weapon.Verbs {
 				if !v.Melee && v.AIWeapon {
 					reach = max(reach, v.Range)

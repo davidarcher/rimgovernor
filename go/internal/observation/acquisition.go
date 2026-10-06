@@ -18,8 +18,7 @@ func ColonyAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) domain.Fa
 
 // decodeAcquisition maps the census rows. A native read carries the raw hunt
 // census, and every hunt row passes policy.HuntGate: a held row is not a source
-// but a hold. A read without the census (a replayed older recording) offers its
-// hunt rows as stated.
+// but a hold.
 func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.Fact[[]policy.AcquisitionSource], []policy.HuntHold) {
 	if hasIssue(v.Issues, "acquisition") || !headed(tables, v.Acquisition, (*o.AcquisitionFacts).GetSource) {
 		return domain.Unknown[[]policy.AcquisitionSource](), nil
@@ -28,7 +27,7 @@ func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.F
 	if err != nil {
 		return domain.Unknown[[]policy.AcquisitionSource](), nil
 	}
-	census, gated := huntCensus(v.HuntCensus)
+	census := huntCensus(v.HuntCensus)
 	rows := []policy.AcquisitionSource{}
 	var holds []policy.HuntHold
 	for _, row := range v.Acquisition {
@@ -38,8 +37,9 @@ func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.F
 		if row.GetHunt() && !row.GetFood() && !race.Pest {
 			continue
 		}
-		offered := policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.SourceSnapshot.GetToken(), Definition: source.GetDefName(), Cell: domain.Cell{X: source.GetPosition().GetX(), Z: source.GetPosition().GetZ()}, Hunt: row.GetHunt(), Tree: row.GetTree(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), NutritionYield: row.GetNutritionYield(), RevengeChance: row.GetRevengeChance(), HerdSize: int(row.GetHerdSize()), MeleeOnly: row.GetMeleeOnly(), Downed: row.GetDowned(), BodySize: row.GetBodySize(), Sleeping: row.GetSleeping(), Predator: row.GetPredator(), Pest: race.Pest, WeaponRange: row.GetWeaponRange(), DesignatedTick: domain.Tick(row.GetDesignatedTick()), Taken: row.GetTaken()}
-		if gated && offered.Hunt {
+		offered := policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.SourceSnapshot.GetToken(), Definition: source.GetDefName(), Cell: domain.Cell{X: source.GetPosition().GetX(), Z: source.GetPosition().GetZ()}, Hunt: row.GetHunt(), Tree: row.GetTree(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), NutritionYield: row.GetNutritionYield(), RevengeChance: row.GetRevengeChance(), HerdSize: int(row.GetHerdSize()), MeleeOnly: row.GetMeleeOnly(), Downed: row.GetDowned(), BodySize: row.GetBodySize(), Sleeping: row.GetSleeping(), Predator: row.GetPredator(), Pest: race.Pest, DesignatedTick: domain.Tick(row.GetDesignatedTick()), Taken: row.GetTaken()}
+		if offered.Hunt {
+			offered.Products = race.Butchery
 			verdict := census.Gate(policy.HuntPrey{Source: offered, Fogged: row.GetFogged(), Mental: row.GetInMentalState()})
 			if verdict.Hold != nil {
 				holds = append(holds, *verdict.Hold)
@@ -52,12 +52,9 @@ func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.F
 	return domain.Known(rows), holds
 }
 
-// huntCensus decodes native's raw hunt facts; gated is false without them.
-func huntCensus(v *o.HuntCensus) (census policy.HuntCensus, gated bool) {
-	if v == nil {
-		return census, false
-	}
-	for _, b := range v.Benches {
+// huntCensus decodes native's raw hunt facts.
+func huntCensus(v *o.HuntCensus) (census policy.HuntCensus) {
+	for _, b := range v.GetBenches() {
 		bench := policy.HuntBench{ID: b.GetBenchId(), Usable: b.GetUsable()}
 		for _, bill := range b.Bills {
 			row := policy.HuntBill{Suspended: bill.GetSuspended(), Paused: bill.GetPaused(), Count: int(bill.GetRepeatCount()), Target: int(bill.GetTargetCount()), AllowedCorpses: set(bill.AllowedCorpses)}
@@ -77,7 +74,7 @@ func huntCensus(v *o.HuntCensus) (census policy.HuntCensus, gated bool) {
 		}
 		census.Benches = append(census.Benches, bench)
 	}
-	for _, h := range v.Hunters {
+	for _, h := range v.GetHunters() {
 		hunter := policy.HuntHunter{ID: h.GetPawnId(), Cell: domain.Cell{X: h.GetPosition().GetX(), Z: h.GetPosition().GetZ()},
 			Downed: h.GetDowned(), MentalState: h.GetInMentalState(), Drafted: h.GetDrafted(),
 			HuntingPriority: int(h.GetHuntingPriority()), HuntingActive: h.GetHuntingActive(), HuntingDisabled: h.GetHuntingDisabled(), CookingActive: h.GetCookingActive(),
@@ -93,7 +90,7 @@ func huntCensus(v *o.HuntCensus) (census policy.HuntCensus, gated bool) {
 		}
 		census.Hunters = append(census.Hunters, hunter)
 	}
-	return census, true
+	return census
 }
 
 func huntProjectile(kind o.HuntProjectileKind) policy.HuntProjectile {
