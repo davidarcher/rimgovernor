@@ -35,10 +35,10 @@ type ResourceFieldRequest struct {
 // Candidates are ranked by yield per day over the needed cells.
 //
 // A tree species (IsTreeCrop, #2289) is planned on the native lattice, one
-// tree per domain.TreeCellsPerTree cells, each yielding its wood at the best
-// fell fraction (treePricing); it needs a researched, biome-native species and a
-// skilled sower, has no season to fit (its growth carries across seasons), and
-// ranks by price (wood per labor tick over land, sowing and felling).
+// tree per domain.TreeCellsPerTree cells, each yielding its wood at the first
+// harvestable growth (treePricing); it needs a researched, biome-native species
+// and a skilled sower, has no season to fit (its growth carries across
+// seasons), and ranks by price (wood per cell-day of land).
 func PlanFieldByResource(r ResourceFieldRequest) (FieldPlan, bool) {
 	deficit, dk := r.Deficit.Value()
 	sowing, sk := r.Climate.SowingOutdoors().Value()

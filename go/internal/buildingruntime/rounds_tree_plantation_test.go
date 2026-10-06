@@ -80,7 +80,7 @@ func TestChopMinGrowthFollowsTheTreePlan(t *testing.T) {
 	sower := policy.WorkPawn{ID: "sower", Available: domain.Known(true), Skills: domain.Known([]policy.WorkSkill{{Name: "Plants", Level: 8}}),
 		Work: domain.Known([]policy.WorkPriority{{Work: policy.WorkGrowing, Priority: 3, Skill: "Plants"}}), Traits: domain.Known([]policy.PawnTrait{}), Incapable: domain.Known([]policy.WorkType{}), Age: domain.Known(30.0)}
 	projection.WorkPawns = domain.Known([]policy.WorkPawn{sower})
-	// Oak at 250 ticks a cell-day prices best felled as soon as harvestable.
+	// Oak is felled as soon as harvestable.
 	if got := r.chopMinGrowth(projection); got != 0.4 {
 		t.Fatalf("a skilled sower: the oak fell point gates the chop, got %v", got)
 	}

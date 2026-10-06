@@ -26,18 +26,18 @@ func treeRequest(deficit float64, crops ...CropChoice) ResourceFieldRequest {
 	return r
 }
 
-func TestTreePricingFellPoint(t *testing.T) {
+func TestTreePricingFellsEarly(t *testing.T) {
 	oak := treeCrop("Plant_TreeOak", 30, 46)
-	// Land 4 cells x 30 days x 250 = 30000 per full tree: felling at the
-	// harvestable point halves the wood but costs far less land time.
-	fraction, wood, _, ok := treePricing(oak)
-	if !ok || fraction != 0.4 || math.Abs(wood-23) > 1e-9 {
-		t.Fatalf("oak fells early: %v %v %v", fraction, wood, ok)
+	// Always at harvestMinGrowth, for half the harvest yield, priced per
+	// cell-day of lattice land: 23 / (4 x 30 x 0.4).
+	fraction, wood, price, ok := treePricing(oak)
+	if !ok || fraction != 0.4 || math.Abs(wood-23) > 1e-9 || math.Abs(price-23.0/48) > 1e-9 {
+		t.Fatalf("oak fells early: %v %v %v %v", fraction, wood, price, ok)
 	}
-	// A fast, cheap-land species keeps its trees to full growth.
+	// A fast species fells early too.
 	bamboo := treeCrop("Plant_Bamboo", 12, 10)
-	if fraction, wood, _, _ := treePricing(bamboo); fraction != 1 || wood != 10 {
-		t.Fatalf("bamboo fells at maturity: %v %v", fraction, wood)
+	if fraction, wood, _, _ := treePricing(bamboo); fraction != 0.4 || wood != 5 {
+		t.Fatalf("bamboo fells early: %v %v", fraction, wood)
 	}
 	oak.SowWork = domain.Unknown[float64]()
 	if _, _, _, ok := treePricing(oak); ok {

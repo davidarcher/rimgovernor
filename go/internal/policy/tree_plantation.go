@@ -8,18 +8,10 @@ import (
 
 // Tree plantations (#2289): a standing wood demand sows a rectangular growing
 // zone of one tree species, one tree per domain.TreeCellsPerTree cells (the
-// native lattice, #2290). A tree yields harvestYield * (0.5 + 0.5 * (growth -
-// harvestMinGrowth) / (1 - harvestMinGrowth)) wood when felled at growth, so
-// each species is priced at the better of two fell points: as soon as it is
-// harvestable (half its wood, least land time) or at full growth (all of it,
-// least labor per wood). The price is wood per labor tick over the tree's land
-// (cells x days x TreeCellDayLaborTicks), its sowing and its felling.
-
-// TreeCellDayLaborTicks is the labor ticks one cell held for one day costs: it
-// converts the land a plantation occupies into the same unit as sowing and
-// felling work, so the fell point trades land time against labor per wood. It
-// is a judgement, not a game constant: raise it to fell earlier.
-const TreeCellDayLaborTicks = 250.0
+// native lattice, #2290). Trees are always felled early, at the first
+// harvestable growth (the species' harvestMinGrowth), when a tree yields
+// harvestYield * 0.5 wood (Plant.YieldNow at growth == harvestMinGrowth).
+// Species rank by wood per cell-day of land at lattice density.
 
 // IsTreeCrop is whether crop is a tree plantation species: a plant whose
 // harvest fells it and whose neighbours the native sower keeps clear.
@@ -29,26 +21,20 @@ func IsTreeCrop(crop CropChoice) bool {
 	return bk && dk && block && destroys
 }
 
-// treePricing is the fell fraction of crop's growth that prices best, the wood
-// one tree gives then, and the wood per labor tick it earns. False when a
-// crop fact is unknown.
+// treePricing is the fell fraction of crop's growth (its harvestMinGrowth), the
+// wood one tree gives then, and the wood per cell-day of land it earns. False
+// when a crop fact is unknown.
 func treePricing(crop CropChoice) (fraction, wood, price float64, ok bool) {
 	days, gk := crop.GrowDays.Value()
 	yield, yk := crop.UnitsPerCell.Value()
 	minGrowth, mk := crop.HarvestMinGrowth.Value()
 	sow, sk := crop.SowWork.Value()
 	fell, fk := crop.HarvestWork.Value()
-	if !gk || !yk || !mk || !sk || !fk || !fieldPositive(days) || !fieldPositive(yield) || !(minGrowth >= 0 && minGrowth < 1) || sow < 0 || fell < 0 {
+	if !gk || !yk || !mk || !sk || !fk || !fieldPositive(days) || !fieldPositive(yield) || !(minGrowth > 0 && minGrowth < 1) || sow < 0 || fell < 0 {
 		return 0, 0, 0, false
 	}
-	for _, f := range []float64{minGrowth, 1} {
-		w := yield * (f + 1 - 2*minGrowth) / (2 * (1 - minGrowth))
-		labor := domain.TreeCellsPerTree*days*f*TreeCellDayLaborTicks + sow + fell
-		if p := w / labor; p >= price {
-			fraction, wood, price = f, w, p
-		}
-	}
-	return fraction, wood, price, price > 0
+	wood = yield * 0.5
+	return minGrowth, wood, wood / (domain.TreeCellsPerTree * days * minGrowth), true
 }
 
 // treeSowable is why crop cannot be sown as a plantation here, empty when it
@@ -82,7 +68,7 @@ func cropSowable(crop CropChoice, skill domain.Fact[int32]) string {
 }
 
 // TreeFellFraction is the colony-wide growth fraction at which plantation trees
-// are felled: that of the best-priced tree species harvesting resource that can
+// are felled: the harvestMinGrowth of the best-priced tree species harvesting resource that can
 // be sown now. False when no species can, so nothing gates the chop. It is a
 // pure function of the catalog and the colony, recomputed each review.
 func TreeFellFraction(choices []CropChoice, resource Resource, biome domain.Fact[string], skill domain.Fact[int32]) (float64, bool) {
