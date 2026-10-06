@@ -505,6 +505,17 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !reason.IsZero() {
 		return RoundsBuildingResult{Verdict: reason}, nil
 	}
+	// The shelter's template slots are keyed on its planned interior, so its
+	// ring is admitted with them in one reconcile wave (#2264); a shell already
+	// tried this epoch, or refused, leaves the placement to go on.
+	if r.takesShelterSlot(facts) {
+		if room, owed := plannedRoomOwed(facts, policy.PlannedShelter); owed {
+			result, err := r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))})
+			if err != nil || !result.Verdict.skipsToPlacement() {
+				return result, err
+			}
+		}
+	}
 	if module, ok := r.plannedRoomModule(); ok {
 		// The planned room is raised and furnished together (#835): the
 		// ring is admitted, and the stove or cooler goes onto the room's

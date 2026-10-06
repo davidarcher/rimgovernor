@@ -173,6 +173,25 @@ func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Co
 	return &furnish, RoundsBuildingResult{}, false, nil
 }
 
+// takesShelterSlot reports a planner placing furniture on the planned
+// shelter's template slots: the cold campfires, the hot passive cooler, the
+// crafting spot and the research bench (#2264).
+func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProjection) bool {
+	plan, known := facts.LayoutPlan.Value()
+	switch {
+	case r.facility != nil:
+		return r.facility.Role == policy.RoomRoleLaboratory
+	case r.concern == policy.EnsureBasicDefense:
+		return r.definition == craftingSpotDefinition
+	case r.definition == "Campfire":
+		cooking := r.concern == policy.EnsureCooking && len(r.paste) == 0
+		return known && plan.Cold && (cooking || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat)
+	case r.definition == "PassiveCooler":
+		return known && plan.Hot && r.temperature != nil && r.temperature.Method == policy.TemperatureCool
+	}
+	return false
+}
+
 // shelterShellSuffix is "-X-Z" of the layout plan's first shelter room, so
 // the shell reads shelter-shell-X-Z (#2043); empty while no plan holds one.
 func shelterShellSuffix(facts observation.ColonyProjection) string {
