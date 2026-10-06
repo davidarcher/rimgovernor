@@ -41,7 +41,7 @@ type resourceSupplyRow struct {
 	// busy: a census designation of the resource is still in flight.
 	busy bool
 	// fields are the new fields the plan priced (#2284) by candidate ID: the
-	// crop, cells and patches the executor of an opened field (#2285) sows.
+	// crop, cells and patches the field step (#2285) places when the plan opened it.
 	fields map[string]policy.FieldPlan
 }
 
@@ -326,6 +326,20 @@ func (s *resourceSupply) acquisitions(resource policy.Resource) []policy.Acquisi
 			others++
 		}
 		out = append(out, source)
+	}
+	return out
+}
+
+// openedFields are the field plans the supply plan opened, worst covered
+// resource first; the field step places each as a MaintainResource shortfall.
+func (s *resourceSupply) openedFields() []policy.FieldPlan {
+	var out []policy.FieldPlan
+	for _, resource := range s.order {
+		for _, e := range s.plan.Opened(resource) {
+			if plan, ok := s.rows[resource].fields[e.Candidate.ID]; ok && e.Candidate.Kind == policy.CandidateHarvest {
+				out = append(out, plan)
+			}
+		}
 	}
 	return out
 }

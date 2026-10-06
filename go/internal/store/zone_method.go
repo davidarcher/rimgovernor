@@ -72,14 +72,14 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		return ErrConflict
 	}
 	bound := false
-	social := false
+	resource := false
 	if need, ok := owner.ownerNeed(review); ok {
 		if stockpile {
 			limit = policy.StockpileZoneLimit(need)
 			bound = limit > 0
 		} else {
 			bound = need == policy.EnsureFoodSupply || need == policy.MaintainResource
-			social = need == policy.MaintainResource
+			resource = need == policy.MaintainResource
 		}
 	}
 	if !bound || len(plan.Actions()) > limit {
@@ -92,13 +92,17 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		if !ok || stockpile != (zone.Kind() == domain.StockpileZone) {
 			return ErrConflict
 		}
-		if social {
-			if !review.BrewingFinished || zone.Kind() != domain.GrowingZone || zone.Crop() != "Plant_Hops" && zone.Crop() != "Plant_Smokeleaf" {
+		if resource {
+			if zone.Kind() != domain.GrowingZone {
 				return ErrConflict
 			}
-			cropCells[zone.Crop()] += len(zone.Cells())
-			if cropCells[zone.Crop()] > 9 {
-				return ErrConflict
+			// Any resource crop may be sown (#2285); the social crops keep their
+			// brewing gate and nine-cell ceiling.
+			if social := zone.Crop() == "Plant_Hops" || zone.Crop() == "Plant_Smokeleaf"; social {
+				cropCells[zone.Crop()] += len(zone.Cells())
+				if !review.BrewingFinished || cropCells[zone.Crop()] > 9 {
+					return ErrConflict
+				}
 			}
 		}
 		for _, cell := range zone.Cells() {

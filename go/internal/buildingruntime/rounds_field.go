@@ -86,7 +86,14 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoundsFieldResult{}, err
 	}
-	definitions := append(roundsProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn", "Plant_Strawberry", "Plant_Toxipotato", "Plant_Nutrifungus", "Plant_Haygrass", "Plant_Hops", "Plant_Smokeleaf", "SunLamp", "HydroponicsBasin", "Heater")
+	// Every sowable crop is read, so a deficit of any harvested resource can
+	// be planted for (#2285); the lamp, basin and heater are the infrastructure.
+	crops, err := r.reviewer.sowableCrops(call, state.Snapshot)
+	if err != nil {
+		return RoundsFieldResult{}, err
+	}
+	definitions := append(roundsProjectDefinitions(plans, state.Snapshot, playerPlans), crops...)
+	definitions = append(definitions, "SunLamp", "HydroponicsBasin", "Heater")
 	definitions = uniqueFieldDefinitions(definitions)
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
@@ -111,7 +118,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	// The cross-crop ledger (#1308): hay and social shortfalls compete with
 	// the food block for the plan's field patches in one ranked order.
-	others, err := r.otherFieldShortfalls(call, review, projection)
+	others, err := r.otherFieldShortfalls(call, state, review, projection)
 	if err != nil {
 		return RoundsFieldResult{}, err
 	}
@@ -209,9 +216,10 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 
 // otherFieldShortfalls is the hay and social field demand of this step's
 // read (#1308), each under its own goal: hay under MaintainAnimalFeed,
-// social crops under MaintainResource once brewing is researched. A goal
-// with open work waits for it.
-func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, review store.Rounds, projection observation.ColonyProjection) ([]fieldShortfall, error) {
+// social crops under MaintainResource once brewing is researched, and the new
+// fields the resource supply plan opened (#2285), also under MaintainResource.
+// A goal with open work waits for it.
+func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection) ([]fieldShortfall, error) {
 	p := r.reviewer.player
 	ready := func(kind policy.ConcernID) (store.StandardState, bool, error) {
 		goal, workable, err := p.journal.Workable(call, review, kind)
@@ -251,6 +259,19 @@ func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, review s
 				}
 			}
 		}
+	}
+	// The fields the resource supply plan opened: one shortfall per opened
+	// candidate, the crop and cells the plan priced.
+	goal, workable, err := ready(policy.MaintainResource)
+	if err != nil || !workable {
+		return out, err
+	}
+	supply, err := r.reviewer.resourceSupply(call, state, review, goal)
+	if err != nil {
+		return nil, err
+	}
+	for _, plan := range supply.openedFields() {
+		out = append(out, fieldShortfall{Standard: goal, Options: []policy.FieldBlockOption{{Crop: plan.Crop, Needed: plan.Needed}}, What: "resource"})
 	}
 	return out, nil
 }

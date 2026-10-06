@@ -56,3 +56,26 @@ func TestResourceFieldPlannerPricesAndCountsStandingFields(t *testing.T) {
 		t.Fatal("no field out of the sowing season")
 	}
 }
+
+// The field step places the fields the supply plan opened: a field the plan
+// closed, or an opened harvest candidate that is no field, is not placed.
+func TestResourceSupplyOpenedFields(t *testing.T) {
+	cotton := policy.FieldPlan{Crop: policy.CropChoice{Name: "Plant_Cotton"}, Needed: 7}
+	entry := func(id string, decision policy.SupplyDecision) policy.SupplyEntry {
+		return policy.SupplyEntry{Decision: decision, Candidate: policy.SupplyCandidate{Kind: policy.CandidateHarvest, ID: id, Yields: []policy.CandidateYield{{Good: policy.ResourceKey{Def: "Cloth"}}}}}
+	}
+	s := &resourceSupply{
+		order: []policy.Resource{"Cloth"},
+		rows:  map[policy.Resource]*resourceSupplyRow{"Cloth": {fields: map[string]policy.FieldPlan{"field:Plant_Cotton": cotton}}},
+		plan: policy.ResourceSupply{Plan: policy.SupplyPlan{Portfolio: []policy.SupplyEntry{
+			entry("field:Plant_Cotton", policy.SupplyOpen), entry("bush-1", policy.SupplyOpen),
+		}}},
+	}
+	if got := s.openedFields(); len(got) != 1 || got[0].Crop.Name != "Plant_Cotton" || got[0].Needed != 7 {
+		t.Fatalf("%+v", got)
+	}
+	s.plan.Plan.Portfolio[0].Decision = policy.SupplyClose
+	if got := s.openedFields(); len(got) != 0 {
+		t.Fatalf("a closed field is not placed: %+v", got)
+	}
+}
