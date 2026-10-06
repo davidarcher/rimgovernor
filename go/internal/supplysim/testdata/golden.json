@@ -1,0 +1,709 @@
+{
+ "Days": [
+  {
+   "Day": 0,
+   "Stock": {
+    "Nutrition": 47.52,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 3.927273
+   },
+   "Delivered": {},
+   "Unmet": {}
+  },
+  {
+   "Day": 1,
+   "Stock": {
+    "Nutrition": 35.0658,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 2.874246
+   },
+   "Delivered": {},
+   "Unmet": {}
+  },
+  {
+   "Day": 2,
+   "Stock": {
+    "Nutrition": 22.637142,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 1.840418
+   },
+   "Delivered": {},
+   "Unmet": {}
+  },
+  {
+   "Day": 3,
+   "Stock": {
+    "Nutrition": 87.90854,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 7.089398
+   },
+   "Delivered": {
+    "deer": 1.588089,
+    "forage": 6.475339,
+    "lake": 8.933002,
+    "milk": 7.940447
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 4,
+   "Stock": {
+    "Nutrition": 153.359626,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 12.26877
+   },
+   "Delivered": {
+    "deer": 1.588089,
+    "forage": 6.945744,
+    "lake": 8.933002,
+    "milk": 7.940447
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 5,
+   "Stock": {
+    "Nutrition": 218.07293,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 17.307375
+   },
+   "Delivered": {
+    "deer": 1.588089,
+    "forage": 6.953688,
+    "lake": 8.933002,
+    "milk": 7.940447
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 6,
+   "Stock": {
+    "Nutrition": 281.741916,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 22.184403
+   },
+   "Delivered": {
+    "deer": 1.588089,
+    "forage": 6.80309,
+    "lake": 8.933002,
+    "milk": 7.940447
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 7,
+   "Stock": {
+    "Nutrition": 349.307415,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 27.289642
+   },
+   "Delivered": {
+    "deer": 1.588089,
+    "forage": 9.142586,
+    "lake": 8.933002,
+    "milk": 7.940447
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 8,
+   "Stock": {
+    "Nutrition": 395.553279,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 30.663045
+   },
+   "Delivered": {
+    "deer": 1.6,
+    "forage": 7.520676,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 9,
+   "Stock": {
+    "Nutrition": 436.561324,
+    "Silver": 80
+   },
+   "Runway": {
+    "Nutrition": 33.58164
+   },
+   "Delivered": {
+    "deer": 1.6,
+    "forage": 5.158878,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 10,
+   "Stock": {
+    "Nutrition": 502.054402,
+    "Silver": 35.334988
+   },
+   "Runway": {
+    "Nutrition": 38.324763
+   },
+   "Delivered": {
+    "deer": 0.853155,
+    "forage": 1.488834,
+    "lake": 8.933002,
+    "milk": 7.940447,
+    "trader": 14.888337
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 11,
+   "Stock": {
+    "Nutrition": 503.244752,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 38.124602
+   },
+   "Delivered": {
+    "deer": 0.006399,
+    "forage": 1.511166,
+    "milk": 8,
+    "trader": 0.111663
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 12,
+   "Stock": {
+    "Nutrition": 548.504304,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 41.240925
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8,
+    "rice": 15
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 13,
+   "Stock": {
+    "Nutrition": 548.662261,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 40.944945
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 14,
+   "Stock": {
+    "Nutrition": 566.539639,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 41.965899
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 9,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 15,
+   "Stock": {
+    "Nutrition": 566.319242,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 41.641121
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 16,
+   "Stock": {
+    "Nutrition": 566.00205,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 41.314018
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 17,
+   "Stock": {
+    "Nutrition": 565.589029,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 40.984712
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 18,
+   "Stock": {
+    "Nutrition": 582.901139,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 41.935334
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 9,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 19,
+   "Stock": {
+    "Nutrition": 582.121128,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 41.580081
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 20,
+   "Stock": {
+    "Nutrition": 578.279917,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 41.01276
+   },
+   "Delivered": {
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 21,
+   "Stock": {
+    "Nutrition": 627.838117,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 44.213952
+   },
+   "Delivered": {
+    "lake": 4.5,
+    "milk": 8,
+    "rice": 15
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 22,
+   "Stock": {
+    "Nutrition": 667.891736,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 46.705716
+   },
+   "Delivered": {
+    "milk": 8,
+    "rice": 15
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 23,
+   "Stock": {
+    "Nutrition": 671.805819,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 46.653182
+   },
+   "Delivered": {
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 24,
+   "Stock": {
+    "Nutrition": 666.671761,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 45.977363
+   },
+   "Delivered": {
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 25,
+   "Stock": {
+    "Nutrition": 670.400043,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 45.917811
+   },
+   "Delivered": {
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 26,
+   "Stock": {
+    "Nutrition": 665.082043,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 45.243676
+   },
+   "Delivered": {
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 27,
+   "Stock": {
+    "Nutrition": 668.628222,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 45.177583
+   },
+   "Delivered": {
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 28,
+   "Stock": {
+    "Nutrition": 672.03994,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 45.103352
+   },
+   "Delivered": {
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 29,
+   "Stock": {
+    "Nutrition": 666.408541,
+    "Silver": 35
+   },
+   "Runway": {
+    "Nutrition": 44.427236
+   },
+   "Delivered": {
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 30,
+   "Stock": {
+    "Nutrition": 707.032999,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 46.823377
+   },
+   "Delivered": {
+    "forage": 7.216436,
+    "lake": 4.5,
+    "milk": 8,
+    "trader": 11.666667
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 31,
+   "Stock": {
+    "Nutrition": 716.628385,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 47.146604
+   },
+   "Delivered": {
+    "forage": 7.967028,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 32,
+   "Stock": {
+    "Nutrition": 727.710841,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 47.5628
+   },
+   "Delivered": {
+    "forage": 4.316535,
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 33,
+   "Stock": {
+    "Nutrition": 724.096733,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 47.019268
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 34,
+   "Stock": {
+    "Nutrition": 729.329766,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 47.053533
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 35,
+   "Stock": {
+    "Nutrition": 725.501468,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 46.506504
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 36,
+   "Stock": {
+    "Nutrition": 730.522453,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 46.530093
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 37,
+   "Stock": {
+    "Nutrition": 735.394229,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 46.543939
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 38,
+   "Stock": {
+    "Nutrition": 731.208286,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 45.987943
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 39,
+   "Stock": {
+    "Nutrition": 735.875204,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 45.9922
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 40,
+   "Stock": {
+    "Nutrition": 731.486452,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 45.433941
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 41,
+   "Stock": {
+    "Nutrition": 735.952587,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 45.429172
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 42,
+   "Stock": {
+    "Nutrition": 731.365061,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 44.869022
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 43,
+   "Stock": {
+    "Nutrition": 735.634411,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 44.855757
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "lake": 4.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 44,
+   "Stock": {
+    "Nutrition": 730.852066,
+    "Silver": 0
+   },
+   "Runway": {
+    "Nutrition": 44.294065
+   },
+   "Delivered": {
+    "forage": 1.5,
+    "milk": 8
+   },
+   "Unmet": {}
+  }
+ ],
+ "FirstStarved": {},
+ "StarvedDays": {},
+ "Delivered": {
+  "deer": 12,
+  "forage": 101.5,
+  "lake": 130.098015,
+  "milk": 335.64268,
+  "rice": 45,
+  "trader": 26.666667
+ },
+ "MinRunway": {
+  "Nutrition": 1.840418
+ }
+}
