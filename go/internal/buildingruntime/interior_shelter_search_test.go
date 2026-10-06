@@ -46,20 +46,10 @@ func TestResearchBenchTakesTheShelterTemplateSlot(t *testing.T) {
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
-	room := policy.Room{ID: "1", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: rectangleCells(interior)}
-	census := policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{room}}
-	facts.Rooms = domain.Known(census)
-	facts.Cells = append([]policy.SiteCell(nil), facts.Cells...)
-	doorSeen := false
-	for i := range facts.Cells {
-		if facts.Cells[i].Cell == door {
-			facts.Cells[i].Doorway, doorSeen = domain.Known(true), true
-		}
-	}
-	if !doorSeen {
-		t.Fatalf("the fixture map has no cell at the door %v (%d cells)", door, len(facts.Cells))
-	}
-	rooms := shelterInteriorRooms(policy.InteriorRoomsFor(lab, census, facts.Cells), facts)
+	// No wall stands: the planned interior alone holds the bench row (#2264).
+	facts.Shapes = testPieceShapes
+	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
+	rooms := plannedShelterRooms(facts)
 	if len(rooms) != 1 || rooms[0].Role != policy.RoomRoleShelter {
 		t.Fatalf("the standing room is planned as %v, want the shelter", rooms)
 	}

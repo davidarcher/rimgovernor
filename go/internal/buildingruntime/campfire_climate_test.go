@@ -39,15 +39,10 @@ func campfireSearch(t *testing.T, cold bool) (chosen domain.Cell, slots []domain
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: cold, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
-	room := policy.Room{ID: "1", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: rectangleCells(interior)}
-	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{room}})
-	facts.Cells = append([]policy.SiteCell(nil), facts.Cells...)
-	for i := range facts.Cells {
-		if facts.Cells[i].Cell == door {
-			facts.Cells[i].Doorway = domain.Known(true)
-		}
-	}
-	for _, shelter := range standingShelterRooms(facts) {
+	// No wall stands: the planned interior alone holds the slots (#2264).
+	facts.Shapes = testPieceShapes
+	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
+	for _, shelter := range plannedShelterRooms(facts) {
 		piece, _ := shelter.Piece("Campfire")
 		piece.Def = "Campfire"
 		plan, ok := policy.PlanInterior(shelter, piece)

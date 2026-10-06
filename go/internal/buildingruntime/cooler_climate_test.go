@@ -41,6 +41,7 @@ func coolerSearch(t *testing.T, hot bool) (chosen domain.Cell, slots []domain.Ce
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Hot: hot, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
 	room := policy.Room{ID: "1", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: rectangleCells(interior), Beds: []string{"bed1"}, Temperature: domain.Known(36.0), Contents: domain.Known([]policy.Amount{})}
 	observed := policy.RoomObservation{Shapes: testPieceShapes, EligibleBeds: domain.Known(room.Beds), Rooms: []policy.Room{room}}
+	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(observed)
 	facts.Cells = append([]policy.SiteCell(nil), facts.Cells...)
 	for i := range facts.Cells {
@@ -53,7 +54,7 @@ func coolerSearch(t *testing.T, hot bool) (chosen domain.Cell, slots []domain.Ce
 		t.Fatalf("temperature proposal %+v %v, want the passive cooler", proposal, err)
 	}
 	planner.temperature, planner.concern, planner.definition, planner.environment = &proposal, policy.EnsureTemperatureSafety, string(proposal.Method), policy.PlacementIndoors
-	for _, shelter := range standingShelterRooms(facts) {
+	for _, shelter := range plannedShelterRooms(facts) {
 		piece, _ := shelter.Piece("PassiveCooler")
 		piece.Def = "PassiveCooler"
 		plan, ok := policy.PlanInterior(shelter, piece)

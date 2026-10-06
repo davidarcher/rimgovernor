@@ -942,20 +942,23 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	// slots (#2044); a taken slot, or no shelter, leaves the campfire to the
 	// search below.
 	if plan, known := facts.LayoutPlan.Value(); known && plan.Cold && r.definition == "Campfire" && (cookingCampfire || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat) {
-		slotOnly = len(standingShelterRooms(facts)) > 0
+		slotOnly = len(plannedShelterRooms(facts)) > 0
 	}
 	// A hot map's passive cooler for the shelter stands on the template's
 	// cooler slot (#2044); the powered wall cooler path is unchanged.
 	if plan, known := facts.LayoutPlan.Value(); known && plan.Hot && r.definition == "PassiveCooler" && r.temperature != nil && r.temperature.Method == policy.TemperatureCool {
-		for _, shelter := range standingShelterRooms(facts) {
+		for _, shelter := range plannedShelterRooms(facts) {
 			for _, c := range r.temperature.Cells {
 				in := shelter.Interior
 				slotOnly = slotOnly || c.X >= in.X && c.X < in.X+in.Width && c.Z >= in.Z && c.Z < in.Z+in.Height
 			}
 		}
 	}
+	// The slots come from the planned interior, not a standing census room, so
+	// they place before any wall does (#2264).
+	plannedInterior := slotOnly
 	if slotOnly {
-		interiorRooms = standingShelterRooms(facts)
+		interiorRooms = plannedShelterRooms(facts)
 	}
 	if r.temperature != nil {
 		for _, c := range r.temperature.Cells {
@@ -963,14 +966,24 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 	}
 	if r.facility != nil {
-		rooms, known := facts.Rooms.Value()
-		if !known {
-			return nil, policy.StockObservation{}, fieldUnavailable("rooms"), nil
+		if planned := plannedShelterRooms(facts); r.facility.Role == policy.RoomRoleLaboratory && len(planned) > 0 {
+			// The research bench takes the planned shelter's bench row (#2264).
+			interiorRooms, plannedInterior = planned, true
+			for _, room := range planned {
+				for _, c := range rectCells(room.Interior) {
+					roomCells[c] = true
+				}
+			}
+		} else {
+			rooms, known := facts.Rooms.Value()
+			if !known {
+				return nil, policy.StockObservation{}, fieldUnavailable("rooms"), nil
+			}
+			for _, c := range policy.HostingCells(*r.facility, rooms) {
+				roomCells[c] = true
+			}
+			interiorRooms = policy.InteriorRoomsFor(*r.facility, rooms, facts.Cells)
 		}
-		for _, c := range policy.HostingCells(*r.facility, rooms) {
-			roomCells[c] = true
-		}
-		interiorRooms = shelterInteriorRooms(policy.InteriorRoomsFor(*r.facility, rooms, facts.Cells), facts)
 		if len(roomCells) == 0 {
 			return nil, policy.StockObservation{}, noSpace("hosting_room"), nil
 		}
@@ -1231,6 +1244,11 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			request := searchRequest
 			request.Protected = append(append([]domain.Cell(nil), slotProtected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...)
 			request.Anchors, request.Limit = nil, min(len(slots), 64)
+			if plannedInterior {
+				// The slots are keyed on the planned footprint, walled or not
+				// (#2264): the interior's cells stand in whatever their roof.
+				request.Environment, request.Cells = policy.PlacementAnywhere, plannedInteriorSiteCells(facts, interiorRooms)
+			}
 			for _, p := range slots {
 				request.Anchors = append(request.Anchors, p.Anchor())
 			}

@@ -3,6 +3,8 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"sort"
+
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -93,7 +95,11 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.PlannedR
 
 // plannedRoomInterior is the room's interior cells.
 func plannedRoomInterior(room policy.PlannedRoom) []domain.Cell {
-	in := room.Interior
+	return rectCells(room.Interior)
+}
+
+// rectCells are the cells of a rectangle.
+func rectCells(in policy.Rectangle) []domain.Cell {
 	cells := make([]domain.Cell, 0, int(in.Width*in.Height))
 	for z := in.Z; z < in.Z+in.Height; z++ {
 		for x := in.X; x < in.X+in.Width; x++ {
@@ -101,6 +107,22 @@ func plannedRoomInterior(room policy.PlannedRoom) []domain.Cell {
 		}
 	}
 	return cells
+}
+
+// plannedInteriorSiteCells are the site cells inside the rooms' interiors,
+// roofed or not.
+func plannedInteriorSiteCells(facts observation.ColonyProjection, rooms []policy.InteriorRoom) []policy.SiteCell {
+	var out []policy.SiteCell
+	for _, c := range facts.Cells {
+		for _, room := range rooms {
+			in := room.Interior
+			if c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height {
+				out = append(out, c)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // butcherSpotCoreMargin is how far past the planned core's bounding box the
@@ -184,42 +206,20 @@ func shelterCoolers(facts observation.ColonyProjection) int {
 	return policy.ShelterCoolers(known && plan.Hot)
 }
 
-// shelterInteriorRooms plans the standing room on the layout plan's shelter
-// interior as the shelter, whatever role the game scores it (a Barracks once
-// the bunks stand), so the research bench takes the template's research slot
-// (#2043).
-func shelterInteriorRooms(rooms []policy.InteriorRoom, facts observation.ColonyProjection) []policy.InteriorRoom {
+// plannedShelterRooms are the layout plan's shelter rooms read as plan inputs
+// from the planned interior alone, whether or not a wall stands (#2264): the
+// template's slots (campfires, cooler, crafting spot, research bench) are
+// keyed on the footprint, like the dining furniture. Empty while no plan holds
+// a shelter.
+func plannedShelterRooms(facts observation.ColonyProjection) []policy.InteriorRoom {
 	plan, known := facts.LayoutPlan.Value()
 	if !known {
-		return rooms
-	}
-	for _, planned := range plan.AllRooms() {
-		if planned.Role != policy.PlannedShelter {
-			continue
-		}
-		for i := range rooms {
-			if rooms[i].Interior == planned.Interior {
-				rooms[i].Role = policy.RoomRoleShelter
-				rooms[i].Campfires, rooms[i].Coolers = policy.ShelterCampfires(plan.Cold), policy.ShelterCoolers(plan.Hot)
-			}
-		}
-	}
-	return rooms
-}
-
-// standingShelterRooms are the enclosed census rooms standing on the layout
-// plan's shelter interior, planned as the shelter whatever role the game
-// scores them (#2074). Empty while no shelter stands.
-func standingShelterRooms(facts observation.ColonyProjection) []policy.InteriorRoom {
-	plan, known := facts.LayoutPlan.Value()
-	census, roomsKnown := facts.Rooms.Value()
-	if !known || !roomsKnown {
 		return nil
 	}
-	var doorways []domain.Cell
+	edifice := map[domain.Cell]string{}
 	for _, c := range facts.Cells {
-		if doorway, _ := c.Doorway.Value(); doorway {
-			doorways = append(doorways, c.Cell)
+		if d, known := c.PlayerEdifice.Value(); known && d != "" {
+			edifice[c.Cell] = d
 		}
 	}
 	var out []policy.InteriorRoom
@@ -227,16 +227,20 @@ func standingShelterRooms(facts observation.ColonyProjection) []policy.InteriorR
 		if planned.Role != policy.PlannedShelter {
 			continue
 		}
-		for _, room := range census.Rooms {
-			if enclosed, _ := room.Enclosed.Value(); !enclosed {
-				continue
-			}
-			interior, ok := policy.InteriorRoomFromCensus(room, policy.RoomRoleShelter, doorways, census.Shapes)
-			if ok && interior.Interior == planned.Interior {
-				interior.Campfires, interior.Coolers = policy.ShelterCampfires(plan.Cold), policy.ShelterCoolers(plan.Hot)
-				out = append(out, interior)
+		room, ok := policy.InteriorRoomFromLayout(planned, facts.Shapes)
+		if !ok {
+			continue
+		}
+		room.Campfires, room.Coolers = policy.ShelterCampfires(plan.Cold), policy.ShelterCoolers(plan.Hot)
+		seen := map[string]bool{}
+		for _, c := range plannedRoomInterior(planned) {
+			if d, ok := edifice[c]; ok && !seen[d] {
+				seen[d] = true
+				room.Standing = append(room.Standing, d)
 			}
 		}
+		sort.Strings(room.Standing)
+		out = append(out, room)
 	}
 	return out
 }
