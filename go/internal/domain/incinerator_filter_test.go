@@ -2,24 +2,17 @@ package domain
 
 import "testing"
 
-// The incinerator burns rotten stranger corpses (#1822); fresh ones wait for
-// the butcher (#1811) and colonists and slaves keep the tomb.
-func TestIncineratorFilterTakesRottenStrangerCorpsesOnly(t *testing.T) {
+// The incinerator takes everything but what the native burnable rule refuses:
+// rotten colonist and slave corpses, serviceable gear and the like.
+func TestIncineratorFilterRefusesTheNotBurnableSpecial(t *testing.T) {
 	f := IncineratorFilter()
-	has := func(list []FilterSelector, want FilterSelector) bool {
-		for _, s := range list {
-			if s == want {
-				return true
-			}
-		}
-		return false
+	if f.Base() != BaseEverything {
+		t.Fatal(f.Base())
 	}
-	if !has(f.Allow(), CategoryDef("CorpsesHumanlike")) {
-		t.Fatal("humanlike corpses not allowed")
+	if len(f.Allow()) != 0 || len(f.Disallow()) != 1 || f.Disallow()[0] != SpecialFilter(NotBurnableFilterDef) {
+		t.Fatal(f.Allow(), f.Disallow())
 	}
-	for _, special := range []string{"AllowFresh", "AllowCorpsesColonist", "AllowCorpsesSlave"} {
-		if !has(f.Disallow(), SpecialFilter(special)) {
-			t.Errorf("%s not disallowed", special)
-		}
+	if _, _, ok := f.HitPoints(); ok {
+		t.Fatal("the burnable rule, not a hit-point bound, judges gear")
 	}
 }

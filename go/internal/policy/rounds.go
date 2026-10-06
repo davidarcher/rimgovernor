@@ -279,9 +279,12 @@ type RoundsFacts struct {
 	// BedroomsOwed: a planned individual bedroom step is due (#786); it
 	// keeps MaintainHousing open once everyone owns a shelter bed.
 	BedroomsOwed domain.Fact[bool]
-	// CorpsesOwed: a tomb (#832), morgue (#1820) or incinerator (#1814) step is due; it keeps
+	// CorpsesOwed: a tomb (#832) or morgue (#1820) step is due; it keeps
 	// MaintainWaste open while a corpse waits on one.
 	CorpsesOwed domain.Fact[bool]
+	// IncinerationOwed: the waste yard or incinerator shell, a due burn or
+	// ash to clean waits; it keeps MaintainIncineration open.
+	IncinerationOwed domain.Fact[bool]
 	// WarmRooms: the warm standing tombs, morgues and meal closets (WarmCoolingRooms); they
 	// join MaintainRefrigeration's rooms.
 	WarmRooms domain.Fact[[]string]

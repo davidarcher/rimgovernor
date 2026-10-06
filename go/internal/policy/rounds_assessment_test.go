@@ -19,7 +19,7 @@ func assessment(t *testing.T, r RoundsFindings, id ConcernID) domain.Finding {
 
 func TestRoundsAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	r := needs(t, RoundsFacts{}, RoundsLatches{})
-	if len(r.All()) != 55 {
+	if len(r.All()) != 56 {
 		t.Fatal(r)
 	}
 	for _, n := range r.All() {

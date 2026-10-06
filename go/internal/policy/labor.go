@@ -49,7 +49,7 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		// bill needs the bench's work type. Construction keeps the workshop
 		// rung available before a bench exists to request its crafting work.
 		return LaborProfile{WorkConstruction, WorkTailoring, WorkSmithing, WorkCrafting}
-	case MaintainWaste, ManagePollution:
+	case MaintainWaste, MaintainIncineration, ManagePollution:
 		return LaborProfile{WorkHauling}
 	case MaintainCleanFacilities:
 		// The bounded cleaning response is a player-forced order any basic

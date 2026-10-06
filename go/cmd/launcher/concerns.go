@@ -61,6 +61,7 @@ var concernLabels = map[string]string{
 	"MaintainEssentialRepairs":  "Repair essential buildings",
 	"MaintainCleanFacilities":   "Keep facilities clean",
 	"MaintainWaste":             "Dispose of waste",
+	"MaintainIncineration":      "Burn the waste",
 }
 
 // concernLabel is the governor-speak name for a concern id.

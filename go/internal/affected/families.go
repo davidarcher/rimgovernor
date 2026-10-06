@@ -146,8 +146,9 @@ var roundsFamilyFiles = map[string][]string{
 	"rounds_waste.go":                  {"waste"},
 	"rounds_waste_tomb.go":             {"waste"},
 	"rounds_tomb_facts.go":             {"waste"},
-	"rounds_waste_incinerator.go":      {"waste"},
-	"rounds_waste_burn.go":             {"waste"},
+	"rounds_incineration.go":           {"incineration"},
+	"rounds_incineration_room.go":      {"incineration"},
+	"rounds_incineration_burn.go":      {"incineration"},
 	"rounds_workshop.go":               {"workshop"},
 }
 

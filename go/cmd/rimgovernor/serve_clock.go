@@ -232,7 +232,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	animalFeedPlans := sc.roundsAnimalFeedPlans
 	fields, bills := sc.roundsFieldPlans, sc.roundsBillPlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.roundsPrisonerInteractionPlans, sc.roundsPopulationCustodyPlans, sc.roundsStoneShellPlans, sc.roundsDefensiveLayoutPlans
-	waste, moodRelief, naming, dialog, trade := sc.roundsWastePlans, sc.roundsMoodPlans, sc.roundsNamingPlans, sc.roundsDialogPlans, sc.roundsTradePlans
+	waste, incineration, moodRelief, naming, dialog, trade := sc.roundsWastePlans, sc.roundsIncinerationPlans, sc.roundsMoodPlans, sc.roundsNamingPlans, sc.roundsDialogPlans, sc.roundsTradePlans
 	blight, pollution, mechCharger, geneBank := sc.roundsBlightPlans, sc.roundsPollutionPlans, sc.roundsMechChargerPlans, sc.roundsGeneBankPlans
 	armory := sc.roundsArmoryPlans
 	clearance := sc.roundsClearancePlans
@@ -264,7 +264,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoundsMethods = session.RoundsMethodsEnabled()
-	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.roundsArtPlans || sc.roundsMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.roundsPopulationJoinerPlans || homeCoverage || sc.roundsShelteringPlans || stoneShell || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || incineration || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.roundsArtPlans || sc.roundsMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.roundsPopulationJoinerPlans || homeCoverage || sc.roundsShelteringPlans || stoneShell || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require rounds")
 	}
 	if routine {
@@ -491,6 +491,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, errors.New("waste plans require typed colony and tend observations")
 			}
 			config.Waste, err = buildingruntime.NewRoundsWastePlanner(reviewer, wasteNative)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if incineration {
+			incinerationNative, ok := reads.(buildingruntime.RoundsWasteSource)
+			if !ok {
+				return nil, errors.New("incineration plans require typed colony and tend observations")
+			}
+			config.Incineration, err = buildingruntime.NewRoundsIncinerationPlanner(reviewer, incinerationNative)
 			if err != nil {
 				return nil, err
 			}
@@ -951,6 +961,9 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	}
 	if sc.roundsWastePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWaste)
+	}
+	if sc.roundsIncinerationPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainIncineration)
 	}
 	if sc.roundsGearPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainEquipment)

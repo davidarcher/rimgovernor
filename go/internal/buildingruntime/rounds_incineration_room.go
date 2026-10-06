@@ -12,11 +12,11 @@ import (
 )
 
 // The incinerator (#1814): the layout plan holds it from the start inside the
-// waste yard (#2187), and MaintainWaste shells the yard's fence and gate, then
-// the incinerator like the tomb with the least flammable wall and door the game's
-// stuff data offers, refusing a wall or door that would burn. The storage
-// planner then zones its interior for rotten and worn dump items. It is
-// permanent: nothing here ever drops or tears it down.
+// waste yard (#2187), and MaintainIncineration shells the yard's fence and
+// gate, then the incinerator like the tomb with the least flammable wall and
+// door the game's stuff data offers, refusing a wall or door that would burn.
+// The Sanitation store (policy.incinerationOwner) then zones its interior. It
+// is permanent: nothing here ever drops or tears it down.
 
 // fireproofShellStuff builds the walls and the door from the least flammable
 // stuff each allows, and refuses when that still burns or the rows do not say.
@@ -90,27 +90,49 @@ func incineratorOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	return domain.Known(owed)
 }
 
+// incinerationOwed is the review's IncinerationOwed fact: a shell, a due burn
+// or ash to clean waits (the same tests stageDisposal acts on); unknown while
+// the plan or construction census is unread.
+func incinerationOwed(facts observation.ColonyProjection) domain.Fact[bool] {
+	shell, known := incineratorOwed(facts).Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	if shell {
+		return domain.Known(true)
+	}
+	if _, owed := plannedRoomOwed(facts, policy.PlannedWasteYard); owed {
+		return domain.Known(true)
+	}
+	room := standingIncinerator(facts)
+	if room == nil || fireBurning(facts) {
+		return domain.Known(false)
+	}
+	filth, _ := facts.Facts.Upkeep.Filth.Value()
+	return domain.Known(len(policy.IncineratorAsh(filth, room.Interior)) > 0 || incineratorStored(facts, room.Interior) >= policy.BurnStoredCells)
+}
+
 func incineratorMethod(room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("incinerator-shell-%d-%d", room.Interior.X, room.Interior.Z))
 }
 
 // stageDisposal answers a due burn, else the incinerator's shell, else the
 // waste yard's fence; handled is false when none is due.
-func (r *RoundsWastePlanner) stageDisposal(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, arbiter *stepArbiter, reading observation.RoundsReading) (RoundsWasteResult, bool, error) {
+func (r *RoundsIncinerationPlanner) stageDisposal(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, arbiter *stepArbiter, reading observation.RoundsReading) (RoundsIncinerationResult, bool, error) {
 	if result, handled, err := r.stageBurn(call, epoch, state, review, goal, arbiter, reading); err != nil || handled {
 		return result, handled, err
 	}
 	if r.building == nil {
-		return RoundsWasteResult{}, false, nil
+		return RoundsIncinerationResult{}, false, nil
 	}
 	room, owed := incineratorStep(reading.Projection)
-	rc := roomReconcile{ringOnly: true, room: room, name: string(incineratorMethod(room)), reason: "burn rotten and worn items", stuff: fireproofShellStuff}
+	rc := roomReconcile{ringOnly: true, room: room, name: string(incineratorMethod(room)), reason: "burn waste", stuff: fireproofShellStuff}
 	if !owed {
 		if room, owed = plannedRoomOwed(reading.Projection, policy.PlannedWasteYard); !owed {
-			return RoundsWasteResult{}, false, nil
+			return RoundsIncinerationResult{}, false, nil
 		}
-		rc = roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room)), reason: "hold the dump and the incinerator"}
+		rc = roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room)), reason: "hold the waste and the incinerator"}
 	}
 	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading.ColonyReading}, nil, rc)
-	return RoundsWasteResult{Verdict: result.Verdict}, true, err
+	return RoundsIncinerationResult{Verdict: result.Verdict}, true, err
 }

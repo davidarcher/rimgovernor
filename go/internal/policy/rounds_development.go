@@ -95,6 +95,15 @@ func RoundsDevelopmentDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domai
 			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
+	case MaintainIncineration:
+		owed, known := f.IncinerationOwed.Value()
+		if !known {
+			return domain.Unknown[float64]()
+		}
+		if owed {
+			return domain.Known(1.0)
+		}
+		return domain.Known(0.0)
 	case RemoveBlight:
 		// Census-driven like waste: any standing blighted plant is a full
 		// deficit until the census is empty.

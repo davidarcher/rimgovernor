@@ -58,6 +58,9 @@ type StorageRequest struct {
 	Zones []StockpileZone
 	// Dumps is nil while the room census is unknown (see DumpStore).
 	Dumps *DumpStore
+	// Incinerator is the planned incinerator room once its walls and door
+	// stand (#1814); nil before. The Sanitation store declares its zone.
+	Incinerator *PlannedRoom
 }
 
 // RoomDemand is the planner's signal to layout that stored goods outgrew
@@ -112,7 +115,6 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)
-	plan.Sites = append(plan.Sites, r.incineratorSites()...)
 	return plan
 }
 

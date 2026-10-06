@@ -16,13 +16,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// waste/disposal (#1817, epic #1640): corpse disposal end to end on the
-// tribal baseline colony. The fixture lays a rotten animal corpse, a rotten
-// and a fresh stranger corpse and a worn apparel in the open, plus stone
-// blocks for the walls. MaintainWaste then sites the dumps and the
-// incinerator and shells it (first window); the case fills the incinerator
-// with worn apparel and a loose molotov and MaintainWaste burns it and has
-// the ash cleaned (second window).
+// waste/incineration (#1817, epic #1640; #2197 moved it from waste/disposal
+// onto MaintainIncineration): corpse disposal end to end on the tribal
+// baseline colony. The fixture lays a rotten animal corpse, a rotten and a
+// fresh stranger corpse and a worn apparel in the open, plus stone blocks for
+// the walls. MaintainStockpiles sites the dumps and MaintainIncineration
+// shells the planned incinerator in the waste yard (first window), whose
+// declared Sanitation zone takes burnable waste at Preferred priority; the case
+// fills the incinerator with worn apparel and a loose molotov and
+// MaintainIncineration burns it and has the ash cleaned (second window).
 const (
 	disposalStage = "test/disposal_stage"
 	disposalSeed  = "test/disposal_seed"
@@ -36,18 +38,19 @@ const (
 
 func init() {
 	cases.Register(cases.Case{
-		Name: "waste/disposal",
-		Scope: "Issue #1817 on the tribal " + sustained.BaselineSave + " colony: rotten animal and rotten stranger corpses are burned in the incinerator " +
+		Name: "waste/incineration",
+		Scope: "Issues #1817 and #2197 on the tribal " + sustained.BaselineSave + " colony: rotten animal and rotten stranger corpses are burned in the incinerator " +
 			"and a fresh stranger is never put there; the corpse dump takes humanlike corpses and the rotten dump animal ones; the worn dump " +
 			"stands unroofed; a full incinerator (6+ cells) is burned once by a molotov-equipped burner with a standby and its ash cleaned; " +
-			"the enclosed unroofed incinerator interior is its own room (cell.GetRoom) walled and doored with non-flammable edifices. " +
+			"the enclosed unroofed incinerator interior is its own room (cell.GetRoom) walled and doored with non-flammable edifices, " +
+			"and its stockpile zone is the declared Preferred store over the whole interior. " +
 			"A native end-to-end signal (vanilla fire, rot, rooms and hauling); no Go snapshot covers it.",
 		Start:       cases.Fixture{Op: disposalStage, On: cases.Save{Name: sustained.BaselineSave}},
 		RequiredOps: []string{disposalStage, disposalSeed, disposalRead},
 		Keep:        []string{string(na.NeedFood)},
 		Serve: &cases.ServeSpec{
-			Families:      []string{"waste", "stockpiles", "flooring", "equip", "defense", "fire", "clean", "work", "supply", "haul"},
-			NativeTimeout: 30 * time.Second, Prefix: "waste-disposal",
+			Families:      []string{"waste", "incineration", "stockpiles", "flooring", "equip", "defense", "fire", "clean", "work", "supply", "haul"},
+			NativeTimeout: 30 * time.Second, Prefix: "waste-incineration",
 		},
 		Budget: 2*disposalWindow + 10*time.Minute,
 		Reason: "two serve windows: the incinerator is shelled by colonists, then burned and cleaned",
@@ -68,11 +71,11 @@ func disposal(ctx context.Context, s cases.Session) error {
 	animalDef := na.AsString(prepared["animalDef"])
 	ids := []string{staged["animal"], staged["rottenStranger"], staged["freshStranger"], staged["worn"]}
 
-	// Window one: the layout plan reserves the incinerator and MaintainWaste
-	// shells it.
+	// Window one: the layout plan reserves the incinerator and
+	// MaintainIncineration shells it.
 	var room policy.PlannedRoom
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainWaste, Until: func(sample map[string]any) bool { return methodCompleted(sample, "incinerator-shell-") }},
+		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainIncineration, Until: func(sample map[string]any) bool { return methodCompleted(sample, "incinerator-shell-") }},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			var err error
 			if room, err = plannedIncinerator(ctx, s); err != nil {
@@ -86,6 +89,9 @@ func disposal(ctx context.Context, s cases.Session) error {
 			if err != nil {
 				return err
 			}
+			if err := checkIncineratorZone(ctx, s, h, report, room.Interior); err != nil {
+				return err
+			}
 			return checkFreshStranger(read, staged["freshStranger"], report, "shelled")
 		},
 	})
@@ -96,7 +102,7 @@ func disposal(ctx context.Context, s cases.Session) error {
 	// Window two: a full room with a molotov on the ground and a standby.
 	var seeded []string
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainWaste, Until: func(sample map[string]any) bool { return methodCompleted(sample, "burn-ash-") }},
+		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainIncineration, Until: func(sample map[string]any) bool { return methodCompleted(sample, "burn-ash-") }},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			cells := policy.RectangleCells(room.Interior)
 			if len(cells) < disposalSeeded {
@@ -241,6 +247,52 @@ func checkDumps(ctx context.Context, s cases.Session, h *na.Harness, report na.R
 	return nil
 }
 
+// checkIncineratorZone proves the declared Sanitation store: a stockpile zone
+// over the whole incinerator interior at Preferred priority, above the Low
+// dumps so waste hauls in from them.
+func checkIncineratorZone(ctx context.Context, s cases.Session, h *na.Harness, report na.Report, interior policy.Rectangle) error {
+	reply, err := h.Wire(ctx, "incinerator-zone", "observations_list_zones", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
+	if err != nil {
+		return err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return err
+	}
+	grid, err := h.MapCells(ctx, "incinerator-zone-cells", s.Identity())
+	if err != nil {
+		return err
+	}
+	zoneCells := na.ZoneCells(grid)
+	want := map[domain.Cell]bool{}
+	for _, c := range policy.RectangleCells(interior) {
+		want[c] = true
+	}
+	for _, raw := range na.AsSlice(observed["zones"]) {
+		row, _ := na.AsMap(raw)
+		if !strings.EqualFold(na.AsString(row["type"]), "stockpile") {
+			continue
+		}
+		cells := zoneCells[na.AsString(row["id"])]
+		if len(cells) != len(want) {
+			continue
+		}
+		covers := true
+		for _, c := range cells {
+			covers = covers && want[c]
+		}
+		if !covers {
+			continue
+		}
+		report["incinerator_zone"] = row
+		if !strings.Contains(strings.ToLower(na.AsString(row["priority"])), "preferred") {
+			return fmt.Errorf("incinerator zone %v is not Preferred: %v", row["id"], row["priority"])
+		}
+		return nil
+	}
+	return fmt.Errorf("no stockpile zone covers exactly the incinerator interior %+v", interior)
+}
+
 // disposalRead is the native read of the staged things and the incinerator.
 type disposalReading struct {
 	things   map[string]map[string]any
@@ -383,7 +435,7 @@ type burnCounts struct {
 	ignites, drafts, cleans, equips int
 }
 
-// burnPlans counts the completed actions of the journal's MaintainWaste
+// burnPlans counts the completed actions of the journal's MaintainIncineration
 // burn-wave and burn-ash plans by kind.
 func burnPlans(ctx context.Context, s cases.Session) (burnCounts, error) {
 	var out burnCounts
@@ -392,7 +444,7 @@ func burnPlans(ctx context.Context, s cases.Session) (burnCounts, error) {
 		return out, fmt.Errorf("reopen journal: %w", err)
 	}
 	defer journal.Close()
-	goal, err := sustainedfood.SampleStandard(ctx, journal, policy.MaintainWaste)
+	goal, err := sustainedfood.SampleStandard(ctx, journal, policy.MaintainIncineration)
 	if err != nil {
 		return out, err
 	}

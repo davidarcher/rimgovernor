@@ -137,8 +137,9 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	storage.Gear = gear
 	storage.Zones = request.Zones
 	if rooms, ok := request.Rooms.Value(); ok {
-		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor, Incinerator: standingIncinerator(*projection), Planned: request.Planned}
+		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor, Planned: request.Planned}
 	}
+	storage.Incinerator = standingIncinerator(*projection)
 	storage.BenchInputs, storage.Benches = inputs, benches
 	plan := policy.PlanStorage(storage)
 	declared := policy.DeclareStores(storage)

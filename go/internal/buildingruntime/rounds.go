@@ -355,7 +355,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if r.methodEnabled(policy.MaintainAnimalContainment) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), herdDefinitions...)
 	}
-	if r.methodEnabled(policy.MaintainWaste) {
+	if r.methodEnabled(policy.MaintainWaste) || r.methodEnabled(policy.MaintainIncineration) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
 	}
 	if r.methodEnabled(policy.EnsureCooking) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainPopulation) {
@@ -414,6 +414,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	reading.Projection.Facts.TitleClaimQuests = titleClaimQuests(reading.Projection)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection, r.stage)
 	reading.Projection.Facts.CorpsesOwed = corpsesOwed(reading.Projection)
+	reading.Projection.Facts.IncinerationOwed = incinerationOwed(reading.Projection)
 	// The herd furniture is read only when the containment method is on
 	// (readDefinitions above); a review without it owes no herd step.
 	if r.methodEnabled(policy.MaintainAnimalContainment) {

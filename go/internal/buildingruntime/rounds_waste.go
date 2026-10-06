@@ -111,7 +111,7 @@ func (r *RoundsWastePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !known || len(items) == 0 {
 		return RoundsWasteResult{Verdict: waitFor(WaitMethodUsed, "waste_items")}, nil
 	}
-	rows, ok, err := r.colonistRows(call, state, review)
+	rows, ok, err := colonistRows(call, r.native, state, review)
 	if err != nil {
 		return RoundsWasteResult{}, err
 	}
@@ -176,9 +176,9 @@ func wasteCandidateFacts(pawn domain.PawnID, row *n.PawnState) policy.WastePawn 
 
 // colonistRows are the detail rows of every colonist, in one tend-pawn read;
 // ok is false while the colonist list is incomplete or empty.
-func (r *RoundsWastePlanner) colonistRows(call context.Context, state ControlState, review store.Rounds) ([]*n.PawnState, bool, error) {
+func colonistRows(call context.Context, native RoundsWasteSource, state ControlState, review store.Rounds) ([]*n.PawnState, bool, error) {
 	identityRef := boundary.Identity(state.Snapshot)
-	emergency, _, err := r.native.ReadEmergency(call, identityRef)
+	emergency, _, err := native.ReadEmergency(call, identityRef)
 	if err != nil {
 		return nil, false, err
 	}
@@ -193,7 +193,7 @@ func (r *RoundsWastePlanner) colonistRows(call context.Context, state ControlSta
 	for _, pawn := range emergency.Facts.Colonists {
 		ids = append(ids, string(pawn.ID))
 	}
-	reply, _, err := r.native.ReadTendPawns(call, identityRef, ids)
+	reply, _, err := native.ReadTendPawns(call, identityRef, ids)
 	if err != nil {
 		return nil, false, err
 	}

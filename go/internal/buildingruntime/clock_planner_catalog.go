@@ -580,7 +580,7 @@ var plannerCatalog = []plannerEntry{
 			out.Armory = &method
 			return method.Verdict, nil
 		}},
-	{name: "waste", concern: policy.MaintainWaste, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction, domain.EquipAction, domain.OwnedDraftAction, domain.IgniteAction, domain.CleanAction}, sections: sectionsBuilding, families: familiesEmergency,
+	{name: "waste", concern: policy.MaintainWaste, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction}, sections: sectionsBuilding, families: familiesEmergency,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Waste != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Waste.step(ctx, epoch, arbiter)
@@ -588,6 +588,16 @@ var plannerCatalog = []plannerEntry{
 				return Verdict{}, err
 			}
 			out.Waste = &method
+			return method.Verdict, nil
+		}},
+	{name: "incineration", concern: policy.MaintainIncineration, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.EquipAction, domain.OwnedDraftAction, domain.IgniteAction, domain.CleanAction}, sections: sectionsBuilding, families: familiesEmergency,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Incineration != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.Incineration.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.Incineration = &method
 			return method.Verdict, nil
 		}},
 	{name: "moodRelief", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MoodReliefAction, domain.AbilityAction}, sections: sectionsPawns,

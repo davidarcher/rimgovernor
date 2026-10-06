@@ -6,45 +6,34 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The incinerator is zoned only after its walls stand: a priority above the
-// Low dumps, taking what the rotten and worn dumps take.
-func TestPlanStorageIncinerator(t *testing.T) {
-	needs := map[string]int{domain.RottenDumpRole: 2}
-	layout := LayoutPlan{Rooms: []PlannedRoom{incineratorRoom(Rectangle{X: 30, Z: 4, Width: 5, Height: 5})}}
-	req := StorageRequest{Bounds: Bounds{Width: 40, Height: 30}, Cells: dumpCensus(40, 30, func(domain.Cell) bool { return false }), Layout: &layout, Rooms: &RoomObservation{},
-		Dumps: &DumpStore{Needs: needs, Anchor: domain.Cell{X: 10, Z: 10}}}
-	for _, s := range PlanStorage(req).Sites {
+// The incinerator is a Sanitation store declared once its walls stand: its whole
+// interior at a priority above the Low dumps, refusing the not-burnable special.
+func TestIncinerationOwnerDeclaresTheZoneOnceWallsStand(t *testing.T) {
+	owner := incinerationOwner{}
+	if owner.Department() != DepartmentSanitation {
+		t.Fatal(owner.Department())
+	}
+	if got := owner.Stores(StorageRequest{}); len(got) != 0 {
+		t.Fatal("a store before the walls stand", got)
+	}
+	room := incineratorRoom(Rectangle{X: 30, Z: 4, Width: 5, Height: 5})
+	stores := DeclareStores(StorageRequest{Incinerator: &room}).Stores
+	var zone *Store
+	for i, s := range stores {
 		if s.Role == domain.IncineratorRole {
-			t.Fatal("zone before the walls stand")
+			zone = &stores[i]
 		}
 	}
-	room := layout.IncineratorRooms()[0]
-	req.Dumps.Incinerator = &room
-	var zone *StockpileSite
-	for _, s := range PlanStorage(req).Sites {
+	if zone == nil || zone.Interior != room.Interior || zone.Width != 0 || zone.Retired {
+		t.Fatalf("incinerator store: %+v", zone)
+	}
+	if zone.Priority != domain.PreferredPriority || zone.Filter != domain.IncineratorFilter() {
+		t.Fatal(zone.Priority, zone.Filter)
+	}
+	for _, s := range PlanStorage(StorageRequest{Bounds: Bounds{Width: 40, Height: 30}, Incinerator: &room}).Sites {
 		if s.Role == domain.IncineratorRole {
-			zone = &s
+			t.Fatal("the storage planner still sites the incinerator")
 		}
-	}
-	if zone == nil || len(zone.Room) != 9 || len(zone.Candidates) != 1 || len(zone.Candidates[0]) != 9 {
-		t.Fatalf("incinerator zone: %+v", zone)
-	}
-	if zone.Priority != domain.PreferredPriority {
-		t.Fatal(zone.Priority)
-	}
-	// It takes what the rotten and worn dumps take, but not serviceable gear.
-	allow := domain.IncineratorFilter().Allow()
-	for _, want := range []domain.FilterSelector{domain.CategoryDef("Apparel"), domain.CategoryDef("Weapons"), domain.CategoryDef("CorpsesAnimal"), domain.CategoryDef("Foods")} {
-		found := false
-		for _, a := range allow {
-			found = found || a == want
-		}
-		if !found {
-			t.Errorf("filter lacks %v", want)
-		}
-	}
-	if _, top, ok := domain.IncineratorFilter().HitPoints(); !ok || top != domain.GearHitPointFloor {
-		t.Fatal("serviceable gear would be burned", top, ok)
 	}
 }
 

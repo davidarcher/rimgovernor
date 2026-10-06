@@ -32,7 +32,7 @@ const (
 	// FreshDumpRole holds fresh animal and insect corpses for the butcher
 	// while no freezer corpse shelf stands.
 	FreshDumpRole = "dump:fresh"
-	// IncineratorRole is the walled incinerator's zone (#1814).
+	// IncineratorRole is the walled incinerator's zone (#1814), a Sanitation store.
 	IncineratorRole = "incinerator"
 	// FoodRole is the opening food stockpile: Preferred, so an indoor food
 	// zone above it draws the food in once one stands.
@@ -126,18 +126,13 @@ func RottenDumpFilter() StockpileFilter {
 		[]FilterSelector{SpecialFilter("AllowFresh")}))
 }
 
-// IncineratorFilter is what the incinerator burns (#1814): the rotten dump's
-// rotten food and animal corpses, the worn dump's apparel and weapons and
-// rotten stranger corpses (#1822); fresh ones wait for the butcher (#1811) and
-// colonists and slaves keep the tomb.
-// The worn half is bounded to items below the gear hit-point floor, because
-// the zone outranks the Low general store and an unbounded weapon or apparel
-// filter would haul serviceable gear in to burn.
+// IncineratorFilter is what the incinerator takes: everything the mod's native
+// burnable rule does not refuse (NotBurnableFilterDef). Burnable is defined
+// once, natively: rottables past Fresh except colonist and slave corpses, and
+// gear below the static silver cutoff. The zone outranks the Low dump, so
+// waste hauls in from it.
 func IncineratorFilter() StockpileFilter {
-	f := mustFilter(NewStockpileFilter(BaseNothing,
-		[]FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("CorpsesHumanlike"), CategoryDef("Foods")},
-		[]FilterSelector{SpecialFilter("AllowFresh"), SpecialFilter("AllowCorpsesColonist"), SpecialFilter("AllowCorpsesSlave")}))
-	return mustFilter(f.WithHitPoints(0, GearHitPointFloor))
+	return mustFilter(NewStockpileFilter(BaseEverything, nil, []FilterSelector{SpecialFilter(NotBurnableFilterDef)}))
 }
 
 // CorpseDumpFilter takes humanlike corpses only, the ones with no better

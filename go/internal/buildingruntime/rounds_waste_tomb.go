@@ -38,12 +38,12 @@ func (r *RoundsWastePlanner) stageTomb(call, epoch context.Context, state Contro
 		if morgue, owed := plannedMorgue(reading.Projection); owed {
 			result, err := r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: morgue, name: roomName("morgue", morgue), reason: "morgue"})
 			// A method already tried this epoch, a refused placement or
-			// a fact unknown leaves the burn to go on.
+			// a fact unknown lets the haul relocation go on.
 			if err != nil || !(result.Verdict.skipsToPlacement() || result.Verdict.Is(WaitExistingWork)) {
 				return RoundsWasteResult{Verdict: result.Verdict}, true, err
 			}
 		}
-		return r.stageDisposal(call, epoch, state, review, goal, arbiter, reading)
+		return RoundsWasteResult{}, false, nil
 	}
 	var result RoundsBuildingResult
 	switch step.Kind {
@@ -51,9 +51,9 @@ func (r *RoundsWastePlanner) stageTomb(call, epoch context.Context, state Contro
 		result, err = r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: step.Room, template: step.Template, name: roomName("tomb", step.Room), reason: "tomb"})
 	case policy.TombFull:
 		// The layout review grows another tomb; a grave only once a
-		// replan found no room for one; the burn goes on meanwhile.
+		// replan found no room for one; the haul goes on meanwhile.
 		if !r.reviewer.tombGrowthRefused(reading.Projection.Identity.Tick) {
-			return r.stageDisposal(call, epoch, state, review, goal, arbiter, reading)
+			return RoundsWasteResult{}, false, nil
 		}
 		result, err = r.placeGrave(call, epoch, state, review, goal, reading, step)
 	case policy.TombGrave:

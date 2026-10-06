@@ -67,12 +67,11 @@ func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool
 	return policy.MorgueRoomOwed(plan, plan.GroundWithRock(ground, naturalRock(facts)), waste)
 }
 
-// corpsesOwed is the review's CorpsesOwed fact: the tomb, the morgue or the
-// incinerator is owed.
+// corpsesOwed is the review's CorpsesOwed fact: the tomb or the morgue is
+// owed.
 func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	tomb, tk := tombOwed(facts).Value()
-	burn, known := incineratorOwed(facts).Value()
-	if _, morgue := plannedMorgue(facts); morgue || known && burn || tk && tomb {
+	if _, morgue := plannedMorgue(facts); morgue || tk && tomb {
 		return domain.Known(true)
 	}
 	if tk {
