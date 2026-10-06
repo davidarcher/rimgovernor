@@ -55,7 +55,11 @@ type Rounder struct {
 	native  observation.RoundsSource
 	clock   observation.Clock
 	policy  policy.RoundsPolicy
-	maxAge  time.Duration
+	// resourceNative is the native surface of the resource planner, set when
+	// it is composed: the Round's resource supply plan reads mine sources and
+	// bench bills through it. Nil plans only the census kinds (chop, harvest, hunt).
+	resourceNative RoundsResourceSource
+	maxAge         time.Duration
 	// undraft sends the undraft sweep's intents; nil never undrafts.
 	undraft boundary.ActionsWriter
 	// census retains the latest review reading for the planners of the same

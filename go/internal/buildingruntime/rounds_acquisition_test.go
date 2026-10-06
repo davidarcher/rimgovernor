@@ -218,6 +218,9 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	// A designated resource skips only itself: a second floor still
 	// plans, and never re-admits a held grass source.
 	reviewer.policy.ResourceTargets["RawBerries"] = 30
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
 	berries, err := planner.Step(ctx)
 	if err != nil || berries.Verdict != BuildingReasonAdmitted {
 		t.Fatal(berries, err)

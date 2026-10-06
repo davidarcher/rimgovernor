@@ -3,7 +3,10 @@
 [Documentation](../../README.md) · [Space and resources](../architecture/space-and-resources.md)
 
 `MaintainResource` uses the shared concern, plan, reservations and Hands path. A native resource census
-ranks eligible sources by distance and stable identity. Each batch holds one excavation target, or at
+ranks eligible sources by distance and stable identity. Whether a mine opens at all is the Round's
+[supply plan](../architecture/space-and-resources.md#resource-demand-and-acquisition-scoring): the
+planner dispatches only the mine sources the plan opened for the deficit, in rank order, and a
+resource the plan opened a bill or a chop for is not also mined past its deficit. Each batch holds one excavation target, or at
 most eight plant sources, and accounts for all eligible pending yield, including sources beyond the
 displayed census. Estimated yield never satisfies a stock target; fresh observations select another
 deposit after depletion.

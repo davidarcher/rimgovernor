@@ -146,9 +146,9 @@ func TradeCandidate(resource Resource, trader string, units int64, price float64
 	}, true
 }
 
-// maxCatalogSelection bounds one acquisition method, matching
+// MaxCatalogSelection bounds one acquisition method, matching
 // SelectResourceSources' native selection cap.
-const maxCatalogSelection = 8
+const MaxCatalogSelection = 8
 
 // SelectCatalogAcquisition picks MaintainResource's chop, harvest and hunt
 // sources for resource (#728): every undesignated, unheld census row
@@ -195,7 +195,7 @@ func SelectCatalogAcquisition(rows []AcquisitionSource, resource Resource, need 
 		}
 		out = append(out, row)
 		need -= int64(math.Round(row.Yield))
-		if need <= 0 || len(out) == maxCatalogSelection {
+		if need <= 0 || len(out) == MaxCatalogSelection {
 			break
 		}
 	}

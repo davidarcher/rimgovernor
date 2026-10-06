@@ -42,9 +42,11 @@ unit deficits, never stored goods or completed work. Food runs on it: `reviewFoo
 builds the channel rows and `policy.SupplyFoodPlan` plans them through
 `PlanSupply` with the Nutrition demand and reads the supply plan back as the
 `FoodPlan` that the player API and the method planners consume. Resource
-acquisition still uses `RankResourceCandidates` until its cut-overs (#2160,
-#2172); its tests run against both, and the resource simulator matrix runs
-through a `PlanSupply` adapter.
+mines, bills, chops, harvests and hunts run on it through the Round's resource
+supply plan (`policy.PlanResourceSupply`, [space and resources](space-and-resources.md#resource-demand-and-acquisition-scoring));
+deep drill, trade, loot and salvage still use `RankResourceCandidates` until
+their cut-overs (#2168), and the resource simulator matrix runs through a
+`PlanSupply` adapter.
 
 ### Demands
 

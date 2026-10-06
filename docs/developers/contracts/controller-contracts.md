@@ -364,6 +364,10 @@ harvest lead is computed in policy from native growth, temperature and calendar 
 The maintained food concern budgets each crop's capacity from native daily demand and
 yield, covering consumption during its growth allowance plus the persisted reserve
 (including colony animals permitted to eat the crop; future grazing is not credited).
+The wood latch (`WoodMin`, `WoodTarget`) is a MaintainResource floor: it enters the Round's
+[resource supply plan](../architecture/space-and-resources.md#resource-demand-and-acquisition-scoring)
+as the wood deficit beside every other floor and is served by whichever chop, harvest or bill
+the plan opens, never by a wood-only path.
 Reserve, food-latch thresholds and wood thresholds are seasonal: the colony read carries
 the growing calendar (`policy.Calendar`) and each review widens the policy by its
 harvest gap (`RoundsPolicy.Seasonal`): the wait until growth resumes plus one rice cycle

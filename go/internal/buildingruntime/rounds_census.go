@@ -46,6 +46,9 @@ type roundsCensusStore struct {
 	foodPlan            domain.Fact[policy.FoodPlan]
 	foodGeneration      uint64
 	foodMin, foodTarget float64
+	// supply is the Round's resource supply plan, built once per supplyKey.
+	supply    *resourceSupply
+	supplyKey resourceSupplyKey
 	// layout is the v2 layout plan the latest review served for layoutScope
 	// (#667): a planner whose read misses the census plans on it too, so a
 	// fresh read never drops the plan the review already derived.

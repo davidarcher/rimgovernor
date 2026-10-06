@@ -47,17 +47,39 @@ each stock unit is counted once. Unknown stock leaves demand unknown. Estimated
 acquisition yield is not inventory. Priorities are 1–100, higher first; economic
 floors default to 1 and a merged row retains its highest priority.
 
-`RankResourceCandidates` is the shared pure scoring contract for loot, salvage
-and mining integrations. It values only unmet demand that fits observed destination
-headroom, weighted by priority and native unit value. Path distance, total source
-labor and rounded hauling trips reduce the score. Unknown cost facts withhold a
-candidate; unknown storage supplies no headroom. Higher-priority urgent work
-(`policy.RemoteCompetition`: an urgent patient or a disrupting disaster) holds
-acquisition, while an unrelated routine deficit does not. Positive scores sort by
-score descending, then kind and stable source ID; input order cannot break ties.
-These are alternatives, not a batch allocation or permission to dispatch. Consumers
-must bound selected work and refresh demand, reach, native safety and storage before
-using the existing concerns and Hands path. Remote loot consumes it through the
+Every Round plans the resource deficits once. `Rounder.resourceSupply` builds one
+`policy.PlanResourceSupply` over the unmet MaintainResource floors, cached per
+observed tick, invalidation generation and MaintainResource revision like the food
+plan, and plans them after food against the labor food leaves (`workers * 20000`
+ticks per day less the work of the channels food keeps open; unknown workers do
+not ration it). Each floor is a stock demand wanted now, reduced by the yield of
+chop and harvest designations already in flight. The candidates are the native
+mine sources the resource planner selected for the deficit, the bench bill
+`SelectResourceMethod` chose, and the census's trees, wild plants and animals
+(`AcquisitionSourceCandidates`, with the hunt slots the census leaves); each is a
+one-shot `SupplyCandidate` ranked by `PlanSupply` (value per labor, distance and
+trips; storage headroom bounds a hauled yield, unknown headroom is none; an
+unknown cost fact withholds a candidate). One admission decides which candidates
+open; the planners do not rank:
+
+- `RoundsResourcePlanner` dispatches the mine and produce candidates the plan
+  opened, in rank order (`dispatchSupplied`): a mine to `dispatchMineSource`, a
+  bill to the bench. When the plan opened
+  nothing for it the tail still tunnels to buried ore or waits on a designation.
+- `RoundsAcquisitionPlanner` designates the chop, harvest and hunt candidates the
+  plan opened (`resourceSelection`), at most eight rows and the free hunt slots.
+  A resource with a designation in flight is existing work for it.
+- Deep drill, trade, loot and salvage stay on the bid board until their cut-overs
+  ([supply model](supply-model.md)). The plan's winner for a resource is posted as
+  the single resource bid, and a fresh strictly higher deep-drill or trade bid
+  holds the resource back from both planners.
+- #728 holds: a shelter or bench short of a non-wood resource raises exactly that
+  shortfall as a floor (`DependencyNeeds`), and the wood latch (`WoodMin`,
+  `WoodTarget`, seasonal scaling) is a floor like any other.
+
+Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
+ranker that still scores loot, salvage and the drill (`RankResourceCandidates`).
+Remote loot consumes it through the
 [supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach).
 Surface mining uses the same reach ceiling and one-rock demand batches
 ([mining contract](../contracts/mining-contracts.md)); salvage reads the
@@ -73,10 +95,9 @@ joint bid board, asserting that floors are restored, a shortfall edge raises
 only the missing resource, one planner dispatches a resource at a time, bids
 expire with their TTL, a missing source is a hold, and a deep drill needs a
 runway deficit, research and power. Failures that hold today are recorded in
-`testdata/resource-matrix-baseline.json`, which only shrinks. A second adapter
-runs the same matrix through `policy.PlanSupply`, the one ranker that replaces
-`RankResourceCandidates` and the bid board once the resource cut-overs land
-([supply model](supply-model.md)).
+`testdata/resource-matrix-baseline.json`, which only shrinks. The matrix models the pre-plan
+planners and the bid board; a second adapter runs it through `policy.PlanSupply`,
+the ranker the Round's plan uses ([supply model](supply-model.md)).
 
 ## Material runway
 

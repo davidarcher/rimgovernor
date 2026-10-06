@@ -44,6 +44,10 @@ type resSpec struct {
 
 // resDefs maps simulator goods to the policy definitions the real functions
 // key on (stone block floors derive from the chunk definitions).
+// bidAcquisition is the acquisition planner's bid of the board the adapter
+// models; production posts the supply plan's winner as the one resource bid.
+const bidAcquisition acquisitionBidder = "acquisition"
+
 var resDefs = map[supplysim.Good]policy.Resource{
 	supplysim.StoneChunks: "ChunkGranite",
 	supplysim.StoneBlocks: "BlocksGranite",

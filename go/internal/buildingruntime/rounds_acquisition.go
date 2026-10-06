@@ -66,32 +66,10 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 			return RoundsAcquisitionResult{Verdict: awaitingSlot(string(r.need))}, nil
 		}
 	}
-	plans, err := p.journal.LoadPlans(call, 256)
+	expected, projection, err := r.reviewer.acquisitionReading(call, state, review)
 	if err != nil {
 		return RoundsAcquisitionResult{}, err
 	}
-	playerPlans, err := p.journal.PlayerPlans(call, playerWorld(state.Snapshot))
-	if err != nil {
-		return RoundsAcquisitionResult{}, err
-	}
-	definitions := roundsProjectDefinitions(plans, state.Snapshot, playerPlans)
-	expected, err := stepScope(call, r.reviewer.native)
-	if err != nil {
-		return RoundsAcquisitionResult{}, err
-	}
-	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoundsAcquisitionResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
-	}
-	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
-	if err != nil {
-		return RoundsAcquisitionResult{}, err
-	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, definitions...)
-	if err != nil {
-		return RoundsAcquisitionResult{}, err
-	}
-	projection := read.Projection
-	projection.Acquisition = withoutFieldSources(projection.Acquisition, projection, plans, state.Snapshot)
 	pest := r.need == policy.ClearPests
 	stockGoal := r.need == policy.MaintainResource
 	food := r.need == policy.EnsureFoodSupply
@@ -188,15 +166,11 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 			}
 		}
 	}
-	// Sources under a cooldown are passed over like held ones: the cooldown
-	// lifts by itself at its bound, never a permanent ban (#629).
 	held := map[string]bool{}
-	if rows, known := projection.Acquisition.Value(); known && !pest {
-		for _, row := range rows {
-			if cooled[row.ID] || progress.Cooled(policy.CooldownKey(r.reviewer.policy.HuntProgress().Method, row.ID), expected.Tick) || progress.Cooled(policy.CooldownKey(r.reviewer.policy.AcquisitionProgress().Method, row.ID), expected.Tick) {
-				held[row.ID] = true
-			}
-		}
+	if !pest {
+		held = cooledSources(projection.Acquisition, func(id string) bool {
+			return cooled[id] || acquisitionCooled(progress, r.reviewer.policy, id, expected.Tick)
+		})
 	}
 	// Blocking reads the census, not the journal (#1045): a designated row
 	// the goal would plan is its ExistingWork. A source this step cancelled
@@ -220,18 +194,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	// A designated or undispatched source is held: it is not planned again
 	// (#1045). Its resource is busy for MaintainResource unless a cooldown
 	// held it.
-	busy := map[string]bool{}
-	if rows, known := projection.Acquisition.Value(); known {
-		for _, row := range rows {
-			if row.Designated || undispatched[row.ID] {
-				busy[row.Resource] = busy[row.Resource] || !held[row.ID]
-				held[row.ID] = true
-			}
-		}
-	}
-	for thing := range undispatched {
-		held[thing] = true
-	}
+	busy := holdWorked(projection.Acquisition, undispatched, held)
 	pending := withoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food)
 	deficit := domain.Unknown[float64]()
 	runway := domain.Unknown[float64]()
@@ -243,25 +206,15 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 		runway = plan.Forecast.RunwayDays
 		projection.Acquisition, deficit = foodPlanAcquisition(plan, projection.Acquisition)
 	}
-	slots := domain.Unknown[int]()
-	if n, known := projection.PendingHunts.Value(); known {
-		slots = domain.Known(max(0, 2-n))
-	}
-	// A hunt needs a hunter: with the roster known and HunterFor (Shooting,
-	// a ranged primary, never a Brawler) finding nobody, the hunting budget
-	// is zero and only gathering is proposed, instead of a designation
-	// native's hunt preview would refuse for want of a free ranged hunter.
-	noHunter := false
-	if pawns, known := projection.WorkPawns.Value(); known {
-		if _, ok := policy.HunterFor(policy.Profiles(pawns)); !ok {
-			slots = domain.Known(0)
-			noHunter = true
-		}
-	}
+	slots, noHunter := huntSlots(projection)
 	var selected []policy.AcquisitionSource
 	existing := false
 	if stockGoal {
-		selected, existing, err = r.resourceSelection(call, state.Snapshot, expected.Tick, projection, held, busy, slots)
+		supply, err := r.reviewer.resourceSupply(call, state, review, goal)
+		if err != nil {
+			return RoundsAcquisitionResult{}, err
+		}
+		selected, existing = r.resourceSelection(supply, state.Snapshot, expected.Tick, busy)
 	} else if pest {
 		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)
 	} else {
@@ -331,51 +284,29 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	return RoundsAcquisitionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
-// resourceSelection is MaintainResource's census selection: the floors
-// worst-covered first, and for the first with chop, harvest or hunt
-// sources the bill and mine planner does not outbid,
-// policy.SelectCatalogAcquisition against its deficit. existing reports a
-// target passed over for its designated work (busy).
-func (r *RoundsAcquisitionPlanner) resourceSelection(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, projection observation.ColonyProjection, held, busy map[string]bool, slots domain.Fact[int]) (_ []policy.AcquisitionSource, existing bool, err error) {
-	rows, known := projection.Acquisition.Value()
-	if !known {
-		return nil, false, errors.New("acquisition census unknown")
-	}
-	stock := projection.Facts.Resources
-	targets, err := r.reviewer.resourceTargets(ctx, snapshot, stock)
-	if err != nil {
-		return nil, false, err
-	}
-	ranked, err := policy.RankResourceTargets(targets, stock)
-	if err != nil {
-		return nil, false, err
-	}
-	hunts, _ := slots.Value()
-	center, planned := projection.Center().Value()
-	if !planned {
-		return nil, false, errors.New("layout plan unknown")
-	}
-	for _, row := range ranked {
+// resourceSelection is MaintainResource's census selection: the chop, harvest
+// and hunt sources the Round's supply plan opened, for the first floor (worst
+// covered first) that has some and no designated work in flight. existing
+// reports a floor passed over for its designated work (busy). A resource the
+// plan's winner leaves to a deep drill or a caravan is passed over too.
+func (r *RoundsAcquisitionPlanner) resourceSelection(supply *resourceSupply, snapshot domain.GenerationSnapshot, tick domain.Tick, busy map[string]bool) (_ []policy.AcquisitionSource, existing bool) {
+	for _, resource := range supply.order {
 		// A designated resource is its own existing work; the goal's
 		// other targets still plan (#1045).
-		if busy[string(row.Resource)] {
+		if busy[string(resource)] {
 			existing = true
 			continue
 		}
-		picked, best, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), center, held, hunts)
-		if err != nil {
-			return nil, false, err
-		}
-		// Joint ranking with the bill and mine planner (#728): a resource
-		// its fresh bid scores higher is left to it.
-		if _, yield := r.reviewer.bids.bid(snapshot, row.Resource, bidAcquisition, best.Score, best.Kind, tick); yield {
+		picked := supply.acquisitions(resource)
+		if len(picked) == 0 {
 			continue
 		}
-		if len(picked) > 0 {
-			return picked, false, nil
+		if supply.bid(r.reviewer, snapshot, resource, tick) {
+			continue
 		}
+		return picked, false
 	}
-	return nil, existing, nil
+	return nil, existing
 }
 
 // Only admitted sources can start new work. Pending designations retain their
@@ -457,6 +388,77 @@ func undispatchedAcquisitions(progress []domain.Progress) map[string]bool {
 		}
 	}
 	return things
+}
+
+// acquisitionCooled reports whether a source sits under a stall cooldown of
+// either contract (#629).
+func acquisitionCooled(progress policy.ConcernProgress, p policy.RoundsPolicy, thing string, tick domain.Tick) bool {
+	return progress.Cooled(policy.CooldownKey(p.HuntProgress().Method, thing), tick) || progress.Cooled(policy.CooldownKey(p.AcquisitionProgress().Method, thing), tick)
+}
+
+// cooledSources are the census rows cooled reports: passed over like held
+// ones, the cooldown lifting by itself at its bound, never a permanent ban.
+func cooledSources(sources domain.Fact[[]policy.AcquisitionSource], cooled func(string) bool) map[string]bool {
+	held := map[string]bool{}
+	if rows, known := sources.Value(); known {
+		for _, row := range rows {
+			if cooled(row.ID) {
+				held[row.ID] = true
+			}
+		}
+	}
+	return held
+}
+
+// holdWorked holds, in held, every designated or undispatched source, and
+// returns the resources with such work not on cooldown: those are busy.
+func holdWorked(sources domain.Fact[[]policy.AcquisitionSource], undispatched, held map[string]bool) map[string]bool {
+	busy := map[string]bool{}
+	if rows, known := sources.Value(); known {
+		for _, row := range rows {
+			if row.Designated || undispatched[row.ID] {
+				busy[row.Resource] = busy[row.Resource] || !held[row.ID]
+				held[row.ID] = true
+			}
+		}
+	}
+	for thing := range undispatched {
+		held[thing] = true
+	}
+	return busy
+}
+
+// acquisitionReading is the owned review reading an acquisition step plans
+// on, its census without the sources a field plan reserves.
+func (r *Rounder) acquisitionReading(call context.Context, state ControlState, review store.Rounds) (observation.Identity, observation.ColonyProjection, error) {
+	p := r.player
+	plans, err := p.journal.LoadPlans(call, 256)
+	if err != nil {
+		return observation.Identity{}, observation.ColonyProjection{}, err
+	}
+	playerPlans, err := p.journal.PlayerPlans(call, playerWorld(state.Snapshot))
+	if err != nil {
+		return observation.Identity{}, observation.ColonyProjection{}, err
+	}
+	definitions := roundsProjectDefinitions(plans, state.Snapshot, playerPlans)
+	expected, err := stepScope(call, r.native)
+	if err != nil {
+		return observation.Identity{}, observation.ColonyProjection{}, err
+	}
+	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return observation.Identity{}, observation.ColonyProjection{}, fmt.Errorf("%w: acquisitionReading: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+	}
+	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
+	if err != nil {
+		return observation.Identity{}, observation.ColonyProjection{}, err
+	}
+	read, err := r.observeOwned(call, r.native, expected, claims, definitions...)
+	if err != nil {
+		return observation.Identity{}, observation.ColonyProjection{}, err
+	}
+	projection := read.Projection
+	projection.Acquisition = withoutFieldSources(projection.Acquisition, projection, plans, state.Snapshot)
+	return expected, projection, nil
 }
 
 // huntRows keeps the census's hunt rows.

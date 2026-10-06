@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -296,10 +297,12 @@ func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The review's own runway reads precede the planner's; the planner read
-	// medicine first (the tie winner) and then went on to steel.
-	if got := native.reads; len(got) < 2 || got[len(got)-2] != "MedicineHerbal" || got[len(got)-1] != "Steel" {
-		t.Fatal("source reads", got, result)
+	// The review's own runway reads precede the supply plan's: it read the
+	// medicine floor (the tie winner) before the steel floor, then dispatched
+	// the steel mine without a further read.
+	medicine, steel := slices.Index(native.reads, "MedicineHerbal"), slices.Index(native.reads[max(0, slices.Index(native.reads, "MedicineHerbal")):], "Steel")
+	if medicine < 0 || steel < 0 {
+		t.Fatal("source reads", native.reads, result)
 	}
 	if result.Verdict != BuildingReasonAdmitted || result.Plan == "" || !minedSource(result, "ore-cas") {
 		t.Fatal(result)

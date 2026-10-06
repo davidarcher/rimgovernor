@@ -7,19 +7,18 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// A MaintainResource floor is acquired by several planners (#728): the
-// resource planner (bills, mining, a deep drill), the acquisition planner
-// (chop, harvest, hunt) and the trade planner (a caravan). Each posts its
-// best catalog score per resource on the reviewer's board and yields a
-// resource to a fresh higher bid from another, so they rank jointly
-// instead of first-step-wins.
+// A MaintainResource floor is acquired by the Round's supply plan (the resource
+// planner's mines and bills, the acquisition planner's chops, harvests and
+// hunts), a deep drill and a caravan (#728). The plan's winner is the single
+// resource bid; the drill and the trade planner post their own best catalog
+// score, and a resource goes to a fresh strictly higher bid. Rows 30 and 31 of
+// epic #2140 move the drill and the caravan onto the plan and delete the board.
 type acquisitionBidder string
 
 const (
-	bidResource    acquisitionBidder = "resource"
-	bidAcquisition acquisitionBidder = "acquisition"
-	bidDeepDrill   acquisitionBidder = "deep_drill"
-	bidTrade       acquisitionBidder = "trade"
+	bidResource  acquisitionBidder = "resource"
+	bidDeepDrill acquisitionBidder = "deep_drill"
+	bidTrade     acquisitionBidder = "trade"
 )
 
 // acquisitionBidTTL bounds how long a bid stands without being renewed: a
