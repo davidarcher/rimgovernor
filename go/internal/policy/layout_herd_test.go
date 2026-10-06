@@ -87,20 +87,55 @@ func TestVetBedsScaleWithTheHerd(t *testing.T) {
 	}
 }
 
-// A unit boxed in by the core has no room beside it: an outgrown herd adds
-// nothing, never a detached reservation, and a repeat top-up is a no-op.
-func TestBoxedInUnitAddsNothingDetached(t *testing.T) {
+// A unit boxed in by the core has no room beside it: the outgrown herd founds
+// one second unit (barn, vet area and pen), the nearest unit takes it as its
+// own, and a repeat top-up is a no-op (#2212).
+func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
 	small := herdTestPlan(t, 10)
 	grown := PlanHerdSites(small, 30)
-	if units := grown.herdUnits(); len(units) != 1 {
-		t.Fatal("a reservation stands off the unit", len(units))
+	u := newUtilityGrid(grown)
+	if groups := grown.herdUnits(); len(groups) != 2 {
+		t.Fatal("want the first unit and one second unit", len(groups))
+	}
+	if housed := grown.housedUnits(u, 1); len(housed) != 1 || len(housed[0].barns) != 2 || len(housed[0].vets) != 2 {
+		t.Fatal("the second unit is the first one's overflow", housed)
+	}
+	if grown.herdCapacity(PlannedBarn) < 30 || grown.herdCapacity(PlannedVetRoom) < VetBeds(30) || penCells(grown) < 30*penCellsPerAnimal {
+		t.Fatal("the herd is not housed", grown.herdCapacity(PlannedBarn), penCells(grown))
 	}
 	if again := PlanHerdSites(grown, 30); len(again.Reservations) != len(grown.Reservations) {
 		t.Fatal("top-up is not idempotent")
 	}
+	// A bigger herd grows the second unit or adds one, never a unit per animal.
+	more := PlanHerdSites(grown, 31)
+	if len(more.herdUnits()) > 3 {
+		t.Fatal("a unit per animal", len(more.herdUnits()))
+	}
 	for i, r := range small.Reservations {
 		if grown.Reservations[i] != r {
 			t.Fatal("a placed reservation moved", r)
+		}
+	}
+}
+
+// No unit stands without all three: every pen touches a barn, every barn has a
+// pen and a vet area, however the herd outgrows its rooms.
+func TestUnitsAreAlwaysBarnVetAndPen(t *testing.T) {
+	for _, animals := range []int{10, 30, 31, 60} {
+		p := herdTestPlan(t, 10)
+		p = PlanHerdSites(p, animals)
+		for k, g := range p.herdUnits() {
+			if len(g.pens) == 0 || len(g.barns) == 0 || len(g.vets) == 0 {
+				t.Fatal("a unit lacks a part", animals, k, len(g.pens), len(g.barns), len(g.vets))
+			}
+		}
+	}
+	// A second unit that cannot fit whole is left out, not founded in parts.
+	p := herdTestPlan(t, 10)
+	p = PlanHerdSites(p, 5000)
+	for k, g := range p.herdUnits() {
+		if len(g.pens) == 0 || len(g.barns) == 0 || len(g.vets) == 0 {
+			t.Fatal("a detached part", k, len(g.pens), len(g.barns), len(g.vets))
 		}
 	}
 }

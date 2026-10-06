@@ -17,7 +17,7 @@ import (
 // animal beds, VetBeds per barn) are walls and interior together. A
 // reservation never changes or moves: a herd its unit cannot hold gets another
 // reservation of the same kind beside the same room (herd_rooms.go builds and
-// furnishes them).
+// furnishes them), or, boxed in, a whole second unit (#2212).
 
 const (
 	// ReserveBarn is the roofed barn where the herd sleeps.
@@ -173,12 +173,42 @@ func (p LayoutPlan) capacity(areas []Rectangle, role PlannedRole) int {
 	return n
 }
 
+// housedUnits are the plan's herd units matched to the n primary units (the
+// misc unit, then one per herd): a group past the first n is the second unit a
+// boxed-in unit founded, and it joins the primary unit nearest by centre (the
+// lower one on a tie). Nothing is stored; the plan's order decides.
+func (p LayoutPlan) housedUnits(u *utilityGrid, n int) []herdUnit {
+	groups := p.herdUnits()
+	if len(groups) <= n {
+		return groups
+	}
+	out := slices.Clone(groups[:n])
+	for _, g := range groups[n:] {
+		gx, gz := g.centre(u)
+		best, bestD := 0, math.MaxFloat64
+		for i, primary := range out[:n] {
+			px, pz := primary.centre(u)
+			if d := math.Hypot(float64(px-gx), float64(pz-gz)); d < bestD {
+				best, bestD = i, d
+			}
+		}
+		out[best].pens = append(out[best].pens, g.pens...)
+		out[best].barns = append(out[best].barns, g.barns...)
+		out[best].vets = append(out[best].vets, g.vets...)
+	}
+	return out
+}
+
 func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []int) {
+	primaries := 1 + len(herds)
 	for i, animals := range append([]int{misc}, herds...) {
 		if animals <= 0 {
 			continue
 		}
-		units := plan.herdUnits()
+		// A unit founds a second one only once every primary unit stands, or
+		// the second would be read as the next herd's own.
+		founded := len(plan.herdUnits()) >= primaries
+		units := plan.housedUnits(u, primaries)
 		var unit herdUnit
 		if i < len(units) {
 			unit = units[i]
@@ -188,17 +218,18 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []int) {
 		if i > 0 && len(units) > 0 {
 			cx, cz = units[0].centre(u)
 		}
-		planUnit(u, plan, unit, animals, cx, cz, i == 0)
+		planUnit(u, plan, unit, animals, cx, cz, i == 0, founded)
 	}
 }
 
 // planUnit tops one unit up for animals: a pen beside its barn, a barn beside
 // its pen, a vet area beside its barn. A herd the unit's rooms outgrow gets
 // another reservation of the same kind beside the unit; none moves. Only a
-// unit with nothing placed yet takes a site near cx, cz; an outgrown unit with
-// no room beside it adds nothing, so the shortfall stays and a repeat top-up
-// is a no-op.
-func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, cz int32, misc bool) {
+// unit with nothing placed yet takes a site near cx, cz. A unit boxed in so
+// that nothing fits beside it (and only when mayFound) founds a second whole
+// unit, pen, barn and vet area, sized for the overflow; its shortfall is then
+// met, so a repeat top-up is a no-op.
+func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, cz int32, misc, mayFound bool) {
 	pens, barns, vets := slices.Clone(unit.pens), slices.Clone(unit.barns), slices.Clone(unit.vets)
 	place := func(kind ReservationKind, w, h int32, anchors []Rectangle) bool {
 		site, ok := Rectangle{}, false
@@ -228,12 +259,40 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, 
 	for _, a := range pens {
 		held += int(a.Width * a.Height)
 	}
+	// found raises the second unit for the animals the unit cannot hold, all
+	// or nothing: a pen is never left without its barn and vet area.
+	found := func() {
+		if !mayFound || len(pens)+len(barns)+len(vets) == 0 {
+			return
+		}
+		extra := max(1, animals-min(held/penCellsPerAnimal, plan.capacity(barns, PlannedBarn)))
+		vetBeds := max(VetBeds(extra), VetBeds(animals)-plan.capacity(vets, PlannedVetRoom))
+		used, n := slices.Clone(u.used), len(plan.Reservations)
+		pw, ph := penSide(extra)
+		bw, bh := walledSide(herdSide(extra))
+		vw, vh := walledSide(herdSide(vetBeds))
+		pen, ok := u.site(pw, ph, false, false, cx, cz)
+		if ok {
+			u.reserve(plan, LayoutReservation{Kind: ReservePen, Area: pen})
+			var barn, vet Rectangle
+			if barn, ok = u.besideReservation(*plan, pen, ReserveBarn, bw, bh); ok {
+				u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: barn})
+				if vet, ok = u.besideReservation(*plan, barn, ReserveVetRoom, vw, vh); ok {
+					u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: vet})
+				}
+			}
+		}
+		if !ok {
+			u.used, plan.Reservations = used, plan.Reservations[:n]
+		}
+	}
 	if len(pens) > 0 {
 		cx, cz = pens[0].X+pens[0].Width/2, pens[0].Z+pens[0].Height/2
 	}
 	if short := animals*penCellsPerAnimal - held; short > 0 {
 		w, h := penSide((short + penCellsPerAnimal - 1) / penCellsPerAnimal)
 		if !place(ReservePen, w, h, barns) {
+			found()
 			return
 		}
 		if len(pens) == 1 {
@@ -248,12 +307,15 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, 
 		}
 		w, h := walledSide(herdSide(beds))
 		if !place(ReserveBarn, w, h, slices.Concat(pens, vets)) {
+			found()
 			return
 		}
 	}
 	if short := VetBeds(animals) - plan.capacity(vets, PlannedVetRoom); short > 0 {
 		w, h := walledSide(herdSide(short))
-		place(ReserveVetRoom, w, h, barns)
+		if !place(ReserveVetRoom, w, h, barns) {
+			found()
+		}
 	}
 }
 
