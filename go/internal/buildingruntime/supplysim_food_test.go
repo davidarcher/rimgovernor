@@ -141,7 +141,8 @@ type foodAdapter struct {
 	credit    policy.DeliveryCredit
 	delivered map[observation.DeliveryKey]float64
 	// groups names the world source behind each ledger counter group; minFactor
-	// is the lowest factor the credit reported for a source.
+	// is the lowest factor the credit reported for a source (0 once the plan
+	// carries no rate for a fishing region after the shock).
 	groups    map[string]string
 	minFactor map[string]float64
 }
@@ -171,6 +172,11 @@ func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 		id, ok := ids[string(e.Channel.Kind)+"/"+e.Channel.ID]
 		if !ok {
 			continue // a supporting row
+		}
+		// A fishing region below its population floor carries no rate: the plan
+		// no longer counts on it, which the credit never needs to judge (expected 0).
+		if rate, known := e.Channel.NutritionPerDay.Value(); e.Channel.Kind == policy.FoodFishing && known && rate == 0 && v.Day >= foodShockDay {
+			a.minFactor[id] = 0
 		}
 		switch e.Decision {
 		case policy.FoodPlanOpen:
