@@ -14,7 +14,6 @@ const (
 	ActiveCombat            ConcernID = "ActiveCombat"
 	CriticalMedicine        ConcernID = "CriticalMedical"
 	RestoreWorkers          ConcernID = "RestoreWorkers"
-	AllowStartingSupplies   ConcernID = "AllowStartingSupplies"
 	ManageSupplySafety      ConcernID = "ManageSupplySafety"
 	EnsureWorkAssignments   ConcernID = "EnsureWorkAssignments"
 	EnsureFoodSupply        ConcernID = "EnsureFoodSupply"
@@ -458,7 +457,6 @@ type RoundsFacts struct {
 	BasicComfort         domain.Fact[ComfortObservation]
 	ComfortRecovered     domain.Fact[bool]
 	ComfortDeficit       domain.Fact[float64]
-	StartingSupplies     domain.Fact[[]StartingSupply]
 	EventLoot            domain.Fact[[]LootItem]
 	EventLootPending     domain.Fact[bool]
 	LootReadiness        LootReadiness // the loot census's reach readiness (#522)
@@ -538,8 +536,8 @@ type RoundsFacts struct {
 	// count is unknown; a colonist who merely needs tending, or is downed
 	// with nothing to tend, keeps the goal active at priority 2 so the
 	// colony's other work and the clock go on around the tend or rescue.
-	UrgentPatients                                                    domain.Fact[int64]
-	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies domain.Fact[bool]
+	UrgentPatients                                 domain.Fact[int64]
+	AllPatientsResting, ColonyNaming, CleanupPawns domain.Fact[bool]
 	// HostilityOwed is a colonist whose hostility response differs from
 	// the one it should hold (#1299); EnsureWorkAssignments writes it.
 	HostilityOwed domain.Fact[bool]

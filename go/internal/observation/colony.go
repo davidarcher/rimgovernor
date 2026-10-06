@@ -672,15 +672,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		r.Resources = domain.Known(stock)
 	}
-	if !hasIssue(v.Issues, "forbidden_supplies") && headed(tables, v.ForbiddenSupplies, func(r *c.Ref) *c.Ref { return r }) {
-		r.Facts.ForbiddenSupplies = domain.Known(len(v.ForbiddenSupplies) > 0)
-		rows := make([]policy.StartingSupply, 0, len(v.ForbiddenSupplies))
-		for _, row := range v.ForbiddenSupplies {
-			head := tables.Entity(row)
-			rows = append(rows, policy.StartingSupply{Thing: row.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
-		}
-		r.Facts.StartingSupplies = domain.Known(rows)
-	}
 	if loot := v.GetEventLoot().GetObserved(); loot != nil && headed(tables, loot.Items, (*o.LootItem).GetItem) {
 		rows := make([]policy.LootItem, 0, len(loot.Items))
 		spawnForbidden := tables.Catalog.SpawnForbiddenProducts()

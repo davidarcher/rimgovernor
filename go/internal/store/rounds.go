@@ -72,10 +72,9 @@ type Rounds struct {
 	// shortfall edges raised (#728), so the resource planner stocks them.
 	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
 	// WoodFloor is the wood latch's WoodLog floor (policy.RoundsFindings).
-	WoodFloor        int64 `json:",omitempty"`
-	StartingSupplies policy.StartingSupplies
-	EventLoot        policy.EventLootHistory
-	Comfort          policy.ComfortHistory
+	WoodFloor int64 `json:",omitempty"`
+	EventLoot policy.EventLootHistory
+	Comfort   policy.ComfortHistory
 	// Goals binds the Standards this review assessed; Projects binds the
 	// Projects.
 	Standards []RoundsStandard
@@ -178,7 +177,14 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	if err := json.Unmarshal(data, &r); err != nil {
 		return r, err
 	}
+	migrated, err := migrateRounds(ctx, tx, data, &r)
+	if err != nil {
+		return Rounds{}, err
+	}
 	canonical, err := json.Marshal(r)
+	if migrated {
+		data = canonical
+	}
 	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Standards) > 306 || len(r.Projects) > 306 {
 		return Rounds{}, errors.New("invalid rounds history")
 	}
@@ -233,9 +239,6 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 		return Rounds{}, errors.New("stale mood method proposal")
 	}
 	if err := r.EventLoot.Validate(); err != nil {
-		return Rounds{}, err
-	}
-	if err := r.StartingSupplies.Validate(); err != nil {
 		return Rounds{}, err
 	}
 	if len(r.ReserveSupplies) > 4096 || !r.Enabled && len(r.ReserveSupplies) != 0 {
@@ -413,7 +416,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	reset := previous.Revision == 0 || a.Colony != b.Colony || a.Load != b.Load || a.Map != b.Map || request.Tick < previous.Tick
 	latches := previous.Latches
 	medical := previous.MedicalCare
-	supplies := previous.StartingSupplies
 	loot := previous.EventLoot
 	sleeping := previous.Sleeping
 	comfort := previous.Comfort
@@ -422,7 +424,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	if reset {
 		latches = policy.RoundsLatches{}
 		medical = policy.MedicalCareHistory{}
-		supplies = policy.StartingSupplies{}
 		loot = policy.EventLootHistory{}
 		comfort = policy.ComfortHistory{}
 		sleeping = policy.SleepingHistory{}
@@ -469,11 +470,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		}
 		comfort = comfortReview.History
 		request.Facts.ComfortRecovered, request.Facts.ComfortDeficit = comfortReview.Recovered(), comfortReview.Deficit()
-		supplies, request.Facts.ForbiddenSupplies, err = policy.ReviewStartingSuppliesAt(request.Facts.StartingSupplies, supplies, request.Tick)
-		if err != nil {
-			return RoundsResult{}, err
-		}
-		lootCensus, held, err := lootReachFilter(request)
+		lootCensus, held, err := lootReachFilter(request, loot, previous.Revision == 0 || reset)
 		if err != nil {
 			return RoundsResult{}, err
 		}
@@ -483,12 +480,8 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		}
 		loot.Held = held
 		// The food reserve owns the forbid state of reserve food; drop its
-		// stacks from both supply cohorts so the planners cannot flip them.
-		supplies.Pending = policy.DropReserveHeld(supplies.Pending, request.Facts.FoodReserve)
+		// stacks from the cohort so the planners cannot flip them.
 		loot.Pending = policy.DropReserveHeld(loot.Pending, request.Facts.FoodReserve)
-		if _, known := request.Facts.ForbiddenSupplies.Value(); known {
-			request.Facts.ForbiddenSupplies = domain.Known(len(supplies.Pending) > 0)
-		}
 		if _, known := request.Facts.EventLootPending.Value(); known {
 			request.Facts.EventLootPending = domain.Known(len(loot.Pending) > 0)
 		}
@@ -620,7 +613,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
 	r.DependencyNeeds = policy.ConstructionResourceNeeds(policy.DependencyResourceNeeds(request.Facts.Dependencies), request.Facts.ConstructionDeficit, request.Facts.Resources)
 	r.WoodFloor = needs.WoodFloor
-	r.StartingSupplies = supplies
 	r.EventLoot = loot
 	if rows, known := request.Facts.EventLoot.Value(); known {
 		r.Unsafe = policy.UnsafeLoot(rows)

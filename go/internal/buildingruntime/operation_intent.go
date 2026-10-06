@@ -33,7 +33,6 @@ var concernLabels = map[policy.ConcernID]string{
 	policy.EnsureResearch:           "Research",
 	policy.EnsureWorkAssignments:    "Work",
 	policy.ManageSupplySafety:       "Supply safety",
-	policy.AllowStartingSupplies:    "Starting supplies",
 	policy.MaintainEquipment:        "Equipment",
 	policy.MaintainEssentialRepairs: "Repairs",
 	policy.MaintainCleanFacilities:  "Cleaning",

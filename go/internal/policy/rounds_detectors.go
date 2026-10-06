@@ -121,14 +121,6 @@ func inspectRestoreWorkers(c *roundsRun) error {
 	return nil
 }
 
-func inspectAllowStartingSupplies(c *roundsRun) error {
-	if positive(c.f.ForbiddenSupplies) {
-		c.raise(AllowStartingSupplies, 2)
-	}
-	c.assess(AllowStartingSupplies, 2, notFact(c.f.ForbiddenSupplies))
-	return nil
-}
-
 func inspectManageSupplySafety(c *roundsRun) error {
 	priority := supplySafetyPriority(c.f)
 	if positive(c.f.EventLootPending) {

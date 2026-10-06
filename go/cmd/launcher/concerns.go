@@ -9,7 +9,6 @@ var concernLabels = map[string]string{
 	"ActiveCombat":              "Fight off attackers",
 	"CriticalMedical":           "Save a dying colonist",
 	"RestoreWorkers":            "Get downed or idle colonists working again",
-	"AllowStartingSupplies":     "Unforbid the starting supplies",
 	"ManageSupplySafety":        "Keep supply runs safe",
 	"EnsureWorkAssignments":     "Assign colonists their work",
 	"EnsureFoodSupply":          "Keep the colony fed",

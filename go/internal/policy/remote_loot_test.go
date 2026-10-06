@@ -206,3 +206,63 @@ func TestRemoteLootEmptyExtentFollowsReadiness(t *testing.T) {
 		t.Fatal(next, need, err)
 	}
 }
+
+// The startup release (#2188): 23 starting stacks outside a defended-base
+// reach are all pending on the first review, and the stacks left after each
+// 8-action plan stay pending on the following reviews. A stack that first
+// appears later is reach-held; an unsafe stack is never pending.
+func TestStartupReleaseFinishesAcrossReviews(t *testing.T) {
+	r := tribal8Reach()
+	r.Armed = domain.Known(int64(1))
+	remote := RemoteWorkRequest{Reach: r, Demand: steelDemand()}
+	cell := domain.Cell{X: 95, Z: 95}
+	var rows []LootItem
+	for i := 0; i < 23; i++ {
+		rows = append(rows, remoteLootRow(string(rune('a'+i)), cell, true, true))
+	}
+	rows[3].SafeToHaul = false
+	review := func(census []LootItem, previous EventLootHistory, first bool) EventLootHistory {
+		t.Helper()
+		kept, holds, err := FilterLootReachAdmitted(domain.Known(census), remote, previous, first)
+		if err != nil {
+			t.Fatal(err)
+		}
+		next, _, err := ReviewEventLoot(kept, previous)
+		if err != nil {
+			t.Fatal(err)
+		}
+		next.Held = holds
+		return next
+	}
+	history := review(rows, EventLootHistory{}, true)
+	if len(history.Pending) != 22 || len(history.Held) != 0 {
+		t.Fatalf("first review: %d pending, held %v", len(history.Pending), history.Held)
+	}
+	for _, row := range history.Pending {
+		if row.Thing == rows[3].Supply.Thing {
+			t.Fatal("unsafe stack pending release")
+		}
+	}
+	for want := 22 - 8; want > 0; want -= 8 {
+		// A plan allows the first 8 pending stacks; the rest stay forbidden.
+		allowed := map[string]bool{}
+		for _, row := range history.Pending[:min(8, len(history.Pending))] {
+			allowed[row.Thing] = true
+		}
+		for i := range rows {
+			if allowed[rows[i].Supply.Thing] {
+				rows[i].Forbidden = false
+			}
+		}
+		history = review(rows, history, false)
+		if len(history.Pending) != want || len(history.Held) != 0 {
+			t.Fatalf("want %d pending, got %d, held %v", want, len(history.Pending), history.Held)
+		}
+	}
+	// A stack forbidden later was never admitted: reach holds it.
+	rows = append(rows, remoteLootRow("later", cell, true, true))
+	history = review(rows, history, false)
+	if len(history.Held) != 1 || history.Held[0].Thing != "later" {
+		t.Fatalf("later forbid not held: %v", history.Held)
+	}
+}

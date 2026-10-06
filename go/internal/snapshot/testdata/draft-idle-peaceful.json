@@ -1987,9 +1987,6 @@
     ]
    }
   },
-  "ForbiddenSupplies": {
-   "v": false
-  },
   "Gear": {
    "v": {
     "Pawns": [
@@ -6444,9 +6441,6 @@
   "SleepingRecovered": {
    "v": false
   },
-  "StartingSupplies": {
-   "v": []
-  },
   "StoneStructures": {
    "v": []
   },
@@ -9000,9 +8994,6 @@
    "ProductionBlocked": true,
    "ProductionSince": 15,
    "Reason": "shelter unmet"
-  },
-  "StartingSupplies": {
-   "Initialized": true
   },
   "Tick": 15,
   "WoodFloor": 1199

@@ -12,7 +12,8 @@ import (
 // stay forbidden), then to the resource reach stage and unmet demand (#522),
 // before the safety review (#336) acts on it. The reach reads the same
 // derived extent the routines API reports.
-func lootReachFilter(request RoundsRequest) (domain.Fact[[]policy.LootItem], []policy.LootHold, error) {
+// The startup release lives in policy.FilterLootReachAdmitted (#2188).
+func lootReachFilter(request RoundsRequest, previous policy.EventLootHistory, first bool) (domain.Fact[[]policy.LootItem], []policy.LootHold, error) {
 	f := request.Facts
 	if _, known := f.EventLoot.Value(); !known {
 		return f.EventLoot, nil, nil
@@ -22,7 +23,7 @@ func lootReachFilter(request RoundsRequest) (domain.Fact[[]policy.LootItem], []p
 	if err != nil {
 		return domain.Unknown[[]policy.LootItem](), nil, err
 	}
-	census, reach, err := policy.FilterLootReach(released, r)
+	census, reach, err := policy.FilterLootReachAdmitted(released, r, previous, first)
 	if err != nil {
 		return domain.Unknown[[]policy.LootItem](), nil, err
 	}

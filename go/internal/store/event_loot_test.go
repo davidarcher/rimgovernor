@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -99,42 +98,43 @@ func TestSafetyForbidPersistsAsDistinctAction(t *testing.T) {
 	}
 }
 
-// An action Safeguard refuses allowing an item the safety census reported unsafe,
-// whichever planner proposed it (#1018); only that action is refused and
-// the rest of the plan dispatches. Unsafe loot raises no emergency.
-func TestUnsafeItemAllowVetoedAtDispatchOnly(t *testing.T) {
+// An item the safety census later reports unsafe is no longer cohort work, so
+// the plan that allows it is refused (#1018). Unsafe loot raises no
+// emergency.
+func TestUnsafeItemAllowRefusedAfterCensus(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	request := roundsRequest()
 	request.Current.Native = 1
 	cell := domain.Cell{X: 1, Z: 2}
-	request.Facts.StartingSupplies = domain.Known(supplyCohort(2, cell))
-	request.Facts.EventLoot = domain.Known([]policy.LootItem{
-		{Supply: supplyCohort(1, cell)[0], Forbidden: true, SafetyKnown: true},
-		{Supply: policy.StartingSupply{Thing: "burning", Definition: "Steel", Cell: cell}, SafetyKnown: true},
-	})
+	lootExtentFacts(t, &request.Facts, cell)
+	rows := []policy.LootItem{
+		{Supply: supplyCohort(2, cell)[0], Forbidden: true, SafeToHaul: true, SafetyKnown: true},
+		{Supply: supplyCohort(2, cell)[1], Forbidden: true, SafeToHaul: true, SafetyKnown: true},
+	}
+	request.Facts.EventLoot = domain.Known(rows)
 	review := reviewRounds(t, s, &request)
-	if got := review.Review.Unsafe; len(got) != 2 || got[0] != "burning" || got[1] != "item-0" {
+	goal := roundsGoal(t, review, policy.ManageSupplySafety)
+	plan := supplyPlan(t, "allow", 2, cell)
+	if _, err := s.CommitMethod(ctx, goal.Standard.ID, goal.Revision, "allow", plan); err != nil {
+		t.Fatal(err)
+	}
+	// item-0 turns unsafe after admission; the census is still unmet on item-1.
+	rows[0].SafeToHaul = false
+	request.Facts.EventLoot = domain.Known(rows)
+	review = reviewRounds(t, s, &request)
+	if got := review.Review.Unsafe; len(got) != 1 || got[0] != "item-0" {
 		t.Fatal("unsafe not recorded", got)
 	}
 	if len(review.Review.Emergency) != 0 {
 		t.Fatal("unsafe loot raised an emergency", review.Review.Emergency)
 	}
-	goal := roundsProject(t, review, policy.AllowStartingSupplies)
-	plan := supplyPlan(t, "allow", 2, cell)
-	if _, err := s.CommitProjectMethod(ctx, goal.Project.ID, goal.Revision, "allow", "", plan); err != nil {
-		t.Fatal(err)
-	}
 	snapshot := request.Current
 	snapshot.Plan, snapshot.Revision = plan.ID(), plan.Revision()
-	for i, action := range plan.Actions() {
-		if _, err := s.Prepare(ctx, plan.ID(), action.ID(), snapshot, 10); err != nil {
-			t.Fatal(err)
-		}
-		_, err := s.Dispatch(ctx, plan.ID(), action.ID(), snapshot, 10)
-		if vetoed := errors.Is(err, ErrActionVetoed); vetoed != (i == 0) || !vetoed && err != nil {
-			t.Fatal(action.ID(), err)
+	for _, action := range plan.Actions() {
+		if _, err := s.Prepare(ctx, plan.ID(), action.ID(), snapshot, 10); err == nil {
+			t.Fatal("plan allowing an unsafe item admitted", action.ID())
 		}
 	}
 }

@@ -48,7 +48,6 @@ var inspections = []Inspection{
 	{ActiveCombat, IncidentConcern, DepartmentMilitary, []FactFamily{FactEmergency, FactColony}, inspectActiveCombat},
 	{CriticalMedicine, IncidentConcern, DepartmentMedical, []FactFamily{FactPawns, FactEmergency}, inspectCriticalMedicine},
 	{RestoreWorkers, IncidentConcern, DepartmentPeople, []FactFamily{FactEmergency, FactPawns}, inspectRestoreWorkers},
-	{AllowStartingSupplies, ProjectConcern, DepartmentStorage, []FactFamily{FactColony}, inspectAllowStartingSupplies},
 	{ManageSupplySafety, StandardConcern, DepartmentStorage, []FactFamily{FactEmergency, FactColony}, inspectManageSupplySafety},
 	{EnsureWorkAssignments, ProjectConcern, DepartmentPeople, []FactFamily{FactPawns, FactIdentity, FactEmergency}, inspectWorkAssignments},
 	{EnsureFoodSupply, StandardConcern, DepartmentFood, []FactFamily{FactColony, FactPawns}, inspectFoodSupply},

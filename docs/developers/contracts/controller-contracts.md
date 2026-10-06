@@ -640,6 +640,11 @@ variant in [population contracts](population-contracts.md).
 unowned haulable items, including later event drops. A complete `event_loot` census
 reports each item's identity, cell, forbid flag and native hauling safety. There is no
 first-seen or player-forbid exemption; unknown or over-limit censuses authorize nothing.
+The scenario's starting stacks are in that census and are released like any other safe
+forbidden stack. The reach and demand stage (#522) is skipped for a forbidden stack on the
+world's first review and while it stays in the previous review's pending cohort, so the
+starting stacks (forbidden before the colony has an extent) are released over the following
+reviews, eight actions per plan; later forbids pass the stage. Danger and spawner holds still apply.
 
 Safety checks the item cell, each reachable eligible colonist's approach path and the
 return path to the native storage choice. The verdict is the best route: one exposed

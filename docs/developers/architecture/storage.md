@@ -66,7 +66,7 @@ floor of a planned shell are protected ground no site takes.
 
 The [colony review](../testing/colony-review.md) reports the storage state
 from the colony census (`/api/player/colony`: owned zones per role kind and
-whether starting supplies are still forbidden). It lists the final zone count
+whether the loot census still holds a safe stack forbidden). It lists the final zone count
 per role, flags any hour a role's zone count falls (a zone deleted or merged:
 churn) and flags starting supplies still forbidden after a day. A report, not
 a gate.

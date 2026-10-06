@@ -59,6 +59,38 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 	return domain.Known(kept), holds, nil
 }
 
+// FilterLootReachAdmitted is FilterLootReach for the startup release (#2188):
+// the scenario's starting stacks are forbidden before the colony has an
+// extent, so the reach stage would hold them all. A forbidden stack skips the
+// stage on the world's first review (first) and while it stays in the previous
+// review's pending cohort, so a release of more stacks than one plan holds
+// finishes over the following reviews. FilterLootRelease's danger and spawner
+// holds run before it and still apply.
+func FilterLootReachAdmitted(observed domain.Fact[[]LootItem], r RemoteWorkRequest, previous EventLootHistory, first bool) (domain.Fact[[]LootItem], []LootHold, error) {
+	rows, known := observed.Value()
+	if !known {
+		return observed, nil, nil
+	}
+	admitted := map[string]bool{}
+	for _, row := range previous.Pending {
+		admitted[row.Thing] = true
+	}
+	var exempt, rest []LootItem
+	for _, row := range rows {
+		if row.Forbidden && (first || admitted[row.Supply.Thing]) {
+			exempt = append(exempt, row)
+		} else {
+			rest = append(rest, row)
+		}
+	}
+	census, holds, err := FilterLootReach(domain.Known(rest), r)
+	if err != nil {
+		return census, nil, err
+	}
+	kept, _ := census.Value()
+	return domain.Known(append(kept, exempt...)), holds, nil
+}
+
 func lootInsideExtent(extent domain.Fact[ColonyExtent], cell domain.Cell) bool {
 	e, known := extent.Value()
 	if !known {

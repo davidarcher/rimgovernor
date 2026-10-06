@@ -71,8 +71,8 @@ type ColonyStatusReport struct {
 	PlayerTechLevel domain.Fact[string]
 	BuildTier       domain.Fact[policy.BuildTier]
 	// Stockpiles counts the owned stockpile zones by role kind as the last
-	// stockpile review read them, and ForbiddenSupplies is whether starting
-	// supplies were still forbidden at the last rounds; both are
+	// stockpile review read them, and ForbiddenSupplies is whether the loot
+	// census held a safe stack forbidden at the last rounds; both are
 	// unknown until a review with the fact has filed.
 	Stockpiles        domain.Fact[[]policy.StockpileRoleCount]
 	ForbiddenSupplies domain.Fact[bool]
@@ -176,7 +176,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 				shares = held.Value.Facts.PersonalShares
 				report.BuildTier = held.Value.BuildTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
-				report.ForbiddenSupplies = held.Value.Facts.ForbiddenSupplies
+				report.ForbiddenSupplies = forbiddenSupplies(held.Value.Facts.EventLoot)
 				if review, known := held.Value.Facts.Stockpiles.Value(); known && review.Known {
 					report.Stockpiles = domain.Known(review.Zones)
 				}
@@ -239,4 +239,19 @@ func optionalFact[T any](p *T) domain.Fact[T] {
 		return domain.Unknown[T]()
 	}
 	return domain.Known(*p)
+}
+
+// forbiddenSupplies is whether the loot census lists a safe stack still
+// forbidden, the stack ManageSupplySafety releases.
+func forbiddenSupplies(census domain.Fact[[]policy.LootItem]) domain.Fact[bool] {
+	rows, known := census.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	for _, row := range rows {
+		if row.SafetyKnown && row.SafeToHaul && row.Forbidden {
+			return domain.Known(true)
+		}
+	}
+	return domain.Known(false)
 }

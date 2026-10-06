@@ -49,11 +49,8 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoundsSupplyResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	// The safety goal (a Standard) is worked before the starting-supplies
-	// Project.
 	var goal store.WorkOwner
 	var cohort []policy.StartingSupply
-	safetyGoal := false
 	for _, binding := range review.Standards {
 		if binding.Concern != policy.ManageSupplySafety {
 			continue
@@ -64,18 +61,8 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		goal = safety
 		if safety.OwnerDeficit() {
-			cohort, safetyGoal = review.EventLoot.Pending, true
+			cohort = review.EventLoot.Pending
 			break
-		}
-	}
-	if id, bound := review.ProjectFor(policy.AllowStartingSupplies); bound && !safetyGoal {
-		starting, err := p.journal.LoadProject(call, id)
-		if err != nil {
-			return RoundsSupplyResult{}, err
-		}
-		goal = starting
-		if starting.OwnerDeficit() {
-			cohort = review.StartingSupplies.Pending
 		}
 	}
 	if goal == nil || !goal.OwnerDeficit() || review.VetoOwner(goal) != "" {
@@ -86,43 +73,33 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if err != nil {
 			return RoundsSupplyResult{}, err
 		}
-		if safetyGoal {
-			for i, progress := range plan.Progress {
-				v := progress.View()
-				if v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
-					continue
+		for i, progress := range plan.Progress {
+			v := progress.View()
+			if v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
+				continue
+			}
+			target, ok := progress.Action().SupplyAllow()
+			if !ok {
+				continue
+			}
+			keep := false
+			for _, row := range cohort {
+				if row.Thing == target.Thing() && row.Definition == target.Definition() && row.Cell == target.Cell() && row.Forbid == target.Forbidden() {
+					keep = true
+					break
 				}
-				target, ok := progress.Action().SupplyAllow()
-				if !ok {
-					continue
+			}
+			if !keep {
+				cancelled, cancelErr := p.journal.Cancel(call, plan.Spec.ID(), progress.Action().ID())
+				if cancelErr != nil {
+					return RoundsSupplyResult{}, cancelErr
 				}
-				keep := false
-				for _, row := range cohort {
-					if row.Thing == target.Thing() && row.Definition == target.Definition() && row.Cell == target.Cell() && row.Forbid == target.Forbidden() {
-						keep = true
-						break
-					}
-				}
-				if !keep {
-					cancelled, cancelErr := p.journal.Cancel(call, plan.Spec.ID(), progress.Action().ID())
-					if cancelErr != nil {
-						return RoundsSupplyResult{}, cancelErr
-					}
-					plan.Progress[i] = cancelled
-				}
+				plan.Progress[i] = cancelled
 			}
 		}
 		if store.PlanOpen(plan) {
 			return RoundsSupplyResult{Verdict: BuildingReasonExistingWork}, nil
 		}
-	}
-	claims := map[string]bool{}
-	if !safetyGoal {
-		claims, err = p.journal.SupplyClaims(call, playerWorld(state.Snapshot))
-	}
-
-	if err != nil {
-		return RoundsSupplyResult{}, err
 	}
 	started := r.reviewer.clock.Now()
 	// Each pending stack is read at the cell the review's census last saw
@@ -169,7 +146,7 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 				return RoundsSupplyResult{}, fmt.Errorf("%w: step: target.Supply.Cell() != cell", ErrControl)
 			}
 			row, listed := pending[target.Supply.Thing()]
-			if listed && row.Forbid == forbidBatch && row.Definition == target.Supply.Definition() && row.Cell == cell && !claims[target.Supply.Thing()] {
+			if listed && row.Forbid == forbidBatch && row.Definition == target.Supply.Definition() && row.Cell == cell {
 				targets = append(targets, target.Supply)
 			}
 		}

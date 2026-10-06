@@ -20,7 +20,7 @@ import (
 )
 
 // composedFamilyPlanners are the three routine planner families this file
-// composes in one process: AllowStartingSupplies (supply), MaintainResource
+// composes in one process: ManageSupplySafety (supply), MaintainResource
 // (acquisition) and EnsureWorkAssignments (work) all attach to the same
 // Rounder/Player/journal, the way autonomous play
 // runs every implemented family together instead of one at a time.
@@ -37,7 +37,7 @@ type composedFamilyPlanners struct {
 func composedRoundsFacts(t *testing.T, n *roundsNative) {
 	t.Helper()
 	v := n.reply.GetObserved()
-	v.ForbiddenSupplies = []*c.Ref{n.entity(&o.EntityRef{Id: proto.String("item-00"), DefName: proto.String("Steel"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}})}
+	v.EventLoot = forbiddenSupplyRows(n, 1, domain.Cell{X: 1, Z: 2})
 	v.PendingWoodUnits = proto.Float64(0)
 	v.ColonistCount = proto.Uint32(1)
 	v.WorkerCount = proto.Uint32(1)

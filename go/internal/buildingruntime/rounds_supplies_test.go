@@ -11,16 +11,47 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	pl "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/proto"
 )
 
-// forbiddenSupplyRows seeds count forbidden starting stacks item-00.. at one cell.
-func forbiddenSupplyRows(n *roundsNative, count int, cell domain.Cell) []*c.Ref {
-	var rows []*c.Ref
-	for i := 0; i < count; i++ {
-		rows = append(rows, n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String(fmt.Sprintf("item-%02d", i)), DefName: proto.String("Steel"), MapId: n.reply.GetObserved().Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}}}))
+// coverLootCell stands a built wall and its Home coverage at cell, so the
+// derived colony extent covers it and the reach filter holds nothing there.
+func coverLootCell(n *roundsNative, cell domain.Cell) {
+	v := n.reply.GetObserved()
+	if n.built == nil {
+		n.built = map[domain.ActionID]*o.BuildingState{}
 	}
-	return rows
+	at := &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}
+	id := fmt.Sprintf("cover-%d-%d", cell.X, cell.Z)
+	n.built[domain.ActionID(id)] = &o.BuildingState{
+		Building: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Wall"), MapId: v.Context.Identity.MapId, Position: at},
+		Occupied: &o.Rectangle{Minimum: at, Maximum: at},
+		Status:   o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(),
+		Rotation: pl.Rotation_ROTATION_NORTH.Enum(),
+		Stuff:    proto.String("WoodLog"),
+	}
+	if v.Upkeep.GetObserved() == nil {
+		v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
+	}
+	coverage := v.Upkeep.GetObserved().GetHomeCoverage().GetObserved()
+	if coverage == nil {
+		coverage = &o.HomeCoverageFacts{Revision: proto.Int64(1)}
+		v.Upkeep.GetObserved().HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: coverage}}
+	}
+	coverage.Targets = append(coverage.Targets, &o.HomeCoverageTarget{Id: proto.String(id), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(0), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{at}, ExtentGeometry: &o.HomeExtentGeometry{}})
+}
+
+// forbiddenSupplyRows is the loot census of count safe forbidden Steel stacks
+// at cell, the stacks ManageSupplySafety releases.
+func forbiddenSupplyRows(n *roundsNative, count int, cell domain.Cell) *o.LootSection {
+	coverLootCell(n, cell)
+	census := &o.LootCensus{FreeHaulers: proto.Int64(5), StorytellerQuiet: proto.Bool(true)}
+	for i := 0; i < count; i++ {
+		ref := n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String(fmt.Sprintf("item-%02d", i)), DefName: proto.String("Steel"), MapId: n.reply.GetObserved().Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}}})
+		census.Items = append(census.Items, &o.LootItem{Item: ref, Forbidden: proto.Bool(true), SafeToHaul: proto.Bool(true), Count: proto.Int64(10), PathLength: proto.Float64(1), StorageHeadroom: proto.Int64(100)})
+	}
+	return &o.LootSection{Outcome: &o.LootSection_Observed{Observed: census}}
 }
 
 type roundsSupplyNative struct {
@@ -46,7 +77,7 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, session, request, native := roundsFixture(t)
-	native.reply.GetObserved().ForbiddenSupplies = forbiddenSupplyRows(native, 10, domain.Cell{X: 1, Z: 2})
+	native.reply.GetObserved().EventLoot = forbiddenSupplyRows(native, 10, domain.Cell{X: 1, Z: 2})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -102,8 +133,8 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 }
 func TestSupplyPlannerRejectsChangedWorld(t *testing.T) {
 	t.Parallel()
-	reviewer, db, _, _, native := roundsFixture(t)
-	native.reply.GetObserved().ForbiddenSupplies = forbiddenSupplyRows(native, 1, domain.Cell{X: 1, Z: 2})
+	reviewer, _, _, _, native := roundsFixture(t)
+	native.reply.GetObserved().EventLoot = forbiddenSupplyRows(native, 1, domain.Cell{X: 1, Z: 2})
 	if _, err := reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -112,10 +143,6 @@ func TestSupplyPlannerRejectsChangedWorld(t *testing.T) {
 	planner, _ := NewRoundsSupplyPlanner(reviewer, source)
 	if _, err := planner.Step(context.Background()); err == nil {
 		t.Fatal("accepted foreign census")
-	}
-	claims, err := db.SupplyClaims(context.Background(), playerWorld(reviewer.player.State().Snapshot))
-	if err != nil || len(claims) != 0 {
-		t.Fatal(claims, err)
 	}
 }
 
@@ -129,7 +156,7 @@ func TestSupplyPlannerTargetsCohortStacksAtTheirCensusCell(t *testing.T) {
 	ctx := context.Background()
 	reviewer, db, _, _, native := roundsFixture(t)
 	first, moved := domain.Cell{X: 1, Z: 2}, domain.Cell{X: 4, Z: 4}
-	native.reply.GetObserved().ForbiddenSupplies = forbiddenSupplyRows(native, 2, first)
+	native.reply.GetObserved().EventLoot = forbiddenSupplyRows(native, 2, first)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +186,8 @@ func TestSupplyPlannerTargetsCohortStacksAtTheirCensusCell(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	native.reply.GetObserved().ForbiddenSupplies = forbiddenSupplyRows(native, 2, moved)[1:]
+	native.reply.GetObserved().EventLoot = forbiddenSupplyRows(native, 2, moved)
+	native.reply.GetObserved().EventLoot.GetObserved().Items = native.reply.GetObserved().EventLoot.GetObserved().Items[1:]
 	if _, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

@@ -133,13 +133,6 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := validateFoodChannels(v); err != nil {
 		return err
 	}
-	seen := map[string]bool{}
-	for _, row := range v.ForbiddenSupplies {
-		if !validRef(row) || seen[row.GetId()] {
-			return contract("invalid forbidden supply")
-		}
-		seen[row.GetId()] = true
-	}
 	if v.Naming != nil {
 		if v.Naming.WindowId == nil || v.Naming.GetWindowId() < 0 || v.Naming.FactionName == nil || v.Naming.SettlementName == nil || len(v.Naming.Issues) != 0 ||
 			validID(v.Naming.GetFactionName()) != nil || validID(v.Naming.GetSettlementName()) != nil || len(v.Naming.ProtoReflect().GetUnknown()) != 0 {

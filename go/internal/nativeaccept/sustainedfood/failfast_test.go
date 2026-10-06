@@ -194,7 +194,7 @@ func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
 }
 
 func TestFailFastEmergencyParkNeedsAnUnmovingTick(t *testing.T) {
-	f := newFailFast(FailFast{ParkSamples: 3}, policy.AllowStartingSupplies, "")
+	f := newFailFast(FailFast{ParkSamples: 3}, policy.ManageSupplySafety, "")
 	parked := func(tick uint64, vetoed bool, emergency ...string) map[string]any {
 		return map[string]any{"review_revision": uint64(42), "status": "open", "vetoed": vetoed, "need": "unmet", "tick": tick, "emergency": emergency}
 	}
@@ -220,7 +220,7 @@ func TestFailFastEmergencyParkNeedsAnUnmovingTick(t *testing.T) {
 		t.Fatalf("third consecutive parked sample must fail: failed=%v %+v", failed, v)
 	}
 	// A sample without a live tick never counts.
-	g := newFailFast(FailFast{ParkSamples: 1}, policy.AllowStartingSupplies, "")
+	g := newFailFast(FailFast{ParkSamples: 1}, policy.ManageSupplySafety, "")
 	noTick := parked(0, true, "EnsureComfort")
 	delete(noTick, "tick")
 	if _, failed := g.check(noTick); failed {

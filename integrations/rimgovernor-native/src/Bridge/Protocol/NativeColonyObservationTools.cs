@@ -149,10 +149,6 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var group in stock) result.Resources.Add(new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) });
             Span("cf.resources");
-            var forbidden = StartingSupplyFacts.Forbidden(things, center, reachable);
-            foreach (var t in forbidden)
-                result.ForbiddenSupplies.Add(NativeRef.Thing(t));
-            Span("cf.forbidden");
             result.EventLoot = EventLootFacts.Read(map, things, reachable);
             Span("cf.eventLoot");
             ReadProduction(result, map, people, things, reachable, humanFood);

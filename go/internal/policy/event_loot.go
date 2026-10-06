@@ -84,3 +84,22 @@ func supplySafetyPriority(f RoundsFacts) int {
 	}
 	return 4
 }
+
+// StartingSupply is one loose stack at the cell the latest census saw it.
+// Thing identity is the key; the cell only tells the planner where to read
+// it, so a stack a builder hauls aside stays work.
+type StartingSupply struct {
+	Thing, Definition string
+	Cell              domain.Cell
+	Forbid            bool
+}
+
+func (s StartingSupply) Validate() error {
+	if _, err := domain.NewSupplyAllow(s.Thing, s.Definition, s.Cell); err != nil {
+		return err
+	}
+	if s.Cell.X >= 4096 || s.Cell.Z >= 4096 {
+		return errors.New("invalid starting supply cell")
+	}
+	return nil
+}
