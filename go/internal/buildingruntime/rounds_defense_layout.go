@@ -83,6 +83,44 @@ func defenseDefinitionAvailable(read observation.RoundsReading, name string) boo
 // placements (the chokepoint reuses existing geometry) is complete as-is.
 var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierMortars, policy.TierBait, policy.TierIEDs}
 
+// defenseRoamerOwned reports a roamer (a race that needs a pen) in the animal
+// census. An unknown census or row is not one: ordering stays unchanged (#2230).
+func defenseRoamerOwned(projection observation.ColonyProjection) bool {
+	animals, known := projection.Facts.AnimalUpkeep.Animals.Value()
+	if !known {
+		return false
+	}
+	for _, a := range animals {
+		if pen, ok := a.RequiresPen.Value(); ok && pen {
+			return true
+		}
+	}
+	return false
+}
+
+// defenseTierSequence is the order tiers are built in: the fixed tiers, then
+// the perimeter sections, with a replacement's removal before the turret
+// tier. With a roamer owned, the core ring's unbuilt sections (and so its
+// gates) come first, so the paddock closes sooner (#2230).
+func defenseTierSequence(record store.DefenseLayoutRecord, roamerOwned bool) []policy.DefenseTierName {
+	order := append([]policy.DefenseTierName{}, defenseTierOrder...)
+	var ring []policy.DefenseTierName
+	for _, t := range record.Tiers {
+		if policy.IsPerimeterTier(t.Name) {
+			if roamerOwned && !t.Built && !t.Remove && policy.IsCorePerimeterTier(t.Name) {
+				ring = append(ring, t.Name)
+			} else {
+				order = append(order, t.Name)
+			}
+		}
+		// A replacement's removal comes before the turret tier rebuilds.
+		if strings.HasPrefix(string(t.Name), defenseTurretReplacePrefix) {
+			order = slices.Insert(order, slices.Index(order, policy.TierTurrets), t.Name)
+		}
+	}
+	return append(ring, order...)
+}
+
 // RoundsDefenseLayoutSource is the native read set the planner needs beyond
 // the reviewer's shared colony observation: the census rectangle, shooting
 // lines, the access audit, defender gear and placement previews.
@@ -335,16 +373,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 			return RoundsDefenseLayoutResult{}, err
 		}
 	}
-	order := append([]policy.DefenseTierName{}, defenseTierOrder...)
-	for _, t := range record.Tiers {
-		if policy.IsPerimeterTier(t.Name) {
-			order = append(order, t.Name)
-		}
-		// A replacement's removal comes before the turret tier rebuilds.
-		if strings.HasPrefix(string(t.Name), defenseTurretReplacePrefix) {
-			order = slices.Insert(order, slices.Index(order, policy.TierTurrets), t.Name)
-		}
-	}
+	order := defenseTierSequence(record, defenseRoamerOwned(read.Projection))
 	for _, name := range order {
 		tier, buildings, ok := record.Tier(name)
 		if !ok || len(buildings) == 0 || tier.Built {
