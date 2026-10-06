@@ -1,5 +1,0 @@
-ok  	github.com/davidarcher/RimGovernor/go/internal/snapshot	6.664s
-ok  	github.com/davidarcher/RimGovernor/go/internal/policy	(cached)
-ok  	github.com/davidarcher/RimGovernor/go/internal/buildingruntime	7.525s
-ok  	github.com/davidarcher/RimGovernor/go/internal/httpapi	(cached)
-ok  	github.com/davidarcher/RimGovernor/go/cmd/colonyreview	(cached)
