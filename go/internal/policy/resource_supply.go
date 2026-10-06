@@ -11,6 +11,12 @@ type ResourceSupplyInput struct {
 	Resource   Resource
 	Deficit    int64
 	Candidates []AcquisitionCandidate
+	// HorizonDays is how far ahead the deficit is wanted: a candidate with a
+	// longer lead (a field) is not eligible. Zero is wanted now.
+	HorizonDays float64
+	// Fields are candidates with a lead and a steady rate, which an
+	// AcquisitionCandidate cannot express (FieldHarvestCandidate).
+	Fields []SupplyCandidate
 }
 
 // ResourceSupply is the Round's one supply plan over every resource deficit.
@@ -30,7 +36,16 @@ func PlanResourceSupply(inputs []ResourceSupplyInput, labor domain.Fact[float64]
 		if in.Deficit <= 0 {
 			continue
 		}
-		demands = append(demands, SupplyDemandOfResource(ResourceDemand{Key: ResourceKey{Def: in.Resource}, Count: in.Deficit, Priority: 1}))
+		demand := SupplyDemandOfResource(ResourceDemand{Key: ResourceKey{Def: in.Resource}, Count: in.Deficit, Priority: 1})
+		demand.HorizonDays = in.HorizonDays
+		demands = append(demands, demand)
+		for _, c := range in.Fields {
+			id := [2]string{string(c.Kind), c.ID}
+			if !seen[id] {
+				seen[id] = true
+				candidates = append(candidates, c)
+			}
+		}
 		for _, c := range in.Candidates {
 			id := [2]string{string(c.Kind), c.ID}
 			if seen[id] {

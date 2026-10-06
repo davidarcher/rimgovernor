@@ -103,7 +103,9 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 			if projection.Definitions, err = facts.appendDefinitions(projection.Definitions, projection.Shapes.Furniture.Definitions()); err != nil {
 				return result, err
 			}
-			projection.Facts.Gear = GearFacts(reply.GetObserved(), tables, GearDefinitions{Catalog: facts.catalog, Finished: facts.finished})
+			gearDefs := GearDefinitions{Catalog: facts.catalog, Finished: facts.finished}
+			projection.Facts.Gear = GearFacts(reply.GetObserved(), tables, gearDefs)
+			projection.Facts.Garments = ClothingGarments(gearDefs, projection.Facts.Gear)
 		}
 	}
 	zoneNative, _ := source.(ZonesNative)

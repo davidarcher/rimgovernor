@@ -100,6 +100,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	if err != nil {
 		return nil, err
 	}
+	serves := policy.ClothingServes(projection.Facts.ClothingMaterials(), targets)
 	out := &resourceSupply{rows: map[policy.Resource]*resourceSupplyRow{}, tokens: map[string]string{}}
 	planner := &RoundsResourcePlanner{reviewer: r, native: r.resourceNative}
 	identity := boundary.Identity(state.Snapshot)
@@ -142,6 +143,9 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		out.order = append(out.order, resource)
 		out.rows[resource] = row
 		input := policy.ResourceSupplyInput{Resource: resource, Deficit: deficit}
+		if serves[resource] == resource {
+			input.HorizonDays = policy.ClothingHorizonDays
+		}
 		if planner.native != nil {
 			if !reachRead {
 				if reach, err = planner.miningReach(call, state, review.Tick); err != nil {
@@ -161,20 +165,25 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 			}
 		}
 		// A designated chop or harvest already covers part of the need.
+		// A clothing material is also served by its category's other stuffs and
+		// by the leather of a hunt, priced at the units the resource gets.
 		need := deficit
+		var priced []policy.AcquisitionSource
 		for _, source := range rows {
-			if source.Resource != string(resource) {
+			offered, serving := policy.ResourceSourceFor(source, resource, serves)
+			if !serving {
 				continue
 			}
 			if source.Designated {
-				need -= int64(math.Round(source.Yield))
+				need -= int64(math.Round(offered.Yield))
 			} else if !held[source.ID] && !(source.Hunt && out.hunts <= 0) {
 				row.open = append(row.open, source)
+				priced = append(priced, offered)
 			}
 		}
 		input.Deficit = max(need, 0)
 		if centered {
-			input.Candidates = append(input.Candidates, policy.AcquisitionSourceCandidates(resource, row.open, center, domain.Known(need))...)
+			input.Candidates = append(input.Candidates, policy.AcquisitionSourceCandidates(resource, priced, center, domain.Known(need))...)
 		}
 		input.Candidates = append(input.Candidates, out.drill.candidates(resource, deficit, row)...)
 		inputs = append(inputs, input)

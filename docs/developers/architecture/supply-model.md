@@ -65,6 +65,11 @@ either a flow (`PerDay`) or a stock deficit (`Units`).
   (horizon 0). A construction shortfall edge or a runway forecast gives the
   demand a deadline as its horizon.
 
+A clothing material (fabric, leather) is a resource demand of the same kind,
+wanted within `ClothingHorizonDays` ([equipment upkeep](../contracts/equipment-upkeep.md#clothing-material-demand)):
+a hunt serves it as one candidate priced at its leather, and a field with a lead
+serves it within the horizon.
+
 ### Eligibility and contribution
 
 A candidate serves a demand when a yield matches the good (a demand without a

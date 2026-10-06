@@ -33,6 +33,11 @@ const (
 	resTrade   resRole = "trade"
 	resLoot    resRole = "loot"
 	resSalvage resRole = "salvage"
+	// resHunt is a herd whose leather serves a clothing floor; resField a
+	// cotton field to sow. Both run through PlanSupply only (the four
+	// planners never priced them).
+	resHunt  resRole = "hunt"
+	resField resRole = "field"
 )
 
 // resSpec tags a world source with the catalog kind it is acquired as. A
@@ -49,6 +54,8 @@ type resSpec struct {
 const bidAcquisition acquisitionBidder = "acquisition"
 
 var resDefs = map[supplysim.Good]policy.Resource{
+	supplysim.Leather:     "Leather_Plain",
+	supplysim.Cotton:      "Cloth",
 	supplysim.StoneChunks: "ChunkGranite",
 	supplysim.StoneBlocks: "BlocksGranite",
 	supplysim.Components:  policy.ComponentResource,
@@ -109,6 +116,9 @@ type resPlanner struct {
 	board    acquisitionBoard
 	snapshot domain.GenerationSnapshot
 	uses     []policy.ResourceUse
+	// clothing are the targets that are clothing-material floors, wanted
+	// within policy.ClothingHorizonDays.
+	clothing map[policy.Resource]bool
 
 	events []resEvent
 	yields []resYield
@@ -137,6 +147,19 @@ func (p *resPlanner) source(id string) supplysim.Source {
 		}
 	}
 	return supplysim.Source{}
+}
+
+// goodOf is the good a managed source is run for: its first yield, or the
+// clothing material of a hunt (its co-yield) or field.
+func (p *resPlanner) goodOf(s supplysim.Source, spec resSpec) supplysim.Good {
+	if spec.Role == resHunt {
+		return s.Yields[len(s.Yields)-1].Good
+	}
+	return s.Yields[0].Good
+}
+
+func (p *resPlanner) yieldsGood(s supplysim.Source, g supplysim.Good) bool {
+	return len(s.Yields) > 0 && p.goodOf(s, p.spec[s.ID]) == g
 }
 
 func (p *resPlanner) stopped(id string, day int) bool {
@@ -211,7 +234,7 @@ func (p *resPlanner) Plan(v supplysim.WorldView) []supplysim.Command {
 			continue
 		}
 		s := p.source(sv.ID)
-		r := resDef(s.Yields[0].Good)
+		r := resDef(p.goodOf(s, spec))
 		done := targets[r] == 0 || have[r] >= targets[r]
 		if spec.Role == resTrade {
 			done = done || !p.present(s, sv, v.Day)
@@ -274,7 +297,7 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 	for _, sv := range v.Sources {
 		views[sv.ID] = sv
 		s := p.source(sv.ID)
-		if _, managed := p.spec[sv.ID]; managed && len(s.Yields) > 0 && s.Yields[0].Good == g && !sv.Removed {
+		if _, managed := p.spec[sv.ID]; managed && p.yieldsGood(s, g) && !sv.Removed {
 			yielding = append(yielding, sv.ID)
 		}
 	}
@@ -307,6 +330,21 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 		switch spec.Role {
 		case resChop:
 			rows = append(rows, policy.AcquisitionSource{ID: id, Resource: string(row.Resource), Tree: true, Yield: float64(units), Cell: domain.Cell{X: int32(spec.Distance)}})
+		case resHunt:
+			// A lone-hunt row priced at the leather of the animals left.
+			leather := s.Yields[len(s.Yields)-1].PerUnit * float64(units)
+			deer := policy.AcquisitionSource{ID: id, Resource: "Corpse_Deer", Hunt: true, Food: true, Yield: 1, Products: []policy.SourceProduct{{Def: row.Resource, Amount: leather}}}
+			if priced, ok := policy.ResourceSourceFor(deer, row.Resource, map[policy.Resource]policy.Resource{row.Resource: row.Resource}); ok {
+				rows = append(rows, priced)
+			}
+		case resField:
+			// The zone and the sowing are upfront work; the first harvest is
+			// the crop's grow time away.
+			c, cells := s.Crop, s.Crop.Cells
+			if field, ok := policy.FieldHarvestCandidate(row.Resource, id, policy.FieldHarvest{Cells: int64(cells), GrowDays: float64(c.GrowDays), UnitsPerCell: s.Yields[0].PerUnit,
+				SetupTicks: cells * 20, WorkPerDay: s.Labor}); ok {
+				p.batch.addField(row.Resource, deficitRunway, field, id)
+			}
 		case resMine:
 			mines = append(mines, policy.ResourceSource{ThingID: id, Yield: units, Distance: spec.Distance, Method: policy.ResourceSourceMine, Safety: policy.MineSafetyOpenSurface})
 		case resProduce:
@@ -378,7 +416,11 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 		for _, c := range resourceExtra {
 			p.batch.add(row.Resource, deficitRunway, c, c.ID)
 		}
-		p.batch.demand(row.Resource, deficit)
+		horizon := 0.0
+		if p.clothing[row.Resource] {
+			horizon = policy.ClothingHorizonDays
+		}
+		p.batch.demand(row.Resource, deficit, horizon)
 		if !p.batch.has(row.Resource) {
 			p.hold(v.Day, g, "no_source")
 		}
@@ -485,10 +527,20 @@ func (b *resSupplyBatch) has(r policy.Resource) bool {
 	return false
 }
 
-func (b *resSupplyBatch) demand(r policy.Resource, deficit int64) {
+func (b *resSupplyBatch) demand(r policy.Resource, deficit int64, horizon float64) {
 	if deficit > 0 {
-		b.demands = append(b.demands, policy.SupplyDemand{Good: policy.ResourceKey{Def: r}, Units: deficit, Priority: 1})
+		b.demands = append(b.demands, policy.SupplyDemand{Good: policy.ResourceKey{Def: r}, Units: deficit, Priority: 1, HorizonDays: horizon})
 	}
+}
+
+// addField batches a candidate already in supply form (a field with a lead).
+func (b *resSupplyBatch) addField(r policy.Resource, deficit bool, c policy.SupplyCandidate, source string) {
+	if b.source == nil {
+		b.source, b.good, b.deficit = map[string]string{}, map[string]policy.Resource{}, map[policy.Resource]bool{}
+	}
+	k := b.key(c.Kind, c.ID)
+	b.source[k], b.good[k], b.deficit[r] = source, r, deficit
+	b.cands = append(b.cands, c)
 }
 
 // dispatchSupply ranks the day's batch and opens what PlanSupply opens.

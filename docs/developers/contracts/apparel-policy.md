@@ -42,6 +42,10 @@ armor, child/adult and torso-or-legs flags. `policy.DesiredApparelPolicy` compar
 the current outfit with the specification and raises an `apparel_policy` action
 only on a difference.
 
+The outfit filter also prices the wardrobe: the allowed definitions covering
+the core groups (`RoleApparelDefinitions`) are the garments whose recipes set
+the standing [clothing material demand](equipment-upkeep.md#clothing-material-demand).
+
 ## Acceptance
 
 `production/apparel-policy` is a short native smoke case (create/update/assign,

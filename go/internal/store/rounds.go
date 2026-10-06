@@ -71,6 +71,9 @@ type Rounds struct {
 	// DependencyNeeds are the MaintainResource floors this review's live
 	// shortfall edges raised (#728), so the resource planner stocks them.
 	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
+	// ClothingNeeds are the MaintainResource floors of the colonists'
+	// replacement outfits (policy.ClothingResourceNeeds).
+	ClothingNeeds map[policy.Resource]int64 `json:",omitempty"`
 	// WoodFloor is the wood latch's WoodLog floor (policy.RoundsFindings).
 	WoodFloor int64 `json:",omitempty"`
 	EventLoot policy.EventLootHistory
@@ -193,6 +196,9 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	}
 	if r.WoodFloor < 0 || r.WoodFloor > 1_000_000 {
 		return Rounds{}, errors.New("invalid wood floor")
+	}
+	if len(r.ClothingNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.ClothingNeeds) != nil {
+		return Rounds{}, errors.New("invalid clothing needs")
 	}
 	if len(r.DependencyNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.DependencyNeeds) != nil {
 		return Rounds{}, errors.New("invalid dependency resource needs")
@@ -612,6 +618,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
 	r.DependencyNeeds = policy.ConstructionResourceNeeds(policy.DependencyResourceNeeds(request.Facts.Dependencies), request.Facts.ConstructionDeficit, request.Facts.Resources)
+	r.ClothingNeeds = policy.ClothingResourceNeeds(request.Facts.ClothingMaterials(), request.Facts.Resources)
 	r.WoodFloor = needs.WoodFloor
 	r.EventLoot = loot
 	if rows, known := request.Facts.EventLoot.Value(); known {

@@ -53,6 +53,11 @@ type resScenario struct {
 	edgeDay int
 	// lostDay is the day the last source is removed; 0 when one remains.
 	lostDay int
+	// supplyOnly scenarios run through PlanSupply alone: the four planners
+	// never priced a hunt's leather or a field. clothing are the targets
+	// that are clothing-material floors.
+	supplyOnly bool
+	clothing   map[policy.Resource]bool
 }
 
 type resFixture struct {
@@ -294,7 +299,47 @@ func resScenarios() []resScenario {
 			}
 		}
 	}
-	return out
+	return append(out, clothingScenarios()...)
+}
+
+// clothingScenarios are the clothing-material floors (#2169): five colonists'
+// replacement outfits of a shirt (40) and pants (30) from fabric or leather,
+// so each category's floor is 350. The other category is held, so only the
+// short one asks.
+func clothingScenarios() []resScenario {
+	garments := []policy.ClothingGarment{
+		{Definition: "Apparel_BasicShirt", Groups: []string{"Torso"}, Slots: [][]policy.Amount{{{Resource: "Cloth", Count: 40}, {Resource: "Leather_Plain", Count: 40}}}},
+		{Definition: "Apparel_Pants", Groups: []string{"Legs"}, Slots: [][]policy.Amount{{{Resource: "Cloth", Count: 30}, {Resource: "Leather_Plain", Count: 30}}}},
+	}
+	categories := map[policy.Resource][]string{"Cloth": {"Fabric"}, "Leather_Plain": {"Leathery"}}
+	build := func(name string, short supplysim.Good, src supplysim.Source, spec resSpec) resScenario {
+		held := supplysim.Cotton
+		if short == supplysim.Cotton {
+			held = supplysim.Leather
+		}
+		stock := map[supplysim.Good]float64{short: 100, held: 400}
+		var amounts []policy.Amount
+		for g, n := range stock {
+			amounts = append(amounts, policy.Amount{Resource: resDef(g), Count: int64(n)})
+		}
+		materials := policy.ClothingMaterials(policy.ClothingDemandInput{Garments: garments, Categories: categories, Colonists: domain.Known(int64(5)),
+			Stock: domain.Known(amounts), Stored: domain.Known([]policy.GearStock{})})
+		targets := policy.ClothingResourceNeeds(materials, domain.Known(amounts))
+		f := resFixture{good: short, stock: stock[short], perDay: 1, restore: float64(targets[resDef(short)])}
+		w := resWorld(f, []supplysim.Source{src})
+		w.Stock[held] = stock[held]
+		clothing := map[policy.Resource]bool{}
+		for r := range targets {
+			clothing[r] = true
+		}
+		return resScenario{name: name, world: w, spec: map[string]resSpec{src.ID: spec}, good: short, targets: targets, restoreTo: f.restore, days: 70,
+			checks: []string{chkRestore, chkSingle, chkTTL}, supplyOnly: true, clothing: clothing}
+	}
+	season := supplysim.Window{Period: 60, From: 0, To: 40}
+	return []resScenario{
+		build("Leather/leather short, deer available/none", supplysim.Leather, supplysim.NewHerd("deer", 12, 80, 2, 0.1).WithYield(supplysim.Leather, 40), resSpec{resHunt, 20}),
+		build("Cotton/cotton field/none", supplysim.Cotton, supplysim.NewCropOf("field", supplysim.Cotton, 100, 6, 6, season, 40), resSpec{resField, 10}),
+	}
 }
 
 // resRun is a finished scenario.
@@ -308,7 +353,7 @@ func runResScenario(sc resScenario) resRun { return runResScenarioWith(sc, false
 
 func runResScenarioWith(sc resScenario, supply bool) resRun {
 	pl := newResPlanner(sc.world, sc.spec, sc.targets, sc.research)
-	pl.supply = supply
+	pl.supply, pl.clothing = supply, sc.clothing
 	return resRun{sc, pl, supplysim.Run(sc.world, pl, sc.days)}
 }
 
@@ -438,6 +483,9 @@ func TestResourceMatrixShrinksBaseline(t *testing.T) {
 	}
 	current := map[string]string{}
 	for _, sc := range scenarios {
+		if sc.supplyOnly {
+			continue
+		}
 		for k, v := range runResScenario(sc).failures() {
 			current[k] = v
 		}

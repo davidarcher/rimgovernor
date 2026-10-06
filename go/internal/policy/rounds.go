@@ -219,7 +219,7 @@ func (p RoundsPolicy) Prisoners() PrisonerPolicy {
 // same StockTarget production bill bound (see domain.NewProductionBill).
 func ValidateResourceTargets(targets map[Resource]int64) error {
 	for resource, target := range targets {
-		if !validResource(resource) || target <= 0 || target > 10000 {
+		if !validResource(resource) || target <= 0 || target > maxResourceTarget {
 			return errors.New("invalid resource target")
 		}
 	}
@@ -452,7 +452,11 @@ type RoundsFacts struct {
 	ShrineHolds  []ShrineHold
 	UpkeepIssued map[ConcernID]bool
 	Gear         domain.Fact[GearObservation]
-	Comfort      domain.Fact[ComfortObservation]
+	// Garments are the allowed garments covering a core group with their
+	// recipes (ClothingMaterials); empty until the gear census and catalog
+	// are read.
+	Garments []ClothingGarment `json:",omitzero"`
+	Comfort  domain.Fact[ComfortObservation]
 	// BasicComfort is the same census before the hosting-room filter: every
 	// indoor seat at an eating surface and every recreation source, whatever
 	// room (or none) hosts it. EnsureComfort's basic phase measures it; Comfort keeps

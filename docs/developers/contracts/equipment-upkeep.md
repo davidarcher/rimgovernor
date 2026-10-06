@@ -46,8 +46,9 @@ stages the room first) and raises research prerequisites under `EnsureResearch`.
 Existing active production is preserved. Ingredient alternatives use native costs
 and respect player reserves, stopped spending and shared plan commitments. The
 inspected stuff is a preference: a worn-out cloth shirt is replaced from cloth
-when cloth is funded and otherwise from any funded material the recipe accepts
-(leather from hunting is the usual interim before a cotton field). Native
+when cloth is funded and otherwise from any funded material the recipe accepts.
+The materials themselves are a standing [resource demand](#clothing-material-demand),
+not a bill's afterthought. Native
 bills carry the funded material set as their ingredient membership, retained
 through persistence and the applied intent. Native ingredient admission and
 consumption keep stock committed to construction and other pawns' bill jobs. Required work types feed the shared work-allocation method: while the
@@ -74,6 +75,25 @@ loadout-model inputs, condition and coverage contribute to scored gaps.
 Missing research, workshops, materials or suitable definitions remain explicit
 blockers. This concern does not invent a trade or bypass native apparel eligibility to obtain
 an item. Bench staging uses the equipment concern through the shared workshop ladder.
+
+### Clothing material demand
+
+Each review derives a `MaintainResource` floor per stuff category the apparel
+recipes accept (fabric, leather), not a Concern of its own (`policy.ClothingMaterials`).
+The floor is the colonists without a stored serviceable outfit times the units of
+the cheapest set of allowed garments covering the core groups (`GearCoreGroups`),
+read from the recipes' own ingredient counts (`observation.ClothingGarments`),
+so it scales with the colony and the recipe and is zero while stock or stored
+outfits cover it. It is asked of the member stuff holding the most, as its stock
+plus the category's deficit; the Round's resource supply plan serves it with the
+category's other stuffs and, for leather, with hunts priced at the animal's
+butchery leather (one candidate per animal whatever else it yields, its labor
+charged once and a designated deer's leather counted toward the need). The
+demand ranks below the food plan, which has already taken its labor, and is
+wanted within `ClothingHorizonDays`, so a field with a lead of days serves it
+(`policy.FieldHarvestCandidate`: zone and sowing as upfront work, grow days as
+lead, the crop as stock cap) and trade stays a candidate. Sowing a cotton field
+is not yet an executed method (#2221).
 
 ## Loadout model
 
