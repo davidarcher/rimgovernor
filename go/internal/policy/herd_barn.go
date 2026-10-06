@@ -39,8 +39,9 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 // to the flow that put it there, as is one marked for removal or with an unread
 // area, support or removal fact. With the ring's closure unread nothing is
 // chosen (#2234, epic #2229):
-//   - a predator, a tamed warg included, is kept in the Wild area (the map
-//     minus the paddock), whatever its pen need;
+//   - a predator is kept in the Wild area (the map minus the paddock), a tamed
+//     warg (a roamer) included, except a bonded non-roamer predator (a cat),
+//     which is a companion;
 //   - a roamer (RequiresPen) is kept in the Barn while the ring is open; once
 //     the ring is closed the paddock holds it unrestricted, and it is let into
 //     the Barn only while its race is in danger outdoors (a hostile threat,
@@ -102,7 +103,7 @@ func (f RoundsFacts) AnimalShelterChoice() (HusbandryChoice, error) {
 		bonded, bk := a.Bonded.Value()
 		var want string
 		switch {
-		case a.Herd.Predator:
+		case a.Herd.Predator && !(pk && !requires && bk && bonded):
 			want = wild
 		case pk && requires:
 			if !closed || danger[a.Definition] {
