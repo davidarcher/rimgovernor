@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
                 var oakZone = MakeZone(map, oak, new CellRect(origin.x, origin.z, width, height), "Lattice fixture oak");
                 var riceZone = MakeZone(map, rice, new CellRect(origin.x + width + 2, origin.z, width, height), "Lattice fixture rice");
                 if (oakZone.Cells.Count != width * height || riceZone.Cells.Count != width * height) return Refuse("A fixture zone did not take its cells.");
-                if (!PlantUtility.GrowthSeasonNow(origin, map, oak) || !PlantUtility.GrowthSeasonNow(origin, map, rice))
+                if (!PlantUtility.GrowthSeasonNow(map, oak) || !PlantUtility.GrowthSeasonNow(map, rice))
                     return Refuse("Not a growth season for oak and rice on the fixture plot.");
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {

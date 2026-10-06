@@ -31,9 +31,9 @@ namespace HomeBridge.BridgeTools
                 if (cutter == null) return Refuse("No colonist able to cut plants.");
                 if (cutter.workSettings != null && cutter.workSettings.GetPriority(WorkTypeDefOf.PlantCutting) == 0)
                     cutter.workSettings.SetPriority(WorkTypeDefOf.PlantCutting, 1);
-                var oakDef = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_Oak");
+                var oakDef = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_TreeOak");
                 var riceDef = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_Rice");
-                if (oakDef?.plant == null || riceDef?.plant == null) return Refuse("Plant_Oak or Plant_Rice unavailable in this ruleset.");
+                if (oakDef?.plant == null || riceDef?.plant == null) return Refuse("Plant_TreeOak or Plant_Rice unavailable in this ruleset.");
 
                 const int width = 2, height = 1;
                 var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));

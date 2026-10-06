@@ -63,7 +63,7 @@ func readLatticeZones(ctx context.Context, h *na.Harness, label string) (map[str
 func runLatticeSow(ctx context.Context, s cases.Session) error {
 	report, prepared, h := s.Report(), s.Prepared(), s.Harness()
 	oakID, riceID := fmt.Sprint(int(na.AsNumber(prepared["oakZone"]))), fmt.Sprint(int(na.AsNumber(prepared["riceZone"])))
-	if oakID == "0" || riceID == "0" {
+	if _, ok := prepared["oakZone"]; !ok || oakID == riceID { // zone ids start at 0
 		return fmt.Errorf("fixture: unexpected lattice staging: %#v", prepared)
 	}
 	report["fixture"] = prepared

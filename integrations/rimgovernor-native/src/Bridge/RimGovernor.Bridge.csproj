@@ -76,6 +76,7 @@
     <Compile Include="../../../../scripts/fixtures/BlightFixture.cs" Condition="'$(BlightFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PlantationFixture.cs" Condition="'$(PlantationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LatticeSowFixture.cs" Condition="'$(LatticeSowFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/NonFoodFieldFixture.cs" Condition="'$(NonFoodFieldFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WinterFixture.cs" Condition="'$(WinterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RefrigerationFixture.cs" Condition="'$(RefrigerationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PowerFixture.cs" Condition="'$(PowerFixture)' == 'true'" />
