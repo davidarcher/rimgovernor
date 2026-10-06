@@ -48,6 +48,20 @@ func TestSlaughterFoodProtectsFloorAndBreedingPair(t *testing.T) {
 	if len(channels) != 1 {
 		t.Fatal(channels)
 	}
+	// A one-shot candidate: the meat is the stock cap, the slaughter work upfront.
+	one := SupplyCandidateOfFood(channels[0])
+	if cap, _ := one.Yields[0].StockCap.Value(); cap != 15 || one.Kind != CandidateSlaughter {
+		t.Fatal(one)
+	}
+	if up, _ := one.UpfrontCost.LaborTicks.Value(); up != 180 {
+		t.Fatal(one)
+	}
+	if _, steady := one.Yields[0].PerDay.Value(); steady {
+		t.Fatal("a slaughter has no rate", one)
+	}
+	if lead, _ := one.LeadDays.Value(); lead != 0 {
+		t.Fatal(one)
+	}
 	plan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: channels[0], Decision: FoodPlanOpen}}})
 	if c := FoodSlaughterChoice(plan, animals, HerdPolicy{}); c.Method != domain.HusbandrySlaughter || c.Animal != "cowa" {
 		t.Fatal(c)

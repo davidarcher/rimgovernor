@@ -147,6 +147,17 @@ expected rate x factor`.
 - **Flight**: a `food_credit` decision row per group when its factor moves by 0.1
   or more, its state changes, or a hold ends a window it was judged over.
 
+### Husbandry candidates
+
+An animal product is a rate candidate per race: native product nutrition per day
+net of the herd's feed per day (never below zero), ledger-counted under
+`animal_product:<race>`. A slaughter is a one-shot candidate (`slaughter:<animal>`):
+stock cap its meat nutrition, lead 0, 180 slaughter ticks as `UpfrontCost`, no
+steady labor. Herd floors, breeding-pair and slaughter exclusions stay policy
+([husbandry contracts](../contracts/husbandry-contracts.md#food-channel-planning));
+`MaintainHerd` executes the open candidate. Candidates that acquire animals
+(taming, purchase) are not built yet.
+
 ### Crop candidates
 
 `policy.CropChannels` prices a field as the better of raw and cooked nutrition.

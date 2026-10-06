@@ -93,7 +93,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 		}
 	}
 	if animals, known := p.FoodChannels.Value(); known {
-		channels = append(channels, policy.AnimalProductChannels(animals.AnimalProducts())...)
+		channels = append(channels, policy.AnimalProductChannels(policy.WithFeed(animals.AnimalProducts(), p.Facts.AnimalUpkeep.Animals))...)
 	}
 	channels = append(channels, policy.StockIngredientChannels(supply)...)
 	if fields, known := p.FoodFields.Value(); known {

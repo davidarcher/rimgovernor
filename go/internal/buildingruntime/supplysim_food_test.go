@@ -239,6 +239,7 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 	var water observation.FishableWater
 	water.FishingResearched = domain.Known(true)
 	var gatherable []observation.GatherableAnimal
+	var kept []policy.UpkeepAnimal
 	var window *supplysim.Window
 	for _, s := range sc.specs {
 		sv, id := views[s.src.ID], s.src.ID
@@ -273,6 +274,8 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 		case policy.FoodAnimalProduct:
 			gatherable = append(gatherable, observation.GatherableAnimal{PawnID: id, Race: id, Active: domain.Known(true), HandlerReachable: domain.Known(true),
 				NutritionPerDay: domain.Known(sv.Rate * s.nutr), WorkPerDay: domain.Known(s.src.Labor), LeadDays: domain.Known(0.0)})
+			// The sim's animals eat nothing the colony counts.
+			kept = append(kept, policy.UpkeepAnimal{ID: policy.PawnID(id), Herd: policy.HerdFacts{FeedPerDay: domain.Known(0.0)}})
 			count(observation.DeliveryKey{Kind: observation.DeliveryAnimalProduct, SourceID: id, Def: id}, sv, s.nutr)
 			a.groups["animal_product:"+id] = id
 			ids[string(s.kind)+"/"+id] = id
@@ -294,6 +297,7 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 		}
 	}
 	p.DeliveryLedger = domain.Known(ledger)
+	p.Facts.AnimalUpkeep.Animals = domain.Known(kept)
 	p.Acquisition = domain.Known(acquisition)
 	p.FoodFields = domain.Known(fields)
 	p.FoodChannels = domain.Known(observation.FoodChannels{FishableWater: domain.Known(water), Gatherable: gatherable})

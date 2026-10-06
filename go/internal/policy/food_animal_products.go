@@ -9,19 +9,39 @@ import (
 
 // AnimalProduct is one observed production comp, not harvested stock. Rates
 // already incorporate the native interval, resource nutrition and growth speed.
+// FeedPerDay is the animal's own daily feed, which the channel nets out.
 type AnimalProduct struct {
-	Pawn, Race                            string
-	Active, Reachable                     domain.Fact[bool]
-	NutritionPerDay, WorkPerDay, LeadDays domain.Fact[float64]
+	Pawn, Race                                        string
+	Active, Reachable                                 domain.Fact[bool]
+	NutritionPerDay, WorkPerDay, LeadDays, FeedPerDay domain.Fact[float64]
 }
 
-// AnimalProductChannels aggregates independent comps by race. A missing rate
-// makes that race unknown rather than silently claiming a partial herd yield.
+// WithFeed sets each row's FeedPerDay from the upkeep census; an animal the
+// census does not list, or one with an unread feed rate, stays unknown.
+func WithFeed(rows []AnimalProduct, animals domain.Fact[[]UpkeepAnimal]) []AnimalProduct {
+	census, _ := animals.Value()
+	feed := make(map[string]domain.Fact[float64], len(census))
+	for _, a := range census {
+		feed[string(a.ID)] = a.Herd.FeedPerDay
+	}
+	out := append([]AnimalProduct(nil), rows...)
+	for i := range out {
+		if f, ok := feed[out[i].Pawn]; ok {
+			out[i].FeedPerDay = f
+		}
+	}
+	return out
+}
+
+// AnimalProductChannels aggregates independent comps by race into the rate
+// net of the herd's feed (product minus feed per day, never below zero). A
+// missing rate or feed makes that race unknown rather than silently claiming a
+// partial herd yield.
 func AnimalProductChannels(animals []AnimalProduct) []FoodChannel {
 	type aggregate struct {
-		nutrition, work, lead float64
-		unknown               bool
-		pawns                 map[string]bool
+		nutrition, work, lead, feed float64
+		unknown                     bool
+		pawns                       map[string]bool
 	}
 	byRace := map[string]*aggregate{}
 	for _, a := range animals {
@@ -37,16 +57,18 @@ func AnimalProductChannels(animals []AnimalProduct) []FoodChannel {
 		n, nk := a.NutritionPerDay.Value()
 		w, wk := a.WorkPerDay.Value()
 		l, lk := a.LeadDays.Value()
+		f, fk := a.FeedPerDay.Value()
 		reachable, rk := a.Reachable.Value()
-		if !foodID(a.Pawn) || !foodID(a.Race) || nk && !foodNumber(n) || wk && !foodNumber(w) || lk && !foodNumber(l) {
+		if !foodID(a.Pawn) || !foodID(a.Race) || nk && !foodNumber(n) || wk && !foodNumber(w) || lk && !foodNumber(l) || fk && !foodNumber(f) {
 			r.nutrition = math.NaN()
 		}
-		if !ak || !nk || !wk || !lk || !rk || !reachable {
+		if !ak || !nk || !wk || !lk || !fk || !rk || !reachable {
 			r.unknown = true
 			continue
 		}
 		r.nutrition += n
 		r.work += w
+		r.feed += f
 		r.lead = math.Min(r.lead, l)
 		r.pawns[a.Pawn] = true
 	}
@@ -58,9 +80,9 @@ func AnimalProductChannels(animals []AnimalProduct) []FoodChannel {
 	var channels []FoodChannel
 	for _, race := range keys {
 		r := byRace[race]
-		c := FoodChannel{Kind: FoodAnimalProduct, ID: race, Source: "animal_product:" + race, Terms: []FoodPlanTerm{{Name: "productive_animals", Value: float64(len(r.pawns))}}}
+		c := FoodChannel{Kind: FoodAnimalProduct, ID: race, Source: "animal_product:" + race, Terms: []FoodPlanTerm{{Name: "productive_animals", Value: float64(len(r.pawns))}, {Name: "feed_per_day", Value: r.feed}}}
 		if !r.unknown || math.IsNaN(r.nutrition) {
-			c.NutritionPerDay = domain.Known(r.nutrition)
+			c.NutritionPerDay = domain.Known(math.Max(0, r.nutrition-r.feed))
 		}
 		if !r.unknown {
 			c.WorkPerDay = domain.Known(r.work)

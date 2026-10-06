@@ -88,7 +88,9 @@ type SlaughterFoodAnimal struct {
 	MeatNutrition, FeedPerDay, ReproductionDays domain.Fact[float64]
 }
 
-// SlaughterFoodChannels offers one safe animal above the protected population.
+// SlaughterFoodChannels offers one safe animal above the protected population
+// as a one-shot channel: its meat is the stock cap, lead 0, the slaughter work
+// upfront.
 // Order uses meat per feed/day first, then shorter reproduction interval. The
 // ledger still charges the ordinary slaughter work and can decline the offer.
 func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) []FoodChannel {
@@ -161,7 +163,11 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 	a := choices[0]
 	// JobDriver_Slaughter.SlaughterDuration is 180 ticks. Butchering and
 	// hauling remain separate native jobs, as for the hunt channel.
-	return []FoodChannel{{Kind: FoodHunt, ID: "slaughter:" + string(a.animal.ID), NutritionPerDay: domain.Known(a.nutrition), WorkPerDay: domain.Known(180.0), LeadDays: domain.Known(0.0), Open: domain.Known(false), Terms: []FoodPlanTerm{{Name: "meat_per_daily_feed", Value: a.efficiency}, {Name: "reproduction_days", Value: a.reproduction}}}}
+	meat := math.Floor(a.nutrition)
+	if meat < 1 {
+		return nil
+	}
+	return []FoodChannel{{Kind: FoodSlaughter, ID: "slaughter:" + string(a.animal.ID), StockCap: domain.Known(int64(meat)), WorkPerDay: domain.Known(0.0), UpfrontTicks: domain.Known(180.0), LeadDays: domain.Known(0.0), Open: domain.Known(false), Terms: []FoodPlanTerm{{Name: "meat_per_daily_feed", Value: a.efficiency}, {Name: "reproduction_days", Value: a.reproduction}}}}
 }
 
 func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) HusbandryChoice {
@@ -175,7 +181,7 @@ func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]Upkee
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	}
 	for _, e := range p.Portfolio {
-		if e.Channel.Kind != FoodHunt || e.Decision != FoodPlanOpen || !strings.HasPrefix(e.Channel.ID, "slaughter:") {
+		if e.Channel.Kind != FoodSlaughter || e.Decision != FoodPlanOpen || !strings.HasPrefix(e.Channel.ID, "slaughter:") {
 			continue
 		}
 		for _, r := range safe {

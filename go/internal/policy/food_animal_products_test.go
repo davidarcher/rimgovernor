@@ -8,7 +8,7 @@ import (
 )
 
 func product(pawn, race string, nutrition, work, lead float64) AnimalProduct {
-	return AnimalProduct{Pawn: pawn, Race: race, Active: domain.Known(true), Reachable: domain.Known(true), NutritionPerDay: domain.Known(nutrition), WorkPerDay: domain.Known(work), LeadDays: domain.Known(lead)}
+	return AnimalProduct{Pawn: pawn, Race: race, Active: domain.Known(true), Reachable: domain.Known(true), NutritionPerDay: domain.Known(nutrition), WorkPerDay: domain.Known(work), LeadDays: domain.Known(lead), FeedPerDay: domain.Known(0.0)}
 }
 
 func TestAnimalProductsAggregateNativeRatesAndReadiness(t *testing.T) {
@@ -41,12 +41,14 @@ func TestAnimalProductsAggregateNativeRatesAndReadiness(t *testing.T) {
 }
 
 func TestAnimalProductsDoNotInventMissingOrInactiveProduction(t *testing.T) {
-	for _, mode := range []string{"rate", "access", "active", "inactive", "invalid"} {
+	for _, mode := range []string{"rate", "feed", "access", "active", "inactive", "invalid"} {
 		t.Run(mode, func(t *testing.T) {
 			a := product("cow", "Cow", .9, 400, 0)
 			switch mode {
 			case "rate":
 				a.NutritionPerDay = domain.Unknown[float64]()
+			case "feed":
+				a.FeedPerDay = domain.Unknown[float64]()
 			case "access":
 				a.Reachable = domain.Known(false)
 			case "active":
@@ -109,5 +111,36 @@ func TestFoodHerdFloorRequiresAdmittedEfficientProduction(t *testing.T) {
 				t.Fatal("mutated operator policy")
 			}
 		})
+	}
+}
+
+func TestAnimalProductRateIsNetOfFeed(t *testing.T) {
+	cow, yak := product("cow", "Cow", 2, 400, 0), product("yak", "Yak", 1, 200, 0)
+	cow.FeedPerDay, yak.FeedPerDay = domain.Known(.5), domain.Known(3.0)
+	for _, c := range AnimalProductChannels([]AnimalProduct{cow, yak}) {
+		n, _ := c.NutritionPerDay.Value()
+		switch c.ID {
+		case "Cow":
+			if n != 1.5 {
+				t.Fatal("net of feed", c)
+			}
+		case "Yak":
+			if n != 0 {
+				t.Fatal("feed above product is no yield", c)
+			}
+		}
+	}
+}
+
+func TestWithFeedReadsTheUpkeepCensus(t *testing.T) {
+	ghost := product("ghost", "Cow", 2, 0, 0)
+	ghost.FeedPerDay = domain.Unknown[float64]()
+	rows := WithFeed([]AnimalProduct{product("cow", "Cow", 2, 0, 0), ghost},
+		domain.Known([]UpkeepAnimal{{ID: "cow", Herd: HerdFacts{FeedPerDay: domain.Known(.75)}}}))
+	if f, ok := rows[0].FeedPerDay.Value(); !ok || f != .75 {
+		t.Fatal(rows[0])
+	}
+	if _, ok := rows[1].FeedPerDay.Value(); ok {
+		t.Fatal("an animal outside the census has no feed fact")
 	}
 }

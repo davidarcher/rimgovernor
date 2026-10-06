@@ -16,7 +16,7 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(2.0)}}}),
 		FoodChannels:       domain.Known(observation.FoodChannels{Gatherable: []observation.GatherableAnimal{{PawnID: "cow", Race: "Cow", Resource: domain.Known("Milk"), Active: domain.Known(true), HandlerReachable: domain.Known(true), NutritionPerDay: domain.Known(.9), WorkPerDay: domain.Known(400.0), LeadDays: domain.Known(0.0)}}})}
 	cow := func(id, gender string) policy.UpkeepAnimal {
-		return policy.UpkeepAnimal{ID: policy.PawnID(id), Definition: "Cow", Gender: gender, Release: domain.Known(false), Slaughter: domain.Known(false)}
+		return policy.UpkeepAnimal{ID: policy.PawnID(id), Definition: "Cow", Gender: gender, Release: domain.Known(false), Slaughter: domain.Known(false), Herd: policy.HerdFacts{FeedPerDay: domain.Known(0.0)}}
 	}
 	p.Facts.AnimalUpkeep.Animals = domain.Known([]policy.UpkeepAnimal{cow("cow", "Female"), cow("bull", "Male")})
 	p.Facts.AnimalUpkeep.AnimalRaces = policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{"Cow": {Def: "Cow", BodySize: domain.Known(2.5),
@@ -110,6 +110,7 @@ func TestFoodCreditAttributesLedgerCountersToChannels(t *testing.T) {
 			FishableWater: domain.Known(observation.FishableWater{FishingResearched: domain.Known(true), Regions: []observation.FishableRegion{{Root: domain.Cell{X: 5, Z: 8}, Population: domain.Known(300.0), MaxPopulation: domain.Known(300.0),
 				NutritionPerFish: domain.Known(.25), FishPerBatch: domain.Known(6.0), WorkTicksPerBatch: domain.Known(1000.0), PawnFishWorkCapacity: domain.Known(2.0), Reachable: domain.Known(true), Frozen: domain.Known(false), Delivering: domain.Known(true)}}}),
 			Gatherable: []observation.GatherableAnimal{{PawnID: "cow", Race: "Cow", Active: domain.Known(true), HandlerReachable: domain.Known(true), NutritionPerDay: domain.Known(0.9), WorkPerDay: domain.Known(400.0), LeadDays: domain.Known(0.0)}}})}
+	p.Facts.AnimalUpkeep.Animals = domain.Known([]policy.UpkeepAnimal{{ID: "cow", Herd: policy.HerdFacts{FeedPerDay: domain.Known(0.0)}}})
 	count := func(kind observation.DeliveryKind, source string) observation.DeliveryKey {
 		return observation.DeliveryKey{Kind: kind, SourceID: source, Def: "x"}
 	}

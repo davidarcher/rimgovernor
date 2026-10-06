@@ -77,7 +77,7 @@ func TestPendingRemovalBudgetsAndPolicyChanges(t *testing.T) {
 	rows[1].Release, rows[1].Slaughter = domain.Known(false), domain.Known(true)
 	rows[2].Release = domain.Known(false)
 	herd = HerdPolicy{PopulationMax: map[Resource]int64{"Cow": 30}}
-	food = domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: FoodChannel{Kind: FoodHunt, ID: "slaughter:cowa"}, Decision: FoodPlanOpen}}})
+	food = domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: FoodChannel{Kind: FoodSlaughter, ID: "slaughter:cowa"}, Decision: FoodPlanOpen}}})
 	if got := ReconcileHerdRemoval(domain.Known(rows), herd, food); got.Reason != HusbandryNoDeficit {
 		t.Fatal(got)
 	}

@@ -14,6 +14,7 @@ type FoodChannelKind string
 const (
 	FoodForage        FoodChannelKind = "Forage"
 	FoodHunt          FoodChannelKind = "Hunt"
+	FoodSlaughter     FoodChannelKind = "Slaughter"
 	FoodCrop          FoodChannelKind = "Crop"
 	FoodAnimalProduct FoodChannelKind = "AnimalProduct"
 	FoodFishing       FoodChannelKind = "Fishing"
@@ -49,7 +50,10 @@ type FoodChannel struct {
 	Kind                                  FoodChannelKind
 	ID                                    string
 	NutritionPerDay, WorkPerDay, LeadDays domain.Fact[float64]
-	Risk                                  []FoodRisk
+	// UpfrontTicks is the work that establishes a one-shot channel (a
+	// slaughter's 180 ticks), charged once; WorkPerDay is the steady work.
+	UpfrontTicks domain.Fact[float64]
+	Risk         []FoodRisk
 	// Open is true once the channel is observed delivering (the delivery
 	// ledger); Designated is a committed channel not yet seen delivering; a
 	// channel that is neither is closed (see State).
@@ -165,7 +169,7 @@ func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
 
 func validFoodChannelKind(k FoodChannelKind) bool {
 	switch k {
-	case FoodForage, FoodHunt, FoodCrop, FoodAnimalProduct, FoodFishing, FoodTrade, FoodCorpse, FoodReserve, FoodCook:
+	case FoodForage, FoodHunt, FoodSlaughter, FoodCrop, FoodAnimalProduct, FoodFishing, FoodTrade, FoodCorpse, FoodReserve, FoodCook:
 		return true
 	}
 	return false

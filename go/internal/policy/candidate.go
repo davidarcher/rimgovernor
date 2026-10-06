@@ -12,6 +12,7 @@ type CandidateKind string
 const (
 	CandidateForage        CandidateKind = "forage"
 	CandidateHunt          CandidateKind = "hunt"
+	CandidateSlaughter     CandidateKind = "slaughter"
 	CandidateCrop          CandidateKind = "crop"
 	CandidateAnimalProduct CandidateKind = "animal_product"
 	CandidateFishing       CandidateKind = "fishing"
@@ -119,7 +120,7 @@ type SupplyCandidate struct {
 }
 
 var foodCandidateKinds = map[FoodChannelKind]CandidateKind{
-	FoodForage: CandidateForage, FoodHunt: CandidateHunt, FoodCrop: CandidateCrop,
+	FoodForage: CandidateForage, FoodHunt: CandidateHunt, FoodSlaughter: CandidateSlaughter, FoodCrop: CandidateCrop,
 	FoodAnimalProduct: CandidateAnimalProduct, FoodFishing: CandidateFishing, FoodTrade: CandidateTrade,
 	FoodCorpse: CandidateCorpse, FoodReserve: CandidateReserve, FoodCook: CandidateCook,
 }
@@ -137,7 +138,7 @@ func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 	out := SupplyCandidate{
 		Kind: foodCandidateKinds[c.Kind], ID: c.ID,
 		Yields:   append([]CandidateYield{{Good: ResourceKey{Def: CandidateNutrition}, PerDay: c.NutritionPerDay, StockCap: c.StockCap}}, c.Products...),
-		LeadDays: c.LeadDays, LaborPerDay: c.WorkPerDay, DistanceSquared: c.DistanceSquared,
+		LeadDays: c.LeadDays, LaborPerDay: c.WorkPerDay, UpfrontCost: CandidateCost{LaborTicks: c.UpfrontTicks}, DistanceSquared: c.DistanceSquared,
 		Prey: append([]string(nil), c.Prey...),
 	}
 	out.State = c.State()
@@ -173,7 +174,7 @@ func FoodChannelOfSupply(c SupplyCandidate) (FoodChannel, bool) {
 		return FoodChannel{}, false
 	}
 	out := FoodChannel{
-		Kind: kind, ID: c.ID, NutritionPerDay: c.Yields[0].PerDay, StockCap: c.Yields[0].StockCap, WorkPerDay: c.LaborPerDay, LeadDays: c.LeadDays,
+		Kind: kind, ID: c.ID, NutritionPerDay: c.Yields[0].PerDay, StockCap: c.Yields[0].StockCap, WorkPerDay: c.LaborPerDay, UpfrontTicks: c.UpfrontCost.LaborTicks, LeadDays: c.LeadDays,
 		DistanceSquared: c.DistanceSquared, Prey: append([]string(nil), c.Prey...),
 	}
 	if len(c.Yields) > 1 {

@@ -377,8 +377,11 @@ a failure there names the one it hit.
 
 The tick food plan aggregates native milk and egg production by race. Rates use
 native resource nutrition, comp intervals and body-resource growth speed;
-inactive producers contribute nothing, and missing rate or reachability facts
-remain unknown with an explanation. Milk costs 400 native gather work units per
+inactive producers contribute nothing, and missing rate, feed or reachability
+facts remain unknown with an explanation. A race's rate is net of its herd's
+feed: product minus the animals' feed per day (`UpkeepAnimal.Herd.FeedPerDay`),
+never below zero, so a race that eats more than it yields earns no credit and
+no herd floor. Milk costs 400 native gather work units per
 cycle; eggs need no handler gathering. These costs share the food-plan labor
 budget. Full production comps have zero lead time. Projected products never
 increase stored-food runway before normal native jobs produce them.
@@ -401,7 +404,9 @@ food channels and human runway. Growing joins the feed concern's labor profile.
 While the food runway is below target (a food-plan gap), eligible animals
 above max(floor, breeding pair) rank by native meat nutrition per daily
 grazing demand, then shorter reproduction interval, then animal ID. Missing
-cost facts exclude the candidate. The ledger budgets one offered animal as a
-hunt-kind channel with a `slaughter:` ID and 180 native slaughter ticks;
+cost facts exclude the candidate. The plan sees one offered animal as a
+one-shot `slaughter:` candidate of kind `Slaughter` (stock cap its meat
+nutrition, lead 0, 180 native slaughter ticks upfront, no steady work), which
+the floor and breeding-pair protection above leave to policy;
 `MaintainHerd` dispatches it through its normal husbandry action.
 

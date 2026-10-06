@@ -11,6 +11,7 @@ func TestFoodChannelRoundTripsThroughSupplyCandidate(t *testing.T) {
 	for _, c := range []FoodChannel{
 		{Kind: FoodHunt, ID: "deer", NutritionPerDay: domain.Known(2.0), WorkPerDay: domain.Known(7500.0), LeadDays: domain.Known(0.0), Open: domain.Known(false),
 			Risk: []FoodRisk{{FoodRevenge, 0.3}}, Terms: []FoodPlanTerm{{"revenge_chance", 0.1}}, Prey: []string{"a", "b"}},
+		{Kind: FoodSlaughter, ID: "slaughter:cow", StockCap: domain.Known(int64(15)), WorkPerDay: domain.Known(0.0), UpfrontTicks: domain.Known(180.0), LeadDays: domain.Known(0.0), Open: domain.Known(false)},
 		{Kind: FoodFishing, ID: "pond", NutritionPerDay: domain.Known(1.0), WorkPerDay: domain.Known(1.0), LeadDays: domain.Known(2.0), Open: domain.Known(true), DistanceSquared: domain.Known(9.0)},
 		{Kind: FoodCrop, ID: "field", NutritionPerDay: domain.Unknown[float64](), WorkPerDay: domain.Known(1.0), LeadDays: domain.Known(5.0)},
 	} {
