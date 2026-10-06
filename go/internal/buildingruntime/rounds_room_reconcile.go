@@ -54,7 +54,19 @@ func roomRingInput(facts observation.ColonyProjection, plan policy.LayoutPlan, r
 	if !known {
 		return policy.ReconcileInput{}, false
 	}
-	return policy.ReconcileInput{Plan: plan, Room: room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)), Rooms: colonyRooms(facts)}, true
+	return policy.ReconcileInput{Plan: plan, Room: room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)), Rooms: colonyRooms(facts), Cells: cellsOn(facts.Cells, room.RoomGround())}, true
+}
+
+// cellsOn is the mirror cells inside ground: the room's foreign things are read
+// from them (#2269).
+func cellsOn(cells []policy.SiteCell, ground policy.Rectangle) []policy.SiteCell {
+	var out []policy.SiteCell
+	for _, c := range cells {
+		if c.Cell.X >= ground.X && c.Cell.X < ground.X+ground.Width && c.Cell.Z >= ground.Z && c.Cell.Z < ground.Z+ground.Height {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // roomRingOwed is true while room's ring has a wall or door still to raise.
@@ -165,6 +177,33 @@ func reportRefused(ctx context.Context, build roomBuild, v policy.Preview) refus
 type roomWork struct {
 	rr  roomReconcile
 	ops []policy.Operation
+	// holds are the foreign things the room leaves standing.
+	holds []policy.ReconcileHold
+}
+
+// holdKey names the first held foreign thing for a wait key and logs every one
+// (#2269): the blocker rides in the wait, not a new enum.
+func holdKey(ctx context.Context, works []roomWork) string {
+	var first string
+	for _, w := range works {
+		for _, h := range w.holds {
+			key := fmt.Sprintf("%s@%d,%d:%s", h.Def, h.Cell.X, h.Cell.Z, h.Reason)
+			slog.Default().InfoContext(ctx, "foreign thing held: "+key, telemetry.ComponentKey, "building-planner", telemetry.KindKey, "foreign_held")
+			if first == "" {
+				first = key
+			}
+		}
+	}
+	return first
+}
+
+// waitingHeld is roomWaiting with the first held foreign thing named.
+func waitingHeld(ctx context.Context, name string, works []roomWork, refused ...refusedPlacement) RoundsBuildingResult {
+	result := roomWaiting(name, refused...)
+	if hold := holdKey(ctx, works); hold != "" && len(refused) == 0 {
+		result.Verdict = waitFor(WaitExistingWork, name+"_reconcile:held:"+hold)
+	}
+	return result
 }
 
 // reconcileRoom reconciles one owner's room (see reconcileRooms).
@@ -226,7 +265,7 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 			}
 			in.Stock = left
 		}
-		ops := policy.ReconcileRoom(in)
+		ops, holds := policy.ReconcileRoomHolds(in)
 		for _, op := range ops {
 			if op.Kind != policy.OpInstall || left == nil {
 				continue
@@ -235,9 +274,13 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 				left[piece.DefName] = max(0, left[piece.DefName]-1)
 			}
 		}
-		works = append(works, roomWork{rr: rr, ops: ops})
+		works = append(works, roomWork{rr: rr, ops: ops, holds: holds})
 	}
-	// Removals first, then installs from stock, then what is built on site.
+	// Foreign obstructions first (claim, cut, haul), one wave across the rooms,
+	// then removals, then installs from stock, then what is built on site.
+	if result, done, err := b.commitObstructions(call, epoch, state, goal, works); done || err != nil {
+		return result, err
+	}
 	for _, kind := range []policy.OpKind{policy.OpFurnitureOut, policy.OpPack, policy.OpPackInUse, policy.OpFloorOut} {
 		for _, w := range works {
 			for _, op := range w.ops {
@@ -310,6 +353,83 @@ func (b *RoundsBuildingPlanner) commitRemoval(call, epoch context.Context, state
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_removal")}, err
 	}
 	return b.commitOwnerActions(call, epoch, state, goal, method, id, actions)
+}
+
+// obstructionKinds are the foreign-thing waves in the order they are committed.
+var obstructionKinds = []policy.OpKind{policy.OpClaim, policy.OpCut, policy.OpHaulOut}
+
+// commitObstructions commits the next foreign-thing wave across every room
+// (#2269): ruins claimed as wall, impassable plants cut and haulable items
+// moved, one method per kind whose name carries the targets, so an order the
+// game has not finished is not repeated. Packing and deconstruction of foreign
+// buildings go through commitRemoval like the room's own. A wave already
+// committed is skipped, not waited on: the cells it covers are blocked in the
+// diff, so the rest of the room proceeds. done is false when nothing was
+// committed.
+func (b *RoundsBuildingPlanner) commitObstructions(call, epoch context.Context, state ControlState, goal store.WorkOwner, works []roomWork) (RoundsBuildingResult, bool, error) {
+	for _, kind := range obstructionKinds {
+		var targets []policy.ClearanceTarget
+		seen := map[string]bool{}
+		for _, w := range works {
+			for _, op := range w.ops {
+				if op.Kind != kind {
+					continue
+				}
+				for _, t := range op.Targets {
+					key := fmt.Sprintf("%s@%d,%d", t.EntityID, t.Minimum.X, t.Minimum.Z)
+					if !seen[key] {
+						seen[key] = true
+						targets = append(targets, t)
+					}
+				}
+			}
+		}
+		if len(targets) == 0 {
+			continue
+		}
+		id := domain.MintPlanID()
+		var actions []domain.Action
+		var key strings.Builder
+		for _, t := range targets {
+			action, err := obstructionAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), kind, t)
+			if err != nil {
+				return RoundsBuildingResult{}, false, err
+			}
+			actions = append(actions, action)
+			fmt.Fprintf(&key, "%s@%d,%d;", t.EntityID, t.Minimum.X, t.Minimum.Z)
+		}
+		digest := sha256.Sum256([]byte(key.String()))
+		method := domain.MethodID(fmt.Sprintf("%s-%s-%x", works[0].rr.name, kind, digest[:8]))
+		if once, err := b.methodOnce(call, goal, method); err != nil {
+			return RoundsBuildingResult{}, false, err
+		} else if !once {
+			continue
+		}
+		result, err := b.commitOwnerActions(call, epoch, state, goal, method, id, actions)
+		return result, true, err
+	}
+	return RoundsBuildingResult{}, false, nil
+}
+
+// obstructionAction maps a foreign-thing target to an existing action: a claim,
+// or a cover clearance in the cut-plant or haul mode.
+func obstructionAction(id domain.ActionID, kind policy.OpKind, t policy.ClearanceTarget) (domain.Action, error) {
+	if kind == policy.OpClaim {
+		value, err := domain.NewClaimBuilding(t.EntityID)
+		if err != nil {
+			return domain.Action{}, err
+		}
+		return domain.NewClaimBuildingAction(id, value)
+	}
+	mode := domain.CoverClearanceHaul
+	if kind == policy.OpCut {
+		mode = domain.CoverClearanceCutPlant
+	}
+	value, err := domain.NewCoverClearance(t.EntityID, t.DefName, mode, t.Minimum)
+	if err != nil {
+		return domain.Action{}, err
+	}
+	return domain.NewCoverClearanceAction(id, value)
 }
 
 // commitInstalls moves the pieces the packed stock holds to their slots; done
@@ -430,7 +550,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			// removal): the owner goes on to its own placement.
 			return RoundsBuildingResult{Verdict: noSpace("room_ring")}, nil
 		}
-		return roomWaiting(works[0].rr.name), nil
+		return waitingHeld(call, works[0].rr.name, works), nil
 	}
 	p := b.reviewer.player
 	snapshot := state.Snapshot
@@ -551,7 +671,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		fmt.Fprintf(&key, "%s@%d,%d;", build.def, build.cell.X, build.cell.Z)
 	}
 	if len(selected) == 0 {
-		return roomWaiting(works[0].rr.name, refused...), nil
+		return waitingHeld(call, works[0].rr.name, works, refused...), nil
 	}
 	rr := works[0].rr
 	digest := sha256.Sum256([]byte(key.String()))

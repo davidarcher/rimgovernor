@@ -18,15 +18,23 @@ import (
 // Reconcile except the ring's removals (door and wall out, roof off), batched by
 // kind in table order. Empty when the room matches or waits on a prerequisite.
 func ReconcileRoom(in ReconcileInput) []Operation {
+	ops, _ := ReconcileRoomHolds(in)
+	return ops
+}
+
+// ReconcileRoomHolds is ReconcileRoom with the foreign things the room leaves
+// standing (#2269).
+func ReconcileRoomHolds(in ReconcileInput) ([]Operation, []ReconcileHold) {
 	var out []Operation
-	for _, op := range Reconcile(in).Ready {
+	rec := Reconcile(in)
+	for _, op := range rec.Ready {
 		switch op.Kind {
 		case OpDoorOut, OpWallOut, OpRoofOff:
 			continue
 		}
 		out = append(out, op)
 	}
-	return out
+	return out, rec.Holds
 }
 
 // OwnRows are the census rows an owner reconciles its room against: the ring,
