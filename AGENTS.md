@@ -82,6 +82,15 @@ Remote agents additionally:
    reference assemblies, never the game. It needs
    `apt-get install -y dotnet-sdk-8.0` (Microsoft's installer host is blocked
    by the cloud proxy).
+3. Use the GitHub MCP tools for everything on GitHub (`gh` and GitHub GraphQL
+   are blocked in Cloud sessions, so `go run ./cmd/issue` fails too; load the
+   tools with ToolSearch if they are deferred). Read an issue with
+   `mcp__github__issue_read` (`get`, `get_comments`, `get_sub_issues`), find one
+   with `search_issues` or `list_issues`, file or edit with `issue_write`, comment
+   with `add_issue_comment`. Scope is `davidarcher/rimgovernor`. `cmd/land`
+   reports a failed issue close without failing: close the issue yourself with
+   `issue_write` (`state: closed`, `state_reason: completed`) and a one-line
+   comment naming the landing commit. Pull requests stay disabled.
 
 ## Simplify before you extend
 
@@ -126,11 +135,12 @@ Every landing report ends with
 - `python`, not `python3` (the Microsoft Store stub).
 - Read issues with `go run ./cmd/issue <n>` from `go/` (body and comments in
   one call, also written to `issue-<n>.md`; `-last k` for the newest comments).
-  Not `gh issue view --comments`, never WebFetch a github.com URL.
+  Not `gh issue view --comments`, never WebFetch a github.com URL. (Cloud
+  sessions: the GitHub MCP tools, see Remote agents above.)
 
 ## Issues
 
-Open a GitHub issue (`gh issue create`) for anything you would otherwise leave
+Open a GitHub issue (`gh issue create`; `issue_write` in a Cloud session) for anything you would otherwise leave
 as "follow-up" or ask about in a summary: bugs found in passing, deferred scope,
 decisions needed, and what you notice but are not fixing (slow test, senseless
 workflow step, performance or architecture smell). Not for an unverified
