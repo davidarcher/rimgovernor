@@ -10,8 +10,8 @@ import (
 
 type Rectangle struct{ X, Z, Width, Height int32 }
 type SiteCell struct {
-	Cell                                                                   domain.Cell
-	Walkable, Occupied, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
+	Cell                                                         domain.Cell
+	Walkable, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
 	// Doorway reports a door, or a door blueprint or frame, on the cell;
 	// indoor furnishing keeps the cells beside a doorway clear as its aisle.
 	Doorway   domain.Fact[bool]
@@ -26,10 +26,6 @@ type SiteCell struct {
 	// Room names the native room holding the cell (#1224): growing-room
 	// kinds pick a block per room interior.
 	Room domain.Fact[string]
-	// NaturalRock reports the cell's edifice is natural rock (#700): a
-	// planned ring on it keeps it as wall; inside the room plan dig mines it
-	// (#836).
-	NaturalRock domain.Fact[bool]
 	// The per-cell thing list and the tile columns that join it (#2260, epic
 	// #2241). Terrain names the terrain def; InHome is inside the home area;
 	// FoundationAffordances is the comma-joined, sorted affordances a
@@ -174,11 +170,11 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 	unzoned := func(c SiteCell) bool { return positive(measured(c.Zone, func(v bool) bool { return !v })) }
 	lit := func(p domain.Cell) bool {
 		c, exists := cells[p]
-		return exists && !protected[p] && positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v })) && unzoned(c) && positive(c.SupportsLight)
+		return exists && !protected[p] && positive(c.Walkable) && !c.Occupied() && unzoned(c) && positive(c.SupportsLight)
 	}
 	rock := func(p domain.Cell) bool {
 		c, exists := cells[p]
-		return exists && !protected[p] && positive(c.NaturalRock) && unzoned(c)
+		return exists && !protected[p] && c.NaturalRock() && unzoned(c)
 	}
 	wall := func(p domain.Cell) bool {
 		if rock(p) {
@@ -201,7 +197,7 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 			return "protected"
 		case !positive(c.Walkable):
 			return "not walkable"
-		case !positive(measured(c.Occupied, func(v bool) bool { return !v })):
+		case c.Occupied():
 			return "occupied"
 		case !unzoned(c):
 			return "zoned"
@@ -266,8 +262,8 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		// rock is dug.
 		for _, d := range shell.Doors() {
 			threshold := d.Threshold()
-			if c, observed := cells[threshold]; observed && !(positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))) {
-				if positive(c.NaturalRock) {
+			if c, observed := cells[threshold]; observed && !(positive(c.Walkable) && !c.Occupied()) {
+				if c.NaturalRock() {
 					roles = append(roles, RoleCell{threshold, RockNeedsFloor})
 				} else {
 					block(threshold, "threshold")

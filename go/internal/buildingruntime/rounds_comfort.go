@@ -251,7 +251,7 @@ func (r *RoundsBuildingPlanner) selectBasicComfort(facts observation.ColonyProje
 			if m.PowerW > 0 {
 				canSite := false
 				for _, c := range facts.Cells {
-					canSite = canSite || c.Roofed == domain.Known(true) && c.Indoors == domain.Known(true) && c.Occupied == domain.Known(false) && poweredRecreationCell(facts, c.Cell, m.PowerW)
+					canSite = canSite || c.Roofed == domain.Known(true) && c.Indoors == domain.Known(true) && !c.Occupied() && poweredRecreationCell(facts, c.Cell, m.PowerW)
 				}
 				if !canSite {
 					return false

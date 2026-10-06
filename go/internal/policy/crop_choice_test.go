@@ -17,7 +17,7 @@ func fieldRequest(fertility float64) FieldRequest {
 	r.Site = FarmSiteRequest{Bounds: Bounds{40, 40}, Anchor: domain.Cell{X: 20, Z: 20}}
 	for x := int32(0); x < 40; x++ {
 		for z := int32(0); z < 40; z++ {
-			r.Site.Cells = append(r.Site.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(false), Fertility: domain.Known(fertility)})
+			r.Site.Cells = append(r.Site.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(false), Fertility: domain.Known(fertility)})
 		}
 	}
 	return r

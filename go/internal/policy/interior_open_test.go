@@ -11,10 +11,10 @@ import (
 func rockOpen(rock, kept, fogged []domain.Cell) stockpileOpen {
 	open := sitingOpen()
 	for _, c := range rock {
-		open.cells[c] = SiteCell{Cell: c, Walkable: domain.Known(false), Occupied: domain.Known(true), NaturalRock: domain.Known(true), Zone: domain.Known(false)}
+		open.cells[c] = SiteCell{Cell: c, Walkable: domain.Known(false), Things: RockThings(true), Zone: domain.Known(false)}
 	}
 	for _, c := range kept {
-		open.cells[c] = SiteCell{Cell: c, Walkable: domain.Known(false), Occupied: domain.Known(true), NaturalRock: domain.Known(false), Zone: domain.Known(false)}
+		open.cells[c] = SiteCell{Cell: c, Walkable: domain.Known(false), Things: OccupantThings(true), Zone: domain.Known(false)}
 	}
 	for _, c := range fogged {
 		delete(open.cells, c)

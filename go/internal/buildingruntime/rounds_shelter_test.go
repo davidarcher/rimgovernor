@@ -264,7 +264,7 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			case "zone":
 				n.cells.Cells[40].Zone, n.cells.Cells[40].ZoneID = domain.Known(true), domain.Known("player-zone")
 			case "protected":
-				n.cells.Cells[40].Occupied = domain.Known(true)
+				n.cells.Cells[40].SetOccupied(true)
 			}
 			result, err := r.Step(context.Background())
 			if err == nil && result.Verdict == BuildingReasonAdmitted {

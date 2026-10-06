@@ -88,7 +88,7 @@ func surveyCells(read cellsRead, roofs policy.RoofRules) ([]policy.SurveyCell, e
 	cells := make([]policy.SurveyCell, 0, len(held))
 	for _, cell := range held {
 		ground := read.foundation(cell.Cell)
-		rock, ruin := value(cell.NaturalRock), cell.Ruin()
+		rock, ruin := cell.NaturalRock(), cell.Ruin()
 		edifice, roof := cell.PlayerEdifice(), value(cell.Roof)
 		footing := policy.FootingFirm
 		if ground&foundationHeavy == 0 {
@@ -116,7 +116,7 @@ func surveyCells(read cellsRead, roofs policy.RoofRules) ([]policy.SurveyCell, e
 			Tree:       ground&foundationTree != 0,
 			// Occupied off rock, player edifice and clearable ruin is a
 			// standing prop (#1533).
-			Prop: value(cell.Occupied) && !rock && edifice == "" && !ruin,
+			Prop: cell.Occupied() && !rock && edifice == "" && !ruin,
 			Ruin: ruin,
 		})
 	}

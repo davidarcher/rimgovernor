@@ -59,9 +59,8 @@ func MechChargerSites(f MechChargerSiteFacts, width, height int32) ([]PollutionS
 			req.PollutedCells = append(req.PollutedCells, c.Cell)
 		}
 		walkable, wk := c.Walkable.Value()
-		occupied, ok := c.Occupied.Value()
 		door, dk := c.Doorway.Value()
-		free[c.Cell] = wk && walkable && ok && !occupied && zk && !zone && dk && !door
+		free[c.Cell] = wk && walkable && !c.Occupied() && zk && !zone && dk && !door
 	}
 	if rooms, known := f.Rooms.Value(); known {
 		for _, room := range rooms.Rooms {

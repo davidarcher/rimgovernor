@@ -112,13 +112,12 @@ func strArray(slot func(*mp.CellGrid) **mp.FieldArray, field func(*policy.SiteCe
 // Index positions of the arrays read directly.
 const (
 	presenceArray = 0
-	roofedArray   = 4
+	roofedArray   = 3
 )
 
 var arrays = []array{
 	{kind: kindCode, slot: func(g *mp.CellGrid) **mp.FieldArray { return &g.Cell }, code: func(*policy.SiteCell) uint8 { return 1 }},
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Walkable }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Walkable }),
-	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Occupied }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Occupied }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Zone }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Zone }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Roofed }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Roofed }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Indoors }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Indoors }),
@@ -130,7 +129,6 @@ var arrays = []array{
 	numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Glow }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.Glow }),
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Roof }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Roof }),
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.ZoneId }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.ZoneID }),
-	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.NaturalRock }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.NaturalRock }),
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Room }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Room }),
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Terrain }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Terrain }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.InHome }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.InHome }),

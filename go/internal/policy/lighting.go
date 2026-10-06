@@ -378,8 +378,7 @@ func lampCells(target domain.Cell, cellRoom map[domain.Cell]string, cells map[do
 				continue
 			}
 			walkable, wk := site.Walkable.Value()
-			busy, ok := site.Occupied.Value()
-			if !wk || !walkable || !ok || busy {
+			if !wk || !walkable || site.Occupied() {
 				continue
 			}
 			if zone, zk := site.Zone.Value(); zk && zone {

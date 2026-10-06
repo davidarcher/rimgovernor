@@ -27,7 +27,7 @@ func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
 				if x >= 30 {
 					f, rich[domain.Cell{X: x, Z: z}] = 1.4, true
 				}
-				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
+				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
 			}
 		}
 		facts.LayoutPlan = domain.Known(plan)
@@ -85,7 +85,7 @@ func TestFieldBlockFarmsCourtyardPatch(t *testing.T) {
 			}
 			c := domain.Cell{X: x, Z: z}
 			s.Cells = append(s.Cells, policy.SurveyCell{Cell: c, Walkable: true, Fertility: f})
-			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
+			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
 		}
 	}
 	plan, ok := policy.DeriveLayoutPlan(s, 8, policy.BuildTierCamp, nil, 30, 0).Value()
@@ -114,7 +114,7 @@ func blockFacts() observation.ColonyProjection {
 	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp), LayoutPlan: domain.Known(plan)}
 	for z := int32(0); z < 2; z++ {
 		for x := int32(0); x < 10; x++ {
-			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(1.0)})
+			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(1.0)})
 		}
 	}
 	return facts
@@ -129,7 +129,7 @@ func TestFieldPatchCropBlocksByDemand(t *testing.T) {
 	for z := int32(0); z < 30; z++ {
 		plan.Zones[0].Runs = append(plan.Zones[0].Runs, policy.RowRun{Z: z, X: 0, Length: 40})
 		for x := int32(0); x < 40; x++ {
-			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(1.4)})
+			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(1.4)})
 		}
 	}
 	facts.LayoutPlan = domain.Known(plan)

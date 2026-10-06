@@ -19,7 +19,8 @@ func TestFlooringLeavesRockCellsWithoutPreview(t *testing.T) {
 	rock := site.Cell // (1,3) is rock in the fixture
 	for i, c := range s.facts.Cells {
 		if c.Cell == rock {
-			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof, s.facts.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
+			s.facts.Cells[i].SetNaturalRock(true)
+			s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof = domain.Known(false), domain.Known("RoofRockThick")
 		}
 	}
 	open, unlisted := domain.Cell{X: 1, Z: 1}, domain.Cell{X: 40, Z: 40}

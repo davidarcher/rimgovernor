@@ -117,7 +117,7 @@ func TestPasteSiteNeedsConnectedFirmNetworkAndHopper(t *testing.T) {
 	r := SiteTypeRequest{Paste: &paste}
 	for x := int32(6); x <= 14; x++ {
 		for z := int32(6); z <= 14; z++ {
-			r.Field.Site.Cells = append(r.Field.Site.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+			r.Field.Site.Cells = append(r.Field.Site.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false)})
 		}
 	}
 	plan, ok := PlanSiteType(r)
@@ -147,7 +147,7 @@ func TestPasteSiteAllowsRockOnlyUnderDispenserAndHopper(t *testing.T) {
 				case rockAt:
 					r.Field.Site.Cells = append(r.Field.Site.Cells, rockSite(x, z))
 				default:
-					r.Field.Site.Cells = append(r.Field.Site.Cells, SiteCell{Cell: cell, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+					r.Field.Site.Cells = append(r.Field.Site.Cells, SiteCell{Cell: cell, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false)})
 				}
 			}
 		}

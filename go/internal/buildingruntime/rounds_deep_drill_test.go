@@ -72,7 +72,7 @@ func TestDeepDrillRanksNeededLumpsAndGatesPrerequisites(t *testing.T) {
 func TestDeepDrillFootprintRequiresClearUnroofedObservedCells(t *testing.T) {
 	a, b := domain.Cell{X: 10, Z: 10}, domain.Cell{X: 11, Z: 10}
 	clear := func(cell domain.Cell) policy.SiteCell {
-		return policy.SiteCell{Cell: cell, Roofed: domain.Known(false), Occupied: domain.Known(false), Walkable: domain.Known(true)}
+		return policy.SiteCell{Cell: cell, Roofed: domain.Known(false), Things: policy.OccupantThings(false), Walkable: domain.Known(true)}
 	}
 	for _, tc := range []struct {
 		name   string
@@ -82,7 +82,7 @@ func TestDeepDrillFootprintRequiresClearUnroofedObservedCells(t *testing.T) {
 		{"clear", func([]policy.SiteCell) {}, true},
 		{"roof", func(c []policy.SiteCell) { c[1].Roofed = domain.Known(true) }, false},
 		{"unknown roof", func(c []policy.SiteCell) { c[1].Roofed = domain.Unknown[bool]() }, false},
-		{"occupied", func(c []policy.SiteCell) { c[1].Occupied = domain.Known(true) }, false},
+		{"occupied", func(c []policy.SiteCell) { c[1].SetOccupied(true) }, false},
 		{"blocked", func(c []policy.SiteCell) { c[1].Walkable = domain.Known(false) }, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

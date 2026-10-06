@@ -64,9 +64,8 @@ func layoutFree(facts observation.ColonyProjection) func(policy.Rectangle) bool 
 			return false
 		}
 		walkable, wk := c.Walkable.Value()
-		occupied, ok := c.Occupied.Value()
 		zone, zk := c.Zone.Value()
-		return wk && walkable && ok && !occupied && zk && !zone
+		return wk && walkable && !c.Occupied() && zk && !zone
 	}
 	return func(module policy.Rectangle) bool {
 		for x := module.X; x < module.X+module.Width; x++ {

@@ -395,11 +395,10 @@ func sortCells(cells []domain.Cell) {
 // or above the crop's fertility floor.
 func freeFieldSoil(c policy.SiteCell, floor float64) bool {
 	walk, wk := c.Walkable.Value()
-	occupied, ok := c.Occupied.Value()
 	zone, zk := c.Zone.Value()
 	roof, rk := c.Roofed.Value()
 	soil, fk := c.Fertility.Value()
-	return wk && walk && ok && !occupied && zk && !zone && rk && !roof && fk && soil > 0 && soil >= floor
+	return wk && walk && !c.Occupied() && zk && !zone && rk && !roof && fk && soil > 0 && soil >= floor
 }
 
 // cleanRectangle is want cells of free laid as a w x h rectangle with a

@@ -34,7 +34,7 @@ func stockpileCreateRequest() StockpileRequest {
 		for z := int32(0); z < 20; z++ {
 			inside := x < 10
 			zone := inside && x >= 2 && x < 4 && z >= 2 && z < 4
-			c := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(zone), Roofed: domain.Known(inside), Indoors: domain.Known(inside), StorageEmpty: domain.Known(true)}
+			c := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(zone), Roofed: domain.Known(inside), Indoors: domain.Known(inside), StorageEmpty: domain.Known(true)}
 			r.Cells = append(r.Cells, c)
 			if zone {
 				store = append(store, c.Cell)

@@ -10,7 +10,7 @@ func freeSiteFixture() FreeSiteRequest {
 	r := FreeSiteRequest{Bounds: Bounds{20, 20}, Anchor: domain.Cell{X: 10, Z: 10}}
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
-			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)})
+			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)})
 		}
 	}
 	return r
@@ -65,9 +65,9 @@ func TestFreeSitesUnknownAndOccupiedCellsAreNotFree(t *testing.T) {
 	r := FreeSiteRequest{Bounds: Bounds{8, 8}, Anchor: domain.Cell{X: 4, Z: 4}}
 	for x := int32(0); x < 8; x++ {
 		for z := int32(0); z < 8; z++ {
-			cell := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)}
+			cell := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)}
 			if x == 2 && z == 2 {
-				cell.Occupied = domain.Known(true)
+				cell.SetOccupied(true)
 			}
 			if x == 5 && z == 5 {
 				cell.Walkable = domain.Unknown[bool]()

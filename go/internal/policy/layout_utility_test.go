@@ -138,17 +138,17 @@ func TestRefrigerationPrefersPlannedCooler(t *testing.T) {
 			if in {
 				room.Cells = append(room.Cells, c)
 			}
-			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(!wall), Occupied: domain.Known(wall), Indoors: domain.Known(in), Roofed: domain.Known(in)})
+			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(!wall), Things: OccupantThings(wall), Indoors: domain.Known(in), Roofed: domain.Known(in)})
 		}
 	}
 	for x := int32(-1); x <= 5; x++ {
 		for _, z := range []int32{-1, 5} {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
 		}
 	}
 	for z := int32(0); z < 5; z++ {
 		for _, x := range []int32{-1, 5} {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
 		}
 	}
 	review := RefrigerationReview{Active: true, Rooms: []string{"r"}}
@@ -171,7 +171,7 @@ func TestRefrigerationPrefersPlannedCooler(t *testing.T) {
 		case domain.Cell{X: 2, Z: 5}:
 			obs.Cells[i].Walkable = domain.Known(true) // shaft dug
 		case domain.Cell{X: 2, Z: 4}:
-			obs.Cells[i].NaturalRock = domain.Known(true) // back wall still rock (#836)
+			obs.Cells[i].SetNaturalRock(true) // back wall still rock (#836)
 		}
 	}
 	got, err = SelectRefrigerationMethod(review, domain.Known(obs), FoodStoragePolicy{}, false)

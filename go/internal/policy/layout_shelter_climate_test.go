@@ -77,13 +77,13 @@ func TestTemperaturePlannerCoolsTheShelter(t *testing.T) {
 			switch {
 			case rectContains(in, c):
 				room.Cells = append(room.Cells, c)
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(true), Roofed: domain.Known(true)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Indoors: domain.Known(true), Roofed: domain.Known(true)})
 			case c == shelter.Door:
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(true), Indoors: domain.Known(false), Roofed: domain.Known(true)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(true), Indoors: domain.Known(false), Roofed: domain.Known(true)})
 			case rectContains(walls, c):
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Occupied: domain.Known(true), Indoors: domain.Known(false), Roofed: domain.Known(true)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Things: OccupantThings(true), Indoors: domain.Known(false), Roofed: domain.Known(true)})
 			default:
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
 			}
 		}
 	}

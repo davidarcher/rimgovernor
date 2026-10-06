@@ -36,7 +36,7 @@ func TestPowerSafetyPrecedesGenerationAndUsesNativeRoofs(t *testing.T) {
 	var cells []SiteCell
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), SupportsLight: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), SupportsLight: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false)})
 		}
 	}
 	p, err := SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, nil, testPowerPlanning())

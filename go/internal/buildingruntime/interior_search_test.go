@@ -55,7 +55,7 @@ func TestFacilityBedTakesTheInteriorTemplateSlot(t *testing.T) {
 			case domain.Cell{X: 2, Z: 4}:
 				facts.Cells[i].Doorway = domain.Known(true)
 			case occupied:
-				facts.Cells[i].Occupied = domain.Known(true)
+				facts.Cells[i].SetOccupied(true)
 			}
 		}
 		selected, _, reason, err := planner.previewSearch(ctx, snapshot, facts, nil, 1, check)

@@ -39,7 +39,7 @@ func plannedGround(bounds Bounds, edit func(*SiteCell)) ([]SiteCell, []domain.Ce
 	var cells []SiteCell
 	for x := int32(0); x < bounds.Width; x++ {
 		for z := int32(0); z < bounds.Height; z++ {
-			c := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)}
+			c := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)}
 			if edit != nil {
 				edit(&c)
 			}
@@ -63,7 +63,7 @@ func TestPlannedLayoutBuildsTheFirstBuildablePlannedRoom(t *testing.T) {
 	next := hallRoom(PlannedWorkshop, 20, 30, 7, 5, false)
 	cells, hallway := plannedGround(bounds, func(c *SiteCell) {
 		in := taken.Interior
-		c.Occupied = domain.Known(c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height)
+		c.SetOccupied(c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height)
 	})
 	plan := LayoutPlan{Rooms: []PlannedRoom{taken, next}}
 	layout, ok, err := PlannedLayout(StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)})
@@ -112,7 +112,7 @@ func TestShelterStandsOnThePlannedStoreroom(t *testing.T) {
 		}
 	}
 	request.Cells, _ = plannedGround(bounds, func(c *SiteCell) {
-		c.Occupied = domain.Known(c.Cell == domain.Cell{X: storage.Interior.X + 3, Z: storage.Interior.Z + 3})
+		c.SetOccupied(c.Cell == domain.Cell{X: storage.Interior.X + 3, Z: storage.Interior.Z + 3})
 	})
 	if _, ok, err := PlannedLayout(request); err != nil || ok {
 		t.Fatalf("a blocked storeroom was sited (%v)", err)
@@ -135,9 +135,10 @@ func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
 		cells, _ := plannedGround(bounds, func(c *SiteCell) {
 			switch c.Cell {
 			case ruin:
-				c.Occupied, c.Things = domain.Known(true), ruinThings(def, hold)
+				c.Things = ruinThings(def, hold)
 			case rock, inner:
-				c.Walkable, c.Occupied, c.NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
+				c.Walkable = domain.Known(false)
+				c.SetNaturalRock(true)
 			}
 		})
 		return cells

@@ -302,11 +302,12 @@ func shellSiteCells(facts observation.ColonyProjection, free []domain.Cell) []po
 	for _, c := range facts.Cells {
 		indoors, indoorKnown := c.Indoors.Value()
 		roof, roofKnown := c.Roofed.Value()
-		if !(indoorKnown && !indoors && roofKnown && !roof) && !positiveFact(c.NaturalRock) && !c.Ruin() && c.PlayerEdifice() == "" {
+		if !(indoorKnown && !indoors && roofKnown && !roof) && !c.NaturalRock() && !c.Ruin() && c.PlayerEdifice() == "" {
 			continue
 		}
 		if freed[c.Cell] {
-			c.Walkable, c.Occupied, c.Zone = domain.Known(true), domain.Known(false), domain.Known(false)
+			c = c.Cleared()
+			c.Walkable, c.Zone = domain.Known(true), domain.Known(false)
 		}
 		cells = append(cells, c)
 	}
@@ -327,7 +328,7 @@ func (r *RoundsBuildingPlanner) previewFreshShell(ctx context.Context, snapshot 
 		// are Reused by the next siting).
 		rock := make(map[domain.Cell]bool, len(facts.Cells))
 		for _, c := range facts.Cells {
-			rock[c.Cell] = positiveFact(c.NaturalRock)
+			rock[c.Cell] = c.NaturalRock()
 		}
 		waiting := append(append([]domain.Cell(nil), layout.Reused...), layout.Claimed...)
 		for _, c := range layout.Mined {

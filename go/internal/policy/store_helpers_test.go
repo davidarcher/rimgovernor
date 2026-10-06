@@ -7,7 +7,7 @@ func unroofedGround() []SiteCell {
 	var cells []SiteCell
 	for x := int32(0); x < 40; x++ {
 		for z := int32(0); z < 40; z++ {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Roofed: domain.Known(false), Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Roofed: domain.Known(false), Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true)})
 		}
 	}
 	return cells

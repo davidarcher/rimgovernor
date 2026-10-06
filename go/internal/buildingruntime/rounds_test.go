@@ -350,7 +350,7 @@ func (n *roundsNative) ReadPlanningWindow(ctx context.Context, _ *c.Identity, re
 // openCell is a visible, walkable, unroofed, unzoned outdoor cell with
 // light footing and no edifice, as the frame grid reads one.
 func openCell(x, z int32) policy.SiteCell {
-	return policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), SupportsLight: domain.Known(true), Indoors: domain.Known(false),
+	return policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), SupportsLight: domain.Known(true), Indoors: domain.Known(false),
 		Zone: domain.Known(false), Roofed: domain.Known(false)}
 }
 

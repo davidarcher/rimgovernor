@@ -152,6 +152,7 @@ namespace HomeBridge.BridgeTools
             if (designatedThings.Contains(thing) || (map.edificeGrid[cell] == thing && designatedCells.Contains(cell))) flags |= 256; // DESIGNATED
             if (thing.TryGetComp<CompForbiddable>()?.Forbidden == true) flags |= 512; // FORBIDDEN
             if (def.EverHaulable) flags |= 1024;                                 // HAULABLE
+            if (building != null && def.building != null && def.building.isNaturalRock) flags |= 4096; // NATURAL_ROCK
             rec.Flags = flags;
             rec.Faction = thing.Faction == null ? Mirror.ThingFaction.None
                 : thing.Faction == player ? Mirror.ThingFaction.Player

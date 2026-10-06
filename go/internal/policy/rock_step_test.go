@@ -9,12 +9,12 @@ import (
 
 func rockSite(x, z int32) SiteCell {
 	return SiteCell{Cell: domain.Cell{X: x, Z: z},
-		Occupied: domain.Known(true), Walkable: domain.Known(false), Roof: domain.Known("RoofRockThick"), NaturalRock: domain.Known(true)}
+		Things: RockThings(true), Walkable: domain.Known(false), Roof: domain.Known("RoofRockThick")}
 }
 
 func openSite(x, z int32) SiteCell {
 	return SiteCell{Cell: domain.Cell{X: x, Z: z},
-		Occupied: domain.Known(false), Walkable: domain.Known(true), Roofed: domain.Known(false)}
+		Things: OccupantThings(false), Walkable: domain.Known(true), Roofed: domain.Known(false)}
 }
 
 func TestRockStep(t *testing.T) {

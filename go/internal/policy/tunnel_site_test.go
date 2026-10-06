@@ -15,9 +15,9 @@ func mountainSite() ExcavationSiteRequest {
 		for z := int32(0); z < 30; z++ {
 			c := domain.Cell{X: x, Z: z}
 			if x < 10 {
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Roofed: domain.Known(false)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Roofed: domain.Known(false)})
 			} else {
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Occupied: domain.Known(true), Roofed: domain.Known(true), Roof: domain.Known("RoofRockThick"), NaturalRock: domain.Known(true)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Things: RockThings(true), Roofed: domain.Known(true), Roof: domain.Known("RoofRockThick")})
 			}
 		}
 	}
@@ -82,7 +82,8 @@ func TestCorridorExcavationSitesRejectsOpenNeighbour(t *testing.T) {
 	// A visible open pocket beside the corridor unseals it.
 	for i, c := range r.Cells {
 		if c.Cell == (domain.Cell{X: 11, Z: 16}) {
-			r.Cells[i].Walkable, r.Cells[i].Occupied = domain.Known(true), domain.Known(false)
+			r.Cells[i].Walkable = domain.Known(true)
+			r.Cells[i].SetOccupied(false)
 		}
 	}
 	targets, err := CorridorExcavationSites(r, mountainOre)

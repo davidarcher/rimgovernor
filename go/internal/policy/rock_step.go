@@ -187,9 +187,8 @@ func RockAccess(footprint []domain.Cell, cells []SiteCell) (domain.Cell, bool) {
 	}
 	var open []domain.Cell
 	for _, c := range cells {
-		occupied, ok := c.Occupied.Value()
 		walkable, wk := c.Walkable.Value()
-		if inside[c.Cell] || !ok || occupied || !wk || !walkable {
+		if inside[c.Cell] || c.Occupied() || !wk || !walkable {
 			continue
 		}
 		for _, d := range [4]domain.Cell{{X: 1}, {X: -1}, {Z: 1}, {Z: -1}} {

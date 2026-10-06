@@ -296,12 +296,11 @@ func (s stockpileOpen) ok(p domain.Cell) bool {
 		return false
 	}
 	walkable, wk := c.Walkable.Value()
-	occupied, ok := c.Occupied.Value()
 	zone, zk := c.Zone.Value()
 	// Native refuses a zone on ground holding things (the crash-site supplies),
 	// so a site there is retried every pass forever (#1581).
 	empty, ek := c.StorageEmpty.Value()
-	return wk && walkable && ok && !occupied && zk && !zone && (!ek || empty)
+	return wk && walkable && !c.Occupied() && zk && !zone && (!ek || empty)
 }
 
 // stockpileOpen indexes the cells a new zone may take: observed, walkable,

@@ -29,7 +29,8 @@ func TestDigPasteMinesRockUnderHopperThenBuildsBoth(t *testing.T) {
 		} else {
 			for i, c := range s.facts.Cells {
 				if c.Cell == hopper {
-					s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof, s.facts.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
+					s.facts.Cells[i].SetNaturalRock(true)
+					s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof = domain.Known(false), domain.Known("RoofRockThick")
 				}
 			}
 		}

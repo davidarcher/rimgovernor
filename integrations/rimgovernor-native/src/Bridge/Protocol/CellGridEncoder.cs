@@ -34,16 +34,15 @@ namespace HomeBridge.BridgeTools
 
         // The CellGrid arrays in field order (cell first); Read fills its
         // columns by these positions.
-        internal const int Cell = 0, Walkable = 1, Occupied = 2, Zone = 3, Roofed = 4, Indoors = 5, SupportsLight = 6,
-            StorageEmpty = 7, Doorway = 8, Fertility = 9, Polluted = 10, Glow = 11, Roof = 12, ZoneId = 13, NaturalRock = 14,
-            Room = 15, Terrain = 16, InHome = 17,
-            FoundationAffordances = 18, SnowDepth = 19, TopLayerRemovable = 20;
+        internal const int Cell = 0, Walkable = 1, Zone = 2, Roofed = 3, Indoors = 4, SupportsLight = 5,
+            StorageEmpty = 6, Doorway = 7, Fertility = 8, Polluted = 9, Glow = 10, Roof = 11, ZoneId = 12,
+            Room = 13, Terrain = 14, InHome = 15,
+            FoundationAffordances = 16, SnowDepth = 17, TopLayerRemovable = 18;
 
         private static readonly (string Name, Kind Kind, Action<Mirror.CellGrid, Mirror.FieldArray> Set)[] Fields =
         {
             ("cell", Kind.Code, (g, a) => g.Cell = a),
             ("walkable", Kind.Code, (g, a) => g.Walkable = a),
-            ("occupied", Kind.Code, (g, a) => g.Occupied = a),
             ("zone", Kind.Code, (g, a) => g.Zone = a),
             ("roofed", Kind.Code, (g, a) => g.Roofed = a),
             ("indoors", Kind.Code, (g, a) => g.Indoors = a),
@@ -55,7 +54,6 @@ namespace HomeBridge.BridgeTools
             ("glow", Kind.Number, (g, a) => g.Glow = a),
             ("roof", Kind.Index, (g, a) => g.Roof = a),
             ("zone_id", Kind.Index, (g, a) => g.ZoneId = a),
-            ("natural_rock", Kind.Code, (g, a) => g.NaturalRock = a),
             ("room", Kind.Index, (g, a) => g.Room = a),
             ("terrain", Kind.Index, (g, a) => g.Terrain = a),
             ("in_home", Kind.Code, (g, a) => g.InHome = a),
@@ -138,15 +136,11 @@ namespace HomeBridge.BridgeTools
                     if (cell.Fogged(map)) continue;
                     c[Cell].Codes![j] = 1;
                     c[Walkable].Codes![j] = B(cell.Walkable(map));
-                    c[Occupied].Codes![j] = B(NativeObservationTools.CellOccupied(map, cell));
                     c[Doorway].Codes![j] = B(NativeObservationTools.CellDoorway(map, cell));
                     c[SupportsLight].Codes![j] = B(cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light));
                     var roof = map.roofGrid.RoofAt(cell);
                     c[Roofed].Codes![j] = B(roof != null);
                     if (roof != null) c[Roof].Strings![j] = Identifier(roof.defName);
-                    var edifice = map.edificeGrid[cell];
-                    var naturalRock = edifice?.def.building?.isNaturalRock == true;
-                    c[NaturalRock].Codes![j] = B(naturalRock);
                     var zone = map.zoneManager.ZoneAt(cell);
                     c[Zone].Codes![j] = B(zone != null);
                     if (zone != null) c[ZoneId].Strings![j] = zone.GetUniqueLoadID();

@@ -131,8 +131,7 @@ func ShelfSites(zone []domain.Cell, cells []SiteCell) []InteriorPiece {
 			return false
 		}
 		walk, wk := s.Walkable.Value()
-		occ, ok2 := s.Occupied.Value()
-		if !wk || !walk || !ok2 || occ {
+		if !wk || !walk || s.Occupied() {
 			return false
 		}
 		for dx := int32(-1); dx <= 1; dx++ {

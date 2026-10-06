@@ -639,7 +639,7 @@ func powerShelter(target PowerSite, cells []SiteCell, protected map[domain.Cell]
 			continue
 		}
 		c, exists := observed[p]
-		if !exists || !positive(c.Walkable) || !positive(c.SupportsLight) || !positive(measured(c.Occupied, func(v bool) bool { return !v })) || !positive(measured(c.Zone, func(v bool) bool { return !v })) {
+		if !exists || !positive(c.Walkable) || !positive(c.SupportsLight) || c.Occupied() || !positive(measured(c.Zone, func(v bool) bool { return !v })) {
 			return Rectangle{}, false
 		}
 	}

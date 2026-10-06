@@ -18,11 +18,11 @@ func hotRoomSite(temperature float64) (RoomObservation, []SiteCell) {
 			switch {
 			case x >= 1 && x <= 3 && z >= 1 && z <= 3:
 				room.Cells = append(room.Cells, c)
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(true), Roofed: domain.Known(true)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Indoors: domain.Known(true), Roofed: domain.Known(true)})
 			case x >= 0 && x <= 4 && z >= 0 && z <= 4:
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Occupied: domain.Known(true), Indoors: domain.Known(false), Roofed: domain.Known(true)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Things: OccupantThings(true), Indoors: domain.Known(false), Roofed: domain.Known(true)})
 			default:
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
 			}
 		}
 	}

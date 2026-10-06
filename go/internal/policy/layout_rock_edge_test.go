@@ -51,9 +51,10 @@ func defenseCellsOver(s MapSurvey, region Rectangle, dug map[domain.Cell]bool) [
 func siteCellsOver(cells []DefenseCell) []SiteCell {
 	var out []SiteCell
 	for _, c := range cells {
-		site := SiteCell{Cell: c.Cell, Occupied: domain.Known(false), Walkable: domain.Known(true), Roof: domain.Known("")}
+		site := SiteCell{Cell: c.Cell, Things: OccupantThings(false), Walkable: domain.Known(true), Roof: domain.Known("")}
 		if positive(c.NaturalRock) {
-			site.Occupied, site.Walkable, site.Roof, site.NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
+			site.SetNaturalRock(true)
+			site.Walkable, site.Roof = domain.Known(false), domain.Known("RoofRockThick")
 		}
 		out = append(out, site)
 	}

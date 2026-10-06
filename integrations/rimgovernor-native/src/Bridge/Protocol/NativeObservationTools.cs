@@ -119,9 +119,8 @@ namespace HomeBridge.BridgeTools
         }
 
 
-        // Traversal's occupied and doorway facts, shared with the planning
+        // Traversal's doorway fact, shared with the planning
         // window view's capture (#650).
-        internal static bool CellOccupied(Map map, IntVec3 cell) => cell.GetEdifice(map) != null || cell.GetThingList(map).Any(t => t is Blueprint || t is Frame);
         internal static bool CellDoorway(Map map, IntVec3 cell) => cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
             && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
         internal static bool ValidateStatus(Obs.StatusRequest request, out Common.Failure failure)

@@ -116,7 +116,7 @@ func (r *Rounder) clearFloors(facts observation.ColonyProjection) policy.RoomFlo
 func naturalRock(facts observation.ColonyProjection) []domain.Cell {
 	var rock []domain.Cell
 	for _, c := range facts.Cells {
-		if natural, known := c.NaturalRock.Value(); known && natural {
+		if c.NaturalRock() {
 			rock = append(rock, c.Cell)
 		}
 	}

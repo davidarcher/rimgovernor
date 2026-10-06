@@ -21,7 +21,7 @@ func lightingSite() LightingFacts {
 		for x := int32(7); x <= 15; x++ {
 			c := domain.Cell{X: x, Z: z}
 			room.Cells = append(room.Cells, c)
-			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false)})
 		}
 	}
 	return LightingFacts{Rooms: []Room{room}, Cells: cells, Available: map[string]domain.Fact[bool]{"StandingLamp": domain.Known(true), "TorchLamp": domain.Known(true)}, PoweredSource: domain.Known(false)}
@@ -96,7 +96,7 @@ func TestSelectLightingBuildsAffordableLampBesideDarkCell(t *testing.T) {
 	// No free cell in the room within radius: no space.
 	site = lightingSite()
 	for i := range site.Cells {
-		site.Cells[i].Occupied = domain.Known(true)
+		site.Cells[i].SetOccupied(true)
 	}
 	proposal, err = SelectLightingMethod(review, census, site, p)
 	if err != nil || proposal.Method != LightingNoSpace {
@@ -191,7 +191,7 @@ func TestReviewLightingMeasuresUnroofedWorkCellsUnderEclipse(t *testing.T) {
 	site := lightingSite()
 	for z := int32(28); z <= 32; z++ {
 		for x := int32(28); x <= 32; x++ {
-			site.Cells = append(site.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+			site.Cells = append(site.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false)})
 		}
 	}
 	proposal, err := SelectLightingMethod(r, census, site, p)

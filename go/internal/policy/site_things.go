@@ -41,9 +41,10 @@ const (
 	FlagForbidden
 	FlagHaulable
 	FlagAncientDanger
+	FlagNaturalRock
 
 	// FlagsKnown is every defined bit; a wire value with any other is refused.
-	FlagsKnown = FlagAncientDanger<<1 - 1
+	FlagsKnown = FlagNaturalRock<<1 - 1
 )
 
 // CorpseClass is what a corpse was.
@@ -118,10 +119,10 @@ func (t Thing) Equal(o Thing) bool {
 // Equal reports whether two site cells are identical, things included
 // (SiteCell is not comparable with == once it holds a list).
 func (c SiteCell) Equal(o SiteCell) bool {
-	return c.Cell == o.Cell && c.Walkable == o.Walkable && c.Occupied == o.Occupied && c.Zone == o.Zone && c.Roofed == o.Roofed &&
+	return c.Cell == o.Cell && c.Walkable == o.Walkable && c.Zone == o.Zone && c.Roofed == o.Roofed &&
 		c.Indoors == o.Indoors && c.SupportsLight == o.SupportsLight && c.StorageEmpty == o.StorageEmpty && c.Doorway == o.Doorway &&
 		c.Fertility == o.Fertility && c.Polluted == o.Polluted && c.Glow == o.Glow && c.Roof == o.Roof && c.ZoneID == o.ZoneID &&
-		c.Room == o.Room && c.NaturalRock == o.NaturalRock && c.Terrain == o.Terrain && c.InHome == o.InHome &&
+		c.Room == o.Room && c.Terrain == o.Terrain && c.InHome == o.InHome &&
 		c.FoundationAffordances == o.FoundationAffordances && c.SnowDepth == o.SnowDepth && c.TopLayerRemovable == o.TopLayerRemovable &&
 		ThingsEqual(c.Things, o.Things)
 }
@@ -138,6 +139,70 @@ func (c SiteCell) edifice() (Thing, bool) {
 		}
 	}
 	return Thing{}, false
+}
+
+// Occupied reports a building, blueprint or frame on the cell (#2263): the
+// native CellOccupied. Plants, items and filth never occupy a cell.
+func (c SiteCell) Occupied() bool {
+	for _, t := range c.Things {
+		if t.Flags&(FlagEdifice|FlagBlueprint|FlagFrame) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// NaturalRock reports the cell's edifice is natural rock (#700, #2263): a
+// planned ring on it keeps it as wall; inside the room plan dig mines it
+// (#836).
+func (c SiteCell) NaturalRock() bool {
+	t, ok := c.edifice()
+	return ok && t.Has(FlagNaturalRock)
+}
+
+// Cleared is the cell with its occupying things (edifice, blueprints, frames)
+// removed, for offering ground as unoccupied whatever the census says of it.
+// It copies the list: the cell's own is a view into a shared slab.
+func (c SiteCell) Cleared() SiteCell {
+	things := make([]Thing, 0, len(c.Things))
+	for _, t := range c.Things {
+		if t.Flags&(FlagEdifice|FlagBlueprint|FlagFrame) == 0 {
+			things = append(things, t)
+		}
+	}
+	c.Things = things
+	return c
+}
+
+// OccupantThings is the thing list of a cell holding an unremarkable
+// edifice when on, none otherwise: the tests' stand-in for the old occupied
+// flag (#2263).
+func OccupantThings(on bool) []Thing {
+	if !on {
+		return nil
+	}
+	return []Thing{{Def: "Wall", Category: ThingBuilding, Flags: FlagEdifice | FlagImpassable, Count: 1, Building: &BuildingState{}}}
+}
+
+// RockThings is the thing list of a cell of natural rock when on, none
+// otherwise (tests, #2263).
+func RockThings(on bool) []Thing {
+	if !on {
+		return nil
+	}
+	return []Thing{{Def: "Granite", Category: ThingBuilding, Flags: FlagEdifice | FlagImpassable | FlagNaturalRock, Count: 1, Building: &BuildingState{}}}
+}
+
+// SetOccupied makes the cell hold an unremarkable edifice, or none of its
+// occupants when off (tests, #2263). It replaces the list, never edits it.
+func (c *SiteCell) SetOccupied(on bool) {
+	c.Things = append(c.Cleared().Things, OccupantThings(on)...)
+}
+
+// SetNaturalRock makes the cell natural rock, or removes its edifice when
+// off (tests, #2263).
+func (c *SiteCell) SetNaturalRock(on bool) {
+	c.Things = append(c.Cleared().Things, RockThings(on)...)
 }
 
 // PlayerEdifice names the definition of the player-owned edifice on the

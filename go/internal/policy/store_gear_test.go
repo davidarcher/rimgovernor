@@ -32,7 +32,7 @@ func gearField(t *testing.T, prison *PlannedRoom) StoreView {
 	}
 	var cells []SiteCell
 	for _, c := range rectCells(Rectangle{Width: 100, Height: 100}) {
-		cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false),
+		cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false),
 			Roofed: domain.Known(roofed[c]), Indoors: domain.Known(roofed[c]), StorageEmpty: domain.Known(true)})
 	}
 	gear, err := NewGearStore(gearTestItems, nil, 0)

@@ -266,7 +266,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 	site := func(cells ...domain.Cell) []policy.SiteCell {
 		var rows []policy.SiteCell
 		for _, c := range cells {
-			rows = append(rows, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)})
+			rows = append(rows, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)})
 		}
 		return rows
 	}
@@ -328,7 +328,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	hosting := domain.Cell{X: 3, Z: 2}
 	rooms := domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}})
 	facts := func(tick domain.Tick) observation.ColonyProjection {
-		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(hosting)), Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}, Rooms: rooms}
+		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(hosting)), Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}, Rooms: rooms}
 	}
 	rejectUnless := func(accepted domain.Rotation) func(context.Context, *bridge.BuildingPreview) {
 		return func(_ context.Context, p *bridge.BuildingPreview) {

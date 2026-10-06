@@ -16,7 +16,7 @@ func shelfRoom(w, h int32, door domain.Cell) ([]domain.Cell, []SiteCell) {
 			c := domain.Cell{X: x, Z: z}
 			wall := x == 0 || z == 0 || x == w+1 || z == h+1
 			doorway := c == door
-			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(!wall || doorway), Occupied: domain.Known(wall), Doorway: domain.Known(doorway)})
+			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(!wall || doorway), Things: OccupantThings(wall), Doorway: domain.Known(doorway)})
 			if !wall {
 				zone = append(zone, c)
 			}
@@ -58,7 +58,7 @@ func TestShelfSitesKeepASmallZoneContiguousAndReachable(t *testing.T) {
 	for x := int32(0); x < 6; x++ {
 		for z := int32(0); z < 6; z++ {
 			c := domain.Cell{X: x, Z: z}
-			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Doorway: domain.Known(false)})
+			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Doorway: domain.Known(false)})
 			if x >= 2 && x <= 3 && z >= 2 && z <= 3 {
 				zone = append(zone, c)
 			}

@@ -32,9 +32,8 @@ func planPasteSite(r SiteTypeRequest) (SiteTypePlan, bool) {
 	listed := map[domain.Cell]bool{}
 	rock := map[domain.Cell]bool{}
 	for _, c := range r.Field.Site.Cells {
-		occupied, ok := c.Occupied.Value()
 		zone, zk := c.Zone.Value()
-		cells[c.Cell] = positive(c.Walkable) && ok && !occupied && zk && !zone
+		cells[c.Cell] = positive(c.Walkable) && !c.Occupied() && zk && !zone
 		listed[c.Cell] = true
 		rock[c.Cell] = rockCell(c)
 	}

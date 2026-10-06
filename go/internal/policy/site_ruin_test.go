@@ -18,6 +18,41 @@ func ruinThings(def, hold string) []Thing {
 	return []Thing{t}
 }
 
+// TestSiteCellOccupiedAndNaturalRock is the native CellOccupied (an edifice,
+// a blueprint or a frame) and the natural-rock edifice, per thing category.
+func TestSiteCellOccupiedAndNaturalRock(t *testing.T) {
+	building := func(f ThingFlags) Thing {
+		return Thing{Def: "Wall", Category: ThingBuilding, Flags: f, Building: &BuildingState{}}
+	}
+	cases := []struct {
+		name           string
+		things         []Thing
+		occupied, rock bool
+	}{
+		{"empty cell", nil, false, false},
+		{"edifice", []Thing{building(FlagEdifice)}, true, false},
+		{"natural rock", []Thing{building(FlagEdifice | FlagNaturalRock)}, true, true},
+		{"blueprint", []Thing{building(FlagBlueprint)}, true, false},
+		{"frame", []Thing{building(FlagFrame)}, true, false},
+		{"building that is no edifice", []Thing{building(0)}, false, false},
+		{"plant", []Thing{{Def: "Plant_Rice", Category: ThingPlant, Flags: FlagImpassable}}, false, false},
+		{"item", []Thing{{Def: "Steel", Category: ThingItem, Flags: FlagHaulable, Count: 10}}, false, false},
+		{"filth", []Thing{{Def: "Filth_Dirt", Category: ThingFilth}}, false, false},
+		{"item beside an edifice", []Thing{{Def: "Steel", Category: ThingItem}, building(FlagEdifice)}, true, false},
+		{"rock flag off the edifice", []Thing{building(FlagNaturalRock)}, false, false},
+	}
+	for _, c := range cases {
+		cell := SiteCell{Things: c.things}
+		if cell.Occupied() != c.occupied || cell.NaturalRock() != c.rock {
+			t.Errorf("%s: occupied %v rock %v, want %v %v", c.name, cell.Occupied(), cell.NaturalRock(), c.occupied, c.rock)
+		}
+	}
+	held := SiteCell{Things: append(RockThings(true), Thing{Def: "Steel", Category: ThingItem})}
+	if cleared := held.Cleared(); cleared.Occupied() || cleared.NaturalRock() || len(cleared.Things) != 1 || len(held.Things) != 2 {
+		t.Errorf("Cleared must drop the occupants and leave the original: %+v", cleared)
+	}
+}
+
 func TestSiteCellEdificePredicates(t *testing.T) {
 	cases := []struct {
 		name                   string

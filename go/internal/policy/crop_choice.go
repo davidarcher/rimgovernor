@@ -286,11 +286,10 @@ func fieldCandidateLess(a, b FieldCandidate, urgent bool) bool {
 
 func freeCropSoil(cell SiteCell, minimum float64, blocked map[domain.Cell]bool) (float64, bool) {
 	walk, wk := cell.Walkable.Value()
-	occupied, ok := cell.Occupied.Value()
 	zone, zk := cell.Zone.Value()
 	roof, rk := cell.Roofed.Value()
 	soil, fk := cell.Fertility.Value()
-	return soil, !blocked[cell.Cell] && wk && walk && ok && !occupied && zk && !zone && rk && !roof && fk && foodNumber(soil) && soil >= minimum
+	return soil, !blocked[cell.Cell] && wk && walk && !cell.Occupied() && zk && !zone && rk && !roof && fk && foodNumber(soil) && soil >= minimum
 }
 
 // FieldBlockOption is one viable crop for a new outdoor field block and the

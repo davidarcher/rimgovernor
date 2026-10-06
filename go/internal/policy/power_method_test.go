@@ -81,7 +81,7 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
 	var cells []SiteCell
 	for x := int32(1); x <= 14; x++ {
-		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Occupied: domain.Known(true)})
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Things: OccupantThings(true)})
 	}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	want := []domain.Cell{{X: 11, Z: 2}, {X: 10, Z: 2}, {X: 9, Z: 2}, {X: 8, Z: 2}, {X: 7, Z: 2}, {X: 6, Z: 2}, {X: 5, Z: 2}, {X: 4, Z: 2}}
@@ -114,7 +114,7 @@ func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
 	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
 	var cells []SiteCell
 	for x := int32(1); x <= 14; x++ {
-		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Occupied: domain.Known(true)})
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Things: OccupantThings(true)})
 	}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerConnect || len(p.Cells) == 0 {
@@ -131,7 +131,7 @@ func TestPowerRouteWiresAnUnpoweredGeneBankLikeAnyConsumer(t *testing.T) {
 	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
 	var cells []SiteCell
 	for x := int32(1); x <= 14; x++ {
-		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Occupied: domain.Known(true)})
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Things: OccupantThings(true)})
 	}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerConnect || len(p.Cells) == 0 {

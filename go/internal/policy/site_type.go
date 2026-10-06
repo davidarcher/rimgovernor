@@ -549,7 +549,7 @@ func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnviron
 	free := map[domain.Cell]bool{}
 	for _, s := range r.Field.Site.Cells {
 		_, isLit := lit[s.Cell]
-		if isLit && !blocked[s.Cell] && positive(s.Roofed) && positive(s.Walkable) && siteKnownFalse(s.Occupied) && siteKnownFalse(s.Zone) {
+		if isLit && !blocked[s.Cell] && positive(s.Roofed) && positive(s.Walkable) && !s.Occupied() && siteKnownFalse(s.Zone) {
 			free[s.Cell] = true
 		}
 	}

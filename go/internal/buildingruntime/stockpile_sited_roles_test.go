@@ -19,7 +19,7 @@ func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.C
 	for x := int32(0); x < 30; x++ {
 		for z := int32(0); z < 30; z++ {
 			table := x == 15 && (z == 15 || z == 16)
-			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Roofed: domain.Known(true), Indoors: domain.Known(true), Walkable: domain.Known(!table), Occupied: domain.Known(table), Zone: domain.Known(false), ZoneID: domain.Known(""), StorageEmpty: domain.Known(true)}
+			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Roofed: domain.Known(true), Indoors: domain.Known(true), Walkable: domain.Known(!table), Things: policy.OccupantThings(table), Zone: domain.Known(false), ZoneID: domain.Known(""), StorageEmpty: domain.Known(true)}
 			if x >= 10 && x < 20 && z >= 10 && z < 20 {
 				roomCells = append(roomCells, cell.Cell)
 			}

@@ -22,7 +22,8 @@ func TestUnroofOnlyPlanNeedsNoExcavationSourceAndStallIsNamed(t *testing.T) {
 	ctx := context.Background()
 	for i, c := range s.facts.Cells {
 		if c.Cell == site.Cell {
-			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof, s.facts.Cells[i].NaturalRock = domain.Known(false), domain.Known(true), domain.Known("RoofConstructed"), domain.Known(false)
+			s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof = domain.Known(true), domain.Known("RoofConstructed")
+			s.facts.Cells[i].SetOccupied(false)
 		}
 	}
 	building, err := domain.NewBuilding("Cooler", site.Cell, site.Rotation, "")

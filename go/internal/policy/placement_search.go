@@ -84,9 +84,8 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 			return PlacementSearch{}, errors.New("invalid placement cell census")
 		}
 		seen[c] = true
-		occupied, occupiedKnown := row.Occupied.Value()
 		zone, zoneKnown := row.Zone.Value()
-		if blocked[c] || !positive(row.Walkable) || !occupiedKnown || occupied || !zoneKnown || zone {
+		if blocked[c] || !positive(row.Walkable) || row.Occupied() || !zoneKnown || zone {
 			continue
 		}
 		if r.Environment != PlacementAnywhere {

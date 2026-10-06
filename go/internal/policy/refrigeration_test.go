@@ -118,7 +118,7 @@ func coldRoom(id string, temperature float64) (Room, []SiteCell) {
 			if inside {
 				room.Cells = append(room.Cells, c)
 			}
-			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(!wall), Occupied: domain.Known(wall), Roofed: domain.Known(inside || wall), Indoors: domain.Known(inside)})
+			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(!wall), Things: OccupantThings(wall), Roofed: domain.Known(inside || wall), Indoors: domain.Known(inside)})
 		}
 	}
 	return room, cells

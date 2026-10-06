@@ -89,7 +89,7 @@ func storeRequest(rooms int, stands int, zones ...StockpileZone) StoreView {
 	for x := int32(0); x < 40; x++ {
 		for z := int32(0); z < 40; z++ {
 			roofed := z >= 10 && z < 13 && (x >= 10 && x < 13 || x >= 20 && x < 23)
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(roofed), Indoors: domain.Known(roofed), StorageEmpty: domain.Known(true)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(roofed), Indoors: domain.Known(roofed), StorageEmpty: domain.Known(true)})
 		}
 	}
 	return StoreView{Bounds: Bounds{Width: 40, Height: 40}, Cells: cells, Layout: &layout, Rooms: &census, Zones: zones}
@@ -236,7 +236,8 @@ func TestDugWarehouseWaitsForItsInterior(t *testing.T) {
 	req := storeRequest(1, 0)
 	for i, c := range req.Cells {
 		if c.Cell == (domain.Cell{X: 11, Z: 11}) {
-			req.Cells[i].Walkable, req.Cells[i].Occupied, req.Cells[i].NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
+			req.Cells[i].Walkable = domain.Known(false)
+			req.Cells[i].SetNaturalRock(true)
 		}
 	}
 	if created := createdRoles(PlanStockpileMaintenance(stockpileOf(req))); len(created) != 0 && created[domain.GeneralRole].Role != "" {
@@ -244,7 +245,8 @@ func TestDugWarehouseWaitsForItsInterior(t *testing.T) {
 	}
 	for i, c := range req.Cells {
 		if c.Cell == (domain.Cell{X: 11, Z: 11}) {
-			req.Cells[i].Walkable, req.Cells[i].Occupied, req.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known(false)
+			req.Cells[i].Walkable = domain.Known(true)
+			req.Cells[i].SetOccupied(false)
 		}
 	}
 	if created := createdRoles(PlanStockpileMaintenance(stockpileOf(req))); len(created[domain.GeneralRole].Cells) != 9 {

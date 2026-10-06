@@ -35,7 +35,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 			}
 			facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}}
 			for _, c := range []domain.Cell{{X: 2, Z: 2}, {X: 3, Z: 2}} {
-				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false)})
 			}
 			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
 			if err != nil || reason != test.reason || native.previews != test.previews {
@@ -206,7 +206,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 	site := func(cells ...domain.Cell) []policy.SiteCell {
 		var rows []policy.SiteCell
 		for _, c := range cells {
-			rows = append(rows, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)})
+			rows = append(rows, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)})
 		}
 		return rows
 	}

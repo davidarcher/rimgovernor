@@ -10,7 +10,7 @@ import (
 )
 
 func stockpileSiteCell(x, z int32, zone string, stored bool) policy.SiteCell {
-	cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(zone != ""), StorageEmpty: domain.Known(!stored)}
+	cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(zone != ""), StorageEmpty: domain.Known(!stored)}
 	if zone != "" {
 		cell.ZoneID = domain.Known(zone)
 	}

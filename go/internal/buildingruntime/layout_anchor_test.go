@@ -14,7 +14,7 @@ func anchorProjection(tier policy.BuildTier) observation.ColonyProjection {
 	p := observation.ColonyProjection{BuildTier: domain.Known(tier), Bounds: policy.Bounds{Width: 96, Height: 96}}
 	for x := int32(0); x < 96; x++ {
 		for z := int32(0); z < 96; z++ {
-			p.Cells = append(p.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+			p.Cells = append(p.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false)})
 		}
 	}
 	return p

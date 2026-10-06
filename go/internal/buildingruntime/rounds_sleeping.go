@@ -1127,7 +1127,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	var occupied []domain.Cell
 	if len(interiorRooms) > 0 {
 		for _, c := range facts.Cells {
-			if o, known := c.Occupied.Value(); !known || o {
+			if c.Occupied() {
 				occupied = append(occupied, c.Cell)
 			}
 		}

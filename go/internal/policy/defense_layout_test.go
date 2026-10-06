@@ -94,9 +94,10 @@ func TestDefenseDigListsRockOnTheCorridor(t *testing.T) {
 		}
 		var site []SiteCell
 		for _, c := range r.Cells {
-			cell := SiteCell{Cell: c.Cell, Occupied: domain.Known(false), Walkable: domain.Known(true), Roof: domain.Known("")}
+			cell := SiteCell{Cell: c.Cell, Things: OccupantThings(false), Walkable: domain.Known(true), Roof: domain.Known("")}
 			if rock(c.Cell) {
-				cell.Occupied, cell.Walkable, cell.Roof, cell.NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
+				cell.SetNaturalRock(true)
+				cell.Walkable, cell.Roof = domain.Known(false), domain.Known("RoofRockThick")
 			}
 			site = append(site, cell)
 		}

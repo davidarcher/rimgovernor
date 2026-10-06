@@ -126,10 +126,8 @@ func excavationSupported(cells []domain.Cell, support float64) bool {
 // roofed or not (the rim of a mountain carries no roof, and a miner reaches
 // the rock behind it only by mining it).
 func rockCell(c SiteCell) bool {
-	occupied, ok := c.Occupied.Value()
 	walkable, wk := c.Walkable.Value()
-	rock, rk := c.NaturalRock.Value()
-	return ok && occupied && wk && !walkable && rk && rock
+	return c.Occupied() && wk && !walkable && c.NaturalRock()
 }
 
 // excavatedCell is open ground still under a natural rock roof that is not
@@ -139,11 +137,10 @@ func rockCell(c SiteCell) bool {
 // Only a natural roof (RoofRule.Natural) marks a cell as part of a mountain,
 // so a constructed wall under a built roof is never mistaken for a rock face.
 func excavatedCell(c SiteCell, roofs RoofRules) bool {
-	occupied, ok := c.Occupied.Value()
 	walkable, wk := c.Walkable.Value()
 	roof, rk := c.Roof.Value()
 	indoors, ik := c.Indoors.Value()
-	return ok && !occupied && wk && walkable && rk && roofs[roof].Natural && (!ik || !indoors)
+	return !c.Occupied() && wk && walkable && rk && roofs[roof].Natural && (!ik || !indoors)
 }
 
 // CorridorExcavationSites proposes corridor targets whose door is
@@ -202,7 +199,7 @@ func CorridorExcavationSites(r ExcavationSiteRequest, ore domain.Cell) ([]Excava
 	}
 	free := func(p domain.Cell) bool {
 		c, exists := cells[p]
-		return exists && !protected[p] && positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))
+		return exists && !protected[p] && positive(c.Walkable) && !c.Occupied()
 	}
 	// diggable: unknown (fogged), visible rock or already excavated, never
 	// protected.

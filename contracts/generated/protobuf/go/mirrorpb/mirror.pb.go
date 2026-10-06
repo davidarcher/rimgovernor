@@ -360,6 +360,7 @@ const (
 	ThingFlag_THING_FLAG_FORBIDDEN       ThingFlag = 512
 	ThingFlag_THING_FLAG_HAULABLE        ThingFlag = 1024
 	ThingFlag_THING_FLAG_ANCIENT_DANGER  ThingFlag = 2048
+	ThingFlag_THING_FLAG_NATURAL_ROCK    ThingFlag = 4096
 )
 
 // Enum value maps for ThingFlag.
@@ -378,6 +379,7 @@ var (
 		512:  "THING_FLAG_FORBIDDEN",
 		1024: "THING_FLAG_HAULABLE",
 		2048: "THING_FLAG_ANCIENT_DANGER",
+		4096: "THING_FLAG_NATURAL_ROCK",
 	}
 	ThingFlag_value = map[string]int32{
 		"THING_FLAG_NONE":            0,
@@ -393,6 +395,7 @@ var (
 		"THING_FLAG_FORBIDDEN":       512,
 		"THING_FLAG_HAULABLE":        1024,
 		"THING_FLAG_ANCIENT_DANGER":  2048,
+		"THING_FLAG_NATURAL_ROCK":    4096,
 	}
 )
 
@@ -2216,7 +2219,6 @@ type CellGrid struct {
 	Strings       []string               `protobuf:"bytes,2,rep,name=strings,proto3" json:"strings,omitempty"`
 	Cell          *FieldArray            `protobuf:"bytes,3,opt,name=cell,proto3" json:"cell,omitempty"`
 	Walkable      *FieldArray            `protobuf:"bytes,4,opt,name=walkable,proto3" json:"walkable,omitempty"`
-	Occupied      *FieldArray            `protobuf:"bytes,5,opt,name=occupied,proto3" json:"occupied,omitempty"`
 	Zone          *FieldArray            `protobuf:"bytes,6,opt,name=zone,proto3" json:"zone,omitempty"`
 	Roofed        *FieldArray            `protobuf:"bytes,7,opt,name=roofed,proto3" json:"roofed,omitempty"`
 	Indoors       *FieldArray            `protobuf:"bytes,8,opt,name=indoors,proto3" json:"indoors,omitempty"`
@@ -2228,7 +2230,6 @@ type CellGrid struct {
 	Glow          *FieldArray            `protobuf:"bytes,14,opt,name=glow,proto3" json:"glow,omitempty"`
 	Roof          *FieldArray            `protobuf:"bytes,15,opt,name=roof,proto3" json:"roof,omitempty"`
 	ZoneId        *FieldArray            `protobuf:"bytes,16,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
-	NaturalRock   *FieldArray            `protobuf:"bytes,17,opt,name=natural_rock,json=naturalRock,proto3" json:"natural_rock,omitempty"`
 	Room          *FieldArray            `protobuf:"bytes,22,opt,name=room,proto3" json:"room,omitempty"`
 	// Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
 	// epic #2241); a keyframe carries every one, things included. A fogged cell
@@ -2297,13 +2298,6 @@ func (x *CellGrid) GetCell() *FieldArray {
 func (x *CellGrid) GetWalkable() *FieldArray {
 	if x != nil {
 		return x.Walkable
-	}
-	return nil
-}
-
-func (x *CellGrid) GetOccupied() *FieldArray {
-	if x != nil {
-		return x.Occupied
 	}
 	return nil
 }
@@ -2381,13 +2375,6 @@ func (x *CellGrid) GetRoof() *FieldArray {
 func (x *CellGrid) GetZoneId() *FieldArray {
 	if x != nil {
 		return x.ZoneId
-	}
-	return nil
-}
-
-func (x *CellGrid) GetNaturalRock() *FieldArray {
-	if x != nil {
-		return x.NaturalRock
 	}
 	return nil
 }
@@ -3224,13 +3211,13 @@ const file_mirror_proto_rawDesc = "" +
 	"\vSparseArray\x12\x14\n" +
 	"\x05index\x18\x01 \x03(\rR\x05index\x12\x12\n" +
 	"\x04code\x18\x02 \x03(\rR\x04code\x12\x16\n" +
-	"\x06number\x18\x03 \x03(\x01R\x06number\"\xed\v\n" +
+	"\x06number\x18\x03 \x03(\x01R\x06number\"\xf4\n" +
+	"\n" +
 	"\bCellGrid\x123\n" +
 	"\x04rect\x18\x01 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x04rect\x12\x18\n" +
 	"\astrings\x18\x02 \x03(\tR\astrings\x125\n" +
 	"\x04cell\x18\x03 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04cell\x12=\n" +
-	"\bwalkable\x18\x04 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bwalkable\x12=\n" +
-	"\boccupied\x18\x05 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\boccupied\x125\n" +
+	"\bwalkable\x18\x04 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bwalkable\x125\n" +
 	"\x04zone\x18\x06 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04zone\x129\n" +
 	"\x06roofed\x18\a \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x06roofed\x12;\n" +
 	"\aindoors\x18\b \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\aindoors\x12H\n" +
@@ -3242,8 +3229,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\bpolluted\x18\r \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bpolluted\x125\n" +
 	"\x04glow\x18\x0e \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04glow\x125\n" +
 	"\x04roof\x18\x0f \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04roof\x12:\n" +
-	"\azone_id\x18\x10 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x06zoneId\x12D\n" +
-	"\fnatural_rock\x18\x11 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\vnaturalRock\x125\n" +
+	"\azone_id\x18\x10 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x06zoneId\x125\n" +
 	"\x04room\x18\x16 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04room\x12;\n" +
 	"\aterrain\x18\x17 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\aterrain\x12:\n" +
 	"\ain_home\x18\x18 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x06inHome\x12X\n" +
@@ -3251,7 +3237,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\n" +
 	"snow_depth\x18\x1a \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\tsnowDepth\x12Q\n" +
 	"\x13top_layer_removable\x18\x1b \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x11topLayerRemovable\x128\n" +
-	"\x06things\x18\x1c \x01(\v2 .rimgovernor.mirror.v1.ThingListR\x06thingsJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16\"q\n" +
+	"\x06things\x18\x1c \x01(\v2 .rimgovernor.mirror.v1.ThingListR\x06thingsJ\x04\b\x05\x10\x06J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16\"q\n" +
 	"\tThingList\x12\x14\n" +
 	"\x05cells\x18\x01 \x03(\rR\x05cells\x12\x18\n" +
 	"\aoffsets\x18\x02 \x03(\rR\aoffsets\x124\n" +
@@ -3336,7 +3322,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\x12THING_FACTION_NONE\x10\x00\x12\x18\n" +
 	"\x14THING_FACTION_PLAYER\x10\x01\x12\x19\n" +
 	"\x15THING_FACTION_NEUTRAL\x10\x02\x12\x19\n" +
-	"\x15THING_FACTION_HOSTILE\x10\x03*\xe5\x02\n" +
+	"\x15THING_FACTION_HOSTILE\x10\x03*\x83\x03\n" +
 	"\tThingFlag\x12\x13\n" +
 	"\x0fTHING_FLAG_NONE\x10\x00\x12\x16\n" +
 	"\x12THING_FLAG_EDIFICE\x10\x01\x12\x18\n" +
@@ -3350,7 +3336,8 @@ const file_mirror_proto_rawDesc = "" +
 	"\x15THING_FLAG_DESIGNATED\x10\x80\x02\x12\x19\n" +
 	"\x14THING_FLAG_FORBIDDEN\x10\x80\x04\x12\x18\n" +
 	"\x13THING_FLAG_HAULABLE\x10\x80\b\x12\x1e\n" +
-	"\x19THING_FLAG_ANCIENT_DANGER\x10\x80\x10*Z\n" +
+	"\x19THING_FLAG_ANCIENT_DANGER\x10\x80\x10\x12\x1c\n" +
+	"\x17THING_FLAG_NATURAL_ROCK\x10\x80 *Z\n" +
 	"\vCorpseClass\x12\x16\n" +
 	"\x12CORPSE_CLASS_OTHER\x10\x00\x12\x1a\n" +
 	"\x16CORPSE_CLASS_HUMANLIKE\x10\x01\x12\x17\n" +
@@ -3455,41 +3442,39 @@ var file_mirror_proto_depIdxs = []int32{
 	22, // 36: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
 	23, // 37: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
 	23, // 38: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 39: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 40: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 41: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 42: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 43: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 44: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 45: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 46: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 47: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 48: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 49: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 50: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 51: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 52: rimgovernor.mirror.v1.CellGrid.room:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 53: rimgovernor.mirror.v1.CellGrid.terrain:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 54: rimgovernor.mirror.v1.CellGrid.in_home:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 55: rimgovernor.mirror.v1.CellGrid.foundation_affordances:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 56: rimgovernor.mirror.v1.CellGrid.snow_depth:type_name -> rimgovernor.mirror.v1.FieldArray
-	23, // 57: rimgovernor.mirror.v1.CellGrid.top_layer_removable:type_name -> rimgovernor.mirror.v1.FieldArray
-	28, // 58: rimgovernor.mirror.v1.CellGrid.things:type_name -> rimgovernor.mirror.v1.ThingList
-	29, // 59: rimgovernor.mirror.v1.ThingList.things:type_name -> rimgovernor.mirror.v1.Thing
-	3,  // 60: rimgovernor.mirror.v1.Thing.category:type_name -> rimgovernor.mirror.v1.ThingCategory
-	4,  // 61: rimgovernor.mirror.v1.Thing.faction:type_name -> rimgovernor.mirror.v1.ThingFaction
-	30, // 62: rimgovernor.mirror.v1.Thing.plant:type_name -> rimgovernor.mirror.v1.PlantState
-	31, // 63: rimgovernor.mirror.v1.Thing.corpse:type_name -> rimgovernor.mirror.v1.CorpseState
-	32, // 64: rimgovernor.mirror.v1.Thing.filth:type_name -> rimgovernor.mirror.v1.FilthState
-	34, // 65: rimgovernor.mirror.v1.Thing.building:type_name -> rimgovernor.mirror.v1.BuildingState
-	35, // 66: rimgovernor.mirror.v1.Thing.item:type_name -> rimgovernor.mirror.v1.ItemState
-	6,  // 67: rimgovernor.mirror.v1.CorpseState.class:type_name -> rimgovernor.mirror.v1.CorpseClass
-	33, // 68: rimgovernor.mirror.v1.BuildingState.needed:type_name -> rimgovernor.mirror.v1.MaterialNeed
-	69, // [69:69] is the sub-list for method output_type
-	69, // [69:69] is the sub-list for method input_type
-	69, // [69:69] is the sub-list for extension type_name
-	69, // [69:69] is the sub-list for extension extendee
-	0,  // [0:69] is the sub-list for field type_name
+	23, // 39: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 40: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 41: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 42: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 43: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 44: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 45: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 46: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 47: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 48: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 49: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 50: rimgovernor.mirror.v1.CellGrid.room:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 51: rimgovernor.mirror.v1.CellGrid.terrain:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 52: rimgovernor.mirror.v1.CellGrid.in_home:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 53: rimgovernor.mirror.v1.CellGrid.foundation_affordances:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 54: rimgovernor.mirror.v1.CellGrid.snow_depth:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 55: rimgovernor.mirror.v1.CellGrid.top_layer_removable:type_name -> rimgovernor.mirror.v1.FieldArray
+	28, // 56: rimgovernor.mirror.v1.CellGrid.things:type_name -> rimgovernor.mirror.v1.ThingList
+	29, // 57: rimgovernor.mirror.v1.ThingList.things:type_name -> rimgovernor.mirror.v1.Thing
+	3,  // 58: rimgovernor.mirror.v1.Thing.category:type_name -> rimgovernor.mirror.v1.ThingCategory
+	4,  // 59: rimgovernor.mirror.v1.Thing.faction:type_name -> rimgovernor.mirror.v1.ThingFaction
+	30, // 60: rimgovernor.mirror.v1.Thing.plant:type_name -> rimgovernor.mirror.v1.PlantState
+	31, // 61: rimgovernor.mirror.v1.Thing.corpse:type_name -> rimgovernor.mirror.v1.CorpseState
+	32, // 62: rimgovernor.mirror.v1.Thing.filth:type_name -> rimgovernor.mirror.v1.FilthState
+	34, // 63: rimgovernor.mirror.v1.Thing.building:type_name -> rimgovernor.mirror.v1.BuildingState
+	35, // 64: rimgovernor.mirror.v1.Thing.item:type_name -> rimgovernor.mirror.v1.ItemState
+	6,  // 65: rimgovernor.mirror.v1.CorpseState.class:type_name -> rimgovernor.mirror.v1.CorpseClass
+	33, // 66: rimgovernor.mirror.v1.BuildingState.needed:type_name -> rimgovernor.mirror.v1.MaterialNeed
+	67, // [67:67] is the sub-list for method output_type
+	67, // [67:67] is the sub-list for method input_type
+	67, // [67:67] is the sub-list for extension type_name
+	67, // [67:67] is the sub-list for extension extendee
+	0,  // [0:67] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }

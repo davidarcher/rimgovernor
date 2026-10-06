@@ -45,7 +45,8 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoundsBuildingPlanner, *s
 			inside := x >= 1 && x <= 2 && z >= 1 && z <= 2
 			wall := !inside && x <= 3 && z <= 3
 			row := openCell(x, z)
-			row.Indoors, row.Walkable, row.Occupied = domain.Known(inside), domain.Known(!wall), domain.Known(wall)
+			row.Indoors, row.Walkable = domain.Known(inside), domain.Known(!wall)
+			row.SetOccupied(wall)
 			if inside || wall {
 				row = roofed(row)
 			}

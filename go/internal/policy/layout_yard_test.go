@@ -102,7 +102,7 @@ func yardStorageRequest(plan LayoutPlan) StoreView {
 	var cells []SiteCell
 	for x := int32(0); x < 160; x++ {
 		for z := int32(0); z < 160; z++ {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(false), Indoors: domain.Known(false), StorageEmpty: domain.Known(true)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(false), Indoors: domain.Known(false), StorageEmpty: domain.Known(true)})
 		}
 	}
 	return StoreView{Bounds: Bounds{Width: 160, Height: 160}, Cells: cells, Layout: &plan, Rooms: &RoomObservation{Shapes: testShapes}}

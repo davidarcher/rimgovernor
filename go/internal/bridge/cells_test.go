@@ -177,9 +177,10 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 		s := cellsSnapshot(t, rect, func(c domain.Cell) bool { return c == (domain.Cell{X: 5, Z: 1}) }, func(cell *policy.SiteCell) {
 			switch cell.Cell {
 			case domain.Cell{X: 1, Z: 1}:
-				cell.NaturalRock, cell.Occupied, cell.Walkable, cell.Roof = domain.Known(true), domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+				cell.SetNaturalRock(true)
+				cell.Walkable, cell.Roof = domain.Known(false), domain.Known("RoofRockThick")
 			case domain.Cell{X: 2, Z: 1}:
-				cell.Occupied = domain.Known(true)
+				cell.SetOccupied(true)
 			case domain.Cell{X: 3, Z: 1}:
 				cell.Fertility = domain.Known(1.4)
 			}

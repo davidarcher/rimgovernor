@@ -34,7 +34,7 @@ func placementSearchFixture() PlacementSearchRequest {
 	r := PlacementSearchRequest{Snapshot: current(), Tick: 20, Bounds: Bounds{20, 20}, Center: domain.Cell{X: 10, Z: 10}, Environment: PlacementAnywhere, Radius: 22, Limit: 64}
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
-			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Indoors: domain.Known(x < 10), Roofed: domain.Known(true)})
+			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), Indoors: domain.Known(x < 10), Roofed: domain.Known(true)})
 		}
 	}
 	return r
@@ -52,14 +52,14 @@ func TestPlacementSearchRanksAndCopiesBoundedNativeCells(t *testing.T) {
 		t.Fatal(got)
 	}
 	got[0].X = 99
-	r.Cells[210].Occupied = domain.Known(true)
+	r.Cells[210].SetOccupied(true)
 	if !reflect.DeepEqual(s.Candidates()[:5], want) {
 		t.Fatal("search aliases caller data")
 	}
 	for i, j := 0, len(r.Cells)-1; i < j; i, j = i+1, j-1 {
 		r.Cells[i], r.Cells[j] = r.Cells[j], r.Cells[i]
 	}
-	r.Cells[len(r.Cells)-1-210].Occupied = domain.Known(false)
+	r.Cells[len(r.Cells)-1-210].SetOccupied(false)
 	reversed, err := NewPlacementSearch(r)
 	if err != nil || !reflect.DeepEqual(s.Candidates(), reversed.Candidates()) {
 		t.Fatal("input order changed ranking", err)
@@ -71,7 +71,7 @@ func TestPlacementSearchUnknownRoomAndProtectedCells(t *testing.T) {
 	r.Environment = PlacementIndoors
 	r.Cells[9*20+10].Indoors = domain.Unknown[bool]()
 	r.Protected = []domain.Cell{{X: 9, Z: 9}}
-	r.Cells[9*20+11].Occupied = domain.Unknown[bool]()
+	r.Cells[9*20+11].SetOccupied(true)
 	r.Cells[8*20+10].Zone = domain.Unknown[bool]()
 	s, err := NewPlacementSearch(r)
 	if err != nil {

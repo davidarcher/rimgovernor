@@ -28,7 +28,7 @@ func stockpileField(zones ...StockpileZone) StockpileRequest {
 	}
 	r := StockpileRequest{Tick: 100000, Zones: zones, Bounds: Bounds{Width: 40, Height: 40}}
 	for _, c := range stockpileRect(0, 0, 40, 40) {
-		r.Cells = append(r.Cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(zoned[c])})
+		r.Cells = append(r.Cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(zoned[c])})
 	}
 	return r
 }

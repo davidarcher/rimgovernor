@@ -145,9 +145,8 @@ func deepDrillFootprint(cells []policy.SiteCell, footprint []domain.Cell, anchor
 	for _, cell := range footprint {
 		row, exists := seen[cell]
 		roof, rk := row.Roofed.Value()
-		occupied, ok := row.Occupied.Value()
 		walkable, wk := row.Walkable.Value()
-		if !exists || !rk || roof || !ok || occupied || !wk || !walkable {
+		if !exists || !rk || roof || row.Occupied() || !wk || !walkable {
 			return false
 		}
 		onLump = onLump || cell == anchor

@@ -47,7 +47,8 @@ func TestRoundsShelterDigsADugPlannedStoreroom(t *testing.T) {
 		// The storeroom's east half (interior x 1..7, z 1..7) is rock.
 		if at.X >= 5 && at.X <= 7 && at.Z >= 1 && at.Z <= 7 {
 			rock[at] = true
-			cell.Walkable, cell.Occupied, cell.Roof, cell.NaturalRock = domain.Known(false), domain.Known(true), domain.Known("RoofRockThick"), domain.Known(true)
+			cell.Walkable, cell.Roof = domain.Known(false), domain.Known("RoofRockThick")
+			cell.SetNaturalRock(true)
 		}
 	}
 	n := &dugShelterNative{sleepingNative: base, rock: rock}

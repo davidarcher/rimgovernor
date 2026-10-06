@@ -19,7 +19,7 @@ func coveredSiteCell(x, z int32, walkable, occupied, zone, roofed, storageEmpty 
 	return SiteCell{
 		Cell:         domain.Cell{X: x, Z: z},
 		Walkable:     domain.Known(walkable),
-		Occupied:     domain.Known(occupied),
+		Things:       OccupantThings(occupied),
 		Zone:         domain.Known(zone),
 		Roofed:       domain.Known(roofed),
 		StorageEmpty: domain.Known(storageEmpty),

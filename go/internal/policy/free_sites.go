@@ -54,7 +54,7 @@ func FreeSites(r FreeSiteRequest, width, height int32) ([]Rectangle, error) {
 		if !exists || protected[p] {
 			return false
 		}
-		return positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v })) &&
+		return positive(c.Walkable) && !c.Occupied() &&
 			positive(measured(c.Zone, func(v bool) bool { return !v })) && positive(c.SupportsLight)
 	}
 	type site struct {

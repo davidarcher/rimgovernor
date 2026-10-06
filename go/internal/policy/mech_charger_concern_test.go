@@ -65,7 +65,7 @@ func freeCells(w, h int32) []SiteCell {
 	var out []SiteCell
 	for x := int32(0); x < w; x++ {
 		for z := int32(0); z < h; z++ {
-			out = append(out, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: yes(true), Occupied: yes(false), Zone: yes(false), Doorway: yes(false)})
+			out = append(out, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: yes(true), Things: OccupantThings(false), Zone: yes(false), Doorway: yes(false)})
 		}
 	}
 	return out
@@ -80,7 +80,7 @@ func TestMechChargerSitesRankByPollutionSitingOverFreeGround(t *testing.T) {
 		case c.Cell.X == 0: // a growing field along the west edge
 			c.Zone, c.ZoneID = yes(true), domain.Known("field")
 		case c.Cell.X == 5 && c.Cell.Z == 0: // a cell another building holds
-			c.Occupied = yes(true)
+			c.SetOccupied(true)
 		case c.Cell.X == 9: // a stockpile that is not a field is no free ground
 			c.Zone, c.ZoneID = yes(true), domain.Known("stock")
 		}
@@ -117,10 +117,10 @@ func TestMechChargerSitesRankByPollutionSitingOverFreeGround(t *testing.T) {
 func TestMechChargerSitesNeverGuessFreeGround(t *testing.T) {
 	t.Parallel()
 	cells := freeCells(3, 3)
-	cells[4].Occupied = domain.Unknown[bool]()
+	cells[4].SetOccupied(true)
 	got, err := MechChargerSites(MechChargerSiteFacts{Bounds: Bounds{3, 3}, Cells: cells}, 2, 2)
 	if err != nil || len(got) != 0 {
-		t.Fatal("an unread cell blocks every footprint over it", got, err)
+		t.Fatal("an occupied cell blocks every footprint over it", got, err)
 	}
 	if got, err = MechChargerSites(MechChargerSiteFacts{Bounds: Bounds{3, 3}, Cells: freeCells(3, 3)}, 4, 1); err != nil || len(got) != 0 {
 		t.Fatal("a footprint wider than the map has no site", got, err)

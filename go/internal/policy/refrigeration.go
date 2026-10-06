@@ -435,7 +435,7 @@ func plannedWall(room Room, planned []PlannedCoolerSite, cells map[domain.Cell]S
 			continue
 		} else if walkable, known := w.Walkable.Value(); !known || walkable {
 			continue
-		} else if rock, _ := w.NaturalRock.Value(); rock {
+		} else if w.NaturalRock() {
 			// No cooler stands on rock (#836); the exhaust dig mines the
 			// cell and places this planned cooler in one plan (#874).
 			continue
@@ -475,7 +475,7 @@ func ventedWall(room Room, cellRoom map[domain.Cell]string, cells map[domain.Cel
 			if walkable, known := w.Walkable.Value(); !known || walkable {
 				continue
 			}
-			if occupied, known := w.Occupied.Value(); known && !occupied {
+			if !w.Occupied() {
 				continue
 			}
 			o, ok := cells[outside]

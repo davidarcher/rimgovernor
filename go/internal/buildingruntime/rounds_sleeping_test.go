@@ -350,7 +350,8 @@ func TestRoundsSleepingKeepsDoorwayAislesClear(t *testing.T) {
 	sleepingSite(r.reviewer, domain.Cell{X: 2, Z: 1})
 	for i, row := range n.cells.Cells {
 		if row.Cell == (domain.Cell{X: 2, Z: 0}) {
-			n.cells.Cells[i].Doorway, n.cells.Cells[i].Occupied, n.cells.Cells[i].Walkable = domain.Known(true), domain.Known(true), domain.Known(true)
+			n.cells.Cells[i].Doorway, n.cells.Cells[i].Walkable = domain.Known(true), domain.Known(true)
+			n.cells.Cells[i].SetOccupied(true)
 		}
 	}
 	result, err := r.Step(context.Background())

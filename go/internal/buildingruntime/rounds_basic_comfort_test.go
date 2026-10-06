@@ -32,7 +32,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 	}
 	check("ChessTable") // Unknown power and same-kind billiards both skipped.
 	cell := domain.Cell{X: 12, Z: 10}
-	f.Cells = []policy.SiteCell{{Cell: cell, Roofed: domain.Known(true), Indoors: domain.Known(true), Occupied: domain.Known(false)}}
+	f.Cells = []policy.SiteCell{{Cell: cell, Roofed: domain.Known(true), Indoors: domain.Known(true), Things: policy.OccupantThings(false)}}
 	topology := policy.PowerTopology{Blackout: domain.Known(false), Buildings: []policy.PowerSite{{Cell: domain.Cell{X: 10, Z: 10}, PowerBuilding: policy.PowerBuilding{OutputW: domain.Known(1000.0), Connected: domain.Known(true), Network: domain.Known("grid")}}}, Networks: []policy.PowerNetworkFact{{ID: "grid", GenerationW: domain.Known(1000.0), ConsumptionW: domain.Known(500.0)}}}
 	f.PowerPlanning = domain.Known(topology)
 	check("TubeTelevision")

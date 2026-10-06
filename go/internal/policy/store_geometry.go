@@ -23,8 +23,7 @@ func roomPool(room []domain.Cell, cells []SiteCell, avoid []domain.Cell) []domai
 		walkable, _ := c.Walkable.Value()
 		roofed, _ := c.Roofed.Value()
 		empty, _ := c.StorageEmpty.Value()
-		occupied, ok := c.Occupied.Value()
-		if walkable && roofed && empty && ok && !occupied {
+		if walkable && roofed && empty && !c.Occupied() {
 			out = append(out, c.Cell)
 		}
 	}

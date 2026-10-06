@@ -60,7 +60,8 @@ func TestFreezerStoresDeferWhileTheInteriorIsNotOpen(t *testing.T) {
 		return n
 	}
 	rock := plan(func(c *SiteCell) {
-		c.Walkable, c.Occupied, c.NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
+		c.Walkable = domain.Known(false)
+		c.SetNaturalRock(true)
 	})
 	if n := freezerCreate(rock); n != 0 {
 		t.Fatalf("%d freezer creates over rock still to dig", n)

@@ -13,7 +13,7 @@ func sitingOpen(blocked ...domain.Cell) stockpileOpen {
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
 			c := domain.Cell{X: x, Z: z}
-			r.Cells = append(r.Cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(skip[c]), Zone: domain.Known(false), StorageEmpty: domain.Known(true)})
+			r.Cells = append(r.Cells, SiteCell{Cell: c, Walkable: domain.Known(true), Things: OccupantThings(skip[c]), Zone: domain.Known(false), StorageEmpty: domain.Known(true)})
 		}
 	}
 	return newStockpileOpen(r)
