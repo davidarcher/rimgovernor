@@ -64,37 +64,22 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if err != nil {
 		return err
 	}
-	// A stockpile zone is created one per method in this slice, unlike the
-	// bounded batches of growing-field zones EnsureFoodSupply may dispatch.
-	// MaintainResource places the production ladder's ingredient stockpile
-	// beside the bench (rounds_ingredient_storage.go, #155: the rung was
-	// refused here on every live run before it was bound); MaintainAnimalFeed
-	// places the feed stockpile inside the animals' area when no bench is
-	// reachable there (rounds_animal_feed.go, #311: refused here the same
-	// way until bound); ClearHomeObstructions places the chunk dump
-	// (rounds_clearance.go, #394).
+	// A growing-field method places a bounded batch (EnsureFoodSupply) or the
+	// social crops (MaintainResource). A stockpile zone is admitted for any
+	// concern that owns stores (policy.StockpileZoneLimit), bounded per owner.
 	limit := 32
-	needs := []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource}
-	if stockpile {
-		limit = 1
-		needs = []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.MaintainStockpiles}
-	}
 	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() {
 		return ErrConflict
 	}
 	bound := false
 	social := false
 	if need, ok := owner.ownerNeed(review); ok {
-		for _, n := range needs {
-			bound = bound || need == n
-		}
-		social = need == policy.MaintainResource && !stockpile
-		// MaintainStockpiles creates the missing fixed-role zones and the
-		// opening stockpiles (general, food, dump, weapons) together as one
-		// method (rounds_stockpiles.go create). Unbound here, every opening
-		// create failed this admission with ErrConflict on a live colony.
-		if stockpile && need == policy.MaintainStockpiles {
-			limit = 16
+		if stockpile {
+			limit = policy.StockpileZoneLimit(need)
+			bound = limit > 0
+		} else {
+			bound = need == policy.EnsureFoodSupply || need == policy.MaintainResource
+			social = need == policy.MaintainResource
 		}
 	}
 	if !bound || len(plan.Actions()) > limit {

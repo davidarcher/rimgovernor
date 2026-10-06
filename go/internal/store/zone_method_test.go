@@ -371,3 +371,43 @@ func growerCropPlan(t *testing.T, id string) domain.PlanSpec {
 	}
 	return plan
 }
+
+// Owners declare their stockpile rule in policy.StockpileZoneLimit: every
+// department concern with stores may create one, the storage planner a batch.
+func TestStockpileZoneLimitPerOwner(t *testing.T) {
+	for id, want := range map[policy.ConcernID]int{
+		policy.EnsureFoodSupply:        1,
+		policy.MaintainFoodStorage:     1,
+		policy.MaintainMedicalReserves: 1,
+		policy.MaintainEquipment:       1,
+		policy.MaintainResource:        1,
+		policy.MaintainAnimalFeed:      1,
+		policy.ClearHomeObstructions:   1,
+		policy.MaintainStockpiles:      16,
+		policy.MaintainHousing:         0,
+		policy.MaintainFlooring:        0,
+	} {
+		if got := policy.StockpileZoneLimit(id); got != want {
+			t.Errorf("%s: limit %d, want %d", id, got, want)
+		}
+	}
+}
+
+// Two owners create stockpile zones in the same cycle: open zone work of one
+// does not block the other.
+func TestCommitStockpileZonesOfTwoOwnersInOneCycle(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := animalFeedRoundsRequest()
+	r.Policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
+	r.Facts.Resources = domain.Known([]policy.Amount{})
+	out := reviewRounds(t, s, &r)
+	feed := roundsGoal(t, out, policy.MaintainAnimalFeed)
+	resource := roundsGoal(t, out, policy.MaintainResource)
+	if _, err := s.CommitMethod(ctx, feed.Standard.ID, feed.Revision, "feed-storage-0", stockpilePlan(t, "feed-plan", []domain.Cell{{X: 4, Z: 6}})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitMethod(ctx, resource.Standard.ID, resource.Revision, "ingredient-storage-0", stockpilePlan(t, "ingredient-plan", []domain.Cell{{X: 20, Z: 6}})); err != nil {
+		t.Fatal("open zone work of another owner blocked a store", err)
+	}
+}

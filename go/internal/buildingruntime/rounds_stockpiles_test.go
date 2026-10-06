@@ -270,17 +270,35 @@ func TestShellLeavesZoneEdits(t *testing.T) {
 	}
 }
 
-// A room shell is days of building work and must not hold zone edits; only the
-// stockpile planner's own zone-edit batches do.
-func TestIsStockpileEditMethod(t *testing.T) {
-	for _, m := range []domain.MethodID{"stockpiles-1200", "stockpile-create-0123abcd"} {
-		if !isStockpileEditMethod(m) {
-			t.Errorf("%s is a zone-edit method", m)
-		}
+// A room shell is days of building work and must not hold zone edits; only
+// zone-edit plans do, whichever owner's method carries them.
+func TestIsStockpileEditPlan(t *testing.T) {
+	zone, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, m := range []domain.MethodID{"storage-shell-10-10", "armory-shell-4-4", "wardrobe-shell-6-6"} {
-		if isStockpileEditMethod(m) {
-			t.Errorf("%s is a room shell, not a zone edit", m)
+	za, err := domain.NewZoneCreateAction("z", zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 3}, domain.North, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ba, err := domain.NewBuildingAction("b", b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		a    domain.Action
+		want bool
+	}{{za, true}, {ba, false}} {
+		plan, err := domain.NewPlan("p", 1, []domain.Action{c.a})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if isStockpileEditPlan(plan) != c.want {
+			t.Errorf("%s: want %v", c.a.Kind(), c.want)
 		}
 	}
 }
