@@ -42,7 +42,7 @@ type StoreOwner interface {
 }
 
 // storeOwners is the one registry of departments that declare stores.
-var storeOwners = []StoreOwner{storageOwner{}, militaryOwner{}, industryOwner{}, incinerationOwner{}}
+var storeOwners = []StoreOwner{storageOwner{}, militaryOwner{}, industryOwner{}, incinerationOwner{}, burialOwner{}}
 
 // StoreDeclaration is every owner's stores and room demand, merged.
 type StoreDeclaration struct {
@@ -84,6 +84,7 @@ func declareStores(owners []StoreOwner, view StorageRequest) StoreDeclaration {
 		d.Demand.Storage = max(d.Demand.Storage, got.Storage)
 		d.Demand.Yard = max(d.Demand.Yard, got.Yard)
 		d.Demand.StorageIdle = d.Demand.StorageIdle || got.StorageIdle
+		d.Demand.Graveyards = max(d.Demand.Graveyards, got.Graveyards)
 		d.Demand.Known = d.Demand.Known || got.Known
 	}
 	return d
@@ -104,6 +105,7 @@ func (d StoreDeclaration) Apply(old RoomDemand) RoomDemand {
 	if d.covers[PlannedWardrobe] {
 		old.Wardrobe = d.Demand.Wardrobe
 	}
+	old.Graveyards = d.Demand.Graveyards
 	old.Known = old.Known || d.Demand.Known
 	return old
 }

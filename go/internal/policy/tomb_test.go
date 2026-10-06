@@ -81,7 +81,7 @@ func TestTombStepIgnoresStrangersAndAnimals(t *testing.T) {
 }
 
 func TestTombOwedFallsBackToAGrave(t *testing.T) {
-	plan, _ := tombFixture()
+	plan, _ := graveyardPlan(t)
 	dead := domain.Known([]WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}})
 	census := domain.Known(CurrentConstruction{Colony: true})
 	if v, known := TombOwed(testShapes, domain.Known(false), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), dead, census).Value(); !known || !v {
@@ -138,11 +138,12 @@ func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 	}
 }
 
-func TestTombStepGravesWithoutASarcophagus(t *testing.T) {
-	plan, _ := tombFixture()
+func TestTombStepGravesInTheGraveyardWithoutASarcophagus(t *testing.T) {
+	plan, yard := graveyardPlan(t)
 	dead := []WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
 	step := NextTombStep(plan, dead, nil, testShapes, false)
-	if step.Kind != TombGrave || step.Graves != 0 {
+	slots := GraveyardSlots(yard.Interior)
+	if step.Kind != TombReconcile || !step.Room.Same(yard) || len(step.Template) != 1 || step.Template[0].DefName != GraveDefinition || step.Template[0].Minimum != (domain.Cell{X: slots[0].X, Z: slots[0].Z}) {
 		t.Fatalf("no sarcophagus: %+v", step)
 	}
 	g, err := domain.NewBuilding(GraveDefinition, domain.Cell{X: 40, Z: 40}, domain.North, "")
@@ -152,5 +153,86 @@ func TestTombStepGravesWithoutASarcophagus(t *testing.T) {
 	grave := CurrentBuilding{ID: "Grave_1", Building: g, Cells: []domain.Cell{{X: 40, Z: 40}, {X: 40, Z: 41}}}
 	if step := NextTombStep(plan, dead, []CurrentBuilding{grave}, testShapes, false); step.Kind != TombNone {
 		t.Fatalf("an empty grave waits: %+v", step)
+	}
+	// The next grave takes the next slot, not one a grave stands on.
+	g, err = domain.NewBuilding(GraveDefinition, domain.Cell{X: slots[0].X, Z: slots[0].Z}, domain.North, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filled := CurrentBuilding{ID: "Grave_2", Building: g, Cells: rectCells(slots[0])}
+	two := append(dead, WasteItem{ID: "Corpse_0", State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: "Grave_2"})
+	step = NextTombStep(plan, two, []CurrentBuilding{filled}, testShapes, false)
+	if step.Kind != TombReconcile || step.Template[0].Minimum != (domain.Cell{X: slots[1].X, Z: slots[1].Z}) {
+		t.Fatalf("second grave: %+v", step)
+	}
+}
+
+// No grave is placed outside a graveyard: with no graveyard planned, or none of
+// its slots free, the body waits (#2196).
+func TestNoGraveOutsideTheGraveyard(t *testing.T) {
+	dead := []WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
+	tombPlan, _ := tombFixture()
+	if step := NextTombStep(tombPlan, dead, nil, testShapes, false); step.Kind != TombNone {
+		t.Fatalf("no graveyard planned: %+v", step)
+	}
+	plan, yard := graveyardPlan(t)
+	var built []CurrentBuilding
+	for i, slot := range GraveyardSlots(yard.Interior) {
+		g, err := domain.NewBuilding(GraveDefinition, domain.Cell{X: slot.X, Z: slot.Z}, domain.North, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		built = append(built, CurrentBuilding{ID: "Grave_" + string(rune('a'+i)), Building: g, Cells: rectCells(slot)})
+	}
+	waste := []WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}, {ID: "Corpse_2", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
+	for i := range built {
+		waste = append(waste, WasteItem{ID: "Buried_" + built[i].ID, State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: built[i].ID})
+	}
+	if step := NextTombStep(plan, waste, built, testShapes, false); step.Kind != TombNone {
+		t.Fatalf("a full graveyard: %+v", step)
+	}
+}
+
+// A further graveyard is asked for when the empty graves run out, or the
+// graveyard is 0.85 used, and only while no sarcophagus can be had (#2196).
+func TestFurtherGraveyardWhenEmptyGravesRunOut(t *testing.T) {
+	plan, yard := graveyardPlan(t)
+	slots := GraveyardSlots(yard.Interior)
+	graves := func(n int) ([]CurrentBuilding, []WasteItem) {
+		var built []CurrentBuilding
+		var waste []WasteItem
+		for i := 0; i < n; i++ {
+			g, err := domain.NewBuilding(GraveDefinition, domain.Cell{X: slots[i].X, Z: slots[i].Z}, domain.North, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			id := "Grave_" + string(rune('a'+i))
+			built = append(built, CurrentBuilding{ID: id, Building: g, Cells: rectCells(slots[i])})
+			waste = append(waste, WasteItem{ID: "Buried_" + id, State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: id})
+		}
+		return built, waste
+	}
+	dead := WasteItem{ID: "Corpse_new", State: WasteExposed, CorpseOf: domain.CorpseColonist}
+	built, waste := graves(5)
+	if got := GraveyardsWanted(plan, append(waste, dead), built, testShapes, false); got != 0 {
+		t.Fatalf("slots to spare: %d", got)
+	}
+	built, waste = graves(GraveyardGraves)
+	if got := GraveyardsWanted(plan, append(waste, dead), built, testShapes, false); got != 2 {
+		t.Fatalf("every slot filled: %d", got)
+	}
+	if got := GraveyardsWanted(plan, append(waste, dead), built, testShapes, true); got != 0 {
+		t.Fatalf("a sarcophagus can be had: %d", got)
+	}
+	built, waste = graves(11)
+	if got := GraveyardsWanted(plan, waste, built, testShapes, false); got != 2 {
+		t.Fatalf("0.85 used with nobody dead: %d", got)
+	}
+	built, waste = graves(10)
+	if got := GraveyardsWanted(plan, waste, built, testShapes, false); got != 0 {
+		t.Fatalf("under 0.85 used: %d", got)
+	}
+	if got := GraveyardsWanted(LayoutPlan{}, nil, nil, testShapes, false); got != 0 {
+		t.Fatalf("no graveyard planned: %d", got)
 	}
 }

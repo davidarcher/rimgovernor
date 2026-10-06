@@ -144,6 +144,8 @@ var roundsFamilyFiles = map[string][]string{
 	"rounds_tier_style.go":             {"shelter", "expansion", "flooring", "lighting"},
 	"rounds_trade.go":                  {"trade"},
 	"rounds_waste.go":                  {"waste"},
+	"rounds_burial.go":                 {"burial"},
+	"rounds_burial_facts.go":           {"burial", "waste"},
 	"rounds_waste_tomb.go":             {"waste"},
 	"rounds_tomb_facts.go":             {"waste"},
 	"rounds_incineration.go":           {"incineration"},

@@ -121,6 +121,82 @@ namespace HomeBridge.BridgeTools
                     unwantedCell = BridgeCommon.Pos(unwantedCell), protectedCell = BridgeCommon.Pos(protectedCell) };
             }, cancellationToken);
 
+        // Burial ranking acceptance (#2196): a morgue zone at MorguePriority
+        // holding a fresh colonist corpse and a fresh stranger corpse, one free
+        // grave a few cells off, and a hauling colonist. Vanilla hauling must
+        // carry the colonist into the grave (a higher storage priority than the
+        // morgue) and leave the stranger, whom the grave refuses, in the morgue.
+        [Tool("test/burial_stage", Description = "Disposable fixture (#2196): a morgue zone holding a colonist and a stranger corpse, a free grave and a hauler. Test builds only.")]
+        public async Task<object> BurialStage(IRimBridgeContext ctx, CancellationToken cancellationToken, string priority = "Normal")
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
+                var open = GenRadial.RadialCellsAround(pawn.Position, 20, true).Where(c => c.InBounds(map)
+                    && !c.Fogged(map) && c.Standable(map) && !c.Roofed(map) && c.GetEdifice(map) == null && c.GetZone(map) == null
+                    && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item) && c.GetFirstBuilding(map) == null
+                    && c.GetTerrain(map).passability == Traversability.Standable).Distinct().ToList();
+                var origin = open.FirstOrDefault(c => Enumerable.Range(0, 3).All(dx => Enumerable.Range(0, 3).All(dz => open.Contains(c + new IntVec3(dx, 0, dz)))));
+                if (origin == default) throw new System.InvalidOperationException("No open 3x3 near the first colonist for the morgue.");
+                var zoneCells = Enumerable.Range(0, 3).SelectMany(dx => Enumerable.Range(0, 3).Select(dz => origin + new IntVec3(dx, 0, dz))).ToList();
+                var graveCell = open.Where(c => !zoneCells.Contains(c) && zoneCells.All(z => z.DistanceToSquared(c) > 9)
+                    && c.GetThingList(map).All(t => t.def.category != ThingCategory.Item)).OrderBy(c => c.DistanceToSquared(origin)).FirstOrDefault();
+                if (graveCell == default) throw new System.InvalidOperationException("No free cell for the grave.");
+                var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                map.zoneManager.RegisterZone(zone);
+                foreach (var c in zoneCells) zone.AddCell(c);
+                var settings = zone.GetStoreSettings();
+                settings.filter.SetDisallowAll();
+                settings.filter.SetAllow(ThingCategoryDefOf.CorpsesHumanlike, true);
+                foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable))
+                    settings.filter.SetAllow(special, true);
+                settings.Priority = (StoragePriority)System.Enum.Parse(typeof(StoragePriority), priority);
+                var grave = (Building_Grave)ThingMaker.MakeThing(ThingDefOf.Grave);
+                grave.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(grave, graveCell, map);
+                Corpse MakeCorpse(Faction faction, IntVec3 cell)
+                {
+                    var dead = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, faction);
+                    GenSpawn.Spawn(dead, cell, map);
+                    dead.Kill(null);
+                    var corpse = dead.Corpse;
+                    if (corpse.Spawned) corpse.DeSpawn(DestroyMode.Vanish);
+                    GenPlace.TryPlaceThing(corpse, cell, map, ThingPlaceMode.Direct, out var placed);
+                    if (placed != corpse || !corpse.Spawned || corpse.Position != cell)
+                        throw new System.InvalidOperationException($"Fixture corpse displaced from {cell}.");
+                    corpse.SetForbidden(false, false);
+                    return corpse;
+                }
+                var colonist = MakeCorpse(Faction.OfPlayer, zoneCells[0]);
+                var stranger = MakeCorpse(null, zoneCells[1]);
+                foreach (var colonistPawn in map.mapPawns.FreeColonistsSpawned)
+                    colonistPawn.workSettings?.SetPriority(WorkTypeDefOf.Hauling, 1);
+                var identity = Current.Game.GetComponent<ColonyIdentity>();
+                return (object)new { success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken,
+                    mapId = map.uniqueID, tick = Find.TickManager.TicksGame,
+                    colonistCorpse = colonist.GetUniqueLoadID(), strangerCorpse = stranger.GetUniqueLoadID(), grave = grave.GetUniqueLoadID(),
+                    zone = zone.label };
+            }, cancellationToken);
+
+        [Tool("test/burial_read", Description = "Disposable fixture (#2196): where the staged corpses lie: in the grave, in the morgue zone or elsewhere. Test builds only.")]
+        public async Task<object> BurialRead(IRimBridgeContext ctx, CancellationToken cancellationToken, string ids = "")
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var things = ids.Split(',').Where(id => id.Length > 0).Select(id =>
+                {
+                    var corpse = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>().FirstOrDefault(c => c.GetUniqueLoadID() == id);
+                    var grave = corpse?.ParentHolder as Building_Grave;
+                    if (corpse == null)
+                        grave = map.listerBuildings.allBuildingsColonist.OfType<Building_Grave>().FirstOrDefault(g => g.HasAnyContents && g.Corpse?.GetUniqueLoadID() == id);
+                    var held = corpse ?? grave?.Corpse;
+                    return new { id, found = held != null, inGrave = grave != null, spawned = corpse?.Spawned ?? false,
+                        zone = corpse != null && corpse.Spawned && corpse.Position.GetZone(map) is Zone_Stockpile,
+                        x = corpse != null && corpse.Spawned ? corpse.Position.x : -1, z = corpse != null && corpse.Spawned ? corpse.Position.z : -1 };
+                }).ToList();
+                return (object)new { success = true, tick = Find.TickManager.TicksGame, things };
+            }, cancellationToken);
+
         // Corpse disposal acceptance (#1817), staged on the tribal baseline
         // colony: a rotten animal corpse, a rotten and a fresh stranger
         // corpse, one worn apparel and stone blocks for the walls, each on its

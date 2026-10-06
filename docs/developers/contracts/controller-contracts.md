@@ -629,7 +629,7 @@ the opener (the lowest casket's locker) depending on all of them. Opening one ca
 ejects the group at the lockers' feet. The worker releases the drafts once the opening
 resolves and `ActiveCombat` and custody planners take over, the concern holding
 `guards_alive` while a hostile stands. The census then lists each released humanlike or
-corpse as an occupant; `policy.OccupantDecision` names its row: `bury` (MaintainWaste),
+corpse as an occupant; `policy.OccupantDecision` names its row: `bury` (MaintainBurial),
 `fight` (ActiveCombat), `capture` (downed hostile or standing neutral while
 `JoinerCapacity` has room), `release`, `captured`. Neutral arrest uses the Capture
 variant in [population contracts](population-contracts.md).

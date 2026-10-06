@@ -409,16 +409,6 @@ func (r *Rounder) drawHeatOverlay(ctx context.Context, native LayoutOverlayNativ
 	r.heatDrawn, r.heatCleared = tick, !on
 }
 
-// tombGrowthRefused reports that a layout survey ran within the last day
-// while the projection's plan still has every tomb full (#857): the review
-// replans for another tomb whenever they are all full and no survey ran
-// that day, and at once after a restart (planSurveyed is unset), so a plan
-// still full after it holds no room for one. Nothing is remembered beyond
-// the survey tick the reviewer already keeps.
-func (r *Rounder) tombGrowthRefused(tick domain.Tick) bool {
-	return r.planSurveyed && r.planChecked <= tick && tick-r.planChecked < layoutReplanEvery
-}
-
 // layoutTier is the build tier new bedroom wings are sized for (#1214); an
 // unknown tier reads Camp.
 func layoutTier(projection observation.ColonyProjection) policy.BuildTier {

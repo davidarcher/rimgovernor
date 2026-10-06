@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainWaste contains or buries
+// MaintainWaste contains
 // exposed, eligible native waste (filth, junk, corpses) that would otherwise
 // sit in the open, unlike MaintainCleanFacilities' upkeep filth or
 // MaintainAnimalContainment's herd containment. It is a Standard whose

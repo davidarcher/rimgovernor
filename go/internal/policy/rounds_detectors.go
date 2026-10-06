@@ -901,9 +901,6 @@ func inspectWaste(c *roundsRun) error {
 	if items, known := c.f.Waste.Value(); known {
 		recovered = domain.Known(len(pendingWaste(items)) == 0)
 	}
-	if owed, known := c.f.CorpsesOwed.Value(); known && owed {
-		recovered = domain.Known(false)
-	}
 	c.assess(MaintainWaste, 3, recovered)
 	if !positive(recovered) {
 		c.raise(MaintainWaste, 3)

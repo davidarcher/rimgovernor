@@ -249,11 +249,11 @@ func TombCorpsesFilter() StockpileFilter {
 	return f
 }
 
-// MorgueCorpsesFilter holds fresh stranger corpses only (#1820): humanlike,
-// not rotting, never a colonist or slave, who keep the tomb. Strangers kept
-// cold stay butcherable.
+// MorgueCorpsesFilter holds every human corpse, colonist, slave or stranger,
+// fresh or rotten (#2196). The morgue ranks below graves and sarcophagi
+// (MorguePriority), so a colonist corpse waits here only until one has room.
 func MorgueCorpsesFilter() StockpileFilter {
-	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, []FilterSelector{SpecialFilter("AllowRotten"), SpecialFilter("AllowCorpsesColonist"), SpecialFilter("AllowCorpsesSlave")})
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil)
 	return f
 }
 

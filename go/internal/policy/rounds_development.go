@@ -83,6 +83,16 @@ func RoundsDevelopmentDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domai
 		stock, known = review.Stock.Value()
 		target, targetKnown = review.Target.Value()
 		known = known && targetKnown
+	case MaintainBurial:
+		// Census-driven: a tomb, grave or morgue step due is a full deficit.
+		owed, owedKnown := f.BurialOwed.Value()
+		if !owedKnown {
+			return domain.Unknown[float64]()
+		}
+		if !owed {
+			return domain.Known(0.0)
+		}
+		return domain.Known(1.0)
 	case MaintainWaste:
 		// Census-driven, not stock/target: any exposed, eligible item still
 		// pending is a full deficit: there's no partial-credit fraction for

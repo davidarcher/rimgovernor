@@ -51,6 +51,10 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		return LaborProfile{WorkConstruction, WorkTailoring, WorkSmithing, WorkCrafting}
 	case MaintainWaste, MaintainIncineration, ManagePollution:
 		return LaborProfile{WorkHauling}
+	case MaintainBurial:
+		// The shell, sarcophagus and graves are built; vanilla haulers carry
+		// the corpses.
+		return LaborProfile{WorkConstruction}
 	case MaintainCleanFacilities:
 		// The bounded cleaning response is a player-forced order any basic
 		// worker not incapable of Cleaning can carry, and it exists for the

@@ -141,6 +141,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	}
 	storage.Incinerator = standingIncinerator(*projection)
 	storage.BenchInputs, storage.Benches = inputs, benches
+	storage.Burial = burialCensus(*projection)
 	plan := policy.PlanStorage(storage)
 	declared := policy.DeclareStores(storage)
 	request.Stores = declared.Stores

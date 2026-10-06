@@ -58,6 +58,9 @@ type StorageRequest struct {
 	Zones []StockpileZone
 	// Dumps is nil while the room census is unknown (see DumpStore).
 	Dumps *DumpStore
+	// Burial is the burial census; nil while the waste or construction
+	// census is unread (see BurialCensus).
+	Burial *BurialCensus
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand (#1814); nil before. The Sanitation store declares its zone.
 	Incinerator *PlannedRoom
@@ -72,6 +75,9 @@ type RoomDemand struct {
 	// Storage is the storage rooms the plan should hold, 0 for no demand
 	// (a further warehouse, #1772).
 	Storage int
+	// Graveyards is the graveyards the plan should hold, 0 for no demand (a
+	// further graveyard, #2196; see GraveyardsWanted).
+	Graveyards int
 	// Yard is the materials yards the plan should hold, 0 for no demand
 	// (a further yard, #2192; see YardRoomsWanted).
 	Yard int
@@ -110,8 +116,6 @@ func PlanStorage(r StorageRequest) StoragePlan {
 			shelved = shelved || strings.HasPrefix(site.Role, domain.CorpsesRolePrefix)
 		}
 		plan.Sites = append(plan.Sites, freezer...)
-		plan.Sites = append(plan.Sites, r.tombSites()...)
-		plan.Sites = append(plan.Sites, r.morgueSites()...)
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)
@@ -156,37 +160,4 @@ func (r StorageRequest) freezerSites() []StockpileSite {
 	}
 	return append(out, StockpileSite{Role: domain.PerishablesRolePrefix + room.ID, Room: room.Cells, Filter: domain.PerishablesFilter(), Priority: domain.PreferredPriority, Remainder: true,
 		Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}})
-}
-
-// morgueSites are the first standing morgue's fresh stranger corpse store,
-// the whole room (#1820). Critical, so a fresh stranger hauls here ahead of
-// the Low corpse dump; a corpse that rots in it falls out of the filter and
-// goes to the dump.
-func (r StorageRequest) morgueSites() []StockpileSite {
-	for _, morgue := range r.Layout.AllRooms() {
-		if morgue.Role != PlannedMorgue {
-			continue
-		}
-		// Census: the stockpile zone is the room's own cells.
-		if room, ok := CensusRoomIn(morgue, *r.Rooms); ok && len(room.Cells) > 0 {
-			return []StockpileSite{{Role: domain.MorgueRolePrefix + room.ID, Room: room.Cells, Filter: domain.MorgueCorpsesFilter(), Priority: domain.CriticalPriority, Remainder: true,
-				Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}}}
-		}
-	}
-	return nil
-}
-
-// tombSites are the first standing tomb's corpse store, the whole room.
-func (r StorageRequest) tombSites() []StockpileSite {
-	for _, tomb := range r.Layout.AllRooms() {
-		if tomb.Role != PlannedTomb {
-			continue
-		}
-		// Census: the stockpile zone is the room's own cells.
-		if room, ok := CensusRoomIn(tomb, *r.Rooms); ok && len(room.Cells) > 0 {
-			return []StockpileSite{{Role: domain.TombRolePrefix + room.ID, Room: room.Cells, Filter: domain.TombCorpsesFilter(), Priority: domain.CriticalPriority, Remainder: true,
-				Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}}}
-		}
-	}
-	return nil
 }

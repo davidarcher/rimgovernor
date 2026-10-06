@@ -24,6 +24,7 @@ func stableRounds() RoundsFacts {
 		AnimalUpkeep: AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{}), WildAnimals: domain.Known([]UpkeepAnimal{})},
 		Prisoners:    domain.Known([]PrisonerFacts{}),
 		Waste:        domain.Known([]WasteItem{}),
+		BurialOwed:   domain.Known(false),
 		Blight:       domain.Known([]BlightedPlant{}),
 		Stockpiles:   domain.Known(StockpileReview{Known: true, Reason: "stockpiles fit their contents"}),
 		Items:        CoreItemFacts(), MedicalReserve: MedicalReserveObservation{Catalog: CoreItemFacts(), Items: domain.Known([]MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 9, Perishable: domain.Known(false)}}), Resources: domain.Known([]Amount{{"MedicineHerbal", 9}})},

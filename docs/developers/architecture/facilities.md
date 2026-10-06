@@ -418,8 +418,19 @@ room: `PlannedGraveyard`, a fence and gate ring (`RingDefs`), no roof and no flo
 owed, because graves need diggable soil. `GraveyardSlots` is its template: 12
 plain graves (`GraveDefinition`, 1x2) in two bands of six on an 11x7 interior,
 each beside an aisle column joined to the gate row. It never grows; a further
-graveyard is the burial concern's request (#2196). `PlannedRole.IsOutdoor`
-lists the Outdoor roles.
+graveyard is the burial concern's request (`RoomDemand.Graveyards`,
+`GraveyardsWanted`): while no sarcophagus can be had, when fewer free grave
+slots remain than the unburied colonist corpses still owed a grave, or the
+graveyards are 0.85 used. `PlannedRole.IsOutdoor` lists the Outdoor roles.
+
+`MaintainBurial` (People, #2196) stages the tomb, graveyard and morgue
+(`RoundsBurialPlanner`) and its `burialOwner` declares the tomb and morgue stores
+(`policy.StoreOwner`). A plain grave is placed only in the next free
+`GraveyardSlots` slot, its fence and gate raised with it; with no slot free the
+body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
+`MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
+corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). Stranger
+corpses stay on the butcher-or-incinerate route (`RouteStranger`).
 
 The waste yard (#2187) is an Outdoor plan room (`PlannedWasteYard`: fence and
 gate, no roof, no floor owed) of 11x7 interior, planned with the cluster. The
@@ -434,7 +445,8 @@ the native not-burnable special (`IncineratorFilter`).
 The tomb, the jail and the morgue use the same shared build side as the throne
 room (`reconcileRoom`); their steps shrink to a furniture template.
 `NextTombStep` reports `TombReconcile` with the next free sarcophagus slot as
-the template (`TombFull` and `TombGrave` stay); `NextJailStep` reports
+the template (`TombFull` stays; a grave is a `TombReconcile` of the graveyard with
+the next free grave as the template); `NextJailStep` reports
 `JailReconcile` with the next free bed (`JailMark` stays: it flags a standing
 bed, found through `CensusRoomIn`); the morgue holds no furniture, so
 `MorgueRoomOwed` is just "the ring does not match the ground" and its template

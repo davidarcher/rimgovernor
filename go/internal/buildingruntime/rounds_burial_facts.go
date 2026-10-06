@@ -6,11 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// wasteDefinitions are the definitions the waste steps read availability
+// burialDefinitions are the definitions the burial step reads availability
 // and stuff for.
-var wasteDefinitions = []string{"Wall", "Door", policy.GraveDefinition}
+var burialDefinitions = []string{"Wall", "Door", policy.GraveDefinition}
 
-// tombStep is the projection's next tomb step (#832, #857); none while a
+// tombStep is the projection's next tomb or grave step (#832, #857, #2196); none while a
 // fact is unknown.
 func tombStep(facts observation.ColonyProjection) policy.TombStep {
 	if owed, known := tombOwed(facts).Value(); !known || !owed {
@@ -67,9 +67,9 @@ func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool
 	return policy.MorgueRoomOwed(plan, plan.GroundWithRock(ground, naturalRock(facts)), waste)
 }
 
-// corpsesOwed is the review's CorpsesOwed fact: the tomb or the morgue is
-// owed.
-func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
+// burialOwed is the review's BurialOwed fact: the tomb, a grave or the morgue
+// is owed.
+func burialOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	tomb, tk := tombOwed(facts).Value()
 	if _, morgue := plannedMorgue(facts); morgue || tk && tomb {
 		return domain.Known(true)
@@ -78,6 +78,18 @@ func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		return domain.Known(false)
 	}
 	return domain.Unknown[bool]()
+}
+
+// burialCensus is the stockpile planner's burial reading: nil while the waste
+// or construction census is unread.
+func burialCensus(facts observation.ColonyProjection) *policy.BurialCensus {
+	waste, wk := facts.Facts.Waste.Value()
+	built, bk := facts.Facts.CurrentConstruction.Value()
+	available, ak := sarcophagusAvailable(facts).Value()
+	if !wk || !bk || !built.Colony || !ak {
+		return nil
+	}
+	return &policy.BurialCensus{Waste: waste, Built: built.Buildings, Shapes: facts.Shapes, Sarcophagus: available}
 }
 
 // plannedMealCloset is the planned meal closet MaintainRefrigeration owes a

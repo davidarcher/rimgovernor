@@ -92,6 +92,7 @@ var inspections = []Inspection{
 	{MaintainPopulation, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactColony, FactWorld}, inspectPopulation},
 	{MaintainAnimalContainment, StandardConcern, DepartmentPeople, []FactFamily{FactColony, FactPawns, FactRooms}, inspectAnimalContainment},
 	{MaintainAnimalFeed, StandardConcern, DepartmentPeople, []FactFamily{FactColony, FactPawns, FactWorld}, inspectAnimalFeed},
+	{MaintainBurial, StandardConcern, DepartmentPeople, []FactFamily{FactColony}, inspectBurial},
 	{MaintainWaste, StandardConcern, DepartmentSanitation, []FactFamily{FactColony}, inspectWaste},
 	{MaintainIncineration, StandardConcern, DepartmentSanitation, []FactFamily{FactColony}, inspectIncineration},
 	{RemoveBlight, StandardConcern, DepartmentFood, []FactFamily{FactColony}, inspectBlight},

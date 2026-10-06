@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"fmt"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // The graveyard (#2186, epic #2176): a planned Outdoor room in the outskirts
 // cluster. Its ring is a fence and a gate, its interior has no roof and owes
@@ -68,4 +72,40 @@ func (r PlannedRoom) gateCell() domain.Cell {
 		c.X++
 	}
 	return c
+}
+
+// graveSlot is the graveyard's first template slot no building stands on.
+func graveSlot(r PlannedRoom, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+slots:
+	for i, slot := range GraveyardSlots(r.Interior) {
+		for _, c := range rectCells(slot) {
+			if taken[c] {
+				continue slots
+			}
+		}
+		return NewInteriorPiece(fmt.Sprintf("grave-%d", i), GraveDefinition, domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: slot.X, Z: slot.Z}), true
+	}
+	return InteriorPiece{}, false
+}
+
+// GravesStanding counts the graves standing in the planned graveyards and the
+// slots those graveyards hold: the capacity the further-graveyard request
+// reads (GraveyardsWanted).
+func GravesStanding(plan LayoutPlan, built []CurrentBuilding) (standing, slots int) {
+	rooms := plan.roomsOf(PlannedGraveyard)
+	for _, b := range built {
+		if b.Building.Definition() != GraveDefinition {
+			continue
+		}
+		for _, r := range rooms {
+			if len(b.Cells) > 0 && rectContains(r.Interior, b.Cells[0]) {
+				standing++
+				break
+			}
+		}
+	}
+	for _, r := range rooms {
+		slots += len(GraveyardSlots(r.Interior))
+	}
+	return standing, slots
 }

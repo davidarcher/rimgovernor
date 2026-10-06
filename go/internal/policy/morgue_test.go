@@ -49,30 +49,24 @@ func TestMorgueIsCooledOnceStanding(t *testing.T) {
 	}
 }
 
-func TestMorgueSiteHoldsFreshStrangersAheadOfTheDump(t *testing.T) {
+func TestMorgueStoreHoldsEveryHumanCorpseBelowGraves(t *testing.T) {
 	plan, room := morgueFixture()
-	rooms := tombStanding(PlannedRoom{Interior: room.Interior})
-	sites := StorageRequest{Layout: &plan, Rooms: &rooms}.morgueSites()
-	if len(sites) != 1 || sites[0].Role != domain.MorgueRolePrefix+"r1" || sites[0].Filter != domain.MorgueCorpsesFilter() {
-		t.Fatalf("sites %+v", sites)
+	stores := burialOwner{}.Stores(StorageRequest{Layout: &plan})
+	if len(stores) != 1 || stores[0].Role != domain.MorgueRolePrefix+"10_20" || stores[0].Interior != room.Interior || stores[0].Filter != domain.MorgueCorpsesFilter() {
+		t.Fatalf("stores %+v", stores)
 	}
-	if sites[0].Priority != domain.CriticalPriority {
-		t.Fatalf("priority %v", sites[0].Priority)
+	if stores[0].Priority != MorguePriority || MorguePriority == domain.CriticalPriority {
+		t.Fatalf("priority %v", stores[0].Priority)
 	}
-	if got := (StorageRequest{Layout: &LayoutPlan{}, Rooms: &rooms}).morgueSites(); len(got) != 0 {
-		t.Fatalf("no planned morgue, no site: %+v", got)
+	if got := (burialOwner{}).Stores(StorageRequest{Layout: &LayoutPlan{}}); len(got) != 0 {
+		t.Fatalf("no planned morgue, no store: %+v", got)
 	}
 }
 
-func TestMorgueFilterKeepsColonistsAndRottenCorpsesOut(t *testing.T) {
+func TestMorgueFilterHoldsEveryHumanCorpse(t *testing.T) {
 	f := domain.MorgueCorpsesFilter()
-	for _, name := range []string{"AllowRotten", "AllowCorpsesColonist", "AllowCorpsesSlave"} {
-		if !containsSelector(f.Disallow(), domain.SpecialFilter(name)) {
-			t.Errorf("%s allowed", name)
-		}
-	}
-	if containsSelector(f.Disallow(), domain.SpecialFilter("AllowCorpsesStranger")) {
-		t.Error("strangers refused")
+	if len(f.Disallow()) != 0 {
+		t.Errorf("disallows %v", f.Disallow())
 	}
 	if !containsSelector(domain.TombCorpsesFilter().Disallow(), domain.SpecialFilter("AllowCorpsesStranger")) {
 		t.Error("the tomb competes for strangers")

@@ -99,9 +99,6 @@ func (r *RoundsWastePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoundsWasteResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	if result, handled, err := r.stageTomb(call, epoch, state, review, goal, arbiter, expected); err != nil || handled {
-		return result, err
-	}
 	started := r.reviewer.clock.Now()
 	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {

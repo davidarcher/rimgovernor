@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Staging the tomb (#832). A dead colonist in a sarcophagus gives every
+// Staging the tomb (#832, #2196). A dead colonist in a sarcophagus gives every
 // colonist KnowBuriedInSarcophagus (+4 mood, 8 days, stacking), so once
 // ComplexFurniture makes the sarcophagus available, a colonist corpse
 // with no empty grave waiting raises a planned tomb's shell and then
@@ -10,9 +10,12 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // the ring, the floor and the piece, installed from packed stock first. The memory comes only from a
 // sarcophagus's first burial, so a filled one is never reused: when every
 // planned tomb is full the plan grows another (#857). Where no sarcophagus
-// can be had (research, stuff, or no room for another tomb) a plain Grave
-// takes the body instead. Vanilla haulers inter colonist corpses in any
-// empty grave on their own; nothing here hauls.
+// can be had (research or stuff) a plain Grave takes the body instead, placed
+// only in the next free slot of a planned graveyard (GraveyardSlots); the
+// graveyard's fence and gate are raised with the grave. When the graveyard
+// has no slot left the body waits in the morgue and the department asks layout
+// for a further graveyard (GraveyardsWanted). Vanilla haulers inter colonist
+// corpses in any empty grave on their own; nothing here hauls.
 
 // GraveDefinition is Core's plain grave: 1x2, no stuff, no research.
 const GraveDefinition = "Grave"
@@ -25,14 +28,13 @@ const (
 	// planned tomb, or a fact is unknown.
 	TombNone TombStepKind = ""
 	// TombReconcile: reconcile Room, the planned tomb, to Template, its next
-	// free sarcophagus (ReconcileRoom): the ring, the floor and the piece,
+	// free sarcophagus, or Room, the planned graveyard, to Template, its next
+	// free grave (ReconcileRoom): the ring, the floor and the piece,
 	// whatever the diff still owes. There is no shell or place step.
 	TombReconcile TombStepKind = "reconcile"
 	// TombFull: every planned tomb's slots are taken; the plan owes
-	// another tomb room, or a grave when none fits.
+	// another tomb room.
 	TombFull TombStepKind = "full"
-	// TombGrave: no sarcophagus can be had; place a plain grave.
-	TombGrave TombStepKind = "grave"
 )
 
 // TombStep is one bounded step towards a grave for every dead colonist.
@@ -40,7 +42,7 @@ type TombStep struct {
 	Kind TombStepKind
 	Room PlannedRoom
 	// Template is a TombReconcile's wanted furniture: the next free
-	// sarcophagus in its slot.
+	// sarcophagus or grave in its slot.
 	Template []WantedPiece
 	// Dead is the unburied colonist corpses; Empty the empty graves and
 	// sarcophagi; Graves the plain graves standing.
@@ -108,16 +110,23 @@ pieces:
 }
 
 // NextTombStep picks the next tomb step from the plan, the waste census and
-// the colony's built buildings. sarcophagus is false
-// when none can be had (unresearched, no stuff), which leaves a grave.
+// the colony's built buildings. sarcophagus is false when none can be had
+// (unresearched, no stuff), which leaves a grave in the planned graveyard; with
+// no free grave slot there is no step, the body waits and the graveyard is
+// asked for again (GraveyardsWanted).
 func NextTombStep(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, shapes PieceShapes, sarcophagus bool) TombStep {
 	step, taken := tombCensus(waste, built, shapes.Furniture.Sarcophagus)
 	if step.Dead == 0 || step.Empty >= step.Dead {
 		return TombStep{}
 	}
 	if !sarcophagus {
-		step.Kind = TombGrave
-		return step
+		for _, r := range plan.roomsOf(PlannedGraveyard) {
+			if piece, ok := graveSlot(r, taken); ok {
+				step.Room, step.Kind, step.Template = r, TombReconcile, []WantedPiece{piece.Wanted()}
+				return step
+			}
+		}
+		return TombStep{}
 	}
 	for _, r := range plan.AllRooms() {
 		if r.Role != PlannedTomb {
@@ -157,10 +166,13 @@ func TombOwed(shapes PieceShapes, available domain.Fact[bool], plan domain.Fact[
 	if !wk || !bk || !b.Colony {
 		return domain.Unknown[bool]()
 	}
-	if ak && !a {
-		return domain.Known(NextTombStep(LayoutPlan{}, w, b.Buildings, shapes, false).Kind != TombNone)
+	if !pk {
+		return domain.Unknown[bool]()
 	}
-	if !ak || !pk || !rk {
+	if ak && !a {
+		return domain.Known(NextTombStep(p, w, b.Buildings, shapes, false).Kind != TombNone)
+	}
+	if !ak || !rk {
 		return domain.Unknown[bool]()
 	}
 	return domain.Known(NextTombStep(p, w, b.Buildings, shapes, true).Kind != TombNone)

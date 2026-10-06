@@ -80,6 +80,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/burial"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/campaign"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/child"
