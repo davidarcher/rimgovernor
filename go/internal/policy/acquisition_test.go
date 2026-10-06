@@ -138,3 +138,23 @@ func TestHuntSelectionPrefersTheSafeDeerOverTheHerd(t *testing.T) {
 		t.Fatal("herd revenge cost not above the deer's", muffalo, deer)
 	}
 }
+
+func TestChopGateOffersPlantationTreesOnlyAtMinimumGrowth(t *testing.T) {
+	plantation := func(id string, growth float64) AcquisitionSource {
+		return AcquisitionSource{ID: id, Resource: "WoodLog", Tree: true, Plantation: true, Growth: growth, Yield: 20}
+	}
+	wild := AcquisitionSource{ID: "wild", Resource: "WoodLog", Tree: true, Growth: 0.1, Yield: 20}
+	crop := AcquisitionSource{ID: "rice", Resource: "RawRice", Growth: 0.2, Yield: 5, Food: true}
+	const gate = 0.7
+	for _, c := range []struct {
+		row   AcquisitionSource
+		below bool
+	}{{plantation("young", 0.69), true}, {plantation("at", gate), false}, {plantation("old", 1), false}, {wild, false}, {crop, false}} {
+		if got := c.row.BelowChopGate(gate); got != c.below {
+			t.Fatalf("%s: BelowChopGate(%v) = %v, want %v", c.row.ID, gate, got, c.below)
+		}
+		if c.row.BelowChopGate(0) {
+			t.Fatalf("%s: a zero gate held a row", c.row.ID)
+		}
+	}
+}

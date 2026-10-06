@@ -234,3 +234,19 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 		}
 	}
 }
+
+func TestCooledSourcesHoldsUndesignatedPlantationTreesUnderTheChopGate(t *testing.T) {
+	tree := func(id string, growth float64, designated bool) policy.AcquisitionSource {
+		return policy.AcquisitionSource{ID: id, Resource: "WoodLog", Tree: true, Plantation: true, Growth: growth, Designated: designated}
+	}
+	rows := domain.Known([]policy.AcquisitionSource{tree("young", 0.5, false), tree("ready", 0.8, false), tree("young-designated", 0.5, true),
+		{ID: "wild", Resource: "WoodLog", Tree: true, Growth: 0.1}})
+	never := func(string) bool { return false }
+	held := cooledSources(rows, 0.7, never)
+	if len(held) != 1 || !held["young"] {
+		t.Fatalf("held = %v, want only the young undesignated plantation tree", held)
+	}
+	if held = cooledSources(rows, 0, never); len(held) != 0 {
+		t.Fatalf("a zero gate held %v", held)
+	}
+}

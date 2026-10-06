@@ -23,6 +23,9 @@ func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
 		if row.GetHunt() && (row.RevengeChance == nil || !combatNumber(row.RevengeChance, true) || row.GetRevengeChance() > 1 || row.HerdSize == nil || row.GetHerdSize() == 0 || row.GetHerdSize() > 65536 || row.MeleeOnly == nil || row.Downed == nil || row.BodySize != nil && !combatNumber(row.BodySize, true)) {
 			return contract("missing or invalid hunt cost facts")
 		}
+		if row.GetPlantation() && (!row.GetTree() || row.GetHunt() || row.Growth == nil || !combatNumber(row.Growth, true) || row.GetGrowth() > 1) || row.Growth != nil && (row.GetHunt() || !combatNumber(row.Growth, true) || row.GetGrowth() > 1) {
+			return contract("invalid plantation tree or growth fraction")
+		}
 		if row.GetHunt() && (v.HuntCensus == nil || row.Fogged == nil || row.InMentalState == nil) {
 			return contract("hunt row without the hunt census or its fogged and mental-state facts")
 		}

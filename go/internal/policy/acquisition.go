@@ -34,6 +34,19 @@ type AcquisitionSource struct {
 	// colonist's current job targets the source (#1043).
 	DesignatedTick domain.Tick
 	Taken          bool
+	// Growth is a plant row's growth fraction (0..1). Plantation marks a sown
+	// tree of a harvest-destroys crop in a growing zone (#2292): the only
+	// zone plant chop acquisition may offer, and only at or above the chop
+	// gate (BelowChopGate). Wild trees ignore growth.
+	Growth     float64
+	Plantation bool
+}
+
+// BelowChopGate reports whether the row is a plantation tree still under the
+// minimum growth fraction the chop selection requires (RoundsPolicy.ChopMinGrowth).
+// Wild trees and every other row are never below it.
+func (s AcquisitionSource) BelowChopGate(minGrowth float64) bool {
+	return s.Plantation && s.Tree && s.Growth < minGrowth
 }
 
 // SelectAcquisition prefers forage, then downed prey and lower herd revenge cost.

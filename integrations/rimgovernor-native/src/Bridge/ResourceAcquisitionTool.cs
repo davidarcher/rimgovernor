@@ -42,10 +42,14 @@ namespace HomeBridge.BridgeTools
                 || job.targetQueueA?.Any(q => q.Thing == t) == true || job.targetQueueB?.Any(q => q.Thing == t) == true));
         internal static Designator DesignatorFor(Thing t) => t is Mineable ? (Designator)new Designator_Mine() :
             t.def.plant.IsTree ? new Designator_PlantsHarvestWood() : new Designator_PlantsHarvest();
+        // Plantation (#2292): a sown tree of a harvest-destroys crop standing in a growing zone. It is the one
+        // growing-zone plant chop acquisition may take (early felling); crops and wild trees stay as they were.
+        internal static bool Plantation(Plant plant) => plant.sown && plant.def.plant.IsTree && plant.def.plant.HarvestDestroys
+            && plant.Map.zoneManager.ZoneAt(plant.Position) is Zone_Growing;
         internal static bool Eligible(Thing t, Map map)
         {
             if (!t.Spawned || t.Position.Fogged(map) || t.IsForbidden(Faction.OfPlayer) || Product(t) == null) return false;
-            if (t is Plant plant && (!plant.HarvestableNow || map.zoneManager.ZoneAt(t.Position) is Zone_Growing)) return false;
+            if (t is Plant plant && (!plant.HarvestableNow || map.zoneManager.ZoneAt(t.Position) is Zone_Growing && !Plantation(plant))) return false;
             if (t is Mineable && MiningBlocker(t, map) != null) return false;
             var work = t is Mineable ? WorkTypeDefOf.Mining : WorkTypeDefOf.PlantCutting;
             return (t is Plant || t is Mineable) && (Designated(t) || DesignatorFor(t).CanDesignateThing(t).Accepted) && map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted

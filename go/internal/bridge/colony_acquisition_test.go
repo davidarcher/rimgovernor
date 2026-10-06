@@ -17,6 +17,11 @@ func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 	if err := validateColonyAcquisition(base); err != nil {
 		t.Fatal(err)
 	}
+	plantation := proto.Clone(base).(*o.ColonyFactsSnapshot)
+	plantation.Acquisition[0].Plantation, plantation.Acquisition[0].Growth = proto.Bool(true), proto.Float64(0.5)
+	if err := validateColonyAcquisition(plantation); err != nil {
+		t.Fatal(err)
+	}
 	designated := proto.Clone(base).(*o.ColonyFactsSnapshot)
 	designated.Acquisition[0].Designated, designated.Acquisition[0].DesignatedTick = proto.Bool(true), proto.Int64(designated.Context.GetTick())
 	if err := validateColonyAcquisition(designated); err != nil {
@@ -31,6 +36,15 @@ func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 			v.Acquisition[0].Designated, v.Acquisition[0].DesignatedTick = proto.Bool(true), proto.Int64(v.Context.GetTick()+1)
 		},
 		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Taken = nil },
+		// #2292: a plantation row needs a tree and an in-range growth; growth is bounded on every row.
+		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Plantation = proto.Bool(true) },
+		func(v *o.ColonyFactsSnapshot) {
+			v.Acquisition[0].Plantation, v.Acquisition[0].Growth = proto.Bool(true), proto.Float64(1.5)
+		},
+		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Growth = proto.Float64(-0.1) },
+		func(v *o.ColonyFactsSnapshot) {
+			v.Acquisition[0].Tree, v.Acquisition[0].Plantation, v.Acquisition[0].Growth = proto.Bool(false), proto.Bool(true), proto.Float64(0.5)
+		},
 		func(v *o.ColonyFactsSnapshot) {
 			v.Acquisition[0].SourceSnapshot.Context.Tick = proto.Int64(v.Context.GetTick() + 1)
 		},

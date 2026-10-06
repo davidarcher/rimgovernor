@@ -123,7 +123,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		}
 	}
 	progress, _ := review.ConcernProgress(policy.MaintainResource)
-	held := cooledSources(projection.Acquisition, func(id string) bool {
+	held := cooledSources(projection.Acquisition, r.policy.ChopMinGrowth, func(id string) bool {
 		return acquisitionCooled(progress, r.policy, id, expected.Tick)
 	})
 	busy := holdWorked(projection.Acquisition, undispatched, held)

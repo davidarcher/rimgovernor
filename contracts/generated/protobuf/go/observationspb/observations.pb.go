@@ -26807,6 +26807,12 @@ type AcquisitionFacts struct {
 	// policy then decides. fogged and in_mental_state are native's current reading of the animal.
 	Fogged        *bool `protobuf:"varint,20,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
 	InMentalState *bool `protobuf:"varint,21,opt,name=in_mental_state,json=inMentalState,proto3,oneof" json:"in_mental_state,omitempty"`
+	// Plant rows (#2292): growth is the plant's growth fraction (0..1) on every plant row.
+	// plantation marks a sown tree of a harvest-destroys crop standing in a growing zone
+	// (RimWorld's growers fell it only at maturity; Go may fell it earlier); wild trees and
+	// crops in a zone never carry it.
+	Growth        *float64 `protobuf:"fixed64,22,opt,name=growth,proto3,oneof" json:"growth,omitempty"`
+	Plantation    *bool    `protobuf:"varint,23,opt,name=plantation,proto3,oneof" json:"plantation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -26977,6 +26983,20 @@ func (x *AcquisitionFacts) GetFogged() bool {
 func (x *AcquisitionFacts) GetInMentalState() bool {
 	if x != nil && x.InMentalState != nil {
 		return *x.InMentalState
+	}
+	return false
+}
+
+func (x *AcquisitionFacts) GetGrowth() float64 {
+	if x != nil && x.Growth != nil {
+		return *x.Growth
+	}
+	return 0
+}
+
+func (x *AcquisitionFacts) GetPlantation() bool {
+	if x != nil && x.Plantation != nil {
+		return *x.Plantation
 	}
 	return false
 }
@@ -47789,7 +47809,7 @@ const file_observations_proto_rawDesc = "" +
 	"autoRefuel\x88\x01\x01\x12O\n" +
 	"\x0ebench_snapshot\x18\b \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\rbenchSnapshotB\t\n" +
 	"\a_usableB\x0e\n" +
-	"\f_auto_refuel\"\x82\b\n" +
+	"\f_auto_refuel\"\xde\b\n" +
 	"\x10AcquisitionFacts\x122\n" +
 	"\x06source\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06source\x12Q\n" +
 	"\x0fsource_snapshot\x18\x10 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\x0esourceSnapshot\x12\x1f\n" +
@@ -47815,7 +47835,11 @@ const file_observations_proto_rawDesc = "" +
 	"\bsleeping\x18\x12 \x01(\bH\x0eR\bsleeping\x88\x01\x01\x12\x1f\n" +
 	"\bpredator\x18\x13 \x01(\bH\x0fR\bpredator\x88\x01\x01\x12\x1b\n" +
 	"\x06fogged\x18\x14 \x01(\bH\x10R\x06fogged\x88\x01\x01\x12+\n" +
-	"\x0fin_mental_state\x18\x15 \x01(\bH\x11R\rinMentalState\x88\x01\x01B\v\n" +
+	"\x0fin_mental_state\x18\x15 \x01(\bH\x11R\rinMentalState\x88\x01\x01\x12\x1b\n" +
+	"\x06growth\x18\x16 \x01(\x01H\x12R\x06growth\x88\x01\x01\x12#\n" +
+	"\n" +
+	"plantation\x18\x17 \x01(\bH\x13R\n" +
+	"plantation\x88\x01\x01B\v\n" +
 	"\t_resourceB\a\n" +
 	"\x05_treeB\a\n" +
 	"\x05_foodB\b\n" +
@@ -47835,7 +47859,9 @@ const file_observations_proto_rawDesc = "" +
 	"\t_sleepingB\v\n" +
 	"\t_predatorB\t\n" +
 	"\a_foggedB\x12\n" +
-	"\x10_in_mental_stateJ\x04\b\r\x10\x0eR\fweapon_range\"\xd8\x03\n" +
+	"\x10_in_mental_stateB\t\n" +
+	"\a_growthB\r\n" +
+	"\v_plantationJ\x04\b\r\x10\x0eR\fweapon_range\"\xd8\x03\n" +
 	"\rHuntVerbFacts\x12\x19\n" +
 	"\x05melee\x18\x01 \x01(\bH\x00R\x05melee\x88\x01\x01\x12 \n" +
 	"\tai_weapon\x18\x02 \x01(\bH\x01R\baiWeapon\x88\x01\x01\x12\x19\n" +

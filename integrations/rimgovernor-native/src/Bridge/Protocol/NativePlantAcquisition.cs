@@ -18,7 +18,6 @@ namespace HomeBridge.BridgeTools
     internal static class NativePlantAcquisition
     {
         private static bool Eligible(Plant plant) => ProtoBoundary.IsLoaded(plant.Map) && ResourceAcquisitionTools.Eligible(plant, plant.Map)
-            && !(plant.Map.zoneManager.ZoneAt(plant.Position) is Zone_Growing)
             && plant.Map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, plant));
         internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
@@ -41,6 +40,7 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.AcquisitionFacts {
                     Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context),
                     Resource = resource.defName, Tree = plant.def.plant.IsTree, Food = food, Yield = yield,
+                    Growth = plant.Growth, Plantation = ResourceAcquisitionTools.Plantation(plant),
                     NutritionYield = food ? yield * resource.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
                     Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };
                 var tick = ResourceAcquisitionTools.DesignatedTick(plant, designated);
@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
                 .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
                 .Require(() => found!.HarvestableNow, "the plant is not harvestable now")
-                .Require(() => !(map.zoneManager.ZoneAt(found!.Position) is Zone_Growing), "the plant stands in a growing zone")
+                .Require(() => !(map.zoneManager.ZoneAt(found!.Position) is Zone_Growing) || ResourceAcquisitionTools.Plantation(found), "the plant stands in a growing zone and is not a sown tree")
                 .Require(() => !ResourceAcquisitionTools.Designated(found!), "the plant is already designated")
                 .Require(() => ResourceAcquisitionTools.DesignatorFor(found!).CanDesignateThing(found).Accepted, "the native designator refuses the plant")
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found!)), "no free colonist with plant cutting enabled can reach the plant");

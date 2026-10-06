@@ -68,6 +68,10 @@ type RoundsPolicy struct {
 	FoodReserveDays                               float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
 	WoodMin, WoodTarget, WoodMax                  int64
+	// ChopMinGrowth (#2292) is the growth fraction a plantation tree must
+	// reach before chop selection offers it; 0 offers every harvestable one.
+	// Wild trees ignore it.
+	ChopMinGrowth float64
 	// HuntStallTicks bounds how long a dispatched Hunt-kind acquisition action
 	// may sit unresolved before RoundsAcquisitionPlanner abandons it and lets
 	// a fresh SelectAcquisition pass propose something else. Native's own
@@ -173,6 +177,9 @@ func (p RoundsPolicy) Validate() error {
 		p.ColdEnter >= p.ColdExit || p.ColdExit >= p.HotExit || p.HotExit >= p.HotEnter ||
 		p.WoodMin < 0 || p.WoodTarget <= p.WoodMin || p.WoodMax < p.WoodTarget {
 		return errors.New("unordered routine thresholds")
+	}
+	if !(p.ChopMinGrowth >= 0 && p.ChopMinGrowth <= 1) {
+		return errors.New("invalid chop minimum growth")
 	}
 	if p.PrisonerReleaseAfterDays < 0 || p.PrisonerReleaseAfterDays > 120 {
 		return errors.New("invalid prisoner release threshold")

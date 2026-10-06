@@ -168,7 +168,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	held := map[string]bool{}
 	if !pest {
-		held = cooledSources(projection.Acquisition, func(id string) bool {
+		held = cooledSources(projection.Acquisition, r.reviewer.policy.ChopMinGrowth, func(id string) bool {
 			return cooled[id] || acquisitionCooled(progress, r.reviewer.policy, id, expected.Tick)
 		})
 	}
@@ -395,11 +395,12 @@ func acquisitionCooled(progress policy.ConcernProgress, p policy.RoundsPolicy, t
 
 // cooledSources are the census rows cooled reports: passed over like held
 // ones, the cooldown lifting by itself at its bound, never a permanent ban.
-func cooledSources(sources domain.Fact[[]policy.AcquisitionSource], cooled func(string) bool) map[string]bool {
+func cooledSources(sources domain.Fact[[]policy.AcquisitionSource], minGrowth float64, cooled func(string) bool) map[string]bool {
 	held := map[string]bool{}
 	if rows, known := sources.Value(); known {
 		for _, row := range rows {
-			if cooled(row.ID) {
+			// An undesignated plantation tree under the chop gate is not offered (#2292).
+			if cooled(row.ID) || !row.Designated && row.BelowChopGate(minGrowth) {
 				held[row.ID] = true
 			}
 		}
