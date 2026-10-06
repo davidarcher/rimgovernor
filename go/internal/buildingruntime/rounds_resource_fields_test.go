@@ -79,3 +79,36 @@ func TestResourceSupplyOpenedFields(t *testing.T) {
 		t.Fatalf("a closed field is not placed: %+v", got)
 	}
 }
+
+// The medical reserve (#2286) leaves an herbal deficit to a field only when
+// the plan opened one (or one stands) and opened no wild source: a wild plant
+// the plan priced cheaper keeps the harvest.
+func TestResourceSupplyFieldRoute(t *testing.T) {
+	healroot := policy.FieldPlan{Crop: policy.CropChoice{Name: "Plant_Healroot"}, Needed: 4}
+	entry := func(id string) policy.SupplyEntry {
+		return policy.SupplyEntry{Decision: policy.SupplyOpen, Candidate: policy.SupplyCandidate{Kind: policy.CandidateHarvest, ID: id, Yields: []policy.CandidateYield{{Good: policy.ResourceKey{Def: "MedicineHerbal"}}}}}
+	}
+	supply := func(row *resourceSupplyRow, entries ...policy.SupplyEntry) *resourceSupply {
+		return &resourceSupply{
+			rows: map[policy.Resource]*resourceSupplyRow{"MedicineHerbal": row},
+			plan: policy.ResourceSupply{Plan: policy.SupplyPlan{Portfolio: entries}},
+		}
+	}
+	fields := map[string]policy.FieldPlan{"field:Plant_Healroot": healroot}
+	if !supply(&resourceSupplyRow{fields: fields}, entry("field:Plant_Healroot")).fieldRoute("MedicineHerbal") {
+		t.Fatal("an opened field is the route when no wild plant is")
+	}
+	wild := &resourceSupplyRow{fields: fields, open: []policy.AcquisitionSource{{ID: "healroot0", Resource: "MedicineHerbal"}}}
+	if supply(wild, entry("field:Plant_Healroot"), entry("healroot0")).fieldRoute("MedicineHerbal") {
+		t.Fatal("an opened wild plant keeps the harvest")
+	}
+	if supply(&resourceSupplyRow{}).fieldRoute("MedicineHerbal") {
+		t.Fatal("no field, no route")
+	}
+	if !supply(&resourceSupplyRow{standing: 3}).fieldRoute("MedicineHerbal") {
+		t.Fatal("a standing field is the route")
+	}
+	if supply(&resourceSupplyRow{standing: 3}).fieldRoute("Steel") {
+		t.Fatal("an unplanned resource has no route")
+	}
+}

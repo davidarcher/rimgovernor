@@ -256,6 +256,24 @@ func (r *RoundsMedicalPlanner) harvestMedicine(call, epoch context.Context, stat
 	if replenish <= 0 {
 		return RoundsMedicalResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
+	// The herbal floor is also a MaintainResource demand (#2286): when its
+	// supply plan serves it with a cultivated field (opened or standing) and
+	// priced out every wild plant, the field is the route.
+	review, err := p.journal.LoadRounds(call)
+	if err != nil {
+		return RoundsMedicalResult{}, err
+	}
+	if supplyGoal, workable, err := p.journal.Workable(call, review, policy.MaintainResource); err != nil {
+		return RoundsMedicalResult{}, err
+	} else if workable {
+		supply, err := r.reviewer.resourceSupply(call, state, review, supplyGoal)
+		if err != nil {
+			return RoundsMedicalResult{}, err
+		}
+		if supply.fieldRoute(medicineResource) {
+			return RoundsMedicalResult{Verdict: waitFor(WaitMethodUsed, "medicine_field")}, nil
+		}
+	}
 	sources := observation.ColonyAcquisition(observed, tables)
 	rows, known := sources.Value()
 	if !known {

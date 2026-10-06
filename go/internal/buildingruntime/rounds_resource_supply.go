@@ -43,6 +43,8 @@ type resourceSupplyRow struct {
 	// fields are the new fields the plan priced (#2284) by candidate ID: the
 	// crop, cells and patches the field step (#2285) places when the plan opened it.
 	fields map[string]policy.FieldPlan
+	// standing is the units the standing fields of the resource's crops deliver.
+	standing int64
 }
 
 type resourceSupply struct {
@@ -202,7 +204,8 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		}
 		// Standing fields of the resource's crops count like designated
 		// sources; a new field is priced for what is still short.
-		need -= fieldPlanner.standing(resource)
+		row.standing = fieldPlanner.standing(resource)
+		need -= row.standing
 		if need > 0 && fieldPlanner.serves(resource) {
 			candidate, plan, ok, err := fieldPlanner.candidate(resource, need)
 			if err != nil {
@@ -342,6 +345,23 @@ func (s *resourceSupply) openedFields() []policy.FieldPlan {
 		}
 	}
 	return out
+}
+
+// fieldRoute is whether a field serves resource and no census row does: the
+// plan opened a new field for it or a standing field already counts toward it,
+// and the plan opened no wild source. The medical reserve (#2286) leaves such
+// a deficit to the field rather than harvest what the plan priced out.
+func (s *resourceSupply) fieldRoute(resource policy.Resource) bool {
+	row := s.rows[resource]
+	if row == nil || len(s.acquisitions(resource)) > 0 {
+		return false
+	}
+	for _, e := range s.plan.Opened(resource) {
+		if _, ok := row.fields[e.Candidate.ID]; ok && e.Candidate.Kind == policy.CandidateHarvest {
+			return true
+		}
+	}
+	return row.standing > 0
 }
 
 // tradeLines are the units of each resource the plan opened to buy from
