@@ -8,15 +8,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The resource ranking tests run against both RankResourceCandidates and
-// PlanSupply through the adapters below until the cut-over (#2160).
-
-type rankResourceFunc func(domain.Fact[[]ResourceDemand], []AcquisitionCandidate, AcquisitionCompetition) ([]AcquisitionScore, error)
-type scoreResourceFunc func(domain.Fact[[]ResourceDemand], AcquisitionCandidate, AcquisitionCompetition) (AcquisitionScore, error)
-
-func eachResourceRanker(t *testing.T, f func(*testing.T, rankResourceFunc, scoreResourceFunc)) {
-	t.Run("RankResourceCandidates", func(t *testing.T) { f(t, RankResourceCandidates, ScoreResourceCandidate) })
-	t.Run("PlanSupply", func(t *testing.T) { f(t, rankBySupply, scoreBySupply) })
+// The resource ranking tests run through PlanSupply: supplyScore reads a plan
+// entry back as a candidate's score, hold and demanded units.
+type supplyScore struct {
+	ID     string
+	Kind   AcquisitionKind
+	Score  float64
+	Wanted int64
+	Trips  int64
+	Value  float64
+	Hold   string
 }
 
 func planAcquisitions(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandidate, c AcquisitionCompetition) (SupplyPlan, error) {
@@ -39,11 +40,11 @@ func planAcquisitions(demand domain.Fact[[]ResourceDemand], cands []AcquisitionC
 // scoresOfSupply reads a plan back as acquisition scores in rank order: the
 // holds an acquisition scores by itself are score 0 with a Hold, the rest
 // carry the independent score.
-func scoresOfSupply(p SupplyPlan) []AcquisitionScore {
-	var out []AcquisitionScore
+func scoresOfSupply(p SupplyPlan) []supplyScore {
+	var out []supplyScore
 	for _, e := range append(append([]SupplyEntry(nil), p.Portfolio...), p.Unknown...) {
 		kind, _ := acquisitionKindOf(e.Candidate.Kind)
-		s := AcquisitionScore{ID: e.Candidate.ID, Kind: kind, Wanted: e.Wanted, Trips: e.Trips, Value: e.Value}
+		s := supplyScore{ID: e.Candidate.ID, Kind: kind, Wanted: e.Wanted, Trips: e.Trips, Value: e.Value}
 		switch {
 		case strings.HasPrefix(e.Reason, "unknown"):
 			s.Hold = "unknown_demand_or_cost"
@@ -57,12 +58,12 @@ func scoresOfSupply(p SupplyPlan) []AcquisitionScore {
 	return out
 }
 
-func rankBySupply(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandidate, c AcquisitionCompetition) ([]AcquisitionScore, error) {
+func rankBySupply(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandidate, c AcquisitionCompetition) ([]supplyScore, error) {
 	p, err := planAcquisitions(demand, cands, c)
 	if err != nil {
 		return nil, err
 	}
-	var ranked []AcquisitionScore
+	var ranked []supplyScore
 	for _, s := range scoresOfSupply(p) {
 		if s.Score > 0 {
 			ranked = append(ranked, s)
@@ -71,10 +72,10 @@ func rankBySupply(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandi
 	return ranked, nil
 }
 
-func scoreBySupply(demand domain.Fact[[]ResourceDemand], cand AcquisitionCandidate, c AcquisitionCompetition) (AcquisitionScore, error) {
+func scoreBySupply(demand domain.Fact[[]ResourceDemand], cand AcquisitionCandidate, c AcquisitionCompetition) (supplyScore, error) {
 	p, err := planAcquisitions(demand, []AcquisitionCandidate{cand}, c)
 	if err != nil {
-		return AcquisitionScore{}, err
+		return supplyScore{}, err
 	}
 	return scoresOfSupply(p)[0], nil
 }

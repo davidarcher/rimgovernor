@@ -181,7 +181,7 @@ func TestRoundsTradeTargetsBuyCheapestMedicineThenSellSurplus(t *testing.T) {
 }
 
 // A MaintainResource floor short of stock is a trade need and a buy
-// target up to the floor (#728).
+// target up to the floor.
 func TestTradeBuysResourceShortfall(t *testing.T) {
 	need, _ := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "WoodLog", Count: 50}}), map[Resource]int64{"WoodLog": 200}, nil, domain.Unknown[WealthFacts](), RoundsTradePolicy{}).Value()
 	if !need.Any() || len(need.Shortfall) != 1 || need.Shortfall[0] != (Amount{Resource: "WoodLog", Count: 150}) {

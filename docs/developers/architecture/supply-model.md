@@ -24,12 +24,9 @@ and ledger's rule ([Credit and state](#credit-and-state)).
 
 ## Adapters
 
-`SupplyCandidateOfFood` / `FoodChannelOfSupply` and
-`SupplyCandidateOfAcquisition` / `AcquisitionCandidateOfSupply` convert
-`FoodChannel` and `AcquisitionCandidate` losslessly. `RankResourceCandidates`
-still consumes the old type; the snapshot golden test proves the food plan and
-the ranking identical through the adapters on every recorded food plan and
-acquisition census. A food channel maps to `delivering` when `Open` (observed
+`SupplyCandidateOfFood` / `FoodChannelOfSupply` convert a `FoodChannel`, and
+`SupplyCandidateOfAcquisition` an `AcquisitionCandidate`, to a candidate;
+`PlanSupply` is the only ranker. A food channel maps to `delivering` when `Open` (observed
 delivering), `designated` when committed and not yet delivering, else `closed`;
 an acquisition candidate is a lead-0 one-shot whose labor is its
 upfront cost, with hunt revenge risk left inside that labor.

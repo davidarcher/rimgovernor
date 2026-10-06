@@ -211,27 +211,6 @@ func SupplyCandidateOfAcquisition(c AcquisitionCandidate) SupplyCandidate {
 	return out
 }
 
-// AcquisitionCandidateOfSupply is the acquisition candidate of a one-shot candidate
-// (every yield stock-capped); ok is false for any other candidate.
-func AcquisitionCandidateOfSupply(c SupplyCandidate) (AcquisitionCandidate, bool) {
-	kind, ok := acquisitionKindOf(c.Kind)
-	if !ok {
-		return AcquisitionCandidate{}, false
-	}
-	out := AcquisitionCandidate{
-		ID: c.ID, Kind: kind, PathDistance: c.PathDistance, Labor: c.UpfrontCost.LaborTicks,
-		NeedsHaul: c.NeedsHaul, UnitsPerTrip: c.UnitsPerTrip,
-	}
-	for _, y := range c.Yields {
-		count, capped := y.StockCap.Value()
-		if !capped {
-			return AcquisitionCandidate{}, false
-		}
-		out.Yields = append(out.Yields, AcquisitionYield{ResourceQuantity: ResourceQuantity{Key: y.Good, Count: count}, UnitValue: y.UnitValue, Headroom: y.Headroom})
-	}
-	return out, true
-}
-
 func foodKindOf(k CandidateKind) (FoodChannelKind, bool) {
 	for food, kind := range foodCandidateKinds {
 		if kind == k {

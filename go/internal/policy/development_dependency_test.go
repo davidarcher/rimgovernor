@@ -203,7 +203,7 @@ func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 }
 
 // A shortfall in any resource but wood routes to MaintainResource and
-// raises that resource's floor to the open costs (#728).
+// raises that resource's floor to the open costs.
 func TestNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	if g, ok := ResourcePrerequisite("Steel"); !ok || g != MaintainResource {
 		t.Fatal(g, ok)

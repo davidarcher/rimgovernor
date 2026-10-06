@@ -22,7 +22,7 @@ import (
 // dependent actions still open and the current usable stock.
 
 // ResourcePrerequisite is the goal that acquires resource: MaintainResource
-// for every definition (#728).
+// for every definition.
 func ResourcePrerequisite(resource Resource) (ConcernID, bool) {
 	if validResource(resource) {
 		return MaintainResource, true
@@ -272,7 +272,7 @@ func ResolveDonations(goals []DevelopmentConcern, deps []DevelopmentDependency) 
 }
 
 // DependencyResourceNeeds are the stock floors MaintainResource's live
-// shortfall edges ask for (#728): per resource, the open dependent costs,
+// shortfall edges ask for: per resource, the open dependent costs,
 // each action once, wherever the freshest known stock falls short of them.
 // ResourceGoalTargets merges them into the configured targets, so a goal
 // admitted short of any resource raises its acquisition.

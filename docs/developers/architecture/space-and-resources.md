@@ -77,9 +77,8 @@ open; the planners do not rank:
 - A caravan's recorded offers are candidates (priced as labor, stock-capped by
   the deficit, the trader's stock and the affordable units), and trade buys only
   the lines the plan opened ([trade offers](supply-model.md#trade-offers)). The
-  plan's winner for a resource is posted as the single resource bid, which only a
-  deep drill outranks.
-- #728 holds: a shelter or bench short of a non-wood resource raises exactly that
+  plan is the only ranker.
+- Shortfall holds: a shelter or bench short of a non-wood resource raises exactly that
   shortfall as a floor (`DependencyNeeds`), and the wood latch (`WoodMin`,
   `WoodTarget`, seasonal scaling) is a floor like any other.
 
@@ -97,15 +96,12 @@ and revalidate safety at dispatch.
 The resource matrix (`buildingruntime/supplysim_resource_test.go`) is the guard
 for this ranker: wood, stone, steel, components and plasteel run over source
 mixes (chop, mine, bill, deep drill, trade, loot, salvage) and the supplysim
-shocks through the real demand functions, catalog candidates, rankers and the
-joint bid board (the deep drill ranks with the mines and bills), asserting that floors are restored, a shortfall edge raises
-only the missing resource, one planner dispatches a resource at a time, bids
-expire with their TTL, a missing source is a hold, and a deep drill needs a
-runway deficit, research and power. Failures that hold today are recorded in
-`testdata/resource-matrix-baseline.json`, which only shrinks. The baseline test
-runs the matrix through `policy.PlanSupply`, the ranker the Round's plan uses
-([supply model](supply-model.md)); the adapter's pre-plan mode (four planners and
-the bid board) remains for row 31 of epic #2140 to delete.
+shocks through the real demand functions, catalog candidates and
+`policy.PlanSupply`, the ranker the Round's plan uses ([supply
+model](supply-model.md)), asserting that floors are restored, a shortfall edge
+raises only the missing resource, a missing source is a hold, and a deep drill
+needs a runway deficit, research and power. Failures that hold today are
+recorded in `testdata/resource-matrix-baseline.json`, which only shrinks.
 
 ## Material runway
 

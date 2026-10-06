@@ -155,7 +155,7 @@ type TradeNeed struct {
 	ComponentShortfall int64
 	Surplus            []Amount
 	Retained           map[Resource]int64
-	// Shortfall is each MaintainResource floor stock is below (#728): a
+	// Shortfall is each MaintainResource floor stock is below: a
 	// caravan selling it is the catalog's trade method.
 	Shortfall []Amount
 	// Population is set while the colony can host one more colonist

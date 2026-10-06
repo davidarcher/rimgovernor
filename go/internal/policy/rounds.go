@@ -508,7 +508,7 @@ type RoundsFacts struct {
 	Wood    domain.Fact[int64]
 	// Dependencies are the live typed shortfall edges (#651) carried from the
 	// last review: an open shortfall raises a MaintainResource floor for
-	// the bounded difference (#711, #728).
+	// the bounded difference (#711).
 	Dependencies []DevelopmentDependency
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
@@ -685,7 +685,7 @@ type RoundsFindings struct {
 	// (#1909), in registry order.
 	NoOps []NoOpRecord `json:",omitempty"`
 	// WoodFloor is the WoodLog stock floor the wood latch asks of
-	// MaintainResource, 0 while the latch is off (#728).
+	// MaintainResource, 0 while the latch is off.
 	WoodFloor int64
 	// ResourceTargets are the effective MaintainResource stock targets the
 	// review held the census to (configured, derived and the wood floor);

@@ -333,7 +333,7 @@ func inspectResearch(c *roundsRun) error {
 
 func inspectResource(c *roundsRun) error {
 	f, p, l := c.f, c.p, c.l
-	// The wood latch is a WoodLog floor on MaintainResource (#728): below
+	// The wood latch is a WoodLog floor on MaintainResource: below
 	// WoodMin it asks for WoodTarget until the latch recovers.
 	c.r.WoodFloor = WoodFloor(l.Wood, p)
 	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(ResourceConcernTargets(MedicineResourceNeeds(f.Items, ResourceConcernTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(c.r.WoodFloor)))
@@ -357,7 +357,7 @@ func inspectResource(c *roundsRun) error {
 	}
 	priority := 4
 	if l.Wood {
-		// Low wood keeps the old wood goal's standing (#728).
+		// Low wood keeps the old wood goal's standing.
 		priority = 3
 	}
 	if !positive(resourceRecovered) {

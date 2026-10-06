@@ -30,8 +30,6 @@ const resourceBaselinePath = "testdata/resource-matrix-baseline.json"
 const (
 	chkRestore = "restore" // the floor is restored within restoreDays of the last shock
 	chkEdge    = "edge"    // a shortfall edge raises exactly the missing resource
-	chkSingle  = "single"  // one planner dispatches a resource per day
-	chkTTL     = "ttl"     // no planner yields to a bid older than its TTL
 	chkHold    = "hold"    // no source: a hold, no dispatch
 	chkGate    = "gate"    // a deep drill only on a runway deficit, with research and power
 	chkDrill   = "drill"   // a deep drill's bid is positive when it is the only source
@@ -53,11 +51,8 @@ type resScenario struct {
 	edgeDay int
 	// lostDay is the day the last source is removed; 0 when one remains.
 	lostDay int
-	// supplyOnly scenarios run through PlanSupply alone: the four planners
-	// never priced a hunt's leather or a field. clothing are the targets
-	// that are clothing-material floors.
-	supplyOnly bool
-	clothing   map[policy.Resource]bool
+	// clothing are the targets that are clothing-material floors.
+	clothing map[policy.Resource]bool
 }
 
 type resFixture struct {
@@ -276,8 +271,7 @@ func resScenarios() []resScenario {
 				w.Shocks = shocks
 				sc := resScenario{name: fmt.Sprintf("%s/%s/%s", g, mix, set), world: w, spec: spec, good: g,
 					targets: map[policy.Resource]int64{"Steel": 200, policy.ComponentResource: 10}, research: f.research,
-					restoreTo: resFixtures[g].restore, days: 70, edgeDay: edge, lostDay: lost,
-					checks: []string{chkSingle, chkTTL}}
+					restoreTo: resFixtures[g].restore, days: 70, edgeDay: edge, lostDay: lost}
 				switch {
 				case lost > 0:
 					sc.checks = append(sc.checks, chkHold)
@@ -333,7 +327,7 @@ func clothingScenarios() []resScenario {
 			clothing[r] = true
 		}
 		return resScenario{name: name, world: w, spec: map[string]resSpec{src.ID: spec}, good: short, targets: targets, restoreTo: f.restore, days: 70,
-			checks: []string{chkRestore, chkSingle, chkTTL}, supplyOnly: true, clothing: clothing}
+			checks: []string{chkRestore}, clothing: clothing}
 	}
 	season := supplysim.Window{Period: 60, From: 0, To: 40}
 	return []resScenario{
@@ -349,11 +343,9 @@ type resRun struct {
 	rep supplysim.Report
 }
 
-func runResScenario(sc resScenario) resRun { return runResScenarioWith(sc, true) }
-
-func runResScenarioWith(sc resScenario, supply bool) resRun {
+func runResScenario(sc resScenario) resRun {
 	pl := newResPlanner(sc.world, sc.spec, sc.targets, sc.research)
-	pl.supply, pl.clothing = supply, sc.clothing
+	pl.clothing = sc.clothing
 	return resRun{sc, pl, supplysim.Run(sc.world, pl, sc.days)}
 }
 
@@ -395,21 +387,6 @@ func (r resRun) verdict(check string) string {
 		}
 		if !hit {
 			return fmt.Sprintf("no %s acquisition within 2 days of the shortfall edge on day %d", sc.good, sc.edgeDay)
-		}
-	case chkSingle:
-		seen := map[string]acquisitionBidder{}
-		for _, e := range pl.events {
-			key := fmt.Sprintf("%d/%s", e.Day, e.Good)
-			if prev, ok := seen[key]; ok && prev != e.Bidder {
-				return fmt.Sprintf("day %d: %s dispatched by %s and %s", e.Day, e.Good, prev, e.Bidder)
-			}
-			seen[key] = e.Bidder
-		}
-	case chkTTL:
-		for _, y := range pl.yields {
-			if y.Rival.tick+acquisitionBidTTL < y.Tick {
-				return fmt.Sprintf("day %d: %s yielded to a bid %d ticks old", y.Day, y.Good, y.Tick-y.Rival.tick)
-			}
 		}
 	case chkHold:
 		holds := 0
@@ -483,9 +460,6 @@ func TestResourceMatrixShrinksBaseline(t *testing.T) {
 	}
 	current := map[string]string{}
 	for _, sc := range scenarios {
-		if sc.supplyOnly {
-			continue
-		}
 		for k, v := range runResScenario(sc).failures() {
 			current[k] = v
 		}
@@ -541,40 +515,6 @@ func TestResourceMatrixReachesEveryAcquisitionKind(t *testing.T) {
 		if !kinds[k] {
 			t.Errorf("no scenario dispatched a %s acquisition", k)
 		}
-	}
-}
-
-// Urgent competing work holds an acquisition at the ranker (the planners pass
-// no urgent priority today, so the hold is a ranker property).
-func TestResourceMatrixUrgentCompetitionHoldsWork(t *testing.T) {
-	t.Parallel()
-	c, ok := policy.TradeCandidate("Steel", "trader", 100, 8)
-	if !ok {
-		t.Fatal("candidate")
-	}
-	demand := policy.ResourceDeficitDemand("Steel", 100)
-	ranked, err := policy.RankResourceCandidates(demand, []policy.AcquisitionCandidate{c}, policy.AcquisitionCompetition{UrgentPriority: 50})
-	if err != nil || len(ranked) != 0 {
-		t.Fatalf("urgent work did not hold the purchase: %v %v", ranked, err)
-	}
-	s, _ := policy.ScoreResourceCandidate(demand, c, policy.AcquisitionCompetition{UrgentPriority: 50})
-	if s.Hold != "competing_urgent_work" {
-		t.Fatalf("hold %q", s.Hold)
-	}
-}
-
-// A bid never holds a resource past its TTL: a stale rival is pruned and the
-// resource planner dispatches.
-func TestResourceMatrixStaleBidReleasesResource(t *testing.T) {
-	t.Parallel()
-	var b acquisitionBoard
-	snap := domain.GenerationSnapshot{}
-	b.bid(snap, "Steel", bidTrade, 9, policy.AcquisitionTrade, 1000)
-	if _, yield := b.bid(snap, "Steel", bidResource, 1, policy.AcquisitionMining, 1000+acquisitionBidTTL); !yield {
-		t.Fatal("a bid exactly at its TTL still holds")
-	}
-	if _, yield := b.bid(snap, "Steel", bidResource, 1, policy.AcquisitionMining, 1000+acquisitionBidTTL+1); yield {
-		t.Fatal("a stale bid held the resource past its TTL")
 	}
 }
 

@@ -86,7 +86,7 @@ type ClockSchedulerConfig struct {
 	// Routine is reviewed only after owned clock obligations have drained.
 	Rounds          *Rounder
 	FoodAcquisition *RoundsAcquisitionPlanner
-	// ResourceAcquisition chops, forages and hunts for MaintainResource (#728).
+	// ResourceAcquisition chops, forages and hunts for MaintainResource.
 	ResourceAcquisition *RoundsAcquisitionPlanner
 	PestAcquisition     *RoundsAcquisitionPlanner
 	Work                *RoundsWorkPlanner

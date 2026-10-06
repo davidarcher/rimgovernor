@@ -698,7 +698,7 @@ Allow is additionally a reach and demand filter; Forbid is not. A safe forbidden
 a cell of the derived colony extent is allowed as above. Outside the extent it is
 allowed only when `FilterResourceReach` admits its cell at the current
 [reach stage](upkeep-contracts.md) and it scores against unmet demand
-(`ScoreResourceCandidate` over effective stock targets, operator reserve floors and the
+(`PlanRemoteSupply` over effective stock targets, operator reserve floors and the
 usable stock census); otherwise it stays forbidden and is recorded under
 `EventLoot.Held` with an [explicit hold](#remote-work-holds-and-resume)
 (`threat_present`, `urgent_competing_work`, `missing_storage`), the reach reason
@@ -718,7 +718,7 @@ resource planner's log:
 | Reason | Meaning |
 | --- | --- |
 | `threat_present` | Known hostile on the map (reported ahead of the route verdict it causes). |
-| `urgent_competing_work` | Urgent patient or disrupting disaster (`policy.UrgentWorkCompeting`); outranks every demand priority in `ScoreResourceCandidate`. |
+| `urgent_competing_work` | Urgent patient or disrupting disaster (`policy.UrgentWorkCompeting`); outranks every demand priority in `PlanSupply`. |
 | `roof_support_risk` | Removal drops a roof, or the deposit is not open surface. |
 | `route_unsafe` | Native walked no safe route to the target and back to storage. |
 | `missing_storage` | No accepting headroom. |

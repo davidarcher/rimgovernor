@@ -393,8 +393,7 @@ func (r *RoundsResourcePlanner) commitBill(call, epoch context.Context, state Co
 // plan's rank order. A floor the
 // plan opened nothing for for this planner's kinds is left to the acquisition
 // planner when it opened a chop, harvest or hunt, to the trade planner when it
-// opened a caravan's offer, to the bid board when a deep drill outbids the
-// plan's winner, and otherwise runs the mine tail (a buried deposit to tunnel
+// opened a caravan's offer, and otherwise runs the mine tail (a buried deposit to tunnel
 // to, a designation to wait on).
 func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, supply *resourceSupply, resource policy.Resource, stock domain.Fact[[]policy.Amount], started time.Time) (RoundsResourceResult, error) {
 	row := supply.rows[resource]
@@ -405,11 +404,7 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 		return result, err
 	}
 	if !row.selKnown && row.choice.Kind != policy.ResourceMethodProduce {
-		r.reviewer.bids.bid(state.Snapshot, resource, bidResource, 0, "", reviewTick)
 		return RoundsResourceResult{Verdict: noResourceSource(resource)}, nil
-	}
-	if supply.bid(r.reviewer, state.Snapshot, resource, reviewTick) {
-		return RoundsResourceResult{Verdict: claimHeld(string(resource))}, nil
 	}
 	mines := supply.plan.OpenedIDs(resource, policy.AcquisitionMining)
 	for _, e := range supply.plan.Opened(resource) {

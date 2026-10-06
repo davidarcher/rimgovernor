@@ -816,7 +816,7 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 		reason = BuildingReasonAdmitted
 		// A shell admitted short of a material (#602) records each
 		// shortfall so the ranking orders that resource's acquisition ahead
-		// of unrelated optional work (#651, #728). The review keeps an edge
+		// of unrelated optional work (#651). The review keeps an edge
 		// only while its actions stay open.
 		if a.purpose == policy.Shelter {
 			for _, resource := range previewResources(a.selected) {

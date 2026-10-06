@@ -84,7 +84,7 @@ func TestShortfallDependencyNeedsMeasuredShortfall(t *testing.T) {
 
 // A shell short of a non-wood material records an edge to MaintainResource;
 // the review raises that resource's floor to the open costs and carries it
-// for the resource planner (#728).
+// for the resource planner.
 func TestShelterNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

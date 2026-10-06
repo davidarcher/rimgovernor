@@ -16,7 +16,7 @@ func init() {
 	cases.Register(recovery())
 }
 
-// Policy wood thresholds the breach is judged against: MaintainResource binds (the wood latch's floor, #728)
+// Policy wood thresholds the breach is judged against: MaintainResource binds (the wood latch's floor)
 // once stock falls under woodMin and its deficit is (WoodTarget-stock)/
 // WoodTarget, so a stock back at woodMin reads as woodRecoveredDeficit.
 const (

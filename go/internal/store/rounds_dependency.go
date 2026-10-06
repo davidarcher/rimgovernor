@@ -217,7 +217,7 @@ func resourceStock(f policy.RoundsFacts, resource policy.Resource) domain.Fact[i
 
 // priorDependencies is the last review's still-live edges against its goal
 // bindings, read before DetectRounds so an open shortfall raises its
-// MaintainResource floor (#711, #728).
+// MaintainResource floor (#711).
 func priorDependencies(ctx context.Context, tx *sql.Tx, previous Rounds, facts policy.RoundsFacts, tick domain.Tick) ([]policy.DevelopmentDependency, error) {
 	if len(previous.Dependencies) == 0 {
 		return nil, nil

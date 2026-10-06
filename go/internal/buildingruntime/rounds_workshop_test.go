@@ -179,7 +179,7 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 	}{
 		{"no bench", nil, []policy.RecipeHost{clubRecipe}, nil, 0, Verdict{}, append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
 		{"no deficit", nil, []policy.RecipeHost{clubRecipe}, nil, 3, BuildingReasonNoDeficit, nil},
-		// The review's wood floor (#728) is a target even without operator ones.
+		// The review's wood floor is a target even without operator ones.
 		{"no targets", nil, []policy.RecipeHost{clubRecipe}, map[policy.Resource]int64{}, 0, BuildingReasonNoDeficit, nil},
 		{"existing bench", []bridge.GearBenchRead{{Token: "t", Bench: policy.GearBench{ID: "spot", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}, []policy.RecipeHost{clubRecipe}, nil, 0, BuildingExistingFacility, nil},
 		{"research gated", nil, []policy.RecipeHost{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: false, Benches: []string{"CraftingSpot"}, Research: []string{"Smithing"}}}, nil, 0, Verdict{}, append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},

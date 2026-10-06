@@ -34,30 +34,6 @@ func TestSupplyCandidateOfFoodIsOneNutritionYield(t *testing.T) {
 	if c.Kind != CandidateForage || state != CandidateDelivering || len(c.Yields) != 1 || c.Yields[0].Good.Def != CandidateNutrition || rate != 1.5 {
 		t.Fatalf("%+v", c)
 	}
-	if _, ok := AcquisitionCandidateOfSupply(c); ok {
-		t.Fatal("a rate-only food candidate is not a one-shot acquisition")
-	}
-}
-
-func TestAcquisitionCandidateRoundTripsThroughSupplyCandidate(t *testing.T) {
-	headroom := domain.Known(int64(40))
-	for _, c := range []AcquisitionCandidate{
-		{ID: "tree1", Kind: AcquisitionChop, Yields: []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: "WoodLog"}, Count: 30}, Headroom: headroom}},
-			PathDistance: domain.Known(12.0), Labor: domain.Known(450.0), NeedsHaul: true, UnitsPerTrip: 75},
-		{ID: "deer", Kind: AcquisitionHunt, Yields: []AcquisitionYield{
-			{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: "Leather"}, Count: 5}, UnitValue: 0.5},
-			{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: "Meat", Stuff: "Raw"}, Count: 9}}},
-			PathDistance: domain.Known(3.0), Labor: domain.Unknown[float64]()},
-	} {
-		s := SupplyCandidateOfAcquisition(c)
-		if lead, _ := s.LeadDays.Value(); lead != 0 || len(s.Yields) != len(c.Yields) {
-			t.Fatalf("not a lead-0 one-shot candidate: %+v", s)
-		}
-		got, ok := AcquisitionCandidateOfSupply(s)
-		if !ok || !reflect.DeepEqual(got, c) {
-			t.Fatalf("got %+v ok=%v, want %+v", got, ok, c)
-		}
-	}
 }
 
 // normalizeFood maps empty slices to nil, which the adapters do not preserve

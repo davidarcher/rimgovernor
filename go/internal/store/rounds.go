@@ -69,7 +69,7 @@ type Rounds struct {
 	MedicalCare    policy.MedicalCareHistory
 	MedicineTarget int64 `json:",omitempty"`
 	// DependencyNeeds are the MaintainResource floors this review's live
-	// shortfall edges raised (#728), so the resource planner stocks them.
+	// shortfall edges raised, so the resource planner stocks them.
 	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
 	// ClothingNeeds are the MaintainResource floors of the colonists'
 	// replacement outfits (policy.ClothingResourceNeeds).

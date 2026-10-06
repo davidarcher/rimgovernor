@@ -27,7 +27,7 @@ type RoundsAcquisitionResult struct {
 // (#247) hunts every recognised pest the wild-animal census reports, one
 // hunt method per admission, until none remain; MaintainResource chops,
 // forages and hunts toward its ranked floors through the acquisition
-// catalog (#728), beside RoundsResourcePlanner's bills and mines.
+// catalog, beside RoundsResourcePlanner's bills and mines.
 func NewRoundsAcquisitionPlanner(reviewer *Rounder, need policy.ConcernID) (*RoundsAcquisitionPlanner, error) {
 	if reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.MaintainResource) {
 		return nil, fmt.Errorf("%w: NewRoundsAcquisitionPlanner: reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.Maintain", ErrControl)
@@ -214,7 +214,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 		if err != nil {
 			return RoundsAcquisitionResult{}, err
 		}
-		selected, existing = r.resourceSelection(supply, state.Snapshot, expected.Tick, busy)
+		selected, existing = resourceSelection(supply, busy)
 	} else if pest {
 		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)
 	} else {
@@ -287,9 +287,8 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 // resourceSelection is MaintainResource's census selection: the chop, harvest
 // and hunt sources the Round's supply plan opened, for the first floor (worst
 // covered first) that has some and no designated work in flight. existing
-// reports a floor passed over for its designated work (busy). A resource the
-// plan's winner leaves to a deep drill or a caravan is passed over too.
-func (r *RoundsAcquisitionPlanner) resourceSelection(supply *resourceSupply, snapshot domain.GenerationSnapshot, tick domain.Tick, busy map[string]bool) (_ []policy.AcquisitionSource, existing bool) {
+// reports a floor passed over for its designated work (busy).
+func resourceSelection(supply *resourceSupply, busy map[string]bool) (_ []policy.AcquisitionSource, existing bool) {
 	for _, resource := range supply.order {
 		// A designated resource is its own existing work; the goal's
 		// other targets still plan (#1045).
@@ -299,9 +298,6 @@ func (r *RoundsAcquisitionPlanner) resourceSelection(supply *resourceSupply, sna
 		}
 		picked := supply.acquisitions(resource)
 		if len(picked) == 0 {
-			continue
-		}
-		if supply.bid(r.reviewer, snapshot, resource, tick) {
 			continue
 		}
 		return picked, false

@@ -108,9 +108,6 @@ type Rounder struct {
 	foodCredit policy.DeliveryCredit
 	// huntDelivery is the formation hunt's admitted and delivering state (#2163), in memory only.
 	huntDelivery policy.HuntDelivery
-	// bids is MaintainResource's joint ranking across its two planners
-	// (#728); see acquisitionBoard.
-	bids acquisitionBoard
 	// tradeOffers is the caravans' priced offers the supply plan reads as
 	// trade candidates, in memory only (#2168).
 	tradeOffers tradeOfferBook

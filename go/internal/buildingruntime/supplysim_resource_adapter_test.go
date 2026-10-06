@@ -11,17 +11,16 @@ import (
 
 // The resource adapter drives today's MaintainResource acquisition path
 // through a supplysim world (epic #2140): demand from the real policy
-// functions, candidates from the real catalog constructors, ranking by
-// RankResourceCandidates and reconciliation through the real acquisitionBoard.
+// functions, candidates from the real catalog constructors and ranking by
+// policy.PlanSupply over every unmet floor.
 // It stands in for native reads and the journal only: a source the world
 // opens is a dispatched designation, bill, drill or purchase, and a source it
 // closes is finished work.
 //
 // Modelling assumptions (tests assert direction and ordering, never these):
 // one catalog row per source whose yield is its remaining stock, distance from
-// the spec, headroom unbounded, one evaluation per day at the day's first
-// tick, and every bidder posting before any dispatches (the planners run many
-// steps a day).
+// the spec, headroom unbounded and one evaluation per day at the day's first
+// tick.
 
 type resRole string
 
@@ -34,8 +33,7 @@ const (
 	resLoot    resRole = "loot"
 	resSalvage resRole = "salvage"
 	// resHunt is a herd whose leather serves a clothing floor; resField a
-	// cotton field to sow. Both run through PlanSupply only (the four
-	// planners never priced them).
+	// cotton field to sow.
 	resHunt  resRole = "hunt"
 	resField resRole = "field"
 )
@@ -49,14 +47,6 @@ type resSpec struct {
 
 // resDefs maps simulator goods to the policy definitions the real functions
 // key on (stone block floors derive from the chunk definitions).
-// bidAcquisition is the acquisition planner's bid of the board the adapter
-// models; production posts the supply plan's winner as the one resource bid.
-const (
-	bidAcquisition acquisitionBidder = "acquisition"
-	// bidTrade is the caravan's bid of the legacy board the adapter models.
-	bidTrade acquisitionBidder = "trade"
-)
-
 var resDefs = map[supplysim.Good]policy.Resource{
 	supplysim.Leather:     "Leather_Plain",
 	supplysim.Cotton:      "Cloth",
@@ -84,7 +74,6 @@ func resGood(r policy.Resource) supplysim.Good {
 type resEvent struct {
 	Day    int
 	Good   supplysim.Good
-	Bidder acquisitionBidder
 	Source string
 	Kind   policy.AcquisitionKind
 	Score  float64
@@ -94,14 +83,6 @@ type resEvent struct {
 	Power    float64
 }
 
-type resYield struct {
-	Day    int
-	Good   supplysim.Good
-	Bidder acquisitionBidder
-	Rival  acquisitionBid
-	Tick   domain.Tick
-}
-
 type resHold struct {
 	Day    int
 	Good   supplysim.Good
@@ -109,23 +90,17 @@ type resHold struct {
 }
 
 type resPlanner struct {
-	// supply ranks every unmet floor's candidates together through
-	// policy.PlanSupply instead of the four planners and the bid board.
-	supply   bool
 	batch    resSupplyBatch
 	world    supplysim.World
 	spec     map[string]resSpec
 	policy   policy.RoundsPolicy
 	research bool
-	board    acquisitionBoard
-	snapshot domain.GenerationSnapshot
 	uses     []policy.ResourceUse
 	// clothing are the targets that are clothing-material floors, wanted
 	// within policy.ClothingHorizonDays.
 	clothing map[policy.Resource]bool
 
 	events []resEvent
-	yields []resYield
 	holds  []resHold
 	// drillScores is each deep drill bid the ranker produced.
 	drillScores []float64
@@ -253,11 +228,9 @@ func (p *resPlanner) Plan(v supplysim.WorldView) []supplysim.Command {
 		panic(err)
 	}
 	for _, row := range ranked {
-		cmds = append(cmds, p.resource(v, row, have[row.Resource], deficitRunway[row.Resource], tick)...)
+		p.resource(v, row, have[row.Resource], deficitRunway[row.Resource])
 	}
-	if p.supply {
-		cmds = append(cmds, p.dispatchSupply(v)...)
-	}
+	cmds = append(cmds, p.dispatchSupply(v)...)
 	for g, d := range v.Demand {
 		p.uses = append(p.uses, policy.ResourceUse{Tick: tick + 1, Resource: resDef(g), Count: domain.Known(int64(math.Round(d)))})
 	}
@@ -283,17 +256,8 @@ func (p *resPlanner) runways(v supplysim.WorldView, have map[policy.Resource]int
 	return out
 }
 
-type resBid struct {
-	score     float64
-	kind      policy.AcquisitionKind
-	sources   []string
-	candidate bool
-}
-
-// resource evaluates one unmet floor the way the four planners do: each
-// builds its catalog rows, posts its best score, and dispatches only when no
-// other planner holds a fresh strictly higher bid.
-func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, have int64, deficitRunway bool, tick domain.Tick) []supplysim.Command {
+// resource builds one unmet floor's catalog rows into the day's batch.
+func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, have int64, deficitRunway bool) {
 	g := resGood(row.Resource)
 	deficit := row.Target - have
 	views := map[string]supplysim.SourceView{}
@@ -315,7 +279,7 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 	for _, id := range yielding {
 		if views[id].Open && live(id) {
 			p.hold(v.Day, g, "existing_work")
-			return nil
+			return
 		}
 	}
 
@@ -324,7 +288,6 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 	var mines []policy.ResourceSource
 	var resourceExtra []policy.AcquisitionCandidate
 	var produce *policy.AcquisitionCandidate
-	trade := resBid{}
 	for _, id := range yielding {
 		s, sv, spec := p.source(id), views[id], p.spec[id]
 		if sv.Open || !live(id) {
@@ -378,13 +341,8 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 		case resTrade:
 			price := s.Costs[0].PerUnit / s.Yields[0].PerUnit
 			n := min(deficit, int64(s.Restock*s.Yields[0].PerUnit), int64(v.Stock[supplysim.Silver]/price))
-			if c, ok := policy.TradeCandidate(row.Resource, id, n, price); ok && n > 0 && p.supply {
+			if c, ok := policy.TradeCandidate(row.Resource, id, n, price); ok && n > 0 {
 				p.batch.add(row.Resource, deficitRunway, c, id)
-			} else if ok && n > 0 {
-				ranked := p.rank(row.Resource, deficit, []policy.AcquisitionCandidate{c})
-				if len(ranked) > 0 {
-					trade = resBid{ranked[0].Score, policy.AcquisitionTrade, []string{id}, true}
-				}
 			}
 		case resDrill:
 			// Gate of deepDrillSites: research and a scanner, a forecast
@@ -398,104 +356,30 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 			if !ok {
 				continue
 			}
-			if ranked := p.rank(row.Resource, deficit, []policy.AcquisitionCandidate{c}); len(ranked) > 0 {
-				p.drillScores = append(p.drillScores, ranked[0].Score)
-			} else {
-				p.drillScores = append(p.drillScores, 0)
-			}
 			resourceExtra = append(resourceExtra, c)
 		}
 	}
 
-	if p.supply {
-		for _, c := range policy.AcquisitionSourceCandidates(row.Resource, rows, domain.Cell{}, headroom) {
-			p.batch.add(row.Resource, deficitRunway, c, c.ID)
-		}
-		for _, c := range policy.MineCandidates(row.Resource, mines, headroom) {
-			p.batch.add(row.Resource, deficitRunway, c, c.ID)
-		}
-		if produce != nil {
-			p.batch.add(row.Resource, deficitRunway, *produce, produce.ID)
-		}
-		for _, c := range resourceExtra {
-			p.batch.add(row.Resource, deficitRunway, c, c.ID)
-		}
-		horizon := 0.0
-		if p.clothing[row.Resource] {
-			horizon = policy.ClothingHorizonDays
-		}
-		p.batch.demand(row.Resource, deficit, horizon)
-		if !p.batch.has(row.Resource) {
-			p.hold(v.Day, g, "no_source")
-		}
-		return nil
+	for _, c := range policy.AcquisitionSourceCandidates(row.Resource, rows, domain.Cell{}, headroom) {
+		p.batch.add(row.Resource, deficitRunway, c, c.ID)
 	}
-	// Acquisition planner: chop, harvest and hunt rows.
-	acq := resBid{}
-	if len(rows) > 0 {
-		picked, best, err := policy.SelectCatalogAcquisition(rows, row.Resource, deficit, domain.Cell{}, nil, 0)
-		if err != nil {
-			panic(err)
-		}
-		acq = resBid{score: best.Score, kind: best.Kind, candidate: len(picked) > 0}
-		for _, r := range picked {
-			acq.sources = append(acq.sources, r.ID)
-		}
+	for _, c := range policy.MineCandidates(row.Resource, mines, headroom) {
+		p.batch.add(row.Resource, deficitRunway, c, c.ID)
 	}
-	// Resource planner: mine and bill against each other, with windfalls.
-	res := resBid{}
-	cands := policy.MineCandidates(row.Resource, mines, headroom)
 	if produce != nil {
-		cands = append(cands, *produce)
+		p.batch.add(row.Resource, deficitRunway, *produce, produce.ID)
 	}
-	cands = append(cands, resourceExtra...)
-	if len(cands) > 0 {
-		if ranked := p.rank(row.Resource, deficit, cands); len(ranked) > 0 {
-			res = resBid{ranked[0].Score, ranked[0].Kind, []string{ranked[0].ID}, true}
-		}
+	for _, c := range resourceExtra {
+		p.batch.add(row.Resource, deficitRunway, c, c.ID)
 	}
-
-	if !trade.candidate && !acq.candidate && !res.candidate {
+	horizon := 0.0
+	if p.clothing[row.Resource] {
+		horizon = policy.ClothingHorizonDays
+	}
+	p.batch.demand(row.Resource, deficit, horizon)
+	if !p.batch.has(row.Resource) {
 		p.hold(v.Day, g, "no_source")
-		for _, b := range []acquisitionBidder{bidTrade, bidAcquisition, bidResource} {
-			p.board.bid(p.snapshot, row.Resource, b, 0, "", tick)
-		}
-		return nil
 	}
-
-	order := []struct {
-		who acquisitionBidder
-		bid resBid
-	}{{bidTrade, trade}, {bidAcquisition, acq}, {bidResource, res}}
-	// Every planner posts first; the second pass is the step that dispatches.
-	for _, o := range order {
-		p.board.bid(p.snapshot, row.Resource, o.who, o.bid.score, o.bid.kind, tick)
-	}
-	var cmds []supplysim.Command
-	for _, o := range order {
-		if !o.bid.candidate {
-			continue
-		}
-		if rival, yield := p.board.bid(p.snapshot, row.Resource, o.who, o.bid.score, o.bid.kind, tick); yield {
-			p.yields = append(p.yields, resYield{v.Day, g, o.who, rival, tick})
-			continue
-		}
-		for _, id := range o.bid.sources {
-			p.events = append(p.events, resEvent{Day: v.Day, Good: g, Bidder: o.who, Source: id, Kind: o.bid.kind, Score: o.bid.score,
-				Deficit: deficitRunway, Research: p.research, Power: p.world.Power})
-			cmds = append(cmds, supplysim.Command{Kind: supplysim.Open, Source: id})
-			p.opens++
-		}
-	}
-	return cmds
-}
-
-func (p *resPlanner) rank(r policy.Resource, deficit int64, cands []policy.AcquisitionCandidate) []policy.AcquisitionScore {
-	ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(r, deficit), cands, policy.AcquisitionCompetition{})
-	if err != nil {
-		panic(err)
-	}
-	return ranked
 }
 
 // resSupplyBatch collects every unmet floor's catalog rows for one PlanSupply
@@ -569,7 +453,7 @@ func (p *resPlanner) dispatchSupply(v supplysim.WorldView) []supplysim.Command {
 			continue
 		}
 		r := b.good[k]
-		p.events = append(p.events, resEvent{Day: v.Day, Good: resGood(r), Bidder: bidResource, Source: b.source[k], Kind: kind, Score: e.Score,
+		p.events = append(p.events, resEvent{Day: v.Day, Good: resGood(r), Source: b.source[k], Kind: kind, Score: e.Score,
 			Deficit: b.deficit[r], Research: p.research, Power: p.world.Power})
 		cmds = append(cmds, supplysim.Command{Kind: supplysim.Open, Source: b.source[k]})
 		p.opens++

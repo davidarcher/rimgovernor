@@ -13,7 +13,7 @@ func supplyTestCandidates() []AcquisitionCandidate {
 }
 
 // A steel shortfall raises mining of steel and nothing for wood: the wood tree
-// serves no demand (#728).
+// serves no demand.
 func TestResourceSupplyShortfallOpensItsOwnResource(t *testing.T) {
 	t.Parallel()
 	plan, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: "Steel", Deficit: 100, Candidates: supplyTestCandidates()}}, domain.Known(100000.0))
@@ -25,12 +25,6 @@ func TestResourceSupplyShortfallOpensItsOwnResource(t *testing.T) {
 	}
 	if got := plan.Opened("WoodLog"); len(got) != 0 {
 		t.Fatal("wood opened for a steel shortfall", plan.Plan.Explain())
-	}
-	if kind, score, ok := plan.Winner("Steel"); !ok || kind != AcquisitionMining || score <= 0 {
-		t.Fatal(kind, score, ok)
-	}
-	if _, _, ok := plan.Winner("WoodLog"); ok {
-		t.Fatal("wood has a winner")
 	}
 }
 

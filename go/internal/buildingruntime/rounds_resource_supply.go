@@ -271,14 +271,6 @@ func huntSlots(projection observation.ColonyProjection) (slots domain.Fact[int],
 	return slots, false
 }
 
-// bid posts the plan's winner for resource as the single resource bid and
-// reports whether a deep drill bid outranks it.
-func (s *resourceSupply) bid(r *Rounder, snapshot domain.GenerationSnapshot, resource policy.Resource, tick domain.Tick) bool {
-	kind, score, _ := s.plan.Winner(resource)
-	_, yield := r.bids.bid(snapshot, resource, bidResource, score, kind, tick)
-	return yield
-}
-
 // acquisitions are the census rows the plan opened for resource, best first:
 // at most maxCatalogSelection rows and the free hunt slots.
 func (s *resourceSupply) acquisitions(resource policy.Resource) []policy.AcquisitionSource {

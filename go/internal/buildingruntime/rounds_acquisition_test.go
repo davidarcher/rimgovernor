@@ -127,7 +127,7 @@ func dispatchedHunt(t *testing.T, action domain.ActionID, thing string, tick dom
 }
 
 // MaintainResource chops, forages and hunts through the acquisition
-// catalog (#728): a harvestable floor admits a bounded, nearest-first
+// catalog: a harvestable floor admits a bounded, nearest-first
 // acquisition method on the goal, and open work holds the next one.
 func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

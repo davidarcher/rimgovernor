@@ -65,7 +65,7 @@ func TestRoundsCapabilitiesDeclareSelectedGoals(t *testing.T) {
 
 // DetectRounds refuses a capability declared twice, so a serve with every
 // family and a resource target must declare each goal once (acquisition
-// and resource targets both declare MaintainResource, #728).
+// and resource targets both declare MaintainResource).
 func TestRoundsCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 	t.Parallel()
 	var c serveConfig

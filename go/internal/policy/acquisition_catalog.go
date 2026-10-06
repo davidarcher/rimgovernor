@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The acquisition method catalog (#728 step 2): every way the colony can
+// The acquisition method catalog: every way the colony can
 // obtain a resource is an AcquisitionCandidate of one kind, ranked by
 // RankResourceCandidates against the demand, instead of each goal
 // hardcoding its own order (produce before mine, forage before hunt).
@@ -151,55 +151,3 @@ func TradeCandidate(resource Resource, trader string, units int64, price float64
 // MaxCatalogSelection bounds one acquisition method, matching
 // SelectResourceSources' native selection cap.
 const MaxCatalogSelection = 8
-
-// SelectCatalogAcquisition picks MaintainResource's chop, harvest and hunt
-// sources for resource (#728): every undesignated, unheld census row
-// yielding it is a catalog candidate, ranked by RankResourceCandidates
-// against need less the yield already designated, and taken best first
-// until the rest of the need is covered, at most huntSlots hunts and
-// maxCatalogSelection rows. best is the top-ranked selected row's score,
-// the bid MaintainResource's joint ranking compares (#728).
-func SelectCatalogAcquisition(rows []AcquisitionSource, resource Resource, need int64, home domain.Cell, held map[string]bool, huntSlots int) (selected []AcquisitionSource, best AcquisitionScore, err error) {
-	byID := map[string]AcquisitionSource{}
-	var open []AcquisitionSource
-	for _, row := range rows {
-		if Resource(row.Resource) != resource {
-			continue
-		}
-		if row.Designated {
-			need -= int64(math.Round(row.Yield))
-			continue
-		}
-		if held[row.ID] || row.Hunt && huntSlots <= 0 {
-			continue
-		}
-		byID[row.ID] = row
-		open = append(open, row)
-	}
-	if need <= 0 || len(open) == 0 {
-		return nil, AcquisitionScore{}, nil
-	}
-	ranked, err := RankResourceCandidates(ResourceDeficitDemand(resource, need), AcquisitionSourceCandidates(resource, open, home, domain.Known(need)), AcquisitionCompetition{})
-	if err != nil {
-		return nil, AcquisitionScore{}, err
-	}
-	var out []AcquisitionSource
-	for _, s := range ranked {
-		row := byID[s.ID]
-		if row.Hunt {
-			if huntSlots <= 0 {
-				continue
-			}
-			huntSlots--
-		}
-		if len(out) == 0 {
-			best = s
-		}
-		out = append(out, row)
-		need -= int64(math.Round(row.Yield))
-		if need <= 0 || len(out) == MaxCatalogSelection {
-			break
-		}
-	}
-	return out, best, nil
-}

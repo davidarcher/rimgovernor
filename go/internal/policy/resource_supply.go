@@ -5,8 +5,8 @@ import (
 )
 
 // ResourceSupplyInput is one unmet MaintainResource floor and the candidates
-// that can cover it: mines, bench bills, chops, harvests, hunts and deep drills.
-// Trade stays on the bid board and is not a candidate here.
+// that can cover it: mines, bench bills, chops, harvests, hunts, deep drills and
+// a caravan's offers.
 type ResourceSupplyInput struct {
 	Resource   Resource
 	Deficit    int64
@@ -86,16 +86,4 @@ func (s ResourceSupply) OpenedIDs(resource Resource, kind AcquisitionKind) map[s
 		}
 	}
 	return ids
-}
-
-// Winner is the best-ranked candidate the plan opened for resource, the single
-// score the bid board reconciles against deep drill and trade; ok is false when
-// the plan opened nothing for it.
-func (s ResourceSupply) Winner(resource Resource) (kind AcquisitionKind, score float64, ok bool) {
-	opened := s.Opened(resource)
-	if len(opened) == 0 {
-		return "", 0, false
-	}
-	kind, _ = acquisitionKindOf(opened[0].Candidate.Kind)
-	return kind, opened[0].Score, true
 }

@@ -1038,7 +1038,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	if sc.resourceTargetsConfigured() {
 		thresholds.ResourceTargets = sc.resourceTargets()
 		thresholds.StoneBlockTarget = policy.DefaultStoneBlockTarget
-		// Acquisition already declares it (the wood floor, #728).
+		// Acquisition already declares it (the wood floor).
 		if !slices.Contains(capabilities.Methods, policy.MaintainResource) {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
 		}
