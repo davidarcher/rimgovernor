@@ -23,11 +23,9 @@ type stockpileMemory struct {
 	mu    sync.Mutex
 	world string
 	low   map[string]domain.Tick
-	// demand and incinerator are the storage planner's latest layout demands
-	// for demandWorld: layout reads them to add the armory and wardrobe
-	// (#1773) and to reserve the incinerator (#1814).
+	// demand is the storage planner's latest layout demand for demandWorld:
+	// layout reads it to add the armory and wardrobe (#1773).
 	demand      policy.RoomDemand
-	incinerator policy.IncineratorSite
 	demandWorld string
 	// siteErr is the last storage-plan site report logged, so a standing
 	// failure logs once and again when it changes or clears.
@@ -49,20 +47,20 @@ func (m *stockpileMemory) siteErrChanged(err error) bool {
 }
 
 // setDemand records the planner's layout demands for world.
-func (m *stockpileMemory) setDemand(world string, demand policy.RoomDemand, incinerator policy.IncineratorSite) {
+func (m *stockpileMemory) setDemand(world string, demand policy.RoomDemand) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.demand, m.incinerator, m.demandWorld = demand, incinerator, world
+	m.demand, m.demandWorld = demand, world
 }
 
-// layoutDemand is the recorded layout demands; none for another world.
-func (m *stockpileMemory) layoutDemand(world string) (policy.RoomDemand, policy.IncineratorSite) {
+// layoutDemand is the recorded layout demand; none for another world.
+func (m *stockpileMemory) layoutDemand(world string) policy.RoomDemand {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.demandWorld != world {
-		return policy.RoomDemand{}, policy.IncineratorSite{}
+		return policy.RoomDemand{}
 	}
-	return m.demand, m.incinerator
+	return m.demand
 }
 
 func stockpileWorld(s domain.GenerationSnapshot) string {
@@ -145,7 +143,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	plan := policy.PlanStorage(storage)
 	declared := policy.DeclareStores(storage)
 	request.Stores = declared.Stores
-	request.Sited, request.RoomDemand, request.Incinerator, request.SiteErr = plan.Sites, declared.Apply(plan.RoomDemand), plan.Incinerator, plan.Err
+	request.Sited, request.RoomDemand, request.SiteErr = plan.Sites, declared.Apply(plan.RoomDemand), plan.Err
 	return request
 }
 
@@ -162,7 +160,7 @@ func (r *Rounder) reviewStockpiles(ctx context.Context, snapshot domain.Generati
 		return err
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
-	r.stockpiles.setDemand(stockpileWorld(snapshot), request.RoomDemand, request.Incinerator)
+	r.stockpiles.setDemand(stockpileWorld(snapshot), request.RoomDemand)
 	r.stockpiles.siteErrChanged(request.SiteErr)
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)

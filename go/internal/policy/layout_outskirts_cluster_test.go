@@ -83,7 +83,7 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 			t.Errorf("%s has no cooler exhaust", r.Role)
 		}
 		for _, other := range plan.AllRooms() {
-			if other.Role != PlannedTomb && other.Role != PlannedMorgue && other.Role != PlannedGraveyard && rectsOverlap(pad(roomWalls(r), outskirtsGap-1), roomWalls(other)) {
+			if other.Role != PlannedTomb && other.Role != PlannedMorgue && other.Role != PlannedGraveyard && other.Role != PlannedWasteYard && other.Role != PlannedIncinerator && rectsOverlap(pad(roomWalls(r), outskirtsGap-1), roomWalls(other)) {
 				t.Errorf("%s within the gap of %s", r.Role, other.Role)
 			}
 		}
@@ -98,6 +98,52 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 	core, _ = growOutskirtsRooms(core, nil)
 	if got := len(core.roomsOf(PlannedTomb)); got != 1 {
 		t.Fatalf("tombs %d", got)
+	}
+}
+
+// The waste yard is an Outdoor room (a fence and gate, no roof, no floor owed)
+// planned from the start, with the incinerator's walled room in its far
+// corner and the dump's ground, 52 cells, beside it.
+func TestOutskirtsPlanHoldsWasteYardWithIncineratorInside(t *testing.T) {
+	plan, _ := growOutskirts(outskirtsPlan(150), OutskirtsSize())
+	plan, _ = growOutskirtsRooms(plan, nil)
+	area, _ := plan.OutskirtsArea()
+	l, _ := OutskirtsSlots(area)
+	yards, incs := plan.roomsOf(PlannedWasteYard), plan.IncineratorRooms()
+	if len(yards) != 1 || len(incs) != 1 {
+		t.Fatalf("yards %d incinerators %d", len(yards), len(incs))
+	}
+	yard, inc := yards[0], incs[0]
+	if !yard.Outdoor || yard.Interior != l.WasteYard.Interior || yard.Door != l.WasteYard.Door || yard.DoorRot != domain.South {
+		t.Errorf("yard %+v want slot %+v", yard, l.WasteYard)
+	}
+	if wall, door := yard.RingDefs(); wall != PenFenceDefinition || door != PenGateDefinition {
+		t.Errorf("yard ring %s %s", wall, door)
+	}
+	if inc.Outdoor || inc.Interior.Width != 3 || inc.Interior.Height != 3 || roomWalls(inc) != l.Incinerator {
+		t.Errorf("incinerator %+v outline %+v", inc, l.Incinerator)
+	}
+	if wall, door := inc.RingDefs(); wall != ShellWallDefinition || door != ShellDoorDefinition {
+		t.Errorf("incinerator ring %s %s", wall, door)
+	}
+	if !contains(yard.Interior, inc.Door) || !onRing(inc.Door, roomWalls(inc)) {
+		t.Errorf("incinerator door %+v not inside the yard", inc.Door)
+	}
+	free := 0
+	for _, c := range rectCells(yard.Interior) {
+		if !contains(roomWalls(inc), c) {
+			free++
+		}
+	}
+	if free != 52 {
+		t.Errorf("dump ground %d cells, want 52", free)
+	}
+	if again, added := growOutskirtsRooms(plan, nil); added || len(again.Rooms) != len(plan.Rooms) {
+		t.Fatal("yard or incinerator planned twice")
+	}
+	// The incinerator is permanent: a replan with no incinerator need keeps it.
+	if len(plan.roomsOf(PlannedIncinerator)) != 1 {
+		t.Fatal("incinerator dropped")
 	}
 }
 

@@ -78,9 +78,6 @@ type RoomDemand struct {
 type StoragePlan struct {
 	Sites      []StockpileSite
 	RoomDemand RoomDemand
-	// Incinerator is the site layout should reserve for the incinerator
-	// (#1814); zero when it stands, nothing waits or no ground fits.
-	Incinerator IncineratorSite
 	// Err joins the sites the planner could not make usable (a room that
 	// stands but cannot host its store, ErrArmoryNearPrison); the rest of the
 	// plan stands.
@@ -123,7 +120,6 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)
 	plan.Sites = append(plan.Sites, r.incineratorSites()...)
-	plan.Incinerator = r.incineratorOwed()
 	return plan
 }
 

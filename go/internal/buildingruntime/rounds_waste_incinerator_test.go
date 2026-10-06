@@ -45,8 +45,8 @@ func TestFireproofShellStuffRejectsFlammable(t *testing.T) {
 // A planned incinerator is owed its shell until every wall and the door
 // stand, and is then the room the dump zone fills.
 func TestIncineratorStepFollowsTheRing(t *testing.T) {
-	site := policy.IncineratorSite{Area: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Facing: domain.North}
-	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{site.Reservation()}}
+	room := policy.PlannedRoom{Role: policy.PlannedIncinerator, Interior: policy.Rectangle{X: 11, Z: 11, Width: 3, Height: 3}, Door: domain.Cell{X: 10, Z: 12}, DoorRot: domain.West}
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	if owed, known := incineratorOwed(facts).Value(); known || owed {
 		t.Fatal("owed before the construction census is read")
@@ -58,7 +58,6 @@ func TestIncineratorStepFollowsTheRing(t *testing.T) {
 	if standingIncinerator(facts) != nil {
 		t.Fatal("standing with no walls")
 	}
-	room := site.Room()
 	var built []policy.CurrentBuilding
 	in := room.Interior
 	var ring []domain.Cell

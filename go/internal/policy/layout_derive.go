@@ -56,8 +56,6 @@ type RoomGrowth struct {
 	// Core are the demand-grown core rooms (demandCoreRooms) the colony now
 	// needs: each the plan lacks is sited (layout_demand_rooms.go).
 	Core []PlannedRole
-	// Incinerator is the site of the incinerator the plan lacks (#1814).
-	Incinerator IncineratorSite
 	// Shapes are every resolved child-room need and Built the planned rooms
 	// standing: the duplicates of one role reduce to one (#1823) once Built is
 	// set (the census is known).
@@ -167,8 +165,6 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	next, core, err := growDemandRooms(next, s, &scorer, growth.Core)
 	dropped = dropped || core
 	unplaced = append(unplaced, err)
-	next, incinerator := growIncinerator(next, growth.Incinerator)
-	dropped = dropped || incinerator
 	next, outskirts := growOutskirts(next, growth.Outskirts)
 	dropped = dropped || outskirts
 	if growth.Outskirts != [2]int32{} {

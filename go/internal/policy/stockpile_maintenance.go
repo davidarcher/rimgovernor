@@ -152,9 +152,6 @@ type StockpileRequest struct {
 	// Gear is the planner's gear-room demand for layout (#1773); the review
 	// itself does not read it.
 	RoomDemand RoomDemand
-	// Incinerator is the planner's incinerator site for layout (#1814); the
-	// review itself does not read it.
-	Incinerator IncineratorSite
 	// SiteErr is the storage planner's report of sites it could not make
 	// usable (StoragePlan.Err); the review itself does not read it.
 	SiteErr error

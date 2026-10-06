@@ -421,6 +421,13 @@ each beside an aisle column joined to the gate row. It never grows; a further
 graveyard is the burial concern's request (#2196). `PlannedRole.IsOutdoor`
 lists the Outdoor roles.
 
+The waste yard (#2187) is an Outdoor plan room (`PlannedWasteYard`: fence and
+gate, no roof, no floor owed) of 11x7 interior, planned with the cluster. The
+incinerator is a walled, unroofed 3x3 room in its far corner (`PlannedIncinerator`,
+fireproof ring, permanent, never moved), leaving 52 cells for the dump; it is no
+longer sited on demand. `MaintainWaste` shells the incinerator, then the yard's
+ring (`stageDisposal`).
+
 The tomb, the jail and the morgue use the same shared build side as the throne
 room (`reconcileRoom`); their steps shrink to a furniture template.
 `NextTombStep` reports `TombReconcile` with the next free sarcophagus slot as

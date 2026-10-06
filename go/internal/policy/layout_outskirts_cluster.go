@@ -46,14 +46,18 @@ const (
 	// 12-grave template of GraveyardSlots fills it.
 	GraveyardW int32 = 11
 	GraveyardH int32 = 7
-	// WasteYardW and WasteYardH are the waste yard's interior (#2187); the
-	// incinerator room takes a corner, the dump the rest. #2187 may adjust them.
+	// WasteYardW and WasteYardH are the waste yard's interior (#2187): 77
+	// cells, the incinerator room takes a corner, the dump the rest.
 	WasteYardW int32 = 11
 	WasteYardH int32 = 7
 	// IncineratorOutline is the incinerator room's walled outline side: a 3x3
 	// interior and its ring.
 	IncineratorOutline int32 = 5
 )
+
+// PlannedWasteYard is the waste yard's plan role (#2187): an Outdoor room that
+// holds the dump zone's ground and the incinerator room.
+const PlannedWasteYard PlannedRole = "waste_yard"
 
 // OutskirtsSlot is one room's slot: the outline it stands in, its interior, and
 // the wall cell its door (an Outdoor room's gate) takes with the side it faces.
@@ -117,18 +121,56 @@ func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 }
 
 // OutskirtsOwed reports whether plan lacks the outskirts cluster or its tomb,
-// morgue or graveyard: a plan that already holds a room of a role elsewhere (a core
-// tomb) is not owed another.
+// morgue, graveyard, waste yard or incinerator: a plan that already holds a room of a role
+// elsewhere (a core tomb) is not owed another.
 func OutskirtsOwed(plan LayoutPlan) bool {
 	_, has := plan.OutskirtsArea()
-	return !has || len(plan.roomsOf(PlannedTomb)) == 0 || len(plan.roomsOf(PlannedMorgue)) == 0 || len(plan.roomsOf(PlannedGraveyard)) == 0
+	return !has || len(outskirtsMissing(plan, OutskirtsLayout{})) > 0
 }
 
-// growOutskirtsRooms places the tomb, the morgue and the graveyard in their slots of the
-// cluster plan holds, unless the plan already holds a room of the role, and
-// reserves each a cooler exhaust. The slots are never on rock: the cluster is
-// sited on open core ground, so neither room is dug. It reports whether it
-// added a room.
+// outskirtsMissing are the roles the cluster owes plan, each with its room.
+// The slots in l place them; with the zero layout only the roles are meaningful.
+func outskirtsMissing(plan LayoutPlan, l OutskirtsLayout) []PlannedRoom {
+	var out []PlannedRoom
+	for _, want := range outskirtsRooms(l) {
+		if !slices.ContainsFunc(plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == want.Role }) {
+			out = append(out, want)
+		}
+	}
+	return out
+}
+
+// outskirtsRooms are the rooms the cluster holds in l's slots: the walled tomb
+// and morgue, the graveyard, the waste yard's Outdoor room and the incinerator inside it.
+func outskirtsRooms(l OutskirtsLayout) []PlannedRoom {
+	return []PlannedRoom{
+		slotRoom(PlannedTomb, l.Tomb),
+		slotRoom(PlannedMorgue, l.Morgue),
+		slotRoom(PlannedGraveyard, l.Graveyard),
+		slotRoom(PlannedWasteYard, l.WasteYard),
+		incineratorRoom(l.Incinerator),
+	}
+}
+
+// slotRoom is the room of role standing in slot: walled, or an Outdoor fence
+// and gate ring (no roof, no floor owed). Every Outdoor room of the cluster
+// (the waste yard, the graveyard) is made through it.
+func slotRoom(role PlannedRole, slot OutskirtsSlot) PlannedRoom {
+	return PlannedRoom{Role: role, Interior: slot.Interior, Door: slot.Door, DoorRot: slot.DoorRot, Outdoor: role.IsOutdoor()}
+}
+
+// incineratorRoom is the walled 3x3 room in outline, its door on the west wall
+// facing into the yard it stands in.
+func incineratorRoom(outline Rectangle) PlannedRoom {
+	in := Rectangle{X: outline.X + 1, Z: outline.Z + 1, Width: outline.Width - 2, Height: outline.Height - 2}
+	return PlannedRoom{Role: PlannedIncinerator, Interior: in, Door: domain.Cell{X: in.X - 1, Z: in.Z + in.Height/2}, DoorRot: domain.West}
+}
+
+// growOutskirtsRooms places the tomb, the morgue, the graveyard, the waste yard and the
+// incinerator in their slots of the cluster plan holds, unless the plan already
+// holds a room of the role, and reserves each walled room a cooler exhaust. The
+// slots are never on rock: the cluster is sited on open core ground, so no room
+// is dug. It reports whether it added a room.
 func growOutskirtsRooms(plan LayoutPlan, thick map[domain.Cell]bool) (LayoutPlan, bool) {
 	area, has := plan.OutskirtsArea()
 	if !has {
@@ -138,22 +180,11 @@ func growOutskirtsRooms(plan LayoutPlan, thick map[domain.Cell]bool) (LayoutPlan
 	if !ok {
 		return plan, false
 	}
-	added := false
-	rooms := slices.Clone(plan.Rooms)
-	for _, want := range []struct {
-		role PlannedRole
-		slot OutskirtsSlot
-	}{{PlannedTomb, l.Tomb}, {PlannedMorgue, l.Morgue}, {PlannedGraveyard, l.Graveyard}} {
-		if slices.ContainsFunc(plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == want.role }) {
-			continue
-		}
-		rooms = append(rooms, PlannedRoom{Role: want.role, Interior: want.slot.Interior, Door: want.slot.Door, DoorRot: want.slot.DoorRot, Outdoor: want.role.IsOutdoor()})
-		added = true
-	}
-	if !added {
+	missing := outskirtsMissing(plan, l)
+	if len(missing) == 0 {
 		return plan, false
 	}
-	plan.Rooms = rooms
+	plan.Rooms = append(slices.Clone(plan.Rooms), missing...)
 	u := newUtilityGrid(plan)
 	u.thick = thick
 	reserveExhausts(u, &plan)
