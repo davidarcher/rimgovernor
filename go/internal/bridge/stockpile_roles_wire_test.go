@@ -32,7 +32,7 @@ func TestGearAndDumpRoleFiltersWire(t *testing.T) {
 }
 
 // The armory and wardrobe filters reach native as category selectors with the
-// armor defs split between them and the biocoded and worn-out gear excluded.
+// armor defs split between them and the biocoded, worn-out and burnable gear excluded.
 func TestArmoryAndWardrobeFiltersWire(t *testing.T) {
 	armor := []string{"Apparel_PlateArmor", "Apparel_FlakVest"}
 	armory, err := domain.ArmoryFilter(armor)
@@ -44,8 +44,8 @@ func TestArmoryAndWardrobeFiltersWire(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"armory":   `{"priority":"STORAGE_PRIORITY_NORMAL","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"thingDef":"Apparel_FlakVest"},{"thingDef":"Apparel_PlateArmor"},{"categoryDef":"Weapons"}],"disallow":[{"specialFilterDef":"AllowBiocodedApparel"},{"specialFilterDef":"AllowBiocodedWeapons"},{"specialFilterDef":"AllowDeadmansApparel"}],"hitPointsMin":0.5,"hitPointsMax":1,"qualityMin":"Normal","qualityMax":"Legendary"}}`,
-		"wardrobe": `{"priority":"STORAGE_PRIORITY_NORMAL","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"Apparel"}],"disallow":[{"thingDef":"Apparel_FlakVest"},{"thingDef":"Apparel_PlateArmor"},{"specialFilterDef":"AllowBiocodedApparel"},{"specialFilterDef":"AllowDeadmansApparel"}],"hitPointsMin":0.5,"hitPointsMax":1,"qualityMin":"Normal","qualityMax":"Legendary"}}`,
+		"armory":   `{"priority":"STORAGE_PRIORITY_NORMAL","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"thingDef":"Apparel_FlakVest"},{"thingDef":"Apparel_PlateArmor"},{"categoryDef":"Weapons"}],"disallow":[{"specialFilterDef":"AllowBiocodedApparel"},{"specialFilterDef":"AllowBiocodedWeapons"},{"specialFilterDef":"AllowDeadmansApparel"},{"specialFilterDef":"RimGovernorBurnable"}],"hitPointsMin":0.5,"hitPointsMax":1,"qualityMin":"Normal","qualityMax":"Legendary"}}`,
+		"wardrobe": `{"priority":"STORAGE_PRIORITY_NORMAL","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"Apparel"}],"disallow":[{"thingDef":"Apparel_FlakVest"},{"thingDef":"Apparel_PlateArmor"},{"specialFilterDef":"AllowBiocodedApparel"},{"specialFilterDef":"AllowDeadmansApparel"},{"specialFilterDef":"RimGovernorBurnable"}],"hitPointsMin":0.5,"hitPointsMax":1,"qualityMin":"Normal","qualityMax":"Legendary"}}`,
 	}
 	for name, f := range map[string]domain.StockpileFilter{"armory": armory, "wardrobe": wardrobe} {
 		z, err := domain.NewFilteredStockpileZone(f, domain.NormalPriority, []domain.Cell{{X: 1, Z: 1}})
