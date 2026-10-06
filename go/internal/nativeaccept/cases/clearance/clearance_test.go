@@ -2,14 +2,13 @@ package clearance
 
 import "testing"
 
-func TestDumpRequiresNativeStorageAndExactZone(t *testing.T) {
-	for _, fault := range []string{"", "missing_chunk", "unhauled", "wrong_zone", "extra_filter", "high_priority", "roofed", "outside_home", "duplicate_zone"} {
+func TestDumpRequiresNativeStorageAndYard(t *testing.T) {
+	for _, fault := range []string{"", "missing_chunk", "unhauled", "wrong_zone", "narrow_filter", "dumping_zone"} {
 		t.Run(fault, func(t *testing.T) {
-			fixture := map[string]any{"defs": []any{"ChunkGranite", "ChunkSlate", "ChunkSlagSteel"}}
-			cell := map[string]any{"home": true, "roofed": false, "building": false}
-			zone := map[string]any{"label": "Dumping", "priority": "Low", "allow": fixture["defs"], "cells": []any{cell, cell, cell, cell}}
-			chunk := map[string]any{"stored": true, "zone": "Dumping"}
-			live := map[string]any{"zones": []any{zone}, "chunks": []any{chunk, chunk, chunk}}
+			fixture := map[string]any{"defs": []any{"ChunkGranite", "ChunkSlate"}}
+			yard := map[string]any{"label": "Materials yard", "allow": []any{"ChunkGranite", "ChunkSlate", "ChunkSlagSteel", "WoodLog"}}
+			chunk := map[string]any{"stored": true, "zone": "Materials yard"}
+			live := map[string]any{"zones": []any{yard}, "chunks": []any{chunk, chunk, chunk}}
 			switch fault {
 			case "missing_chunk":
 				live["chunks"] = []any{chunk, chunk}
@@ -17,16 +16,10 @@ func TestDumpRequiresNativeStorageAndExactZone(t *testing.T) {
 				chunk["stored"] = false
 			case "wrong_zone":
 				chunk["zone"] = "Player storage"
-			case "extra_filter":
-				zone["allow"] = []any{"ChunkGranite", "ChunkSlate", "ChunkSlagSteel", "WoodLog"}
-			case "high_priority":
-				zone["priority"] = "Normal"
-			case "roofed":
-				cell["roofed"] = true
-			case "outside_home":
-				cell["home"] = false
-			case "duplicate_zone":
-				live["zones"] = []any{zone, zone}
+			case "narrow_filter":
+				yard["allow"] = []any{"ChunkGranite", "ChunkSlate"}
+			case "dumping_zone":
+				live["zones"] = []any{yard, map[string]any{"label": "Dumping"}}
 			}
 			err := checkDump(live, fixture)
 			if (err != nil) != (fault != "") {

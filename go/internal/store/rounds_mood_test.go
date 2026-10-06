@@ -136,7 +136,7 @@ func TestRoundsMoodCompleteBoundedCohort(t *testing.T) {
 	}
 	r.Facts.MoodPawns = domain.Known(rows)
 	out := reviewRounds(t, s, &r)
-	if len(out.Review.Standards) != 42 || len(out.Review.SubjectIncidents(policy.EnsureMood)) != 256 {
+	if len(out.Review.Standards) != 44 || len(out.Review.SubjectIncidents(policy.EnsureMood)) != 256 {
 		t.Fatal(len(out.Review.Standards), len(out.Review.Incidents))
 	}
 	if _, err := s.LoadRounds(context.Background()); err != nil {

@@ -49,8 +49,8 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 	// AllowStartingSupplies is gone from the catalog (#2188).
 	delete(bound, "AllowStartingSupplies")
 	for _, a := range needs.All() {
-		// MaintainSurgery (#1164), MaintainShelter (#1325), MaintainFirebreak (#1536) and MaintainButcherSpot, ManagePollution EnsureMechCharger and MaintainGeneBank are newer than the recording.
-		if !bound[a.ID] && a.ID != policy.MaintainSurgery && a.ID != policy.MaintainShelter && a.ID != policy.MaintainFirebreak && a.ID != policy.MaintainPsylink && a.ID != policy.ManageCreepJoiners && a.ID != policy.MaintainPermits && a.ID != policy.MaintainIdeoRoles && a.ID != policy.MaintainRituals && a.ID != policy.MaintainBabyFeeding && a.ID != policy.MaintainMechs && a.ID != policy.MaintainButcherSpot && a.ID != policy.ManagePollution && a.ID != policy.EnsureMechCharger && a.ID != policy.MaintainGeneBank {
+		// MaintainSurgery (#1164), MaintainShelter (#1325), MaintainFirebreak (#1536) and MaintainButcherSpot, ManagePollution EnsureMechCharger MaintainGeneBank, MaintainBurial and MaintainIncineration are newer than the recording.
+		if !bound[a.ID] && a.ID != policy.MaintainSurgery && a.ID != policy.MaintainShelter && a.ID != policy.MaintainFirebreak && a.ID != policy.MaintainPsylink && a.ID != policy.ManageCreepJoiners && a.ID != policy.MaintainPermits && a.ID != policy.MaintainIdeoRoles && a.ID != policy.MaintainRituals && a.ID != policy.MaintainBabyFeeding && a.ID != policy.MaintainMechs && a.ID != policy.MaintainButcherSpot && a.ID != policy.ManagePollution && a.ID != policy.EnsureMechCharger && a.ID != policy.MaintainGeneBank && a.ID != policy.MaintainBurial && a.ID != policy.MaintainIncineration {
 			t.Error("replay assessed unbound", a.ID)
 		}
 		delete(bound, a.ID)
