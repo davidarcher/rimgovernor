@@ -34,7 +34,7 @@ func ScoreWeapon(p EquipCandidatePawn, w EquipCandidateWeapon) float64 {
 	// The weapon's def rows (#1723): a weapon the producer gave none (zero
 	// Facts) has no damage and scores nothing.
 	profile := w.Facts
-	if p.Role == WeaponRoleHunter && (w.Class != WeaponRanged || profile.Range < 25) {
+	if p.Role == WeaponRoleHunter && (w.Class != WeaponRanged || !profile.Hunts()) {
 		return 0
 	}
 	if profile.ForcedMiss && !p.LoneFighter {

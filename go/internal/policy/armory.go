@@ -197,7 +197,13 @@ type ArmoryPrimary struct {
 // quality-scaled primary, and only when no loose weapon of
 // that definition is left for it. The gear planner's GearReplace wears the
 // upgrade once it is made.
-func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe, products map[Resource]WeaponDef) []Amount {
+//
+// A hunter (WeaponRoleHunter) wants a hunting weapon (WeaponDef.Hunts), so one
+// unarmed or armed without it is demand like any unarmed colonist. Those
+// weapons are returned apart as hunters: food owns that craft
+// (EnsureFoodSupply), so an emergency never suspends it. A hunter's upgrade
+// stays an ordinary fighter's.
+func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe, products map[Resource]WeaponDef) (fighters, hunters []Amount) {
 	assigned := map[domain.PawnID]bool{}
 	for _, pair := range AssignEquip(pawns, weapons) {
 		assigned[pair.Pawn] = true
@@ -206,13 +212,13 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 	for _, w := range weapons {
 		loose[Resource(w.Definition)]++
 	}
-	counts := map[Resource]int64{}
+	counts, hunts := map[Resource]int64{}, map[Resource]int64{}
 	for _, p := range pawns {
 		armed, known := p.Armed.Value()
 		if !known || assigned[p.Pawn] || !armoryFighter(p) {
 			continue
 		}
-		reach, floor := tier, 0.0
+		reach, floor, lacks := tier, 0.0, !armed
 		if armed {
 			current, ok := primaries[p.Pawn]
 			if !ok || tier == ArmoryTierUnknown {
@@ -222,6 +228,7 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 			if current.Ranged {
 				class = WeaponRanged
 			}
+			lacks = !current.Facts.Hunts()
 			floor = ScoreWeapon(p, EquipCandidateWeapon{Definition: current.Definition, Class: class, Facts: current.Facts}) * WeaponQualityMultiplier(current.Quality)
 		} else if reach == ArmoryTierUnknown {
 			reach = ArmoryTierNeolithic
@@ -234,8 +241,16 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 			loose[best]--
 			continue
 		}
-		counts[best]++
+		if p.Role == WeaponRoleHunter && lacks {
+			hunts[best]++
+		} else {
+			counts[best]++
+		}
 	}
+	return amounts(counts), amounts(hunts)
+}
+
+func amounts(counts map[Resource]int64) []Amount {
 	demand := make([]Amount, 0, len(counts))
 	for def, count := range counts {
 		demand = append(demand, Amount{Resource: def, Count: count})

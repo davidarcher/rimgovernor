@@ -268,7 +268,7 @@ func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, curr
 	if p.Status != domain.ProjectOpen || p.Finding == domain.FindingUnclear || !p.Snapshot.SameWorld(current) || tick < p.Tick {
 		return errors.New("project does not admit current work")
 	}
-	return admitRoundsSafeguards(ctx, tx, state)
+	return admitRoundsSafeguards(ctx, tx, state, nil)
 }
 
 // retireProjects takes invalidated autopilot projects without open work out of

@@ -34,6 +34,12 @@ planning estimates, with conservative class defaults for other defs.
 
 - `WeaponProductionDemand` supplies definition/count demand to the bill batch, net of assigned loose
   weapons and limited to discovered available recipes. Optional roles come from the loadout model.
+- A colonist working Hunting is a hunter (`WeaponRoleHunter`): only a hunting weapon scores for them
+  (`WeaponDef.Hunts`: ranged, a plain projectile, any range, the same rule as the hunt gate). A hunter
+  without one (unarmed, melee, or a flame or explosive primary) is demand like an unarmed fighter,
+  returned apart from the fighters' demand because food owns that craft: while `EnsureFoodSupply` is
+  open and unmet the bill is that Standard's Method, otherwise it is `MaintainEquipment`'s. A hunter's
+  upgrade of an adequate weapon stays an ordinary fighter's.
 - Native gear items carry a biocoded flag and, when retained, their owner's pawn ID. Supply weapon
   details use exact item identities.
 - Combat pawn reads carry the map's mean peak sharp armor among live, standing hostile pawns (natural

@@ -21,6 +21,25 @@ type SafeguardContext struct {
 type SafeguardProposal struct {
 	Need     ConcernID
 	Priority int
+	// HunterWeapons marks the one proposal an emergency does not suspend:
+	// EnsureFoodSupply's craft of the hunters' weapons (HunterWeaponCraft).
+	HunterWeapons bool
+}
+
+// HunterWeaponCraft reports whether a method of need is the hunters' weapon
+// craft: a gear-batch bill (only the armory writes those) owned by
+// EnsureFoodSupply. Food's hunt waits on that weapon, and EnsureFoodSupply sits at
+// priority 2, so it is no emergency need that ownership alone could exempt.
+func HunterWeaponCraft(need ConcernID, actions []domain.Action) bool {
+	if need != EnsureFoodSupply || len(actions) == 0 {
+		return false
+	}
+	for _, a := range actions {
+		if bill, ok := a.ProductionBill(); !ok || bill.Mode() != domain.GearBatch {
+			return false
+		}
+	}
+	return true
 }
 
 // Admission is what a Safeguard is asked to admit: a whole-goal proposal (#1017)
@@ -63,14 +82,14 @@ func (PauseSafeguard) Veto(c SafeguardContext, a Admission) string {
 
 // EmergencySafeguard vetoes every proposal at priority 2 or above while the
 // review found an emergency need; the emergency needs themselves and
-// anything below priority 2 are exempt.
+// anything below priority 2 are exempt, and so is the hunters' weapon craft.
 type EmergencySafeguard struct{}
 
 func (EmergencySafeguard) Name() string { return "EmergencySafeguard" }
 
 func (EmergencySafeguard) Veto(c SafeguardContext, a Admission) string {
 	p := a.Proposal
-	if p == nil || len(c.Emergency) == 0 || p.Priority < 2 || slices.Contains(c.Emergency, p.Need) {
+	if p == nil || len(c.Emergency) == 0 || p.Priority < 2 || slices.Contains(c.Emergency, p.Need) || p.HunterWeapons {
 		return ""
 	}
 	return "emergency " + joinConcerns(c.Emergency)

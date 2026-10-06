@@ -23,6 +23,15 @@ func equipCandidatePawnFacts(row *n.PawnState, catalog *bridge.DefinitionCatalog
 		return policy.EquipCandidatePawn{}, err
 	}
 	facts.Profile = policy.BuildProfile(work)
+	// A colonist working Hunting is the hunter: only a ranged weapon of hunting
+	// reach arms them (ScoreWeapon).
+	if rows, known := work.Work.Value(); known {
+		for _, w := range rows {
+			if w.Work == policy.WorkHunting && w.Priority > 0 && !w.Disabled {
+				facts.Role = policy.WeaponRoleHunter
+			}
+		}
+	}
 	if row.RaidArmor != nil && !boundary.IssueField(row.Issues, "raid_armor") {
 		facts.RaidArmor = domain.Known(row.GetRaidArmor())
 	}

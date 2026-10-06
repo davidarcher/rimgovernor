@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -16,16 +17,23 @@ import (
 // for the colonists no loose weapon arms (#1203). It moved here from the
 // gear planner unchanged: the gear planner still wears and replaces, and a
 // pending wear candidate or any open bill holds the armory back.
+//
+// A hunter lacking a hunting weapon is food's need: while EnsureFoodSupply is
+// workable (open, unmet, admitted by the Safeguards) its weapon bill is that
+// Standard's Method, so a starving colony still crafts the bow its hunt waits
+// on. Without that open need the same weapons are ordinary demand.
 func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, tier policy.ArmoryTier, holds []policy.Amount) (RoundsArmoryResult, error) {
 	p := r.reviewer.player
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
-	if !workable {
-		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
+	workable = workable && equipmentRanked(review)
+	food, foodWorkable, err := p.journal.WorkableHunterWeapons(call, review)
+	if err != nil {
+		return RoundsArmoryResult{}, err
 	}
-	if !equipmentRanked(review) {
+	if !workable && !foodWorkable {
 		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if _, refused, err := equipmentSlots(call, p, review); err != nil || !refused.IsZero() {
@@ -33,6 +41,9 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	}
 	claimed := map[string]bool{}
 	for _, method := range goal.Methods {
+		if !workable {
+			break
+		}
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoundsArmoryResult{}, err
@@ -107,12 +118,33 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 			return RoundsArmoryResult{}, err
 		}
 	}
-	weapons, unarmed, err := r.weaponDemand(call, state, gear, benches, tier)
+	weapons, hunters, unarmed, err := r.weaponDemand(call, state, gear, benches, tier)
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
 	if unarmed > 0 && !weaponBenchHosted(benches) {
 		return r.placeCraftingSpot(call, epoch, arbiter)
+	}
+	// Food owns the hunters' weapons while its need stands.
+	hunting := foodWorkable && len(hunters) > 0
+	if hunting {
+		goal, weapons = food, hunters
+		for _, method := range goal.Methods {
+			plan, err := p.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return RoundsArmoryResult{}, err
+			}
+			if !store.PlanOpen(plan) {
+				continue
+			}
+			for _, action := range plan.Spec.Actions() {
+				if _, ok := action.ProductionBill(); ok {
+					return RoundsArmoryResult{Verdict: BuildingReasonExistingWork}, nil
+				}
+			}
+		}
+	} else if weapons = mergeAmounts(weapons, hunters); !workable {
+		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -122,7 +154,7 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	// the unarmed: an early wood floor would otherwise leave a tribal start
 	// without clubs.
 	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Known(benches), Stock: stock}
-	if unarmed == 0 {
+	if unarmed == 0 && !hunting {
 		request.Holds = holds
 	}
 	choice, err := policy.SelectArmoryMethod(request, weapons)
@@ -131,7 +163,7 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 		return RoundsArmoryResult{}, err
 	}
 	// Armed colonists next get the armor ladder the tier allows (#1205).
-	if choice.Kind != policy.GearProduce {
+	if choice.Kind != policy.GearProduce && !hunting {
 		if choice, err = policy.SelectArmoryArmorMethod(request, tier); err != nil {
 			return RoundsArmoryResult{}, err
 		}
@@ -172,30 +204,32 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	return RoundsArmoryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
-func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlState, gear *o.GearSnapshot, benches []policy.GearBench, tier policy.ArmoryTier) ([]policy.Amount, int, error) {
+// weaponDemand is the armory's weapon bill target: the fighters' demand, the
+// hunters' (a hunter lacking a hunting weapon) and the unarmed fighter count.
+func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlState, gear *o.GearSnapshot, benches []policy.GearBench, tier policy.ArmoryTier) (fighters, hunters []policy.Amount, unarmed int, err error) {
 	source, ok := r.native.(RoundsEquipSource)
 	if !ok {
-		return nil, 0, nil
+		return nil, nil, 0, nil
 	}
 	identity := boundary.Identity(state.Snapshot)
 	ids := []string{}
 	things, err := frameThings(ctx, r.native, identity)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	for _, p := range gear.Pawns {
 		ids = append(ids, p.GetPawn().GetId())
 	}
 	reply, _, err := source.ReadCombatPawns(ctx, identity, ids)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return nil, 0, fmt.Errorf("%w: weaponDemand: observed == nil", ErrControl)
+		return nil, nil, 0, fmt.Errorf("%w: weaponDemand: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < gear.Context.GetTick() {
-		return nil, 0, fmt.Errorf("%w: weaponDemand: err != nil || observed.Context.GetTick() < gear.Context.GetTick()", ErrControl)
+		return nil, nil, 0, fmt.Errorf("%w: weaponDemand: err != nil || observed.Context.GetTick() < gear.Context.GetTick()", ErrControl)
 	}
 	// An exact-ID census counts every other pawn on the map as filtered, so
 	// only the requested rows establish completeness: matched, returned and
@@ -206,23 +240,23 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlSta
 	// MaintainEquipment never planned a wear or bill method past its apparel
 	// policies and never recovered (#660).
 	if len(observed.Pawns) != len(ids) {
-		return nil, 0, fmt.Errorf("%w: weaponDemand: len(observed.Pawns) != len(ids)", ErrControl)
+		return nil, nil, 0, fmt.Errorf("%w: weaponDemand: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	pawns := []policy.EquipCandidatePawn{}
 	primaries := map[domain.PawnID]policy.ArmoryPrimary{}
 	catalog, err := source.DefinitionCatalog(ctx, identity)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	for _, p := range observed.Pawns {
 		facts, err := equipCandidatePawnFacts(p, catalog, things)
 		if err != nil {
-			return nil, 0, err
+			return nil, nil, 0, err
 		}
 		pawns = append(pawns, facts)
 		primary, ok, err := armoryPrimary(p, things, catalog)
 		if err != nil {
-			return nil, 0, err
+			return nil, nil, 0, err
 		}
 		if ok {
 			primaries[domain.PawnID(p.Pawn.GetId())] = primary
@@ -230,23 +264,23 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlSta
 	}
 	bounds, _, err := source.ReadMapBounds(ctx, identity, domain.Cell{})
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	if _, err = boundary.Context(bounds.Context, state.Snapshot); err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0 {
-		return nil, 0, fmt.Errorf("%w: weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0", ErrControl)
+		return nil, nil, 0, fmt.Errorf("%w: weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0", ErrControl)
 	}
 	weapons, _, err := source.ReadEquipWeapons(ctx, identity, domain.Cell{}, domain.Cell{X: bounds.Bounds.Width - 1, Z: bounds.Bounds.Height - 1})
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	if _, err = boundary.Context(weapons.Context, state.Snapshot); err != nil {
-		return nil, 0, fmt.Errorf("%w: weaponDemand: err != nil", ErrControl)
+		return nil, nil, 0, fmt.Errorf("%w: weaponDemand: err != nil", ErrControl)
 	}
 	candidates := []policy.EquipCandidateWeapon{}
 	for _, w := range weapons.Targets {
 		candidate, err := equipCandidateWeapon(catalog, w)
 		if err != nil {
-			return nil, 0, err
+			return nil, nil, 0, err
 		}
 		candidates = append(candidates, candidate)
 	}
@@ -256,7 +290,7 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlSta
 	for _, b := range benches {
 		rows, known := b.Recipes.Value()
 		if !known {
-			return nil, 0, fmt.Errorf("%w: weaponDemand: !known", ErrControl)
+			return nil, nil, 0, fmt.Errorf("%w: weaponDemand: !known", ErrControl)
 		}
 		recipes = append(recipes, rows...)
 		for _, recipe := range rows {
@@ -265,12 +299,30 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlSta
 					continue
 				}
 				if products[def], err = catalog.WeaponOf(string(def)); err != nil {
-					return nil, 0, err
+					return nil, nil, 0, err
 				}
 			}
 		}
 	}
-	return policy.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products), policy.UnarmedFighters(pawns, candidates), nil
+	fighters, hunters = policy.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products)
+	return fighters, hunters, policy.UnarmedFighters(pawns, candidates), nil
+}
+
+// mergeAmounts is the sum of two demands, sorted by resource.
+func mergeAmounts(a, b []policy.Amount) []policy.Amount {
+	if len(b) == 0 {
+		return a
+	}
+	sum := map[policy.Resource]int64{}
+	for _, d := range append(append([]policy.Amount(nil), a...), b...) {
+		sum[d.Resource] += d.Count
+	}
+	out := make([]policy.Amount, 0, len(sum))
+	for def, n := range sum {
+		out = append(out, policy.Amount{Resource: def, Count: n})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Resource < out[j].Resource })
+	return out
 }
 
 // armoryPrimary is the pawn's equipped primary weapon; an unobserved

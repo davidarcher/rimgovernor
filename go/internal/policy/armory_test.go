@@ -76,18 +76,47 @@ func TestArmoryWeaponDemandLadder(t *testing.T) {
 		if tc.want != "" {
 			want = []Amount{{Resource: tc.want, Count: 1}}
 		}
-		got := ArmoryWeaponDemand(tc.tier, []EquipCandidatePawn{tc.pawn}, tc.primaries, nil, tc.recipes, products)
+		got, _ := ArmoryWeaponDemand(tc.tier, []EquipCandidatePawn{tc.pawn}, tc.primaries, nil, tc.recipes, products)
 		if len(got) != len(want) || len(got) == 1 && got[0] != want[0] {
 			t.Errorf("%s: got %v want %v", tc.name, got, want)
 		}
 	}
 	// A loose rifle is gear's to wear; the armory bills none.
 	loose := []EquipCandidateWeapon{{Thing: "r", Definition: "Gun_AssaultRifle", Class: WeaponRanged, Facts: coreFacts("Gun_AssaultRifle")}}
-	if got := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{armed}, revolver, loose, recipes, products); len(got) != 0 {
+	if got, _ := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{armed}, revolver, loose, recipes, products); len(got) != 0 {
 		t.Error("billed over a loose upgrade", got)
 	}
 	// Loose weapons arm the unarmed first.
-	if got := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{unarmed}, nil, loose, recipes, products); len(got) != 0 {
+	if got, _ := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{unarmed}, nil, loose, recipes, products); len(got) != 0 {
 		t.Error("billed for an armable colonist", got)
+	}
+}
+
+// A hunter without a hunting-reach ranged weapon (unarmed, melee or a short
+// gun) is hunter demand, owned by food; a hunter's upgrade of an adequate bow
+// and a plain fighter's demand stay fighter demand.
+func TestArmoryWeaponDemandSplitsHunters(t *testing.T) {
+	recipes := []GearRecipe{armoryRecipe("Bow_Short", true), armoryRecipe("MeleeWeapon_Club", true), armoryRecipe("Gun_AssaultRifle", true)}
+	products := map[Resource]WeaponDef{}
+	for _, r := range recipes {
+		products[r.Products[0]] = coreFacts(string(r.Products[0]))
+	}
+	hunter := weaponPawn("h", 10)
+	hunter.Role = WeaponRoleHunter
+	fighter := weaponPawn("f", 10)
+	fighter.Profile.Skills["Melee"] = ProfileSkill{}
+	fighters, hunters := ArmoryWeaponDemand(ArmoryTierNeolithic, []EquipCandidatePawn{hunter, fighter}, nil, nil, recipes, products)
+	if len(hunters) != 1 || hunters[0].Resource != "Bow_Short" || hunters[0].Count != 1 || len(fighters) != 1 || fighters[0].Count != 1 {
+		t.Fatalf("unarmed hunter and fighter: fighters %v hunters %v", fighters, hunters)
+	}
+	melee := hunter
+	melee.Armed = domain.Known(true)
+	club := map[domain.PawnID]ArmoryPrimary{"h": {Definition: "MeleeWeapon_Club", Quality: 2, Facts: coreFacts("MeleeWeapon_Club")}}
+	if _, hunters = ArmoryWeaponDemand(ArmoryTierNeolithic, []EquipCandidatePawn{melee}, club, nil, recipes, products); len(hunters) != 1 {
+		t.Fatalf("a hunter with a club wants a bow: %v", hunters)
+	}
+	bowed := map[domain.PawnID]ArmoryPrimary{"h": {Definition: "Bow_Short", Ranged: true, Quality: 2, Facts: coreFacts("Bow_Short")}}
+	if fighters, hunters = ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{melee}, bowed, nil, recipes, products); len(hunters) != 0 {
+		t.Fatalf("a bow hunter's upgrade is not hunter demand: %v %v", fighters, hunters)
 	}
 }

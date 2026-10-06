@@ -332,7 +332,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if summary.Status != domain.StandardOpen || summary.Finding != domain.FindingUnmet {
 		return errors.New("standard does not admit a method")
 	}
-	if err := admitRoundsSafeguards(ctx, tx, state); err != nil {
+	if err := admitRoundsSafeguards(ctx, tx, state, plan.Actions()); err != nil {
 		return err
 	}
 	if err := admitRoundsDevelopment(ctx, tx, summary, plan); err != nil {
@@ -499,5 +499,9 @@ func guardStandardWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors
 	}
 	// A prepared plan does not prepare or dispatch while a Safeguard vetoes its
 	// goal (#1017).
-	return admitRoundsSafeguards(ctx, tx, state)
+	planned, err := load(ctx, tx, plan)
+	if err != nil {
+		return err
+	}
+	return admitRoundsSafeguards(ctx, tx, state, planned.Spec.Actions())
 }

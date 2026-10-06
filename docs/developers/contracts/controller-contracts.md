@@ -20,7 +20,9 @@ never certify recovery.
 The priority tree evaluates combat, critical medicine, food, shelter, temperature,
 cooking, work coverage, power, storage, defense, wood and [equipment upkeep](equipment-upkeep.md).
 Food, wood and temperature use separate entry and recovery thresholds. An emergency
-need vetoes every priority>=2 routine proposal (EmergencySafeguard); a pause vetoes all
+need vetoes every priority>=2 routine proposal (EmergencySafeguard) except the hunters' weapon
+craft (a gear-batch bill under `EnsureFoodSupply`, `HunterWeaponCraft`: food is priority 2, so it
+is no emergency need, and a hunt waits on that weapon); a pause vetoes all
 (PauseSafeguard). Methods, blockers, provenance and progress evidence live in the
 SQLite-backed ColonyPlan.
 

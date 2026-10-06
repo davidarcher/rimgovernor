@@ -191,18 +191,31 @@ func (r Rounds) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
 // Veto asks the policy Safeguards (#1017) whether this review admits a proposal
 // for the goal, returning the veto's reason or "". A goal the review does
 // not bind (a player goal) is outside the routine Safeguards.
-func (r Rounds) Veto(g domain.Standard) string {
+func (r Rounds) Veto(g domain.Standard) string { return r.veto(g, false) }
+
+func (r Rounds) veto(g domain.Standard, hunterWeapons bool) string {
 	need, bound := r.Need(g.ID)
 	if !bound {
 		return ""
 	}
-	return r.vetoNeed(need, g.Priority)
+	ref, _ := r.refuse(policy.SafeguardProposal{Need: need, Priority: g.Priority, HunterWeapons: hunterWeapons})
+	return ref.Reason
 }
 
 // Workable loads the Standard goal the review binds to need and reports whether a
 // planner may work it: an active deficit the Safeguards admit (#1121). The goal
 // is returned whenever the review binds one, workable or not.
 func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (StandardState, bool, error) {
+	return s.workable(ctx, r, need, false)
+}
+
+// WorkableHunterWeapons is Workable for the hunters' weapon craft
+// (policy.HunterWeaponCraft), which an emergency does not suspend.
+func (s *Store) WorkableHunterWeapons(ctx context.Context, r Rounds) (StandardState, bool, error) {
+	return s.workable(ctx, r, policy.EnsureFoodSupply, true)
+}
+
+func (s *Store) workable(ctx context.Context, r Rounds, need policy.ConcernID, hunterWeapons bool) (StandardState, bool, error) {
 	id := domain.ConcernID("")
 	for _, binding := range r.Standards {
 		if binding.Concern == need {
@@ -216,7 +229,7 @@ func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (
 	if err != nil {
 		return StandardState{}, false, err
 	}
-	return goal, goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet && r.Veto(goal.Standard) == "", nil
+	return goal, goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet && r.veto(goal.Standard, hunterWeapons) == "", nil
 }
 
 // vetoAction asks the action Safeguards (#1018) at dispatch: a vetoed action is
