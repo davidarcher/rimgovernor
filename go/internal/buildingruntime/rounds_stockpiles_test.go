@@ -193,8 +193,8 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		// The four retired dump roles retire; the one dump is a declared store.
 		{"dump:worn", true, true, domain.StockpileFilter{}, ""},
 		{"dump:other", true, true, domain.StockpileFilter{}, ""},
-		// No dining table and no cold spot: the meal stockpile retires (#936).
-		{"meals:Room_1", true, true, domain.StockpileFilter{}, ""},
+		// The meal stores are the Food department's declared stores.
+		{"meals:Room_1", false, false, domain.StockpileFilter{}, ""},
 		{"rawfood:Room_1", true, false, domain.RawFoodFilter(), domain.CriticalPriority},
 	} {
 		state, ok := roles(tc.role)

@@ -11,18 +11,18 @@ import (
 // (StockpileRequest.Sited). The role registry supplies each role's filter
 // and priority; a site names them for the zones it creates.
 
-// MealStore is where the meal stockpile belongs, resolved by the caller from
-// the dining facts (a standing meal closet, the freezer's door into the
-// dining room, or the census dining table).
+// MealStore is the one-cell meal store by the dining table, resolved by the
+// caller from the dining facts: the table is a built-furniture fact, so this
+// is the one store sited from more than the layout plan.
 type MealStore struct {
-	Room   Room
+	// Dining is the planned dining room's interior.
+	Dining Rectangle
 	Filter domain.StockpileFilter
-	// Anchor and Avoid place a one-cell store: the cell nearest Anchor off
-	// Avoid.
+	// Anchor and Avoid place the cell: nearest Anchor, off Avoid (the chairs).
 	Anchor domain.Cell
 	Avoid  []domain.Cell
-	// Whole makes the zone the whole room.
-	Whole bool
+	// Retired states the colony no longer wants a warm spot by the table.
+	Retired bool
 }
 
 // StorageRequest is the colony view the planner reads. Layout and Rooms are
@@ -34,16 +34,16 @@ type StorageRequest struct {
 	Protected []domain.Cell
 	Layout    *LayoutPlan
 	Rooms     *RoomObservation
-	// Meals is nil when no meal store is wanted or its facts are unknown.
+	// Meals is nil when the table meal store's facts are unknown.
 	Meals *MealStore
 	// BenchInputs are the benches consuming stored inputs (#1775), and
 	// Benches the benches standing (unknown holds every bench store); both
 	// are read by the Industry department's stores.
 	BenchInputs []BenchInput
 	Benches     domain.Fact[map[string]bool]
-	// Sleeping is nil while the bed census is unknown; the medicine store
-	// needs it with Rooms.
-	Sleeping *SleepingObservation
+	// Shapes are the piece shapes the hospital template plans its beds with
+	// (the medicine store sits nearest them).
+	Shapes PieceShapes
 	// Food is nil when the colony's food storage stands or its fact is
 	// known to be met; see FoodStore.
 	Food *FoodStore

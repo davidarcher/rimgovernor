@@ -6,60 +6,63 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func medicineView(role RoomRole, medical bool) StorageRequest {
-	var cells []SiteCell
-	var ward []domain.Cell
-	for x := int32(0); x < 20; x++ {
-		for z := int32(0); z < 20; z++ {
-			cell := domain.Cell{X: x, Z: z}
-			cells = append(cells, SiteCell{Cell: cell, Roofed: domain.Known(true), Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true)})
-			if x >= 1 && x < 19 && z >= 1 && z < 19 {
-				ward = append(ward, cell)
-			}
-		}
-	}
-	beds := []domain.Cell{{X: 16, Z: 16}, {X: 17, Z: 16}}
-	bed := func(id string, at domain.Cell) SleepingBed {
-		return SleepingBed{ID: id, Medical: domain.Known(medical), Room: domain.Known("ward"), Cell: at}
-	}
-	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "ward", Role: domain.Known(role), Cells: ward, Beds: []string{"b1", "b2"}}}}
-	sleeping := SleepingObservation{Beds: []SleepingBed{bed("b1", beds[0]), bed("b2", beds[1])}}
-	return StorageRequest{Bounds: Bounds{Width: 20, Height: 20}, Cells: cells, Protected: beds, Rooms: &rooms, Sleeping: &sleeping}
+func hospitalView(shapes PieceShapes) (StorageRequest, PlannedRoom) {
+	hospital := PlannedRoom{Role: PlannedHospital, Interior: Rectangle{X: 10, Z: 10, Width: 7, Height: 5}, Door: domain.Cell{X: 13, Z: 15}, DoorRot: domain.South}
+	return StorageRequest{Layout: &LayoutPlan{Rooms: []PlannedRoom{hospital}}, Shapes: shapes}, hospital
 }
 
-// A hospital room gets one medicine zone nearest its medical beds; without
-// a medical bed, a hospital role or the bed census there is none.
-func TestMedicalStoreBesideMedicalBeds(t *testing.T) {
+// The medicine store is declared from the planned hospital at plan time,
+// before walls and roof: an Important 2x2 inside the hospital, off the planned
+// beds and monitors and beside the template's bed slots, not at the door.
+func TestMedicalStoreBesideThePlannedBeds(t *testing.T) {
 	t.Parallel()
-	view := medicineView(RoomRoleHospital, true)
-	stores := DeclareStores(view).Stores
-	if len(stores) != 1 {
-		t.Fatalf("%+v", stores)
+	view, hospital := hospitalView(testShapes)
+	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Interior)]
+	if !ok || len(edit.Cells) != 4 || edit.Priority != domain.ImportantPriority || edit.Filter != domain.MedicineFilter() || !withinRect(edit.Cells, hospital.Interior) {
+		t.Fatalf("%+v", edit)
 	}
-	site := stores[0]
-	if site.Role != domain.MedicineRolePrefix+"ward" || site.Priority != domain.ImportantPriority {
-		t.Fatalf("%+v", site)
+	in, ok := InteriorRoomFromLayout(hospital, testShapes)
+	if !ok {
+		t.Fatal("no hospital room")
 	}
-	cells := site.Cells(newStockpileOpen(StockpileRequest{Bounds: view.Bounds, Cells: view.Cells, Protected: view.Protected}))
-	if len(cells) != 4 {
-		t.Fatalf("medicine is a 2x2: %v", cells)
+	plan, ok := PlanInterior(in, InteriorPieceDef{})
+	if !ok {
+		t.Fatal("no hospital plan")
 	}
-	for _, c := range cells {
-		if c.X < 13 || c.Z < 13 {
-			t.Fatal("medicine must sit beside the medical beds", cells)
+	taken := map[domain.Cell]bool{}
+	for _, p := range plan.Pieces {
+		for _, c := range rectCells(p.Rect) {
+			taken[c] = true
 		}
 	}
-	if f := site.Filter; f.Base() != domain.BaseNothing || len(f.Allow()) != 1 {
+	for _, c := range edit.Cells {
+		if taken[c] {
+			t.Fatal("medicine on a planned bed or monitor", c)
+		}
+		if c.Z > 13 {
+			t.Fatal("medicine at the door, not beside the beds", edit.Cells)
+		}
+	}
+	if f := edit.Filter; f.Base() != domain.BaseNothing || len(f.Allow()) != 1 {
 		t.Fatal(f)
 	}
-	if got := DeclareStores(medicineView(RoomRoleHospital, false)).Stores; len(got) != 0 {
-		t.Fatalf("no medical bed planned %+v", got)
+}
+
+// Without bed slots (no piece shapes) the store sits nearest the hospital's
+// door; with no planned hospital there is none.
+func TestMedicalStoreFallsBackToTheDoorAndNeedsAHospital(t *testing.T) {
+	t.Parallel()
+	view, hospital := hospitalView(PieceShapes{})
+	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Interior)]
+	if !ok || len(edit.Cells) != 4 || !withinRect(edit.Cells, hospital.Interior) {
+		t.Fatalf("%+v", edit)
 	}
-	if got := DeclareStores(medicineView(RoomRoleKitchen, true)).Stores; len(got) != 0 {
-		t.Fatalf("a kitchen planned %+v", got)
+	for _, c := range edit.Cells {
+		if c.Z < 13 {
+			t.Fatal("medicine away from the door", edit.Cells)
+		}
 	}
-	view.Sleeping = nil
-	if got := DeclareStores(view).Stores; len(got) != 0 {
-		t.Fatalf("unknown beds planned %+v", got)
+	if got := storeCreates(StorageRequest{Layout: &LayoutPlan{}}); len(got) != 0 {
+		t.Fatalf("no hospital planned %+v", got)
 	}
 }

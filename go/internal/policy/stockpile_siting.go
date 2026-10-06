@@ -37,7 +37,10 @@ type StoreSite struct {
 	Width, Height int32
 	Anchor        domain.Cell
 	// Roofed limits a rectangle to roofed ground.
-	Roofed   bool
+	Roofed bool
+	// Avoid are interior cells a rectangle never takes (planned furniture,
+	// the chairs).
+	Avoid    []domain.Cell
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 
@@ -104,7 +107,7 @@ func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
 		return cover
 	}
 	within := open
-	within.only = cellSet(s.footprint())
+	within.only = cellSet(withoutCells(s.footprint(), s.Avoid))
 	var allow func(SiteCell) bool
 	if s.Roofed {
 		allow = func(c SiteCell) bool { roofed, known := c.Roofed.Value(); return known && roofed }

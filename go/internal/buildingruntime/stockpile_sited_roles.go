@@ -6,24 +6,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The room-bound stockpile roles (#917), created by MaintainStockpiles
-// whenever their room stands without one, whatever other goal is in
-// deficit:
+// The room-bound stockpile roles (#917). The meal closet, the table cell, the
+// medicine store and the food store are declared by their departments from the
+// layout plan (policy.foodOwner, policy.medicalOwner); the one still reading a
+// built fact is the table cell (tableMeal). The raw-food role (#722) is a 2x2
+// Critical stockpile of raw meat and raw plant food inside the planned freezer:
+// Critical because vanilla ranks Preferred below Important, and only a rank
+// above the starter Important food zone hauls raw food into the cold.
 //
-//   - meals:<roomID>, the meal stockpile (#872, #936), where cooked meals
-//     keep near the table (findMealSpot): the standing meal closet, whole;
-//     else, while the colony eats at least mealSpotMinPerDay meals a day,
-//     one cell of the one meal it cooks beside the census dining table, off
-//     the chairs, so few meals sit warm. With no spot the role retires.
-//   - rawfood:<roomID>, the raw-food stock (#722): a 2x2 Critical stockpile
-//     of raw meat and raw plant food inside the planned freezer, nearest its
-//     door into the kitchen, so cooks fetch cold ingredients a step from the
-//     stove. Critical because vanilla ranks Preferred below Important, and
-//     only a rank above the starter Important food zone hauls raw food into
-//     the cold.
-//
-// Both are fixed-size: MaintainStockpiles never grows or merges them, and
-// shrinks a meal zone only to its spot's size.
+// All are fixed-size: MaintainStockpiles never grows or merges them.
 
 // mealSpotMinPerDay is the fewest meals a day the colony eats before a
 // warm spot by the table pays: fewer, and the meals wait in the store.
@@ -39,88 +30,66 @@ func allowOnly(definitions ...string) domain.StockpileFilter {
 
 func init() {
 	rawFood := policy.StockpileRoleState{Filter: domain.RawFoodFilter(), Priority: domain.CriticalPriority, Fixed: true}
-	RegisterStockpileRole("meals", func(in StockpileRoleInput, _ string) (policy.StockpileRoleState, bool) {
-		spot, known := findMealSpot(in.Projection)
-		if !known {
-			return policy.StockpileRoleState{}, false
-		}
-		if spot.room.ID == "" {
-			return policy.StockpileRoleState{Retired: true}, true
-		}
-		return policy.StockpileRoleState{Filter: spot.filter, Priority: domain.CriticalPriority, Fixed: true}, true
-	})
 	RegisterStockpileRole(domain.YardRole, fixedStockpileRole(domain.YardFilter(), domain.LowPriority))
 	RegisterStockpileRole("rawfood", func(StockpileRoleInput, string) (policy.StockpileRoleState, bool) { return rawFood, true })
 }
 
-// mealSpot is where the meal stockpile belongs: the room, the meals it
-// holds, and where its cells sit (the whole room, or the cell nearest anchor
-// off avoid).
-type mealSpot struct {
-	room   policy.Room
-	filter domain.StockpileFilter
-	anchor domain.Cell
-	avoid  []domain.Cell
-	whole  bool
-}
-
-// findMealSpot is the meal stockpile's spot (#936), best first: the
-// standing meal closet; one cell by the census dining table while the colony eats
-// at least mealSpotMinPerDay meals a day. A zero room is no spot; known is
-// false while a fact the choice needs is unknown.
-func findMealSpot(projection *observation.ColonyProjection) (mealSpot, bool) {
+// tableMeal is the one-cell meal store by the dining table (#936), nil while a
+// fact it needs is unknown: a spot in the planned dining room holding the
+// table, while the colony eats at least mealSpotMinPerDay meals a day, else a
+// retirement of the zone. The cell sits off the chairs, nearest where they are.
+func tableMeal(projection *observation.ColonyProjection) *policy.MealStore {
 	if projection == nil {
-		return mealSpot{}, false
+		return nil
 	}
-	rooms, rk := projection.Rooms.Value()
-	if !rk {
-		return mealSpot{}, false
+	plan, pk := projection.LayoutPlan.Value()
+	comfort, ck := projection.Facts.Comfort.Value()
+	if !pk || !ck {
+		return nil
 	}
-	if plan, pk := projection.LayoutPlan.Value(); pk {
-		if spot, ok := coldMealSpot(plan, rooms); ok {
-			return spot, true
+	var dining []policy.PlannedRoom
+	for _, planned := range plan.AllRooms() {
+		if planned.Role == policy.PlannedDining {
+			dining = append(dining, planned)
 		}
 	}
-	comfort, ck := projection.Facts.Comfort.Value()
-	if !ck {
-		return mealSpot{}, false
+	if len(dining) == 0 {
+		return nil
 	}
-	room, adjacent := diningTable(rooms.Rooms, comfort.Surfaces)
-	if room.ID == "" {
-		return mealSpot{}, true
+	retired := &policy.MealStore{Dining: dining[0].Interior, Retired: true}
+	var room policy.PlannedRoom
+	var adjacent []domain.Cell
+	for _, planned := range dining {
+		for _, s := range comfort.Surfaces {
+			if len(s.Adjacent) > 0 && inRectangle(planned.Interior, s.Adjacent[0]) {
+				room, adjacent = planned, s.Adjacent
+				break
+			}
+		}
+		if adjacent != nil {
+			break
+		}
+	}
+	if adjacent == nil {
+		return retired
 	}
 	benches, bk := projection.ProductionBenches.Value()
 	if !bk {
-		return mealSpot{}, false
+		return nil
 	}
 	// The meal is what the active bills cook; none cooked, no warm spot.
 	meal, nutrition, cooked := policy.ObservedMeal(benches)
 	if !cooked {
-		return mealSpot{}, true
+		return retired
 	}
 	perDay, known := mealsPerDay(projection.FoodSupply, nutrition)
 	if !known {
-		return mealSpot{}, false
+		return nil
 	}
 	if perDay < mealSpotMinPerDay {
-		return mealSpot{}, true
+		return retired
 	}
-	return mealSpot{room: room, filter: allowOnly(meal), anchor: centroid(adjacent), avoid: adjacent}, true
-}
-
-// coldMealSpot is the standing meal closet. The freezer shelf by the dining
-// room is declared from the layout plan (policy.foodOwner).
-func coldMealSpot(plan policy.LayoutPlan, rooms policy.RoomObservation) (mealSpot, bool) {
-	for _, planned := range plan.Rooms {
-		if planned.Role != policy.PlannedMealCloset {
-			continue
-		}
-		// Census: the meal zone is the room's own cells.
-		if room, ok := policy.CensusRoomIn(planned, rooms); ok && len(room.Cells) > 0 {
-			return mealSpot{room: room, filter: domain.MealShelfFilter(), whole: true}, true
-		}
-	}
-	return mealSpot{}, false
+	return &policy.MealStore{Dining: room.Interior, Filter: allowOnly(meal), Anchor: centroid(adjacent), Avoid: adjacent}
 }
 
 // mealsPerDay is the meals the colonists eat a day: their nutrition need
@@ -141,22 +110,8 @@ func mealsPerDay(supply domain.Fact[policy.FoodSupply], mealNutrition float64) (
 	return total / mealNutrition, true
 }
 
-// diningTable is the first census Dining room holding a dining surface and
-// that surface's adjacent cells (the chairs' places); a zero room when no
-// table stands in a Dining room.
-func diningTable(rooms []policy.Room, surfaces []policy.DiningSurface) (policy.Room, []domain.Cell) {
-	for _, room := range rooms {
-		role, known := room.Role.Value()
-		if !known || role != policy.RoomRoleDiningRoom || len(room.Cells) == 0 {
-			continue
-		}
-		for _, s := range surfaces {
-			if s.RoomID == room.ID && len(s.Adjacent) > 0 {
-				return room, s.Adjacent
-			}
-		}
-	}
-	return policy.Room{}, nil
+func inRectangle(r policy.Rectangle, c domain.Cell) bool {
+	return c.X >= r.X && c.X < r.X+r.Width && c.Z >= r.Z && c.Z < r.Z+r.Height
 }
 
 func centroid(cells []domain.Cell) domain.Cell {
@@ -169,44 +124,17 @@ func centroid(cells []domain.Cell) domain.Cell {
 }
 
 // storageRequest is the colony view the storage planner reads: the cells,
-// the layout plan and room census when known, the meal store's spot and the
-// food stockpile while the colony's food storage is not met.
+// the layout plan and room census when known, the table meal store's spot and
+// the food stockpile while the colony's food storage is not met.
 func storageRequest(projection *observation.ColonyProjection, protected []domain.Cell) policy.StorageRequest {
 	request := policy.StorageRequest{Bounds: projection.Bounds, Cells: projection.Cells, Protected: protected}
 	if plan, rooms, known := plannedLayout(*projection); known {
 		request.Layout, request.Rooms = &plan, &rooms
 	}
-	if sleeping, known := projection.Facts.Sleeping.Value(); known {
-		request.Sleeping = &sleeping
-	}
-	if spot, known := findMealSpot(projection); known && spot.room.ID != "" {
-		request.Meals = &policy.MealStore{Room: spot.room, Filter: spot.filter, Anchor: spot.anchor, Avoid: spot.avoid, Whole: spot.whole}
-	}
+	request.Shapes = projection.Shapes
+	request.Meals = tableMeal(projection)
 	if met, known := projection.Facts.FoodStorage.Value(); !known || !met {
-		anchor, cooking := cookingSpot(projection)
-		core, planned := planCore(*projection)
-		if !cooking {
-			anchor = core
-		}
-		if cooking || planned {
-			request.Food = &policy.FoodStore{Anchor: anchor}
-		}
+		request.Food = &policy.FoodStore{}
 	}
 	return request
-}
-
-// cookingBenchDefinitions are the cooking benches the food stockpile sits
-// beside.
-var cookingBenchDefinitions = map[string]bool{"Campfire": true, "FueledStove": true, "ElectricStove": true}
-
-// cookingSpot is the first claimed or built cooking bench's cell.
-func cookingSpot(projection *observation.ColonyProjection) (domain.Cell, bool) {
-	if census, ok := projection.Facts.CurrentConstruction.Value(); ok {
-		for _, b := range census.Buildings {
-			if cookingBenchDefinitions[b.Building.Definition()] {
-				return b.Building.Cell(), true
-			}
-		}
-	}
-	return domain.Cell{}, false
 }

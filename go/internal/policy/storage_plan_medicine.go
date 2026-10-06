@@ -1,84 +1,62 @@
 package policy
 
-import (
-	"sort"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-)
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // maxMedicineHaulConsumers bounds the beds the haul-distance ranking walks
 // from: each medical bed is one unit of traffic.
 const maxMedicineHaulConsumers = 64
 
-// medicineStore is the hospital's medicine store (#1776): the hospital-hosting
-// room with the most medical beds (room id order on a tie) gets one 2x2
-// medicine zone on the free roofed patch nearest those beds by
-// traffic-weighted walking distance (#723). No site while the room census or
-// the bed census is unknown, no hosted room has a medical bed, or nothing
-// fits. The role registry retires the zone once the room stops hosting a
-// hospital.
+// medicineStore is the hospital's medicine store (#1776, #2219): a 2x2 inside
+// the first planned hospital, nearest the template's bed slots by
+// traffic-weighted walking distance (#723), off the planned beds and monitors.
+// Without bed slots (no template fit) it sits nearest the hospital's door.
 func (r StorageRequest) medicineStore() (Store, bool) {
-	if r.Rooms == nil || r.Sleeping == nil {
+	if r.Layout == nil {
 		return Store{}, false
 	}
-	facility, err := Facility(RoomRoleHospital)
-	if err != nil {
-		return Store{}, false
-	}
-	beds := map[string][]domain.Cell{}
-	for _, bed := range r.Sleeping.Beds {
-		medical, mk := bed.Medical.Value()
-		room, rk := bed.Room.Value()
-		if mk && rk && medical {
-			beds[room] = append(beds[room], bed.Cell)
+	var hospital PlannedRoom
+	for _, planned := range r.Layout.AllRooms() {
+		if planned.Role == PlannedHospital {
+			hospital = planned
+			break
 		}
 	}
-	var hosted []Room
-	for _, room := range r.Rooms.Rooms {
-		role, known := room.Role.Value()
-		if known && facility.Hosts(role) && len(beds[room.ID]) > 0 && len(room.Cells) > 0 {
-			hosted = append(hosted, room)
+	if hospital.Interior.Width <= 0 {
+		return Store{}, false
+	}
+	var avoid, beds []domain.Cell
+	if in, ok := InteriorRoomFromLayout(hospital, r.Shapes); ok {
+		if plan, ok := PlanInterior(in, InteriorPieceDef{}); ok {
+			for _, p := range plan.Pieces {
+				avoid = append(avoid, rectCells(p.Rect)...)
+				if p.Row == "beds" {
+					beds = append(beds, rectCells(p.Rect)...)
+				}
+			}
 		}
 	}
-	if len(hosted) == 0 {
+	open := newStockpileOpen(StockpileRequest{Bounds: r.Bounds, Cells: r.Cells, Protected: r.Protected})
+	open.only = cellSet(withoutCells(rectCells(hospital.Interior), avoid))
+	rects := rectangleSites(open, hospital.Door, 2, 2, nil, int(hospital.Interior.Width*hospital.Interior.Height))
+	if len(rects) == 0 {
 		return Store{}, false
 	}
-	sort.Slice(hosted, func(i, j int) bool {
-		if a, b := len(beds[hosted[i].ID]), len(beds[hosted[j].ID]); a != b {
-			return a > b
+	best := rects[0]
+	if len(beds) > 0 {
+		consumers := make([]HaulConsumer, 0, len(beds))
+		for _, c := range beds {
+			consumers = append(consumers, HaulConsumer{Cells: []domain.Cell{c}, Weight: 1})
 		}
-		return hosted[i].ID < hosted[j].ID
-	})
-	room, bedCells := hosted[0], beds[hosted[0].ID]
-	inside := cellSet(room.Cells)
-	var scoped []SiteCell
-	for _, c := range r.Cells {
-		if inside[c.Cell] {
-			scoped = append(scoped, c)
+		if len(consumers) > maxMedicineHaulConsumers {
+			consumers = consumers[:maxMedicineHaulConsumers]
+		}
+		if costs, err := HaulCosts(r.Cells, consumers); err == nil {
+			best = RankSitesByHaul(rects, costs)[0]
 		}
 	}
-	if len(scoped) == 0 {
-		return Store{}, false
-	}
-	rects, err := CoveredStorageSites(CoveredStorageRequest{Bounds: r.Bounds, Anchor: bedCells[0], Cells: scoped, Protected: r.Protected})
-	if err != nil || len(rects) == 0 {
-		return Store{}, false
-	}
-	consumers := make([]HaulConsumer, 0, len(bedCells))
-	for _, c := range bedCells {
-		consumers = append(consumers, HaulConsumer{Cells: []domain.Cell{c}, Weight: 1})
-	}
-	if len(consumers) > maxMedicineHaulConsumers {
-		consumers = consumers[:maxMedicineHaulConsumers]
-	}
-	costs, err := HaulCosts(r.Cells, consumers)
-	if err != nil {
-		return Store{}, false
-	}
-	best := RankSitesByHaul(rects, costs)[0]
 	// The anchor is the best patch's centre: the store takes that patch, else
 	// the free one nearest it.
-	site := StoreSite{Role: domain.MedicineRolePrefix + room.ID, Width: best.Width, Height: best.Height, Anchor: domain.Cell{X: best.X + best.Width/2, Z: best.Z + best.Height/2},
-		Filter: domain.MedicineFilter(), Priority: domain.ImportantPriority, room: room.Cells}
-	return Store{StoreSite: site}, true
+	return Store{StoreSite: StoreSite{Role: plannedKey(domain.MedicineRolePrefix, hospital.Interior), Interior: hospital.Interior, Width: 2, Height: 2,
+		Anchor: domain.Cell{X: best.X + best.Width/2, Z: best.Z + best.Height/2}, Avoid: avoid,
+		Filter: domain.MedicineFilter(), Priority: domain.ImportantPriority}}, true
 }

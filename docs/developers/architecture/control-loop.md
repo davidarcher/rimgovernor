@@ -155,10 +155,11 @@ and its `RoomDemand` from capacity (`DeclaredDemand`). `MaintainStockpiles` is
 the one applier: it creates a declared store's zone, retargets it, and deletes
 it only when the department declares it `Retired`; it never grows, shrinks or
 merges one. A declared room's demand replaces `PlanStorage`'s fill-based reading
-and feeds layout as before. Food declares the meal store, the freezer shelves
+and feeds layout as before. Food declares the meal closet, the table cell, the freezer shelves
 (raw meat, raw vegetables, animal corpses, the meal shelf at the dining door)
 with their perishables catch-all, and the food store; Medical declares the
-medicine store. A Department that owns no store stays a grouping tag.
+medicine store. All but the table cell (one cell by the built dining table) are
+sited from the planned room at plan time, never from the room census. A Department that owns no store stays a grouping tag.
 
 ## Execute under supervision
 

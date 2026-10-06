@@ -6,10 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// foodOwner is the Food department's stockpiles (#2193): the meal store, the
-// freezer's shelves and perishables catch-all, and the food store. They were
-// PlanStorage sites; each is now declared once and sited from the layout plan
-// at plan time, at its real priority, sized once.
+// foodOwner is the Food department's stockpiles (#2193, #2219): the meal
+// closet, the table cell, the freezer's shelves and perishables catch-all, and
+// the food store. Each is declared once and sited from the layout plan at plan
+// time, at its real priority, sized once; only the table cell reads a built
+// fact (the table).
 type foodOwner struct{}
 
 func (foodOwner) Department() Department { return DepartmentFood }
@@ -24,8 +25,11 @@ func (o foodOwner) RoomDemand(v StorageRequest) RoomDemand {
 // rest of the freezer, then the food store.
 func (foodOwner) Stores(v StorageRequest) []Store {
 	var out []Store
-	if v.Meals != nil && v.Meals.Room.ID != "" {
-		out = append(out, v.mealStore(*v.Meals))
+	if v.Layout != nil {
+		out = append(out, v.mealClosets()...)
+	}
+	if v.Meals != nil {
+		out = append(out, v.tableStore(*v.Meals))
 	}
 	if v.Layout != nil {
 		out = append(out, v.freezerMealShelf()...)
@@ -43,15 +47,24 @@ func plannedKey(prefix string, interior Rectangle) string {
 	return fmt.Sprintf("%s%d_%d", prefix, interior.X, interior.Z)
 }
 
-// mealStore is the meal closet whole, or the one cell of the cooked meal by
-// the dining table, off the chairs.
-func (r StorageRequest) mealStore(meals MealStore) Store {
-	site := StoreSite{Role: domain.MealsRolePrefix + meals.Room.ID, Filter: meals.Filter, Priority: domain.CriticalPriority, room: meals.Room.Cells}
-	if !meals.Whole {
-		site.Width, site.Height, site.Anchor = 1, 1, meals.Anchor
-		site.room = withoutCells(meals.Room.Cells, meals.Avoid)
+// mealClosets are the planned meal closets, each covered whole.
+func (r StorageRequest) mealClosets() []Store {
+	var out []Store
+	for _, closet := range r.Layout.AllRooms() {
+		if closet.Role == PlannedMealCloset {
+			out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, closet.Interior), Interior: closet.Interior,
+				Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}})
+		}
 	}
-	return Store{StoreSite: site}
+	return out
+}
+
+// tableStore is the one cell of the cooked meal by the dining table, off the
+// chairs. It is the one store sited from a built fact (the table); its role is
+// exact so retiring it never touches the closet or the freezer shelf.
+func (r StorageRequest) tableStore(meals MealStore) Store {
+	return Store{Retired: meals.Retired, StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, meals.Dining), Interior: meals.Dining, Width: 1, Height: 1,
+		Anchor: meals.Anchor, Avoid: meals.Avoid, Filter: meals.Filter, Priority: domain.CriticalPriority, exact: true}}
 }
 
 func withoutCells(cells, drop []domain.Cell) []domain.Cell {

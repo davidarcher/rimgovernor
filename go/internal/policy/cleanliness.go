@@ -317,26 +317,6 @@ func KitchenSeparation(rooms domain.Fact[RoomObservation]) domain.Fact[[]Separat
 
 var sleepingDefinitions = map[Resource]bool{"SleepingSpot": true, "DoubleSleepingSpot": true, "Bed": true, "DoubleBed": true, "RoyalBed": true}
 
-// SleepingRoomCells is every cell of every sleeping room (the Bedroom role,
-// or any room holding a bed or sleeping spot). Unknown room facts mark
-// nothing.
-func SleepingRoomCells(rooms domain.Fact[RoomObservation]) map[domain.Cell]bool {
-	census, known := rooms.Value()
-	if !known {
-		return nil
-	}
-	cells := map[domain.Cell]bool{}
-	for _, room := range census.Rooms {
-		role, _ := room.Role.Value()
-		if role == RoomRoleBedroom || roomHolds(room, sleepingDefinitions) {
-			for _, c := range room.Cells {
-				cells[c] = true
-			}
-		}
-	}
-	return cells
-}
-
 // SeparationProtectedCells returns every cell of every room holding the
 // benches in set (cooking rooms for a butcher placement, butcher rooms for
 // a cooking placement; a butcher also avoids any room the game already

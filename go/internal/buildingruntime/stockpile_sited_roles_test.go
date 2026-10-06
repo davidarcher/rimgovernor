@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// mealSpotColony is a recorded 30x30 roofed colony: census dining room
-// Room_4 over (10..19, 10..19) with a 1x2 table at (15,15)-(15,16), and
+// mealSpotColony is a recorded 30x30 roofed colony: planned dining room over
+// (10..19, 10..19), standing as census room Room_4, with a 1x2 table at (15,15)-(15,16), and
 // colonists eating need nutrition a day each.
 func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.Cell) {
 	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 30, Height: 30}, Facts: policy.RoundsFacts{Colonists: domain.Known(int64(len(needs)))}}
@@ -30,6 +30,7 @@ func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.C
 		}
 	}
 	projection.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "Room_4", Role: domain.Known(policy.RoomRoleDiningRoom), Enclosed: domain.Known(true), Cells: roomCells}}})
+	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}, Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}}})
 	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{Surfaces: []policy.DiningSurface{{ID: "Table_1", RoomID: "Room_4", Adjacent: adjacent}}})
 	projection.Facts.FoodStorage = domain.Known(true)
 	var consumers []policy.FoodConsumer
@@ -74,7 +75,7 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 		t.Fatalf("review %+v", review)
 	}
 	create := review.Edits[0]
-	if create.Kind != policy.StockpileCreate || create.Role != "meals:Room_4" || create.Priority != domain.CriticalPriority || create.Filter != simple || len(create.Cells) != 1 {
+	if create.Kind != policy.StockpileCreate || create.Role != "meals:10_10" || create.Priority != domain.CriticalPriority || create.Filter != simple || len(create.Cells) != 1 {
 		t.Fatalf("create %+v", create)
 	}
 	c := create.Cells[0]
@@ -90,12 +91,12 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	shelf := []domain.Cell{{X: 11, Z: 11}, {X: 11, Z: 12}, {X: 12, Z: 11}, {X: 12, Z: 12}}
 	zoneOn(projection, "Zone_7", false, shelf...)
 	zoneOn(projection, "Zone_7", true, shelf[0])
-	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:Room_4", Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}}
+	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:10_10", Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}}
 	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil, nil)))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileRetarget || review.Edits[0].Filter != simple || review.Edits[0].Zone != "Zone_7" {
 		t.Fatalf("shelf not retargeted: %+v", review)
 	}
-	patches := map[string]store.AppliedStockpile{"Zone_7": {Target: "Zone_7", Kind: domain.StorageZoneTarget, Filter: simple, Priority: domain.CriticalPriority, Role: "meals:Room_4"}}
+	patches := map[string]store.AppliedStockpile{"Zone_7": {Target: "Zone_7", Kind: domain.StorageZoneTarget, Filter: simple, Priority: domain.CriticalPriority, Role: "meals:10_10"}}
 	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil)))
 	if review.Active {
 		t.Fatalf("a standing store is sized once, never shrunk: %+v", review)
@@ -113,28 +114,23 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	}
 }
 
-// Once the meal closet stands (#936), the meal stockpile moves into it:
-// the zone by the table is deleted and the closet zoned whole for every
-// meal, however few the colony eats.
-func TestMealSpotMovesIntoTheStandingCloset(t *testing.T) {
+// The planned meal closet is zoned whole for every meal at plan time (#2219),
+// however few the colony eats; the zone by the table retires.
+func TestMealClosetIsZonedFromThePlan(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
 	dining := policy.PlannedRoom{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}, Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}
 	closet := policy.PlannedRoom{Role: policy.PlannedMealCloset, Interior: policy.Rectangle{X: 14, Z: 21, Width: 2, Height: 2}, Door: domain.Cell{X: 15, Z: 20}, DoorRot: domain.North}
 	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{dining, closet}})
-	rooms, _ := projection.Rooms.Value()
-	closetCells := []domain.Cell{{X: 14, Z: 21}, {X: 14, Z: 22}, {X: 15, Z: 21}, {X: 15, Z: 22}}
-	rooms.Rooms = append(rooms.Rooms, policy.Room{ID: "Room_9", Enclosed: domain.Known(true), Cells: closetCells})
-	projection.Rooms = domain.Known(rooms)
 	zoneOn(projection, "Zone_7", true, domain.Cell{X: 13, Z: 15})
-	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:Room_4", Filter: allowOnly("MealSimple"), Priority: domain.CriticalPriority}}
+	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:10_10", Filter: allowOnly("MealSimple"), Priority: domain.CriticalPriority}}
 	review := policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil, nil)))
 	var deleted, created bool
 	for _, e := range review.Edits {
 		switch {
 		case e.Kind == policy.StockpileDelete && e.Zone == "Zone_7":
 			deleted = true
-		case e.Kind == policy.StockpileCreate && e.Role == "meals:Room_9" && e.Filter == domain.MealShelfFilter() && len(e.Cells) == 4:
+		case e.Kind == policy.StockpileCreate && e.Role == "meals:14_21" && e.Filter == domain.MealShelfFilter() && len(e.Cells) == 4:
 			created = true
 		default:
 			t.Fatalf("unexpected edit %+v", e)
@@ -153,15 +149,14 @@ func withoutOpening(r policy.StockpileRequest) policy.StockpileRequest {
 }
 
 // The food stockpile is planned while the colony's food storage is unmet or
-// unknown, anchored at the colony core with no cooking bench, and not at all
-// once the fact reads met.
+// unknown, and not at all once the fact reads met.
 func TestStorageRequestPlansFoodUntilStorageIsMet(t *testing.T) {
 	t.Parallel()
 	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 7, Z: 8}))}
 	for _, fact := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
 		projection.Facts.FoodStorage = fact
 		food := storageRequest(projection, nil).Food
-		if food == nil || food.Anchor != (domain.Cell{X: 7, Z: 8}) {
+		if food == nil {
 			t.Fatalf("food %+v", food)
 		}
 	}

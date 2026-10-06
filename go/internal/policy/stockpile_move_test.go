@@ -6,15 +6,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Reserved ground stays out of the food site (#1795): protecting the roofed
-// overhang's cells sends the zone outdoors beside the kitchen.
+// Reserved ground stays out of the food site (#1795): protecting the cells at
+// the kitchen door moves the 3x3 deeper into the kitchen.
 func TestFoodSiteAvoidsProtectedCells(t *testing.T) {
-	r, s := foodSiteRequests(domain.Cell{X: 20, Z: 5})
-	s.Protected = rectCells(Rectangle{X: 30, Z: 30, Width: 4, Height: 4})
-	r.Protected = s.Protected
-	r.Stores = DeclareStores(s).Stores
-	for _, c := range foodSiteCreate(t, r).Cells {
-		if c.X >= 30 && c.X < 34 && c.Z >= 30 && c.Z < 34 {
+	t.Parallel()
+	kitchen := PlannedRoom{Role: PlannedKitchen, Interior: Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 15}}
+	protected := rectCells(Rectangle{X: 10, Z: 13, Width: 6, Height: 2})
+	view := StorageRequest{Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}, Food: &FoodStore{}, Protected: protected}
+	food := storeCreates(view)[domain.FoodRole]
+	if len(food.Cells) != 9 {
+		t.Fatalf("food %+v", food)
+	}
+	for _, c := range food.Cells {
+		if c.Z >= 13 {
 			t.Fatalf("food sited on reserved ground: %v", c)
 		}
 	}
