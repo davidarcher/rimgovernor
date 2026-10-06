@@ -35,10 +35,12 @@ func fieldTargets(projection observation.ColonyProjection, field policy.FieldReq
 			out[crop.Name] = max(out[crop.Name], n)
 		}
 	}
-	if n, ok := hayTarget(projection); ok {
-		out["Plant_Haygrass"] = n
+	if name, n, ok := hayTarget(projection); ok {
+		out[name] = n
 	}
-	out["Plant_Hops"], out["Plant_Smokeleaf"] = policy.SocialCropCells, policy.SocialCropCells
+	for _, crop := range socialCrops(projection) {
+		out[crop.Name] = policy.SocialCropCells
+	}
 	return out
 }
 

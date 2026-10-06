@@ -86,7 +86,6 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		return ErrConflict
 	}
 	cells := map[domain.Cell]bool{}
-	cropCells := map[string]int{}
 	for _, action := range plan.Actions() {
 		zone, ok := action.ZoneCreate()
 		if !ok || stockpile != (zone.Kind() == domain.StockpileZone) {
@@ -96,14 +95,8 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 			if zone.Kind() != domain.GrowingZone {
 				return ErrConflict
 			}
-			// Any resource crop may be sown (#2285); the social crops keep their
-			// brewing gate and nine-cell ceiling.
-			if social := zone.Crop() == "Plant_Hops" || zone.Crop() == "Plant_Smokeleaf"; social {
-				cropCells[zone.Crop()] += len(zone.Cells())
-				if !review.BrewingFinished || cropCells[zone.Crop()] > 9 {
-					return ErrConflict
-				}
-			}
+			// Any resource crop may be sown (#2285); the planner holds the social
+			// crops to their brewing gate and ceiling.
 		}
 		for _, cell := range zone.Cells() {
 			if cells[cell] {

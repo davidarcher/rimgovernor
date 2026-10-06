@@ -55,11 +55,11 @@ func TestDarkBiomeBlocksOutdoorHaySocialAndFieldPlans(t *testing.T) {
 	if got, _ := climate.SowingOutdoors().Value(); !got {
 		t.Fatal("lit biome blocked sowing")
 	}
-	hay := CropChoice{Name: "Plant_Haygrass", Available: domain.Known(true), HarvestNutrition: domain.Known(1.0), GrowDays: domain.Known(5.0)}
+	hay := CropChoice{Name: "Plant_Haygrass", Harvests: domain.Known(HayResource), Available: domain.Known(true), HarvestNutrition: domain.Known(1.0), GrowDays: domain.Known(5.0)}
 	if _, ok := PlanHayField(domain.Known(10.0), hay, climate); !ok {
 		t.Fatal("lit hay field refused")
 	}
-	social := CropChoice{Name: "Plant_Hops", Available: domain.Known(true), GrowDays: domain.Known(5.0)}
+	social := CropChoice{Name: "Plant_Hops", Harvests: domain.Known(Resource("Hops")), Available: domain.Known(true), GrowDays: domain.Known(5.0)}
 	if PlanSocialCrop(social, climate, 0) == 0 {
 		t.Fatal("lit social crop refused")
 	}

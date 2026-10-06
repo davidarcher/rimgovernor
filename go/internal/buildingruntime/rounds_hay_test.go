@@ -14,7 +14,7 @@ func penHayProjection(cal domain.Fact[policy.Calendar], demand domain.Fact[float
 	var p observation.ColonyProjection
 	p.Facts.Calendar = cal
 	p.Facts.PenGrazing = domain.Known([]policy.PenGrazing{{ID: "pen", DemandPerDay: demand, PasturePerDay: domain.Known(0.0), StoredNutrition: domain.Known(0.0)}})
-	p.Definitions = []observation.PlanningDefinition{{Name: "Plant_Haygrass", Available: domain.Known(true), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.5)}}
+	p.Definitions = []observation.PlanningDefinition{{Name: "Plant_Haygrass", Available: domain.Known(true), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.5), HarvestedThingDef: domain.Known("Hay")}}
 	p.CropClimate = policy.CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0), OutdoorsDark: domain.Known(false)}
 	return p
 }
@@ -39,7 +39,7 @@ func TestHayStockFollowsGrowthStopSeason(t *testing.T) {
 			if ok != tc.want || ok && opt.Needed <= 0 {
 				t.Fatalf("shortfall %+v ok=%v", opt, ok)
 			}
-			if n, ok := hayTarget(p); ok != tc.want || ok && n <= 0 {
+			if _, n, ok := hayTarget(p); ok != tc.want || ok && n <= 0 {
 				t.Fatalf("target %d ok=%v", n, ok)
 			}
 		})

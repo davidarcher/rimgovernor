@@ -8,35 +8,42 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// hayTarget is the haygrass cells the pens' whole need takes, before
-// standing hay zones (#1309); false when unknown or out of season.
-func hayTarget(p observation.ColonyProjection) (int, bool) {
-	need, known := policy.HayNutritionNeed(p.Facts.PenGrazing, policy.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).Value()
-	if !known || need <= 0 {
-		return 0, false
-	}
+// hayCrop is the catalog's crop that harvests hay, as a non-edible choice.
+func hayCrop(p observation.ColonyProjection) (policy.CropChoice, bool) {
 	for _, d := range p.Definitions {
-		if d.Name == "Plant_Haygrass" {
-			crop := withHarvestFacts(policy.CropChoice{Name: d.Name, Available: d.Available, Edible: domain.Known(false), GrowDays: d.GrowDays, HarvestNutrition: d.HarvestNutrition, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow}, d)
-			plan, ok := policy.PlanHayField(domain.Known(need), crop, p.CropClimate)
-			return plan.Needed, ok && plan.Needed > 0
+		crop := withHarvestFacts(policy.CropChoice{Name: d.Name, Available: d.Available, Edible: domain.Known(false), GrowDays: d.GrowDays, HarvestNutrition: d.HarvestNutrition, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow}, d)
+		if policy.IsHayCrop(crop) {
+			return crop, true
 		}
 	}
-	return 0, false
+	return policy.CropChoice{}, false
 }
 
-// hayShortfall is the haygrass cells the pens still need after standing hay
+// hayTarget is the hay crop and the cells the pens' whole need takes, before
+// standing hay zones (#1309); false when unknown or out of season.
+func hayTarget(p observation.ColonyProjection) (string, int, bool) {
+	need, known := policy.HayNutritionNeed(p.Facts.PenGrazing, policy.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).Value()
+	if !known || need <= 0 {
+		return "", 0, false
+	}
+	crop, ok := hayCrop(p)
+	if !ok {
+		return "", 0, false
+	}
+	plan, ok := policy.PlanHayField(domain.Known(need), crop, p.CropClimate)
+	return crop.Name, plan.Needed, ok && plan.Needed > 0
+}
+
+// hayShortfall is the hay cells the pens still need after standing hay
 // zones (#1308): pure demand; RoundsFieldPlanner places the block.
 func hayShortfall(p observation.ColonyProjection) (policy.FieldBlockOption, bool) {
 	need, known := policy.HayNutritionNeed(p.Facts.PenGrazing, policy.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).Value()
 	if !known || need <= 0 {
 		return policy.FieldBlockOption{}, false
 	}
-	var crop policy.CropChoice
-	for _, d := range p.Definitions {
-		if d.Name == "Plant_Haygrass" {
-			crop = withHarvestFacts(policy.CropChoice{Name: d.Name, Available: d.Available, Edible: domain.Known(false), GrowDays: d.GrowDays, HarvestNutrition: d.HarvestNutrition, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow}, d)
-		}
+	crop, ok := hayCrop(p)
+	if !ok {
+		return policy.FieldBlockOption{}, false
 	}
 	yield, yk := crop.HarvestNutrition.Value()
 	if !yk {

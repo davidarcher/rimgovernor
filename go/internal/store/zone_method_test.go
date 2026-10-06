@@ -96,7 +96,7 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 }
 
 // A resource's field is a growing zone of any crop under MaintainResource
-// (#2285); the social crops keep their brewing gate.
+// (#2285); the planner, not the store, gates the social crops.
 func TestCommitResourceFieldZoneUnderMaintainResource(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -107,9 +107,6 @@ func TestCommitResourceFieldZoneUnderMaintainResource(t *testing.T) {
 	out := reviewRounds(t, s, &r)
 	g := roundsGoal(t, out, policy.MaintainResource)
 	cells := []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}}
-	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "hops", growingCropPlan(t, "hops-plan", "Plant_Hops", cells)); err == nil {
-		t.Fatal("a social field committed before brewing is finished")
-	}
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "cotton", growingCropPlan(t, "cotton-plan", "Plant_Cotton", cells)); err != nil {
 		t.Fatal("a cotton field is a resource field", err)
 	}
