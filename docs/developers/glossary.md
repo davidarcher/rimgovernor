@@ -28,7 +28,7 @@
 | GABP | The wire protocol the controller speaks directly to the host inside the game (tool discovery and calls). |
 | GABP host | `integrations/rimgovernor-host`: the vendored fork of pardeike/RimBridgeServer and pardeike/Lib.GAB (assembly `RimGovernor.Host`), providing general game and UI tools; the colony companion extends its capabilities. Provenance in `integrations/rimgovernor-native/Notices/host`. |
 | Adequately stored (food) | A perishable stock observed sitting in a covered stockpile or an enclosed/cold room, as opposed to exposed to ordinary ambient rot. |
-| Storage planner | `policy.PlanStorage`: the one function that decides every room-bound stockpile (warehouse, yard, workstation, meal, medicine, food, gear); derived each pass, applied by `MaintainStockpiles`. See [storage](architecture/storage.md). |
+| Store | A zone a department declares (`policy.Store`: role, planned room, filter, priority, further room): one clean zone over its whole room, sized once, deleted only when its purpose is gone. Applied by `MaintainStockpiles`; see [storage](architecture/storage.md). |
 | Warehouse / yard | The Storage department's two stores: one Low-priority zone over a planned storage room (`indoor_only` filter, no burnable) and one over a planned yard Outdoor room (`outdoor_safe` filter). |
 | Spoilage buffer | The margin `MaintainFoodStorage` tries to keep positive: perishable nutrition already stored, above the configured minimum share of total perishable nutrition on hand. |
 | Room / PlannedRoom | A Room is the game's own census room (`Room`, `RoomObservation`). A PlannedRoom is one room of the layout plan (`LayoutPlan.Rooms`), carrying a `PlannedRole`: the plan's intent, never an observation. |

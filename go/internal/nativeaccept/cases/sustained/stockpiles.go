@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"sort"
+	"strings"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -76,8 +79,15 @@ func AuditStockpiles(ctx context.Context, h *na.Harness, s cases.Session, report
 			forbidden = append(forbidden, fmt.Sprintf("%s %v of %v still forbidden", name, ours-unforbidden, ours))
 		}
 	}
-	report["stockpile_zones"] = map[string]any{"stockpiles": stockpiles, "food": food, "limit": colonyFoodZoneLimit, "rows": rows, "starting_supplies": stocks}
+	churn, err := auditZoneChurn(s, rows)
+	if err != nil {
+		return err
+	}
+	report["stockpile_zones"] = map[string]any{"stockpiles": stockpiles, "food": food, "limit": colonyFoodZoneLimit, "rows": rows, "starting_supplies": stocks, "per_kind": churn.perKind, "deletes": churn.deletes}
 	var failures []error
+	if len(churn.flagged) > 0 {
+		failures = append(failures, fmt.Errorf("stockpile zones deleted while their purpose still stands (churn): %v", churn.flagged))
+	}
 	if food > colonyFoodZoneLimit {
 		failures = append(failures, fmt.Errorf("%d food stockpile zones (%d stockpiles) at the window's end, limit %d", food, stockpiles, colonyFoodZoneLimit))
 	}
@@ -85,4 +95,64 @@ func AuditStockpiles(ctx context.Context, h *na.Harness, s cases.Session, report
 		failures = append(failures, fmt.Errorf("starting supplies left forbidden: %v", forbidden))
 	}
 	return errors.Join(failures...)
+}
+
+// zoneChurn is the zone-count and churn reading of one window: one zone per
+// store, and a delete only when the store's purpose is gone (#2207).
+type zoneChurn struct {
+	// perKind counts the standing stockpile zones by label with its
+	// numbering stripped. A further warehouse or graveyard is a second zone
+	// of a kind by design, so it is reported, not gated.
+	perKind map[string]int
+	// deletes counts the admitted zone deletes by the role they name.
+	deletes map[string]int
+	// flagged lists the roles deleted in the window whose kind still has a
+	// standing zone: the delete did not follow a retired purpose.
+	flagged []string
+}
+
+var (
+	zoneLabelNumber = regexp.MustCompile(`[\s_:-]*\d+$`)
+	zoneDeleteRole  = regexp.MustCompile(`\(([^)]+)\): role retired`)
+)
+
+// auditZoneChurn reads the flight recorder's admitted stockpile deletes
+// (layout_edit, family stockpile, kind delete: MaintainStockpiles deletes only
+// a zone whose role's purpose the department declared gone) against the
+// standing zones. It is post-hoc like the rest of the audit: a recorder that
+// cannot be read leaves the counts empty.
+func auditZoneChurn(s cases.Session, rows []map[string]any) (zoneChurn, error) {
+	churn := zoneChurn{perKind: map[string]int{}, deletes: map[string]int{}}
+	for _, row := range rows {
+		kind := strings.ToLower(zoneLabelNumber.ReplaceAllString(na.AsString(row["label"]), ""))
+		churn.perKind[kind]++
+	}
+	flight, err := na.ReadFlight(na.FlightRecorderPath(s.Config().Output))
+	if err != nil {
+		return churn, nil
+	}
+	for _, row := range flight {
+		if row.Kind != "layout_edit" || na.AsString(row.Payload["verdict"]) != "admitted" {
+			continue
+		}
+		attrs, _ := na.AsMap(row.Payload["attrs"])
+		if na.AsString(attrs["family"]) != "stockpile" || na.AsString(attrs["kind"]) != "delete" {
+			continue
+		}
+		match := zoneDeleteRole.FindStringSubmatch(na.AsString(attrs["detail"]))
+		if match == nil {
+			continue
+		}
+		role := match[1]
+		churn.deletes[role]++
+		prefix := strings.ToLower(strings.SplitN(role, ":", 2)[0])
+		for kind := range churn.perKind {
+			if prefix != "" && strings.Contains(kind, prefix) {
+				churn.flagged = append(churn.flagged, role)
+				break
+			}
+		}
+	}
+	sort.Strings(churn.flagged)
+	return churn, nil
 }

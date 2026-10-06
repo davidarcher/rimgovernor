@@ -50,9 +50,9 @@ Routine Standards are re-derived from observation every Rounds. A world change (
 tick rewind in the same load) invalidates the previous bindings, cancels their pending work and
 starts fresh Rounds under the new world's root plan; only already dispatched work keeps its recovery
 requirement. A pause in the same world suspends the bindings and leaves their work open; the next
-enabled review reactivates the same Standards. The storage plan (`policy.PlanStorage`, the desired
-room-bound stockpile sites) is re-derived on every `MaintainStockpiles` pass; the standing zones are
-its only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
+enabled review reactivates the same Standards. The stores the departments declare (`policy.DeclareStores`, the desired room-bound
+stockpiles) are re-derived on every `MaintainStockpiles` pass; the standing zones are
+their only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
 
 ## Method ownership
 

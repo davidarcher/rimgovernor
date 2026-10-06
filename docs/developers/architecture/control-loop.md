@@ -72,8 +72,8 @@ other work for that pawn. Checkbox mode enables only those rest work types.
   preferences. The temporary hold never rewrites those preferences.
 - RimWorld selects a reachable medical bed for medical rest, falling back to the
   pawn's ordinary bed under native rules. Medical beds cannot be assigned by the
-  bed-ownership operation. The hospital planner supplies them (the storage planner
-  sites their medicine zone); the sleeping planner assigns ordinary beds.
+  bed-ownership operation. The hospital planner supplies them (the Medical
+  department declares their medicine store); the sleeping planner assigns ordinary beds.
 
 ## Concerns and their forms
 
@@ -154,8 +154,7 @@ planned room or rectangle, filter, priority, and the room it asks for when full)
 and its `RoomDemand` from capacity (`DeclaredDemand`). `MaintainStockpiles` is
 the one applier: it creates a declared store's zone, retargets it, and deletes
 it only when the department declares it `Retired`; it never grows, shrinks or
-merges one. A declared room's demand replaces `PlanStorage`'s fill-based reading
-and feeds layout as before. Food declares the meal closet, the table cell, the freezer shelves
+merges one. A declared room's demand (a store's zones at 85% used) feeds layout. Food declares the meal closet, the table cell, the freezer shelves
 (raw meat, raw vegetables, animal corpses, the meal shelf at the dining door)
 with their perishables catch-all, and the food store; Medical declares the
 medicine store. All but the table cell (one cell by the built dining table) are

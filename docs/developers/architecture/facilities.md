@@ -29,27 +29,17 @@ Each rung is a separate deficit under an existing maintained concern, ranked by
 4. **Bench**: the first candidate bench the planning census reports available
    and buildable by a builder the colony has (unpowered before powered) is
    furnished into a hosting room, or the starter shell is staged first.
-5. **Workstation stockpile**: not a method. The storage planner
-   (`policy.PlanStorage`) gives every bench with an active bill, except the
-   kitchen's and butcher's, one Important allow-list stockpile of that bench's
-   recipe ingredients (`policy.DeriveBenchInputs`; a stonecutter's is its stone
-   chunks) on the free roofed 2x2 patch in the bench's room nearest it by
-   walking distance. Hauling then brings the inputs to the bench. Once
-   ComplexFurniture is researched, `RoundsStorageShelvesPlanner` places a
-   Shelf inside the planner's general store (and the ingredient zones
-   `MaintainResource` created before the planner took them over), up to
-   a third of its footprint; `MaintainStockpiles` patches each built shelf
-   with the zone's desired filter and priority (role `shelf:<buildingID>`)
-   and again whenever those change. Native storage capacity
-   counts a shelf cell's free slots (three stacks per cell).
-   The room-bound stockpiles (see [storage](storage.md); meal store, the workstation stockpiles, the
-   freezer's raw meat, raw vegetable and corpse shelves and perishables
-   catch-all, the tomb, the hospital medicine zone nearest the medical beds)
-   come from
-   one deterministic function, `policy.PlanStorage`, over the layout plan, room
-   census and planning cells; its `StockpileSite`s are the standing-zone diff
-   `MaintainStockpiles` applies, and the role registry supplies each role's
-   filter and priority. The plan is derived each pass and stored nowhere.
+5. **Workstation stockpile**: not a method. Industry declares, for every bench
+   with an active bill except the kitchen's and butcher's, one Important
+   allow-list store of that bench's recipe ingredients
+   (`policy.DeriveBenchInputs`) on the free roofed 2x2 patch in the bench's room
+   nearest it; hauling brings the inputs to the bench. All stores are declared by
+   their departments and applied by `MaintainStockpiles`: see
+   [storage](storage.md). Once ComplexFurniture is researched,
+   `RoundsStorageShelvesPlanner` places a Shelf inside the warehouse, up to a
+   third of its footprint; `MaintainStockpiles` patches each built shelf with its
+   zone's filter and priority (role `shelf:<buildingID>`). Native storage
+   capacity counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoundsResourcePlanner` dispatches the bill and native readback
    of the rising item count carries the deficit to recovery. Native
    applies a bill on an unfueled bench (`UsableForBillsAfterFueling`):

@@ -43,15 +43,10 @@ observed need recovery.
   opt-in compiler builds a table, adjacent chair or recreation furniture through shared
   building admission; existing inaccessible furniture blocks duplicates; a finite wait
   after construction allows use without asserting need recovery.
-- **Food stockpile** is a `policy.PlanStorage` site created by `MaintainStockpiles` while
-  the native food-storage fact is unmet: a 3x3 `FoodRole`, Preferred, nearest the cooking
-  bench (else the colony core), on roofed floor outside bedrooms, then any roofed block,
-  else open ground before the first roof. A zone standing outdoors is deleted and
-  recreated indoors while a roofed block is free. Cells must be walkable and
-  storage-empty (no plant, building, blueprint, frame or item; filth and standing pawns
-  never refuse). Candidate patches are previewed one at a time: refused ground gives way
-  to the next; a stale snapshot or unresolvable configuration is a failure. Native
-  readback establishes the storage gate.
+- **Food stockpile** is the Food department's food store (a 3x3 in the planned kitchen
+  at its door, Preferred), created by `MaintainStockpiles` once the room's interior is
+  open while the native food-storage fact is unmet. Siting, sizing and deletion rules:
+  [storage](../architecture/storage.md). Native readback establishes the storage gate.
 
 Optional concerns (classes 3 and 4: basic equipment defense, wood, comfort, expansion,
 maintained research and resource targets) share a deterministic admission order.

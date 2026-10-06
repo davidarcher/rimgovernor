@@ -207,55 +207,35 @@ and the entry drops once nothing of ours stands on it.
 
 ### Stockpile maintenance
 
-`MaintainStockpiles` (family `stockpiles`) re-evaluates the colony's own stockpiles
-(`store.ZoneClaims`, role-keyed) every review cycle, at any tier. Fill is the share of
-a zone's planning cells whose storage-empty flag is false.
-`policy.PlanStockpileMaintenance` proposes at most one edit per zone:
+`MaintainStockpiles` (family `stockpiles`) applies the stores the departments declare
+(`policy.DeclareStores`; see [storage](../architecture/storage.md)) against the colony's
+own zones (`store.OwnedZone`, role-keyed) every review cycle, at any tier. A store is one
+zone over its whole planned room, created once and sized once; the edits are:
 
 | Edit | Rule |
 | --- | --- |
-| delete | the zone's role retired |
-| patch | the role's desired filter or priority differs from the last applied (`store.StockpilePatches`) |
-| grow | zone at 85% fill: onto open adjacent cells, a quarter of its size (at least 4; twice that when full) |
-| merge | a same-role fragment deleted into a sibling with room |
-| shrink | shed the empty edge cells of a zone at or under 25% for a game day (never under twice its used cells or 4) |
+| create | a declared store has no zone and its room interior is open ground; admitted alone, once no other edit stands |
+| patch | the store's desired filter or priority differs from the last applied (`store.StockpilePatches`) |
+| delete | the department declares the store `Retired` (its purpose is gone); a moved store's new zone is admitted first |
 
-Edits are admitted in that order while the haul jobs each triggers fit a budget of 8
-per colonist; the first always fits. A role-less claim is resized and merged, never
-retargeted or deleted. The desired state per role comes from the role's owning planner
-through `buildingruntime.RegisterStockpileRole(prefix, source)` (see
-`go/internal/buildingruntime/stockpile_*roles.go` for the roles and owners); a role no
-source claims keeps its settings, and a source answers nothing while the fact it
-judges by is unknown. A role that publishes `Fixed` keeps the size it was sited at:
-never grown or merged, shrunk only to its site's size.
+A zone is never grown, shrunk or merged: its empty cells are its headroom, and a
+store whose zones are 85% used asks layout for a further room. A role-less legacy claim
+stands as created. A source answers nothing while the fact it judges by is unknown.
 
 `RoundsStockpilePlanner` commits the edits as one plan per cycle, each action under
-its target's fresh CAS token: `zone_cell_edit`, `stockpile_patch` (zone or shelf) or
-`zone_delete`. A create is a native zone preview and a `zone_create` method admitted
-alone, once no other edit stands. Each is a `layout`/`stockpiles` clock event.
-
-**Room-bound roles** (`meals:<roomID>`, `rawfood:<roomID>`, `armory:<roomID>`,
-`wardrobe:<roomID>`, `medicine:<roomID>`) are created whenever their room stands
-without one, whatever other concern is in deficit. A room counts as served when any zone
-of the role's prefix has a cell in it (RimWorld renumbers rooms); a zone of the prefix
-with no cell in the site's room is deleted (the site moved), and one larger than the
-site shrinks to it, keeping its stocked cells. A role whose site cannot be found
-retires and its zone is deleted.
+its target's fresh CAS token: `stockpile_patch` (zone or shelf) or `zone_delete`; a
+create is a native zone preview and a `zone_create` method. Each is a
+`layout`/`stockpiles` clock event.
 
 **Waste dump** (`wastedump`) is the Sanitation department's declared store: one Low zone over
 the waste yard interior outside the incinerator outline, allowing all storable items except
-the native not-burnable special (`domain.DumpFilter`), created from the plan. The four
-`dump:*` roles are retired. Warehouse gear (apparel or weapons in a `general`
-zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`,
+the native not-burnable special (`domain.DumpFilter`). Warehouse gear (apparel or weapons in a
+`general` zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`,
 `export_thing_ids`); unknown hit points or quality is not sale gear.
 
-**Gear rooms.** Gear is stored in layout's armory and wardrobe rooms, not fixed 2x2
-zones; until a room stands, gear stays in the general store, and a zone still claimed
-under `apparel`/`weapons` is deleted. The armory leaves out cells within six of a
-prison, and layout keeps both rooms out of each other's clearance. The planner signals
-layout for a room when the warehouse can no longer hold what the colony has and
-serviceable gear of its kind is held (`GearStore`); a planned room not yet standing is
-a `shell` edit, raised through the planned-room shell path ahead of the zone edits.
+**Gear rooms.** Gear is stored in layout's armory and wardrobe rooms; until a room stands,
+gear stays in the warehouse. The armory leaves out cells within six of a prison, and layout
+keeps both rooms out of each other's clearance.
 
 ### Site selection and spatial program
 

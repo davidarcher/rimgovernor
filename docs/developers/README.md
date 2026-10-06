@@ -32,7 +32,7 @@ the multi-instance colony directory.
 - [Plans and Hands](architecture/plans-and-hands.md): admission, execution and completion.
 - [Space and resources](architecture/space-and-resources.md): placement and shared budgets.
 - [Facilities](architecture/facilities.md): the room-function ladder and per-role matrix.
-- [Storage](architecture/storage.md): the storage planner and the warehouse, yard, workstation and gear stockpiles.
+- [Storage](architecture/storage.md): department-owned stores (warehouse, yard, workstation, meal, medicine, gear, burial and waste stockpiles).
 - [Sessions and recovery](architecture/sessions-and-recovery.md): authority, checkpoints and cleanup.
 - [Launcher](architecture/launcher.md): the player UI, its serve client and controls.
 - [World progression](architecture/world-progression.md): caravans, quests and world outcomes.

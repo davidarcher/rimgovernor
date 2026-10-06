@@ -42,7 +42,7 @@ building and every stockpile, whoever made it. Targets use the native unique loa
 - The method is an `AreaIntent` set_cells on home; an applied result is terminal and the
   next review rereads the census. A lost reply is resent under a new key
   ([apply-time checks](action-contracts.md#apply-time-preconditions-and-refusal-reasons)).
-- The storage planner's zone outside Home is extended under its receipt identity.
+- A store's zone outside Home is extended under its receipt identity.
   Vanilla `AutoHomeAreaMaker` (default on) marks Home four cells around added zone cells
   and player buildings. Remote resource work does not expand Home.
 

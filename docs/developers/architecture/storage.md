@@ -2,19 +2,27 @@
 
 [Documentation](../../README.md) · [Architecture](overview.md) · Reference
 
-One deterministic function, `policy.PlanStorage`, decides every room-bound
-stockpile the colony has. It reads the layout plan, room census, bed census,
-planning cells and the standing zones, and returns the desired
-`StockpileSite`s and the gear-room demand. The plan is derived each pass in
-Go memory and stored nowhere (see
-[persistence contracts](../contracts/persistence-contracts.md)); the standing
-zones are the only record. `MaintainStockpiles` applies the diff through the
-ordinary zone create, cell edit, patch and delete actions, and the role
-registry (`domain` stockpile roles) supplies each role's filter and priority.
-Rooms stay layout's job: the planner fills them with zones and signals layout
-when it needs another room.
+Each department owns its stockpiles. A Department that holds stock is a
+`policy.StoreOwner` (registered in `storeOwners`): it declares its `Stores` (a
+`policy.Store`: role, planned room or rectangle, filter, priority, the room it
+asks for when full) and its `RoomDemand` from capacity. `MaintainStockpiles` is
+the one applier, through the ordinary zone create, patch and delete actions; the
+standing zones are the only record (see
+[persistence contracts](../contracts/persistence-contracts.md)). Rooms stay
+layout's job. The stores are declared per department: Storage (warehouse, yard),
+Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
+People (tomb, morgue, graveyard) and Sanitation (waste dump, incinerator); the
+animal feed store belongs to Husbandry.
+
+A store is one clean zone over its whole planned room, created once the room's
+interior is open ground (at plan time on open ground; when the last cell clears
+for a dug or partly rocky room, which layout excavates first) and sized once.
+It is never grown, shrunk or merged, never given a stand-in, and deleted only
+when its purpose is gone (a bench demolished, a room retired), create before
+delete on a move. Headroom is another room: see below.
 
 ## The stores
+
 
 | Store | Role | Where | Priority | Holds |
 | --- | --- | --- | --- | --- |
@@ -42,40 +50,29 @@ in older saves are deleted.
 ## Gear rooms
 
 When every warehouse zone is at 85% used (the state that
-also asks for a further storage room), the planner raises `RoomDemand` for each
+also asks for a further storage room), the Military department raises `RoomDemand` for each
 kind of serviceable gear the colony holds (armory for weapons and armor,
 wardrobe for clothing) and layout adds the room: the armory beside the
 storage room, the wardrobe beside the workshop with the tailor bench, with no
 wealth gate and no item-count threshold. A planned gear room not yet standing
 holds back the further storage room. Layout keeps the armory and every prison
 out of each other's weapon clearance; a standing armory with no free cell clear
-of a prison is `ErrArmoryNearPrison` on `StoragePlan.Err`, logged by the
+of a prison is `ErrArmoryNearPrison` in `StoreDeclaration.Err`, logged by the
 reviewer. A catalog naming no armor def fails the stockpile review with
 `ErrNoArmorDefs`.
 
-## Warehouse and yard stores
+## Headroom
 
-The Storage department declares both stores (`store_storage.go`) and they are no longer planner sites. A store is never
-grown, shrunk or merged. When every zone of a store is 85% used, the department's
-`RoomDemand` asks layout for a further room (`Storage` or `Yard`, one more than
-the plan holds) and the room's zone is created once it is planned and open. The
-warehouse supersedes the opening general store.
-
-## Moves (planner sites)
-
-A zone is never grown, shrunk or merged: its empty cells are its headroom. A role
-whose site moved gets its new zone first; the old zone is deleted in the same
-review only once that create is admitted, and its items rehome. Held building
-reservations and the unroofed floor of a planned shell are protected ground no
-site takes.
+When every zone of a store is at 85% used (`StockpileFurtherRoomFill`), the
+department's `RoomDemand` asks layout for a further room (`Storage`, `Yard`,
+armory, wardrobe or graveyard, one more than the plan holds) and that room's
+zone is created once it is planned and open.
 
 ## Planned rooms
 
-The storage, armory and wardrobe rooms and the materials yard's fence ring are
-planned by layout. `MaintainStockpiles` raises the first one not yet standing
-through the shared room-shell path (`reconcileRoom`) before its zone edits; the
-zone edits go on whenever the shell is not admitted, since zoning needs no
-builder.
+Layout plans the storage, armory and wardrobe rooms and the yard's fence ring;
+the shared room reconciliation builds them ([facilities](facilities.md)). A
+store's zone does not wait for the shell: zoning needs no builder.
 
 ## Review check
 
@@ -84,3 +81,8 @@ from the colony census (`/api/player/colony`: owned zones per role kind and
 whether the loot census still holds a safe stack forbidden). It lists the final zone count
 per role and flags starting supplies still forbidden after a day. A report, not
 a gate.
+
+The sustained colony acceptance's `AuditStockpiles` also reports the standing zones per
+store kind and the admitted zone deletes by role, and fails a delete whose kind still has
+a zone (churn). Early-room spoilage and time-to-first-store are accepted risks that are
+not yet measured (#2224).
