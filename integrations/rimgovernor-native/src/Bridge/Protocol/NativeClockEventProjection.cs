@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
             var result = new Clock.Event { Cursor = cursor, Context = context.Clone(), ObservedAtUnixMs = observedAt, Detail = Text(detail) };
             // Only an authority change observed outside an epoch has no owner.
             if (owner != null) result.Owner = owner.Clone();
-            else if (kind != "authority_changed") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
+            else if (kind != "authority_changed" && kind != "rule_fired" && kind != "rule_lease_expired") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
             switch (kind)
             {
                 case "authority_changed":
@@ -116,6 +116,13 @@ namespace HomeBridge.BridgeTools
                     object? previous, reason;
                     if (P().TryGetValue("previousGeneration", out previous) && previous != null) result.AuthorityChanged.PreviousGeneration = checked((ulong)Convert.ToInt64(previous));
                     if (P().TryGetValue("reason", out reason) && reason != null) result.AuthorityChanged.Reason = Text((string)reason);
+                    break;
+                case "rule_fired":
+                    result.RuleFired = new Clock.RuleFired { RuleId = Id(String(P(), "ruleId")), Job = Id(String(P(), "job")), Radius = checked((uint)Number(P(), "radius")),
+                        ActorId = Id(String(P(), "actorId")), TargetId = Id(String(P(), "targetId")), Tick = Number(P(), "tick") };
+                    break;
+                case "rule_lease_expired":
+                    result.RuleLeaseExpired = new Clock.RuleLeaseExpired { ExpiresAtTick = Number(P(), "expiresAtTick"), Deactivated = checked((uint)Number(P(), "deactivated")) };
                     break;
                 case "observation_invalidated":
                     result.ObservationInvalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")) };

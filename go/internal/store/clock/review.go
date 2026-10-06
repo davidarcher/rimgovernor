@@ -119,7 +119,7 @@ func BenignStopEvent(stop *k.StopEvent) bool {
 }
 
 // EventInterrupts classifies one journal event. Operation outcomes,
-// authority changes and observation invalidations are typed facts the
+// authority changes, native rule events and observation invalidations are typed facts the
 // controller reacts to, not holds; so is a game alert (a High-priority
 // alert such as "Need colonist beds" is routine planning evidence, and the
 // native supervisor never stops play for one; the stop tier is danger, a
@@ -141,7 +141,7 @@ func BenignStopEvent(stop *k.StopEvent) bool {
 // It is shared with the poll loop so both classifications cannot drift.
 func EventInterrupts(event *k.Event) bool {
 	switch e := event.Event.(type) {
-	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_ForcePauseWaiting, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved, *k.Event_Notification:
+	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_ForcePauseWaiting, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_RuleFired, *k.Event_RuleLeaseExpired, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved, *k.Event_Notification:
 		return false
 	case *k.Event_Stopped:
 		return !BenignStopEvent(e.Stopped)

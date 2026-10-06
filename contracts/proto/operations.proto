@@ -813,3 +813,110 @@ message ApplyReply {
   repeated ActionResult results = 1;
   rimgovernor.common.v1.Failure batch_failure = 2;
 }
+
+// Declarative native rules: "on trigger, if predicates, do a whitelisted
+// action". Go authors and attaches every rule (replace-all, each Round, with a
+// lease); native only executes. Rules live in native memory, never in the
+// save, and fire only while native holds Auto authority. v1 is one rule
+// shape: PREY_KILLED, then GIVE_JOB Hunt on the nearest designated prey,
+// built by the same path as GiveJobIntent (options.prioritized). There are no
+// draft actions. A firing is journaled (clock.v1.RuleFired) before its write;
+// a pawn fires at most once per 60 ticks and at most 16 rules are active.
+enum RuleTrigger {
+  RULE_TRIGGER_UNSPECIFIED = 0;
+  // A player pawn killed a wild animal; fired in-process by the kill hook the
+  // delivery ledger shares. The actor is the killer.
+  RULE_TRIGGER_PREY_KILLED = 1;
+}
+enum RulePredicate {
+  RULE_PREDICATE_UNSPECIFIED = 0;
+  RULE_PREDICATE_ACTOR_UNDRAFTED = 1;
+  // The actor has the Hunting work type active.
+  RULE_PREDICATE_ACTOR_HUNTING_WORK_ACTIVE = 2;
+  // A designated hunt prey exists within radius, reachable and route-safe.
+  RULE_PREDICATE_TARGET_AVAILABLE = 3;
+}
+enum RuleAction { RULE_ACTION_UNSPECIFIED = 0; RULE_ACTION_GIVE_JOB = 1; }
+enum RuleTargetSelector { RULE_TARGET_SELECTOR_UNSPECIFIED = 0; RULE_TARGET_SELECTOR_NEAREST_DESIGNATED_PREY = 1; }
+// job is a JobDef name (v1: Hunt). radius is in cells, 1..100, around the
+// actor. The selector skips prey that fail TARGET_AVAILABLE's checks; with no
+// target the rule does not fire.
+message Rule {
+  optional string id = 1;
+  optional RuleTrigger trigger = 2;
+  repeated RulePredicate predicates = 3;
+  optional RuleAction action = 4;
+  optional string job = 5;
+  optional RuleTargetSelector target = 6;
+  optional uint32 radius = 7;
+}
+enum RuleRefusalReason {
+  RULE_REFUSAL_REASON_UNSPECIFIED = 0;
+  RULE_REFUSAL_REASON_INVALID_ID = 1;
+  RULE_REFUSAL_REASON_DUPLICATE_ID = 2;
+  RULE_REFUSAL_REASON_TOO_MANY_RULES = 3;
+  RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER = 4;
+  RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE = 5;
+  RULE_REFUSAL_REASON_UNSUPPORTED_ACTION = 6;
+  RULE_REFUSAL_REASON_UNSUPPORTED_JOB = 7;
+  RULE_REFUSAL_REASON_UNSUPPORTED_TARGET = 8;
+  RULE_REFUSAL_REASON_INVALID_RADIUS = 9;
+}
+message RuleRefusal { optional string rule_id = 1; optional RuleRefusalReason reason = 2; }
+service Rules {
+  rpc Attach(RulesAttachRequest) returns (RulesAttachReply);
+  rpc Clear(RulesClearRequest) returns (RulesClearReply);
+  rpc ReadStatus(RulesStatusRequest) returns (RulesStatusReply);
+}
+// Replace every active rule with the accepted ones (idempotent by id) and set
+// the lease: when the game tick reaches expires_at_tick native deactivates
+// all rules and emits one RuleLeaseExpired. A lease already past is a failure.
+message RulesAttachRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  repeated Rule rules = 2;
+  optional int64 expires_at_tick = 3;
+}
+message RulesAttached {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated string accepted_ids = 2;
+  repeated RuleRefusal refused = 3;
+}
+message RulesAttachReply {
+  oneof outcome {
+    RulesAttached attached = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
+message RulesClearRequest { rimgovernor.common.v1.Identity identity = 1; }
+message RulesCleared { rimgovernor.common.v1.ObservationContext context = 1; optional uint32 cleared = 2; }
+message RulesClearReply {
+  oneof outcome {
+    RulesCleared cleared = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
+message RulesStatusRequest { rimgovernor.common.v1.Identity identity = 1; }
+// One active rule: its firings since attach and the last one.
+message RuleStatus {
+  optional string rule_id = 1;
+  optional uint64 firing_count = 2;
+  optional int64 last_fired_tick = 3;
+  optional string last_actor_id = 4;
+  optional string last_target_id = 5;
+}
+// rules is empty once the lease expired or the rules were cleared.
+// lease_remaining_ticks is 0 with no active rule; lease_expired holds from the
+// expiry until the next attach or clear.
+message RulesStatus {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated RuleStatus rules = 2;
+  optional int64 expires_at_tick = 3;
+  optional int64 lease_remaining_ticks = 4;
+  optional bool lease_expired = 5;
+}
+message RulesStatusReply {
+  oneof outcome {
+    RulesStatus status = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}

@@ -84,6 +84,7 @@ var nonFactReads = map[string]bool{
 	"rimgovernor/lifecycle_read_tick":           true,
 	"rimgovernor/lifecycle_read_governor_state": true,
 	"rimgovernor/authority_read_status":         true,
+	rulesStatusMethod:                           true,
 	"rimgovernor/receipts_lookup":               true,
 	"rimgovernor/presentation_camera":           true,
 	"rimgovernor/presentation_selection":        true,

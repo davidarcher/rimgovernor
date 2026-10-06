@@ -463,10 +463,12 @@ namespace HomeBridge.BridgeTools
                 || !value.Context.HasNativeGeneration || value.Context.NativeGeneration == 0
                 || !value.HasObservedAtUnixMs || value.ObservedAtUnixMs < 0
                 || value.EventCase == Clock.Event.EventOneofCase.None) return false;
-            if (value.Owner == null ? value.AuthorityChanged == null
+            if (value.Owner == null ? value.AuthorityChanged == null && value.RuleFired == null && value.RuleLeaseExpired == null
                 : !value.Owner.HasControllerSessionId || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId) || !value.Owner.HasEpoch || value.Owner.Epoch <= 0) return false;
             if (value.AuthorityChanged != null) return value.AuthorityChanged.HasGeneration && value.AuthorityChanged.Generation > 0
                 && (!value.AuthorityChanged.HasPreviousGeneration || value.AuthorityChanged.PreviousGeneration < value.AuthorityChanged.Generation);
+            if (value.RuleFired != null) return value.RuleFired.HasRuleId && value.RuleFired.HasActorId && value.RuleFired.HasTargetId && value.RuleFired.HasTick && value.RuleFired.Tick >= 0;
+            if (value.RuleLeaseExpired != null) return value.RuleLeaseExpired.HasExpiresAtTick && value.RuleLeaseExpired.HasDeactivated;
             if (value.OperationOutcome != null) return ValidStoredOutcome(value.OperationOutcome);
             if (value.Stopped != null) return ValidStoredStop(value.Stopped);
             if (value.PauseFailed != null) return value.PauseFailed.Pending != null && ValidStoredStop(value.PauseFailed.Pending);

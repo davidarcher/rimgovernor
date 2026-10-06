@@ -198,17 +198,28 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
+        // The job the work giver builds on the target, taken as a player-forced order. Null
+        // (reason set) when no giver builds it or the pawn does not take it. Shared with the native rules.
+        internal static Job? TryTake(Pawn pawn, Thing target, JobDef def, out string? reason)
+        {
+            var result = Build(pawn, target, def, out reason);
+            if (result == null) { reason = "No work giver builds " + def.defName + " on the target" + (reason != null ? ": " + reason : "."); return null; }
+            result.Job.playerForced = true;
+            if (!pawn.jobs.TryTakeOrderedJobPrioritizedWork(result.Job, result.Scanner, target.Position)) { reason = "The colonist did not take the prioritized job."; return null; }
+            return result.Job;
+        }
+
+        // Whether a work giver the pawn may do builds the job on the target (nothing is taken).
+        internal static bool CanTake(Pawn pawn, Thing target, JobDef def) => Build(pawn, target, def, out _) != null;
+
         internal static Receipts.EffectEvidence Apply(Operations.GiveJobIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var def, out var running);
             if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
             if (running) return NativeGiveJob.Evidence(pawn!, target!, pawn!.CurJob, false);
-            var result = Build(pawn!, target!, def!, out var reason);
-            if (result == null) throw new InvalidOperationException("No work giver builds " + def!.defName + " on the target" + (reason != null ? ": " + reason : "."));
-            result.Job.playerForced = true;
-            if (!pawn!.jobs.TryTakeOrderedJobPrioritizedWork(result.Job, result.Scanner, target!.Position))
-                throw new InvalidOperationException("The colonist did not take the prioritized job.");
-            return NativeGiveJob.Evidence(pawn, target, result.Job, true);
+            var job = TryTake(pawn!, target!, def!, out var reason);
+            if (job == null) throw new InvalidOperationException(reason);
+            return NativeGiveJob.Evidence(pawn!, target!, job, true);
         }
     }
 

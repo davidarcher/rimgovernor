@@ -1337,26 +1337,30 @@ namespace HomeBridge.BridgeTools
         // Epoch-less producers (authority changes observed while no epoch is
         // running). The row carries no owner; the current map supplies its
         // context. Nothing is armed, so a failed publication only logs.
-        private static void Publish(string kind, string? detail, Dictionary<string, object?>? payload)
+        private static bool Publish(string kind, string? detail, Dictionary<string, object?>? payload)
         {
             lock (Gate)
             {
-                if (_appending) { DeferredPublications.Add(() => Publish(kind, detail, payload)); return; }
+                if (_appending) { DeferredPublications.Add(() => Publish(kind, detail, payload)); return false; }
                 try
                 {
                     var journal = EnsureJournal();
-                    if (Current.Game == null || Find.CurrentMap == null) return;
+                    if (Current.Game == null || Find.CurrentMap == null) return false;
                     var identity = Current.Game.GetComponent<ColonyIdentity>();
                     var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 }, { "epoch", 0L },
                         { "kind", kind }, { "detail", detail }, { "event", payload },
                         { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", Find.CurrentMap.uniqueID },
                         { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : 0 }, { "atMs", NowMs() } };
-                    if (!AttachOwnerlessEvent(row, kind, detail, payload)) return;
+                    if (!AttachOwnerlessEvent(row, kind, detail, payload)) return false;
                     AppendRow(journal, row);
+                    return true;
                 }
-                catch (Exception error) { ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); }
+                catch (Exception error) { ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); return false; }
             }
         }
+        // A native rule's journal row (rule_fired, rule_lease_expired). True only once the row is
+        // in the journal, so a rule writes the game only after its firing is recorded.
+        internal static bool PublishRuleEvent(string kind, string detail, Dictionary<string, object?> payload) => Publish(kind, detail, payload);
         private static object Snapshot(State? s, bool success)
         {
             EnsureJournal();

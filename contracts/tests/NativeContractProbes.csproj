@@ -117,6 +117,8 @@
     <Compile Include="NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs" />
     <Compile Include="NativeContractProbes/native-construction-causality/Program.cs" />
     <Compile Include="NativeContractProbes/native-ref-index/Program.cs" />
+    <Compile Include="NativeContractProbes/native-rule-runtime/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeRuleBook.cs" Link="Production/NativeRuleBook.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/LoadIdIndex.cs" Link="Production/LoadIdIndex.cs" />
   </ItemGroup>
 

@@ -12,6 +12,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Apparel policy operation](apparel-policy.md)
 - [Weapon planner](weapon-planner.md)
 - [Native forecast contracts](forecast-contracts.md)
+- [Native rules](native-rules.md): declarative trigger, predicates and a whitelisted action Go attaches under a lease
 - [Animal husbandry contracts](husbandry-contracts.md): race catalog, herd plan, vet room, acceptance
 - [Ideology contracts](ideology-contracts.md): ideoligion defs, pawn certainty, colony section
 - [Interface contracts](interface-contracts.md)

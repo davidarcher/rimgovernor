@@ -50,7 +50,10 @@ Typed journal payloads cover started/speed, notification/alert, injury/health,
 hostile/downed/predator/hunting/medical-rest, hostiles-cleared, tick budget,
 watch-latched with its operation outcome, authority changes (owner-less when
 observed outside an epoch), pause-failure, external pause/speed, lease,
-unavailable/watcher/journal errors, force-pause waiting/cleared events and
+unavailable/watcher/journal errors, force-pause waiting/cleared events,
+the owner-less `RuleFired` (journaled before the native rule's write) and
+`RuleLeaseExpired` (one per attachment) events of the
+[native rule runtime](../../docs/developers/contracts/native-rules.md) and
 `STOP_REASON_DIALOG_PAUSE` with its `DialogPause` (window id/type/title) when a
 game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch. Like a
 letter pause it is a non-benign stop the player acknowledges; the controller

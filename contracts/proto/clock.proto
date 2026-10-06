@@ -465,6 +465,23 @@ message AuthorityChanged {
   optional string reason = 3;
   optional bool active = 4;
 }
+// A native rule fired (operations.v1.Rule): journaled before the write it
+// makes. job, radius, actor_id and target_id are the rule's parameters and
+// the pawn and prey it resolved; tick is the game tick of the firing.
+message RuleFired {
+  optional string rule_id = 1;
+  optional string job = 2;
+  optional uint32 radius = 3;
+  optional string actor_id = 4;
+  optional string target_id = 5;
+  optional int64 tick = 6;
+}
+// The attached rules' lease passed and native deactivated all of them without
+// Go. One event per attachment.
+message RuleLeaseExpired {
+  optional int64 expires_at_tick = 1;
+  optional uint32 deactivated = 2;
+}
 message WatchLatched {
   OperationOutcome outcome = 1;
   optional int64 tick_deadline = 2;
@@ -552,7 +569,8 @@ message ForcePauseCleared {
 }
 message Event {
   optional int64 cursor = 1;
-  // Absent only for an AuthorityChanged event observed outside any epoch.
+  // Absent only for the epoch-less events: AuthorityChanged observed outside
+  // any epoch, RuleFired and RuleLeaseExpired (rules run with or without one).
   EpochOwner owner = 2;
   rimgovernor.common.v1.ObservationContext context = 3;
   optional int64 observed_at_unix_ms = 4;
@@ -571,6 +589,8 @@ message Event {
     OperationOutcome operation_outcome = 16;
     AuthorityChanged authority_changed = 17;
     ObservationInvalidated observation_invalidated = 18;
+    RuleFired rule_fired = 20;
+    RuleLeaseExpired rule_lease_expired = 21;
   }
   // How long ago, on native's own clock, this event was observed when the
   // page carrying it was composed: the unobserved time a stop sat in native

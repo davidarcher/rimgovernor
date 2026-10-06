@@ -97,7 +97,7 @@ func TestClockReviewEmptyAckDoesNotCoverNewEvents(t *testing.T) {
 }
 func TestClockReviewEventClassification(t *testing.T) {
 	t.Parallel()
-	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}, {Event: &k.Event_ForcePauseWaiting{}}, {Event: &k.Event_OperationOutcome{}}, {Event: &k.Event_AuthorityChanged{}}}
+	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}, {Event: &k.Event_ForcePauseWaiting{}}, {Event: &k.Event_OperationOutcome{}}, {Event: &k.Event_AuthorityChanged{}}, {Event: &k.Event_RuleFired{}}, {Event: &k.Event_RuleLeaseExpired{}}}
 	for _, event := range benign {
 		if clock.EventInterrupts(event) {
 			t.Fatal(event)

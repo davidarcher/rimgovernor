@@ -78,6 +78,9 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
+        // The kill hook is shared: native rules (NativeRuleRuntime) trigger from it.
+        internal static bool EnsureInstalled() { Install(); return installed; }
+
         private static void Install()
         {
             if (installed) return;
@@ -182,6 +185,7 @@ namespace HomeBridge.BridgeTools
                     Tick = Find.TickManager.TicksGame };
                 state.KillsTotal++;
                 Record(state.Kills, record);
+                if (__instance.Faction == null) NativeRuleRuntime.OnPreyKilled(__0?.Instigator as Pawn, __instance);
             }
             catch (Exception error) { ModLog.Error("observe", "Kill counting failed: " + error); }
         }

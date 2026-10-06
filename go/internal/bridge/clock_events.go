@@ -92,9 +92,14 @@ func clockEvent(event *k.Event) error {
 	if event == nil {
 		return contract("clock event required")
 	}
-	// Only an authority change observed outside any epoch has no owner.
-	_, authority := event.Event.(*k.Event_AuthorityChanged)
-	if event.Owner != nil || !authority {
+	// Only an authority change observed outside any epoch and the native rule
+	// events (rules run with or without an epoch) have no owner.
+	ownerless := false
+	switch event.Event.(type) {
+	case *k.Event_AuthorityChanged, *k.Event_RuleFired, *k.Event_RuleLeaseExpired:
+		ownerless = true
+	}
+	if event.Owner != nil || !ownerless {
 		if err := clockOwner(event.Owner); err != nil {
 			return err
 		}
@@ -168,6 +173,15 @@ func clockEvent(event *k.Event) error {
 		a := v.AuthorityChanged
 		if a == nil || a.Generation == nil || a.GetGeneration() == 0 || (a.PreviousGeneration != nil && a.GetPreviousGeneration() >= a.GetGeneration()) || !diagnostic(a.Reason) {
 			return contract("clock authority change evidence")
+		}
+	case *k.Event_RuleFired:
+		r := v.RuleFired
+		if r == nil || validID(r.GetRuleId()) != nil || validID(r.GetJob()) != nil || validID(r.GetActorId()) != nil || validID(r.GetTargetId()) != nil || r.Tick == nil || r.GetTick() < 0 {
+			return contract("clock rule fired evidence")
+		}
+	case *k.Event_RuleLeaseExpired:
+		if v.RuleLeaseExpired == nil || v.RuleLeaseExpired.ExpiresAtTick == nil || v.RuleLeaseExpired.Deactivated == nil {
+			return contract("clock rule lease evidence")
 		}
 	case *k.Event_ObservationInvalidated:
 		o := v.ObservationInvalidated
