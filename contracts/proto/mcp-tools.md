@@ -82,7 +82,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/observations_list_wall_upgrade_sites` | `rimgovernor.observations.v1.Observations/ListWallUpgradeSites` | `rimgovernor.observations.v1.WallUpgradeSitesRequest` | `rimgovernor.observations.v1.WallUpgradeSitesReply` |
 | `rimgovernor/observations_list_zones` | `rimgovernor.observations.v1.Observations/ListZones` | `rimgovernor.observations.v1.ListZonesRequest` | `rimgovernor.observations.v1.ListZonesReply` |
 | `rimgovernor/observations_read_excavation_site` | `rimgovernor.observations.v1.Observations/ReadExcavationSite` | `rimgovernor.observations.v1.ExcavationSiteRequest` | `rimgovernor.observations.v1.ExcavationSiteReply` |
-| `rimgovernor/observations_read_plant_cut_census` | `rimgovernor.observations.v1.Observations/ReadPlantCutCensus` | `rimgovernor.observations.v1.PlantCutCensusRequest` | `rimgovernor.observations.v1.PlantCutCensusReply` |
 | `rimgovernor/observations_read_bills` | `rimgovernor.observations.v1.Observations/ReadBills` | `rimgovernor.observations.v1.BillsRequest` | `rimgovernor.observations.v1.BillsReply` |
 | `rimgovernor/observations_read_building_settings` | `rimgovernor.observations.v1.Observations/ReadBuildingSettings` | `rimgovernor.observations.v1.BuildingSettingsRequest` | `rimgovernor.observations.v1.BuildingSettingsReply` |
 | `rimgovernor/observations_read_colony_facts` | `rimgovernor.observations.v1.Observations/ReadColonyFacts` | `rimgovernor.observations.v1.ColonyFactsRequest` | `rimgovernor.observations.v1.ColonyFactsReply` |

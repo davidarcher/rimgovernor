@@ -118,21 +118,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/observations_read_plant_cut_census", Title = "Read plant cut census",
-            Description = "Official PlantCutCensusRequest ProtoJSON. For 1..1024 exact cells, the undesignated non-crop plants an AreaPlantCutIntent would designate now (chop_wood for a harvestable tree). Growing-zone, plant-grower and sown-crop plants, fogged and out-of-bounds cells report nothing. Read-only.")]
-        [ToolResponse("payload", "string", "Official observations PlantCutCensusReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadPlantCutCensus(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a PlantCutCensusRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_plant_cut_census", request!, Obs.PlantCutCensusRequest.Parser, out var parsed, out var failure)
-                || !NativeAreaPlantCut.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.PlantCutCensusReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.PlantCutCensusReply { Failure = failure });
-                try { return ProtoBoundary.Encode(new Obs.PlantCutCensusReply { Observed = NativeAreaPlantCut.Read(map, parsed, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.PlantCutCensusReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native plant cut census could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
-        }
 
         // Traversal's occupied and doorway facts, shared with the planning
         // window view's capture (#650).

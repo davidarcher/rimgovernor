@@ -600,7 +600,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		if sc.roundsFirebreakPlans {
 			firebreakNative, ok := reads.(buildingruntime.RoundsFirebreakSource)
 			if !ok {
-				return nil, errors.New("firebreak plans require typed defense site and plant cut census observations")
+				return nil, errors.New("firebreak plans require typed defense site observations")
 			}
 			if config.Firebreak, err = buildingruntime.NewRoundsFirebreakPlanner(reviewer, firebreakNative); err != nil {
 				return nil, err

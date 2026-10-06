@@ -65,3 +65,23 @@ func TestFirebreakGround(t *testing.T) {
 		}
 	}
 }
+
+// The firebreak reads standing plants from the mirror's thing lists: an
+// undesignated plant on a cut cell stands, a designated one, another
+// category and a cell off the cut list do not (#2273).
+func TestStandingPlantsReadsMirrorThings(t *testing.T) {
+	plant := policy.Thing{Def: "Plant_Grass", Category: policy.ThingPlant}
+	designated := policy.Thing{Def: "Plant_Grass", Category: policy.ThingPlant, Flags: policy.FlagDesignated}
+	rock := policy.Thing{Def: "ChunkSlate", Category: policy.ThingItem}
+	cells := []policy.SiteCell{
+		{Cell: domain.Cell{X: 1, Z: 1}, Things: []policy.Thing{rock, plant}},
+		{Cell: domain.Cell{X: 2, Z: 1}, Things: []policy.Thing{designated}},
+		{Cell: domain.Cell{X: 3, Z: 1}, Things: []policy.Thing{rock}},
+		{Cell: domain.Cell{X: 4, Z: 1}, Things: []policy.Thing{plant}},
+	}
+	cut := []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}, {X: 3, Z: 1}, {X: 5, Z: 1}}
+	got := standingPlants(cells, cut)
+	if len(got) != 1 || !got[domain.Cell{X: 1, Z: 1}] {
+		t.Fatalf("standing = %v", got)
+	}
+}

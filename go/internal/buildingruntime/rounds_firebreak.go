@@ -38,7 +38,6 @@ const (
 // RoundsFirebreakSource is the native reads the firebreak review takes.
 type RoundsFirebreakSource interface {
 	ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (bridge.DefenseSite, bridge.Result, error)
-	ReadPlantCutCensus(context.Context, *c.Identity, []domain.Cell) (bridge.PlantCutCensus, bridge.Result, error)
 }
 
 // firebreakMemory is the firebreak review's state, in memory only (#1536):
@@ -252,16 +251,7 @@ func (m *firebreakMemory) review(ctx context.Context, identity *c.Identity, curr
 			cut = append(cut, cell.Cell)
 		}
 	}
-	standing := map[domain.Cell]bool{}
-	for start := 0; start < len(cut); start += domain.MaxAreaPlantCutCells {
-		census, _, err := m.native.ReadPlantCutCensus(ctx, identity, cut[start:min(start+domain.MaxAreaPlantCutCells, len(cut))])
-		if err != nil {
-			return domain.Unknown[bool](), err
-		}
-		for _, plant := range census.Plants {
-			standing[plant.Cell] = true
-		}
-	}
+	standing := standingPlants(projection.Cells, cut)
 	open := map[domain.Cell]bool{}
 	ruins := map[domain.Cell]domain.CoverClearance{}
 	for _, cell := range plan.Deconstruct {
@@ -296,6 +286,32 @@ func (m *firebreakMemory) review(ctx context.Context, identity *c.Identity, curr
 	m.enter(world)
 	m.dwell, m.tick, m.work, m.ruins, m.pave = next, tick, work, ruins, pave
 	return domain.Known(work.Owed()), nil
+}
+
+// standingPlants are the cut cells holding a plant no cut designation covers
+// yet, read from the mirror's thing lists (#2273). It approximates what the
+// native designator would accept (growing zones are not in the ring; a wild
+// food plant native leaves standing is not told apart); the native refusal
+// of the AreaPlantCut action is the backstop. A cell the mirror does not
+// hold (fogged) has nothing standing.
+func standingPlants(cells []policy.SiteCell, cut []domain.Cell) map[domain.Cell]bool {
+	want := make(map[domain.Cell]bool, len(cut))
+	for _, cell := range cut {
+		want[cell] = true
+	}
+	standing := map[domain.Cell]bool{}
+	for _, cell := range cells {
+		if !want[cell.Cell] {
+			continue
+		}
+		for _, thing := range cell.Things {
+			if thing.Category == policy.ThingPlant && !thing.Has(policy.FlagDesignated) {
+				standing[cell.Cell] = true
+				break
+			}
+		}
+	}
+	return standing
 }
 
 func mapCells(set map[domain.Cell]bool) []domain.Cell {

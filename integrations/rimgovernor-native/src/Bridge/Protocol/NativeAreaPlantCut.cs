@@ -5,20 +5,19 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // AreaPlantCutIntent on Actions/Apply and the plant cut census (#1547):
+    // AreaPlantCutIntent on Actions/Apply (#1547):
     // every non-crop plant on cells is ordered cut, wild plants with
     // CutPlant and a harvestable tree with chop-wood (HarvestPlant), the way
     // NativeClearCover chooses. Plants in a growing zone or on a plant
     // grower and sown crops are never touched; there is no cover-fill
     // requirement. A fogged cell, a cell with nothing to cut and a plant
-    // already designated are no-ops. The census reports the plants an apply
-    // would designate now, through the same predicate.
+    // already designated are no-ops. The firebreak reads standing plants from the
+    // mirror, not from native (#2273).
     internal static class NativeAreaPlantCut
     {
         internal const int MaxCells = 1024;
@@ -47,9 +46,6 @@ namespace HomeBridge.BridgeTools
                 if (thing is Plant plant && plant.Spawned && !plant.Destroyed && plant.Position == cell && !plant.IsCrop && !Forage(plant)) yield return plant;
         }
 
-        // Standing is a plant an apply would designate now: undesignated and
-        // accepted by the game's own designator.
-        private static bool Standing(Plant plant) => !Designated(plant) && DesignatorFor(plant).CanDesignateThing(plant).Accepted;
 
         private static string? Refusal(IEnumerable<Common.Cell>? requested, Map map, out List<IntVec3> cells)
         {
@@ -96,38 +92,7 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { AreaPlantCut = effect };
         }
 
-        internal static bool Validate(Obs.PlantCutCensusRequest request, out Common.Failure failure)
-        {
-            failure = null!;
-            var count = request.Cells.Count;
-            if (count == 0 || count > MaxCells || request.Cells.Any(c => c == null || !c.HasX || !c.HasZ))
-            {
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"Plant cut census requires 1..{MaxCells} cells with x and z.");
-                return false;
-            }
-            return true;
-        }
 
-        internal static Obs.PlantCutCensusSnapshot Read(Map map, Obs.PlantCutCensusRequest request, Common.ObservationContext context)
-        {
-            var snapshot = new Obs.PlantCutCensusSnapshot { Context = context };
-            var seen = new HashSet<IntVec3>();
-            foreach (var c in request.Cells)
-            {
-                var cell = new IntVec3(c.X, 0, c.Z);
-                if (!seen.Add(cell)) continue;
-                foreach (var plant in Plants(map, cell))
-                {
-                    if (!Standing(plant)) continue;
-                    snapshot.Plants.Add(new Obs.PlantCutTarget
-                    {
-                        Plant = NativeRef.Thing(plant), Cell = new Common.Cell { X = cell.x, Z = cell.z },
-                        ChopWood = ChopWood(plant),
-                    });
-                }
-            }
-            return snapshot;
-        }
     }
 
     internal sealed class AreaPlantCutActionHandler : IActionHandler

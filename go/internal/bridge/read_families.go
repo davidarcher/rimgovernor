@@ -54,7 +54,6 @@ var nativeReadFamily = map[string]FactFamily{
 	"rimgovernor/observations_get_cells":               FactColony,
 	clearanceTool:                                      FactColony,
 	shrinesTool:                                        FactColony,
-	plantCutCensusTool:                                 FactColony,
 	combatGeometryMethod:                               FactColony,
 	"rimgovernor/observations_list_rooms":              FactRooms,
 	"rimgovernor/observations_read_research":           FactResearch,
