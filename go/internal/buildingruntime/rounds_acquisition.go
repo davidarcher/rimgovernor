@@ -168,7 +168,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	held := map[string]bool{}
 	if !pest {
-		held = cooledSources(projection.Acquisition, r.reviewer.policy.ChopMinGrowth, func(id string) bool {
+		held = cooledSources(projection.Acquisition, r.reviewer.chopMinGrowth(projection), func(id string) bool {
 			return cooled[id] || acquisitionCooled(progress, r.reviewer.policy, id, expected.Tick)
 		})
 	}

@@ -41,6 +41,15 @@ type PlanningDefinition struct {
 	HarvestYield         domain.Fact[float64]
 	SowMinSkill          domain.Fact[int32]
 	HarvestDestroysPlant domain.Fact[bool]
+	// BlockAdjacentSow, MustBeWildToSow, HarvestMinGrowth, SowWork and
+	// WildBiomes are the sowing facts a tree plantation prices (#2289): the
+	// native sower leaves the cells beside a sown tree empty, the game offers
+	// only wild species to sow, a tree is harvestable from HarvestMinGrowth,
+	// one sowing costs SowWork ticks, and WildBiomes are the biome defNames the
+	// plant grows wild in.
+	BlockAdjacentSow, MustBeWildToSow domain.Fact[bool]
+	HarvestMinGrowth, SowWork         domain.Fact[float64]
+	WildBiomes                        domain.Fact[[]string]
 	// Crop sow tags and minimum glow; grower sow tag and fertility; building
 	// power draw and glow radius, as the native definition declares them.
 	SowTags                                                           domain.Fact[[]string]
@@ -531,7 +540,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		if outdoorsDark, err = colonyOutdoorsDark(v, tables.Catalog); err != nil {
 			return ColonyProjection{}, err
 		}
-		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining), OutdoorsDark: outdoorsDark}
+		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining), OutdoorsDark: outdoorsDark, Biome: optional(v.Biome)}
 		r.Facts.Calendar = colonyCalendar(climate)
 	}
 	if curve := v.GetPlanning().GetObserved().GetGear().GetOutdoorTemperatureByTwelfthC(); len(curve) == 12 {

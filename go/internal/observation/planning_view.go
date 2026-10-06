@@ -214,6 +214,18 @@ func plantView(catalog *bridge.DefinitionCatalog, v *PlanningDefinition, plant *
 	v.GrowMinGlow = finiteFact(float64(plant.GetGrowMinGlow()))
 	v.SowTags = domain.Known(append([]string{}, plant.GetSowTags()...))
 	v.SowMinSkill = domain.Known(plant.GetSowMinSkill())
+	v.BlockAdjacentSow = domain.Known(plant.GetBlockAdjacentSow())
+	v.MustBeWildToSow = domain.Known(plant.GetMustBeWildToSow())
+	v.HarvestMinGrowth = finiteFact(float64(plant.GetHarvestMinGrowth()))
+	v.SowWork = finiteFact(float64(plant.GetSowWork()))
+	biomes := []string{}
+	for _, record := range plant.GetWildBiomes() {
+		biomes = append(biomes, record.GetValue().GetBiome())
+	}
+	v.WildBiomes = domain.Known(biomes)
+	// Sowing waits on the plant's own research (TreeSowing, Devilstrand), which
+	// the thing's research prerequisites do not list.
+	v.Research = append(v.Research, plant.GetSowResearchPrerequisites()...)
 	product := plant.GetHarvestedThingDef()
 	if product == "" {
 		return nil

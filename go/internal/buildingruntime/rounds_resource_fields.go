@@ -74,6 +74,8 @@ func (r *Rounder) sowableCrops(call context.Context, snapshot domain.GenerationS
 type resourceFieldPlanner struct {
 	choices []policy.CropChoice
 	climate policy.CropClimate
+	// skill is the best sowing skill among the colonists (policy.GrowerSkill).
+	skill domain.Fact[int32]
 	// farms are the standing growing zones.
 	farms []observation.FarmZoneFact
 	// siteRead reads the field site on first use: held reservations and shell
@@ -85,7 +87,7 @@ type resourceFieldPlanner struct {
 
 func (r *Rounder) newResourceFieldPlanner(call context.Context, state ControlState, review store.Rounds, expected observation.Identity, projection observation.ColonyProjection) *resourceFieldPlanner {
 	_, choices := fieldRequest(projection, 0)
-	return &resourceFieldPlanner{choices: choices, climate: projection.CropClimate, farms: projection.Farms,
+	return &resourceFieldPlanner{choices: choices, climate: projection.CropClimate, skill: policy.GrowerSkill(projection.WorkPawns), farms: projection.Farms,
 		siteRead: func() (policy.FarmSiteRequest, bool, error) {
 			// A colony with no layout plan has no anchor and prices no field.
 			anchor, planned := fieldAnchor(projection)
@@ -152,11 +154,22 @@ func (f *resourceFieldPlanner) candidate(resource policy.Resource, need int64) (
 		return policy.SupplyCandidate{}, policy.FieldPlan{}, false, err
 	}
 	plan, ok := policy.PlanFieldByResource(policy.ResourceFieldRequest{
-		Resource: resource, Deficit: domain.Known(float64(need)), Choices: f.choices, Climate: f.climate, Site: site,
+		Resource: resource, Deficit: domain.Known(float64(need)), Choices: f.choices, Climate: f.climate, Site: site, GrowerSkill: f.skill,
 	})
 	if !ok {
 		return policy.SupplyCandidate{}, policy.FieldPlan{}, false, nil
 	}
 	candidate, ok := policy.ResourceFieldCandidate(resource, plan)
 	return candidate, plan, ok, nil
+}
+
+// chopMinGrowth is the growth fraction a plantation tree must reach before the
+// chop census offers it (#2289): the fell point of the best tree species the
+// colony can sow now, else the configured gate. Recomputed from the review's
+// own read, never stored.
+func (r *Rounder) chopMinGrowth(projection observation.ColonyProjection) float64 {
+	if fraction, ok := policy.TreeFellFraction(cropChoices(projection), "WoodLog", projection.CropClimate.Biome, policy.GrowerSkill(projection.WorkPawns)); ok {
+		return fraction
+	}
+	return r.policy.ChopMinGrowth
 }

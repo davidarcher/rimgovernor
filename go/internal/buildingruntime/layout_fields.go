@@ -69,17 +69,51 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 	for _, f := range facts.Farms {
 		growing[f.ID] = f.Crop
 	}
-	inedible := map[string]bool{}
+	inedible, trees := map[string]bool{}, map[string]bool{}
 	for _, d := range facts.Definitions {
 		if e, k := d.Edible.Value(); k && !e {
 			inedible[d.Name] = true
 		}
+		if b, k := d.BlockAdjacentSow.Value(); k && b {
+			if destroys, k := d.HarvestDestroysPlant.Value(); k && destroys {
+				trees[d.Name] = true
+			}
+		}
+	}
+	// The native sower leaves a crop beside a sown tree and a tree beside a
+	// sown crop unsown (#2289), so a zone keeps one cell clear of every zone of
+	// the other kind; tree zones never grow by adoption either (adoptsZone).
+	treeZone, cropZone := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	for _, c := range facts.Cells {
+		if id, ok := c.ZoneID.Value(); ok {
+			if crop, farm := growing[id]; farm {
+				if trees[crop] {
+					treeZone[c.Cell] = true
+				} else {
+					cropZone[c.Cell] = true
+				}
+			}
+		}
+	}
+	nearZone := func(zone map[domain.Cell]bool, cell domain.Cell) bool {
+		for dx := int32(-1); dx <= 1; dx++ {
+			for dz := int32(-1); dz <= 1; dz++ {
+				if zone[domain.Cell{X: cell.X + dx, Z: cell.Z + dz}] {
+					return true
+				}
+			}
+		}
+		return false
 	}
 	freeFor := func(block map[domain.Cell]bool, crop policy.CropChoice) map[domain.Cell]bool {
 		floor, _ := crop.FertilityMin.Value()
+		other := treeZone
+		if policy.IsTreeCrop(crop) {
+			other = cropZone
+		}
 		free := map[domain.Cell]bool{}
 		for cell := range block {
-			if c, seen := census[cell]; seen && !blocked[cell] && freeFieldSoil(c, floor) {
+			if c, seen := census[cell]; seen && !blocked[cell] && freeFieldSoil(c, floor) && !nearZone(other, cell) {
 				free[cell] = true
 			}
 		}

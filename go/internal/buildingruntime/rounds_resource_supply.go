@@ -123,7 +123,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		}
 	}
 	progress, _ := review.ConcernProgress(policy.MaintainResource)
-	held := cooledSources(projection.Acquisition, r.policy.ChopMinGrowth, func(id string) bool {
+	held := cooledSources(projection.Acquisition, r.chopMinGrowth(projection), func(id string) bool {
 		return acquisitionCooled(progress, r.policy, id, expected.Tick)
 	})
 	busy := holdWorked(projection.Acquisition, undispatched, held)
@@ -204,7 +204,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		}
 		// Standing fields of the resource's crops count like designated
 		// sources; a new field is priced for what is still short.
-		row.standing = fieldPlanner.standing(resource)
+		row.standing = max(fieldPlanner.standing(resource)-grownPlantationYield(rows, resource), 0)
 		need -= row.standing
 		if need > 0 && fieldPlanner.serves(resource) {
 			candidate, plan, ok, err := fieldPlanner.candidate(resource, need)
@@ -385,4 +385,17 @@ func (s *resourceSupply) tradeLines(trader string) map[policy.Resource]int64 {
 
 func isAcquisitionKind(k policy.CandidateKind) bool {
 	return k == policy.CandidateChop || k == policy.CandidateHarvest || k == policy.CandidateHunt
+}
+
+// grownPlantationYield is the wood the plantation trees already in the census
+// give: they serve the demand as chop rows (or designated work), so a plantation
+// zone counts only its still-growing trees as standing supply.
+func grownPlantationYield(rows []policy.AcquisitionSource, resource policy.Resource) int64 {
+	var units float64
+	for _, s := range rows {
+		if s.Plantation && s.Tree && policy.Resource(s.Resource) == resource {
+			units += s.Yield
+		}
+	}
+	return int64(math.Round(units))
 }

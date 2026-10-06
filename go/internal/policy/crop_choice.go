@@ -21,6 +21,9 @@ type CropClimate struct {
 	// lights the ground, so no crop that needs light grows outdoors whatever
 	// the season says. Unknown refuses: nothing is sown outdoors on a guess.
 	OutdoorsDark domain.Fact[bool]
+	// Biome is the colony map's biome defName (#2289): a species the game only
+	// lets a player sow wild (MustBeWildToSow) is planted only where it is native.
+	Biome domain.Fact[string]
 }
 
 // SowingOutdoors is whether a crop that needs light can be sown outdoors
@@ -42,10 +45,15 @@ type CropChoice struct {
 	// per cell per harvest (#2282); unknown stays unknown, never zero.
 	// SowMinSkill is the sowing skill floor; HarvestDestroys is true when a
 	// harvest removes the plant (a tree is felled), so the cell is empty after.
-	Harvests                                                               domain.Fact[Resource]
-	UnitsPerCell                                                           domain.Fact[float64]
-	SowMinSkill                                                            domain.Fact[int32]
-	HarvestDestroys                                                        domain.Fact[bool]
+	Harvests        domain.Fact[Resource]
+	UnitsPerCell    domain.Fact[float64]
+	SowMinSkill     domain.Fact[int32]
+	HarvestDestroys domain.Fact[bool]
+	// BlockAdjacentSow, MustBeWildToSow, HarvestMinGrowth, SowWork and
+	// WildBiomes price a tree plantation (#2289).
+	BlockAdjacentSow, MustBeWildToSow                                      domain.Fact[bool]
+	HarvestMinGrowth, SowWork                                              domain.Fact[float64]
+	WildBiomes                                                             domain.Fact[[]string]
 	Name                                                                   string
 	Available, Edible                                                      domain.Fact[bool]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, Demand domain.Fact[float64]
@@ -90,6 +98,9 @@ type FieldCandidate struct {
 	Urgent bool
 	Reason string
 	Terms  []FarmSiteTerm
+	// Price is a tree species' wood per labor tick over its land and work
+	// (#2289), zero for every other crop.
+	Price float64
 }
 
 type FieldPlan struct {
@@ -134,6 +145,8 @@ type viableCrop struct {
 	// units is the resource units one cell yields per harvest when the crop is
 	// planned for a resource deficit (#2283); zero plans it for nutrition.
 	units float64
+	// price is the tree species' wood per labor tick (#2289), zero otherwise.
+	price float64
 }
 
 // viableCrops screens the request's crops. With indoor set the remaining
@@ -233,7 +246,7 @@ func planField(r FieldRequest, indoor bool) (FieldPlan, bool) {
 func fieldCandidate(r FieldRequest, v viableCrop, urgent bool) FieldCandidate {
 	site := r.Site
 	sites := sitePick(site, v, func(s SiteCell) bool { return siteKnownFalse(s.Roofed) && (site.Fields == nil || site.Fields[s.Cell]) }, nil, false)
-	c := FieldCandidate{Crop: v.crop, Needed: v.needed, Sites: sites, Urgent: urgent}
+	c := FieldCandidate{Crop: v.crop, Needed: v.needed, Sites: sites, Urgent: urgent, Price: v.price}
 	if sites.Cells == 0 {
 		c.Reason = "no plantable soil"
 		return c
@@ -265,7 +278,7 @@ func rankField(plan FieldPlan, urgent bool) (FieldPlan, bool) {
 }
 
 // fieldCandidateLess orders plantable candidates first, then the fastest crop
-// under urgency, then the highest score, then the fastest crop, then by name.
+// under urgency, then the best-priced tree species, then the highest score, then the fastest crop, then by name.
 func fieldCandidateLess(a, b FieldCandidate, urgent bool) bool {
 	if (a.Sites.Cells > 0) != (b.Sites.Cells > 0) {
 		return a.Sites.Cells > 0
@@ -274,6 +287,9 @@ func fieldCandidateLess(a, b FieldCandidate, urgent bool) bool {
 	bd, _ := b.Crop.GrowDays.Value()
 	if urgent && ad != bd {
 		return ad < bd
+	}
+	if a.Price != b.Price {
+		return a.Price > b.Price
 	}
 	if a.Score != b.Score {
 		return a.Score > b.Score

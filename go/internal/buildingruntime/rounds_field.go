@@ -688,12 +688,8 @@ func (r *RoundsFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Sta
 	return remaining, nil
 }
 
-// fieldSiteRequest is the site-type request a field step plans over its
-// own colony read: crop choices from the plant definitions, the layout
-// plan's field blocks, and the infrastructure a controlled grower needs.
-// fieldRequest is the crop side of a field decision, without a site: the
-// plan prices new-field candidates from it and the executor adds the site.
-func fieldRequest(projection observation.ColonyProjection, reserveDays float64) (policy.FieldRequest, []policy.CropChoice) {
+// cropChoices are the plant definitions of the projection as crop choices.
+func cropChoices(projection observation.ColonyProjection) []policy.CropChoice {
 	var choices []policy.CropChoice
 	for _, d := range projection.Definitions {
 		// Only plant definitions are crops; buildings in the same census
@@ -704,6 +700,16 @@ func fieldRequest(projection observation.ColonyProjection, reserveDays float64) 
 		choice := policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, HarvestWork: d.HarvestWork, RawPreferred: d.RawPreferred, DietAllowed: d.DietAllowed, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil, RotDays: d.HarvestRotDays, Perishable: d.HarvestPerishable}
 		choices = append(choices, withHarvestFacts(choice, d))
 	}
+	return choices
+}
+
+// fieldSiteRequest is the site-type request a field step plans over its
+// own colony read: crop choices from the plant definitions, the layout
+// plan's field blocks, and the infrastructure a controlled grower needs.
+// fieldRequest is the crop side of a field decision, without a site: the
+// plan prices new-field candidates from it and the executor adds the site.
+func fieldRequest(projection observation.ColonyProjection, reserveDays float64) (policy.FieldRequest, []policy.CropChoice) {
+	choices := cropChoices(projection)
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays)
 	growers, cooks := policy.CropWorkers(projection.WorkPawns)
 	return policy.FieldRequest{Growers: growers, Cooks: cooks, Calendar: projection.Facts.Calendar, Conditions: projection.Facts.DisasterConditions, Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: reserveDays, Coverage: coverage}, choices
@@ -756,5 +762,6 @@ func withHarvestFacts(crop policy.CropChoice, d observation.PlanningDefinition) 
 		crop.Harvests = domain.Known(policy.Resource(name))
 	}
 	crop.UnitsPerCell, crop.SowMinSkill, crop.HarvestDestroys = d.HarvestYield, d.SowMinSkill, d.HarvestDestroysPlant
+	crop.BlockAdjacentSow, crop.MustBeWildToSow, crop.HarvestMinGrowth, crop.SowWork, crop.WildBiomes = d.BlockAdjacentSow, d.MustBeWildToSow, d.HarvestMinGrowth, d.SowWork, d.WildBiomes
 	return crop
 }

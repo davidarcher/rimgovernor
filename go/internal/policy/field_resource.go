@@ -20,6 +20,10 @@ type ResourceFieldRequest struct {
 	Choices []CropChoice
 	Climate CropClimate
 	Site    FarmSiteRequest
+	// GrowerSkill is the best Plants level among the colonists who sow
+	// (GrowerSkill); a crop with a sow skill floor is planned only when it is
+	// known and meets it.
+	GrowerSkill domain.Fact[int32]
 }
 
 // PlanFieldByResource chooses among the available crops whose Harvests is the
@@ -30,9 +34,11 @@ type ResourceFieldRequest struct {
 // never plants on a guess: unknown season, darkness or crop facts refuse.
 // Candidates are ranked by yield per day over the needed cells.
 //
-// Seam for trees (#2289): a crop whose HarvestDestroys is true leaves the
-// cell empty after harvest, and its lattice density and fell yield differ;
-// both belong in resourceCropViable (units, needed) and not in the ranking.
+// A tree species (IsTreeCrop, #2289) is planned on the native lattice, one
+// tree per domain.TreeCellsPerTree cells, each yielding its wood at the best
+// fell fraction (treePricing); it needs a researched, biome-native species and a
+// skilled sower, has no season to fit (its growth carries across seasons), and
+// ranks by price (wood per labor tick over land, sowing and felling).
 func PlanFieldByResource(r ResourceFieldRequest) (FieldPlan, bool) {
 	deficit, dk := r.Deficit.Value()
 	sowing, sk := r.Climate.SowingOutdoors().Value()
@@ -52,7 +58,7 @@ func PlanFieldByResource(r ResourceFieldRequest) (FieldPlan, bool) {
 		if rk && resource != r.Resource {
 			continue
 		}
-		v, reason := resourceCropViable(crop, deficit, season)
+		v, reason := resourceCropViable(crop, deficit, season, r)
 		if reason != "" {
 			plan.Candidates = append(plan.Candidates, FieldCandidate{Crop: crop, Reason: reason})
 			continue
@@ -83,6 +89,9 @@ func ResourceFieldCandidate(resource Resource, plan FieldPlan) (SupplyCandidate,
 	units, uk := plan.Crop.UnitsPerCell.Value()
 	work, wk := plan.Crop.HarvestWork.Value()
 	cells := plan.Sites.Cells
+	if IsTreeCrop(plan.Crop) {
+		return treeFieldCandidate(resource, plan)
+	}
 	if !dk || !uk || !wk || !fieldPositive(days) || !fieldPositive(units) || work < 0 || cells <= 0 {
 		return SupplyCandidate{}, false
 	}
@@ -92,13 +101,38 @@ func ResourceFieldCandidate(resource Resource, plan FieldPlan) (SupplyCandidate,
 	})
 }
 
+// treeFieldCandidate prices a planned tree plantation: its trees' sowing as
+// upfront labor, the days to the fell point as lead, and the felling over those
+// days as daily labor, each tree giving its wood at that point.
+func treeFieldCandidate(resource Resource, plan FieldPlan) (SupplyCandidate, bool) {
+	fraction, wood, _, ok := treePricing(plan.Crop)
+	days, _ := plan.Crop.GrowDays.Value()
+	sow, _ := plan.Crop.SowWork.Value()
+	fell, _ := plan.Crop.HarvestWork.Value()
+	trees := plan.Sites.Cells / domain.TreeCellsPerTree
+	if !ok || trees <= 0 {
+		return SupplyCandidate{}, false
+	}
+	return FieldHarvestCandidate(resource, ResourceFieldPrefix+plan.Crop.Name, FieldHarvest{
+		Cells: int64(trees) * domain.TreeCellsPerTree, GrowDays: days * fraction, UnitsPerCell: wood / domain.TreeCellsPerTree,
+		SetupTicks: float64(trees) * sow, WorkPerDay: fell * float64(trees) / (days * fraction),
+	})
+}
+
 // StandingFieldYield is the units one standing field of crop on cells usable
 // cells delivers per harvest toward resource: zero when the crop harvests
-// something else or a fact is unknown.
+// something else or a fact is unknown. A tree zone counts its lattice trees at
+// the wood each gives at the fell point.
 func StandingFieldYield(crop CropChoice, resource Resource, cells domain.Fact[uint32]) float64 {
 	harvests, hk := crop.Harvests.Value()
 	units, uk := crop.UnitsPerCell.Value()
 	n, nk := cells.Value()
+	if IsTreeCrop(crop) && hk && harvests == resource && nk {
+		if _, wood, _, ok := treePricing(crop); ok {
+			return wood * float64(n/domain.TreeCellsPerTree)
+		}
+		return 0
+	}
 	if !hk || !uk || !nk || harvests != resource || !fieldPositive(units) {
 		return 0
 	}
@@ -107,7 +141,7 @@ func StandingFieldYield(crop CropChoice, resource Resource, cells domain.Fact[ui
 
 // resourceCropViable screens one crop that harvests the demanded resource,
 // returning the viable crop or the reason it is excluded.
-func resourceCropViable(crop CropChoice, deficit, season float64) (viableCrop, string) {
+func resourceCropViable(crop CropChoice, deficit, season float64, r ResourceFieldRequest) (viableCrop, string) {
 	available, ak := crop.Available.Value()
 	days, gk := crop.GrowDays.Value()
 	units, uk := crop.UnitsPerCell.Value()
@@ -119,7 +153,14 @@ func resourceCropViable(crop CropChoice, deficit, season float64) (viableCrop, s
 		return viableCrop{}, "crop not available"
 	case GrowsInDark(crop):
 		return viableCrop{}, "crop needs a dark room"
-	case days*fieldCycles > season:
+	}
+	if reason := cropSowable(crop, r.GrowerSkill); reason != "" {
+		return viableCrop{}, reason
+	}
+	if IsTreeCrop(crop) {
+		return treeViable(crop, deficit, r)
+	}
+	if days*fieldCycles > season {
 		return viableCrop{}, "season too short"
 	}
 	needed := int(math.Min(ResourceFieldCellCap, math.Ceil(deficit/units-1e-9)))
@@ -127,4 +168,22 @@ func resourceCropViable(crop CropChoice, deficit, season float64) (viableCrop, s
 		return viableCrop{}, fmt.Sprintf("no cells needed for %.2f units", deficit)
 	}
 	return viableCrop{crop: crop, days: days, needed: needed, units: units}, ""
+}
+
+// treeViable sizes a tree plantation for deficit units: whole lattice trees of
+// the wood one gives at the fell point, domain.TreeCellsPerTree cells each.
+func treeViable(crop CropChoice, deficit float64, r ResourceFieldRequest) (viableCrop, string) {
+	if reason := treeSowable(crop, r.Climate.Biome, r.GrowerSkill); reason != "" {
+		return viableCrop{}, reason
+	}
+	_, wood, price, ok := treePricing(crop)
+	if !ok {
+		return viableCrop{}, "incomplete crop facts"
+	}
+	trees := int(math.Min(ResourceFieldCellCap/domain.TreeCellsPerTree, math.Ceil(deficit/wood-1e-9)))
+	if trees <= 0 {
+		return viableCrop{}, fmt.Sprintf("no trees needed for %.2f units", deficit)
+	}
+	days, _ := crop.GrowDays.Value()
+	return viableCrop{crop: crop, days: days, needed: trees * domain.TreeCellsPerTree, units: wood / domain.TreeCellsPerTree, price: price}, ""
 }
