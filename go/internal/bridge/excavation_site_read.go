@@ -17,9 +17,6 @@ type ExcavationSiteCell struct {
 	Cell           domain.Cell
 	Fogged         bool
 	Definition     string
-	HitPoints      int32
-	Roof           string
-	HoldsRoof      bool
 	Walkable       bool
 	MineDesignated bool
 	Eligible       bool
@@ -93,7 +90,7 @@ func (client *Client) ReadExcavationSite(ctx context.Context, identity *c.Identi
 		if row == nil || position == nil || position.X == nil || position.Z == nil || position.GetX() != cells[i].X || position.GetZ() != cells[i].Z || row.Fogged == nil || row.Eligible == nil || row.MineDesignated == nil {
 			return ExcavationSite{}, raw, contract("excavation site row mismatch")
 		}
-		item := ExcavationSiteCell{Cell: cells[i], Fogged: row.GetFogged(), Definition: row.GetMineableDefName(), HitPoints: row.GetHitPoints(), Roof: row.GetRoofDefName(), HoldsRoof: row.GetHoldsRoof(), Walkable: row.GetWalkable(), MineDesignated: row.GetMineDesignated(), Eligible: row.GetEligible(), Blocker: row.GetBlocker()}
+		item := ExcavationSiteCell{Cell: cells[i], Fogged: row.GetFogged(), Definition: row.GetMineableDefName(), Walkable: row.GetWalkable(), MineDesignated: row.GetMineDesignated(), Eligible: row.GetEligible(), Blocker: row.GetBlocker()}
 		if item.Definition != "" && validID(item.Definition) != nil {
 			return ExcavationSite{}, raw, contract("invalid excavation cell definition")
 		}

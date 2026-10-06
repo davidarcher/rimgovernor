@@ -91,9 +91,6 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 				yields[y.DefName] = true
 			}
 		}
-		if row.Faction != nil && validID(row.GetFaction()) != nil {
-			return contract("invalid clearance faction")
-		}
 		if row.RoofBlocker != nil && row.GetRoofBlocker() == "" {
 			return contract("empty clearance roof blocker")
 		}

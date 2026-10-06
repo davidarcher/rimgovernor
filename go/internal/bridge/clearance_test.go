@@ -116,7 +116,6 @@ func TestClearancePlannedGroundRequestAndFloors(t *testing.T) {
 		"no designated": {[]*o.ClearanceFloor{{Cell: &c.Cell{X: proto.Int32(11), Z: proto.Int32(11)}, DefName: proto.String("TileSandstone")}}, false},
 	} {
 		snapshot := clearanceSnapshot()
-		snapshot.Targets[0].Faction = proto.String("Faction_Player")
 		snapshot.Targets[0].EnclosesRoom = proto.Bool(true)
 		snapshot.Floors = tc.floors
 		reply := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: snapshot}}

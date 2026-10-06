@@ -1613,9 +1613,9 @@ func defenseCellFacts(cell bridge.DefenseCell) policy.DefenseCell {
 	if cell.Fogged {
 		return out
 	}
-	out.Walkable, out.Passable, out.BlocksSight = domain.Known(cell.Walkable), domain.Known(cell.Passable), domain.Known(cell.BlocksSight)
+	out.Walkable, out.Passable = domain.Known(cell.Walkable), domain.Known(cell.Passable)
 	out.PlayerOwned, out.NaturalRock, out.EdgeReachable = domain.Known(cell.PlayerOwned), domain.Known(cell.NaturalRock), domain.Known(cell.EdgeReachable)
-	out.HomeArea, out.Door, out.CoverFill, out.Edifice = domain.Known(cell.HomeArea), domain.Known(cell.Door), domain.Known(cell.CoverFill), cell.EdificeDefName
+	out.Door, out.CoverFill, out.Edifice = domain.Known(cell.Door), domain.Known(cell.CoverFill), cell.EdificeDefName
 	out.Roofed = domain.Known(cell.Roofed)
 	return out
 }

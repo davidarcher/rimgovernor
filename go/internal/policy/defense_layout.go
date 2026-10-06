@@ -12,9 +12,9 @@ import (
 // DefenseCell is one census row of observations_read_defense_site. Unknown
 // facts never become free space, cover or a route.
 type DefenseCell struct {
-	Cell                                                                     domain.Cell
-	Walkable, Passable, BlocksSight, PlayerOwned, NaturalRock, EdgeReachable domain.Fact[bool]
-	HomeArea, Door                                                           domain.Fact[bool]
+	Cell                                                        domain.Cell
+	Walkable, Passable, PlayerOwned, NaturalRock, EdgeReachable domain.Fact[bool]
+	Door                                                        domain.Fact[bool]
 	// Roofed is the cell under any roof; the mortar tier needs it known
 	// false (#1206).
 	Roofed domain.Fact[bool]

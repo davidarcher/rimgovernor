@@ -30,8 +30,8 @@ func defenseFixture() DefenseRequest {
 		for z := int32(0); z < 30; z++ {
 			gate := x == 2 && z == 6
 			open := z < 5 || z <= 7 && (x >= 14 && x <= 16 || x == 2) || z >= 8 && z <= 28 && x >= 1 && x <= 29
-			c := DefenseCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(open), Passable: domain.Known(open), BlocksSight: domain.Known(!open || gate),
-				PlayerOwned: domain.Known(gate), NaturalRock: domain.Known(!open), EdgeReachable: domain.Known(open), HomeArea: domain.Known(open && z >= 8), Door: domain.Known(gate), CoverFill: domain.Known(0.0)}
+			c := DefenseCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(open), Passable: domain.Known(open),
+				PlayerOwned: domain.Known(gate), NaturalRock: domain.Known(!open), EdgeReachable: domain.Known(open), Door: domain.Known(gate), CoverFill: domain.Known(0.0)}
 			if !open {
 				c.CoverFill, c.Edifice = domain.Known(1.0), "Granite"
 			}

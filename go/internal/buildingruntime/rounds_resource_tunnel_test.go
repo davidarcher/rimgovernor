@@ -60,7 +60,7 @@ func (n *buriedOreNative) ReadExcavationSite(ctx context.Context, _ *c.Identity,
 	for _, cell := range cells {
 		row := bridge.ExcavationSiteCell{Cell: cell}
 		if def := n.rock[cell]; def != "" {
-			row.Definition, row.Roof, row.HoldsRoof, row.Eligible = def, "RoofRockThick", true, true
+			row.Definition, row.Eligible = def, true
 		} else {
 			row.Walkable = true
 		}

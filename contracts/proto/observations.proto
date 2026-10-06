@@ -32,7 +32,7 @@ message ReadIssue { optional string field = 1; rimgovernor.common.v1.Unavailable
 message Rectangle { rimgovernor.common.v1.Cell minimum = 1; rimgovernor.common.v1.Cell maximum = 2; }
 
 // Complete census of visible, deconstructible non-player buildings touching Home.
-// Absence of faction means no faction; absence of roof_blocker means safe removal.
+// Absence of roof_blocker means safe removal.
 enum ClearanceClass {
   CLEARANCE_CLASS_UNSPECIFIED = 0;
   CLEARANCE_CLASS_ANCIENT_WALL_DOOR = 1;
@@ -44,7 +44,7 @@ message ClearanceTarget {
   optional string entity_id = 1;
   optional string def_name = 2;
   Rectangle occupied = 3;
-  optional string faction = 4;
+  reserved 4; // faction: never read (#2274)
   optional bool deconstructible = 5;
   ClearanceClass class = 6;
   optional bool in_home = 7; // Every occupied cell, not just the origin.
@@ -795,8 +795,8 @@ message SpatialAccessReply { oneof outcome { SpatialAccessSnapshot observed = 1;
 // ordinary walk-in raid approach. Every cell of the requested rectangle.
 message DefenseCell {
   rimgovernor.common.v1.Cell cell = 1; optional bool fogged = 2; optional bool walkable = 3; optional bool passable = 4;
-  optional double cover_fill = 5; optional bool blocks_sight = 6; optional string edifice_def_name = 7; optional bool player_owned = 8;
-  optional bool natural_rock = 9; optional bool edge_reachable = 10; optional bool home_area = 11; optional string terrain = 12;
+  optional double cover_fill = 5; reserved 6; /* blocks_sight */ optional string edifice_def_name = 7; optional bool player_owned = 8;
+  optional bool natural_rock = 9; optional bool edge_reachable = 10; reserved 11; /* home_area */ optional string terrain = 12;
   optional bool door = 13; repeated ReadIssue issues = 14;
   // The thing whose fillPercent cover_fill reports (GetCover, else the
   // edifice), with the clearance designation ordinary work would need.
@@ -846,8 +846,9 @@ message RoofSupportReply { oneof outcome { RoofSupportSnapshot observed = 1; rim
 // radius of a holder after all requested cells are removed. Fogged cells are unknown.
 enum ExcavationSupport { EXCAVATION_SUPPORT_UNSPECIFIED = 0; EXCAVATION_SUPPORT_SUPPORTED = 1; EXCAVATION_SUPPORT_UNKNOWN = 2; EXCAVATION_SUPPORT_UNSUPPORTED = 3; }
 message ExcavationCell {
-  rimgovernor.common.v1.Cell cell = 1; optional bool fogged = 2; optional string mineable_def_name = 3; optional string mineable_id = 4;
-  optional int32 hit_points = 5; optional string roof_def_name = 6; optional bool holds_roof = 7; optional bool walkable = 8;
+  rimgovernor.common.v1.Cell cell = 1; optional bool fogged = 2; optional string mineable_def_name = 3;
+  reserved 4, 5, 6, 7; // mineable_id, hit_points, roof_def_name, holds_roof: never read (#2274)
+  optional bool walkable = 8;
   optional bool mine_designated = 9; optional bool eligible = 10; optional string blocker = 11;
 }
 message ExcavationSiteSnapshot {

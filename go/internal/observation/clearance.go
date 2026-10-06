@@ -108,7 +108,7 @@ func ObserveClearanceCensusOnGround(ctx context.Context, source ClearanceSource,
 		o.ClearanceClass_CLEARANCE_CLASS_OTHER:             ClearanceOther,
 	}
 	for _, row := range v.Targets {
-		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Faction: row.GetFaction(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), Player: row.EnclosesRoom != nil, EnclosesRoom: row.GetEnclosesRoom()})
+		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), Player: row.EnclosesRoom != nil, EnclosesRoom: row.GetEnclosesRoom()})
 		if s := row.Salvage; s != nil {
 			yields := make([]policy.CandidateYield, 0, len(s.Yields))
 			for _, y := range s.Yields {

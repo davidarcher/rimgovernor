@@ -37,8 +37,8 @@ func defenseCellsOver(s MapSurvey, region Rectangle, dug map[domain.Cell]bool) [
 	var out []DefenseCell
 	for _, c := range rectCells(region) {
 		rock := byCell[c].Rock && !dug[c]
-		cell := DefenseCell{Cell: c, Walkable: domain.Known(!rock), Passable: domain.Known(!rock), BlocksSight: domain.Known(rock),
-			PlayerOwned: domain.Known(false), NaturalRock: domain.Known(rock), EdgeReachable: domain.Known(!rock), HomeArea: domain.Known(false),
+		cell := DefenseCell{Cell: c, Walkable: domain.Known(!rock), Passable: domain.Known(!rock),
+			PlayerOwned: domain.Known(false), NaturalRock: domain.Known(rock), EdgeReachable: domain.Known(!rock),
 			Door: domain.Known(false), CoverFill: domain.Known(0.0)}
 		if rock {
 			cell.CoverFill, cell.Edifice = domain.Known(1.0), "Granite"

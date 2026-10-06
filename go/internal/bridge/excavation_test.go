@@ -21,7 +21,7 @@ func excavationSiteRow(x, z int32, fogged bool) *o.ExcavationCell {
 		row.Blocker = proto.String("Unknown excavation geometry")
 		return row
 	}
-	row.MineableDefName, row.HitPoints, row.RoofDefName, row.HoldsRoof, row.Walkable, row.Eligible = proto.String("Granite"), proto.Int32(900), proto.String("RoofRockThick"), proto.Bool(true), proto.Bool(false), proto.Bool(true)
+	row.MineableDefName, row.Walkable, row.Eligible = proto.String("Granite"), proto.Bool(false), proto.Bool(true)
 	return row
 }
 func excavationSiteReply(rows ...*o.ExcavationCell) *o.ExcavationSiteReply {
@@ -55,7 +55,7 @@ func TestReadExcavationSiteDecodesRowsInRequestOrderAndKeepsFogUnknown(t *testin
 		t.Fatal(site)
 	}
 	visible, fogged := site.Cells[0], site.Cells[1]
-	if visible.Fogged || !visible.Eligible || visible.Definition != "Granite" || visible.Roof != "RoofRockThick" || !visible.HoldsRoof {
+	if visible.Fogged || !visible.Eligible || visible.Definition != "Granite" {
 		t.Fatal(visible)
 	}
 	if !fogged.Fogged || fogged.Eligible || fogged.Definition != "" {

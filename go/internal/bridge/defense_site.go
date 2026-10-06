@@ -39,11 +39,11 @@ type DefenseCell struct {
 	Terrain, EdificeDefName string
 	// EdificeStuff is the edifice's stuff def, empty for a stuffless one
 	// (#1065: a wooden door is upgraded to plasteel).
-	EdificeStuff                    string
-	Walkable, Passable, BlocksSight bool
-	CoverFill                       float64
-	PlayerOwned, NaturalRock, Door  bool
-	EdgeReachable, HomeArea         bool
+	EdificeStuff                   string
+	Walkable, Passable             bool
+	CoverFill                      float64
+	PlayerOwned, NaturalRock, Door bool
+	EdgeReachable                  bool
 	// Cover names the thing whose fill CoverFill reports, when the census
 	// can identify one the game's designators could remove.
 	Cover *DefenseCover
@@ -261,7 +261,7 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 			site.Cells = append(site.Cells, out)
 			continue
 		}
-		if row.Terrain == nil || validID(row.GetTerrain()) != nil || row.Walkable == nil || row.Passable == nil || row.BlocksSight == nil || row.HomeArea == nil || row.EdgeReachable == nil || row.PlayerOwned == nil || row.NaturalRock == nil || row.Door == nil || !fraction(row.CoverFill) {
+		if row.Terrain == nil || validID(row.GetTerrain()) != nil || row.Walkable == nil || row.Passable == nil || row.EdgeReachable == nil || row.PlayerOwned == nil || row.NaturalRock == nil || row.Door == nil || !fraction(row.CoverFill) {
 			return DefenseSite{}, contract("defense cell facts missing or invalid")
 		}
 		if row.EdificeDefName != nil && validID(row.GetEdificeDefName()) != nil {
@@ -277,10 +277,10 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 			return DefenseSite{}, contract("contradictory defense cell traversal")
 		}
 		out.Terrain, out.EdificeDefName, out.EdificeStuff = row.GetTerrain(), row.GetEdificeDefName(), row.GetEdificeStuffDefName()
-		out.Walkable, out.Passable, out.BlocksSight = row.GetWalkable(), row.GetPassable(), row.GetBlocksSight()
+		out.Walkable, out.Passable = row.GetWalkable(), row.GetPassable()
 		out.CoverFill = row.GetCoverFill()
 		out.PlayerOwned, out.NaturalRock, out.Door = row.GetPlayerOwned(), row.GetNaturalRock(), row.GetDoor()
-		out.EdgeReachable, out.HomeArea, out.Unbridging = row.GetEdgeReachable(), row.GetHomeArea(), row.GetFoundationRemovalDesignated()
+		out.EdgeReachable, out.Unbridging = row.GetEdgeReachable(), row.GetFoundationRemovalDesignated()
 		out.Roofed = row.GetRoofed()
 		if row.CoverThingId != nil || row.CoverDefName != nil || row.CoverKind != nil || row.CoverDesignated != nil {
 			if validID(row.GetCoverThingId()) != nil || validID(row.GetCoverDefName()) != nil || row.CoverDesignated == nil || row.GetCoverKind() == o.CoverKind_COVER_KIND_UNSPECIFIED || row.GetCoverFill() <= 0 {

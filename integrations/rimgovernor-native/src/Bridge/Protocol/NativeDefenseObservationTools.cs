@@ -116,8 +116,6 @@ namespace HomeBridge.BridgeTools
                 row.Terrain = Identifier(cell.GetTerrain(map)?.defName);
                 row.FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null;
                 row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
-                row.HomeArea = map.areaManager.Home[cell];
-                row.BlocksSight = !cell.CanBeSeenOver(map);
                 row.Roofed = cell.Roofed(map);
                 var edifice = cell.GetEdifice(map);
                 var cover = cell.GetCover(map);

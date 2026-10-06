@@ -32,16 +32,12 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.ExcavationCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = false, MineDesignated = false, Eligible = false };
             if (!cell.InBounds(map)) { row.Eligible = false; row.Blocker = "Cell is outside the map"; return row; }
             row.Fogged = cell.Fogged(map);
-            var roof = cell.GetRoof(map);
-            if (roof != null) row.RoofDefName = roof.defName;
             row.Walkable = cell.Walkable(map);
-            var edifice = cell.GetEdifice(map);
-            row.HoldsRoof = edifice != null && edifice.def.holdsRoof;
             row.MineDesignated = ExcavationTools.Designated(cell, map);
             var rock = ExcavationTools.RockAt(cell, map);
             if (rock != null)
             {
-                row.MineableDefName = rock.def.defName; row.MineableId = rock.GetUniqueLoadID(); row.HitPoints = rock.HitPoints;
+                row.MineableDefName = rock.def.defName;
             }
             var blocker = ExcavationTools.CellBlocker(cell, map);
             row.Eligible = blocker == null && ExcavationTools.Eligible(cell, map);

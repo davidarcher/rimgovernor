@@ -18,7 +18,7 @@ func TestResourceFieldPlannerPricesAndCountsStandingFields(t *testing.T) {
 	var cells []policy.SiteCell
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
-			cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false),
+			cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Zone: domain.Known(false),
 				Roofed: domain.Known(false), Fertility: domain.Known(1.0)})
 		}
 	}

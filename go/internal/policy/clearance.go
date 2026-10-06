@@ -16,7 +16,6 @@ const ClearHomeObstructions ConcernID = "ClearHomeObstructions"
 type ClearanceTarget struct {
 	EntityID, DefName                      string
 	Minimum, Maximum                       domain.Cell
-	Faction                                string
 	Class                                  string
 	Deconstructible, InHome, AncientDanger bool
 	RoofBlocker                            string

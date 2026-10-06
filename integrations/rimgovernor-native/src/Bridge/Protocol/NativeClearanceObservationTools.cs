@@ -96,7 +96,6 @@ namespace HomeBridge.BridgeTools
                         var phase = Now();
                         row.AncientDanger = AncientDanger(map, building, player, triggers);
                         dangerTicks += Now() - phase;
-                        if (building.Faction != null) row.Faction = Id(building.Faction.GetUniqueLoadID());
                         if (building.Faction == player) row.EnclosesRoom = EnclosesRoom(map, building);
                         phase = Now();
                         var blocker = RoofSupportSafety.Blocker(building, out _);

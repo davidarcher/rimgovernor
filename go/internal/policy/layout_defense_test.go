@@ -35,8 +35,8 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 	r.Region, r.Bounds, r.Home, r.Entrances, r.Killbox = region, bounds, home, nil, k
 	r.Cells = nil
 	for _, c := range rectCells(region) {
-		r.Cells = append(r.Cells, DefenseCell{Cell: c, Walkable: domain.Known(true), Passable: domain.Known(true), BlocksSight: domain.Known(false),
-			PlayerOwned: domain.Known(false), NaturalRock: domain.Known(false), EdgeReachable: domain.Known(true), HomeArea: domain.Known(false), Door: domain.Known(false), CoverFill: domain.Known(0.0)})
+		r.Cells = append(r.Cells, DefenseCell{Cell: c, Walkable: domain.Known(true), Passable: domain.Known(true),
+			PlayerOwned: domain.Known(false), NaturalRock: domain.Known(false), EdgeReachable: domain.Known(true), Door: domain.Known(false), CoverFill: domain.Known(0.0)})
 	}
 	r.Turret = DefenseTurretRequest{Definition: "Turret_MiniTurret", Conduit: "HiddenConduit"}
 	layout, err := DefenseLayouts(r)

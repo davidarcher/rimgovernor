@@ -29,7 +29,7 @@ const (
 )
 
 // Complete census of visible, deconstructible non-player buildings touching Home.
-// Absence of faction means no faction; absence of roof_blocker means safe removal.
+// Absence of roof_blocker means safe removal.
 type ClearanceClass int32
 
 const (
@@ -2001,7 +2001,6 @@ type ClearanceTarget struct {
 	EntityId        *string                `protobuf:"bytes,1,opt,name=entity_id,json=entityId,proto3,oneof" json:"entity_id,omitempty"`
 	DefName         *string                `protobuf:"bytes,2,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
 	Occupied        *Rectangle             `protobuf:"bytes,3,opt,name=occupied,proto3" json:"occupied,omitempty"`
-	Faction         *string                `protobuf:"bytes,4,opt,name=faction,proto3,oneof" json:"faction,omitempty"`
 	Deconstructible *bool                  `protobuf:"varint,5,opt,name=deconstructible,proto3,oneof" json:"deconstructible,omitempty"`
 	Class           ClearanceClass         `protobuf:"varint,6,opt,name=class,proto3,enum=rimgovernor.observations.v1.ClearanceClass" json:"class,omitempty"`
 	InHome          *bool                  `protobuf:"varint,7,opt,name=in_home,json=inHome,proto3,oneof" json:"in_home,omitempty"` // Every occupied cell, not just the origin.
@@ -2065,13 +2064,6 @@ func (x *ClearanceTarget) GetOccupied() *Rectangle {
 		return x.Occupied
 	}
 	return nil
-}
-
-func (x *ClearanceTarget) GetFaction() string {
-	if x != nil && x.Faction != nil {
-		return *x.Faction
-	}
-	return ""
 }
 
 func (x *ClearanceTarget) GetDeconstructible() bool {
@@ -13792,12 +13784,10 @@ type DefenseCell struct {
 	Walkable       *bool                  `protobuf:"varint,3,opt,name=walkable,proto3,oneof" json:"walkable,omitempty"`
 	Passable       *bool                  `protobuf:"varint,4,opt,name=passable,proto3,oneof" json:"passable,omitempty"`
 	CoverFill      *float64               `protobuf:"fixed64,5,opt,name=cover_fill,json=coverFill,proto3,oneof" json:"cover_fill,omitempty"`
-	BlocksSight    *bool                  `protobuf:"varint,6,opt,name=blocks_sight,json=blocksSight,proto3,oneof" json:"blocks_sight,omitempty"`
 	EdificeDefName *string                `protobuf:"bytes,7,opt,name=edifice_def_name,json=edificeDefName,proto3,oneof" json:"edifice_def_name,omitempty"`
 	PlayerOwned    *bool                  `protobuf:"varint,8,opt,name=player_owned,json=playerOwned,proto3,oneof" json:"player_owned,omitempty"`
 	NaturalRock    *bool                  `protobuf:"varint,9,opt,name=natural_rock,json=naturalRock,proto3,oneof" json:"natural_rock,omitempty"`
 	EdgeReachable  *bool                  `protobuf:"varint,10,opt,name=edge_reachable,json=edgeReachable,proto3,oneof" json:"edge_reachable,omitempty"`
-	HomeArea       *bool                  `protobuf:"varint,11,opt,name=home_area,json=homeArea,proto3,oneof" json:"home_area,omitempty"`
 	Terrain        *string                `protobuf:"bytes,12,opt,name=terrain,proto3,oneof" json:"terrain,omitempty"`
 	Door           *bool                  `protobuf:"varint,13,opt,name=door,proto3,oneof" json:"door,omitempty"`
 	Issues         []*ReadIssue           `protobuf:"bytes,14,rep,name=issues,proto3" json:"issues,omitempty"`
@@ -13883,13 +13873,6 @@ func (x *DefenseCell) GetCoverFill() float64 {
 	return 0
 }
 
-func (x *DefenseCell) GetBlocksSight() bool {
-	if x != nil && x.BlocksSight != nil {
-		return *x.BlocksSight
-	}
-	return false
-}
-
 func (x *DefenseCell) GetEdificeDefName() string {
 	if x != nil && x.EdificeDefName != nil {
 		return *x.EdificeDefName
@@ -13914,13 +13897,6 @@ func (x *DefenseCell) GetNaturalRock() bool {
 func (x *DefenseCell) GetEdgeReachable() bool {
 	if x != nil && x.EdgeReachable != nil {
 		return *x.EdgeReachable
-	}
-	return false
-}
-
-func (x *DefenseCell) GetHomeArea() bool {
-	if x != nil && x.HomeArea != nil {
-		return *x.HomeArea
 	}
 	return false
 }
@@ -14916,10 +14892,6 @@ type ExcavationCell struct {
 	Cell            *commonpb.Cell         `protobuf:"bytes,1,opt,name=cell,proto3" json:"cell,omitempty"`
 	Fogged          *bool                  `protobuf:"varint,2,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
 	MineableDefName *string                `protobuf:"bytes,3,opt,name=mineable_def_name,json=mineableDefName,proto3,oneof" json:"mineable_def_name,omitempty"`
-	MineableId      *string                `protobuf:"bytes,4,opt,name=mineable_id,json=mineableId,proto3,oneof" json:"mineable_id,omitempty"`
-	HitPoints       *int32                 `protobuf:"varint,5,opt,name=hit_points,json=hitPoints,proto3,oneof" json:"hit_points,omitempty"`
-	RoofDefName     *string                `protobuf:"bytes,6,opt,name=roof_def_name,json=roofDefName,proto3,oneof" json:"roof_def_name,omitempty"`
-	HoldsRoof       *bool                  `protobuf:"varint,7,opt,name=holds_roof,json=holdsRoof,proto3,oneof" json:"holds_roof,omitempty"`
 	Walkable        *bool                  `protobuf:"varint,8,opt,name=walkable,proto3,oneof" json:"walkable,omitempty"`
 	MineDesignated  *bool                  `protobuf:"varint,9,opt,name=mine_designated,json=mineDesignated,proto3,oneof" json:"mine_designated,omitempty"`
 	Eligible        *bool                  `protobuf:"varint,10,opt,name=eligible,proto3,oneof" json:"eligible,omitempty"`
@@ -14977,34 +14949,6 @@ func (x *ExcavationCell) GetMineableDefName() string {
 		return *x.MineableDefName
 	}
 	return ""
-}
-
-func (x *ExcavationCell) GetMineableId() string {
-	if x != nil && x.MineableId != nil {
-		return *x.MineableId
-	}
-	return ""
-}
-
-func (x *ExcavationCell) GetHitPoints() int32 {
-	if x != nil && x.HitPoints != nil {
-		return *x.HitPoints
-	}
-	return 0
-}
-
-func (x *ExcavationCell) GetRoofDefName() string {
-	if x != nil && x.RoofDefName != nil {
-		return *x.RoofDefName
-	}
-	return ""
-}
-
-func (x *ExcavationCell) GetHoldsRoof() bool {
-	if x != nil && x.HoldsRoof != nil {
-		return *x.HoldsRoof
-	}
-	return false
 }
 
 func (x *ExcavationCell) GetWalkable() bool {
@@ -44519,35 +44463,32 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_field\"y\n" +
 	"\tRectangle\x125\n" +
 	"\aminimum\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aminimum\x125\n" +
-	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\xbd\x05\n" +
+	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\x98\x05\n" +
 	"\x0fClearanceTarget\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12B\n" +
-	"\boccupied\x18\x03 \x01(\v2&.rimgovernor.observations.v1.RectangleR\boccupied\x12\x1d\n" +
-	"\afaction\x18\x04 \x01(\tH\x02R\afaction\x88\x01\x01\x12-\n" +
-	"\x0fdeconstructible\x18\x05 \x01(\bH\x03R\x0fdeconstructible\x88\x01\x01\x12A\n" +
+	"\boccupied\x18\x03 \x01(\v2&.rimgovernor.observations.v1.RectangleR\boccupied\x12-\n" +
+	"\x0fdeconstructible\x18\x05 \x01(\bH\x02R\x0fdeconstructible\x88\x01\x01\x12A\n" +
 	"\x05class\x18\x06 \x01(\x0e2+.rimgovernor.observations.v1.ClearanceClassR\x05class\x12\x1c\n" +
-	"\ain_home\x18\a \x01(\bH\x04R\x06inHome\x88\x01\x01\x12&\n" +
-	"\froof_blocker\x18\b \x01(\tH\x05R\vroofBlocker\x88\x01\x01\x12*\n" +
-	"\x0eancient_danger\x18\t \x01(\bH\x06R\rancientDanger\x88\x01\x01\x12#\n" +
+	"\ain_home\x18\a \x01(\bH\x03R\x06inHome\x88\x01\x01\x12&\n" +
+	"\froof_blocker\x18\b \x01(\tH\x04R\vroofBlocker\x88\x01\x01\x12*\n" +
+	"\x0eancient_danger\x18\t \x01(\bH\x05R\rancientDanger\x88\x01\x01\x12#\n" +
 	"\n" +
 	"designated\x18\n" +
-	" \x01(\bH\aR\n" +
+	" \x01(\bH\x06R\n" +
 	"designated\x88\x01\x01\x12F\n" +
 	"\asalvage\x18\f \x01(\v2,.rimgovernor.observations.v1.SalvageEvidenceR\asalvage\x12(\n" +
-	"\rencloses_room\x18\r \x01(\bH\bR\fenclosesRoom\x88\x01\x01B\f\n" +
+	"\rencloses_room\x18\r \x01(\bH\aR\fenclosesRoom\x88\x01\x01B\f\n" +
 	"\n" +
 	"_entity_idB\v\n" +
-	"\t_def_nameB\n" +
-	"\n" +
-	"\b_factionB\x12\n" +
+	"\t_def_nameB\x12\n" +
 	"\x10_deconstructibleB\n" +
 	"\n" +
 	"\b_in_homeB\x0f\n" +
 	"\r_roof_blockerB\x11\n" +
 	"\x0f_ancient_dangerB\r\n" +
 	"\v_designatedB\x10\n" +
-	"\x0e_encloses_room\"\xa2\x01\n" +
+	"\x0e_encloses_roomJ\x04\b\x04\x10\x05\"\xa2\x01\n" +
 	"\x0eClearanceFloor\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x00R\adefName\x88\x01\x01\x12#\n" +
@@ -46305,44 +46246,39 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v22.rimgovernor.observations.v1.SpatialAccessSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xe4\t\n" +
+	"\aoutcome\"\x87\t\n" +
 	"\vDefenseCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06fogged\x18\x02 \x01(\bH\x00R\x06fogged\x88\x01\x01\x12\x1f\n" +
 	"\bwalkable\x18\x03 \x01(\bH\x01R\bwalkable\x88\x01\x01\x12\x1f\n" +
 	"\bpassable\x18\x04 \x01(\bH\x02R\bpassable\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"cover_fill\x18\x05 \x01(\x01H\x03R\tcoverFill\x88\x01\x01\x12&\n" +
-	"\fblocks_sight\x18\x06 \x01(\bH\x04R\vblocksSight\x88\x01\x01\x12-\n" +
-	"\x10edifice_def_name\x18\a \x01(\tH\x05R\x0eedificeDefName\x88\x01\x01\x12&\n" +
-	"\fplayer_owned\x18\b \x01(\bH\x06R\vplayerOwned\x88\x01\x01\x12&\n" +
-	"\fnatural_rock\x18\t \x01(\bH\aR\vnaturalRock\x88\x01\x01\x12*\n" +
+	"cover_fill\x18\x05 \x01(\x01H\x03R\tcoverFill\x88\x01\x01\x12-\n" +
+	"\x10edifice_def_name\x18\a \x01(\tH\x04R\x0eedificeDefName\x88\x01\x01\x12&\n" +
+	"\fplayer_owned\x18\b \x01(\bH\x05R\vplayerOwned\x88\x01\x01\x12&\n" +
+	"\fnatural_rock\x18\t \x01(\bH\x06R\vnaturalRock\x88\x01\x01\x12*\n" +
 	"\x0eedge_reachable\x18\n" +
-	" \x01(\bH\bR\redgeReachable\x88\x01\x01\x12 \n" +
-	"\thome_area\x18\v \x01(\bH\tR\bhomeArea\x88\x01\x01\x12\x1d\n" +
-	"\aterrain\x18\f \x01(\tH\n" +
-	"R\aterrain\x88\x01\x01\x12\x17\n" +
-	"\x04door\x18\r \x01(\bH\vR\x04door\x88\x01\x01\x12>\n" +
+	" \x01(\bH\aR\redgeReachable\x88\x01\x01\x12\x1d\n" +
+	"\aterrain\x18\f \x01(\tH\bR\aterrain\x88\x01\x01\x12\x17\n" +
+	"\x04door\x18\r \x01(\bH\tR\x04door\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x0e \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12)\n" +
-	"\x0ecover_thing_id\x18\x0f \x01(\tH\fR\fcoverThingId\x88\x01\x01\x12)\n" +
-	"\x0ecover_def_name\x18\x10 \x01(\tH\rR\fcoverDefName\x88\x01\x01\x12J\n" +
+	"\x0ecover_thing_id\x18\x0f \x01(\tH\n" +
+	"R\fcoverThingId\x88\x01\x01\x12)\n" +
+	"\x0ecover_def_name\x18\x10 \x01(\tH\vR\fcoverDefName\x88\x01\x01\x12J\n" +
 	"\n" +
-	"cover_kind\x18\x11 \x01(\x0e2&.rimgovernor.observations.v1.CoverKindH\x0eR\tcoverKind\x88\x01\x01\x12.\n" +
-	"\x10cover_designated\x18\x13 \x01(\bH\x0fR\x0fcoverDesignated\x88\x01\x01\x12G\n" +
-	"\x1dfoundation_removal_designated\x18\x14 \x01(\bH\x10R\x1bfoundationRemovalDesignated\x88\x01\x01\x128\n" +
-	"\x16edifice_stuff_def_name\x18\x15 \x01(\tH\x11R\x13edificeStuffDefName\x88\x01\x01\x12\x1b\n" +
-	"\x06roofed\x18\x16 \x01(\bH\x12R\x06roofed\x88\x01\x01B\t\n" +
+	"cover_kind\x18\x11 \x01(\x0e2&.rimgovernor.observations.v1.CoverKindH\fR\tcoverKind\x88\x01\x01\x12.\n" +
+	"\x10cover_designated\x18\x13 \x01(\bH\rR\x0fcoverDesignated\x88\x01\x01\x12G\n" +
+	"\x1dfoundation_removal_designated\x18\x14 \x01(\bH\x0eR\x1bfoundationRemovalDesignated\x88\x01\x01\x128\n" +
+	"\x16edifice_stuff_def_name\x18\x15 \x01(\tH\x0fR\x13edificeStuffDefName\x88\x01\x01\x12\x1b\n" +
+	"\x06roofed\x18\x16 \x01(\bH\x10R\x06roofed\x88\x01\x01B\t\n" +
 	"\a_foggedB\v\n" +
 	"\t_walkableB\v\n" +
 	"\t_passableB\r\n" +
-	"\v_cover_fillB\x0f\n" +
-	"\r_blocks_sightB\x13\n" +
+	"\v_cover_fillB\x13\n" +
 	"\x11_edifice_def_nameB\x0f\n" +
 	"\r_player_ownedB\x0f\n" +
 	"\r_natural_rockB\x11\n" +
-	"\x0f_edge_reachableB\f\n" +
-	"\n" +
-	"_home_areaB\n" +
+	"\x0f_edge_reachableB\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_doorB\x11\n" +
@@ -46352,7 +46288,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_cover_designatedB \n" +
 	"\x1e_foundation_removal_designatedB\x19\n" +
 	"\x17_edifice_stuff_def_nameB\t\n" +
-	"\a_roofed\"\xdc\x02\n" +
+	"\a_roofedJ\x04\b\x06\x10\aJ\x04\b\v\x10\f\"\xdc\x02\n" +
 	"\tRaidTrack\x12\x1c\n" +
 	"\alord_id\x18\x01 \x01(\tH\x00R\x06lordId\x88\x01\x01\x12$\n" +
 	"\vfaction_def\x18\x02 \x01(\tH\x01R\n" +
@@ -46433,34 +46369,23 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.RoofSupportSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xd0\x04\n" +
+	"\aoutcome\"\x91\x03\n" +
 	"\x0eExcavationCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06fogged\x18\x02 \x01(\bH\x00R\x06fogged\x88\x01\x01\x12/\n" +
-	"\x11mineable_def_name\x18\x03 \x01(\tH\x01R\x0fmineableDefName\x88\x01\x01\x12$\n" +
-	"\vmineable_id\x18\x04 \x01(\tH\x02R\n" +
-	"mineableId\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"hit_points\x18\x05 \x01(\x05H\x03R\thitPoints\x88\x01\x01\x12'\n" +
-	"\rroof_def_name\x18\x06 \x01(\tH\x04R\vroofDefName\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"holds_roof\x18\a \x01(\bH\x05R\tholdsRoof\x88\x01\x01\x12\x1f\n" +
-	"\bwalkable\x18\b \x01(\bH\x06R\bwalkable\x88\x01\x01\x12,\n" +
-	"\x0fmine_designated\x18\t \x01(\bH\aR\x0emineDesignated\x88\x01\x01\x12\x1f\n" +
+	"\x11mineable_def_name\x18\x03 \x01(\tH\x01R\x0fmineableDefName\x88\x01\x01\x12\x1f\n" +
+	"\bwalkable\x18\b \x01(\bH\x02R\bwalkable\x88\x01\x01\x12,\n" +
+	"\x0fmine_designated\x18\t \x01(\bH\x03R\x0emineDesignated\x88\x01\x01\x12\x1f\n" +
 	"\beligible\x18\n" +
-	" \x01(\bH\bR\beligible\x88\x01\x01\x12\x1d\n" +
-	"\ablocker\x18\v \x01(\tH\tR\ablocker\x88\x01\x01B\t\n" +
+	" \x01(\bH\x04R\beligible\x88\x01\x01\x12\x1d\n" +
+	"\ablocker\x18\v \x01(\tH\x05R\ablocker\x88\x01\x01B\t\n" +
 	"\a_foggedB\x14\n" +
-	"\x12_mineable_def_nameB\x0e\n" +
-	"\f_mineable_idB\r\n" +
-	"\v_hit_pointsB\x10\n" +
-	"\x0e_roof_def_nameB\r\n" +
-	"\v_holds_roofB\v\n" +
+	"\x12_mineable_def_nameB\v\n" +
 	"\t_walkableB\x12\n" +
 	"\x10_mine_designatedB\v\n" +
 	"\t_eligibleB\n" +
 	"\n" +
-	"\b_blocker\"\xfe\x04\n" +
+	"\b_blockerJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\b\"\xfe\x04\n" +
 	"\x16ExcavationSiteSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x05cells\x18\x02 \x03(\v2+.rimgovernor.observations.v1.ExcavationCellR\x05cells\x12b\n" +
