@@ -160,9 +160,6 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if result, handled, err := r.fishing(call, epoch, state, goal, read); err != nil || handled {
 		return result, err
 	}
-	if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCrop, "field-capacity") {
-		return placeOthers(0, awaitingFoodPlan("field-capacity"))
-	}
 	if blocked {
 		openPlans := []store.PlanState{}
 		for _, method := range goal.Methods {
@@ -172,7 +169,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			}
 			openPlans = append(openPlans, plan)
 		}
-		blocked = !foodPlanAdditionalField(projection, openPlans)
+		blocked = !foodPlanFieldRoom(projection, openPlans)
 	}
 	wait, err := r.fieldAllowance(call, goal.Standard, state.Snapshot, projection)
 	if err != nil {
@@ -200,6 +197,9 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// first (#1309): the shortfall planners go quiet once covered.
 	if result, handled, err := r.shrink(call, epoch, state, goal, projection, read, request.Field); err != nil || handled {
 		return result, err
+	}
+	if plan, planned := projection.Facts.FoodPlan.Value(); !planned || !foodPlanOpensField(plan) {
+		return placeOthers(wait, awaitingFoodPlan("new-field"))
 	}
 	if !known {
 		return placeOthers(wait, fieldUnavailable("field_plan"))
@@ -698,7 +698,9 @@ func (r *RoundsFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Sta
 // fieldSiteRequest is the site-type request a field step plans over its
 // own colony read: crop choices from the plant definitions, the layout
 // plan's field blocks, and the infrastructure a controlled grower needs.
-func fieldSiteRequest(projection observation.ColonyProjection, protected []domain.Cell, reserveDays float64) (policy.SiteTypeRequest, []policy.CropChoice) {
+// fieldRequest is the crop side of a field decision, without a site: the
+// plan prices new-field candidates from it and the executor adds the site.
+func fieldRequest(projection observation.ColonyProjection, reserveDays float64) (policy.FieldRequest, []policy.CropChoice) {
 	var choices []policy.CropChoice
 	for _, d := range projection.Definitions {
 		// Only plant definitions are crops; buildings in the same census
@@ -706,16 +708,21 @@ func fieldSiteRequest(projection observation.ColonyProjection, protected []domai
 		if _, isPlant := d.GrowDays.Value(); !isPlant {
 			continue
 		}
-		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, HarvestWork: d.HarvestWork, RawPreferred: d.RawPreferred, DietAllowed: d.DietAllowed, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil})
+		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, HarvestWork: d.HarvestWork, RawPreferred: d.RawPreferred, DietAllowed: d.DietAllowed, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil, RotDays: d.HarvestRotDays, Perishable: d.HarvestPerishable})
 	}
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays)
-	anchor, _ := fieldAnchor(projection)
-	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: anchor, Cells: projection.Cells, Protected: protected}
-	if fields, ok := layoutFieldCells(projection); ok {
-		site.Fields = fields
-	}
 	growers, cooks := policy.CropWorkers(projection.WorkPawns)
-	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Growers: growers, Cooks: cooks, Calendar: projection.Facts.Calendar, Conditions: projection.Facts.DisasterConditions, Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: reserveDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius, Items: projection.Facts.Items}
+	return policy.FieldRequest{Growers: growers, Cooks: cooks, Calendar: projection.Facts.Calendar, Conditions: projection.Facts.DisasterConditions, Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: reserveDays, Coverage: coverage}, choices
+}
+
+func fieldSiteRequest(projection observation.ColonyProjection, protected []domain.Cell, reserveDays float64) (policy.SiteTypeRequest, []policy.CropChoice) {
+	field, choices := fieldRequest(projection, reserveDays)
+	anchor, _ := fieldAnchor(projection)
+	field.Site = policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: anchor, Cells: projection.Cells, Protected: protected}
+	if fields, ok := layoutFieldCells(projection); ok {
+		field.Site.Fields = fields
+	}
+	request := policy.SiteTypeRequest{Field: field, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius, Items: projection.Facts.Items}
 	for _, d := range projection.Definitions {
 		infrastructure := domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Fertility: d.GrowerFertility, Costs: d.CheapestCosts()})
 		switch d.Name {

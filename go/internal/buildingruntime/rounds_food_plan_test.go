@@ -104,7 +104,7 @@ func TestFoodCreditAttributesLedgerCountersToChannels(t *testing.T) {
 	p := observation.ColonyProjection{Workers: domain.Known(2),
 		Acquisition:        domain.Known([]policy.AcquisitionSource{{ID: "plant-1", Definition: "Berry", Food: true, NutritionYield: 2, Designated: true}, {ID: "plant-2", Definition: "Corn", Food: true, NutritionYield: 2, Designated: true}}),
 		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(4.0)}}}),
-		FoodFields: domain.Known([]policy.FoodField{{ID: "z7", RemainingGrowDays: domain.Known(1.0), WorkPerDay: domain.Known(100.0), Open: domain.Known(false),
+		FoodFields: domain.Known([]policy.FoodField{{ID: "z7", RemainingGrowDays: domain.Known(1.0), WorkPerDay: domain.Known(100.0),
 			Plan: policy.FieldPlan{Crop: policy.CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(5.0), HarvestNutrition: domain.Known(1.0)}, Sites: policy.FarmSitePlan{Cells: 10}}}}),
 		FoodChannels: domain.Known(observation.FoodChannels{
 			FishableWater: domain.Known(observation.FishableWater{FishingResearched: domain.Known(true), Regions: []observation.FishableRegion{{Root: domain.Cell{X: 5, Z: 8}, Population: domain.Known(300.0), MaxPopulation: domain.Known(300.0),

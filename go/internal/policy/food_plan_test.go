@@ -28,7 +28,7 @@ func TestFoodPlanTribalBridge(t *testing.T) {
 	}
 	var fields []FoodField
 	for i := 0; i < 3; i++ {
-		fields = append(fields, FoodField{ID: fmt.Sprintf("rice-%d", i), Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), HarvestNutrition: domain.Known(0.3), GrowDays: domain.Known(4.5)}, Sites: FarmSitePlan{Cells: 25}}, RemainingGrowDays: domain.Known(4.5), WorkPerDay: domain.Known(1000.0), Open: domain.Known(false)})
+		fields = append(fields, FoodField{ID: fmt.Sprintf("rice-%d", i), Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), HarvestNutrition: domain.Known(0.3), GrowDays: domain.Known(4.5)}, Sites: FarmSitePlan{Cells: 25}}, RemainingGrowDays: domain.Known(4.5), WorkPerDay: domain.Known(1000.0)})
 	}
 	for _, hunt := range []bool{true, false} {
 		t.Run(fmt.Sprintf("hunt=%t", hunt), func(t *testing.T) {
@@ -301,7 +301,7 @@ func TestFoodPlanAdaptersAndInputOwnership(t *testing.T) {
 	if open, _ := f[0].Open.Value(); open || f[0].State() != domain.Known(CandidateDesignated) {
 		t.Fatal("designation counted as delivery")
 	}
-	field := FoodField{ID: "rice", Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(4.5), HarvestNutrition: domain.Known(0.3)}, Sites: FarmSitePlan{Cells: 30}}, RemainingGrowDays: domain.Known(2.0), WorkPerDay: domain.Known(100.0), Open: domain.Known(false)}
+	field := FoodField{ID: "rice", Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(4.5), HarvestNutrition: domain.Known(0.3)}, Sites: FarmSitePlan{Cells: 30}}, RemainingGrowDays: domain.Known(2.0), WorkPerDay: domain.Known(100.0)}
 	c := CropChannels([]FoodField{field}, CropKitchen{})[0]
 	if n, _ := c.NutritionPerDay.Value(); n != 2 {
 		t.Fatal(n)

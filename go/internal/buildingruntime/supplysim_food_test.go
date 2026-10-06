@@ -288,7 +288,7 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 			if !sv.Open || sv.GrowLeft == s.grow {
 				lead += float64(daysUntilGrowing(w, v.Day))
 			}
-			fields = append(fields, policy.FoodField{ID: id, RemainingGrowDays: domain.Known(lead), WorkPerDay: domain.Known(s.cells * supplysim.CropHarvestWork / float64(s.grow)), Open: domain.Known(false),
+			fields = append(fields, policy.FoodField{ID: id, RemainingGrowDays: domain.Known(lead), WorkPerDay: domain.Known(s.cells * supplysim.CropHarvestWork / float64(s.grow)),
 				Plan: policy.FieldPlan{Crop: policy.CropChoice{Name: id, Edible: domain.Known(true), GrowDays: domain.Known(float64(s.grow)), HarvestNutrition: domain.Known(s.nutr)},
 					Sites: policy.FarmSitePlan{Cells: int(s.cells)}}})
 			count(observation.DeliveryKey{Kind: observation.DeliveryCrop, SourceID: id, Def: id}, sv, s.nutr)

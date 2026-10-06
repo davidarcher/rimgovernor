@@ -170,6 +170,21 @@ bench-cook pair). Raw needs no cook. A perishable harvest sets the yield's
 burst is credited no further than what survives to be eaten. An unknown recipe
 or rot fact leaves that facet Unknown (raw stands, no cap), never zero.
 
+A planted field is `designated`; the delivery ledger (its zone id) moves it to
+`delivering` when CROP counters rise. Its lead is the remaining harvest bound
+(`policy.HarvestLeadDays`: temperature and the growing calendar).
+
+A field not yet sown is a closed candidate (`policy.NewFieldChannels`, ID
+`new:<crop>`), one per viable crop of the field request: the cells the crop
+still needs priced like a planted field, the sowing (`FieldSowTicksPerCell`
+per cell) as upfront labor, the full grow days across the calendar as lead
+(`NewFieldLeadDays`: growth that outlasts the growing days left waits out the
+frost) and the rot stock cap. None is offered while crops cannot be sown
+outdoors. The field executor (`rounds_field.go`) places a new field only when
+the plan opened a `new:` candidate; pending zone creates and add-cells count as
+designated nutrition against the gap (`foodPlanFieldRoom`). Site choice stays
+with the executor.
+
 ## How a channel plugs in
 
 A channel builds `SupplyCandidate`s from its own facts and nothing else: its

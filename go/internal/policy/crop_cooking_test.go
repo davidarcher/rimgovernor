@@ -19,7 +19,7 @@ func vegetableMeal(eff, work float64) ProductionRecipe {
 
 func cropField() FoodField {
 	return FoodField{ID: "rice", Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(5.0), HarvestNutrition: domain.Known(1.0)}, Sites: FarmSitePlan{Cells: 10}},
-		RemainingGrowDays: domain.Known(2.0), WorkPerDay: domain.Known(100.0), Open: domain.Known(false)}
+		RemainingGrowDays: domain.Known(2.0), WorkPerDay: domain.Known(100.0)}
 }
 
 func termValue(c FoodChannel, name string) (float64, bool) {
@@ -123,5 +123,63 @@ func TestCropRotDaysCapStock(t *testing.T) {
 	}
 	if capped.DeliveredPerDay >= free.DeliveredPerDay {
 		t.Fatalf("rot cap did not limit credit: capped %v free %v", capped.DeliveredPerDay, free.DeliveredPerDay)
+	}
+}
+
+func TestNewFieldLeadCrossesFrost(t *testing.T) {
+	t.Parallel()
+	grow := domain.Known(10.0)
+	warm := NewFieldLeadDays(grow, domain.Known(Calendar{GrowingDays: 60, GrowingDaysRemaining: 60, Sowing: true}))
+	frost := NewFieldLeadDays(grow, domain.Known(Calendar{GrowingDays: 60, GrowingDaysRemaining: 4, NonGrowingDays: 30, Sowing: true}))
+	w, wk := warm.Value()
+	f, fk := frost.Value()
+	if !wk || !fk || w != 10 || f != 40 {
+		t.Fatalf("warm %v frost %v", warm, frost)
+	}
+	if _, known := NewFieldLeadDays(grow, domain.Unknown[Calendar]()).Value(); known {
+		t.Fatal("unknown calendar gave a lead")
+	}
+}
+
+func TestNewFieldChannelsAreClosedCandidates(t *testing.T) {
+	t.Parallel()
+	crop := CropChoice{Name: "Plant_Rice", Available: domain.Known(true), Edible: domain.Known(true), DietAllowed: domain.Known(true), GrowDays: domain.Known(5.0),
+		HarvestNutrition: domain.Known(1.0), Demand: domain.Known(2.0), HarvestWork: domain.Known(100.0), RotDays: domain.Known(10.0), Perishable: domain.Known(true)}
+	r := FieldRequest{Choices: []CropChoice{crop}, Colonists: domain.Known(int64(3)), ReserveDays: 10, Coverage: domain.Known(0.0),
+		Climate:  CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(60.0), OutdoorsDark: domain.Known(false)},
+		Calendar: domain.Known(Calendar{GrowingDays: 60, GrowingDaysRemaining: 60, Sowing: true})}
+	out := NewFieldChannels(r, CropKitchen{})
+	if len(out) != 1 {
+		t.Fatalf("candidates %v", out)
+	}
+	c := out[0]
+	if s, _ := c.State().Value(); s != CandidateClosed || c.ID != NewFieldPrefix+"Plant_Rice" || c.Source != "" {
+		t.Fatalf("state %v id %q", s, c.ID)
+	}
+	if up, _ := c.UpfrontTicks.Value(); up <= 0 {
+		t.Fatal("no upfront sowing cost")
+	}
+	if lead, _ := c.LeadDays.Value(); lead != 5 {
+		t.Fatalf("lead %v", lead)
+	}
+	if _, capKnown := c.StockCap.Value(); !capKnown {
+		t.Fatal("rot cap missing")
+	}
+	if got := SupplyCandidateOfFood(c).UpfrontCost.LaborTicks; got != c.UpfrontTicks {
+		t.Fatal("adapter dropped the upfront cost")
+	}
+	r.Climate.Sowing = domain.Known(false)
+	if len(NewFieldChannels(r, CropKitchen{})) != 0 {
+		t.Fatal("candidate offered while crops cannot be sown")
+	}
+}
+
+// A planted field with no delivery behind it is designated, never credited as
+// delivering; the ledger moves it.
+func TestPlantedFieldIsDesignatedNotDelivering(t *testing.T) {
+	t.Parallel()
+	c := CropChannels([]FoodField{cropField()}, CropKitchen{})[0]
+	if s, _ := c.State().Value(); s != CandidateDesignated {
+		t.Fatalf("state %v", s)
 	}
 }

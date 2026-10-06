@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -99,6 +100,10 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	if fields, known := p.FoodFields.Value(); known {
 		channels = append(channels, policy.CropChannels(fields, policy.CropKitchen{Benches: p.ProductionBenches, Cooks: domain.Known(float64(workers))})...)
 	}
+	// A field not yet sown is a candidate per viable crop, opened by the plan
+	// like any channel; the field executor acts on the ones it opens.
+	field, _ := fieldRequest(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays)
+	channels = append(channels, policy.NewFieldChannels(field, policy.CropKitchen{Benches: p.ProductionBenches, Cooks: domain.Known(float64(workers))})...)
 	// Capacity and stock protection do not create nutrition by themselves.
 	// Zero-contribution Hold rows leave these supporting methods to their own
 	// observed preconditions; their existing admission owns labor and resources.
@@ -106,7 +111,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 		kind policy.FoodChannelKind
 		id   string
 	}{
-		{policy.FoodCrop, "field-capacity"}, {policy.FoodCook, "cooking-capacity"}, {policy.FoodReserve, "stock-protection"},
+		{policy.FoodCook, "cooking-capacity"}, {policy.FoodReserve, "stock-protection"},
 	} {
 		channels = append(channels, policy.FoodChannel{Kind: support.kind, ID: support.id,
 			NutritionPerDay: domain.Known(0.0), WorkPerDay: domain.Known(0.0), LeadDays: domain.Known(0.0), Open: domain.Known(false),
@@ -191,12 +196,16 @@ func foodPlanSupport(p domain.Fact[policy.FoodPlan], kind policy.FoodChannelKind
 	return false
 }
 
-// foodPlanAdditionalField counts only open zone creates and add-cells; completed zones are
-// already in the native field census. Infrastructure without a known crop yield
-// keeps the existing work barrier rather than guessing its future production.
-func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanState) bool {
+// foodPlanFieldRoom is whether the plan opened a new-field candidate that the
+// open field work does not already cover. Pending zone creates and add-cells
+// are designated candidates with the full grow days as lead: their nutrition
+// per day (priced as the plan prices a candidate) is taken off the gap, and
+// completed zones are already in the native field census. Infrastructure
+// without a known crop yield keeps the work barrier rather than guessing its
+// future production.
+func foodPlanFieldRoom(p observation.ColonyProjection, plans []store.PlanState) bool {
 	plan, known := p.Facts.FoodPlan.Value()
-	if !known || plan.GapPerDay <= 0 {
+	if !known || plan.GapPerDay <= 0 || !foodPlanOpensField(plan) {
 		return false
 	}
 	gap := plan.GapPerDay
@@ -245,6 +254,16 @@ func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanS
 		}
 	}
 	return gap > 0
+}
+
+// foodPlanOpensField is whether the plan opened a new-field candidate.
+func foodPlanOpensField(plan policy.FoodPlan) bool {
+	for _, entry := range plan.Portfolio {
+		if entry.Channel.Kind == policy.FoodCrop && strings.HasPrefix(entry.Channel.ID, policy.NewFieldPrefix) && entry.Decision == policy.FoodPlanOpen {
+			return true
+		}
+	}
+	return false
 }
 
 func foodConsumerIDs(supply policy.FoodSupply) []policy.PawnID {

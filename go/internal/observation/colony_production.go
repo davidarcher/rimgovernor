@@ -78,7 +78,7 @@ func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition, ca
 		}
 		rows = append(rows, policy.FoodField{ID: farm.GetZone().GetId(),
 			Plan:              policy.FieldPlan{Crop: crop, Sites: policy.FarmSitePlan{Cells: int(growing)}},
-			RemainingGrowDays: policy.HarvestLeadDays(growth, crop.GrowDays, calendar), WorkPerDay: work, Open: domain.Known(false)})
+			RemainingGrowDays: policy.HarvestLeadDays(growth, crop.GrowDays, calendar), WorkPerDay: work})
 	}
 	return domain.Known(rows)
 }

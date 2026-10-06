@@ -23,7 +23,7 @@ lowest colonist runway after reserving competing animal shares; unknown combined
 demand cannot certify a safe runway. Future harvesting, changing temperature,
 feeding jobs and food sharing are not guaranteed. Harvest lead is computed in policy from
 raw growth facts, the temperature and the growing calendar (a frost window
-lengthens it; a missing fact leaves it unknown), and crop work does not reserve future production.
+lengthens it; a missing fact leaves it unknown), and crop work does not reserve future production. A field not yet sown is a plan candidate whose lead is its full grow days across the calendar ([supply model](../architecture/supply-model.md#crop-candidates)).
 
 Fresh animal corpses carry their native meat amount times meat nutrition,
 body size, forbid state and a one-tile footprint. Unforbidden corpses count

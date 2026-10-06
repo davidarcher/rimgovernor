@@ -218,12 +218,11 @@ func ForageChannels(sources []AcquisitionSource) []FoodChannel {
 // FoodField supplies the observations a FieldPlan does not own. ID identifies
 // the field across reviews; remaining growth and work must not be guessed from
 // the crop name. A newly planned field uses the full GrowDays as its remaining
-// growth and Open=false. Unknown inputs remain unknown in the resulting row.
+// growth. Unknown inputs remain unknown in the resulting row.
 type FoodField struct {
 	ID                            string
 	Plan                          FieldPlan
 	RemainingGrowDays, WorkPerDay domain.Fact[float64]
-	Open                          domain.Fact[bool]
 }
 
 // CookTicksPerDay is the work one cook gives a bench per day, the same budget
@@ -299,7 +298,8 @@ func (k CropKitchen) Cooking() domain.Fact[CropCooking] {
 // only when it beats raw (raw wins ties unless raw is known not preferred).
 // A perishable harvest bounds the stock it holds to what survives its rot
 // days (StockCap); an unknown recipe or rot fact leaves that facet Unknown,
-// never zero.
+// never zero. A planted field is Designated; the delivery ledger moves it to
+// Delivering (DeliveryCredit.Apply).
 func CropChannels(fields []FoodField, kitchen CropKitchen) []FoodChannel {
 	cooking := kitchen.Cooking()
 	var out []FoodChannel
@@ -308,44 +308,108 @@ func CropChannels(fields []FoodField, kitchen CropKitchen) []FoodChannel {
 		if ek && !edible {
 			continue
 		}
-		yield, yk := f.Plan.Crop.HarvestNutrition.Value()
-		days, dk := f.Plan.Crop.GrowDays.Value()
-		nutrition := domain.Unknown[float64]()
-		work := f.WorkPerDay
-		var terms []FoodPlanTerm
-		// Preserve malformed known numbers for PlanSupply's error boundary.
-		if yk && !foodNumber(yield) || dk && !fieldPositive(days) || f.Plan.Sites.Cells < 0 {
-			nutrition = domain.Known(math.NaN())
-		} else if ek && yk && dk {
-			raw := yield * float64(f.Plan.Sites.Cells) / days
-			nutrition = domain.Known(raw)
-			terms = append(terms, FoodPlanTerm{"raw_nutrition_per_day", raw})
-			if cook, known := cooking.Value(); known && cook.Recipe != "" {
-				cooked := raw * cook.NutrientEfficiency
-				cookWork := cooked * cook.WorkPerNutrition
-				preferred, pk := f.Plan.Crop.RawPreferred.Value()
-				if cookWork <= cook.CapacityTicks && (cooked > raw || cooked == raw && pk && !preferred) {
-					nutrition = domain.Known(cooked)
-					terms = append(terms, FoodPlanTerm{"cooked_nutrition_per_day", cooked}, FoodPlanTerm{"cook_work_per_day", cookWork})
-					if w, wk := f.WorkPerDay.Value(); wk {
-						work = domain.Known(w + cookWork)
-					}
-				}
-			}
-		}
-		c := FoodChannel{Kind: FoodCrop, ID: f.ID, NutritionPerDay: nutrition, WorkPerDay: work, LeadDays: f.RemainingGrowDays, Open: f.Open, StockCap: domain.Unknown[int64](), Designated: domain.Known(true), Source: "crop:" + f.ID, Terms: terms}
-		if dk && fieldPositive(days) {
-			c.Terms = append(c.Terms, FoodPlanTerm{"grow_days", days})
-		}
-		if n, nk := nutrition.Value(); nk && foodNumber(n) {
-			rot, rk := f.Plan.Crop.RotDays.Value()
-			perishable, pk := f.Plan.Crop.Perishable.Value()
-			if rk && pk && perishable && fieldPositive(rot) {
-				c.StockCap = domain.Known(int64(math.Ceil(n * rot)))
-				c.Terms = append(c.Terms, FoodPlanTerm{"rot_days", rot})
-			}
-		}
+		c := priceCrop(f.Plan.Crop, f.Plan.Sites.Cells, f.WorkPerDay, cooking)
+		c.ID, c.LeadDays, c.Source = f.ID, f.RemainingGrowDays, "crop:"+f.ID
+		c.Open, c.Designated = domain.Known(false), domain.Known(true)
 		out = append(out, c)
 	}
 	return out
 }
+
+// priceCrop is the nutrition, work and rot cap of cells of crop, shared by a
+// planted field and a candidate one. baseWork is the daily harvest work.
+func priceCrop(crop CropChoice, cells int, baseWork domain.Fact[float64], cooking domain.Fact[CropCooking]) FoodChannel {
+	_, ek := crop.Edible.Value()
+	yield, yk := crop.HarvestNutrition.Value()
+	days, dk := crop.GrowDays.Value()
+	nutrition := domain.Unknown[float64]()
+	work := baseWork
+	var terms []FoodPlanTerm
+	// Preserve malformed known numbers for PlanSupply's error boundary.
+	if yk && !foodNumber(yield) || dk && !fieldPositive(days) || cells < 0 {
+		nutrition = domain.Known(math.NaN())
+	} else if ek && yk && dk {
+		raw := yield * float64(cells) / days
+		nutrition = domain.Known(raw)
+		terms = append(terms, FoodPlanTerm{"raw_nutrition_per_day", raw})
+		if cook, known := cooking.Value(); known && cook.Recipe != "" {
+			cooked := raw * cook.NutrientEfficiency
+			cookWork := cooked * cook.WorkPerNutrition
+			preferred, pk := crop.RawPreferred.Value()
+			if cookWork <= cook.CapacityTicks && (cooked > raw || cooked == raw && pk && !preferred) {
+				nutrition = domain.Known(cooked)
+				terms = append(terms, FoodPlanTerm{"cooked_nutrition_per_day", cooked}, FoodPlanTerm{"cook_work_per_day", cookWork})
+				if w, wk := baseWork.Value(); wk {
+					work = domain.Known(w + cookWork)
+				}
+			}
+		}
+	}
+	c := FoodChannel{Kind: FoodCrop, NutritionPerDay: nutrition, WorkPerDay: work, StockCap: domain.Unknown[int64](), Terms: terms}
+	if dk && fieldPositive(days) {
+		c.Terms = append(c.Terms, FoodPlanTerm{"grow_days", days})
+	}
+	if n, nk := nutrition.Value(); nk && foodNumber(n) {
+		rot, rk := crop.RotDays.Value()
+		perishable, pk := crop.Perishable.Value()
+		if rk && pk && perishable && fieldPositive(rot) {
+			c.StockCap = domain.Known(int64(math.Ceil(n * rot)))
+			c.Terms = append(c.Terms, FoodPlanTerm{"rot_days", rot})
+		}
+	}
+	return c
+}
+
+// FieldSowTicksPerCell estimates the sowing work of one cell (a typical
+// plant's sowWork); the zone itself costs no work.
+const FieldSowTicksPerCell = 170.0
+
+// NewFieldLeadDays is the days from sowing now to a new field's first
+// harvest: the full grow days across the calendar, so growth that outlasts
+// the growing days left waits out the non-growing stretch. A crop is sown
+// only while it grows, so the walk starts at the current temperature factor 1.
+func NewFieldLeadDays(growDays domain.Fact[float64], calendar domain.Fact[Calendar]) domain.Fact[float64] {
+	days, dk := growDays.Value()
+	c, ck := calendar.Value()
+	if !dk || !ck || !c.Valid() || !fieldPositive(days) {
+		return domain.Unknown[float64]()
+	}
+	if days > c.GrowingDaysRemaining {
+		days += c.NonGrowingDays
+	}
+	return domain.Known(math.Min(YearDays, days))
+}
+
+// NewFieldChannels offers one closed candidate per viable crop of the field
+// request: the cells the crop still needs, priced like a planted field, with
+// the sowing as upfront labor and the full grow days across the calendar as
+// lead. Nothing is offered while crops cannot be sown outdoors. Site choice
+// stays with the field executor, which acts on a candidate the plan opened.
+func NewFieldChannels(r FieldRequest, kitchen CropKitchen) []FoodChannel {
+	if sowing, known := r.Climate.SowingOutdoors().Value(); !known || !sowing {
+		return nil
+	}
+	viables, _, ok := viableCrops(r, false)
+	if !ok {
+		return nil
+	}
+	cooking := kitchen.Cooking()
+	var out []FoodChannel
+	for _, v := range viables {
+		work := domain.Unknown[float64]()
+		if harvest, hk := v.crop.HarvestWork.Value(); hk {
+			work = domain.Known(harvest * float64(v.needed) / v.days)
+		}
+		c := priceCrop(v.crop, v.needed, work, cooking)
+		c.ID = NewFieldPrefix + v.crop.Name
+		c.LeadDays = NewFieldLeadDays(v.crop.GrowDays, r.Calendar)
+		c.UpfrontTicks = domain.Known(float64(v.needed) * FieldSowTicksPerCell)
+		c.Open, c.Designated = domain.Known(false), domain.Known(false)
+		c.Terms = append(c.Terms, FoodPlanTerm{"new_field_cells", float64(v.needed)})
+		out = append(out, c)
+	}
+	return out
+}
+
+// NewFieldPrefix starts the ID of a candidate field the plan may open.
+const NewFieldPrefix = "new:"
