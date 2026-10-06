@@ -2046,6 +2046,31 @@ message RaceFacts {
   bool insect = 3;
   repeated string trainables = 4;
   repeated string edible_defs = 5;
+  // Husbandry facts (#2238), the game's own answers for the race def so no
+  // later round re-reads the race. `adult_min_age_ticks` is
+  // Pawn_AgeTracker.AdultMinAgeTicks (an animal's last life stage; a humanlike
+  // race's first adult stage; biological ticks run one per tick for an animal).
+  // `reproductive_min_age_ticks`, `milkable_min_age_ticks` and
+  // `shearable_min_age_ticks` are the minAge in ticks of the first life stage
+  // (LifeStageAge order) whose LifeStageDef is reproductive, milkable or
+  // shearable, absent when no stage is.
+  int64 adult_min_age_ticks = 6;
+  optional int64 reproductive_min_age_ticks = 7;
+  optional int64 milkable_min_age_ticks = 8;
+  optional int64 shearable_min_age_ticks = 9;
+  // TrainableUtility.TamenessCanDecay(def) and DegradationPeriodTicks(def): a
+  // tamed animal loses one Tameness step every period unless it cannot decay.
+  bool tameness_can_decay = 10;
+  int32 tameness_decay_period_ticks = 11;
+  // InteractionWorker_RecruitAttempt's wildness curve at the race's Wildness
+  // stat: the factor a tame attempt's chance is multiplied by (before the
+  // tamer's TameAnimalChance, bond, prison and venerated-animal factors).
+  float tame_chance_factor = 12;
+  // RaceProperties.meatDef (empty for a race with no meat) and the
+  // GetStatValueAbstract(MeatAmount) of the race def: the meat a butchery
+  // yields before the butcher's efficiency.
+  string meat_def = 13;
+  float meat_amount = 14;
 }
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once
@@ -2100,6 +2125,17 @@ message CatalogConstants {
   // and turns into ThingDefOf.Beer (#1721), so the beer reserve names the
   // intermediate without typing it.
   string wort_def = 10;
+  // JobDriver_InteractAnimal (#2238): the ticks of one TalkToAnimal toil
+  // (TalkDuration, a private const) and of one feed (FeedDuration), the feeds
+  // per interaction (FeedCount), the share of the animal's food need one feed
+  // gives (NutritionPercentagePerFeed) capped at MaxMinNutritionPerFeed, and
+  // TrainableUtility.MinTrainInterval: the ticks between two training jobs.
+  int32 animal_interact_talk_ticks = 11;
+  int32 animal_interact_feed_ticks = 12;
+  int32 animal_interact_feeds = 13;
+  float animal_feed_nutrition_fraction = 14;
+  float animal_feed_nutrition_cap = 15;
+  int32 min_train_interval_ticks = 16;
 }
 // The player faction's primary ideoligion (#1654): FactionIdeosTracker.PrimaryIdeo.
 // Precept ids are Precept.GetUniqueLoadID(); every def name resolves to a

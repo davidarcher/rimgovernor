@@ -101,3 +101,67 @@ func TestCatalogAnimalRacesFailLoudly(t *testing.T) {
 		}
 	}
 }
+
+// TestCatalogAnimalRaceHusbandryFacts (#2238): the game-computed husbandry
+// facts of a race and the animal interaction constants reach the policy race
+// catalog; an absent life stage and a race with no meat stay unknown.
+func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
+	reply := racesReply()
+	reply.Constants.AnimalInteractTalkTicks, reply.Constants.AnimalInteractFeedTicks, reply.Constants.AnimalInteractFeeds = 270, 270, 2
+	reply.Constants.AnimalFeedNutritionFraction, reply.Constants.AnimalFeedNutritionCap, reply.Constants.MinTrainIntervalTicks = 0.15, 0.3, 15000
+	wolf := reply.ThingFacts[0].Race
+	reproductive, milkable := int64(2700000), int64(3600000)
+	wolf.AdultMinAgeTicks, wolf.ReproductiveMinAgeTicks, wolf.MilkableMinAgeTicks = 7200000, &reproductive, &milkable
+	wolf.TamenessCanDecay, wolf.TamenessDecayPeriodTicks, wolf.TameChanceFactor = true, 450000, 0.25
+	wolf.MeatDef, wolf.MeatAmount = "Meat_Wolf", 70
+	catalog, err := DecodeDefinitionCatalog(reply, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	races, err := catalog.AnimalRaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	race, _ := races.Race("Wolf")
+	if v, ok := race.AdultMinAgeTicks.Value(); !ok || v != 7200000 {
+		t.Fatalf("adult age %v %v", v, ok)
+	}
+	if v, ok := race.ReproductiveMinAgeTicks.Value(); !ok || v != reproductive {
+		t.Fatalf("reproductive age %v %v", v, ok)
+	}
+	if v, ok := race.MilkableMinAgeTicks.Value(); !ok || v != milkable {
+		t.Fatalf("milkable age %v %v", v, ok)
+	}
+	if _, ok := race.ShearableMinAgeTicks.Value(); ok {
+		t.Fatal("a race with no shearable stage has no shearable age")
+	}
+	if v, ok := race.TamenessCanDecay.Value(); !ok || !v {
+		t.Fatalf("tameness decay %v %v", v, ok)
+	}
+	if v, ok := race.TamenessDecayPeriodTicks.Value(); !ok || v != 450000 {
+		t.Fatalf("decay period %v %v", v, ok)
+	}
+	if v, ok := race.TameChanceFactor.Value(); !ok || v != 0.25 {
+		t.Fatalf("tame chance factor %v %v", v, ok)
+	}
+	if v, ok := race.MeatAmount.Value(); !ok || v != 70 || race.MeatDef != "Meat_Wolf" {
+		t.Fatalf("meat %q %v %v", race.MeatDef, v, ok)
+	}
+	beaver, _ := races.Race("Alphabeaver")
+	if _, ok := beaver.MeatAmount.Value(); ok || beaver.MeatDef != "" {
+		t.Fatalf("a race with no meat has none: %+v", beaver)
+	}
+	in := races.Interaction
+	if v, _ := in.TalkTicks.Value(); v != 270 {
+		t.Fatalf("talk ticks %v", v)
+	}
+	if v, _ := in.Feeds.Value(); v != 2 {
+		t.Fatalf("feeds %v", v)
+	}
+	if v, ok := in.FeedNutritionCap.Value(); !ok || v != float64(float32(0.3)) {
+		t.Fatalf("feed cap %v %v", v, ok)
+	}
+	if v, _ := in.MinTrainIntervalTicks.Value(); v != 15000 {
+		t.Fatalf("train interval %v", v)
+	}
+}

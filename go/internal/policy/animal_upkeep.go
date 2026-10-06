@@ -351,6 +351,36 @@ type AnimalRace struct {
 	// MateMtbHours is RaceProperties.mateMtbHours: the mean hours between
 	// mating attempts of an eligible pair (#1897).
 	MateMtbHours domain.Fact[float64]
+	// Husbandry facts the game computes for the race def (#2238).
+	// AdultMinAgeTicks is Pawn_AgeTracker.AdultMinAgeTicks: the lead of a young
+	// animal before it is adult; ReproductiveMinAgeTicks, MilkableMinAgeTicks
+	// and ShearableMinAgeTicks are the first life stage that breeds, gives milk
+	// or wool (unknown when no stage does).
+	AdultMinAgeTicks, ReproductiveMinAgeTicks, MilkableMinAgeTicks, ShearableMinAgeTicks domain.Fact[int64]
+	// TamenessCanDecay and TamenessDecayPeriodTicks: a tamed animal of the race
+	// loses a Tameness step each period unless it cannot decay (a nearly
+	// tame race, or one fence-blocked).
+	TamenessCanDecay         domain.Fact[bool]
+	TamenessDecayPeriodTicks domain.Fact[int]
+	// TameChanceFactor is the game's wildness curve at the race's Wildness: what
+	// a tame attempt's chance is multiplied by, before the tamer's
+	// TameAnimalChance, bond, prison and venerated-animal factors.
+	TameChanceFactor domain.Fact[float64]
+	// MeatDef is the meat a butchery yields (empty for a race with no meat) and
+	// MeatAmount the MeatAmount stat of the race def, before butcher efficiency.
+	MeatDef    Resource
+	MeatAmount domain.Fact[float64]
+}
+
+// AnimalInteraction is the game's constants of one animal interaction job
+// (taming, training): per interaction three talks of TalkTicks and Feeds feeds
+// of FeedTicks; a feed is FeedNutritionFraction of the animal's food need,
+// capped at FeedNutritionCap nutrition; MinTrainIntervalTicks separate two
+// training jobs on one animal (#2238). The job's three talk toils are game code
+// structure, not a value the game exposes.
+type AnimalInteraction struct {
+	TalkTicks, FeedTicks, Feeds, MinTrainIntervalTicks domain.Fact[int]
+	FeedNutritionFraction, FeedNutritionCap            domain.Fact[float64]
 }
 
 // RaceFeedItem is one producible feed item and its nutrition per item.
@@ -361,7 +391,8 @@ type RaceFeedItem struct {
 
 // AnimalRaceCatalog is every race the game knows, by definition name.
 type AnimalRaceCatalog struct {
-	Races map[Resource]AnimalRace
+	Races       map[Resource]AnimalRace
+	Interaction AnimalInteraction
 }
 
 // Race is def's facts, false when the catalog does not know the race.

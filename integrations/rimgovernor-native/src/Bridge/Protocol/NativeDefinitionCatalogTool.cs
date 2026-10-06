@@ -223,22 +223,26 @@ namespace HomeBridge.BridgeTools
             // Building_FermentingBarrel adds ThingDefOf.Wort and takes out ThingDefOf.Beer.
             WortDef = ThingDefOf.Wort?.defName ?? throw new InvalidOperationException("ThingDefOf.Wort is not loaded."),
             FullRotRateC = FullRotRateC(),
-            RoofMaxSupportDistance = RoofMaxSupportDistance(),
+            RoofMaxSupportDistance = Constant<float>(typeof(RoofCollapseUtility), "RoofMaxSupportDistance"),
+            AnimalInteractTalkTicks = Constant<int>(typeof(JobDriver_InteractAnimal), "TalkDuration"),
+            AnimalInteractFeedTicks = Constant<int>(typeof(JobDriver_InteractAnimal), "FeedDuration"),
+            AnimalInteractFeeds = Constant<int>(typeof(JobDriver_InteractAnimal), "FeedCount"),
+            AnimalFeedNutritionFraction = Constant<float>(typeof(JobDriver_InteractAnimal), "NutritionPercentagePerFeed"),
+            AnimalFeedNutritionCap = Constant<float>(typeof(JobDriver_InteractAnimal), "MaxMinNutritionPerFeed"),
+            MinTrainIntervalTicks = Constant<int>(typeof(TrainableUtility), "MinTrainInterval"),
         };
 
-        // RoofCollapseUtility.RoofMaxSupportDistance is a public const, which the
-        // compiler would inline from the reference assembly: read the loaded
-        // assembly's value by name instead, and fail naming it when the game no
-        // longer has it or its type changed.
-        private static float RoofMaxSupportDistance()
+        // A game const (public or not) read from the loaded assembly by name,
+        // because the compiler would inline a public one from the reference
+        // assembly; fails naming it when the game no longer has it.
+        private static T Constant<T>(Type owner, string name)
         {
-            const string member = "RoofCollapseUtility.RoofMaxSupportDistance";
-            var field = typeof(RoofCollapseUtility).GetField("RoofMaxSupportDistance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var field = owner.GetField(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             if (field == null || !field.IsLiteral)
-                throw new InvalidOperationException($"{member} is not a constant of this game version.");
-            if (!(field.GetRawConstantValue() is float value))
-                throw new InvalidOperationException($"{member} is a {field.FieldType.FullName} constant, not a float.");
-            return value;
+                throw new InvalidOperationException($"{owner.Name}.{name} is not a constant of this game version.");
+            return field.GetRawConstantValue() is T value
+                ? value
+                : throw new InvalidOperationException($"{owner.Name}.{name} is a {field.FieldType.FullName} constant, not a {typeof(T).Name}.");
         }
 
         // The game keeps its rot curve as literals inside

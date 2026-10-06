@@ -44,7 +44,7 @@ func (catalog *DefinitionCatalog) RaceFlags(def string) (animal, mechanoid, inse
 }
 
 func (catalog *DefinitionCatalog) buildRaces() (policy.AnimalRaceCatalog, error) {
-	out := policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{}}
+	out := policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{}, Interaction: catalog.animalInteraction()}
 	if catalog.thingFacts == nil {
 		return out, nil
 	}
@@ -129,6 +129,22 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 		race.CombatPower = domain.Known(p)
 	}
 	race.MateMtbHours = domain.Known(float64(props.GetMateMtbHours()))
+	race.AdultMinAgeTicks = domain.Known(facts.GetAdultMinAgeTicks())
+	for _, stage := range []struct {
+		from *int64
+		into *domain.Fact[int64]
+	}{{facts.ReproductiveMinAgeTicks, &race.ReproductiveMinAgeTicks}, {facts.MilkableMinAgeTicks, &race.MilkableMinAgeTicks}, {facts.ShearableMinAgeTicks, &race.ShearableMinAgeTicks}} {
+		if stage.from != nil {
+			*stage.into = domain.Known(*stage.from)
+		}
+	}
+	race.TamenessCanDecay = domain.Known(facts.GetTamenessCanDecay())
+	race.TamenessDecayPeriodTicks = domain.Known(int(facts.GetTamenessDecayPeriodTicks()))
+	race.TameChanceFactor = domain.Known(float64(facts.GetTameChanceFactor()))
+	if meat := facts.GetMeatDef(); meat != "" {
+		race.MeatDef = policy.Resource(meat)
+		race.MeatAmount = domain.Known(float64(facts.GetMeatAmount()))
+	}
 	if race.Products, err = catalog.raceProducts(row); err != nil {
 		return race, err
 	}
@@ -145,6 +161,33 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 		}
 	}
 	return race, nil
+}
+
+// animalInteraction is the game's animal interaction job constants (#2238); a
+// constant a catalog does not carry stays unknown.
+func (catalog *DefinitionCatalog) animalInteraction() policy.AnimalInteraction {
+	var out policy.AnimalInteraction
+	c := catalog.Constants
+	if c == nil {
+		return out
+	}
+	count := func(v int32, into *domain.Fact[int]) {
+		if v > 0 {
+			*into = domain.Known(int(v))
+		}
+	}
+	amount := func(v float32, into *domain.Fact[float64]) {
+		if v > 0 {
+			*into = domain.Known(float64(v))
+		}
+	}
+	count(c.AnimalInteractTalkTicks, &out.TalkTicks)
+	count(c.AnimalInteractFeedTicks, &out.FeedTicks)
+	count(c.AnimalInteractFeeds, &out.Feeds)
+	count(c.MinTrainIntervalTicks, &out.MinTrainIntervalTicks)
+	amount(c.AnimalFeedNutritionFraction, &out.FeedNutritionFraction)
+	amount(c.AnimalFeedNutritionCap, &out.FeedNutritionCap)
+	return out
 }
 
 // combatPowers is the highest PawnKindDef.combatPower of each race.

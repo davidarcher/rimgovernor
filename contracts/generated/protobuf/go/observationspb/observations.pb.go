@@ -39532,12 +39532,37 @@ func (x *ThingDefFacts) GetRace() *RaceFacts {
 // `edible_defs` the foods (ThingDefFacts.food_kind set) RaceProperties
 // .CanEverEat accepts, both sorted.
 type RaceFacts struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Animal        bool                   `protobuf:"varint,1,opt,name=animal,proto3" json:"animal,omitempty"`
-	Mechanoid     bool                   `protobuf:"varint,2,opt,name=mechanoid,proto3" json:"mechanoid,omitempty"`
-	Insect        bool                   `protobuf:"varint,3,opt,name=insect,proto3" json:"insect,omitempty"`
-	Trainables    []string               `protobuf:"bytes,4,rep,name=trainables,proto3" json:"trainables,omitempty"`
-	EdibleDefs    []string               `protobuf:"bytes,5,rep,name=edible_defs,json=edibleDefs,proto3" json:"edible_defs,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Animal     bool                   `protobuf:"varint,1,opt,name=animal,proto3" json:"animal,omitempty"`
+	Mechanoid  bool                   `protobuf:"varint,2,opt,name=mechanoid,proto3" json:"mechanoid,omitempty"`
+	Insect     bool                   `protobuf:"varint,3,opt,name=insect,proto3" json:"insect,omitempty"`
+	Trainables []string               `protobuf:"bytes,4,rep,name=trainables,proto3" json:"trainables,omitempty"`
+	EdibleDefs []string               `protobuf:"bytes,5,rep,name=edible_defs,json=edibleDefs,proto3" json:"edible_defs,omitempty"`
+	// Husbandry facts (#2238), the game's own answers for the race def so no
+	// later round re-reads the race. `adult_min_age_ticks` is
+	// Pawn_AgeTracker.AdultMinAgeTicks (an animal's last life stage; a humanlike
+	// race's first adult stage; biological ticks run one per tick for an animal).
+	// `reproductive_min_age_ticks`, `milkable_min_age_ticks` and
+	// `shearable_min_age_ticks` are the minAge in ticks of the first life stage
+	// (LifeStageAge order) whose LifeStageDef is reproductive, milkable or
+	// shearable, absent when no stage is.
+	AdultMinAgeTicks        int64  `protobuf:"varint,6,opt,name=adult_min_age_ticks,json=adultMinAgeTicks,proto3" json:"adult_min_age_ticks,omitempty"`
+	ReproductiveMinAgeTicks *int64 `protobuf:"varint,7,opt,name=reproductive_min_age_ticks,json=reproductiveMinAgeTicks,proto3,oneof" json:"reproductive_min_age_ticks,omitempty"`
+	MilkableMinAgeTicks     *int64 `protobuf:"varint,8,opt,name=milkable_min_age_ticks,json=milkableMinAgeTicks,proto3,oneof" json:"milkable_min_age_ticks,omitempty"`
+	ShearableMinAgeTicks    *int64 `protobuf:"varint,9,opt,name=shearable_min_age_ticks,json=shearableMinAgeTicks,proto3,oneof" json:"shearable_min_age_ticks,omitempty"`
+	// TrainableUtility.TamenessCanDecay(def) and DegradationPeriodTicks(def): a
+	// tamed animal loses one Tameness step every period unless it cannot decay.
+	TamenessCanDecay         bool  `protobuf:"varint,10,opt,name=tameness_can_decay,json=tamenessCanDecay,proto3" json:"tameness_can_decay,omitempty"`
+	TamenessDecayPeriodTicks int32 `protobuf:"varint,11,opt,name=tameness_decay_period_ticks,json=tamenessDecayPeriodTicks,proto3" json:"tameness_decay_period_ticks,omitempty"`
+	// InteractionWorker_RecruitAttempt's wildness curve at the race's Wildness
+	// stat: the factor a tame attempt's chance is multiplied by (before the
+	// tamer's TameAnimalChance, bond, prison and venerated-animal factors).
+	TameChanceFactor float32 `protobuf:"fixed32,12,opt,name=tame_chance_factor,json=tameChanceFactor,proto3" json:"tame_chance_factor,omitempty"`
+	// RaceProperties.meatDef (empty for a race with no meat) and the
+	// GetStatValueAbstract(MeatAmount) of the race def: the meat a butchery
+	// yields before the butcher's efficiency.
+	MeatDef       string  `protobuf:"bytes,13,opt,name=meat_def,json=meatDef,proto3" json:"meat_def,omitempty"`
+	MeatAmount    float32 `protobuf:"fixed32,14,opt,name=meat_amount,json=meatAmount,proto3" json:"meat_amount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -39605,6 +39630,69 @@ func (x *RaceFacts) GetEdibleDefs() []string {
 		return x.EdibleDefs
 	}
 	return nil
+}
+
+func (x *RaceFacts) GetAdultMinAgeTicks() int64 {
+	if x != nil {
+		return x.AdultMinAgeTicks
+	}
+	return 0
+}
+
+func (x *RaceFacts) GetReproductiveMinAgeTicks() int64 {
+	if x != nil && x.ReproductiveMinAgeTicks != nil {
+		return *x.ReproductiveMinAgeTicks
+	}
+	return 0
+}
+
+func (x *RaceFacts) GetMilkableMinAgeTicks() int64 {
+	if x != nil && x.MilkableMinAgeTicks != nil {
+		return *x.MilkableMinAgeTicks
+	}
+	return 0
+}
+
+func (x *RaceFacts) GetShearableMinAgeTicks() int64 {
+	if x != nil && x.ShearableMinAgeTicks != nil {
+		return *x.ShearableMinAgeTicks
+	}
+	return 0
+}
+
+func (x *RaceFacts) GetTamenessCanDecay() bool {
+	if x != nil {
+		return x.TamenessCanDecay
+	}
+	return false
+}
+
+func (x *RaceFacts) GetTamenessDecayPeriodTicks() int32 {
+	if x != nil {
+		return x.TamenessDecayPeriodTicks
+	}
+	return 0
+}
+
+func (x *RaceFacts) GetTameChanceFactor() float32 {
+	if x != nil {
+		return x.TameChanceFactor
+	}
+	return 0
+}
+
+func (x *RaceFacts) GetMeatDef() string {
+	if x != nil {
+		return x.MeatDef
+	}
+	return ""
+}
+
+func (x *RaceFacts) GetMeatAmount() float32 {
+	if x != nil {
+		return x.MeatAmount
+	}
+	return 0
 }
 
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
@@ -39784,9 +39872,20 @@ type CatalogConstants struct {
 	// The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
 	// and turns into ThingDefOf.Beer (#1721), so the beer reserve names the
 	// intermediate without typing it.
-	WortDef       string `protobuf:"bytes,10,opt,name=wort_def,json=wortDef,proto3" json:"wort_def,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	WortDef string `protobuf:"bytes,10,opt,name=wort_def,json=wortDef,proto3" json:"wort_def,omitempty"`
+	// JobDriver_InteractAnimal (#2238): the ticks of one TalkToAnimal toil
+	// (TalkDuration, a private const) and of one feed (FeedDuration), the feeds
+	// per interaction (FeedCount), the share of the animal's food need one feed
+	// gives (NutritionPercentagePerFeed) capped at MaxMinNutritionPerFeed, and
+	// TrainableUtility.MinTrainInterval: the ticks between two training jobs.
+	AnimalInteractTalkTicks     int32   `protobuf:"varint,11,opt,name=animal_interact_talk_ticks,json=animalInteractTalkTicks,proto3" json:"animal_interact_talk_ticks,omitempty"`
+	AnimalInteractFeedTicks     int32   `protobuf:"varint,12,opt,name=animal_interact_feed_ticks,json=animalInteractFeedTicks,proto3" json:"animal_interact_feed_ticks,omitempty"`
+	AnimalInteractFeeds         int32   `protobuf:"varint,13,opt,name=animal_interact_feeds,json=animalInteractFeeds,proto3" json:"animal_interact_feeds,omitempty"`
+	AnimalFeedNutritionFraction float32 `protobuf:"fixed32,14,opt,name=animal_feed_nutrition_fraction,json=animalFeedNutritionFraction,proto3" json:"animal_feed_nutrition_fraction,omitempty"`
+	AnimalFeedNutritionCap      float32 `protobuf:"fixed32,15,opt,name=animal_feed_nutrition_cap,json=animalFeedNutritionCap,proto3" json:"animal_feed_nutrition_cap,omitempty"`
+	MinTrainIntervalTicks       int32   `protobuf:"varint,16,opt,name=min_train_interval_ticks,json=minTrainIntervalTicks,proto3" json:"min_train_interval_ticks,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *CatalogConstants) Reset() {
@@ -39887,6 +39986,48 @@ func (x *CatalogConstants) GetWortDef() string {
 		return x.WortDef
 	}
 	return ""
+}
+
+func (x *CatalogConstants) GetAnimalInteractTalkTicks() int32 {
+	if x != nil {
+		return x.AnimalInteractTalkTicks
+	}
+	return 0
+}
+
+func (x *CatalogConstants) GetAnimalInteractFeedTicks() int32 {
+	if x != nil {
+		return x.AnimalInteractFeedTicks
+	}
+	return 0
+}
+
+func (x *CatalogConstants) GetAnimalInteractFeeds() int32 {
+	if x != nil {
+		return x.AnimalInteractFeeds
+	}
+	return 0
+}
+
+func (x *CatalogConstants) GetAnimalFeedNutritionFraction() float32 {
+	if x != nil {
+		return x.AnimalFeedNutritionFraction
+	}
+	return 0
+}
+
+func (x *CatalogConstants) GetAnimalFeedNutritionCap() float32 {
+	if x != nil {
+		return x.AnimalFeedNutritionCap
+	}
+	return 0
+}
+
+func (x *CatalogConstants) GetMinTrainIntervalTicks() int32 {
+	if x != nil {
+		return x.MinTrainIntervalTicks
+	}
+	return 0
 }
 
 // The player faction's primary ideoligion (#1654): FactionIdeosTracker.PrimaryIdeo.
@@ -50009,7 +50150,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_food_kindB\x13\n" +
 	"\x11_meal_ingredientsB\a\n" +
-	"\x05_race\"\x9a\x01\n" +
+	"\x05_race\"\xae\x05\n" +
 	"\tRaceFacts\x12\x16\n" +
 	"\x06animal\x18\x01 \x01(\bR\x06animal\x12\x1c\n" +
 	"\tmechanoid\x18\x02 \x01(\bR\tmechanoid\x12\x16\n" +
@@ -50018,7 +50159,21 @@ const file_observations_proto_rawDesc = "" +
 	"trainables\x18\x04 \x03(\tR\n" +
 	"trainables\x12\x1f\n" +
 	"\vedible_defs\x18\x05 \x03(\tR\n" +
-	"edibleDefs\"\xad\x01\n" +
+	"edibleDefs\x12-\n" +
+	"\x13adult_min_age_ticks\x18\x06 \x01(\x03R\x10adultMinAgeTicks\x12@\n" +
+	"\x1areproductive_min_age_ticks\x18\a \x01(\x03H\x00R\x17reproductiveMinAgeTicks\x88\x01\x01\x128\n" +
+	"\x16milkable_min_age_ticks\x18\b \x01(\x03H\x01R\x13milkableMinAgeTicks\x88\x01\x01\x12:\n" +
+	"\x17shearable_min_age_ticks\x18\t \x01(\x03H\x02R\x14shearableMinAgeTicks\x88\x01\x01\x12,\n" +
+	"\x12tameness_can_decay\x18\n" +
+	" \x01(\bR\x10tamenessCanDecay\x12=\n" +
+	"\x1btameness_decay_period_ticks\x18\v \x01(\x05R\x18tamenessDecayPeriodTicks\x12,\n" +
+	"\x12tame_chance_factor\x18\f \x01(\x02R\x10tameChanceFactor\x12\x19\n" +
+	"\bmeat_def\x18\r \x01(\tR\ameatDef\x12\x1f\n" +
+	"\vmeat_amount\x18\x0e \x01(\x02R\n" +
+	"meatAmountB\x1d\n" +
+	"\x1b_reproductive_min_age_ticksB\x19\n" +
+	"\x17_milkable_min_age_ticksB\x1a\n" +
+	"\x18_shearable_min_age_ticks\"\xad\x01\n" +
 	"\fDefStatTable\x12\x14\n" +
 	"\x05stats\x18\x01 \x03(\tR\x05stats\x12;\n" +
 	"\x04rows\x18\x02 \x03(\v2'.rimgovernor.observations.v1.DefStatRowR\x04rows\x12J\n" +
@@ -50030,7 +50185,7 @@ const file_observations_proto_rawDesc = "" +
 	"stuff_name\x18\x02 \x01(\tR\tstuffName\x12\x12\n" +
 	"\x04stat\x18\x03 \x03(\x05R\x04stat\x12\x14\n" +
 	"\x05value\x18\x04 \x03(\x02R\x05value\x12;\n" +
-	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"\x9c\x03\n" +
+	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"\x83\x06\n" +
 	"\x10CatalogConstants\x12$\n" +
 	"\x0eticks_per_hour\x18\x01 \x01(\x05R\fticksPerHour\x12\"\n" +
 	"\rticks_per_day\x18\x02 \x01(\x05R\vticksPerDay\x12\"\n" +
@@ -50042,7 +50197,13 @@ const file_observations_proto_rawDesc = "" +
 	"\x0ffull_rot_rate_c\x18\b \x01(\x02R\ffullRotRateC\x129\n" +
 	"\x19roof_max_support_distance\x18\t \x01(\x02R\x16roofMaxSupportDistance\x12\x19\n" +
 	"\bwort_def\x18\n" +
-	" \x01(\tR\awortDef\"\x8c\x05\n" +
+	" \x01(\tR\awortDef\x12;\n" +
+	"\x1aanimal_interact_talk_ticks\x18\v \x01(\x05R\x17animalInteractTalkTicks\x12;\n" +
+	"\x1aanimal_interact_feed_ticks\x18\f \x01(\x05R\x17animalInteractFeedTicks\x122\n" +
+	"\x15animal_interact_feeds\x18\r \x01(\x05R\x13animalInteractFeeds\x12C\n" +
+	"\x1eanimal_feed_nutrition_fraction\x18\x0e \x01(\x02R\x1banimalFeedNutritionFraction\x129\n" +
+	"\x19animal_feed_nutrition_cap\x18\x0f \x01(\x02R\x16animalFeedNutritionCap\x127\n" +
+	"\x18min_train_interval_ticks\x18\x10 \x01(\x05R\x15minTrainIntervalTicks\"\x8c\x05\n" +
 	"\x10IdeologySnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1c\n" +
 	"\aideo_id\x18\x02 \x01(\tH\x00R\x06ideoId\x88\x01\x01\x12\x14\n" +
@@ -53200,6 +53361,7 @@ func file_observations_proto_init() {
 	}
 	file_observations_proto_msgTypes[403].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[406].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[407].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[411].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[412].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[413].OneofWrappers = []any{}
