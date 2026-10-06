@@ -126,6 +126,7 @@ type ClockSchedulerConfig struct {
 	AnimalContainment   *RoundsAnimalContainmentPlanner
 	Recovery            *RoundsRecoveryPlanner
 	Husbandry           *RoundsHusbandryPlanner
+	Rules               *RoundsRulesPlanner
 	PrisonerInteraction *RoundsPrisonerInteractionPlanner
 	PopulationCustody   *RoundsPopulationCustodyPlanner
 	PopulationJoiner    *RoundsPopulationJoinerPlanner
@@ -171,6 +172,7 @@ type ClockSchedulerResult struct {
 	Window                       ClockWindowSize
 	Rounds                       *store.RoundsResult
 	FoodAcquisition              *RoundsAcquisitionResult
+	Rules                        *RoundsRulesResult
 	ResourceAcquisition          *RoundsAcquisitionResult
 	PestAcquisition              *RoundsAcquisitionResult
 	Work                         *RoundsWorkResult
@@ -429,6 +431,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		if planner != nil && (config.Rounds == nil || planner.reviewer != config.Rounds) {
 			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Rounds == nil || planner.reviewer != config.Rounds)", ErrControl)
 		}
+	}
+	if config.Rules != nil && (config.Rounds == nil || config.Rules.reviewer != config.Rounds) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Rules != nil && (config.Rounds == nil || config.Rules.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Work != nil && (config.Rounds == nil || config.Work.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Work != nil && (config.Rounds == nil || config.Work.reviewer != config.Rounds)", ErrControl)
@@ -1988,7 +1993,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.DropEquipmentAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.IgniteAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.IgniteAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

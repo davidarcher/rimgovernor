@@ -264,7 +264,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoundsMethods = session.RoundsMethodsEnabled()
-	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || incineration || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.roundsArtPlans || sc.roundsMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.roundsPopulationJoinerPlans || homeCoverage || sc.roundsShelteringPlans || stoneShell || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || incineration || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.roundsArtPlans || sc.roundsMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.roundsPopulationJoinerPlans || homeCoverage || sc.roundsShelteringPlans || stoneShell || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans || sc.roundsRulesPlans) && !routine {
 		return nil, errors.New("building plans require rounds")
 	}
 	if routine {
@@ -575,6 +575,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if husbandry {
 			config.Husbandry, err = buildingruntime.NewRoundsHusbandryPlanner(reviewer)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if sc.roundsRulesPlans {
+			config.Rules, err = buildingruntime.NewRoundsRulesPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}

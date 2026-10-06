@@ -27,13 +27,13 @@ type LogRow struct {
 
 // infoLogKinds are the INFO kinds the Log panel shows beside every WARN and
 // ERROR row and recording gap: the events a player reads (combat, the colony
-// changing stage, the clock's authority changing). Every other INFO row stays
+// changing stage, the clock's authority changing, a native rule firing or lapsing). Every other INFO row stays
 // in the Problems feed and `rimgovernor log`.
 var infoLogKinds = map[string]bool{
 	"combat_summary": true,
 	"defense_action": true,
 	"colony_stage":   true, "build_tier": true,
-	"authority": true,
+	"authority": true, "rule": true,
 }
 
 // logWorthy is the Log panel's level-and-kind rule: WARN and ERROR always,

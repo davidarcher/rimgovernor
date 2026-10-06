@@ -88,6 +88,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.GearReplaceAction:         true,
 	domain.UseItemAction:             true,
 	domain.StripAction:               true,
+	domain.RulesAttachAction:         true,
 }
 
 // BatchItem is one action's outcome of RunBatch: its dispatch result and error.

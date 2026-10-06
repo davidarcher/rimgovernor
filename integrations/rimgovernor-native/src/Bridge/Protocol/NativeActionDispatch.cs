@@ -64,6 +64,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.FoodPolicy] = new FoodPolicyActionHandler(),
             [Operations.Action.IntentOneofCase.AutoHomeArea] = new AutoHomeAreaActionHandler(),
             [Operations.Action.IntentOneofCase.PawnSettings] = new PawnSettingsActionHandler(),
+            [Operations.Action.IntentOneofCase.RulesAttach] = new RulesAttachActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

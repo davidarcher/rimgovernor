@@ -660,6 +660,16 @@ var plannerCatalog = []plannerEntry{
 			out.Recovery = &method
 			return method.Verdict, nil
 		}},
+	{name: "rules", concern: policy.EnsureFoodSupply, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RulesAttachAction}, sections: sectionsWork, every: reviewEveryRounds / 2,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Rules != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.Rules.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.Rules = &method
+			return method.Verdict, nil
+		}},
 	{name: "husbandry", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.HusbandryAction}, sections: []facts.Section{facts.Pawns, facts.Colony},
 		configured: func(c *ClockSchedulerConfig) bool { return c.Husbandry != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

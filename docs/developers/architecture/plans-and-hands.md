@@ -29,6 +29,19 @@ Admission checks geometry, native placement, resources and existing commitments.
 Acknowledging a request establishes acceptance; completion requires the
 [action's native postcondition](../contracts/action-contracts.md).
 
+## Native rules
+
+Go may hand native a standing, declarative reaction: "on trigger X, if predicates P, do
+whitelisted action A" ([native rules](../contracts/native-rules.md)). It is still a Go-authored
+order, deterministic and journaled: a pure policy function derives the rule set from the plan
+(`policy.HuntChainRules` from the hunt plan), the `rules_attach` action
+([action contracts](../contracts/action-contracts.md)) reaches the session journal before the
+native write like every other intent, and native only executes the rules it was given. The set
+is attached with a lease each Round (`family rules`, one method per Round under
+`EnsureFoodSupply`); when Go stops renewing it native deactivates every rule by itself. Each
+firing is journaled on the clock ring before its write, and Go ingests it as a `rule` flight row.
+Rules never draft: drafts stay plan-owned.
+
 ## Recover and cancel precisely
 
 A refusal before writing can be reconsidered when conditions change. A lost reply

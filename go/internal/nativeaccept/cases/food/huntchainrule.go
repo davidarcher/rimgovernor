@@ -5,27 +5,33 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/planstage"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 const (
 	chainPrepareOp = "test/hunt_chain_prepare"
 	chainObserveOp = "test/hunt_chain_observe"
-	chainID        = "hunt-chain"
+	chainID        = policy.HuntChainRuleID
 	chainLease     = 2500
 )
 
 func init() {
 	cases.Register(cases.Case{Name: "food/hunt-chain-rule",
 		Scope: "Native postcondition and end-to-end signal (a Go snapshot test cannot cover a native rule firing on the kill hook): " +
-			"one hunter and four designated deer; with a PREY_KILLED hunt rule attached the hunter's job two ticks after the first kill is Hunt on another " +
-			"live designated deer, not the vanilla haul of its own kill, and an out-of-whitelist rule is refused; with rules cleared the next kill " +
+			"one hunter and four designated deer; an out-of-whitelist rule is refused; the controller (service family rules, #2154) attaches the hunt-chain " +
+			"rule itself through the journaled rules_attach action, and with it attached the hunter's job two ticks after the first kill is Hunt on another " +
+			"live designated deer, not the vanilla haul of its own kill; with rules cleared the next kill " +
 			"leaves vanilla behaviour; after the lease expires nothing fires.",
 		Start:       cases.Fixture{Op: chainPrepareOp, On: cases.LabStart()},
+		Serve:       &cases.ServeSpec{Families: []string{"acquisition", "work", "rules"}, NativeTimeout: 60 * time.Second, Prefix: "hunt-chain"},
 		QuietWorld:  true,
 		RequiredOps: []string{chainObserveOp}, Budget: 6 * time.Minute,
-		Reason: "a lab with one ranger, a corpse stockpile and four deer; three native kills",
+		Reason: "a lab with one ranger, a corpse stockpile and four deer; one controller phase until the rules_attach receipt, then three native kills",
 		Run:    runHuntChain})
 }
 
@@ -93,7 +99,7 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 		return body, err
 	}
 
-	// Rule active: the whitelist refuses a draft job, and the hunter chains to the next prey.
+	// The whitelist refuses a draft job; the probe attaches nothing that lasts.
 	attached, err := attach("attach", chainLease, rule(chainID, "Hunt"), rule("draft", "Draft"))
 	if err != nil {
 		return err
@@ -105,6 +111,35 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 	if row, _ := na.AsMap(refused[0]); na.AsString(row["ruleId"]) != "draft" || na.AsString(row["reason"]) != "RULE_REFUSAL_REASON_UNSUPPORTED_JOB" {
 		return fmt.Errorf("the draft rule must be refused as an unsupported job: %v", refused[0])
 	}
+	if _, err := h.Wire(ctx, "probe-clear", "rules_clear", map[string]any{"identity": identity}); err != nil {
+		return err
+	}
+
+	// Rule active: the controller attaches the hunt-chain rule itself, its
+	// rules_attach receipt in the journal, and the hunter chains to the next prey.
+	phase, err := planstage.Begin(ctx, s, nil, nil)
+	if err != nil {
+		return err
+	}
+	if err = phase.Until(ctx, "the controller attaches the hunt-chain rule", func(store.Rounds) (string, bool, error) { return rulesJournaled(ctx, phase.St) }); err != nil {
+		phase.Abort()
+		return err
+	}
+	if h, err = phase.Stop(ctx, "rules_service"); err != nil {
+		return err
+	}
+	if _, err := na.GrantAuto(ctx, h.WireFunc(), "regrant", identity); err != nil {
+		return err
+	}
+	standing, err := status("controller-status")
+	if err != nil {
+		return err
+	}
+	active := na.AsSlice(standing["rules"])
+	if row, _ := na.AsMap(first(active)); len(active) != 1 || na.AsString(row["ruleId"]) != chainID || na.AsNumber(standing["leaseRemainingTicks"]) <= 0 {
+		return fmt.Errorf("want the controller's %s rule active under its lease: %v", chainID, standing)
+	}
+	s.Report()["chain_attached"] = standing
 	if err := recordsAtLeast("chain-first", 1); err != nil {
 		return err
 	}
@@ -192,3 +227,33 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 }
 
 func flag(v any) bool { b, _ := na.AsBool(v); return b }
+
+func first(rows []any) any {
+	if len(rows) == 0 {
+		return nil
+	}
+	return rows[0]
+}
+
+// rulesJournaled reports whether the journal holds a completed rules_attach
+// carrying the hunt-chain rule: the intent's receipt, written before native was.
+func rulesJournaled(ctx context.Context, st *store.Store) (string, bool, error) {
+	plans, err := st.LoadPlans(ctx, 256)
+	if err != nil {
+		return "", false, err
+	}
+	for _, plan := range plans {
+		for _, progress := range plan.Progress {
+			attach, ok := progress.Action().RulesAttach()
+			if !ok || progress.View().Stage != domain.Completed {
+				continue
+			}
+			for _, rule := range attach.Rules() {
+				if rule.ID == chainID {
+					return "attached", true, nil
+				}
+			}
+		}
+	}
+	return "waiting", false, nil
+}

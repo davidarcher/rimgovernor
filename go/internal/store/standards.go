@@ -203,7 +203,7 @@ func standardOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool,
 		if err != nil {
 			return false, err
 		}
-		open = open || PlanOpen(p)
+		open = open || PlanOpen(p) && !rulesAttachOnly(p.Spec)
 		if !open {
 			// A fight's drafts are its open work (#910).
 			if open, err = combatFightHolds(ctx, tx, plan); err != nil {
@@ -212,6 +212,21 @@ func standardOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool,
 		}
 	}
 	return open, nil
+}
+
+// rulesAttachOnly reports a plan of native rule attachments alone (#2154): one
+// in-memory write per Round that holds no pawn work, so it neither waits behind
+// the owner's open work nor counts as open work for its other planners.
+func rulesAttachOnly(plan domain.PlanSpec) bool {
+	if len(plan.Actions()) == 0 {
+		return false
+	}
+	for _, action := range plan.Actions() {
+		if action.Kind() != domain.RulesAttachAction {
+			return false
+		}
+	}
+	return true
 }
 
 // planOpenWork is goalOpenWork without the fights: whether any of the
@@ -339,7 +354,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			}
 		}
 		if !exempt {
-			exempt = growerCropOpenWorkExempt(plan) || mealReplacementOpenWorkExempt(state, plan)
+			exempt = growerCropOpenWorkExempt(plan) || rulesAttachOnly(plan) || mealReplacementOpenWorkExempt(state, plan)
 		}
 		if !exempt {
 			exempt, err = foodFacilityOpenWorkExempt(ctx, tx, state, plan)

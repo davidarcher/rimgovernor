@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
@@ -91,4 +92,43 @@ func (client *Client) ReadReactions(ctx context.Context, identity *c.Identity) (
 		}
 	}
 	return status, raw, nil
+}
+
+var (
+	ruleTriggers   = map[domain.RuleTrigger]o.RuleTrigger{domain.RulePreyKilled: o.RuleTrigger_RULE_TRIGGER_PREY_KILLED}
+	ruleActions    = map[domain.RuleActionKind]o.RuleAction{domain.RuleGiveJob: o.RuleAction_RULE_ACTION_GIVE_JOB}
+	ruleTargets    = map[domain.RuleTarget]o.RuleTargetSelector{domain.RuleNearestDesignatedPrey: o.RuleTargetSelector_RULE_TARGET_SELECTOR_NEAREST_DESIGNATED_PREY}
+	rulePredicates = map[domain.RulePredicate]o.RulePredicate{
+		domain.RuleActorUndrafted:         o.RulePredicate_RULE_PREDICATE_ACTOR_UNDRAFTED,
+		domain.RuleActorHuntingWorkActive: o.RulePredicate_RULE_PREDICATE_ACTOR_HUNTING_WORK_ACTIVE,
+		domain.RuleTargetAvailable:        o.RulePredicate_RULE_PREDICATE_TARGET_AVAILABLE,
+	}
+)
+
+// rulesAttachAction is the RulesAttachIntent that replaces every native rule
+// and sets the lease (#2154); the journal holds it before native is written.
+func rulesAttachAction(action domain.Action) (*o.Action, error) {
+	attach, ok := action.RulesAttach()
+	if !ok {
+		return nil, contract("not a rules attach action")
+	}
+	intent := &o.RulesAttachIntent{LeaseTicks: proto.Int64(attach.LeaseTicks())}
+	for _, rule := range attach.Rules() {
+		trigger, triggerOK := ruleTriggers[rule.Trigger]
+		kind, actionOK := ruleActions[rule.Action]
+		target, targetOK := ruleTargets[rule.Target]
+		if !triggerOK || !actionOK || !targetOK {
+			return nil, contract("unsupported rule %s", rule.ID)
+		}
+		wire := &o.Rule{Id: proto.String(rule.ID), Trigger: trigger.Enum(), Action: kind.Enum(), Job: proto.String(rule.Job), Target: target.Enum(), Radius: proto.Uint32(rule.Radius)}
+		for _, predicate := range rule.Predicates {
+			value, ok := rulePredicates[predicate]
+			if !ok {
+				return nil, contract("unsupported rule predicate %s", predicate)
+			}
+			wire.Predicates = append(wire.Predicates, value)
+		}
+		intent.Rules = append(intent.Rules, wire)
+	}
+	return &o.Action{Intent: &o.Action_RulesAttach{RulesAttach: intent}}, nil
 }

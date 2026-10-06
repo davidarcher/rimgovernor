@@ -104,6 +104,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 	} else if use, ok := a.UseItem(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'use_item',?,?,?)", a.ID(), plan, ordinal, use.Pawn(), use.Target(), use.Item())
+	} else if attach, ok := a.RulesAttach(); ok {
+		// definition is the lease in ticks, zone_payload the encoded rules (#2154).
+		data, encodeErr := json.Marshal(attach.Rules())
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,zone_payload) VALUES(?,?,?,'rules_attach',?,?)", a.ID(), plan, ordinal, strconv.FormatInt(attach.LeaseTicks(), 10), data)
 	} else if strip, ok := a.Strip(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target) VALUES(?,?,?,'strip',?)", a.ID(), plan, ordinal, strip.Target())
 	} else if mv, ok := a.Movement(); ok {
@@ -410,6 +417,19 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewAreaPlantCutAction(id, cut)
+		return a, ordinal, err
+	}
+	if kind == "rules_attach" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+		var rules []domain.Rule
+		lease, parseErr := strconv.ParseInt(def.String, 10, 64)
+		if parseErr != nil || json.Unmarshal(zone, &rules) != nil {
+			return domain.Action{}, 0, errors.New("invalid rules attach payload")
+		}
+		attach, err := domain.NewRulesAttach(rules, lease)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewRulesAttachAction(id, attach)
 		return a, ordinal, err
 	}
 	if kind == "policy_prune" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {

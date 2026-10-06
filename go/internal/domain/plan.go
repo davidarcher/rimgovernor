@@ -112,6 +112,7 @@ type Action struct {
 	capture             Capture
 	useItem             UseItem
 	strip               Strip
+	rulesAttach         RulesAttach
 	movement            Movement
 	haul                Haul
 	equip               Equip
@@ -339,6 +340,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewCaravanDepartureAction(a.id, a.caravanDeparture)
 		case UseItemAction:
 			canonical, err = NewUseItemAction(a.id, a.useItem)
+		case RulesAttachAction:
+			canonical, err = NewRulesAttachAction(a.id, a.rulesAttach)
 		case StripAction:
 			canonical, err = NewStripAction(a.id, a.strip)
 		default:

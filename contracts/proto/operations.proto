@@ -301,6 +301,7 @@ message Action {
     RitualIntent ritual = 63;
     AbilityIntent ability = 60;
     IgniteIntent ignite = 65;
+    RulesAttachIntent rules_attach = 66;
   }
 }
 // One drafted colonist throws a molotov at one cell (#1815, epic #1640): the
@@ -881,6 +882,12 @@ message RulesAttached {
   repeated string accepted_ids = 2;
   repeated RuleRefusal refused = 3;
 }
+// Rules attach as a journaled intent (#2154): the same replace-all as Rules/Attach,
+// with the lease relative to the apply tick (expiry = tick + lease_ticks) so a
+// resent key never carries a stale absolute tick. An empty rules list clears. Any
+// refused rule refuses the whole action and changes nothing. Evidence is a
+// SettingsEffect with the RULES field: APPLIED.
+message RulesAttachIntent { repeated Rule rules = 1; optional int64 lease_ticks = 2; }
 message RulesAttachReply {
   oneof outcome {
     RulesAttached attached = 1;

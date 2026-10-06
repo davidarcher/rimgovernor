@@ -30,7 +30,13 @@ hauling its own kill; the corpse is left for the ordinary haul.
   ticks remaining, and `lease_expired` from the expiry until the next attach or clear.
 
 Go re-attaches every Round with a lease (2500 ticks); rules live in native memory only and a load
-starts with none.
+starts with none. The controller attaches through the `rules_attach` action (`RulesAttachIntent` on
+Actions/Apply, [action contracts](action-contracts.md)), which carries the rules and a lease relative to
+the apply tick and sits in the session journal before native is written. `RoundsRulesPlanner`
+(family `rules`, every half lease) derives the set from the hunt plan with `policy.HuntChainRules` and
+commits one method per Round under `EnsureFoodSupply`; an empty set clears what an earlier Round attached,
+and a Standard that is no longer workable lets the lease lapse. The `rules_attach` op (absolute
+`expires_at_tick`) stays for harnesses.
 
 ## Safety
 
@@ -42,7 +48,7 @@ starts with none.
 - Journal before write: native appends `rule_fired` (rule id, job, radius, actor, target, tick) to the
   [clock event ring](../../../contracts/proto/clock-lifecycle.md) and writes the game only once the row is
   in the journal. Both rule events are epoch-less, so they carry no owner; Go ingests them through the
-  clock inbox and they never hold a review.
+  clock inbox, writes a [`rule` flight row](flight-rows.md) for each and they never hold a review.
 
 Source: `NativeRuleBook.cs` (validation, lease, limits; no game types, probed by
 `contracts/tests/NativeContractProbes` `native-rule-runtime`), `NativeRuleRuntime.cs` (trigger, target

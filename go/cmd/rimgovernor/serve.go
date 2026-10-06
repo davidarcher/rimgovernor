@@ -83,6 +83,7 @@ type serveConfig struct {
 	roundsAnimalContainmentPlans   bool
 	roundsRecoveryPlans            bool
 	roundsHusbandryPlans           bool
+	roundsRulesPlans               bool
 	layoutOverlay                  bool
 	roundsPrisonerInteractionPlans bool
 	roundsPopulationCustodyPlans   bool
@@ -286,6 +287,7 @@ func roundsFamilies(c *serveConfig) []roundsFamily {
 		{"animal-containment", &c.roundsAnimalContainmentPlans},
 		{"recovery", &c.roundsRecoveryPlans},
 		{"husbandry", &c.roundsHusbandryPlans},
+		{"rules", &c.roundsRulesPlans},
 		{"prisoner-interaction", &c.roundsPrisonerInteractionPlans},
 		{"population-custody", &c.roundsPopulationCustodyPlans},
 		{"population-joiner", &c.roundsPopulationJoinerPlans},

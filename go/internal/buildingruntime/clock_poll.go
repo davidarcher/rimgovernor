@@ -349,8 +349,31 @@ func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 			clockEvent(ctx, "clock-scheduler", "authority", "authority changed", "change", "changed", "reason", v.AuthorityChanged.GetReason(), "active", v.AuthorityChanged.GetActive(), "generation", v.AuthorityChanged.GetGeneration(), "previous_generation", v.AuthorityChanged.GetPreviousGeneration(), "cursor", event.GetCursor())
 		case *k.Event_Alert:
 			clockEvent(ctx, "clock-scheduler", "alert", "game alert", "key", v.Alert.GetKey(), "label", v.Alert.GetLabel(), "priority", v.Alert.GetPriority(), "cursor", event.GetCursor())
+		case *k.Event_RuleFired, *k.Event_RuleLeaseExpired:
+			telemetry.Decide(ctx, ruleDecision(event))
 		}
 	}
+}
+
+// ruleDecision is the "rule" row of a native rule event (#2154). A firing is
+// verdict fired, reason the trigger word, target the actor; attrs name the
+// rule, the prey it resolved and its parameters. A lapsed lease is verdict
+// expired, reason lease_expired, target the rule runtime.
+func ruleDecision(event *k.Event) telemetry.Decision {
+	d := telemetry.Decision{Kind: "rule", Component: "clock-scheduler", Attrs: map[string]any{"cursor": event.GetCursor()}}
+	switch v := event.Event.(type) {
+	case *k.Event_RuleFired:
+		f := v.RuleFired
+		d.Verdict, d.Reason, d.Target = "fired", "prey_killed", f.GetActorId()
+		d.Attrs["rule"], d.Attrs["target"] = f.GetRuleId(), f.GetTargetId()
+		d.Attrs["params"] = map[string]any{"job": f.GetJob(), "radius": f.GetRadius()}
+		d.Attrs["tick"] = f.GetTick()
+	case *k.Event_RuleLeaseExpired:
+		e := v.RuleLeaseExpired
+		d.Verdict, d.Reason, d.Target = "expired", "lease_expired", "rules"
+		d.Attrs["expires_at_tick"], d.Attrs["deactivated"] = e.GetExpiresAtTick(), e.GetDeactivated()
+	}
+	return d
 }
 
 // clockStopLegs are the stop's latency legs on the row, the live half of

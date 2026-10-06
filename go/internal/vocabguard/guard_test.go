@@ -66,6 +66,11 @@ type allow struct {
 }
 
 var goAllow = []*allow{
+	{path: "internal/domain/rules_attach.go", reason: "a declarative native rule (operations.proto Rule, #2140), not the Safeguard veto."},
+	{path: "internal/policy/rules.go", reason: "a declarative native rule (operations.proto Rule, #2140), not the Safeguard veto."},
+	{path: "internal/buildingruntime/rounds_rules.go", reason: "a declarative native rule (operations.proto Rule, #2140), not the Safeguard veto."},
+	{path: "internal/buildingruntime/clock_scheduler.go", text: "Rules", reason: "the rules planner's config and result fields: a declarative native rule (operations.proto Rule, #2140), not the Safeguard veto."},
+	{path: "cmd/rimgovernor/serve.go", text: "roundsRulesPlans", reason: "the rules family flag: a declarative native rule (operations.proto Rule, #2140), not the Safeguard veto."},
 	{path: "internal/policy/rock_step.go", text: "RoofRule", reason: "RoofRule is RimWorld's roof definition (RoofDef), not the Safeguard veto."},
 	{path: "internal/policy/rock_step.go", text: "RoofRules", reason: "plural of RoofRule: the RoofDef catalog."},
 	{path: "internal/bridge/catalog_roof.go", text: "RoofRules", reason: "the RoofDef catalog read."},

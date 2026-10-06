@@ -31,6 +31,7 @@ var roundsFamilyFiles = map[string][]string{
 	"rounds_animal_containment.go":     {"animal-containment"},
 	"rounds_herd_rooms.go":             {"animal-containment"},
 	"rounds_animal_feed.go":            {"animal-feed"},
+	"rounds_rules.go":                  {"rules"},
 	"rounds_assignments.go":            {"work"},
 	"rounds_mech.go":                   {"work"},
 	"rounds_disease.go":                {"work"},
