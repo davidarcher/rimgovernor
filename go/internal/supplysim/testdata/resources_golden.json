@@ -1,0 +1,1129 @@
+{
+ "Days": [
+  {
+   "Day": 0,
+   "Stock": {
+    "ComponentIndustrial": 3.5,
+    "Silver": 120,
+    "Steel": 144,
+    "WoodLog": 252
+   },
+   "Runway": {
+    "ComponentIndustrial": 7,
+    "Steel": 24,
+    "WoodLog": 31.5
+   },
+   "Delivered": {},
+   "Unmet": {}
+  },
+  {
+   "Day": 1,
+   "Stock": {
+    "ComponentIndustrial": 3,
+    "Silver": 120,
+    "Steel": 138,
+    "WoodLog": 244
+   },
+   "Runway": {
+    "ComponentIndustrial": 6,
+    "Steel": 23,
+    "WoodLog": 30.5
+   },
+   "Delivered": {},
+   "Unmet": {}
+  },
+  {
+   "Day": 2,
+   "Stock": {
+    "ComponentIndustrial": 4.5,
+    "Leather": 3.6,
+    "Nutrition": 7.2,
+    "Silver": 120,
+    "Steel": 152,
+    "StoneChunks": 8,
+    "WoodLog": 261
+   },
+   "Runway": {
+    "ComponentIndustrial": 9,
+    "Steel": 25.333333,
+    "WoodLog": 32.625
+   },
+   "Delivered": {
+    "deer": 1.8,
+    "drill": 1,
+    "grove": 25,
+    "hulk": 1,
+    "quarry": 8,
+    "wreck": 20
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 3,
+   "Stock": {
+    "ComponentIndustrial": 6,
+    "Leather": 7.2,
+    "Nutrition": 14.4,
+    "Silver": 120,
+    "Steel": 166,
+    "StoneBlocks": 80,
+    "StoneChunks": 12,
+    "WoodLog": 278
+   },
+   "Runway": {
+    "ComponentIndustrial": 12,
+    "Steel": 27.666667,
+    "WoodLog": 34.75
+   },
+   "Delivered": {
+    "cutter": 4,
+    "deer": 1.8,
+    "drill": 1,
+    "grove": 25,
+    "hulk": 1,
+    "quarry": 8,
+    "wreck": 20
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 4,
+   "Stock": {
+    "ComponentIndustrial": 7.5,
+    "Leather": 10.8,
+    "Nutrition": 21.6,
+    "Silver": 120,
+    "Steel": 180,
+    "StoneBlocks": 160,
+    "StoneChunks": 16,
+    "WoodLog": 295
+   },
+   "Runway": {
+    "ComponentIndustrial": 15,
+    "Steel": 30,
+    "WoodLog": 36.875
+   },
+   "Delivered": {
+    "cutter": 4,
+    "deer": 1.8,
+    "drill": 1,
+    "grove": 25,
+    "hulk": 1,
+    "quarry": 8,
+    "wreck": 20
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 5,
+   "Stock": {
+    "ComponentIndustrial": 9,
+    "Leather": 14.4,
+    "Nutrition": 28.8,
+    "Silver": 120,
+    "Steel": 186,
+    "StoneBlocks": 240,
+    "StoneChunks": 20,
+    "WoodLog": 312
+   },
+   "Runway": {
+    "ComponentIndustrial": 18,
+    "Steel": 31,
+    "WoodLog": 39
+   },
+   "Delivered": {
+    "cutter": 4,
+    "deer": 1.8,
+    "drill": 1,
+    "grove": 25,
+    "hulk": 1,
+    "quarry": 8,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 6,
+   "Stock": {
+    "ComponentIndustrial": 10.5,
+    "Leather": 18,
+    "Nutrition": 36,
+    "Silver": 120,
+    "Steel": 192,
+    "StoneBlocks": 320,
+    "StoneChunks": 24,
+    "WoodLog": 329
+   },
+   "Runway": {
+    "ComponentIndustrial": 21,
+    "Steel": 32,
+    "WoodLog": 41.125
+   },
+   "Delivered": {
+    "cutter": 4,
+    "deer": 1.8,
+    "drill": 1,
+    "grove": 25,
+    "hulk": 1,
+    "quarry": 8,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 7,
+   "Stock": {
+    "ComponentIndustrial": 11,
+    "Leather": 21.6,
+    "Nutrition": 43.2,
+    "Silver": 120,
+    "Steel": 198,
+    "StoneBlocks": 400,
+    "StoneChunks": 20,
+    "WoodLog": 346
+   },
+   "Runway": {
+    "ComponentIndustrial": 22,
+    "Steel": 33,
+    "WoodLog": 43.25
+   },
+   "Delivered": {
+    "cutter": 4,
+    "deer": 1.8,
+    "drill": 1,
+    "grove": 25,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 8,
+   "Stock": {
+    "ComponentIndustrial": 11.5,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 120,
+    "Steel": 204,
+    "StoneBlocks": 480,
+    "StoneChunks": 16,
+    "WoodLog": 354
+   },
+   "Runway": {
+    "ComponentIndustrial": 23,
+    "Steel": 34,
+    "WoodLog": 44.25
+   },
+   "Delivered": {
+    "cutter": 4,
+    "deer": 1.2,
+    "drill": 1,
+    "grove": 16,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 9,
+   "Stock": {
+    "ComponentIndustrial": 12,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 120,
+    "Steel": 210,
+    "StoneBlocks": 560,
+    "StoneChunks": 12,
+    "WoodLog": 348
+   },
+   "Runway": {
+    "ComponentIndustrial": 24,
+    "Steel": 35,
+    "WoodLog": 43.5
+   },
+   "Delivered": {
+    "cutter": 4,
+    "drill": 1,
+    "grove": 2,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 10,
+   "Stock": {
+    "ComponentIndustrial": 12.5,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 120,
+    "Steel": 186,
+    "StoneBlocks": 560,
+    "StoneChunks": 8,
+    "WoodLog": 342
+   },
+   "Runway": {
+    "ComponentIndustrial": 25,
+    "Steel": 31,
+    "WoodLog": 42.75
+   },
+   "Delivered": {
+    "cutter": 4,
+    "drill": 1,
+    "grove": 2,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 11,
+   "Stock": {
+    "ComponentIndustrial": 13,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 120,
+    "Steel": 192,
+    "StoneBlocks": 640,
+    "StoneChunks": 4,
+    "WoodLog": 336
+   },
+   "Runway": {
+    "ComponentIndustrial": 26,
+    "Steel": 32,
+    "WoodLog": 42
+   },
+   "Delivered": {
+    "cotton": 20,
+    "cutter": 4,
+    "drill": 1,
+    "grove": 2,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 12,
+   "Stock": {
+    "ComponentIndustrial": 13.5,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 238,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 330
+   },
+   "Runway": {
+    "ComponentIndustrial": 27,
+    "Steel": 39.666667,
+    "WoodLog": 41.25
+   },
+   "Delivered": {
+    "caravan": 40,
+    "cutter": 4,
+    "drill": 1,
+    "grove": 2,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 13,
+   "Stock": {
+    "ComponentIndustrial": 14,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 244,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 324
+   },
+   "Runway": {
+    "ComponentIndustrial": 28,
+    "Steel": 40.666667,
+    "WoodLog": 40.5
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 14,
+   "Stock": {
+    "ComponentIndustrial": 14.5,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 250,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 318
+   },
+   "Runway": {
+    "ComponentIndustrial": 29,
+    "Steel": 41.666667,
+    "WoodLog": 39.75
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2,
+    "vein": 12
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 15,
+   "Stock": {
+    "ComponentIndustrial": 14,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 244,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 312
+   },
+   "Runway": {
+    "ComponentIndustrial": 28,
+    "Steel": 40.666667,
+    "WoodLog": 39
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 16,
+   "Stock": {
+    "ComponentIndustrial": 13.5,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 238,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 306
+   },
+   "Runway": {
+    "ComponentIndustrial": 27,
+    "Steel": 39.666667,
+    "WoodLog": 38.25
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 17,
+   "Stock": {
+    "ComponentIndustrial": 13,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 232,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 300
+   },
+   "Runway": {
+    "ComponentIndustrial": 26,
+    "Steel": 38.666667,
+    "WoodLog": 37.5
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 18,
+   "Stock": {
+    "ComponentIndustrial": 12.5,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 110,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 294
+   },
+   "Runway": {
+    "ComponentIndustrial": 25,
+    "Steel": 18.333333,
+    "WoodLog": 36.75
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 19,
+   "Stock": {
+    "ComponentIndustrial": 13,
+    "Cotton": 60,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 104,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 288
+   },
+   "Runway": {
+    "ComponentIndustrial": 26,
+    "Steel": 17.333333,
+    "WoodLog": 36
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 20,
+   "Stock": {
+    "ComponentIndustrial": 13.5,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 98,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 282
+   },
+   "Runway": {
+    "ComponentIndustrial": 27,
+    "Steel": 16.333333,
+    "WoodLog": 35.25
+   },
+   "Delivered": {
+    "cotton": 20,
+    "drill": 1,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 21,
+   "Stock": {
+    "ComponentIndustrial": 14,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 92,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 276
+   },
+   "Runway": {
+    "ComponentIndustrial": 28,
+    "Steel": 15.333333,
+    "WoodLog": 34.5
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 22,
+   "Stock": {
+    "ComponentIndustrial": 14.5,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 86,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 270
+   },
+   "Runway": {
+    "ComponentIndustrial": 29,
+    "Steel": 14.333333,
+    "WoodLog": 33.75
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 23,
+   "Stock": {
+    "ComponentIndustrial": 15,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 80,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 264
+   },
+   "Runway": {
+    "ComponentIndustrial": 30,
+    "Steel": 13.333333,
+    "WoodLog": 33
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 24,
+   "Stock": {
+    "ComponentIndustrial": 15.5,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 74,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 258
+   },
+   "Runway": {
+    "ComponentIndustrial": 31,
+    "Steel": 12.333333,
+    "WoodLog": 32.25
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 25,
+   "Stock": {
+    "ComponentIndustrial": 16,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 68,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 252
+   },
+   "Runway": {
+    "ComponentIndustrial": 32,
+    "Steel": 11.333333,
+    "WoodLog": 31.5
+   },
+   "Delivered": {
+    "drill": 1,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 26,
+   "Stock": {
+    "ComponentIndustrial": 15.5,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 62,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 246
+   },
+   "Runway": {
+    "ComponentIndustrial": 31,
+    "Steel": 10.333333,
+    "WoodLog": 30.75
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 27,
+   "Stock": {
+    "ComponentIndustrial": 15,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 56,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 240
+   },
+   "Runway": {
+    "ComponentIndustrial": 30,
+    "Steel": 9.333333,
+    "WoodLog": 30
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 28,
+   "Stock": {
+    "ComponentIndustrial": 14.5,
+    "Cotton": 120,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 50,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 234
+   },
+   "Runway": {
+    "ComponentIndustrial": 29,
+    "Steel": 8.333333,
+    "WoodLog": 29.25
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 29,
+   "Stock": {
+    "ComponentIndustrial": 14,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 44,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 228
+   },
+   "Runway": {
+    "ComponentIndustrial": 28,
+    "Steel": 7.333333,
+    "WoodLog": 11.4
+   },
+   "Delivered": {
+    "cotton": 20,
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 30,
+   "Stock": {
+    "ComponentIndustrial": 13.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 38,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 210
+   },
+   "Runway": {
+    "ComponentIndustrial": 27,
+    "Steel": 6.333333,
+    "WoodLog": 10.5
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 31,
+   "Stock": {
+    "ComponentIndustrial": 13,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 32,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 182
+   },
+   "Runway": {
+    "ComponentIndustrial": 26,
+    "Steel": 5.333333,
+    "WoodLog": 6.066667
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 32,
+   "Stock": {
+    "ComponentIndustrial": 12.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 26,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 154
+   },
+   "Runway": {
+    "ComponentIndustrial": 25,
+    "Steel": 4.333333,
+    "WoodLog": 5.133333
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 33,
+   "Stock": {
+    "ComponentIndustrial": 12,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 20,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 126
+   },
+   "Runway": {
+    "ComponentIndustrial": 24,
+    "Steel": 3.333333,
+    "WoodLog": 4.2
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 34,
+   "Stock": {
+    "ComponentIndustrial": 11.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 14,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 98
+   },
+   "Runway": {
+    "ComponentIndustrial": 23,
+    "Steel": 2.333333,
+    "WoodLog": 3.266667
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 35,
+   "Stock": {
+    "ComponentIndustrial": 11,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 8,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 70
+   },
+   "Runway": {
+    "ComponentIndustrial": 22,
+    "Steel": 1.333333,
+    "WoodLog": 3.5
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 36,
+   "Stock": {
+    "ComponentIndustrial": 10.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 2,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 52
+   },
+   "Runway": {
+    "ComponentIndustrial": 21,
+    "Steel": 0.333333,
+    "WoodLog": 2.6
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {}
+  },
+  {
+   "Day": 37,
+   "Stock": {
+    "ComponentIndustrial": 10,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 34
+   },
+   "Runway": {
+    "ComponentIndustrial": 20,
+    "Steel": 0,
+    "WoodLog": 1.7
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 4
+   }
+  },
+  {
+   "Day": 38,
+   "Stock": {
+    "ComponentIndustrial": 9.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 16
+   },
+   "Runway": {
+    "ComponentIndustrial": 19,
+    "Steel": 0,
+    "WoodLog": 0.8
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 6
+   }
+  },
+  {
+   "Day": 39,
+   "Stock": {
+    "ComponentIndustrial": 9,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 0
+   },
+   "Runway": {
+    "ComponentIndustrial": 18,
+    "Steel": 0,
+    "WoodLog": 0
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 6,
+    "WoodLog": 2
+   }
+  },
+  {
+   "Day": 40,
+   "Stock": {
+    "ComponentIndustrial": 8.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 0
+   },
+   "Runway": {
+    "ComponentIndustrial": 17,
+    "Steel": 0,
+    "WoodLog": 0
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 6,
+    "WoodLog": 18
+   }
+  },
+  {
+   "Day": 41,
+   "Stock": {
+    "ComponentIndustrial": 8,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 0
+   },
+   "Runway": {
+    "ComponentIndustrial": 16,
+    "Steel": 0,
+    "WoodLog": 0
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 6,
+    "WoodLog": 18
+   }
+  },
+  {
+   "Day": 42,
+   "Stock": {
+    "ComponentIndustrial": 7.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 0
+   },
+   "Runway": {
+    "ComponentIndustrial": 15,
+    "Steel": 0,
+    "WoodLog": 0
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 6,
+    "WoodLog": 18
+   }
+  },
+  {
+   "Day": 43,
+   "Stock": {
+    "ComponentIndustrial": 7,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 0
+   },
+   "Runway": {
+    "ComponentIndustrial": 14,
+    "Steel": 0,
+    "WoodLog": 0
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 6,
+    "WoodLog": 18
+   }
+  },
+  {
+   "Day": 44,
+   "Stock": {
+    "ComponentIndustrial": 6.5,
+    "Cotton": 180,
+    "Leather": 24,
+    "Nutrition": 48,
+    "Silver": 0,
+    "Steel": 0,
+    "StoneBlocks": 720,
+    "StoneChunks": 0,
+    "WoodLog": 0
+   },
+   "Runway": {
+    "ComponentIndustrial": 13,
+    "Steel": 0,
+    "WoodLog": 0
+   },
+   "Delivered": {
+    "grove": 2
+   },
+   "Unmet": {
+    "Steel": 6,
+    "WoodLog": 18
+   }
+  }
+ ],
+ "FirstStarved": {
+  "Steel": 37,
+  "WoodLog": 39
+ },
+ "StarvedDays": {
+  "Steel": 8,
+  "WoodLog": 6
+ },
+ "Delivered": {
+  "caravan": 40,
+  "cotton": 60,
+  "cutter": 40,
+  "deer": 12,
+  "drill": 20,
+  "grove": 238,
+  "hulk": 5,
+  "quarry": 40,
+  "vein": 120,
+  "wreck": 60
+ },
+ "MinRunway": {
+  "ComponentIndustrial": 6,
+  "Steel": 0,
+  "WoodLog": 0
+ },
+ "BuildDone": {
+  "wall": 10
+ }
+}

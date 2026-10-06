@@ -62,11 +62,17 @@ type Source struct {
 	// Jitter varies daily capacity by up to +-Jitter, drawn from the world seed.
 	Jitter float64
 	Crop   *CropField
+	// PowerDraw is the grid power the source needs while delivering (a deep
+	// drill); World.Power is shared in source order.
+	PowerDraw float64
+	// Safe sources (loot, salvage) deliver only while no threat is active.
+	Safe bool
 
 	openedDay   int
 	removed     bool
 	capScale    float64
 	pausedUntil int
+	offUntil    int
 	delivered   float64
 	last        float64
 	rng         *rand.Rand
@@ -90,7 +96,7 @@ func (s *Source) paused(day int) bool { return day < s.pausedUntil }
 
 // available is the units deliverable on day at full labor, before costs.
 func (s *Source) available(day int) float64 {
-	if !s.delivering(day) {
+	if !s.delivering(day) || day < s.offUntil {
 		return 0
 	}
 	if c := s.Crop; c != nil {
@@ -180,10 +186,15 @@ func NewFishing(id string, population, max float64, fishers int, nutritionPerFis
 		Floor: domain.FishingPopulationFloor}
 }
 
-// NewCrop is a crop field growing inside window; the first harvest comes
+// NewCrop is a food crop field growing inside window; the first harvest comes
 // growDays growing days after the first planting.
 func NewCrop(id string, cells float64, growDays int, nutritionPerCell float64, window Window, harvestCellsPerDay float64) Source {
-	return Source{ID: id, Yields: []Yield{{Nutrition, nutritionPerCell}}, Labor: harvestCellsPerDay * CropHarvestWork,
+	return NewCropOf(id, Nutrition, cells, growDays, nutritionPerCell, window, harvestCellsPerDay)
+}
+
+// NewCropOf is a crop field of any good (cotton).
+func NewCropOf(id string, good Good, cells float64, growDays int, perCell float64, window Window, harvestCellsPerDay float64) Source {
+	return Source{ID: id, Yields: []Yield{{good, perCell}}, Labor: harvestCellsPerDay * CropHarvestWork,
 		Crop: &CropField{Cells: cells, GrowDays: growDays, HarvestCells: harvestCellsPerDay, Window: window}}
 }
 
@@ -206,9 +217,15 @@ func NewProducts(id string, animals, perAnimal, nutritionPerUnit float64) Source
 	return Source{ID: id, Yields: []Yield{{Nutrition, nutritionPerUnit}}, Capacity: animals * perAnimal, Labor: animals * ProductWork}
 }
 
-// NewTrade is a trader visiting inside window with restock units, paid for in
-// Silver at price per unit.
+// NewTrade is a food trader visiting inside window with restock units, paid
+// for in Silver at price per unit.
 func NewTrade(id string, window Window, restock, nutritionPerUnit, price float64) Source {
-	return Source{ID: id, Yields: []Yield{{Nutrition, nutritionPerUnit}}, Costs: []Yield{{Silver, price}},
+	return NewTradeOf(id, Nutrition, window, restock, nutritionPerUnit, price)
+}
+
+// NewTradeOf is a caravan selling any good. Caravans carry no pawn labor
+// (policy.AcquisitionLaborPerUnit[trade] is 0).
+func NewTradeOf(id string, good Good, window Window, restock, perUnit, price float64) Source {
+	return Source{ID: id, Yields: []Yield{{good, perUnit}}, Costs: []Yield{{Silver, price}},
 		Capacity: restock, Finite: true, Max: restock, Restock: restock, Window: window}
 }

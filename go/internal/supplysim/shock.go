@@ -14,6 +14,20 @@ const (
 	RemoveSource ShockKind = "RemoveSource"
 	// PauseGrowth stops regeneration and crop growth for Days days.
 	PauseGrowth ShockKind = "PauseGrowth"
+	// StopWork stops a source delivering for Days days (caravan absent).
+	StopWork ShockKind = "StopWork"
+	// Threat blocks Safe sources (loot, salvage) for Days days.
+	Threat ShockKind = "Threat"
+	// PowerLoss cuts World.Power to the Factor fraction for Days days.
+	PowerLoss ShockKind = "PowerLoss"
+	// StorageFull caps Good's stock at Factor units for Days days; deliveries
+	// beyond the headroom are not made.
+	StorageFull ShockKind = "StorageFull"
+	// SurgeDemand multiplies the Good's demand by Factor for Days days.
+	SurgeDemand ShockKind = "SurgeDemand"
+	// Requisition opens a one-off Build of Factor units of Good (steel needed
+	// for weapons).
+	Requisition ShockKind = "Requisition"
 )
 
 // Shock applies at the start of Day, before that day's deliveries.
@@ -27,8 +41,28 @@ type Shock struct {
 }
 
 func (s Shock) apply(r *runState) {
-	if s.Kind == DestroyStock && s.Source == "" {
-		r.stock[s.Good] *= 1 - clamp01(s.Factor)
+	until := s.Day + s.Days
+	switch s.Kind {
+	case DestroyStock:
+		if s.Source == "" {
+			r.stock[s.Good] *= 1 - clamp01(s.Factor)
+			return
+		}
+	case Threat:
+		r.threatUntil = max(r.threatUntil, until)
+		return
+	case PowerLoss:
+		r.powerFactor, r.powerUntil = clamp01(s.Factor), until
+		return
+	case StorageFull:
+		r.capUntil[s.Good], r.capLimit[s.Good] = until, s.Factor
+		return
+	case SurgeDemand:
+		r.surge[s.Good] = surge{s.Factor, until}
+		return
+	case Requisition:
+		r.builds = append(r.builds, &buildState{Build: Build{Name: "requisition " + string(s.Good), Day: s.Day,
+			Costs: []Yield{{s.Good, s.Factor}}}, left: map[Good]float64{s.Good: s.Factor}})
 		return
 	}
 	src := r.source(s.Source)
@@ -47,9 +81,9 @@ func (s Shock) apply(r *runState) {
 	case RemoveSource:
 		src.Open, src.removed = false, true
 	case PauseGrowth:
-		if until := s.Day + s.Days; until > src.pausedUntil {
-			src.pausedUntil = until
-		}
+		src.pausedUntil = max(src.pausedUntil, until)
+	case StopWork:
+		src.offUntil = max(src.offUntil, until)
 	}
 }
 
