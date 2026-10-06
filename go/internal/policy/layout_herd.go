@@ -18,6 +18,15 @@ import (
 // reservation never changes or moves: a herd its unit cannot hold gets another
 // reservation of the same kind beside the same room (herd_rooms.go builds and
 // furnishes them), or, boxed in, a whole second unit (#2212).
+//
+// A unit is matched to its herd by key (#2226): every reservation of a herd's
+// unit, a second unit and a top-up included, carries LayoutReservation.Herd,
+// the herd's race; the misc unit's carry none. The plan is a saved blob, so
+// the key is stored. A plan saved before the key (units but no key anywhere)
+// is matched once by order, misc first and then the herds in name order, and
+// planHerdSites stamps the keys on its next top-up. Deletion candidate: that
+// order fallback (housedUnits' legacy branch), once no saved plan lacks keys.
+// Out of scope here: RoundsFacts.FoodStorage is still read (#2226, second half).
 
 const (
 	// ReserveBarn is the roofed barn where the herd sleeps.
@@ -51,13 +60,20 @@ func (p HerdPlan) PenAnimals() int {
 	return max(int(n), penAnimalsFloor)
 }
 
-// HerdUnits are the ceilings of the herds' units (#2122), one per herd race in
-// name order: each gets a pen, barn and vet area of its own.
-func (p HerdPlan) HerdUnits() []int {
+// HerdCeiling is one herd's unit size: the race (the key its reservations
+// carry, LayoutReservation.Herd) and its policy ceiling.
+type HerdCeiling struct {
+	Race    string
+	Animals int
+}
+
+// HerdUnits are the herds' units (#2122), one per herd race in name order:
+// each gets a pen, barn and vet area of its own, sized from its ceiling.
+func (p HerdPlan) HerdUnits() []HerdCeiling {
 	herds := slices.Sorted(slices.Values(p.Herds))
-	out := make([]int, len(herds))
+	out := make([]HerdCeiling, len(herds))
 	for i, race := range herds {
-		out[i] = int(p.Policy.PopulationMax[race])
+		out[i] = HerdCeiling{Race: string(race), Animals: int(p.Policy.PopulationMax[race])}
 	}
 	return out
 }
@@ -86,9 +102,10 @@ func walledSide(w, h int32) (int32, int32) { return w + 2, h + 2 }
 // animals animals and one unit per herds ceiling (HerdPlan.HerdUnits), each
 // with the pens, barn beds and vet beds the unit's existing rooms cannot hold.
 // Nothing placed moves; sites that do not fit are left out. A unit is matched
-// to its race by order (misc first), so the matching is never stored. Zero
-// animals plans no misc unit. plan holds its core zones.
-func PlanHerdSites(plan LayoutPlan, animals int, herds ...int) LayoutPlan {
+// to its race by the key on its reservations (#2226; see the file comment for
+// plans saved without one). Zero animals plans no misc unit. plan holds its
+// core zones.
+func PlanHerdSites(plan LayoutPlan, animals int, herds ...HerdCeiling) LayoutPlan {
 	if animals <= 0 && len(herds) == 0 || len(plan.Hallways()) == 0 {
 		return plan
 	}
@@ -99,7 +116,12 @@ func PlanHerdSites(plan LayoutPlan, animals int, herds ...int) LayoutPlan {
 
 // herdUnit is one unit's reservations: the pens and barns joined by a shared
 // wall and the vet areas against those barns, in plan order.
-type herdUnit struct{ pens, barns, vets []Rectangle }
+type herdUnit struct {
+	pens, barns, vets []Rectangle
+	// herd is the race the unit's reservations are keyed to; empty for the
+	// misc unit and for a plan saved before keys.
+	herd string
+}
 
 // centre is the middle of the unit's first reservation, the core when it has
 // none.
@@ -152,6 +174,9 @@ func (p LayoutPlan) herdUnits() []herdUnit {
 			at[root(i)] = k
 			units = append(units, herdUnit{})
 		}
+		if r.Herd != "" {
+			units[k].herd = r.Herd
+		}
 		switch r.Kind {
 		case ReservePen:
 			units[k].pens = append(units[k].pens, r.Area)
@@ -173,63 +198,104 @@ func (p LayoutPlan) capacity(areas []Rectangle, role PlannedRole) int {
 	return n
 }
 
-// housedUnits are the plan's herd units matched to the n primary units (the
-// misc unit, then one per herd): a group past the first n is the second unit a
-// boxed-in unit founded, and it joins the primary unit nearest by centre (the
-// lower one on a tie). Nothing is stored; the plan's order decides.
-func (p LayoutPlan) housedUnits(u *utilityGrid, n int) []herdUnit {
+// housedUnits are the plan's herd units matched to the primary units (the misc
+// unit, then one per herd): a unit goes to the herd its reservations are keyed
+// to, so a second unit a boxed-in herd founded (#2212) joins its own herd, and
+// an unkeyed one, or one of a herd no longer planned, joins the misc unit. It
+// also reports legacy: a plan with several units and no key anywhere (saved
+// before #2226), whose units are matched by order instead, a group past the
+// primaries joining the primary unit nearest by centre (the lower one on a tie).
+func (p LayoutPlan) housedUnits(u *utilityGrid, herds []HerdCeiling) (out []herdUnit, legacy bool) {
 	groups := p.herdUnits()
-	if len(groups) <= n {
-		return groups
+	legacy = len(groups) > 1 && !slices.ContainsFunc(groups, func(g herdUnit) bool { return g.herd != "" })
+	out = make([]herdUnit, 1+len(herds))
+	join := func(k int, g herdUnit) {
+		out[k].pens = append(out[k].pens, g.pens...)
+		out[k].barns = append(out[k].barns, g.barns...)
+		out[k].vets = append(out[k].vets, g.vets...)
 	}
-	out := slices.Clone(groups[:n])
-	for _, g := range groups[n:] {
-		gx, gz := g.centre(u)
+	for i, g := range groups {
+		switch {
+		case legacy && i < len(out):
+			join(i, g)
+		case legacy:
+		case g.herd == "":
+			join(0, g)
+		default:
+			k := slices.IndexFunc(herds, func(h HerdCeiling) bool { return h.Race == g.herd })
+			join(k+1, g) // -1, the gone herd's unit, is misc
+		}
+	}
+	for i := len(out); legacy && i < len(groups); i++ {
+		gx, gz := groups[i].centre(u)
 		best, bestD := 0, math.MaxFloat64
-		for i, primary := range out[:n] {
+		for k, primary := range out {
 			px, pz := primary.centre(u)
 			if d := math.Hypot(float64(px-gx), float64(pz-gz)); d < bestD {
-				best, bestD = i, d
+				best, bestD = k, d
 			}
 		}
-		out[best].pens = append(out[best].pens, g.pens...)
-		out[best].barns = append(out[best].barns, g.barns...)
-		out[best].vets = append(out[best].vets, g.vets...)
+		join(best, groups[i])
 	}
-	return out
+	return out, legacy
 }
 
-func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []int) {
-	primaries := 1 + len(herds)
-	for i, animals := range append([]int{misc}, herds...) {
+// stampHerd keys the plan's reservations of unit to race.
+func (p *LayoutPlan) stampHerd(unit herdUnit, race string) {
+	for i, r := range p.Reservations {
+		var rs []Rectangle
+		switch r.Kind {
+		case ReservePen:
+			rs = unit.pens
+		case ReserveBarn:
+			rs = unit.barns
+		case ReserveVetRoom:
+			rs = unit.vets
+		}
+		if slices.Contains(rs, r.Area) {
+			p.Reservations[i].Herd = race
+		}
+	}
+}
+
+func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []HerdCeiling) {
+	units, legacy := plan.housedUnits(u, herds)
+	// A plan saved before keys is matched by order once and keyed now.
+	if legacy {
+		for i, h := range herds {
+			plan.stampHerd(units[i+1], h.Race)
+			units[i+1].herd = h.Race
+		}
+	}
+	for i := range units {
+		race, animals := "", misc
+		if i > 0 {
+			race, animals = herds[i-1].Race, herds[i-1].Animals
+		}
 		if animals <= 0 {
 			continue
 		}
-		// A unit founds a second one only once every primary unit stands, or
-		// the second would be read as the next herd's own.
-		founded := len(plan.herdUnits()) >= primaries
-		units := plan.housedUnits(u, primaries)
-		var unit herdUnit
-		if i < len(units) {
-			unit = units[i]
-		}
+		// In a plan matched by order a unit founds a second one only once every
+		// primary unit stands, or the second would be read as the next herd's.
+		founded := !legacy || len(plan.herdUnits()) >= len(units)
 		// A herd's unit prefers a site near the misc unit's.
 		cx, cz := u.cx, u.cz
-		if i > 0 && len(units) > 0 {
+		if i > 0 {
 			cx, cz = units[0].centre(u)
 		}
-		planUnit(u, plan, unit, animals, cx, cz, i == 0, founded)
+		planUnit(u, plan, units[i], race, animals, cx, cz, i == 0, founded)
 	}
 }
 
 // planUnit tops one unit up for animals: a pen beside its barn, a barn beside
 // its pen, a vet area beside its barn. A herd the unit's rooms outgrow gets
 // another reservation of the same kind beside the unit; none moves. Only a
-// unit with nothing placed yet takes a site near cx, cz. A unit boxed in so
+// unit with nothing placed yet takes a site near cx, cz. Every reservation it
+// adds carries herd, the key of the unit's race (empty for misc). A unit boxed in so
 // that nothing fits beside it (and only when mayFound) founds a second whole
 // unit, pen, barn and vet area, sized for the overflow; its shortfall is then
 // met, so a repeat top-up is a no-op.
-func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, cz int32, misc, mayFound bool) {
+func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, animals int, cx, cz int32, misc, mayFound bool) {
 	pens, barns, vets := slices.Clone(unit.pens), slices.Clone(unit.barns), slices.Clone(unit.vets)
 	place := func(kind ReservationKind, w, h int32, anchors []Rectangle) bool {
 		site, ok := Rectangle{}, false
@@ -244,7 +310,7 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, 
 		if !ok {
 			return false
 		}
-		u.reserve(plan, LayoutReservation{Kind: kind, Area: site})
+		u.reserve(plan, LayoutReservation{Kind: kind, Area: site, Herd: herd})
 		switch kind {
 		case ReservePen:
 			pens = append(pens, site)
@@ -273,12 +339,12 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, animals int, cx, 
 		vw, vh := walledSide(herdSide(vetBeds))
 		pen, ok := u.site(pw, ph, false, false, cx, cz)
 		if ok {
-			u.reserve(plan, LayoutReservation{Kind: ReservePen, Area: pen})
+			u.reserve(plan, LayoutReservation{Kind: ReservePen, Area: pen, Herd: herd})
 			var barn, vet Rectangle
 			if barn, ok = u.besideReservation(*plan, pen, ReserveBarn, bw, bh); ok {
-				u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: barn})
+				u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: barn, Herd: herd})
 				if vet, ok = u.besideReservation(*plan, barn, ReserveVetRoom, vw, vh); ok {
-					u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: vet})
+					u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: vet, Herd: herd})
 				}
 			}
 		}

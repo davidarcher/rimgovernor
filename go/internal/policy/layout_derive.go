@@ -80,10 +80,9 @@ type RoomGrowth struct {
 	// leaves in the plan.
 	RetireShelter bool
 	InFlight      map[Rectangle]bool
-	// HerdUnits are the ceilings of the herds' units (HerdPlan.HerdUnits,
-	// #2122): each gets a pen, barn and vet area of its own beside the misc
-	// unit's.
-	HerdUnits []int
+	// HerdUnits are the herds' units (HerdPlan.HerdUnits, #2122): each gets a
+	// pen, barn and vet area of its own beside the misc unit's.
+	HerdUnits []HerdCeiling
 	// Outskirts is the outline (width, height) of the off-core cluster the
 	// plan is asked to hold (#2183, OutskirtsSize); zero asks for none, and a
 	// cluster the plan holds never moves. Its tomb and morgue are placed in
@@ -192,7 +191,7 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 // topUpHerdSites adds the herd sites animals needs to plan, sited over the
 // fresh core candidates and off the current perimeter (which is laid again
 // around them). It reports whether it added any.
-func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []int) (LayoutPlan, bool) {
+func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []HerdCeiling) (LayoutPlan, bool) {
 	if animals <= 0 && len(herds) == 0 {
 		return plan, false
 	}
@@ -201,7 +200,7 @@ func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []int
 
 // topUpSites runs add over plan with the fresh core candidates and the
 // reservations the perimeter does not own, and keeps the reservations it
-// added. It reports whether it added any.
+// added. It reports whether it added or keyed any.
 func topUpSites(plan LayoutPlan, core []LayoutZone, add func(LayoutPlan) LayoutPlan) (LayoutPlan, bool) {
 	var inner []LayoutReservation
 	for _, r := range plan.Reservations {
@@ -212,11 +211,20 @@ func topUpSites(plan LayoutPlan, core []LayoutZone, add func(LayoutPlan) LayoutP
 	sitePlan := plan
 	sitePlan.Zones, sitePlan.Reservations = core, inner
 	topped := add(sitePlan)
-	if len(topped.Reservations) == len(inner) {
-		return plan, false
+	// A top-up also keys the units of a plan saved without keys (#2226).
+	plan.Reservations = slices.Clone(plan.Reservations)
+	changed := false
+	for i, j := 0, 0; i < len(plan.Reservations); i++ {
+		if perimeterKinds[plan.Reservations[i].Kind] {
+			continue
+		}
+		if plan.Reservations[i].Herd != topped.Reservations[j].Herd {
+			plan.Reservations[i].Herd, changed = topped.Reservations[j].Herd, true
+		}
+		j++
 	}
-	plan.Reservations = append(slices.Clone(plan.Reservations), topped.Reservations[len(inner):]...)
-	return plan, true
+	plan.Reservations = append(plan.Reservations, topped.Reservations[len(inner):]...)
+	return plan, changed || len(topped.Reservations) > len(inner)
 }
 
 // blockedCells is the occupied cells a replan's rooms must stay off: all but

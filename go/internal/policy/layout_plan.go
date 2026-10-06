@@ -92,6 +92,9 @@ type LayoutReservation struct {
 	Pair int32 `json:",omitempty"`
 	// Facing is the side a walled reservation's door faces (the incinerator).
 	Facing domain.Rotation `json:",omitempty"`
+	// Herd is the race of the herd whose unit a pen, barn or vet room belongs
+	// to (#2226); empty for the misc unit and for plans saved before it.
+	Herd string `json:",omitempty"`
 }
 
 // LayoutPlan is the v2 colony layout.

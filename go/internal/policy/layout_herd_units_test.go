@@ -12,7 +12,7 @@ import (
 func TestHerdRacesAreAPairOrFiveAnimals(t *testing.T) {
 	pair := []UpkeepAnimal{planAnimal("c1", "Cow", "Male"), planAnimal("c2", "Cow", "Female")}
 	plan := PlanHerd(milkInput(pair))
-	if len(plan.Herds) != 1 || plan.Herds[0] != "Cow" || len(plan.HerdUnits()) != 1 || plan.HerdUnits()[0] != int(plan.Policy.PopulationMax["Cow"]) {
+	if len(plan.Herds) != 1 || plan.Herds[0] != "Cow" || len(plan.HerdUnits()) != 1 || plan.HerdUnits()[0] != (HerdCeiling{"Cow", int(plan.Policy.PopulationMax["Cow"])}) {
 		t.Fatal("a pair is a herd sized from its ceiling", plan.Herds, plan.HerdUnits())
 	}
 	if got := plan.PenAnimals(); got != penAnimalsFloor {

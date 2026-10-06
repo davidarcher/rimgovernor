@@ -63,8 +63,8 @@ func (f RoundsFacts) HerdPolicy() HerdPolicy { return PlanHerd(f.HerdPlanInput()
 // PenAnimals is the herd the layout's pens, barn and vet room are sized for.
 func (f RoundsFacts) PenAnimals() int { return PlanHerd(f.HerdPlanInput()).PenAnimals() }
 
-// HerdUnits are the ceilings of the herds the layout gives units of their own (#2122).
-func (f RoundsFacts) HerdUnits() []int { return PlanHerd(f.HerdPlanInput()).HerdUnits() }
+// HerdUnits are the herds the layout gives units of their own (#2122).
+func (f RoundsFacts) HerdUnits() []HerdCeiling { return PlanHerd(f.HerdPlanInput()).HerdUnits() }
 
 // HerdRole is one race's place in the plan. Consumers (taming, training,
 // sterilize, sell, buy, pens) read it; none of them owns a second copy.

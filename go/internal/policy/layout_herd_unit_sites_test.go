@@ -25,7 +25,7 @@ func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T)
 	if alone := PlanHerdSites(misc, 10); len(alone.Reservations) != len(misc.Reservations) {
 		t.Fatal("no herd, no new unit", len(alone.Reservations), len(misc.Reservations))
 	}
-	grown := PlanHerdSites(misc, 10, 30, 12)
+	grown := PlanHerdSites(misc, 10, HerdCeiling{"A", 30}, HerdCeiling{"B", 12})
 	for i, r := range misc.Reservations {
 		if grown.Reservations[i] != r {
 			t.Fatal("a placed reservation moved", r)
@@ -49,12 +49,12 @@ func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T)
 			}
 		}
 	}
-	if again := PlanHerdSites(grown, 10, 30, 12); len(again.Reservations) != len(grown.Reservations) {
+	if again := PlanHerdSites(grown, 10, HerdCeiling{"A", 30}, HerdCeiling{"B", 12}); len(again.Reservations) != len(grown.Reservations) {
 		t.Fatal("top-up is not idempotent")
 	}
 	// A herd that outgrows its unit gets another reservation of the same kind
 	// beside it, and nothing placed moves.
-	more := PlanHerdSites(grown, 10, 30, 40)
+	more := PlanHerdSites(grown, 10, HerdCeiling{"A", 30}, HerdCeiling{"B", 40})
 	if len(more.herdUnits()) != 3 || more.capacity(more.herdUnits()[2].barns, PlannedBarn) < 40 {
 		t.Fatal("an outgrown herd adds to its own unit", len(more.herdUnits()))
 	}
@@ -68,7 +68,7 @@ func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T)
 // The wall a pen shares with its barn is the barn's: a flap in the middle of
 // the shared run, a wall elsewhere, never a fence or a gate.
 func TestPenBarnSharedWallIsAFlapOrWallNeverAFence(t *testing.T) {
-	plan := PlanHerdSites(herdTestPlan(t, 10), 10, 20)
+	plan := PlanHerdSites(herdTestPlan(t, 10), 10, HerdCeiling{"A", 20})
 	flaps := plan.flaps()
 	if len(flaps) != 2 {
 		t.Fatal("one flap per unit", flaps)

@@ -97,7 +97,7 @@ func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
 	if groups := grown.herdUnits(); len(groups) != 2 {
 		t.Fatal("want the first unit and one second unit", len(groups))
 	}
-	if housed := grown.housedUnits(u, 1); len(housed) != 1 || len(housed[0].barns) != 2 || len(housed[0].vets) != 2 {
+	if housed, _ := grown.housedUnits(u, nil); len(housed) != 1 || len(housed[0].barns) != 2 || len(housed[0].vets) != 2 {
 		t.Fatal("the second unit is the first one's overflow", housed)
 	}
 	if grown.herdCapacity(PlannedBarn) < 30 || grown.herdCapacity(PlannedVetRoom) < VetBeds(30) || penCells(grown) < 30*penCellsPerAnimal {
