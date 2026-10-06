@@ -50,8 +50,11 @@ type Rounds struct {
 	ClearanceHolds  []policy.ClearanceHold  `json:",omitempty"`
 	// SalvageTarget is the one remote ruin this review admitted by reach and
 	// demand; the clearance planner executes it against a fresh native census.
-	SalvageTarget string              `json:",omitempty"`
-	ShrineHolds   []policy.ShrineHold `json:",omitempty"`
+	SalvageTarget string `json:",omitempty"`
+	// RecoveryQueue is the one recovery queue (#2297) computed beside the old
+	// paths for the shadow comparison; nothing executes it yet.
+	RecoveryQueue *policy.RecoveryQueue `json:",omitempty"`
+	ShrineHolds   []policy.ShrineHold   `json:",omitempty"`
 	// ShrineStep is the shrine planner's last step (#680): the shrine it
 	// held on and why, and the candidates it passed over. A world change
 	// clears it; otherwise a review keeps the last one.
@@ -796,6 +799,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			states = append(states, g)
 		}
 	}
+	recoverySlot := false
 	if request.Enabled {
 		r.Progress, err = roundsProgress(ctx, tx, request, previous, reset, needs, states)
 		if err != nil {
@@ -820,6 +824,9 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		}
 		r.Progress = policy.HoldProgress(r.Progress, development.Rows, policy.WithheldLabor(r.Progress), unavailable)
 		r.Development = developmentRecord(development)
+		for _, row := range development.Rows {
+			recoverySlot = recoverySlot || row.Concern == policy.ClearHomeObstructions && row.Selected
+		}
 		r.ReadyWork = &ready
 		r.ShadowRank = &shadow
 		r.Recovery, err = roundsRecovery(ctx, tx, request.Facts, disaster, r, request.Tick)
@@ -833,8 +840,13 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		if err != nil {
 			return RoundsResult{}, err
 		}
+		queue, err := policy.ReviewRecoveryQueue(request.Policy, request.Facts, rows, nil, recoverySlot)
+		if err != nil {
+			return RoundsResult{}, err
+		}
+		r.RecoveryQueue = &queue
 	} else {
-		r.ClearanceHolds = previous.ClearanceHolds
+		r.ClearanceHolds, r.RecoveryQueue = previous.ClearanceHolds, previous.RecoveryQueue
 	}
 	if _, known := request.Facts.Upkeep.Shrines.Value(); known {
 		r.ShrineHolds = slices.Clone(request.Facts.ShrineHolds)
