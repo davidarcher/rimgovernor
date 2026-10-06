@@ -57,6 +57,9 @@ type FoodChannel struct {
 	DistanceSquared domain.Fact[float64]
 	// Prey is a squad hunt's animals (SquadHunts), sorted.
 	Prey []string
+	// StockCap bounds the nutrition the channel can hold at once (a perishable
+	// harvest); Unknown is no known bound.
+	StockCap domain.Fact[int64]
 }
 
 type FoodPlanRequest struct {
@@ -220,7 +223,82 @@ type FoodField struct {
 	Open                          domain.Fact[bool]
 }
 
-func CropChannels(fields []FoodField) []FoodChannel {
+// CookTicksPerDay is the work one cook gives a bench per day, the same budget
+// convention as the plan's labor (eight hours a worker).
+const CookTicksPerDay = 20000.0
+
+// CropKitchen is the cooking a harvest can use: the benches and the number of
+// cooks who can work them. Unknown benches or cooks leave a crop raw.
+type CropKitchen struct {
+	Benches domain.Fact[[]ProductionBench]
+	Cooks   domain.Fact[float64]
+}
+
+// CropCooking is the best vegetable meal at the kitchen's usable benches.
+// NutrientEfficiency is cooked nutrition per raw nutrition, WorkPerNutrition
+// the bench work per cooked nutrition and CapacityTicks the cook work a day.
+type CropCooking struct {
+	Recipe                                              string
+	NutrientEfficiency, WorkPerNutrition, CapacityTicks float64
+}
+
+// Cooking reads the best meal made of vegetables. It is Unknown while the
+// benches, the cooks or any usable meal recipe's facts are unknown, and known
+// "none" (ok false, Known) is never confused with it: a kitchen with no usable
+// bench or no vegetable meal leaves the crop raw.
+func (k CropKitchen) Cooking() domain.Fact[CropCooking] {
+	benches, bk := k.Benches.Value()
+	cooks, ck := k.Cooks.Value()
+	if !bk || !ck || !foodNumber(cooks) {
+		return domain.Unknown[CropCooking]()
+	}
+	usable, unknown := 0, false
+	var best CropCooking
+	for _, b := range benches {
+		u, uk := b.Usable.Value()
+		if !uk {
+			unknown = true
+			continue
+		}
+		if !u {
+			continue
+		}
+		usable++
+		for _, r := range b.Recipes {
+			if r.Role != domain.RoleOrdinaryMeal || !positive(r.Available) {
+				continue
+			}
+			eff, ek := r.NutrientEfficiency.Value()
+			work, wk := r.WorkPerNutrition.Value()
+			classes, ik := r.IngredientClasses.Value()
+			if !ek || !wk || !ik || !fieldPositive(eff) || !foodNumber(work) {
+				unknown = true
+				continue
+			}
+			if !mealSlotsSupported(classes, map[FoodIngredientClass]bool{IngredientVegetable: true}) {
+				continue
+			}
+			if best.Recipe == "" || eff > best.NutrientEfficiency || eff == best.NutrientEfficiency && (work < best.WorkPerNutrition || work == best.WorkPerNutrition && r.Name < best.Recipe) {
+				best = CropCooking{Recipe: r.Name, NutrientEfficiency: eff, WorkPerNutrition: work}
+			}
+		}
+	}
+	if best.Recipe == "" && unknown {
+		return domain.Unknown[CropCooking]()
+	}
+	best.CapacityTicks = math.Min(float64(usable), cooks) * CookTicksPerDay
+	return domain.Known(best)
+}
+
+// CropChannels prices each field as the better of raw and cooked nutrition.
+// Cooked nutrition is the raw harvest times the best meal's efficiency, adds
+// the cook labor to WorkPerDay and needs the kitchen's capacity; it is chosen
+// only when it beats raw (raw wins ties unless raw is known not preferred).
+// A perishable harvest bounds the stock it holds to what survives its rot
+// days (StockCap); an unknown recipe or rot fact leaves that facet Unknown,
+// never zero.
+func CropChannels(fields []FoodField, kitchen CropKitchen) []FoodChannel {
+	cooking := kitchen.Cooking()
 	var out []FoodChannel
 	for _, f := range fields {
 		edible, ek := f.Plan.Crop.Edible.Value()
@@ -230,13 +308,38 @@ func CropChannels(fields []FoodField) []FoodChannel {
 		yield, yk := f.Plan.Crop.HarvestNutrition.Value()
 		days, dk := f.Plan.Crop.GrowDays.Value()
 		nutrition := domain.Unknown[float64]()
+		work := f.WorkPerDay
+		var terms []FoodPlanTerm
 		// Preserve malformed known numbers for PlanSupply's error boundary.
 		if yk && !foodNumber(yield) || dk && !fieldPositive(days) || f.Plan.Sites.Cells < 0 {
 			nutrition = domain.Known(math.NaN())
 		} else if ek && yk && dk {
-			nutrition = domain.Known(yield * float64(f.Plan.Sites.Cells) / days)
+			raw := yield * float64(f.Plan.Sites.Cells) / days
+			nutrition = domain.Known(raw)
+			terms = append(terms, FoodPlanTerm{"raw_nutrition_per_day", raw})
+			if cook, known := cooking.Value(); known && cook.Recipe != "" {
+				cooked := raw * cook.NutrientEfficiency
+				cookWork := cooked * cook.WorkPerNutrition
+				preferred, pk := f.Plan.Crop.RawPreferred.Value()
+				if cookWork <= cook.CapacityTicks && (cooked > raw || cooked == raw && pk && !preferred) {
+					nutrition = domain.Known(cooked)
+					terms = append(terms, FoodPlanTerm{"cooked_nutrition_per_day", cooked}, FoodPlanTerm{"cook_work_per_day", cookWork})
+					if w, wk := f.WorkPerDay.Value(); wk {
+						work = domain.Known(w + cookWork)
+					}
+				}
+			}
 		}
-		out = append(out, FoodChannel{Kind: FoodCrop, ID: f.ID, NutritionPerDay: nutrition, WorkPerDay: f.WorkPerDay, LeadDays: f.RemainingGrowDays, Open: f.Open})
+		c := FoodChannel{Kind: FoodCrop, ID: f.ID, NutritionPerDay: nutrition, WorkPerDay: work, LeadDays: f.RemainingGrowDays, Open: f.Open, StockCap: domain.Unknown[int64](), Terms: terms}
+		if n, nk := nutrition.Value(); nk && foodNumber(n) {
+			rot, rk := f.Plan.Crop.RotDays.Value()
+			perishable, pk := f.Plan.Crop.Perishable.Value()
+			if rk && pk && perishable && fieldPositive(rot) {
+				c.StockCap = domain.Known(int64(math.Ceil(n * rot)))
+				c.Terms = append(c.Terms, FoodPlanTerm{"rot_days", rot})
+			}
+		}
+		out = append(out, c)
 	}
 	return out
 }

@@ -68,7 +68,8 @@ func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition, ca
 			if d.Name != farm.GetCrop() {
 				continue
 			}
-			crop.GrowDays, crop.HarvestNutrition = d.GrowDays, d.HarvestNutrition
+			crop.GrowDays, crop.HarvestNutrition, crop.RotDays, crop.Perishable = d.GrowDays, d.HarvestNutrition, d.HarvestRotDays, d.HarvestPerishable
+			crop.RawPreferred = d.RawPreferred
 			if days, dk := d.GrowDays.Value(); dk && days > 0 {
 				if harvest, hk := d.HarvestWork.Value(); hk {
 					work = domain.Known(harvest * float64(growing) / days)

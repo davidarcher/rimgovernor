@@ -25,7 +25,7 @@ func TestHayOnlyForNegativeSeasonalGrazingBalance(t *testing.T) {
 			if ok != (tc.want > 0) || ok && plan.Needed != int(tc.want*2) {
 				t.Fatal(plan, ok)
 			}
-			if ok && len(CropChannels([]FoodField{{ID: "hay", Plan: plan}})) != 0 {
+			if ok && len(CropChannels([]FoodField{{ID: "hay", Plan: plan}}, CropKitchen{})) != 0 {
 				t.Fatal("hay counted as human nutrition")
 			}
 		})

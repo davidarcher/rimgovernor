@@ -137,7 +137,7 @@ var acquisitionCandidateKinds = map[AcquisitionKind]CandidateKind{
 func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 	out := SupplyCandidate{
 		Kind: foodCandidateKinds[c.Kind], ID: c.ID,
-		Yields:   []CandidateYield{{Good: ResourceKey{Def: CandidateNutrition}, PerDay: c.NutritionPerDay}},
+		Yields:   []CandidateYield{{Good: ResourceKey{Def: CandidateNutrition}, PerDay: c.NutritionPerDay, StockCap: c.StockCap}},
 		LeadDays: c.LeadDays, LaborPerDay: c.WorkPerDay, DistanceSquared: c.DistanceSquared,
 		Prey: append([]string(nil), c.Prey...),
 	}
@@ -164,7 +164,7 @@ func FoodChannelOfSupply(c SupplyCandidate) (FoodChannel, bool) {
 		return FoodChannel{}, false
 	}
 	out := FoodChannel{
-		Kind: kind, ID: c.ID, NutritionPerDay: c.Yields[0].PerDay, WorkPerDay: c.LaborPerDay, LeadDays: c.LeadDays,
+		Kind: kind, ID: c.ID, NutritionPerDay: c.Yields[0].PerDay, StockCap: c.Yields[0].StockCap, WorkPerDay: c.LaborPerDay, LeadDays: c.LeadDays,
 		DistanceSquared: c.DistanceSquared, Prey: append([]string(nil), c.Prey...),
 	}
 	if state, known := c.State.Value(); known {

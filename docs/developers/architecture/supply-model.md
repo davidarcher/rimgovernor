@@ -117,6 +117,18 @@ or closed one is credited when the plan opens it, and the emergency rule above
 withholds a one-shot's credit. The explicit designated/delivering credit factor
 is row 11 (#2157).
 
+### Crop candidates
+
+`policy.CropChannels` prices a field as the better of raw and cooked nutrition.
+Cooked is the raw harvest times the best vegetable meal's nutrient efficiency
+at a usable bench (`CropKitchen.Cooking`); it adds the meal's work per nutrition
+to `WorkPerDay`, needs a usable bench and a cook, and wins only when it beats
+raw and its cook work fits the bench capacity (`CookTicksPerDay` per
+bench-cook pair). Raw needs no cook. A perishable harvest sets the yield's
+`StockCap` to its nutrition per day times the item's rot days, so a harvest
+burst is credited no further than what survives to be eaten. An unknown recipe
+or rot fact leaves that facet Unknown (raw stands, no cap), never zero.
+
 ## How a channel plugs in
 
 A channel builds `SupplyCandidate`s from its own facts and nothing else: its

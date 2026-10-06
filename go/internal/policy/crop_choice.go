@@ -49,6 +49,10 @@ type CropChoice struct {
 	MinGlow                                                         domain.Fact[float64]
 	HarvestWork                                                     domain.Fact[float64]
 	RawPreferred, DietAllowed, RequiresPollution, RequiresCleanSoil domain.Fact[bool]
+	// RotDays and Perishable are the harvested item's rot facts; RotDays counts
+	// only for a perishable item.
+	RotDays    domain.Fact[float64]
+	Perishable domain.Fact[bool]
 }
 
 // FieldRequest is one expansion decision: which edible crop to sow, and where,

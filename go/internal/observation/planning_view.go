@@ -227,6 +227,14 @@ func plantView(catalog *bridge.DefinitionCatalog, v *PlanningDefinition, plant *
 		return err
 	}
 	v.Edible = domain.Known(edible)
+	rot, perishable, err := catalog.RotDays(product)
+	if err != nil {
+		return err
+	}
+	v.HarvestPerishable = domain.Known(perishable)
+	if perishable {
+		v.HarvestRotDays = finiteFact(rot)
+	}
 	// A product the game shows no Nutrition stat for gives none.
 	nutrition, _, err := catalog.ShownStatValue(product, "", bridge.StatNutrition)
 	if err != nil {

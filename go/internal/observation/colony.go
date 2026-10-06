@@ -30,6 +30,9 @@ type PlanningDefinition struct {
 	Costs                                                                                 domain.Fact[[]policy.Amount]
 	Size                                                                                  domain.Fact[policy.Bounds]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
+	// HarvestRotDays and HarvestPerishable are the harvested item's rot facts.
+	HarvestRotDays    domain.Fact[float64]
+	HarvestPerishable domain.Fact[bool]
 	// Crop sow tags and minimum glow; grower sow tag and fertility; building
 	// power draw and glow radius, as the native definition declares them.
 	SowTags                                                           domain.Fact[[]string]

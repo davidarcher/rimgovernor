@@ -96,7 +96,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	}
 	channels = append(channels, policy.StockIngredientChannels(supply)...)
 	if fields, known := p.FoodFields.Value(); known {
-		channels = append(channels, policy.CropChannels(fields)...)
+		channels = append(channels, policy.CropChannels(fields, policy.CropKitchen{Benches: p.ProductionBenches, Cooks: domain.Known(float64(workers))})...)
 	}
 	// Capacity and stock protection do not create nutrition by themselves.
 	// Zero-contribution Hold rows leave these supporting methods to their own

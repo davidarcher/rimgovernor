@@ -82,6 +82,10 @@ type foodScenario struct {
 	silver    float64
 	specs     []srcSpec
 	shocks    []supplysim.Shock
+	// kitchen gives the colony a usable cook bench and a cook. The world has no
+	// cooking: the recipe converts nutrition one for one, so a bench must not
+	// make the planner worse.
+	kitchen bool
 	// shockedIDs are the sources a shock touches.
 	shockedIDs []string
 }
@@ -189,6 +193,12 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 			Perishable: domain.Known(false), Eaters: pawns}}
 	}
 	p := observation.ColonyProjection{Workers: domain.Known(sc.colonists), CombinedFoodSupply: domain.Known(supply), FoodSupply: domain.Known(supply)}
+	if sc.kitchen {
+		meal := policy.ProductionRecipe{Name: "CookMealSimple", Role: domain.RoleOrdinaryMeal, Available: domain.Known(true),
+			NutrientEfficiency: domain.Known(1.0), WorkPerNutrition: domain.Known(100.0),
+			IngredientClasses: domain.Known([]policy.FoodIngredientSlot{{Alternatives: []policy.FoodIngredientClass{policy.IngredientVegetable}}})}
+		p.ProductionBenches = domain.Known([]policy.ProductionBench{{ID: "stove", Usable: domain.Known(true), Recipes: []policy.ProductionRecipe{meal}}})
+	}
 	ids := map[string]string{}
 	var acquisition []policy.AcquisitionSource
 	var fields []policy.FoodField
@@ -532,6 +542,12 @@ func foodScenarios(t testing.TB) []foodScenario {
 			out = append(out, sc)
 		}
 	}
+	// Crop only, with and without a cook bench (#2159).
+	crop := []policy.FoodChannelKind{policy.FoodCrop}
+	bare := mixScenario("crop/only/no-cook-bench/n8", 8, 1, foodShare, crop)
+	kitchen := mixScenario("crop/only/cook-bench/n8", 8, 1, foodShare, crop)
+	kitchen.kitchen, kitchen.prev = true, bare.name
+	out = append(out, bare, kitchen)
 	return append(out, seedScenarios(t)...)
 }
 
