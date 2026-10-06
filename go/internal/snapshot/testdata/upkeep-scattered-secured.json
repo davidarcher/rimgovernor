@@ -10134,16 +10134,6 @@
      "WaitingSince": 15
     },
     {
-     "Concern": "MaintainWaste",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "blocked",
-     "Risk": 0,
-     "Score": 13.734,
-     "WaitingSince": 15
-    },
-    {
      "Concern": "ClearAncientShrine",
      "Labor": [
       "Construction"
@@ -10539,10 +10529,6 @@
     "Concern": "MaintainAnimalFeed"
    },
    {
-    "Standard": "routine-3460f26c9f3f6ee9-MaintainWaste",
-    "Concern": "MaintainWaste"
-   },
-   {
     "Standard": "routine-3460f26c9f3f6ee9-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -10820,20 +10806,6 @@
     "Method": "assess",
     "NextReview": 16249,
     "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 16249
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainWaste",
-    "LastProgress": 13749,
-    "Method": "assess",
-    "NextReview": 16249
    }
   ],
   "ReadyWork": {

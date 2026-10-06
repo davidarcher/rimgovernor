@@ -35,7 +35,7 @@ func woodShortage() DevelopmentRequest {
 		Concerns: []DevelopmentConcern{
 			{ID: MaintainHousing, Priority: 2, Served: true},
 			{ID: MaintainAnimalFeed, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
-			{ID: MaintainWaste, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
+			{ID: MaintainIncineration, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
 			{ID: MaintainResource, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
 		},
 	}

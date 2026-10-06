@@ -7,14 +7,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Pending MaintainWaste and MaintainAnimalFeed commitments, neither worked,
+// Pending MaintainIncineration and MaintainAnimalFeed commitments, neither worked,
 // while pawns haul for a third goal (one of them the very thing type the
 // supplies haul names, at another thing): the hauls are not evidence of work
 // on either commitment, which record an idle age but keep their commitments.
 // A haul that turns to the supplies thing is attributed activity; an older producer without job targets keeps the work-type rule
 // (#643).
 func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
-	s := newDevelopmentSim(t, 2, simGoal("supplies", 0.5, ConcernLabor(MaintainWaste)), simGoal("feed", 0.5, ConcernLabor(MaintainAnimalFeed)), simGoal("storage", 0.9, ConcernLabor(ManagePollution)))
+	s := newDevelopmentSim(t, 2, simGoal("supplies", 0.5, ConcernLabor(MaintainIncineration)), simGoal("feed", 0.5, ConcernLabor(MaintainAnimalFeed)), simGoal("storage", 0.9, ConcernLabor(ManagePollution)))
 	s.tick = 5000
 	haul, err := domain.NewHaul("pawn-a", "Thing_Steel1", "Steel", domain.Cell{X: 4, Z: 4})
 	if err != nil {
@@ -25,7 +25,7 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 		t.Fatal(err)
 	}
 	supplies := s.commitment("supplies", 4, true)
-	supplies.Labor, supplies.Targets = ConcernLabor(MaintainWaste), ActionWorkTargets(haulAction)
+	supplies.Labor, supplies.Targets = ConcernLabor(MaintainIncineration), ActionWorkTargets(haulAction)
 	feed := s.commitment("feed", 4, true)
 	feed.Labor, feed.Targets = ConcernLabor(MaintainAnimalFeed), domain.Known(WorkTargets{Things: []string{"Thing_Stove1"}})
 	hauler := func(id PawnID, thing string) WorkPawn {
@@ -113,10 +113,10 @@ func TestJobTargetMatchesThingOrCell(t *testing.T) {
 // The idle deadline is game-tick history: a rewind or a world change
 // discards it and the next idle review starts a fresh one (#643).
 func TestLaborIdleSinceResetsOnRewindAndWorldChange(t *testing.T) {
-	s := newDevelopmentSim(t, 1, simGoal("supplies", 0.5, ConcernLabor(MaintainWaste)))
+	s := newDevelopmentSim(t, 1, simGoal("supplies", 0.5, ConcernLabor(MaintainIncineration)))
 	s.tick = 5000
 	c := s.commitment("supplies", 4, true)
-	c.Labor, c.Targets = ConcernLabor(MaintainWaste), domain.Known(WorkTargets{Things: []string{"Thing_Steel1"}})
+	c.Labor, c.Targets = ConcernLabor(MaintainIncineration), domain.Known(WorkTargets{Things: []string{"Thing_Steel1"}})
 	other := WorkPawn{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}}), Job: domain.Known(PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: "Thing_Other9"})})}
 	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Concerns: s.goals, Commitments: []Commitment{c}, LaborUse: RoundsLaborUse([]WorkPawn{other})}
 	first := rank(t, r)

@@ -848,8 +848,8 @@ func inspectPopulation(c *roundsRun) error {
 
 // animalNeedDetector serves an animal upkeep goal. Both have composed
 // planners (RoundsAnimalContainmentPlanner, RoundsAnimalFeedPlanner);
-// availability is gated through AvailableMethods like MaintainWaste. Like
-// waste, the deficit is census-driven: any uncontained or unfed target is a
+// availability is gated through AvailableMethods. The deficit is
+// census-driven: any uncontained or unfed target is a
 // full deficit, so a known need ranks for a development slot.
 func animalInspection(id ConcernID, recovered func(c *roundsRun) domain.Fact[bool], active func(c *roundsRun) bool) func(c *roundsRun) error {
 	return func(c *roundsRun) error {
@@ -893,22 +893,7 @@ var inspectAnimalFeed = animalInspection(MaintainAnimalFeed, func(c *roundsRun) 
 	return recovered
 }, func(*roundsRun) bool { return false })
 
-// detectWaste: MaintainWaste dispatches a GiveJobIntent HaulWaste
-// (RoundsWastePlanner); availability is config-only, gated through
-// AvailableMethods like MaintainResource/EnsureResearch.
-func inspectWaste(c *roundsRun) error {
-	recovered := domain.Unknown[bool]()
-	if items, known := c.f.Waste.Value(); known {
-		recovered = domain.Known(len(pendingWaste(items)) == 0)
-	}
-	c.assess(MaintainWaste, 3, recovered)
-	if !positive(recovered) {
-		c.raise(MaintainWaste, 3)
-	}
-	return nil
-}
-
-// detectBlight is census-driven like waste: any standing blighted plant is a
+// detectBlight is census-driven: any standing blighted plant is a
 // full deficit; availability is gated through AvailableMethods.
 func inspectBlight(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()

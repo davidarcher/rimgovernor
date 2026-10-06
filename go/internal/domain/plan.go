@@ -31,7 +31,6 @@ const GearReplaceAction ActionKind = "gear_replace"
 const RepairAction ActionKind = "repair"
 const CaravanDepartureAction ActionKind = "caravan_departure"
 const CleanAction ActionKind = "clean"
-const WasteAction ActionKind = "waste"
 const RecoveryServiceAction ActionKind = "recovery_service"
 const MovementAction ActionKind = "movement"
 const BuildingTemperatureAction ActionKind = "building_temperature"
@@ -120,7 +119,6 @@ type Action struct {
 	gearReplace         GearReplace
 	repair              Repair
 	clean               Clean
-	waste               Waste
 	recoveryService     RecoveryService
 	buildingTemperature BuildingTemperature
 	bedUse              BedUse
@@ -260,8 +258,6 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewRepairAction(a.id, a.repair)
 		case CleanAction:
 			canonical, err = NewCleanAction(a.id, a.clean)
-		case WasteAction:
-			canonical, err = NewWasteAction(a.id, a.waste)
 		case RecoveryServiceAction:
 			canonical, err = NewRecoveryServiceAction(a.id, a.recoveryService)
 		case MovementAction:

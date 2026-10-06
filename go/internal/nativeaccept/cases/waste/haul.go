@@ -1,5 +1,5 @@
 // The waste/haul case exercises the native waste containment vertical
-// (MaintainWaste, issue #27) through GiveJobIntent HaulWaste on Actions/Apply (#940,
+// (issue #27) through GiveJobIntent HaulWaste on Actions/Apply (#940,
 // NativeWasteOperations.cs). A genuinely unwanted item (a disposable
 // WoodLog) is hauled by a real native hauling WorkGiver job, issued to an
 // undrafted colonist, into a player-designated dirty outdoor stockpile;
@@ -26,7 +26,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "waste/haul",
-		Scope: "GiveJobIntent HaulWaste (MaintainWaste) dispatch: a genuinely unwanted item is actually " +
+		Scope: "GiveJobIntent HaulWaste dispatch: a genuinely unwanted item is actually " +
 			"hauled by a real native hauling WorkGiver job into a real player-designated dirty stockpile, " +
 			"forbidden-item protection refusal, real position change observed via native ticks and independent " +
 			"cell re-reads (not just an applied result), and key replay idempotency.",

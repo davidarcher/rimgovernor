@@ -35493,16 +35493,6 @@
      "WaitingSince": 32
     },
     {
-     "Concern": "MaintainWaste",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 6.661,
-     "WaitingSince": 32
-    },
-    {
      "Concern": "ClearAncientShrine",
      "Labor": [
       "Construction"
@@ -36113,10 +36103,6 @@
     "Concern": "MaintainAnimalFeed"
    },
    {
-    "Standard": "routine-6cb69ccfa0314397-MaintainWaste",
-    "Concern": "MaintainWaste"
-   },
-   {
     "Standard": "routine-6cb69ccfa0314397-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -36378,20 +36364,6 @@
     "LastProgress": 6693,
     "Method": "cancel_release-Thing_Cow13696-0",
     "NextReview": 9193
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 9193
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainWaste",
-    "LastProgress": 6693,
-    "Method": "assess",
-    "NextReview": 9193
    }
   ],
   "ReadyWork": {
@@ -36410,16 +36382,6 @@
      "Work": [
       "Handling"
      ]
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainWaste"
-     ],
-     "ID": "00905acb19d1c323",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
     },
     {
      "Adapter": "migrated",

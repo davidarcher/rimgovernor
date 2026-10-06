@@ -13,8 +13,7 @@ const (
 	JobOpen        = "Open"
 	JobTendPatient = "TendPatient"
 	JobEquip       = "Equip"
-	// JobDropWeapon is this protocol's token, not a JobDef name (like
-	// JobHaulWaste): native drops the weapon the pawn holds with the game's own
+	// JobDropWeapon is this protocol's token, not a JobDef name: native drops the weapon the pawn holds with the game's own
 	// drop job, which it finds by its driver class (#1740).
 	JobDropWeapon  = "DropWeapon"
 	JobWear        = "Wear"
@@ -29,7 +28,6 @@ const (
 	// Recovery service and waste hauling (#1351).
 	JobFixBrokenDownBuilding = "FixBrokenDownBuilding"
 	JobRefuel                = "Refuel"
-	JobHaulWaste             = "HaulWaste"
 )
 
 // giveJob is the GiveJobIntent of one pawn, one vanilla job and its targets

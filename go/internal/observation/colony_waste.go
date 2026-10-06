@@ -23,7 +23,7 @@ func wasteLocation(v o.WasteLocation) policy.WasteState {
 // colonyWaste decodes the same generic per-tick ColonyFactsSnapshot's
 // embedded WasteReply (no dedicated read call needed, unlike
 // husbandry/population's own dedicated census reads) into the plain census
-// pendingWaste/SelectWasteMethod expect. A missing observed snapshot or an
+// MorgueWaiting and RouteStranger read. A missing observed snapshot or an
 // incomplete page (unlike the exact-CAS husbandry/resource reads, this
 // generic census is never repaged mid-review) stays unknown; a row's own
 // missing eligibility/state is treated as not-pending (a truthy eligible

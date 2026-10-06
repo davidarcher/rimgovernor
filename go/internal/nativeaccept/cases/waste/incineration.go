@@ -49,7 +49,7 @@ func init() {
 		RequiredOps: []string{disposalStage, disposalSeed, disposalRead},
 		Keep:        []string{string(na.NeedFood)},
 		Serve: &cases.ServeSpec{
-			Families:      []string{"waste", "incineration", "stockpiles", "flooring", "equip", "defense", "fire", "clean", "work", "supply", "haul"},
+			Families:      []string{"incineration", "stockpiles", "flooring", "equip", "defense", "fire", "clean", "work", "supply", "haul"},
 			NativeTimeout: 30 * time.Second, Prefix: "waste-incineration",
 		},
 		Budget: 2*disposalWindow + 10*time.Minute,

@@ -415,10 +415,9 @@ type RoundsFacts struct {
 	// DefenseCapacity is the colonists' and powered turrets' observed
 	// combat strength in raid-point units (#1188, DefenseCapacity).
 	DefenseCapacity domain.Fact[float64]
-	// Waste carries MaintainWaste's exposed/eligible native item census (the
-	// same WasteReply the generic per-tick colony read already carries), for
-	// pendingWaste/WasteDeficit to detect and, eventually, SelectWasteMethod
-	// to dispatch containment/burial candidates from.
+	// Waste carries the exposed/eligible native item census (the same
+	// WasteReply the generic per-tick colony read already carries) that
+	// MorgueWaiting and RouteStranger read.
 	Waste domain.Fact[[]WasteItem]
 	// Traders is the map trader census (bridge.ListTraders) TradeWithCaravan
 	// needs; a source without the read leaves it unknown and the goal off.

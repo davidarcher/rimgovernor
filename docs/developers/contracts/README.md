@@ -32,4 +32,4 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Colony extent contract](colony-extent.md)
 - [Colony upkeep contracts](upkeep-contracts.md)
 - [Work assignment contracts](work-assignment.md)
-- [Waste containment contracts](waste-management.md)
+- [Waste census contract](waste-management.md)

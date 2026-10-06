@@ -23,13 +23,13 @@ func shadowRow(goal ConcernID, reason DevelopmentReason) DevelopmentRow {
 
 func TestShadowRankOrdersByShortfallPerAction(t *testing.T) {
 	state := DevelopmentState{Rows: []DevelopmentRow{
-		shadowRow(MaintainRefrigeration, ""),           // 2 days / 1 action = 2
-		shadowRow(MaintainResource, ""),                // 4 / 4 = 1
-		shadowRow(EnsureTemperatureSafety, ""),         // 5 / 1 = 5
-		shadowRow(EnsureBasicDefense, ""),              // no shortfall in the projection
-		shadowRow(MaintainFoodStorage, ""),             // no open action
-		shadowRow(MaintainHousing, ""),                 // unmapped: left out
-		shadowRow(MaintainWaste, DevelopmentCommitted), // already under way: left out
+		shadowRow(MaintainRefrigeration, ""),                  // 2 days / 1 action = 2
+		shadowRow(MaintainResource, ""),                       // 4 / 4 = 1
+		shadowRow(EnsureTemperatureSafety, ""),                // 5 / 1 = 5
+		shadowRow(EnsureBasicDefense, ""),                     // no shortfall in the projection
+		shadowRow(MaintainFoodStorage, ""),                    // no open action
+		shadowRow(MaintainHousing, ""),                        // unmapped: left out
+		shadowRow(MaintainIncineration, DevelopmentCommitted), // already under way: left out
 	}}
 	open := map[ConcernID]int{MaintainRefrigeration: 1, MaintainResource: 4, EnsureTemperatureSafety: 1, EnsureBasicDefense: 2}
 	got := ShadowRankOf(state, shadowProjection(), open)
@@ -77,7 +77,7 @@ func TestShadowRankLeavesAdmissionUnchanged(t *testing.T) {
 		{Concern: MaintainRefrigeration, Selected: true, Score: 3},
 		{Concern: EnsureTemperatureSafety, Selected: true, Score: 1},
 		{Concern: MaintainResource, Reason: DevelopmentCapacity},
-	}, Committed: []ConcernID{MaintainWaste}, Holds: []DevelopmentHold{{Concern: MaintainWaste}}}
+	}, Committed: []ConcernID{MaintainIncineration}, Holds: []DevelopmentHold{{Concern: MaintainIncineration}}}
 	before := state
 	before.Rows = append([]DevelopmentRow(nil), state.Rows...)
 	admitted := func(s DevelopmentState) map[ConcernID]bool {

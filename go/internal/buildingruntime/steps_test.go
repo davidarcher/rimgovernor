@@ -370,15 +370,6 @@ func (r *RoundsTradePlanner) Step(ctx context.Context) (RoundsTradeResult, error
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoundsWastePlanner) Step(ctx context.Context) (RoundsWasteResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
-	if err != nil {
-		return RoundsWasteResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 // waitingOn reports the wait recorded for name, for tests and the step row.
 func (q *plannerQueue) waitingOn(name string) (plannerWait, bool) {
 	wait, ok := q.waits[name]

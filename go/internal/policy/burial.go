@@ -13,8 +13,7 @@ import (
 // haulers carry the corpses; nothing here hauls.
 const MaintainBurial ConcernID = "MaintainBurial"
 
-// burialPriority ranks MaintainBurial with MaintainWaste, the concern it took
-// the tomb and morgue staging from.
+// burialPriority ranks MaintainBurial with the other priority-3 chores.
 const burialPriority = 3
 
 // MorguePriority ranks the morgue below graves and sarcophagi, which take a

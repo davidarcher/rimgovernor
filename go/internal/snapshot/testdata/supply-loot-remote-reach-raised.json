@@ -7678,15 +7678,6 @@
      "Reason": "method_unavailable",
      "Risk": 0,
      "WaitingSince": 21
-    },
-    {
-     "Concern": "MaintainWaste",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "blocked",
-     "Risk": 0,
-     "WaitingSince": 21
     }
    ],
    "Snapshot": {
@@ -8285,10 +8276,6 @@
     "Concern": "MaintainAnimalFeed"
    },
    {
-    "Standard": "routine-d0066c3a948d3a99-MaintainWaste",
-    "Concern": "MaintainWaste"
-   },
-   {
     "Standard": "routine-d0066c3a948d3a99-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -8459,14 +8446,6 @@
     "Method": "assess",
     "NextReview": 2521,
     "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainWaste",
-    "LastProgress": 21,
-    "Method": "assess",
-    "NextReview": 2521
    }
   ],
   "ReadyWork": {

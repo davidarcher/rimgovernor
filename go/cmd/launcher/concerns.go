@@ -60,7 +60,6 @@ var concernLabels = map[string]string{
 	"MaintainFireSafety":        "Guard against fire",
 	"MaintainEssentialRepairs":  "Repair essential buildings",
 	"MaintainCleanFacilities":   "Keep facilities clean",
-	"MaintainWaste":             "Dispose of waste",
 	"MaintainBurial":            "Bury the dead",
 	"MaintainIncineration":      "Burn the waste",
 }

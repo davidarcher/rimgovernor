@@ -11375,16 +11375,6 @@
      "WaitingSince": 15
     },
     {
-     "Concern": "MaintainWaste",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 23.924,
-     "WaitingSince": 15
-    },
-    {
      "Concern": "ClearAncientShrine",
      "Labor": [
       "Construction"
@@ -11765,10 +11755,6 @@
     "Concern": "MaintainAnimalFeed"
    },
    {
-    "Standard": "routine-7b65eaf15d9af249-MaintainWaste",
-    "Concern": "MaintainWaste"
-   },
-   {
     "Standard": "routine-7b65eaf15d9af249-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -12070,20 +12056,6 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainWaste",
-    "LastProgress": 23939,
-    "Method": "assess",
-    "NextReview": 26439
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 26439
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "RecoverDisasterServices",
     "LastProgress": 23939,
     "Method": "assess",
@@ -12356,16 +12328,6 @@
       "EnsureBasicDefense"
      ],
      "ID": "dac6a70db09d46fd",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainWaste"
-     ],
-     "ID": "fad9ac832571221e",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

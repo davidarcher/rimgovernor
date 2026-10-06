@@ -9945,15 +9945,6 @@
      "Reason": "method_unavailable",
      "Risk": 0,
      "WaitingSince": 15
-    },
-    {
-     "Concern": "MaintainWaste",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "WaitingSince": 15
     }
    ],
    "Snapshot": {
@@ -10306,10 +10297,6 @@
     "Concern": "MaintainAnimalFeed"
    },
    {
-    "Standard": "routine-8dfa5b679c94711d-MaintainWaste",
-    "Concern": "MaintainWaste"
-   },
-   {
     "Standard": "routine-8dfa5b679c94711d-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -10503,14 +10490,6 @@
    {
     "Blocked": "no_method",
     "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainWaste",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "RecoverDisasterServices",
     "LastProgress": 15,
     "Method": "assess",
@@ -10615,16 +10594,6 @@
       "MaintainStoneShell"
      ],
      "ID": "9933704c67ae15ab",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainWaste"
-     ],
-     "ID": "99c1742e7ea4d8d9",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

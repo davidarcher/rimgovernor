@@ -7,7 +7,7 @@ import (
 )
 
 // Burning the incinerator (#1816, epic #1640): the room is meant to be full
-// and burned whole, so MaintainWaste lights it once per batch, never per
+// and burned whole, so MaintainIncineration lights it once per batch, never per
 // item. PlanBurn decides one burn from the census; the planner turns a ready
 // order into equip (when the burner holds no molotov), draft and ignite
 // (#1815) with the existing action kinds, the combat planner's undraft

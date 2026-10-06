@@ -43,7 +43,7 @@ type ShrineOccupant struct {
 }
 
 // OccupantDecision decides one released occupant. A corpse is buried
-// (MaintainWaste's work); a standing hostile is fought (ActiveCombat's); a
+// (MaintainBurial's work); a standing hostile is fought (ActiveCombat's); a
 // downed hostile and a standing neutral are captured while custody has
 // room, released otherwise; a colony prisoner is done. custodyRoom is
 // JoinerCapacity's reading: whether the colony can host one more.

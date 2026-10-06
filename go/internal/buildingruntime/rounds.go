@@ -361,7 +361,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if r.methodEnabled(policy.MaintainAnimalContainment) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), herdDefinitions...)
 	}
-	if r.methodEnabled(policy.MaintainWaste) || r.methodEnabled(policy.MaintainIncineration) || r.methodEnabled(policy.MaintainBurial) {
+	if r.methodEnabled(policy.MaintainIncineration) || r.methodEnabled(policy.MaintainBurial) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), burialDefinitions...)
 	}
 	if r.methodEnabled(policy.EnsureCooking) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainPopulation) {

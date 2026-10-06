@@ -46,8 +46,6 @@ func ActionWorkTargets(a domain.Action) domain.Fact[WorkTargets] {
 		t = WorkTargets{Things: []string{v.Thing()}, Cells: []domain.Cell{v.Cell()}}
 	} else if v, ok := a.WastepackHaul(); ok {
 		t = WorkTargets{Things: []string{v.Thing()}, Cells: []domain.Cell{v.Cell()}}
-	} else if v, ok := a.Waste(); ok {
-		t = WorkTargets{Things: []string{v.Target()}, Cells: []domain.Cell{v.Cell()}}
 	} else if v, ok := a.SupplyAllow(); ok && a.Kind() == domain.SupplyAllowAction {
 		t = WorkTargets{Things: []string{v.Thing()}, Cells: []domain.Cell{v.Cell()}}
 	} else if v, ok := a.ProductionBill(); ok && v.Bench() != "" {

@@ -580,16 +580,6 @@ var plannerCatalog = []plannerEntry{
 			out.Armory = &method
 			return method.Verdict, nil
 		}},
-	{name: "waste", concern: policy.MaintainWaste, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction}, sections: sectionsBuilding, families: familiesEmergency,
-		configured: func(c *ClockSchedulerConfig) bool { return c.Waste != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.Waste.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.Waste = &method
-			return method.Verdict, nil
-		}},
 	{name: "burial", concern: policy.MaintainBurial, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Burial != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

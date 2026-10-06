@@ -123,17 +123,6 @@ func TierStyleStockOf(rows []Amount) TierStyleStock {
 	return stock
 }
 
-// WasteDeficit is the binary MaintainWaste
-// deficit signal: unknown census stays unknown (absence is never evidence of
-// recovery), otherwise deficit is simply "any pending item remains".
-func WasteDeficit(items domain.Fact[[]WasteItem]) domain.Fact[bool] {
-	rows, known := items.Value()
-	if !known {
-		return domain.Unknown[bool]()
-	}
-	return domain.Known(len(pendingWaste(rows)) > 0)
-}
-
 // Tier returns the named tier; ok is false for an unknown name.
 func (l DefenseLayout) Tier(name DefenseTierName) (DefenseTier, bool) {
 	for _, t := range l.Tiers {

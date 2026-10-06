@@ -236,7 +236,7 @@ func FacilityCatalog() []FacilityRequirement {
 		// A kitchen is its own planned room (#835): EnsureCooking shells it
 		// at Masonry and above and holds the stove to its interior.
 		{Role: RoomRoleKitchen, Status: FacilityImplemented, FurnitureFromGame: true},
-		// A tomb is its own planned room (#832): MaintainWaste shells it and
+		// A tomb is its own planned room (#832): MaintainBurial shells it and
 		// places a sarcophagus while a dead colonist has none waiting.
 		{Role: RoomRoleTomb, Status: FacilityImplemented, FurnitureFromGame: true},
 		// A barn is a planned room beside the pen (#1633): the animal planner

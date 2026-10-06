@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // incinerationDefinitions are the definitions the incinerator and yard shells
@@ -17,7 +21,7 @@ var incinerationDefinitions = []string{"Wall", "Door"}
 // RoundsIncinerationPlanner composes MaintainIncineration's methods (the
 // Sanitation department's incinerator): the waste yard's and the incinerator's
 // shell, the burn of a full incinerator and the ash cleanup. It reads what
-// MaintainWaste's census reads: the colony and the tend pawn rows for burner
+// the waste census reads: the colony and the tend pawn rows for burner
 // and cleaner eligibility.
 type RoundsIncinerationPlanner struct {
 	reviewer *Rounder
@@ -109,4 +113,49 @@ func (r *RoundsIncinerationPlanner) step(call, epoch context.Context, arbiter *s
 		return result, err
 	}
 	return RoundsIncinerationResult{Verdict: waitFor(WaitMethodUsed, "incineration")}, nil
+}
+
+// RoundsWasteSource reuses the generic colony read for the waste census
+// and the existing tend pawn read for burner and cleaner eligibility: dead, downed, drafted and mental
+// state only . No new native call is introduced for this slice.
+type RoundsWasteSource interface {
+	observation.ColonySource
+	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
+	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
+}
+
+// colonistRows are the detail rows of every colonist, in one tend-pawn read;
+// ok is false while the colonist list is incomplete or empty.
+func colonistRows(call context.Context, native RoundsWasteSource, state ControlState, review store.Rounds) ([]*n.PawnState, bool, error) {
+	identityRef := boundary.Identity(state.Snapshot)
+	emergency, _, err := native.ReadEmergency(call, identityRef)
+	if err != nil {
+		return nil, false, err
+	}
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
+		return nil, false, fmt.Errorf("%w: colonistRows: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
+	}
+	complete, known := emergency.Facts.ColonistsComplete.Value()
+	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
+		return nil, false, nil
+	}
+	ids := make([]string, 0, len(emergency.Facts.Colonists))
+	for _, pawn := range emergency.Facts.Colonists {
+		ids = append(ids, string(pawn.ID))
+	}
+	reply, _, err := native.ReadTendPawns(call, identityRef, ids)
+	if err != nil {
+		return nil, false, err
+	}
+	observed := reply.GetObserved()
+	if observed == nil {
+		return nil, false, fmt.Errorf("%w: colonistRows: observed == nil", ErrControl)
+	}
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
+		return nil, false, fmt.Errorf("%w: colonistRows: err != nil", ErrControl)
+	}
+	if len(observed.Pawns) != len(ids) {
+		return nil, false, fmt.Errorf("%w: colonistRows: len(observed.Pawns) != len(ids)", ErrControl)
+	}
+	return observed.Pawns, true, nil
 }
