@@ -63,6 +63,9 @@ func (f RoundsFacts) HerdPolicy() HerdPolicy { return PlanHerd(f.HerdPlanInput()
 // PenAnimals is the herd the layout's pens, barn and vet room are sized for.
 func (f RoundsFacts) PenAnimals() int { return PlanHerd(f.HerdPlanInput()).PenAnimals() }
 
+// YardAnimals is the herd the defensive wall's yard is sized for (#2232).
+func (f RoundsFacts) YardAnimals() int { return PlanHerd(f.HerdPlanInput()).YardAnimals() }
+
 // HerdUnits are the herds the layout gives units of their own (#2122).
 func (f RoundsFacts) HerdUnits() []HerdCeiling { return PlanHerd(f.HerdPlanInput()).HerdUnits() }
 

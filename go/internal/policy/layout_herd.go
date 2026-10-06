@@ -48,6 +48,24 @@ const (
 	penAnimalsFloor = herdUnplannedFloor
 )
 
+// yardCellsPerAnimal is the yard's grazing estimate (#2232): cells of the
+// wall's yard per herd animal. It is a sizing guess only; the paddock's real
+// capacity is the native pen food calculation (PenGrazing, herdPastureRatio).
+const yardCellsPerAnimal = 24
+
+// YardAnimals is the whole penned herd the wall's yard is sized for: the misc
+// unit's herd plus every herd unit's ceiling.
+func (p HerdPlan) YardAnimals() int {
+	n := p.PenAnimals()
+	for _, u := range p.HerdUnits() {
+		n += u.Animals
+	}
+	return n
+}
+
+// YardCells is the grazing yard cells a herd of animals wants.
+func YardCells(animals int) int32 { return int32(max(animals, 0) * yardCellsPerAnimal) }
+
 // PenAnimals is the misc unit's herd (#2122): the plan's ceiling summed over
 // the races that are no herd of their own (founders and companions have none
 // and live elsewhere), at least penAnimalsFloor.

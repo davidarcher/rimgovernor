@@ -109,7 +109,7 @@ func TestDeriveLatchesTheSurveyClimate(t *testing.T) {
 	s := zoningSurvey(120, open)
 	for _, cold := range []bool{false, true} {
 		s.Cold = cold
-		plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0).Value()
+		plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
 		if !ok || plan.Cold != cold {
 			t.Fatalf("survey cold=%v: plan ok=%v cold=%v", cold, ok, plan.Cold)
 		}

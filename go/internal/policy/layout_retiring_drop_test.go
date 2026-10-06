@@ -14,7 +14,7 @@ func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, size := range []int32{80, 120} {
 		s := zoningSurvey(size, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-		camp, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0).Value()
+		camp, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
 		if !ok {
 			t.Fatal(size, "no plan")
 		}

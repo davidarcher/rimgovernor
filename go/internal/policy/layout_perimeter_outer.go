@@ -218,8 +218,9 @@ func pitchGates(gates, stepGates []Rectangle) []Rectangle {
 // not its bounding rectangle (#1945).
 func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := coreBaseFootprint(plan, w, h)
+	gap := yardGap(fp, w, h, plan.YardCells)
 	for _, r := range plan.Reservations {
-		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area) {
+		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area, gap) {
 			markRect(fp, w, h, pad(r.Area, 1))
 		}
 	}
@@ -258,15 +259,16 @@ func markRect(fp []bool, w, h int32, r Rectangle) {
 // to clear, so it stands hard against the wall.
 func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 	base := coreBaseFootprint(plan, w, h)
+	gap := yardGap(base, w, h, plan.YardCells)
 	tight := make([]bool, len(base))
 	for _, r := range plan.Reservations {
-		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area) {
+		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area, gap) {
 			markRect(tight, w, h, r.Area)
 		}
 	}
 	m := LayoutEdgeMargin + perimeterThick
 	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
-	grown := growRegion(base, w, h, perimeterGap)
+	grown := growRegion(base, w, h, gap)
 	for i, v := range growRegion(tight, w, h, perimeterOuterYard) {
 		grown[i] = grown[i] || v
 	}
@@ -277,12 +279,39 @@ func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 // footprint: the core ring's yard, its thickness, the gap and the outer ring's thickness.
 const outerClear = perimeterGap + perimeterThick + perimeterOuterGap + perimeterThick
 
-// crowdsCore reports whether area stands within outerClear (Chebyshev) of
-// the core footprint. The outer ring cannot wall such a unit whole, so the
-// core ring takes it in.
-func crowdsCore(fp []bool, w, h int32, area Rectangle) bool {
-	for z := max(area.Z-outerClear, 0); z < min(area.Z+area.Height+outerClear, h); z++ {
-		for x := max(area.X-outerClear, 0); x < min(area.X+area.Width+outerClear, w); x++ {
+// perimeterGapMax caps how far the herd grows the yard past perimeterGap.
+const perimeterGapMax = perimeterGap + 12
+
+// yardGap is the yard between the core footprint fp and the wall (#2232): the
+// smallest gap from perimeterGap up whose ring of cells around fp holds
+// grazing cells, capped at perimeterGapMax. grazing 0 keeps perimeterGap.
+func yardGap(fp []bool, w, h int32, grazing int32) int32 {
+	if grazing <= 0 {
+		return perimeterGap
+	}
+	var count [perimeterGapMax + 1]int32
+	for _, d := range chebyshevField(w, h, fp, perimeterGapMax) {
+		if d >= 1 {
+			count[d]++
+		}
+	}
+	var held int32
+	for g := int32(1); g <= perimeterGapMax; g++ {
+		held += count[g]
+		if g >= perimeterGap && held >= grazing {
+			return g
+		}
+	}
+	return perimeterGapMax
+}
+
+// crowdsCore reports whether area stands within outerClear (Chebyshev), widened by
+// the yard (gap) a herd grew past perimeterGap, of the core footprint. The outer
+// ring cannot wall such a unit whole, so the core ring takes it in.
+func crowdsCore(fp []bool, w, h int32, area Rectangle, gap int32) bool {
+	clear := outerClear + gap - perimeterGap
+	for z := max(area.Z-clear, 0); z < min(area.Z+area.Height+clear, h); z++ {
+		for x := max(area.X-clear, 0); x < min(area.X+area.Width+clear, w); x++ {
 			if fp[z*w+x] {
 				return true
 			}
@@ -293,7 +322,8 @@ func crowdsCore(fp []bool, w, h int32, area Rectangle) bool {
 
 // coreTakesIn reports whether the core ring walls the outer-ring unit r in.
 func coreTakesIn(plan LayoutPlan, w, h int32, r LayoutReservation) bool {
-	return crowdsCore(coreBaseFootprint(plan, w, h), w, h, r.Area)
+	base := coreBaseFootprint(plan, w, h)
+	return crowdsCore(base, w, h, r.Area, yardGap(base, w, h, plan.YardCells))
 }
 
 // outerKeepOut marks the cells of a w x h map the core ring will occupy or

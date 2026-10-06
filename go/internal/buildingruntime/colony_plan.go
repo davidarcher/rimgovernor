@@ -177,7 +177,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			survey.Hot, _ = projection.HotMap.Value()
 			topology, _ := projection.PowerPlanning.Value()
 			if !haveLayout {
-				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals)
+				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals, projection.Facts.YardAnimals())
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
 				// Fixed rooms are what the replan keeps (#1958): read here, with
@@ -290,8 +290,8 @@ func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnap
 
 // deriveLayoutPlan lays a fresh v2 plan over survey and the reported
 // geysers and records it.
-func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.BuildTier, geysers []policy.PowerGeyser, animals int) error {
-	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers, animals).Value()
+func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.BuildTier, geysers []policy.PowerGeyser, animals, yardAnimals int) error {
+	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers, animals, yardAnimals).Value()
 	if !known {
 		telemetry.Decide(ctx, layoutPlanDecision("skipped", "no_core", pawns, "", nil))
 		return nil

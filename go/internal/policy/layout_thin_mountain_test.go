@@ -32,7 +32,7 @@ func TestThinRoofMountainLabPlansTurbineOnRockBesidePocket(t *testing.T) {
 		}
 	}
 	survey := MapSurvey{Bounds: Bounds{Width: size, Height: size}, Cells: cells}
-	plan, ok := DeriveLayoutPlan(survey, 3, BuildTierPowered, nil, 0).Value()
+	plan, ok := DeriveLayoutPlan(survey, 3, BuildTierPowered, nil, 0, 0).Value()
 	if !ok {
 		t.Fatal("no layout plan over the mountain lab")
 	}

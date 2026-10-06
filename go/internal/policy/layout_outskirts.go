@@ -102,6 +102,7 @@ func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Recta
 	}
 	walkable := u.walkableFromCore(plan)
 	fp := coreBaseFootprint(plan, u.w, u.h)
+	gap := yardGap(fp, u.w, u.h, plan.YardCells)
 
 	best, bestDist := map[domain.Rotation]Rectangle{}, map[domain.Rotation]int32{}
 	x0, x1 := max(ext.X-outskirtsReach-w, 0), min(ext.X+ext.Width+outskirtsReach, u.w-w)
@@ -116,7 +117,7 @@ func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Recta
 			if _, has := best[side]; has && dist >= bestDist[side] {
 				continue
 			}
-			if !u.free(site, false) || !u.inset(site) || !u.outside(site) || crowdsCore(fp, u.w, u.h, site) ||
+			if !u.free(site, false) || !u.inset(site) || !u.outside(site) || crowdsCore(fp, u.w, u.h, site, gap) ||
 				shelterBlocked(site, avoid) || shelterBlocked(site, lines) || !u.reachable(site, walkable) {
 				continue
 			}

@@ -17,7 +17,7 @@ const replanBudget = time.Second
 func replanFixture(t testing.TB) (MapSurvey, LayoutPlan) {
 	t.Helper()
 	s := zoningSurvey(120, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -191,7 +191,7 @@ func TestReplanWithUnknownCensusKeepsEveryRoom(t *testing.T) {
 // replan runs over replanBudget.
 func BenchmarkReplanHourly(b *testing.B) {
 	s := loadSurvey(b, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
 	if !ok {
 		b.Fatal("no plan")
 	}

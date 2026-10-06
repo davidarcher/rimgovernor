@@ -33,7 +33,7 @@ func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 	plans := map[bool]LayoutPlan{}
 	for _, hot := range []bool{false, true} {
 		s.Hot = hot
-		plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0).Value()
+		plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
 		if !ok || plan.Hot != hot {
 			t.Fatalf("survey hot=%v: plan ok=%v hot=%v", hot, ok, plan.Hot)
 		}

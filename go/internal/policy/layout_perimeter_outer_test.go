@@ -155,7 +155,7 @@ func TestCoreRingEnclosesTurbinePair(t *testing.T) {
 
 func turbinePairInsideCoreRing(t *testing.T, pawns int) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, pawns, BuildTierCamp, nil, 30).Value()
+	plan, ok := DeriveLayoutPlan(s, pawns, BuildTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -190,7 +190,7 @@ func turbinePairInsideCoreRing(t *testing.T, pawns int) {
 func TestCoreRingEnclosesPenBarnAndVetRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

@@ -15,7 +15,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	defs := furnitureDefs(map[string]Bounds{"TestAltar": {Width: 1, Height: 2}, "TestIdeogram": {Width: 1, Height: 1}})
 	shape, _ := need.shape(defs)
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

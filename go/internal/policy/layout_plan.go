@@ -120,6 +120,10 @@ type LayoutPlan struct {
 	// seasonal curve peaks above HotEnter, so the shelter holds a floor slot
 	// for a passive cooler.
 	Hot bool `json:",omitempty"`
+	// YardCells latches the grazing the wall's yard is sized for when the
+	// plan is derived (#2232, YardCells(herd)); 0 keeps the floor, perimeterGap.
+	// A replan never resizes the yard.
+	YardCells int32 `json:",omitempty"`
 }
 
 // Anchor is the interior centre of the
