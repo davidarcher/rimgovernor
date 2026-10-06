@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
             internal string ID = "";
             internal IntVec3 Cell;
             internal string? Hauler;
-            internal bool FrozenDestination;
+            internal bool FrozenDestination, InStorage;
         }
         internal static bool Frozen(IntVec3 cell, Map map) => cell.Roofed(map)
             && cell.GetRoom(map)?.ProperRoom == true && cell.GetTemperature(map) <= 0;
@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
             foreach (var corpse in shared.OfType<Corpse>().Where(c => ids.Contains(c.GetUniqueLoadID())).OrderBy(c => c.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 if (EventLootFacts.Safe(corpse) != true) continue;
-                var row = new Handling { ID = corpse.GetUniqueLoadID(), Cell = corpse.Position };
+                var row = new Handling { ID = corpse.GetUniqueLoadID(), Cell = corpse.Position, InStorage = corpse.IsInAnyStorage() };
                 foreach (var pawn in haulers)
                 {
                     if (!pawn.CanReach(corpse, PathEndMode.Touch, Danger.None)) continue;

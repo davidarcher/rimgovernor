@@ -547,7 +547,7 @@ namespace HomeBridge.BridgeTools
             if (source.larder != null) {
                 result.Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition) };
                 foreach (var corpse in source.larder.Corpses) {
-                    var row = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination };
+                    var row = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination, InStorage = corpse.InStorage };
                     if (corpse.Hauler != null) row.HaulerId = corpse.Hauler;
                     result.Larder.Corpses.Add(row);
                 }

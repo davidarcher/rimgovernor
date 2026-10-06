@@ -1097,7 +1097,8 @@ message FoodConsumer { optional string pawn_id = 1; optional double nutrition_pe
 // (the row's forbidden flag is the stack's; Go decides which forbidden food
 // is the travel reserve).
 message FoodStock { rimgovernor.common.v1.Ref item = 1; rimgovernor.common.v1.Ref holder = 3; optional double nutrition = 4; repeated rimgovernor.common.v1.Ref eaters = 5; }
-message CorpseHandling { string stock_id = 1; rimgovernor.common.v1.Cell cell = 2; optional string hauler_id = 3; bool frozen_destination = 4; }
+// in_storage is whether the corpse lies in a stockpile (false: in the field).
+message CorpseHandling { string stock_id = 1; rimgovernor.common.v1.Cell cell = 2; optional string hauler_id = 3; bool frozen_destination = 4; optional bool in_storage = 5; }
 message FoodLarderFacts { double raw_meat_nutrition = 1; double cook_demand_nutrition = 2; repeated CorpseHandling corpses = 3; repeated rimgovernor.common.v1.Cell cold_sites = 4; }
 message FoodSupplyFacts { repeated FoodConsumer consumers = 1; repeated FoodStock stocks = 2; FoodLarderFacts larder = 4; }
 message CropForecast { rimgovernor.common.v1.Ref zone = 1; optional string crop = 2; optional double sow_work = 3; optional double harvest_work = 4; optional uint32 mature_plants = 5; optional uint32 stalled_plants = 6; optional double standing_yield = 7; optional string product = 8; repeated ReadIssue issues = 9; }
@@ -1474,7 +1475,21 @@ message DeliveryRow { optional DeliverySourceKind source_kind = 1; optional stri
 // loaded or restarted, so a reader re-baselines. At most 512 keyed rows: later
 // keys add to `other` (source_id and def_name "other") and count toward `lost`,
 // the number of deliveries that were not keyed. Absent means unknown, never zero.
-message DeliveryLedgerFacts { optional string epoch = 1; repeated DeliveryRow rows = 2; DeliveryRow other = 3; optional uint64 lost = 4; }
+// A player pawn killed an animal (a hunt, or a slaughter that leaves a corpse).
+// corpse_id is the corpse's thing id (the food census's stock id), race the
+// animal's def, body_size its body size and potential_nutrition the meat it
+// would yield (meat amount x meat nutrition); tick is the game tick of death.
+message KillRecord { optional string corpse_id = 1; optional string race = 2; optional double body_size = 3; optional double potential_nutrition = 4; optional int64 tick = 5; }
+// A butcher recipe made its products from one corpse, counted where the
+// products are made (any bill, any butcher). meat_units and meat_nutrition are
+// the produced meat (meat_def) stack and its nutrition, leather_units the
+// produced leather; Go links it to its KillRecord by corpse_id.
+message ButcherRecord { optional string corpse_id = 1; optional string recipe = 2; optional string meat_def = 3; optional int64 meat_units = 4; optional double meat_nutrition = 5; optional int64 leather_units = 6; optional int64 tick = 7; }
+// kills and butchers hold the newest 256 records each in tick order; kills_total
+// and butchers_total count every record of the epoch, so a reader sees records
+// that fell off the window.
+message DeliveryLedgerFacts { optional string epoch = 1; repeated DeliveryRow rows = 2; DeliveryRow other = 3; optional uint64 lost = 4;
+  repeated KillRecord kills = 5; repeated ButcherRecord butchers = 6; optional uint64 kills_total = 7; optional uint64 butchers_total = 8; }
 message DeliveryLedgerSection { oneof outcome { DeliveryLedgerFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; ColonyNaming naming = 2;

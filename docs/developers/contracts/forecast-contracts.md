@@ -196,6 +196,17 @@ within an epoch and re-baselines on a change. Go maps source to channel from its
 census. `observation.ColonyProjection.DeliveryLedger` is Unknown for a missing,
 unavailable or malformed ledger, never zero, and lives in memory only.
 
+Hunting is counted in two stages, each keyed by the corpse's thing id (the food census's
+stock id): a `KillRecord` when a player pawn kills an animal (a hunt, or a slaughter
+that leaves a corpse; race, body size, potential nutrition as meat amount x meat
+nutrition, tick) and a `ButcherRecord` where `GenRecipe.MakeRecipeProducts` makes a
+butcher recipe's products (any bill, any butcher; meat def, units and nutrition,
+leather units, tick). Each window holds the newest 256 records in tick order, with
+`kills_total` and `butchers_total` counting the whole epoch. Go links a kill to its
+butcher by corpse id; hauling a corpse never counts. `CorpseHandling.in_storage` tells a
+corpse in a stockpile from one in the field; rot is read from the existing
+corpse census.
+
 ## Trade food policy
 
 `ReviewTradeNeed` accepts an optional `TradeFoodContext` from the shared food

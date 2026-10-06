@@ -17,6 +17,8 @@ type CorpseHandling struct {
 	Cell              domain.Cell
 	Hauler            domain.PawnID
 	FrozenDestination bool
+	// InStorage is whether the corpse lies in a stockpile (false: in the field).
+	InStorage domain.Fact[bool]
 }
 
 // CookDemandNutrition is one batch per active cook bill, measured using
