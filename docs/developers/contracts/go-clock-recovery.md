@@ -542,8 +542,9 @@ acknowledgement after an uncertain response.
 
 ### Zone policy section
 
-The `zones` section supplies farm capacity, planted/growing counts, harvest lower
-bounds, food-stockpile suitability and the guarded zone-map token.
+The `zones` section supplies farm capacity, raw per-crop growth facts (plant growth,
+fertility, temperature, the crop's growth range, blight; policy computes growing
+cells and the harvest lead from them and the calendar), food-stockpile suitability and the guarded zone-map token.
 `observations_read_colony_facts` omits `farms`, `food_storage` and
 `planning.zone_map_snapshot`; routine policy and zone creation read the zone
 section. `observations_list_zones` reads the census whole, in pages of 16; every

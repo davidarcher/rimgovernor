@@ -1215,7 +1215,24 @@ message EnvironmentCondition { optional string id = 1; optional string def_name 
 // season is the native Season name at the tile and day_of_year the 0-based
 // day of the 60-day year.
 message FoodClimate { optional double growing_days = 1; optional double growing_days_remaining = 2; repeated ReadIssue issues = 3; optional bool sowing_now = 4; optional double growing_days_until = 5; optional string season = 6; optional int32 day_of_year = 7; optional double non_growing_days = 8; }
-message FarmFacts { rimgovernor.common.v1.Ref zone = 1; optional string crop = 2; optional uint32 usable_cells = 3; optional uint32 planted_cells = 4; optional uint32 growing_cells = 5; optional bool edible_crop = 6; optional double harvest_lower_bound_days = 7; optional double nutrition_per_harvest_cell = 8; optional bool sowing_now = 9; }
+// FarmFacts mirrors one growing zone's raw state; policy computes the harvest
+// lead and the growing-cell count from it and the food climate calendar.
+// growth_* are the planted plants' growth fractions (0..1), fertility_factor_*
+// and light_factor_mean their native growth-rate factors, fertile_planted_cells
+// the planted cells whose fertility factor is above zero, and blighted_plants
+// the planted plants with blight. temperature is the map's outdoor temperature
+// and the *_growth_temperature fields the crop's native growth range.
+message FarmFacts {
+  reserved 5, 7;
+  reserved "growing_cells", "harvest_lower_bound_days";
+  rimgovernor.common.v1.Ref zone = 1; optional string crop = 2; optional uint32 usable_cells = 3; optional uint32 planted_cells = 4; optional bool edible_crop = 6; optional double nutrition_per_harvest_cell = 8; optional bool sowing_now = 9;
+  optional double growth_min = 10; optional double growth_mean = 11;
+  optional double fertility_factor_min = 12; optional double fertility_factor_mean = 13; optional uint32 fertile_planted_cells = 14;
+  optional double light_factor_mean = 15; optional uint32 blighted_plants = 16;
+  optional double temperature = 17;
+  optional double min_growth_temperature = 18; optional double min_optimal_growth_temperature = 19;
+  optional double max_optimal_growth_temperature = 20; optional double max_growth_temperature = 21;
+}
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their
 // fertility and sow tag, roofed rooms with temperature, and per-network

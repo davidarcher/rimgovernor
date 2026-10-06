@@ -10,7 +10,7 @@ import (
 )
 
 func TestFieldBudgetUsesCropDefinitionsAndPreservesFoodRunway(t *testing.T) {
-	v := &o.ColonyFactsSnapshot{NutritionPerDay: proto.Float64(99), Farms: []*o.FarmFacts{{Crop: proto.String("Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73)}}}
+	v := &o.ColonyFactsSnapshot{NutritionPerDay: proto.Float64(99), Farms: []*o.FarmFacts{withGrowth(&o.FarmFacts{Crop: proto.String("Rice"), EdibleCrop: proto.Bool(true)}, 73)}}
 	p := ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3)), FoodDays: domain.Known(2.0)}}
 	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{{Name: "Rice", NutritionDemandPerDay: domain.Known(5.0), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
 	p.ApplyFieldBudget(7)
@@ -39,7 +39,7 @@ func TestFieldBudgetUsesCropDefinitionsAndPreservesFoodRunway(t *testing.T) {
 func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T) {
 	for _, change := range []string{"ready", "suspended", "no-bills", "not-food", "unusable", "unknown-bill", "unknown-bench", "unknown-farm"} {
 		t.Run(change, func(t *testing.T) {
-			v := &o.ColonyFactsSnapshot{Farms: []*o.FarmFacts{{EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(30)}, {EdibleCrop: proto.Bool(false), GrowingCells: proto.Uint32(99)}}, Cooking: []*o.CookingFacts{{Usable: proto.Bool(true), Recipes: []*o.RecipeState{{Recipe: &o.DefinitionRef{DefName: proto.String("Meal")}}}, Bills: []*o.BillState{{Recipe: &o.DefinitionRef{DefName: proto.String("Meal")}, Suspended: proto.Bool(false)}}}}}
+			v := &o.ColonyFactsSnapshot{Farms: []*o.FarmFacts{withGrowth(&o.FarmFacts{EdibleCrop: proto.Bool(true)}, 30), withGrowth(&o.FarmFacts{EdibleCrop: proto.Bool(false)}, 99)}, Cooking: []*o.CookingFacts{{Usable: proto.Bool(true), Recipes: []*o.RecipeState{{Recipe: &o.DefinitionRef{DefName: proto.String("Meal")}}}, Bills: []*o.BillState{{Recipe: &o.DefinitionRef{DefName: proto.String("Meal")}, Suspended: proto.Bool(false)}}}}}
 			switch change {
 			case "suspended":
 				v.Cooking[0].Bills[0].Suspended = proto.Bool(true)
@@ -54,7 +54,7 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			case "unknown-bench":
 				v.Cooking[0].Usable = nil
 			case "unknown-farm":
-				v.Farms[0].GrowingCells = nil
+				v.Farms[0].Temperature = nil
 			}
 			f := policy.RoundsFacts{Colonists: domain.Known(int64(3))}
 			colonyProduction(v, &f)
@@ -76,4 +76,14 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			}
 		})
 	}
+}
+
+// withGrowth sows the farm's cells with fertile plants at a temperature inside
+// the crop's optimal range, so policy counts them as growing.
+func withGrowth(farm *o.FarmFacts, cells uint32) *o.FarmFacts {
+	farm.PlantedCells, farm.FertilePlantedCells = proto.Uint32(cells), proto.Uint32(cells)
+	farm.Temperature = proto.Float64(20)
+	farm.MinGrowthTemperature, farm.MinOptimalGrowthTemperature = proto.Float64(0), proto.Float64(10)
+	farm.MaxOptimalGrowthTemperature, farm.MaxGrowthTemperature = proto.Float64(30), proto.Float64(42)
+	return farm
 }

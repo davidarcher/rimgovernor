@@ -72,6 +72,6 @@ func applyZones(p *ColonyProjection, read bridge.ZonesRead) {
 	p.Facts.FoodStorage = domain.Known(storage)
 	zoneProduction(farms, &p.Facts)
 	p.FieldCrops = colonyFieldCrops(farms, p.Definitions)
-	p.FoodFields = colonyFoodFields(farms, p.Definitions)
+	p.FoodFields = colonyFoodFields(farms, p.Definitions, p.Facts.Calendar)
 	p.FieldCapacityCrops = colonyFieldCrops(farms, p.Definitions, true)
 }

@@ -553,7 +553,8 @@ func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
 	r, db, _, _, n := roundsFixture(t)
 	v := n.reply.GetObserved()
 	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
-	v.Farms = []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("farm")}, Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73), PlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73)}}
+	v.Farms = []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("farm")}, Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), PlantedCells: proto.Uint32(73), FertilePlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73),
+		Temperature: proto.Float64(20), MinGrowthTemperature: proto.Float64(0), MinOptimalGrowthTemperature: proto.Float64(10), MaxOptimalGrowthTemperature: proto.Float64(30), MaxGrowthTemperature: proto.Float64(42)}}
 	n.catalog[0] = bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, HarvestNutrition: 1}}
 	for _, reserve := range []float64{7, 14, 7} {
 		r.policy.FoodTargetDays = reserve

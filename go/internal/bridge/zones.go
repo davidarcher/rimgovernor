@@ -80,7 +80,7 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {
 			return contract("invalid zone row")
 		}
 		if farm := row.Farm; farm != nil {
-			if farm.GetZone().GetId() != row.GetId() || validID(farm.GetCrop()) != nil || farm.UsableCells == nil || farm.PlantedCells == nil || farm.GrowingCells == nil || farm.EdibleCrop == nil || farm.GetGrowingCells() > farm.GetPlantedCells() || !combatNumber(farm.HarvestLowerBoundDays, true) || !combatNumber(farm.NutritionPerHarvestCell, true) {
+			if farm.GetZone().GetId() != row.GetId() || validID(farm.GetCrop()) != nil || farm.UsableCells == nil || farm.PlantedCells == nil || farm.EdibleCrop == nil || !validFarmMeasures(farm) {
 				return contract("invalid zone farm facts")
 			}
 		} else if row.GetType() == "growing" {

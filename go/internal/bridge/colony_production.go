@@ -7,6 +7,35 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// validFarmMeasures checks a farm's raw growth facts: counts within the
+// planted cells, growth a fraction, factors and nutrition non-negative, every
+// number finite (temperatures may be negative).
+func validFarmMeasures(farm *o.FarmFacts) bool {
+	if farm.PlantedCells != nil {
+		for _, count := range []*uint32{farm.FertilePlantedCells, farm.BlightedPlants} {
+			if count != nil && *count > farm.GetPlantedCells() {
+				return false
+			}
+		}
+	}
+	for _, fraction := range []*float64{farm.GrowthMin, farm.GrowthMean} {
+		if fraction != nil && (!combatNumber(fraction, true) || *fraction > 1) {
+			return false
+		}
+	}
+	for _, value := range []*float64{farm.NutritionPerHarvestCell, farm.FertilityFactorMin, farm.FertilityFactorMean, farm.LightFactorMean} {
+		if !combatNumber(value, true) {
+			return false
+		}
+	}
+	for _, value := range []*float64{farm.Temperature, farm.MinGrowthTemperature, farm.MinOptimalGrowthTemperature, farm.MaxOptimalGrowthTemperature, farm.MaxGrowthTemperature} {
+		if !combatNumber(value, false) {
+			return false
+		}
+	}
+	return true
+}
+
 func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 	for _, issue := range v.Issues {
 		if issue.GetField() == "farms" && len(v.Farms) != 0 || issue.GetField() == "cooking" && len(v.Cooking) != 0 || issue.GetField() == "butchering" && len(v.Butchering) != 0 {
@@ -19,18 +48,13 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 			return contract("invalid or duplicate farm")
 		}
 		farms[farm.GetZone().GetId()] = true
-		for _, count := range []*uint32{farm.UsableCells, farm.PlantedCells, farm.GrowingCells} {
+		for _, count := range []*uint32{farm.UsableCells, farm.PlantedCells, farm.FertilePlantedCells, farm.BlightedPlants} {
 			if count != nil && uint64(*count) > uint64(v.MapSize.GetWidth())*uint64(v.MapSize.GetHeight()) {
 				return contract("farm cells exceed map")
 			}
 		}
-		if farm.GrowingCells != nil && farm.PlantedCells != nil && farm.GetGrowingCells() > farm.GetPlantedCells() {
-			return contract("growing farm exceeds planted cells")
-		}
-		for _, value := range []*float64{farm.HarvestLowerBoundDays, farm.NutritionPerHarvestCell} {
-			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0) {
-				return contract("invalid farm production measure")
-			}
+		if !validFarmMeasures(farm) {
+			return contract("invalid farm production measure")
 		}
 	}
 	rows := append([]*o.CookingFacts(nil), v.Cooking...)

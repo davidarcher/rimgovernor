@@ -171,3 +171,62 @@ func TestHarvestGapDaysExtendsByAnObservedGrowthPause(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func rice(temperature float64) CropGrowth {
+	return CropGrowth{Planted: domain.Known(int64(40)), FertilePlanted: domain.Known(int64(40)),
+		GrowthMean: domain.Known(0.5), FertilityMean: domain.Known(1.0), Temperature: domain.Known(temperature),
+		MinGrowth: domain.Known(0.0), MinOptimal: domain.Known(10.0), MaxOptimal: domain.Known(30.0), MaxGrowth: domain.Known(42.0)}
+}
+
+func TestHarvestLeadIsTemperatureAwareAndExtendedByFrost(t *testing.T) {
+	grow := domain.Known(10.0) // fertility-only bound: 5 days
+	summer := domain.Known(Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 30, NonGrowingDays: 20, Sowing: true})
+	if lead, ok := HarvestLeadDays(rice(20), grow, summer).Value(); !ok || lead != 5 {
+		t.Fatal("optimal temperature lead", lead, ok)
+	}
+	if lead, ok := HarvestLeadDays(rice(5), grow, summer).Value(); !ok || lead != 10 {
+		t.Fatal("cool temperature must slow growth", lead, ok)
+	}
+	frost := domain.Known(Calendar{Season: "Fall", GrowingDays: 40, GrowingDaysRemaining: 3, NonGrowingDays: 20, Sowing: true})
+	if lead, ok := HarvestLeadDays(rice(20), grow, frost).Value(); !ok || lead != 25 {
+		t.Fatal("frost window must lengthen the lead", lead, ok)
+	}
+	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12, NonGrowingDays: 12})
+	if lead, ok := HarvestLeadDays(rice(-5), grow, winter).Value(); !ok || lead != 17 {
+		t.Fatal("frozen crop waits for the thaw", lead, ok)
+	}
+	if got := rice(20).GrowingCells(); got != domain.Known(int64(40)) {
+		t.Fatal(got)
+	}
+	if got := rice(-5).GrowingCells(); got != domain.Known(int64(0)) {
+		t.Fatal(got)
+	}
+}
+
+func TestHarvestLeadIsUnknownNeverZeroWithoutAFact(t *testing.T) {
+	grow := domain.Known(10.0)
+	cal := domain.Known(Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 30, Sowing: true})
+	missing := map[string]func(g *CropGrowth){
+		"temperature": func(g *CropGrowth) { g.Temperature = domain.Unknown[float64]() },
+		"range":       func(g *CropGrowth) { g.MaxGrowth = domain.Unknown[float64]() },
+		"growth":      func(g *CropGrowth) { g.GrowthMean = domain.Unknown[float64]() },
+		"fertility":   func(g *CropGrowth) { g.FertilityMean = domain.Unknown[float64]() },
+		"planted":     func(g *CropGrowth) { g.Planted = domain.Known(int64(0)) },
+	}
+	for name, drop := range missing {
+		g := rice(20)
+		drop(&g)
+		if _, ok := HarvestLeadDays(g, grow, cal).Value(); ok {
+			t.Fatal(name, "lead known")
+		}
+	}
+	if _, ok := HarvestLeadDays(rice(20), domain.Unknown[float64](), cal).Value(); ok {
+		t.Fatal("unknown grow days")
+	}
+	if _, ok := HarvestLeadDays(rice(20), grow, domain.Unknown[Calendar]()).Value(); ok {
+		t.Fatal("unknown calendar")
+	}
+	if _, ok := HarvestLeadDays(rice(-5), grow, domain.Known(Calendar{Season: "Winter", GrowingDays: 40, NonGrowingDays: 20})).Value(); ok {
+		t.Fatal("no growing day ahead")
+	}
+}

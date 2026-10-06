@@ -26353,19 +26353,36 @@ func (x *FoodClimate) GetNonGrowingDays() float64 {
 	return 0
 }
 
+// FarmFacts mirrors one growing zone's raw state; policy computes the harvest
+// lead and the growing-cell count from it and the food climate calendar.
+// growth_* are the planted plants' growth fractions (0..1), fertility_factor_*
+// and light_factor_mean their native growth-rate factors, fertile_planted_cells
+// the planted cells whose fertility factor is above zero, and blighted_plants
+// the planted plants with blight. temperature is the map's outdoor temperature
+// and the *_growth_temperature fields the crop's native growth range.
 type FarmFacts struct {
-	state                   protoimpl.MessageState `protogen:"open.v1"`
-	Zone                    *commonpb.Ref          `protobuf:"bytes,1,opt,name=zone,proto3" json:"zone,omitempty"`
-	Crop                    *string                `protobuf:"bytes,2,opt,name=crop,proto3,oneof" json:"crop,omitempty"`
-	UsableCells             *uint32                `protobuf:"varint,3,opt,name=usable_cells,json=usableCells,proto3,oneof" json:"usable_cells,omitempty"`
-	PlantedCells            *uint32                `protobuf:"varint,4,opt,name=planted_cells,json=plantedCells,proto3,oneof" json:"planted_cells,omitempty"`
-	GrowingCells            *uint32                `protobuf:"varint,5,opt,name=growing_cells,json=growingCells,proto3,oneof" json:"growing_cells,omitempty"`
-	EdibleCrop              *bool                  `protobuf:"varint,6,opt,name=edible_crop,json=edibleCrop,proto3,oneof" json:"edible_crop,omitempty"`
-	HarvestLowerBoundDays   *float64               `protobuf:"fixed64,7,opt,name=harvest_lower_bound_days,json=harvestLowerBoundDays,proto3,oneof" json:"harvest_lower_bound_days,omitempty"`
-	NutritionPerHarvestCell *float64               `protobuf:"fixed64,8,opt,name=nutrition_per_harvest_cell,json=nutritionPerHarvestCell,proto3,oneof" json:"nutrition_per_harvest_cell,omitempty"`
-	SowingNow               *bool                  `protobuf:"varint,9,opt,name=sowing_now,json=sowingNow,proto3,oneof" json:"sowing_now,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	Zone                        *commonpb.Ref          `protobuf:"bytes,1,opt,name=zone,proto3" json:"zone,omitempty"`
+	Crop                        *string                `protobuf:"bytes,2,opt,name=crop,proto3,oneof" json:"crop,omitempty"`
+	UsableCells                 *uint32                `protobuf:"varint,3,opt,name=usable_cells,json=usableCells,proto3,oneof" json:"usable_cells,omitempty"`
+	PlantedCells                *uint32                `protobuf:"varint,4,opt,name=planted_cells,json=plantedCells,proto3,oneof" json:"planted_cells,omitempty"`
+	EdibleCrop                  *bool                  `protobuf:"varint,6,opt,name=edible_crop,json=edibleCrop,proto3,oneof" json:"edible_crop,omitempty"`
+	NutritionPerHarvestCell     *float64               `protobuf:"fixed64,8,opt,name=nutrition_per_harvest_cell,json=nutritionPerHarvestCell,proto3,oneof" json:"nutrition_per_harvest_cell,omitempty"`
+	SowingNow                   *bool                  `protobuf:"varint,9,opt,name=sowing_now,json=sowingNow,proto3,oneof" json:"sowing_now,omitempty"`
+	GrowthMin                   *float64               `protobuf:"fixed64,10,opt,name=growth_min,json=growthMin,proto3,oneof" json:"growth_min,omitempty"`
+	GrowthMean                  *float64               `protobuf:"fixed64,11,opt,name=growth_mean,json=growthMean,proto3,oneof" json:"growth_mean,omitempty"`
+	FertilityFactorMin          *float64               `protobuf:"fixed64,12,opt,name=fertility_factor_min,json=fertilityFactorMin,proto3,oneof" json:"fertility_factor_min,omitempty"`
+	FertilityFactorMean         *float64               `protobuf:"fixed64,13,opt,name=fertility_factor_mean,json=fertilityFactorMean,proto3,oneof" json:"fertility_factor_mean,omitempty"`
+	FertilePlantedCells         *uint32                `protobuf:"varint,14,opt,name=fertile_planted_cells,json=fertilePlantedCells,proto3,oneof" json:"fertile_planted_cells,omitempty"`
+	LightFactorMean             *float64               `protobuf:"fixed64,15,opt,name=light_factor_mean,json=lightFactorMean,proto3,oneof" json:"light_factor_mean,omitempty"`
+	BlightedPlants              *uint32                `protobuf:"varint,16,opt,name=blighted_plants,json=blightedPlants,proto3,oneof" json:"blighted_plants,omitempty"`
+	Temperature                 *float64               `protobuf:"fixed64,17,opt,name=temperature,proto3,oneof" json:"temperature,omitempty"`
+	MinGrowthTemperature        *float64               `protobuf:"fixed64,18,opt,name=min_growth_temperature,json=minGrowthTemperature,proto3,oneof" json:"min_growth_temperature,omitempty"`
+	MinOptimalGrowthTemperature *float64               `protobuf:"fixed64,19,opt,name=min_optimal_growth_temperature,json=minOptimalGrowthTemperature,proto3,oneof" json:"min_optimal_growth_temperature,omitempty"`
+	MaxOptimalGrowthTemperature *float64               `protobuf:"fixed64,20,opt,name=max_optimal_growth_temperature,json=maxOptimalGrowthTemperature,proto3,oneof" json:"max_optimal_growth_temperature,omitempty"`
+	MaxGrowthTemperature        *float64               `protobuf:"fixed64,21,opt,name=max_growth_temperature,json=maxGrowthTemperature,proto3,oneof" json:"max_growth_temperature,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *FarmFacts) Reset() {
@@ -26426,25 +26443,11 @@ func (x *FarmFacts) GetPlantedCells() uint32 {
 	return 0
 }
 
-func (x *FarmFacts) GetGrowingCells() uint32 {
-	if x != nil && x.GrowingCells != nil {
-		return *x.GrowingCells
-	}
-	return 0
-}
-
 func (x *FarmFacts) GetEdibleCrop() bool {
 	if x != nil && x.EdibleCrop != nil {
 		return *x.EdibleCrop
 	}
 	return false
-}
-
-func (x *FarmFacts) GetHarvestLowerBoundDays() float64 {
-	if x != nil && x.HarvestLowerBoundDays != nil {
-		return *x.HarvestLowerBoundDays
-	}
-	return 0
 }
 
 func (x *FarmFacts) GetNutritionPerHarvestCell() float64 {
@@ -26459,6 +26462,90 @@ func (x *FarmFacts) GetSowingNow() bool {
 		return *x.SowingNow
 	}
 	return false
+}
+
+func (x *FarmFacts) GetGrowthMin() float64 {
+	if x != nil && x.GrowthMin != nil {
+		return *x.GrowthMin
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetGrowthMean() float64 {
+	if x != nil && x.GrowthMean != nil {
+		return *x.GrowthMean
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetFertilityFactorMin() float64 {
+	if x != nil && x.FertilityFactorMin != nil {
+		return *x.FertilityFactorMin
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetFertilityFactorMean() float64 {
+	if x != nil && x.FertilityFactorMean != nil {
+		return *x.FertilityFactorMean
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetFertilePlantedCells() uint32 {
+	if x != nil && x.FertilePlantedCells != nil {
+		return *x.FertilePlantedCells
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetLightFactorMean() float64 {
+	if x != nil && x.LightFactorMean != nil {
+		return *x.LightFactorMean
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetBlightedPlants() uint32 {
+	if x != nil && x.BlightedPlants != nil {
+		return *x.BlightedPlants
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetTemperature() float64 {
+	if x != nil && x.Temperature != nil {
+		return *x.Temperature
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetMinGrowthTemperature() float64 {
+	if x != nil && x.MinGrowthTemperature != nil {
+		return *x.MinGrowthTemperature
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetMinOptimalGrowthTemperature() float64 {
+	if x != nil && x.MinOptimalGrowthTemperature != nil {
+		return *x.MinOptimalGrowthTemperature
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetMaxOptimalGrowthTemperature() float64 {
+	if x != nil && x.MaxOptimalGrowthTemperature != nil {
+		return *x.MaxOptimalGrowthTemperature
+	}
+	return 0
+}
+
+func (x *FarmFacts) GetMaxGrowthTemperature() float64 {
+	if x != nil && x.MaxGrowthTemperature != nil {
+		return *x.MaxGrowthTemperature
+	}
+	return 0
 }
 
 // Controlled-environment growing facts within the planning region: sun lamps
@@ -48244,27 +48331,52 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_growing_days_untilB\t\n" +
 	"\a_seasonB\x0e\n" +
 	"\f_day_of_yearB\x13\n" +
-	"\x11_non_growing_days\"\xb3\x04\n" +
+	"\x11_non_growing_days\"\xf6\n" +
+	"\n" +
 	"\tFarmFacts\x12.\n" +
 	"\x04zone\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04zone\x12\x17\n" +
 	"\x04crop\x18\x02 \x01(\tH\x00R\x04crop\x88\x01\x01\x12&\n" +
 	"\fusable_cells\x18\x03 \x01(\rH\x01R\vusableCells\x88\x01\x01\x12(\n" +
-	"\rplanted_cells\x18\x04 \x01(\rH\x02R\fplantedCells\x88\x01\x01\x12(\n" +
-	"\rgrowing_cells\x18\x05 \x01(\rH\x03R\fgrowingCells\x88\x01\x01\x12$\n" +
-	"\vedible_crop\x18\x06 \x01(\bH\x04R\n" +
-	"edibleCrop\x88\x01\x01\x12<\n" +
-	"\x18harvest_lower_bound_days\x18\a \x01(\x01H\x05R\x15harvestLowerBoundDays\x88\x01\x01\x12@\n" +
-	"\x1anutrition_per_harvest_cell\x18\b \x01(\x01H\x06R\x17nutritionPerHarvestCell\x88\x01\x01\x12\"\n" +
+	"\rplanted_cells\x18\x04 \x01(\rH\x02R\fplantedCells\x88\x01\x01\x12$\n" +
+	"\vedible_crop\x18\x06 \x01(\bH\x03R\n" +
+	"edibleCrop\x88\x01\x01\x12@\n" +
+	"\x1anutrition_per_harvest_cell\x18\b \x01(\x01H\x04R\x17nutritionPerHarvestCell\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"sowing_now\x18\t \x01(\bH\aR\tsowingNow\x88\x01\x01B\a\n" +
+	"sowing_now\x18\t \x01(\bH\x05R\tsowingNow\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"growth_min\x18\n" +
+	" \x01(\x01H\x06R\tgrowthMin\x88\x01\x01\x12$\n" +
+	"\vgrowth_mean\x18\v \x01(\x01H\aR\n" +
+	"growthMean\x88\x01\x01\x125\n" +
+	"\x14fertility_factor_min\x18\f \x01(\x01H\bR\x12fertilityFactorMin\x88\x01\x01\x127\n" +
+	"\x15fertility_factor_mean\x18\r \x01(\x01H\tR\x13fertilityFactorMean\x88\x01\x01\x127\n" +
+	"\x15fertile_planted_cells\x18\x0e \x01(\rH\n" +
+	"R\x13fertilePlantedCells\x88\x01\x01\x12/\n" +
+	"\x11light_factor_mean\x18\x0f \x01(\x01H\vR\x0flightFactorMean\x88\x01\x01\x12,\n" +
+	"\x0fblighted_plants\x18\x10 \x01(\rH\fR\x0eblightedPlants\x88\x01\x01\x12%\n" +
+	"\vtemperature\x18\x11 \x01(\x01H\rR\vtemperature\x88\x01\x01\x129\n" +
+	"\x16min_growth_temperature\x18\x12 \x01(\x01H\x0eR\x14minGrowthTemperature\x88\x01\x01\x12H\n" +
+	"\x1emin_optimal_growth_temperature\x18\x13 \x01(\x01H\x0fR\x1bminOptimalGrowthTemperature\x88\x01\x01\x12H\n" +
+	"\x1emax_optimal_growth_temperature\x18\x14 \x01(\x01H\x10R\x1bmaxOptimalGrowthTemperature\x88\x01\x01\x129\n" +
+	"\x16max_growth_temperature\x18\x15 \x01(\x01H\x11R\x14maxGrowthTemperature\x88\x01\x01B\a\n" +
 	"\x05_cropB\x0f\n" +
 	"\r_usable_cellsB\x10\n" +
-	"\x0e_planted_cellsB\x10\n" +
-	"\x0e_growing_cellsB\x0e\n" +
-	"\f_edible_cropB\x1b\n" +
-	"\x19_harvest_lower_bound_daysB\x1d\n" +
+	"\x0e_planted_cellsB\x0e\n" +
+	"\f_edible_cropB\x1d\n" +
 	"\x1b_nutrition_per_harvest_cellB\r\n" +
-	"\v_sowing_now\"\xaa\x03\n" +
+	"\v_sowing_nowB\r\n" +
+	"\v_growth_minB\x0e\n" +
+	"\f_growth_meanB\x17\n" +
+	"\x15_fertility_factor_minB\x18\n" +
+	"\x16_fertility_factor_meanB\x18\n" +
+	"\x16_fertile_planted_cellsB\x14\n" +
+	"\x12_light_factor_meanB\x12\n" +
+	"\x10_blighted_plantsB\x0e\n" +
+	"\f_temperatureB\x19\n" +
+	"\x17_min_growth_temperatureB!\n" +
+	"\x1f_min_optimal_growth_temperatureB!\n" +
+	"\x1f_max_optimal_growth_temperatureB\x19\n" +
+	"\x17_max_growth_temperatureJ\x04\b\x05\x10\x06J\x04\b\a\x10\bR\rgrowing_cellsR\x18harvest_lower_bound_days\"\xaa\x03\n" +
 	"\tGrowLight\x126\n" +
 	"\bbuilding\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12.\n" +
 	"\x04room\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04room\x12\x1d\n" +

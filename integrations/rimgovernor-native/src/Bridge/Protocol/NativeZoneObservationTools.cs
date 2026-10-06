@@ -105,9 +105,18 @@ namespace HomeBridge.BridgeTools
                 var edible = product != null && humanFood(product);
                 row.Farm = new Obs.FarmFacts { Zone = NativeRef.Of(row.Id), Crop = crop.defName,
                     UsableCells = (uint)visible.Count(c => map.fertilityGrid.FertilityAt(c) >= crop.plant.fertilityMin),
-                    PlantedCells = (uint)plants.Count, GrowingCells = (uint)plants.Count(p => p.GrowthRateFactor_Temperature > 0 && p.GrowthRateFactor_Fertility > 0),
-                    EdibleCrop = edible, NutritionPerHarvestCell = edible ? crop.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition) : 0 };
-                if (plants.Count > 0) row.Farm.HarvestLowerBoundDays = plants.Min(p => (1f - p.Growth) * crop.plant.growDays / Math.Max(.01f, p.GrowthRateFactor_Fertility));
+                    PlantedCells = (uint)plants.Count, EdibleCrop = edible,
+                    NutritionPerHarvestCell = edible ? crop.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
+                    Temperature = map.mapTemperature.OutdoorTemp, FertilePlantedCells = (uint)plants.Count(p => p.GrowthRateFactor_Fertility > 0),
+                    BlightedPlants = (uint)plants.Count(p => p.Blighted),
+                    MinGrowthTemperature = crop.plant.minGrowthTemperature, MinOptimalGrowthTemperature = crop.plant.minOptimalGrowthTemperature,
+                    MaxOptimalGrowthTemperature = crop.plant.maxOptimalGrowthTemperature, MaxGrowthTemperature = crop.plant.maxGrowthTemperature };
+                if (plants.Count > 0)
+                {
+                    row.Farm.GrowthMin = plants.Min(p => p.Growth); row.Farm.GrowthMean = plants.Average(p => p.Growth);
+                    row.Farm.FertilityFactorMin = plants.Min(p => p.GrowthRateFactor_Fertility); row.Farm.FertilityFactorMean = plants.Average(p => p.GrowthRateFactor_Fertility);
+                    row.Farm.LightFactorMean = plants.Average(p => p.GrowthRateFactor_Light);
+                }
                 row.ExplicitlySetCrop = crop != null; row.AllowSow = growing.allowSow; row.AllowCut = growing.allowCut;
                 row.Issues.Add(Issue("priority", Common.UnavailableReason.NotApplicable, "Growing zones have no storage priority."));
             }

@@ -21,8 +21,9 @@ holder. Earliest-expiry allocation
 uses native rot deadlines at the current temperature. The food gate uses the
 lowest colonist runway after reserving competing animal shares; unknown combined
 demand cannot certify a safe runway. Future harvesting, changing temperature,
-feeding jobs and food sharing are not guaranteed. Harvest ETA is an optimistic
-lower bound, and crop work does not reserve future production.
+feeding jobs and food sharing are not guaranteed. Harvest lead is computed in policy from
+raw growth facts, the temperature and the growing calendar (a frost window
+lengthens it; a missing fact leaves it unknown), and crop work does not reserve future production.
 
 Fresh animal corpses carry their native meat amount times meat nutrition,
 body size, forbid state and a one-tile footprint. Unforbidden corpses count

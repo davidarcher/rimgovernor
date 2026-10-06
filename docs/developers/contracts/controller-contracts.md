@@ -359,7 +359,7 @@ The food forecast apportions shared nutrition by native demand among eaters perm
 diet, policy and safe access, reserves animal shares and credits held food only to its
 holder. Earliest-expiry allocation uses native rot deadlines at current temperature; the
 lowest per-colonist runway drives the gate. Invalid supply observations stay unknown;
-harvest ETA is an optimistic lower bound; projected yield never counts as stock.
+harvest lead is computed in policy from native growth, temperature and calendar facts; projected yield never counts as stock.
 
 The maintained food concern budgets each crop's capacity from native daily demand and
 yield, covering consumption during its growth allowance plus the persisted reserve
