@@ -37,7 +37,6 @@ internal static class NativeProtoBuildingsProbe
         foreach (var fields in new[] { "", "\"playerOnly\":false,\"inspect\":false,\"billIngredients\":false",
             "\"category\":\"all\",\"statuses\":[\"pending\",\"built\"],\"defNames\":[\"Wall\"],\"ids\":[\"Wall17\"]",
             "\"damagedBelowFraction\":0", "\"damagedBelowFraction\":1", "\"page\":{\"limit\":256}",
-            "\"region\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}",
             // N01.03: frozen paging is no longer refused outright -- a cursor within the
             // byte bound is accepted (its actual freshness is checked at read time by the
             // shared NativeObservationSnapshot.Cursor helper, not by Validate).
@@ -48,9 +47,7 @@ internal static class NativeProtoBuildingsProbe
             "\"inspect\":true", "\"billIngredients\":true", "\"category\":\"ALL\"", "\"statuses\":[\"unknown\"]",
             "\"statuses\":[\"built\",\"built\"]", "\"ids\":[\"same\",\"same\"]", "\"defNames\":[\"\"]",
             "\"ids\":[\"bad\\u0000id\"]", "\"damagedBelowFraction\":-0.1", "\"damagedBelowFraction\":1.1",
-            "\"damagedBelowFraction\":\"NaN\"", "\"damagedBelowFraction\":\"Infinity\"",
-            "\"region\":{\"minimum\":{\"x\":0},\"maximum\":{\"x\":0,\"z\":0}}",
-            "\"region\":{\"minimum\":{\"x\":1,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}" })
+            "\"damagedBelowFraction\":\"NaN\"", "\"damagedBelowFraction\":\"Infinity\"" })
             Check(!Valid(request(fields)), "Invalid or unsupported request refused: " + fields);
         var ids = string.Join(",", Enumerable.Range(0, 257).Select(i => "\"thing" + i + "\""));
         Check(!Valid(request("\"ids\":[" + ids + "]")), "ID filter bound enforced");

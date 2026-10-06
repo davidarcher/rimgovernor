@@ -41,8 +41,6 @@ namespace HomeBridge.BridgeTools
             {
                 if ((!parsed.HasPlayerOnly || parsed.PlayerOnly) && Faction.OfPlayerSilentFail == null)
                     return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction unavailable.") };
-                if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
-                    return new Obs.ListBuildingsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
                 var source = Source(map, parsed.HasCategory && parsed.Category == "all");
                 var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.BuildingsSnapshot { Context = context };
@@ -98,8 +96,6 @@ namespace HomeBridge.BridgeTools
                 || request.Statuses.Any(s => s != "all" && s != "built" && s != "blueprint" && s != "frame" && s != "pending")) return false;
             if (request.HasCategory && request.Category != "all" && request.Category != "artificial") return false;
             if (request.HasDamagedBelowFraction && (!Finite(request.DamagedBelowFraction) || request.DamagedBelowFraction < 0 || request.DamagedBelowFraction > 1)) return false;
-            if (request.Region != null && (!CellPresent(request.Region.Minimum) || !CellPresent(request.Region.Maximum)
-                || request.Region.Minimum.X > request.Region.Maximum.X || request.Region.Minimum.Z > request.Region.Maximum.Z)) return false;
             if (request.Inspect || request.BillIngredients)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Inspect strings and bill ingredient detail are not supported by this read adapter.");
@@ -132,8 +128,6 @@ namespace HomeBridge.BridgeTools
             var state = Status(thing);
             if (request.Statuses.Count != 0 && !request.Statuses.Contains("all") && !request.Statuses.Contains(StatusFilter(state))
                 && !(state != Obs.BuildingStatus.Built && request.Statuses.Contains("pending"))) return false;
-            if (request.Region != null && (thing.Position.x < request.Region.Minimum.X || thing.Position.x > request.Region.Maximum.X
-                || thing.Position.z < request.Region.Minimum.Z || thing.Position.z > request.Region.Maximum.Z)) return false;
             if (request.HasDamagedBelowFraction && (!thing.def.useHitPoints || thing.MaxHitPoints <= 0
                 || (double)thing.HitPoints / thing.MaxHitPoints >= request.DamagedBelowFraction)) return false;
             return true;
@@ -269,8 +263,6 @@ namespace HomeBridge.BridgeTools
 
         private static bool Identifiers(IEnumerable<string> values) => values.Count() <= 256
             && values.All(ProtoBoundary.IsIdentifier) && values.Distinct(StringComparer.Ordinal).Count() == values.Count();
-        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
-        private static IntVec3 NativeCell(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static Obs.BuildingStatus Status(Thing thing) => thing is Blueprint ? Obs.BuildingStatus.Blueprint : thing is Frame ? Obs.BuildingStatus.Frame : Obs.BuildingStatus.Built;
         // StatusFilter is the request filter's name for a status.

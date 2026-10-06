@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -675,24 +676,48 @@ func TestRoundsShelterRefusesABlockedPlannedStoreroom(t *testing.T) {
 	}
 }
 
-// adoptingNative adds the wall-and-door census a shell planner uses to
-// recognise a shell it began earlier.
+// structure is a wall or door a restart left standing, in any build state.
+type structure struct {
+	ID, Definition string
+	Cell           domain.Cell
+	Status         o.BuildingStatus
+}
+
+// structureCells lists each structure as a site cell holding its thing, as
+// the planning window serves a player building, frame or blueprint (#2276).
+func structureCells(standing []structure) []policy.SiteCell {
+	out := make([]policy.SiteCell, 0, len(standing))
+	for _, s := range standing {
+		flags := policy.FlagEdifice
+		switch s.Status {
+		case o.BuildingStatus_BUILDING_STATUS_BLUEPRINT:
+			flags = policy.FlagBlueprint
+		case o.BuildingStatus_BUILDING_STATUS_FRAME:
+			flags = policy.FlagFrame
+		}
+		out = append(out, policy.SiteCell{Cell: s.Cell, Things: []policy.Thing{{Def: s.Definition, Category: policy.ThingBuilding, Faction: policy.FactionPlayer, Flags: flags, Count: 1, Building: &policy.BuildingState{}}}})
+	}
+	return out
+}
+
+// adoptingNative stands walls and doors in the fake planning window so a
+// shell planner recognises a shell it began earlier.
 type adoptingNative struct {
 	*sleepingNative
-	standing []bridge.Structure
-	censuses int
+	standing []structure
 	last     domain.GenerationSnapshot
 }
 
-func (n *adoptingNative) ReadStructures(_ context.Context, _ *c.Identity, minimum, maximum domain.Cell, definitions []string) (bridge.StructureRead, bridge.Result, error) {
-	n.censuses++
-	out := bridge.StructureRead{Tick: domain.Tick(n.reply.GetObserved().Context.GetTick()), Generation: uint64(n.last.Native)}
-	for _, s := range n.standing {
-		if s.Cell.X >= minimum.X && s.Cell.X <= maximum.X && s.Cell.Z >= minimum.Z && s.Cell.Z <= maximum.Z {
-			out.Structures = append(out.Structures, s)
+// stand adds structures to the planning window the fake serves.
+func (n *adoptingNative) stand(add ...structure) {
+	n.standing = append(n.standing, add...)
+	for _, cell := range structureCells(add) {
+		if i := slices.IndexFunc(n.cells.Cells, func(c policy.SiteCell) bool { return c.Cell == cell.Cell }); i >= 0 {
+			n.cells.Cells[i].Things = append(slices.Clone(n.cells.Cells[i].Things), cell.Things...)
+		} else {
+			n.cells.Cells = append(n.cells.Cells, cell)
 		}
 	}
-	return out, bridge.Result{}, nil
 }
 
 func (n *adoptingNative) PreviewBuilding(ctx context.Context, a domain.Action, s domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
@@ -725,14 +750,14 @@ func TestRoundsShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) 
 	n := &adoptingNative{sleepingNative: base}
 	walls := want.Walls()
 	standing := map[domain.Cell]bool{want.Door(): true}
-	n.standing = []bridge.Structure{{ID: "door", Definition: "Door", Cell: want.Door(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT}}
+	n.stand(structure{ID: "door", Definition: "Door", Cell: want.Door(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	for i, status := range []o.BuildingStatus{o.BuildingStatus_BUILDING_STATUS_FRAME, o.BuildingStatus_BUILDING_STATUS_FRAME, o.BuildingStatus_BUILDING_STATUS_BLUEPRINT} {
 		w := walls[len(walls)-1-i]
 		if w == want.Door() {
 			t.Fatal("fixture picked the door")
 		}
 		standing[w] = true
-		n.standing = append(n.standing, bridge.Structure{ID: status.String(), Definition: "Wall", Cell: w, Status: status})
+		n.stand(structure{ID: status.String(), Definition: "Wall", Cell: w, Status: status})
 	}
 	// The census must not be able to place on standing cells; the planner
 	// must skip them without asking.
@@ -753,9 +778,6 @@ func TestRoundsShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) 
 	result, err := planner.Step(context.Background())
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
-	}
-	if n.censuses == 0 {
-		t.Fatal("no structure census")
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
 	if err != nil {
@@ -796,7 +818,8 @@ func TestRoundsShelterAdoptsALoneDoor(t *testing.T) {
 	// only the door it had finished survives, and it is the shell's record.
 	door := domain.Cell{X: 4, Z: 3}
 	room := recordStoreroom(t, r, db, policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7})
-	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: door, Status: o.BuildingStatus_BUILDING_STATUS_BUILT}}}
+	n := &adoptingNative{sleepingNative: base}
+	n.stand(structure{ID: "door", Definition: "Door", Cell: door, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
@@ -866,12 +889,12 @@ func TestRoundsShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 			if w == door {
 				def = "Door"
 			}
-			n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(len(n.standing)), Definition: def, Cell: w, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
+			n.stand(structure{ID: strconv.Itoa(len(n.standing)), Definition: def, Cell: w, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 		} else {
 			own = append(own, w)
 		}
 	}
-	n.standing = append(n.standing, bridge.Structure{ID: "own", Definition: "Wall", Cell: own[0], Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
+	n.stand(structure{ID: "own", Definition: "Wall", Cell: own[0], Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	blocked := own[1]
 	previewed := map[domain.Cell]bool{}
 	preview := base.onPreview
@@ -991,7 +1014,7 @@ func TestRoundsShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 			t.Fatal("fixture picked the door twice")
 		}
 		standing[cell] = true
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: ring[cell].Definition(), Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
+		n.stand(structure{ID: strconv.Itoa(i), Definition: ring[cell].Definition(), Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
 	if err != nil {
@@ -1046,7 +1069,7 @@ func TestRoundsShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 			t.Fatal("fixture picked the door")
 		}
 		standing[cell] = true
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: "Wall", Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
+		n.stand(structure{ID: strconv.Itoa(i), Definition: "Wall", Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
 	if err != nil {
@@ -1120,7 +1143,7 @@ func TestRoundsShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *te
 	gap := placements[len(placements)-1]
 	n := &adoptingNative{sleepingNative: base}
 	for i, b := range placements[:len(placements)-1] {
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
+		n.stand(structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	planner, err := NewRoundsShelterPlanner(r.reviewer, n)
 	if err != nil {
@@ -1206,7 +1229,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	}
 	n := &adoptingNative{sleepingNative: base}
 	for i, b := range ring.Placements("Wall", "Door", "WoodLog") {
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
+		n.stand(structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	snapshot := r.reviewer.player.session.State().Snapshot
 	snapshot.Plan, snapshot.Revision = "routine-shell-test", 1
@@ -1239,6 +1262,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 				planner.phase = policy.ComfortRanked
 			}
 			facts := facts
+			facts.Cells = structureCells(n.standing)
 			facts.Rooms = test.rooms
 			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, func() error { return nil })
 			if err != nil || len(selected) != 0 || adopted != test.adopted {
@@ -1255,6 +1279,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	// wall.
 	gap := &adoptingNative{sleepingNative: base, standing: n.standing[:len(n.standing)-1], last: snapshot}
 	roomed := facts
+	roomed.Cells = structureCells(gap.standing)
 	roomed.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}})
 	for _, test := range []struct {
 		goal    policy.ConcernID

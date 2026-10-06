@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // NewRoundsShelterPlanner prefers furnishing verified indoor space. Only when
@@ -262,13 +262,7 @@ func definitionAvailability(def observation.PlanningDefinition) Verdict {
 	return researchWait(strings.Join(def.Research, "+"))
 }
 
-// structureReader is the optional native census a shell planner uses to
-// recognise a shell it began earlier; sources without it always site afresh.
-type structureReader interface {
-	ReadStructures(ctx context.Context, identity *c.Identity, minimum, maximum domain.Cell, definitions []string) (bridge.StructureRead, bridge.Result, error)
-}
-
-// shellAdoptionReach bounds the census of earlier walls and doors to the
+// shellAdoptionReach bounds the search for earlier walls and doors to the
 // colony centre's neighbourhood, where the starter search sites shells.
 const shellAdoptionReach int32 = 64
 
@@ -514,10 +508,6 @@ const shellHistoryLimit = 64
 // room, whole or not, since its furnishing step found no site there (#218).
 // Doors are tried nearest the colony centre first.
 func (r *RoundsBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, bool, error) {
-	reader, ok := r.native.(structureReader)
-	if !ok {
-		return nil, policy.StockObservation{}, Verdict{}, false, nil
-	}
 	center, planned := facts.Center().Value()
 	if !planned {
 		return nil, policy.StockObservation{}, Verdict{}, false, nil
@@ -527,24 +517,28 @@ func (r *RoundsBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.
 	if minimum.X > maximum.X || minimum.Z > maximum.Z {
 		return nil, policy.StockObservation{}, Verdict{}, false, nil
 	}
-	census, _, err := reader.ReadStructures(ctx, boundary.Identity(snapshot), minimum, maximum, shellDefinitions)
-	if err != nil {
-		return nil, policy.StockObservation{}, Verdict{}, false, err
-	}
 	if err := check(); err != nil {
 		return nil, policy.StockObservation{}, Verdict{}, false, err
 	}
-	if !roundsCachedFresh(bridge.FactColony, census.Tick, facts.Identity.Tick) || census.Generation != uint64(snapshot.Native) {
-		return nil, policy.StockObservation{}, Verdict{}, false, fmt.Errorf("%w: adoptShell: !roundsCachedFresh(bridge.FactColony, census.Tick, facts.Identity.Tick) || census.Generation != uint64(sna", ErrControl)
-	}
-	standing := make(map[domain.Cell]string, len(census.Structures))
+	// The player's walls and doors of any build state, read from the planning
+	// window's thing lists (a blueprint or frame lists the def it builds).
+	standing := map[domain.Cell]string{}
 	seen := map[domain.Cell]bool{}
 	var doors []domain.Cell
-	for _, s := range census.Structures {
-		standing[s.Cell] = s.Definition
-		if shellDoor(s.Definition) && !seen[s.Cell] {
-			seen[s.Cell] = true
-			doors = append(doors, s.Cell)
+	for _, cell := range facts.Cells {
+		at := cell.Cell
+		if at.X < minimum.X || at.X > maximum.X || at.Z < minimum.Z || at.Z > maximum.Z {
+			continue
+		}
+		for _, t := range cell.Things {
+			if t.Faction != policy.FactionPlayer || !slices.Contains(shellDefinitions, t.Def) {
+				continue
+			}
+			standing[at] = t.Def
+			if shellDoor(t.Def) && !seen[at] {
+				seen[at] = true
+				doors = append(doors, at)
+			}
 		}
 	}
 	earlier, err := r.earlierShells(ctx, minimum, maximum)

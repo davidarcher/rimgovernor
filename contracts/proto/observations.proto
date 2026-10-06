@@ -678,7 +678,7 @@ message PowerNetwork {
 message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BuildingState buildings = 2; repeated PowerNetwork power_networks = 3; Completeness completeness = 4;
   // Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
   repeated string removed = 10; }
-message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; Rectangle region = 8; optional bool inspect = 9; optional bool bill_ingredients = 10; }
+message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; reserved 8; optional bool inspect = 9; optional bool bill_ingredients = 10; }
 message ListBuildingsReply { oneof outcome { BuildingsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoomStat { optional string def_name = 1; optional double value = 2; optional string display = 3; optional string unit = 4; optional string cost = 5; rimgovernor.common.v1.Unavailable unavailable = 6; }
 message RoomBedMembership { rimgovernor.common.v1.Ref building = 5; repeated rimgovernor.common.v1.Ref owners = 2; repeated rimgovernor.common.v1.Ref users = 3; repeated rimgovernor.common.v1.Ref accessible_to = 4; }
@@ -1103,12 +1103,10 @@ message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawn
 message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; RecreationCensus joy = 6; }
 message UpkeepItem { rimgovernor.common.v1.Ref item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional int64 rot_ticks = 9; optional double temperature_c = 11; optional bool forbidden = 12; optional bool burning = 15; }
 message UpkeepBed { rimgovernor.common.v1.Ref bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated rimgovernor.common.v1.Ref owners = 7; repeated rimgovernor.common.v1.Ref users = 8; repeated rimgovernor.common.v1.Ref accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; rimgovernor.common.v1.Ref room = 12; optional string quality = 13; optional string stuff = 15; optional bool for_slaves = 16; }
-message StorageCell { rimgovernor.common.v1.Cell cell = 1; optional bool roofed = 2; optional bool occupied = 3; }
 message ItemStorageCapacity { optional string item_id = 1; optional int64 unreserved_covered_capacity = 2; optional uint32 accepting_cells = 3; }
 message UpkeepStructure { rimgovernor.common.v1.Ref building = 7; optional bool home = 2; optional bool holds_roof = 3; optional int32 repair_priority = 4; optional double flammability = 5; optional bool roofed = 6; }
 message FireState { rimgovernor.common.v1.Ref fire = 1; optional double size = 2; optional bool home = 3; repeated rimgovernor.common.v1.Ref safe_workers = 4; }
 message FilthState { rimgovernor.common.v1.Ref filth = 1; optional bool home = 2; optional uint32 thickness = 3; optional string room_role = 4; optional bool cleanable = 5; rimgovernor.common.v1.Ref room = 6; }
-message ProtectedCell { rimgovernor.common.v1.Cell cell = 1; optional bool home = 2; optional bool roofed = 3; }
 // partners: lover, spouse and fiance relations to living pawns on the same
 // map (native direct relations). bed_sharing_allowed: the native willingness
 // to share a bed with every listed partner (the SharedBed precepts; with no
@@ -1375,10 +1373,12 @@ message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 sampl
 message RoutesFacts { repeated RouteFacility facilities = 1; repeated string pawn_ids = 2; repeated TrafficCell traffic = 3; optional uint32 traffic_samples = 4; optional int32 traffic_since_tick = 5; }
 message RoutesSection { oneof outcome { RoutesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message UpkeepFacts {
+  // storage_cells (5) and protected_cells (10) were never read (#2276).
+  reserved 5, 10;
   ComfortSection comfort = 1; repeated UpkeepItem items = 3;
-  repeated UpkeepBed beds = 4; repeated StorageCell storage_cells = 5; repeated ItemStorageCapacity storage_capacity = 6;
+  repeated UpkeepBed beds = 4; repeated ItemStorageCapacity storage_capacity = 6;
   repeated UpkeepStructure structures = 7; repeated FireState fires = 8; repeated FilthState filth = 9;
-  repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11;
+  repeated UpkeepPerson people = 11;
   repeated AnimalFeed animals = 13; repeated ReadIssue issues = 15;
   WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
   repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; /* rooms: the bundle rooms census */ repeated UpkeepPerson slaves = 24;
