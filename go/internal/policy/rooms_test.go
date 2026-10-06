@@ -92,12 +92,4 @@ func TestHostedComfortDropsFacilitiesOutsideHostingRooms(t *testing.T) {
 	if len(hosted.People) != 1 || len(hosted.Surfaces) != 1 || hosted.Surfaces[0].ID != "hosted-table" || len(hosted.Dining) != 1 || hosted.Dining[0].ID != "hosted-chair" || len(hosted.Recreation) != 1 || hosted.Recreation[0].ID != "hosted-pin" {
 		t.Fatal(hosted)
 	}
-	cells := HostingCells(FacilityRequirement{Role: RoomRoleDiningRoom, Compatible: []RoomRole{RoomRoleRecRoom}}, RoomObservation{Shapes: testShapes, Rooms: []Room{
-		{ID: "dining", Role: domain.Known(RoomRoleDiningRoom), Cells: []domain.Cell{{X: 1, Z: 1}}},
-		{ID: "rec", Role: domain.Known(RoomRoleRecRoom), Cells: []domain.Cell{{X: 2, Z: 1}}},
-		{ID: "bed", Role: domain.Known(RoomRoleBedroom), Cells: []domain.Cell{{X: 3, Z: 1}}},
-		{ID: "unroled", Cells: []domain.Cell{{X: 4, Z: 1}}}}})
-	if len(cells) != 2 || cells[0] != (domain.Cell{X: 1, Z: 1}) || cells[1] != (domain.Cell{X: 2, Z: 1}) {
-		t.Fatal(cells)
-	}
 }

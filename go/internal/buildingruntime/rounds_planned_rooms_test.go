@@ -78,26 +78,47 @@ func TestPlannedRoomInteriorIsTheWholeRoom(t *testing.T) {
 	}
 }
 
-// Dining furniture goes in the planned dining room only while the plan has
-// one and no standing room hosts dining; anything else is left to the usual
-// placement.
-func TestPlannedDiningFurnishingLeavesOtherPlansAlone(t *testing.T) {
+// Each facility's furniture goes in the layout plan's room of its role
+// (#2267): into the interior of the standing room, with no census room
+// hosting it. Without a planned room of the role, or a facility, the planner
+// is left alone.
+func TestPlannedFacilityFurnishingUsesThePlannedRoom(t *testing.T) {
 	t.Parallel()
-	dining, err := policy.Facility(policy.RoomRoleDiningRoom)
-	if err != nil {
-		t.Fatal(err)
+	step := func(r *RoundsBuildingPlanner, facts observation.ColonyProjection) (*RoundsBuildingPlanner, bool, error) {
+		got, _, done, err := r.plannedFacilityFurnishing(context.TODO(), context.TODO(), ControlState{}, store.Rounds{}, store.StandardState{}, observation.ColonyReading{}, facts)
+		return got, done, err
 	}
-	table := &RoundsBuildingPlanner{concern: policy.EnsureComfort, facility: &dining, definition: "Table1x2c"}
-	facts := observation.ColonyProjection{}
-	for name, r := range map[string]*RoundsBuildingPlanner{
-		"rooms unread":  table,
-		"not a comfort": {concern: policy.EnsureCooking, facility: &dining, definition: "Table1x2c"},
-		"a recreation":  {concern: policy.EnsureComfort, facility: &dining, definition: "HorseshoesPin"},
-		"no facility":   {concern: policy.EnsureComfort, definition: "Table1x2c"},
+	for _, tc := range []struct {
+		role    policy.RoomRole
+		planned policy.PlannedRole
+	}{
+		{policy.RoomRoleDiningRoom, policy.PlannedDining},
+		{policy.RoomRoleRecRoom, policy.PlannedRec},
+		{policy.RoomRoleHospital, policy.PlannedHospital},
+		{policy.RoomRoleLaboratory, policy.PlannedLab},
+		{policy.RoomRoleWorkshop, policy.PlannedWorkshop},
 	} {
-		got, _, done, err := r.plannedDiningFurnishing(context.TODO(), context.TODO(), ControlState{}, store.Rounds{}, store.StandardState{}, observation.ColonyReading{}, facts)
-		if err != nil || done || got != r {
-			t.Errorf("%s: planner changed or stepped: done=%v err=%v", name, done, err)
+		facility, err := policy.Facility(tc.role)
+		if err != nil {
+			t.Fatal(err)
 		}
+		room := policy.PlannedRoom{Role: tc.planned, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
+		facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}), BuildTier: domain.Known(policy.BuildTierCamp)}
+		facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "r", Cells: []domain.Cell{{X: 13, Z: 12}}, Enclosed: domain.Known(true)}}})
+		facts.Facts.CurrentConstruction = ringConstruction(&room)
+		r := &RoundsBuildingPlanner{facility: &facility, definition: "Furniture"}
+		got, done, err := step(r, facts)
+		if err != nil || done || got == r || got.facility != nil || len(got.cells) != 30 {
+			t.Errorf("%s: furniture did not land in its planned room: done=%v err=%v got=%+v", tc.role, done, err, got)
+		}
+		bare := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{}), Rooms: facts.Rooms, BuildTier: facts.BuildTier}
+		bare.Facts.CurrentConstruction = ringConstruction(nil)
+		if got, done, err := step(r, bare); err != nil || done || got != r {
+			t.Errorf("%s: planner changed with no planned room: done=%v err=%v", tc.role, done, err)
+		}
+	}
+	plain := &RoundsBuildingPlanner{definition: "Table1x2c"}
+	if got, done, err := step(plain, observation.ColonyProjection{}); err != nil || done || got != plain {
+		t.Errorf("no facility: planner changed: done=%v err=%v", done, err)
 	}
 }

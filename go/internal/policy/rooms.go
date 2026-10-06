@@ -280,16 +280,3 @@ func Facility(role RoomRole) (FacilityRequirement, error) {
 	}
 	return FacilityRequirement{}, errors.New("room role is not catalogued")
 }
-
-// HostingCells returns every cell of a room whose native role can host the
-// requirement, in census order. An unknown role never hosts: a facility placed
-// there could be scored into an incompatible role the controller cannot see.
-func HostingCells(f FacilityRequirement, rooms RoomObservation) []domain.Cell {
-	var cells []domain.Cell
-	for _, room := range rooms.Rooms {
-		if role, known := room.Role.Value(); known && f.Hosts(role) {
-			cells = append(cells, room.Cells...)
-		}
-	}
-	return cells
-}

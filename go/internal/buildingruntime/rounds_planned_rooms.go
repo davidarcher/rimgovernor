@@ -128,22 +128,41 @@ func plannedRoomMethod(room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s-shell-%d-%d", room.Role, room.Interior.X, room.Interior.Z))
 }
 
-// plannedDiningFurnishing puts the dining table and chairs in the layout
-// plan's dining room while no standing room hosts dining: the ring is
-// admitted and the furniture goes onto the footprint's interior with it, not
-// after the walls, since the room is where they will stand anyway. done is
-// true when the ring's own step produced the result to return.
-func (r *RoundsBuildingPlanner) plannedDiningFurnishing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoundsBuildingPlanner, result RoundsBuildingResult, done bool, err error) {
-	if r.concern != policy.EnsureComfort || r.facility == nil || r.facility.Role != policy.RoomRoleDiningRoom || !comfortFurniture(facts).IsTable(r.definition) && !comfortFurniture(facts).IsChair(r.definition) {
+// facilityFurnishingRoles are the facility roles whose furniture stands in the
+// layout plan's room of that role (#2267): dining, rec, hospital, laboratory
+// and workshop. No census room hosts them.
+var facilityFurnishingRoles = map[policy.RoomRole]bool{
+	policy.RoomRoleDiningRoom: true, policy.RoomRoleRecRoom: true, policy.RoomRoleHospital: true,
+	policy.RoomRoleLaboratory: true, policy.RoomRoleWorkshop: true,
+}
+
+// plannedFacilityFurnishing puts a facility's furniture in the layout plan's
+// room of its role: while the room is owed its ring is admitted and the
+// furniture goes onto the footprint's interior with it, not after the walls,
+// since the room is where they will stand anyway; once the room stands the
+// furniture goes into its interior. A laboratory takes the planned shelter's
+// bench row instead (#2264). done is true when the ring's own step produced
+// the result to return.
+func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoundsBuildingPlanner, result RoundsBuildingResult, done bool, err error) {
+	if r.facility == nil || r.cells != nil || !facilityFurnishingRoles[r.facility.Role] {
 		return r, RoundsBuildingResult{}, false, nil
 	}
-	rooms, known := facts.Rooms.Value()
-	if !known || len(policy.HostingCells(*r.facility, rooms)) > 0 {
+	if r.facility.Role == policy.RoomRoleLaboratory && len(plannedShelterRooms(facts)) > 0 {
 		return r, RoundsBuildingResult{}, false, nil
 	}
-	room, owed := plannedRoomOwed(facts, policy.PlannedDining)
+	module, ok := r.roomModule()
+	if !ok {
+		return r, RoundsBuildingResult{}, false, nil
+	}
+	room, owed := plannedRoomOwed(facts, module)
 	if !owed {
-		return r, RoundsBuildingResult{}, false, nil
+		cells := plannedRoomCells(facts, module)
+		if cells == nil {
+			return r, RoundsBuildingResult{}, false, nil
+		}
+		furnish := *r
+		furnish.facility, furnish.cells = nil, cells
+		return &furnish, RoundsBuildingResult{}, false, nil
 	}
 	result, err = r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))})
 	if err != nil || !result.Verdict.skipsToPlacement() {
@@ -190,6 +209,18 @@ func shelterCoolers(facts observation.ColonyProjection) int {
 // a shelter.
 func plannedShelterRooms(facts observation.ColonyProjection) []policy.InteriorRoom {
 	plan, known := facts.LayoutPlan.Value()
+	rooms := plannedInteriorRooms(facts, func(planned policy.PlannedRoom) bool { return planned.Role == policy.PlannedShelter })
+	for i := range rooms {
+		rooms[i].Campfires, rooms[i].Coolers = policy.ShelterCampfires(known && plan.Cold), policy.ShelterCoolers(known && plan.Hot)
+	}
+	return rooms
+}
+
+// plannedInteriorRooms are the layout plan's rooms that keep accepts, read as
+// plan inputs from the planned interior alone, with the buildings already
+// standing in each (#2267); a room with no usable door is left out.
+func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.PlannedRoom) bool) []policy.InteriorRoom {
+	plan, known := facts.LayoutPlan.Value()
 	if !known {
 		return nil
 	}
@@ -201,14 +232,13 @@ func plannedShelterRooms(facts observation.ColonyProjection) []policy.InteriorRo
 	}
 	var out []policy.InteriorRoom
 	for _, planned := range plan.AllRooms() {
-		if planned.Role != policy.PlannedShelter {
+		if !keep(planned) {
 			continue
 		}
 		room, ok := policy.InteriorRoomFromLayout(planned, facts.Shapes)
 		if !ok {
 			continue
 		}
-		room.Campfires, room.Coolers = policy.ShelterCampfires(plan.Cold), policy.ShelterCoolers(plan.Hot)
 		seen := map[string]bool{}
 		for _, c := range plannedRoomInterior(planned) {
 			if d, ok := edifice[c]; ok && !seen[d] {

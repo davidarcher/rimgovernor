@@ -444,7 +444,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 		r = resolved
 		definitions = []string{r.definition}
-		furnish, result, done, err := r.plannedDiningFurnishing(call, epoch, state, review, goal, reading, facts)
+		furnish, result, done, err := r.plannedFacilityFurnishing(call, epoch, state, review, goal, reading, facts)
 		if done || err != nil {
 			return result, err
 		}
@@ -944,16 +944,22 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 					roomCells[c] = true
 				}
 			}
-		} else {
-			rooms, known := facts.Rooms.Value()
-			if !known {
-				return nil, policy.StockObservation{}, fieldUnavailable("rooms"), nil
-			}
-			for _, c := range policy.HostingCells(*r.facility, rooms) {
+		} else if r.cells != nil {
+			// A bed's cells are the planned bedroom's (#2267); its interior
+			// slots come from the plan room they lie in.
+			for _, c := range r.cells {
 				roomCells[c] = true
 			}
-			interiorRooms = policy.InteriorRoomsFor(*r.facility, rooms, facts.Cells)
+			interiorRooms = plannedInteriorRooms(facts, func(planned policy.PlannedRoom) bool {
+				return slices.ContainsFunc(r.cells, func(c domain.Cell) bool {
+					in := planned.Interior
+					return c.X >= in.X && c.X < in.X+in.Width && c.Z >= in.Z && c.Z < in.Z+in.Height
+				})
+			})
 		}
+		// Every other facility furnishes through its planned room, which sets
+		// r.cells (plannedFacilityFurnishing, #2267); with none planned there
+		// is no room to place in.
 		if len(roomCells) == 0 {
 			return nil, policy.StockObservation{}, noSpace("hosting_room"), nil
 		}
