@@ -223,7 +223,12 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 // ring standing yet (#835): the kitchen, freezer or jail its owning
 // goal shells before furnishing. A dug room is mined out first (#836).
 func (p LayoutPlan) NextPlannedRoom(role PlannedRole, ground GroundCensus) (PlannedRoom, bool) {
-	for _, r := range p.AllRooms() {
+	rooms := p.AllRooms()
+	if role == PlannedYard {
+		// Yards are reservations viewed as rooms, not plan rooms.
+		rooms = p.YardRooms()
+	}
+	for _, r := range rooms {
 		if r.Role != role {
 			continue
 		}

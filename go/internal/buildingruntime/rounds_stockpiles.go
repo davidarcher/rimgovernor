@@ -126,7 +126,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
-	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe} {
+	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedYard} {
 		if _, owed := plannedRoomOwed(*projection, module); owed {
 			request.Shells = append(request.Shells, module)
 		}
@@ -465,7 +465,7 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 	// The medicine store reads the medical beds, so the census carries them.
 	// The gear rooms are shelled from the same reading, so the census carries
 	// the wall and door definitions.
-	read, err := observe(call, r.reviewer.native, expected, claims, policy.ShellWallDefinition, policy.ShellDoorDefinition)
+	read, err := observe(call, r.reviewer.native, expected, claims, policy.ShellWallDefinition, policy.ShellDoorDefinition, policy.PenFenceDefinition, policy.PenGateDefinition)
 	if err != nil {
 		return RoundsStockpileResult{}, err
 	}

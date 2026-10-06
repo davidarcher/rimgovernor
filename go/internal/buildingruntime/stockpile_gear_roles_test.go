@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -73,5 +74,19 @@ func TestGearStoreFailsWithoutCatalogArmor(t *testing.T) {
 	var r Rounder
 	if _, err := r.gearStore(context.Background(), domain.GenerationSnapshot{}, projection); !errors.Is(err, policy.ErrNoArmorDefs) {
 		t.Fatalf("gearStore error %v", err)
+	}
+}
+
+// The materials yard is a plan reservation viewed as an Outdoor room (#2215):
+// until its fence ring stands the stockpile review owes its shell.
+func TestYardShellIsOwedUntilItsRingStands(t *testing.T) {
+	t.Parallel()
+	projection, _ := mealSpotColony(1.6)
+	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveYard, Area: policy.Rectangle{X: 30, Z: 30, Width: policy.YardW + 2, Height: policy.YardH + 2}}}}
+	projection.LayoutPlan = domain.Known(plan)
+	projection.Facts.CurrentConstruction = ringConstruction(nil)
+	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil, nil))
+	if !slices.Contains(request.Shells, policy.PlannedYard) {
+		t.Fatalf("shells %v, want the yard", request.Shells)
 	}
 }

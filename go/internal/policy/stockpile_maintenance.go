@@ -156,7 +156,7 @@ type StockpileRequest struct {
 	// usable (StoragePlan.Err); the review itself does not read it.
 	SiteErr error
 	// Shells are the planned storage-planner rooms (storage, armory and wardrobe,
-	// #1774) not yet standing: each is a StockpileShell edit.
+	// #1774; the materials yard's fence ring, #2215) not yet standing: each is a StockpileShell edit.
 	Shells []PlannedRole
 	// Opening stands the opening stockpiles (general store, corpse dump)
 	// while no owned zone of their kind stands; the runtime always sets it.
