@@ -29,8 +29,6 @@ func coreRoomsWanted(projection observation.ColonyProjection) []policy.PlannedRo
 	want(bk && len(benches) > 0 && !butchersAllColocated(benches, projection.Rooms) && butcherTableWanted(projection, benches), policy.PlannedButchery)
 	prisoners, pk := projection.Facts.Prisoners.Value()
 	want(pk && heldPrisoners(prisoners) > 0, policy.PlannedPrison)
-	waste, wk := projection.Facts.Waste.Value()
-	want(wk && policy.MorgueWaiting(waste, strangerButchery(projection)), policy.PlannedMorgue)
 	// A generator stands: batteries bank its surplus.
 	topology, tk := projection.PowerPlanning.Value()
 	want(tk && slices.ContainsFunc(topology.Buildings, generatorSite), policy.PlannedBattery)

@@ -212,7 +212,7 @@ func TestTurbineWindCells(t *testing.T) {
 
 func TestPlanUtilities(t *testing.T) {
 	zones := utilityTestZones()
-	core := withRooms(growPlan(corePlan(zones, 0, BuildTierCamp), 0, 1, BuildTierCamp), PlannedBattery, PlannedMorgue)
+	core := withRooms(growPlan(corePlan(zones, 0, BuildTierCamp), 0, 1, BuildTierCamp), PlannedBattery)
 	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
 	if !p.Valid() {
 		t.Fatal("invalid")
@@ -229,7 +229,7 @@ func TestPlanUtilities(t *testing.T) {
 			lanes = append(lanes, r)
 		}
 	}
-	if count[ReserveTurbine] != 4 || count[ReserveTurbineLane] != 6 || count[ReserveSolar] != 2 || count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 3 {
+	if count[ReserveTurbine] != 4 || count[ReserveTurbineLane] != 6 || count[ReserveSolar] != 2 || count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 2 {
 		t.Fatal(count)
 	}
 	// Battery room: 5 wide off the spine, door on the walkway, no lane.

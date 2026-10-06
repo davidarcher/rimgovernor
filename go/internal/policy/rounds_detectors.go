@@ -635,7 +635,7 @@ func inspectRefrigeration(c *roundsRun) error {
 		if nutrition, known := refrigeration.WarmNutrition.Value(); known && c.p.FoodStorage.AtRiskNutritionThreshold > 0 {
 			g.Deficit = domain.Known(min(1, nutrition/c.p.FoodStorage.AtRiskNutritionThreshold))
 		}
-		if len(refrigeration.Tombs) > 0 {
+		if len(refrigeration.Warm) > 0 {
 			g.Deficit = domain.Known(1.0)
 		}
 		if d, _ := g.Deficit.Value(); closetOwed && d < 0.5 {

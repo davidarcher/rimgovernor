@@ -55,14 +55,8 @@ func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool 
 	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, true).Kind == policy.TombFull
 }
 
-// strangerButchery is whether the human butchery would take a fresh stranger
-// corpse now (#1811); unread benches mean no.
-func strangerButchery(facts observation.ColonyProjection) bool {
-	return policy.HumanButcheryOpen(facts.ProductionBenches, facts.Facts.IdeologyRead())
-}
-
-// plannedMorgue is the planned morgue a waiting fresh stranger corpse owes
-// a shell (#1820); false while the plan, rooms or waste census is unread.
+// plannedMorgue is the planned morgue a waiting human corpse owes a shell
+// (#1820); false while the plan, rooms or waste census is unread.
 func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool) {
 	plan, pk := facts.LayoutPlan.Value()
 	waste, wk := facts.Facts.Waste.Value()
@@ -70,7 +64,7 @@ func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool
 	if !pk || !wk || !gk {
 		return policy.PlannedRoom{}, false
 	}
-	return policy.MorgueRoomOwed(plan, plan.GroundWithRock(ground, naturalRock(facts)), waste, strangerButchery(facts))
+	return policy.MorgueRoomOwed(plan, plan.GroundWithRock(ground, naturalRock(facts)), waste)
 }
 
 // corpsesOwed is the review's CorpsesOwed fact: the tomb, the morgue or the
@@ -110,8 +104,8 @@ func mealClosetOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	return owed
 }
 
-// warmTombs is the review's TombsWarm fact (#840): warm tombs holding a
-// colonist, once the colony can build coolers.
-func warmTombs(facts observation.ColonyProjection) domain.Fact[[]string] {
-	return policy.WarmTombs(facts.Shapes, facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+// warmCoolingRooms is the review's WarmRooms fact: the standing warm tombs,
+// morgues and meal closets, once the colony can build coolers.
+func warmCoolingRooms(facts observation.ColonyProjection) domain.Fact[[]string] {
+	return policy.WarmCoolingRooms(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms)
 }

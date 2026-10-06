@@ -35,7 +35,10 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
 	scorer := newPlanScorer(plan.Zones, plan.Reservations, s)
 	want.scorer = &scorer
-	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s), s)
+	plan = PlanUtilities(plan, want)
+	plan, _ = growOutskirts(plan, OutskirtsSize())
+	plan, _ = growOutskirtsRooms(plan, want.ThickRoof)
+	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s)
 	return domain.Known(withoutCore(plan))
 }
 
@@ -83,8 +86,9 @@ type RoomGrowth struct {
 	// unit's.
 	HerdUnits []int
 	// Outskirts is the outline (width, height) of the off-core cluster the
-	// plan is asked to hold (#2183); zero asks for none, and a cluster the
-	// plan holds never moves.
+	// plan is asked to hold (#2183, OutskirtsSize); zero asks for none, and a
+	// cluster the plan holds never moves. Its tomb and morgue are placed in
+	// their slots (#2185).
 	Outskirts [2]int32
 }
 
@@ -167,6 +171,11 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	dropped = dropped || incinerator
 	next, outskirts := growOutskirts(next, growth.Outskirts)
 	dropped = dropped || outskirts
+	if growth.Outskirts != [2]int32{} {
+		var rooms bool
+		next, rooms = growOutskirtsRooms(next, ThickRoofCells(s))
+		dropped = dropped || rooms
+	}
 	next.Zones = zones
 	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {

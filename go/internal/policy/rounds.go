@@ -283,9 +283,9 @@ type RoundsFacts struct {
 	// CorpsesOwed: a tomb (#832), morgue (#1820) or incinerator (#1814) step is due; it keeps
 	// MaintainWaste open while a corpse waits on one.
 	CorpsesOwed domain.Fact[bool]
-	// TombsWarm: the warm tombs holding a colonist (#840, WarmTombs); they
+	// WarmRooms: the warm standing tombs, morgues and meal closets (WarmCoolingRooms); they
 	// join MaintainRefrigeration's rooms.
-	TombsWarm domain.Fact[[]string]
+	WarmRooms domain.Fact[[]string]
 	// MealClosetOwed: the planned meal closet waits to be shelled while its
 	// dining room stands (#936); it keeps MaintainRefrigeration open.
 	MealClosetOwed domain.Fact[bool]
@@ -808,7 +808,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 	if c.refrigeration, err = ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage); err != nil {
 		return RoundsFindings{}, err
 	}
-	c.refrigeration = c.refrigeration.WithTombs(f.TombsWarm)
+	c.refrigeration = c.refrigeration.WithWarmRooms(f.WarmRooms)
 	if c.upkeep, err = ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness); err != nil {
 		return RoundsFindings{}, err
 	}

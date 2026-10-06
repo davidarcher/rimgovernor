@@ -20,12 +20,11 @@ const (
 	PlannedDining  PlannedRole = "dining"
 	PlannedRec     PlannedRole = "rec"
 	PlannedLab     PlannedRole = "lab"
-	// PlannedTomb is the sarcophagus room (#832), shelled only once a
-	// colonist lies dead.
+	// PlannedTomb is the sarcophagus room (#832), planned from the start in the
+	// outskirts cluster and shelled only once a colonist lies dead.
 	PlannedTomb PlannedRole = "tomb"
-	// PlannedMorgue is the cold room for fresh stranger corpses (#1820),
-	// beside the tomb and shelled only once a butcherable stranger corpse
-	// lies waiting.
+	// PlannedMorgue is the room for human corpses (#1820), planned from the
+	// start in the outskirts cluster and shelled only once one lies waiting.
 	PlannedMorgue PlannedRole = "morgue"
 )
 
@@ -45,7 +44,8 @@ var coreRoomSize = map[PlannedRole][2]int32{
 	PlannedTomb:     {5, 5},
 	PlannedMorgue:   {5, 4},
 	// The rooms below are added on demand (layout_demand_rooms.go,
-	// layout_gear.go), not in coreBaseRooms.
+	// layout_gear.go), not in coreBaseRooms. The tomb and morgue above are
+	// sized here and sited in the outskirts cluster.
 	PlannedArmory:   {7, 5},
 	PlannedWardrobe: {7, 5},
 	PlannedBattery:  batteryRoomSize,

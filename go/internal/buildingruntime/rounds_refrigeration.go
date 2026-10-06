@@ -50,7 +50,7 @@ func (r *RoundsBuildingPlanner) selectRefrigeration(call context.Context, facts 
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	review = review.WithTombs(warmTombs(facts))
+	review = review.WithWarmRooms(warmCoolingRooms(facts))
 	if !review.Active {
 		return nil, BuildingReasonNoDeficit, nil
 	}

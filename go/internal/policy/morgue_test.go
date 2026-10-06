@@ -12,23 +12,26 @@ func morgueFixture() (LayoutPlan, PlannedRoom) {
 	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
-func TestMorgueReconciledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
+func TestMorgueReconciledForAnyHumanCorpse(t *testing.T) {
 	plan, room := morgueFixture()
-	fresh := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotFresh}}
-	if got, owed := MorgueRoomOwed(plan, GroundCensus{}, fresh, true); !owed || !got.Same(room) {
-		t.Fatalf("fresh stranger: %+v %v", got, owed)
+	for _, waste := range [][]WasteItem{
+		{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotFresh}},
+		{{ID: "Corpse_2", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotRotting}},
+		{{ID: "Corpse_3", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist, RotStage: domain.RotFresh}},
+	} {
+		if got, owed := MorgueRoomOwed(plan, GroundCensus{}, waste); !owed || !got.Same(room) {
+			t.Fatalf("%+v: %+v %v", waste, got, owed)
+		}
 	}
-	if _, owed := MorgueRoomOwed(plan, GroundCensus{}, fresh, false); owed {
-		t.Fatal("butchery closed: the stranger is burned, not kept")
-	}
-	rotten := []WasteItem{{ID: "Corpse_2", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotRotting}}
-	colonist := []WasteItem{{ID: "Corpse_3", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist, RotStage: domain.RotFresh}}
-	for _, waste := range [][]WasteItem{rotten, colonist, nil} {
-		if _, owed := MorgueRoomOwed(plan, GroundCensus{}, waste, true); owed {
+	buried := []WasteItem{{ID: "Corpse_4", Kind: "corpse", State: WasteBuried, CorpseOf: domain.CorpseColonist}}
+	animal := []WasteItem{{ID: "Corpse_5", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseAnimal, RotStage: domain.RotFresh}}
+	for _, waste := range [][]WasteItem{buried, animal, nil} {
+		if _, owed := MorgueRoomOwed(plan, GroundCensus{}, waste); owed {
 			t.Fatalf("owed for %+v", waste)
 		}
 	}
-	if _, owed := MorgueRoomOwed(plan, ringWalls(plan, room), fresh, true); owed {
+	human := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger}}
+	if _, owed := MorgueRoomOwed(plan, ringWalls(plan, room), human); owed {
 		t.Fatal("a standing morgue owes no shell")
 	}
 }
@@ -37,13 +40,11 @@ func TestMorgueIsCooledOnceStanding(t *testing.T) {
 	plan, room := morgueFixture()
 	rooms := tombStanding(PlannedRoom{Interior: room.Interior})
 	rooms.Rooms[0].Temperature = domain.Known(18.0)
-	built := domain.Known(CurrentConstruction{Colony: true})
-	none := domain.Known([]WasteItem{})
-	if got, known := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || !reflect.DeepEqual(got, []string{"r1"}) {
+	if got, known := WarmCoolingRooms(domain.Known(true), domain.Known(plan), domain.Known(rooms)).Value(); !known || !reflect.DeepEqual(got, []string{"r1"}) {
 		t.Fatalf("a standing warm morgue owes cooling: %v %v", got, known)
 	}
 	rooms.Rooms[0].Temperature = domain.Known(-6.0)
-	if got, _ := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); len(got) != 0 {
+	if got, _ := WarmCoolingRooms(domain.Known(true), domain.Known(plan), domain.Known(rooms)).Value(); len(got) != 0 {
 		t.Fatalf("a frozen morgue is done: %v", got)
 	}
 }
@@ -85,29 +86,6 @@ func containsSelector(rows []domain.FilterSelector, s domain.FilterSelector) boo
 		}
 	}
 	return false
-}
-
-func TestCoreGrowPlansAMorgueBesideTheTomb(t *testing.T) {
-	p := growPlan(corePlan(coreTestZones(), 3, BuildTierCamp), 3, 1, BuildTierCamp)
-	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []PlannedRole{PlannedMorgue})
-	if err != nil || !grown {
-		t.Fatalf("morgue grown=%v err=%v", grown, err)
-	}
-	var morgue, tomb *PlannedRoom
-	for i, r := range p.Rooms {
-		switch r.Role {
-		case PlannedMorgue:
-			morgue = &p.Rooms[i]
-		case PlannedTomb:
-			tomb = &p.Rooms[i]
-		}
-	}
-	if morgue == nil || tomb == nil {
-		t.Fatal("morgue or tomb not planned")
-	}
-	if cold := coolingRoles; !containsRole(cold, PlannedMorgue) {
-		t.Fatal("morgue not a cooled role")
-	}
 }
 
 func containsRole(roles []PlannedRole, r PlannedRole) bool {

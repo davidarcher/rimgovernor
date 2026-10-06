@@ -421,7 +421,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 			return store.RoundsResult{}, err
 		}
 	}
-	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)
+	reading.Projection.Facts.WarmRooms = warmCoolingRooms(reading.Projection)
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
 	reading.Projection.Facts.TemperatureOwed = temperatureOwed(reading.Projection)
