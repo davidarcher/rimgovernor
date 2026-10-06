@@ -31,30 +31,93 @@ func init() {
 
 func runStarvingTribal(ctx context.Context, s cases.Session) error {
 	report := s.Report()
+	if err := prepareStarving(ctx, s, nil, true); err != nil {
+		return err
+	}
+	samples := make([]any, 0, starvingRounds)
+	err := starvingServe(ctx, s, []string{"acquisition", "field", "work", "bill", "research"}, starvingRoundTicks, starvingRounds,
+		func(r starvingRound) (bool, error) {
+			sample := map[string]any{"round": r.n, "clockParked": r.parked, "native": r.observed,
+				"foodPlan": r.colony["foodPlan"], "blockers": huntBlockers(r.observed)}
+			if reply, e := r.h.Wire(ctx, r.prefix+"-facts", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}, "planning": true}); e == nil {
+				if _, facts, e := na.Outcome(reply, "observed"); e == nil {
+					sample["foodChannels"] = facts["foodChannels"]
+					sample["foodNutrition"] = facts["foodNutrition"]
+				}
+			}
+			plan, _ := na.AsMap(r.colony["foodPlan"])
+			sample["huntRows"] = portfolioRows(plan, "Hunt")
+			sample["openHuntRow"] = openRow(sample["huntRows"])
+			samples = append(samples, sample)
+			report["samples"] = samples
+			report["latest"] = sample
+			return false, nil
+		})
+	if err != nil {
+		return err
+	}
+	if len(samples) != starvingRounds {
+		return fmt.Errorf("starving report incomplete: %d of %d samples", len(samples), starvingRounds)
+	}
+	return nil
+}
+
+// prepareStarving makes the fixture colony a starving tribal one (the prepare
+// op's args name the animals and the hunger) and records it in the report.
+// cache keeps the result in the checkpoint so a resumed run skips the prep;
+// a case that reads the op's native counters prepares every run instead,
+// because the counters' hooks live in the game process, not in the save.
+func prepareStarving(ctx context.Context, s cases.Session, args map[string]any, cache bool) error {
 	h := s.Harness()
-	identity := s.Identity()
-	prepared, _ := na.AsMap(cases.RestoredState(s, "fixture"))
-	var err error
+	var prepared map[string]any
+	if cache {
+		prepared, _ = na.AsMap(cases.RestoredState(s, "fixture"))
+	}
 	if prepared == nil {
-		if prepared, err = h.Call(ctx, "starving-prepare", starvingPrepareOp, nil); err != nil {
+		var err error
+		if prepared, err = h.Call(ctx, "starving-prepare", starvingPrepareOp, args); err != nil {
 			return err
 		}
-		na.SetCheckpointState("fixture", prepared)
+		if cache {
+			na.SetCheckpointState("fixture", prepared)
+		}
 	}
 	if ok, _ := na.AsBool(prepared["success"]); !ok || len(na.AsSlice(prepared["animals"])) == 0 {
 		return fmt.Errorf("starving fixture refused: %v", prepared)
 	}
-	report["fixture"] = prepared
-	if _, err = na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"acquisition", "field", "work", "bill", "research"}, Extra: na.ClockSpeedArgs()})
+	s.Report()["fixture"] = prepared
+	_, err := na.ConfirmColonyNames(ctx, h, s.Report())
+	return err
+}
+
+// starvingRound is one sample of the serve loop: the round's number, whether
+// the clock parked before its game-time budget, the live colony read and the
+// native observe op's reply taken after the service stopped.
+type starvingRound struct {
+	h        *na.Harness
+	n        int
+	prefix   string
+	parked   bool
+	colony   map[string]any
+	observed map[string]any
+}
+
+// starvingServe runs the controller in rounds of roundTicks game time (at
+// most maxRounds): each round launches serve, waits for the budget or a
+// parked clock (no_work freezes the tick; the parked tick is itself a
+// finding), stops it, pauses the game and hands the live colony read and the
+// native observation to each, which returns true once the case has seen
+// enough to stop.
+func starvingServe(ctx context.Context, s cases.Session, families []string, roundTicks domain.Tick, maxRounds int, each func(starvingRound) (bool, error)) error {
+	report := s.Report()
+	h := s.Harness()
+	identity := s.Identity()
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
 	defer func() { service.Stop() }()
-	samples := make([]any, 0, starvingRounds)
-	for round := 1; round <= starvingRounds; round++ {
+	for round := 1; round <= maxRounds; round++ {
 		prefix := fmt.Sprintf("starving-%d", round)
 		if round > 1 {
 			if _, e := na.ConfirmColonyNames(ctx, h, report); e != nil {
@@ -83,9 +146,6 @@ func runStarvingTribal(ctx context.Context, s cases.Session) error {
 		if e != nil {
 			return e
 		}
-		// A round ends after starvingRoundTicks of game time, or when the
-		// clock parks (no_work freezes the tick; the parked tick is itself a
-		// finding, so the sample is taken and recorded as such).
 		var start, lastTick domain.Tick
 		var parkedSince time.Time
 		parked := false
@@ -101,7 +161,7 @@ func runStarvingTribal(ctx context.Context, s cases.Session) error {
 				lastTick, parkedSince = r.Tick, time.Now()
 			}
 			parked = r.Revision > 0 && time.Since(parkedSince) > 20*time.Second
-			return na.Signature(r.Tick), r.Tick >= start+starvingRoundTicks || parked, nil
+			return na.Signature(r.Tick), r.Tick >= start+roundTicks || parked, nil
 		})
 		var colony map[string]any
 		if e == nil {
@@ -123,23 +183,10 @@ func runStarvingTribal(ctx context.Context, s cases.Session) error {
 		if e != nil {
 			return e
 		}
-		sample := map[string]any{"round": round, "clockParked": parked, "native": observed,
-			"foodPlan": colony["foodPlan"], "blockers": huntBlockers(observed)}
-		if reply, e := h.Wire(ctx, prefix+"-facts", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "planning": true}); e == nil {
-			if _, facts, e := na.Outcome(reply, "observed"); e == nil {
-				sample["foodChannels"] = facts["foodChannels"]
-				sample["foodNutrition"] = facts["foodNutrition"]
-			}
+		done, e := each(starvingRound{h: h, n: round, prefix: prefix, parked: parked, colony: colony, observed: observed})
+		if e != nil || done {
+			return e
 		}
-		plan, _ := na.AsMap(colony["foodPlan"])
-		sample["huntRows"] = portfolioRows(plan, "Hunt")
-		sample["openHuntRow"] = openRow(sample["huntRows"])
-		samples = append(samples, sample)
-		report["samples"] = samples
-		report["latest"] = sample
-	}
-	if len(samples) != starvingRounds {
-		return fmt.Errorf("starving report incomplete: %d of %d samples", len(samples), starvingRounds)
 	}
 	return nil
 }

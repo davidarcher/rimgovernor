@@ -162,7 +162,45 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        [Tool("test/food_starving_prepare", Description = "UNSAFE FOR MODEL EXECUTION. On the empty-channel fixture, make the colony a starving tribal one for the food/starving-tribal diagnosis (#2141): destroy every colonist's weapons (worn and carried), delete every butcher bill, enable Hunting for every colonist who can, drop colonists to a hungry food level, and spawn animalCount wild animalKind at fixed offsets from the colonists' centre.")]
+        // What the starving-tribal recovery case (#2173) reads natively: meat the
+        // colonists ingested, wild kills by a colonist, and the killer's job two
+        // ticks after each (vanilla hauls the corpse; the hunt-chain rule leaves a Hunt).
+        private sealed class WildKill { internal int Tick; internal Pawn Killer; internal string Prey = ""; internal bool Recorded; }
+        private static float meatEaten;
+        private static bool starvingPatched;
+        private static readonly List<WildKill> wildKills = new List<WildKill>();
+        private static readonly List<Dictionary<string, object>> killJobs = new List<Dictionary<string, object>>();
+
+        private static void MeatIngested(Thing __instance, Pawn ingester, float __result)
+        {
+            if (__instance.def.IsMeat && ingester?.IsColonist == true) meatEaten += __result;
+        }
+
+        private static void WildKilled(Pawn __instance, DamageInfo? dinfo)
+        {
+            if (__instance.Faction != null || !__instance.RaceProps.Animal || !(dinfo?.Instigator is Pawn killer) || !killer.IsColonist) return;
+            wildKills.Add(new WildKill { Tick = Find.TickManager.TicksGame, Killer = killer, Prey = __instance.GetUniqueLoadID() });
+        }
+
+        private static void AfterStarvingTick()
+        {
+            var now = Find.TickManager.TicksGame;
+            foreach (var kill in wildKills)
+            {
+                if (kill.Recorded || now < kill.Tick + 2) continue;
+                kill.Recorded = true;
+                var target = kill.Killer.CurJob?.targetA.Thing;
+                var prey = target as Pawn;
+                var live = prey != null && !prey.Dead && prey.Spawned;
+                killJobs.Add(new Dictionary<string, object> {
+                    { "killTick", kill.Tick }, { "killer", kill.Killer.LabelShort }, { "killed", kill.Prey }, { "jobDef", kill.Killer.CurJobDef?.defName ?? "" },
+                    { "targetLive", live }, { "targetDesignated", live && NativeHuntAcquisition.Designated(prey) },
+                    { "targetIsKilled", target != null && (target.GetUniqueLoadID() == kill.Prey || (target is Corpse c && c.InnerPawn.GetUniqueLoadID() == kill.Prey)) },
+                });
+            }
+        }
+
+        [Tool("test/food_starving_prepare", Description = "UNSAFE FOR MODEL EXECUTION. On the empty-channel fixture, make the colony a starving tribal one for the food/starving-tribal diagnosis (#2141) and the food/starving-tribal-recovery case (#2173; also starts counting meat eaten and wild kills with the killer's next job): destroy every colonist's weapons (worn and carried), delete every butcher bill, enable Hunting for every colonist who can, drop colonists to a hungry food level, and spawn animalCount wild animalKind at fixed offsets from the colonists' centre.")]
         public async Task<object> StarvingPrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string animalKind = "Deer", int animalCount = 6, double foodLevel = 0.3)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -201,6 +239,15 @@ namespace HomeBridge.BridgeTools
                     GenSpawn.Spawn(animal, cell, map);
                     spawned.Add(new { id = animal.GetUniqueLoadID(), x = cell.x, z = cell.z, distance = Math.Round(cell.DistanceTo(anchor), 1) });
                 }
+                meatEaten = 0; wildKills.Clear(); killJobs.Clear();
+                if (!starvingPatched)
+                {
+                    var harmony = new Harmony("rimgovernor.fixture.starving");
+                    harmony.Patch(AccessTools.Method(typeof(Thing), "Ingested"), postfix: new HarmonyMethod(typeof(FoodChannelFixture), nameof(MeatIngested)));
+                    harmony.Patch(AccessTools.Method(typeof(Pawn), nameof(Pawn.Kill)), postfix: new HarmonyMethod(typeof(FoodChannelFixture), nameof(WildKilled)));
+                    harmony.Patch(AccessTools.Method(typeof(TickManager), "DoSingleTick"), postfix: new HarmonyMethod(typeof(FoodChannelFixture), nameof(AfterStarvingTick)));
+                    starvingPatched = true;
+                }
                 return new { success = true, colonists = people.Count, weaponsDestroyed = destroyed, butcherBillsDeleted = bills, animals = spawned, anchor = new { x = anchor.x, z = anchor.z } };
             }, cancellationToken);
         }
@@ -222,7 +269,8 @@ namespace HomeBridge.BridgeTools
                     designated = NativeHuntAcquisition.Designated(p) }).ToList();
                 var bills = map.listerThings.AllThings.OfType<IBillGiver>().SelectMany(g => g.BillStack.Bills.OfType<Bill_Production>()
                     .Select(b => new { bench = (g as Thing)?.def.defName ?? "", recipe = b.recipe.defName, butcher = NativeRecipeRoles.ButcherFlesh(b.recipe), suspended = b.suspended, paused = b.paused })).ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame, colonists, animals, bills,
+                var malnutrition = map.mapPawns.FreeColonistsSpawned.Select(p => p.health.hediffSet.GetFirstHediffOfDef(HediffDefOf.Malnutrition)?.Severity ?? 0f).DefaultIfEmpty(0f).Max();
+                return new { success = true, tick = Find.TickManager.TicksGame, colonists, animals, bills, malnutrition, meatEaten, wildKills = wildKills.Count, killJobs = killJobs.ToList(),
                     pendingHunts = animals.Count(a => a.designated), wildAnimals = animals.Count,
                     corpses = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).Count,
                     foodItems = map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible).Sum(t => t.stackCount) };
