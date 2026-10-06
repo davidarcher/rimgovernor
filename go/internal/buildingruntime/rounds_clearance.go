@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -122,6 +123,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	if !planned {
 		return RoundsClearanceResult{Verdict: BuildingNoLayoutPlan}, nil
 	}
+	r.journalRecoveryBatch(call, boundary.Identity(state.Snapshot), review.RecoveryQueue, filtered, colony.Projection)
 	selection := policy.SelectHomeClearance(filtered, center)
 	id := domain.MintPlanID()
 	var prefix string
