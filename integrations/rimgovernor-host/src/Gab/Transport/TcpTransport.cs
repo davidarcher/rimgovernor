@@ -118,7 +118,7 @@ namespace RimGovernor.Host.Gab.Transport
 
         public int Port { get; private set; }
 
-        public async Task StartAsync(CancellationToken cancellationToken = default(CancellationToken))
+        public Task StartAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             if (_running)
                 throw new InvalidOperationException("Transport is already running");
@@ -130,6 +130,8 @@ namespace RimGovernor.Host.Gab.Transport
 
             // Start accepting connections in background
             var task = Task.Run(async () => await AcceptConnectionsAsync(cancellationToken), cancellationToken);
+
+            return Task.FromResult(0);
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default(CancellationToken))
