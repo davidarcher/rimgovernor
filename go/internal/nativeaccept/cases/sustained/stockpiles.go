@@ -83,7 +83,7 @@ func AuditStockpiles(ctx context.Context, h *na.Harness, s cases.Session, report
 	if err != nil {
 		return err
 	}
-	report["stockpile_zones"] = map[string]any{"stockpiles": stockpiles, "food": food, "limit": colonyFoodZoneLimit, "rows": rows, "starting_supplies": stocks, "per_kind": churn.perKind, "deletes": churn.deletes}
+	report["stockpile_zones"] = map[string]any{"stockpiles": stockpiles, "food": food, "limit": colonyFoodZoneLimit, "rows": rows, "starting_supplies": stocks, "per_kind": churn.perKind, "deletes": churn.deletes, "creates": churn.creates}
 	var failures []error
 	if len(churn.flagged) > 0 {
 		failures = append(failures, fmt.Errorf("stockpile zones deleted while their purpose still stands (churn): %v", churn.flagged))
@@ -106,20 +106,23 @@ type zoneChurn struct {
 	perKind map[string]int
 	// deletes counts the admitted zone deletes by the role they name.
 	deletes map[string]int
-	// flagged lists the roles deleted in the window whose kind still has a
-	// standing zone: the delete did not follow a retired purpose.
+	// creates lists the admitted zone creates in journal order with their
+	// tick and size: the first one is the earliest a store can open, the
+	// order is the per-store creation order (#2224).
+	creates []map[string]any
+	// flagged lists the roles created again after a delete in the window:
+	// the delete did not follow a retired purpose.
 	flagged []string
 }
 
 var (
 	zoneLabelNumber = regexp.MustCompile(`[\s_:-]*\d+$`)
-	zoneDeleteRole  = regexp.MustCompile(`\(([^)]+)\): role retired`)
 )
 
 // auditZoneChurn reads the flight recorder's admitted stockpile deletes
-// (layout_edit, family stockpile, kind delete: MaintainStockpiles deletes only
-// a zone whose role's purpose the department declared gone) against the
-// standing zones. It is post-hoc like the rest of the audit: a recorder that
+// and creates (layout_edit, family stockpile, attrs kind and role: a delete
+// follows a purpose the department declared gone, so a later create of the
+// same role is churn). It is post-hoc like the rest of the audit: a recorder that
 // cannot be read leaves the counts empty.
 func auditZoneChurn(s cases.Session, rows []map[string]any) (zoneChurn, error) {
 	churn := zoneChurn{perKind: map[string]int{}, deletes: map[string]int{}}
@@ -131,25 +134,24 @@ func auditZoneChurn(s cases.Session, rows []map[string]any) (zoneChurn, error) {
 	if err != nil {
 		return churn, nil
 	}
+	deleted := map[string]bool{}
 	for _, row := range flight {
 		if row.Kind != "layout_edit" || na.AsString(row.Payload["verdict"]) != "admitted" {
 			continue
 		}
 		attrs, _ := na.AsMap(row.Payload["attrs"])
-		if na.AsString(attrs["family"]) != "stockpile" || na.AsString(attrs["kind"]) != "delete" {
+		role := na.AsString(attrs["role"])
+		if na.AsString(attrs["family"]) != "stockpile" || role == "" {
 			continue
 		}
-		match := zoneDeleteRole.FindStringSubmatch(na.AsString(attrs["detail"]))
-		if match == nil {
-			continue
-		}
-		role := match[1]
-		churn.deletes[role]++
-		prefix := strings.ToLower(strings.SplitN(role, ":", 2)[0])
-		for kind := range churn.perKind {
-			if prefix != "" && strings.Contains(kind, prefix) {
+		switch na.AsString(attrs["kind"]) {
+		case "delete":
+			churn.deletes[role]++
+			deleted[role] = true
+		case "create":
+			churn.creates = append(churn.creates, map[string]any{"role": role, "tick": row.Tick, "cells": attrs["cells"]})
+			if deleted[role] {
 				churn.flagged = append(churn.flagged, role)
-				break
 			}
 		}
 	}

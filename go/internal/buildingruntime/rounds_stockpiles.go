@@ -484,7 +484,7 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 		if e.Kind == policy.StockpileCreate {
 			continue
 		}
-		telemetry.Decide(call, stockpileEditDecision("admitted", "", e.Zone, map[string]any{"kind": string(e.Kind), "plan": string(id), "detail": e.Explanation}))
+		telemetry.Decide(call, stockpileEditDecision("admitted", "", e.Zone, map[string]any{"kind": string(e.Kind), "role": e.Role, "plan": string(id), "detail": e.Explanation}))
 	}
 	return RoundsStockpileResult{Verdict: BuildingReasonAdmitted, Plan: id, Edits: len(actions)}, nil
 }

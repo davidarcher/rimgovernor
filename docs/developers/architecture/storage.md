@@ -81,7 +81,9 @@ whether the loot census still holds a safe stack forbidden). It lists the final 
 per role and flags starting supplies still forbidden after a day. A report, not
 a gate.
 
-The sustained colony acceptance's `AuditStockpiles` also reports the standing zones per
-store kind and the admitted zone deletes by role, and fails a delete whose kind still has
-a zone (churn). Early-room spoilage and time-to-first-store are accepted risks that are
-not yet measured (#2224).
+An admitted zone create or delete is a `layout_edit` row (family `stockpile`, attrs `kind`,
+`role`, and `cells` on a create), stamped with its tick. The sustained colony acceptance's
+`AuditStockpiles` reports the standing zones per store kind, the admitted creates in order
+(role, tick, cells: the first create is the earliest a store can open) and the deletes by
+role, and fails a role created again after a delete (churn). Early-room spoilage is read
+against the create ticks; no check gates it.

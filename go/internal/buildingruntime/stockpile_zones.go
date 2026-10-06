@@ -239,7 +239,7 @@ func (z stockpileZones) create(call, epoch context.Context, state ControlState, 
 		return RoundsStockpileResult{Verdict: admissionRefused(decision)}, nil
 	}
 	for _, e := range admitted {
-		telemetry.Decide(call, stockpileEditDecision("admitted", "", e.Role, map[string]any{"kind": string(e.Kind), "plan": string(id), "detail": e.Explanation}))
+		telemetry.Decide(call, stockpileEditDecision("admitted", "", e.Role, map[string]any{"kind": string(e.Kind), "role": e.Role, "cells": len(e.Cells), "plan": string(id), "detail": e.Explanation}))
 	}
 	return RoundsStockpileResult{Verdict: BuildingReasonAdmitted, Plan: id, Edits: len(actions)}, nil
 }
