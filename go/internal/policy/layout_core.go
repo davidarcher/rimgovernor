@@ -40,7 +40,7 @@ var coreRoomSize = map[PlannedRole][2]int32{
 	PlannedHospital: {7, 5},
 	PlannedPrison:   {5, 5},
 	PlannedWorkshop: {7, 5},
-	PlannedStorage:  {9, 7},
+	PlannedStorage:  {15, 7},
 	PlannedLab:      {6, 5},
 	PlannedTomb:     {5, 5},
 	PlannedMorgue:   {5, 4},
