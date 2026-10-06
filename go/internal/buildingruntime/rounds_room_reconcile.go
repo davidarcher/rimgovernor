@@ -399,11 +399,14 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		}
 		return nil
 	}
-	// A room planned into rock is mined out before its ring (#836).
-	for i, w := range works {
-		if wantWalls[i] && w.rr.room.Dug {
-			if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, plan, w.rr.room, check); err != nil || handled {
-				return result, err
+	// A room planned into rock is mined out before its ring (#836), a dug
+	// store room first: its zone waits on the dig (#2190).
+	for _, stores := range []bool{true, false} {
+		for i, w := range works {
+			if wantWalls[i] && w.rr.room.Dug && policy.IsStoreRoom(w.rr.room.Role) == stores {
+				if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, plan, w.rr.room, check); err != nil || handled {
+					return result, err
+				}
 			}
 		}
 	}

@@ -9,11 +9,14 @@ import (
 // Mine tiers order mining designations along the plan's mining zone (#792):
 // ore first, then the rock under dug rooms (walls included) and the cooler
 // exhaust shafts so the core's footprint is cleared ahead of growth, then the remaining stone as demand
-// calls for it. A cell off the plan, or no plan, is MineTierStone.
+// calls for it. A dug store room (storeRoom) ranks between ore and the other
+// dug rooms: its zone waits on the dig and no stand-in store holds supplies
+// meanwhile (#2190). A cell off the plan, or no plan, is MineTierStone.
 const (
 	MineTierOre   = 0
-	MineTierCore  = 1
-	MineTierStone = 2
+	MineTierStore = 1
+	MineTierCore  = 2
+	MineTierStone = 3
 )
 
 // MineTier ranks cell under plan; a cell in the zone zoning marked Ore ranks
@@ -22,6 +25,11 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 	for _, z := range p.Zones {
 		if z.Kind == ZoneMining && z.Ore && zoneHas(z, cell) {
 			return MineTierOre
+		}
+	}
+	for _, r := range p.AllRooms() {
+		if r.Dug && IsStoreRoom(r.Role) && inRoomRing(r.Interior, cell) {
+			return MineTierStore
 		}
 	}
 	for _, r := range p.AllRooms() {
@@ -36,6 +44,10 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 		}
 	}
 	return MineTierStone
+}
+
+func inRoomRing(in Rectangle, cell domain.Cell) bool {
+	return cell.X >= in.X-1 && cell.X <= in.X+in.Width && cell.Z >= in.Z-1 && cell.Z <= in.Z+in.Height
 }
 
 // RoomRock is the shared rock step (RockStep) over the cells a planned

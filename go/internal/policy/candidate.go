@@ -151,7 +151,7 @@ func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
 		out.Risk = append(out.Risk, CandidateRisk{Kind: CandidateRiskKind(r.Kind), Weight: r.Weight})
 	}
 	for _, t := range c.Terms {
-		out.Terms = append(out.Terms, CandidateTerm{Name: t.Name, Value: t.Value})
+		out.Terms = append(out.Terms, CandidateTerm(t))
 	}
 	return out
 }
@@ -174,7 +174,7 @@ func FoodChannelOfSupply(c SupplyCandidate) (FoodChannel, bool) {
 		out.Risk = append(out.Risk, FoodRisk{Kind: FoodRiskKind(r.Kind), Weight: r.Weight})
 	}
 	for _, t := range c.Terms {
-		out.Terms = append(out.Terms, FoodPlanTerm{Name: t.Name, Value: t.Value})
+		out.Terms = append(out.Terms, FoodPlanTerm(t))
 	}
 	return out, true
 }

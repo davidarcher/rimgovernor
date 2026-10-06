@@ -85,8 +85,21 @@ func storeServed(zones []StockpileZone, site StoreSite) bool {
 // interior); a rectangle is the free Width x Height patch inside the interior
 // nearest Anchor.
 func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
+	if s.room == nil {
+		// The zone waits until the interior is settled (#2190): no stand-in
+		// store covers a room still being dug, unseen or cleared.
+		reading := readInterior(s.Interior, func(c domain.Cell) (SiteCell, bool) { sc, ok := open.cells[c]; return sc, ok })
+		if !reading.Ready() {
+			return nil
+		}
+	}
 	if s.Width <= 0 || s.Height <= 0 {
-		return coverCells(open, s.footprint())
+		cover := coverCells(open, s.footprint())
+		if s.room == nil {
+			// A kept cell may split the room; native refuses a split zone.
+			cover = largestComponent(cover)
+		}
+		return cover
 	}
 	within := open
 	within.only = cellSet(s.footprint())
