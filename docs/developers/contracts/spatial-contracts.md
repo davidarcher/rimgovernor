@@ -246,8 +246,9 @@ retires and its zone is deleted.
 and created when the colony has things for one and no zone of it. A dump takes the
 nearest free outdoor 2x2 patch six cells clear of any living room
 (`policy.OutdoorDumpSites`), never while the room census is unknown. A create ranks
-after retargets and before grows. Worn-dump gear above the gear hit-point floor
-sells to traders (`policy.SaleGear`, `export_thing_ids`).
+after retargets and before grows. Warehouse gear (apparel or weapons in a `general`
+zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`,
+`export_thing_ids`); unknown hit points or quality is not sale gear.
 
 **Gear rooms.** Gear is stored in layout's armory and wardrobe rooms, not fixed 2x2
 zones; until a room stands, gear stays in the general store, and a zone still claimed

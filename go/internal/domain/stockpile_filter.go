@@ -64,7 +64,9 @@ type Quality string
 
 var qualityOrder = []Quality{"Awful", "Poor", "Normal", "Good", "Excellent", "Masterwork", "Legendary"}
 
-func qualityRank(q Quality) int {
+// QualityRank is a quality's index in native QualityCategory order (Awful 0 ..
+// Legendary 6), -1 for an unknown name.
+func QualityRank(q Quality) int {
 	for i, v := range qualityOrder {
 		if v == q {
 			return i
@@ -144,7 +146,7 @@ func (f StockpileFilter) WithHitPoints(min, max float64) (StockpileFilter, error
 
 // WithQuality bounds the filter to a quality range (Awful..Legendary).
 func (f StockpileFilter) WithQuality(min, max Quality) (StockpileFilter, error) {
-	lo, hi := qualityRank(min), qualityRank(max)
+	lo, hi := QualityRank(min), QualityRank(max)
 	if lo < 0 || hi < 0 || lo > hi {
 		return StockpileFilter{}, errors.New("invalid quality range")
 	}

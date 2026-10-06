@@ -167,7 +167,9 @@ Trade is routine-only (the `trade` family, `--routine-silver-reserve`,
 above a MaintainResource target and, once the item share of colony wealth passes
 `--routine-item-wealth-share`, from raw-material hoards (steel, plasteel, gold, uranium,
 jade) sold down to the highest of the target, the economic floor and a retained minimum
-(`policy.WealthSurplus`); an unknown wealth split sells nothing on that rule.
+(`policy.WealthSurplus`); an unknown wealth split sells nothing on that rule. Gear
+sells one piece at a time when it lies in a warehouse zone below the gear hit-point or
+quality floor (`policy.SaleGear`, authorized by `export_thing_ids`).
 
 Direct orbital opening is refused. Ordinary orbital input requires the comms console's
 native menu, a powered reachable interaction cell and capable negotiator, then

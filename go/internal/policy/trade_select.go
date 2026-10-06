@@ -48,7 +48,11 @@ type TradeSheetRowFact struct {
 	// its thing lies in (#1831); what SaleGear matches.
 	HitPoints      float64
 	HitPointsKnown bool
-	ZoneID         string
+	// Quality is a gear row's native QualityCategory index (Awful 0 ..
+	// Legendary 6).
+	Quality      int32
+	QualityKnown bool
+	ZoneID       string
 
 	// PawnID is a pawn row's load id (the animal census id for a colony
 	// animal): the key a live-animal sale matches (#1632) and a purchase
@@ -345,14 +349,21 @@ func sellGear(out *TradeSelection, facts TradeSelectionFacts, stopped map[string
 	})
 }
 
-// SaleGear is the gear the colony sells: a thing lying in a worn dump (wornDumps,
-// by zone id) above the hit-point floor the incinerator burns below, so
-// serviceable-but-unwanted gear is sold, not burned. The trader's willingness
-// to trade a row (biocoded gear is refused natively) is checked at selection.
-func SaleGear(rows []TradeSheetRowFact, wornDumps map[string]bool) map[string]bool {
+// SaleGear is the gear the colony sells: apparel or weapons lying in a warehouse
+// zone (warehouses, by zone id) whose hit points are below
+// domain.GearHitPointFloor or whose quality is below domain.GearQualityFloor.
+// The warehouse disallows burnable gear, so what lies there below the keep
+// floors is worth selling. Unknown hit points or quality is not sale gear. The
+// trader's willingness to trade a row (biocoded gear is refused natively) is
+// checked at selection.
+func SaleGear(rows []TradeSheetRowFact, warehouses map[string]bool) map[string]bool {
+	floor := int32(domain.QualityRank(domain.GearQualityFloor))
 	out := map[string]bool{}
 	for _, row := range rows {
-		if row.ThingID != "" && !row.Pawn && wornDumps[row.ZoneID] && row.HitPointsKnown && row.HitPoints > domain.GearHitPointFloor {
+		if row.ThingID == "" || row.Pawn || !warehouses[row.ZoneID] || !row.HitPointsKnown || !row.QualityKnown {
+			continue
+		}
+		if row.HitPoints < domain.GearHitPointFloor || row.Quality < floor {
 			out[row.ThingID] = true
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -587,19 +588,19 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 			return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 		}
 	}
-	// Worn-dump gear above the incinerator's cap sells (#1831).
+	// Warehouse gear below the keep floors sells.
 	claims, err := r.reviewer.player.journal.ZoneClaims(call, state.Snapshot, projection.Identity.Tick)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	wornDumps := map[string]bool{}
+	warehouses := map[string]bool{}
 	owned, _ := claims.Value()
 	for _, z := range owned {
-		if z.Role == domain.WornDumpRole {
-			wornDumps[z.ID] = true
+		if z.Role == domain.GeneralRole || strings.HasPrefix(z.Role, domain.GeneralRole+":") {
+			warehouses[z.ID] = true
 		}
 	}
-	facts.SaleGear = policy.SaleGear(rows, wornDumps)
+	facts.SaleGear = policy.SaleGear(rows, warehouses)
 	facts.HerdWants = policy.HerdWants(herd)
 	if need.SurplusAnimals > 0 {
 		facts.SaleAnimals = make(map[string]bool, len(saleAnimals))
@@ -701,7 +702,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow, catalog *bridge.DefinitionC
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
-			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
+			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, Quality: row.Quality, QualityKnown: row.QualityKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 			GuestStatus: row.GuestStatus, PrisonerSecure: row.PrisonerSecure, PrisonerSecureKnown: row.PrisonerSecureKnown, PawnDowned: row.PawnDowned, PawnDownedKnown: row.PawnDownedKnown,
 			ExtraHomeFaction: row.ExtraHomeFaction, ExtraHostFaction: row.ExtraHostFaction,
