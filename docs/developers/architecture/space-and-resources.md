@@ -74,9 +74,11 @@ open; the planners do not rank:
   `min(lump, deficit)`, labor prior 100 per unit, hauled to the mines' storage
   headroom). `deepDrill` places the one the plan opened, nearest first through the
   plan's rank; the drill's power draw is charged by shared building admission.
-- Trade stays on the bid board until its cut-over ([supply model](supply-model.md)).
-  The plan's winner for a resource is posted as the single resource bid, and a
-  fresh strictly higher trade bid holds the resource back from both planners.
+- A caravan's recorded offers are candidates (priced as labor, stock-capped by
+  the deficit, the trader's stock and the affordable units), and trade buys only
+  the lines the plan opened ([trade offers](supply-model.md#trade-offers)). The
+  plan's winner for a resource is posted as the single resource bid, which only a
+  deep drill outranks.
 - #728 holds: a shelter or bench short of a non-wood resource raises exactly that
   shortfall as a floor (`DependencyNeeds`), and the wood latch (`WoodMin`,
   `WoodTarget`, seasonal scaling) is a floor like any other.
@@ -100,9 +102,10 @@ joint bid board (the deep drill ranks with the mines and bills), asserting that 
 only the missing resource, one planner dispatches a resource at a time, bids
 expire with their TTL, a missing source is a hold, and a deep drill needs a
 runway deficit, research and power. Failures that hold today are recorded in
-`testdata/resource-matrix-baseline.json`, which only shrinks. The matrix models the pre-plan
-planners and the bid board; a second adapter runs it through `policy.PlanSupply`,
-the ranker the Round's plan uses ([supply model](supply-model.md)).
+`testdata/resource-matrix-baseline.json`, which only shrinks. The baseline test
+runs the matrix through `policy.PlanSupply`, the ranker the Round's plan uses
+([supply model](supply-model.md)); the adapter's pre-plan mode (four planners and
+the bid board) remains for row 31 of epic #2140 to delete.
 
 ## Material runway
 

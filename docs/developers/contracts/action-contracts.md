@@ -157,6 +157,10 @@ until it arrives.
 **Favor currency.** A favor session (the Royalty tribute collector) sets `TradeSheet.currency_kind` (absent reads as silver): row `sell_price` is the favor value, the favor row is `TradeLine.favor` (a currency row, never `protected_export`) and its `transfer_count` is the favor granted on accept. Accept needs no `Silver` floor and exempts currency rows from the reserve check but refuses a negotiator without a royalty tracker. Only here are secure, non-downed prisoners (`TradeUtility.AllSellableColonyPawns`) sellable; an extra home/host faction costs goodwill (`MemberSold`). The controller sells only surplus prisoners (`RoundsFacts.SurplusPrisoners`) with a known positive favor price; unknown facts hold. The staged human-race line gets the accept floor of 0.
 
 **Policy trades** select bounded purchases and surplus sales from the fresh native sheet.
+Each sheet read of an open session also records the trader's priced offers in Go memory
+([trade offers](../architecture/supply-model.md#trade-offers)); a resource purchase
+(MaintainResource shortfall, component target) is staged only as far as the Round's supply
+plan opened that trader's offer, re-priced by the live sheet and the price floors.
 `economicFloors` on native acceptance contains exact `Def=count` entries separated by
 semicolons, including Silver. Acceptance checks remaining actual stack counts in the same
 main-thread operation as the exchange and refuses protected exports. Unknown or truncated

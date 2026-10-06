@@ -111,6 +111,9 @@ type Rounder struct {
 	// bids is MaintainResource's joint ranking across its two planners
 	// (#728); see acquisitionBoard.
 	bids acquisitionBoard
+	// tradeOffers is the caravans' priced offers the supply plan reads as
+	// trade candidates, in memory only (#2168).
+	tradeOffers tradeOfferBook
 	// planChecked is the tick of the last layout survey this process read;
 	// planSurveyed is set once any survey was read. See reviewLayoutPlan.
 	planChecked  domain.Tick

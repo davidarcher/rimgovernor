@@ -392,9 +392,10 @@ func (r *RoundsResourcePlanner) commitBill(call, epoch context.Context, state Co
 // MaintainResource floor: a deposit to mine, a bench bill to produce at, in the
 // plan's rank order. A floor the
 // plan opened nothing for for this planner's kinds is left to the acquisition
-// planner when it opened a chop, harvest or hunt, to the bid board when a
-// deep drill or trade outbids the plan's winner, and otherwise runs the mine
-// tail (a buried deposit to tunnel to, a designation to wait on).
+// planner when it opened a chop, harvest or hunt, to the trade planner when it
+// opened a caravan's offer, to the bid board when a deep drill outbids the
+// plan's winner, and otherwise runs the mine tail (a buried deposit to tunnel
+// to, a designation to wait on).
 func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, supply *resourceSupply, resource policy.Resource, stock domain.Fact[[]policy.Amount], started time.Time) (RoundsResourceResult, error) {
 	row := supply.rows[resource]
 	if row == nil {
@@ -429,7 +430,7 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 			}
 		}
 	}
-	if len(supply.acquisitions(resource)) > 0 {
+	if len(supply.acquisitions(resource)) > 0 || len(supply.plan.OpenedIDs(resource, policy.AcquisitionTrade)) > 0 {
 		return RoundsResourceResult{Verdict: claimHeld(string(resource))}, nil
 	}
 	if row.busy {

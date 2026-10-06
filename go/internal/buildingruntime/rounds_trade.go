@@ -241,7 +241,7 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if !session.Open {
 			return RoundsTradeResult{Verdict: BuildingReasonExistingWork, Trader: row.ID, Phase: domain.TradeOpen, NativeWorkTicks: tradeWalkTicks}, nil
 		}
-		return r.drive(call, epoch, state, incident, review, row.ID, domain.PawnID(session.Negotiator), started)
+		return r.drive(call, epoch, state, incident, review, row.ID, int64(row.GoodsStacks), domain.PawnID(session.Negotiator), started)
 	}
 	settled := map[string]bool{}
 	waiting := arriving
@@ -276,30 +276,6 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 		attempt = open.attempt + 1
 	}
 	return r.open(call, epoch, state, incident, trader.ID, negotiator, attempt, arbiter, started)
-}
-
-// bid posts each purchase on the joint acquisition board (#728), so the
-// resource and acquisition planners leave a resource the caravan is
-// selling cheaper than their best method.
-func (r *RoundsTradePlanner) bid(state ControlState, trader string, selection policy.TradeSelection, rows []policy.TradeSheetRowFact, tick domain.Tick) {
-	price := map[string]float64{}
-	for _, row := range rows {
-		if row.BuyPriceKnown {
-			price[row.DefName] = row.BuyPrice
-		}
-	}
-	for _, line := range selection.Selected {
-		resource := policy.Resource(line.DefName)
-		candidate, ok := policy.TradeCandidate(resource, trader, line.Count, price[line.DefName])
-		if !ok {
-			continue
-		}
-		ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, line.Count), []policy.AcquisitionCandidate{candidate}, policy.AcquisitionCompetition{})
-		if err != nil || len(ranked) == 0 {
-			continue
-		}
-		r.reviewer.bids.bid(state.Snapshot, resource, bidTrade, ranked[0].Score, policy.AcquisitionTrade, tick)
-	}
 }
 
 // negotiator picks the colonist to open with: policy.TraderFor over the
@@ -355,7 +331,7 @@ func (r *RoundsTradePlanner) open(call, epoch context.Context, state ControlStat
 
 // drive advances one caravan's open session: stage the selected lines from
 // its sheet, confirm and accept them, or cancel.
-func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlState, incident store.IncidentState, review store.Rounds, trader string, negotiator domain.PawnID, started time.Time) (RoundsTradeResult, error) {
+func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlState, incident store.IncidentState, review store.Rounds, trader string, stacks int64, negotiator domain.PawnID, started time.Time) (RoundsTradeResult, error) {
 	lines, err := r.phase(call, incident, domain.TradeSetLines, trader)
 	if err != nil {
 		return RoundsTradeResult{}, err
@@ -388,12 +364,13 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 	if sheet.Trader != trader || sheet.Negotiator != string(negotiator) || sheet.GiftMode || !sheet.CanTradeNow {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
+	r.recordOffers(state, sheet, stacks)
 	staged := tradeStagedLines(sheet)
 	phase := tradeSessionPhase(lines, len(staged))
 	if phase == domain.TradeEnd {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
-	economic, facts, capacity, err := r.selection(call, state, review, sheet)
+	economic, facts, capacity, err := r.selection(call, state, review, sheet, trader)
 	if err != nil {
 		return RoundsTradeResult{}, err
 	}
@@ -410,9 +387,6 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors[currency])}
 	default:
 		selection = policy.SelectTrade(economic, facts)
-	}
-	if !facts.Favor {
-		r.bid(state, trader, selection, facts.Rows, review.Tick)
 	}
 	// A pawn buy is its own line beside the resource lines (#1037).
 	if !selection.Refused && facts.SilverKnown && !facts.Favor {
@@ -480,7 +454,7 @@ func tradeSessionPhase(lines tradePhase, staged int) domain.TradeOperationKind {
 
 // selection re-measures the need from a fresh colony read and turns it,
 // with the live sheet, into SelectTrade's inputs.
-func (r *RoundsTradePlanner) selection(call context.Context, state ControlState, review store.Rounds, sheet bridge.TradeSheetRead) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, bool, error) {
+func (r *RoundsTradePlanner) selection(call context.Context, state ControlState, review store.Rounds, sheet bridge.TradeSheetRead, trader string) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, bool, error) {
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
@@ -577,6 +551,13 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
+	// A resource is bought only as far as the supply plan opened this
+	// trader's offer for it (#2168).
+	planned, err := r.plannedPurchases(call, state, review, trader)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
+	need = restrictToPlan(need, planned)
 	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, policy.ResourceConcernTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
@@ -665,6 +646,11 @@ func (r *RoundsTradePlanner) commit(call, epoch context.Context, state ControlSt
 	}
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoundsTradeResult{}, err
+	}
+	// An accept or end settles the caravan: its offers no longer describe a
+	// session the plan can use.
+	if kind == domain.TradeAccept || kind == domain.TradeEnd {
+		r.reviewer.tradeOffers.drop(trader)
 	}
 	// The next phase lands in the stop after this window: a session left
 	// open under a full window outlasts the caravan's visit (#1195).

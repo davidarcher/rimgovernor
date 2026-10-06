@@ -133,14 +133,16 @@ func DeepDrillCandidate(resource Resource, id string, units int64, distance floa
 // dear goods can lose to a near deposit.
 const tradeLaborPerSilver = 1.0
 
-// TradeCandidate is the catalog row of buying units from a caravan at
-// price silver each; the goods drop at the colony, so no haul is charged.
+// TradeCandidate is the catalog row of buying units of resource from a caravan
+// at price silver each; the goods drop at the colony, so no haul is charged.
+// Its ID names the trader and the resource (TradeCandidateID), one row per
+// pair.
 func TradeCandidate(resource Resource, trader string, units int64, price float64) (AcquisitionCandidate, bool) {
 	if units <= 0 || !(price >= 0) {
 		return AcquisitionCandidate{}, false
 	}
 	return AcquisitionCandidate{
-		ID: trader, Kind: AcquisitionTrade,
+		ID: TradeCandidateID(trader, resource), Kind: AcquisitionTrade,
 		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: resource}, Count: units}}},
 		PathDistance: domain.Known(0.0), Labor: domain.Known(price * float64(units) * tradeLaborPerSilver),
 	}, true

@@ -349,7 +349,7 @@ type resRun struct {
 	rep supplysim.Report
 }
 
-func runResScenario(sc resScenario) resRun { return runResScenarioWith(sc, false) }
+func runResScenario(sc resScenario) resRun { return runResScenarioWith(sc, true) }
 
 func runResScenarioWith(sc resScenario, supply bool) resRun {
 	pl := newResPlanner(sc.world, sc.spec, sc.targets, sc.research)

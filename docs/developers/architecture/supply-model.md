@@ -45,9 +45,9 @@ builds the channel rows and `policy.SupplyFoodPlan` plans them through
 mines, bills, chops, harvests and hunts run on it through the Round's resource
 supply plan (`policy.PlanResourceSupply`, [space and resources](space-and-resources.md#resource-demand-and-acquisition-scoring));
 deep drill runs on it as a candidate, and remote loot and salvage plan their
-stacks and targets through `policy.PlanRemoteSupply`. Trade still uses the bid
-board until its cut-over (#2168), and the resource simulator matrix runs through
-a `PlanSupply` adapter.
+stacks and targets through `policy.PlanRemoteSupply`. A caravan's priced goods
+are candidates too ([trade offers](#trade-offers)), and the resource simulator
+matrix runs through a `PlanSupply` adapter.
 
 ### Demands
 
@@ -184,6 +184,40 @@ outdoors. The field executor (`rounds_field.go`) places a new field only when
 the plan opened a `new:` candidate; pending zone creates and add-cells count as
 designated nutrition against the gap (`foodPlanFieldRoom`). Site choice stays
 with the executor.
+
+### Trade offers
+
+A caravan's prices exist only in an open trade session's sheet, so the plan
+cannot see them when it is built. The negotiator's session is the look a player
+takes at the goods: each time `RoundsTradePlanner` reads the sheet of its open
+session it records a `policy.TradeOffers` in `Rounder.tradeOffers` (Go memory
+only, derived state, per trader id): the trader, negotiator, observed tick, the
+colony's silver, the trader's goods-stack count and one `TradeOffer` (def,
+units held, silver price) per priced row. The book is read through
+`tradeOfferBook.fresh`, which hands out the records of traders still on the
+census that can trade and whose record `policy.TradeOffersFresh` accepts: not
+older than `TradeOffersMaxAgeTicks` (three game hours) and silver and goods
+stacks within `TradeOffersShift` (25%) of the recorded values. A trader that
+leaves the census, a settled session (accept or end) and a new generation drop
+the record. #2166 presents traders on the model from the same records.
+
+`policy.TradeOfferCandidates` turns the fresh records into candidates for each
+resource in deficit: yield is the cheapest priced row of that def, capped at
+`min(deficit, units held, silver above the trade reserve / price)`; the upfront
+cost is the silver, priced as labor (`tradeLaborPerSilver`), no haul (the goods
+land at the colony) and no lead (the walk is a fraction of a day). The ID is
+`trader/resource`. Recording a record changes the book's revision, which keys the
+Round's cached plan, so the plan the session reads is built with its own offers.
+
+Trade buys only what the plan opened: `RoundsTradePlanner.selection` limits the
+MaintainResource shortfall and the component target to the units the plan opened
+for that trader (`resourceSupply.tradeLines`); food, medicine, surgery parts and
+every sale are not resource floors and are untouched. The live sheet is read
+again at staging and accept, so its prices and the existing price floors still
+apply, and a session whose plan opened nothing cancels without trading. A
+resource whose plan opened a trade offer is held for the caravan: the resource
+planner neither mines nor tunnels for it (`claim_held`), and a stale record stops
+holding it within three hours.
 
 ## How a channel plugs in
 

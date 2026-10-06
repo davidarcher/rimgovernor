@@ -17,8 +17,9 @@ import (
 // leaves. The resource planner executes the mine and produce candidates the
 // plan opened, the acquisition planner the chop, harvest and hunt candidates;
 // neither ranks on its own. A deep drill is a candidate too (placeable sites
-// only) and deepDrill places the ones the plan opened. Trade stays on the bid
-// board, which the plan's winner per resource joins as the single bid.
+// only) and deepDrill places the ones the plan opened. A caravan's recorded
+// offers (tradeOfferBook) are candidates too, and RoundsTradePlanner buys only
+// the resources the plan opened for its trader.
 
 // unboundedLabor stands for a work budget the review could not read: the
 // workers are unknown, so the plan does not ration labor.
@@ -60,13 +61,14 @@ type resourceSupplyKey struct {
 	generation uint64
 	review     uint64
 	standard   uint64
+	offers     uint64
 }
 
 // resourceSupply returns the Round's plan, built once per observed tick,
 // invalidation generation and MaintainResource revision (an admission changes
 // what is held, designated and in flight).
 func (r *Rounder) resourceSupply(call context.Context, state ControlState, review store.Rounds, goal store.StandardState) (*resourceSupply, error) {
-	key := resourceSupplyKey{state.Snapshot, review.Tick, 0, review.Revision, goal.Revision}
+	key := resourceSupplyKey{state.Snapshot, review.Tick, 0, review.Revision, goal.Revision, r.tradeOffers.version()}
 	s := &r.census
 	s.mu.Lock()
 	key.generation = s.generation
@@ -124,6 +126,19 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	out.hunts, _ = slots.Value()
 	center, centered := projection.Center().Value()
 	rows, _ := projection.Acquisition.Value()
+	// Recorded offers are candidates while the trader census is known; the
+	// silver above the reserve is what a purchase may spend.
+	var offers []policy.TradeOffers
+	var spendable, reserve int64
+	if traders, known := projection.Facts.Traders.Value(); known {
+		silver, silverKnown := projection.Facts.Silver().Value()
+		var reserveKnown bool
+		reserve, reserveKnown = policy.TradeSilverReserve(projection.Facts.Colonists)
+		if silverKnown && reserveKnown {
+			offers = r.tradeOffers.fresh(state.Snapshot, expected.Tick, silver, traders)
+			spendable = silver
+		}
+	}
 
 	if planner.native != nil {
 		if out.drill, err = planner.deepDrillReading(call, state, review); err != nil {
@@ -186,6 +201,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 			input.Candidates = append(input.Candidates, policy.AcquisitionSourceCandidates(resource, priced, center, domain.Known(need))...)
 		}
 		input.Candidates = append(input.Candidates, out.drill.candidates(resource, deficit, row)...)
+		input.Candidates = append(input.Candidates, policy.TradeOfferCandidates(resource, offers, deficit, spendable, reserve)...)
 		inputs = append(inputs, input)
 	}
 	if out.plan, err = policy.PlanResourceSupply(inputs, resourceLabor(projection)); err != nil {
@@ -256,7 +272,7 @@ func huntSlots(projection observation.ColonyProjection) (slots domain.Fact[int],
 }
 
 // bid posts the plan's winner for resource as the single resource bid and
-// reports whether a deep drill or trade bid outranks it.
+// reports whether a deep drill bid outranks it.
 func (s *resourceSupply) bid(r *Rounder, snapshot domain.GenerationSnapshot, resource policy.Resource, tick domain.Tick) bool {
 	kind, score, _ := s.plan.Winner(resource)
 	_, yield := r.bids.bid(snapshot, resource, bidResource, score, kind, tick)
@@ -290,6 +306,25 @@ func (s *resourceSupply) acquisitions(resource policy.Resource) []policy.Acquisi
 		out = append(out, source)
 		if len(out) == policy.MaxCatalogSelection {
 			break
+		}
+	}
+	return out
+}
+
+// tradeLines are the units of each resource the plan opened to buy from
+// trader: what RoundsTradePlanner may stage.
+func (s *resourceSupply) tradeLines(trader string) map[policy.Resource]int64 {
+	out := map[policy.Resource]int64{}
+	for resource := range s.rows {
+		for _, e := range s.plan.Opened(resource) {
+			if e.Candidate.Kind != policy.CandidateTrade || e.Candidate.ID != policy.TradeCandidateID(trader, resource) {
+				continue
+			}
+			units, _ := e.Candidate.Yields[0].StockCap.Value()
+			if e.Wanted > 0 {
+				units = min(units, e.Wanted)
+			}
+			out[resource] += units
 		}
 	}
 	return out

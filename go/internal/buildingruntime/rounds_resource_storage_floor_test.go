@@ -104,7 +104,7 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 	if goal.Standard.Status != domain.StandardOpen {
 		t.Fatal(goal)
 	}
-	base.reviewer.bids.bid(state.Snapshot, "Steel", bidTrade, 5, policy.AcquisitionTrade, review.Tick)
+	base.reviewer.bids.bid(state.Snapshot, "Steel", bidDeepDrill, 5, policy.AcquisitionDeepDrill, review.Tick)
 	result, err := planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, boundary.Identity(state.Snapshot), "Steel", 200, resourceStockFacts(v), nil, base.reviewer.clock.Now())
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
