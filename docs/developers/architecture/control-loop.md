@@ -139,12 +139,13 @@ Concerns or budgets labor.
 | Department | Concern ids |
 | --- | --- |
 | Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainButcherSpot`, `MaintainFoodStorage`, `MaintainRefrigeration`, `RemoveBlight` |
-| Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage` |
-| Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch`, `MaintainMechs` |
+| Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainEssentialRepairs`, `MaintainRoutes`, `ClearHomeObstructions`, `RecoverDisasterServices` |
+| Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch`, `MaintainMechs`, `TradeWithCaravan`, `EnsureMechCharger` |
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
-| Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainSurgery` |
+| Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainGeneBank` |
 | People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainPermits`, `MaintainIdeoRoles`, `MaintainRituals`, `MoodConcern(pawn)`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment` |
-| Upkeep | `AllowStartingSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `TradeWithCaravan`, `MaintainWaste`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainRoutes`, `RecoverDisasterServices` |
+| Storage | `MaintainStockpiles`, `ManageSupplySafety`, `AllowStartingSupplies` |
+| Sanitation | `MaintainCleanFacilities`, `ManagePollution`, `MaintainWaste` |
 | System (no panel section) | `AnswerDialog`, `ConfirmColonyNames` |
 
 ## Execute under supervision

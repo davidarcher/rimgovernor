@@ -7,14 +7,15 @@ package policy
 type Department string
 
 const (
-	DepartmentUnknown  Department = ""
-	DepartmentFood     Department = "Food"
-	DepartmentShelter  Department = "Shelter"
-	DepartmentIndustry Department = "Industry"
-	DepartmentMilitary Department = "Military"
-	DepartmentMedical  Department = "Medical"
-	DepartmentPeople   Department = "People"
-	DepartmentUpkeep   Department = "Upkeep"
+	DepartmentUnknown    Department = ""
+	DepartmentFood       Department = "Food"
+	DepartmentShelter    Department = "Shelter"
+	DepartmentIndustry   Department = "Industry"
+	DepartmentMilitary   Department = "Military"
+	DepartmentMedical    Department = "Medical"
+	DepartmentPeople     Department = "People"
+	DepartmentStorage    Department = "Storage"
+	DepartmentSanitation Department = "Sanitation"
 	// DepartmentSystem holds game-plumbing goals; panels do not show it.
 	DepartmentSystem Department = "System"
 )

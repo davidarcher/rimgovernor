@@ -12,7 +12,7 @@
 | Project | A concern with a finite finished state and dependency links to other Projects. |
 | Response | An incident triggered by an event, one row per occurrence. |
 | Safeguard | An admission veto; it rejects proposals and pursues nothing. |
-| Department | The colony area a concern serves (Food, Shelter, Industry, Military, Medical, People, Upkeep, plus a hidden System for game plumbing), like a Civ advisor. A grouping tag only; it never ranks concerns or budgets labor. See [Concerns and their forms](architecture/control-loop.md#concerns-and-their-forms). |
+| Department | The colony area a concern serves (Food, Shelter, Industry, Military, Medical, People, Storage, Sanitation, plus a hidden System for game plumbing), like a Civ advisor. A grouping tag only; it never ranks concerns or budgets labor. See [Concerns and their forms](architecture/control-loop.md#concerns-and-their-forms). |
 | Method | A selected way to pursue a concern, retaining its attempts and step associations. |
 | Step / action | An accepted unit of work with a stable identity, specification and execution progress. Exact completion depends on its action contract. |
 | ColonyPlan | The shared persistent concern/action system used by player requests and routine control. |
