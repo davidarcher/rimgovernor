@@ -27,12 +27,20 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	if _, changed := replanTest(plan, s, 3, 0, BuildTierCamp, nil, nil); changed {
 		t.Fatal("a sound plan replanned")
 	}
-	tombs, changed := replanTest(plan, s, 3, 1, BuildTierCamp, nil, nil)
-	if !changed || tombs.TombRooms() != 1 || plan.TombRooms() != 0 {
-		t.Fatal("a dead colonist grew no tomb", changed, tombs.TombRooms())
+	// The outskirts cluster plans the first tomb from the start (#2185): one
+	// dead colonist grows nothing, a second grows the next tomb.
+	if plan.TombRooms() != 1 {
+		t.Fatal("the plan holds no first tomb", plan.TombRooms())
 	}
-	if again, changed := replanTest(tombs, s, 3, 2, BuildTierCamp, nil, nil); !changed || again.TombRooms() != 2 {
-		t.Fatal("a full tomb grew no second one", changed, again.TombRooms())
+	if _, changed := replanTest(plan, s, 3, 1, BuildTierCamp, nil, nil); changed {
+		t.Fatal("a dead colonist replanned past the planned tomb")
+	}
+	tombs, changed := replanTest(plan, s, 3, 2, BuildTierCamp, nil, nil)
+	if !changed || tombs.TombRooms() != 2 || plan.TombRooms() != 1 {
+		t.Fatal("a second dead colonist grew no tomb", changed, tombs.TombRooms())
+	}
+	if again, changed := replanTest(tombs, s, 3, 3, BuildTierCamp, nil, nil); !changed || again.TombRooms() != 3 {
+		t.Fatal("a third dead colonist grew no tomb", changed, again.TombRooms())
 	}
 	grown, changed := replanTest(plan, s, 11, 0, BuildTierCamp, nil, nil)
 	if !changed || grown.LayoutOutgrown(11) {

@@ -229,6 +229,7 @@ func TestCoreReservesCentreCrossing(t *testing.T) {
 
 // A growing core fills the main hallway, then its crossings, each on
 // both sides of the main hallway, never one (no L or U); rooms never move
+// (a crossing may add a second door, #1948, but never drops or shifts one)
 // and every door opens on a hallway (#952).
 func TestGrowBranchesIntoCrossings(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -238,7 +239,13 @@ func TestGrowBranchesIntoCrossings(t *testing.T) {
 	for _, tombs := range []int{10, 20, 30} {
 		g := growPlan(p, 3, tombs, BuildTierCamp)
 		for i, r := range p.Rooms {
-			if !g.Rooms[i].Same(r) {
+			// A new crossing can give a pass-through room a second door
+			// (addSecondDoors, #1948): the room and the doors it had stay.
+			kept := g.Rooms[i]
+			if len(kept.Doors) >= len(r.Doors) {
+				kept.Doors = kept.Doors[:len(r.Doors)]
+			}
+			if !kept.Same(r) {
 				t.Fatal("moved", r, g.Rooms[i])
 			}
 		}
