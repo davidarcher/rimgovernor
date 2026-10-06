@@ -417,9 +417,7 @@ func stockpileGrowEdit(open stockpileOpen, z StockpileZone) (StockpileEdit, bool
 	if len(added) == 0 {
 		return StockpileEdit{}, false
 	}
-	for _, c := range added {
-		open.taken[c] = true
-	}
+	open.taken.Claim(added)
 	return StockpileEdit{Kind: StockpileGrow, Zone: z.ID, Role: z.Role, Cells: stockpileSorted(added), Hauls: len(added),
 		Explanation: fmt.Sprintf("stockpile %s (%s): %d/%d cells used, grow by %d", z.ID, z.Role, z.Used(), len(z.Cells), len(added))}, true
 }
@@ -559,8 +557,8 @@ func stockpileSorted(cells []domain.Cell) []domain.Cell {
 type stockpileOpen struct {
 	cells     map[domain.Cell]SiteCell
 	protected map[domain.Cell]bool
-	// taken holds the cells an earlier grow of this cycle added.
-	taken  map[domain.Cell]bool
+	// taken holds the ground earlier edits of this pass claimed.
+	taken  reservedGround
 	bounds Bounds
 	// only, when set, limits the cells to a site's room.
 	only map[domain.Cell]bool
@@ -583,7 +581,7 @@ func (s stockpileOpen) within(sites []StockpileSite, z StockpileZone) stockpileO
 }
 
 func newStockpileOpen(r StockpileRequest) stockpileOpen {
-	s := stockpileOpen{cells: make(map[domain.Cell]SiteCell, len(r.Cells)), protected: map[domain.Cell]bool{}, taken: map[domain.Cell]bool{}, bounds: r.Bounds}
+	s := stockpileOpen{cells: make(map[domain.Cell]SiteCell, len(r.Cells)), protected: map[domain.Cell]bool{}, taken: reservedGround{}, bounds: r.Bounds}
 	for _, c := range r.Cells {
 		s.cells[c.Cell] = c
 	}

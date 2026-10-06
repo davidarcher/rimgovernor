@@ -39,52 +39,15 @@ type StockpileSite struct {
 	Keyed bool
 }
 
-// serves reports whether a zone's role belongs to the site: the whole key
-// for a keyed site, else the prefix.
-func (s StockpileSite) serves(role string) bool {
-	if role == "" {
-		return false
-	}
-	if s.Keyed {
-		return role == s.Role
-	}
-	return stockpileRolePrefix(role) == stockpileRolePrefix(s.Role)
+// stockpileSiteMoves is storeSiteMoves over the planner's sites.
+func stockpileSiteMoves(r StockpileRequest) []StockpileEdit {
+	return storeSiteMoves(r.Zones, storeSites(r.Sited))
 }
 
-// stockpileSiteMoves deletes the zones of a site's prefix standing outside
-// every room of the sites serving it: several sites may share a prefix (the
-// warehouses), and a zone in any of their rooms stays. A move creates before
-// it deletes (#1795): while no zone serves the new site the delete names the
-// site's role in After, and the review admits it only once that create is
-// admitted, so a deferred or refused create never leaves the role without a
-// zone.
-func stockpileSiteMoves(r StockpileRequest) []StockpileEdit {
-	var out []StockpileEdit
-	for _, z := range r.Zones {
-		var serving *StockpileSite
-		after, inRoom, replaced := "", false, false
-		for i, site := range r.Sited {
-			if !site.serves(z.Role) {
-				continue
-			}
-			if serving == nil {
-				serving = &r.Sited[i]
-			}
-			inRoom = inRoom || stockpileTouches(z.Cells, cellSet(site.Room))
-			if stockpileSiteServed(r.Zones, site) {
-				replaced = true
-			} else if after == "" {
-				after = site.Role
-			}
-		}
-		if serving == nil || inRoom {
-			continue
-		}
-		if replaced {
-			after = ""
-		}
-		out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, After: after, Hauls: z.Used(),
-			Explanation: fmt.Sprintf("stockpile %s (%s): its site moved to %s, delete; %d used cells rehome", z.ID, z.Role, serving.Role, z.Used())})
+func storeSites(sited []StockpileSite) []StoreSite {
+	out := make([]StoreSite, len(sited))
+	for i, s := range sited {
+		out[i] = s.store()
 	}
 	return out
 }
@@ -97,13 +60,13 @@ func stockpileSiteShrinks(r StockpileRequest) []StockpileEdit {
 		if site.Size <= 0 {
 			continue
 		}
-		room := cellSet(site.Room)
+		store := site.store()
 		anchor := domain.Cell{}
 		if len(site.Candidates) > 0 && len(site.Candidates[0]) > 0 {
 			anchor = site.Candidates[0][0]
 		}
 		for _, z := range r.Zones {
-			if !site.serves(z.Role) || !stockpileTouches(z.Cells, room) || len(z.Cells) <= site.Size {
+			if !store.serves(z) || len(z.Cells) <= site.Size {
 				continue
 			}
 			stored := cellSet(z.Stored)
@@ -176,9 +139,7 @@ func stockpileSiteEdits(r StockpileRequest, open stockpileOpen) []StockpileEdit 
 			if len(cells) == 0 {
 				continue
 			}
-			for _, c := range cells {
-				open.taken[c] = true
-			}
+			open.taken.Claim(cells)
 			out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, Cells: stockpileSorted(cells), Filter: site.Filter, Priority: site.Priority, Hauls: len(cells),
 				Explanation: fmt.Sprintf("stockpile role %s: no zone in its room, create the remaining %d cells", site.Role, len(cells))})
 			continue
@@ -191,9 +152,7 @@ func stockpileSiteEdits(r StockpileRequest, open stockpileOpen) []StockpileEdit 
 			if !free {
 				continue
 			}
-			for _, c := range cells {
-				open.taken[c] = true
-			}
+			open.taken.Claim(cells)
 			out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, Cells: stockpileSorted(cells), Filter: site.Filter, Priority: site.Priority, Hauls: len(cells),
 				Explanation: fmt.Sprintf("stockpile role %s: no zone in its room, create %d cells at (%d,%d)", site.Role, len(cells), cells[0].X, cells[0].Z)})
 			break
@@ -203,13 +162,7 @@ func stockpileSiteEdits(r StockpileRequest, open stockpileOpen) []StockpileEdit 
 }
 
 func stockpileSiteServed(zones []StockpileZone, site StockpileSite) bool {
-	room := cellSet(site.Room)
-	for _, z := range zones {
-		if site.serves(z.Role) && stockpileTouches(z.Cells, room) {
-			return true
-		}
-	}
-	return false
+	return storeServed(zones, site.store())
 }
 
 // stockpileRoleState is a role's published state; false for a role-less

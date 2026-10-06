@@ -2,7 +2,6 @@ package policy
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -47,9 +46,7 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 	var out []StockpileEdit
 	take := func(role string, filter domain.StockpileFilter, priority domain.StockpilePriority, site Rectangle, where string) {
 		cells := rectCells(site)
-		for _, c := range cells {
-			open.taken[c] = true
-		}
+		open.taken.Claim(cells)
 		out = append(out, StockpileEdit{Kind: StockpileCreate, Role: role, Cells: stockpileSorted(cells), Filter: filter, Priority: priority,
 			Explanation: fmt.Sprintf("opening stockpile %s: none stands, create %dx%d at (%d,%d) %s", role, site.Width, site.Height, site.X, site.Z, where)})
 	}
@@ -83,39 +80,9 @@ func openingSite(open stockpileOpen, anchor domain.Cell, side int32, allow func(
 	return sites[0], true
 }
 
-// openingSites lists up to limit free side x side squares whose every cell
-// is open and passes allow (nil: any open cell), nearest anchor first, ties
-// by corner.
+// openingSites lists up to limit free side x side squares (rectangleSites).
 func openingSites(open stockpileOpen, anchor domain.Cell, side int32, allow func(SiteCell) bool, limit int) []Rectangle {
-	corners := make([]domain.Cell, 0, len(open.cells))
-	for p := range open.cells {
-		corners = append(corners, p)
-	}
-	sort.Slice(corners, func(i, j int) bool { return cellLess(corners[i], corners[j]) })
-	type scored struct {
-		site  Rectangle
-		score int64
-	}
-	var found []scored
-	for _, p := range corners {
-		site := Rectangle{p.X, p.Z, side, side}
-		if !openFree(open, site) {
-			continue
-		}
-		ok := true
-		for _, c := range rectCells(site) {
-			ok = ok && (allow == nil || allow(open.cells[c]))
-		}
-		if ok {
-			found = append(found, scored{site, squaredDistance(domain.Cell{X: p.X + side/2, Z: p.Z + side/2}, anchor)})
-		}
-	}
-	sort.SliceStable(found, func(i, j int) bool { return found[i].score < found[j].score })
-	out := make([]Rectangle, 0, min(len(found), limit))
-	for _, f := range found[:min(len(found), limit)] {
-		out = append(out, f.site)
-	}
-	return out
+	return rectangleSites(open, anchor, side, side, allow, limit)
 }
 
 func openFree(open stockpileOpen, site Rectangle) bool {
