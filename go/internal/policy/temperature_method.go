@@ -334,6 +334,16 @@ func (v RoomObservation) Validate() error {
 	return nil
 }
 
+// ProvesTemperature is whether the room's native temperature is evidence of
+// recovery: the room is enclosed and every cell is roofed (#2265).
+// UsesOutdoorTemperature holds at 25% open roof and Indoors does not mean
+// roofed, so enclosure alone proves nothing.
+func (r Room) ProvesTemperature() bool {
+	enclosed, ek := r.Enclosed.Value()
+	roofed, rk := r.Roofed.Value()
+	return ek && enclosed && rk && roofed
+}
+
 // TemperatureRange uses actual sleeping rooms, including beds whose safe
 // reachability disappears during a temperature emergency. Missing room evidence
 // cannot become a comfortable temperature or a reason to claim recovery.
@@ -364,8 +374,7 @@ func TemperatureRange(fact domain.Fact[RoomObservation]) (minimum, maximum domai
 			continue
 		}
 		temperature, tk := room.Temperature.Value()
-		enclosed, ek := room.Enclosed.Value()
-		if !tk || !ek || !enclosed {
+		if !tk || !room.ProvesTemperature() {
 			return
 		}
 		if !have || temperature < low {
@@ -420,7 +429,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		temperature float64
 	}
 	var choices []candidate
-	unknown, missing := false, false
+	unknown, missing, unproven := false, false, false
 	seen := map[string]bool{}
 	for _, room := range v.Rooms {
 		var beds []string
@@ -435,12 +444,13 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		}
 		sort.Strings(beds)
 		temperature, tk := room.Temperature.Value()
-		enclosed, ek := room.Enclosed.Value()
-		if !tk || !ek {
+		if !tk {
 			unknown = true
 			continue
 		}
-		if !enclosed || len(room.Cells) == 0 {
+		// Placement is not gated on enclosure or a roof (#2265); only a room
+		// with no cells has nowhere to place.
+		if len(room.Cells) == 0 {
 			missing = true
 			continue
 		}
@@ -458,6 +468,8 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		}
 		if method != TemperatureNoMethod {
 			choices = append(choices, candidate{room, beds[0], method, temperature})
+		} else if !room.ProvesTemperature() {
+			unproven = true
 		}
 	}
 	// Heat before cool; the coldest room first among the cold, the hottest
@@ -536,7 +548,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 	if missing {
 		return TemperatureProposal{Method: TemperatureShelterNeeded}, nil
 	}
-	if len(choices) > 0 {
+	if len(choices) > 0 || unproven {
 		return TemperatureProposal{Method: TemperatureWait}, nil
 	}
 	return TemperatureProposal{Method: TemperatureNoMethod}, nil

@@ -8,7 +8,7 @@ import (
 )
 
 func thermalRoom(id, bed string, temp float64, x int32) Room {
-	return Room{ID: id, Beds: []string{bed}, Temperature: domain.Known(temp), Enclosed: domain.Known(true), Contents: domain.Known([]Amount{}), Cells: []domain.Cell{{X: x, Z: 2}}}
+	return Room{ID: id, Beds: []string{bed}, Temperature: domain.Known(temp), Enclosed: domain.Known(true), Roofed: domain.Known(true), Contents: domain.Known([]Amount{}), Cells: []domain.Cell{{X: x, Z: 2}}}
 }
 
 func TestTemperatureMethodThresholdsAndHysteresis(t *testing.T) {
@@ -71,7 +71,7 @@ func TestTemperatureMethodTargetsPlayerSleepingRoomAndReusesFacilities(t *testin
 }
 
 func TestTemperatureUnknownAndInvalidEvidence(t *testing.T) {
-	for _, mode := range []string{"unknown", "beds", "missing-room", "temperature", "enclosure", "contents", "no-beds", "unroofed", "duplicate-room", "duplicate-bed", "overlap", "nan"} {
+	for _, mode := range []string{"unknown", "beds", "missing-room", "temperature", "contents", "no-beds", "duplicate-room", "duplicate-bed", "overlap", "nan"} {
 		t.Run(mode, func(t *testing.T) {
 			v := RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{thermalRoom("room", "bed", 5, 2)}}
 			invalid := false
@@ -83,15 +83,10 @@ func TestTemperatureUnknownAndInvalidEvidence(t *testing.T) {
 				v.Rooms = nil
 			case "temperature":
 				v.Rooms[0].Temperature = domain.Unknown[float64]()
-			case "enclosure":
-				v.Rooms[0].Enclosed = domain.Unknown[bool]()
 			case "contents":
 				v.Rooms[0].Contents = domain.Unknown[[]Amount]()
 			case "no-beds":
 				v.EligibleBeds = domain.Known([]string{})
-				want = TemperatureShelterNeeded
-			case "unroofed":
-				v.Rooms[0].Enclosed = domain.Known(false)
 				want = TemperatureShelterNeeded
 			case "duplicate-room":
 				v.Rooms = append(v.Rooms, thermalRoom("room", "other", 5, 3))

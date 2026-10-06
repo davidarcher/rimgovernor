@@ -55,7 +55,7 @@ func (r *RoundsBuildingPlanner) selectTemperature(facts observation.ColonyProjec
 	case policy.TemperatureHeat, policy.TemperatureCool, policy.TemperatureCoolPowered, policy.TemperatureRefuelOff, policy.TemperatureRefuelOn:
 		resolved := *r
 		resolved.temperature = &proposal
-		resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementIndoors
+		resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementAnywhere
 		if proposal.Thing != "" {
 			resolved.definition = "Campfire"
 		}
