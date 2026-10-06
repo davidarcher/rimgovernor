@@ -13,29 +13,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// roundsBlightNative reuses roundsNative's colony read and serves the
-// blight planner's census from the same snapshot's blighted_plants rows;
-// ReadEmergency lists two healthy colonists so development arbitration has
-// a slot for RemoveBlight (see roundsWasteNative).
+// roundsBlightNative reuses roundsNative's colony read, whose planning window
+// carries the blighted plants as plant things; ReadEmergency lists two
+// healthy colonists so development arbitration has a slot for RemoveBlight
+// (see roundsWasteNative).
 type roundsBlightNative struct {
 	*roundsNative
-	reads int
 }
 
-func (n *roundsBlightNative) ReadBlightedPlants(_ context.Context, _ *c.Identity) (bridge.CutPlantRead, bridge.Result, error) {
-	n.reads++
-	v := n.reply.GetObserved()
-	out := bridge.CutPlantRead{Context: proto.Clone(v.Context).(*c.ObservationContext)}
-	for _, row := range v.BlightedPlants {
-		if row.GetDesignated() {
-			continue
-		}
-		head := n.things.At(row.Plant.GetId()).GetThing()
-		plant, _ := domain.NewCutPlant(row.Plant.GetId(), head.GetDefName(), domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()})
-		out.Targets = append(out.Targets, bridge.CutPlantTarget{Plant: plant})
-	}
-	return out, bridge.Result{}, nil
-}
 func (n *roundsBlightNative) ReadEmergency(ctx context.Context, identity *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	v, receipt, err := n.roundsNative.ReadEmergency(ctx, identity)
 	v.Facts.Colonists = []policy.EmergencyPawn{
@@ -45,12 +30,6 @@ func (n *roundsBlightNative) ReadEmergency(ctx context.Context, identity *c.Iden
 	return v, receipt, err
 }
 
-func blightedRow(native *roundsNative, v *o.ColonyFactsSnapshot, id string, x, z int32, designated bool) *o.BlightedPlant {
-	return &o.BlightedPlant{Plant: native.entity(&o.EntityRef{Id: proto.String(id), DefName: proto.String("Plant_Rice"), MapId: proto.Int32(v.Context.Identity.GetMapId()),
-		Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}), PlantSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cut-" + id), Context: proto.Clone(v.Context).(*c.ObservationContext)},
-		Designated: proto.Bool(designated), Zone: &c.Ref{Id: proto.String("7")}}
-}
-
 func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -58,9 +37,20 @@ func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
+	zonesAvailable(v)
+	// Ten blighted plants on home ground; the first already has a cut order.
+	window := fixtureCells(t)
+	window.Region = policy.Rectangle{Width: 30, Height: 10}
+	window.Cells = nil
 	for i := int32(0); i < 10; i++ {
-		v.BlightedPlants = append(v.BlightedPlants, blightedRow(native, v, "Plant_Rice"+string(rune('a'+i)), 10+i, 4, i == 0))
+		flags := policy.ThingFlags(0)
+		if i == 0 {
+			flags = policy.FlagDesignated
+		}
+		window.Cells = append(window.Cells, policy.SiteCell{Cell: domain.Cell{X: 10 + i, Z: 4}, InHome: domain.Known(true),
+			Things: []policy.Thing{{Def: "Plant_Rice", Category: policy.ThingPlant, ID: uint64(1 + i), Count: 1, Flags: flags, Plant: policy.PlantState{Blighted: true}}}})
 	}
+	native.cells = window
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}
@@ -96,7 +86,7 @@ func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	}
 	for i, p := range plan.Progress {
 		cut, ok := p.Action().CutPlant()
-		if !ok || p.View().Stage != domain.Pending || cut.Plant() == "Plant_Ricea" || cut.Cell().Z != 4 {
+		if !ok || p.View().Stage != domain.Pending || cut.Plant() == "Thing_Plant_Rice1" || cut.Cell().Z != 4 {
 			t.Fatal("designated plant proposed or wrong shape", i, p)
 		}
 	}
@@ -109,7 +99,7 @@ func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	if work, _, err := clockSchedulerWork(plan, target); err != nil || !work {
 		t.Fatal("a cut designation must open a simulation window for the cutter", work, err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork || source.reads != 1 {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }

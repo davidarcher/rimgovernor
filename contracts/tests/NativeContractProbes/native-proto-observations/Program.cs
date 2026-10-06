@@ -43,7 +43,7 @@ internal static class NativeProtoObservationsProbe
             Check(!Valid("ValidateStatus","StatusRequest",invalid),"invalid status refused");
         Func<int,int,int,int,string> rect=(x0,z0,x1,z1)=>"\"rectangle\":{\"minimum\":{\"x\":"+x0+",\"z\":"+z0+"},\"maximum\":{\"x\":"+x1+",\"z\":"+z1+"}}";
         Check(Valid("ValidateCells","GetCellsRequest",request(rect(2,3,2,3))),"Go singleton map-bounds request accepted");
-        Check(Valid("ValidateCells","GetCellsRequest",request(rect(0,0,1023,1023)+",\"foundation\":true,\"things\":true")),"whole-map rectangle accepted");
+        Check(Valid("ValidateCells","GetCellsRequest",request(rect(0,0,1023,1023))),"whole-map rectangle accepted");
         foreach(var invalid in new[]{request(""),request(rect(0,0,1024,1023)),request(rect(1,0,0,0)),request(rect(-1,0,0,0)),request(rect(0,0,0,0).Replace("\"z\":0}}","\"z\":null}}")),request(rect(0,0,2147483647,2147483647))})
             Check(!Valid("ValidateCells","GetCellsRequest",invalid),"invalid/oversized cells refused");
         var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimGovernor.Host.dll")).First(File.Exists));

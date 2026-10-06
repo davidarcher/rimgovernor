@@ -675,7 +675,7 @@ namespace RimGovernor.Protocol.Operations {
     [pbr::OriginalName("THING_DESIGNATION_HARVEST_PLANT")] HarvestPlant = 4,
     [pbr::OriginalName("THING_DESIGNATION_DECONSTRUCT")] Deconstruct = 5,
     /// <summary>
-    /// CutPlant on one exact blighted plant (ColonyFactsSnapshot.blighted_plants).
+    /// CutPlant on one exact blighted plant (read from the cell mirror's plant state).
     /// </summary>
     [pbr::OriginalName("THING_DESIGNATION_CUT_PLANT")] CutPlant = 6,
     /// <summary>

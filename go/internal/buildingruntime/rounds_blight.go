@@ -5,19 +5,17 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// RoundsBlightSource is the fresh blighted-plant census the planner
-// proposes from: the colony read's blighted_plants rows not yet designated,
-// each with the cut snapshot token the designation binds to.
+// RoundsBlightSource is the colony read the planner takes its census from:
+// the blighted plants of the planning window's thing lists (#2272), the
+// undesignated ones proposed for a cut.
 type RoundsBlightSource interface {
-	ReadBlightedPlants(context.Context, *c.Identity) (bridge.CutPlantRead, bridge.Result, error)
+	observation.ColonySource
 }
 
 // RoundsBlightPlanner composes RemoveBlight's method (#245): while the
@@ -90,18 +88,32 @@ func (r *RoundsBlightPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 	}
 	started := r.reviewer.clock.Now()
-	read, _, err := r.native.ReadBlightedPlants(call, boundary.Identity(state.Snapshot))
+	identity, _, err := r.native.Identity(call)
 	if err != nil {
 		return RoundsBlightResult{}, err
 	}
-	if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
-		return RoundsBlightResult{}, fmt.Errorf("%w: step: err != nil || read.Context.GetTick() < int64(review.Tick)", ErrControl)
+	expected, err := observation.DecodeIdentity(identity)
+	if err != nil {
+		return RoundsBlightResult{}, err
 	}
-	var census []policy.BlightedPlant
+	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return RoundsBlightResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+	}
+	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
+	if err != nil {
+		return RoundsBlightResult{}, err
+	}
+	census, known := reading.Projection.Facts.Blight.Value()
+	if !known {
+		return RoundsBlightResult{Verdict: fieldUnavailable("blighted_plants")}, nil
+	}
 	byID := map[string]domain.CutPlant{}
-	for _, target := range read.Targets {
-		census = append(census, policy.BlightedPlant{ID: target.Plant.Plant(), Definition: target.Plant.Definition(), Cell: target.Plant.Cell(), Eligible: true})
-		byID[target.Plant.Plant()] = target.Plant
+	for _, plant := range census {
+		cut, err := domain.NewCutPlant(plant.ID, plant.Definition, plant.Cell)
+		if err != nil {
+			return RoundsBlightResult{}, err
+		}
+		byID[plant.ID] = cut
 	}
 	targets := policy.SelectBlightCuts(census, claimed, 8)
 	if len(targets) == 0 {

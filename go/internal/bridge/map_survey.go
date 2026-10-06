@@ -1,65 +1,54 @@
 package bridge
 
 import (
-	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"google.golang.org/protobuf/proto"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// mapSurveyBand is the most cells one survey band asks for: ProtoJSON
-// carries a grid's arrays as base64 and its numbers as decimal text, so a
-// whole map in one reply is large.
-const mapSurveyBand = 16384
+// Terrain affordance names of the mirror's foundation_affordances column.
+const (
+	affordanceHeavy      = "Heavy"
+	affordanceLight      = "Light"
+	affordanceBridgeable = "Bridgeable"
+)
 
-// ReadMapSurvey reads every cell of the map once, with its foundation
-// (#727), in row bands of at most mapSurveyBand cells, for the master
-// layout plan. A fogged cell is not held; it reads as solid rock to mine
-// out, since the fog hides mountain far more often than a cavern, and the
-// excavation steps check the cell once it is seen.
-func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, bounds policy.Bounds) (policy.MapSurvey, Result, error) {
-	if err := authorityIdentity(identity); err != nil {
-		return policy.MapSurvey{}, Result{}, err
-	}
+// SurveyFromCells is the whole-map survey the layout plan is derived from
+// (#727), read off the cell mirror's planning window (#2272): terrain and
+// foundation affordances from the columns, ore and trees from the thing list
+// and the catalog's defs, roofs from the catalog's roof rules (#1890). A
+// fogged cell is not held; it reads as solid rock to mine out, since the fog
+// hides mountain far more often than a cavern, and the excavation steps
+// check the cell once it is seen.
+//
+// Hazard is the top terrain's own def flags. Dries is the top terrain's
+// driesTo: the mirror carries no base terrain def, so ground a floor or
+// bridge covers is not told to dry.
+func SurveyFromCells(cells []policy.SiteCell, bounds policy.Bounds, catalog *DefinitionCatalog) (policy.MapSurvey, error) {
 	if bounds.Width < 1 || bounds.Height < 1 {
-		return policy.MapSurvey{}, Result{}, contract("invalid map survey bounds")
-	}
-	catalog, err := client.DefinitionCatalog(ctx, identity)
-	if err != nil {
-		return policy.MapSurvey{}, Result{}, err
+		return policy.MapSurvey{}, contract("invalid map survey bounds")
 	}
 	roofs, err := catalog.RoofRules()
 	if err != nil {
-		return policy.MapSurvey{}, Result{}, err
+		return policy.MapSurvey{}, err
 	}
-	out := policy.MapSurvey{Bounds: bounds}
-	rows := max(mapSurveyBand/int(bounds.Width), 1)
-	var last Result
-	var context *c.ObservationContext
-	for z := int32(0); z < bounds.Height; z += int32(rows) {
-		band := policy.Rectangle{Z: z, Width: bounds.Width, Height: min(int32(rows), bounds.Height-z)}
-		read, raw, err := client.readCells(ctx, identity, band, true, false)
-		last = raw
+	out := policy.MapSurvey{Bounds: bounds, Cells: make([]policy.SurveyCell, 0, len(cells))}
+	for _, cell := range cells {
+		if cell.Cell.X < 0 || cell.Cell.X >= bounds.Width || cell.Cell.Z < 0 || cell.Cell.Z >= bounds.Height {
+			continue
+		}
+		row, err := surveyCell(cell, roofs, catalog)
 		if err != nil {
-			return policy.MapSurvey{}, raw, err
+			return policy.MapSurvey{}, err
 		}
-		// A live clock moves the tick between bands; the terrain a layout
-		// plans on does not, so only the world and its generation must hold.
-		if context != nil && (!proto.Equal(context.Identity, read.Context.GetIdentity()) || context.GetNativeGeneration() != read.Context.GetNativeGeneration()) {
-			return policy.MapSurvey{}, raw, contract("map survey bands differ in world")
-		}
-		context = read.Context
-		cells, err := surveyCells(read, roofs)
-		if err != nil {
-			return policy.MapSurvey{}, raw, err
-		}
-		out.Cells = append(out.Cells, cells...)
+		out.Cells = append(out.Cells, row)
 	}
 	out.Cells = append(out.Cells, unseenRock(out.Cells, bounds)...)
-	return out, last, nil
+	return out, nil
 }
 
 // unseenRock is a rock cell for every cell of bounds that read left out
@@ -80,47 +69,59 @@ func unseenRock(held []policy.SurveyCell, bounds policy.Bounds) []policy.SurveyC
 	return out
 }
 
-// surveyCells decodes a survey band's held cells. A thick roof is the roof
-// rules' (#1890); a roof def they lack is an error wrapping
-// policy.ErrUnknownRoof.
-func surveyCells(read cellsRead, roofs policy.RoofRules) ([]policy.SurveyCell, error) {
-	held := read.Grid.Cells()
-	cells := make([]policy.SurveyCell, 0, len(held))
-	for _, cell := range held {
-		ground := read.foundation(cell.Cell)
-		rock, ruin := cell.NaturalRock(), cell.Ruin()
-		edifice, roof := cell.PlayerEdifice(), value(cell.Roof)
-		footing := policy.FootingFirm
-		if ground&foundationHeavy == 0 {
-			footing = policy.FootingNone
-			if ground&foundationLight != 0 {
-				footing = policy.FootingLight
-			}
+// surveyCell decodes one held cell. A thick roof is the roof rules' (#1890);
+// a roof def they lack is an error wrapping policy.ErrUnknownRoof.
+func surveyCell(cell policy.SiteCell, roofs policy.RoofRules, catalog *DefinitionCatalog) (policy.SurveyCell, error) {
+	affordances := strings.Split(value(cell.FoundationAffordances), ",")
+	footing := policy.FootingFirm
+	if !slices.Contains(affordances, affordanceHeavy) {
+		footing = policy.FootingNone
+		if slices.Contains(affordances, affordanceLight) {
+			footing = policy.FootingLight
 		}
-		rule, known := roofs[roof]
-		if roof != "" && !known {
-			return nil, fmt.Errorf("%w %q at %v", policy.ErrUnknownRoof, roof, cell.Cell)
-		}
-		cells = append(cells, policy.SurveyCell{
-			Cell:       cell.Cell,
-			Walkable:   value(cell.Walkable),
-			Rock:       rock,
-			Built:      edifice != "",
-			Footing:    footing,
-			Bridgeable: ground&foundationBridgeable != 0,
-			Dries:      ground&foundationDries != 0,
-			Hazard:     ground&foundationHazard != 0,
-			ThickRoof:  rule.Thick,
-			Fertility:  value(cell.Fertility),
-			Ore:        ground&foundationOre != 0,
-			Tree:       ground&foundationTree != 0,
-			// Occupied off rock, player edifice and clearable ruin is a
-			// standing prop (#1533).
-			Prop: cell.Occupied() && !rock && edifice == "" && !ruin,
-			Ruin: ruin,
-		})
 	}
-	return cells, nil
+	roof := value(cell.Roof)
+	rule, known := roofs[roof]
+	if roof != "" && !known {
+		return policy.SurveyCell{}, fmt.Errorf("%w %q at %v", policy.ErrUnknownRoof, roof, cell.Cell)
+	}
+	var terrain *d.TerrainDef
+	if name := value(cell.Terrain); name != "" {
+		if terrain = catalog.TerrainDefs[name]; terrain == nil {
+			return policy.SurveyCell{}, contract("catalog has no def row for terrain %s at %v", name, cell.Cell)
+		}
+	}
+	rock, ruin := cell.NaturalRock(), cell.Ruin()
+	edifice := cell.PlayerEdifice()
+	ore, tree := false, false
+	for _, thing := range cell.Things {
+		def := catalog.ThingDef(thing.Def)
+		switch {
+		case thing.Has(policy.FlagEdifice):
+			ore = ore || def.GetBuilding().GetIsResourceRock()
+		case thing.Category == policy.ThingPlant:
+			plant := def.GetPlant()
+			tree = tree || plant.GetForceIsTree() || plant.GetTreeCategory() != d.TreeCategory_TREE_CATEGORY_NONE
+		}
+	}
+	return policy.SurveyCell{
+		Cell:       cell.Cell,
+		Walkable:   value(cell.Walkable),
+		Rock:       rock,
+		Built:      edifice != "",
+		Footing:    footing,
+		Bridgeable: slices.Contains(affordances, affordanceBridgeable),
+		Dries:      terrain.GetDriesTo() != "",
+		Hazard:     terrain.GetDangerous() || terrain.GetBurnDamage() > 0 || terrain.GetHeatPerTick() > 0 || terrain.GetToxicBuildupFactor() > 0,
+		ThickRoof:  rule.Thick,
+		Fertility:  value(cell.Fertility),
+		Ore:        ore,
+		Tree:       tree,
+		// Occupied off rock, player edifice and clearable ruin is a
+		// standing prop (#1533).
+		Prop: cell.Occupied() && !rock && edifice == "" && !ruin,
+		Ruin: ruin,
+	}, nil
 }
 
 // value is a fact's value, the zero value when unknown.

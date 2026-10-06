@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -19,7 +20,7 @@ const blightPrefix = "blight-accept"
 // farm/blight is the blight responder vertical (#245): a live game and a
 // live rimgovernor service composed with the blight family. The private
 // test/blight_prepare fixture sows a small rice zone near the colonists and
-// blights a few plants. The typed colony read's blighted_plants census must
+// blights a few plants. The Go projection's blight census (plant things in the planning window) must
 // list exactly those plants undesignated; the rounds opens
 // RemoveBlight on the census, the planner admits one plan of CutPlant
 // designations on the blighted plants only, the colonist cuts them within a
@@ -29,7 +30,7 @@ const blightPrefix = "blight-accept"
 func init() {
 	cases.Register(cases.Case{
 		Name: "farm/blight",
-		Scope: "Native blight responder: the blighted_plants census drives the live Go rounder/planner to open " +
+		Scope: "Native blight responder: the planning-window blight census drives the live Go rounder/planner to open " +
 			"RemoveBlight and admit CutPlant designations on the blighted plants only; the colonists cut them within a " +
 			"stall-bounded window and the standard settles on the census emptying, confirmed by an independent native read (#245).",
 		Start:   cases.Fixture{Op: "test/blight_prepare", On: cases.LabStart()},
@@ -340,37 +341,20 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-// readBlightCensus decodes the typed colony facts' blighted_plants rows the
-// way the Go projection does.
-func readBlightCensus(ctx context.Context, h *na.Harness, identity map[string]any, label string) (blightSummary, error) {
-	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
-	})
+// readBlightCensus reads the Go projection's blight census, built from the
+// planning window's plant things (#2272), the way the planner reads it.
+func readBlightCensus(ctx context.Context, h *na.Harness, _ map[string]any, label string) (blightSummary, error) {
+	facts, _, err := startersite.Survey(ctx, h)
 	if err != nil {
-		return blightSummary{}, err
+		return blightSummary{}, fmt.Errorf("%s: %w", label, err)
 	}
-	_, observed, err := na.Outcome(reply, "observed")
-	if err != nil {
-		return blightSummary{}, err
+	census, known := facts.Facts.Blight.Value()
+	if !known {
+		return blightSummary{}, fmt.Errorf("%s: blight census unavailable", label)
 	}
-	for _, raw := range na.AsSlice(observed["issues"]) {
-		issue, _ := na.AsMap(raw)
-		if na.AsString(issue["field"]) == "blighted_plants" {
-			return blightSummary{}, fmt.Errorf("%s: blight census unavailable: %#v", label, issue)
-		}
-	}
-	context, _ := na.AsMap(observed["context"])
-	s := blightSummary{tick: int64(na.AsNumber(context["tick"])), rows: map[string]blightRow{}}
-	for _, raw := range na.AsSlice(observed["blightedPlants"]) {
-		row, _ := na.AsMap(raw)
-		plant, _ := na.AsMap(row["plant"])
-		cell, _ := na.AsMap(plant["position"])
-		designated, _ := na.AsBool(row["designated"])
-		id := na.AsString(plant["id"])
-		if id == "" {
-			return blightSummary{}, fmt.Errorf("%s: blighted plant row without a thing id: %#v", label, row)
-		}
-		s.rows[id] = blightRow{cell: domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}, zone: na.RefID(row["zone"]), designated: designated}
+	s := blightSummary{tick: int64(facts.Identity.Tick), rows: map[string]blightRow{}}
+	for _, plant := range census {
+		s.rows[plant.ID] = blightRow{cell: plant.Cell, zone: plant.Zone, designated: plant.Designated}
 	}
 	return s, nil
 }

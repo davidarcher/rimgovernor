@@ -112,6 +112,9 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	if err := FillZones(ctx, zoneNative, id, expected, &projection); err != nil {
 		return result, err
 	}
+	if planning {
+		projection.Facts.Blight = blightCensus(projection)
+	}
 	// Colony facts do not carry pause state; that fact is the caller's.
 	observed := projection.Identity
 	observed.Paused = expected.Paused

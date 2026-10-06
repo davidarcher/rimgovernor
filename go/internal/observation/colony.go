@@ -588,7 +588,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.Policies = domain.Known(policies)
 	}
 	r.Facts.Waste = colonyWaste(v, tables)
-	r.Facts.Blight = colonyBlight(v, tables)
 	r.Facts.Pollution = colonyPollution(r.Biotech)
 	var upkeepErr, medicalErr error
 	if r.Facts.Upkeep, upkeepErr = colonyUpkeep(v, tables); upkeepErr != nil {

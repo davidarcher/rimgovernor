@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -52,7 +53,8 @@ func Survey(ctx context.Context, h *na.Harness) (*observation.ColonyProjection, 
 	}
 	// The colony read decides outdoor darkness from the definition catalog
 	// the client holds for this load (#1712); load it first.
-	if _, err := h.Client.DefinitionCatalog(ctx, reply.GetLoaded().GetContext().GetIdentity()); err != nil {
+	catalog, err := h.Client.DefinitionCatalog(ctx, reply.GetLoaded().GetContext().GetIdentity())
+	if err != nil {
 		return nil, policy.MapSurvey{}, fmt.Errorf("definition catalog: %w", err)
 	}
 	reading, err := observation.ObserveColony(observation.WithPlanningWindow(ctx, window{h.Client}), h.Client, wallClock{}, expected, time.Minute, true)
@@ -60,7 +62,7 @@ func Survey(ctx context.Context, h *na.Harness) (*observation.ColonyProjection, 
 		return nil, policy.MapSurvey{}, fmt.Errorf("colony facts: %w", err)
 	}
 	facts := reading.Projection
-	survey, _, err := h.Client.ReadMapSurvey(ctx, reply.GetLoaded().GetContext().GetIdentity(), facts.Bounds)
+	survey, err := bridge.SurveyFromCells(facts.Cells, facts.Bounds, catalog)
 	if err != nil {
 		return nil, policy.MapSurvey{}, fmt.Errorf("map survey: %w", err)
 	}

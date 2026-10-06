@@ -6,15 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // fieldTargets is each crop's full field target in cells (#1309): a food
@@ -51,17 +49,7 @@ func (r *RoundsFieldPlanner) shrink(call, epoch context.Context, state ControlSt
 	if !ok {
 		return RoundsFieldResult{}, false, nil
 	}
-	native, ok := r.native.(interface {
-		ReadBareCells(context.Context, *c.Identity, []domain.Cell) (map[domain.Cell]bool, bridge.Result, error)
-	})
-	if !ok {
-		return RoundsFieldResult{}, false, nil
-	}
-	bare, _, err := native.ReadBareCells(call, boundary.Identity(state.Snapshot), plan.Order)
-	if err != nil {
-		return RoundsFieldResult{}, false, err
-	}
-	cells := shrinkCells(plan, bare)
+	cells := shrinkCells(plan, bareCells(projection.Cells, plan.Order))
 	if len(cells) == 0 {
 		return RoundsFieldResult{}, false, nil
 	}
@@ -178,6 +166,24 @@ func planFieldShrink(facts observation.ColonyProjection, targets map[string]int)
 		return fieldShrink{ID: id, Crop: crop, Zone: cells, Order: order, Remove: remove}, true
 	}
 	return fieldShrink{}, false
+}
+
+// bareCells are the cells of order the mirror holds with no plant standing on
+// them (#1567, #2272): unsown or harvested soil. A fogged cell is not held,
+// so never bare.
+func bareCells(held []policy.SiteCell, order []domain.Cell) map[domain.Cell]bool {
+	want := make(map[domain.Cell]bool, len(order))
+	for _, cell := range order {
+		want[cell] = true
+	}
+	bare := map[domain.Cell]bool{}
+	for _, cell := range held {
+		if !want[cell.Cell] {
+			continue
+		}
+		bare[cell.Cell] = !slices.ContainsFunc(cell.Things, func(t policy.Thing) bool { return t.Category == policy.ThingPlant })
+	}
+	return bare
 }
 
 // shrinkCells takes up to s.Remove of the zone's bare (unsown or harvested)

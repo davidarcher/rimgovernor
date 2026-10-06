@@ -146,7 +146,7 @@ const (
 	ThingDesignation_THING_DESIGNATION_HUNT          ThingDesignation = 3
 	ThingDesignation_THING_DESIGNATION_HARVEST_PLANT ThingDesignation = 4
 	ThingDesignation_THING_DESIGNATION_DECONSTRUCT   ThingDesignation = 5
-	// CutPlant on one exact blighted plant (ColonyFactsSnapshot.blighted_plants).
+	// CutPlant on one exact blighted plant (read from the cell mirror's plant state).
 	ThingDesignation_THING_DESIGNATION_CUT_PLANT ThingDesignation = 6
 	// Strip on one exact spawned pawn or corpse wearing or carrying
 	// strippable gear (#1117); colonists strip it through Hauling work.

@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read map cells",
-            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid keyframe (the snapshot frame grid's arrays; a fogged cell is not held). foundation adds one byte per cell of the natural ground's affordances, ore and trees; things adds the thing rows on held cells. Read-only.")]
+            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid keyframe (the snapshot frame grid's arrays; a fogged cell is not held). The grid carries each cell's things, terrain and foundation affordances. Read-only.")]
         [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
@@ -61,42 +61,6 @@ namespace HomeBridge.BridgeTools
                 var snapshot = new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
                     Grid = CellGridEncoder.Encode(read, null) };
-                var held = read.Columns[CellGridEncoder.Cell].Codes!;
-                if (parsed.Foundation) {
-                    var bytes = new byte[read.Count];
-                    for (int j = 0; j < read.Count; j++) {
-                        if (held[j] == 0) continue;
-                        var cell = new IntVec3(read.X + j % read.Width, 0, read.Z + j / read.Width);
-                        // The natural ground, under any bridge or floor: a
-                        // replan sees the footing a bridge stands on, and
-                        // ground a moisture pump dried reads firm (#954).
-                        var terrain = map.terrainGrid.BaseTerrainAt(cell);
-                        var bits = 0;
-                        if (terrain?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true) bits |= 1;
-                        if (terrain?.affordances.Contains(TerrainAffordanceDefOf.Light) == true) bits |= 2;
-                        // Ore and trees for whole-map zoning (#778).
-                        if (cell.GetEdifice(map)?.def.building?.isResourceRock == true) bits |= 4;
-                        if (cell.GetPlant(map)?.def.plant?.IsTree == true) bits |= 8;
-                        // Bridges and moisture pumps close a perimeter across soft ground (#949).
-                        if (terrain?.affordances.Contains(TerrainAffordanceDefOf.Bridgeable) == true) bits |= 16;
-                        if (terrain?.driesTo != null) bits |= 32;
-                        // Hazard reads the terrain now at the cell: it hurts whatever natural
-                        // ground lies under it, which the base read above does not see.
-                        var top = map.terrainGrid.TerrainAt(cell);
-                        if (top != null && NativeOdysseyColony.IsHazard(top)) bits |= 64;
-                        bytes[j] = (byte)bits;
-                    }
-                    snapshot.Foundation = ByteString.CopyFrom(bytes);
-                }
-                if (parsed.Things) {
-                    var things = new List<Thing>();
-                    for (int j = 0; j < read.Count; j++)
-                        if (held[j] != 0) {
-                            var cell = new IntVec3(read.X + j % read.Width, 0, read.Z + j / read.Width);
-                            foreach (var thing in cell.GetThingList(map)) if (thing.Position == cell) things.Add(thing);
-                        }
-                    snapshot.Things.AddRange(Things(things, context).Things);
-                }
                 return new Obs.GetCellsReply { Observed = snapshot };
             }
             catch (Exception) { return new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }

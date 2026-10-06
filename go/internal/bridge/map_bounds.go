@@ -29,7 +29,7 @@ func (client *Client) ReadMapBounds(ctx context.Context, identity *c.Identity, a
 	// Bounds never change: the read takes any frame, not one past the
 	// last write, so a dispatch after a deferred write (#1274) does not
 	// wait out the capture safety net.
-	read, raw, err := client.readCells(WithAnyFrame(ctx), identity, policy.Rectangle{X: anchor.X, Z: anchor.Z, Width: 1, Height: 1}, false, false)
+	read, raw, err := client.readCells(WithAnyFrame(ctx), identity, policy.Rectangle{X: anchor.X, Z: anchor.Z, Width: 1, Height: 1})
 	if err != nil {
 		return MapBounds{}, raw, err
 	}

@@ -429,7 +429,7 @@ type RoundsFacts struct {
 	// needs; a source without the read leaves it unknown and the goal off.
 	Traders domain.Fact[[]TraderFacts]
 	// Blight carries RemoveBlight's blighted-plant census (the colony read's
-	// blighted_plants section), for BlightDeficit to detect and
+	// plant things of the planning window, #2272), for BlightDeficit to detect and
 	// SelectBlightCuts to designate from.
 	Blight domain.Fact[[]BlightedPlant]
 	// Pollution carries ManagePollution's wastepack verdicts and the polluted

@@ -177,9 +177,6 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := validateColonyAcquisition(v); err != nil {
 		return err
 	}
-	if err := validateColonyBlight(v); err != nil {
-		return err
-	}
 	if err := validateColonyEnvironment(v); err != nil {
 		return err
 	}

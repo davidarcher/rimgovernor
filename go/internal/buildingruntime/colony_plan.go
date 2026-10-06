@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -49,11 +50,20 @@ func grownFor(projection observation.ColonyProjection) string {
 	return fmt.Sprint(layoutTier(projection), "|", strings.Join(research, ","))
 }
 
-// MapSurveyNative is the optional native whole-map read behind the layout
-// plan (bridge.Client.ReadMapSurvey). A reviewer whose native lacks it, or
-// refuses the foundation field, plans nothing.
-type MapSurveyNative interface {
-	ReadMapSurvey(context.Context, *c.Identity, policy.Bounds) (policy.MapSurvey, bridge.Result, error)
+// layoutSurvey is the whole-map survey behind the layout plan, read off the
+// projection's planning window and the load's definition catalog (#2272). A
+// reviewer whose native serves no definitions, or a projection without a
+// window, plans nothing.
+func (r *Rounder) layoutSurvey(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) (policy.MapSurvey, error) {
+	source, ok := r.native.(observation.DefinitionSource)
+	if !ok || projection.Region == (policy.Rectangle{}) {
+		return policy.MapSurvey{}, errors.New("layout survey: no definitions or planning window")
+	}
+	catalog, err := source.DefinitionCatalog(ctx, controlIdentity(snapshot))
+	if err != nil {
+		return policy.MapSurvey{}, err
+	}
+	return bridge.SurveyFromCells(projection.Cells, projection.Bounds, catalog)
 }
 
 // reviewLayoutPlan serves the saved v2 layout plan (#783) on the
@@ -166,9 +176,9 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	// The materials yard is planned from the start (#2192); a plan that predates
 	// it, or a full yard (RoomDemand.Yard), is grown one.
 	yard := haveLayout && policy.YardRoomsOwed(layout.Plan, demand) > 0 && hourly
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard) {
+	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard {
 		replanned := false
-		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
+		if survey, err := r.layoutSurvey(ctx, snapshot, *projection); err != nil {
 			_ = err // a failed survey retries on the next review
 		} else {
 			r.planChecked, r.planSurveyed = tick, true

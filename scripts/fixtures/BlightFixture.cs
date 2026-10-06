@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame, zoneId = zone.ID, cutter = cutter.GetUniqueLoadID(),
-                    plants = infected.Select(p => new { id = p.GetUniqueLoadID(), token = NativeCutPlant.Snapshot(p, context).Token,
+                    plants = infected.Select(p => new { id = p.GetUniqueLoadID(),
                         cell = new { x = p.Position.x, z = p.Position.z } }).ToList(),
                     healthy = plants.Count - infected.Count,
                     zoneCells = zone.Cells.Select(c => new { x = c.x, z = c.z }).ToList(),

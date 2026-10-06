@@ -12,41 +12,18 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Foundation bits of a get_cells read's foundation bytes (#727, #778,
-// #949): the natural ground under any bridge or floor.
-const (
-	foundationHeavy uint8 = 1 << iota
-	foundationLight
-	foundationOre
-	foundationTree
-	foundationBridgeable
-	foundationDries
-	// foundationHazard is read from the terrain now at the cell, not the
-	// natural ground (bit 6; the map survey keeps planning off it).
-	foundationHazard
-)
-
 // cellsRead is one validated observations_get_cells read (#1346): the
-// map's bounds, the rect as a decoded grid, and, when asked, the
-// foundation byte of each rect cell (row-major) and the things standing
-// on its held cells.
+// map's bounds and the rect as a decoded grid. The grid carries each cell's
+// things, terrain and foundation affordances (#2260, #2272).
 type cellsRead struct {
-	Context    *c.ObservationContext
-	Bounds     policy.Bounds
-	Grid       *cellgrid.Grid
-	Foundation []byte
-	Things     []*o.Thing
-}
-
-// foundation is the foundation byte of cell, a cell of the read's rect.
-func (r cellsRead) foundation(cell domain.Cell) uint8 {
-	rect := r.Grid.Rect
-	return r.Foundation[int(cell.Z-rect.Z)*int(rect.Width)+int(cell.X-rect.X)]
+	Context *c.ObservationContext
+	Bounds  policy.Bounds
+	Grid    *cellgrid.Grid
 }
 
 // readCells reads rect through observations_get_cells and validates the
 // reply against the request.
-func (client *Client) readCells(ctx context.Context, identity *c.Identity, rect policy.Rectangle, foundation, things bool) (cellsRead, Result, error) {
+func (client *Client) readCells(ctx context.Context, identity *c.Identity, rect policy.Rectangle) (cellsRead, Result, error) {
 	if err := authorityIdentity(identity); err != nil {
 		return cellsRead{}, Result{}, err
 	}
@@ -55,12 +32,6 @@ func (client *Client) readCells(ctx context.Context, identity *c.Identity, rect 
 	}
 	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
 		Rectangle: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(rect.X), Z: proto.Int32(rect.Z)}, Maximum: &c.Cell{X: proto.Int32(rect.X + rect.Width - 1), Z: proto.Int32(rect.Z + rect.Height - 1)}}}
-	if foundation {
-		request.Foundation = proto.Bool(true)
-	}
-	if things {
-		request.Things = proto.Bool(true)
-	}
 	reply := &o.GetCellsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
 	if err != nil {
@@ -72,7 +43,7 @@ func (client *Client) readCells(ctx context.Context, identity *c.Identity, rect 
 	case *o.GetCellsReply_Unavailable:
 		return cellsRead{}, raw, unavailable(value.Unavailable, raw)
 	case *o.GetCellsReply_Observed:
-		read, err := validateCells(value.Observed, identity, rect, foundation, things)
+		read, err := validateCells(value.Observed, identity, rect)
 		return read, raw, err
 	default:
 		return cellsRead{}, raw, contract("missing cells outcome")
@@ -80,9 +51,8 @@ func (client *Client) readCells(ctx context.Context, identity *c.Identity, rect 
 }
 
 // validateCells checks a cells snapshot answers the request: its world,
-// a map holding rect, a keyframe grid over exactly rect, foundation bytes
-// only when asked, and thing rows only when asked, each on a held cell.
-func validateCells(v *o.CellsSnapshot, identity *c.Identity, rect policy.Rectangle, foundation, things bool) (cellsRead, error) {
+// a map holding rect and a keyframe grid over exactly rect.
+func validateCells(v *o.CellsSnapshot, identity *c.Identity, rect policy.Rectangle) (cellsRead, error) {
 	if v == nil {
 		return cellsRead{}, contract("missing cells snapshot")
 	}
@@ -110,27 +80,7 @@ func validateCells(v *o.CellsSnapshot, identity *c.Identity, rect policy.Rectang
 	if grid.Rect != rect {
 		return cellsRead{}, contract("cells grid rect differs")
 	}
-	if foundation != (len(v.Foundation) > 0) || foundation && len(v.Foundation) != int(rect.Width)*int(rect.Height) {
-		return cellsRead{}, contract("cells foundation differs")
-	}
-	if !things && len(v.Things) > 0 {
-		return cellsRead{}, contract("unrequested cell things")
-	}
-	held := map[domain.Cell]bool{}
-	if len(v.Things) > 0 {
-		for _, cell := range grid.Cells() {
-			held[cell.Cell] = true
-		}
-	}
-	seen := map[string]bool{}
-	for _, row := range v.Things {
-		ref := row.GetThing()
-		if ref == nil || validID(ref.GetId()) != nil || seen[ref.GetId()] || ref.Position == nil || ref.Position.X == nil || ref.Position.Z == nil || !held[domain.Cell{X: ref.Position.GetX(), Z: ref.Position.GetZ()}] {
-			return cellsRead{}, contract("invalid cell thing")
-		}
-		seen[ref.GetId()] = true
-	}
-	return cellsRead{Context: v.Context, Bounds: bounds, Grid: grid, Foundation: v.Foundation, Things: v.Things}, nil
+	return cellsRead{Context: v.Context, Bounds: bounds, Grid: grid}, nil
 }
 
 // RectCells are an inclusive wire rectangle's cells, row-major; nil for a

@@ -1,29 +1,24 @@
 #nullable enable
 using System;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The blight responder's native half (#245): the crop-blight census in
-    // the colony read (Read) and the CutPlant designation on one exact
-    // blighted plant (DesignateIntent with THING_DESIGNATION_CUT_PLANT). The
+    // The blight responder's native half (#245): the CutPlant designation on
+    // one exact blighted plant (the census is the cell mirror's plant state, #2272;
+    // DesignateIntent with THING_DESIGNATION_CUT_PLANT). The
     // designation is the whole write; ordinary plant-cutting work cuts the
     // plant afterwards, and the census emptying is what settles the concern.
     internal static class NativeCutPlant
     {
         internal const string Kind = "Cut plant";
         internal const string DesignationDef = "CutPlant";
-        internal const int Limit = 64;
 
         // Census membership: a blighted plant on colony ground (a growing
         // zone or the home area). Blight on wild plants outside both is the
@@ -33,40 +28,6 @@ namespace HomeBridge.BridgeTools
             && plant.Blighted && !plant.Position.Fogged(plant.Map) && InColony(plant, plant.Map);
         internal static bool Designated(Plant plant) => plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.CutPlant) != null
             || plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.HarvestPlant) != null;
-
-        internal static string Token(Common.Identity identity, string id, string definition, int x, int z, bool blighted, bool designated)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
-                    writer.Write(id); writer.Write(definition); writer.Write(x); writer.Write(z); writer.Write(blighted); writer.Write(designated);
-                }
-                using (var hash = SHA256.Create())
-                    return "cut-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
-
-        internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context.Clone(), EntityId = plant.GetUniqueLoadID(),
-            Token = Token(context.Identity, plant.GetUniqueLoadID(), plant.def.defName, plant.Position.x, plant.Position.z, plant.Blighted, Designated(plant)) };
-
-        // Read fills ColonyFactsSnapshot.blighted_plants: every eligible
-        // blighted plant nearest the colony first, bounded to Limit rows.
-        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center)
-        {
-            var plants = map.listerThings.AllThings.OfType<Plant>().Where(Eligible)
-                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).Take(Limit).ToList();
-            foreach (var plant in plants)
-            {
-                var row = new Obs.BlightedPlant {
-                    Plant = NativeRef.Thing(plant), PlantSnapshot = Snapshot(plant, result.Context),
-                    Designated = Designated(plant), Growth = plant.Growth };
-                if (map.zoneManager.ZoneAt(plant.Position) is Zone_Growing zone) row.Zone = NativeRef.Of(zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                result.BlightedPlants.Add(row);
-            }
-        }
 
         // Cutter is the same colonist rule plant acquisition applies: someone
         // with plant cutting enabled must be able to do the work now.

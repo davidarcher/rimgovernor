@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -73,7 +72,7 @@ func TestReadMapBoundsReadsTheAnchorCell(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		request := decodeCellsRequest(t, arg)
-		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || requestRect(request) != (policy.Rectangle{X: 2, Z: 3, Width: 1, Height: 1}) || request.Foundation != nil || request.Things != nil {
+		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || requestRect(request) != (policy.Rectangle{X: 2, Z: 3, Width: 1, Height: 1}) {
 			t.Fatal("query differs", request)
 		}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: cellsSnapshot(t, requestRect(request), nil, nil)}}), nil
@@ -87,38 +86,15 @@ func TestReadMapBoundsReadsTheAnchorCell(t *testing.T) {
 
 func TestCellsReplyMustAnswerTheRequest(t *testing.T) {
 	rect := policy.Rectangle{X: 2, Z: 3, Width: 2, Height: 2}
-	thing := func() *o.Thing {
-		return &o.Thing{Thing: &o.EntityRef{Id: proto.String("Plant_1"), Position: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}}
-	}
 	for name, edit := range map[string]func(*o.CellsSnapshot){
 		"map absent": func(s *o.CellsSnapshot) { s.MapSize = nil }, "zero": func(s *o.CellsSnapshot) { s.MapSize.Width = proto.Uint32(0) }, "overflow": func(s *o.CellsSnapshot) { s.MapSize.Height = proto.Uint32(math.MaxInt32 + 1) },
 		"rect off the map": func(s *o.CellsSnapshot) { s.MapSize.Width = proto.Uint32(3) }, "stale": func(s *o.CellsSnapshot) { s.Context.Identity.LoadToken = proto.String("other") }, "missing context": func(s *o.CellsSnapshot) { s.Context = nil },
 		"no grid": func(s *o.CellsSnapshot) { s.Grid = nil }, "delta": func(s *o.CellsSnapshot) { s.Grid.Glow = nil }, "other rect": func(s *o.CellsSnapshot) { s.Grid.Rect.X = proto.Int32(1) },
-		"unrequested foundation": func(s *o.CellsSnapshot) { s.Foundation = make([]byte, 4) },
-		"unrequested things":     func(s *o.CellsSnapshot) { s.Things = []*o.Thing{thing()} },
 	} {
 		t.Run(name, func(t *testing.T) {
 			s := cellsSnapshot(t, rect, nil, nil)
 			edit(s)
-			if _, err := validateCells(s, pbIdentity(), rect, false, false); !errors.Is(err, ErrContract) && err == nil {
-				t.Fatal("accepted")
-			}
-		})
-	}
-	for name, edit := range map[string]func(*o.CellsSnapshot){
-		"short foundation": func(s *o.CellsSnapshot) { s.Foundation = s.Foundation[1:] },
-		"thing off rect":   func(s *o.CellsSnapshot) { s.Things[0].Thing.Position.X = proto.Int32(9) },
-		"thing unplaced":   func(s *o.CellsSnapshot) { s.Things[0].Thing.Position = nil },
-		"duplicate thing":  func(s *o.CellsSnapshot) { s.Things = append(s.Things, thing()) },
-	} {
-		t.Run(name, func(t *testing.T) {
-			s := cellsSnapshot(t, rect, nil, nil)
-			s.Foundation, s.Things = make([]byte, 4), []*o.Thing{thing()}
-			if _, err := validateCells(s, pbIdentity(), rect, true, true); err != nil {
-				t.Fatal("valid reply refused", err)
-			}
-			edit(s)
-			if _, err := validateCells(s, pbIdentity(), rect, true, true); err == nil {
+			if _, err := validateCells(s, pbIdentity(), rect); !errors.Is(err, ErrContract) && err == nil {
 				t.Fatal("accepted")
 			}
 		})
@@ -160,97 +136,5 @@ func TestReadMapBoundsInvalidAnchorNeverCalls(t *testing.T) {
 	identity.MapId = nil
 	if _, _, err := client.ReadMapBounds(context.Background(), identity, domain.Cell{}); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
-	}
-}
-
-// TestReadMapSurveyDecodesFoundation reads a 20x30 map in bands: the
-// grid's planning fields and the foundation byte make each survey cell.
-func TestReadMapSurveyDecodesFoundation(t *testing.T) {
-	var rects []policy.Rectangle
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-		request := decodeCellsRequest(t, arg)
-		rect := requestRect(request)
-		rects = append(rects, rect)
-		if !request.GetFoundation() || request.Things != nil {
-			t.Fatal("query differs", request)
-		}
-		s := cellsSnapshot(t, rect, func(c domain.Cell) bool { return c == (domain.Cell{X: 5, Z: 1}) }, func(cell *policy.SiteCell) {
-			switch cell.Cell {
-			case domain.Cell{X: 1, Z: 1}:
-				cell.SetNaturalRock(true)
-				cell.Walkable, cell.Roof = domain.Known(false), domain.Known("RoofRockThick")
-			case domain.Cell{X: 2, Z: 1}:
-				cell.SetOccupied(true)
-			case domain.Cell{X: 3, Z: 1}:
-				cell.Fertility = domain.Known(1.4)
-			}
-		})
-		s.Foundation = make([]byte, rect.Width*rect.Height)
-		for j := range s.Foundation {
-			s.Foundation[j] = foundationHeavy | foundationLight
-		}
-		at := func(x, z int32) *byte { return &s.Foundation[int(z-rect.Z)*int(rect.Width)+int(x-rect.X)] }
-		if rect.Z <= 1 && 1 < rect.Z+rect.Height {
-			*at(1, 1) = foundationHeavy | foundationOre
-			*at(3, 1) = foundationLight | foundationBridgeable | foundationDries | foundationTree
-			*at(4, 1) = foundationBridgeable
-			*at(6, 1) = foundationHeavy | foundationHazard
-			*at(5, 1) = 0
-		}
-		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}), nil
-	}}
-	client := testClient(t, server, testBudget)
-	client.catalog.catalog = roofCatalog(&d.RoofDef{DefName: "RoofRockThick", IsNatural: true, IsThickRoof: true})
-	client.catalog.catalog.LoadToken = "load"
-	survey, _, err := client.ReadMapSurvey(context.Background(), pbIdentity(), policy.Bounds{Width: 20, Height: 30})
-	if err != nil || len(survey.Cells) != 20*30 || len(rects) != 1 {
-		t.Fatal(err, len(survey.Cells), rects)
-	}
-	by := map[domain.Cell]policy.SurveyCell{}
-	for _, cell := range survey.Cells {
-		by[cell.Cell] = cell
-	}
-	if got := by[domain.Cell{X: 1, Z: 1}]; !got.Rock || !got.Ore || !got.ThickRoof || got.Walkable || got.Prop || got.Footing != policy.FootingFirm {
-		t.Fatalf("rock %+v", got)
-	}
-	if got := by[domain.Cell{X: 2, Z: 1}]; !got.Prop || !got.Walkable {
-		t.Fatalf("prop %+v", got)
-	}
-	if got := by[domain.Cell{X: 3, Z: 1}]; got.Footing != policy.FootingLight || !got.Bridgeable || !got.Dries || !got.Tree || got.Fertility != 1.4 {
-		t.Fatalf("marsh %+v", got)
-	}
-	if got := by[domain.Cell{X: 4, Z: 1}]; got.Footing != policy.FootingNone || !got.Bridgeable {
-		t.Fatalf("water %+v", got)
-	}
-	if got := by[domain.Cell{X: 6, Z: 1}]; !got.Hazard || by[domain.Cell{X: 4, Z: 1}].Hazard {
-		t.Fatalf("hazard bit %+v", got)
-	}
-	if got := by[domain.Cell{X: 5, Z: 1}]; !got.Rock || got.Walkable || got.Ore {
-		t.Fatalf("fogged cell reads as plain rock %+v", got)
-	}
-}
-
-// TestReadBareCellsKeysOnPlantGrowth is #1567: a cell is bare unless a
-// thing row standing on it carries growth (the native plant row), and a
-// fogged cell is never bare.
-func TestReadBareCellsKeysOnPlantGrowth(t *testing.T) {
-	want := []domain.Cell{{X: 2, Z: 3}, {X: 3, Z: 3}, {X: 4, Z: 5}}
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-		request := decodeCellsRequest(t, arg)
-		rect := requestRect(request)
-		if rect != (policy.Rectangle{X: 2, Z: 3, Width: 3, Height: 3}) || !request.GetThings() || request.Foundation != nil {
-			t.Fatal("query differs", request)
-		}
-		s := cellsSnapshot(t, rect, func(c domain.Cell) bool { return c == (domain.Cell{X: 3, Z: 3}) }, nil)
-		at := func(id string, x, z int32) *o.EntityRef {
-			return &o.EntityRef{Id: proto.String(id), Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}
-		}
-		s.Things = []*o.Thing{{Thing: at("Plant_1", 2, 3), Growth: proto.Float64(0.4)}, {Thing: at("Steel_2", 4, 5), StackCount: proto.Int64(5)}}
-		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}), nil
-	}}
-	client := testClient(t, server, testBudget)
-	bare, _, err := client.ReadBareCells(context.Background(), pbIdentity(), want)
-	if err != nil || len(bare) != 1 || !bare[domain.Cell{X: 4, Z: 5}] {
-		t.Fatal(bare, err)
 	}
 }

@@ -10,28 +10,34 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// countingSurvey counts the survey reads.
+// countingSurvey counts the definition reads the layout survey makes (#2272).
 type countingSurvey struct {
 	observation.RoundsSource
-	survey policy.MapSurvey
-	reads  *int
+	reads *int
 }
 
-func (n countingSurvey) ReadMapSurvey(context.Context, *c.Identity, policy.Bounds) (policy.MapSurvey, bridge.Result, error) {
+func (n countingSurvey) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
 	*n.reads++
-	return n.survey, bridge.Result{}, nil
+	return &bridge.DefinitionCatalog{Defs: map[protoreflect.FullName]map[string]proto.Message{
+		(&d.RoofDef{}).ProtoReflect().Descriptor().FullName(): {"RoofConstructed": &d.RoofDef{DefName: "RoofConstructed"}},
+	}}, nil
 }
 
-func openSurvey(n int32) policy.MapSurvey {
-	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
+// openWindow fills projection's planning window with an n x n open map.
+func openWindow(projection *observation.ColonyProjection, n int32) {
+	projection.Bounds = policy.Bounds{Width: n, Height: n}
+	projection.Region = policy.Rectangle{Width: n, Height: n}
+	projection.Cells = nil
 	for z := int32(0); z < n; z++ {
 		for x := int32(0); x < n; x++ {
-			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true, Fertility: 1})
+			projection.Cells = append(projection.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Fertility: domain.Known(1.0), FoundationAffordances: domain.Known("Heavy,Light")})
 		}
 	}
-	return s
 }
 
 // #1290: every layout trigger is hourly. An unchanged colony reads the
@@ -41,11 +47,11 @@ func TestLayoutTriggersHourly(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()
-	survey := openSurvey(120)
 	reads := 0
-	r := &Rounder{player: s.player, native: countingSurvey{survey: survey, reads: &reads}}
+	r := &Rounder{player: s.player, native: countingSurvey{reads: &reads}}
 	snapshot := s.player.session.State().Snapshot
-	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}, Bounds: survey.Bounds}
+	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}}
+	openWindow(&projection, 120)
 	projection.Facts.Colonists = domain.Known(int64(3))
 	projection.BuildTier = domain.Known(policy.BuildTierCamp)
 	review := func(tick domain.Tick) {

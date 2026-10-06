@@ -737,23 +737,18 @@ message ThingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; r
 // requested rectangle as a CellGrid keyframe (mirror.proto's arrays and
 // sentinels: a fogged cell is not held; glow is artificial light only).
 // room keys a native room by the whole-map row-major index of its first
-// held cell inside the read. foundation, when requested, is one byte per
-// grid cell (row-major, 0 on a cell the grid does not hold): bit 0
-// supports_heavy (the terrain takes a wall), bit 1 supports_light, bit 2
-// resource_rock (mineable ore), bit 3 tree, bit 4 bridgeable, bit 5 dries
-// (a moisture pump dries it), each of the natural ground
-// under any bridge or floor; bit 6 hazard (the terrain now at the cell hurts
-// or contaminates by its own def flags, lava). things, when requested, are the canonical rows (#1343)
-// of the things standing on the grid's held cells, each once, in id
-// order, at its own thing.position.
+// held cell inside the read. Things, terrain and foundation affordances ride
+// the grid's thing list and tile columns (#2260, #2261, #2272).
 message CellsSnapshot {
+  reserved 12, 13; reserved "foundation", "things";
   rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2;
-  rimgovernor.mirror.v1.CellGrid grid = 11; bytes foundation = 12; repeated Thing things = 13;
+  rimgovernor.mirror.v1.CellGrid grid = 11;
 }
 // GetCellsRequest reads the inclusive rectangle, on the map, of at most
 // 1048576 cells.
 message GetCellsRequest {
-  ReadScope scope = 1; Rectangle rectangle = 2; optional bool foundation = 8; optional bool things = 9;
+  reserved 8, 9; reserved "foundation", "things";
+  ReadScope scope = 1; Rectangle rectangle = 2;
 }
 message GetCellsReply { oneof outcome { CellsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ResearchUnlock { optional string def_name = 1; optional string native_type = 2; optional string label = 3; }
@@ -1245,12 +1240,6 @@ message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable
   optional bool auto_refuel = 7;
   // The bench's CAS token (#1342).
   SnapshotRef bench_snapshot = 8; }
-// A blighted plant standing in a player growing zone or on home ground: the
-// crop-blight census RemoveBlight cuts from. Nearest the colony first, at
-// most 64 rows; plant.snapshot is the CutPlant designation's CAS token.
-// zone_id is the growing zone the plant stands in, absent on home ground.
-// designated: a CutPlant or HarvestPlant designation already exists.
-message BlightedPlant { rimgovernor.common.v1.Ref plant = 1; rimgovernor.common.v1.Ref zone = 2; optional bool designated = 3; optional double growth = 4; SnapshotRef plant_snapshot = 5; }
 message AcquisitionFacts { rimgovernor.common.v1.Ref source = 1; SnapshotRef source_snapshot = 16; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; reserved 13; reserved "weapon_range"; optional int64 designated_tick = 14; optional bool taken = 15; optional double body_size = 17; optional bool sleeping = 18; optional bool predator = 19;
   // Raw hunt prey facts (#2144): a hunt row is every wild animal that bears a corpse, whatever
   // policy then decides. fogged and in_mental_state are native's current reading of the animal.
@@ -1518,9 +1507,7 @@ message ColonyFactsSnapshot {
   optional string player_tech_level = 39;
   // Present only while exactly one force-pausing choice dialog is open.
   ChoiceDialog dialog = 40;
-  // Blighted plants in growing zones or home ground (BlightedPlant); a
-  // `blighted_plants` issue withholds the census.
-  repeated BlightedPlant blighted_plants = 41;
+  reserved 41; reserved "blighted_plants";
   // Colony wealth and raid points (ThreatFacts), or why they could not be read.
   ThreatSection threat = 42;
   LootSection event_loot = 43;

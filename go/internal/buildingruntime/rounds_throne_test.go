@@ -197,11 +197,11 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()
-	survey := openSurvey(140)
 	reads := 0
-	r := &Rounder{player: s.player, native: countingSurvey{survey: survey, reads: &reads}}
+	r := &Rounder{player: s.player, native: countingSurvey{reads: &reads}}
 	snapshot := s.player.session.State().Snapshot
-	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}, Bounds: survey.Bounds}
+	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}}
+	openWindow(&projection, 140)
 	projection.Facts.Colonists = domain.Known(int64(3))
 	projection.BuildTier = domain.Known(policy.BuildTierCamp)
 	review := func(tick domain.Tick) policy.LayoutPlan {

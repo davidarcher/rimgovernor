@@ -189,9 +189,6 @@ namespace HomeBridge.BridgeTools
                     result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable."));
             }
             Span("cf.acquisition");
-            try { NativeCutPlant.Read(result, map, center); }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result.BlightedPlants.Clear(); result.Issues.Add(Issue("blighted_plants", Common.UnavailableReason.ReadFailed, "Complete blighted plant census is unavailable.")); }
-            Span("cf.cutPlant");
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             Span("cf.planning");

@@ -142,9 +142,7 @@ a depleted drill for removal from the deep drill step's recorded read.
   and Cooking work state, primary weapon verbs, shield and route-safe prey; per
   butcher bench: usability and bills) that policy decides hunts from (#2144),
   food corpses, Boolean qualifying food storage,
-  forbidden supply cells, the bounded `blighted_plants` census (up to 64
-  blighted plants in growing zones or the home area with position, zone and
-  designation state), the player faction's tech level (`player_tech_level`,
+  forbidden supply cells, the player faction's tech level (`player_tech_level`,
   which selects the starter shelter's shape), and planning definitions/cells
   including per-cell `doorway` (a door, door blueprint or door frame) so indoor
   furnishing keeps entrance aisles clear. Planning definitions are explicit
