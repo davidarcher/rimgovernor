@@ -17,7 +17,7 @@ func hayTarget(p observation.ColonyProjection) (int, bool) {
 	}
 	for _, d := range p.Definitions {
 		if d.Name == "Plant_Haygrass" {
-			crop := policy.CropChoice{Name: d.Name, Available: d.Available, Edible: domain.Known(false), GrowDays: d.GrowDays, HarvestNutrition: d.HarvestNutrition, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow}
+			crop := withHarvestFacts(policy.CropChoice{Name: d.Name, Available: d.Available, Edible: domain.Known(false), GrowDays: d.GrowDays, HarvestNutrition: d.HarvestNutrition, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow}, d)
 			plan, ok := policy.PlanHayField(domain.Known(need), crop, p.CropClimate)
 			return plan.Needed, ok && plan.Needed > 0
 		}
@@ -35,7 +35,7 @@ func hayShortfall(p observation.ColonyProjection) (policy.FieldBlockOption, bool
 	var crop policy.CropChoice
 	for _, d := range p.Definitions {
 		if d.Name == "Plant_Haygrass" {
-			crop = policy.CropChoice{Name: d.Name, Available: d.Available, Edible: domain.Known(false), GrowDays: d.GrowDays, HarvestNutrition: d.HarvestNutrition, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow}
+			crop = withHarvestFacts(policy.CropChoice{Name: d.Name, Available: d.Available, Edible: domain.Known(false), GrowDays: d.GrowDays, HarvestNutrition: d.HarvestNutrition, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow}, d)
 		}
 	}
 	yield, yk := crop.HarvestNutrition.Value()

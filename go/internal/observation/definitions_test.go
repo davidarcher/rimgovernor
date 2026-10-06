@@ -52,3 +52,37 @@ func TestDefinitionsFailWhenARowTheViewNeedsIsMissing(t *testing.T) {
 		t.Fatal("a plant harvesting a def with no row resolved")
 	}
 }
+
+// A non-edible plant resolves what it harvests, the yield, the sowing skill
+// and that a harvest fells it (#2282); a plant naming no product leaves the
+// harvest facts unknown rather than zero.
+func TestDefinitionsResolveCropHarvestFacts(t *testing.T) {
+	catalog := testCatalog(
+		bridge.FixtureDef{Name: "Plant_Cotton", Plant: &bridge.FixturePlant{GrowDays: 5, Yield: 7, SowMinSkill: 6}},
+		bridge.FixtureDef{Name: "Plant_Bush", Plant: &bridge.FixturePlant{GrowDays: 5, Persists: true}},
+		bridge.FixtureDef{Name: "Plant_Bare", Plant: &bridge.FixturePlant{GrowDays: 5, SowMinSkill: 2}},
+	)
+	catalog.ThingDefs["Plant_Bare"].Plant.HarvestedThingDef = ""
+	facts := definitionFacts{catalog: catalog}
+	cotton, err := facts.resolve("Plant_Cotton")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cotton.Edible != domain.Known(false) || cotton.HarvestedThingDef != domain.Known("Plant_Cotton_Product") || cotton.HarvestYield != domain.Known(7.0) || cotton.SowMinSkill != domain.Known(int32(6)) || cotton.HarvestDestroysPlant != domain.Known(true) {
+		t.Fatalf("cotton: %+v", cotton)
+	}
+	bush, err := facts.resolve("Plant_Bush")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bush.HarvestDestroysPlant != domain.Known(false) {
+		t.Fatalf("a persisting plant destroyed: %+v", bush.HarvestDestroysPlant)
+	}
+	bare, err := facts.resolve("Plant_Bare")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bare.HarvestedThingDef != domain.Unknown[string]() || bare.HarvestYield != domain.Unknown[float64]() || bare.HarvestDestroysPlant != domain.Unknown[bool]() || bare.SowMinSkill != domain.Known(int32(2)) {
+		t.Fatalf("bare: %+v", bare)
+	}
+}

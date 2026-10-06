@@ -326,6 +326,25 @@ type FixturePlant struct {
 	SowTags                          []string
 	RawPreferred, Edible             bool
 	RequiresPollution, RequiresClean bool
+	// SowMinSkill is the sowing skill floor; Yield the units per harvest (0
+	// means 1); Persists keeps the plant standing after a harvest.
+	SowMinSkill int32
+	Yield       float32
+	Persists    bool
+}
+
+func (p *FixturePlant) yield() float32 {
+	if p.Yield == 0 {
+		return 1
+	}
+	return p.Yield
+}
+
+func (p *FixturePlant) persistAfter() float32 {
+	if p.Persists {
+		return 0.5
+	}
+	return 0
 }
 
 // FixtureFloor is a terrain's stat values.
@@ -524,7 +543,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			if len(sowTags) == 0 {
 				sowTags = []string{"Ground"}
 			}
-			t.Plant = &d.PlantProperties{GrowDays: p.GrowDays, FertilityMin: p.FertilityMin, FertilitySensitivity: p.FertilitySensitivity, GrowMinGlow: p.GrowMinGlow, HarvestWork: p.HarvestWork, SowTags: sowTags, HarvestYield: 1, HarvestedThingDef: def.Name + "_Product", Pollution: pollution}
+			t.Plant = &d.PlantProperties{GrowDays: p.GrowDays, FertilityMin: p.FertilityMin, FertilitySensitivity: p.FertilitySensitivity, GrowMinGlow: p.GrowMinGlow, HarvestWork: p.HarvestWork, SowTags: sowTags, HarvestYield: p.yield(), SowMinSkill: p.SowMinSkill, HarvestAfterGrowth: p.persistAfter(), HarvestedThingDef: def.Name + "_Product", Pollution: pollution}
 			product := def.Name + "_Product"
 			preferability := d.FoodPreferability_FOOD_PREFERABILITY_RAW_BAD
 			if p.RawPreferred {

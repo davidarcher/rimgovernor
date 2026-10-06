@@ -24,7 +24,7 @@ func socialShortfalls(projection observation.ColonyProjection) ([]policy.FieldBl
 		}
 		for _, d := range projection.Definitions {
 			if d.Name == name {
-				crop := policy.CropChoice{Name: name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil}
+				crop := withHarvestFacts(policy.CropChoice{Name: name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil}, d)
 				if needed := policy.PlanSocialCrop(crop, projection.CropClimate, cells); needed > 0 {
 					out = append(out, policy.FieldBlockOption{Crop: crop, Needed: needed})
 				}

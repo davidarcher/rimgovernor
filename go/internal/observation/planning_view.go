@@ -213,14 +213,19 @@ func plantView(catalog *bridge.DefinitionCatalog, v *PlanningDefinition, plant *
 	v.FertilitySensitivity = finiteFact(float64(plant.GetFertilitySensitivity()))
 	v.GrowMinGlow = finiteFact(float64(plant.GetGrowMinGlow()))
 	v.SowTags = domain.Known(append([]string{}, plant.GetSowTags()...))
+	v.SowMinSkill = domain.Known(plant.GetSowMinSkill())
 	product := plant.GetHarvestedThingDef()
 	if product == "" {
 		return nil
 	}
+	// The game's PlantProperties.HarvestDestroys is harvestAfterGrowth <= 0.
+	v.HarvestDestroysPlant = domain.Known(plant.GetHarvestAfterGrowth() <= 0)
 	productRow := catalog.ThingDef(product)
 	if productRow == nil {
 		return fmt.Errorf("%w: plant harvests %s, which the catalog has no def row for", bridge.ErrContract, product)
 	}
+	v.HarvestedThingDef = domain.Known(product)
+	v.HarvestYield = finiteFact(float64(plant.GetHarvestYield()))
 	v.RawPreferred = domain.Known(productRow.GetIngestible() != nil && productRow.GetIngestible().GetPreferability() >= d.FoodPreferability_FOOD_PREFERABILITY_RAW_TASTY)
 	edible, err := catalog.IsFood(product)
 	if err != nil {

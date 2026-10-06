@@ -708,7 +708,8 @@ func fieldRequest(projection observation.ColonyProjection, reserveDays float64) 
 		if _, isPlant := d.GrowDays.Value(); !isPlant {
 			continue
 		}
-		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, HarvestWork: d.HarvestWork, RawPreferred: d.RawPreferred, DietAllowed: d.DietAllowed, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil, RotDays: d.HarvestRotDays, Perishable: d.HarvestPerishable})
+		choice := policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, HarvestWork: d.HarvestWork, RawPreferred: d.RawPreferred, DietAllowed: d.DietAllowed, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil, RotDays: d.HarvestRotDays, Perishable: d.HarvestPerishable}
+		choices = append(choices, withHarvestFacts(choice, d))
 	}
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays)
 	growers, cooks := policy.CropWorkers(projection.WorkPawns)
@@ -752,4 +753,15 @@ func firebreakRing(projection observation.ColonyProjection) ([]domain.Cell, erro
 func fieldEdit(ctx context.Context, verdict, reason, target string, attrs map[string]any) {
 	attrs["family"] = "field"
 	telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_edit", Component: "clock-scheduler", Verdict: verdict, Reason: reason, Target: target, Attrs: attrs})
+}
+
+// withHarvestFacts adds a plant definition's harvest facts to a crop choice
+// (#2282): the resource a harvest yields, its units per cell, the sowing
+// skill floor and whether a harvest destroys the plant. Unknown stays unknown.
+func withHarvestFacts(crop policy.CropChoice, d observation.PlanningDefinition) policy.CropChoice {
+	if name, ok := d.HarvestedThingDef.Value(); ok {
+		crop.Harvests = domain.Known(policy.Resource(name))
+	}
+	crop.UnitsPerCell, crop.SowMinSkill, crop.HarvestDestroys = d.HarvestYield, d.SowMinSkill, d.HarvestDestroysPlant
+	return crop
 }

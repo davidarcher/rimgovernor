@@ -38,8 +38,14 @@ func (c CropClimate) SowingOutdoors() domain.Fact[bool] {
 }
 
 type CropChoice struct {
-	// HarvestUnits scores non-food crop sites without inventing nutrition.
-	HarvestUnits                                                           domain.Fact[float64]
+	// Harvests is the resource one harvest yields and UnitsPerCell the units
+	// per cell per harvest (#2282); unknown stays unknown, never zero.
+	// SowMinSkill is the sowing skill floor; HarvestDestroys is true when a
+	// harvest removes the plant (a tree is felled), so the cell is empty after.
+	Harvests                                                               domain.Fact[Resource]
+	UnitsPerCell                                                           domain.Fact[float64]
+	SowMinSkill                                                            domain.Fact[int32]
+	HarvestDestroys                                                        domain.Fact[bool]
 	Name                                                                   string
 	Available, Edible                                                      domain.Fact[bool]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, Demand domain.Fact[float64]

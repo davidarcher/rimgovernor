@@ -33,6 +33,14 @@ type PlanningDefinition struct {
 	// HarvestRotDays and HarvestPerishable are the harvested item's rot facts.
 	HarvestRotDays    domain.Fact[float64]
 	HarvestPerishable domain.Fact[bool]
+	// HarvestedThingDef and HarvestYield are what one harvest of the plant
+	// yields (#2282); SowMinSkill is the sowing skill floor and
+	// HarvestDestroysPlant whether a harvest removes the plant (a tree is felled,
+	// a rice stand is cut). Unknown for a plant that names no product.
+	HarvestedThingDef    domain.Fact[string]
+	HarvestYield         domain.Fact[float64]
+	SowMinSkill          domain.Fact[int32]
+	HarvestDestroysPlant domain.Fact[bool]
 	// Crop sow tags and minimum glow; grower sow tag and fertility; building
 	// power draw and glow radius, as the native definition declares them.
 	SowTags                                                           domain.Fact[[]string]
