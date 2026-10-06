@@ -211,8 +211,15 @@ including the launcher), the GABP host (`integrations/rimgovernor-host`, over GA
 
 Non-negotiables: RimWorld owns simulation and normal game rules hold (discover
 native schemas; editor/cheat operations stay outside model execution). One
-shared Concern/action system with deterministic Hands; advisers never write game
-orders or own colony invariants. Local LM Studio models only, no silent
+shared Concern/action system with deterministic Hands: Hands are the only writer
+of game orders, except declarative [native rules](docs/developers/contracts/native-rules.md),
+which Go authors (a pure policy function), journals before the write (the
+`rules_attach` action has a receipt and sits in the session journal first) and
+leases (renewed each Round; native deactivates them when the lease lapses), and
+native only executes within a closed whitelist (v1: `PREY_KILLED` then
+`give_job` Hunt; no draft actions). Every firing is journaled on the clock ring
+before its write. Advisers never write game orders or own colony invariants.
+Local LM Studio models only, no silent
 paid-provider fallback. Typed contracts at boundaries; explicit component
 ownership; integrate through the existing architecture. State placement is one
 table in [persistence contracts](docs/developers/contracts/persistence-contracts.md)
