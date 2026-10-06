@@ -136,7 +136,6 @@ var roundsFamilyFiles = map[string][]string{
 	"rounds_sleeping_shell_bed.go":     {"sleeping"},
 	"rounds_stone_shell.go":            {"stone-shell"},
 	"rounds_stockpiles.go":             {"stockpiles"},
-	"stockpile_roles.go":               {"stockpiles"},
 	"stockpile_sited_roles.go":         {"stockpiles"},
 	"rounds_storage_shelves.go":        {"stockpiles"},
 	"rounds_supplies.go":               {"supply"},

@@ -32,6 +32,11 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureFoodSupply})
 	v := n.reply.GetObserved()
 	foodPlanFixture(v)
+	// A new field opens only if its lead (3 grow days) fits the food
+	// runway; with no stock the runway is zero and the plan holds it.
+	stock := &o.FoodStock{Item: n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, StackCount: proto.Int64(9)}), Nutrition: proto.Float64(9), Eaters: bridge.NewRefs([]string{"food-pawn"})}
+	v.FoodSupply.GetObserved().Stocks = []*o.FoodStock{stock}
+	v.Forecast.GetObserved().CombinedFoodSupply.Stocks = []*o.FoodStock{proto.Clone(stock).(*o.FoodStock)}
 	v.Farms = nil
 	v.Biome = proto.String("FixtureLitBiome")
 	v.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(60), GrowingDaysRemaining: proto.Float64(60), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(0), SowingNow: proto.Bool(true)}

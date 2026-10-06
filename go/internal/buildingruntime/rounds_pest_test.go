@@ -77,6 +77,15 @@ func TestPestAcquisitionPlannerRequiresAnAcquisitionNeed(t *testing.T) {
 // pest hunt row, with a hunting budget of two and no colonist restrictions.
 func pestFixture(t *testing.T) (*RoundsAcquisitionPlanner, *Rounder, *store.Store, *o.ColonyFactsSnapshot, *roundsNative) {
 	t.Helper()
+	planner, reviewer, db, v, native, _ := pestFixtureRoster(t, true)
+	return planner, reviewer, db, v, native
+}
+
+// pestFixtureRoster is pestFixture with its one colonist, whose pawn row it
+// returns, bow-armed or not. The hunting budget (#2170) is the hunters the
+// pawn roster names times hunts per hunter, so an unread roster has none.
+func pestFixtureRoster(t *testing.T, armed bool) (*RoundsAcquisitionPlanner, *Rounder, *store.Store, *o.ColonyFactsSnapshot, *roundsNative, *o.PawnState) {
+	t.Helper()
 	reviewer, db, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
@@ -85,6 +94,18 @@ func pestFixture(t *testing.T) (*RoundsAcquisitionPlanner, *Rounder, *store.Stor
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	addPest(native, v, "beaver-1", 7, 7)
+	n := reviewer.native.(*roundsNative)
+	// The emergency census names the colonist so the roster is known.
+	reviewer.native = &healthyWorkNative{roundsMedicalNative: &roundsMedicalNative{roundsNative: n}}
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{Skills: []*o.Skill{{DefName: proto.String("Shooting"), Level: proto.Int32(6), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()}}}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	if armed {
+		armPestColonist(n, row)
+	}
+	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
+	reviewer.census.invalidate()
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearPests})
 	if _, err := reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
@@ -93,7 +114,12 @@ func pestFixture(t *testing.T) (*RoundsAcquisitionPlanner, *Rounder, *store.Stor
 	if err != nil {
 		t.Fatal(err)
 	}
-	return planner, reviewer, db, v, native
+	return planner, reviewer, db, v, native, row
+}
+
+// armPestColonist gives the colonist a short bow.
+func armPestColonist(n *roundsNative, row *o.PawnState) {
+	row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: n.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short")})}}}
 }
 
 // addPest puts a wild alphabeaver at a cell into both censuses of the
@@ -109,7 +135,18 @@ func addPest(native *roundsNative, v *o.ColonyFactsSnapshot, id string, x, z int
 	native.races["Alphabeaver"] = &d.RaceProperties{FoodType: d.FoodTypeFlags_FOOD_TYPE_FLAGS_DENDROVORE_ANIMAL}
 	upkeep := v.Upkeep.GetObserved()
 	upkeep.WildAnimals = append(upkeep.WildAnimals, &o.AnimalFeed{Pawn: &c.Ref{Id: proto.String(id)}, Diet: proto.String("DendrovoreAnimal"), RequiresPen: proto.Bool(false)})
-	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &c.Ref{Id: beaver.Id}, SourceSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
+	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &c.Ref{Id: beaver.Id}, SourceSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Fogged: proto.Bool(false), InMentalState: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
+	// The hunt census names a bow-armed colonist with a safe route to the
+	// pest; policy's hunt gate (#2144) offers the row only with one.
+	if v.HuntCensus == nil {
+		v.HuntCensus = &o.HuntCensus{Hunters: []*o.HunterFacts{{
+			PawnId: proto.String("hunter"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}, Downed: proto.Bool(false), InMentalState: proto.Bool(false),
+			HuntingActive: proto.Bool(true), HuntingPriority: proto.Int32(3), CookingActive: proto.Bool(true),
+			Weapon: &o.HuntWeaponFacts{DefName: proto.String("Bow_Short"), Ranged: proto.Bool(true), Verbs: []*o.HuntVerbFacts{{Melee: proto.Bool(false), AiWeapon: proto.Bool(true), Range: proto.Float64(25.9), ProjectileKind: o.HuntProjectileKind_HUNT_PROJECTILE_KIND_ARROW.Enum(), DamageDef: proto.String("Arrow")}}},
+		}}}
+	}
+	hunter := v.HuntCensus.Hunters[0]
+	hunter.RouteSafePrey = append(hunter.RouteSafePrey, id)
 }
 
 func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
@@ -272,23 +309,15 @@ func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
-	planner, reviewer, _, v, _ := pestFixture(t)
-	n := reviewer.native.(*roundsNative)
-	// The emergency census names the colonist so the roster is known.
-	reviewer.native = &healthyWorkNative{roundsMedicalNative: &roundsMedicalNative{roundsNative: n}}
-	missing := func(field string) *o.ReadIssue {
-		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
-	}
-	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{Skills: []*o.Skill{{DefName: proto.String("Shooting"), Level: proto.Int32(6), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()}}}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
-	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
-	reviewer.census.invalidate()
+	planner, reviewer, _, _, _, row := pestFixtureRoster(t, false)
+	n := reviewer.native.(*healthyWorkNative).roundsNative
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if result, err := planner.Step(ctx); err != nil || result.Verdict != noWorker("hunter") {
 		t.Fatal("an unarmed roster must not be handed a hunt", result, err)
 	}
-	row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: n.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short")})}}}
+	armPestColonist(n, row)
 	reviewer.census.invalidate()
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
