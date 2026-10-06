@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -13,16 +12,16 @@ import (
 
 // RoundsAnimalContainmentPlanner composes MaintainAnimalContainment's
 // containment-method decision (policy.SelectAnimalContainmentMethod) with the
-// build side of the reconciler: the plan's ReservePen is a PlannedRoom with an
-// outdoor ring (policy.NextPenStep), reconciled through reconcileRoom like the
-// barn and vet room (stageHerdRooms). It is self-contained the way
+// build side of the reconciler: the one PenMarker that claims the yard inside
+// the defensive wall once it is closed and its lane fenced (stagePaddock, #2233);
+// the barn and vet room (stageHerdRooms) are raised meanwhile. It is self-contained the way
 // RoundsFieldPlanner is, on purpose: the shared shelter/cooking/comfort switch
 // is actively edited by parallel building-family slices, and this goal's action
 // family needs none of its machinery.
 type RoundsAnimalContainmentPlanner struct {
 	reviewer *Rounder
 	native   RoundsBuildingSource
-	// building raises the pen, barn and vet room (stagePen, stageHerdRooms).
+	// building raises the marker, barn and vet room (stagePaddock, stageHerdRooms).
 	building *RoundsBuildingPlanner
 }
 type RoundsAnimalContainmentResult struct {
@@ -48,7 +47,7 @@ func penPlanOpen(spec domain.PlanSpec, plan store.PlanState) bool {
 	for _, action := range spec.Actions() {
 		if b, ok := action.Building(); ok {
 			switch b.Definition() {
-			case policy.PenFenceDefinition, policy.PenGateDefinition, policy.PenMarkerDefinition:
+			case policy.PenMarkerDefinition:
 				return true
 			}
 		}
@@ -134,17 +133,17 @@ func containmentWait(reason policy.AnimalContainmentReason) Verdict {
 		return awaitingPlan("native_pen", "marker_placed")
 	case policy.ContainmentExceedsBound:
 		return awaitingPlan("pen", "herd_exceeds_planning_limit")
-	case policy.ContainmentAwaitingShell:
-		return awaitingPlan("pen_shell", "completion")
+	case policy.ContainmentBuildShell, policy.ContainmentAwaitingShell:
+		return awaitingPlan("paddock", "wall_closed")
 	}
 	return awaitingPlan("pen", string(reason))
 }
 
 // animalContainmentDevelopmentGated reports whether an unselected
-// low-priority goal must wait for development: only a pen ring that does not
-// match the plan does. Once the ring stands, its PenMarker is the step that
-// makes it a working pen, so a development row refusing Construction labor (the
-// ring's own bottleneck) never strands a finished fence ring without a marker.
+// low-priority goal must wait for development: only an unclosed wall does. Once
+// the wall stands and its lane is fenced, the PenMarker is the step that makes
+// the yard a working pen, so a development row refusing Construction labor
+// never strands a closed yard without a marker.
 func animalContainmentDevelopmentGated(priority int, selected bool, reason policy.AnimalContainmentReason) bool {
 	return priority >= 3 && !selected && reason == policy.ContainmentBuildShell
 }
@@ -195,7 +194,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, "Fence", "FenceGate", "PenMarker")
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, "PenMarker")
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
@@ -212,16 +211,14 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if _, known := handlerAvailable.Value(); !known {
 		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("animal_handler")}, nil
 	}
-	// The pen is the plan's ReservePen viewed as an outdoor room: its ring
-	// stage and marker come from the same diff the reconciler builds from.
-	pen, sited := penOf(facts)
-	shellStage, markerStands := policy.ContainmentShellNone, false
-	switch {
-	case penBuilding:
-		shellStage = policy.ContainmentShellPending
-	case sited && pen.Ring:
-		shellStage, markerStands = policy.ContainmentShellComplete, pen.Marker
+	// The pen is the yard inside the defensive wall (#2233): the shell stage
+	// is the ring standing with its lane fenced, the marker the one step
+	// the yard then needs.
+	shellStage, paddock, sited, err := r.paddockStageOf(call, state, facts, penBuilding)
+	if err != nil {
+		return RoundsAnimalContainmentResult{}, err
 	}
+	markerStands := shellStage == policy.ContainmentShellComplete && paddock.Marker
 	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, shellStage, markerStands)
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
@@ -234,83 +231,20 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 		return r.stageHerdRooms(call, epoch, state, review, goal, expected, claims)
 	}
 	switch choice.Reason {
-	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
-		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted:
+	case policy.ContainmentBuildShell, policy.ContainmentAwaitingShell:
+		// Barn-bound until the wall closes: the barn is raised meanwhile.
+		if result, err := r.stageHerdRooms(call, epoch, state, review, goal, expected, claims); err != nil || result.Verdict != BuildingReasonNoDeficit {
+			return result, err
+		}
 		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
-	case policy.ContainmentBuildShell, policy.ContainmentPlaceMarker:
-		return r.stagePen(call, epoch, state, review, goal, read, pen, sited)
+	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
+		policy.ContainmentExceedsBound, policy.ContainmentMarkerExhausted:
+		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
+	case policy.ContainmentPlaceMarker:
+		if !sited {
+			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("room_ground")}, nil
+		}
+		return r.stagePaddock(call, epoch, state, review, goal, read, paddock)
 	}
 	return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: step: unknown containment reason %s", ErrControl, choice.Reason)
-}
-
-// penOf is the projection's next pen step; false while the plan holds no pen
-// site or a fact it reads (the plan, the construction census, the marker's
-// size) is unknown.
-func penOf(facts observation.ColonyProjection) (policy.PenStep, bool) {
-	plan, pk := facts.LayoutPlan.Value()
-	census, ck := facts.Facts.CurrentConstruction.Value()
-	ground, gk := colonyGround(facts)
-	if !pk || !ck || !gk {
-		return policy.PenStep{}, false
-	}
-	var marker policy.InteriorPieceDef
-	if d, found := animalContainmentDefinition(facts.Definitions, policy.PenMarkerDefinition); found {
-		if size, known := d.Size.Value(); known && size.Width >= 1 && size.Height >= 1 {
-			marker = policy.InteriorPieceDef{Def: d.Name, Size: domain.Cell{X: size.Width, Z: size.Height}}
-		}
-	}
-	return policy.NextPenStep(plan, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, marker)
-}
-
-// stagePen builds the pen on the plan's ReservePen: its fence ring, gate and
-// marker through the shared build side (reconcileRoom), a lost fence rebuilt
-// by the same diff as a first ring. The planner sites the pen, so a ring cell
-// the native preview refuses is reported (noSpace) and left to the plan's
-// next replan; no other site is tried.
-func (r *RoundsAnimalContainmentPlanner) stagePen(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, read observation.RoundsReading, pen policy.PenStep, sited bool) (RoundsAnimalContainmentResult, error) {
-	facts := read.Projection
-	if _, known := facts.LayoutPlan.Value(); !known {
-		return RoundsAnimalContainmentResult{Verdict: BuildingNoLayoutPlan}, nil
-	}
-	if !sited {
-		if plan, _ := facts.LayoutPlan.Value(); len(plan.HerdRooms(policy.PlannedPen)) == 0 {
-			return RoundsAnimalContainmentResult{Verdict: noSpace("pen_enclosure")}, nil
-		}
-		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("room_ground")}, nil
-	}
-	if !pen.Ring {
-		fenceDef, fok := animalContainmentDefinition(facts.Definitions, policy.PenFenceDefinition)
-		gateDef, gok := animalContainmentDefinition(facts.Definitions, policy.PenGateDefinition)
-		if !fok || !gok {
-			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_definitions")}, nil
-		}
-		favail, fak := fenceDef.Available.Value()
-		gavail, gak := gateDef.Available.Value()
-		if !fak || !gak {
-			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("fence_availability")}, nil
-		}
-		if !favail || !gavail {
-			return RoundsAnimalContainmentResult{Verdict: awaitingPlan("fence", "unbuildable")}, nil
-		}
-	}
-	if !pen.Marker {
-		markerDef, ok := animalContainmentDefinition(facts.Definitions, policy.PenMarkerDefinition)
-		if !ok {
-			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_definition")}, nil
-		}
-		avail, ak := markerDef.Available.Value()
-		if !ak {
-			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_availability")}, nil
-		}
-		if !avail {
-			return RoundsAnimalContainmentResult{Verdict: awaitingPlan("pen_marker", "unbuildable")}, nil
-		}
-	}
-	in := pen.Room.Interior
-	stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
-	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, read, stock, roomReconcile{
-		room: pen.Room, template: pen.Template,
-		name: fmt.Sprintf("pen-%d-%d", in.X, in.Z), reason: string(pen.Room.Role),
-	})
-	return RoundsAnimalContainmentResult{Verdict: result.Verdict}, err
 }

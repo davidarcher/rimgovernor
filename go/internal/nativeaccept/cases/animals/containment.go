@@ -1,8 +1,10 @@
 // The animals/containment case exercises the MaintainAnimalContainment
 // native dispatch vertical (G01.07e, issue #27) end to end against a live
 // game: one rimgovernor/operations_apply batch of BuildingIntents (#856)
-// authors a durable Fence/FenceGate pen shell and a PenMarker in the shape the
-// planner's pen room reconciles (policy.NextPenStep, #2120), then real game ticks build it and carry a genuinely uncontained,
+// authors a durable Fence/FenceGate enclosure and one PenMarker inside it, the
+// native shape of the paddock the planner claims with a single marker once the
+// defensive wall is closed and its lane fenced (policy.NextPaddockStep, #2233;
+// the fixture's fenced room stands in for the wall's yard), then real game ticks build it and carry a genuinely uncontained,
 // pen-requiring herd animal into that pen -- observed via
 // rimgovernor/observations_read_colony_facts's native AnimalFeed/AnimalState
 // facts (Contained=true, a non-empty PenId), not just a receipt. A
@@ -29,7 +31,7 @@ const sessionOwner = "native-animal-containment-acceptance"
 func init() {
 	cases.Register(cases.Case{
 		Name: "animals/containment",
-		Scope: "Native MaintainAnimalContainment dispatch: a real Fence/FenceGate pen shell and " +
+		Scope: "Native MaintainAnimalContainment dispatch: a real Fence/FenceGate enclosure and " +
 			"PenMarker authored as Actions/Apply building intents, then a genuinely uncontained " +
 			"pen-requiring herd animal carried into that pen by real native ticks (observed via " +
 			"observations_read_colony_facts, not just a receipt), while a non-pen-requiring pet is left alone.",

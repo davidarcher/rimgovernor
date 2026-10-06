@@ -55,7 +55,8 @@ func TestContainmentWaitsReadInPlainEnglish(t *testing.T) {
 		policy.ContainmentWaitingNativePen: "waiting on native pen (delivery)",
 		policy.ContainmentMarkerExhausted:  "waiting on native pen (marker placed)",
 		policy.ContainmentExceedsBound:     "waiting on pen (herd exceeds planning limit)",
-		policy.ContainmentAwaitingShell:    "waiting on pen shell (completion)",
+		policy.ContainmentAwaitingShell:    "waiting on paddock (wall closed)",
+		policy.ContainmentBuildShell:       "waiting on paddock (wall closed)",
 	} {
 		if got := containmentWait(reason).Text(); got != text {
 			t.Fatalf("%s reads %q, want %q", reason, got, text)
