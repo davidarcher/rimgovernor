@@ -160,8 +160,23 @@ func (s *Source) grow(day int) {
 }
 
 func (s *Source) view(day int) SourceView {
-	return SourceView{ID: s.ID, Open: s.Open, Delivering: s.delivering(day), Removed: s.removed,
+	v := SourceView{ID: s.ID, Open: s.Open, Delivering: s.delivering(day), Removed: s.removed,
 		LeadLeft: max(0, s.openedDay+s.Lead-day), Stock: s.Stock, Max: s.Max, Last: s.last}
+	switch {
+	case s.removed:
+	case s.Crop != nil:
+		v.Crop, v.Rate = true, s.Crop.HarvestCells*s.capScale
+		v.GrowLeft = s.Crop.GrowDays
+		if s.Crop.Planted > 0 {
+			v.GrowLeft = max(0, s.Crop.GrowDays-s.Crop.Progress)
+		}
+	case s.Window.Active(day):
+		v.Rate = s.Capacity * s.capScale
+		if s.Finite {
+			v.Rate = min(v.Rate, s.Stock)
+		}
+	}
+	return v
 }
 
 func newRNG(seed uint64, i int) *rand.Rand { return rand.New(rand.NewPCG(seed, uint64(i)+1)) }

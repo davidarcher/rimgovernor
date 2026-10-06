@@ -218,6 +218,29 @@ func TestLaborBudgetScalesDeliveries(t *testing.T) {
 	near(t, "b", rep.Days[0].Delivered["b"], 5, 1e-9)
 }
 
+func TestViewCarriesRateAndGrowLeft(t *testing.T) {
+	season := Window{Period: 20, From: 0, To: 10}
+	crop := NewCrop("rice", 8, 4, 1, season, 8)
+	forage := open(NewForage("berries", 500, 1, 1, season, 1))
+	w := bank(10, crop, forage)
+	w.Shocks = []Shock{{Day: 3, Kind: ScaleCapacity, Source: "berries", Factor: 0.5}}
+	var views []WorldView
+	Run(w, PlannerFunc(func(v WorldView) []Command {
+		views = append(views, v)
+		if v.Day == 0 {
+			return []Command{{Open, "rice"}}
+		}
+		return nil
+	}), 12)
+	rice, berries := func(d int) SourceView { return views[d].Sources[0] }, func(d int) SourceView { return views[d].Sources[1] }
+	if !rice(0).Crop || rice(0).GrowLeft != 4 || rice(2).GrowLeft != 3 || rice(5).GrowLeft != 0 {
+		t.Fatalf("grow left %d %d %d", rice(0).GrowLeft, rice(2).GrowLeft, rice(5).GrowLeft)
+	}
+	near(t, "berries rate", berries(0).Rate, 4, 1e-9)
+	near(t, "berries rate after shock", berries(4).Rate, 2, 1e-9)
+	near(t, "berries rate off season", berries(11).Rate, 0, 1e-9)
+}
+
 func TestViewCarriesTick(t *testing.T) {
 	var tick domain.Tick
 	Run(bank(1), PlannerFunc(func(v WorldView) []Command {

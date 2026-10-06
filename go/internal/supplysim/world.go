@@ -152,6 +152,12 @@ type SourceView struct {
 	Stock      float64
 	Max        float64
 	Last       float64 // units delivered on the previous day
+	// Rate is the units the source could deliver today at full labor (a
+	// crop: its harvest burst), after shocks; zero outside its window.
+	Rate float64
+	// Crop marks a crop field; GrowLeft is its remaining growing days.
+	Crop     bool
+	GrowLeft int
 }
 
 // WorldView is the planner's read of the world at the start of a day.

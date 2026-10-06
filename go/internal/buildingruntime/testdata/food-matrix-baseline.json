@@ -1,0 +1,26 @@
+{
+  "mix/trade-first/2ch/n16/base@30": [
+    "starves-viable-colony"
+  ],
+  "mix/trade-first/2ch/n3/base@30": [
+    "starves-viable-colony"
+  ],
+  "mix/trade-first/2ch/n8/base@30": [
+    "starves-viable-colony"
+  ],
+  "mix/trade-first/3ch/n16/base@90": [
+    "starves-viable-colony"
+  ],
+  "mix/trade-first/3ch/n3/base@90": [
+    "starves-viable-colony"
+  ],
+  "seed/food-starving-tribal-no-hunt-row@30": [
+    "starves-viable-colony"
+  ],
+  "seed/food-starving-tribal-no-hunt-row@90": [
+    "starves-viable-colony"
+  ],
+  "shock/volcanic-winter/n8@30": [
+    "starves-viable-colony"
+  ]
+}
