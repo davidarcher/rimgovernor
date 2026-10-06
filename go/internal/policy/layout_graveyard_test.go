@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -173,5 +174,38 @@ func TestGraveyardFenceAddsOnlyItsRingToTheColonyExtent(t *testing.T) {
 		if !slices.ContainsFunc(extentReasons(e, c), func(p ExtentProvenance) bool { return p.Origin == ExtentFacility }) {
 			t.Fatalf("ring cell %+v is no facility", c)
 		}
+	}
+}
+
+func TestFurtherGraveyardIsSitedOffCoreClearOfLivingRooms(t *testing.T) {
+	plan, first := graveyardPlan(t)
+	if _, added := growGraveyards(plan, RoomDemand{Graveyards: 1}); added {
+		t.Fatal("a graveyard grown with none owed")
+	}
+	before := slices.Clone(plan.Rooms)
+	next, added := growGraveyards(plan, RoomDemand{Graveyards: 2})
+	if !added || len(next.roomsOf(PlannedGraveyard)) != 2 {
+		t.Fatalf("further graveyard not sited: %d", len(next.roomsOf(PlannedGraveyard)))
+	}
+	if !reflect.DeepEqual(before, next.Rooms[:len(before)]) || next.roomsOf(PlannedGraveyard)[0].Interior != first.Interior {
+		t.Fatal("an existing room moved")
+	}
+	room := next.roomsOf(PlannedGraveyard)[1]
+	if !room.Outdoor || room.Interior.Width != GraveyardW || room.Interior.Height != GraveyardH || len(GraveyardSlots(room.Interior)) != GraveyardGraves {
+		t.Fatalf("further graveyard %+v", room)
+	}
+	if wall, door := room.RingDefs(); wall != PenFenceDefinition || door != PenGateDefinition {
+		t.Fatalf("ring %s %s", wall, door)
+	}
+	for _, other := range plan.AllRooms() {
+		if other.Role == PlannedTomb || other.Role == PlannedMorgue || other.Role == PlannedWasteYard || other.Role == PlannedGraveyard || other.Role == PlannedIncinerator {
+			continue
+		}
+		if rectsOverlap(pad(roomWalls(other), outskirtsGap), roomWalls(room)) {
+			t.Fatalf("further graveyard within %d cells of %s", outskirtsGap, other.Role)
+		}
+	}
+	if GraveyardsOwed(next, RoomDemand{Graveyards: 2}) != 0 {
+		t.Fatal("still owed")
 	}
 }

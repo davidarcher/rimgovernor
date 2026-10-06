@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -108,4 +109,60 @@ func GravesStanding(plan LayoutPlan, built []CurrentBuilding) (standing, slots i
 		slots += len(GraveyardSlots(r.Interior))
 	}
 	return standing, slots
+}
+
+// GraveyardsOwed is the graveyards demand asks for that plan lacks (#2217).
+func GraveyardsOwed(plan LayoutPlan, demand RoomDemand) int {
+	return max(demand.Graveyards-len(plan.roomsOf(PlannedGraveyard)), 0)
+}
+
+// growGraveyards adds the graveyards demand asks for and plan lacks. A further
+// graveyard is an Outdoor room of the first one's size, sited like the
+// outskirts cluster (outskirtsCandidates: outskirtsGap clear of every room,
+// off the growth lines, walkable from the core) and, of the sites that fit,
+// the nearest to the cluster. Its gate faces south like the cluster's yards
+// and its fence ring is built through the same path as any Outdoor room. No
+// room moves. It reports whether a graveyard was added; a graveyard that fits
+// nowhere is left out.
+func growGraveyards(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
+	owed := GraveyardsOwed(plan, demand)
+	added := false
+	for ; owed > 0; owed-- {
+		best, _, _, _ := outskirtsCandidates(plan, GraveyardW+2, GraveyardH+2)
+		area, ok := nearestSite(best, plan)
+		if !ok {
+			break
+		}
+		in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: GraveyardW, Height: GraveyardH}
+		slot := OutskirtsSlot{Outline: area, Interior: in, Door: domain.Cell{X: in.X + in.Width/2, Z: area.Z}, DoorRot: domain.South}
+		plan.Rooms = append(slices.Clone(plan.Rooms), slotRoom(PlannedGraveyard, slot))
+		added = true
+	}
+	return plan, added
+}
+
+// nearestSite is the candidate nearest (by centre distance) to the outskirts
+// cluster, or to the core when the plan holds none.
+func nearestSite(sites map[domain.Rotation]Rectangle, plan LayoutPlan) (Rectangle, bool) {
+	from, has := plan.OutskirtsArea()
+	if !has {
+		from, has = plan.CoreBounds()
+	}
+	if !has {
+		return Rectangle{}, false
+	}
+	var out Rectangle
+	found, best := false, int32(0)
+	for _, side := range outskirtsSides {
+		s, ok := sites[side]
+		if !ok {
+			continue
+		}
+		dx := (s.X + s.Width/2) - (from.X + from.Width/2)
+		dz := (s.Z + s.Height/2) - (from.Z + from.Height/2)
+		if d := dx*dx + dz*dz; !found || d < best {
+			out, found, best = s, true, d
+		}
+	}
+	return out, found
 }

@@ -113,7 +113,10 @@ func TestSafeToSlaughterExclusions(t *testing.T) {
 	if _, ok := clear(func(a *UpkeepAnimal) { a.SlaughterFacts.Pregnant = domain.Unknown[bool]() }).Value(); ok {
 		t.Fatal("unknown flag became safe")
 	}
-	if v, ok := clear(func(a *UpkeepAnimal) { a.SlaughterFacts.Pregnant = domain.Unknown[bool](); a.SlaughterFacts.Downed = domain.Known(true) }).Value(); !ok || v {
+	if v, ok := clear(func(a *UpkeepAnimal) {
+		a.SlaughterFacts.Pregnant = domain.Unknown[bool]()
+		a.SlaughterFacts.Downed = domain.Known(true)
+	}).Value(); !ok || v {
 		t.Fatal("known blocker did not decide")
 	}
 }
