@@ -25,6 +25,7 @@
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
     <Compile Include="../../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WasteFixture.cs" Condition="'$(WasteFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/BurnableFilterFixture.cs" Condition="'$(BurnableFilterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/GearFixture.cs" Condition="'$(GearFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MoodFixture.cs" Condition="'$(MoodFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ArrestFixture.cs" Condition="'$(MoodFixture)' == 'true'" />

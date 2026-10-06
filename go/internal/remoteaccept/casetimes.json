@@ -148,6 +148,7 @@
   "wall/door-swap": 11426,
   "wall/removal": 6342,
   "wall/upgrade": 5827,
+  "waste/burnable-filters": 30000,
   "waste/colony_facts_equality": 5520,
   "waste/haul": 6453,
   "zone/delete": 5011

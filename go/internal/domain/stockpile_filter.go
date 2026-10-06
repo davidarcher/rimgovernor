@@ -53,6 +53,12 @@ func ThingDef(name string) FilterSelector      { return FilterSelector{ThingDefS
 func CategoryDef(name string) FilterSelector   { return FilterSelector{CategoryDefSelector, name} }
 func SpecialFilter(name string) FilterSelector { return FilterSelector{SpecialFilterSelector, name} }
 
+// The mod's burnable special filters (native BurnableRule; saved in games, never rename).
+const (
+	BurnableFilterDef    = "RimGovernorBurnable"
+	NotBurnableFilterDef = "RimGovernorNotBurnable"
+)
+
 // Quality is a native QualityCategory name.
 type Quality string
 

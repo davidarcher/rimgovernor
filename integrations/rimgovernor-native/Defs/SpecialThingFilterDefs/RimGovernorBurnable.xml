@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!--
+    RimGovernorBurnable and RimGovernorNotBurnable (#2181): one worker rule
+    (BurnableRule in RimGovernor.Runtime) behind a pair of special filters, so
+    one dump zone routes waste through RimWorld's own hauling. Burnable is a
+    rottable past Fresh, except a colonist's or slave's corpse, or an apparel
+    or weapon worth under BurnableRule.SilverCutoff silver; not-burnable is the
+    rest of what the filter can judge. The defNames are saved in games and
+    stockpile settings: never rename them. The cutoff stays in code, not here,
+    because the definition catalog mirror rejects a custom Def class or
+    DefModExtension.
+  -->
+  <SpecialThingFilterDef>
+    <defName>RimGovernorBurnable</defName>
+    <label>allow burnable (rotten, worn out)</label>
+    <description>Rotten food and corpses (never a colonist's or slave's) and apparel or weapons worth only a few silver.</description>
+    <parentCategory>Root</parentCategory>
+    <saveKey>rimGovernorBurnable</saveKey>
+    <allowedByDefault>true</allowedByDefault>
+    <workerClass>RimGovernor.Runtime.SpecialThingFilterWorker_RimGovernorBurnable</workerClass>
+  </SpecialThingFilterDef>
+
+  <SpecialThingFilterDef>
+    <defName>RimGovernorNotBurnable</defName>
+    <label>allow not burnable (fresh, valuable)</label>
+    <description>Fresh food and corpses, colonist and slave corpses, and apparel or weapons worth more than a few silver.</description>
+    <parentCategory>Root</parentCategory>
+    <saveKey>rimGovernorNotBurnable</saveKey>
+    <allowedByDefault>true</allowedByDefault>
+    <workerClass>RimGovernor.Runtime.SpecialThingFilterWorker_RimGovernorNotBurnable</workerClass>
+  </SpecialThingFilterDef>
+
+</Defs>
