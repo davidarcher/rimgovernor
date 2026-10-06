@@ -176,6 +176,10 @@ positive. A second pending field is admitted only when the gap remains positive
 after its predecessor's known projected output; unknown infrastructure output
 keeps the existing-work barrier.
 
+`policy.PlanSupply` is the same budget generalised over a demand vector and
+unified candidates; it reproduces FoodPlan's decisions and replaces it at the
+food cut-over ([supply model](../architecture/supply-model.md)).
+
 GET /api/player/colony exposes foodPlan and foodPlanTick from the retained review,
 including portfolio/unknown rows, decisions, rates and explanation terms. Missing
 or stale reviews are null; this read never runs a new food review.

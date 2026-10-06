@@ -33,3 +33,93 @@ proves their outputs identical through the adapters on every recorded food plan
 and acquisition census. An open food channel maps to `delivering`, a closed one
 to `closed`; an acquisition candidate is a lead-0 one-shot whose labor is its
 upfront cost, with hunt revenge risk left inside that labor.
+
+## The ranker
+
+`policy.PlanSupply(SupplyPlanRequest)` (`supply_plan.go`) is one pure function
+over a **demand vector** and the candidates. It budgets projected rates and
+unit deficits, never stored goods or completed work. Production callers still use
+`PlanFood` and `RankResourceCandidates` until the cut-overs (#2156, #2160, #2172);
+the PlanFood and resource-ranking tests run against both, and both simulator
+matrices run through a `PlanSupply` adapter.
+
+### Demands
+
+A `SupplyDemand` is a good (`ResourceKey`), a priority (1-100), a horizon and
+either a flow (`PerDay`) or a stock deficit (`Units`).
+
+- **Nutrition** is the flow `NutritionDemand` builds from the food forecast,
+  exactly as `PlanFood` did: usable runway = `max(0, runway - reserve)`; the
+  horizon is the usable runway, or `max(usable, TargetDays)` once usable runway
+  reaches `MinDays`; target coverage is `1 + max(0, TargetDays - usable) /
+  TargetDays` and the target is consumption times coverage. It carries the
+  emergency flag (runway under `EmergencyDays`) and outranks every resource
+  deficit.
+- **A resource deficit** (`target - stock`) is a stock demand wanted now
+  (horizon 0). A construction shortfall edge or a runway forecast gives the
+  demand a deadline as its horizon.
+
+### Eligibility and contribution
+
+A candidate serves a demand when a yield matches the good (a demand without a
+stuff matches any stuff) and `lead <= horizon`. Contribution:
+
+- toward a flow: `rate * max(0, 1 - sum(risk))`, bounded by the stock cap spread
+  over the demand's window `max(1, horizon)`;
+- toward a stock demand: a one-shot source gives `min(stock cap, remaining
+  deficit)`, and `min(headroom)` too when the output is hauled (unknown headroom
+  is none: a hauled candidate must report where it lands); a steady yield gives
+  its risk-adjusted rate over `window - lead`.
+
+An upfront cost is labor-equivalent, amortised over the window; resource costs
+of a prerequisite are demand edges, not paid here. A candidate's labor is
+charged once however many yields it has: a deer's meat counts toward Nutrition
+and its leather toward Leather under one charge. The labor budget
+(`workers * 20000` ticks per day) is shared by every demand.
+
+### Order
+
+Flow demands rank before stock demands. Among flow candidates **lead is the
+primary key**, then fishing distance (nearest first), then labor per unit
+delivered, then kind and id. The matrix and `food_plan_test.go` require this for
+Nutrition: a channel that arrives before the runway expires beats a cheaper
+later one, so efficiency orders only candidates of equal lead. Among stock
+candidates the key is the score `Value / (1 + labor + distance*(1 + 2*trips) +
+trips)` (value is covered units times priority times `1 + unit value`), then
+lead, kind, id. An emergency demand re-ranks the candidates that serve it
+breadth first: the best of every kind, then the second of every kind.
+
+### Decisions
+
+Candidates are admitted in rank order against what each demand still lacks.
+Delivering candidates keep their observed contribution, even over the labor
+budget (the excess is a Hold with a `labor_excess` term); a strict surplus
+(delivered minus target greater than the contribution) closes the least
+efficient first, so a boundary never churns. Closed candidates over budget add
+nothing. Under an emergency a one-shot hunt or forage opens but earns no credit
+(`uncredited_until_delivered`) until it delivers.
+
+Hold reasons are stable words: `no risk-adjusted <good>`, `lead exceeds
+runway`, `target covered`, `labor budget`, `no_demand`, `no_storage_headroom`,
+`competing_urgent_work` (urgent work outranks every matched demand),
+`unknown: <facts>` for a candidate missing a fact and `unknown_demand_or_cost`
+when the demand itself is unknown. Explain terms are `risk_discount`,
+`<good>_per_day` (`<good>_units` for a stock demand), `work_per_day`,
+`lead_days`, `target_cover` and `labor_excess`.
+
+### Credit and state
+
+Credit stays as `PlanFood` has it: a delivering candidate counts, a designated
+or closed one is credited when the plan opens it, and the emergency rule above
+withholds a one-shot's credit. The explicit designated/delivering credit factor
+is row 11 (#2157).
+
+## How a channel plugs in
+
+A channel builds `SupplyCandidate`s from its own facts and nothing else: its
+yields (rate, stock cap, unit value, headroom), lead, labor per day, upfront
+cost, risk, state, and distance and haul for a one-shot. It never ranks, budgets
+or decides: it hands the candidates and the demands to `PlanSupply` and reads
+the entries back (decision, reason, credit per demand). A new good is a new
+demand and a new yield key; a new channel is a new `CandidateKind`. A candidate
+whose facts are unknown is listed in `Unknown`, never opened.

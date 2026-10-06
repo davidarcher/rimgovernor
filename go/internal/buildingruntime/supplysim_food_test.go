@@ -123,14 +123,20 @@ type foodDay struct {
 
 // foodAdapter is a supplysim.Planner over the real reviewFoodPlan.
 type foodAdapter struct {
-	sc    foodScenario
-	days  []foodDay
-	plans []policy.FoodPlan
+	sc foodScenario
+	// supply plans through policy.PlanSupply instead of PlanFood.
+	supply bool
+	days   []foodDay
+	plans  []policy.FoodPlan
 }
 
 func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 	p, ids := a.projection(v)
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy()).Value()
+	review := reviewFoodPlan
+	if a.supply {
+		review = reviewFoodPlanBySupply
+	}
+	plan, known := review(p, policy.DefaultRoundsPolicy()).Value()
 	a.plans = append(a.plans, plan)
 	d := foodDay{known: known, gap: plan.GapPerDay, runway: v.Runway[supplysim.Nutrition]}
 	if !known {
@@ -287,8 +293,10 @@ type foodResult struct {
 	viable bool
 }
 
-func runFood(sc foodScenario, horizon int) foodResult {
-	a := &foodAdapter{sc: sc}
+func runFood(sc foodScenario, horizon int) foodResult { return runFoodWith(sc, horizon, false) }
+
+func runFoodWith(sc foodScenario, horizon int, supply bool) foodResult {
+	a := &foodAdapter{sc: sc, supply: supply}
 	r := foodResult{rep: supplysim.Run(sc.world(1), a, horizon), days: a.days}
 	r.viable = !supplysim.Run(sc.world(foodViabilityMargin), oracle, horizon).Starved(supplysim.Nutrition)
 	return r

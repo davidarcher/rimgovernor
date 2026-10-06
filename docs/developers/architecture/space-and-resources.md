@@ -73,7 +73,10 @@ joint bid board, asserting that floors are restored, a shortfall edge raises
 only the missing resource, one planner dispatches a resource at a time, bids
 expire with their TTL, a missing source is a hold, and a deep drill needs a
 runway deficit, research and power. Failures that hold today are recorded in
-`testdata/resource-matrix-baseline.json`, which only shrinks.
+`testdata/resource-matrix-baseline.json`, which only shrinks. A second adapter
+runs the same matrix through `policy.PlanSupply`, the one ranker that replaces
+`RankResourceCandidates` and the bid board once the resource cut-overs land
+([supply model](supply-model.md)).
 
 ## Material runway
 

@@ -94,6 +94,10 @@ type resHold struct {
 }
 
 type resPlanner struct {
+	// supply ranks every unmet floor's candidates together through
+	// policy.PlanSupply instead of the four planners and the bid board.
+	supply   bool
+	batch    resSupplyBatch
 	world    supplysim.World
 	spec     map[string]resSpec
 	policy   policy.RoundsPolicy
@@ -220,6 +224,9 @@ func (p *resPlanner) Plan(v supplysim.WorldView) []supplysim.Command {
 	for _, row := range ranked {
 		cmds = append(cmds, p.resource(v, row, have[row.Resource], deficitRunway[row.Resource], tick)...)
 	}
+	if p.supply {
+		cmds = append(cmds, p.dispatchSupply(v)...)
+	}
 	for g, d := range v.Demand {
 		p.uses = append(p.uses, policy.ResourceUse{Tick: tick + 1, Resource: resDef(g), Count: domain.Known(int64(math.Round(d)))})
 	}
@@ -326,7 +333,9 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 		case resTrade:
 			price := s.Costs[0].PerUnit / s.Yields[0].PerUnit
 			n := min(deficit, int64(s.Restock*s.Yields[0].PerUnit), int64(v.Stock[supplysim.Silver]/price))
-			if c, ok := policy.TradeCandidate(row.Resource, id, n, price); ok && n > 0 {
+			if c, ok := policy.TradeCandidate(row.Resource, id, n, price); ok && n > 0 && p.supply {
+				p.batch.add(row.Resource, deficitRunway, c, id)
+			} else if ok && n > 0 {
 				ranked := p.rank(row.Resource, deficit, []policy.AcquisitionCandidate{c})
 				if len(ranked) > 0 {
 					trade = resBid{ranked[0].Score, policy.AcquisitionTrade, []string{id}, true}
@@ -338,18 +347,51 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 			if !p.research || !deficitRunway || p.world.Power <= 0 || row.Resource != "Steel" && row.Resource != "Plasteel" {
 				continue
 			}
-			c, ok := policy.DeepDrillCandidate(row.Resource, string(row.Resource), min(units, deficit), spec.Distance, domain.Unknown[int64]())
+			// PlanSupply credits no demand to a hauled candidate whose storage
+			// headroom is unknown (the baselined drill score of 0), so its
+			// cut-over must pass the headroom the drill's destination reports.
+			known := domain.Fact[int64](domain.Unknown[int64]())
+			if p.supply {
+				known = headroom
+			}
+			c, ok := policy.DeepDrillCandidate(row.Resource, string(row.Resource), min(units, deficit), spec.Distance, known)
 			score := 0.0
 			if ok {
 				if ranked := p.rank(row.Resource, deficit, []policy.AcquisitionCandidate{c}); len(ranked) > 0 {
 					score = ranked[0].Score
 				}
 			}
+			if p.supply {
+				if ok {
+					c.ID = id
+					p.batch.add(row.Resource, deficitRunway, c, id)
+				}
+				continue
+			}
 			p.drillScores = append(p.drillScores, score)
 			drill = resBid{score, policy.AcquisitionDeepDrill, []string{id}, true}
 		}
 	}
 
+	if p.supply {
+		for _, c := range policy.AcquisitionSourceCandidates(row.Resource, rows, domain.Cell{}, headroom) {
+			p.batch.add(row.Resource, deficitRunway, c, c.ID)
+		}
+		for _, c := range policy.MineCandidates(row.Resource, mines, headroom) {
+			p.batch.add(row.Resource, deficitRunway, c, c.ID)
+		}
+		if produce != nil {
+			p.batch.add(row.Resource, deficitRunway, *produce, produce.ID)
+		}
+		for _, c := range resourceExtra {
+			p.batch.add(row.Resource, deficitRunway, c, c.ID)
+		}
+		p.batch.demand(row.Resource, deficit)
+		if !p.batch.has(row.Resource) {
+			p.hold(v.Day, g, "no_source")
+		}
+		return nil
+	}
 	// Acquisition planner: chop, harvest and hunt rows.
 	acq := resBid{}
 	if len(rows) > 0 {
@@ -425,4 +467,73 @@ func (p *resPlanner) rank(r policy.Resource, deficit int64, cands []policy.Acqui
 		panic(err)
 	}
 	return ranked
+}
+
+// resSupplyBatch collects every unmet floor's catalog rows for one PlanSupply
+// call, so the labor budget is shared across resources.
+type resSupplyBatch struct {
+	demands []policy.SupplyDemand
+	cands   []policy.SupplyCandidate
+	source  map[string]string
+	good    map[string]policy.Resource
+	deficit map[policy.Resource]bool
+}
+
+func (b *resSupplyBatch) key(kind policy.CandidateKind, id string) string {
+	return string(kind) + "/" + id
+}
+
+func (b *resSupplyBatch) add(r policy.Resource, deficit bool, c policy.AcquisitionCandidate, source string) {
+	if b.source == nil {
+		b.source, b.good, b.deficit = map[string]string{}, map[string]policy.Resource{}, map[policy.Resource]bool{}
+	}
+	sc := policy.SupplyCandidateOfAcquisition(c)
+	k := b.key(sc.Kind, sc.ID)
+	b.source[k], b.good[k], b.deficit[r] = source, r, deficit
+	b.cands = append(b.cands, sc)
+}
+
+func (b *resSupplyBatch) has(r policy.Resource) bool {
+	for _, g := range b.good {
+		if g == r {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *resSupplyBatch) demand(r policy.Resource, deficit int64) {
+	if deficit > 0 {
+		b.demands = append(b.demands, policy.SupplyDemand{Good: policy.ResourceKey{Def: r}, Units: deficit, Priority: 1})
+	}
+}
+
+// dispatchSupply ranks the day's batch and opens what PlanSupply opens.
+func (p *resPlanner) dispatchSupply(v supplysim.WorldView) []supplysim.Command {
+	b := p.batch
+	p.batch = resSupplyBatch{}
+	if len(b.cands) == 0 {
+		return nil
+	}
+	plan, err := policy.PlanSupply(policy.SupplyPlanRequest{Demands: domain.Known(b.demands), Candidates: domain.Known(b.cands), Labor: domain.Known(float64(p.world.Workers) * 20000)})
+	if err != nil {
+		panic(err)
+	}
+	var cmds []supplysim.Command
+	for _, e := range plan.Portfolio {
+		k := b.key(e.Candidate.Kind, e.Candidate.ID)
+		kind := policy.AcquisitionKind(e.Candidate.Kind)
+		if kind == policy.AcquisitionDeepDrill {
+			p.drillScores = append(p.drillScores, e.Score)
+		}
+		if e.Decision != policy.SupplyOpen {
+			continue
+		}
+		r := b.good[k]
+		p.events = append(p.events, resEvent{Day: v.Day, Good: resGood(r), Bidder: bidResource, Source: b.source[k], Kind: kind, Score: e.Score,
+			Deficit: b.deficit[r], Research: p.research, Power: p.world.Power})
+		cmds = append(cmds, supplysim.Command{Kind: supplysim.Open, Source: b.source[k]})
+		p.opens++
+	}
+	return cmds
 }
