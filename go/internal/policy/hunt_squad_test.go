@@ -141,7 +141,7 @@ func TestHuntFormationCapsTheSquad(t *testing.T) {
 	view := huntView(wildGroup()...)
 	for _, id := range []domain.PawnID{"d", "e", "f"} {
 		view.Defenders = append(view.Defenders, combatRifleman(id))
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: domain.Known(domain.Cell{X: 4, Z: 30}), Stance: StanceIdle, WeaponRange: 30})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: domain.Known(domain.Cell{X: 4, Z: 30}), Stance: StanceIdle, WeaponRange: 30, WeaponFacts: WeaponDef{Ranged: true, Range: 30}})
 	}
 	if got := len(huntFormation(view)); got != SquadHuntMaxGunners {
 		t.Fatalf("squad of %d", got)
@@ -149,5 +149,41 @@ func TestHuntFormationCapsTheSquad(t *testing.T) {
 	view.Defenders = view.Defenders[:SquadHuntMinGunners-1]
 	if got := huntFormation(view); got != nil {
 		t.Fatalf("squad of %d gunners formed: %+v", len(view.Defenders), got)
+	}
+}
+
+// One predicate: a launcher (explosive) is no hunting weapon, so it neither
+// counts toward the channel's gunners nor stands in the formation.
+func TestHuntPredicateIsOneAcrossChannelAndTactic(t *testing.T) {
+	launcher := WeaponDef{Ranged: true, Explosive: true, Range: 30}
+	if launcher.Hunts() || !(WeaponDef{Ranged: true}).Hunts() || (WeaponDef{Ranged: true, Incendiary: true}).Hunts() || (WeaponDef{Melee: true}).Hunts() {
+		t.Fatal("WeaponDef.Hunts is not the vanilla rule")
+	}
+	profiles := []PawnProfile{{ID: "a", Hunts: true}, {ID: "b", Ranged: true}, {ID: "c", Hunts: true}}
+	for i := range profiles {
+		profiles[i].Skills = nil
+	}
+	if got := SquadGunners(profiles); got > 2 {
+		t.Fatalf("a non-hunting ranged pawn counted: %d", got)
+	}
+	view := huntView(wildGroup()...)
+	view.Pawns[0].WeaponFacts = launcher
+	if got := huntFormation(view); got != nil {
+		t.Fatalf("a launcher pawn formed with a squad of two: %+v", got)
+	}
+}
+
+// A lone bow hunter is not held by the formation gate: its single non-
+// retaliating prey is a lone candidate that needs no gunners.
+func TestLoneHunterIsNotGatedByFormation(t *testing.T) {
+	rows := []AcquisitionSource{{ID: "deer", Hunt: true, Food: true, NutritionYield: 100}}
+	got := HuntCandidates(rows, 1, domain.Fact[float64]{})
+	if len(got) != 1 || got[0].Mode() != HuntLone {
+		t.Fatalf("%+v", got)
+	}
+	for _, term := range got[0].Terms {
+		if term.Name == "needs_gunners" {
+			t.Fatalf("lone hunt held: %+v", got[0].Terms)
+		}
 	}
 }

@@ -301,8 +301,8 @@ and the threatened ActiveCombat review.
 
 **Squad hunt.** A squad hunt is the `ActiveCombat` incident's hunt origin: while no
 hostile stands and the food plan opens a formation `Hunt` candidate (a group of three or
-more wild animals, or any animal a lone hunter must not designate, with three ranged
-colonists able to form the squad; with fewer it Holds as `needs_gunners`), the review asserts the deficit with the channel's
+more wild animals, or any animal a lone hunter must not designate, with three colonists
+wielding a hunting weapon (`WeaponDef.Hunts`, the one predicate for the candidate's gunner count and the formation) able to form the squad; with fewer it Holds as `needs_gunners`), the review asserts the deficit with the channel's
 prey as the occurrence's payload (`store.HuntPrey`). The fight runs through
 `admitFight` with `CombatView.Hunt` set and the prey as its threats; the frame's
 detail rows cover the open hunt census rows. A hostile in the frame, or the plan no

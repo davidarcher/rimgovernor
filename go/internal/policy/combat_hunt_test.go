@@ -14,6 +14,7 @@ func huntView(prey ...animalFacts) CombatView {
 	view.Hunt = true
 	for i := range view.Pawns {
 		view.Pawns[i].WeaponRange = 30
+		view.Pawns[i].WeaponFacts = WeaponDef{Ranged: true, Range: 30}
 	}
 	view = withAnimals(view, prey...)
 	for i := range view.Threats {

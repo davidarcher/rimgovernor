@@ -47,6 +47,12 @@ type WeaponDef struct {
 	ForcedMiss bool
 }
 
+// Hunts is the vanilla hunting rule on the def's rows: a ranged weapon that
+// neither scatters an exploding projectile nor sets fires. It is the one
+// predicate behind the hunt channel's gunner count and the formation's
+// gunners.
+func (w WeaponDef) Hunts() bool { return w.Ranged && !w.Explosive && !w.Incendiary }
+
 // Burner is an incendiary weapon a carrier aims at the ground: the burn-out's
 // flame thrower (a molotov), which belongs to the burn-out alone.
 func (w WeaponDef) Burner() bool { return w.Incendiary && w.Blast > 0 }

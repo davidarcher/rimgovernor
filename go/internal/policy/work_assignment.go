@@ -30,7 +30,7 @@ type WorkPriority struct {
 }
 type WorkPawn struct {
 	ID                                 PawnID
-	Available, Applies, Manual, Ranged domain.Fact[bool]
+	Available, Applies, Manual, Ranged, Hunts domain.Fact[bool]
 	Skills                             domain.Fact[[]WorkSkill]
 	Work                               domain.Fact[[]WorkPriority]
 	// Traits, Incapable (backstory work types) and Age feed the pawn profile;

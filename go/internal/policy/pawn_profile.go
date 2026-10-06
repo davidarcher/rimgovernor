@@ -175,6 +175,8 @@ type PawnProfile struct {
 	WorkMinAge map[WorkType]int
 	// Ranged is whether the pawn's primary weapon is ranged.
 	Ranged bool
+	// Hunts is whether the primary weapon hunts (WeaponDef.Hunts).
+	Hunts bool
 	// Inspiration is the current InspirationDef defName; known "" is none
 	// and unknown stays distinct from none (#1187).
 	Inspiration domain.Fact[string]
@@ -297,6 +299,7 @@ func BuildProfile(pawn WorkPawn) PawnProfile {
 		}
 	}
 	profile.Ranged, _ = pawn.Ranged.Value()
+	profile.Hunts, _ = pawn.Hunts.Value()
 	profile.Inspiration = pawn.Inspiration
 	return profile
 }

@@ -36,12 +36,12 @@ func SquadWeatherWork(accuracy domain.Fact[float64]) float64 {
 	return 1
 }
 
-// SquadGunners counts the colonists a squad hunt may draft: ranged and
-// capable of hunting.
+// SquadGunners counts the colonists a squad hunt may draft: a hunting weapon
+// (WeaponDef.Hunts) and capable of hunting.
 func SquadGunners(profiles []PawnProfile) int {
 	n := 0
 	for _, p := range profiles {
-		if p.Ranged && p.Capable(WorkHunting, 0) {
+		if p.Hunts && p.Capable(WorkHunting, 0) {
 			n++
 		}
 	}

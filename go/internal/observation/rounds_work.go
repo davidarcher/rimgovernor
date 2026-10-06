@@ -81,7 +81,7 @@ func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog, things bri
 			return policy.WorkPawn{}, err
 		}
 		if known {
-			w.Ranged = domain.Known(weapon.Ranged)
+			w.Ranged, w.Hunts = domain.Known(weapon.Ranged), domain.Known(weapon.Hunts())
 		}
 	}
 	if rows, ok := w.Work.Value(); ok {

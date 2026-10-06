@@ -37,7 +37,7 @@ func huntFormation(view CombatView) []CombatRole {
 		if r := state[d.ID].WeaponRange; r > 0 && r < preyRange {
 			continue
 		}
-		if squadDefenderEligible(d) && positive(d.Armed) && positive(d.RangedEquipped) {
+		if squadDefenderEligible(d) && state[d.ID].WeaponFacts.Hunts() {
 			gunners = append(gunners, d)
 		}
 	}
