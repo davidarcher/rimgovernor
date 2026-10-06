@@ -79,14 +79,14 @@ func TestRestrictToPlan(t *testing.T) {
 		Shortfall:          []policy.Amount{{Resource: "Steel", Count: 100}, {Resource: "WoodLog", Count: 50}},
 		Surplus:            []policy.Amount{{Resource: "Gold", Count: 7}},
 	}
-	got := restrictToPlan(need, map[policy.Resource]int64{"Steel": 40, policy.ComponentResource: 3})
+	got := restrictToPlan(need, map[policy.Resource]int64{"Steel": 40, policy.ComponentResource: 3}, 0)
 	if len(got.Shortfall) != 1 || got.Shortfall[0] != (policy.Amount{Resource: "Steel", Count: 40}) {
 		t.Errorf("shortfall %v", got.Shortfall)
 	}
 	if got.ComponentShortfall != 3 || got.MedicineReplenish != 5 || len(got.Surplus) != 1 {
 		t.Errorf("restricted more than resource purchases: %+v", got)
 	}
-	if none := restrictToPlan(need, nil); len(none.Shortfall) != 0 || none.ComponentShortfall != 0 {
+	if none := restrictToPlan(need, nil, 0); len(none.Shortfall) != 0 || none.ComponentShortfall != 0 {
 		t.Errorf("unplanned purchases stayed: %+v", none)
 	}
 }

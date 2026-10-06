@@ -206,10 +206,19 @@ land at the colony) and no lead (the walk is a fraction of a day). The ID is
 `trader/resource`. Recording a record changes the book's revision, which keys the
 Round's cached plan, so the plan the session reads is built with its own offers.
 
+The food plan reads the same records: `policy.TradeFoodChannels` makes one
+one-shot `Trade` channel per present trader with priced food (see
+[trade food policy](../contracts/forecast-contracts.md#trade-food-policy)), added
+beside the slaughter offers when the plan has a gap, so the ranker opens it when
+its lead beats the alternatives. The book is keyed by the loaded world, not the
+plan revision, so the food plan (built from the frame's trader census) and the
+resource plan read one record.
+
 Trade buys only what the plan opened: `RoundsTradePlanner.selection` limits the
 MaintainResource shortfall and the component target to the units the plan opened
-for that trader (`resourceSupply.tradeLines`); food, medicine, surgery parts and
-every sale are not resource floors and are untouched. The live sheet is read
+for that trader (`resourceSupply.tradeLines`) and the food nutrition to the food
+plan's opened candidate for that trader; medicine, surgery parts, ingredient
+upgrades and every sale are not plan-opened and are untouched. The live sheet is read
 again at staging and accept, so its prices and the existing price floors still
 apply, and a session whose plan opened nothing cancels without trading. A
 resource whose plan opened a trade offer is held for the caravan: the resource

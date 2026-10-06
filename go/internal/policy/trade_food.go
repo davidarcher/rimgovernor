@@ -20,7 +20,9 @@ type TradeFoodContext struct {
 }
 
 type TradeFoodNeed struct {
-	Nutrition           float64
+	Nutrition float64
+	// Browse asks for a session to read a present caravan's prices.
+	Browse              bool
 	Missing             []FoodIngredientSlot
 	IngredientNutrition float64
 }
@@ -83,6 +85,11 @@ func TradeMealIngredients(benches domain.Fact[[]ProductionBench]) domain.Fact[[]
 	return domain.Known(chosen)
 }
 
+// reviewTradeFood reads the food plan's trade candidates: Nutrition is what
+// the plan opened to buy from the traders it has priced offers of. Under the
+// food minimum with a gap and no trade candidate on the plan, Browse asks for
+// a look at the caravan's sheet (the always-browse session), which records the
+// offers the plan then ranks.
 func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 	plan, pk := r.Plan.Value()
 	runway, rk := r.RunwayDays.Value()
@@ -94,44 +101,17 @@ func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 		return TradeFoodNeed{}
 	}
 	need := TradeFoodNeed{}
-	if runway < r.MinDays && plan.GapPerDay > 0 && len(plan.Unknown) == 0 {
-		// The bridge lasts until producers covering daily demand arrive: a
-		// few ripe bushes available now do not end an emergency.
-		type producer struct{ lead, nutrition float64 }
-		var producers []producer
-		for _, entry := range plan.Portfolio {
-			if entry.Decision == FoodPlanClose || entry.Channel.Kind == FoodTrade || entry.Channel.Kind == FoodReserve || entry.Channel.Kind == FoodCook {
-				continue
-			}
-			lead, known := entry.Channel.LeadDays.Value()
-			nutrition, nk := entry.Channel.NutritionPerDay.Value()
-			if !known || !nk || !foodNumber(lead) || !foodNumber(nutrition) {
-				return TradeFoodNeed{}
-			}
-			if nutrition > 0 {
-				producers = append(producers, producer{lead, nutrition})
-			}
+	priced := false
+	for _, entry := range plan.Portfolio {
+		if entry.Channel.Kind != FoodTrade {
+			continue
 		}
-		sort.Slice(producers, func(i, j int) bool { return producers[i].lead < producers[j].lead })
-		earliest, supplied := math.Inf(1), 0.0
-		for _, p := range producers {
-			if supplied += p.nutrition; supplied >= plan.DemandPerDay {
-				earliest = p.lead
-				break
-			}
-		}
-		if earliest > runway {
-			// No future producer has a finite arrival: bridge one target window
-			// instead of creating an unbounded purchase.
-			if math.IsInf(earliest, 1) {
-				earliest = r.TargetDays
-			}
-			nutrition := plan.GapPerDay * earliest
-			if fieldPositive(nutrition) {
-				need.Nutrition = nutrition
-			}
+		priced = true
+		if stock, known := entry.Channel.StockCap.Value(); known && entry.Decision == FoodPlanOpen {
+			need.Nutrition += float64(stock)
 		}
 	}
+	need.Browse = !priced && runway < r.MinDays && plan.GapPerDay > 0 && len(plan.Unknown) == 0
 	// Ingredient upgrades cannot sell away an emergency reserve.
 	if runway <= r.TargetDays || !fieldPositive(r.IngredientNutrition) {
 		return need

@@ -117,6 +117,9 @@ type FoodPlan struct {
 	Forecast                                 FoodForecast
 	Portfolio, Unknown                       []FoodPlanEntry
 	DeliveredPerDay, DemandPerDay, GapPerDay float64
+	// HorizonDays is the window the plan spreads a one-shot channel's stock
+	// over (at least one day): stock = gap x window credits exactly the gap.
+	HorizonDays float64
 }
 
 var ErrFoodPlanFacts = errors.New("food plan inputs unavailable or invalid")
@@ -142,7 +145,7 @@ func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
 	if err != nil {
 		return FoodPlan{}, ErrFoodPlanFacts
 	}
-	out := FoodPlan{Forecast: r.Demand, GapPerDay: plan.Gap(NutritionKey), DeliveredPerDay: plan.Delivered(NutritionKey)}
+	out := FoodPlan{Forecast: r.Demand, GapPerDay: plan.Gap(NutritionKey), DeliveredPerDay: plan.Delivered(NutritionKey), HorizonDays: demand.window()}
 	for _, c := range r.Demand.Consumers {
 		out.DemandPerDay += c.NutritionPerDay
 	}

@@ -19,11 +19,12 @@ func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.Fo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	seasonal := r.seasonal(p.Facts)
-	if _, known := s.foodPlan.Value(); known && s.foodGeneration == s.generation &&
+	trade := r.foodTrade(p)
+	if _, known := s.foodPlan.Value(); known && s.foodGeneration == s.generation && s.foodOffers == trade.revision &&
 		s.foodMin == seasonal.FoodMinDays && s.foodTarget == seasonal.FoodTargetDays && sameObservedIdentity(s.foodIdentity, p.Identity) {
 		return s.foodPlan
 	}
-	plan := reviewFoodPlan(p, r.policy, &r.foodCredit, &r.huntDelivery)
+	plan := reviewFoodPlan(p, r.policy, &r.foodCredit, &r.huntDelivery, trade)
 	if v, known := plan.Value(); known {
 		r.huntDelivery.Admit(policy.HuntRequest(domain.Known(v)))
 	}
@@ -34,15 +35,38 @@ func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.Fo
 	}
 	if _, known := plan.Value(); known {
 		s.foodIdentity, s.foodPlan, s.foodGeneration = p.Identity, plan, s.generation
-		s.foodMin, s.foodTarget = seasonal.FoodMinDays, seasonal.FoodTargetDays
+		s.foodMin, s.foodTarget, s.foodOffers = seasonal.FoodMinDays, seasonal.FoodTargetDays, trade.revision
 	}
 	return plan
+}
+
+// foodTrade is what the plan may buy: the fresh priced offers of the traders
+// on the census and the silver above the colony's reserve. Without a known
+// trader census, silver or colonist count there are none.
+type foodTrade struct {
+	offers          []policy.TradeOffers
+	silver, reserve int64
+	// revision is the offer book's, so a new record rebuilds the plan.
+	revision uint64
+}
+
+func (r *Rounder) foodTrade(p observation.ColonyProjection) foodTrade {
+	traders, tk := p.Facts.Traders.Value()
+	silver, sk := p.Facts.Silver().Value()
+	reserve, rk := policy.TradeSilverReserve(p.Facts.Colonists)
+	var out foodTrade
+	if tk && sk && rk {
+		world := domain.GenerationSnapshot{Colony: p.Identity.Colony, Map: p.Identity.Map, Load: p.Identity.Load}
+		out.offers, out.silver, out.reserve = r.tradeOffers.fresh(world, p.Identity.Tick, silver, traders), silver, reserve
+	}
+	out.revision = r.tradeOffers.version()
+	return out
 }
 
 // reviewFoodPlan budgets the complete competing-consumer census. It is called
 // by the rounds, before its reading is retained for method planners.
 // A missing census never becomes an empty portfolio that certifies surplus.
-func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy, credit *policy.DeliveryCredit, hunt *policy.HuntDelivery) domain.Fact[policy.FoodPlan] {
+func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy, credit *policy.DeliveryCredit, hunt *policy.HuntDelivery, trade foodTrade) domain.Fact[policy.FoodPlan] {
 	supply, sk := p.CombinedFoodSupply.Value()
 	sources, ak := p.Acquisition.Value()
 	if !sk || !ak {
@@ -135,9 +159,14 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	credit.Opened(plan, channels, p.Identity.Tick)
 	// A food slaughter offer protects productive animals selected
 	// by the non-destructive portfolio before adding a single removal method.
-	if animals, known := p.FoodChannels.Value(); known && plan.GapPerDay > 0 {
-		herd := herdPolicyOf(p.Facts, plan)
-		offers := policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herd)
+	// A present caravan's priced food is a one-shot candidate beside it, sized
+	// to the gap over the plan's window; the ranker opens it or not.
+	if plan.GapPerDay > 0 {
+		var offers []policy.FoodChannel
+		if animals, known := p.FoodChannels.Value(); known {
+			offers = policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herdPolicyOf(p.Facts, plan))
+		}
+		offers = append(offers, policy.TradeFoodChannels(trade.offers, trade.silver, trade.reserve, plan.GapPerDay*plan.HorizonDays)...)
 		if len(offers) > 0 {
 			channels = append(channels, offers...)
 			plan, err = policy.SupplyFoodPlan(policy.FoodPlanRequest{Demand: forecast, MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, EmergencyDays: seasonal.FootholdFoodDays, Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})

@@ -27,11 +27,10 @@ func TestRoundsTradeGoalConsumesSharedFoodPlan(t *testing.T) {
 		t.Fatal("food-only shortage did not activate trade", got)
 	}
 	p, _ := f.FoodPlan.Value()
-	p.Portfolio[0].Channel.Kind = FoodHunt
-	p.Portfolio[0].Channel.LeadDays = domain.Known(0.0)
+	p.GapPerDay = 0
 	f.FoodPlan = domain.Known(p)
 	if got := needs(t, f, RoundsLatches{}); assessedDeficit(got, TradeWithCaravan) {
-		t.Fatal("immediate hunt did not suppress food trade", got)
+		t.Fatal("a covered demand did not suppress food trade", got)
 	}
 }
 
@@ -47,54 +46,42 @@ func TestTradeUsesObservedMealTierAndSubtractsProteinStock(t *testing.T) {
 	}
 }
 
-func TestTradeFoodBridgeWaitsForExhaustion(t *testing.T) {
+// The food need is read off the plan: the nutrition it opened to buy, or a
+// request to browse the caravan's prices while food is short under the minimum
+// and no trade candidate has been priced.
+func TestTradeFoodReadsThePlan(t *testing.T) {
+	opened := func(r *TradeFoodContext, decision FoodPlanDecision) {
+		p, _ := r.Plan.Value()
+		c := FoodChannel{Kind: FoodTrade, ID: "caravan", StockCap: domain.Known(int64(48)), LeadDays: domain.Known(0.0)}
+		p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: c, Decision: decision})
+		r.Plan = domain.Known(p)
+	}
 	for _, tc := range []struct {
-		name   string
-		change func(*TradeFoodContext)
-		want   float64
+		name     string
+		change   func(*TradeFoodContext)
+		want     float64
+		wantBrow bool
 	}{
-		{"late channel", func(r *TradeFoodContext) {}, 48},
-		{"at minimum", func(r *TradeFoodContext) { r.RunwayDays = domain.Known(3.0) }, 0},
-		{"hunt now", func(r *TradeFoodContext) {
-			p, _ := r.Plan.Value()
-			c := foodPlanChannel("hunt", 10, 10, 0, false)
-			c.Kind = FoodHunt
-			p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: c, Decision: FoodPlanOpen})
-			r.Plan = domain.Known(p)
-		}, 0},
-		{"meagre forage now", func(r *TradeFoodContext) {
-			p, _ := r.Plan.Value()
-			c := foodPlanChannel("bush", 2, 10, 0, false)
-			c.Kind = FoodForage
-			p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: c, Decision: FoodPlanOpen})
-			r.Plan = domain.Known(p)
-		}, 48},
-		{"at exhaustion", func(r *TradeFoodContext) {
-			p, _ := r.Plan.Value()
-			p.Portfolio[0].Channel.LeadDays = domain.Known(1.0)
-			r.Plan = domain.Known(p)
-		}, 0},
-		{"unknown lead", func(r *TradeFoodContext) {
-			p, _ := r.Plan.Value()
-			p.Portfolio[0].Channel.LeadDays = domain.Unknown[float64]()
-			r.Plan = domain.Known(p)
-		}, 0},
+		{"unpriced caravan is browsed", func(r *TradeFoodContext) {}, 0, true},
+		{"at minimum", func(r *TradeFoodContext) { r.RunwayDays = domain.Known(3.0) }, 0, false},
+		{"opened trade candidate", func(r *TradeFoodContext) { opened(r, FoodPlanOpen) }, 48, false},
+		{"held trade candidate is not browsed again", func(r *TradeFoodContext) { opened(r, FoodPlanHold) }, 0, false},
+		{"opened above the minimum", func(r *TradeFoodContext) { r.RunwayDays = domain.Known(5.0); opened(r, FoodPlanOpen) }, 48, false},
 		{"unknown row", func(r *TradeFoodContext) {
 			p, _ := r.Plan.Value()
 			p.Unknown = []FoodPlanEntry{{}}
 			r.Plan = domain.Known(p)
-		}, 0},
-		{"no channels", func(r *TradeFoodContext) { p, _ := r.Plan.Value(); p.Portfolio = nil; r.Plan = domain.Known(p) }, 84},
-		{"unknown plan", func(r *TradeFoodContext) { r.Plan = domain.Unknown[FoodPlan]() }, 0},
-		{"invalid runway", func(r *TradeFoodContext) { r.RunwayDays = domain.Known(math.NaN()) }, 0},
-		{"no gap", func(r *TradeFoodContext) { p, _ := r.Plan.Value(); p.GapPerDay = 0; r.Plan = domain.Known(p) }, 0},
+		}, 0, false},
+		{"unknown plan", func(r *TradeFoodContext) { r.Plan = domain.Unknown[FoodPlan]() }, 0, false},
+		{"invalid runway", func(r *TradeFoodContext) { r.RunwayDays = domain.Known(math.NaN()) }, 0, false},
+		{"no gap", func(r *TradeFoodContext) { p, _ := r.Plan.Value(); p.GapPerDay = 0; r.Plan = domain.Known(p) }, 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := tradeFoodContext()
 			tc.change(&r)
 			n := foodTradeNeed(r)
-			if n.Food.Nutrition != tc.want || n.Any() != (tc.want > 0) {
-				t.Fatalf("got %+v want %v", n, tc.want)
+			if n.Food.Nutrition != tc.want || n.Food.Browse != tc.wantBrow || n.Any() != (tc.want > 0 || tc.wantBrow) {
+				t.Fatalf("got %+v want %v browse %v", n, tc.want, tc.wantBrow)
 			}
 		})
 	}

@@ -2,10 +2,12 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -15,8 +17,8 @@ import (
 // looked at, in Go memory only (derived state): RoundsTradePlanner records one
 // at each sheet read, the Round's supply plan reads the fresh ones as trade
 // candidates, and a record is dropped when its trader leaves the census or
-// the generation changes. #2166 reads the same records to present traders on
-// the model.
+// the world changes. The food plan reads the same records to present traders
+// as trade candidates (#2166).
 type tradeOfferBook struct {
 	mu       sync.Mutex
 	snapshot domain.GenerationSnapshot
@@ -26,11 +28,17 @@ type tradeOfferBook struct {
 	revision uint64
 }
 
+// sameOfferWorld is whether two snapshots are one loaded world: a caravan's
+// offers outlive plan revisions and native generations, not a load or map.
+func sameOfferWorld(a, b domain.GenerationSnapshot) bool {
+	return a.Colony == b.Colony && a.Load == b.Load && a.Map == b.Map
+}
+
 // record replaces the trader's offers.
 func (b *tradeOfferBook) record(snapshot domain.GenerationSnapshot, offers policy.TradeOffers) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.snapshot != snapshot || b.records == nil {
+	if !sameOfferWorld(b.snapshot, snapshot) || b.records == nil {
 		b.snapshot, b.records = snapshot, map[string]policy.TradeOffers{}
 	}
 	b.records[offers.Trader] = offers
@@ -43,7 +51,7 @@ func (b *tradeOfferBook) record(snapshot domain.GenerationSnapshot, offers polic
 func (b *tradeOfferBook) fresh(snapshot domain.GenerationSnapshot, now domain.Tick, silver int64, traders []policy.TraderFacts) []policy.TradeOffers {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.snapshot != snapshot {
+	if !sameOfferWorld(b.snapshot, snapshot) {
 		return nil
 	}
 	present := map[string]policy.TraderFacts{}
@@ -93,19 +101,31 @@ func (b *tradeOfferBook) drop(trader string) {
 // row the trader holds at a known price, with the colony's silver and the
 // trader's goods stacks the record's freshness is judged against. The plan
 // reads it from the next plan build on (the book's revision keys the cache).
-func (r *RoundsTradePlanner) recordOffers(state ControlState, sheet bridge.TradeSheetRead, stacks int64) {
+func (r *RoundsTradePlanner) recordOffers(call context.Context, state ControlState, sheet bridge.TradeSheetRead, stacks int64) error {
 	silver, _, silverKnown := tradeSheetSilver(sheet.Rows)
 	if !silverKnown {
-		return
+		return nil
+	}
+	tables, err := r.native.FrameTables(call, boundary.Identity(state.Snapshot))
+	if err != nil {
+		return err
+	}
+	if tables.Catalog == nil {
+		return fmt.Errorf("%w: recordOffers: no definition catalog", ErrControl)
 	}
 	offers := policy.TradeOffers{Trader: sheet.Trader, Negotiator: sheet.Negotiator, Tick: domain.Tick(sheet.Context.GetTick()), Silver: silver, GoodsStacks: stacks}
 	for _, row := range sheet.Rows {
 		if row.CurrencyKnown && row.Currency || row.TraderCount <= 0 || !row.BuyPriceKnown {
 			continue
 		}
-		offers.Rows = append(offers.Rows, policy.TradeOffer{Def: row.DefName, Count: row.TraderCount, Price: row.BuyPrice})
+		food, err := tradeFoodFact(row.Food, row.DefName, tables.Catalog)
+		if err != nil {
+			return err
+		}
+		offers.Rows = append(offers.Rows, policy.TradeOffer{Def: row.DefName, Count: row.TraderCount, Price: row.BuyPrice, Food: food})
 	}
 	r.reviewer.tradeOffers.record(state.Snapshot, offers)
+	return nil
 }
 
 // plannedPurchases is the units of each resource the Round's supply plan
@@ -123,9 +143,11 @@ func (r *RoundsTradePlanner) plannedPurchases(call context.Context, state Contro
 }
 
 // restrictToPlan keeps the resource purchases of need (a MaintainResource
-// shortfall, the component target) only as far as the plan opened them; food,
-// medicine, surgery parts and every sale are not resource floors and stay.
-func restrictToPlan(need policy.TradeNeed, planned map[policy.Resource]int64) policy.TradeNeed {
+// shortfall, the component target) and its food nutrition (what the food plan
+// opened to buy from this trader) only as far as the plans opened them;
+// medicine, surgery parts, ingredient upgrades and every sale stay.
+func restrictToPlan(need policy.TradeNeed, planned map[policy.Resource]int64, food float64) policy.TradeNeed {
+	need.Food.Nutrition, need.Food.Browse = food, false
 	var kept []policy.Amount
 	for _, short := range need.Shortfall {
 		if units := min(short.Count, planned[short.Resource]); units > 0 {

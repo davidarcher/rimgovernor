@@ -2,6 +2,7 @@ package policy
 
 import (
 	"math"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -31,6 +32,8 @@ type TradeOffer struct {
 	Def   string
 	Count int64
 	Price float64
+	// Food classifies a food row (TradeFoodGood); unknown for any other row.
+	Food domain.Fact[TradeFoodGood]
 }
 
 // A record is read again once it is older than TradeOffersMaxAgeTicks (a few
@@ -85,4 +88,65 @@ func TradeOfferCandidates(resource Resource, offers []TradeOffers, deficit, silv
 		}
 	}
 	return out
+}
+
+// TradeFoodChannels are the food candidates of buying from the recorded
+// offers of the traders present: one one-shot channel per trader (ID is the
+// trader id) holding the nutrition its cheapest-per-nutrition food rows give,
+// as far as the silver above the reserve and want (nutrition) allow. It has no
+// lead (the walk is a fraction of a day), no steady work and the silver as its
+// upfront cost, priced as labor (tradeLaborPerSilver). A trader without a
+// record, or whose record prices no food, has no candidate: an arrival the
+// colony has not looked at is never planned for.
+func TradeFoodChannels(offers []TradeOffers, silver, reserve int64, want float64) []FoodChannel {
+	var out []FoodChannel
+	for _, record := range offers {
+		var rows []TradeOffer
+		for _, row := range record.Rows {
+			if g, known := row.Food.Value(); known && validTradeFood(g) && row.Count > 0 && finite(row.Price) && row.Price > 0 && row.Price <= tradeBuyPriceCeiling {
+				rows = append(rows, row)
+			}
+		}
+		perNutrition := func(r TradeOffer) float64 { g, _ := r.Food.Value(); return r.Price / g.Nutrition }
+		sort.Slice(rows, func(i, j int) bool {
+			if a, b := perNutrition(rows[i]), perNutrition(rows[j]); a != b {
+				return a < b
+			}
+			return rows[i].Def < rows[j].Def
+		})
+		budget, wanted, nutrition, spent := float64(silver-reserve), want, 0.0, 0.0
+		for _, row := range rows {
+			g, _ := row.Food.Value()
+			count := math.Min(float64(row.Count), math.Min(math.Floor(budget/row.Price), math.Ceil(wanted/g.Nutrition)))
+			if !(count > 0) {
+				continue
+			}
+			nutrition += count * g.Nutrition
+			spent += count * row.Price
+			budget -= count * row.Price
+			wanted -= count * g.Nutrition
+		}
+		if stock := int64(math.Floor(nutrition)); stock >= 1 {
+			out = append(out, FoodChannel{Kind: FoodTrade, ID: record.Trader, StockCap: domain.Known(stock),
+				WorkPerDay: domain.Known(0.0), UpfrontTicks: domain.Known(spent * tradeLaborPerSilver), LeadDays: domain.Known(0.0), Open: domain.Known(false),
+				Terms: []FoodPlanTerm{{Name: "trade_silver", Value: spent}}})
+		}
+	}
+	return out
+}
+
+// PlannedTradeNutrition is the nutrition the plan opened to buy from trader.
+func PlannedTradeNutrition(plan domain.Fact[FoodPlan], trader string) float64 {
+	p, known := plan.Value()
+	if !known {
+		return 0
+	}
+	total := 0.0
+	for _, e := range p.Portfolio {
+		if e.Channel.Kind == FoodTrade && e.Channel.ID == trader && e.Decision == FoodPlanOpen {
+			stock, _ := e.Channel.StockCap.Value()
+			total += float64(stock)
+		}
+	}
+	return total
 }

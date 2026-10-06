@@ -25,7 +25,7 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 	p.DeliveryLedger = domain.Known(observation.DeliveryLedger{LoadToken: "t", Counts: map[observation.DeliveryKey]observation.DeliveryCount{
 		{Kind: observation.DeliveryAnimalProduct, SourceID: "Cow", Def: "Milk"}: {Nutrition: 1}}})
 	var credit policy.DeliveryCredit
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit, nil).Value()
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit, nil, foodTrade{}).Value()
 	if !known || !strings.Contains(plan.Explain(), "MaintainHerd-Cow floor 3") {
 		t.Fatal(plan.Explain(), known)
 	}
@@ -62,7 +62,7 @@ func foodPlanFixture(v *o.ColonyFactsSnapshot) {
 func TestFoodPlanReviewBudgetsAnimalsAndUnknownDemand(t *testing.T) {
 	p := observation.ColonyProjection{Workers: domain.Known(2), Acquisition: domain.Known([]policy.AcquisitionSource{{ID: "berry", Food: true, NutritionYield: 2}, {ID: "deer", Food: true, Hunt: true, NutritionYield: 4}}),
 		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(1.0)}, {ID: "animal", NutritionPerDay: domain.Known(2.0)}}})}
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil).Value()
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil, foodTrade{}).Value()
 	if !known || plan.DemandPerDay != 3 {
 		t.Fatalf("plan = %+v, known=%v", plan, known)
 	}
@@ -70,7 +70,7 @@ func TestFoodPlanReviewBudgetsAnimalsAndUnknownDemand(t *testing.T) {
 		t.Fatal("missing cooking support")
 	}
 	p.CombinedFoodSupply = domain.Unknown[policy.FoodSupply]()
-	if _, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil).Value(); known {
+	if _, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil, foodTrade{}).Value(); known {
 		t.Fatal("unknown demand became a plan")
 	}
 }
@@ -122,7 +122,7 @@ func TestFoodCreditAttributesLedgerCountersToChannels(t *testing.T) {
 		count(observation.DeliveryCrop, "other-zone"):   {Nutrition: 3},
 	}})
 	var credit policy.DeliveryCredit
-	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit, nil).Value()
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit, nil, foodTrade{}).Value()
 	if !known {
 		t.Fatal("plan unknown")
 	}

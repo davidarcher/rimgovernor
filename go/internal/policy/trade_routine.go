@@ -195,7 +195,7 @@ func ShedArtNeed(need domain.Fact[TradeNeed], headroom domain.Fact[float64], sal
 }
 
 func (n TradeNeed) Any() bool {
-	return n.FavorGold > 0 || n.FavorPrisoners > 0 || n.ShedArt > 0 || n.SurplusAnimals > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
+	return n.FavorGold > 0 || n.FavorPrisoners > 0 || n.ShedArt > 0 || n.SurplusAnimals > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || n.Food.Browse || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other

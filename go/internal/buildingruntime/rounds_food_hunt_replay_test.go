@@ -26,7 +26,7 @@ func TestStarvingTribalHuntsWithBowsAndHoldsFormations(t *testing.T) {
 		p := *r.Projection
 		known, _ := p.Acquisition.Value()
 		p.Acquisition = domain.Known(append(append([]policy.AcquisitionSource(nil), known...), rows...))
-		out, ok := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil).Value()
+		out, ok := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil, foodTrade{}).Value()
 		if !ok {
 			t.Fatal("food plan unknown")
 		}

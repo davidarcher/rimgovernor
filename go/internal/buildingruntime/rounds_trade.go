@@ -224,10 +224,12 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// tradeable or not: a session native still holds must be settled, never
 	// left, and a walk only game time finishes.
 	traders := make([]policy.TraderFacts, 0, len(census.Traders))
+	for _, row := range census.Traders {
+		traders = append(traders, policy.TraderFacts{ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
+	}
 	arriving := false
 	for _, row := range census.Traders {
 		arriving = arriving || row.Travelling
-		traders = append(traders, policy.TraderFacts{ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
 		if row.ID != session.Trader {
 			continue
 		}
@@ -241,7 +243,7 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if !session.Open {
 			return RoundsTradeResult{Verdict: BuildingReasonExistingWork, Trader: row.ID, Phase: domain.TradeOpen, NativeWorkTicks: tradeWalkTicks}, nil
 		}
-		return r.drive(call, epoch, state, incident, review, row.ID, int64(row.GoodsStacks), domain.PawnID(session.Negotiator), started)
+		return r.drive(call, epoch, state, incident, review, row.ID, traders, domain.PawnID(session.Negotiator), started)
 	}
 	settled := map[string]bool{}
 	waiting := arriving
@@ -331,7 +333,7 @@ func (r *RoundsTradePlanner) open(call, epoch context.Context, state ControlStat
 
 // drive advances one caravan's open session: stage the selected lines from
 // its sheet, confirm and accept them, or cancel.
-func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlState, incident store.IncidentState, review store.Rounds, trader string, stacks int64, negotiator domain.PawnID, started time.Time) (RoundsTradeResult, error) {
+func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlState, incident store.IncidentState, review store.Rounds, trader string, traders []policy.TraderFacts, negotiator domain.PawnID, started time.Time) (RoundsTradeResult, error) {
 	lines, err := r.phase(call, incident, domain.TradeSetLines, trader)
 	if err != nil {
 		return RoundsTradeResult{}, err
@@ -364,13 +366,15 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 	if sheet.Trader != trader || sheet.Negotiator != string(negotiator) || sheet.GiftMode || !sheet.CanTradeNow {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
-	r.recordOffers(state, sheet, stacks)
+	if err = r.recordOffers(call, state, sheet, traderStacks(traders, trader)); err != nil {
+		return RoundsTradeResult{}, err
+	}
 	staged := tradeStagedLines(sheet)
 	phase := tradeSessionPhase(lines, len(staged))
 	if phase == domain.TradeEnd {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
-	economic, facts, capacity, err := r.selection(call, state, review, sheet, trader)
+	economic, facts, capacity, err := r.selection(call, state, review, sheet, trader, traders)
 	if err != nil {
 		return RoundsTradeResult{}, err
 	}
@@ -437,6 +441,16 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 	return r.commit(call, epoch, state, incident, domain.TradeAccept, 0, trader, value, started)
 }
 
+// traderStacks is the goods stacks of the trader on the census.
+func traderStacks(traders []policy.TraderFacts, id string) int64 {
+	for _, t := range traders {
+		if t.ID == id {
+			return t.GoodsStacks
+		}
+	}
+	return 0
+}
+
 // tradeSessionPhase is the next phase of an open session (#999, D1): read
 // from the live sheet, not the journal, so a session a save load carried
 // over resumes where native holds it. Lines already staged on the sheet go
@@ -454,7 +468,7 @@ func tradeSessionPhase(lines tradePhase, staged int) domain.TradeOperationKind {
 
 // selection re-measures the need from a fresh colony read and turns it,
 // with the live sheet, into SelectTrade's inputs.
-func (r *RoundsTradePlanner) selection(call context.Context, state ControlState, review store.Rounds, sheet bridge.TradeSheetRead, trader string) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, bool, error) {
+func (r *RoundsTradePlanner) selection(call context.Context, state ControlState, review store.Rounds, sheet bridge.TradeSheetRead, trader string, traders []policy.TraderFacts) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, bool, error) {
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
@@ -498,6 +512,9 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	if err = observation.FillZones(call, zoneNative, observed.Context.Identity, projection.Identity, &projection); err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
+	// The food plan reads the caravans on the census as present, the session's
+	// priced by the offers just recorded from this sheet.
+	projection.Facts.Traders = domain.Known(traders)
 	projection.Facts.FoodPlan = r.reviewer.planFood(projection)
 	seasonal := r.reviewer.seasonal(projection.Facts)
 	construction, _, err := r.native.ReadConstructionDeficits(call, identity)
@@ -557,7 +574,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	need = restrictToPlan(need, planned)
+	need = restrictToPlan(need, planned, policy.PlannedTradeNutrition(projection.Facts.FoodPlan, trader))
 	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, policy.ResourceConcernTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)

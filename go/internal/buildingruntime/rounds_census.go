@@ -46,6 +46,7 @@ type roundsCensusStore struct {
 	foodPlan            domain.Fact[policy.FoodPlan]
 	foodGeneration      uint64
 	foodMin, foodTarget float64
+	foodOffers          uint64
 	// supply is the Round's resource supply plan, built once per supplyKey.
 	supply    *resourceSupply
 	supplyKey resourceSupplyKey

@@ -12,7 +12,7 @@ func TestFoodPlanFishingIntegration(t *testing.T) {
 	p := observation.ColonyProjection{Workers: domain.Known(2), Acquisition: domain.Known([]policy.AcquisitionSource{}),
 		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(3.0)}}})}
 	thresholds := policy.DefaultRoundsPolicy()
-	core, known := reviewFoodPlan(p, thresholds, nil, nil).Value()
+	core, known := reviewFoodPlan(p, thresholds, nil, nil, foodTrade{}).Value()
 	if !known {
 		t.Fatal("Core food plan unavailable")
 	}
@@ -24,7 +24,7 @@ func TestFoodPlanFishingIntegration(t *testing.T) {
 	p.FoodChannels = domain.Known(observation.FoodChannels{FishableWater: domain.Known(observation.FishableWater{FishingResearched: domain.Known(true), Regions: []observation.FishableRegion{{
 		Root: domain.Cell{X: 5, Z: 8}, Population: domain.Known(300.0), MaxPopulation: domain.Known(300.0), NutritionPerFish: domain.Known(.25), FishPerBatch: domain.Known(6.0), WorkTicksPerBatch: domain.Known(7500.0), PawnFishWorkCapacity: domain.Known(8.0), Reachable: domain.Known(true), Frozen: domain.Known(false), Delivering: domain.Known(false),
 	}}})})
-	p.Facts.FoodPlan = reviewFoodPlan(p, thresholds, nil, nil)
+	p.Facts.FoodPlan = reviewFoodPlan(p, thresholds, nil, nil, foodTrade{})
 	plan, known := p.Facts.FoodPlan.Value()
 	if !known {
 		t.Fatal("fishing plan unavailable")

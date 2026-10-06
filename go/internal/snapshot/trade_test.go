@@ -72,8 +72,17 @@ func TestReplaySteelHoardSellsDownToTheFloor(t *testing.T) {
 // caravan for a food bridge (which good -- pemmican first -- is
 // tradeFoodTargets' choice over the live sheet, covered in policy).
 func TestReplayOneDayOfFoodBuysABridge(t *testing.T) {
-	need := tradeNeed(t, loadTrade(t, "testdata/trade-food-bridge-one-day.json"))
-	if need.Food.Nutrition <= 0 {
+	r := loadTrade(t, "testdata/trade-food-bridge-one-day.json")
+	// The caravan is unpriced: the review asks the negotiator to browse it.
+	if need := tradeNeed(t, r); !need.Food.Browse || need.Food.Nutrition != 0 {
+		t.Fatalf("no browse measured: %+v", need.Food)
+	}
+	// Once its sheet is recorded the plan opens the food bridge it prices.
+	plan, _ := r.Facts.FoodPlan.Value()
+	bridge := policy.FoodChannel{Kind: policy.FoodTrade, ID: "caravan", StockCap: domain.Known(int64(60)), LeadDays: domain.Known(0.0)}
+	plan.Portfolio = append(plan.Portfolio, policy.FoodPlanEntry{Channel: bridge, Decision: policy.FoodPlanOpen})
+	r.Facts.FoodPlan = domain.Known(plan)
+	if need := tradeNeed(t, r); need.Food.Nutrition != 60 || need.Food.Browse {
 		t.Fatalf("no food bridge measured: %+v", need.Food)
 	}
 }

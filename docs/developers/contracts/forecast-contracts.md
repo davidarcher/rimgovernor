@@ -221,10 +221,18 @@ corpse census.
 ## Trade food policy
 
 `ReviewTradeNeed` accepts an optional `TradeFoodContext` from the shared food
-review. Below the seasonal minimum, a known plan with positive gap buys a bridge
-only when every retained production channel arrives after exhaustion. Nutrition
-is gap times earliest lead; no producer uses one target window. Unknown channel
-facts cannot authorize a bridge. A zero-lead hunt suppresses the purchase.
+review, and the food plan decides the purchase: a present caravan's recorded
+offers ([trade offers](../architecture/supply-model.md#trade-offers)) become one
+one-shot `FoodTrade` candidate per trader (`TradeFoodChannels`, ID the trader
+id): cheapest-per-nutrition food rows, lead 0, silver priced as upfront labor,
+stock capped by the trader's goods, the silver above the reserve and the gap
+over the plan's window (`FoodPlan.HorizonDays`). `TradeFoodNeed.Nutrition` is
+the stock of the candidates the plan opened; the session buys only its own
+trader's (`PlannedTradeNutrition`). Under the seasonal minimum with a positive
+gap, no unknown rows and no priced trade candidate on the plan, `Browse` asks
+for a session to read the caravan's sheet (the offers are recorded there and
+the plan rebuilt). An unpriced or travelling caravan, or an unprompted
+arrival, has no candidate: windfalls are never planned for.
 
 Desired recipe ingredient slots use the meal policy's alternatives. Above the
 food target, missing meat/animal-product slots create ingredient purchases.
