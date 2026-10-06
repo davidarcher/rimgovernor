@@ -8,8 +8,23 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
+
+// A review read with a catalog carries BedPrice, a func; the recorder drops
+// it so the review still encodes (#2141: starving-tribal recorded none).
+func TestFromReviewDropsBedPrice(t *testing.T) {
+	reading := observation.ColonyProjection{BedPrice: func(_, _ policy.Resource) (float64, bool) { return 1, true }}
+	rec, ok := FromReview(domain.GenerationSnapshot{}, 1, store.RoundsResult{Detection: &store.RoundsDetection{}}, reading)
+	if !ok {
+		t.Fatal("review not recorded")
+	}
+	if _, err := Encode(rec); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // Recorded from acceptance run clean/filthy at e24c531b (the last review of
 // the run, tick 158107): blood filth in a kitchen with no cleaner.

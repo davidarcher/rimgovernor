@@ -5,6 +5,12 @@
     "tick": 158107
   },
   {
+    "out": "internal/snapshot/testdata/food-starving-tribal-no-hunt-row.json.gz",
+    "case": "food/starving-tribal",
+    "tick": 55502,
+    "seq": 1
+  },
+  {
     "out": "internal/snapshot/testdata/startup-shelter-open.json.gz",
     "case": "shelter/excavation-round",
     "tick": 15

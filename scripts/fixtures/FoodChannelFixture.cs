@@ -162,6 +162,73 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
+        [Tool("test/food_starving_prepare", Description = "UNSAFE FOR MODEL EXECUTION. On the empty-channel fixture, make the colony a starving tribal one for the food/starving-tribal diagnosis (#2141): destroy every colonist's weapons (worn and carried), delete every butcher bill, enable Hunting for every colonist who can, drop colonists to a hungry food level, and spawn animalCount wild animalKind at fixed offsets from the colonists' centre.")]
+        public async Task<object> StarvingPrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string animalKind = "Deer", int animalCount = 6, double foodLevel = 0.3)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required.");
+                var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail(animalKind) ?? throw new ArgumentException("No PawnKindDef " + animalKind);
+                if (animalCount < 0 || animalCount > 20) throw new ArgumentException("animalCount must be 0..20.");
+                var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
+                if (people.Count == 0) throw new InvalidOperationException("No colonists.");
+                var destroyed = new List<string>();
+                foreach (var p in people)
+                {
+                    p.jobs?.StopAll();
+                    foreach (var weapon in p.equipment.AllEquipmentListForReading.ToList()) { destroyed.Add(weapon.def.defName); weapon.Destroy(DestroyMode.Vanish); }
+                    foreach (var weapon in p.inventory.innerContainer.Where(t => t.def.IsWeapon).ToList()) { destroyed.Add(weapon.def.defName); weapon.Destroy(DestroyMode.Vanish); }
+                    if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hunting)) p.workSettings.SetPriority(WorkTypeDefOf.Hunting, 3);
+                    if (p.needs?.food != null) p.needs.food.CurLevelPercentage = (float)foodLevel;
+                }
+                var bills = 0;
+                foreach (var giver in map.listerThings.AllThings.OfType<IBillGiver>().ToList())
+                    foreach (var bill in giver.BillStack.Bills.OfType<Bill_Production>().Where(b => NativeRecipeRoles.ButcherFlesh(b.recipe)).ToList())
+                    { giver.BillStack.Delete(bill); bills++; }
+                var anchor = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
+                // Fixed offsets (radius 30 to 45 round the centre, 60 degrees
+                // apart) so a rerun on the same save stages the same herd; the
+                // nearest standable, unfogged cell stands in for a blocked one.
+                var spawned = new List<object>();
+                for (var i = 0; i < animalCount; i++)
+                {
+                    var angle = i * Math.PI / 3;
+                    var radius = 30 + 5 * (i % 4);
+                    var want = new IntVec3(anchor.x + (int)Math.Round(radius * Math.Cos(angle)), 0, anchor.z + (int)Math.Round(radius * Math.Sin(angle)));
+                    var cell = GenRadial.RadialCellsAround(want, 8, true).FirstOrDefault(c => c.InBounds(map) && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null);
+                    if (!cell.IsValid || !cell.InBounds(map)) throw new InvalidOperationException("No open cell near " + want);
+                    var animal = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, null, forceGenerateNewPawn: true, canGeneratePawnRelations: false, allowAddictions: false));
+                    GenSpawn.Spawn(animal, cell, map);
+                    spawned.Add(new { id = animal.GetUniqueLoadID(), x = cell.x, z = cell.z, distance = Math.Round(cell.DistanceTo(anchor), 1) });
+                }
+                return new { success = true, colonists = people.Count, weaponsDestroyed = destroyed, butcherBillsDeleted = bills, animals = spawned, anchor = new { x = anchor.x, z = anchor.z } };
+            }, cancellationToken);
+        }
+
+        [Tool("test/food_starving_observe", Description = "Read what gates a hunt on the starving-tribal fixture (#2141); no mutations. Per colonist: weapon, Hunting and Cooking work priorities, food level; per wild animal: position and NativeHuntAcquisition.Ineligible; the butcher bills, pending hunt designations, wildlife counts and corpses.")]
+        public async Task<object> StarvingObserve(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("Loaded map required.");
+                var cooking = DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking");
+                var colonists = map.mapPawns.FreeColonistsSpawned.Select(p => new {
+                    id = p.GetUniqueLoadID(), name = p.LabelShort, downed = p.Downed,
+                    weapon = p.equipment?.Primary?.def.defName ?? "", ranged = p.equipment?.Primary?.def.IsRangedWeapon == true,
+                    hunting = p.workSettings?.GetPriority(WorkTypeDefOf.Hunting) ?? -1, huntingDisabled = p.WorkTypeIsDisabled(WorkTypeDefOf.Hunting),
+                    cooking = cooking == null || p.workSettings == null ? -1 : p.workSettings.GetPriority(cooking),
+                    food = p.needs?.food?.CurLevelPercentage ?? -1f, job = p.CurJob?.def.defName ?? "" }).ToList();
+                var wild = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == null && p.RaceProps.Animal && !p.Dead).ToList();
+                var animals = wild.Select(p => new { id = p.GetUniqueLoadID(), race = p.def.defName, x = p.Position.x, z = p.Position.z,
+                    designated = NativeHuntAcquisition.Designated(p), ineligible = NativeHuntAcquisition.Ineligible(p) ?? "eligible" }).ToList();
+                var bills = map.listerThings.AllThings.OfType<IBillGiver>().SelectMany(g => g.BillStack.Bills.OfType<Bill_Production>()
+                    .Select(b => new { bench = (g as Thing)?.def.defName ?? "", recipe = b.recipe.defName, butcher = NativeRecipeRoles.ButcherFlesh(b.recipe), suspended = b.suspended, paused = b.paused })).ToList();
+                return new { success = true, tick = Find.TickManager.TicksGame, colonists, animals, bills,
+                    pendingHunts = animals.Count(a => a.designated), wildAnimals = animals.Count,
+                    corpses = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).Count,
+                    foodItems = map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible).Sum(t => t.stackCount) };
+            }, cancellationToken);
+        }
+
         private static bool FoodPlant(Plant p) => p.def.plant?.harvestedThingDef?.IsNutritionGivingIngestible == true;
         private static bool Producer(Thing t) => t is Building_PlantGrower || t is Building_NutrientPasteDispenser;
         private static bool Remove(Thing t) => t is Corpse || t is Pawn p && p.RaceProps.Animal

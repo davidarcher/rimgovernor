@@ -76,7 +76,7 @@ func stepBase(review any) any {
 // numbered from 1 per planner, goal and tick.
 func RecordStep(dir, planner string, goal policy.ConcernID, current domain.GenerationSnapshot, reading observation.ColonyProjection) error {
 	var none observation.ColonyProjection
-	reading.Zones, reading.Window = none.Zones, none.Window
+	reading.Zones, reading.Window, reading.BedPrice = none.Zones, none.Window, none.BedPrice
 	tick := reading.Identity.Tick
 	streamsMu.Lock()
 	defer streamsMu.Unlock()
