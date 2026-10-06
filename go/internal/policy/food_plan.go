@@ -131,7 +131,7 @@ func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
 			}
 			entry := FoodPlanEntry{Channel: channel, Decision: FoodPlanDecision(e.Decision), Reason: e.Reason}
 			for _, t := range e.Terms {
-				entry.Terms = append(entry.Terms, FoodPlanTerm{Name: t.Name, Value: t.Value})
+				entry.Terms = append(entry.Terms, FoodPlanTerm(t))
 			}
 			for _, c := range e.Credit {
 				entry.DeliveredPerDay += c.Amount
