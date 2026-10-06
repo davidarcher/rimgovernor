@@ -65,6 +65,16 @@ Surface mining uses the same reach ceiling and one-rock demand batches
 [explicit holds](../contracts/controller-contracts.md#remote-work-holds-and-resume)
 and revalidate safety at dispatch.
 
+The resource matrix (`buildingruntime/supplysim_resource_test.go`) is the guard
+for this ranker: wood, stone, steel, components and plasteel run over source
+mixes (chop, mine, bill, deep drill, trade, loot, salvage) and the supplysim
+shocks through the real demand functions, catalog candidates, rankers and the
+joint bid board, asserting that floors are restored, a shortfall edge raises
+only the missing resource, one planner dispatches a resource at a time, bids
+expire with their TTL, a missing source is a hold, and a deep drill needs a
+runway deficit, research and power. Failures that hold today are recorded in
+`testdata/resource-matrix-baseline.json`, which only shrinks.
+
 ## Material runway
 
 `MaintainResource` reviews Steel and ComponentIndustrial over the last 15 game

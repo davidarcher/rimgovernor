@@ -1,0 +1,15 @@
+{
+  "failing": {
+    "ComponentIndustrial/produce+trade/capacity#single": "day 34: ComponentIndustrial dispatched by trade and resource",
+    "ComponentIndustrial/produce+trade/destroy#single": "day 23: ComponentIndustrial dispatched by trade and resource",
+    "ComponentIndustrial/produce+trade/none#single": "day 34: ComponentIndustrial dispatched by trade and resource",
+    "ComponentIndustrial/produce+trade/stopwork#single": "day 34: ComponentIndustrial dispatched by trade and resource",
+    "ComponentIndustrial/produce+trade/storage#single": "day 34: ComponentIndustrial dispatched by trade and resource",
+    "Plasteel/drill/none#drill": "deep drill bid scores 0 (DeepDrillCandidate headroom is unknown, so no demand is credited)",
+    "Steel/drill/none#drill": "deep drill bid scores 0 (DeepDrillCandidate headroom is unknown, so no demand is credited)",
+    "StoneBlocks/mine+produce/destroy#restore": "StoneBlocks stock stayed under 150 for 25 days after day 15 (min runway 0)",
+    "StoneBlocks/mine+produce/surge#restore": "StoneBlocks stock stayed under 150 for 25 days after day 18 (min runway 0)",
+    "StoneBlocks/produce/destroy#restore": "StoneBlocks stock stayed under 150 for 25 days after day 15 (min runway 0)",
+    "StoneBlocks/produce/surge#restore": "StoneBlocks stock stayed under 150 for 25 days after day 18 (min runway 0)"
+  }
+}
