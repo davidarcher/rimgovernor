@@ -6,7 +6,7 @@ param(
     [string]$OutputRoot = '',
     [ValidateSet('HomeCoverageFixture', 'SleepingFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'AnimalFeedFixture', 'ResearchObservationFixture', 'RoundsSleepingFixture', 'RoundsProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'GearFixture',
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
-        'DeepResourcesFixture', 'FoodChannelFixture', 'FishingFixture', 'UpkeepFixture', 'TradeFixture',
+        'DeepResourcesFixture', 'FoodChannelFixture', 'FishingFixture', 'LedgerFixture', 'UpkeepFixture', 'TradeFixture',
         'EmergencyDevelopmentFixture',
         'ForecastFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'BuildingTemperatureFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'ApplyRefusalFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'FlooringFixture', 'RoutesFixture', 'HutShellFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'LetterFixture', 'FreezeNeedsFixture', 'WallUpgradeFixture', 'ShutdownFixture', 'FarmEnvironmentFixture', 'DialogFixture', 'NamingFixture', 'ProductionLadderFixture', 'BlightFixture', 'WinterFixture', 'ShrineFixture', 'SubdueFixture', 'ArrestFixture', 'LayoutGridFixture', 'HazardFixture', 'StartupLaborFixture', 'BuriedSteelFixture', 'ArtFixture', 'ShelterFixture', 'ColonyReviewFixture', 'BabyCareFixture', 'MechGestationFixture', 'FirstRitualFixture', 'HorrorIncidentFixture', 'EntityHoldFixture', 'PlanStageFixture')]
     [string[]]$Fixture = @()

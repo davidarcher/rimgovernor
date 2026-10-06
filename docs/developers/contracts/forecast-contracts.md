@@ -179,6 +179,23 @@ GET /api/player/colony exposes foodPlan and foodPlanTick from the retained revie
 including portfolio/unknown rows, decisions, rates and explanation terms. Missing
 or stale reviews are null; this read never runs a new food review.
 
+### Delivery ledger
+
+`ColonyFactsSnapshot.delivery_ledger` carries native's cumulative delivery
+counters, latched at the production site of the player's own work: a plant
+harvested (`QuestManager.Notify_PlantHarvested`; a plant outside a growing zone or
+basin is forage, counted only when edible), a catch rolled
+(`FishingUtility.GetCatchesFor`), milk, wool and other gathered body resources
+(`CompHasGatherableBodyResource.Gathered`) and eggs (`CompEggLayer.ProduceEgg`).
+Hauling and stack merges never count. Rows are keyed by kind (crop, fish, forage,
+animal product), source (growing zone or basin id, water body root cell `x,z`, plant
+def, animal race) and delivered def, with units, human-edible nutrition and the
+last delivery tick. At most 512 keys; later keys fold into an `other` row and `lost`
+counts those deliveries. The `epoch` changes on load or restart, so a reader diffs
+within an epoch and re-baselines on a change. Go maps source to channel from its own
+census. `observation.ColonyProjection.DeliveryLedger` is Unknown for a missing,
+unavailable or malformed ledger, never zero, and lives in memory only.
+
 ## Trade food policy
 
 `ReviewTradeNeed` accepts an optional `TradeFoodContext` from the shared food

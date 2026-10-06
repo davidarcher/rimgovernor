@@ -130,6 +130,7 @@ namespace HomeBridge.BridgeTools
             result.Development = new Obs.DevelopmentSection { Observed = ReadPower(map) };
             Span("cf.power");
             result.FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood);
+            result.DeliveryLedger = NativeDeliveryLedger.Read();
             Span("cf.foodChannels");
             result.DeepResources = NativeDeepResources.Read(map);
             result.Policies = NativePolicyFacts.Read(map);

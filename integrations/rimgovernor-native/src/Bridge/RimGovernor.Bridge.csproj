@@ -79,6 +79,7 @@
     <Compile Include="../../../../scripts/fixtures/FoodChannelFixture.cs" Condition="'$(FoodChannelFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DeepResourcesFixture.cs" Condition="'$(DeepResourcesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FishingFixture.cs" Condition="'$(FishingFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/LedgerFixture.cs" Condition="'$(LedgerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FarmEnvironmentFixture.cs" Condition="'$(FarmEnvironmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ProductionLadderFixture.cs" Condition="'$(ProductionLadderFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LayoutGridFixture.cs" Condition="'$(LayoutGridFixture)' == 'true'" />

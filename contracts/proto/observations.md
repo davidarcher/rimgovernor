@@ -35,6 +35,14 @@ anchor. The section also reports Fishing research. Every collection is
 complete; no per-cell fishing payload is emitted.
 `tools/foodchannels` checks lab berry-bush forage and a cow's milk fullness.
 
+## Delivery ledger
+
+`ColonyFactsSnapshot.delivery_ledger` is a keyed section of cumulative production-site
+delivery counters with a load `epoch`; see the
+[delivery ledger](../../docs/developers/contracts/forecast-contracts.md#delivery-ledger).
+`NativeDeliveryLedger` counts; `observation.ColonyProjection.DeliveryLedger` is unknown
+unless the section validates (`bridge.ValidDeliveryLedger`).
+
 ## Deep resources and mineral scanners
 
 `ColonyFactsSnapshot.deep_resources` reads discovered `DeepResourceGrid` entries,

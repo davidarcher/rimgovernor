@@ -1424,6 +1424,21 @@ message DeepDrillState { optional string building_id = 1; optional string def_na
 // section unavailable, never a silently truncated census. Absent section means unknown.
 message DeepResourcesFacts { repeated DeepResourceLump lumps = 1; repeated MineralScannerState ground_scanners = 2; repeated MineralScannerState long_range_scanners = 3; repeated DeepDrillState drills = 4; }
 message DeepResourcesSection { oneof outcome { DeepResourcesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// Cumulative deliveries counted at the production site of the player's own work
+// (a plant harvested, a catch landed, milk or eggs produced), so hauling and
+// stack merges never double-count. source_id is the growing zone id (CROP), the
+// water body's root cell "x,z" (FISH), the plant def (FORAGE: a harvested plant
+// with no zone or basin) or the animal race (ANIMAL_PRODUCT). units are the
+// produced stack counts and nutrition their human-edible nutrition; last_tick
+// is the game tick of the latest delivery.
+enum DeliverySourceKind { DELIVERY_SOURCE_KIND_UNSPECIFIED = 0; DELIVERY_SOURCE_KIND_CROP = 1; DELIVERY_SOURCE_KIND_FISH = 2; DELIVERY_SOURCE_KIND_FORAGE = 3; DELIVERY_SOURCE_KIND_ANIMAL_PRODUCT = 4; }
+message DeliveryRow { optional DeliverySourceKind source_kind = 1; optional string source_id = 2; optional string def_name = 3; optional int64 units = 4; optional double nutrition = 5; optional int64 last_tick = 6; }
+// Counters only ever grow within one epoch; epoch changes when the game is
+// loaded or restarted, so a reader re-baselines. At most 512 keyed rows: later
+// keys add to `other` (source_id and def_name "other") and count toward `lost`,
+// the number of deliveries that were not keyed. Absent means unknown, never zero.
+message DeliveryLedgerFacts { optional string epoch = 1; repeated DeliveryRow rows = 2; DeliveryRow other = 3; optional uint64 lost = 4; }
+message DeliveryLedgerSection { oneof outcome { DeliveryLedgerFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; ColonyNaming naming = 2;
   optional uint32 colonist_count = 3; optional uint32 worker_count = 4; rimgovernor.common.v1.Cell center = 5; MapSize map_size = 6;
@@ -1465,6 +1480,8 @@ message ColonyFactsSnapshot {
   AnomalySection anomaly = 53;
   // Royalty neuroformer stock, bestowing ceremonies and thrones (#1877); absent without Royalty.
   RoyaltySection royalty = 54;
+  // Cumulative production-site delivery counters (DeliveryLedgerFacts); absent means unknown.
+  DeliveryLedgerSection delivery_ledger = 55;
 }
 // Odyssey colony facts (#1709), a keyed colony section (#1347). A scalar
 // absent is unknown, never zero.

@@ -101,6 +101,8 @@ type ColonyProjection struct {
 	HotMap domain.Fact[bool]
 
 	PendingHunts domain.Fact[int]
+	// DeliveryLedger is native's cumulative delivery counters; unknown when the census is missing or malformed.
+	DeliveryLedger domain.Fact[DeliveryLedger]
 
 	Acquisition                            domain.Fact[[]policy.AcquisitionSource]
 	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
@@ -371,6 +373,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.BuildTier = domain.Unknown[policy.BuildTier]()
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
+	r.DeliveryLedger = colonyDeliveryLedger(v.DeliveryLedger, v.Context.GetTick())
 	r.DeepResources = colonyDeepResources(v.DeepResources)
 	r.Policies = ColonyPolicies(v.Policies)
 	if policies, known := r.Policies.Value(); known {
