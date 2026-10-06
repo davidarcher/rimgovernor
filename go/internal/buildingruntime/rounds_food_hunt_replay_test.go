@@ -59,3 +59,28 @@ func TestStarvingTribalHuntsWithBowsAndHoldsFormations(t *testing.T) {
 		t.Fatalf("held formation lacks needs_gunners: %+v", herd[0].Channel.Terms)
 	}
 }
+
+// The same colony with a deer held only for want of a hunter's weapon (#2162):
+// the plan prices the craft into the hunt and opens it, which is the arming the
+// work planner reads; a deer held for another reason prices nothing.
+func TestStarvingTribalOpensHunterWeaponPrerequisite(t *testing.T) {
+	r, err := snapshot.Load("../snapshot/testdata/food-starving-tribal-no-hunt-row.json.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	deer := policy.AcquisitionSource{ID: "deer", Definition: "Deer", Resource: "Corpse_Deer", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 20, RevengeChance: 0.05, HerdSize: 1,
+		Cell: domain.Cell{X: 10, Z: 10}, Products: []policy.SourceProduct{{Def: "Leather_Plain", Amount: 40}}}
+	plan := func(hold policy.HuntHold) domain.Fact[policy.FoodPlan] {
+		p := *r.Projection
+		p.HuntHolds = []policy.HuntHold{hold}
+		return reviewFoodPlan(p, policy.DefaultRoundsPolicy(), nil, nil)
+	}
+	unarmed := plan(policy.HuntHold{ID: "deer", Reason: policy.HuntHoldNoHunter, Detail: []string{"p1 hunting_inactive", "p2 no_hunting_weapon"}, Source: deer})
+	if !policy.HuntArming(unarmed) {
+		got, _ := unarmed.Value()
+		t.Fatalf("the plan did not open the hunter-weapon prerequisite: %+v", got.Portfolio)
+	}
+	if policy.HuntArming(plan(policy.HuntHold{ID: "deer", Reason: policy.HuntHoldNoHunter, Detail: []string{"p1 too_far"}, Source: deer})) {
+		t.Fatal("a hold that is not about the weapon opened the prerequisite")
+	}
+}

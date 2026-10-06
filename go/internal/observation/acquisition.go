@@ -42,7 +42,9 @@ func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.F
 			offered.Products = race.Butchery
 			verdict := census.Gate(policy.HuntPrey{Source: offered, Fogged: row.GetFogged(), Mental: row.GetInMentalState()})
 			if verdict.Hold != nil {
-				holds = append(holds, *verdict.Hold)
+				hold := *verdict.Hold
+				hold.Source = offered
+				holds = append(holds, hold)
 				continue
 			}
 			offered.WeaponRange = verdict.WeaponRange

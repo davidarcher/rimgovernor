@@ -72,6 +72,38 @@ func TestFishingAllocationUsesAnimalsWithoutRangedWeapon(t *testing.T) {
 	}
 }
 
+// An unarmed colonist is never assigned Hunting, unless the plan is arming
+// one (#2162): then the best Shooting colonist owns it before the weapon
+// exists, and an armed colonist already covers the demand.
+func TestWorkAssignmentHuntingBeforeTheWeaponExists(t *testing.T) {
+	hunting := func(team []WorkPawn, arming bool) (owners []PawnID) {
+		decision, err := PlanWork(team, nil, WorkDemand{Arming: arming})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range team {
+			if workValue(t, decision, p.ID, WorkHunting) == 1 {
+				owners = append(owners, p.ID)
+			}
+		}
+		return owners
+	}
+	shooter := func(id PawnID, ranged bool, level int) WorkPawn {
+		return testWorkPawn(id, true, ranged, []WorkSkill{{Name: "Shooting", Level: level}})
+	}
+	team := []WorkPawn{shooter("a", false, 4), shooter("b", false, 9)}
+	if got := hunting(team, false); len(got) != 0 {
+		t.Fatalf("an unarmed colonist hunts without a plan: %v", got)
+	}
+	if got := hunting(team, true); len(got) != 1 || got[0] != "b" {
+		t.Fatalf("the plan's armed hunter is the best shot: %v", got)
+	}
+	armed := []WorkPawn{shooter("a", true, 4), shooter("b", false, 9)}
+	if got := hunting(armed, true); len(got) != 1 || got[0] != "a" {
+		t.Fatalf("an armed hunter already covers the demand: %v", got)
+	}
+}
+
 func testWorkPawn(id PawnID, manual, ranged bool, skills []WorkSkill, traits ...PawnTrait) WorkPawn {
 	work := make([]WorkPriority, 0, len(testWorkTypes))
 	for _, w := range testWorkTypes {

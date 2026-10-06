@@ -127,6 +127,9 @@ const (
 type HuntHold struct {
 	ID, Reason string
 	Detail     []string `json:",omitempty"`
+	// Source is the held prey, set by the census decoder, so the plan can
+	// price the prerequisite its hold waits on (HuntPrerequisiteCandidates).
+	Source AcquisitionSource `json:"-"`
 }
 
 // HuntPrey is a hunt row with the raw prey flags that are not part of the

@@ -169,6 +169,11 @@ type WorkDemand struct {
 	// yields only to a handler, and the gather speed and yield stats scale with
 	// the Animals skill (#1650), so the best Animals pawn owns Handling.
 	Handling bool
+	// Arming is whether the food plan opened a hunt that waits on a hunter's
+	// weapon (HuntArming): Hunting is then assignable to an unarmed colonist
+	// before the weapon exists (#2162), so the hunter-aware armory demand
+	// sees whom to arm.
+	Arming bool
 }
 
 // haulBacklogStacks is the loot census count of unforbidden, safe stacks
@@ -265,6 +270,9 @@ type workWorker struct {
 	work    map[WorkType]WorkPriority
 	load    int
 	owns    map[WorkType]int // planned priority per work type
+	// arming marks an unarmed colonist the plan is arming: Hunting is
+	// assignable before the weapon exists.
+	arming bool
 }
 
 // PlanWork is the roster planner: every work type native reports gets owners
@@ -387,7 +395,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		if resting[w.pawn.ID] || !exists || row.Disabled || w.profile.Forbidden(work) || w.profile.Incapable[work] {
 			return false
 		}
-		if work == WorkHunting && !w.profile.Ranged {
+		if work == WorkHunting && !w.profile.Ranged && !w.arming {
 			return false
 		}
 		skill := skillOf(work)
@@ -429,6 +437,29 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		return f - 3*float64(w.load)
 	}
 	pawnCount := len(workers)
+	if demand.Arming {
+		// Arm the best unarmed colonists the baseline Hunting demand still
+		// lacks an armed owner for.
+		missing := baselineDemand(WorkHunting, pawnCount, demand)
+		var unarmed []*workWorker
+		for _, w := range workers {
+			if w.profile.Ranged {
+				if able(w, WorkHunting) {
+					missing--
+				}
+				continue
+			}
+			w.arming = true
+			if able(w, WorkHunting) {
+				unarmed = append(unarmed, w)
+			}
+			w.arming = false
+		}
+		sort.SliceStable(unarmed, func(i, j int) bool { return fitness(unarmed[i], WorkHunting) > fitness(unarmed[j], WorkHunting) })
+		for i := 0; i < missing && i < len(unarmed); i++ {
+			unarmed[i].arming = true
+		}
+	}
 	demandOf := func(work WorkType) int {
 		n := baselineDemand(work, pawnCount, demand)
 		if _, ok := requirements[work]; ok && n == 0 {
@@ -653,7 +684,7 @@ func sortedSkills(p PawnProfile) []string {
 // review is building) want a second constructor and a prisoner wants a
 // warden. Unknown facts fall back to the baseline.
 func RoundsWorkDemand(facts RoundsFacts, building bool) WorkDemand {
-	demand := WorkDemand{Construction: building}
+	demand := WorkDemand{Construction: building, Arming: HuntArming(facts.FoodPlan)}
 	jobs := PlanHerd(facts.HerdPlanInput()).Jobs
 	_, milk := jobs[HerdJobMilk]
 	_, wool := jobs[HerdJobWool]

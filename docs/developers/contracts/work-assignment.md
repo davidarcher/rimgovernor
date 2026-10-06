@@ -64,7 +64,10 @@ For each:
   milk or wool job (`WorkDemand.Handling`): gathering yield and speed scale
   with Animals.
 - **Capable** is not incapable, not trait-forbidden (Pyromaniac Firefighter,
-  Brawler Hunting, Abrasive Warden), Hunting only with a ranged primary, and
+  Brawler Hunting, Abrasive Warden), Hunting only with a ranged primary
+  (or, while the food plan has opened a hunt waiting on a hunter's weapon,
+  `WorkDemand.Arming`, for the best unarmed Shooting colonists the baseline
+  Hunting demand lacks an armed owner for, #2162), and
   the skill at or above the floor: Cooking 5 (food poisoning), Doctor and
   Construction 4, a requirement's minimum, otherwise 0. When nobody clears a
   safety floor for a demanded type, the best pawn the requirement admits owns

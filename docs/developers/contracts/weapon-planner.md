@@ -39,7 +39,12 @@ planning estimates, with conservative class defaults for other defs.
   without one (unarmed, melee, or a flame or explosive primary) is demand like an unarmed fighter,
   returned apart from the fighters' demand because food owns that craft: while `EnsureFoodSupply` is
   open and unmet the bill is that Standard's Method, otherwise it is `MaintainEquipment`'s. A hunter's
-  upgrade of an adequate weapon stays an ordinary fighter's.
+  upgrade of an adequate weapon stays an ordinary fighter's. An unarmed colonist is not a hunter until
+  work assignment gives them Hunting: a hunt row held only for want of a hunter's weapon is priced by
+  the food plan as a hunt candidate with the craft as upfront work and a `needs_weapon` term
+  (`HuntPrerequisiteCandidates`); the plan opening it is `WorkDemand.Arming`, which lets the best unarmed
+  Shooting colonist own Hunting before the weapon exists (#2162). The butcher bill and butcher spot are
+  owed on the food runway by their own planners and are not repriced.
 - Native gear items carry a biocoded flag and, when retained, their owner's pawn ID. Supply weapon
   details use exact item identities.
 - Combat pawn reads carry the map's mean peak sharp armor among live, standing hostile pawns (natural
