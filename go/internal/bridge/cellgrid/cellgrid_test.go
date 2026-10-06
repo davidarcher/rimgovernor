@@ -47,7 +47,7 @@ func TestApplyCellGridKeyframeAndDelta(t *testing.T) {
 	want := policy.SiteCell{Cell: domain.Cell{X: 5, Z: 7}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(false),
 		Indoors: domain.Known(false), SupportsLight: domain.Known(false), StorageEmpty: domain.Known(false), Doorway: domain.Known(false), Polluted: domain.Known(false),
 		NaturalRock: domain.Known(false), Ruin: domain.Known(false), Glow: domain.Known(0.25), Roof: domain.Known("RoofConstructed"), PlayerEdifice: domain.Known(""), ClaimableRuin: domain.Known("")}
-	if got != want {
+	if !got.Equal(want) {
 		t.Fatalf("cell = %+v\nwant %+v", got, want)
 	}
 

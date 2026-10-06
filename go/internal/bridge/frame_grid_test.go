@@ -23,6 +23,10 @@ type nativeCell struct {
 	polluted, naturalRock, ruin                               bool
 	roof, zone, room, edifice, claimable                      string
 	glow, fertility                                           float64 // glow artificial only
+	terrain, foundation                                       string
+	inHome, topRemovable                                      bool
+	snow                                                      float64
+	things                                                    []policy.Thing
 }
 
 // gridMap is a 4x3 map: x 0..3, z 0..2.
@@ -31,8 +35,12 @@ const gridMapWidth, gridMapHeight = 4, 3
 func gridTestMap() []nativeCell {
 	cells := make([]nativeCell, gridMapWidth*gridMapHeight)
 	for j := range cells {
-		cells[j] = nativeCell{walkable: true, light: true, storageEmpty: true, fertility: 1, room: "1"}
+		cells[j] = nativeCell{walkable: true, light: true, storageEmpty: true, fertility: 1, room: "1", terrain: "Soil", foundation: "Heavy,Light", snow: 0.25, inHome: j%2 == 0}
 	}
+	rice := policy.Thing{Def: "Plant_Rice", Category: policy.ThingPlant, ID: 5, Count: 1, Plant: policy.PlantState{Growth: 0.5}}
+	wall := policy.Thing{Def: "Wall", Category: policy.ThingBuilding, Faction: policy.FactionPlayer, Flags: policy.FlagEdifice | policy.FlagImpassable, ID: 6, Count: 1, Building: &policy.BuildingState{HitPoints: 300}}
+	cells[3].things = []policy.Thing{rice}
+	cells[9].things = []policy.Thing{rice, wall}
 	cells[1] = nativeCell{fogged: true}                                                                                               // (1,0)
 	cells[2] = nativeCell{walkable: true, light: true, roof: "RoofConstructed", indoors: true, room: "4", glow: 0.42, zone: "Zone_9"} // (2,0) roofed, lit
 	cells[5] = nativeCell{occupied: true, edifice: "Wall", light: true, roof: "RoofConstructed"}                                      // (1,1) wall
@@ -67,7 +75,8 @@ func gridBand(cells []nativeCell, rect policy.Rectangle, sky float64) ([]policy.
 			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(n.walkable), Occupied: domain.Known(n.occupied), Doorway: domain.Known(n.doorway),
 				SupportsLight: domain.Known(n.light), NaturalRock: domain.Known(n.naturalRock), Ruin: domain.Known(n.ruin), StorageEmpty: domain.Known(n.storageEmpty),
 				Indoors: domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
-				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room), PlayerEdifice: domain.Known(n.edifice), ClaimableRuin: domain.Known(n.claimable)}
+				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room), PlayerEdifice: domain.Known(n.edifice), ClaimableRuin: domain.Known(n.claimable),
+				Terrain: named(n.terrain), InHome: domain.Known(n.inHome), FoundationAffordances: named(n.foundation), SnowDepth: domain.Known(n.snow), TopLayerRemovable: domain.Known(n.topRemovable), Things: n.things}
 			if n.fertility > 0 {
 				cell.Fertility = domain.Known(n.fertility)
 			}
@@ -153,7 +162,39 @@ func gridWire(cells []nativeCell) *mp.CellGrid {
 	g.ClaimableRuin = str(func(n nativeCell) (string, bool) { return n.claimable, true })
 	g.RuinHold = str(func(nativeCell) (string, bool) { return "", false })
 	g.Room = str(named(func(n nativeCell) string { return n.room }))
+	g.Terrain = str(named(func(n nativeCell) string { return n.terrain }))
+	g.InHome = code(func(n nativeCell) bool { return n.inHome })
+	g.FoundationAffordances = str(named(func(n nativeCell) string { return n.foundation }))
+	g.SnowDepth = number(func(n nativeCell) (float64, bool) { return n.snow, true })
+	g.TopLayerRemovable = code(func(n nativeCell) bool { return n.topRemovable })
+	g.Things = thingList(cells, index)
 	return g
+}
+
+// thingList is the cells' things as native's keyframe lists them: the
+// cells holding any, each replaced in full. The test things are plants and
+// walls, the two states it needs.
+func thingList(cells []nativeCell, index func(string, bool) uint32) *mp.ThingList {
+	list := &mp.ThingList{Offsets: []uint32{0}}
+	for j, n := range cells {
+		if len(n.things) == 0 {
+			continue
+		}
+		list.Cells = append(list.Cells, uint32(j))
+		for _, t := range n.things {
+			w := &mp.Thing{Def: index(t.Def, true), Faction: mp.ThingFaction(t.Faction), Flags: uint32(t.Flags), Id: t.ID, Count: t.Count}
+			if t.Category == policy.ThingPlant {
+				w.Category = mp.ThingCategory_THING_CATEGORY_PLANT
+				w.State = &mp.Thing_Plant{Plant: &mp.PlantState{Growth: t.Plant.Growth, Blighted: t.Plant.Blighted}}
+			} else {
+				w.Category = mp.ThingCategory_THING_CATEGORY_BUILDING
+				w.State = &mp.Thing_Building{Building: &mp.BuildingState{HitPoints: t.Building.HitPoints}}
+			}
+			list.Things = append(list.Things, w)
+		}
+		list.Offsets = append(list.Offsets, uint32(len(list.Things)))
+	}
+	return list
 }
 
 func gridFrame(base *o.BundleSnapshot, tick int64, grid *mp.CellGrid, seq uint64, sky float64) *o.BundleSnapshot {
@@ -181,7 +222,7 @@ func TestFrameGridMatchesTheBand(t *testing.T) {
 			t.Fatalf("%s: %d cells %d fogged, band %d cells %d fogged", label, len(window.Cells), window.Filtered, len(want), filtered)
 		}
 		for i := range want {
-			if window.Cells[i] != want[i] {
+			if !window.Cells[i].Equal(want[i]) {
 				t.Fatalf("%s cell %v:\n grid %+v\n band %+v", label, want[i].Cell, window.Cells[i], want[i])
 			}
 		}

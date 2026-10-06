@@ -79,7 +79,7 @@ func sameWindowRows(rows map[domain.Cell]policy.SiteCell, cells []policy.SiteCel
 		return false
 	}
 	for _, cell := range cells {
-		if row, ok := rows[cell.Cell]; !ok || row != cell {
+		if row, ok := rows[cell.Cell]; !ok || !row.Equal(cell) {
 			return false
 		}
 	}

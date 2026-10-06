@@ -43,6 +43,19 @@ type SiteCell struct {
 	// empty for none (#718): a ring claims a ruin only where the claim
 	// would act on it (ShellRuinHolds).
 	RuinHold string
+	// The per-cell thing list and the tile columns that join it (#2260, epic
+	// #2241). Terrain names the terrain def; InHome is inside the home area;
+	// FoundationAffordances is the comma-joined, sorted affordances a
+	// foundation may stand on; SnowDepth and TopLayerRemovable read the
+	// ground. Things lists the cell's non-pawn things in native order: a
+	// view into the grid's shared slab, never to be modified. Empty means
+	// none on a held cell; a fogged cell is not a row at all.
+	Terrain               domain.Fact[string]
+	InHome                domain.Fact[bool]
+	FoundationAffordances domain.Fact[string]
+	SnowDepth             domain.Fact[float64]
+	TopLayerRemovable     domain.Fact[bool]
+	Things                []Thing `json:",omitempty"`
 }
 
 // StarterRequest is one planned-room shell siting (#1231): the planned

@@ -328,4 +328,119 @@ message CellGrid {
   FieldArray claimable_ruin = 20;
   FieldArray ruin_hold = 21;
   FieldArray room = 22;
+  // Columns 23 on were appended by #2260 (the per-cell thing list, epic
+  // #2241). A keyframe may omit them (an absent column is the default: terrain
+  // and the facts unknown, no things); once the native encoder writes them
+  // (#2261) it carries every one. A fogged cell (cell code 0) stays unknown,
+  // distinct from a held cell with no things.
+  FieldArray terrain = 23;               // string: the terrain def
+  FieldArray in_home = 24;               // bool codes: inside the home area
+  FieldArray foundation_affordances = 25; // string: the terrain affordances a foundation may stand on, comma-joined and sorted
+  FieldArray snow_depth = 26;            // numbers
+  FieldArray top_layer_removable = 27;   // bool codes: the top terrain layer can be removed
+  ThingList things = 28;
+}
+
+// What a thing is. Spawned pawns are never listed.
+enum ThingCategory {
+  THING_CATEGORY_UNSPECIFIED = 0; // refused
+  THING_CATEGORY_ITEM = 1;     // state: item
+  THING_CATEGORY_BUILDING = 2; // state: building (blueprints and frames too, by flag)
+  THING_CATEGORY_PLANT = 3;    // state: plant
+  THING_CATEGORY_FILTH = 4;    // state: filth
+  THING_CATEGORY_CORPSE = 5;   // state: corpse
+  THING_CATEGORY_OTHER = 6;    // no state
+}
+
+// Whose a thing is.
+enum ThingFaction {
+  THING_FACTION_NONE = 0; // unowned
+  THING_FACTION_PLAYER = 1;
+  THING_FACTION_NEUTRAL = 2;
+  THING_FACTION_HOSTILE = 3;
+}
+
+// Thing.flags bits (a value is a mask; any other bit is refused).
+enum ThingFlag {
+  THING_FLAG_NONE = 0;
+  THING_FLAG_EDIFICE = 1;
+  THING_FLAG_BLUEPRINT = 2;
+  THING_FLAG_FRAME = 4;
+  THING_FLAG_IMPASSABLE = 8;
+  THING_FLAG_HOLDS_ROOF = 16;
+  THING_FLAG_DECONSTRUCTIBLE = 32;
+  THING_FLAG_MINIFIABLE = 64;
+  THING_FLAG_CLAIMABLE = 128;
+  THING_FLAG_DESIGNATED = 256;
+  THING_FLAG_FORBIDDEN = 512;
+  THING_FLAG_HAULABLE = 1024;
+  THING_FLAG_ANCIENT_DANGER = 2048;
+}
+
+enum CorpseClass {
+  CORPSE_CLASS_OTHER = 0;
+  CORPSE_CLASS_HUMANLIKE = 1;
+  CORPSE_CLASS_ANIMAL = 2;
+}
+
+// The things on a grid's cells (#2260), sparse over a base: in a keyframe
+// every cell has none, in a delta the keyframe's lists (cumulative, never
+// chained). cells lists, ascending and distinct, the cells whose list
+// is replaced; offsets (cells.length + 1 prefix sums, from 0, never
+// decreasing, ending at things.length) cut things into one list per listed
+// cell, an empty list clearing the cell. A delta lists only cells whose list
+// differs from the keyframe's.
+message ThingList {
+  repeated uint32 cells = 1;
+  repeated uint32 offsets = 2;
+  repeated Thing things = 3;
+}
+
+// One thing on a cell. def and the string fields below are string table
+// indexes (k for strings[k-1]; 0 is refused). state must match category.
+message Thing {
+  uint32 def = 1;
+  ThingCategory category = 2;
+  ThingFaction faction = 3;
+  uint32 flags = 4;
+  uint64 id = 5;
+  uint32 count = 6; // stack count
+  oneof state {
+    PlantState plant = 7;
+    CorpseState corpse = 8;
+    FilthState filth = 9;
+    BuildingState building = 10;
+    ItemState item = 11;
+  }
+}
+
+message PlantState {
+  float growth = 1; // 0..1
+  bool blighted = 2;
+}
+
+message CorpseState {
+  CorpseClass class = 1;
+  float rot = 2; // rot progress, 0 fresh .. 1 dessicated
+}
+
+message FilthState {
+  uint32 thickness = 1;
+}
+
+message MaterialNeed {
+  uint32 def = 1; // string table index
+  uint32 count = 2;
+}
+
+message BuildingState {
+  uint32 hit_points = 1;
+  bool burning = 2;
+  repeated MaterialNeed needed = 3; // a blueprint or frame's materials still owed
+  repeated uint32 casket = 4;       // def indexes of what a casket holds
+  bool reserved = 5;
+}
+
+message ItemState {
+  float deterioration = 1; // 0 sound .. 1 ruined
 }

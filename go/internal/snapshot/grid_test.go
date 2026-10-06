@@ -67,6 +67,7 @@ func regrid(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []fac
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("%d versions replayed, %d as grid lines", versions, grids)
 	if versions < len(tables) || grids == 0 {
 		t.Fatalf("%d versions replayed of %d, %d grid lines", versions, len(tables), grids)
 	}
@@ -168,6 +169,31 @@ func TestGridRoundTripsLiveStream(t *testing.T) {
 		logRowForm(t, tables, scopes)
 		logSizes(t, "regridded", regrid(t, tables, scopes))
 	}
+}
+
+// A planning window holding things records as a grid and rebuilds its rows
+// byte for byte through added, replaced and cleared lists (#2260).
+func TestGridRoundTripsThings(t *testing.T) {
+	wall := policy.Thing{Def: "Wall", Category: policy.ThingBuilding, Faction: policy.FactionPlayer, Flags: policy.FlagEdifice | policy.FlagImpassable, ID: 1, Count: 1,
+		Building: &policy.BuildingState{HitPoints: 300, Needed: []policy.Material{{Def: "Steel", Count: 5}}}}
+	rice := policy.Thing{Def: "Plant_Rice", Category: policy.ThingPlant, ID: 2, Count: 1, Plant: policy.PlantState{Growth: 0.5, Blighted: true}}
+	corpse := policy.Thing{Def: "Corpse_Rat", Category: policy.ThingCorpse, ID: 3, Count: 1, Corpse: policy.CorpseState{Class: policy.CorpseAnimal, Rot: 0.5}}
+	table := func(things map[int32][]policy.Thing) map[domain.Cell]policy.SiteCell {
+		rows := map[domain.Cell]policy.SiteCell{}
+		for x := int32(0); x < 4; x++ {
+			c := domain.Cell{X: x, Z: 1}
+			rows[c] = policy.SiteCell{Cell: c, Walkable: domain.Known(true), Terrain: domain.Known("Soil"), SnowDepth: domain.Known(0.5), Things: things[x]}
+		}
+		return rows
+	}
+	scope := facts.Scope{Load: "l", Map: 1, Generation: 1}
+	tables := []map[domain.Cell]policy.SiteCell{
+		table(nil),
+		table(map[int32][]policy.Thing{0: {wall}, 2: {rice, corpse}}),
+		table(map[int32][]policy.Thing{0: {wall}, 2: {rice}, 3: {corpse}}),
+		table(map[int32][]policy.Thing{3: {corpse}}),
+	}
+	regrid(t, tables, []facts.Scope{scope, scope, scope, scope})
 }
 
 func logSizes(t *testing.T, label, path string) {

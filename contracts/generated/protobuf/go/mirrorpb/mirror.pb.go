@@ -228,6 +228,250 @@ func (CombatLogKind) EnumDescriptor() ([]byte, []int) {
 	return file_mirror_proto_rawDescGZIP(), []int{2}
 }
 
+// What a thing is. Spawned pawns are never listed.
+type ThingCategory int32
+
+const (
+	ThingCategory_THING_CATEGORY_UNSPECIFIED ThingCategory = 0 // refused
+	ThingCategory_THING_CATEGORY_ITEM        ThingCategory = 1 // state: item
+	ThingCategory_THING_CATEGORY_BUILDING    ThingCategory = 2 // state: building (blueprints and frames too, by flag)
+	ThingCategory_THING_CATEGORY_PLANT       ThingCategory = 3 // state: plant
+	ThingCategory_THING_CATEGORY_FILTH       ThingCategory = 4 // state: filth
+	ThingCategory_THING_CATEGORY_CORPSE      ThingCategory = 5 // state: corpse
+	ThingCategory_THING_CATEGORY_OTHER       ThingCategory = 6 // no state
+)
+
+// Enum value maps for ThingCategory.
+var (
+	ThingCategory_name = map[int32]string{
+		0: "THING_CATEGORY_UNSPECIFIED",
+		1: "THING_CATEGORY_ITEM",
+		2: "THING_CATEGORY_BUILDING",
+		3: "THING_CATEGORY_PLANT",
+		4: "THING_CATEGORY_FILTH",
+		5: "THING_CATEGORY_CORPSE",
+		6: "THING_CATEGORY_OTHER",
+	}
+	ThingCategory_value = map[string]int32{
+		"THING_CATEGORY_UNSPECIFIED": 0,
+		"THING_CATEGORY_ITEM":        1,
+		"THING_CATEGORY_BUILDING":    2,
+		"THING_CATEGORY_PLANT":       3,
+		"THING_CATEGORY_FILTH":       4,
+		"THING_CATEGORY_CORPSE":      5,
+		"THING_CATEGORY_OTHER":       6,
+	}
+)
+
+func (x ThingCategory) Enum() *ThingCategory {
+	p := new(ThingCategory)
+	*p = x
+	return p
+}
+
+func (x ThingCategory) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ThingCategory) Descriptor() protoreflect.EnumDescriptor {
+	return file_mirror_proto_enumTypes[3].Descriptor()
+}
+
+func (ThingCategory) Type() protoreflect.EnumType {
+	return &file_mirror_proto_enumTypes[3]
+}
+
+func (x ThingCategory) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ThingCategory.Descriptor instead.
+func (ThingCategory) EnumDescriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{3}
+}
+
+// Whose a thing is.
+type ThingFaction int32
+
+const (
+	ThingFaction_THING_FACTION_NONE    ThingFaction = 0 // unowned
+	ThingFaction_THING_FACTION_PLAYER  ThingFaction = 1
+	ThingFaction_THING_FACTION_NEUTRAL ThingFaction = 2
+	ThingFaction_THING_FACTION_HOSTILE ThingFaction = 3
+)
+
+// Enum value maps for ThingFaction.
+var (
+	ThingFaction_name = map[int32]string{
+		0: "THING_FACTION_NONE",
+		1: "THING_FACTION_PLAYER",
+		2: "THING_FACTION_NEUTRAL",
+		3: "THING_FACTION_HOSTILE",
+	}
+	ThingFaction_value = map[string]int32{
+		"THING_FACTION_NONE":    0,
+		"THING_FACTION_PLAYER":  1,
+		"THING_FACTION_NEUTRAL": 2,
+		"THING_FACTION_HOSTILE": 3,
+	}
+)
+
+func (x ThingFaction) Enum() *ThingFaction {
+	p := new(ThingFaction)
+	*p = x
+	return p
+}
+
+func (x ThingFaction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ThingFaction) Descriptor() protoreflect.EnumDescriptor {
+	return file_mirror_proto_enumTypes[4].Descriptor()
+}
+
+func (ThingFaction) Type() protoreflect.EnumType {
+	return &file_mirror_proto_enumTypes[4]
+}
+
+func (x ThingFaction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ThingFaction.Descriptor instead.
+func (ThingFaction) EnumDescriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{4}
+}
+
+// Thing.flags bits (a value is a mask; any other bit is refused).
+type ThingFlag int32
+
+const (
+	ThingFlag_THING_FLAG_NONE            ThingFlag = 0
+	ThingFlag_THING_FLAG_EDIFICE         ThingFlag = 1
+	ThingFlag_THING_FLAG_BLUEPRINT       ThingFlag = 2
+	ThingFlag_THING_FLAG_FRAME           ThingFlag = 4
+	ThingFlag_THING_FLAG_IMPASSABLE      ThingFlag = 8
+	ThingFlag_THING_FLAG_HOLDS_ROOF      ThingFlag = 16
+	ThingFlag_THING_FLAG_DECONSTRUCTIBLE ThingFlag = 32
+	ThingFlag_THING_FLAG_MINIFIABLE      ThingFlag = 64
+	ThingFlag_THING_FLAG_CLAIMABLE       ThingFlag = 128
+	ThingFlag_THING_FLAG_DESIGNATED      ThingFlag = 256
+	ThingFlag_THING_FLAG_FORBIDDEN       ThingFlag = 512
+	ThingFlag_THING_FLAG_HAULABLE        ThingFlag = 1024
+	ThingFlag_THING_FLAG_ANCIENT_DANGER  ThingFlag = 2048
+)
+
+// Enum value maps for ThingFlag.
+var (
+	ThingFlag_name = map[int32]string{
+		0:    "THING_FLAG_NONE",
+		1:    "THING_FLAG_EDIFICE",
+		2:    "THING_FLAG_BLUEPRINT",
+		4:    "THING_FLAG_FRAME",
+		8:    "THING_FLAG_IMPASSABLE",
+		16:   "THING_FLAG_HOLDS_ROOF",
+		32:   "THING_FLAG_DECONSTRUCTIBLE",
+		64:   "THING_FLAG_MINIFIABLE",
+		128:  "THING_FLAG_CLAIMABLE",
+		256:  "THING_FLAG_DESIGNATED",
+		512:  "THING_FLAG_FORBIDDEN",
+		1024: "THING_FLAG_HAULABLE",
+		2048: "THING_FLAG_ANCIENT_DANGER",
+	}
+	ThingFlag_value = map[string]int32{
+		"THING_FLAG_NONE":            0,
+		"THING_FLAG_EDIFICE":         1,
+		"THING_FLAG_BLUEPRINT":       2,
+		"THING_FLAG_FRAME":           4,
+		"THING_FLAG_IMPASSABLE":      8,
+		"THING_FLAG_HOLDS_ROOF":      16,
+		"THING_FLAG_DECONSTRUCTIBLE": 32,
+		"THING_FLAG_MINIFIABLE":      64,
+		"THING_FLAG_CLAIMABLE":       128,
+		"THING_FLAG_DESIGNATED":      256,
+		"THING_FLAG_FORBIDDEN":       512,
+		"THING_FLAG_HAULABLE":        1024,
+		"THING_FLAG_ANCIENT_DANGER":  2048,
+	}
+)
+
+func (x ThingFlag) Enum() *ThingFlag {
+	p := new(ThingFlag)
+	*p = x
+	return p
+}
+
+func (x ThingFlag) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ThingFlag) Descriptor() protoreflect.EnumDescriptor {
+	return file_mirror_proto_enumTypes[5].Descriptor()
+}
+
+func (ThingFlag) Type() protoreflect.EnumType {
+	return &file_mirror_proto_enumTypes[5]
+}
+
+func (x ThingFlag) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ThingFlag.Descriptor instead.
+func (ThingFlag) EnumDescriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{5}
+}
+
+type CorpseClass int32
+
+const (
+	CorpseClass_CORPSE_CLASS_OTHER     CorpseClass = 0
+	CorpseClass_CORPSE_CLASS_HUMANLIKE CorpseClass = 1
+	CorpseClass_CORPSE_CLASS_ANIMAL    CorpseClass = 2
+)
+
+// Enum value maps for CorpseClass.
+var (
+	CorpseClass_name = map[int32]string{
+		0: "CORPSE_CLASS_OTHER",
+		1: "CORPSE_CLASS_HUMANLIKE",
+		2: "CORPSE_CLASS_ANIMAL",
+	}
+	CorpseClass_value = map[string]int32{
+		"CORPSE_CLASS_OTHER":     0,
+		"CORPSE_CLASS_HUMANLIKE": 1,
+		"CORPSE_CLASS_ANIMAL":    2,
+	}
+)
+
+func (x CorpseClass) Enum() *CorpseClass {
+	p := new(CorpseClass)
+	*p = x
+	return p
+}
+
+func (x CorpseClass) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CorpseClass) Descriptor() protoreflect.EnumDescriptor {
+	return file_mirror_proto_enumTypes[6].Descriptor()
+}
+
+func (CorpseClass) Type() protoreflect.EnumType {
+	return &file_mirror_proto_enumTypes[6]
+}
+
+func (x CorpseClass) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CorpseClass.Descriptor instead.
+func (CorpseClass) EnumDescriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{6}
+}
+
 // One combat pawn row (BundleSnapshot.combat_pawns). Numbers are thresholded so a
 // row only changes when a decision could: fractions to 0.01, bleed and pain
 // to 0.05, move speed to 0.1 cells/s.
@@ -1991,8 +2235,19 @@ type CellGrid struct {
 	ClaimableRuin *FieldArray            `protobuf:"bytes,20,opt,name=claimable_ruin,json=claimableRuin,proto3" json:"claimable_ruin,omitempty"`
 	RuinHold      *FieldArray            `protobuf:"bytes,21,opt,name=ruin_hold,json=ruinHold,proto3" json:"ruin_hold,omitempty"`
 	Room          *FieldArray            `protobuf:"bytes,22,opt,name=room,proto3" json:"room,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Columns 23 on were appended by #2260 (the per-cell thing list, epic
+	// #2241). A keyframe may omit them (an absent column is the default: terrain
+	// and the facts unknown, no things); once the native encoder writes them
+	// (#2261) it carries every one. A fogged cell (cell code 0) stays unknown,
+	// distinct from a held cell with no things.
+	Terrain               *FieldArray `protobuf:"bytes,23,opt,name=terrain,proto3" json:"terrain,omitempty"`                                                          // string: the terrain def
+	InHome                *FieldArray `protobuf:"bytes,24,opt,name=in_home,json=inHome,proto3" json:"in_home,omitempty"`                                              // bool codes: inside the home area
+	FoundationAffordances *FieldArray `protobuf:"bytes,25,opt,name=foundation_affordances,json=foundationAffordances,proto3" json:"foundation_affordances,omitempty"` // string: the terrain affordances a foundation may stand on, comma-joined and sorted
+	SnowDepth             *FieldArray `protobuf:"bytes,26,opt,name=snow_depth,json=snowDepth,proto3" json:"snow_depth,omitempty"`                                     // numbers
+	TopLayerRemovable     *FieldArray `protobuf:"bytes,27,opt,name=top_layer_removable,json=topLayerRemovable,proto3" json:"top_layer_removable,omitempty"`           // bool codes: the top terrain layer can be removed
+	Things                *ThingList  `protobuf:"bytes,28,opt,name=things,proto3" json:"things,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *CellGrid) Reset() {
@@ -2177,6 +2432,615 @@ func (x *CellGrid) GetRoom() *FieldArray {
 		return x.Room
 	}
 	return nil
+}
+
+func (x *CellGrid) GetTerrain() *FieldArray {
+	if x != nil {
+		return x.Terrain
+	}
+	return nil
+}
+
+func (x *CellGrid) GetInHome() *FieldArray {
+	if x != nil {
+		return x.InHome
+	}
+	return nil
+}
+
+func (x *CellGrid) GetFoundationAffordances() *FieldArray {
+	if x != nil {
+		return x.FoundationAffordances
+	}
+	return nil
+}
+
+func (x *CellGrid) GetSnowDepth() *FieldArray {
+	if x != nil {
+		return x.SnowDepth
+	}
+	return nil
+}
+
+func (x *CellGrid) GetTopLayerRemovable() *FieldArray {
+	if x != nil {
+		return x.TopLayerRemovable
+	}
+	return nil
+}
+
+func (x *CellGrid) GetThings() *ThingList {
+	if x != nil {
+		return x.Things
+	}
+	return nil
+}
+
+// The things on a grid's cells (#2260), sparse over a base: in a keyframe
+// every cell has none, in a delta the keyframe's lists (cumulative, never
+// chained). cells lists, ascending and distinct, the cells whose list
+// is replaced; offsets (cells.length + 1 prefix sums, from 0, never
+// decreasing, ending at things.length) cut things into one list per listed
+// cell, an empty list clearing the cell. A delta lists only cells whose list
+// differs from the keyframe's.
+type ThingList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cells         []uint32               `protobuf:"varint,1,rep,packed,name=cells,proto3" json:"cells,omitempty"`
+	Offsets       []uint32               `protobuf:"varint,2,rep,packed,name=offsets,proto3" json:"offsets,omitempty"`
+	Things        []*Thing               `protobuf:"bytes,3,rep,name=things,proto3" json:"things,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThingList) Reset() {
+	*x = ThingList{}
+	mi := &file_mirror_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThingList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThingList) ProtoMessage() {}
+
+func (x *ThingList) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThingList.ProtoReflect.Descriptor instead.
+func (*ThingList) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ThingList) GetCells() []uint32 {
+	if x != nil {
+		return x.Cells
+	}
+	return nil
+}
+
+func (x *ThingList) GetOffsets() []uint32 {
+	if x != nil {
+		return x.Offsets
+	}
+	return nil
+}
+
+func (x *ThingList) GetThings() []*Thing {
+	if x != nil {
+		return x.Things
+	}
+	return nil
+}
+
+// One thing on a cell. def and the string fields below are string table
+// indexes (k for strings[k-1]; 0 is refused). state must match category.
+type Thing struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Def      uint32                 `protobuf:"varint,1,opt,name=def,proto3" json:"def,omitempty"`
+	Category ThingCategory          `protobuf:"varint,2,opt,name=category,proto3,enum=rimgovernor.mirror.v1.ThingCategory" json:"category,omitempty"`
+	Faction  ThingFaction           `protobuf:"varint,3,opt,name=faction,proto3,enum=rimgovernor.mirror.v1.ThingFaction" json:"faction,omitempty"`
+	Flags    uint32                 `protobuf:"varint,4,opt,name=flags,proto3" json:"flags,omitempty"`
+	Id       uint64                 `protobuf:"varint,5,opt,name=id,proto3" json:"id,omitempty"`
+	Count    uint32                 `protobuf:"varint,6,opt,name=count,proto3" json:"count,omitempty"` // stack count
+	// Types that are valid to be assigned to State:
+	//
+	//	*Thing_Plant
+	//	*Thing_Corpse
+	//	*Thing_Filth
+	//	*Thing_Building
+	//	*Thing_Item
+	State         isThing_State `protobuf_oneof:"state"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Thing) Reset() {
+	*x = Thing{}
+	mi := &file_mirror_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Thing) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Thing) ProtoMessage() {}
+
+func (x *Thing) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Thing.ProtoReflect.Descriptor instead.
+func (*Thing) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *Thing) GetDef() uint32 {
+	if x != nil {
+		return x.Def
+	}
+	return 0
+}
+
+func (x *Thing) GetCategory() ThingCategory {
+	if x != nil {
+		return x.Category
+	}
+	return ThingCategory_THING_CATEGORY_UNSPECIFIED
+}
+
+func (x *Thing) GetFaction() ThingFaction {
+	if x != nil {
+		return x.Faction
+	}
+	return ThingFaction_THING_FACTION_NONE
+}
+
+func (x *Thing) GetFlags() uint32 {
+	if x != nil {
+		return x.Flags
+	}
+	return 0
+}
+
+func (x *Thing) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Thing) GetCount() uint32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *Thing) GetState() isThing_State {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+func (x *Thing) GetPlant() *PlantState {
+	if x != nil {
+		if x, ok := x.State.(*Thing_Plant); ok {
+			return x.Plant
+		}
+	}
+	return nil
+}
+
+func (x *Thing) GetCorpse() *CorpseState {
+	if x != nil {
+		if x, ok := x.State.(*Thing_Corpse); ok {
+			return x.Corpse
+		}
+	}
+	return nil
+}
+
+func (x *Thing) GetFilth() *FilthState {
+	if x != nil {
+		if x, ok := x.State.(*Thing_Filth); ok {
+			return x.Filth
+		}
+	}
+	return nil
+}
+
+func (x *Thing) GetBuilding() *BuildingState {
+	if x != nil {
+		if x, ok := x.State.(*Thing_Building); ok {
+			return x.Building
+		}
+	}
+	return nil
+}
+
+func (x *Thing) GetItem() *ItemState {
+	if x != nil {
+		if x, ok := x.State.(*Thing_Item); ok {
+			return x.Item
+		}
+	}
+	return nil
+}
+
+type isThing_State interface {
+	isThing_State()
+}
+
+type Thing_Plant struct {
+	Plant *PlantState `protobuf:"bytes,7,opt,name=plant,proto3,oneof"`
+}
+
+type Thing_Corpse struct {
+	Corpse *CorpseState `protobuf:"bytes,8,opt,name=corpse,proto3,oneof"`
+}
+
+type Thing_Filth struct {
+	Filth *FilthState `protobuf:"bytes,9,opt,name=filth,proto3,oneof"`
+}
+
+type Thing_Building struct {
+	Building *BuildingState `protobuf:"bytes,10,opt,name=building,proto3,oneof"`
+}
+
+type Thing_Item struct {
+	Item *ItemState `protobuf:"bytes,11,opt,name=item,proto3,oneof"`
+}
+
+func (*Thing_Plant) isThing_State() {}
+
+func (*Thing_Corpse) isThing_State() {}
+
+func (*Thing_Filth) isThing_State() {}
+
+func (*Thing_Building) isThing_State() {}
+
+func (*Thing_Item) isThing_State() {}
+
+type PlantState struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Growth        float32                `protobuf:"fixed32,1,opt,name=growth,proto3" json:"growth,omitempty"` // 0..1
+	Blighted      bool                   `protobuf:"varint,2,opt,name=blighted,proto3" json:"blighted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlantState) Reset() {
+	*x = PlantState{}
+	mi := &file_mirror_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlantState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlantState) ProtoMessage() {}
+
+func (x *PlantState) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlantState.ProtoReflect.Descriptor instead.
+func (*PlantState) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *PlantState) GetGrowth() float32 {
+	if x != nil {
+		return x.Growth
+	}
+	return 0
+}
+
+func (x *PlantState) GetBlighted() bool {
+	if x != nil {
+		return x.Blighted
+	}
+	return false
+}
+
+type CorpseState struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Class         CorpseClass            `protobuf:"varint,1,opt,name=class,proto3,enum=rimgovernor.mirror.v1.CorpseClass" json:"class,omitempty"`
+	Rot           float32                `protobuf:"fixed32,2,opt,name=rot,proto3" json:"rot,omitempty"` // rot progress, 0 fresh .. 1 dessicated
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CorpseState) Reset() {
+	*x = CorpseState{}
+	mi := &file_mirror_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CorpseState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CorpseState) ProtoMessage() {}
+
+func (x *CorpseState) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CorpseState.ProtoReflect.Descriptor instead.
+func (*CorpseState) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CorpseState) GetClass() CorpseClass {
+	if x != nil {
+		return x.Class
+	}
+	return CorpseClass_CORPSE_CLASS_OTHER
+}
+
+func (x *CorpseState) GetRot() float32 {
+	if x != nil {
+		return x.Rot
+	}
+	return 0
+}
+
+type FilthState struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Thickness     uint32                 `protobuf:"varint,1,opt,name=thickness,proto3" json:"thickness,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilthState) Reset() {
+	*x = FilthState{}
+	mi := &file_mirror_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilthState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilthState) ProtoMessage() {}
+
+func (x *FilthState) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilthState.ProtoReflect.Descriptor instead.
+func (*FilthState) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *FilthState) GetThickness() uint32 {
+	if x != nil {
+		return x.Thickness
+	}
+	return 0
+}
+
+type MaterialNeed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Def           uint32                 `protobuf:"varint,1,opt,name=def,proto3" json:"def,omitempty"` // string table index
+	Count         uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MaterialNeed) Reset() {
+	*x = MaterialNeed{}
+	mi := &file_mirror_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MaterialNeed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MaterialNeed) ProtoMessage() {}
+
+func (x *MaterialNeed) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MaterialNeed.ProtoReflect.Descriptor instead.
+func (*MaterialNeed) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *MaterialNeed) GetDef() uint32 {
+	if x != nil {
+		return x.Def
+	}
+	return 0
+}
+
+func (x *MaterialNeed) GetCount() uint32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type BuildingState struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HitPoints     uint32                 `protobuf:"varint,1,opt,name=hit_points,json=hitPoints,proto3" json:"hit_points,omitempty"`
+	Burning       bool                   `protobuf:"varint,2,opt,name=burning,proto3" json:"burning,omitempty"`
+	Needed        []*MaterialNeed        `protobuf:"bytes,3,rep,name=needed,proto3" json:"needed,omitempty"`         // a blueprint or frame's materials still owed
+	Casket        []uint32               `protobuf:"varint,4,rep,packed,name=casket,proto3" json:"casket,omitempty"` // def indexes of what a casket holds
+	Reserved      bool                   `protobuf:"varint,5,opt,name=reserved,proto3" json:"reserved,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BuildingState) Reset() {
+	*x = BuildingState{}
+	mi := &file_mirror_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BuildingState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BuildingState) ProtoMessage() {}
+
+func (x *BuildingState) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BuildingState.ProtoReflect.Descriptor instead.
+func (*BuildingState) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *BuildingState) GetHitPoints() uint32 {
+	if x != nil {
+		return x.HitPoints
+	}
+	return 0
+}
+
+func (x *BuildingState) GetBurning() bool {
+	if x != nil {
+		return x.Burning
+	}
+	return false
+}
+
+func (x *BuildingState) GetNeeded() []*MaterialNeed {
+	if x != nil {
+		return x.Needed
+	}
+	return nil
+}
+
+func (x *BuildingState) GetCasket() []uint32 {
+	if x != nil {
+		return x.Casket
+	}
+	return nil
+}
+
+func (x *BuildingState) GetReserved() bool {
+	if x != nil {
+		return x.Reserved
+	}
+	return false
+}
+
+type ItemState struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deterioration float32                `protobuf:"fixed32,1,opt,name=deterioration,proto3" json:"deterioration,omitempty"` // 0 sound .. 1 ruined
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ItemState) Reset() {
+	*x = ItemState{}
+	mi := &file_mirror_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ItemState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ItemState) ProtoMessage() {}
+
+func (x *ItemState) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ItemState.ProtoReflect.Descriptor instead.
+func (*ItemState) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ItemState) GetDeterioration() float32 {
+	if x != nil {
+		return x.Deterioration
+	}
+	return 0
 }
 
 var File_mirror_proto protoreflect.FileDescriptor
@@ -2393,8 +3257,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\vSparseArray\x12\x14\n" +
 	"\x05index\x18\x01 \x03(\rR\x05index\x12\x12\n" +
 	"\x04code\x18\x02 \x03(\rR\x04code\x12\x16\n" +
-	"\x06number\x18\x03 \x03(\x01R\x06number\"\xbe\n" +
-	"\n" +
+	"\x06number\x18\x03 \x03(\x01R\x06number\"\xe0\r\n" +
 	"\bCellGrid\x123\n" +
 	"\x04rect\x18\x01 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x04rect\x12\x18\n" +
 	"\astrings\x18\x02 \x03(\tR\astrings\x125\n" +
@@ -2418,7 +3281,54 @@ const file_mirror_proto_rawDesc = "" +
 	"\x0eplayer_edifice\x18\x13 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rplayerEdifice\x12H\n" +
 	"\x0eclaimable_ruin\x18\x14 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rclaimableRuin\x12>\n" +
 	"\truin_hold\x18\x15 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bruinHold\x125\n" +
-	"\x04room\x18\x16 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04room*\xb2\x01\n" +
+	"\x04room\x18\x16 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04room\x12;\n" +
+	"\aterrain\x18\x17 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\aterrain\x12:\n" +
+	"\ain_home\x18\x18 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x06inHome\x12X\n" +
+	"\x16foundation_affordances\x18\x19 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x15foundationAffordances\x12@\n" +
+	"\n" +
+	"snow_depth\x18\x1a \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\tsnowDepth\x12Q\n" +
+	"\x13top_layer_removable\x18\x1b \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x11topLayerRemovable\x128\n" +
+	"\x06things\x18\x1c \x01(\v2 .rimgovernor.mirror.v1.ThingListR\x06things\"q\n" +
+	"\tThingList\x12\x14\n" +
+	"\x05cells\x18\x01 \x03(\rR\x05cells\x12\x18\n" +
+	"\aoffsets\x18\x02 \x03(\rR\aoffsets\x124\n" +
+	"\x06things\x18\x03 \x03(\v2\x1c.rimgovernor.mirror.v1.ThingR\x06things\"\x8f\x04\n" +
+	"\x05Thing\x12\x10\n" +
+	"\x03def\x18\x01 \x01(\rR\x03def\x12@\n" +
+	"\bcategory\x18\x02 \x01(\x0e2$.rimgovernor.mirror.v1.ThingCategoryR\bcategory\x12=\n" +
+	"\afaction\x18\x03 \x01(\x0e2#.rimgovernor.mirror.v1.ThingFactionR\afaction\x12\x14\n" +
+	"\x05flags\x18\x04 \x01(\rR\x05flags\x12\x0e\n" +
+	"\x02id\x18\x05 \x01(\x04R\x02id\x12\x14\n" +
+	"\x05count\x18\x06 \x01(\rR\x05count\x129\n" +
+	"\x05plant\x18\a \x01(\v2!.rimgovernor.mirror.v1.PlantStateH\x00R\x05plant\x12<\n" +
+	"\x06corpse\x18\b \x01(\v2\".rimgovernor.mirror.v1.CorpseStateH\x00R\x06corpse\x129\n" +
+	"\x05filth\x18\t \x01(\v2!.rimgovernor.mirror.v1.FilthStateH\x00R\x05filth\x12B\n" +
+	"\bbuilding\x18\n" +
+	" \x01(\v2$.rimgovernor.mirror.v1.BuildingStateH\x00R\bbuilding\x126\n" +
+	"\x04item\x18\v \x01(\v2 .rimgovernor.mirror.v1.ItemStateH\x00R\x04itemB\a\n" +
+	"\x05state\"@\n" +
+	"\n" +
+	"PlantState\x12\x16\n" +
+	"\x06growth\x18\x01 \x01(\x02R\x06growth\x12\x1a\n" +
+	"\bblighted\x18\x02 \x01(\bR\bblighted\"Y\n" +
+	"\vCorpseState\x128\n" +
+	"\x05class\x18\x01 \x01(\x0e2\".rimgovernor.mirror.v1.CorpseClassR\x05class\x12\x10\n" +
+	"\x03rot\x18\x02 \x01(\x02R\x03rot\"*\n" +
+	"\n" +
+	"FilthState\x12\x1c\n" +
+	"\tthickness\x18\x01 \x01(\rR\tthickness\"6\n" +
+	"\fMaterialNeed\x12\x10\n" +
+	"\x03def\x18\x01 \x01(\rR\x03def\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\rR\x05count\"\xb9\x01\n" +
+	"\rBuildingState\x12\x1d\n" +
+	"\n" +
+	"hit_points\x18\x01 \x01(\rR\thitPoints\x12\x18\n" +
+	"\aburning\x18\x02 \x01(\bR\aburning\x12;\n" +
+	"\x06needed\x18\x03 \x03(\v2#.rimgovernor.mirror.v1.MaterialNeedR\x06needed\x12\x16\n" +
+	"\x06casket\x18\x04 \x03(\rR\x06casket\x12\x1a\n" +
+	"\breserved\x18\x05 \x01(\bR\breserved\"1\n" +
+	"\tItemState\x12$\n" +
+	"\rdeterioration\x18\x01 \x01(\x02R\rdeterioration*\xb2\x01\n" +
 	"\n" +
 	"CombatSide\x12\x1b\n" +
 	"\x17COMBAT_SIDE_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -2450,7 +3360,38 @@ const file_mirror_proto_rawDesc = "" +
 	"\"COMBAT_LOG_KIND_BUILDING_DESTROYED\x10\v\x12\x1d\n" +
 	"\x19COMBAT_LOG_KIND_LORD_TOIL\x10\f\x12 \n" +
 	"\x1cCOMBAT_LOG_KIND_MENTAL_STATE\x10\r\x12#\n" +
-	"\x1fCOMBAT_LOG_KIND_HOSTILE_ARRIVED\x10\x0eBeZEgithub.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb;mirrorpb\xaa\x02\x1bRimGovernor.Protocol.Mirrorb\x06proto3"
+	"\x1fCOMBAT_LOG_KIND_HOSTILE_ARRIVED\x10\x0e*\xce\x01\n" +
+	"\rThingCategory\x12\x1e\n" +
+	"\x1aTHING_CATEGORY_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13THING_CATEGORY_ITEM\x10\x01\x12\x1b\n" +
+	"\x17THING_CATEGORY_BUILDING\x10\x02\x12\x18\n" +
+	"\x14THING_CATEGORY_PLANT\x10\x03\x12\x18\n" +
+	"\x14THING_CATEGORY_FILTH\x10\x04\x12\x19\n" +
+	"\x15THING_CATEGORY_CORPSE\x10\x05\x12\x18\n" +
+	"\x14THING_CATEGORY_OTHER\x10\x06*v\n" +
+	"\fThingFaction\x12\x16\n" +
+	"\x12THING_FACTION_NONE\x10\x00\x12\x18\n" +
+	"\x14THING_FACTION_PLAYER\x10\x01\x12\x19\n" +
+	"\x15THING_FACTION_NEUTRAL\x10\x02\x12\x19\n" +
+	"\x15THING_FACTION_HOSTILE\x10\x03*\xe5\x02\n" +
+	"\tThingFlag\x12\x13\n" +
+	"\x0fTHING_FLAG_NONE\x10\x00\x12\x16\n" +
+	"\x12THING_FLAG_EDIFICE\x10\x01\x12\x18\n" +
+	"\x14THING_FLAG_BLUEPRINT\x10\x02\x12\x14\n" +
+	"\x10THING_FLAG_FRAME\x10\x04\x12\x19\n" +
+	"\x15THING_FLAG_IMPASSABLE\x10\b\x12\x19\n" +
+	"\x15THING_FLAG_HOLDS_ROOF\x10\x10\x12\x1e\n" +
+	"\x1aTHING_FLAG_DECONSTRUCTIBLE\x10 \x12\x19\n" +
+	"\x15THING_FLAG_MINIFIABLE\x10@\x12\x19\n" +
+	"\x14THING_FLAG_CLAIMABLE\x10\x80\x01\x12\x1a\n" +
+	"\x15THING_FLAG_DESIGNATED\x10\x80\x02\x12\x19\n" +
+	"\x14THING_FLAG_FORBIDDEN\x10\x80\x04\x12\x18\n" +
+	"\x13THING_FLAG_HAULABLE\x10\x80\b\x12\x1e\n" +
+	"\x19THING_FLAG_ANCIENT_DANGER\x10\x80\x10*Z\n" +
+	"\vCorpseClass\x12\x16\n" +
+	"\x12CORPSE_CLASS_OTHER\x10\x00\x12\x1a\n" +
+	"\x16CORPSE_CLASS_HUMANLIKE\x10\x01\x12\x17\n" +
+	"\x13CORPSE_CLASS_ANIMAL\x10\x02BeZEgithub.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb;mirrorpb\xaa\x02\x1bRimGovernor.Protocol.Mirrorb\x06proto3"
 
 var (
 	file_mirror_proto_rawDescOnce sync.Once
@@ -2464,104 +3405,132 @@ func file_mirror_proto_rawDescGZIP() []byte {
 	return file_mirror_proto_rawDescData
 }
 
-var file_mirror_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_mirror_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_mirror_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_mirror_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_mirror_proto_goTypes = []any{
 	(CombatSide)(0),                     // 0: rimgovernor.mirror.v1.CombatSide
 	(CombatStance)(0),                   // 1: rimgovernor.mirror.v1.CombatStance
 	(CombatLogKind)(0),                  // 2: rimgovernor.mirror.v1.CombatLogKind
-	(*CombatPawn)(nil),                  // 3: rimgovernor.mirror.v1.CombatPawn
-	(*CombatDoorRow)(nil),               // 4: rimgovernor.mirror.v1.CombatDoorRow
-	(*CombatMortarRow)(nil),             // 5: rimgovernor.mirror.v1.CombatMortarRow
-	(*CombatEventRow)(nil),              // 6: rimgovernor.mirror.v1.CombatEventRow
-	(*CombatGeometryRequest)(nil),       // 7: rimgovernor.mirror.v1.CombatGeometryRequest
-	(*CombatGeometryPropose)(nil),       // 8: rimgovernor.mirror.v1.CombatGeometryPropose
-	(*CombatRescuePath)(nil),            // 9: rimgovernor.mirror.v1.CombatRescuePath
-	(*CombatCoverBehindLine)(nil),       // 10: rimgovernor.mirror.v1.CombatCoverBehindLine
-	(*CombatAdjacentToChoke)(nil),       // 11: rimgovernor.mirror.v1.CombatAdjacentToChoke
-	(*CombatFiringCells)(nil),           // 12: rimgovernor.mirror.v1.CombatFiringCells
-	(*CombatSightLine)(nil),             // 13: rimgovernor.mirror.v1.CombatSightLine
-	(*CombatGeometryCell)(nil),          // 14: rimgovernor.mirror.v1.CombatGeometryCell
-	(*CombatGeometry)(nil),              // 15: rimgovernor.mirror.v1.CombatGeometry
-	(*CombatGeometryReply)(nil),         // 16: rimgovernor.mirror.v1.CombatGeometryReply
-	(*Watermark)(nil),                   // 17: rimgovernor.mirror.v1.Watermark
-	(*CellRect)(nil),                    // 18: rimgovernor.mirror.v1.CellRect
-	(*FieldArray)(nil),                  // 19: rimgovernor.mirror.v1.FieldArray
-	(*PackedUint32)(nil),                // 20: rimgovernor.mirror.v1.PackedUint32
-	(*PackedDouble)(nil),                // 21: rimgovernor.mirror.v1.PackedDouble
-	(*SparseArray)(nil),                 // 22: rimgovernor.mirror.v1.SparseArray
-	(*CellGrid)(nil),                    // 23: rimgovernor.mirror.v1.CellGrid
-	(*commonpb.Ref)(nil),                // 24: rimgovernor.common.v1.Ref
-	(*commonpb.Cell)(nil),               // 25: rimgovernor.common.v1.Cell
-	(operationspb.CombatFireMode)(0),    // 26: rimgovernor.operations.v1.CombatFireMode
-	(clockpb.CombatEvent)(0),            // 27: rimgovernor.clock.v1.CombatEvent
-	(*commonpb.Identity)(nil),           // 28: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil), // 29: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Failure)(nil),            // 30: rimgovernor.common.v1.Failure
+	(ThingCategory)(0),                  // 3: rimgovernor.mirror.v1.ThingCategory
+	(ThingFaction)(0),                   // 4: rimgovernor.mirror.v1.ThingFaction
+	(ThingFlag)(0),                      // 5: rimgovernor.mirror.v1.ThingFlag
+	(CorpseClass)(0),                    // 6: rimgovernor.mirror.v1.CorpseClass
+	(*CombatPawn)(nil),                  // 7: rimgovernor.mirror.v1.CombatPawn
+	(*CombatDoorRow)(nil),               // 8: rimgovernor.mirror.v1.CombatDoorRow
+	(*CombatMortarRow)(nil),             // 9: rimgovernor.mirror.v1.CombatMortarRow
+	(*CombatEventRow)(nil),              // 10: rimgovernor.mirror.v1.CombatEventRow
+	(*CombatGeometryRequest)(nil),       // 11: rimgovernor.mirror.v1.CombatGeometryRequest
+	(*CombatGeometryPropose)(nil),       // 12: rimgovernor.mirror.v1.CombatGeometryPropose
+	(*CombatRescuePath)(nil),            // 13: rimgovernor.mirror.v1.CombatRescuePath
+	(*CombatCoverBehindLine)(nil),       // 14: rimgovernor.mirror.v1.CombatCoverBehindLine
+	(*CombatAdjacentToChoke)(nil),       // 15: rimgovernor.mirror.v1.CombatAdjacentToChoke
+	(*CombatFiringCells)(nil),           // 16: rimgovernor.mirror.v1.CombatFiringCells
+	(*CombatSightLine)(nil),             // 17: rimgovernor.mirror.v1.CombatSightLine
+	(*CombatGeometryCell)(nil),          // 18: rimgovernor.mirror.v1.CombatGeometryCell
+	(*CombatGeometry)(nil),              // 19: rimgovernor.mirror.v1.CombatGeometry
+	(*CombatGeometryReply)(nil),         // 20: rimgovernor.mirror.v1.CombatGeometryReply
+	(*Watermark)(nil),                   // 21: rimgovernor.mirror.v1.Watermark
+	(*CellRect)(nil),                    // 22: rimgovernor.mirror.v1.CellRect
+	(*FieldArray)(nil),                  // 23: rimgovernor.mirror.v1.FieldArray
+	(*PackedUint32)(nil),                // 24: rimgovernor.mirror.v1.PackedUint32
+	(*PackedDouble)(nil),                // 25: rimgovernor.mirror.v1.PackedDouble
+	(*SparseArray)(nil),                 // 26: rimgovernor.mirror.v1.SparseArray
+	(*CellGrid)(nil),                    // 27: rimgovernor.mirror.v1.CellGrid
+	(*ThingList)(nil),                   // 28: rimgovernor.mirror.v1.ThingList
+	(*Thing)(nil),                       // 29: rimgovernor.mirror.v1.Thing
+	(*PlantState)(nil),                  // 30: rimgovernor.mirror.v1.PlantState
+	(*CorpseState)(nil),                 // 31: rimgovernor.mirror.v1.CorpseState
+	(*FilthState)(nil),                  // 32: rimgovernor.mirror.v1.FilthState
+	(*MaterialNeed)(nil),                // 33: rimgovernor.mirror.v1.MaterialNeed
+	(*BuildingState)(nil),               // 34: rimgovernor.mirror.v1.BuildingState
+	(*ItemState)(nil),                   // 35: rimgovernor.mirror.v1.ItemState
+	(*commonpb.Ref)(nil),                // 36: rimgovernor.common.v1.Ref
+	(*commonpb.Cell)(nil),               // 37: rimgovernor.common.v1.Cell
+	(operationspb.CombatFireMode)(0),    // 38: rimgovernor.operations.v1.CombatFireMode
+	(clockpb.CombatEvent)(0),            // 39: rimgovernor.clock.v1.CombatEvent
+	(*commonpb.Identity)(nil),           // 40: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil), // 41: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Failure)(nil),            // 42: rimgovernor.common.v1.Failure
 }
 var file_mirror_proto_depIdxs = []int32{
 	0,  // 0: rimgovernor.mirror.v1.CombatPawn.side:type_name -> rimgovernor.mirror.v1.CombatSide
-	24, // 1: rimgovernor.mirror.v1.CombatPawn.faction:type_name -> rimgovernor.common.v1.Ref
-	25, // 2: rimgovernor.mirror.v1.CombatPawn.cell:type_name -> rimgovernor.common.v1.Cell
-	26, // 3: rimgovernor.mirror.v1.CombatPawn.fire_mode:type_name -> rimgovernor.operations.v1.CombatFireMode
+	36, // 1: rimgovernor.mirror.v1.CombatPawn.faction:type_name -> rimgovernor.common.v1.Ref
+	37, // 2: rimgovernor.mirror.v1.CombatPawn.cell:type_name -> rimgovernor.common.v1.Cell
+	38, // 3: rimgovernor.mirror.v1.CombatPawn.fire_mode:type_name -> rimgovernor.operations.v1.CombatFireMode
 	1,  // 4: rimgovernor.mirror.v1.CombatPawn.stance:type_name -> rimgovernor.mirror.v1.CombatStance
-	17, // 5: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
-	25, // 6: rimgovernor.mirror.v1.CombatDoorRow.cell:type_name -> rimgovernor.common.v1.Cell
-	25, // 7: rimgovernor.mirror.v1.CombatMortarRow.cell:type_name -> rimgovernor.common.v1.Cell
-	17, // 8: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
+	21, // 5: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
+	37, // 6: rimgovernor.mirror.v1.CombatDoorRow.cell:type_name -> rimgovernor.common.v1.Cell
+	37, // 7: rimgovernor.mirror.v1.CombatMortarRow.cell:type_name -> rimgovernor.common.v1.Cell
+	21, // 8: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
 	2,  // 9: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
-	27, // 10: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
-	25, // 11: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
-	25, // 12: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
-	28, // 13: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	25, // 14: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
-	8,  // 15: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
-	10, // 16: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
-	11, // 17: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
-	12, // 18: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
-	9,  // 19: rimgovernor.mirror.v1.CombatGeometryPropose.rescue_path:type_name -> rimgovernor.mirror.v1.CombatRescuePath
-	25, // 20: rimgovernor.mirror.v1.CombatRescuePath.to:type_name -> rimgovernor.common.v1.Cell
-	25, // 21: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
-	25, // 22: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
-	25, // 23: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
-	25, // 24: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
-	25, // 25: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
-	25, // 26: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
-	13, // 27: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
-	29, // 28: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
-	14, // 29: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	14, // 30: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	15, // 31: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
-	30, // 32: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	20, // 33: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
-	21, // 34: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
-	22, // 35: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
-	18, // 36: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
-	19, // 37: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 38: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 39: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 40: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 41: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 42: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 43: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 44: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 45: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 46: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 47: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 48: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 49: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 50: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 51: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 52: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 53: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 54: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 55: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 56: rimgovernor.mirror.v1.CellGrid.room:type_name -> rimgovernor.mirror.v1.FieldArray
-	57, // [57:57] is the sub-list for method output_type
-	57, // [57:57] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	39, // 10: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
+	37, // 11: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
+	37, // 12: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
+	40, // 13: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	37, // 14: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
+	12, // 15: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
+	14, // 16: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
+	15, // 17: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
+	16, // 18: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
+	13, // 19: rimgovernor.mirror.v1.CombatGeometryPropose.rescue_path:type_name -> rimgovernor.mirror.v1.CombatRescuePath
+	37, // 20: rimgovernor.mirror.v1.CombatRescuePath.to:type_name -> rimgovernor.common.v1.Cell
+	37, // 21: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
+	37, // 22: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
+	37, // 23: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
+	37, // 24: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
+	37, // 25: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
+	37, // 26: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
+	17, // 27: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
+	41, // 28: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
+	18, // 29: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	18, // 30: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	19, // 31: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
+	42, // 32: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	24, // 33: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
+	25, // 34: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
+	26, // 35: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
+	22, // 36: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
+	23, // 37: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 38: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 39: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 40: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 41: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 42: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 43: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 44: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 45: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 46: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 47: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 48: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 49: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 50: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 51: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 52: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 53: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 54: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 55: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 56: rimgovernor.mirror.v1.CellGrid.room:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 57: rimgovernor.mirror.v1.CellGrid.terrain:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 58: rimgovernor.mirror.v1.CellGrid.in_home:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 59: rimgovernor.mirror.v1.CellGrid.foundation_affordances:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 60: rimgovernor.mirror.v1.CellGrid.snow_depth:type_name -> rimgovernor.mirror.v1.FieldArray
+	23, // 61: rimgovernor.mirror.v1.CellGrid.top_layer_removable:type_name -> rimgovernor.mirror.v1.FieldArray
+	28, // 62: rimgovernor.mirror.v1.CellGrid.things:type_name -> rimgovernor.mirror.v1.ThingList
+	29, // 63: rimgovernor.mirror.v1.ThingList.things:type_name -> rimgovernor.mirror.v1.Thing
+	3,  // 64: rimgovernor.mirror.v1.Thing.category:type_name -> rimgovernor.mirror.v1.ThingCategory
+	4,  // 65: rimgovernor.mirror.v1.Thing.faction:type_name -> rimgovernor.mirror.v1.ThingFaction
+	30, // 66: rimgovernor.mirror.v1.Thing.plant:type_name -> rimgovernor.mirror.v1.PlantState
+	31, // 67: rimgovernor.mirror.v1.Thing.corpse:type_name -> rimgovernor.mirror.v1.CorpseState
+	32, // 68: rimgovernor.mirror.v1.Thing.filth:type_name -> rimgovernor.mirror.v1.FilthState
+	34, // 69: rimgovernor.mirror.v1.Thing.building:type_name -> rimgovernor.mirror.v1.BuildingState
+	35, // 70: rimgovernor.mirror.v1.Thing.item:type_name -> rimgovernor.mirror.v1.ItemState
+	6,  // 71: rimgovernor.mirror.v1.CorpseState.class:type_name -> rimgovernor.mirror.v1.CorpseClass
+	33, // 72: rimgovernor.mirror.v1.BuildingState.needed:type_name -> rimgovernor.mirror.v1.MaterialNeed
+	73, // [73:73] is the sub-list for method output_type
+	73, // [73:73] is the sub-list for method input_type
+	73, // [73:73] is the sub-list for extension type_name
+	73, // [73:73] is the sub-list for extension extendee
+	0,  // [0:73] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }
@@ -2596,13 +3565,20 @@ func file_mirror_proto_init() {
 		(*FieldArray_Numbers)(nil),
 		(*FieldArray_Sparse)(nil),
 	}
+	file_mirror_proto_msgTypes[22].OneofWrappers = []any{
+		(*Thing_Plant)(nil),
+		(*Thing_Corpse)(nil),
+		(*Thing_Filth)(nil),
+		(*Thing_Building)(nil),
+		(*Thing_Item)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mirror_proto_rawDesc), len(file_mirror_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   21,
+			NumEnums:      7,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
