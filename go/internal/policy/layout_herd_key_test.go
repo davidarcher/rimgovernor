@@ -5,17 +5,6 @@ import (
 	"testing"
 )
 
-// herdKeys are the Herd keys of the plan's herd reservations, in plan order.
-func herdKeys(p LayoutPlan) []string {
-	var out []string
-	for _, r := range p.Reservations {
-		if _, ok := herdRole(r.Kind); ok {
-			out = append(out, r.Herd)
-		}
-	}
-	return out
-}
-
 // A herd's second unit belongs to that herd by key (#2226): with units [misc,
 // A, A2], a new herd B sorting after A founds its own unit and does not take
 // A2, and A does not found a third unit.
@@ -62,25 +51,5 @@ func TestHerdKeyKeepsASecondUnitWithItsHerd(t *testing.T) {
 	}
 	if again := PlanHerdSites(withB, 0, a, HerdCeiling{"B", 12}); len(again.Reservations) != len(withB.Reservations) {
 		t.Fatal("top-up is not idempotent")
-	}
-}
-
-// A plan saved before keys is matched by order once, and the next top-up keys
-// it (#2226).
-func TestHerdKeysMigrateAPlanSavedWithoutThem(t *testing.T) {
-	herds := []HerdCeiling{{"A", 30}, {"B", 12}}
-	keyed := PlanHerdSites(herdTestPlan(t, 10), 10, herds...)
-	legacy := keyed
-	legacy.Reservations = slices.Clone(keyed.Reservations)
-	for i := range legacy.Reservations {
-		legacy.Reservations[i].Herd = ""
-	}
-	housed, isLegacy := legacy.housedUnits(newUtilityGrid(legacy), herds)
-	if !isLegacy || len(housed) != 3 || len(housed[1].barns) == 0 || len(housed[2].barns) == 0 {
-		t.Fatal("units match by order", isLegacy, housed)
-	}
-	next := PlanHerdSites(legacy, 10, herds...)
-	if len(next.Reservations) != len(legacy.Reservations) || !slices.Equal(herdKeys(next), herdKeys(keyed)) {
-		t.Fatal("the top-up keys the plan as a fresh one", herdKeys(next), herdKeys(keyed))
 	}
 }

@@ -42,21 +42,24 @@ func TestVetRoomReadyNeedsAShelledRoomAndAMedicalBed(t *testing.T) {
 	}
 }
 
-func TestVetRoomAreaCoversTheInteriorAndNotTheAnimalAreas(t *testing.T) {
+func TestVetRoomAreaCoversTheInteriorAndNotTheBarns(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	vet := plan.HerdRooms(PlannedVetRoom)[0]
 	cells := plan.VetRoomCells()
 	if len(cells) != len(rectCells(vet.Interior)) {
 		t.Fatal("the area is the vet room interior", len(cells))
 	}
-	for _, a := range plan.AnimalAreas() {
+	for _, r := range plan.Reservations {
+		if r.Kind != ReserveBarn {
+			continue
+		}
 		in := map[domain.Cell]bool{}
-		for _, c := range rectCells(a) {
+		for _, c := range rectCells(r.Area) {
 			in[c] = true
 		}
 		for _, c := range cells {
 			if in[c] {
-				t.Fatal("an animal area covers the vet room", c)
+				t.Fatal("a barn covers the vet room", c)
 			}
 		}
 	}

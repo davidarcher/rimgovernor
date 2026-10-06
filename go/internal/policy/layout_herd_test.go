@@ -47,14 +47,6 @@ func TestHerdSitesBarnAndVetRoom(t *testing.T) {
 			t.Fatal("vet room overlaps", r.Kind)
 		}
 	}
-	for _, a := range p.AnimalAreas() {
-		if _, shared := sharedWallLink(a, vet); rectsOverlap(a, vet) && !shared {
-			t.Fatal("vet room is inside an animal area", a)
-		}
-	}
-	if len(p.AnimalAreas()) != 1 {
-		t.Fatal("animal areas are the barn")
-	}
 	found := map[string]bool{}
 	for _, l := range p.Overlay(Bounds{Width: 400, Height: 400}).Layers {
 		found[l.Label] = true
@@ -85,11 +77,10 @@ func TestVetBedsScaleWithTheHerd(t *testing.T) {
 func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
 	small := boxedInHerdPlan(t, 10)
 	grown := PlanHerdSites(small, 30)
-	u := newUtilityGrid(grown)
 	if groups := grown.herdUnits(); len(groups) != 2 {
 		t.Fatal("want the first unit and one second unit", len(groups))
 	}
-	if housed, _ := grown.housedUnits(u, nil); len(housed) != 1 || len(housed[0].barns) != 2 || len(housed[0].vets) != 2 {
+	if housed := grown.housedUnits(nil); len(housed) != 1 || len(housed[0].barns) != 2 || len(housed[0].vets) != 2 {
 		t.Fatal("the second unit is the first one's overflow", housed)
 	}
 	if grown.herdCapacity(PlannedBarn) < 30 || grown.herdCapacity(PlannedVetRoom) < VetBeds(30) {

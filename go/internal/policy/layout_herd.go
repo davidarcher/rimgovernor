@@ -21,10 +21,8 @@ import (
 // A unit is matched to its herd by key (#2226): every reservation of a herd's
 // unit, a second unit and a top-up included, carries LayoutReservation.Herd,
 // the herd's race; the misc unit's carry none. The plan is a saved blob, so
-// the key is stored. A plan saved before the key (units but no key anywhere)
-// is matched once by order, misc first and then the herds in name order, and
-// planHerdSites stamps the keys on its next top-up. Deletion candidate: that
-// order fallback (housedUnits' legacy branch), once no saved plan lacks keys.
+// the key is stored. Saves regenerate, so a plan without keys is not
+// matched: its units all join the misc unit.
 // Out of scope here: RoundsFacts.FoodStorage is still read (#2226, second half).
 
 const (
@@ -98,18 +96,6 @@ func (p HerdPlan) HerdUnits() []HerdCeiling {
 // VetBeds is the animal beds a herd of animals needs.
 func VetBeds(animals int) int {
 	return max(vetMinBeds, (animals+vetAnimalsPerBed-1)/vetAnimalsPerBed)
-}
-
-// AnimalAreas are the reservations animals may roam: the barns. The vet room
-// is left out on purpose.
-func (p LayoutPlan) AnimalAreas() []Rectangle {
-	var out []Rectangle
-	for _, r := range p.Reservations {
-		if r.Kind == ReserveBarn {
-			out = append(out, r.Area)
-		}
-	}
-	return out
 }
 
 // walledSide is the outline of a room whose interior is w by h.
@@ -216,69 +202,22 @@ func (p LayoutPlan) capacity(areas []Rectangle, role PlannedRole) int {
 // housedUnits are the plan's herd units matched to the primary units (the misc
 // unit, then one per herd): a unit goes to the herd its reservations are keyed
 // to, so a second unit a boxed-in herd founded (#2212) joins its own herd, and
-// an unkeyed one, or one of a herd no longer planned, joins the misc unit. It
-// also reports legacy: a plan with several units and no key anywhere (saved
-// before #2226), whose units are matched by order instead, a group past the
-// primaries joining the primary unit nearest by centre (the lower one on a tie).
-func (p LayoutPlan) housedUnits(u *utilityGrid, herds []HerdCeiling) (out []herdUnit, legacy bool) {
-	groups := p.herdUnits()
-	legacy = len(groups) > 1 && !slices.ContainsFunc(groups, func(g herdUnit) bool { return g.herd != "" })
-	out = make([]herdUnit, 1+len(herds))
-	join := func(k int, g herdUnit) {
-		out[k].barns = append(out[k].barns, g.barns...)
-		out[k].vets = append(out[k].vets, g.vets...)
-	}
-	for i, g := range groups {
-		switch {
-		case legacy && i < len(out):
-			join(i, g)
-		case legacy:
-		case g.herd == "":
-			join(0, g)
-		default:
-			k := slices.IndexFunc(herds, func(h HerdCeiling) bool { return h.Race == g.herd })
-			join(k+1, g) // -1, the gone herd's unit, is misc
+// an unkeyed one, or one of a herd no longer planned, joins the misc unit.
+func (p LayoutPlan) housedUnits(herds []HerdCeiling) []herdUnit {
+	out := make([]herdUnit, 1+len(herds))
+	for _, g := range p.herdUnits() {
+		k := slices.IndexFunc(herds, func(h HerdCeiling) bool { return h.Race == g.herd })
+		if g.herd == "" {
+			k = -1
 		}
+		out[k+1].barns = append(out[k+1].barns, g.barns...) // -1, misc or a gone herd's unit
+		out[k+1].vets = append(out[k+1].vets, g.vets...)
 	}
-	for i := len(out); legacy && i < len(groups); i++ {
-		gx, gz := groups[i].centre(u)
-		best, bestD := 0, math.MaxFloat64
-		for k, primary := range out {
-			px, pz := primary.centre(u)
-			if d := math.Hypot(float64(px-gx), float64(pz-gz)); d < bestD {
-				best, bestD = k, d
-			}
-		}
-		join(best, groups[i])
-	}
-	return out, legacy
-}
-
-// stampHerd keys the plan's reservations of unit to race.
-func (p *LayoutPlan) stampHerd(unit herdUnit, race string) {
-	for i, r := range p.Reservations {
-		var rs []Rectangle
-		switch r.Kind {
-		case ReserveBarn:
-			rs = unit.barns
-		case ReserveVetRoom:
-			rs = unit.vets
-		}
-		if slices.Contains(rs, r.Area) {
-			p.Reservations[i].Herd = race
-		}
-	}
+	return out
 }
 
 func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []HerdCeiling) {
-	units, legacy := plan.housedUnits(u, herds)
-	// A plan saved before keys is matched by order once and keyed now.
-	if legacy {
-		for i, h := range herds {
-			plan.stampHerd(units[i+1], h.Race)
-			units[i+1].herd = h.Race
-		}
-	}
+	units := plan.housedUnits(herds)
 	for i := range units {
 		race, animals := "", misc
 		if i > 0 {
@@ -287,15 +226,12 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []HerdCeili
 		if animals <= 0 {
 			continue
 		}
-		// In a plan matched by order a unit founds a second one only once every
-		// primary unit stands, or the second would be read as the next herd's.
-		founded := !legacy || len(plan.herdUnits()) >= len(units)
 		// A herd's unit prefers a site near the misc unit's.
 		cx, cz := u.cx, u.cz
 		if i > 0 {
 			cx, cz = units[0].centre(u)
 		}
-		planUnit(u, plan, units[i], race, animals, cx, cz, i == 0, founded)
+		planUnit(u, plan, units[i], race, animals, cx, cz, i == 0)
 	}
 }
 
@@ -303,10 +239,9 @@ func planHerdSites(u *utilityGrid, plan *LayoutPlan, misc int, herds []HerdCeili
 // the unit's rooms outgrow gets another reservation of the same kind beside the
 // unit; none moves. Only a unit with nothing placed yet takes a site near cx,
 // cz. Every reservation it adds carries herd, the key of the unit's race (empty
-// for misc). A unit boxed in so that nothing fits beside it (and only when
-// mayFound) founds a second whole unit, barn and vet area, sized for the
+// for misc). A unit boxed in so that nothing fits beside it founds a second whole unit, barn and vet area, sized for the
 // overflow; its shortfall is then met, so a repeat top-up is a no-op.
-func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, animals int, cx, cz int32, misc, mayFound bool) {
+func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, animals int, cx, cz int32, misc bool) {
 	barns, vets := slices.Clone(unit.barns), slices.Clone(unit.vets)
 	place := func(kind ReservationKind, w, h int32, anchors []Rectangle) bool {
 		site, ok := Rectangle{}, false
@@ -332,7 +267,7 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, anim
 	// found raises the second unit for the animals the unit cannot hold, all
 	// or nothing: a barn is never left without its vet area.
 	found := func() {
-		if !mayFound || len(barns)+len(vets) == 0 {
+		if len(barns)+len(vets) == 0 {
 			return
 		}
 		extra := max(1, animals-plan.capacity(barns, PlannedBarn))

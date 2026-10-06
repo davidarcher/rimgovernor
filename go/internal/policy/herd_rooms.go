@@ -19,8 +19,8 @@ import (
 // herd the rooms cannot hold gets another reservation of the same kind
 // (PlanHerdSites); a placed room never moves or shrinks.
 //
-// The vet room is kept out of animals' reach by its absence from
-// LayoutPlan.AnimalAreas, not by its door: a plain door is no barrier to an
+// The vet room is kept out of animals' reach by its not being a
+// barn reservation (animals roam only the barns), not by its door: a plain door is no barrier to an
 // animal, so an animal enters only when colonists carry it in to be treated.
 // Each standing vet room bed is then flagged medical (a BedUse patch; any bed
 // can carry the flag natively), so colonists treat animals in it.

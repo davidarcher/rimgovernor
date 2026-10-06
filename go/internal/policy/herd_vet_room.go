@@ -4,8 +4,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // VetRoomAreaKey is the bot area key of the VetRoom allowed area: the
 // interior of the plan's vet rooms. It is the area SterilizeChoice lets an
-// animal into; AnimalAreas (the pens and the barn) and the Safe area leave
-// it out.
+// animal into; the barn reservations and the Safe area leave it out.
 const VetRoomAreaKey = "VetRoom"
 
 // VetRoomAreaLabel is the native label of the VetRoom area.
