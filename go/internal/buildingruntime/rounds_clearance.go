@@ -125,6 +125,9 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	}
 	r.journalRecoveryBatch(call, boundary.Identity(state.Snapshot), review.RecoveryQueue, filtered, colony.Projection)
 	selection := policy.SelectHomeClearance(filtered, center)
+	if review.RecoveryQueue != nil {
+		journalRecoveryShadow(call, *review.RecoveryQueue, review.ClearanceHolds, selection.Targets)
+	}
 	id := domain.MintPlanID()
 	var prefix string
 	var actions []domain.Action
