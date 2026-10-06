@@ -94,8 +94,8 @@ namespace HomeBridge.BridgeTools
             else if (command.Kind == Operations.ZoneType.Growing)
             {
                 crop = DefDatabase<ThingDef>.GetNamedSilentFail(command.Growing.PlantDef);
-                if (crop?.plant == null || !crop.plant.Sowable || crop.plant.harvestedThingDef?.IsNutritionGivingIngestible != true
-                    || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available crop."); return false; }
+                if (crop?.plant == null || !crop.plant.Sowable || !crop.plant.sowTags.Contains("Ground")
+                    || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true || !Command_SetPlantToGrow.IsPlantAvailable(crop, map)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available crop."); return false; }
                 var designator = new Designator_ZoneAdd_Growing();
                 var wanted = crop;
                 ground = true;
