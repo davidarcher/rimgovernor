@@ -79,11 +79,6 @@ func (r *RoundsArmoryPlanner) step(call, epoch context.Context, arbiter *stepArb
 	return result, err
 }
 
-// craftingSpotDefinition is the free, unpowered bench every tech level can
-// place at once; it hosts the club and short bow recipes a tribal start
-// arms itself with.
-const craftingSpotDefinition = "CraftingSpot"
-
 // newCraftingSpotPlanner is the EnsureBasicDefense placement the armory
 // falls back to (moved from the equip planner, #1204); nil when the source
 // cannot serve a building step.

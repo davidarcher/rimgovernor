@@ -270,3 +270,9 @@ func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.P
 	}
 	return out
 }
+
+// craftingSpotDefinition is the free, unpowered bench every tech level can
+// place at once; it hosts the club and short bow recipes a tribal start
+// arms itself with. It lives here, not in rounds_armory.go, so the armory's
+// scope does not widen through the shelter slot predicate (#2281).
+const craftingSpotDefinition = "CraftingSpot"
