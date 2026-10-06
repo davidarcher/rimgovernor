@@ -10,14 +10,14 @@ import (
 
 // openChannels are the plan's Open rows of one kind, each with finite
 // positive nutrition, the planner's explain terms and a decision reason.
-func openChannels(t *testing.T, plan policy.FoodPlan, kind policy.FoodChannelKind) []policy.FoodPlanEntry {
+func openChannels(t *testing.T, plan policy.FoodPlan, kind policy.CandidateKind) []policy.FoodPlanEntry {
 	t.Helper()
 	var rows []policy.FoodPlanEntry
 	for _, row := range plan.Portfolio {
 		if row.Channel.Kind != kind || row.Decision != policy.FoodPlanOpen {
 			continue
 		}
-		n, known := row.Channel.NutritionPerDay.Value()
+		n, known := row.Channel.Nutrition().PerDay.Value()
 		if !known || math.IsNaN(n) || math.IsInf(n, 0) || n <= 0 || row.DeliveredPerDay <= 0 || row.Reason == "" {
 			t.Fatalf("%s/%s lacks explained positive nutrition: %+v", kind, row.Channel.ID, row)
 		}
@@ -54,10 +54,10 @@ func TestLedgerBaselineOpensForageAndHunt(t *testing.T) {
 	if !known {
 		t.Fatal("food plan unknown")
 	}
-	openChannels(t, plan, policy.FoodForage)
-	openChannels(t, plan, policy.FoodHunt)
+	openChannels(t, plan, policy.CandidateForage)
+	openChannels(t, plan, policy.CandidateHunt)
 	for _, row := range plan.Portfolio {
-		if row.Channel.Kind == policy.FoodCrop && row.DeliveredPerDay > 0 {
+		if row.Channel.Kind == policy.CandidateCrop && row.DeliveredPerDay > 0 {
 			t.Fatal("pre-harvest plan counts crop delivery", row)
 		}
 	}
@@ -116,9 +116,9 @@ func TestStarvingTribalOpensNoHunt(t *testing.T) {
 	crops := 0
 	for _, row := range plan.Portfolio {
 		switch row.Channel.Kind {
-		case policy.FoodHunt, policy.FoodForage, policy.FoodFishing:
+		case policy.CandidateHunt, policy.CandidateForage, policy.CandidateFishing:
 			t.Fatalf("the recorded plan has no %s row: %+v", row.Channel.Kind, row)
-		case policy.FoodCrop:
+		case policy.CandidateCrop:
 			if row.Channel.ID != "field-capacity" {
 				crops++
 				if row.Decision != policy.FoodPlanHold || row.Reason != "lead exceeds runway" {

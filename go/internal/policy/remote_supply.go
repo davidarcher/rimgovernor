@@ -24,7 +24,7 @@ type RemoteSupply struct {
 // candidates already cover, so a candidate that only "target covered" holds is
 // still admissible; the rest hold with a demand reason (`no_demand`,
 // `no_storage_headroom`, `competing_urgent_work`, `unknown_demand_or_cost`).
-func PlanRemoteSupply(r RemoteWorkRequest, candidates []AcquisitionCandidate) (RemoteSupply, error) {
+func PlanRemoteSupply(r RemoteWorkRequest, candidates []SupplyCandidate) (RemoteSupply, error) {
 	out := RemoteSupply{Held: map[string]string{}}
 	if len(candidates) == 0 {
 		return out, nil
@@ -34,15 +34,11 @@ func PlanRemoteSupply(r RemoteWorkRequest, candidates []AcquisitionCandidate) (R
 	for _, d := range rows {
 		demands = append(demands, SupplyDemandOfResource(d))
 	}
-	var supply []SupplyCandidate
-	for _, c := range candidates {
-		supply = append(supply, SupplyCandidateOfAcquisition(c))
-	}
 	demandFact := domain.Unknown[[]SupplyDemand]()
 	if known {
 		demandFact = domain.Known(demands)
 	}
-	plan, err := PlanSupply(SupplyPlanRequest{Demands: demandFact, Candidates: domain.Known(supply), Labor: domain.Known(float64(remoteSupplyLabor)), UrgentPriority: r.Competition.UrgentPriority})
+	plan, err := PlanSupply(SupplyPlanRequest{Demands: demandFact, Candidates: domain.Known(candidates), Labor: domain.Known(float64(remoteSupplyLabor)), UrgentPriority: r.Competition.UrgentPriority})
 	if err != nil {
 		return out, err
 	}

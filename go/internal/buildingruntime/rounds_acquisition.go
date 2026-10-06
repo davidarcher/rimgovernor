@@ -315,7 +315,7 @@ func foodPlanAcquisition(plan policy.FoodPlan, sources domain.Fact[[]policy.Acqu
 	open := map[string]bool{}
 	for _, entry := range plan.Portfolio {
 		// A formation hunt executes as a HuntRequest, never as designations.
-		if (entry.Channel.Kind == policy.FoodForage || entry.Channel.Kind == policy.FoodHunt && entry.Channel.Mode() == policy.HuntLone) && entry.Decision == policy.FoodPlanOpen {
+		if (entry.Channel.Kind == policy.CandidateForage || entry.Channel.Kind == policy.CandidateHunt && entry.Channel.Mode() == policy.HuntLone) && entry.Decision == policy.FoodPlanOpen {
 			open[entry.Channel.ID] = true
 		}
 	}

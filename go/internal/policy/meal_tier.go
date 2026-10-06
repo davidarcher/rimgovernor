@@ -53,7 +53,7 @@ type MealTierReview struct {
 	Recipes      []MealRecipeChoice
 	PasteNetwork string
 	Reason       string
-	Terms        []FoodPlanTerm
+	Terms        []CandidateTerm
 }
 
 var ErrMealTierFacts = errors.New("meal tier inputs unavailable or invalid")
@@ -85,13 +85,13 @@ func ReviewMealTier(r MealTierRequest, benches domain.Fact[[]ProductionBench]) (
 		}
 	}
 	margin := math.Min(0.5, (r.TargetDays-r.MinDays)/2)
-	review := MealTierReview{Tier: MealSimple, Reason: "raw surplus or qualified recipe unavailable", Terms: []FoodPlanTerm{{"raw_runway_days", days}, {"upgrade_days", r.TargetDays + margin}, {"downgrade_days", r.TargetDays}}}
+	review := MealTierReview{Tier: MealSimple, Reason: "raw surplus or qualified recipe unavailable", Terms: []CandidateTerm{{"raw_runway_days", days}, {"upgrade_days", r.TargetDays + margin}, {"downgrade_days", r.TargetDays}}}
 	constrained := positive(r.CookLaborConstrained) || ck && len(cooks) == 0
 	pasteNeeded := constrained || days < r.MinDays || r.Previous == MealPaste && days < r.MinDays+margin
 	if pasteNeeded && len(sources) > 0 {
 		if network, watts, known := mealPasteNetwork(r); known {
 			review.Tier, review.PasteNetwork, review.Reason = MealPaste, network, "raw shortage or cooking labor constraint"
-			review.Terms = append(review.Terms, FoodPlanTerm{"paste_power_w", watts})
+			review.Terms = append(review.Terms, CandidateTerm{"paste_power_w", watts})
 			return review, nil
 		}
 	}
@@ -198,19 +198,19 @@ func mealIngredientSources(p FoodPlan) (map[FoodIngredientClass]bool, bool, bool
 			return nil, false, false
 		}
 		seen[key] = true
-		if e.Decision == FoodPlanClose || !positive(c.Open) || e.DeliveredPerDay <= 0 && !mealStockAvailable(c) {
+		if e.Decision == FoodPlanClose || !positive(c.Open()) || e.DeliveredPerDay <= 0 && !mealStockAvailable(c) {
 			continue
 		}
 		switch c.Kind {
-		case FoodForage, FoodCrop:
+		case CandidateForage, CandidateCrop:
 			sources[IngredientVegetable] = true
-		case FoodHunt, FoodCorpse:
+		case CandidateHunt, CandidateCorpse:
 			sources[IngredientMeat] = true
 			protein = true
-		case FoodAnimalProduct:
+		case CandidateAnimalProduct:
 			sources[IngredientAnimalProduct] = true
 			protein = true
-		case FoodFishing:
+		case CandidateFishing:
 			sources[IngredientMeat] = true
 		}
 	}

@@ -27,8 +27,8 @@ func TestReserveUsesLiveDeliveryAndConfiguredDays(t *testing.T) {
 		release bool
 	}{
 		{"no delivery", domain.Known(policy.FoodPlan{}), true},
-		{"timely hunt", domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Decision: policy.FoodPlanOpen, DeliveredPerDay: 1, Channel: policy.FoodChannel{Kind: policy.FoodHunt, LeadDays: domain.Known(0.0)}}}}), true},
-		{"late crop", domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Decision: policy.FoodPlanHold, DeliveredPerDay: 1, Channel: policy.FoodChannel{Kind: policy.FoodCrop, LeadDays: domain.Known(4.0)}}}}), true},
+		{"timely hunt", domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Decision: policy.FoodPlanOpen, DeliveredPerDay: 1, Channel: policy.SupplyCandidate{Kind: policy.CandidateHunt, LeadDays: domain.Known(0.0)}}}}), true},
+		{"late crop", domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Decision: policy.FoodPlanHold, DeliveredPerDay: 1, Channel: policy.SupplyCandidate{Kind: policy.CandidateCrop, LeadDays: domain.Known(4.0)}}}}), true},
 		{"unknown plan", domain.Unknown[policy.FoodPlan](), true},
 		{"unknown source", domain.Known(policy.FoodPlan{Unknown: []policy.FoodPlanEntry{{}}}), true},
 	} {

@@ -49,7 +49,7 @@ func TestSlaughterFoodProtectsFloorAndBreedingPair(t *testing.T) {
 		t.Fatal(channels)
 	}
 	// A one-shot candidate: the meat is the stock cap, the slaughter work upfront.
-	one := SupplyCandidateOfFood(channels[0])
+	one := channels[0]
 	if cap, _ := one.Yields[0].StockCap.Value(); cap != 15 || one.Kind != CandidateSlaughter {
 		t.Fatal(one)
 	}

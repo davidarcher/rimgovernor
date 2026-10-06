@@ -75,7 +75,7 @@ type resEvent struct {
 	Day    int
 	Good   supplysim.Good
 	Source string
-	Kind   policy.AcquisitionKind
+	Kind   policy.CandidateKind
 	Score  float64
 	// Drill gate evidence at dispatch.
 	Deficit  bool
@@ -286,8 +286,8 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 	headroom := domain.Known(int64(1_000_000))
 	var rows []policy.AcquisitionSource
 	var mines []policy.ResourceSource
-	var resourceExtra []policy.AcquisitionCandidate
-	var produce *policy.AcquisitionCandidate
+	var resourceExtra []policy.SupplyCandidate
+	var produce *policy.SupplyCandidate
 	for _, id := range yielding {
 		s, sv, spec := p.source(id), views[id], p.spec[id]
 		if sv.Open || !live(id) {
@@ -329,15 +329,13 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 			if v.Threat {
 				continue
 			}
-			kind := policy.AcquisitionLoot
+			kind := policy.CandidateLoot
 			if spec.Role == resSalvage {
-				kind = policy.AcquisitionSalvage
+				kind = policy.CandidateSalvage
 			}
 			n := min(units, deficit)
-			resourceExtra = append(resourceExtra, policy.AcquisitionCandidate{ID: id, Kind: kind,
-				Yields:       []policy.AcquisitionYield{{ResourceQuantity: policy.ResourceQuantity{Key: policy.ResourceKey{Def: row.Resource}, Count: n}, Headroom: headroom}},
-				PathDistance: domain.Known(spec.Distance), Labor: domain.Known(policy.AcquisitionLaborPerUnit[kind] * float64(max(n, 1))),
-				NeedsHaul: true, UnitsPerTrip: 75})
+			resourceExtra = append(resourceExtra, policy.SourceCandidate(kind, id, domain.Known(policy.AcquisitionLaborPerUnit[kind]*float64(max(n, 1))), domain.Known(spec.Distance), true, 75,
+				policy.SourceYield(policy.ResourceKey{Def: row.Resource}, n, 0, headroom)))
 		case resTrade:
 			price := s.Costs[0].PerUnit / s.Yields[0].PerUnit
 			n := min(deficit, int64(s.Restock*s.Yields[0].PerUnit), int64(v.Stock[supplysim.Silver]/price))
@@ -396,11 +394,11 @@ func (b *resSupplyBatch) key(kind policy.CandidateKind, id string) string {
 	return string(kind) + "/" + id
 }
 
-func (b *resSupplyBatch) add(r policy.Resource, deficit bool, c policy.AcquisitionCandidate, source string) {
+func (b *resSupplyBatch) add(r policy.Resource, deficit bool, c policy.SupplyCandidate, source string) {
 	if b.source == nil {
 		b.source, b.good, b.deficit = map[string]string{}, map[string]policy.Resource{}, map[policy.Resource]bool{}
 	}
-	sc := policy.SupplyCandidateOfAcquisition(c)
+	sc := c
 	k := b.key(sc.Kind, sc.ID)
 	b.source[k], b.good[k], b.deficit[r] = source, r, deficit
 	b.cands = append(b.cands, sc)
@@ -445,8 +443,8 @@ func (p *resPlanner) dispatchSupply(v supplysim.WorldView) []supplysim.Command {
 	var cmds []supplysim.Command
 	for _, e := range plan.Portfolio {
 		k := b.key(e.Candidate.Kind, e.Candidate.ID)
-		kind := policy.AcquisitionKind(e.Candidate.Kind)
-		if kind == policy.AcquisitionDeepDrill {
+		kind := policy.CandidateKind(e.Candidate.Kind)
+		if kind == policy.CandidateDeepDrill {
 			p.drillScores = append(p.drillScores, e.Score)
 		}
 		if e.Decision != policy.SupplyOpen {

@@ -79,7 +79,8 @@ func TestReplayOneDayOfFoodBuysABridge(t *testing.T) {
 	}
 	// Once its sheet is recorded the plan opens the food bridge it prices.
 	plan, _ := r.Facts.FoodPlan.Value()
-	bridge := policy.FoodChannel{Kind: policy.FoodTrade, ID: "caravan", StockCap: domain.Known(int64(60)), LeadDays: domain.Known(0.0)}
+	bridge := policy.FoodCandidate(policy.CandidateTrade, "caravan", domain.Unknown[float64]())
+	bridge.Yields[0].StockCap, bridge.LeadDays = domain.Known(int64(60)), domain.Known(0.0)
 	plan.Portfolio = append(plan.Portfolio, policy.FoodPlanEntry{Channel: bridge, Decision: policy.FoodPlanOpen})
 	r.Facts.FoodPlan = domain.Known(plan)
 	if need := tradeNeed(t, r); need.Food.Nutrition != 60 {

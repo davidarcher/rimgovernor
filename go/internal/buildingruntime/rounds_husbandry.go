@@ -188,7 +188,7 @@ func animalProductWait(plan domain.Fact[policy.FoodPlan]) uint32 {
 		return 0
 	}
 	for _, entry := range v.Portfolio {
-		if entry.Channel.Kind == policy.FoodAnimalProduct && entry.Selected() {
+		if entry.Channel.Kind == policy.CandidateAnimalProduct && entry.Selected() {
 			return stockWaitTicks
 		}
 	}

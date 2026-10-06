@@ -37,7 +37,7 @@ func WithFeed(rows []AnimalProduct, animals domain.Fact[[]UpkeepAnimal]) []Anima
 // net of the herd's feed (product minus feed per day, never below zero). A
 // missing rate or feed makes that race unknown rather than silently claiming a
 // partial herd yield.
-func AnimalProductChannels(animals []AnimalProduct) []FoodChannel {
+func AnimalProductChannels(animals []AnimalProduct) []SupplyCandidate {
 	type aggregate struct {
 		nutrition, work, lead, feed float64
 		unknown                     bool
@@ -77,17 +77,18 @@ func AnimalProductChannels(animals []AnimalProduct) []FoodChannel {
 		keys = append(keys, race)
 	}
 	sort.Strings(keys)
-	var channels []FoodChannel
+	var channels []SupplyCandidate
 	for _, race := range keys {
 		r := byRace[race]
-		c := FoodChannel{Kind: FoodAnimalProduct, ID: race, Source: "animal_product:" + race, Terms: []FoodPlanTerm{{Name: "productive_animals", Value: float64(len(r.pawns))}, {Name: "feed_per_day", Value: r.feed}}}
+		c := FoodCandidate(CandidateAnimalProduct, race, domain.Unknown[float64]())
+		c.Source, c.Terms = "animal_product:"+race, []CandidateTerm{{Name: "productive_animals", Value: float64(len(r.pawns))}, {Name: "feed_per_day", Value: r.feed}}
 		if !r.unknown || math.IsNaN(r.nutrition) {
-			c.NutritionPerDay = domain.Known(math.Max(0, r.nutrition-r.feed))
+			c.Yields[0].PerDay = domain.Known(math.Max(0, r.nutrition-r.feed))
 		}
 		if !r.unknown {
-			c.WorkPerDay = domain.Known(r.work)
+			c.LaborPerDay = domain.Known(r.work)
 			c.LeadDays = domain.Known(r.lead)
-			c.Open, c.Designated = domain.Known(false), domain.Known(true)
+			c.State = FoodState(domain.Known(false), domain.Known(true))
 		}
 		channels = append(channels, c)
 	}
@@ -108,9 +109,9 @@ func FoodHerdPolicy(herd HerdPolicy, fact domain.Fact[FoodPlan]) HerdPolicy {
 	}
 	marginalCrop := math.Inf(1)
 	for _, e := range plan.Portfolio {
-		n, nk := e.Channel.NutritionPerDay.Value()
-		w, wk := e.Channel.WorkPerDay.Value()
-		if e.Channel.Kind == FoodCrop && nk && wk && n > 0 && w > 0 {
+		n, nk := e.Channel.Nutrition().PerDay.Value()
+		w, wk := e.Channel.LaborPerDay.Value()
+		if e.Channel.Kind == CandidateCrop && nk && wk && n > 0 && w > 0 {
 			marginalCrop = math.Min(marginalCrop, n/w)
 		}
 	}
@@ -118,11 +119,11 @@ func FoodHerdPolicy(herd HerdPolicy, fact domain.Fact[FoodPlan]) HerdPolicy {
 		marginalCrop = 0
 	}
 	for _, e := range plan.Portfolio {
-		if e.Channel.Kind != FoodAnimalProduct || e.Decision == FoodPlanClose || !e.Selected() {
+		if e.Channel.Kind != CandidateAnimalProduct || e.Decision == FoodPlanClose || !e.Selected() {
 			continue
 		}
-		n, nk := e.Channel.NutritionPerDay.Value()
-		w, wk := e.Channel.WorkPerDay.Value()
+		n, nk := e.Channel.Nutrition().PerDay.Value()
+		w, wk := e.Channel.LaborPerDay.Value()
 		if !nk || !wk || n <= 0 || w > 0 && n/w <= marginalCrop {
 			continue
 		}

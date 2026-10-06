@@ -2581,16 +2581,26 @@
     "Portfolio": [
      {
       "Channel": {
+       "Kind": "hunt",
        "ID": "Thing_Turkey44812",
-       "Kind": "Hunt",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 4.200000444054609
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 4.200000444054609
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 7500
        },
        "Risk": [
         {
@@ -2619,10 +2629,7 @@
         {
          "Name": "weapon_range"
         }
-       ],
-       "WorkPerDay": {
-        "v": 7500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 4.200000444054609,
@@ -2671,16 +2678,26 @@
      },
      {
       "Channel": {
+       "Kind": "hunt",
        "ID": "Thing_Raccoon44747",
-       "Kind": "Hunt",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 2.8000004231929836
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 2.8000004231929836
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 7500
        },
        "Risk": [
         {
@@ -2709,10 +2726,7 @@
         {
          "Name": "weapon_range"
         }
-       ],
-       "WorkPerDay": {
-        "v": 7500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 2.8000004231929836,
@@ -2761,26 +2775,33 @@
      },
      {
       "Channel": {
+       "Kind": "cook",
        "ID": "cooking-capacity",
-       "Kind": "Cook",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -2809,26 +2830,33 @@
      },
      {
       "Channel": {
+       "Kind": "crop",
        "ID": "field-capacity",
-       "Kind": "Crop",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -2857,26 +2885,33 @@
      },
      {
       "Channel": {
+       "Kind": "crop",
        "ID": "stored-ingredients",
-       "Kind": "Crop",
+       "State": {
+        "v": "delivering"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": true
        },
        "Terms": [
         {
          "Name": "accessible_ingredient_nutrition",
          "Value": 0.4000000059604645
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "already delivering",
@@ -2905,26 +2940,33 @@
      },
      {
       "Channel": {
+       "Kind": "reserve",
        "ID": "stock-protection",
-       "Kind": "Reserve",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",

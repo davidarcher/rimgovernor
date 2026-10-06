@@ -12,7 +12,7 @@ import (
 // entry back as a candidate's score, hold and demanded units.
 type supplyScore struct {
 	ID     string
-	Kind   AcquisitionKind
+	Kind   CandidateKind
 	Score  float64
 	Wanted int64
 	Trips  int64
@@ -20,7 +20,7 @@ type supplyScore struct {
 	Hold   string
 }
 
-func planAcquisitions(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandidate, c AcquisitionCompetition) (SupplyPlan, error) {
+func planAcquisitions(demand domain.Fact[[]ResourceDemand], cands []SupplyCandidate, c AcquisitionCompetition) (SupplyPlan, error) {
 	req := SupplyPlanRequest{Demands: domain.Unknown[[]SupplyDemand](), Labor: domain.Known(1e12), UrgentPriority: c.UrgentPriority}
 	if rows, known := demand.Value(); known {
 		demands := []SupplyDemand{}
@@ -29,11 +29,7 @@ func planAcquisitions(demand domain.Fact[[]ResourceDemand], cands []AcquisitionC
 		}
 		req.Demands = domain.Known(demands)
 	}
-	var supply []SupplyCandidate
-	for _, a := range cands {
-		supply = append(supply, SupplyCandidateOfAcquisition(a))
-	}
-	req.Candidates = domain.Known(supply)
+	req.Candidates = domain.Known(cands)
 	return PlanSupply(req)
 }
 
@@ -43,8 +39,7 @@ func planAcquisitions(demand domain.Fact[[]ResourceDemand], cands []AcquisitionC
 func scoresOfSupply(p SupplyPlan) []supplyScore {
 	var out []supplyScore
 	for _, e := range append(append([]SupplyEntry(nil), p.Portfolio...), p.Unknown...) {
-		kind, _ := acquisitionKindOf(e.Candidate.Kind)
-		s := supplyScore{ID: e.Candidate.ID, Kind: kind, Wanted: e.Wanted, Trips: e.Trips, Value: e.Value}
+		s := supplyScore{ID: e.Candidate.ID, Kind: e.Candidate.Kind, Wanted: e.Wanted, Trips: e.Trips, Value: e.Value}
 		switch {
 		case strings.HasPrefix(e.Reason, "unknown"):
 			s.Hold = "unknown_demand_or_cost"
@@ -58,7 +53,7 @@ func scoresOfSupply(p SupplyPlan) []supplyScore {
 	return out
 }
 
-func rankBySupply(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandidate, c AcquisitionCompetition) ([]supplyScore, error) {
+func rankBySupply(demand domain.Fact[[]ResourceDemand], cands []SupplyCandidate, c AcquisitionCompetition) ([]supplyScore, error) {
 	p, err := planAcquisitions(demand, cands, c)
 	if err != nil {
 		return nil, err
@@ -72,8 +67,8 @@ func rankBySupply(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandi
 	return ranked, nil
 }
 
-func scoreBySupply(demand domain.Fact[[]ResourceDemand], cand AcquisitionCandidate, c AcquisitionCompetition) (supplyScore, error) {
-	p, err := planAcquisitions(demand, []AcquisitionCandidate{cand}, c)
+func scoreBySupply(demand domain.Fact[[]ResourceDemand], cand SupplyCandidate, c AcquisitionCompetition) (supplyScore, error) {
+	p, err := planAcquisitions(demand, []SupplyCandidate{cand}, c)
 	if err != nil {
 		return supplyScore{}, err
 	}

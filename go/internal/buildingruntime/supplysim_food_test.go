@@ -64,7 +64,7 @@ const (
 // srcSpec is one world source with what the adapter needs to present it to
 // the planner.
 type srcSpec struct {
-	kind   policy.FoodChannelKind
+	kind   policy.CandidateKind
 	src    supplysim.Source
 	nutr   float64 // nutrition per source unit
 	cells  float64 // crop field cells
@@ -106,7 +106,7 @@ func (sc foodScenario) world(demandScale float64) supplysim.World {
 	for _, s := range sc.specs {
 		src := s.src
 		// Products are produced by animals the colony already keeps; every other source starts closed.
-		src.Open = s.kind == policy.FoodAnimalProduct
+		src.Open = s.kind == policy.CandidateAnimalProduct
 		w.Sources = append(w.Sources, src)
 	}
 	return w
@@ -175,7 +175,7 @@ func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 		}
 		// A fishing region below its population floor carries no rate: the plan
 		// no longer counts on it, which the credit never needs to judge (expected 0).
-		if rate, known := e.Channel.NutritionPerDay.Value(); e.Channel.Kind == policy.FoodFishing && known && rate == 0 && v.Day >= foodShockDay {
+		if rate, known := e.Channel.Nutrition().PerDay.Value(); e.Channel.Kind == policy.CandidateFishing && known && rate == 0 && v.Day >= foodShockDay {
 			a.minFactor[id] = 0
 		}
 		switch e.Decision {
@@ -185,7 +185,7 @@ func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 				d.opened = append(d.opened, id)
 			}
 		case policy.FoodPlanClose:
-			if e.Channel.Kind == policy.FoodAnimalProduct {
+			if e.Channel.Kind == policy.CandidateAnimalProduct {
 				continue // animals keep producing; the planner cannot stop them
 			}
 			cmds = append(cmds, supplysim.Command{Kind: supplysim.Close, Source: id})
@@ -253,18 +253,18 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 			continue
 		}
 		switch s.kind {
-		case policy.FoodForage, policy.FoodHunt:
+		case policy.CandidateForage, policy.CandidateHunt:
 			if sv.Rate <= 0 {
 				continue
 			}
-			hunt := s.kind == policy.FoodHunt
+			hunt := s.kind == policy.CandidateHunt
 			acquisition = append(acquisition, policy.AcquisitionSource{ID: id, Definition: id, Food: true, Hunt: hunt, NutritionYield: sv.Rate * s.nutr, WeaponRange: s.reach, Designated: sv.Open})
 			if !hunt {
 				count(observation.DeliveryKey{Kind: observation.DeliveryForage, SourceID: id, Def: id}, sv, s.nutr)
 				a.groups["forage:"+id] = id
 			}
 			ids[string(s.kind)+"/"+id] = id
-		case policy.FoodFishing:
+		case policy.CandidateFishing:
 			regionID := policy.FishingRegionID(domain.Cell{X: int32(len(water.Regions))})
 			// A fishing zone is designated while the source is open; whether it
 			// delivers (above its population floor) is for the ledger to say.
@@ -277,7 +277,7 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 				WorkTicksPerBatch: domain.Known(supplysim.FishLaborPerFisher / supplysim.FishPerFisherDay), PawnFishWorkCapacity: domain.Known(sv.Rate * s.nutr),
 				DistanceSquared: domain.Known(float64(len(water.Regions)))})
 			ids[string(s.kind)+"/"+regionID] = id
-		case policy.FoodAnimalProduct:
+		case policy.CandidateAnimalProduct:
 			gatherable = append(gatherable, observation.GatherableAnimal{PawnID: id, Race: id, Active: domain.Known(true), HandlerReachable: domain.Known(true),
 				NutritionPerDay: domain.Known(sv.Rate * s.nutr), WorkPerDay: domain.Known(s.src.Labor), LeadDays: domain.Known(0.0)})
 			// The sim's animals eat nothing the colony counts.
@@ -285,7 +285,7 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 			count(observation.DeliveryKey{Kind: observation.DeliveryAnimalProduct, SourceID: id, Def: id}, sv, s.nutr)
 			a.groups["animal_product:"+id] = id
 			ids[string(s.kind)+"/"+id] = id
-		case policy.FoodCrop:
+		case policy.CandidateCrop:
 			w := s.window
 			if w.Period > 0 {
 				window = &w
@@ -433,7 +433,7 @@ func openedAlternative(sc foodScenario, r foodResult) bool {
 	}
 	var spare []string
 	for _, s := range sc.specs {
-		if !touched[s.src.ID] && !opened[s.src.ID] && !s.hidden && s.kind != policy.FoodAnimalProduct {
+		if !touched[s.src.ID] && !opened[s.src.ID] && !s.hidden && s.kind != policy.CandidateAnimalProduct {
 			spare = append(spare, s.src.ID)
 		}
 	}
@@ -463,44 +463,44 @@ const foodShockShare = 0.4
 
 // buildSpec sizes one channel of the given kind to deliver need nutrition per
 // day.
-func buildSpec(kind policy.FoodChannelKind, id string, need float64) srcSpec {
+func buildSpec(kind policy.CandidateKind, id string, need float64) srcSpec {
 	switch kind {
-	case policy.FoodForage:
+	case policy.CandidateForage:
 		const nutr = 0.9
 		units := need / nutr
 		foragers := int(math.Ceil(units / 4))
 		return srcSpec{kind: kind, nutr: nutr, src: supplysim.NewForage(id, units*15, units, nutr, supplysim.Window{}, foragers)}
-	case policy.FoodHunt:
+	case policy.CandidateHunt:
 		const nutr = 20.0
 		kills := need / nutr
 		return srcSpec{kind: kind, nutr: nutr, src: supplysim.NewHerd(id, kills*30, nutr, int(math.Ceil(kills)), 0)}
-	case policy.FoodFishing:
+	case policy.CandidateFishing:
 		const nutr = 0.5
 		maxPop := need / (supplysim.FishingRegenFraction * nutr)
 		return srcSpec{kind: kind, nutr: nutr, src: supplysim.NewFishing(id, maxPop, maxPop, int(math.Ceil(need/(supplysim.FishPerFisherDay*nutr))), nutr)}
-	case policy.FoodCrop:
+	case policy.CandidateCrop:
 		const nutr, grow = 3.0, 6
 		cells := math.Ceil(need * grow / nutr)
 		window := supplysim.Window{Period: policy.YearDays, From: 0, To: 45}
 		return srcSpec{kind: kind, nutr: nutr, cells: cells, grow: grow, window: window, src: supplysim.NewCrop(id, cells, grow, nutr, window, cells)}
-	case policy.FoodAnimalProduct:
+	case policy.CandidateAnimalProduct:
 		const nutr = 0.5
 		return srcSpec{kind: kind, nutr: nutr, src: supplysim.NewProducts(id, math.Ceil(need/nutr), 1, nutr)}
-	case policy.FoodTrade:
+	case policy.CandidateTrade:
 		const nutr, period = 1.0, 15
 		return srcSpec{kind: kind, nutr: nutr, src: supplysim.NewTrade(id, supplysim.Window{Period: period, From: 0, To: 2}, need*period/nutr, nutr, 1)}
 	}
 	panic("unknown channel kind " + string(kind))
 }
 
-func foodSrcID(kind policy.FoodChannelKind) string { return strings.ToLower(string(kind)) }
+func foodSrcID(kind policy.CandidateKind) string { return strings.ToLower(string(kind)) }
 
-func mixScenario(name string, colonists int, level, share float64, kinds []policy.FoodChannelKind) foodScenario {
+func mixScenario(name string, colonists int, level, share float64, kinds []policy.CandidateKind) foodScenario {
 	perDay := foodNutritionPerColonist * float64(colonists)
 	sc := foodScenario{name: name, colonists: colonists, perDay: perDay * level, stock: perDay * level * 3}
 	for _, k := range kinds {
 		spec := buildSpec(k, foodSrcID(k), perDay*share)
-		if k == policy.FoodTrade {
+		if k == policy.CandidateTrade {
 			sc.silver = spec.src.Restock * 8
 		}
 		sc.specs = append(sc.specs, spec)
@@ -508,11 +508,11 @@ func mixScenario(name string, colonists int, level, share float64, kinds []polic
 	return sc
 }
 
-var foodChains = map[string][]policy.FoodChannelKind{
-	"forage-first":  {policy.FoodForage, policy.FoodHunt, policy.FoodFishing, policy.FoodCrop},
-	"farm-first":    {policy.FoodCrop, policy.FoodAnimalProduct, policy.FoodFishing, policy.FoodHunt},
-	"fishing-first": {policy.FoodFishing, policy.FoodForage, policy.FoodAnimalProduct, policy.FoodCrop},
-	"trade-first":   {policy.FoodTrade, policy.FoodHunt, policy.FoodForage, policy.FoodAnimalProduct},
+var foodChains = map[string][]policy.CandidateKind{
+	"forage-first":  {policy.CandidateForage, policy.CandidateHunt, policy.CandidateFishing, policy.CandidateCrop},
+	"farm-first":    {policy.CandidateCrop, policy.CandidateAnimalProduct, policy.CandidateFishing, policy.CandidateHunt},
+	"fishing-first": {policy.CandidateFishing, policy.CandidateForage, policy.CandidateAnimalProduct, policy.CandidateCrop},
+	"trade-first":   {policy.CandidateTrade, policy.CandidateHunt, policy.CandidateForage, policy.CandidateAnimalProduct},
 }
 
 var foodSizes = []int{3, 8, 16}
@@ -525,9 +525,9 @@ const bowReach = 25.9
 // gates never offer (no butcher bill, no qualifying hunter), and a colony fed
 // by hunting alone with bow hunters.
 func huntScenarios(size int) []foodScenario {
-	hidden := mixScenario(fmt.Sprintf("hunt/no-huntable-animals/n%d", size), size, 1, 1, []policy.FoodChannelKind{policy.FoodForage, policy.FoodCrop, policy.FoodHunt})
+	hidden := mixScenario(fmt.Sprintf("hunt/no-huntable-animals/n%d", size), size, 1, 1, []policy.CandidateKind{policy.CandidateForage, policy.CandidateCrop, policy.CandidateHunt})
 	hidden.specs[2].hidden = true
-	bows := mixScenario(fmt.Sprintf("hunt/only-bows/n%d", size), size, 1, foodShare, []policy.FoodChannelKind{policy.FoodHunt})
+	bows := mixScenario(fmt.Sprintf("hunt/only-bows/n%d", size), size, 1, foodShare, []policy.CandidateKind{policy.CandidateHunt})
 	bows.specs[0].reach = bowReach
 	return []foodScenario{hidden, bows}
 }
@@ -559,7 +559,7 @@ var foodShocks = map[string]struct {
 		[]string{"crop", "forage"}, nil},
 }
 
-var foodShockMix = []policy.FoodChannelKind{policy.FoodFishing, policy.FoodCrop, policy.FoodHunt, policy.FoodForage}
+var foodShockMix = []policy.CandidateKind{policy.CandidateFishing, policy.CandidateCrop, policy.CandidateHunt, policy.CandidateForage}
 
 // seedScenarios are the recorded colonies, rebuilt from the plan each
 // snapshot recorded: its demand, its runway and the rows it listed.
@@ -580,24 +580,24 @@ func seedScenarios(t testing.TB) []foodScenario {
 		sc := foodScenario{name: "seed/" + strings.TrimSuffix(strings.TrimSuffix(name, ".gz"), ".json"), perDay: plan.DemandPerDay, stock: days * plan.DemandPerDay}
 		sc.colonists = max(1, int(math.Round(plan.DemandPerDay/1.8)))
 		for i, row := range plan.Portfolio {
-			n, nk := row.Channel.NutritionPerDay.Value()
-			w, _ := row.Channel.WorkPerDay.Value()
+			n, nk := row.Channel.Nutrition().PerDay.Value()
+			w, _ := row.Channel.LaborPerDay.Value()
 			lead, _ := row.Channel.LeadDays.Value()
 			if !nk || n <= 0 {
 				continue
 			}
 			id := fmt.Sprintf("%s-%d", foodSrcID(row.Channel.Kind), i)
 			switch row.Channel.Kind {
-			case policy.FoodForage:
-				sc.specs = append(sc.specs, srcSpec{kind: policy.FoodForage, nutr: n, src: supplysim.Source{ID: id, Yields: []supplysim.Yield{{Good: supplysim.Nutrition, PerUnit: n}},
+			case policy.CandidateForage:
+				sc.specs = append(sc.specs, srcSpec{kind: policy.CandidateForage, nutr: n, src: supplysim.Source{ID: id, Yields: []supplysim.Yield{{Good: supplysim.Nutrition, PerUnit: n}},
 					Capacity: 1, Labor: w, Finite: true, Stock: 30, Max: 30, Regen: 1}})
-			case policy.FoodHunt:
-				sc.specs = append(sc.specs, srcSpec{kind: policy.FoodHunt, nutr: n, src: supplysim.Source{ID: id, Yields: []supplysim.Yield{{Good: supplysim.Nutrition, PerUnit: n}},
+			case policy.CandidateHunt:
+				sc.specs = append(sc.specs, srcSpec{kind: policy.CandidateHunt, nutr: n, src: supplysim.Source{ID: id, Yields: []supplysim.Yield{{Good: supplysim.Nutrition, PerUnit: n}},
 					Capacity: 1, Labor: w, Finite: true, Stock: 1, Max: 1}})
-			case policy.FoodCrop:
+			case policy.CandidateCrop:
 				grow := max(1, int(math.Round(lead)))
 				window := supplysim.Window{}
-				sc.specs = append(sc.specs, srcSpec{kind: policy.FoodCrop, nutr: n * float64(grow) / 10, cells: 10, grow: grow, window: window,
+				sc.specs = append(sc.specs, srcSpec{kind: policy.CandidateCrop, nutr: n * float64(grow) / 10, cells: 10, grow: grow, window: window,
 					src: supplysim.NewCrop(id, 10, grow, n*float64(grow)/10, window, 10)})
 				sc.specs[len(sc.specs)-1].src.Labor = w
 			}
@@ -606,8 +606,8 @@ func seedScenarios(t testing.TB) []foodScenario {
 			// The wild deer and the berries the run saw (#2140 diagnosis) that
 			// native gates never turned into rows.
 			sc.specs = append(sc.specs,
-				srcSpec{kind: policy.FoodHunt, hidden: true, nutr: 20, src: supplysim.NewHerd("deer", 20, 20, 3, 0)},
-				srcSpec{kind: policy.FoodForage, hidden: true, nutr: 0.9, src: supplysim.NewForage("berries", 100, 6, 0.9, supplysim.Window{}, 4)})
+				srcSpec{kind: policy.CandidateHunt, hidden: true, nutr: 20, src: supplysim.NewHerd("deer", 20, 20, 3, 0)},
+				srcSpec{kind: policy.CandidateForage, hidden: true, nutr: 0.9, src: supplysim.NewForage("berries", 100, 6, 0.9, supplysim.Window{}, 4)})
 		}
 		out = append(out, sc)
 	}
@@ -643,7 +643,7 @@ func foodScenarios(t testing.TB) []foodScenario {
 		}
 	}
 	// Crop only, with and without a cook bench (#2159).
-	crop := []policy.FoodChannelKind{policy.FoodCrop}
+	crop := []policy.CandidateKind{policy.CandidateCrop}
 	bare := mixScenario("crop/only/no-cook-bench/n8", 8, 1, foodShare, crop)
 	kitchen := mixScenario("crop/only/cook-bench/n8", 8, 1, foodShare, crop)
 	kitchen.kitchen, kitchen.prev = true, bare.name
@@ -768,7 +768,7 @@ func TestFoodMatrixStarvingTribalStarvesWithoutHunt(t *testing.T) {
 	}
 	for _, d := range res.days {
 		for _, id := range d.opened {
-			if spec := sc.spec(id); spec.kind == policy.FoodHunt || spec.kind == policy.FoodForage || spec.kind == policy.FoodFishing {
+			if spec := sc.spec(id); spec.kind == policy.CandidateHunt || spec.kind == policy.CandidateForage || spec.kind == policy.CandidateFishing {
 				t.Fatalf("the planner opened %s with no row to open", id)
 			}
 		}

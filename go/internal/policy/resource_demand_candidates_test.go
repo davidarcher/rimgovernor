@@ -70,25 +70,25 @@ func TestResourceDemandUnknownAndValidation(t *testing.T) {
 	}
 }
 
-func acquisitionFixture(id string, kind AcquisitionKind, def Resource, distance float64) AcquisitionCandidate {
-	return AcquisitionCandidate{ID: id, Kind: kind, Yields: []AcquisitionYield{{ResourceQuantity: ResourceQuantity{ResourceKey{Def: def}, 50}, UnitValue: 1, Headroom: domain.Known(int64(100))}}, PathDistance: domain.Known(distance), Labor: domain.Known(0.0), NeedsHaul: true, UnitsPerTrip: 50}
+func acquisitionFixture(id string, kind CandidateKind, def Resource, distance float64) SupplyCandidate {
+	return SourceCandidate(kind, id, domain.Known(0.0), domain.Known(distance), true, 50, SourceYield(ResourceKey{Def: def}, 50, 1, domain.Known(int64(100))))
 }
 
 func TestResourceCandidateRanking(t *testing.T) {
 	steel := ResourceKey{Def: "Steel"}
 	demand := domain.Known([]ResourceDemand{{steel, 100, 2}})
-	for _, kind := range []AcquisitionKind{AcquisitionLoot, AcquisitionSalvage, AcquisitionMining} {
+	for _, kind := range []CandidateKind{CandidateLoot, CandidateSalvage, CandidateMining} {
 		t.Run(string(kind), func(t *testing.T) {
 			near := acquisitionFixture("near", kind, "Steel", 10)
 			far := acquisitionFixture("far", kind, "Steel", 100)
 			gold := acquisitionFixture("gold", kind, "Gold", 100)
 			gold.Yields[0].UnitValue = 10000
-			rows, err := rankBySupply(demand, []AcquisitionCandidate{gold, far, near}, AcquisitionCompetition{})
+			rows, err := rankBySupply(demand, []SupplyCandidate{gold, far, near}, AcquisitionCompetition{})
 			if err != nil || len(rows) != 2 || rows[0].ID != "near" || rows[1].ID != "far" {
 				t.Fatalf("%v %v", rows, err)
 			}
 			for _, empty := range []domain.Fact[[]ResourceDemand]{domain.Known([]ResourceDemand{}), domain.Unknown[[]ResourceDemand]()} {
-				rows, err = rankBySupply(empty, []AcquisitionCandidate{near, far, gold}, AcquisitionCompetition{})
+				rows, err = rankBySupply(empty, []SupplyCandidate{near, far, gold}, AcquisitionCompetition{})
 				if err != nil || len(rows) != 0 {
 					t.Fatalf("without demand: %v %v", rows, err)
 				}
@@ -99,38 +99,38 @@ func TestResourceCandidateRanking(t *testing.T) {
 
 func TestResourceCandidateCostsAndHolds(t *testing.T) {
 	demand := domain.Known([]ResourceDemand{{ResourceKey{Def: "Steel"}, 50, 2}})
-	base := acquisitionFixture("source", AcquisitionMining, "Steel", 10)
+	base := acquisitionFixture("source", CandidateMining, "Steel", 10)
 	baseline, err := scoreBySupply(demand, base, AcquisitionCompetition{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
 		name      string
-		change    func(*AcquisitionCandidate)
+		change    func(*SupplyCandidate)
 		urgent    int
 		hold      string
 		lower     bool
 		wantError bool
 	}{
-		{name: "labor", change: func(c *AcquisitionCandidate) { c.Labor = domain.Known(100.0) }, lower: true},
-		{name: "hauling trips", change: func(c *AcquisitionCandidate) { c.UnitsPerTrip = 10 }, lower: true},
-		{name: "limited storage", change: func(c *AcquisitionCandidate) { c.Yields[0].Headroom = domain.Known(int64(10)) }, lower: true},
-		{name: "full storage", change: func(c *AcquisitionCandidate) { c.Yields[0].Headroom = domain.Known(int64(0)) }, hold: "no_storage_headroom"},
-		{name: "unknown storage", change: func(c *AcquisitionCandidate) { c.Yields[0].Headroom = domain.Unknown[int64]() }, hold: "no_storage_headroom"},
+		{name: "labor", change: func(c *SupplyCandidate) { c.UpfrontCost.LaborTicks = domain.Known(100.0) }, lower: true},
+		{name: "hauling trips", change: func(c *SupplyCandidate) { c.UnitsPerTrip = 10 }, lower: true},
+		{name: "limited storage", change: func(c *SupplyCandidate) { c.Yields[0].Headroom = domain.Known(int64(10)) }, lower: true},
+		{name: "full storage", change: func(c *SupplyCandidate) { c.Yields[0].Headroom = domain.Known(int64(0)) }, hold: "no_storage_headroom"},
+		{name: "unknown storage", change: func(c *SupplyCandidate) { c.Yields[0].Headroom = domain.Unknown[int64]() }, hold: "no_storage_headroom"},
 		{name: "urgent competing work", urgent: 3, hold: "competing_urgent_work"},
 		{name: "equal urgency", urgent: 2},
 		{name: "lower urgency", urgent: 1},
-		{name: "unknown route", change: func(c *AcquisitionCandidate) { c.PathDistance = domain.Unknown[float64]() }, hold: "unknown_demand_or_cost"},
-		{name: "unknown labor", change: func(c *AcquisitionCandidate) { c.Labor = domain.Unknown[float64]() }, hold: "unknown_demand_or_cost"},
-		{name: "negative distance", change: func(c *AcquisitionCandidate) { c.PathDistance = domain.Known(-1.0) }, wantError: true},
-		{name: "nan", change: func(c *AcquisitionCandidate) { c.Yields[0].UnitValue = math.NaN() }, wantError: true},
-		{name: "infinity", change: func(c *AcquisitionCandidate) { c.Labor = domain.Known(math.Inf(1)) }, wantError: true},
-		{name: "no carry capacity", change: func(c *AcquisitionCandidate) { c.UnitsPerTrip = 0 }, wantError: true},
-		{name: "invalid kind", change: func(c *AcquisitionCandidate) { c.Kind = "unknown" }, wantError: true},
+		{name: "unknown route", change: func(c *SupplyCandidate) { c.PathDistance = domain.Unknown[float64]() }, hold: "unknown_demand_or_cost"},
+		{name: "unknown labor", change: func(c *SupplyCandidate) { c.UpfrontCost.LaborTicks = domain.Unknown[float64]() }, hold: "unknown_demand_or_cost"},
+		{name: "negative distance", change: func(c *SupplyCandidate) { c.PathDistance = domain.Known(-1.0) }, wantError: true},
+		{name: "nan", change: func(c *SupplyCandidate) { c.Yields[0].UnitValue = math.NaN() }, wantError: true},
+		{name: "infinity", change: func(c *SupplyCandidate) { c.UpfrontCost.LaborTicks = domain.Known(math.Inf(1)) }, wantError: true},
+		{name: "no carry capacity", change: func(c *SupplyCandidate) { c.UnitsPerTrip = 0 }, wantError: true},
+		{name: "invalid kind", change: func(c *SupplyCandidate) { c.Kind = "unknown" }, wantError: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := base
-			c.Yields = append([]AcquisitionYield(nil), base.Yields...)
+			c.Yields = append([]CandidateYield(nil), base.Yields...)
 			if tc.change != nil {
 				tc.change(&c)
 			}
@@ -153,9 +153,9 @@ func TestResourceCandidateCostsAndHolds(t *testing.T) {
 
 func TestResourceCandidateValueAndStuff(t *testing.T) {
 	key := ResourceKey{Def: "Chair", Stuff: "WoodLog"}
-	c := acquisitionFixture("salvage", AcquisitionSalvage, "Chair", 10)
-	c.Yields[0].Key = key
-	c.Yields[0].Count = 10
+	c := acquisitionFixture("salvage", CandidateSalvage, "Chair", 10)
+	c.Yields[0].Good = key
+	c.Yields[0].StockCap = domain.Known(int64(10))
 	c.UnitsPerTrip = 4
 	demand := domain.Known([]ResourceDemand{{key, 3, 3}, {ResourceKey{Def: "Chair"}, 2, 1}})
 	s, err := scoreBySupply(demand, c, AcquisitionCompetition{})
@@ -167,7 +167,7 @@ func TestResourceCandidateValueAndStuff(t *testing.T) {
 	if err != nil || valuable.Score <= s.Score {
 		t.Fatalf("value: %+v %v", valuable, err)
 	}
-	c.Yields[0].Key.Stuff = "Steel"
+	c.Yields[0].Good.Stuff = "Steel"
 	s, err = scoreBySupply(demand, c, AcquisitionCompetition{})
 	if err != nil || s.Wanted != 2 {
 		t.Fatalf("wrong stuff: %+v %v", s, err)
@@ -187,10 +187,10 @@ func TestResourceRankingTieBreakAndInputOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidates := []AcquisitionCandidate{
-		acquisitionFixture("b", AcquisitionMining, "Steel", 10),
-		acquisitionFixture("a", AcquisitionMining, "Steel", 10),
-		acquisitionFixture("z", AcquisitionLoot, "Steel", 10),
+	candidates := []SupplyCandidate{
+		acquisitionFixture("b", CandidateMining, "Steel", 10),
+		acquisitionFixture("a", CandidateMining, "Steel", 10),
+		acquisitionFixture("z", CandidateLoot, "Steel", 10),
 	}
 	want, err := rankBySupply(wantDemand, candidates, AcquisitionCompetition{})
 	if err != nil || len(want) != 3 || want[0].ID != "z" || want[1].ID != "a" || want[2].ID != "b" {
@@ -215,8 +215,8 @@ func TestResourceRankingTieBreakAndInputOrder(t *testing.T) {
 }
 
 func TestResourceCandidateYieldOrderAndDuplicateIdentity(t *testing.T) {
-	c := acquisitionFixture("source", AcquisitionSalvage, "Steel", 10)
-	c.Yields = append(c.Yields, AcquisitionYield{ResourceQuantity: ResourceQuantity{ResourceKey{Def: "Gold"}, 5}, UnitValue: 4, Headroom: domain.Known(int64(5))})
+	c := acquisitionFixture("source", CandidateSalvage, "Steel", 10)
+	c.Yields = append(c.Yields, SourceYield(ResourceKey{Def: "Gold"}, 5, 4, domain.Known(int64(5))))
 	demand := domain.Known([]ResourceDemand{{ResourceKey{Def: "Steel"}, 20, 2}, {ResourceKey{Def: "Gold"}, 5, 1}})
 	want, err := scoreBySupply(demand, c, AcquisitionCompetition{})
 	if err != nil {
@@ -227,7 +227,7 @@ func TestResourceCandidateYieldOrderAndDuplicateIdentity(t *testing.T) {
 	if err != nil || got != want {
 		t.Fatalf("yield order changed score: %+v want %+v, %v", got, want, err)
 	}
-	if _, err := rankBySupply(demand, []AcquisitionCandidate{c, c}, AcquisitionCompetition{}); err == nil {
+	if _, err := rankBySupply(demand, []SupplyCandidate{c, c}, AcquisitionCompetition{}); err == nil {
 		t.Fatal("duplicate identity accepted")
 	}
 	c.Yields = append(c.Yields, c.Yields[0])

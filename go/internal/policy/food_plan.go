@@ -9,75 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-type FoodChannelKind string
-
-const (
-	FoodForage        FoodChannelKind = "Forage"
-	FoodHunt          FoodChannelKind = "Hunt"
-	FoodSlaughter     FoodChannelKind = "Slaughter"
-	FoodCrop          FoodChannelKind = "Crop"
-	FoodAnimalProduct FoodChannelKind = "AnimalProduct"
-	FoodFishing       FoodChannelKind = "Fishing"
-	FoodTrade         FoodChannelKind = "Trade"
-	FoodTame          FoodChannelKind = "Tame"
-	FoodAnimalBuy     FoodChannelKind = "AnimalBuy"
-	FoodCorpse        FoodChannelKind = "Corpse"
-	FoodReserve       FoodChannelKind = "Reserve"
-	FoodCook          FoodChannelKind = "Cook"
-)
-
-type FoodRiskKind string
-
-const (
-	FoodBlight  FoodRiskKind = "Blight"
-	FoodFallout FoodRiskKind = "Fallout"
-	FoodFrost   FoodRiskKind = "Frost"
-	FoodPower   FoodRiskKind = "Power"
-	FoodRevenge FoodRiskKind = "Revenge"
-)
-
-type FoodRisk struct {
-	Kind   FoodRiskKind
-	Weight float64 // [0,1]; summed risks discount nutrition, clamped at 100%.
-}
-
-type FoodPlanTerm struct {
-	Name  string
-	Value float64
-}
-
-type FoodChannel struct {
-	// Contributions must be independent: a Cook row describes incremental
-	// nutrition gained by conversion, not the raw input counted by another row.
-	Kind                                  FoodChannelKind
-	ID                                    string
-	NutritionPerDay, WorkPerDay, LeadDays domain.Fact[float64]
-	// UpfrontTicks is the work that establishes a one-shot channel (a
-	// slaughter's 180 ticks), charged once; WorkPerDay is the steady work.
-	UpfrontTicks domain.Fact[float64]
-	Risk         []FoodRisk
-	// Open is true once the channel is observed delivering (the delivery
-	// ledger); Designated is a committed channel not yet seen delivering; a
-	// channel that is neither is closed (see State).
-	Open, Designated domain.Fact[bool]
-	// Source names the ledger counter group that counts the channel's
-	// deliveries ("crop:<zone>", "fish:<x,z>", "forage:<def>",
-	// "animal_product:<race>"); empty for a channel the ledger does not count.
-	Source string
-	Terms  []FoodPlanTerm
-	// DistanceSquared is the nearest source cell to the colony centre;
-	// fishing regions of equal lead rank nearest-first on it.
-	DistanceSquared domain.Fact[float64]
-	// Prey is a formation hunt's animals (HuntCandidates), sorted.
-	Prey []string
-	// Products are the goods a channel yields beside its nutrition (a hunted
-	// deer's leather).
-	Products []CandidateYield
-	// StockCap bounds the nutrition the channel can hold at once (a perishable
-	// harvest); Unknown is no known bound.
-	StockCap domain.Fact[int64]
-}
-
 type FoodPlanRequest struct {
 	Demand                           FoodForecast
 	ReserveDays, MinDays, TargetDays float64
@@ -87,7 +18,7 @@ type FoodPlanRequest struct {
 	// kind first, so hunting, fishing, foraging and harvest run in parallel
 	// up to the labor budget. Zero disables the emergency.
 	EmergencyDays float64
-	Channels      domain.Fact[[]FoodChannel]
+	Channels      domain.Fact[[]SupplyCandidate]
 	Labor         domain.Fact[float64]
 }
 
@@ -100,11 +31,11 @@ const (
 )
 
 type FoodPlanEntry struct {
-	Channel FoodChannel
+	Channel SupplyCandidate
 	// Hold preserves current state: keep an open channel or defer a closed one.
 	Decision        FoodPlanDecision
 	Reason          string
-	Terms           []FoodPlanTerm
+	Terms           []CandidateTerm
 	DeliveredPerDay float64 // Risk-adjusted contribution admitted to this plan.
 }
 
@@ -137,11 +68,12 @@ func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
 	}
 	req := SupplyPlanRequest{Demands: domain.Known([]SupplyDemand{demand}), Labor: r.Labor, Candidates: domain.Unknown[[]SupplyCandidate]()}
 	if rows, known := r.Channels.Value(); known {
-		cands := make([]SupplyCandidate, 0, len(rows))
 		for _, c := range rows {
-			cands = append(cands, SupplyCandidateOfFood(c))
+			if !validFoodChannelKind(c.Kind) || len(c.Yields) == 0 || c.Yields[0].Good != NutritionKey {
+				return FoodPlan{}, ErrFoodPlanFacts
+			}
 		}
-		req.Candidates = domain.Known(cands)
+		req.Candidates = domain.Known(rows)
 	}
 	plan, err := PlanSupply(req)
 	if err != nil {
@@ -153,13 +85,9 @@ func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
 	}
 	view := func(rows []SupplyEntry) (entries []FoodPlanEntry) {
 		for _, e := range rows {
-			channel, ok := FoodChannelOfSupply(e.Candidate)
-			if !ok {
-				panic("not a food channel")
-			}
-			entry := FoodPlanEntry{Channel: channel, Decision: FoodPlanDecision(e.Decision), Reason: e.Reason}
+			entry := FoodPlanEntry{Channel: e.Candidate, Decision: FoodPlanDecision(e.Decision), Reason: e.Reason}
 			for _, t := range e.Terms {
-				entry.Terms = append(entry.Terms, FoodPlanTerm(t))
+				entry.Terms = append(entry.Terms, CandidateTerm(t))
 			}
 			for _, c := range e.Credit {
 				entry.DeliveredPerDay += c.Amount
@@ -172,9 +100,9 @@ func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
 	return out, nil
 }
 
-func validFoodChannelKind(k FoodChannelKind) bool {
+func validFoodChannelKind(k CandidateKind) bool {
 	switch k {
-	case FoodForage, FoodHunt, FoodSlaughter, FoodCrop, FoodAnimalProduct, FoodFishing, FoodTrade, FoodTame, FoodAnimalBuy, FoodCorpse, FoodReserve, FoodCook:
+	case CandidateForage, CandidateHunt, CandidateSlaughter, CandidateCrop, CandidateAnimalProduct, CandidateFishing, CandidateTrade, CandidateTame, CandidateAnimalBuy, CandidateCorpse, CandidateReserve, CandidateCook:
 		return true
 	}
 	return false
@@ -205,12 +133,23 @@ const (
 	FoodHuntWorkTicks   = 7500.0
 )
 
-func ForageChannels(sources []AcquisitionSource) []FoodChannel {
-	var out []FoodChannel
+// FoodSupportCandidate is a zero-contribution Hold row: a supporting method
+// (cooking capacity, stock protection) that creates no nutrition by itself and
+// leaves the method to its own observed preconditions.
+func FoodSupportCandidate(kind CandidateKind, id string) SupplyCandidate {
+	c := FoodCandidate(kind, id, domain.Known(0.0))
+	c.LaborPerDay, c.LeadDays, c.State = domain.Known(0.0), domain.Known(0.0), FoodState(domain.Known(false), domain.Unknown[bool]())
+	c.Terms = []CandidateTerm{{Name: "supporting_method", Value: 1}}
+	return c
+}
+
+func ForageChannels(sources []AcquisitionSource) []SupplyCandidate {
+	var out []SupplyCandidate
 	for _, s := range sources {
 		if s.Food && !s.Tree && !s.Hunt {
-			c := FoodChannel{Kind: FoodForage, ID: s.ID, NutritionPerDay: domain.Known(s.NutritionYield / FoodForageCycleDays), WorkPerDay: domain.Known(FoodForageWorkTicks / FoodForageCycleDays), LeadDays: domain.Known(0.0), Open: domain.Known(false), Designated: domain.Known(s.Designated),
-				Terms: []FoodPlanTerm{{"estimated_cycle_days", FoodForageCycleDays}, {"estimated_work_ticks", FoodForageWorkTicks}}}
+			c := FoodCandidate(CandidateForage, s.ID, domain.Known(s.NutritionYield/FoodForageCycleDays))
+			c.LaborPerDay, c.LeadDays, c.State = domain.Known(FoodForageWorkTicks/FoodForageCycleDays), domain.Known(0.0), FoodState(domain.Known(false), domain.Known(s.Designated))
+			c.Terms = []CandidateTerm{{"estimated_cycle_days", FoodForageCycleDays}, {"estimated_work_ticks", FoodForageWorkTicks}}
 			if s.Definition != "" {
 				c.Source = "forage:" + s.Definition
 			}
@@ -305,9 +244,9 @@ func (k CropKitchen) Cooking() domain.Fact[CropCooking] {
 // days (StockCap); an unknown recipe or rot fact leaves that facet Unknown,
 // never zero. A planted field is Designated; the delivery ledger moves it to
 // Delivering (DeliveryCredit.Apply).
-func CropChannels(fields []FoodField, kitchen CropKitchen) []FoodChannel {
+func CropChannels(fields []FoodField, kitchen CropKitchen) []SupplyCandidate {
 	cooking := kitchen.Cooking()
-	var out []FoodChannel
+	var out []SupplyCandidate
 	for _, f := range fields {
 		edible, ek := f.Plan.Crop.Edible.Value()
 		if ek && !edible {
@@ -315,7 +254,7 @@ func CropChannels(fields []FoodField, kitchen CropKitchen) []FoodChannel {
 		}
 		c := priceCrop(f.Plan.Crop, f.Plan.Sites.Cells, f.WorkPerDay, cooking)
 		c.ID, c.LeadDays, c.Source = f.ID, f.RemainingGrowDays, "crop:"+f.ID
-		c.Open, c.Designated = domain.Known(false), domain.Known(true)
+		c.State = FoodState(domain.Known(false), domain.Known(true))
 		out = append(out, c)
 	}
 	return out
@@ -323,43 +262,44 @@ func CropChannels(fields []FoodField, kitchen CropKitchen) []FoodChannel {
 
 // priceCrop is the nutrition, work and rot cap of cells of crop, shared by a
 // planted field and a candidate one. baseWork is the daily harvest work.
-func priceCrop(crop CropChoice, cells int, baseWork domain.Fact[float64], cooking domain.Fact[CropCooking]) FoodChannel {
+func priceCrop(crop CropChoice, cells int, baseWork domain.Fact[float64], cooking domain.Fact[CropCooking]) SupplyCandidate {
 	_, ek := crop.Edible.Value()
 	yield, yk := crop.HarvestNutrition.Value()
 	days, dk := crop.GrowDays.Value()
 	nutrition := domain.Unknown[float64]()
 	work := baseWork
-	var terms []FoodPlanTerm
+	var terms []CandidateTerm
 	// Preserve malformed known numbers for PlanSupply's error boundary.
 	if yk && !foodNumber(yield) || dk && !fieldPositive(days) || cells < 0 {
 		nutrition = domain.Known(math.NaN())
 	} else if ek && yk && dk {
 		raw := yield * float64(cells) / days
 		nutrition = domain.Known(raw)
-		terms = append(terms, FoodPlanTerm{"raw_nutrition_per_day", raw})
+		terms = append(terms, CandidateTerm{"raw_nutrition_per_day", raw})
 		if cook, known := cooking.Value(); known && cook.Recipe != "" {
 			cooked := raw * cook.NutrientEfficiency
 			cookWork := cooked * cook.WorkPerNutrition
 			preferred, pk := crop.RawPreferred.Value()
 			if cookWork <= cook.CapacityTicks && (cooked > raw || cooked == raw && pk && !preferred) {
 				nutrition = domain.Known(cooked)
-				terms = append(terms, FoodPlanTerm{"cooked_nutrition_per_day", cooked}, FoodPlanTerm{"cook_work_per_day", cookWork})
+				terms = append(terms, CandidateTerm{"cooked_nutrition_per_day", cooked}, CandidateTerm{"cook_work_per_day", cookWork})
 				if w, wk := baseWork.Value(); wk {
 					work = domain.Known(w + cookWork)
 				}
 			}
 		}
 	}
-	c := FoodChannel{Kind: FoodCrop, NutritionPerDay: nutrition, WorkPerDay: work, StockCap: domain.Unknown[int64](), Terms: terms}
+	c := FoodCandidate(CandidateCrop, "", nutrition)
+	c.LaborPerDay, c.Terms = work, terms
 	if dk && fieldPositive(days) {
-		c.Terms = append(c.Terms, FoodPlanTerm{"grow_days", days})
+		c.Terms = append(c.Terms, CandidateTerm{"grow_days", days})
 	}
 	if n, nk := nutrition.Value(); nk && foodNumber(n) {
 		rot, rk := crop.RotDays.Value()
 		perishable, pk := crop.Perishable.Value()
 		if rk && pk && perishable && fieldPositive(rot) {
-			c.StockCap = domain.Known(int64(math.Ceil(n * rot)))
-			c.Terms = append(c.Terms, FoodPlanTerm{"rot_days", rot})
+			c.Yields[0].StockCap = domain.Known(int64(math.Ceil(n * rot)))
+			c.Terms = append(c.Terms, CandidateTerm{"rot_days", rot})
 		}
 	}
 	return c
@@ -390,7 +330,7 @@ func NewFieldLeadDays(growDays domain.Fact[float64], calendar domain.Fact[Calend
 // the sowing as upfront labor and the full grow days across the calendar as
 // lead. Nothing is offered while crops cannot be sown outdoors. Site choice
 // stays with the field executor, which acts on a candidate the plan opened.
-func NewFieldChannels(r FieldRequest, kitchen CropKitchen) []FoodChannel {
+func NewFieldChannels(r FieldRequest, kitchen CropKitchen) []SupplyCandidate {
 	if sowing, known := r.Climate.SowingOutdoors().Value(); !known || !sowing {
 		return nil
 	}
@@ -399,7 +339,7 @@ func NewFieldChannels(r FieldRequest, kitchen CropKitchen) []FoodChannel {
 		return nil
 	}
 	cooking := kitchen.Cooking()
-	var out []FoodChannel
+	var out []SupplyCandidate
 	for _, v := range viables {
 		work := domain.Unknown[float64]()
 		if harvest, hk := v.crop.HarvestWork.Value(); hk {
@@ -408,9 +348,9 @@ func NewFieldChannels(r FieldRequest, kitchen CropKitchen) []FoodChannel {
 		c := priceCrop(v.crop, v.needed, work, cooking)
 		c.ID = NewFieldPrefix + v.crop.Name
 		c.LeadDays = NewFieldLeadDays(v.crop.GrowDays, r.Calendar)
-		c.UpfrontTicks = domain.Known(float64(v.needed) * FieldSowTicksPerCell)
-		c.Open, c.Designated = domain.Known(false), domain.Known(false)
-		c.Terms = append(c.Terms, FoodPlanTerm{"new_field_cells", float64(v.needed)})
+		c.UpfrontCost.LaborTicks = domain.Known(float64(v.needed) * FieldSowTicksPerCell)
+		c.State = FoodState(domain.Known(false), domain.Known(false))
+		c.Terms = append(c.Terms, CandidateTerm{"new_field_cells", float64(v.needed)})
 		out = append(out, c)
 	}
 	return out

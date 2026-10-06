@@ -191,7 +191,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		}
 		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	}
-	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
+	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.CandidateCook, "cooking-capacity") {
 		return RoundsBillResult{Verdict: awaitingFoodPlan("cooking-capacity")}, nil
 	}
 	if r.purpose == policy.ButcherFood {
@@ -248,7 +248,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		billContext = append(billContext, policy.ProductionBillContext{Meals: &meals})
 	}
 	if r.purpose == policy.PreserveFood {
-		if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
+		if !foodPlanSupport(projection.Facts.FoodPlan, policy.CandidateReserve, "stock-protection") {
 			return RoundsBillResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
 		}
 		value, known := projection.Facts.FoodReserve.Value()
@@ -277,7 +277,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	if r.purpose == policy.ButcherFood {
 		if human, ok := policy.SelectHumanButcher(benches, projection.Facts.IdeologyRead()); ok {
-			if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCorpse, "human-butchery") {
+			if !foodPlanSupport(projection.Facts.FoodPlan, policy.CandidateCorpse, "human-butchery") {
 				return RoundsBillResult{Verdict: awaitingFoodPlan("human-butchery")}, nil
 			}
 			selected, known = human, true

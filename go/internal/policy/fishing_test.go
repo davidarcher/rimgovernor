@@ -27,7 +27,7 @@ func TestFishingDraw(t *testing.T) {
 		if err != nil || len(rows) != 1 {
 			t.Fatalf("rows=%v err=%v", rows, err)
 		}
-		if rows[0].NutritionPerDay != domain.Known(tc.nutrition) || rows[0].WorkPerDay != domain.Known(tc.work) {
+		if rows[0].Nutrition().PerDay != domain.Known(tc.nutrition) || rows[0].LaborPerDay != domain.Known(tc.work) {
 			t.Fatalf("maximum=%v population=%v: %+v", tc.maximum, tc.population, rows[0])
 		}
 		if rows[0].LeadDays != domain.Known(0.0) {
@@ -87,7 +87,7 @@ func TestFishingRateLimitedByPawnCapacity(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := math.Min(1.875, capacity)
-		if rows[0].NutritionPerDay != domain.Known(want) || rows[0].WorkPerDay != domain.Known(want*5000) {
+		if rows[0].Nutrition().PerDay != domain.Known(want) || rows[0].LaborPerDay != domain.Known(want*5000) {
 			t.Fatal(rows)
 		}
 	}
@@ -129,7 +129,7 @@ func TestFishingResearchAdmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rows[0].LeadDays != domain.Known(2.0) || rows[0].Open != domain.Known(false) {
+	if rows[0].LeadDays != domain.Known(2.0) || rows[0].Open() != domain.Known(false) {
 		t.Fatal(rows)
 	}
 	for _, runway := range []float64{1, 4} {
@@ -184,7 +184,7 @@ func TestFishingBelowFloorExpectsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	row := rows[0]
-	if row.NutritionPerDay != domain.Known(0.0) || row.Open != domain.Known(false) {
+	if row.Nutrition().PerDay != domain.Known(0.0) || row.Open() != domain.Known(false) {
 		t.Fatalf("%+v", row)
 	}
 	var below bool
@@ -216,11 +216,11 @@ func TestFishingFactorFallsWhenCatchesStop(t *testing.T) {
 	if f := d.results["fish:0,0"].Factor; f != 0 {
 		t.Fatalf("factor with no catches = %v", f)
 	}
-	if out[0].State() == domain.Known(CandidateDelivering) {
+	if out[0].State == domain.Known(CandidateDelivering) {
 		t.Fatalf("a zone with no catches is not delivering: %+v", out[0])
 	}
 	out = d.Apply(rows, in(5, 3))
-	if out[0].State() != domain.Known(CandidateDelivering) {
+	if out[0].State != domain.Known(CandidateDelivering) {
 		t.Fatalf("rising FISH counters mean delivering: %+v", out[0])
 	}
 }

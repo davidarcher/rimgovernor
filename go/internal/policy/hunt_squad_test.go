@@ -11,8 +11,8 @@ func preyRow(id string, x, z int32, revenge float64) AcquisitionSource {
 	return AcquisitionSource{ID: id, Resource: "Corpse_" + id, Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 10, RevengeChance: revenge, HerdSize: 1, Cell: domain.Cell{X: x, Z: z}}
 }
 
-func huntByID(channels []FoodChannel) map[string]FoodChannel {
-	out := map[string]FoodChannel{}
+func huntByID(channels []SupplyCandidate) map[string]SupplyCandidate {
+	out := map[string]SupplyCandidate{}
 	for _, c := range channels {
 		out[c.ID] = c
 	}
@@ -45,10 +45,10 @@ func TestHuntCandidatesOnePerGroupWithMode(t *testing.T) {
 		}
 	}
 	g := by["squad:deer"]
-	if n, _ := g.NutritionPerDay.Value(); n != 30 {
+	if n, _ := g.Nutrition().PerDay.Value(); n != 30 {
 		t.Fatalf("group nutrition = %v", n)
 	}
-	if g.Kind != FoodHunt || len(g.Risk) != 1 || g.Risk[0].Kind != FoodRevenge {
+	if g.Kind != CandidateHunt || len(g.Risk) != 1 || g.Risk[0].Kind != CandidateRevenge {
 		t.Fatalf("channel risk = %+v", g)
 	}
 }
@@ -67,7 +67,7 @@ func TestHuntFormationHoldsWithoutGunners(t *testing.T) {
 		for _, term := range c.Terms {
 			terms[term.Name] = term.Value
 		}
-		if n, _ := c.NutritionPerDay.Value(); c.Mode() != HuntFormation || n != 0 || terms["needs_gunners"] != 1 || terms["held_nutrition_per_day"] <= 0 {
+		if n, _ := c.Nutrition().PerDay.Value(); c.Mode() != HuntFormation || n != 0 || terms["needs_gunners"] != 1 || terms["held_nutrition_per_day"] <= 0 {
 			t.Fatalf("%s = %+v", id, c)
 		}
 	}
@@ -92,21 +92,18 @@ func TestHuntCandidateYieldsMeatAndLeather(t *testing.T) {
 	hare := preyRow("hare", 50, 50, 0.01)
 	hare.Products = []SourceProduct{{Def: "Leather_Light", Amount: 5}}
 	by := huntByID(HuntCandidates([]AcquisitionSource{deer, hare}, 0, domain.Fact[float64]{}))
-	candidate := SupplyCandidateOfFood(by["deer"])
+	candidate := by["deer"]
 	if len(candidate.Yields) != 2 || candidate.Yields[0].Good.Def != CandidateNutrition || candidate.Yields[1].Good.Def != "Leather_Plain" {
 		t.Fatalf("yields = %+v", candidate.Yields)
 	}
 	if leather, _ := candidate.Yields[1].PerDay.Value(); leather != 40 {
 		t.Fatalf("leather = %v", leather)
 	}
-	if back, ok := FoodChannelOfSupply(candidate); !ok || !reflect.DeepEqual(back.Products, by["deer"].Products) {
-		t.Fatalf("round trip = %+v %v", back, ok)
-	}
 	// A formation sums its animals' products.
 	rows := []AcquisitionSource{deer, preyRow("b", 11, 11, 0.05), preyRow("c", 12, 12, 0.05)}
 	rows[1].Products = []SourceProduct{{Def: "Leather_Plain", Amount: 2}}
 	g := HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{})[0]
-	if g.Mode() != HuntFormation || len(g.Products) != 1 || g.Products[0].PerDay != domain.Known(42.0) {
+	if g.Mode() != HuntFormation || len(g.Products()) != 1 || g.Products()[0].PerDay != domain.Known(42.0) {
 		t.Fatalf("formation products = %+v", g)
 	}
 }
@@ -197,7 +194,7 @@ func TestHuntDeliveryLifecycle(t *testing.T) {
 	}
 	var h HuntDelivery
 	state := func(killed map[string]bool, rows []AcquisitionSource) CandidateState {
-		s, _ := h.Apply(HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{}), killed)[0].State().Value()
+		s, _ := h.Apply(HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{}), killed)[0].State.Value()
 		return s
 	}
 	if got := state(nil, rows); got != CandidateClosed {

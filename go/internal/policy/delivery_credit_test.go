@@ -79,7 +79,9 @@ func TestCreditUnopenedGroupIsNeverPenalised(t *testing.T) {
 
 func TestCreditOpenedByPlanArmsAtThatTick(t *testing.T) {
 	var d DeliveryCredit
-	ch := []FoodChannel{{Kind: FoodCrop, ID: "z1", Source: "crop:z1", NutritionPerDay: domain.Known(10.0), Designated: domain.Known(true), Open: domain.Known(false), LeadDays: domain.Known(0.0)}}
+	z1 := FoodCandidate(CandidateCrop, "z1", domain.Known(10.0))
+	z1.Source, z1.State, z1.LeadDays = "crop:z1", domain.Known(CandidateDesignated), domain.Known(0.0)
+	ch := []SupplyCandidate{z1}
 	in := func(day int) CreditInput {
 		return CreditInput{Tick: domain.Tick(day) * creditDay, Epoch: "a", Known: true, Delivered: map[string]float64{}}
 	}
@@ -87,7 +89,7 @@ func TestCreditOpenedByPlanArmsAtThatTick(t *testing.T) {
 	d.Apply(ch, in(5)) // unopened: held at 1
 	d.Opened(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: ch[0], Decision: FoodPlanOpen}}}, ch, 5*creditDay)
 	out := d.Apply(ch, in(8)) // opened at day 5: the window (grow 0 -> 3 days) ends at day 8
-	if rate, _ := out[0].NutritionPerDay.Value(); rate != 0 {
+	if rate, _ := out[0].Nutrition().PerDay.Value(); rate != 0 {
 		t.Fatalf("an opened group that delivered nothing for a window keeps credit %v", rate)
 	}
 }
@@ -216,26 +218,28 @@ func TestCreditMoveEmitsOneRowPerTenthAndStateChange(t *testing.T) {
 
 func TestCreditApplyAttributesByCounterGroupAndRisk(t *testing.T) {
 	var d DeliveryCredit
-	forage := func(id string) FoodChannel {
-		return FoodChannel{Kind: FoodForage, ID: id, Source: "forage:Berry", NutritionPerDay: domain.Known(4.0), LeadDays: domain.Known(0.0),
-			Designated: domain.Known(true), Open: domain.Known(false)}
+	forage := func(id string) SupplyCandidate {
+		c := FoodCandidate(CandidateForage, id, domain.Known(4.0))
+		c.Source, c.LeadDays, c.State = "forage:Berry", domain.Known(0.0), domain.Known(CandidateDesignated)
+		return c
 	}
-	risky := FoodChannel{Kind: FoodCrop, ID: "z", Source: "crop:z", NutritionPerDay: domain.Known(10.0), LeadDays: domain.Known(0.0),
-		Risk: []FoodRisk{{FoodFallout, 0.5}}, Designated: domain.Known(true), Open: domain.Known(false)}
-	closed := FoodChannel{Kind: FoodHunt, ID: "deer", NutritionPerDay: domain.Known(9.0), Open: domain.Known(false)}
-	channels := []FoodChannel{forage("a"), forage("b"), risky, closed}
+	risky := FoodCandidate(CandidateCrop, "z", domain.Known(10.0))
+	risky.Source, risky.LeadDays, risky.State, risky.Risk = "crop:z", domain.Known(0.0), domain.Known(CandidateDesignated), []CandidateRisk{{CandidateFallout, 0.5}}
+	closed := FoodCandidate(CandidateHunt, "deer", domain.Known(9.0))
+	closed.State = domain.Known(CandidateClosed)
+	channels := []SupplyCandidate{forage("a"), forage("b"), risky, closed}
 	in := CreditInput{Tick: 0, Epoch: "e", Known: true, Delivered: map[string]float64{"forage:Berry": 1}}
 	out := d.Apply(channels, in)
 	for _, i := range []int{0, 1} {
-		if out[i].Source != "forage:Berry" || out[i].State() != domain.Known(CandidateDelivering) {
+		if out[i].Source != "forage:Berry" || out[i].State != domain.Known(CandidateDelivering) {
 			t.Fatalf("a forage channel takes its def's state from the ledger: %+v", out[i])
 		}
 	}
-	if out[2].State() == domain.Known(CandidateDelivering) || out[3].Open != channels[3].Open {
+	if out[2].State == domain.Known(CandidateDelivering) || out[3].State != channels[3].State {
 		t.Fatalf("a crop with no delivery stays designated and a closed hunt is untouched: %+v %+v", out[2], out[3])
 	}
 	for i := range channels {
-		if channels[i].State() == domain.Known(CandidateDelivering) {
+		if channels[i].State == domain.Known(CandidateDelivering) {
 			t.Fatal("Apply wrote into its input")
 		}
 	}
@@ -253,8 +257,9 @@ func TestCreditApplyAttributesByCounterGroupAndRisk(t *testing.T) {
 }
 
 func TestCreditApplyScalesTheRateAndNilIsANoOp(t *testing.T) {
-	ch := []FoodChannel{{Kind: FoodFishing, ID: "water-0-0", Source: "fish:0,0", NutritionPerDay: domain.Known(8.0), LeadDays: domain.Known(0.0),
-		Designated: domain.Known(true), Open: domain.Known(false)}}
+	water := FoodCandidate(CandidateFishing, "water-0-0", domain.Known(8.0))
+	water.Source, water.LeadDays, water.State = "fish:0,0", domain.Known(0.0), domain.Known(CandidateDesignated)
+	ch := []SupplyCandidate{water}
 	var nilCredit *DeliveryCredit
 	if out := nilCredit.Apply(ch, CreditInput{}); &out[0] != &ch[0] {
 		t.Fatal("a nil credit must return the channels as given")
@@ -262,7 +267,7 @@ func TestCreditApplyScalesTheRateAndNilIsANoOp(t *testing.T) {
 	var d DeliveryCredit
 	d.Apply(ch, CreditInput{Tick: 0, Epoch: "e", Known: true})
 	out := d.Apply(ch, CreditInput{Tick: 4 * creditDay, Epoch: "e", Known: true})
-	if rate, _ := out[0].NutritionPerDay.Value(); rate != 8 {
+	if rate, _ := out[0].Nutrition().PerDay.Value(); rate != 8 {
 		t.Fatalf("a group no plan opened keeps its rate, got %v", rate)
 	}
 }

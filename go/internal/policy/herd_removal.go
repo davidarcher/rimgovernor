@@ -33,7 +33,7 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 	plan, foodKnown := food.Value()
 	foodWanted := map[PawnID]bool{}
 	for _, e := range plan.Portfolio {
-		if e.Channel.Kind == FoodSlaughter && e.Decision == FoodPlanOpen {
+		if e.Channel.Kind == CandidateSlaughter && e.Decision == FoodPlanOpen {
 			for _, a := range rows {
 				if e.Channel.ID == "slaughter:"+string(a.ID) {
 					foodWanted[a.ID] = true

@@ -10,13 +10,10 @@ import (
 type ResourceSupplyInput struct {
 	Resource   Resource
 	Deficit    int64
-	Candidates []AcquisitionCandidate
+	Candidates []SupplyCandidate
 	// HorizonDays is how far ahead the deficit is wanted: a candidate with a
 	// longer lead (a field) is not eligible. Zero is wanted now.
 	HorizonDays float64
-	// Fields are candidates with a lead and a steady rate, which an
-	// AcquisitionCandidate cannot express (FieldHarvestCandidate).
-	Fields []SupplyCandidate
 }
 
 // ResourceSupply is the Round's one supply plan over every resource deficit.
@@ -39,20 +36,13 @@ func PlanResourceSupply(inputs []ResourceSupplyInput, labor domain.Fact[float64]
 		demand := SupplyDemandOfResource(ResourceDemand{Key: ResourceKey{Def: in.Resource}, Count: in.Deficit, Priority: 1})
 		demand.HorizonDays = in.HorizonDays
 		demands = append(demands, demand)
-		for _, c := range in.Fields {
-			id := [2]string{string(c.Kind), c.ID}
-			if !seen[id] {
-				seen[id] = true
-				candidates = append(candidates, c)
-			}
-		}
 		for _, c := range in.Candidates {
 			id := [2]string{string(c.Kind), c.ID}
 			if seen[id] {
 				continue
 			}
 			seen[id] = true
-			candidates = append(candidates, SupplyCandidateOfAcquisition(c))
+			candidates = append(candidates, c)
 		}
 	}
 	plan, err := PlanSupply(SupplyPlanRequest{Demands: domain.Known(demands), Candidates: domain.Known(candidates), Labor: labor})
@@ -78,10 +68,10 @@ func (s ResourceSupply) Opened(resource Resource) []SupplyEntry {
 
 // OpenedIDs is the ids of the opened candidates of one kind for resource, in
 // rank order.
-func (s ResourceSupply) OpenedIDs(resource Resource, kind AcquisitionKind) map[string]bool {
+func (s ResourceSupply) OpenedIDs(resource Resource, kind CandidateKind) map[string]bool {
 	ids := map[string]bool{}
 	for _, e := range s.Opened(resource) {
-		if e.Candidate.Kind == acquisitionCandidateKinds[kind] {
+		if e.Candidate.Kind == kind {
 			ids[e.Candidate.ID] = true
 		}
 	}

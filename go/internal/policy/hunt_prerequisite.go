@@ -40,8 +40,8 @@ func (h HuntHold) needsHunterWeapon() bool {
 // (upfront HunterWeaponCraftTicks, craft_lead_days term) and carries a
 // needs_weapon term. The plan opens one only when the hunt is worth it; an
 // opened one is HuntArming.
-func HuntPrerequisiteCandidates(holds []HuntHold) []FoodChannel {
-	var out []FoodChannel
+func HuntPrerequisiteCandidates(holds []HuntHold) []SupplyCandidate {
+	var out []SupplyCandidate
 	for _, h := range holds {
 		if !h.needsHunterWeapon() || !h.Source.Food || h.Source.Tree {
 			continue
@@ -50,8 +50,8 @@ func HuntPrerequisiteCandidates(holds []HuntHold) []FoodChannel {
 		// The craft's lead is a term, not the candidate's lead: a starving
 		// colony has no runway, and any positive lead exceeds it, so the one
 		// step that lets it hunt could never open.
-		c.UpfrontTicks = domain.Known(HunterWeaponCraftTicks)
-		c.Terms = append(c.Terms, FoodPlanTerm{termNeedsWeapon, 1}, FoodPlanTerm{"craft_lead_days", HunterWeaponLeadDays})
+		c.UpfrontCost.LaborTicks = domain.Known(HunterWeaponCraftTicks)
+		c.Terms = append(c.Terms, CandidateTerm{termNeedsWeapon, 1}, CandidateTerm{"craft_lead_days", HunterWeaponLeadDays})
 		out = append(out, c)
 	}
 	return out
@@ -65,7 +65,7 @@ func HuntArming(plan domain.Fact[FoodPlan]) bool {
 		return false
 	}
 	for _, e := range p.Portfolio {
-		if e.Channel.Kind != FoodHunt || e.Decision != FoodPlanOpen {
+		if e.Channel.Kind != CandidateHunt || e.Decision != FoodPlanOpen {
 			continue
 		}
 		for _, t := range e.Channel.Terms {

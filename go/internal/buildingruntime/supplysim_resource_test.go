@@ -405,7 +405,7 @@ func (r resRun) verdict(check string) string {
 		}
 	case chkGate:
 		for _, e := range pl.events {
-			if e.Kind == policy.AcquisitionDeepDrill && !(e.Deficit && e.Research && e.Power > 0) {
+			if e.Kind == policy.CandidateDeepDrill && !(e.Deficit && e.Research && e.Power > 0) {
 				return fmt.Sprintf("day %d: drill without runway deficit, research and power", e.Day)
 			}
 		}
@@ -504,14 +504,14 @@ func TestResourceMatrixShrinksBaseline(t *testing.T) {
 // the adapter reaches each acquisition kind.
 func TestResourceMatrixReachesEveryAcquisitionKind(t *testing.T) {
 	t.Parallel()
-	kinds := map[policy.AcquisitionKind]bool{}
+	kinds := map[policy.CandidateKind]bool{}
 	for _, sc := range resScenarios() {
 		for _, e := range runResScenario(sc).pl.events {
 			kinds[e.Kind] = true
 		}
 	}
-	for _, k := range []policy.AcquisitionKind{policy.AcquisitionChop, policy.AcquisitionMining, policy.AcquisitionProduce,
-		policy.AcquisitionDeepDrill, policy.AcquisitionTrade, policy.AcquisitionLoot, policy.AcquisitionSalvage} {
+	for _, k := range []policy.CandidateKind{policy.CandidateChop, policy.CandidateMining, policy.CandidateProduce,
+		policy.CandidateDeepDrill, policy.CandidateTrade, policy.CandidateLoot, policy.CandidateSalvage} {
 		if !kinds[k] {
 			t.Errorf("no scenario dispatched a %s acquisition", k)
 		}

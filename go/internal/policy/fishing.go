@@ -34,12 +34,12 @@ type FishingRequest struct {
 // separate ledger contribution. Unknown facts never certify a delivery rate;
 // malformed known facts return the same error as SupplyFoodPlan. An empty region set
 // (including Core without Odyssey) produces no fishing channel.
-func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
+func FishingChannels(r FishingRequest) ([]SupplyCandidate, error) {
 	if lead, known := r.ResearchLeadDays.Value(); known && !foodNumber(lead) {
 		return nil, ErrFoodPlanFacts
 	}
 	seen := map[string]bool{}
-	var channels []FoodChannel
+	var channels []SupplyCandidate
 	for _, region := range r.Regions {
 		if !foodID(region.ID) || seen[region.ID] {
 			return nil, ErrFoodPlanFacts
@@ -59,15 +59,17 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 		if pk && mk && population > maximum || nk && nutrition == 0 || bk && batch == 0 || wk && work == 0 {
 			return nil, ErrFoodPlanFacts
 		}
-		channel := FoodChannel{Kind: FoodFishing, ID: region.ID, Open: notDelivering(region.Designated), Designated: region.Designated, Source: region.Source, DistanceSquared: region.DistanceSquared}
-		channel.Terms = []FoodPlanTerm{{Name: "fish_regeneration_fraction", Value: FishingRegenerationPerDay}}
+		open, designated := notDelivering(region.Designated), region.Designated
+		channel := FoodCandidate(CandidateFishing, region.ID, domain.Unknown[float64]())
+		channel.Source, channel.DistanceSquared = region.Source, region.DistanceSquared
+		channel.Terms = []CandidateTerm{{Name: "fish_regeneration_fraction", Value: FishingRegenerationPerDay}}
 		if researched, known := r.Researched.Value(); known {
 			channel.LeadDays = r.ResearchLeadDays
 			if researched {
 				channel.LeadDays = domain.Known(0.0)
 			} else {
-				channel.Open, channel.Designated = domain.Known(false), domain.Known(false)
-				channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_research_required", Value: 1})
+				open, designated = domain.Known(false), domain.Known(false)
+				channel.Terms = append(channel.Terms, CandidateTerm{Name: "fishing_research_required", Value: 1})
 			}
 		}
 		reachable, rk := region.Reachable.Value()
@@ -75,19 +77,19 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 		if rk && !reachable || fk && frozen || pk && population == 0 || mk && maximum == 0 {
 			// Preserve an explicit explanation without presenting an unusable
 			// region as an observed-open source of food.
-			channel.Open, channel.Designated = domain.Known(false), domain.Known(false)
-			channel.NutritionPerDay, channel.WorkPerDay = domain.Known(0.0), domain.Known(0.0)
+			open, designated = domain.Known(false), domain.Known(false)
+			channel.Yields[0].PerDay, channel.LaborPerDay = domain.Known(0.0), domain.Known(0.0)
 			if rk && !reachable {
-				channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_unreachable", Value: 1})
+				channel.Terms = append(channel.Terms, CandidateTerm{Name: "fishing_unreachable", Value: 1})
 			}
 			if fk && frozen {
-				channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_frozen", Value: 1})
+				channel.Terms = append(channel.Terms, CandidateTerm{Name: "fishing_frozen", Value: 1})
 			}
 		} else if pk && mk && population <= maximum*domain.FishingPopulationFloor {
 			// Native pauses fishing at or below the floor until the lake
 			// regrows: no catch, so the zone is not delivering meanwhile.
-			channel.NutritionPerDay, channel.WorkPerDay = domain.Known(0.0), domain.Known(0.0)
-			channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_below_floor", Value: population / maximum})
+			channel.Yields[0].PerDay, channel.LaborPerDay = domain.Known(0.0), domain.Known(0.0)
+			channel.Terms = append(channel.Terms, CandidateTerm{Name: "fishing_below_floor", Value: population / maximum})
 		} else if pk && mk && nk && bk && wk && rk && fk && capKnown {
 			// This is the sustainable average, not today's catch quota. Native
 			// population-floor control permits bursts and subsequent recovery.
@@ -101,9 +103,10 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 			if !foodNumber(dailyNutrition) || !foodNumber(dailyWork) {
 				return nil, ErrFoodPlanFacts
 			}
-			channel.NutritionPerDay, channel.WorkPerDay = domain.Known(dailyNutrition), domain.Known(dailyWork)
-			channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fish_draw_per_day", Value: draw}, FoodPlanTerm{Name: "fish_per_batch", Value: batch})
+			channel.Yields[0].PerDay, channel.LaborPerDay = domain.Known(dailyNutrition), domain.Known(dailyWork)
+			channel.Terms = append(channel.Terms, CandidateTerm{Name: "fish_draw_per_day", Value: draw}, CandidateTerm{Name: "fish_per_batch", Value: batch})
 		}
+		channel.State = FoodState(open, designated)
 		channels = append(channels, channel)
 	}
 	return channels, nil
@@ -125,7 +128,7 @@ func FishingResearchRequest(plan FoodPlan, researched domain.Fact[bool]) string 
 		return ""
 	}
 	for _, row := range plan.Portfolio {
-		if row.Channel.Kind == FoodFishing && row.Decision == FoodPlanOpen {
+		if row.Channel.Kind == CandidateFishing && row.Decision == FoodPlanOpen {
 			return "Fishing"
 		}
 	}

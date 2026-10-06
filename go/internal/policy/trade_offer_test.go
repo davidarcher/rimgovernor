@@ -37,11 +37,12 @@ func TestTradeOffersFresh(t *testing.T) {
 // the deficit, the trader's stock and the silver above the reserve.
 func TestTradeOfferCandidates(t *testing.T) {
 	t.Parallel()
-	units := func(c []AcquisitionCandidate) int64 {
+	units := func(c []SupplyCandidate) int64 {
 		if len(c) != 1 {
 			t.Fatalf("candidates %v", c)
 		}
-		return c[0].Yields[0].Count
+		n, _ := c[0].Yields[0].StockCap.Value()
+		return n
 	}
 	o := []TradeOffers{steelOffers(0, 8, 100)}
 	if got := units(TradeOfferCandidates("Steel", o, 60, 1000, 200)); got != 60 {

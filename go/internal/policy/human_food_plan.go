@@ -9,9 +9,9 @@ import (
 
 // HumanFoodChannel routes finite stocks. It deliberately contributes no new
 // nutrition/day: the forecast already owns stock, and butchery is conversion.
-func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []PawnID, targetDays float64, ideology IdeologyRead) (FoodChannel, bool) {
+func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []PawnID, targetDays float64, ideology IdeologyRead) (SupplyCandidate, bool) {
 	if !foodNumber(targetDays) || targetDays <= 0 {
-		return FoodChannel{}, false
+		return SupplyCandidate{}, false
 	}
 	qualified := false
 	for _, b := range benches {
@@ -20,7 +20,7 @@ func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []Paw
 		}
 	}
 	if !qualified {
-		return FoodChannel{}, false
+		return SupplyCandidate{}, false
 	}
 	baseline := supply
 	baseline.Stocks = nil
@@ -51,11 +51,11 @@ func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []Paw
 		}
 	}
 	if nutrition <= 0 && tradeSurplus <= 0 {
-		return FoodChannel{}, false
+		return SupplyCandidate{}, false
 	}
 	forecast, err := ForecastFood(baseline, nil)
 	if err != nil {
-		return FoodChannel{}, false
+		return SupplyCandidate{}, false
 	}
 	human := map[PawnID]bool{}
 	for _, id := range humans {
@@ -92,13 +92,15 @@ func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []Paw
 	}
 	routes, err := RouteHumanMeat(HumanMeatRouting{Nutrition: nutrition, FeedShortfall: feed, EligibleMealDemand: meals, VegetableNutrition: math.Max(0, vegetables-math.Min(feed, nutrition)), CanMakeSurvivalMeals: survival})
 	if err != nil {
-		return FoodChannel{}, false
+		return SupplyCandidate{}, false
 	}
-	channel := FoodChannel{Kind: FoodCorpse, ID: "human-butchery", NutritionPerDay: domain.Known(0.), WorkPerDay: domain.Known(0.), LeadDays: domain.Known(0.), Open: domain.Known(false), Terms: []FoodPlanTerm{{Name: "finite_human_nutrition", Value: nutrition}}}
+	channel := FoodCandidate(CandidateCorpse, "human-butchery", domain.Known(0.))
+	channel.LaborPerDay, channel.LeadDays, channel.State = domain.Known(0.), domain.Known(0.), FoodState(domain.Known(false), domain.Known(false))
+	channel.Terms = []CandidateTerm{{Name: "finite_human_nutrition", Value: nutrition}}
 	for _, r := range routes {
-		channel.Terms = append(channel.Terms, FoodPlanTerm{Name: string(r.Route), Value: r.Nutrition})
+		channel.Terms = append(channel.Terms, CandidateTerm{Name: string(r.Route), Value: r.Nutrition})
 	}
-	channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "trade_surplus_nutrition", Value: tradeSurplus})
+	channel.Terms = append(channel.Terms, CandidateTerm{Name: "trade_surplus_nutrition", Value: tradeSurplus})
 	return channel, true
 }
 
@@ -154,7 +156,7 @@ func HumanRouteNutrition(plan domain.Fact[FoodPlan], route HumanMeatRoute) float
 		return 0
 	}
 	for _, e := range p.Portfolio {
-		if e.Channel.Kind == FoodCorpse && e.Channel.ID == "human-butchery" && e.Decision != FoodPlanClose {
+		if e.Channel.Kind == CandidateCorpse && e.Channel.ID == "human-butchery" && e.Decision != FoodPlanClose {
 			for _, term := range e.Terms {
 				if term.Name == string(route) {
 					return term.Value

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func supplyTestCandidates() []AcquisitionCandidate {
+func supplyTestCandidates() []SupplyCandidate {
 	mine := MineCandidates("Steel", []ResourceSource{{ThingID: "ore", Yield: 100, Distance: 10, Method: ResourceSourceMine, Safety: "open_surface"}}, domain.Known(int64(500)))
 	tree := AcquisitionSourceCandidates("WoodLog", []AcquisitionSource{{ID: "tree", Resource: "WoodLog", Tree: true, Yield: 40}}, domain.Cell{}, domain.Known(int64(500)))
 	return append(mine, tree...)
@@ -20,7 +20,7 @@ func TestResourceSupplyShortfallOpensItsOwnResource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := plan.OpenedIDs("Steel", AcquisitionMining); !got["ore"] {
+	if got := plan.OpenedIDs("Steel", CandidateMining); !got["ore"] {
 		t.Fatal("steel mine not opened", plan.Plan.Explain())
 	}
 	if got := plan.Opened("WoodLog"); len(got) != 0 {

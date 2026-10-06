@@ -99,10 +99,10 @@ func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 	}
 	need := TradeFoodNeed{}
 	for _, entry := range plan.Portfolio {
-		if entry.Channel.Kind != FoodTrade {
+		if entry.Channel.Kind != CandidateTrade {
 			continue
 		}
-		if stock, known := entry.Channel.StockCap.Value(); known && entry.Decision == FoodPlanOpen {
+		if stock, known := entry.Channel.Nutrition().StockCap.Value(); known && entry.Decision == FoodPlanOpen {
 			need.Nutrition += float64(stock)
 		}
 	}

@@ -132,7 +132,7 @@ func runStarvingTribal(ctx context.Context, s cases.Session) error {
 			}
 		}
 		plan, _ := na.AsMap(colony["foodPlan"])
-		sample["huntRows"] = portfolioRows(plan, policy.FoodHunt)
+		sample["huntRows"] = portfolioRows(plan, "Hunt")
 		sample["openHuntRow"] = openRow(sample["huntRows"])
 		samples = append(samples, sample)
 		report["samples"] = samples
@@ -145,10 +145,10 @@ func runStarvingTribal(ctx context.Context, s cases.Session) error {
 }
 
 // portfolioRows returns the foodPlan portfolio rows of one channel kind.
-func portfolioRows(plan map[string]any, kind policy.FoodChannelKind) []any {
+func portfolioRows(plan map[string]any, kind string) []any {
 	var rows []any
 	for _, raw := range na.AsSlice(plan["portfolio"]) {
-		if row, _ := na.AsMap(raw); na.AsString(row["kind"]) == string(kind) {
+		if row, _ := na.AsMap(raw); na.AsString(row["kind"]) == kind {
 			rows = append(rows, row)
 		}
 	}

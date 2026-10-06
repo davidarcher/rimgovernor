@@ -39,7 +39,7 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 		return observed, nil, nil
 	}
 	reasons := make([]string, len(rows))
-	var candidates []AcquisitionCandidate
+	var candidates []SupplyCandidate
 	var remote []int
 	for i, row := range rows {
 		if !row.SafetyKnown || !row.SafeToHaul || !row.Forbidden || lootInsideExtent(r.Reach.Extent, row.Supply.Cell) {
@@ -137,12 +137,9 @@ func remoteLootReachHold(r RemoteWorkRequest, row LootItem) string {
 
 // lootCandidate is a stack as a supply candidate: its census count, hauled to
 // the storage headroom the census reports, no labor beyond the haul.
-func lootCandidate(row LootItem) AcquisitionCandidate {
-	return AcquisitionCandidate{
-		ID: row.Supply.Thing, Kind: AcquisitionLoot,
-		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: Resource(row.Supply.Definition)}, Count: row.Count}, Headroom: row.StorageHeadroom}},
-		PathDistance: row.PathLength, Labor: domain.Known(0.0), NeedsHaul: true, UnitsPerTrip: lootUnitsPerTrip,
-	}
+func lootCandidate(row LootItem) SupplyCandidate {
+	return SourceCandidate(CandidateLoot, row.Supply.Thing, domain.Known(0.0), row.PathLength, true, lootUnitsPerTrip,
+		SourceYield(ResourceKey{Def: Resource(row.Supply.Definition)}, row.Count, 0, row.StorageHeadroom))
 }
 
 // LootDemand builds the demand remote loot scores against: the effective

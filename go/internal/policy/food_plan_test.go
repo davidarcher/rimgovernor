@@ -10,12 +10,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func foodPlanRequest(rows ...FoodChannel) FoodPlanRequest {
+func foodPlanRequest(rows ...SupplyCandidate) FoodPlanRequest {
 	return FoodPlanRequest{Demand: FoodForecast{RunwayDays: domain.Known(1.0), Consumers: []ConsumerFoodForecast{{ID: "pawn", NutritionPerDay: 10}}}, MinDays: 2, TargetDays: 4, Channels: domain.Known(rows), Labor: domain.Known(100000.0)}
 }
 
-func foodPlanChannel(id string, nutrition, work, lead float64, open bool) FoodChannel {
-	return FoodChannel{Kind: FoodForage, ID: id, NutritionPerDay: domain.Known(nutrition), WorkPerDay: domain.Known(work), LeadDays: domain.Known(lead), Open: domain.Known(open)}
+func foodPlanChannel(id string, nutrition, work, lead float64, open bool) SupplyCandidate {
+	c := FoodCandidate(CandidateForage, id, domain.Known(nutrition))
+	c.LaborPerDay, c.LeadDays, c.State = domain.Known(work), domain.Known(lead), FoodState(domain.Known(open), domain.Unknown[bool]())
+	return c
 }
 
 func TestFoodPlanTribalBridge(t *testing.T) {
@@ -48,7 +50,7 @@ func TestFoodPlanTribalBridge(t *testing.T) {
 			}
 			for _, e := range p.Portfolio {
 				want := FoodPlanOpen
-				if e.Channel.Kind == FoodCrop {
+				if e.Channel.Kind == CandidateCrop {
 					want = FoodPlanHold
 					if lead, _ := e.Channel.LeadDays.Value(); lead != 4.5 {
 						t.Fatal(lead)
@@ -71,16 +73,16 @@ func TestFoodPlanTribalBridge(t *testing.T) {
 func TestFoodPlanRankingAndBudget(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
-		rows      []FoodChannel
+		rows      []SupplyCandidate
 		labor     float64
 		want      []FoodPlanDecision
 		delivered float64
 	}{
-		{"lead before efficiency", []FoodChannel{foodPlanChannel("late", 20, 1, 1, false), foodPlanChannel("early", 20, 100, 0, false)}, 1000, []FoodPlanDecision{FoodPlanOpen, FoodPlanHold}, 20},
-		{"cheaper equal lead", []FoodChannel{foodPlanChannel("costly", 20, 100, 0, false), foodPlanChannel("cheap", 20, 1, 0, false)}, 1000, []FoodPlanDecision{FoodPlanOpen, FoodPlanHold}, 20},
-		{"excess labor held", []FoodChannel{foodPlanChannel("early", 10, 20, 0, false), foodPlanChannel("late", 10, 30, 1, false)}, 20, []FoodPlanDecision{FoodPlanOpen, FoodPlanHold}, 10},
-		{"existing over budget stays", []FoodChannel{foodPlanChannel("open", 20, 30, 0, true), foodPlanChannel("new", 10, 1, 1, false)}, 20, []FoodPlanDecision{FoodPlanHold, FoodPlanHold}, 20},
-		{"free delivery", []FoodChannel{foodPlanChannel("free", 20, 0, 0, false)}, 0, []FoodPlanDecision{FoodPlanOpen}, 20},
+		{"lead before efficiency", []SupplyCandidate{foodPlanChannel("late", 20, 1, 1, false), foodPlanChannel("early", 20, 100, 0, false)}, 1000, []FoodPlanDecision{FoodPlanOpen, FoodPlanHold}, 20},
+		{"cheaper equal lead", []SupplyCandidate{foodPlanChannel("costly", 20, 100, 0, false), foodPlanChannel("cheap", 20, 1, 0, false)}, 1000, []FoodPlanDecision{FoodPlanOpen, FoodPlanHold}, 20},
+		{"excess labor held", []SupplyCandidate{foodPlanChannel("early", 10, 20, 0, false), foodPlanChannel("late", 10, 30, 1, false)}, 20, []FoodPlanDecision{FoodPlanOpen, FoodPlanHold}, 10},
+		{"existing over budget stays", []SupplyCandidate{foodPlanChannel("open", 20, 30, 0, true), foodPlanChannel("new", 10, 1, 1, false)}, 20, []FoodPlanDecision{FoodPlanHold, FoodPlanHold}, 20},
+		{"free delivery", []SupplyCandidate{foodPlanChannel("free", 20, 0, 0, false)}, 0, []FoodPlanDecision{FoodPlanOpen}, 20},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := foodPlanRequest(tc.rows...)
@@ -108,9 +110,9 @@ func TestFoodPlanRankingAndBudget(t *testing.T) {
 
 func TestFoodPlanRiskAndStableOrder(t *testing.T) {
 	risky := foodPlanChannel("a-risky", 20, 10, 0, false)
-	risky.Risk = []FoodRisk{{FoodRevenge, 0.5}, {FoodFrost, 0.25}}
+	risky.Risk = []CandidateRisk{{CandidateRevenge, 0.5}, {CandidateFrost, 0.25}}
 	safe := foodPlanChannel("z-safe", 20, 20, 0, false)
-	rows := []FoodChannel{risky, safe}
+	rows := []SupplyCandidate{risky, safe}
 	p, err := SupplyFoodPlan(foodPlanRequest(rows...))
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +130,7 @@ func TestFoodPlanRiskAndStableOrder(t *testing.T) {
 	if err != nil || p.DeliveredPerDay != 5 {
 		t.Fatalf("%s %v", p.Explain(), err)
 	}
-	risky.Risk = append(risky.Risk, FoodRisk{FoodFallout, 1})
+	risky.Risk = append(risky.Risk, CandidateRisk{CandidateFallout, 1})
 	p, err = SupplyFoodPlan(foodPlanRequest(risky))
 	if err != nil || p.DeliveredPerDay != 0 || p.Portfolio[0].Decision != FoodPlanHold {
 		t.Fatalf("%s %v", p.Explain(), err)
@@ -158,14 +160,14 @@ func TestFoodPlanClosesLeastEfficientStrictSurplus(t *testing.T) {
 // Under the starvation line an undelivered hunt covers nothing and every
 // kind opens in parallel.
 func TestFoodPlanEmergencyOpensChannelsInParallel(t *testing.T) {
-	hunt := func(id string, n float64) FoodChannel {
+	hunt := func(id string, n float64) SupplyCandidate {
 		c := foodPlanChannel(id, n, 3900, 0, false)
-		c.Kind = FoodHunt
+		c.Kind = CandidateHunt
 		return c
 	}
 	fish := foodPlanChannel("fish", 3, 5000, 0, false)
-	fish.Kind = FoodFishing
-	rows := []FoodChannel{hunt("moose", 40), hunt("turkey", 4), foodPlanChannel("berries", 2, 2500, 0, false), fish}
+	fish.Kind = CandidateFishing
+	rows := []SupplyCandidate{hunt("moose", 40), hunt("turkey", 4), foodPlanChannel("berries", 2, 2500, 0, false), fish}
 	r := foodPlanRequest(rows...)
 	p, err := SupplyFoodPlan(r)
 	if err != nil || p.Portfolio[0].Channel.ID != "moose" || p.Portfolio[0].Decision != FoodPlanOpen || p.GapPerDay > 0 {
@@ -181,7 +183,7 @@ func TestFoodPlanEmergencyOpensChannelsInParallel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	kinds := map[FoodChannelKind]bool{}
+	kinds := map[CandidateKind]bool{}
 	for _, e := range p.Portfolio {
 		if e.Decision != FoodPlanOpen {
 			t.Fatalf("emergency: every channel opens: %s", p.Explain())
@@ -192,8 +194,8 @@ func TestFoodPlanEmergencyOpensChannelsInParallel(t *testing.T) {
 		t.Fatalf("emergency: nothing is credited until delivering: %s", p.Explain())
 	}
 	// A channel observed delivering keeps its credit.
-	delivering := append([]FoodChannel(nil), rows...)
-	delivering[3].Open = domain.Known(true)
+	delivering := append([]SupplyCandidate(nil), rows...)
+	delivering[3].State = domain.Known(CandidateDelivering)
 	dr := r
 	dr.Channels = domain.Known(delivering)
 	if p, err = SupplyFoodPlan(dr); err != nil || p.DeliveredPerDay != 3 {
@@ -242,7 +244,7 @@ func TestFoodPlanReserveAndLeadHorizon(t *testing.T) {
 
 func TestFoodPlanUnknownAndInvalid(t *testing.T) {
 	unknown := foodPlanChannel("unknown", 20, 10, 0, false)
-	unknown.NutritionPerDay = domain.Unknown[float64]()
+	unknown.Yields[0].PerDay = domain.Unknown[float64]()
 	p, err := SupplyFoodPlan(foodPlanRequest(unknown))
 	if err != nil || len(p.Portfolio) != 0 || len(p.Unknown) != 1 || !strings.Contains(p.Unknown[0].Reason, "nutrition_per_day") || p.DeliveredPerDay != 0 {
 		t.Fatalf("%s %v", p.Explain(), err)
@@ -251,7 +253,7 @@ func TestFoodPlanUnknownAndInvalid(t *testing.T) {
 		name   string
 		change func(*FoodPlanRequest)
 	}{
-		{"channels unknown", func(r *FoodPlanRequest) { r.Channels = domain.Unknown[[]FoodChannel]() }},
+		{"channels unknown", func(r *FoodPlanRequest) { r.Channels = domain.Unknown[[]SupplyCandidate]() }},
 		{"labor unknown", func(r *FoodPlanRequest) { r.Labor = domain.Unknown[float64]() }},
 		{"runway unknown", func(r *FoodPlanRequest) { r.Demand.RunwayDays = domain.Unknown[float64]() }},
 		{"negative labor", func(r *FoodPlanRequest) { r.Labor = domain.Known(-1.0) }},
@@ -266,20 +268,26 @@ func TestFoodPlanUnknownAndInvalid(t *testing.T) {
 		}},
 		{"invalid id", func(r *FoodPlanRequest) { rows, _ := r.Channels.Value(); rows[0].ID = " " }},
 		{"invalid kind", func(r *FoodPlanRequest) { rows, _ := r.Channels.Value(); rows[0].Kind = "bad" }},
-		{"invalid known beside unknown", func(r *FoodPlanRequest) { rows, _ := r.Channels.Value(); rows[0].WorkPerDay = domain.Known(math.NaN()) }},
+		{"invalid known beside unknown", func(r *FoodPlanRequest) {
+			rows, _ := r.Channels.Value()
+			rows[0].LaborPerDay = domain.Known(math.NaN())
+		}},
 		{"negative lead", func(r *FoodPlanRequest) { rows, _ := r.Channels.Value(); rows[0].LeadDays = domain.Known(-1.0) }},
 		{"infinite nutrition", func(r *FoodPlanRequest) {
 			rows, _ := r.Channels.Value()
-			rows[0].NutritionPerDay = domain.Known(math.Inf(1))
+			rows[0].Yields[0].PerDay = domain.Known(math.Inf(1))
 		}},
-		{"invalid risk", func(r *FoodPlanRequest) { rows, _ := r.Channels.Value(); rows[0].Risk = []FoodRisk{{FoodBlight, 1.1}} }},
+		{"invalid risk", func(r *FoodPlanRequest) {
+			rows, _ := r.Channels.Value()
+			rows[0].Risk = []CandidateRisk{{CandidateBlight, 1.1}}
+		}},
 		{"duplicate risk", func(r *FoodPlanRequest) {
 			rows, _ := r.Channels.Value()
-			rows[0].Risk = []FoodRisk{{FoodBlight, 0.1}, {FoodBlight, 0.2}}
+			rows[0].Risk = []CandidateRisk{{CandidateBlight, 0.1}, {CandidateBlight, 0.2}}
 		}},
 		{"invalid term", func(r *FoodPlanRequest) {
 			rows, _ := r.Channels.Value()
-			rows[0].Terms = []FoodPlanTerm{{"work", math.Inf(1)}}
+			rows[0].Terms = []CandidateTerm{{"work", math.Inf(1)}}
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -298,19 +306,19 @@ func TestFoodPlanAdaptersAndInputOwnership(t *testing.T) {
 	if len(f) != 1 || len(h) != 1 {
 		t.Fatalf("%+v %+v", f, h)
 	}
-	if open, _ := f[0].Open.Value(); open || f[0].State() != domain.Known(CandidateDesignated) {
+	if open, _ := f[0].Open().Value(); open || f[0].State != domain.Known(CandidateDesignated) {
 		t.Fatal("designation counted as delivery")
 	}
 	field := FoodField{ID: "rice", Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(4.5), HarvestNutrition: domain.Known(0.3)}, Sites: FarmSitePlan{Cells: 30}}, RemainingGrowDays: domain.Known(2.0), WorkPerDay: domain.Known(100.0)}
 	c := CropChannels([]FoodField{field}, CropKitchen{})[0]
-	if n, _ := c.NutritionPerDay.Value(); n != 2 {
+	if n, _ := c.Nutrition().PerDay.Value(); n != 2 {
 		t.Fatal(n)
 	}
 	if lead, _ := c.LeadDays.Value(); lead != 2 {
 		t.Fatal(lead)
 	}
 	field.Plan.Crop.GrowDays = domain.Unknown[float64]()
-	if _, known := CropChannels([]FoodField{field}, CropKitchen{})[0].NutritionPerDay.Value(); known {
+	if _, known := CropChannels([]FoodField{field}, CropKitchen{})[0].Nutrition().PerDay.Value(); known {
 		t.Fatal("invented growth facts")
 	}
 	field.Plan.Crop.GrowDays = domain.Known(0.0)

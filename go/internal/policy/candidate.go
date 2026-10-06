@@ -4,9 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// CandidateKind names how a candidate obtains its yields: one set covering
-// FoodChannelKind and AcquisitionKind, so a kind shared by both (hunt,
-// trade) is one value.
+// CandidateKind names how a candidate obtains its yields.
 type CandidateKind string
 
 const (
@@ -62,11 +60,11 @@ type CandidateYield struct {
 type CandidateRiskKind string
 
 const (
-	CandidateBlight  CandidateRiskKind = CandidateRiskKind(FoodBlight)
-	CandidateFallout CandidateRiskKind = CandidateRiskKind(FoodFallout)
-	CandidateFrost   CandidateRiskKind = CandidateRiskKind(FoodFrost)
-	CandidatePower   CandidateRiskKind = CandidateRiskKind(FoodPower)
-	CandidateRevenge CandidateRiskKind = CandidateRiskKind(FoodRevenge)
+	CandidateBlight  CandidateRiskKind = "Blight"
+	CandidateFallout CandidateRiskKind = "Fallout"
+	CandidateFrost   CandidateRiskKind = "Frost"
+	CandidatePower   CandidateRiskKind = "Power"
+	CandidateRevenge CandidateRiskKind = "Revenge"
 )
 
 // CandidateRisk is one hazard's weight in [0,1]; summed risks discount the
@@ -119,114 +117,85 @@ type SupplyCandidate struct {
 	Terms        []CandidateTerm
 	// Prey is a formation hunt's animals, sorted.
 	Prey []string
+	// Source names the ledger counter group that counts the candidate's
+	// deliveries ("crop:<zone>", "fish:<x,z>", "forage:<def>",
+	// "animal_product:<race>"); empty for one the ledger does not count.
+	Source string
 }
 
-var foodCandidateKinds = map[FoodChannelKind]CandidateKind{
-	FoodForage: CandidateForage, FoodHunt: CandidateHunt, FoodSlaughter: CandidateSlaughter, FoodCrop: CandidateCrop,
-	FoodAnimalProduct: CandidateAnimalProduct, FoodFishing: CandidateFishing, FoodTrade: CandidateTrade, FoodTame: CandidateTame, FoodAnimalBuy: CandidateAnimalBuy,
-	FoodCorpse: CandidateCorpse, FoodReserve: CandidateReserve, FoodCook: CandidateCook,
+// FoodCandidate starts a food candidate: nutrition is its first yield, at
+// perDay with no known stock bound. The rest of the yields are its products.
+func FoodCandidate(kind CandidateKind, id string, perDay domain.Fact[float64]) SupplyCandidate {
+	return SupplyCandidate{Kind: kind, ID: id, Yields: []CandidateYield{{Good: NutritionKey, PerDay: perDay, StockCap: domain.Unknown[int64]()}}}
 }
 
-var acquisitionCandidateKinds = map[AcquisitionKind]CandidateKind{
-	AcquisitionLoot: CandidateLoot, AcquisitionSalvage: CandidateSalvage, AcquisitionMining: CandidateMining,
-	AcquisitionProduce: CandidateProduce, AcquisitionDeepDrill: CandidateDeepDrill, AcquisitionChop: CandidateChop,
-	AcquisitionHarvest: CandidateHarvest, AcquisitionHunt: CandidateHunt, AcquisitionTrade: CandidateTrade,
-}
-
-// SupplyCandidateOfFood is a food channel as a candidate. An unrecognised kind maps
-// to an empty CandidateKind, which FoodChannelOfSupply rejects; SupplyFoodPlan refuses it
-// first. Open is Delivering, Designated is Designated, neither is Closed.
-func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {
-	out := SupplyCandidate{
-		Kind: foodCandidateKinds[c.Kind], ID: c.ID,
-		Yields:   append([]CandidateYield{{Good: ResourceKey{Def: CandidateNutrition}, PerDay: c.NutritionPerDay, StockCap: c.StockCap}}, c.Products...),
-		LeadDays: c.LeadDays, LaborPerDay: c.WorkPerDay, UpfrontCost: CandidateCost{LaborTicks: c.UpfrontTicks}, DistanceSquared: c.DistanceSquared,
-		Prey: append([]string(nil), c.Prey...),
-	}
-	out.State = c.State()
-	for _, r := range c.Risk {
-		out.Risk = append(out.Risk, CandidateRisk{Kind: CandidateRiskKind(r.Kind), Weight: r.Weight})
-	}
-	for _, t := range c.Terms {
-		out.Terms = append(out.Terms, CandidateTerm(t))
-	}
-	return out
-}
-
-// State is the channel's standing: Delivering when Open, else Designated when
-// committed, else Closed; unknown when Open is.
-func (c FoodChannel) State() domain.Fact[CandidateState] {
-	open, known := c.Open.Value()
-	switch designated, _ := c.Designated.Value(); {
+// FoodState is a food candidate's standing: Delivering when open, else
+// Designated when committed, else Closed; unknown when open is.
+func FoodState(open, designated domain.Fact[bool]) domain.Fact[CandidateState] {
+	isOpen, known := open.Value()
+	switch committed, _ := designated.Value(); {
 	case !known:
 		return domain.Unknown[CandidateState]()
-	case open:
+	case isOpen:
 		return domain.Known(CandidateDelivering)
-	case designated:
+	case committed:
 		return domain.Known(CandidateDesignated)
 	}
 	return domain.Known(CandidateClosed)
 }
 
-// FoodChannelOfSupply is the food channel of a candidate whose first yield is
-// nutrition, the rest its Products; ok is false for any other candidate.
-func FoodChannelOfSupply(c SupplyCandidate) (FoodChannel, bool) {
-	kind, ok := foodKindOf(c.Kind)
-	if !ok || len(c.Yields) == 0 || c.Yields[0].Good != (ResourceKey{Def: CandidateNutrition}) {
-		return FoodChannel{}, false
+// Open is whether the candidate is observed delivering; unknown when its
+// state is.
+func (c SupplyCandidate) Open() domain.Fact[bool] {
+	state, known := c.State.Value()
+	if !known {
+		return domain.Unknown[bool]()
 	}
-	out := FoodChannel{
-		Kind: kind, ID: c.ID, NutritionPerDay: c.Yields[0].PerDay, StockCap: c.Yields[0].StockCap, WorkPerDay: c.LaborPerDay, UpfrontTicks: c.UpfrontCost.LaborTicks, LeadDays: c.LeadDays,
-		DistanceSquared: c.DistanceSquared, Prey: append([]string(nil), c.Prey...),
-	}
-	if len(c.Yields) > 1 {
-		out.Products = append([]CandidateYield(nil), c.Yields[1:]...)
-	}
-	if state, known := c.State.Value(); known {
-		out.Open = domain.Known(state == CandidateDelivering)
-		if state == CandidateDesignated {
-			out.Designated = domain.Known(true)
-		}
-	}
-	for _, r := range c.Risk {
-		out.Risk = append(out.Risk, FoodRisk{Kind: FoodRiskKind(r.Kind), Weight: r.Weight})
-	}
-	for _, t := range c.Terms {
-		out.Terms = append(out.Terms, FoodPlanTerm(t))
-	}
-	return out, true
+	return domain.Known(state == CandidateDelivering)
 }
 
-// SupplyCandidateOfAcquisition is an acquisition candidate as a one-shot candidate:
-// lead 0, each yield's count its stock cap, the whole source's labor its
-// upfront cost and no state beyond Closed (not committed). Hunt revenge risk
-// stays inside Labor, as AcquisitionSourceCandidates prices it.
-func SupplyCandidateOfAcquisition(c AcquisitionCandidate) SupplyCandidate {
-	out := SupplyCandidate{
-		Kind: acquisitionCandidateKinds[c.Kind], ID: c.ID, State: domain.Known(CandidateClosed),
-		LeadDays: domain.Known(0.0), UpfrontCost: CandidateCost{LaborTicks: c.Labor},
-		PathDistance: c.PathDistance, NeedsHaul: c.NeedsHaul, UnitsPerTrip: c.UnitsPerTrip,
+// Nutrition is the candidate's nutrition yield: the first yield when it is
+// nutrition, else the zero (unknown) yield.
+func (c SupplyCandidate) Nutrition() CandidateYield {
+	if len(c.Yields) > 0 && c.Yields[0].Good == NutritionKey {
+		return c.Yields[0]
 	}
-	for _, y := range c.Yields {
-		out.Yields = append(out.Yields, CandidateYield{Good: y.Key, StockCap: domain.Known(y.Count), UnitValue: y.UnitValue, Headroom: y.Headroom})
-	}
-	return out
+	return CandidateYield{}
 }
 
-func foodKindOf(k CandidateKind) (FoodChannelKind, bool) {
-	for food, kind := range foodCandidateKinds {
-		if kind == k {
-			return food, true
-		}
+// WithNutritionPerDay is c with its nutrition rate replaced; the yields are
+// copied, so a shared candidate is never edited in place.
+func (c SupplyCandidate) WithNutritionPerDay(perDay domain.Fact[float64]) SupplyCandidate {
+	if len(c.Yields) == 0 || c.Yields[0].Good != NutritionKey {
+		return c
 	}
-	return "", false
+	c.Yields = append([]CandidateYield(nil), c.Yields...)
+	c.Yields[0].PerDay = perDay
+	return c
 }
 
-func acquisitionKindOf(k CandidateKind) (AcquisitionKind, bool) {
-	for acquisition, kind := range acquisitionCandidateKinds {
-		if kind == k {
-			return acquisition, true
-		}
+// Products are the goods a food candidate yields beside its nutrition (a
+// hunted deer's leather).
+func (c SupplyCandidate) Products() []CandidateYield {
+	if len(c.Yields) > 1 && c.Yields[0].Good == NutritionKey {
+		return c.Yields[1:]
 	}
-	return "", false
+	return nil
+}
+
+// SourceYield is count units of a finite source's output: lead-0 stock with
+// no rate.
+func SourceYield(key ResourceKey, count int64, unitValue float64, headroom domain.Fact[int64]) CandidateYield {
+	return CandidateYield{Good: key, StockCap: domain.Known(count), UnitValue: unitValue, Headroom: headroom}
+}
+
+// SourceCandidate is a one-shot source (loot, salvage, a deposit, a bill, a
+// trader): lead 0, the whole source's labor its upfront cost and no state
+// beyond Closed (not committed). Hunt revenge risk stays inside labor.
+func SourceCandidate(kind CandidateKind, id string, labor, path domain.Fact[float64], haul bool, unitsPerTrip int64, yields ...CandidateYield) SupplyCandidate {
+	return SupplyCandidate{
+		Kind: kind, ID: id, State: domain.Known(CandidateClosed), Yields: yields,
+		LeadDays: domain.Known(0.0), UpfrontCost: CandidateCost{LaborTicks: labor},
+		PathDistance: path, NeedsHaul: haul, UnitsPerTrip: unitsPerTrip,
+	}
 }

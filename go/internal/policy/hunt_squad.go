@@ -110,7 +110,7 @@ const (
 )
 
 // Mode is the hunt's mode: a formation is the candidate that names its prey.
-func (c FoodChannel) Mode() HuntMode {
+func (c SupplyCandidate) Mode() HuntMode {
 	if len(c.Prey) > 0 {
 		return HuntFormation
 	}
@@ -125,9 +125,9 @@ func (c FoodChannel) Mode() HuntMode {
 // yields nothing and carries a needs_gunners term, the gunners it lacks, and
 // the nutrition it would deliver. Bad weather (rain, snow, fog) mildly raises
 // the work of a formation. A hunt yields the animal's meat and its Products.
-func HuntCandidates(sources []AcquisitionSource, gunners int, weatherAccuracy domain.Fact[float64]) []FoodChannel {
+func HuntCandidates(sources []AcquisitionSource, gunners int, weatherAccuracy domain.Fact[float64]) []SupplyCandidate {
 	grouped := map[string]bool{}
-	var out []FoodChannel
+	var out []SupplyCandidate
 	for _, g := range SquadPreyGroups(sources) {
 		for _, s := range g {
 			grouped[s.ID] = true
@@ -145,11 +145,12 @@ func HuntCandidates(sources []AcquisitionSource, gunners int, weatherAccuracy do
 // huntChannel prices the prey as one cycle's hunt: each animal's pursuit work
 // (shortened by weapon reach, halved asleep, only collection when downed)
 // scaled by weather, the worst revenge exposure among them as risk.
-func huntChannel(id string, prey []AcquisitionSource, formation bool, weather float64, gunners int) FoodChannel {
+func huntChannel(id string, prey []AcquisitionSource, formation bool, weather float64, gunners int) SupplyCandidate {
 	var nutrition, work, risk float64
 	products := map[Resource]float64{}
 	var defs []Resource
-	c := FoodChannel{Kind: FoodHunt, ID: id, LeadDays: domain.Known(0.0), Open: domain.Known(false)}
+	c := FoodCandidate(CandidateHunt, id, domain.Unknown[float64]())
+	c.LeadDays, c.State = domain.Known(0.0), FoodState(domain.Known(false), domain.Unknown[bool]())
 	for _, s := range prey {
 		w := FoodHuntWorkTicks / (1 + s.WeaponRange/25)
 		if s.Downed {
@@ -171,19 +172,19 @@ func huntChannel(id string, prey []AcquisitionSource, formation bool, weather fl
 			c.Prey = append(c.Prey, s.ID)
 		}
 	}
-	c.NutritionPerDay, c.WorkPerDay = domain.Known(nutrition/FoodHuntCycleDays), domain.Known(work/FoodHuntCycleDays)
+	c.Yields[0].PerDay, c.LaborPerDay = domain.Known(nutrition/FoodHuntCycleDays), domain.Known(work/FoodHuntCycleDays)
 	for _, def := range defs {
-		c.Products = append(c.Products, CandidateYield{Good: ResourceKey{Def: def}, PerDay: domain.Known(products[def] / FoodHuntCycleDays)})
+		c.Yields = append(c.Yields, CandidateYield{Good: ResourceKey{Def: def}, PerDay: domain.Known(products[def] / FoodHuntCycleDays)})
 	}
-	c.Risk = []FoodRisk{{FoodRevenge, math.Min(1, risk)}}
-	c.Terms = []FoodPlanTerm{{"estimated_cycle_days", FoodHuntCycleDays}, {"estimated_work_ticks", work}, {"prey", float64(len(prey))}, {"revenge_cost", risk}}
+	c.Risk = []CandidateRisk{{CandidateRevenge, math.Min(1, risk)}}
+	c.Terms = []CandidateTerm{{"estimated_cycle_days", FoodHuntCycleDays}, {"estimated_work_ticks", work}, {"prey", float64(len(prey))}, {"revenge_cost", risk}}
 	if len(prey) == 1 {
 		s := prey[0]
-		c.Terms = append(c.Terms, FoodPlanTerm{"revenge_chance", s.RevengeChance}, FoodPlanTerm{"herd_size", float64(s.HerdSize)}, FoodPlanTerm{"weapon_range", s.WeaponRange})
+		c.Terms = append(c.Terms, CandidateTerm{"revenge_chance", s.RevengeChance}, CandidateTerm{"herd_size", float64(s.HerdSize)}, CandidateTerm{"weapon_range", s.WeaponRange})
 	}
 	if formation && gunners < SquadHuntMinGunners {
-		c.Terms = append(c.Terms, FoodPlanTerm{"needs_gunners", float64(SquadHuntMinGunners - gunners)}, FoodPlanTerm{"held_nutrition_per_day", nutrition / FoodHuntCycleDays})
-		c.NutritionPerDay, c.WorkPerDay, c.Products = domain.Known(0.0), domain.Known(0.0), nil
+		c.Terms = append(c.Terms, CandidateTerm{"needs_gunners", float64(SquadHuntMinGunners - gunners)}, CandidateTerm{"held_nutrition_per_day", nutrition / FoodHuntCycleDays})
+		c.Yields[0].PerDay, c.LaborPerDay, c.Yields = domain.Known(0.0), domain.Known(0.0), c.Yields[:1]
 	}
 	return c
 }
@@ -198,7 +199,7 @@ func HuntRequest(plan domain.Fact[FoodPlan]) []domain.PawnID {
 	}
 	var out []domain.PawnID
 	for _, e := range p.Portfolio {
-		if e.Channel.Kind == FoodHunt && e.Decision == FoodPlanOpen {
+		if e.Channel.Kind == CandidateHunt && e.Decision == FoodPlanOpen {
 			for _, id := range e.Channel.Prey {
 				out = append(out, domain.PawnID(id))
 			}

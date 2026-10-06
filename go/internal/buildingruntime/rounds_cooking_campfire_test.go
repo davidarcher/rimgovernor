@@ -100,7 +100,7 @@ func TestCookingSelectionCountsStandingCampfireBlueprint(t *testing.T) {
 		t.Fatal(err)
 	}
 	var facts observation.ColonyProjection
-	facts.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.FoodChannel{Kind: policy.FoodCook, ID: "cooking-capacity"}, Decision: policy.FoodPlanOpen}}})
+	facts.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.SupplyCandidate{Kind: policy.CandidateCook, ID: "cooking-capacity"}, Decision: policy.FoodPlanOpen}}})
 	facts.Facts.Colonists = domain.Known(int64(3))
 	facts.Facts.Cooking = domain.Known(false)
 	facts.CookingBenches = domain.Known([]observation.CookingBench{})
@@ -123,7 +123,7 @@ func TestCookingSelectionCountsBuiltCampfireMissingFromCensus(t *testing.T) {
 	t.Parallel()
 	fire := campfireBuilding(t, "fire1", domain.Cell{X: 10, Z: 10})
 	var facts observation.ColonyProjection
-	facts.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.FoodChannel{Kind: policy.FoodCook, ID: "cooking-capacity"}, Decision: policy.FoodPlanOpen}}})
+	facts.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.SupplyCandidate{Kind: policy.CandidateCook, ID: "cooking-capacity"}, Decision: policy.FoodPlanOpen}}})
 	facts.Facts.Colonists = domain.Known(int64(3))
 	facts.Facts.Cooking = domain.Known(false)
 	facts.CookingBenches = domain.Known([]observation.CookingBench{})

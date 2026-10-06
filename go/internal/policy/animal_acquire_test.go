@@ -31,18 +31,18 @@ func TestTameFoodChannelNetsFeedAndLeadsUntilMilkable(t *testing.T) {
 	in := acquireInput(acquireCow())
 	in.Wild = domain.Known([]UpkeepAnimal{wildYoung("Cow", "Female", 1.0/DaysPerYearF)})
 	got := TameFoodChannels(in)
-	if len(got) != 1 || got[0].Kind != FoodTame || got[0].ID != "tame:wild-Cow" {
+	if len(got) != 1 || got[0].Kind != CandidateTame || got[0].ID != "tame:wild-Cow" {
 		t.Fatalf("channels %v", got)
 	}
 	c := got[0]
-	if n, _ := c.NutritionPerDay.Value(); n != 3 {
+	if n, _ := c.Nutrition().PerDay.Value(); n != 3 {
 		t.Errorf("net rate %v, want 5 milk - 2 feed", n)
 	}
 	if lead, _ := c.LeadDays.Value(); lead != 5 {
 		t.Errorf("lead %v, want 6 milkable days - 1 day old", lead)
 	}
 	// 1/0.5 attempts of three 270-tick talks and two 270-tick feeds.
-	if up, _ := c.UpfrontTicks.Value(); up != 2*(3*270+2*270) {
+	if up, _ := c.UpfrontCost.LaborTicks.Value(); up != 2*(3*270+2*270) {
 		t.Errorf("upfront %v", up)
 	}
 }
@@ -58,11 +58,11 @@ func TestTameFoodChannelFallsBackToMeatForAMale(t *testing.T) {
 		t.Fatalf("channels %v", got)
 	}
 	// 100 meat x 0.05 = 5 nutrition less 10 days of 0.2 feed until adult.
-	if stock, _ := got[0].StockCap.Value(); stock != 3 {
+	if stock, _ := got[0].Nutrition().StockCap.Value(); stock != 3 {
 		t.Errorf("meat stock %v", stock)
 	}
-	if _, ok := got[0].NutritionPerDay.Value(); ok {
-		t.Errorf("a rate for a one-shot meat stock: %v", got[0].NutritionPerDay)
+	if _, ok := got[0].Nutrition().PerDay.Value(); ok {
+		t.Errorf("a rate for a one-shot meat stock: %v", got[0].Nutrition().PerDay)
 	}
 	if lead, _ := got[0].LeadDays.Value(); lead != 10 {
 		t.Errorf("lead %v, want until adult", lead)
@@ -134,7 +134,7 @@ func TestAnimalPurchaseFoodChannelPricesTheCheapestUseful(t *testing.T) {
 		{Def: "Silver", Count: 1, Price: 1},
 	}}}
 	got := AnimalPurchaseFoodChannels(offers, in, 1000, 200)
-	if len(got) != 2 || got[0].Kind != FoodAnimalBuy {
+	if len(got) != 2 || got[0].Kind != CandidateAnimalBuy {
 		t.Fatalf("channels %v", got)
 	}
 	if got[0].ID != "caravan/Cow/Female" {
@@ -143,16 +143,16 @@ func TestAnimalPurchaseFoodChannelPricesTheCheapestUseful(t *testing.T) {
 	if got[0].ID != "caravan/Cow/Female" || got[1].ID != "caravan/Cow/Male" {
 		t.Fatalf("channels %v", got)
 	}
-	if stock, _ := got[1].StockCap.Value(); stock != 5 {
+	if stock, _ := got[1].Nutrition().StockCap.Value(); stock != 5 {
 		t.Errorf("a bought adult male is five nutrition of meat, got %v", stock)
 	}
-	if n, _ := got[0].NutritionPerDay.Value(); n != 3 {
+	if n, _ := got[0].Nutrition().PerDay.Value(); n != 3 {
 		t.Errorf("net rate %v", n)
 	}
 	if lead, _ := got[0].LeadDays.Value(); lead != 0 {
 		t.Errorf("an adult trader's animal leads %v", lead)
 	}
-	if up, _ := got[0].UpfrontTicks.Value(); up != 100*tradeLaborPerSilver {
+	if up, _ := got[0].UpfrontCost.LaborTicks.Value(); up != 100*tradeLaborPerSilver {
 		t.Errorf("upfront %v", up)
 	}
 	if got := AnimalPurchaseFoodChannels(offers, in, 250, 200); len(got) != 1 || got[0].ID != "caravan/Cow/Male" {

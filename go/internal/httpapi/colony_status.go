@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -187,7 +188,7 @@ type petShortfallDTO struct {
 }
 
 type foodPlanEntryDTO struct {
-	Kind            policy.FoodChannelKind  `json:"kind"`
+	Kind            string                  `json:"kind"`
 	ID              string                  `json:"id"`
 	Decision        policy.FoodPlanDecision `json:"decision"`
 	Reason          string                  `json:"reason"`
@@ -196,7 +197,16 @@ type foodPlanEntryDTO struct {
 	LeadDays        *float64                `json:"leadDays"`
 	Open            *bool                   `json:"open"`
 	DeliveredPerDay float64                 `json:"deliveredPerDay"`
-	Terms           []policy.FoodPlanTerm   `json:"terms"`
+	Terms           []policy.CandidateTerm  `json:"terms"`
+}
+
+// foodKindWire is a food candidate's kind on the wire, the capitalized name the
+// foodPlan rows have always carried.
+func foodKindWire(k policy.CandidateKind) string {
+	if k == policy.CandidateAnimalProduct {
+		return "AnimalProduct"
+	}
+	return strings.ToUpper(string(k[:1])) + string(k[1:])
 }
 
 func projectFoodPlan(p policy.FoodPlan, labels map[policy.PawnID]string) *foodPlanDTO {
@@ -204,9 +214,9 @@ func projectFoodPlan(p policy.FoodPlan, labels map[policy.PawnID]string) *foodPl
 		out := make([]foodPlanEntryDTO, 0, len(rows))
 		for _, row := range rows {
 			c := row.Channel
-			out = append(out, foodPlanEntryDTO{Kind: c.Kind, ID: c.ID, Decision: row.Decision, Reason: row.Reason,
-				NutritionPerDay: factPointer(c.NutritionPerDay), WorkPerDay: factPointer(c.WorkPerDay), LeadDays: factPointer(c.LeadDays),
-				Open: factPointer(c.Open), DeliveredPerDay: row.DeliveredPerDay, Terms: row.Terms})
+			out = append(out, foodPlanEntryDTO{Kind: foodKindWire(c.Kind), ID: c.ID, Decision: row.Decision, Reason: row.Reason,
+				NutritionPerDay: factPointer(c.Nutrition().PerDay), WorkPerDay: factPointer(c.LaborPerDay), LeadDays: factPointer(c.LeadDays),
+				Open: factPointer(c.Open()), DeliveredPerDay: row.DeliveredPerDay, Terms: row.Terms})
 		}
 		return out
 	}

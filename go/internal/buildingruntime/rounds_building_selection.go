@@ -192,7 +192,7 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		if len(r.paste) > 0 {
 			return int64(len(r.paste)), "nutrient-paste", Verdict{}
 		}
-		if !foodPlanSupport(facts.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
+		if !foodPlanSupport(facts.Facts.FoodPlan, policy.CandidateCook, "cooking-capacity") {
 			return 0, "", awaitingFoodPlan("cooking-capacity")
 		}
 		ready, known := facts.Facts.Cooking.Value()

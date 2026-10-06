@@ -18,8 +18,8 @@ func TestAnimalProductsAggregateNativeRatesAndReadiness(t *testing.T) {
 		t.Fatal(channels)
 	}
 	for _, c := range channels {
-		n, _ := c.NutritionPerDay.Value()
-		w, _ := c.WorkPerDay.Value()
+		n, _ := c.Nutrition().PerDay.Value()
+		w, _ := c.LaborPerDay.Value()
 		l, _ := c.LeadDays.Value()
 		switch c.ID {
 		case "Cow":
@@ -65,7 +65,7 @@ func TestAnimalProductsDoNotInventMissingOrInactiveProduction(t *testing.T) {
 				}
 				return
 			}
-			v, known := channels[0].NutritionPerDay.Value()
+			v, known := channels[0].Nutrition().PerDay.Value()
 			if mode == "invalid" {
 				if !known || !math.IsNaN(v) {
 					t.Fatal(channels)
@@ -99,9 +99,11 @@ func TestFoodHerdFloorRequiresAdmittedEfficientProduction(t *testing.T) {
 			case "crop":
 				want = 0
 			}
+			crop := FoodCandidate(CandidateCrop, "", domain.Known(1.0))
+			crop.LaborPerDay = domain.Known(1.0)
 			plan := FoodPlan{Portfolio: []FoodPlanEntry{entry}}
 			if mode == "crop" {
-				plan.Portfolio = append(plan.Portfolio, FoodPlanEntry{Channel: FoodChannel{Kind: FoodCrop, NutritionPerDay: domain.Known(1.0), WorkPerDay: domain.Known(1.0)}})
+				plan.Portfolio = append(plan.Portfolio, FoodPlanEntry{Channel: crop})
 			}
 			got := FoodHerdPolicy(herd, domain.Known(plan))
 			if got.PopulationMin["Cow"] != want {
@@ -118,7 +120,7 @@ func TestAnimalProductRateIsNetOfFeed(t *testing.T) {
 	cow, yak := product("cow", "Cow", 2, 400, 0), product("yak", "Yak", 1, 200, 0)
 	cow.FeedPerDay, yak.FeedPerDay = domain.Known(.5), domain.Known(3.0)
 	for _, c := range AnimalProductChannels([]AnimalProduct{cow, yak}) {
-		n, _ := c.NutritionPerDay.Value()
+		n, _ := c.Nutrition().PerDay.Value()
 		switch c.ID {
 		case "Cow":
 			if n != 1.5 {

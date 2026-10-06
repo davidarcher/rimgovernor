@@ -4,8 +4,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // StockIngredientChannels report accessible ingredients without inventing a
 // replenishment rate or counting stored nutrition twice in FoodPlan.
-func StockIngredientChannels(s FoodSupply) []FoodChannel {
-	amounts := map[FoodChannelKind]float64{}
+func StockIngredientChannels(s FoodSupply) []SupplyCandidate {
+	amounts := map[CandidateKind]float64{}
 	for _, stock := range s.Stocks {
 		class, ck := stock.RawClass.Value()
 		amount, ak := stock.Nutrition.Value()
@@ -15,29 +15,32 @@ func StockIngredientChannels(s FoodSupply) []FoodChannel {
 		if !ck || !ak || !hk || holder != "" || stock.Reserve || stock.Corpse || stock.IsHumanMeat || amount <= 0 {
 			continue
 		}
-		var kind FoodChannelKind
+		var kind CandidateKind
 		switch class {
 		case IngredientMeat:
-			kind = FoodHunt
+			kind = CandidateHunt
 		case IngredientVegetable:
-			kind = FoodCrop
+			kind = CandidateCrop
 		case IngredientAnimalProduct:
-			kind = FoodAnimalProduct
+			kind = CandidateAnimalProduct
 		default:
 			continue
 		}
 		amounts[kind] += amount
 	}
-	var rows []FoodChannel
-	for _, kind := range []FoodChannelKind{FoodCrop, FoodHunt, FoodAnimalProduct} {
+	var rows []SupplyCandidate
+	for _, kind := range []CandidateKind{CandidateCrop, CandidateHunt, CandidateAnimalProduct} {
 		if amount := amounts[kind]; amount > 0 {
-			rows = append(rows, FoodChannel{Kind: kind, ID: "stored-ingredients", NutritionPerDay: domain.Known(0.0), WorkPerDay: domain.Known(0.0), LeadDays: domain.Known(0.0), Open: domain.Known(true), Terms: []FoodPlanTerm{{Name: "accessible_ingredient_nutrition", Value: amount}}})
+			row := FoodCandidate(kind, "stored-ingredients", domain.Known(0.0))
+			row.LaborPerDay, row.LeadDays, row.State = domain.Known(0.0), domain.Known(0.0), FoodState(domain.Known(true), domain.Unknown[bool]())
+			row.Terms = []CandidateTerm{{Name: "accessible_ingredient_nutrition", Value: amount}}
+			rows = append(rows, row)
 		}
 	}
 	return rows
 }
 
-func mealStockAvailable(c FoodChannel) bool {
+func mealStockAvailable(c SupplyCandidate) bool {
 	if c.ID != "stored-ingredients" {
 		return false
 	}

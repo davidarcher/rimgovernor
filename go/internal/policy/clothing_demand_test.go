@@ -134,7 +134,7 @@ func TestClothingLeatherShortOpensHunt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := plan.OpenedIDs(resource, AcquisitionHunt); !got["deer1"] {
+	if got := plan.OpenedIDs(resource, CandidateHunt); !got["deer1"] {
 		t.Fatal("hunt not opened for leather", plan.Plan.Explain())
 	}
 	if _, ok := ResourceSourceFor(deer, "WoodLog", serves); ok {
@@ -165,7 +165,7 @@ func TestClothingCottonFieldNeedsHorizon(t *testing.T) {
 		t.Fatal("no field candidate")
 	}
 	open := func(horizon float64) int {
-		plan, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: "Cloth", Deficit: 100, HorizonDays: horizon, Fields: []SupplyCandidate{field}}}, domain.Known(100000.0))
+		plan, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: "Cloth", Deficit: 100, HorizonDays: horizon, Candidates: []SupplyCandidate{field}}}, domain.Known(100000.0))
 		if err != nil {
 			t.Fatal(err)
 		}

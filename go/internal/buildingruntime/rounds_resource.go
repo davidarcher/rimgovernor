@@ -406,7 +406,7 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 	if !row.selKnown && row.choice.Kind != policy.ResourceMethodProduce {
 		return RoundsResourceResult{Verdict: noResourceSource(resource)}, nil
 	}
-	mines := supply.plan.OpenedIDs(resource, policy.AcquisitionMining)
+	mines := supply.plan.OpenedIDs(resource, policy.CandidateMining)
 	for _, e := range supply.plan.Opened(resource) {
 		switch e.Candidate.Kind {
 		case policy.CandidateProduce:
@@ -425,7 +425,7 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 			}
 		}
 	}
-	if len(supply.acquisitions(resource)) > 0 || len(supply.plan.OpenedIDs(resource, policy.AcquisitionTrade)) > 0 {
+	if len(supply.acquisitions(resource)) > 0 || len(supply.plan.OpenedIDs(resource, policy.CandidateTrade)) > 0 {
 		return RoundsResourceResult{Verdict: claimHeld(string(resource))}, nil
 	}
 	if row.busy {

@@ -34,7 +34,7 @@ func TestStarvingTribalHuntsWithBowsAndHoldsFormations(t *testing.T) {
 	}
 	hunts := func(p policy.FoodPlan) (rows []policy.FoodPlanEntry) {
 		for _, e := range p.Portfolio {
-			if e.Channel.Kind == policy.FoodHunt {
+			if e.Channel.Kind == policy.CandidateHunt {
 				rows = append(rows, e)
 			}
 		}
@@ -44,7 +44,7 @@ func TestStarvingTribalHuntsWithBowsAndHoldsFormations(t *testing.T) {
 		t.Fatalf("the recording offers no hunt: %+v", got)
 	}
 	lone := hunts(plan(deer("deer", 10, 10)))
-	if len(lone) != 1 || lone[0].Channel.Mode() != policy.HuntLone || lone[0].Decision != policy.FoodPlanOpen || len(lone[0].Channel.Products) != 1 {
+	if len(lone) != 1 || lone[0].Channel.Mode() != policy.HuntLone || lone[0].Decision != policy.FoodPlanOpen || len(lone[0].Channel.Products()) != 1 {
 		t.Fatalf("a bow hunter's deer does not open a lone hunt: %+v", lone)
 	}
 	herd := hunts(plan(deer("a", 10, 10), deer("b", 12, 10), deer("c", 14, 10)))

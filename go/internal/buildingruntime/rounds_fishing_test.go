@@ -17,7 +17,7 @@ func TestFoodPlanFishingIntegration(t *testing.T) {
 		t.Fatal("Core food plan unavailable")
 	}
 	for _, row := range core.Portfolio {
-		if row.Channel.Kind == policy.FoodFishing {
+		if row.Channel.Kind == policy.CandidateFishing {
 			t.Fatal("Core has a fishing row")
 		}
 	}
@@ -31,8 +31,8 @@ func TestFoodPlanFishingIntegration(t *testing.T) {
 	}
 	found := false
 	for _, row := range plan.Portfolio {
-		if row.Channel.Kind == policy.FoodFishing {
-			found = row.Channel.ID == "water-5-8" && row.Decision == policy.FoodPlanOpen && row.Channel.NutritionPerDay == domain.Known(1.875)
+		if row.Channel.Kind == policy.CandidateFishing {
+			found = row.Channel.ID == "water-5-8" && row.Decision == policy.FoodPlanOpen && row.Channel.Nutrition().PerDay == domain.Known(1.875)
 		}
 	}
 	if !found || len(fishingWork(p)) != 1 || fishingWork(p)[0].Work != policy.WorkFishing {

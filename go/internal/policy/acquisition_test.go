@@ -127,10 +127,10 @@ func TestHuntSelectionPrefersTheSafeDeerOverTheHerd(t *testing.T) {
 		t.Fatal(channels)
 	}
 	for _, c := range channels {
-		if len(c.Risk) != 1 || c.Risk[0].Kind != FoodRevenge {
+		if len(c.Risk) != 1 || c.Risk[0].Kind != CandidateRevenge {
 			t.Fatal("hunt channel lacks revenge risk", c)
 		}
-		if w, known := c.WorkPerDay.Value(); !known || w <= 0 {
+		if w, known := c.LaborPerDay.Value(); !known || w <= 0 {
 			t.Fatal("hunt channel lacks work", c)
 		}
 	}

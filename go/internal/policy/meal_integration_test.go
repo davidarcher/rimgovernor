@@ -97,7 +97,7 @@ func TestStoredIngredientsDoNotInventProduction(t *testing.T) {
 	plan.Portfolio = nil
 	plan.DeliveredPerDay = 0
 	for _, channel := range StockIngredientChannels(supply) {
-		rate, _ := channel.NutritionPerDay.Value()
+		rate, _ := channel.Nutrition().PerDay.Value()
 		if rate != 0 {
 			t.Fatal(channel)
 		}

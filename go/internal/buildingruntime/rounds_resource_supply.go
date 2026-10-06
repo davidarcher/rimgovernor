@@ -213,7 +213,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 // candidates are the catalog rows of the placeable drill sites over resource,
 // each yielding the lump up to the deficit. The output lands where the mines'
 // does, so it is hauled to that storage's headroom.
-func (d *deepDrillReading) candidates(resource policy.Resource, deficit int64, row *resourceSupplyRow) []policy.AcquisitionCandidate {
+func (d *deepDrillReading) candidates(resource policy.Resource, deficit int64, row *resourceSupplyRow) []policy.SupplyCandidate {
 	if d == nil {
 		return nil
 	}
@@ -221,7 +221,7 @@ func (d *deepDrillReading) candidates(resource policy.Resource, deficit int64, r
 	if row.selKnown {
 		headroom = domain.Known(row.sel.storage.Capacity)
 	}
-	var out []policy.AcquisitionCandidate
+	var out []policy.SupplyCandidate
 	for _, place := range d.placeable {
 		if policy.Resource(place.site.Definition) != resource {
 			continue
@@ -246,9 +246,9 @@ func resourceLabor(p observation.ColonyProjection) domain.Fact[float64] {
 	budget := float64(workers) * 20000
 	if plan, ok := p.Facts.FoodPlan.Value(); ok {
 		for _, e := range plan.Portfolio {
-			open, _ := e.Channel.Open.Value()
+			open, _ := e.Channel.Open().Value()
 			if e.Decision == policy.FoodPlanOpen || open && e.Decision != policy.FoodPlanClose {
-				work, _ := e.Channel.WorkPerDay.Value()
+				work, _ := e.Channel.LaborPerDay.Value()
 				budget -= work
 			}
 		}

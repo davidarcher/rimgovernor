@@ -20,7 +20,7 @@ func foodRow(def string, count int64, price, nutrition float64) TradeOffer {
 func TestTradeFoodChannelsPricedAndCapped(t *testing.T) {
 	t.Parallel()
 	o := []TradeOffers{foodOffers("caravan", foodRow("Pemmican", 10, 6, 2), foodRow("MealSimple", 100, 10, 0.9), TradeOffer{Def: "Steel", Count: 50, Price: 8})}
-	one := func(silver, reserve int64, want float64) FoodChannel {
+	one := func(silver, reserve int64, want float64) SupplyCandidate {
 		got := TradeFoodChannels(o, silver, reserve, want)
 		if len(got) != 1 {
 			t.Fatalf("channels %v", got)
@@ -28,23 +28,23 @@ func TestTradeFoodChannelsPricedAndCapped(t *testing.T) {
 		return got[0]
 	}
 	c := one(1000, 200, 1000)
-	stock, _ := c.StockCap.Value()
-	if c.Kind != FoodTrade || c.ID != "caravan" || stock <= 20 {
+	stock, _ := c.Nutrition().StockCap.Value()
+	if c.Kind != CandidateTrade || c.ID != "caravan" || stock <= 20 {
 		t.Fatalf("pemmican then meals expected: %+v", c)
 	}
 	if lead, _ := c.LeadDays.Value(); lead != 0 {
 		t.Errorf("lead %v", lead)
 	}
-	if work, _ := c.WorkPerDay.Value(); work != 0 {
+	if work, _ := c.LaborPerDay.Value(); work != 0 {
 		t.Errorf("steady work %v", work)
 	}
-	if ticks, _ := c.UpfrontTicks.Value(); ticks > 800 || ticks <= 60 {
+	if ticks, _ := c.UpfrontCost.LaborTicks.Value(); ticks > 800 || ticks <= 60 {
 		t.Errorf("upfront %v outside the spendable silver", ticks)
 	}
-	if got, _ := one(1000, 200, 16).StockCap.Value(); got != 16 {
+	if got, _ := one(1000, 200, 16).Nutrition().StockCap.Value(); got != 16 {
 		t.Errorf("want cap: %d (cheapest rows, rounded up to whole units)", got)
 	}
-	if got, _ := one(260, 200, 1000).StockCap.Value(); got != 20 {
+	if got, _ := one(260, 200, 1000).Nutrition().StockCap.Value(); got != 20 {
 		t.Errorf("afford cap: %d", got)
 	}
 	if got := TradeFoodChannels(o, 200, 200, 1000); len(got) != 0 {
@@ -74,7 +74,7 @@ func TestSupplyFoodPlanOpensTradeCandidate(t *testing.T) {
 	t.Parallel()
 	trade := TradeFoodChannels([]TradeOffers{foodOffers("caravan", foodRow("Pemmican", 100, 6, 2))}, 1000, 200, 40)
 	late := foodPlanChannel("late", 12, 100, 4, false)
-	plan, err := SupplyFoodPlan(foodPlanRequest(append([]FoodChannel{late}, trade...)...))
+	plan, err := SupplyFoodPlan(foodPlanRequest(append([]SupplyCandidate{late}, trade...)...))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,8 +85,8 @@ func TestSupplyFoodPlanOpensTradeCandidate(t *testing.T) {
 		t.Errorf("another trader's offer planned %v", got)
 	}
 	early := foodPlanChannel("hunt", 20, 10, 0, false)
-	early.Kind = FoodHunt
-	plan, err = SupplyFoodPlan(foodPlanRequest(append([]FoodChannel{early}, trade...)...))
+	early.Kind = CandidateHunt
+	plan, err = SupplyFoodPlan(foodPlanRequest(append([]SupplyCandidate{early}, trade...)...))
 	if err != nil {
 		t.Fatal(err)
 	}

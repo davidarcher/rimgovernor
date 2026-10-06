@@ -174,7 +174,7 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoundsFoodStorageUpkeepResult{}, err
 	}
-	if !foodPlanSupport(reading.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
+	if !foodPlanSupport(reading.Projection.Facts.FoodPlan, policy.CandidateReserve, "stock-protection") {
 		return RoundsFoodStorageUpkeepResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
 	}
 	if reserve, known := reading.Projection.Facts.FoodReserve.Value(); known && (len(reserve.Hold) > 0 || len(reserve.Release) > 0) {

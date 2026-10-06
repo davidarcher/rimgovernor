@@ -33,8 +33,8 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 		t.Fatal(plan)
 	}
 	for _, e := range plan.Portfolio {
-		if e.Channel.Kind == policy.FoodAnimalProduct {
-			if work, k := e.Channel.WorkPerDay.Value(); !k || work != 400 {
+		if e.Channel.Kind == policy.CandidateAnimalProduct {
+			if work, k := e.Channel.LaborPerDay.Value(); !k || work != 400 {
 				t.Fatal(e)
 			}
 			return
@@ -66,7 +66,7 @@ func TestFoodPlanReviewBudgetsAnimalsAndUnknownDemand(t *testing.T) {
 	if !known || plan.DemandPerDay != 3 {
 		t.Fatalf("plan = %+v, known=%v", plan, known)
 	}
-	if !foodPlanSupport(domain.Known(plan), policy.FoodCook, "cooking-capacity") {
+	if !foodPlanSupport(domain.Known(plan), policy.CandidateCook, "cooking-capacity") {
 		t.Fatal("missing cooking support")
 	}
 	p.CombinedFoodSupply = domain.Unknown[policy.FoodSupply]()
@@ -76,7 +76,7 @@ func TestFoodPlanReviewBudgetsAnimalsAndUnknownDemand(t *testing.T) {
 }
 
 func TestFoodPlanAcquisitionRejectsHeldAndUnknownSources(t *testing.T) {
-	plan := policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.FoodChannel{Kind: policy.FoodForage, ID: "open"}, Decision: policy.FoodPlanOpen}, {Channel: policy.FoodChannel{Kind: policy.FoodHunt, ID: "held"}, Decision: policy.FoodPlanHold}}}
+	plan := policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.SupplyCandidate{Kind: policy.CandidateForage, ID: "open"}, Decision: policy.FoodPlanOpen}, {Channel: policy.SupplyCandidate{Kind: policy.CandidateHunt, ID: "held"}, Decision: policy.FoodPlanHold}}}
 	rows, need := foodPlanAcquisition(plan, domain.Known([]policy.AcquisitionSource{{ID: "open", Food: true, NutritionYield: 2}, {ID: "held", Food: true, Hunt: true, NutritionYield: 9}, {ID: "unknown", Food: true, NutritionYield: 10}}))
 	got, _ := rows.Value()
 	nutrition, _ := need.Value()
@@ -128,15 +128,15 @@ func TestFoodCreditAttributesLedgerCountersToChannels(t *testing.T) {
 	}
 	got := map[string]bool{}
 	for _, e := range plan.Portfolio {
-		open, _ := e.Channel.Open.Value()
+		open, _ := e.Channel.Open().Value()
 		got[string(e.Channel.Kind)+"/"+e.Channel.ID] = open
 	}
-	for _, id := range []string{"Crop/z7", "Fishing/water-5-8", "AnimalProduct/Cow", "Forage/plant-1"} {
+	for _, id := range []string{"crop/z7", "fishing/water-5-8", "animal_product/Cow", "forage/plant-1"} {
 		if !got[id] {
 			t.Errorf("%s is not delivering although the ledger counts its source: %v", id, got)
 		}
 	}
-	if got["Forage/plant-2"] {
+	if got["forage/plant-2"] {
 		t.Errorf("a forage def with no counter is delivering: %v", got)
 	}
 }

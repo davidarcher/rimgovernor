@@ -165,14 +165,12 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	// Zero-contribution Hold rows leave these supporting methods to their own
 	// observed preconditions; their existing admission owns labor and resources.
 	for _, support := range []struct {
-		kind policy.FoodChannelKind
+		kind policy.CandidateKind
 		id   string
 	}{
-		{policy.FoodCook, "cooking-capacity"}, {policy.FoodReserve, "stock-protection"},
+		{policy.CandidateCook, "cooking-capacity"}, {policy.CandidateReserve, "stock-protection"},
 	} {
-		channels = append(channels, policy.FoodChannel{Kind: support.kind, ID: support.id,
-			NutritionPerDay: domain.Known(0.0), WorkPerDay: domain.Known(0.0), LeadDays: domain.Known(0.0), Open: domain.Known(false),
-			Terms: []policy.FoodPlanTerm{{Name: "supporting_method", Value: 1}}})
+		channels = append(channels, policy.FoodSupportCandidate(support.kind, support.id))
 	}
 	channels = credit.Apply(channels, foodCreditInput(p))
 	channels = hunt.Apply(channels, huntKills(p))
@@ -191,7 +189,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	// A present caravan's priced food is a one-shot candidate beside it, sized
 	// to the gap over the plan's window; the ranker opens it or not.
 	if plan.GapPerDay > 0 {
-		var offers []policy.FoodChannel
+		var offers []policy.SupplyCandidate
 		if animals, known := p.FoodChannels.Value(); known {
 			offers = policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herdPolicyOf(p.Facts, plan))
 		}
@@ -211,9 +209,9 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	herd := herdPolicyOf(p.Facts, plan)
 	for i := range plan.Portfolio {
 		e := &plan.Portfolio[i]
-		if e.Channel.Kind == policy.FoodAnimalProduct {
+		if e.Channel.Kind == policy.CandidateAnimalProduct {
 			floor := herd.PopulationMin[policy.Resource(e.Channel.ID)]
-			e.Terms = append(e.Terms, policy.FoodPlanTerm{Name: "effective_herd_floor", Value: float64(floor)})
+			e.Terms = append(e.Terms, policy.CandidateTerm{Name: "effective_herd_floor", Value: float64(floor)})
 			e.Reason += fmt.Sprintf("; MaintainHerd-%s floor %d", e.Channel.ID, floor)
 		}
 	}
@@ -263,7 +261,7 @@ func foodCreditDecision(c policy.CreditChange) telemetry.Decision {
 		Attrs: map[string]any{"expected": c.Expected, "observed": c.Observed, "factor": c.Factor, "window_days": c.WindowDays, "state": c.State}}
 }
 
-func foodPlanSupport(p domain.Fact[policy.FoodPlan], kind policy.FoodChannelKind, id string) bool {
+func foodPlanSupport(p domain.Fact[policy.FoodPlan], kind policy.CandidateKind, id string) bool {
 	plan, known := p.Value()
 	if !known {
 		return false
@@ -339,7 +337,7 @@ func foodPlanFieldRoom(p observation.ColonyProjection, plans []store.PlanState) 
 // foodPlanOpensField is whether the plan opened a new-field candidate.
 func foodPlanOpensField(plan policy.FoodPlan) bool {
 	for _, entry := range plan.Portfolio {
-		if entry.Channel.Kind == policy.FoodCrop && strings.HasPrefix(entry.Channel.ID, policy.NewFieldPrefix) && entry.Decision == policy.FoodPlanOpen {
+		if entry.Channel.Kind == policy.CandidateCrop && strings.HasPrefix(entry.Channel.ID, policy.NewFieldPrefix) && entry.Decision == policy.FoodPlanOpen {
 			return true
 		}
 	}

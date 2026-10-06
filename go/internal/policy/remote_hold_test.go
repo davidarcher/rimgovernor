@@ -14,8 +14,8 @@ func remoteReadyReach() ResourceReachRequest {
 
 func remoteSalvageRow() ClearanceTarget {
 	return ClearanceTarget{EntityID: "ruin", DefName: "Battery", Minimum: domain.Cell{X: 95, Z: 95}, Maximum: domain.Cell{X: 95, Z: 95}, Deconstructible: true,
-		Salvage: &SalvageEvidence{Safe: domain.Known(true), Candidate: AcquisitionCandidate{PathDistance: domain.Known(120.0), Labor: domain.Known(100.0), NeedsHaul: true, UnitsPerTrip: 75,
-			Yields: []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: "Steel"}, Count: 35}, Headroom: domain.Known(int64(75))}}}}}
+		Salvage: &SalvageEvidence{Safe: domain.Known(true), Candidate: SourceCandidate(CandidateSalvage, "", domain.Known(100.0), domain.Known(120.0), true, 75,
+			SourceYield(ResourceKey{Def: "Steel"}, 35, 0, domain.Known(int64(75))))}}
 }
 
 // Every explicit hold reason, for each remote kind, from the same request

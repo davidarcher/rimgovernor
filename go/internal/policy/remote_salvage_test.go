@@ -26,7 +26,7 @@ func TestRemoteSalvageSafetyAndDemand(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			row := ClearanceTarget{EntityID: "ruin", DefName: "Wall", Minimum: domain.Cell{X: 95, Z: 95}, Maximum: domain.Cell{X: 95, Z: 95}, Deconstructible: true,
-				Salvage: &SalvageEvidence{Safe: domain.Known(true), Candidate: AcquisitionCandidate{PathDistance: domain.Known(120.0), Labor: domain.Known(100.0), NeedsHaul: true, UnitsPerTrip: 75, Yields: []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: "Steel"}, Count: 3}, Headroom: domain.Known(int64(75))}}}}}
+				Salvage: &SalvageEvidence{Safe: domain.Known(true), Candidate: SourceCandidate(CandidateSalvage, "", domain.Known(100.0), domain.Known(120.0), true, 75, SourceYield(ResourceKey{Def: "Steel"}, 3, 0, domain.Known(int64(75))))}}
 			tt.edit(&row)
 			got, holds, err := FilterRemoteSalvage([]ClearanceTarget{row}, RemoteWorkRequest{Reach: reach, Demand: tt.demand})
 			if err != nil || len(got) != 1 || got[0].SalvageSelected != tt.want {

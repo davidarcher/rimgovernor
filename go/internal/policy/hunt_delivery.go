@@ -27,7 +27,7 @@ func (h *HuntDelivery) Admit(prey []domain.PawnID) {
 // from admission, Delivering from the first kill of an admitted animal
 // (killed holds the pawn ids of the ledger's kills). Lone channels and
 // channels of other prey are returned as they are.
-func (h *HuntDelivery) Apply(channels []FoodChannel, killed map[string]bool) []FoodChannel {
+func (h *HuntDelivery) Apply(channels []SupplyCandidate, killed map[string]bool) []SupplyCandidate {
 	if h == nil || len(h.admitted) == 0 {
 		return channels
 	}
@@ -35,16 +35,16 @@ func (h *HuntDelivery) Apply(channels []FoodChannel, killed map[string]bool) []F
 		h.delivering = h.delivering || killed[id]
 	}
 	standing := false
-	out := make([]FoodChannel, len(channels))
+	out := make([]SupplyCandidate, len(channels))
 	copy(out, channels)
 	for i, c := range out {
-		if c.Kind != FoodHunt || c.Mode() != HuntFormation {
+		if c.Kind != CandidateHunt || c.Mode() != HuntFormation {
 			continue
 		}
 		for _, id := range c.Prey {
 			if h.admitted[id] {
 				standing = true
-				c.Open, c.Designated = domain.Known(h.delivering), domain.Known(!h.delivering)
+				c.State = FoodState(domain.Known(h.delivering), domain.Known(!h.delivering))
 				out[i] = c
 				break
 			}

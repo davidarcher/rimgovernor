@@ -20,7 +20,7 @@ func fishingWork(p observation.ColonyProjection) []policy.WorkRequirement {
 		return nil
 	}
 	for _, row := range plan.Portfolio {
-		if row.Channel.Kind == policy.FoodFishing && row.Decision != policy.FoodPlanClose && row.Selected() {
+		if row.Channel.Kind == policy.CandidateFishing && row.Decision != policy.FoodPlanClose && row.Selected() {
 			return []policy.WorkRequirement{{Work: policy.WorkFishing}}
 		}
 	}
@@ -81,7 +81,7 @@ func (r *RoundsFieldPlanner) fishing(call, epoch context.Context, state ControlS
 		return RoundsFieldResult{}, false, nil
 	}
 	for _, entry := range plan.Portfolio {
-		if entry.Channel.Kind != policy.FoodFishing || entry.Decision == policy.FoodPlanClose || !entry.Selected() {
+		if entry.Channel.Kind != policy.CandidateFishing || entry.Decision == policy.FoodPlanClose || !entry.Selected() {
 			continue
 		}
 		for _, region := range water.Regions {

@@ -30,7 +30,8 @@ func TestRoundsTradeGoalConsumesSharedFoodPlan(t *testing.T) {
 	if got := needs(t, f, RoundsLatches{}); assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("a priced caravan with nothing to buy stood the goal", got)
 	}
-	opened := FoodChannel{Kind: FoodTrade, ID: "trader", StockCap: domain.Known(int64(48)), LeadDays: domain.Known(0.0)}
+	opened := FoodCandidate(CandidateTrade, "trader", domain.Unknown[float64]())
+	opened.Yields[0].StockCap, opened.LeadDays = domain.Known(int64(48)), domain.Known(0.0)
 	p, _ := f.FoodPlan.Value()
 	p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: opened, Decision: FoodPlanOpen})
 	f.FoodPlan = domain.Known(p)
@@ -55,7 +56,8 @@ func TestTradeUsesObservedMealTierAndSubtractsProteinStock(t *testing.T) {
 func TestTradeFoodReadsThePlan(t *testing.T) {
 	opened := func(r *TradeFoodContext, decision FoodPlanDecision) {
 		p, _ := r.Plan.Value()
-		c := FoodChannel{Kind: FoodTrade, ID: "caravan", StockCap: domain.Known(int64(48)), LeadDays: domain.Known(0.0)}
+		c := FoodCandidate(CandidateTrade, "caravan", domain.Unknown[float64]())
+		c.Yields[0].StockCap, c.LeadDays = domain.Known(int64(48)), domain.Known(0.0)
 		p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: c, Decision: decision})
 		r.Plan = domain.Known(p)
 	}
@@ -136,8 +138,8 @@ func TestTradeFoodMissingProteinAndCropFloors(t *testing.T) {
 	r.IngredientNutrition = 2
 	r.DesiredIngredients = domain.Known([]FoodIngredientSlot{{Alternatives: []FoodIngredientClass{IngredientMeat, IngredientAnimalProduct}}, {Alternatives: []FoodIngredientClass{IngredientVegetable}}})
 	p, _ := r.Plan.Value()
-	p.Portfolio[0].Channel.Kind = FoodCrop
-	p.Portfolio[0].Channel.Open = domain.Known(true)
+	p.Portfolio[0].Channel.Kind = CandidateCrop
+	p.Portfolio[0].Channel.State = domain.Known(CandidateDelivering)
 	p.Portfolio[0].DeliveredPerDay = 12
 	r.Plan = domain.Known(p)
 	n, known := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "crop", Count: 100}}), map[Resource]int64{"crop": 60}, map[string]int64{"crop": 80}, domain.Unknown[WealthFacts](), RoundsTradePolicy{}, r).Value()
@@ -178,7 +180,7 @@ func TestTradeFoodMissingProteinAndCropFloors(t *testing.T) {
 			}
 		})
 	}
-	p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: FoodChannel{Kind: FoodAnimalProduct, ID: "milk", Open: domain.Known(true)}, Decision: FoodPlanHold, DeliveredPerDay: 1})
+	p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: SupplyCandidate{Kind: CandidateAnimalProduct, ID: "milk", State: domain.Known(CandidateDelivering)}, Decision: FoodPlanHold, DeliveredPerDay: 1})
 	r.Plan = domain.Known(p)
 	if n := foodTradeNeed(r); len(n.Food.Missing) != 0 {
 		t.Fatal("retained milk already supplies protein", n)

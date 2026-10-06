@@ -6,7 +6,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // yield never becomes inventory until ordinary pawn work delivers it.
 type SalvageEvidence struct {
 	Safe      domain.Fact[bool]
-	Candidate AcquisitionCandidate
+	Candidate SupplyCandidate
 }
 
 // SalvageContext assembles the remote request every remote selection in a
@@ -29,7 +29,7 @@ func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]Clearan
 	reach := r.Reach
 	out := append([]ClearanceTarget(nil), rows...)
 	reasons := make([]string, len(out))
-	var candidates []AcquisitionCandidate
+	var candidates []SupplyCandidate
 	var remote []int
 	for i := range out {
 		row := &out[i]
@@ -62,7 +62,7 @@ func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]Clearan
 		}
 		if reasons[i] = reason; reason == "" {
 			candidate := row.Salvage.Candidate
-			candidate.ID, candidate.Kind = row.EntityID, AcquisitionSalvage
+			candidate.ID, candidate.Kind = row.EntityID, CandidateSalvage
 			candidates = append(candidates, candidate)
 			remote = append(remote, i)
 		}

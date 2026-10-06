@@ -65,9 +65,9 @@ func TestHuntCandidatesExposeRiskAndPursuitWork(t *testing.T) {
 		{ID: "down", Hunt: true, Food: true, NutritionYield: 10, Downed: true, RevengeChance: 0.5, HerdSize: 3},
 	}
 	rows := HuntCandidates(sources, SquadHuntMinGunners, domain.Fact[float64]{})
-	melee, _ := rows[0].WorkPerDay.Value()
-	ranged, _ := rows[1].WorkPerDay.Value()
-	down, _ := rows[2].WorkPerDay.Value()
+	melee, _ := rows[0].LaborPerDay.Value()
+	ranged, _ := rows[1].LaborPerDay.Value()
+	down, _ := rows[2].LaborPerDay.Value()
 	if !(down < ranged && ranged < melee) {
 		t.Fatal("pursuit work", rows)
 	}

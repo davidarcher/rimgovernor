@@ -101,7 +101,7 @@ func (r *RoundsAnimalFeedPlanner) step(call, epoch context.Context, arbiter *ste
 	if plan, known := read.Projection.Facts.FoodPlan.Value(); known {
 		upkeep.Forecast = domain.Known(plan.Forecast)
 	}
-	if !foodPlanSupport(read.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
+	if !foodPlanSupport(read.Projection.Facts.FoodPlan, policy.CandidateReserve, "stock-protection") {
 		return RoundsResourceResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
 	}
 	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.FoodReserveDays)

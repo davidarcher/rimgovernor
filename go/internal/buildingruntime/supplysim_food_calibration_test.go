@@ -69,7 +69,7 @@ func TestFoodCalibrationReserve(t *testing.T) {
 func fishingScenario(colonists int, maxPop float64, fishers int) foodScenario {
 	const nutr = 0.5
 	return foodScenario{name: "fishing", colonists: colonists, perDay: foodNutritionPerColonist * float64(colonists), stock: foodNutritionPerColonist * float64(colonists) * 3,
-		specs: []srcSpec{{kind: policy.FoodFishing, nutr: nutr, src: supplysim.NewFishing("water", maxPop, maxPop, fishers, nutr)}}}
+		specs: []srcSpec{{kind: policy.CandidateFishing, nutr: nutr, src: supplysim.NewFishing("water", maxPop, maxPop, fishers, nutr)}}}
 }
 
 // food/fishing: the ledger opens fishing at min(0.025 x max x nutritionPerFish,
@@ -90,8 +90,8 @@ func TestFoodCalibrationFishing(t *testing.T) {
 			withinRate(t, "steady catch nutrition per day", meanDelivered(rep, "water", spec.nutr, 60, 90), rate)
 			// The planner reads the same rate off the water body.
 			for _, e := range a.plans[1].Portfolio {
-				if e.Channel.Kind == policy.FoodFishing {
-					n, _ := e.Channel.NutritionPerDay.Value()
+				if e.Channel.Kind == policy.CandidateFishing {
+					n, _ := e.Channel.Nutrition().PerDay.Value()
 					withinRate(t, "planned fishing nutrition", n, rate)
 					return
 				}
@@ -122,7 +122,7 @@ func TestFoodCalibrationFishing(t *testing.T) {
 // cropScenario is one crop field grown inside a one-year window.
 func cropScenario(grow int, window supplysim.Window) foodScenario {
 	const cells, nutr = 12.0, 3.0
-	return foodScenario{name: "crop", colonists: 4, perDay: 1, stock: 1000, specs: []srcSpec{{kind: policy.FoodCrop, nutr: nutr, cells: cells, grow: grow, window: window,
+	return foodScenario{name: "crop", colonists: 4, perDay: 1, stock: 1000, specs: []srcSpec{{kind: policy.CandidateCrop, nutr: nutr, cells: cells, grow: grow, window: window,
 		src: supplysim.NewCrop("rice", cells, grow, nutr, window, cells)}}}
 }
 
@@ -271,15 +271,15 @@ func TestFoodCalibrationTradeRoutine(t *testing.T) {
 // seeds: given the rows each recorded, the adapter's real planner opens the
 // same kinds of source on day 0.
 func TestFoodSeedsOpenWhatSnapshotsOpened(t *testing.T) {
-	recorded := map[string]map[policy.FoodChannelKind]bool{}
+	recorded := map[string]map[policy.CandidateKind]bool{}
 	for _, sc := range seedScenarios(t) {
-		recorded[sc.name] = map[policy.FoodChannelKind]bool{}
+		recorded[sc.name] = map[policy.CandidateKind]bool{}
 	}
-	for name, opened := range map[string][]policy.FoodChannelKind{
-		"seed/food-ledger-baseline-forage-hunt": {policy.FoodForage, policy.FoodHunt},
-		"seed/food-corpse-larder-release":       {policy.FoodForage, policy.FoodHunt},
-		"seed/trade-food-bridge-one-day":        {policy.FoodForage},
-		"seed/trade-food-crop-surplus-for-meat": {policy.FoodForage},
+	for name, opened := range map[string][]policy.CandidateKind{
+		"seed/food-ledger-baseline-forage-hunt": {policy.CandidateForage, policy.CandidateHunt},
+		"seed/food-corpse-larder-release":       {policy.CandidateForage, policy.CandidateHunt},
+		"seed/trade-food-bridge-one-day":        {policy.CandidateForage},
+		"seed/trade-food-crop-surplus-for-meat": {policy.CandidateForage},
 		"seed/food-starving-tribal-no-hunt-row": nil,
 	} {
 		for _, k := range opened {
@@ -288,7 +288,7 @@ func TestFoodSeedsOpenWhatSnapshotsOpened(t *testing.T) {
 	}
 	for _, sc := range seedScenarios(t) {
 		res := runFood(sc, 1)
-		got := map[policy.FoodChannelKind]bool{}
+		got := map[policy.CandidateKind]bool{}
 		for _, id := range res.days[0].opened {
 			got[sc.spec(id).kind] = true
 		}

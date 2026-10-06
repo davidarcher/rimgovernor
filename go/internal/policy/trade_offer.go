@@ -70,8 +70,8 @@ func TradeCandidateID(trader string, resource Resource) string {
 // TradeOfferCandidates are the catalog rows of buying resource from the
 // recorded offers: the cheapest priced row of each trader, as many units as
 // the deficit, the trader's stock and the silver above the reserve allow.
-func TradeOfferCandidates(resource Resource, offers []TradeOffers, deficit, silver, reserve int64) []AcquisitionCandidate {
-	var out []AcquisitionCandidate
+func TradeOfferCandidates(resource Resource, offers []TradeOffers, deficit, silver, reserve int64) []SupplyCandidate {
+	var out []SupplyCandidate
 	for _, record := range offers {
 		var best *TradeOffer
 		for i := range record.Rows {
@@ -102,8 +102,8 @@ func TradeOfferCandidates(resource Resource, offers []TradeOffers, deficit, silv
 // upfront cost, priced as labor (tradeLaborPerSilver). A trader without a
 // record, or whose record prices no food, has no candidate: an arrival the
 // colony has not looked at is never planned for.
-func TradeFoodChannels(offers []TradeOffers, silver, reserve int64, want float64) []FoodChannel {
-	var out []FoodChannel
+func TradeFoodChannels(offers []TradeOffers, silver, reserve int64, want float64) []SupplyCandidate {
+	var out []SupplyCandidate
 	for _, record := range offers {
 		var rows []TradeOffer
 		for _, row := range record.Rows {
@@ -131,9 +131,12 @@ func TradeFoodChannels(offers []TradeOffers, silver, reserve int64, want float64
 			wanted -= count * g.Nutrition
 		}
 		if stock := int64(math.Floor(nutrition)); stock >= 1 {
-			out = append(out, FoodChannel{Kind: FoodTrade, ID: record.Trader, StockCap: domain.Known(stock),
-				WorkPerDay: domain.Known(0.0), UpfrontTicks: domain.Known(spent * tradeLaborPerSilver), LeadDays: domain.Known(0.0), Open: domain.Known(false),
-				Terms: []FoodPlanTerm{{Name: "trade_silver", Value: spent}}})
+			c := FoodCandidate(CandidateTrade, record.Trader, domain.Unknown[float64]())
+			c.Yields[0].StockCap = domain.Known(stock)
+			c.LaborPerDay, c.UpfrontCost.LaborTicks, c.LeadDays = domain.Known(0.0), domain.Known(spent*tradeLaborPerSilver), domain.Known(0.0)
+			c.State = FoodState(domain.Known(false), domain.Unknown[bool]())
+			c.Terms = []CandidateTerm{{Name: "trade_silver", Value: spent}}
+			out = append(out, c)
 		}
 	}
 	return out
@@ -147,8 +150,8 @@ func PlannedTradeNutrition(plan domain.Fact[FoodPlan], trader string) float64 {
 	}
 	total := 0.0
 	for _, e := range p.Portfolio {
-		if e.Channel.Kind == FoodTrade && e.Channel.ID == trader && e.Decision == FoodPlanOpen {
-			stock, _ := e.Channel.StockCap.Value()
+		if e.Channel.Kind == CandidateTrade && e.Channel.ID == trader && e.Decision == FoodPlanOpen {
+			stock, _ := e.Channel.Nutrition().StockCap.Value()
 			total += float64(stock)
 		}
 	}

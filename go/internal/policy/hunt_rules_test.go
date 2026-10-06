@@ -41,8 +41,8 @@ func TestSquadHuntSleepingPreyIsCheaperNotGated(t *testing.T) {
 	if len(day) != 1 || len(night) != 1 {
 		t.Fatalf("day %v night %v", day, night)
 	}
-	d, _ := day[0].WorkPerDay.Value()
-	n, _ := night[0].WorkPerDay.Value()
+	d, _ := day[0].LaborPerDay.Value()
+	n, _ := night[0].LaborPerDay.Value()
 	if !(n < d) {
 		t.Fatalf("work day %v night %v", d, n)
 	}
@@ -57,7 +57,7 @@ func TestSquadHuntBadWeatherIsCostlierNotGated(t *testing.T) {
 		if len(channels) != 1 {
 			t.Fatalf("weather %v: channels %v", w, channels)
 		}
-		v, _ := channels[0].WorkPerDay.Value()
+		v, _ := channels[0].LaborPerDay.Value()
 		return v
 	}
 	base := work(domain.Fact[float64]{})

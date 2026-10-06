@@ -182,7 +182,7 @@ func (d *DeliveryCredit) arm(h *creditHistory, now domain.Tick) {
 // Opened tells the credit which counter groups a plan just opened: a group is
 // judged only from its lead plus one window after the plan opened it, so a
 // candidate nobody asked for is never penalised for not delivering.
-func (d *DeliveryCredit) Opened(plan FoodPlan, channels []FoodChannel, now domain.Tick) {
+func (d *DeliveryCredit) Opened(plan FoodPlan, channels []SupplyCandidate, now domain.Tick) {
 	if d == nil {
 		return
 	}
@@ -242,7 +242,7 @@ func (d *DeliveryCredit) Drain() []CreditChange {
 // the group's state and its nutrition rate is scaled by the group's factor.
 // A nil DeliveryCredit applies nothing. Channels without a Source, and Closed
 // ones, are returned as they are.
-func (d *DeliveryCredit) Apply(channels []FoodChannel, in CreditInput) []FoodChannel {
+func (d *DeliveryCredit) Apply(channels []SupplyCandidate, in CreditInput) []SupplyCandidate {
 	if d == nil {
 		return channels
 	}
@@ -251,7 +251,7 @@ func (d *DeliveryCredit) Apply(channels []FoodChannel, in CreditInput) []FoodCha
 		if c.Source == "" || !committed(c) {
 			continue
 		}
-		rate, known := c.NutritionPerDay.Value()
+		rate, known := c.Nutrition().PerDay.Value()
 		if !known || math.IsNaN(rate) || math.IsInf(rate, 0) {
 			continue
 		}
@@ -280,29 +280,29 @@ func (d *DeliveryCredit) Apply(channels []FoodChannel, in CreditInput) []FoodCha
 		groups = append(groups, *g)
 	}
 	results := d.Observe(in, groups)
-	out := make([]FoodChannel, len(channels))
+	out := make([]SupplyCandidate, len(channels))
 	copy(out, channels)
 	for i, c := range out {
 		r, ok := results[c.Source]
 		if !ok || c.Source == "" || !committed(c) {
 			continue
 		}
-		c.Open, c.Designated = domain.Known(r.State == CandidateDelivering), domain.Known(r.State == CandidateDesignated)
-		if rate, known := c.NutritionPerDay.Value(); known && !math.IsNaN(rate) && !math.IsInf(rate, 0) {
-			c.NutritionPerDay = domain.Known(rate * r.Factor)
+		c.State = domain.Known(r.State)
+		if rate, known := c.Nutrition().PerDay.Value(); known && !math.IsNaN(rate) && !math.IsInf(rate, 0) {
+			c = c.WithNutritionPerDay(domain.Known(rate * r.Factor))
 		}
 		out[i] = c
 	}
 	return out
 }
 
-func committed(c FoodChannel) bool {
-	s, known := c.State().Value()
+func committed(c SupplyCandidate) bool {
+	s, known := c.State.Value()
 	return known && (s == CandidateDesignated || s == CandidateDelivering)
 }
 
 // cycleDays is the days between a crop channel's deliveries, from its Terms.
-func cycleDays(c FoodChannel) float64 {
+func cycleDays(c SupplyCandidate) float64 {
 	for _, t := range c.Terms {
 		if t.Name == "grow_days" {
 			return t.Value

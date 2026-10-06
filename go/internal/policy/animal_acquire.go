@@ -110,33 +110,36 @@ func (in AnimalAcquisition) yield(race AnimalRace, gender string, ageTicks float
 	return acquiredYield{stock: domain.Known(int64(meat)), leadDays: days, feed: feed}, true
 }
 
-func (y acquiredYield) channel(kind FoodChannelKind, id string, upfront float64, terms []FoodPlanTerm) FoodChannel {
-	return FoodChannel{Kind: kind, ID: id, NutritionPerDay: y.nutritionPerDay, StockCap: y.stock, WorkPerDay: domain.Known(0.0), UpfrontTicks: domain.Known(upfront),
-		LeadDays: domain.Known(y.leadDays), Open: domain.Known(false), Terms: append([]FoodPlanTerm{{Name: "feed_per_day", Value: y.feed}}, terms...)}
+func (y acquiredYield) channel(kind CandidateKind, id string, upfront float64, terms []CandidateTerm) SupplyCandidate {
+	c := FoodCandidate(kind, id, y.nutritionPerDay)
+	c.Yields[0].StockCap = y.stock
+	c.LaborPerDay, c.UpfrontCost.LaborTicks, c.LeadDays, c.State = domain.Known(0.0), domain.Known(upfront), domain.Known(y.leadDays), FoodState(domain.Known(false), domain.Unknown[bool]())
+	c.Terms = append([]CandidateTerm{{Name: "feed_per_day", Value: y.feed}}, terms...)
+	return c
 }
 
 // value ranks acquisitions of equal kind: yield (a rate, else a stock) per
 // unit of upfront work.
-func (c FoodChannel) acquisitionValue() float64 {
-	n, _ := c.NutritionPerDay.Value()
-	s, _ := c.StockCap.Value()
-	u, _ := c.UpfrontTicks.Value()
+func acquisitionValue(c SupplyCandidate) float64 {
+	n, _ := c.Nutrition().PerDay.Value()
+	s, _ := c.Nutrition().StockCap.Value()
+	u, _ := c.UpfrontCost.LaborTicks.Value()
 	return (n + float64(s)) / math.Max(1, u)
 }
 
 // bestAcquisition keeps the best rate candidate and the best one-shot stock
 // candidate: the two are not comparable, the plan chooses between them.
-func bestAcquisition(channels []FoodChannel) []FoodChannel {
+func bestAcquisition(channels []SupplyCandidate) []SupplyCandidate {
 	sort.Slice(channels, func(i, j int) bool {
-		if a, b := channels[i].acquisitionValue(), channels[j].acquisitionValue(); a != b {
+		if a, b := acquisitionValue(channels[i]), acquisitionValue(channels[j]); a != b {
 			return a > b
 		}
 		return channels[i].ID < channels[j].ID
 	})
-	var out []FoodChannel
+	var out []SupplyCandidate
 	rate, stock := false, false
 	for _, c := range channels {
-		if _, isRate := c.NutritionPerDay.Value(); isRate && !rate {
+		if _, isRate := c.Nutrition().PerDay.Value(); isRate && !rate {
 			out, rate = append(out, c), true
 		} else if !isRate && !stock {
 			out, stock = append(out, c), true
@@ -152,7 +155,7 @@ func bestAcquisition(channels []FoodChannel) []FoodChannel {
 // unread) of three talks and the feeds each, its lead the time until the
 // animal reaches the stage its yield needs, and failing an attempt risks the
 // race's manhunter chance.
-func TameFoodChannels(in AnimalAcquisition) []FoodChannel {
+func TameFoodChannels(in AnimalAcquisition) []SupplyCandidate {
 	wild, wk := in.Wild.Value()
 	profiles, pk := in.Handlers.Value()
 	if !wk || !pk || in.Herd.FeedShort {
@@ -164,7 +167,7 @@ func TameFoodChannels(in AnimalAcquisition) []FoodChannel {
 	if !tk || !fk || !sk {
 		return nil
 	}
-	var out []FoodChannel
+	var out []SupplyCandidate
 	for _, a := range wild {
 		tameable, tk := a.Tameable.Value()
 		designated, dk := a.Tame.Value()
@@ -184,10 +187,10 @@ func TameFoodChannels(in AnimalAcquisition) []FoodChannel {
 		}
 		attempts := 1 / math.Min(1, factor)
 		manhunter, _ := race.ManhunterOnTameFail.Value()
-		c := y.channel(FoodTame, "tame:"+string(a.ID), attempts*float64(animalInteractionTalks*talk+feeds*feedTicks),
-			[]FoodPlanTerm{{Name: "expected_attempts", Value: attempts}, {Name: "talk_toils_per_attempt", Value: animalInteractionTalks}})
+		c := y.channel(CandidateTame, "tame:"+string(a.ID), attempts*float64(animalInteractionTalks*talk+feeds*feedTicks),
+			[]CandidateTerm{{Name: "expected_attempts", Value: attempts}, {Name: "talk_toils_per_attempt", Value: animalInteractionTalks}})
 		if risk := math.Min(1, manhunter*(attempts-1)); risk > 0 {
-			c.Risk = []FoodRisk{{Kind: FoodRevenge, Weight: risk}}
+			c.Risk = []CandidateRisk{{Kind: CandidateRevenge, Weight: risk}}
 		}
 		out = append(out, c)
 	}
@@ -199,10 +202,10 @@ func TameFoodChannels(in AnimalAcquisition) []FoodChannel {
 // room, a known sex and yield. The silver is the upfront work (as trade food),
 // the lead zero: a trader's animal is read as adult, its age is not on the
 // sheet. The ID names the trader, race and sex the trade planner buys.
-func AnimalPurchaseFoodChannels(offers []TradeOffers, in AnimalAcquisition, silver, reserve int64) []FoodChannel {
-	var out []FoodChannel
+func AnimalPurchaseFoodChannels(offers []TradeOffers, in AnimalAcquisition, silver, reserve int64) []SupplyCandidate {
+	var out []SupplyCandidate
 	for _, record := range offers {
-		var perTrader []FoodChannel
+		var perTrader []SupplyCandidate
 		for _, row := range record.Rows {
 			race, ok := in.Races.Race(Resource(row.Def))
 			if !row.Pawn || !ok || row.Count < 1 || row.Gender == "" || strings.Contains(row.Def, "/") || !finite(row.Price) || row.Price <= 0 || row.Price > tradeBuyPriceCeiling || row.Price > float64(silver-reserve) || !in.room(race.Def) {
@@ -212,8 +215,8 @@ func AnimalPurchaseFoodChannels(offers []TradeOffers, in AnimalAcquisition, silv
 			if !ok {
 				continue
 			}
-			perTrader = append(perTrader, y.channel(FoodAnimalBuy, record.Trader+"/"+row.Def+"/"+row.Gender, row.Price*tradeLaborPerSilver,
-				[]FoodPlanTerm{{Name: "trade_silver", Value: row.Price}}))
+			perTrader = append(perTrader, y.channel(CandidateAnimalBuy, record.Trader+"/"+row.Def+"/"+row.Gender, row.Price*tradeLaborPerSilver,
+				[]CandidateTerm{{Name: "trade_silver", Value: row.Price}}))
 		}
 		out = append(out, bestAcquisition(perTrader)...)
 	}
@@ -234,7 +237,7 @@ func FoodTameChoice(plan domain.Fact[FoodPlan], wild domain.Fact[[]UpkeepAnimal]
 		return HusbandryChoice{Reason: HusbandryNoDeficit}
 	}
 	for _, e := range p.Portfolio {
-		if e.Channel.Kind != FoodTame || e.Decision != FoodPlanOpen {
+		if e.Channel.Kind != CandidateTame || e.Decision != FoodPlanOpen {
 			continue
 		}
 		for _, a := range rows {
@@ -260,7 +263,7 @@ func PlannedAnimalPurchases(plan domain.Fact[FoodPlan], trader string) []HerdWan
 	for _, e := range p.Portfolio {
 		rest, ok := strings.CutPrefix(e.Channel.ID, trader+"/")
 		race, gender, split := strings.Cut(rest, "/")
-		if e.Channel.Kind == FoodAnimalBuy && e.Decision == FoodPlanOpen && ok && split {
+		if e.Channel.Kind == CandidateAnimalBuy && e.Decision == FoodPlanOpen && ok && split {
 			out = append(out, HerdWant{Race: Resource(race), Male: gender == "Male", Female: gender == "Female"})
 		}
 	}

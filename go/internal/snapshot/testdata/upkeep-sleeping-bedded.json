@@ -2825,16 +2825,26 @@
     "Portfolio": [
      {
       "Channel": {
+       "Kind": "forage",
        "ID": "Thing_Plant_Berry16700",
-       "Kind": "Forage",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 0.5000000074505806
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 2500
        },
        "Terms": [
         {
@@ -2845,10 +2855,7 @@
          "Name": "estimated_work_ticks",
          "Value": 2500
         }
-       ],
-       "WorkPerDay": {
-        "v": 2500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 0.5000000074505806,
@@ -2884,16 +2891,26 @@
      },
      {
       "Channel": {
+       "Kind": "forage",
        "ID": "Thing_Plant_Berry18230",
-       "Kind": "Forage",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 0.5000000074505806
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 2500
        },
        "Terms": [
         {
@@ -2904,10 +2921,7 @@
          "Name": "estimated_work_ticks",
          "Value": 2500
         }
-       ],
-       "WorkPerDay": {
-        "v": 2500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 0.5000000074505806,
@@ -2943,16 +2957,26 @@
      },
      {
       "Channel": {
+       "Kind": "forage",
        "ID": "Thing_Plant_Berry18454",
-       "Kind": "Forage",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 0.5000000074505806
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 2500
        },
        "Terms": [
         {
@@ -2963,10 +2987,7 @@
          "Name": "estimated_work_ticks",
          "Value": 2500
         }
-       ],
-       "WorkPerDay": {
-        "v": 2500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 0.5000000074505806,
@@ -3002,16 +3023,26 @@
      },
      {
       "Channel": {
+       "Kind": "forage",
        "ID": "Thing_Plant_Berry19222",
-       "Kind": "Forage",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 0.5000000074505806
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 2500
        },
        "Terms": [
         {
@@ -3022,10 +3053,7 @@
          "Name": "estimated_work_ticks",
          "Value": 2500
         }
-       ],
-       "WorkPerDay": {
-        "v": 2500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 0.5000000074505806,
@@ -3061,16 +3089,26 @@
      },
      {
       "Channel": {
+       "Kind": "forage",
        "ID": "Thing_Plant_Berry20259",
-       "Kind": "Forage",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.4000000059604645
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 0.4000000059604645
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 2500
        },
        "Terms": [
         {
@@ -3081,10 +3119,7 @@
          "Name": "estimated_work_ticks",
          "Value": 2500
         }
-       ],
-       "WorkPerDay": {
-        "v": 2500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 0.4000000059604645,
@@ -3120,16 +3155,26 @@
      },
      {
       "Channel": {
+       "Kind": "forage",
        "ID": "Thing_Plant_Berry18728",
-       "Kind": "Forage",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.30000000447034836
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
-        "v": 0.30000000447034836
-       },
-       "Open": {
-        "v": false
+       "LaborPerDay": {
+        "v": 2500
        },
        "Terms": [
         {
@@ -3140,10 +3185,7 @@
          "Name": "estimated_work_ticks",
          "Value": 2500
         }
-       ],
-       "WorkPerDay": {
-        "v": 2500
-       }
+       ]
       },
       "Decision": "Open",
       "DeliveredPerDay": 0.30000000447034836,
@@ -3179,26 +3221,33 @@
      },
      {
       "Channel": {
+       "Kind": "cook",
        "ID": "cooking-capacity",
-       "Kind": "Cook",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -3227,26 +3276,33 @@
      },
      {
       "Channel": {
+       "Kind": "crop",
        "ID": "field-capacity",
-       "Kind": "Crop",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -3275,26 +3331,33 @@
      },
      {
       "Channel": {
+       "Kind": "reserve",
        "ID": "stock-protection",
-       "Kind": "Reserve",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",

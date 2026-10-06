@@ -18,12 +18,12 @@ func TestCatalogRanksMineAgainstBill(t *testing.T) {
 	demand := ResourceDeficitDemand("Steel", 60)
 	near := MineCandidates("Steel", []ResourceSource{{ThingID: "ore-near", Yield: 60, Distance: 10, Method: ResourceSourceMine, Safety: "open_surface"}}, headroom)
 	ranked, err := rankBySupply(demand, append(near, produce), AcquisitionCompetition{})
-	if err != nil || len(ranked) != 2 || ranked[0].Kind != AcquisitionMining {
+	if err != nil || len(ranked) != 2 || ranked[0].Kind != CandidateMining {
 		t.Fatalf("near deposit %+v %v", ranked, err)
 	}
 	far := MineCandidates("Steel", []ResourceSource{{ThingID: "ore-far", Yield: 5, Distance: 120, Method: ResourceSourceMine, Safety: "open_surface"}}, headroom)
 	ranked, err = rankBySupply(demand, append(far, produce), AcquisitionCompetition{})
-	if err != nil || len(ranked) != 2 || ranked[0].Kind != AcquisitionProduce {
+	if err != nil || len(ranked) != 2 || ranked[0].Kind != CandidateProduce {
 		t.Fatalf("far sliver %+v %v", ranked, err)
 	}
 }
@@ -36,7 +36,7 @@ func TestCatalogSourceKindsAndHuntRisk(t *testing.T) {
 		{ID: "other", Resource: "Steel", Yield: 10},
 	}
 	c := AcquisitionSourceCandidates("WoodLog", sources, domain.Cell{}, domain.Known(int64(100)))
-	if len(c) != 1 || c[0].Kind != AcquisitionChop {
+	if len(c) != 1 || c[0].Kind != CandidateChop {
 		t.Fatalf("%+v", c)
 	}
 	meat := []AcquisitionSource{
@@ -45,7 +45,7 @@ func TestCatalogSourceKindsAndHuntRisk(t *testing.T) {
 	}
 	c = AcquisitionSourceCandidates("Meat_Boar", meat, domain.Cell{}, domain.Known(int64(100)))
 	ranked, err := rankBySupply(ResourceDeficitDemand("Meat_Boar", 1), c, AcquisitionCompetition{})
-	if err != nil || len(ranked) != 2 || ranked[0].ID != "hare" || ranked[0].Kind != AcquisitionHunt {
+	if err != nil || len(ranked) != 2 || ranked[0].ID != "hare" || ranked[0].Kind != CandidateHunt {
 		t.Fatalf("%+v %v", ranked, err)
 	}
 }
@@ -61,12 +61,12 @@ func TestCatalogDeepDrillAndTrade(t *testing.T) {
 	}
 	cheap, _ := TradeCandidate("Steel", "caravan", 100, 1.9)
 	ranked, err := rankBySupply(demand, append(mine, drill, cheap), AcquisitionCompetition{})
-	if err != nil || len(ranked) != 3 || ranked[0].Kind != AcquisitionTrade || ranked[1].Kind != AcquisitionMining || ranked[2].Kind != AcquisitionDeepDrill {
+	if err != nil || len(ranked) != 3 || ranked[0].Kind != CandidateTrade || ranked[1].Kind != CandidateMining || ranked[2].Kind != CandidateDeepDrill {
 		t.Fatalf("%+v %v", ranked, err)
 	}
 	dear, _ := TradeCandidate("Steel", "caravan", 100, 50)
 	ranked, err = rankBySupply(demand, append(mine, dear), AcquisitionCompetition{})
-	if err != nil || len(ranked) != 2 || ranked[0].Kind != AcquisitionMining {
+	if err != nil || len(ranked) != 2 || ranked[0].Kind != CandidateMining {
 		t.Fatalf("%+v %v", ranked, err)
 	}
 	if _, ok := DeepDrillCandidate("Steel", "lump", 0, 0, domain.Known(int64(1))); ok {

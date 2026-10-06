@@ -9,13 +9,13 @@ import (
 // field for cotton, each exactly once and the floor restored (#2169).
 func TestClothingScenariosOpenTheirSource(t *testing.T) {
 	t.Parallel()
-	want := map[string]policy.AcquisitionKind{"Leather/leather short, deer available/none": policy.AcquisitionHunt, "Cotton/cotton field/none": policy.AcquisitionHarvest}
+	want := map[string]policy.CandidateKind{"Leather/leather short, deer available/none": policy.CandidateHunt, "Cotton/cotton field/none": policy.CandidateHarvest}
 	for _, sc := range clothingScenarios() {
 		run := runResScenario(sc)
 		if f := run.failures(); len(f) != 0 {
 			t.Errorf("%s: %v", sc.name, f)
 		}
-		var kinds []policy.AcquisitionKind
+		var kinds []policy.CandidateKind
 		for _, e := range run.pl.events {
 			kinds = append(kinds, e.Kind)
 		}

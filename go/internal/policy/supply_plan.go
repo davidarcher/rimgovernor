@@ -217,9 +217,13 @@ type supplyShare struct {
 }
 
 func validCandidateKind(k CandidateKind) bool {
-	_, food := foodKindOf(k)
-	_, acq := acquisitionKindOf(k)
-	return food || acq
+	switch k {
+	case CandidateForage, CandidateHunt, CandidateSlaughter, CandidateCrop, CandidateAnimalProduct, CandidateFishing, CandidateTrade,
+		CandidateCorpse, CandidateReserve, CandidateCook, CandidateLoot, CandidateSalvage, CandidateMining, CandidateProduce,
+		CandidateDeepDrill, CandidateChop, CandidateHarvest, CandidateTame, CandidateAnimalBuy:
+		return true
+	}
+	return false
 }
 
 func validCandidateRisk(k CandidateRiskKind) bool {

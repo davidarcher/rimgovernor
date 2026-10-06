@@ -153,7 +153,7 @@ func TestFieldBlockingWorkIgnoresAcquisition(t *testing.T) {
 	projection := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "Plant_Rice", HarvestNutrition: domain.Known(1.0), GrowDays: domain.Known(2.0)}}}
 	plans := []store.PlanState{{Progress: []domain.Progress{hunt, p}}}
 	for _, gap := range []float64{0, 1, 2} {
-		open := policy.FoodPlanEntry{Channel: policy.FoodChannel{Kind: policy.FoodCrop, ID: policy.NewFieldPrefix + "Plant_Rice"}, Decision: policy.FoodPlanOpen}
+		open := policy.FoodPlanEntry{Channel: policy.SupplyCandidate{Kind: policy.CandidateCrop, ID: policy.NewFieldPrefix + "Plant_Rice"}, Decision: policy.FoodPlanOpen}
 		projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{GapPerDay: gap, Portfolio: []policy.FoodPlanEntry{open}})
 		if got := foodPlanFieldRoom(projection, plans); got != (gap > 1) {
 			t.Fatalf("gap %v: additional field = %v", gap, got)

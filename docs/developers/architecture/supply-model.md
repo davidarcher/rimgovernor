@@ -22,14 +22,16 @@ build on it.
 The type carries state, never credit: which states earn credit is the ranker's
 and ledger's rule ([Credit and state](#credit-and-state)).
 
-## Adapters
+## Builders
 
-`SupplyCandidateOfFood` / `FoodChannelOfSupply` convert a `FoodChannel`, and
-`SupplyCandidateOfAcquisition` an `AcquisitionCandidate`, to a candidate;
-`PlanSupply` is the only ranker. A food channel maps to `delivering` when `Open` (observed
-delivering), `designated` when committed and not yet delivering, else `closed`;
-an acquisition candidate is a lead-0 one-shot whose labor is its
-upfront cost, with hunt revenge risk left inside that labor.
+Every producer emits a `SupplyCandidate` directly; there is no other candidate
+type and no adapter. `policy.FoodCandidate` starts a food candidate (nutrition
+is its first yield) and `policy.SourceCandidate` a one-shot source (loot,
+salvage, a deposit, a bill, a trader). `PlanSupply` is the only ranker. A food
+candidate is `delivering` when observed delivering, `designated` when
+committed and not yet delivering, else `closed`; a one-shot source is a lead-0
+candidate whose labor is its upfront cost, with hunt revenge risk left inside
+that labor.
 
 ## The ranker
 
@@ -129,7 +131,7 @@ trailing window divided by the risk-adjusted nutrition the group's committed
 channels expected over it, clamped to [0,1], starting at 1. `credited rate =
 expected rate x factor`.
 
-- **Attribution** is each builder's own census, named in `FoodChannel.Source`:
+- **Attribution** is each builder's own census, named in `SupplyCandidate.Source`:
   growing-zone id for a crop field, water-body root for a fishing region, plant
   def for forage (every plant of a def shares one group), animal race for an
   animal product. Hunts are not counted by this ledger and keep factor 1.

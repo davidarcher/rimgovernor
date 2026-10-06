@@ -156,7 +156,7 @@ func TestHumanFoodLedgerAndCookingFilters(t *testing.T) {
 	if !ok {
 		t.Fatal("qualified channel missing")
 	}
-	if n, _ := channel.NutritionPerDay.Value(); n != 0 {
+	if n, _ := channel.Nutrition().PerDay.Value(); n != 0 {
 		t.Fatal("finite corpse stock counted as a production rate")
 	}
 	plan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: channel, Decision: FoodPlanHold, Terms: channel.Terms}}})
@@ -166,7 +166,7 @@ func TestHumanFoodLedgerAndCookingFilters(t *testing.T) {
 	if got := HumanCookingIngredients(s, nil, plan, HumanMeatFeed); !reflect.DeepEqual(got, []string{"Meat_Human", "RawRice"}) {
 		t.Fatal(got)
 	}
-	mealPlan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: FoodChannel{Kind: FoodCorpse, ID: "human-butchery"}, Decision: FoodPlanHold, Terms: []FoodPlanTerm{{Name: string(HumanMeatMeals), Value: 3}}}}})
+	mealPlan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: SupplyCandidate{Kind: CandidateCorpse, ID: "human-butchery"}, Decision: FoodPlanHold, Terms: []CandidateTerm{{Name: string(HumanMeatMeals), Value: 3}}}}})
 	if HumanCookingIngredients(s, s.Consumers, mealPlan, HumanMeatMeals) != nil {
 		t.Fatal("mixed diners received a human meal filter")
 	}

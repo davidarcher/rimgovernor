@@ -6,41 +6,32 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The acquisition method catalog: every way the colony can
-// obtain a resource is an AcquisitionCandidate of one kind, ranked by
-// RankResourceCandidates against the demand, instead of each goal
-// hardcoding its own order (produce before mine, forage before hunt).
-// Loot, salvage and mining were the first kinds; these add the rest.
-const (
-	AcquisitionProduce   AcquisitionKind = "produce"    // a bench bill
-	AcquisitionDeepDrill AcquisitionKind = "deep_drill" // a drill over a lump
-	AcquisitionChop      AcquisitionKind = "chop"       // a tree
-	AcquisitionHarvest   AcquisitionKind = "harvest"    // a wild plant
-	AcquisitionHunt      AcquisitionKind = "hunt"       // an animal
-	AcquisitionTrade     AcquisitionKind = "trade"      // a trader present
-)
+// The acquisition method catalog: every way the colony can obtain a resource
+// is a SupplyCandidate of one kind, ranked by PlanSupply against the demand
+// instead of each goal hardcoding its own order (produce before mine, forage
+// before hunt).
 
 // AcquisitionLaborPerUnit is each kind's estimated pawn work ticks per unit
 // yielded: a planning prior for the kinds whose per-unit work native does
 // not report, so a bill and a deposit covering the same deficit compare.
 // Measured distance, trips and risk refine a candidate on top of it.
-var AcquisitionLaborPerUnit = map[AcquisitionKind]float64{
-	AcquisitionHarvest:   10,
-	AcquisitionChop:      15,
-	AcquisitionMining:    20,
-	AcquisitionSalvage:   25,
-	AcquisitionLoot:      5,
-	AcquisitionHunt:      30,
-	AcquisitionProduce:   60,
-	AcquisitionDeepDrill: 100,
-	AcquisitionTrade:     0,
+var AcquisitionLaborPerUnit = map[CandidateKind]float64{
+	CandidateHarvest:   10,
+	CandidateChop:      15,
+	CandidateMining:    20,
+	CandidateSalvage:   25,
+	CandidateLoot:      5,
+	CandidateHunt:      30,
+	CandidateProduce:   60,
+	CandidateDeepDrill: 100,
+	CandidateTrade:     0,
 }
 
 // acquisitionUnitsPerTrip is one pawn's haul of a stackable resource when
 // no carry capacity was observed.
 const acquisitionUnitsPerTrip = 75
 
-func catalogLabor(kind AcquisitionKind, units int64) domain.Fact[float64] {
+func catalogLabor(kind CandidateKind, units int64) domain.Fact[float64] {
 	return domain.Known(AcquisitionLaborPerUnit[kind] * float64(max(units, 1)))
 }
 
@@ -55,33 +46,26 @@ func ResourceDeficitDemand(resource Resource, deficit int64) domain.Fact[[]Resou
 
 // MineCandidates are the catalog rows of selected native mine sources;
 // headroom is the storage accepting the output.
-func MineCandidates(resource Resource, sources []ResourceSource, headroom domain.Fact[int64]) []AcquisitionCandidate {
-	var out []AcquisitionCandidate
+func MineCandidates(resource Resource, sources []ResourceSource, headroom domain.Fact[int64]) []SupplyCandidate {
+	var out []SupplyCandidate
 	for _, s := range sources {
 		if s.Method != ResourceSourceMine || s.Yield <= 0 {
 			continue
 		}
-		out = append(out, AcquisitionCandidate{
-			ID: s.ThingID, Kind: AcquisitionMining,
-			Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: resource}, Count: s.Yield}, Headroom: headroom}},
-			PathDistance: domain.Known(s.Distance), Labor: catalogLabor(AcquisitionMining, s.Yield),
-			NeedsHaul: true, UnitsPerTrip: acquisitionUnitsPerTrip,
-		})
+		out = append(out, SourceCandidate(CandidateMining, s.ThingID, catalogLabor(CandidateMining, s.Yield), domain.Known(s.Distance), true, acquisitionUnitsPerTrip,
+			SourceYield(ResourceKey{Def: resource}, s.Yield, 0, headroom)))
 	}
 	return out
 }
 
 // ProduceCandidate is the catalog row of a chosen production bill covering
 // units: the product drops at the bench, so no haul is charged.
-func ProduceCandidate(m ResourceMethod, units int64) (AcquisitionCandidate, bool) {
+func ProduceCandidate(m ResourceMethod, units int64) (SupplyCandidate, bool) {
 	if m.Kind != ResourceMethodProduce || units <= 0 {
-		return AcquisitionCandidate{}, false
+		return SupplyCandidate{}, false
 	}
-	return AcquisitionCandidate{
-		ID: m.Bench + "/" + m.Recipe, Kind: AcquisitionProduce,
-		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: m.Resource}, Count: units}}},
-		PathDistance: domain.Known(0.0), Labor: catalogLabor(AcquisitionProduce, units),
-	}, true
+	return SourceCandidate(CandidateProduce, m.Bench+"/"+m.Recipe, catalogLabor(CandidateProduce, units), domain.Known(0.0), false, 0,
+		SourceYield(ResourceKey{Def: m.Resource}, units, 0, domain.Unknown[int64]())), true
 }
 
 // AcquisitionSourceCandidates are the catalog rows of the colony-facts
@@ -89,44 +73,35 @@ func ProduceCandidate(m ResourceMethod, units int64) (AcquisitionCandidate, bool
 // tree is chop, a hunt is hunt, anything else harvest. A hunt's revenge
 // chance is its risk: labor scales by 1+2*chance. Distance is straight
 // from home, the colony's reference cell.
-func AcquisitionSourceCandidates(resource Resource, sources []AcquisitionSource, home domain.Cell, headroom domain.Fact[int64]) []AcquisitionCandidate {
-	var out []AcquisitionCandidate
+func AcquisitionSourceCandidates(resource Resource, sources []AcquisitionSource, home domain.Cell, headroom domain.Fact[int64]) []SupplyCandidate {
+	var out []SupplyCandidate
 	for _, s := range sources {
 		units := int64(math.Round(s.Yield))
 		if Resource(s.Resource) != resource || units <= 0 {
 			continue
 		}
-		kind, risk := AcquisitionHarvest, 0.0
+		kind, risk := CandidateHarvest, 0.0
 		switch {
 		case s.Hunt:
-			kind, risk = AcquisitionHunt, math.Min(1, math.Max(0, s.RevengeChance))
+			kind, risk = CandidateHunt, math.Min(1, math.Max(0, s.RevengeChance))
 		case s.Tree:
-			kind = AcquisitionChop
+			kind = CandidateChop
 		}
 		labor, _ := catalogLabor(kind, units).Value()
-		out = append(out, AcquisitionCandidate{
-			ID: s.ID, Kind: kind,
-			Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: resource}, Count: units}, Headroom: headroom}},
-			PathDistance: domain.Known(math.Hypot(float64(s.Cell.X-home.X), float64(s.Cell.Z-home.Z))),
-			Labor:        domain.Known(labor * (1 + 2*risk)),
-			NeedsHaul:    true, UnitsPerTrip: acquisitionUnitsPerTrip,
-		})
+		out = append(out, SourceCandidate(kind, s.ID, domain.Known(labor*(1+2*risk)), domain.Known(math.Hypot(float64(s.Cell.X-home.X), float64(s.Cell.Z-home.Z))), true, acquisitionUnitsPerTrip,
+			SourceYield(ResourceKey{Def: resource}, units, 0, headroom)))
 	}
 	return out
 }
 
 // DeepDrillCandidate is the catalog row of a drill over a deep lump: units
 // is the lump's yield toward the deficit, distance from home.
-func DeepDrillCandidate(resource Resource, id string, units int64, distance float64, headroom domain.Fact[int64]) (AcquisitionCandidate, bool) {
+func DeepDrillCandidate(resource Resource, id string, units int64, distance float64, headroom domain.Fact[int64]) (SupplyCandidate, bool) {
 	if units <= 0 {
-		return AcquisitionCandidate{}, false
+		return SupplyCandidate{}, false
 	}
-	return AcquisitionCandidate{
-		ID: id, Kind: AcquisitionDeepDrill,
-		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: resource}, Count: units}, Headroom: headroom}},
-		PathDistance: domain.Known(distance), Labor: catalogLabor(AcquisitionDeepDrill, units),
-		NeedsHaul: true, UnitsPerTrip: acquisitionUnitsPerTrip,
-	}, true
+	return SourceCandidate(CandidateDeepDrill, id, catalogLabor(CandidateDeepDrill, units), domain.Known(distance), true, acquisitionUnitsPerTrip,
+		SourceYield(ResourceKey{Def: resource}, units, 0, headroom)), true
 }
 
 // tradeLaborPerSilver prices a purchase's silver as labor, so a caravan's
@@ -137,15 +112,12 @@ const tradeLaborPerSilver = 1.0
 // at price silver each; the goods drop at the colony, so no haul is charged.
 // Its ID names the trader and the resource (TradeCandidateID), one row per
 // pair.
-func TradeCandidate(resource Resource, trader string, units int64, price float64) (AcquisitionCandidate, bool) {
+func TradeCandidate(resource Resource, trader string, units int64, price float64) (SupplyCandidate, bool) {
 	if units <= 0 || !(price >= 0) {
-		return AcquisitionCandidate{}, false
+		return SupplyCandidate{}, false
 	}
-	return AcquisitionCandidate{
-		ID: TradeCandidateID(trader, resource), Kind: AcquisitionTrade,
-		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: resource}, Count: units}}},
-		PathDistance: domain.Known(0.0), Labor: domain.Known(price * float64(units) * tradeLaborPerSilver),
-	}, true
+	return SourceCandidate(CandidateTrade, TradeCandidateID(trader, resource), domain.Known(price*float64(units)*tradeLaborPerSilver), domain.Known(0.0), false, 0,
+		SourceYield(ResourceKey{Def: resource}, units, 0, domain.Unknown[int64]())), true
 }
 
 // MaxCatalogSelection bounds one acquisition method, matching

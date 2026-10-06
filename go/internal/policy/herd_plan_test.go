@@ -245,8 +245,10 @@ func TestHerdPlanCompanionIsNeverCulled(t *testing.T) {
 func TestHerdPlanFoodPlanTermsSizeTheJob(t *testing.T) {
 	owned := append(goatHerd(), planAnimal("c1", "Cow", "Male"), planAnimal("c2", "Cow", "Female"))
 	in := milkInput(owned)
+	cowChannel := FoodCandidate(CandidateAnimalProduct, "Cow", domain.Known(20.0))
+	cowChannel.LaborPerDay, cowChannel.Terms = domain.Known(1.0), []CandidateTerm{{Name: "productive_animals", Value: 7}}
 	in.Food = domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{
-		Channel:         FoodChannel{Kind: FoodAnimalProduct, ID: "Cow", NutritionPerDay: domain.Known(20.0), WorkPerDay: domain.Known(1.0), Terms: []FoodPlanTerm{{Name: "productive_animals", Value: 7}}},
+		Channel:         cowChannel,
 		Decision:        FoodPlanOpen,
 		DeliveredPerDay: 10,
 	}}})

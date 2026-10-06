@@ -1928,26 +1928,33 @@
     "Portfolio": [
      {
       "Channel": {
+       "Kind": "cook",
        "ID": "cooking-capacity",
-       "Kind": "Cook",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -1976,26 +1983,33 @@
      },
      {
       "Channel": {
+       "Kind": "crop",
        "ID": "field-capacity",
-       "Kind": "Crop",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -2024,26 +2038,33 @@
      },
      {
       "Channel": {
+       "Kind": "reserve",
        "ID": "stock-protection",
-       "Kind": "Reserve",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",

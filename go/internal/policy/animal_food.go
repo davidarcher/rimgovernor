@@ -93,7 +93,7 @@ type SlaughterFoodAnimal struct {
 // upfront.
 // Order uses meat per feed/day first, then shorter reproduction interval. The
 // ledger still charges the ordinary slaughter work and can decline the offer.
-func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) []FoodChannel {
+func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) []SupplyCandidate {
 	observed, known := animals.Value()
 	if !known {
 		return nil
@@ -167,7 +167,11 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 	if meat < 1 {
 		return nil
 	}
-	return []FoodChannel{{Kind: FoodSlaughter, ID: "slaughter:" + string(a.animal.ID), StockCap: domain.Known(int64(meat)), WorkPerDay: domain.Known(0.0), UpfrontTicks: domain.Known(180.0), LeadDays: domain.Known(0.0), Open: domain.Known(false), Terms: []FoodPlanTerm{{Name: "meat_per_daily_feed", Value: a.efficiency}, {Name: "reproduction_days", Value: a.reproduction}}}}
+	c := FoodCandidate(CandidateSlaughter, "slaughter:"+string(a.animal.ID), domain.Unknown[float64]())
+	c.Yields[0].StockCap = domain.Known(int64(meat))
+	c.LaborPerDay, c.UpfrontCost.LaborTicks, c.LeadDays, c.State = domain.Known(0.0), domain.Known(180.0), domain.Known(0.0), FoodState(domain.Known(false), domain.Known(false))
+	c.Terms = []CandidateTerm{{Name: "meat_per_daily_feed", Value: a.efficiency}, {Name: "reproduction_days", Value: a.reproduction}}
+	return []SupplyCandidate{c}
 }
 
 func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) HusbandryChoice {
@@ -181,7 +185,7 @@ func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]Upkee
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	}
 	for _, e := range p.Portfolio {
-		if e.Channel.Kind != FoodSlaughter || e.Decision != FoodPlanOpen || !strings.HasPrefix(e.Channel.ID, "slaughter:") {
+		if e.Channel.Kind != CandidateSlaughter || e.Decision != FoodPlanOpen || !strings.HasPrefix(e.Channel.ID, "slaughter:") {
 			continue
 		}
 		for _, r := range safe {

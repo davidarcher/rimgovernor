@@ -1521,26 +1521,33 @@
     "Portfolio": [
      {
       "Channel": {
+       "Kind": "cook",
        "ID": "cooking-capacity",
-       "Kind": "Cook",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -1569,26 +1576,33 @@
      },
      {
       "Channel": {
+       "Kind": "crop",
        "ID": "field-capacity",
-       "Kind": "Crop",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -1617,26 +1631,33 @@
      },
      {
       "Channel": {
+       "Kind": "reserve",
        "ID": "stock-protection",
-       "Kind": "Reserve",
+       "State": {
+        "v": "closed"
+       },
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0
+         }
+        }
+       ],
        "LeadDays": {
         "v": 0
        },
-       "NutritionPerDay": {
+       "LaborPerDay": {
         "v": 0
-       },
-       "Open": {
-        "v": false
        },
        "Terms": [
         {
          "Name": "supporting_method",
          "Value": 1
         }
-       ],
-       "WorkPerDay": {
-        "v": 0
-       }
+       ]
       },
       "Decision": "Hold",
       "Reason": "no risk-adjusted nutrition",
@@ -6453,30 +6474,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5009",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5009",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 123
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6500,30 +6529,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5010",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5010",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 123
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6547,30 +6584,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5011",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5011",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 123
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6594,30 +6639,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5012",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5012",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 123
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6641,30 +6694,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5031",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5031",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 81
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6688,30 +6749,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5032",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5032",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 80
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6735,30 +6804,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5033",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5033",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 79
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6782,30 +6859,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5034",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5034",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 79
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6829,30 +6914,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5035",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5035",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 79
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6876,30 +6969,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5036",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5036",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6923,30 +7024,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5056",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5056",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 88
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -6970,30 +7079,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5058",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5058",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 87
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7017,30 +7134,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5059",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5059",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 86
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7064,30 +7189,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5060",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5060",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 87
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7111,30 +7244,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5061",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5061",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 86
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7158,30 +7299,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5062",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5062",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 85
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7205,30 +7354,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5063",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5063",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 84
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7252,30 +7409,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5069",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5069",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7299,30 +7464,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5070",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5070",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7346,30 +7519,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5071",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5071",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7393,30 +7574,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5072",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5072",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7440,30 +7629,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5073",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5073",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7487,30 +7684,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5074",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5074",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7534,30 +7739,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5075",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5075",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 78
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7581,30 +7794,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5076",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5076",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 79
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7628,30 +7849,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5077",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5077",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 79
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7675,30 +7904,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5078",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5078",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 80
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7722,30 +7959,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5079",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5079",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 81
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7769,30 +8014,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5080",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5080",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 84
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7816,30 +8069,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5081",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5081",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 84
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true
@@ -7863,30 +8124,38 @@
       "RoofBlocker": "Unknown building support geometry",
       "Salvage": {
        "Candidate": {
-        "ID": "Thing_Wall5082",
         "Kind": "salvage",
-        "Labor": {
-         "v": 815
+        "ID": "Thing_Wall5082",
+        "State": {
+         "v": "closed"
         },
-        "NeedsHaul": true,
+        "Yields": [
+         {
+          "Good": {
+           "Def": "BlocksSandstone"
+          },
+          "StockCap": {
+           "v": 2
+          },
+          "UnitValue": 0.8999999761581421,
+          "Headroom": {
+           "v": 0
+          }
+         }
+        ],
+        "LeadDays": {
+         "v": 0
+        },
+        "UpfrontCost": {
+         "LaborTicks": {
+          "v": 815
+         }
+        },
         "PathDistance": {
          "v": 84
         },
-        "UnitsPerTrip": 75,
-        "Yields": [
-         {
-          "Headroom": {
-           "v": 0
-          },
-          "ResourceQuantity": {
-           "Count": 2,
-           "Key": {
-            "Def": "BlocksSandstone"
-           }
-          },
-          "UnitValue": 0.8999999761581421
-         }
-        ]
+        "NeedsHaul": true,
+        "UnitsPerTrip": 75
        },
        "Safe": {
         "v": true

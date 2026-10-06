@@ -9,13 +9,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func tierChannel(kind FoodChannelKind) FoodPlanEntry {
-	return FoodPlanEntry{Channel: FoodChannel{ID: string(kind), Kind: kind, Open: domain.Known(true)}, Decision: FoodPlanHold, DeliveredPerDay: 1}
+func tierChannel(kind CandidateKind) FoodPlanEntry {
+	return FoodPlanEntry{Channel: SupplyCandidate{ID: string(kind), Kind: kind, State: domain.Known(CandidateDelivering)}, Decision: FoodPlanHold, DeliveredPerDay: 1}
 }
 
 func tierRequest() MealTierRequest {
 	return MealTierRequest{
-		Plan:          domain.Known(FoodPlan{DemandPerDay: 3, DeliveredPerDay: 3, Portfolio: []FoodPlanEntry{tierChannel(FoodCrop), tierChannel(FoodAnimalProduct)}}),
+		Plan:          domain.Known(FoodPlan{DemandPerDay: 3, DeliveredPerDay: 3, Portfolio: []FoodPlanEntry{tierChannel(CandidateCrop), tierChannel(CandidateAnimalProduct)}}),
 		RawRunwayDays: domain.Known(8.0), MinDays: 2, TargetDays: 7,
 		Cooks: domain.Known([]MealCook{{Pawn: "cook", Skill: 12}}), HighExpectations: domain.Known(false), Previous: MealSimple,
 		Paste:       domain.Known(Infrastructure{Name: "NutrientPasteDispenser", Available: domain.Known(true), PowerW: domain.Known(200.0)}),
@@ -134,12 +134,12 @@ func TestMealIngredientChannelsAndSlots(t *testing.T) {
 		entries []FoodPlanEntry
 		want    string
 	}{
-		{"milk and vegetables", []FoodPlanEntry{tierChannel(FoodCrop), tierChannel(FoodAnimalProduct)}, "CookMealFine"},
-		{"meat and vegetables", []FoodPlanEntry{tierChannel(FoodForage), tierChannel(FoodHunt)}, "CookMealFine"},
-		{"corpse and vegetables", []FoodPlanEntry{tierChannel(FoodCrop), tierChannel(FoodCorpse)}, "CookMealFine"},
-		{"no protein", []FoodPlanEntry{tierChannel(FoodCrop)}, "CookMealSimple"},
-		{"no vegetables", []FoodPlanEntry{tierChannel(FoodAnimalProduct)}, "CookMealSimple"},
-		{"no raw sources", []FoodPlanEntry{tierChannel(FoodCook), tierChannel(FoodReserve)}, ""},
+		{"milk and vegetables", []FoodPlanEntry{tierChannel(CandidateCrop), tierChannel(CandidateAnimalProduct)}, "CookMealFine"},
+		{"meat and vegetables", []FoodPlanEntry{tierChannel(CandidateForage), tierChannel(CandidateHunt)}, "CookMealFine"},
+		{"corpse and vegetables", []FoodPlanEntry{tierChannel(CandidateCrop), tierChannel(CandidateCorpse)}, "CookMealFine"},
+		{"no protein", []FoodPlanEntry{tierChannel(CandidateCrop)}, "CookMealSimple"},
+		{"no vegetables", []FoodPlanEntry{tierChannel(CandidateAnimalProduct)}, "CookMealSimple"},
+		{"no raw sources", []FoodPlanEntry{tierChannel(CandidateCook), tierChannel(CandidateReserve)}, ""},
 		{"no channels", nil, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -160,11 +160,11 @@ func TestMealIngredientChannelsAndSlots(t *testing.T) {
 			switch state {
 			case "proposed":
 				p.Portfolio[1].Decision = FoodPlanOpen
-				p.Portfolio[1].Channel.Open = domain.Known(false)
+				p.Portfolio[1].Channel.State = domain.Known(CandidateClosed)
 			case "closed":
 				p.Portfolio[1].Decision = FoodPlanClose
 			case "unknown-open":
-				p.Portfolio[1].Channel.Open = domain.Unknown[bool]()
+				p.Portfolio[1].Channel.State = domain.Unknown[CandidateState]()
 			case "zero-delivery":
 				p.Portfolio[1].DeliveredPerDay = 0
 			case "unknown-channel":
@@ -318,9 +318,11 @@ func TestMealRecipesFailClosedAndRankByCost(t *testing.T) {
 
 func TestMealTierConsumesActualFoodPlan(t *testing.T) {
 	r := tierRequest()
-	channels := []FoodChannel{}
-	for _, kind := range []FoodChannelKind{FoodCrop, FoodAnimalProduct} {
-		channels = append(channels, FoodChannel{Kind: kind, ID: string(kind), Open: domain.Known(true), NutritionPerDay: domain.Known(1.5), WorkPerDay: domain.Known(50.0), LeadDays: domain.Known(0.0)})
+	channels := []SupplyCandidate{}
+	for _, kind := range []CandidateKind{CandidateCrop, CandidateAnimalProduct} {
+		c := FoodCandidate(kind, string(kind), domain.Known(1.5))
+		c.LaborPerDay, c.LeadDays, c.State = domain.Known(50.0), domain.Known(0.0), domain.Known(CandidateDelivering)
+		channels = append(channels, c)
 	}
 	p, err := SupplyFoodPlan(FoodPlanRequest{Demand: FoodForecast{RunwayDays: domain.Known(8.0), Consumers: []ConsumerFoodForecast{{ID: "pawn", NutritionPerDay: 3}}}, MinDays: 2, TargetDays: 7, Channels: domain.Known(channels), Labor: domain.Known(1000.0)})
 	if err != nil {
