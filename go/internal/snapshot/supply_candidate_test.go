@@ -61,8 +61,8 @@ func checkFoodPlan(t *testing.T, file string, plan policy.FoodPlan) {
 			request := func(channels []policy.FoodChannel) policy.FoodPlanRequest {
 				return policy.FoodPlanRequest{Demand: plan.Forecast, ReserveDays: 1, MinDays: 3, TargetDays: 10, EmergencyDays: emergency, Channels: domain.Known(channels), Labor: domain.Known(labor)}
 			}
-			want, werr := policy.PlanFood(request(direct))
-			got, gerr := policy.PlanFood(request(adapted))
+			want, werr := policy.SupplyFoodPlan(request(direct))
+			got, gerr := policy.SupplyFoodPlan(request(adapted))
 			if (werr == nil) != (gerr == nil) || !reflect.DeepEqual(want, got) {
 				t.Fatalf("%s labor=%v emergency=%v: plans differ\n%s\n%s (%v, %v)", file, labor, emergency, want.Explain(), got.Explain(), werr, gerr)
 			}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -99,241 +98,55 @@ type FoodPlan struct {
 
 var ErrFoodPlanFacts = errors.New("food plan inputs unavailable or invalid")
 
-// PlanFood budgets projected rates, never stored nutrition or completed work.
-// Usable runway is max(0, forecast runway - reserve). Below the minimum it
-// admits only channels arriving before that runway expires. Otherwise the lead
-// horizon is at least TargetDays, allowing slower capacity to be established.
-// Target coverage is 1 + max(0, TargetDays-usable runway)/TargetDays: replenish
-// the missing buffer over one target window while also feeding consumers.
-// GapPerDay is this covered demand minus admitted, risk-adjusted delivery.
-// Open channels retain their observed contribution even over the labor budget;
-// the excess is Hold with a labor term. Closed channels over budget add nothing.
-func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
-	fail := func() (FoodPlan, error) { return FoodPlan{}, ErrFoodPlanFacts }
-	rows, known := r.Channels.Value()
-	labor, lk := r.Labor.Value()
-	runway, rk := r.Demand.RunwayDays.Value()
-	if !known || !lk || !rk || !foodNumber(labor) || !foodNumber(runway) ||
-		!foodNumber(r.ReserveDays) || !foodNumber(r.MinDays) || !foodNumber(r.TargetDays) || r.TargetDays <= r.MinDays || len(r.Demand.Consumers) == 0 {
-		return fail()
+// SupplyFoodPlan is the food view of PlanSupply: the request's forecast becomes
+// the Nutrition demand, its channels become candidates, and the supply plan
+// reads back as a FoodPlan. PlanSupply owns the ranking, labor budget and
+// credit; GapPerDay is the covered demand minus admitted, risk-adjusted delivery.
+func SupplyFoodPlan(r FoodPlanRequest) (FoodPlan, error) {
+	demand, err := NutritionDemand(NutritionDemandInput{Forecast: r.Demand, ReserveDays: r.ReserveDays, MinDays: r.MinDays, TargetDays: r.TargetDays, EmergencyDays: r.EmergencyDays})
+	if err != nil {
+		return FoodPlan{}, ErrFoodPlanFacts
 	}
-	p := FoodPlan{Forecast: r.Demand}
-	consumers := map[PawnID]bool{}
+	req := SupplyPlanRequest{Demands: domain.Known([]SupplyDemand{demand}), Labor: r.Labor, Candidates: domain.Unknown[[]SupplyCandidate]()}
+	if rows, known := r.Channels.Value(); known {
+		cands := make([]SupplyCandidate, 0, len(rows))
+		for _, c := range rows {
+			cands = append(cands, SupplyCandidateOfFood(c))
+		}
+		req.Candidates = domain.Known(cands)
+	}
+	plan, err := PlanSupply(req)
+	if err != nil {
+		return FoodPlan{}, ErrFoodPlanFacts
+	}
+	out := FoodPlan{Forecast: r.Demand, GapPerDay: plan.Gap(NutritionKey), DeliveredPerDay: plan.Delivered(NutritionKey)}
 	for _, c := range r.Demand.Consumers {
-		if !foodID(string(c.ID)) || consumers[c.ID] || !foodNumber(c.NutritionPerDay) || !foodNumber(c.RunwayDays) || !foodNumber(c.UsableNutrition) || !foodNumber(c.AllocatedNutrition) {
-			return fail()
-		}
-		consumers[c.ID] = true
-		p.DemandPerDay += c.NutritionPerDay
+		out.DemandPerDay += c.NutritionPerDay
 	}
-	if !foodNumber(p.DemandPerDay) || p.DemandPerDay == 0 || !foodNumber(r.Demand.UsableNutrition) || !foodNumber(r.Demand.AtRiskNutrition) || !foodNumber(r.Demand.InventoryNutrition) {
-		return fail()
-	}
-	emergency := r.EmergencyDays > 0 && runway < r.EmergencyDays
-	runway = math.Max(0, runway-r.ReserveDays)
-	cover := 1 + math.Max(0, r.TargetDays-runway)/r.TargetDays
-	target := p.DemandPerDay * cover
-	if !foodNumber(target) {
-		return fail()
-	}
-	horizon := runway
-	if runway >= r.MinDays {
-		horizon = math.Max(horizon, r.TargetDays)
-	}
-	type candidate struct {
-		entry                 FoodPlanEntry
-		nutrition, work, lead float64
-		open                  bool
-	}
-	var candidates []candidate
-	type key struct {
-		kind FoodChannelKind
-		id   string
-	}
-	seen := map[key]bool{}
-	for _, c := range rows {
-		k := key{c.Kind, c.ID}
-		if !validFoodChannelKind(c.Kind) || !foodID(c.ID) || seen[k] {
-			return fail()
-		}
-		seen[k] = true
-		var missing []string
-		for _, f := range []struct {
-			name string
-			fact domain.Fact[float64]
-		}{{"nutrition_per_day", c.NutritionPerDay}, {"work_per_day", c.WorkPerDay}, {"lead_days", c.LeadDays}} {
-			v, ok := f.fact.Value()
-			if ok && !foodNumber(v) {
-				return fail()
-			}
+	view := func(rows []SupplyEntry) (entries []FoodPlanEntry) {
+		for _, e := range rows {
+			channel, ok := FoodChannelOfSupply(e.Candidate)
 			if !ok {
-				missing = append(missing, f.name)
+				panic("not a food channel")
 			}
-		}
-		open, ok := c.Open.Value()
-		if !ok {
-			missing = append(missing, "open")
-		}
-		risk := 0.0
-		risks := map[FoodRiskKind]bool{}
-		for _, v := range c.Risk {
-			if !validFoodRisk(v.Kind) || risks[v.Kind] || !foodNumber(v.Weight) || v.Weight > 1 {
-				return fail()
+			entry := FoodPlanEntry{Channel: channel, Decision: FoodPlanDecision(e.Decision), Reason: e.Reason}
+			for _, t := range e.Terms {
+				entry.Terms = append(entry.Terms, FoodPlanTerm{Name: t.Name, Value: t.Value})
 			}
-			risks[v.Kind] = true
-			risk += v.Weight
-		}
-		for _, v := range c.Terms {
-			if !foodID(v.Name) || math.IsNaN(v.Value) || math.IsInf(v.Value, 0) {
-				return fail()
+			for _, c := range e.Credit {
+				entry.DeliveredPerDay += c.Amount
 			}
+			entries = append(entries, entry)
 		}
-		c.Risk = append([]FoodRisk(nil), c.Risk...)
-		c.Terms = append([]FoodPlanTerm(nil), c.Terms...)
-		c.Prey = append([]string(nil), c.Prey...)
-		c.Prey = append([]string(nil), c.Prey...)
-		e := FoodPlanEntry{Channel: c, Decision: FoodPlanHold, Terms: append([]FoodPlanTerm(nil), c.Terms...)}
-		if len(missing) > 0 {
-			e.Reason = "unknown: " + strings.Join(missing, ", ")
-			p.Unknown = append(p.Unknown, e)
-			continue
-		}
-		n, _ := c.NutritionPerDay.Value()
-		w, _ := c.WorkPerDay.Value()
-		lead, _ := c.LeadDays.Value()
-		n *= math.Max(0, 1-risk)
-		e.Terms = append(e.Terms, FoodPlanTerm{"risk_discount", math.Min(1, risk)}, FoodPlanTerm{"nutrition_per_day", n}, FoodPlanTerm{"work_per_day", w}, FoodPlanTerm{"lead_days", lead}, FoodPlanTerm{"target_cover", cover})
-		candidates = append(candidates, candidate{e, n, w, lead, open})
+		return entries
 	}
-	lessID := func(a, b FoodChannel) bool {
-		if a.Kind != b.Kind {
-			return a.Kind < b.Kind
-		}
-		return a.ID < b.ID
-	}
-	// Cost per risk-adjusted nutrition; zero delivery always ranks last.
-	cost := func(c candidate) float64 {
-		if c.nutrition == 0 {
-			return math.Inf(1)
-		}
-		return c.work / c.nutrition
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		a, b := candidates[i], candidates[j]
-		if a.lead != b.lead {
-			return a.lead < b.lead
-		}
-		if a.entry.Channel.Kind == FoodFishing && b.entry.Channel.Kind == FoodFishing {
-			da, ak := a.entry.Channel.DistanceSquared.Value()
-			db, bk := b.entry.Channel.DistanceSquared.Value()
-			if ak != bk {
-				return ak
-			}
-			if da != db {
-				return da < db
-			}
-		}
-		if cost(a) != cost(b) {
-			return cost(a) < cost(b)
-		}
-		return lessID(a.entry.Channel, b.entry.Channel)
-	})
-	if emergency {
-		// Breadth first: the best row of every kind, then the second, ...
-		rank := make([]int, len(candidates))
-		seenKind := map[FoodChannelKind]int{}
-		for i, c := range candidates {
-			rank[i] = seenKind[c.entry.Channel.Kind]
-			seenKind[c.entry.Channel.Kind]++
-		}
-		order := make([]int, len(candidates))
-		for i := range order {
-			order[i] = i
-		}
-		sort.SliceStable(order, func(i, j int) bool { return rank[order[i]] < rank[order[j]] })
-		ranked := make([]candidate, len(candidates))
-		for i, k := range order {
-			ranked[i] = candidates[k]
-		}
-		candidates = ranked
-	}
-	sort.Slice(p.Unknown, func(i, j int) bool { return lessID(p.Unknown[i].Channel, p.Unknown[j].Channel) })
-	used := 0.0
-	var openOrder []int
-	for i := range candidates {
-		c := &candidates[i]
-		if c.open {
-			c.entry.Reason = "already delivering"
-			c.entry.DeliveredPerDay = c.nutrition
-			p.DeliveredPerDay += c.nutrition
-			used += c.work
-			openOrder = append(openOrder, i)
-		}
-	}
-	if !foodNumber(used) || !foodNumber(p.DeliveredPerDay) {
-		return fail()
-	}
-	sort.SliceStable(openOrder, func(i, j int) bool { return cost(candidates[openOrder[i]]) > cost(candidates[openOrder[j]]) })
-	for _, i := range openOrder {
-		c := &candidates[i]
-		if c.nutrition > 0 && p.DeliveredPerDay-target > c.nutrition {
-			c.entry.Decision, c.entry.Reason = FoodPlanClose, "surplus"
-			c.entry.DeliveredPerDay = 0
-			p.DeliveredPerDay -= c.nutrition
-			used -= c.work
-		}
-	}
-	for i := range candidates {
-		c := &candidates[i]
-		if c.open {
-			if c.entry.Decision != FoodPlanClose && used > labor {
-				c.entry.Terms = append(c.entry.Terms, FoodPlanTerm{"labor_excess", used - labor})
-			}
-		} else {
-			switch {
-			case c.nutrition == 0:
-				c.entry.Reason = "no risk-adjusted nutrition"
-			case c.lead > horizon:
-				c.entry.Reason = "lead exceeds runway"
-			case p.DeliveredPerDay >= target:
-				c.entry.Reason = "target covered"
-			case c.work > math.Max(0, labor-used):
-				c.entry.Reason = "labor budget"
-				c.entry.Terms = append(c.entry.Terms, FoodPlanTerm{"labor_excess", c.work - math.Max(0, labor-used)})
-			default:
-				c.entry.Decision, c.entry.Reason = FoodPlanOpen, "close nutrition gap"
-				c.entry.DeliveredPerDay = c.nutrition
-				used += c.work
-				if emergency && (c.entry.Channel.Kind == FoodHunt || c.entry.Channel.Kind == FoodForage) {
-					// A one-shot hunt or forage is not food until it is
-					// delivered; below the starvation line it never covers.
-					c.entry.DeliveredPerDay = 0
-					c.entry.Terms = append(c.entry.Terms, FoodPlanTerm{"uncredited_until_delivered", c.nutrition})
-				} else {
-					p.DeliveredPerDay += c.nutrition
-				}
-			}
-		}
-		p.Portfolio = append(p.Portfolio, c.entry)
-	}
-	p.GapPerDay = target - p.DeliveredPerDay
-	if !foodNumber(p.DeliveredPerDay) || math.IsInf(p.GapPerDay, 0) || math.IsNaN(p.GapPerDay) {
-		return fail()
-	}
-	return p, nil
+	out.Portfolio, out.Unknown = view(plan.Portfolio), view(plan.Unknown)
+	return out, nil
 }
 
 func validFoodChannelKind(k FoodChannelKind) bool {
 	switch k {
 	case FoodForage, FoodHunt, FoodCrop, FoodAnimalProduct, FoodFishing, FoodTrade, FoodCorpse, FoodReserve, FoodCook:
-		return true
-	}
-	return false
-}
-
-func validFoodRisk(k FoodRiskKind) bool {
-	switch k {
-	case FoodBlight, FoodFallout, FoodFrost, FoodPower, FoodRevenge:
 		return true
 	}
 	return false
@@ -417,7 +230,7 @@ func CropChannels(fields []FoodField) []FoodChannel {
 		yield, yk := f.Plan.Crop.HarvestNutrition.Value()
 		days, dk := f.Plan.Crop.GrowDays.Value()
 		nutrition := domain.Unknown[float64]()
-		// Preserve malformed known numbers for PlanFood's error boundary.
+		// Preserve malformed known numbers for PlanSupply's error boundary.
 		if yk && !foodNumber(yield) || dk && !fieldPositive(days) || f.Plan.Sites.Cells < 0 {
 			nutrition = domain.Known(math.NaN())
 		} else if ek && yk && dk {

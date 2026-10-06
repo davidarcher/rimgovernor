@@ -31,7 +31,7 @@ type FishingRequest struct {
 
 // FishingChannels estimates sustainable raw nutrition. Cooking conversion is a
 // separate ledger contribution. Unknown facts never certify a delivery rate;
-// malformed known facts return the same error as PlanFood. An empty region set
+// malformed known facts return the same error as SupplyFoodPlan. An empty region set
 // (including Core without Odyssey) produces no fishing channel.
 func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 	if lead, known := r.ResearchLeadDays.Value(); known && !foodNumber(lead) {

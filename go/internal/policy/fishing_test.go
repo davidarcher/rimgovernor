@@ -64,7 +64,7 @@ func TestFishingAvailability(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			plan, err := PlanFood(foodPlanRequest(rows...))
+			plan, err := SupplyFoodPlan(foodPlanRequest(rows...))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -106,7 +106,7 @@ func TestFishingNearestRegionFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := PlanFood(foodPlanRequest(rows...))
+	plan, err := SupplyFoodPlan(foodPlanRequest(rows...))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestFishingResearchAdmission(t *testing.T) {
 	for _, runway := range []float64{1, 4} {
 		request := foodPlanRequest(rows...)
 		request.Demand.RunwayDays = domain.Known(runway)
-		plan, err := PlanFood(request)
+		plan, err := SupplyFoodPlan(request)
 		if err != nil {
 			t.Fatal(err)
 		}

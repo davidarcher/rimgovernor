@@ -167,7 +167,9 @@ invalidation generation. It budgets combined human and animal demand, seasonal
 thresholds, native forage/hunt sources and field estimates. Unknown inputs do not
 certify surplus. Field harvest ETA remains an optimistic native bound; projected
 delivery never increases stored-food runway. Animal feed reuses the ledger's
-consumer allocation when available.
+consumer allocation when available. The portfolio is the food view
+(`policy.SupplyFoodPlan`) of one `PlanSupply` call over the Nutrition demand
+([supply model](../architecture/supply-model.md)); the slaughter offer re-runs it.
 
 Acquisition admits Open sources. Field and cooking capacity and stock protection
 are zero-contribution Hold rows: their own observed preconditions and existing

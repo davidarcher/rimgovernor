@@ -322,7 +322,7 @@ func TestMealTierConsumesActualFoodPlan(t *testing.T) {
 	for _, kind := range []FoodChannelKind{FoodCrop, FoodAnimalProduct} {
 		channels = append(channels, FoodChannel{Kind: kind, ID: string(kind), Open: domain.Known(true), NutritionPerDay: domain.Known(1.5), WorkPerDay: domain.Known(50.0), LeadDays: domain.Known(0.0)})
 	}
-	p, err := PlanFood(FoodPlanRequest{Demand: FoodForecast{RunwayDays: domain.Known(8.0), Consumers: []ConsumerFoodForecast{{ID: "pawn", NutritionPerDay: 3}}}, MinDays: 2, TargetDays: 7, Channels: domain.Known(channels), Labor: domain.Known(1000.0)})
+	p, err := SupplyFoodPlan(FoodPlanRequest{Demand: FoodForecast{RunwayDays: domain.Known(8.0), Consumers: []ConsumerFoodForecast{{ID: "pawn", NutritionPerDay: 3}}}, MinDays: 2, TargetDays: 7, Channels: domain.Known(channels), Labor: domain.Known(1000.0)})
 	if err != nil {
 		t.Fatal(err)
 	}

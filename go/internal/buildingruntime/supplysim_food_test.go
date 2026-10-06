@@ -6,7 +6,7 @@ package buildingruntime
 // CombinedFoodSupply, FoodSupply, Acquisition, FoodChannels, FoodFields,
 // Facts.Calendar) from the world, calls reviewFoodPlan and applies its Open and
 // Close rows as source commands. No projection field needed a fallback to
-// policy.PlanFood plus the channel builders. Only what the real planner can see
+// policy.SupplyFoodPlan plus the channel builders. Only what the real planner can see
 // reaches it:
 //
 //   - Trade has no plan row, so a trade source is never opened.
@@ -123,20 +123,14 @@ type foodDay struct {
 
 // foodAdapter is a supplysim.Planner over the real reviewFoodPlan.
 type foodAdapter struct {
-	sc foodScenario
-	// supply plans through policy.PlanSupply instead of PlanFood.
-	supply bool
-	days   []foodDay
-	plans  []policy.FoodPlan
+	sc    foodScenario
+	days  []foodDay
+	plans []policy.FoodPlan
 }
 
 func (a *foodAdapter) Plan(v supplysim.WorldView) []supplysim.Command {
 	p, ids := a.projection(v)
-	review := reviewFoodPlan
-	if a.supply {
-		review = reviewFoodPlanBySupply
-	}
-	plan, known := review(p, policy.DefaultRoundsPolicy()).Value()
+	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy()).Value()
 	a.plans = append(a.plans, plan)
 	d := foodDay{known: known, gap: plan.GapPerDay, runway: v.Runway[supplysim.Nutrition]}
 	if !known {
@@ -293,10 +287,8 @@ type foodResult struct {
 	viable bool
 }
 
-func runFood(sc foodScenario, horizon int) foodResult { return runFoodWith(sc, horizon, false) }
-
-func runFoodWith(sc foodScenario, horizon int, supply bool) foodResult {
-	a := &foodAdapter{sc: sc, supply: supply}
+func runFood(sc foodScenario, horizon int) foodResult {
+	a := &foodAdapter{sc: sc}
 	r := foodResult{rep: supplysim.Run(sc.world(1), a, horizon), days: a.days}
 	r.viable = !supplysim.Run(sc.world(foodViabilityMargin), oracle, horizon).Starved(supplysim.Nutrition)
 	return r

@@ -37,7 +37,7 @@ const NutritionPriority = 100
 // NutritionKey is the demand and yield key of nutrition.
 var NutritionKey = ResourceKey{Def: CandidateNutrition}
 
-// NutritionDemandInput is PlanFood's demand model.
+// NutritionDemandInput is the food forecast's demand model.
 type NutritionDemandInput struct {
 	Forecast                         FoodForecast
 	ReserveDays, MinDays, TargetDays float64

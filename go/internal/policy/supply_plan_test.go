@@ -8,66 +8,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The PlanFood and resource ranking tests run against both the old
-// functions and PlanSupply through the adapters below: PlanSupply reproduces
-// them until the cut-overs (#2156, #2160) delete the old functions.
+// The resource ranking tests run against both RankResourceCandidates and
+// PlanSupply through the adapters below until the cut-over (#2160).
 
 type rankResourceFunc func(domain.Fact[[]ResourceDemand], []AcquisitionCandidate, AcquisitionCompetition) ([]AcquisitionScore, error)
 type scoreResourceFunc func(domain.Fact[[]ResourceDemand], AcquisitionCandidate, AcquisitionCompetition) (AcquisitionScore, error)
 
-func eachFoodPlanner(t *testing.T, f func(*testing.T, func(FoodPlanRequest) (FoodPlan, error))) {
-	for name, plan := range map[string]func(FoodPlanRequest) (FoodPlan, error){"PlanFood": PlanFood, "PlanSupply": planFoodBySupply} {
-		t.Run(name, func(t *testing.T) { f(t, plan) })
-	}
-}
-
 func eachResourceRanker(t *testing.T, f func(*testing.T, rankResourceFunc, scoreResourceFunc)) {
 	t.Run("RankResourceCandidates", func(t *testing.T) { f(t, RankResourceCandidates, ScoreResourceCandidate) })
 	t.Run("PlanSupply", func(t *testing.T) { f(t, rankBySupply, scoreBySupply) })
-}
-
-// planFoodBySupply is PlanFood's request and plan expressed through PlanSupply.
-func planFoodBySupply(r FoodPlanRequest) (FoodPlan, error) {
-	demand, err := NutritionDemand(NutritionDemandInput{Forecast: r.Demand, ReserveDays: r.ReserveDays, MinDays: r.MinDays, TargetDays: r.TargetDays, EmergencyDays: r.EmergencyDays})
-	if err != nil {
-		return FoodPlan{}, ErrFoodPlanFacts
-	}
-	req := SupplyPlanRequest{Demands: domain.Known([]SupplyDemand{demand}), Labor: r.Labor, Candidates: domain.Unknown[[]SupplyCandidate]()}
-	if rows, known := r.Channels.Value(); known {
-		var cands []SupplyCandidate
-		for _, c := range rows {
-			cands = append(cands, SupplyCandidateOfFood(c))
-		}
-		req.Candidates = domain.Known(cands)
-	}
-	plan, err := PlanSupply(req)
-	if err != nil {
-		return FoodPlan{}, ErrFoodPlanFacts
-	}
-	out := FoodPlan{Forecast: r.Demand, GapPerDay: plan.Gap(NutritionKey)}
-	for _, c := range r.Demand.Consumers {
-		out.DemandPerDay += c.NutritionPerDay
-	}
-	convert := func(rows []SupplyEntry) (entries []FoodPlanEntry) {
-		for _, e := range rows {
-			channel, ok := FoodChannelOfSupply(e.Candidate)
-			if !ok {
-				panic("not a food channel")
-			}
-			entry := FoodPlanEntry{Channel: channel, Decision: FoodPlanDecision(e.Decision), Reason: e.Reason}
-			for _, t := range e.Terms {
-				entry.Terms = append(entry.Terms, FoodPlanTerm{Name: t.Name, Value: t.Value})
-			}
-			for _, c := range e.Credit {
-				entry.DeliveredPerDay += c.Amount
-			}
-			entries = append(entries, entry)
-		}
-		return entries
-	}
-	out.Portfolio, out.Unknown = convert(plan.Portfolio), convert(plan.Unknown)
-	out.DeliveredPerDay = plan.Delivered(NutritionKey)
-	return out, nil
 }
 
 func planAcquisitions(demand domain.Fact[[]ResourceDemand], cands []AcquisitionCandidate, c AcquisitionCompetition) (SupplyPlan, error) {

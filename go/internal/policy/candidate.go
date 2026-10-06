@@ -131,7 +131,7 @@ var acquisitionCandidateKinds = map[AcquisitionKind]CandidateKind{
 }
 
 // SupplyCandidateOfFood is a food channel as a candidate. An unrecognised kind maps
-// to an empty CandidateKind, which FoodChannelOfSupply rejects; PlanFood refuses it
+// to an empty CandidateKind, which FoodChannelOfSupply rejects; SupplyFoodPlan refuses it
 // first. Open true is Delivering, false is Closed (the channel records no
 // committed-but-silent state).
 func SupplyCandidateOfFood(c FoodChannel) SupplyCandidate {

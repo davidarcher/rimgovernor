@@ -9,7 +9,7 @@ import (
 // The resource matrix through policy.PlanSupply (epic #2140, #2155): the same
 // scenarios and checks as TestResourceMatrixShrinksBaseline, with the four
 // planners and the bid board replaced by one PlanSupply call over every unmet
-// floor. The failing set must stay inside the PlanFood-era baseline; a
+// floor. The failing set must stay inside the resource baseline; a
 // baselined check PlanSupply fixes is logged as a flip.
 func TestResourceMatrixPlanSupply(t *testing.T) {
 	t.Parallel()

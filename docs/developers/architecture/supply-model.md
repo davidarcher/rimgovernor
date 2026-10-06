@@ -27,10 +27,10 @@ delivered) is the ranker's and ledger's rule.
 
 `SupplyCandidateOfFood` / `FoodChannelOfSupply` and
 `SupplyCandidateOfAcquisition` / `AcquisitionCandidateOfSupply` convert
-`FoodChannel` and `AcquisitionCandidate` losslessly. `PlanFood` and
-`RankResourceCandidates` still consume the old types; the snapshot golden test
-proves their outputs identical through the adapters on every recorded food plan
-and acquisition census. An open food channel maps to `delivering`, a closed one
+`FoodChannel` and `AcquisitionCandidate` losslessly. `RankResourceCandidates`
+still consumes the old type; the snapshot golden test proves the food plan and
+the ranking identical through the adapters on every recorded food plan and
+acquisition census. An open food channel maps to `delivering`, a closed one
 to `closed`; an acquisition candidate is a lead-0 one-shot whose labor is its
 upfront cost, with hunt revenge risk left inside that labor.
 
@@ -38,10 +38,13 @@ upfront cost, with hunt revenge risk left inside that labor.
 
 `policy.PlanSupply(SupplyPlanRequest)` (`supply_plan.go`) is one pure function
 over a **demand vector** and the candidates. It budgets projected rates and
-unit deficits, never stored goods or completed work. Production callers still use
-`PlanFood` and `RankResourceCandidates` until the cut-overs (#2156, #2160, #2172);
-the PlanFood and resource-ranking tests run against both, and both simulator
-matrices run through a `PlanSupply` adapter.
+unit deficits, never stored goods or completed work. Food runs on it: `reviewFoodPlan`
+builds the channel rows and `policy.SupplyFoodPlan` plans them through
+`PlanSupply` with the Nutrition demand and reads the supply plan back as the
+`FoodPlan` that the player API and the method planners consume. Resource
+acquisition still uses `RankResourceCandidates` until its cut-overs (#2160,
+#2172); its tests run against both, and the resource simulator matrix runs
+through a `PlanSupply` adapter.
 
 ### Demands
 
@@ -49,7 +52,7 @@ A `SupplyDemand` is a good (`ResourceKey`), a priority (1-100), a horizon and
 either a flow (`PerDay`) or a stock deficit (`Units`).
 
 - **Nutrition** is the flow `NutritionDemand` builds from the food forecast,
-  exactly as `PlanFood` did: usable runway = `max(0, runway - reserve)`; the
+  as the food plan always budgeted it: usable runway = `max(0, runway - reserve)`; the
   horizon is the usable runway, or `max(usable, TargetDays)` once usable runway
   reaches `MinDays`; target coverage is `1 + max(0, TargetDays - usable) /
   TargetDays` and the target is consumption times coverage. It carries the
@@ -109,7 +112,7 @@ when the demand itself is unknown. Explain terms are `risk_discount`,
 
 ### Credit and state
 
-Credit stays as `PlanFood` has it: a delivering candidate counts, a designated
+Credit keeps the food plan's rules: a delivering candidate counts, a designated
 or closed one is credited when the plan opens it, and the emergency rule above
 withholds a one-shot's credit. The explicit designated/delivering credit factor
 is row 11 (#2157).
