@@ -22,9 +22,6 @@ const (
 	DumpRole = "wastedump"
 	// IncineratorRole is the walled incinerator's zone (#1814), a Sanitation store.
 	IncineratorRole = "incinerator"
-	// FoodRole is the opening food stockpile: Preferred, so an indoor food
-	// zone above it draws the food in once one stands.
-	FoodRole = "food"
 )
 
 // Gear stockpiles keep serviceable gear only: at least half its hit points

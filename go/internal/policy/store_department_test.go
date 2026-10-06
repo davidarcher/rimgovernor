@@ -9,12 +9,12 @@ import (
 var testStoreRoom = Rectangle{X: 4, Z: 4, Width: 3, Height: 3}
 
 func testStore() Store {
-	return Store{StoreSite: StoreSite{Role: domain.FoodRole, Interior: testStoreRoom, Filter: domain.FoodFilter(), Priority: domain.PreferredPriority}}
+	return Store{StoreSite: StoreSite{Role: "food", Interior: testStoreRoom, Filter: domain.FoodFilter(), Priority: domain.PreferredPriority}}
 }
 
 func declaredZone(id string, room Rectangle, used int) StockpileZone {
 	cells := rectCells(room)
-	return StockpileZone{ID: id, Role: domain.FoodRole, Cells: cells, Stored: cells[:used], Filter: domain.FoodFilter(), Priority: domain.PreferredPriority}
+	return StockpileZone{ID: id, Role: "food", Cells: cells, Stored: cells[:used], Filter: domain.FoodFilter(), Priority: domain.PreferredPriority}
 }
 
 func editKinds(r StockpileRequest) []StockpileEditKind {
