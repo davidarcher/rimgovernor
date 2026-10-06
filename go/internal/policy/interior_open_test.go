@@ -98,3 +98,27 @@ func TestDugStoreRoomDigsAheadOfOtherDugRoomsAndStone(t *testing.T) {
 		t.Fatal("ore stays first")
 	}
 }
+
+// stockpileContiguous reports whether cells form one four-connected region.
+func stockpileContiguous(cells map[domain.Cell]bool) bool {
+	var start domain.Cell
+	first := true
+	for c := range cells {
+		if first || cellLess(c, start) {
+			start, first = c, false
+		}
+	}
+	reached := map[domain.Cell]bool{start: true}
+	queue := []domain.Cell{start}
+	for len(queue) > 0 {
+		c := queue[0]
+		queue = queue[1:]
+		for _, n := range stockpileNeighbours(c) {
+			if cells[n] && !reached[n] {
+				reached[n] = true
+				queue = append(queue, n)
+			}
+		}
+	}
+	return len(reached) == len(cells)
+}

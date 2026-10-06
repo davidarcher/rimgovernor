@@ -27,8 +27,8 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, &gear, nil, nil))
-	if len(request.Shells) != 1 || request.Shells[0] != policy.PlannedArmory {
-		t.Fatalf("shells %v", request.Shells)
+	if len(request.Rooms) != 1 || request.Rooms[0] != policy.PlannedArmory {
+		t.Fatalf("rooms %v", request.Rooms)
 	}
 	for _, e := range policy.PlanStockpileMaintenance(request).Edits {
 		if e.Kind == policy.StockpileCreate {
@@ -49,9 +49,8 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	zoneOn(projection, "Zone_7", false, domain.Cell{X: 20, Z: 20}, domain.Cell{X: 21, Z: 20}, domain.Cell{X: 20, Z: 21}, domain.Cell{X: 21, Z: 21})
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: domain.WeaponsRole, Filter: domain.GeneralFilter(), Priority: domain.PreferredPriority}}
 	request = withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, &gear, nil, nil))
-	request.Colonists = domain.Known(int64(100))
-	if len(request.Shells) != 0 {
-		t.Fatalf("shells %v with the room standing", request.Shells)
+	if len(request.Rooms) != 0 {
+		t.Fatalf("rooms %v with the room standing", request.Rooms)
 	}
 	deleted, created := false, 0
 	for _, e := range policy.PlanStockpileMaintenance(request).Edits {
@@ -86,7 +85,7 @@ func TestYardShellIsOwedUntilItsRingStands(t *testing.T) {
 	projection.LayoutPlan = domain.Known(plan)
 	projection.Facts.CurrentConstruction = ringConstruction(nil)
 	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil))
-	if !slices.Contains(request.Shells, policy.PlannedYard) {
-		t.Fatalf("shells %v, want the yard", request.Shells)
+	if !slices.Contains(request.Rooms, policy.PlannedYard) {
+		t.Fatalf("rooms %v, want the yard", request.Rooms)
 	}
 }

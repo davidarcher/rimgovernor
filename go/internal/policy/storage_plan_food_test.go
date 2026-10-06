@@ -21,7 +21,7 @@ func unroofedGround() []SiteCell {
 // role prefix.
 func storeCreates(view StorageRequest) map[string]StockpileEdit {
 	view.Bounds, view.Cells = Bounds{Width: 40, Height: 40}, unroofedGround()
-	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Protected: view.Protected, Colonists: domain.Known(int64(3)), Stores: DeclareStores(view).Stores})
+	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Protected: view.Protected, Stores: DeclareStores(view).Stores})
 	out := map[string]StockpileEdit{}
 	for _, e := range review.Edits {
 		if e.Kind == StockpileCreate {
@@ -74,7 +74,7 @@ func TestFoodStoreStandingInTheKitchenIsLeftAlone(t *testing.T) {
 	kitchen := PlannedRoom{Role: PlannedKitchen, Interior: Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 15}}
 	view := StorageRequest{Bounds: Bounds{Width: 40, Height: 40}, Cells: unroofedGround(), Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen}}, Food: &FoodStore{}}
 	zone := StockpileZone{ID: "food", Role: domain.FoodRole, Cells: rectCells(Rectangle{X: 10, Z: 12, Width: 3, Height: 3}), Filter: domain.FoodFilter(), Priority: domain.PreferredPriority}
-	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Colonists: domain.Known(int64(3)), Zones: []StockpileZone{zone}, Stores: DeclareStores(view).Stores})
+	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Zones: []StockpileZone{zone}, Stores: DeclareStores(view).Stores})
 	if len(review.Edits) != 0 {
 		t.Fatalf("%+v", review.Edits)
 	}

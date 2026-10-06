@@ -80,12 +80,10 @@ type Summary struct {
 	MinFoodDays    float64           `json:"min_food_days"`
 	FinalWealth    float64           `json:"final_wealth"`
 	Flags          int               `json:"flags"`
-	// Zones is the last reading's owned stockpile zones per role kind,
-	// ZoneDrops how often a role's zone count fell between readings (a zone
-	// deleted or merged: churn) and SuppliesForbidden whether the last
-	// reading still had starting supplies forbidden (#1780, #1581).
+	// Zones is the last reading's owned stockpile zones per role kind and
+	// SuppliesForbidden whether the last reading still had starting supplies
+	// forbidden (#1780, #1581).
 	Zones             []Stockpile `json:"zones,omitempty"`
-	ZoneDrops         int         `json:"zone_drops"`
 	SuppliesForbidden bool        `json:"supplies_forbidden"`
 	Score             Score       `json:"score"`
 	// Delta is the score against the previous run of the same seed (#1936);
@@ -211,7 +209,6 @@ func Derive(rows []Row, meta map[string]string) Summary {
 		r.Flags = flags(rows[:i+1], prev)
 		s.Flags += len(r.Flags)
 		c := r.Census
-		s.ZoneDrops += len(zoneDrops(prev, *r))
 		if c.Stockpiles != nil {
 			s.Zones = c.Stockpiles
 		}

@@ -106,23 +106,18 @@ func TestSparseSamplesKeepEveryHour(t *testing.T) {
 	}
 }
 
-// Zone counts per role show in the report; a role's zone count falling is
-// churn and supplies forbidden for a day are flagged (#1780).
+// Zone counts per role show in the report; supplies forbidden for a day are flagged (#1780).
 func TestStorageFlags(t *testing.T) {
 	dir := caseOutput(t, 30)
 	data, _ := os.ReadFile(filepath.Join(dir, "result.json"))
 	var res map[string]any
 	json.Unmarshal(data, &res)
-	for h, sample := range res["timeline"].([]any) {
+	for _, sample := range res["timeline"].([]any) {
 		colony, ok := sample.(map[string]any)["colony"].(map[string]any)
 		if !ok {
 			continue
 		}
-		warehouses := 1
-		if h == 4 {
-			warehouses = 2
-		}
-		colony["stockpiles"] = []map[string]any{{"role": "general", "zones": warehouses, "cells": 40, "used": 10}, {"role": "yard", "zones": 1, "cells": 9, "used": 0}}
+		colony["stockpiles"] = []map[string]any{{"role": "general", "zones": 1, "cells": 40, "used": 10}, {"role": "yard", "zones": 1, "cells": 9, "used": 0}}
 		colony["forbiddenSupplies"] = true
 	}
 	data, _ = json.Marshal(res)
@@ -132,7 +127,7 @@ func TestStorageFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 	page, _ := os.ReadFile(filepath.Join(out, "index.html"))
-	for _, want := range []string{"general zones fell 2 → 1", "starting supplies still forbidden after 24 hours", "1 zone deletions or merges", "yard", "still forbidden"} {
+	for _, want := range []string{"starting supplies still forbidden after 24 hours", "yard", "still forbidden"} {
 		if !strings.Contains(string(page), want) {
 			t.Errorf("report lacks %q", want)
 		}

@@ -25,7 +25,7 @@ func init() {
 			if armory {
 				filter = armoryFilter
 			}
-			return policy.StockpileRoleState{Filter: filter, Priority: domain.PreferredPriority, Fixed: true}, true
+			return policy.StockpileRoleState{Filter: filter, Priority: domain.PreferredPriority}, true
 		}
 	}
 	RegisterStockpileRole("armory", gearStore(true))

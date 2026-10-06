@@ -146,17 +146,6 @@ func TestStorageRoomDemandFollowsTheFillThreshold(t *testing.T) {
 	}
 }
 
-// A planned storage room that does not stand yet is raised by the storage
-// planner, like the armory and wardrobe (#1802): the shell edit names the
-// storage module.
-func TestUnbuiltStorageRoomIsAShellEdit(t *testing.T) {
-	t.Parallel()
-	edits := stockpileShellEdits(StockpileRequest{Shells: []PlannedRole{PlannedStorage}})
-	if len(edits) != 1 || edits[0].Kind != StockpileShell || edits[0].Role != string(PlannedStorage) {
-		t.Fatalf("shell edits %+v", edits)
-	}
-}
-
 func TestSecondWarehouseFollowsTheSecondRoom(t *testing.T) {
 	t.Parallel()
 	first, second := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}, Rectangle{X: 20, Z: 10, Width: 3, Height: 3}
@@ -211,10 +200,8 @@ func TestWarehouseIsNeverResized(t *testing.T) {
 	// A smaller standing zone is left as it is: no growth onto the room.
 	small := warehouseZone("a", domain.GeneralRole, first, 4)
 	small.Cells, small.Stored = small.Cells[:4], small.Stored[:4]
-	for _, e := range PlanStockpileMaintenance(stockpileOf(storeRequest(1, 1, small))).Edits {
-		if e.Kind == StockpileGrow || e.Kind == StockpileShrink || e.Kind == StockpileMerge {
-			t.Fatalf("resized: %+v", e)
-		}
+	if edits := PlanStockpileMaintenance(stockpileOf(storeRequest(1, 1, small))).Edits; len(edits) != 0 {
+		t.Fatalf("resized: %+v", edits)
 	}
 }
 

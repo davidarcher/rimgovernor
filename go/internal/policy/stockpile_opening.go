@@ -8,15 +8,12 @@ import (
 
 // The opening stockpiles: zoning costs no pawn labor and is instant, so a
 // fresh colony gets its basic zone on the first review instead of
-// waiting on a room, a deficit or a haul budget. It is created while no
+// waiting on a room or a deficit. It is created while no
 // owned zone of its kind stands (the food stockpile is a planner site,
 // storage_plan_food.go):
 //   - the general store, outdoors is fine, nearest the colony anchor; the
 //     warehouse replaces it once the storage room stands (Store.Supersedes), so
 //     none is raised while a warehouse store is declared.
-//
-// Its Hauls are zero: a creation moves nothing itself, so the haul budget
-// never defers one.
 const (
 	openingGeneralSide int32 = 5
 )

@@ -9,7 +9,7 @@ import (
 // stockpileCreateRequest is a 20x20 map: x<10 an indoor roofed room
 // holding a 2x2 general store at (2,2), x>=10 open ground.
 func stockpileCreateRequest() StockpileRequest {
-	r := StockpileRequest{Tick: 100, Bounds: Bounds{Width: 20, Height: 20}, Colonists: domain.Known(int64(3)), Anchor: domain.Cell{X: 10, Z: 10}}
+	r := StockpileRequest{Tick: 100, Bounds: Bounds{Width: 20, Height: 20}, Anchor: domain.Cell{X: 10, Z: 10}}
 	var store []domain.Cell
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
@@ -48,7 +48,7 @@ func TestStockpileShelvesFollowTheirZone(t *testing.T) {
 		if e.Kind != StockpileShelfPatch {
 			t.Fatalf("unexpected edit %+v", e)
 		}
-		if e.Filter != food || e.Priority != domain.ImportantPriority || e.Role != ShelfRole(e.Zone) || e.Hauls != 2*ShelfItemsPerCell {
+		if e.Filter != food || e.Priority != domain.ImportantPriority || e.Role != ShelfRole(e.Zone) {
 			t.Fatalf("shelf edit %+v", e)
 		}
 		patched = append(patched, e.Zone)

@@ -11,8 +11,8 @@ import (
 
 // colonyFoodZoneLimit is the most stockpile zones allowing human food a
 // colony window may end with (#1581): the food stockpile, the raw-food
-// freezer and the larder, with headroom for one growth fragment. A playtest
-// ended its second day with about twenty.
+// freezer and the larder, with room for the further warehouse a full store
+// asks for. A playtest ended its second day with about twenty.
 const colonyFoodZoneLimit = 6
 
 // startingSupplyDefs are the tribal start stacks the scenario forbids. Only

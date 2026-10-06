@@ -16,13 +16,10 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// stockpileMemory remembers, per world, since when each owned stockpile has
-// sat mostly empty: the reviewer records it every review, the planner reads
-// it. A restart forgets it, which only delays a shrink by a day.
+// stockpileMemory remembers, per world, what the reviewer last learned for the
+// planner and layout.
 type stockpileMemory struct {
-	mu    sync.Mutex
-	world string
-	low   map[string]domain.Tick
+	mu sync.Mutex
 	// demand is the storage planner's latest layout demand for demandWorld:
 	// layout reads it to add the armory and wardrobe (#1773).
 	demand      policy.RoomDemand
@@ -67,62 +64,19 @@ func stockpileWorld(s domain.GenerationSnapshot) string {
 	return fmt.Sprintf("%s/%s/%d", s.Colony, s.Load, s.Map)
 }
 
-// observe records the zones' low state at tick and fills LowSince.
-func (m *stockpileMemory) observe(world string, tick domain.Tick, zones []policy.StockpileZone) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.world != world || m.low == nil {
-		m.world, m.low = world, map[string]domain.Tick{}
-	}
-	seen := map[string]bool{}
-	for i := range zones {
-		z := &zones[i]
-		seen[z.ID] = true
-		if !z.Low() {
-			delete(m.low, z.ID)
-			continue
-		}
-		since, ok := m.low[z.ID]
-		if !ok || since > tick {
-			since = tick
-			m.low[z.ID] = since
-		}
-		z.LowSince = since
-	}
-	for id := range m.low {
-		if !seen[id] {
-			delete(m.low, id)
-		}
-	}
-}
-
-// fill copies the recorded LowSince onto zones still low, without recording.
-func (m *stockpileMemory) fill(world string, zones []policy.StockpileZone) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.world != world {
-		return
-	}
-	for i := range zones {
-		if since, ok := m.low[zones[i].ID]; ok && zones[i].Low() {
-			zones[i].LowSince = since
-		}
-	}
-}
-
 // stockpileRequest builds the MaintainStockpiles input from the projection's
 // planning cells (a zone's cells are those naming it; a cell whose
 // storage-empty flag is false holds things) and the colony's stockpile
 // claims, their settings superseded by the latest patch of each; the
 // registered roles judge on the projection and benches.
 func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell, feed []policy.AnimalFeedStore) policy.StockpileRequest {
-	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists}
+	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected}
 	if core, planned := planCore(*projection); planned {
 		request.Anchor = core
 	}
 	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedYard} {
 		if _, owed := plannedRoomOwed(*projection, module); owed {
-			request.Shells = append(request.Shells, module)
+			request.Rooms = append(request.Rooms, module)
 		}
 	}
 	request.Opening = true
@@ -153,13 +107,12 @@ func (r *Rounder) reviewStockpiles(ctx context.Context, snapshot domain.Generati
 	if err != nil || missing != "" {
 		return err
 	}
-	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
 	r.stockpiles.setDemand(stockpileWorld(snapshot), request.RoomDemand)
 	r.stockpiles.siteErrChanged(request.SiteErr)
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)
 	for _, e := range review.Edits {
-		telemetry.Decide(ctx, stockpileEditDecision("proposed", "", e.Zone, map[string]any{"kind": string(e.Kind), "hauls": e.Hauls, "detail": e.Explanation}))
+		telemetry.Decide(ctx, stockpileEditDecision("proposed", "", e.Zone, map[string]any{"kind": string(e.Kind), "detail": e.Explanation}))
 	}
 	return nil
 }
@@ -377,33 +330,24 @@ func NewRoundsStockpilePlanner(reviewer *Rounder, native RoundsStockpileSource) 
 	return planner, nil
 }
 
-// shell raises the planned gear room of edit through the planned-room shell
-// path. handled is false when nothing was admitted (the room stands, its
-// shell was tried this Episode, no space, refused or a fact is missing),
-// with the verdict saying why.
-func (r *RoundsStockpilePlanner) shell(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, read observation.RoundsReading, edit policy.StockpileEdit) (RoundsStockpileResult, bool, error) {
+// raiseRoom raises the shell of the planned room module through the planned-room
+// shell path (the storage planner's rooms, #1774, and the materials yard's
+// ring, #2215). handled is true when the shell was admitted or failed; false
+// leaves the zone edits to go on this step (the room stands, its shell was
+// tried this Episode, no space, refused or a fact is missing). Zoning is
+// instant and needs no builder, so a room waiting on its shell never holds the
+// stores' zones back.
+func (r *RoundsStockpilePlanner) raiseRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, read observation.RoundsReading, module policy.PlannedRole) (RoundsStockpileResult, bool, error) {
 	if r.building == nil {
 		return RoundsStockpileResult{Verdict: fieldUnavailable("building_source")}, false, nil
 	}
-	room, owed := plannedRoomOwed(read.Projection, policy.PlannedRole(edit.Role))
+	room, owed := plannedRoomOwed(read.Projection, module)
 	if !owed {
 		return RoundsStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_room_built")}, false, nil
 	}
 	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: read.ColonyReading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room)), reason: "storage-planner room"})
-	telemetry.Decide(call, stockpileEditDecision("proposed", fmt.Sprint(result.Verdict), edit.Role, map[string]any{"kind": "room", "detail": edit.Explanation}))
-	if err != nil || shellLeavesZoneEdits(result.Verdict) {
-		return RoundsStockpileResult{Verdict: result.Verdict}, false, err
-	}
-	return RoundsStockpileResult{Verdict: result.Verdict}, true, nil
-}
-
-// shellLeavesZoneEdits reports a room-shell verdict that lets the zone edits
-// go on this step. Zoning is instant and needs no builder, so a shell that is
-// already being worked (WaitExistingWork) must not hold the food stockpile
-// back: it stood uncreated for as long as the room's shell was unbuilt, with
-// the clock stopped waiting for it.
-func shellLeavesZoneEdits(v Verdict) bool {
-	return v.Is(WaitMethodUsed) || v.Is(WaitExistingWork) || v.Is(RefusalNoSpace) || v.Is(RefusalFieldUnavailable) || v.Is(RefusalSharedAdmission)
+	telemetry.Decide(call, stockpileEditDecision("proposed", fmt.Sprint(result.Verdict), string(module), map[string]any{"kind": "room"}))
+	return RoundsStockpileResult{Verdict: result.Verdict}, err != nil || result.Verdict == BuildingReasonAdmitted, err
 }
 
 func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbiter) (RoundsStockpileResult, error) {
@@ -464,32 +408,21 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 	if missing != "" {
 		return RoundsStockpileResult{Verdict: fieldUnavailable(missing)}, nil
 	}
-	r.reviewer.stockpiles.fill(stockpileWorld(state.Snapshot), request.Zones)
 	proposal := policy.PlanStockpileMaintenance(request)
 	if !proposal.Active {
 		return RoundsStockpileResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// A planned gear room not yet standing is raised first; while its shell
-	// waits (already tried, no space, refused) the zone edits go on.
-	var edits []policy.StockpileEdit
-	var shells []policy.StockpileEdit
-	for _, e := range proposal.Edits {
-		if e.Kind == policy.StockpileShell {
-			shells = append(shells, e)
-		} else {
-			edits = append(edits, e)
-		}
-	}
-	proposal.Edits = edits
+	// A planned room not yet standing is raised first; while its shell waits
+	// (already tried, no space, refused) the zone edits go on.
 	var waiting Verdict
-	if len(shells) > 0 {
-		result, handled, err := r.shell(call, epoch, state, review, goal, read, shells[0])
+	if len(proposal.Rooms) > 0 {
+		result, handled, err := r.raiseRoom(call, epoch, state, review, goal, read, proposal.Rooms[0])
 		if err != nil || handled {
 			return result, err
 		}
 		waiting = result.Verdict
 	}
-	if len(edits) == 0 {
+	if len(proposal.Edits) == 0 {
 		return RoundsStockpileResult{Verdict: waiting}, nil
 	}
 	tick := projection.Identity.Tick

@@ -18,7 +18,7 @@ import (
 type Store struct {
 	StoreSite
 	// Further is the planned room the department asks layout for when the
-	// store's standing zones are at StockpileGrowFill (PlannedStorage,
+	// store's standing zones are at StockpileFurtherRoomFill (PlannedStorage,
 	// PlannedArmory or PlannedWardrobe); empty asks for none.
 	Further PlannedRole
 	// Retired states the store's purpose is gone (a bench demolished): the
@@ -111,7 +111,7 @@ func (d StoreDeclaration) Apply(old RoomDemand) RoomDemand {
 }
 
 // StoreReading is a store's capacity now: Standing when a zone serves it, Full
-// when every serving zone is at StockpileGrowFill. A sized-once store has no
+// when every serving zone is at StockpileFurtherRoomFill. A sized-once store has no
 // room to grow onto, so full is the whole reading.
 type StoreReading struct{ Standing, Full bool }
 
@@ -121,7 +121,7 @@ func (s Store) Reading(zones []StockpileZone) StoreReading {
 	for _, z := range zones {
 		if s.serves(z) {
 			r.Standing = true
-			r.Full = r.Full && z.Fill() >= StockpileGrowFill
+			r.Full = r.Full && z.Fill() >= StockpileFurtherRoomFill
 		}
 	}
 	r.Full = r.Full && r.Standing
@@ -179,7 +179,7 @@ func DeclaredDemand(view StorageRequest, stores []Store) RoomDemand {
 
 // state is a declared store's desired state for a zone it serves.
 func (s Store) state() StockpileRoleState {
-	return StockpileRoleState{Filter: s.Filter, Priority: s.Priority, Retired: s.Retired, Fixed: true}
+	return StockpileRoleState{Filter: s.Filter, Priority: s.Priority, Retired: s.Retired}
 }
 
 // declaredStoreEdits are the edits of the declared stores, one set of rules:
@@ -239,7 +239,7 @@ func stockpileSupersededDeletes(r StockpileRequest) []StockpileEdit {
 		}
 		for _, z := range r.Zones {
 			if z.Role != "" && stockpileRolePrefix(z.Role) == store.Supersedes {
-				out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, Hauls: z.Used(),
+				out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role,
 					Explanation: fmt.Sprintf("stockpile %s (%s): superseded by %s, delete; %d used cells rehome", z.ID, z.Role, store.Role, z.Used())})
 			}
 		}

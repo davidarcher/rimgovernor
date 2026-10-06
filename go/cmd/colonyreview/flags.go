@@ -48,35 +48,8 @@ func flags(rows []Row, prev *Row) []Flag {
 			add("warn", "%s in deficit %d hours running (%s)", g.ID, n, g.Status)
 		}
 	}
-	for _, d := range zoneDrops(prev, r) {
-		add("warn", "%s zones fell %d → %d (a zone deleted or merged)", d.role, d.from, d.to)
-	}
 	if n := forbiddenRun(rows); n == forbiddenHours {
 		add("warn", "starting supplies still forbidden after %d hours", n)
-	}
-	return out
-}
-
-type zoneDrop struct {
-	role     string
-	from, to int
-}
-
-// zoneDrops are the roles whose zone count is lower in r than in prev: a
-// zone was deleted or merged since the previous reading.
-func zoneDrops(prev *Row, r Row) []zoneDrop {
-	if prev == nil || prev.Census.Stockpiles == nil || r.Census.Stockpiles == nil {
-		return nil
-	}
-	now := map[string]int{}
-	for _, z := range r.Census.Stockpiles {
-		now[z.Role] = z.Zones
-	}
-	var out []zoneDrop
-	for _, z := range prev.Census.Stockpiles {
-		if now[z.Role] < z.Zones {
-			out = append(out, zoneDrop{z.Role, z.Zones, now[z.Role]})
-		}
 	}
 	return out
 }

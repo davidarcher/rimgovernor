@@ -196,15 +196,14 @@ func storeSiteMoves(zones []StockpileZone, sites []StoreSite) []StockpileEdit {
 		if replaced {
 			after = ""
 		}
-		out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, After: after, Hauls: z.Used(),
+		out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, After: after,
 			Explanation: fmt.Sprintf("stockpile %s (%s): its site moved to %s, delete; %d used cells rehome", z.ID, z.Role, serving.Role, z.Used())})
 	}
 	return out
 }
 
 // storeSiteEdits creates a zone for every site no zone serves yet, in order,
-// claiming each zone's ground in open.taken so a later site never overlaps it. A
-// creation moves nothing itself, so its Hauls are zero.
+// claiming each zone's ground in open.taken so a later site never overlaps it.
 func storeSiteEdits(zones []StockpileZone, sites []StoreSite, open stockpileOpen) []StockpileEdit {
 	var out []StockpileEdit
 	for _, site := range sites {

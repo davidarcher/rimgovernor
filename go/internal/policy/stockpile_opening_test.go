@@ -10,7 +10,7 @@ import (
 // open ground, no zone of any kind, a roofed 4x4 overhang at (30,30) and
 // the colonists gathered at (10,10).
 func freshColonyStockpiles() StockpileRequest {
-	r := StockpileRequest{Tick: 39, Bounds: Bounds{Width: 40, Height: 40}, Colonists: domain.Known(int64(3)), Anchor: domain.Cell{X: 10, Z: 10}, Opening: true}
+	r := StockpileRequest{Tick: 39, Bounds: Bounds{Width: 40, Height: 40}, Anchor: domain.Cell{X: 10, Z: 10}, Opening: true}
 	for x := int32(0); x < 40; x++ {
 		for z := int32(0); z < 40; z++ {
 			roofed := x >= 30 && x < 34 && z >= 30 && z < 34
@@ -21,12 +21,12 @@ func freshColonyStockpiles() StockpileRequest {
 }
 
 // The first review of a fresh colony stands the general store near the
-// colonists in one review, none deferred by the haul budget. The food stockpile
+// colonists in one review. The food stockpile
 // is a planner site (storage_plan_food_test.go) and the dump a declared
 // Sanitation store (incineration_test.go).
 func TestFreshColonyFirstReviewAdmitsOpeningStockpiles(t *testing.T) {
 	review := PlanStockpileMaintenance(freshColonyStockpiles())
-	if len(review.Edits) != 1 || !review.Active || review.Deferred != 0 {
+	if len(review.Edits) != 1 || !review.Active {
 		t.Fatalf("review %+v", review)
 	}
 	general := review.Edits[0]

@@ -8,18 +8,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainStockpiles keeps the autopilot's stockpiles fitted to what they
-// hold (#725), every review cycle: a zone near capacity grows onto the open
-// cells beside it, one that sat mostly empty sheds its empty edge cells, a
-// zone whose role's desired filter or priority changed is patched, a zone
-// whose role's purpose is gone is deleted, a same-role fragment is
-// deleted into its larger sibling, and a fixed role the colony has things
+// MaintainStockpiles applies the stockpile zones the departments declare
+// (#725, DeclareStores): a zone is created once at its store's size, a zone
+// whose role's desired filter or priority changed is patched, a zone whose
+// role's purpose is gone is deleted, and a fixed role the colony has things
 // for but no zone of is created (#724), as is a room-bound role whose room
-// stands without one (#917, StockpileSite). It acts on the zones the colony created
-// (store.OwnedZone), role-keyed; a role-less legacy claim is resized and
-// merged but never retargeted or deleted. Edits are rate-limited by the haul
-// jobs each would trigger, not by how rarely the routine acts. It is a
-// Standard whose target is no outstanding work: no zone edit due (#1024).
+// stands without one (#917, StockpileSite). A zone is never grown, shrunk or
+// merged: its empty cells are its headroom. It acts on the zones the colony
+// created (store.OwnedZone), role-keyed; a role-less legacy claim stands as
+// created. It is a Standard whose target is no outstanding work: no zone edit
+// due (#1024).
 const MaintainStockpiles ConcernID = "MaintainStockpiles"
 
 // stockpilePriority ranks MaintainStockpiles with the other upkeep goals.
@@ -29,25 +27,10 @@ const stockpilePriority = 3
 // the tidy's, so it never outranks real shortfalls.
 const stockpileDeficit = 0.1
 
-const (
-	// StockpileGrowFill is the used-cell fraction at which a zone grows.
-	StockpileGrowFill = 0.85
-	// StockpileShrinkFill is the used-cell fraction at or under which a
-	// zone counts as mostly empty.
-	StockpileShrinkFill = 0.25
-	// StockpileShrinkAfter is how long a zone must sit mostly empty
-	// before it shrinks: one game day.
-	StockpileShrinkAfter domain.Tick = domain.TicksPerDay
-	// StockpileMinCells is the floor a shrink never goes under.
-	StockpileMinCells = 4
-	// foodStorageMinCells is the roofed cells one zone needs to count as the
-	// colony's food storage (the native FoodStorage census).
-	foodStorageMinCells = 9
-	// StockpileHaulsPerColonist bounds the haul jobs one review cycle's
-	// edits may trigger, per colonist.
-	StockpileHaulsPerColonist = 8
-	stockpileEditCap          = 256
-)
+// StockpileFurtherRoomFill is the used-cell fraction at which a store's
+// standing zones count as full and the department asks layout for further
+// room.
+const StockpileFurtherRoomFill = 0.85
 
 // StockpileRoleState is the desired state of one role, published by the
 // planner that owns the role (#721 shelves, #723 siting, #724 filters and
@@ -57,10 +40,6 @@ type StockpileRoleState struct {
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 	Retired  bool
-	// Fixed zones keep the size they were sited at: never grown, shrunk
-	// or merged (#917: a Critical shelf that grew would pull the whole
-	// stock out of storage).
-	Fixed bool
 }
 
 // StockpileRoles resolves a role key to its desired state; false leaves the
@@ -69,8 +48,8 @@ type StockpileRoles func(role string) (StockpileRoleState, bool)
 
 // StockpileZone is one owned stockpile as the census holds it now: its
 // cells (the planning cells naming it), the cells holding things (Stored:
-// the census' storage-empty flag false), the settings the autopilot last
-// applied and since when it has sat mostly empty (zero while it has not).
+// the census' storage-empty flag false) and the settings the autopilot last
+// applied.
 type StockpileZone struct {
 	ID       string
 	Role     string
@@ -78,7 +57,6 @@ type StockpileZone struct {
 	Stored   []domain.Cell
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
-	LowSince domain.Tick
 }
 
 // Used counts the cells holding things.
@@ -92,35 +70,25 @@ func (z StockpileZone) Fill() float64 {
 	return float64(z.Used()) / float64(len(z.Cells))
 }
 
-// Low reports a zone mostly empty now.
-func (z StockpileZone) Low() bool { return len(z.Cells) > 0 && z.Fill() <= StockpileShrinkFill }
-
 type StockpileEditKind string
 
 const (
 	StockpileDelete   StockpileEditKind = "delete"
 	StockpileRetarget StockpileEditKind = "retarget"
-	StockpileGrow     StockpileEditKind = "grow"
-	StockpileMerge    StockpileEditKind = "merge"
-	StockpileShrink   StockpileEditKind = "shrink"
 )
 
 // StockpileEdit is one proposed edit of one zone. Cells are the cells a
-// grow adds or a shrink removes; Filter/Priority/Role a retarget's
-// settings; Hauls the haul jobs the edit is estimated to trigger. A merge
-// deletes the fragment Zone into Into.
+// create zones; Filter/Priority/Role a retarget's settings.
 type StockpileEdit struct {
 	Kind StockpileEditKind
 	Zone string
 	Role string
-	Into string `json:",omitempty"`
 	// After is the site role whose create must be admitted before this
 	// delete of a moved zone; empty once the site is served.
 	After       string `json:",omitempty"`
 	Cells       []domain.Cell
 	Filter      domain.StockpileFilter
 	Priority    domain.StockpilePriority
-	Hauls       int
 	Explanation string
 }
 
@@ -132,8 +100,6 @@ type StockpileRequest struct {
 	Cells     []SiteCell
 	Bounds    Bounds
 	Protected []domain.Cell
-	// Colonists sizes the haul budget; unknown holds every edit.
-	Colonists domain.Fact[int64]
 	// Anchor sites the opening general store.
 	Anchor domain.Cell
 	// Shelves are the built shelves inside the zones (#721): each carries
@@ -150,9 +116,10 @@ type StockpileRequest struct {
 	// SiteErr is the storage planner's report of sites it could not make
 	// usable (StoragePlan.Err); the review itself does not read it.
 	SiteErr error
-	// Shells are the planned storage-planner rooms (storage, armory and wardrobe,
-	// #1774; the materials yard's fence ring, #2215) not yet standing: each is a StockpileShell edit.
-	Shells []PlannedRole
+	// Rooms are the planned storage-planner rooms (storage, armory and wardrobe,
+	// #1774; the materials yard's fence ring, #2215) not yet standing: the
+	// planner raises their shells (StockpileReview.Rooms).
+	Rooms []PlannedRole
 	// Opening stands the opening stockpiles (the general store)
 	// while no owned zone of its kind stands; the runtime always sets it.
 	Opening bool
@@ -202,21 +169,22 @@ func stockpileShelfEdits(roles StockpileRoles, zones []StockpileZone, shelves []
 			continue
 		}
 		hauls := s.Cells * ShelfItemsPerCell
-		out = append(out, StockpileEdit{Kind: StockpileShelfPatch, Zone: s.Building, Role: ShelfRole(s.Building), Filter: filter, Priority: priority, Hauls: hauls,
+		out = append(out, StockpileEdit{Kind: StockpileShelfPatch, Zone: s.Building, Role: ShelfRole(s.Building), Filter: filter, Priority: priority,
 			Explanation: fmt.Sprintf("shelf %s in stockpile %s (%s): configure like its zone (priority %s); up to %d stacks may rehome", s.Building, z.ID, z.Role, priority, hauls)})
 	}
 	return out
 }
 
-// StockpileReview is the outcome: the edits this cycle admits within the
-// haul budget, how many more stood over budget, and why none stands.
+// StockpileReview is the outcome: the zone edits this cycle proposes, the
+// planned rooms whose shells are owed, and why none stands.
 type StockpileReview struct {
-	Known    bool
-	Active   bool
-	Edits    []StockpileEdit `json:",omitempty"`
-	Deferred int
-	Budget   int
-	Reason   string
+	Known  bool
+	Active bool
+	Edits  []StockpileEdit `json:",omitempty"`
+	// Rooms are the planned rooms (StockpileRequest.Rooms) the planner raises
+	// before the zone edits go on.
+	Rooms  []PlannedRole `json:",omitempty"`
+	Reason string
 	// Zones counts the owned stockpile zones by role kind as the review
 	// read them, for the colony review's zone-count report.
 	Zones []StockpileRoleCount `json:",omitempty"`
@@ -257,19 +225,10 @@ func stockpileRoleCounts(zones []StockpileZone) []StockpileRoleCount {
 }
 
 // PlanStockpileMaintenance proposes this cycle's edits, one per zone, in
-// urgency order (delete, retarget and shelf patch, create, grow, merge,
-// shrink; ties by
-// zone id),
-// admitting each while the haul jobs it triggers fit the cycle's budget
-// (the first edit always fits, so an edit larger than the budget still
-// lands, alone). Deterministic over its input.
+// urgency order (delete, retarget and shelf patch, create; ties by zone id).
+// Deterministic over its input.
 func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
-	colonists, known := r.Colonists.Value()
-	if !known {
-		return StockpileReview{Reason: "colonists unknown"}
-	}
-	budget := int(max(colonists, 1)) * StockpileHaulsPerColonist
-	review := StockpileReview{Known: true, Budget: budget, Zones: stockpileRoleCounts(r.Zones)}
+	review := StockpileReview{Known: true, Zones: stockpileRoleCounts(r.Zones), Rooms: r.Rooms}
 	zones := append([]StockpileZone(nil), r.Zones...)
 	sort.Slice(zones, func(i, j int) bool { return zones[i].ID < zones[j].ID })
 	open := newStockpileOpen(r)
@@ -307,32 +266,8 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 		take(e, true)
 	}
 	candidates = append(candidates, stockpileOpeningEdits(r, open)...)
-	candidates = append(candidates, stockpileShellEdits(r)...)
 	candidates = append(candidates, stockpileSiteEdits(r, open)...)
-	for _, e := range stockpileSiteShrinks(r) {
-		take(e, true)
-	}
-	for _, z := range zones {
-		if state, ok := stockpileRoleState(r.Roles, z.Role); ok && state.Fixed {
-			touched[z.ID] = true
-		}
-	}
-	for _, z := range zones {
-		if !touched[z.ID] {
-			take(stockpileGrowEdit(open.within(r.Sited, z), z))
-		}
-	}
-	for _, e := range stockpileMergeEdits(zones, touched) {
-		if take(e, true) {
-			touched[e.Into] = true
-		}
-	}
-	for _, z := range zones {
-		if !touched[z.ID] {
-			take(stockpileShrinkEdit(r.Tick, z))
-		}
-	}
-	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2, StockpileShell: 2, StockpileGrow: 3, StockpileMerge: 4, StockpileShrink: 5}
+	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2}
 	// A moved zone's delete follows its replacement's create.
 	order := func(e StockpileEdit) int {
 		if e.After != "" {
@@ -341,20 +276,17 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 		return rank[e.Kind] * 2
 	}
 	sort.SliceStable(candidates, func(i, j int) bool { return order(candidates[i]) < order(candidates[j]) })
-	spent := 0
 	created := map[string]bool{}
 	for _, e := range candidates {
-		if e.After != "" && !created[e.After] || len(review.Edits) > 0 && spent+e.Hauls > budget {
-			review.Deferred++
+		if e.After != "" && !created[e.After] {
 			continue
 		}
-		spent += e.Hauls
 		review.Edits = append(review.Edits, e)
 		if e.Kind == StockpileCreate {
 			created[e.Role] = true
 		}
 	}
-	review.Active = len(review.Edits) > 0
+	review.Active = len(review.Edits) > 0 || len(review.Rooms) > 0
 	if !review.Active {
 		review.Reason = "stockpiles fit their contents"
 	}
@@ -372,179 +304,14 @@ func stockpileSettingsEdit(roles StockpileRoles, z StockpileZone) (StockpileEdit
 		return StockpileEdit{}, false
 	}
 	if want.Retired {
-		return StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, Hauls: z.Used(),
+		return StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role,
 			Explanation: fmt.Sprintf("stockpile %s (%s): role retired, delete; %d used cells rehome", z.ID, z.Role, z.Used())}, true
 	}
 	if want.Filter == z.Filter && want.Priority == z.Priority {
 		return StockpileEdit{}, false
 	}
-	return StockpileEdit{Kind: StockpileRetarget, Zone: z.ID, Role: z.Role, Filter: want.Filter, Priority: want.Priority, Hauls: z.Used(),
+	return StockpileEdit{Kind: StockpileRetarget, Zone: z.ID, Role: z.Role, Filter: want.Filter, Priority: want.Priority,
 		Explanation: fmt.Sprintf("stockpile %s (%s): desired settings changed (priority %s -> %s), patch; %d used cells may rehome", z.ID, z.Role, z.Priority, want.Priority, z.Used())}, true
-}
-
-// stockpileGrowEdit grows a zone at or over StockpileGrowFill by a quarter
-// of its size (at least StockpileMinCells, twice that when full: the
-// overflow waits on the floor) onto the open cells nearest it, breadth
-// first from its edge so the zone stays contiguous.
-func stockpileGrowEdit(open stockpileOpen, z StockpileZone) (StockpileEdit, bool) {
-	if len(z.Cells) == 0 || z.Fill() < StockpileGrowFill {
-		return StockpileEdit{}, false
-	}
-	want := max(len(z.Cells)/4, StockpileMinCells)
-	if z.Used() >= len(z.Cells) {
-		want *= 2
-	}
-	want = min(want, stockpileEditCap)
-	own := map[domain.Cell]bool{}
-	for _, c := range z.Cells {
-		own[c] = true
-	}
-	// An indoor-only zone (the warehouse) never grows onto open sky.
-	indoor := z.Filter.Base() == domain.BaseIndoorOnly
-	frontier := stockpileSorted(z.Cells)
-	seen := map[domain.Cell]bool{}
-	var added []domain.Cell
-	for len(frontier) > 0 && len(added) < want {
-		var next []domain.Cell
-		for _, c := range frontier {
-			for _, n := range stockpileNeighbours(c) {
-				if own[n] || seen[n] || !open.ok(n) || indoor && !positive(open.cells[n].Roofed) {
-					continue
-				}
-				seen[n] = true
-				if len(added) < want {
-					added = append(added, n)
-					next = append(next, n)
-				}
-			}
-		}
-		frontier = stockpileSorted(next)
-	}
-	if len(added) == 0 {
-		return StockpileEdit{}, false
-	}
-	open.taken.Claim(added)
-	return StockpileEdit{Kind: StockpileGrow, Zone: z.ID, Role: z.Role, Cells: stockpileSorted(added), Hauls: len(added),
-		Explanation: fmt.Sprintf("stockpile %s (%s): %d/%d cells used, grow by %d", z.ID, z.Role, z.Used(), len(z.Cells), len(added))}, true
-}
-
-// stockpileMergeEdits deletes a same-role, same-filter fragment (at most half its
-// sibling's size) whose used cells fit in the sibling's free cells; the
-// sibling grows back into the space on later cycles. Role-less zones merge
-// only with each other.
-func stockpileMergeEdits(zones []StockpileZone, edited map[string]bool) []StockpileEdit {
-	touched := map[string]bool{}
-	for id := range edited {
-		touched[id] = true
-	}
-	var out []StockpileEdit
-	for _, frag := range zones {
-		if touched[frag.ID] || len(frag.Cells) == 0 {
-			continue
-		}
-		var into *StockpileZone
-		for i := range zones {
-			other := &zones[i]
-			if other.ID == frag.ID || other.Role != frag.Role || other.Filter != frag.Filter || touched[other.ID] || len(other.Cells) < 2*len(frag.Cells) || len(other.Cells)-other.Used() < frag.Used() {
-				continue
-			}
-			if into == nil || len(other.Cells) > len(into.Cells) {
-				into = other
-			}
-		}
-		if into == nil {
-			continue
-		}
-		touched[frag.ID], touched[into.ID] = true, true
-		out = append(out, StockpileEdit{Kind: StockpileMerge, Zone: frag.ID, Into: into.ID, Role: frag.Role, Hauls: frag.Used(),
-			Explanation: fmt.Sprintf("stockpile %s (%s, %d cells) is a fragment of %s (%d cells, %d free): delete, %d used cells rehome", frag.ID, frag.Role, len(frag.Cells), into.ID, len(into.Cells), len(into.Cells)-into.Used(), frag.Used())})
-	}
-	return out
-}
-
-// stockpileShrinkEdit sheds the empty cells of a zone that sat mostly empty
-// for StockpileShrinkAfter, down to twice its used cells (at least
-// StockpileMinCells), removing the empty cells farthest from its middle
-// first and never one whose removal splits the zone. Removing empty cells
-// triggers no hauling.
-func stockpileShrinkEdit(tick domain.Tick, z StockpileZone) (StockpileEdit, bool) {
-	if !z.Low() || z.LowSince <= 0 || tick-z.LowSince < StockpileShrinkAfter {
-		return StockpileEdit{}, false
-	}
-	keep := max(2*z.Used(), StockpileMinCells)
-	if z.Filter.Base() == domain.BaseFood {
-		// The colony counts as having food storage once one food zone holds
-		// foodStorageMinCells, so shrinking it below makes the food-storage
-		// planner stand another (#1581).
-		keep = max(keep, foodStorageMinCells)
-	}
-	if len(z.Cells) <= keep {
-		return StockpileEdit{}, false
-	}
-	cells := stockpileSorted(z.Cells)
-	var cx, cz int64
-	for _, c := range cells {
-		cx += int64(c.X)
-		cz += int64(c.Z)
-	}
-	mid := domain.Cell{X: int32(cx / int64(len(cells))), Z: int32(cz / int64(len(cells)))}
-	distance := func(c domain.Cell) int32 { return absInt32(c.X-mid.X) + absInt32(c.Z-mid.Z) }
-	order := append([]domain.Cell(nil), cells...)
-	sort.SliceStable(order, func(i, j int) bool { return distance(order[i]) > distance(order[j]) })
-	remaining := map[domain.Cell]bool{}
-	for _, c := range cells {
-		remaining[c] = true
-	}
-	stored := map[domain.Cell]bool{}
-	for _, c := range z.Stored {
-		stored[c] = true
-	}
-	var removed []domain.Cell
-	for _, c := range order {
-		if len(remaining) <= keep || len(removed) >= stockpileEditCap {
-			break
-		}
-		if stored[c] {
-			continue
-		}
-		delete(remaining, c)
-		if !stockpileContiguous(remaining) {
-			remaining[c] = true
-			continue
-		}
-		removed = append(removed, c)
-	}
-	if len(removed) == 0 {
-		return StockpileEdit{}, false
-	}
-	return StockpileEdit{Kind: StockpileShrink, Zone: z.ID, Role: z.Role, Cells: stockpileSorted(removed),
-		Explanation: fmt.Sprintf("stockpile %s (%s): %d/%d cells used since tick %d, shrink by %d empty cells", z.ID, z.Role, z.Used(), len(z.Cells), z.LowSince, len(removed))}, true
-}
-
-func stockpileContiguous(cells map[domain.Cell]bool) bool {
-	if len(cells) == 0 {
-		return true
-	}
-	var start domain.Cell
-	first := true
-	for c := range cells {
-		if first || cellLess(c, start) {
-			start, first = c, false
-		}
-	}
-	reached := map[domain.Cell]bool{start: true}
-	queue := []domain.Cell{start}
-	for len(queue) > 0 {
-		c := queue[0]
-		queue = queue[1:]
-		for _, n := range stockpileNeighbours(c) {
-			if cells[n] && !reached[n] {
-				reached[n] = true
-				queue = append(queue, n)
-			}
-		}
-	}
-	return len(reached) == len(cells)
 }
 
 func stockpileNeighbours(c domain.Cell) []domain.Cell {
@@ -555,35 +322,6 @@ func stockpileSorted(cells []domain.Cell) []domain.Cell {
 	out := append([]domain.Cell(nil), cells...)
 	sort.Slice(out, func(i, j int) bool { return cellLess(out[i], out[j]) })
 	return out
-}
-
-// stockpileOpen indexes the cells a grow may take: observed, walkable,
-// unoccupied, unzoned, unprotected, not taken by another grow this cycle
-// and inside the map.
-type stockpileOpen struct {
-	cells     map[domain.Cell]SiteCell
-	protected map[domain.Cell]bool
-	// taken holds the ground earlier edits of this pass claimed.
-	taken  reservedGround
-	bounds Bounds
-	// only, when set, limits the cells to a site's room.
-	only map[domain.Cell]bool
-}
-
-// within limits a grow of z to the room of the site serving it, so a
-// room-bound zone never grows out of its room; a zone no site serves is
-// unlimited.
-func (s stockpileOpen) within(sites []StockpileSite, z StockpileZone) stockpileOpen {
-	prefix := stockpileRolePrefix(z.Role)
-	for _, site := range sites {
-		if z.Role != "" && stockpileRolePrefix(site.Role) == prefix {
-			if room := cellSet(site.Room); stockpileTouches(z.Cells, room) {
-				s.only = room
-				break
-			}
-		}
-	}
-	return s
 }
 
 func newStockpileOpen(r StockpileRequest) stockpileOpen {
@@ -609,4 +347,17 @@ func (s stockpileOpen) ok(p domain.Cell) bool {
 	// so a site there is retried every pass forever (#1581).
 	empty, ek := c.StorageEmpty.Value()
 	return wk && walkable && ok && !occupied && zk && !zone && (!ek || empty)
+}
+
+// stockpileOpen indexes the cells a new zone may take: observed, walkable,
+// unoccupied, unzoned, unprotected, not taken by another edit this cycle and
+// inside the map.
+type stockpileOpen struct {
+	cells     map[domain.Cell]SiteCell
+	protected map[domain.Cell]bool
+	// taken holds the ground earlier edits of this pass claimed.
+	taken  reservedGround
+	bounds Bounds
+	// only, when set, limits the cells to a site's room.
+	only map[domain.Cell]bool
 }

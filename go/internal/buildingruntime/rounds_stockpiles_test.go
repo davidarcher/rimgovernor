@@ -19,7 +19,7 @@ func stockpileSiteCell(x, z int32, zone string, stored bool) policy.SiteCell {
 
 // A snapshot over recorded colony facts: the planning cells name each
 // zone's cells and the storage-empty flag its used ones; the owned
-// stockpile claims (not growing zones, not zones the census lost) become
+// stockpile claims (not field zones, not zones the census lost) become
 // the review's zones, a later patch supersedes the created settings and
 // role, and a nearly full claimed zone grows through the registered role.
 func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
@@ -59,67 +59,23 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 		t.Fatalf("zone 2 %+v", two)
 	}
 	review := policy.PlanStockpileMaintenance(request)
-	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileGrow || review.Edits[0].Zone != "Zone_1" {
+	if len(review.Edits) != 0 {
 		t.Fatalf("review %+v", review)
 	}
 }
 
-func TestStockpileMemoryTracksLowSincePerWorld(t *testing.T) {
-	var m stockpileMemory
-	low := []policy.StockpileZone{{ID: "Zone_1", Cells: make([]domain.Cell, 8)}}
-	m.observe("a", 100, low)
-	if low[0].LowSince != 100 {
-		t.Fatalf("first low %+v", low[0])
-	}
-	later := []policy.StockpileZone{{ID: "Zone_1", Cells: make([]domain.Cell, 8)}}
-	m.observe("a", 900, later)
-	if later[0].LowSince != 100 {
-		t.Fatalf("low since reset %+v", later[0])
-	}
-	read := []policy.StockpileZone{{ID: "Zone_1", Cells: make([]domain.Cell, 8)}}
-	m.fill("a", read)
-	if read[0].LowSince != 100 {
-		t.Fatalf("fill %+v", read[0])
-	}
-	full := []policy.StockpileZone{{ID: "Zone_1", Cells: make([]domain.Cell, 2), Stored: make([]domain.Cell, 2)}}
-	m.observe("a", 1000, full)
-	again := []policy.StockpileZone{{ID: "Zone_1", Cells: make([]domain.Cell, 8)}}
-	m.observe("a", 2000, again)
-	if again[0].LowSince != 2000 {
-		t.Fatalf("filled zone kept its low tick %+v", again[0])
-	}
-	other := []policy.StockpileZone{{ID: "Zone_1", Cells: make([]domain.Cell, 8)}}
-	m.fill("b", other)
-	if other[0].LowSince != 0 {
-		t.Fatal("memory crossed worlds")
-	}
-}
-
 func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
-	cells := []domain.Cell{{X: 1, Z: 1}}
 	for _, tc := range []struct {
 		edit policy.StockpileEdit
 		kind domain.ActionKind
 	}{
-		{policy.StockpileEdit{Kind: policy.StockpileGrow, Zone: "Zone_1", Cells: cells}, domain.ZoneCellEditAction},
-		{policy.StockpileEdit{Kind: policy.StockpileShrink, Zone: "Zone_1", Cells: cells}, domain.ZoneCellEditAction},
 		{policy.StockpileEdit{Kind: policy.StockpileRetarget, Zone: "Zone_1", Filter: domain.FoodFilter(), Priority: domain.ImportantPriority, Role: "kitchen"}, domain.StockpilePatchAction},
 		{policy.StockpileEdit{Kind: policy.StockpileShelfPatch, Zone: "Shelf_1", Filter: domain.FoodFilter(), Priority: domain.ImportantPriority, Role: "kitchen"}, domain.StockpilePatchAction},
 		{policy.StockpileEdit{Kind: policy.StockpileDelete, Zone: "Zone_1"}, domain.ZoneDeleteAction},
-		{policy.StockpileEdit{Kind: policy.StockpileMerge, Zone: "Zone_1", Into: "Zone_2"}, domain.ZoneDeleteAction},
 	} {
 		a, err := stockpileEditAction("a-0", tc.edit)
 		if err != nil || a.Kind() != tc.kind {
 			t.Fatalf("%s: %v %v", tc.edit.Kind, a.Kind(), err)
-		}
-		if e, ok := a.ZoneCellEdit(); ok {
-			want := domain.AddZoneCells
-			if tc.edit.Kind == policy.StockpileShrink {
-				want = domain.RemoveZoneCells
-			}
-			if e.Mode() != want {
-				t.Fatalf("edit %+v", e)
-			}
 		}
 		want := domain.StorageZoneTarget
 		if tc.edit.Kind == policy.StockpileShelfPatch {
@@ -222,23 +178,9 @@ func TestGearStoreRolesPublishTheCatalogSplit(t *testing.T) {
 	roles := stockpileRoles(StockpileRoleInput{Projection: projection})
 	for role, want := range map[string]domain.StockpileFilter{"armory:Room_1": armory, "wardrobe:Room_2": wardrobe} {
 		state, ok := roles(role)
-		if !ok || state.Retired || !state.Fixed || state.Filter != want || state.Priority != domain.PreferredPriority {
+		if !ok || state.Retired || state.Filter != want || state.Priority != domain.PreferredPriority {
 			t.Errorf("%s: %+v %v", role, state, ok)
 		}
-	}
-}
-
-// A room shell already being worked must not hold the zone edits back: the
-// food stockpile went uncreated for as long as the storage room's shell stood
-// unbuilt.
-func TestShellLeavesZoneEdits(t *testing.T) {
-	for _, v := range []Verdict{BuildingReasonExistingWork, waitFor(WaitMethodUsed, "x"), noSpace("x"), fieldUnavailable("x")} {
-		if !shellLeavesZoneEdits(v) {
-			t.Errorf("verdict %v holds the zone edits back", v)
-		}
-	}
-	if shellLeavesZoneEdits(BuildingReasonAdmitted) {
-		t.Error("an admitted shell lets the zone edits go on the same step")
 	}
 }
 

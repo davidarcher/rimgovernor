@@ -59,7 +59,7 @@ func TestMealTableCellIsOneCellOffTheChairs(t *testing.T) {
 		{ID: "table", Role: plannedKey(domain.MealsRolePrefix, dining), Cells: []domain.Cell{{X: 15, Z: 17}}, Filter: filter, Priority: domain.CriticalPriority},
 		{ID: "closet", Role: plannedKey(domain.MealsRolePrefix, closet.Interior), Cells: rectCells(closet.Interior), Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority},
 	}
-	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Colonists: domain.Known(int64(3)), Zones: zones, Stores: DeclareStores(view).Stores})
+	review := PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Zones: zones, Stores: DeclareStores(view).Stores})
 	if len(review.Edits) != 1 || review.Edits[0].Kind != StockpileDelete || review.Edits[0].Zone != "table" {
 		t.Fatalf("%+v", review.Edits)
 	}

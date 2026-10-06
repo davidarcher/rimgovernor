@@ -167,14 +167,14 @@ func TestPlanStorageNamesAnArmoryNearAPrison(t *testing.T) {
 
 // With the armory standing the maintenance pass fills it and deletes the old
 // 2x2 weapons zone (a retired role); the same for the wardrobe. A planned
-// room not yet standing is a shell edit.
+// room not yet standing is owed its shell.
 func TestMaintenanceFillsGearRoomsAndDeletesTheOldZones(t *testing.T) {
 	t.Parallel()
 	r := gearField(t, nil)
 	legacy := func(id, role string) StockpileZone {
 		return StockpileZone{ID: id, Role: role, Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}, Filter: domain.GeneralFilter(), Priority: domain.PreferredPriority}
 	}
-	request := StockpileRequest{Tick: 100, Bounds: r.Bounds, Cells: r.Cells, Colonists: domain.Known(int64(100)), Stores: (militaryOwner{}).Stores(r),
+	request := StockpileRequest{Tick: 100, Bounds: r.Bounds, Cells: r.Cells, Stores: (militaryOwner{}).Stores(r),
 		Zones: []StockpileZone{legacy("Zone_1", domain.WeaponsRole), legacy("Zone_2", domain.ApparelRole)},
 		Roles: func(role string) (StockpileRoleState, bool) {
 			if role == domain.WeaponsRole || role == domain.ApparelRole {
@@ -197,9 +197,9 @@ func TestMaintenanceFillsGearRoomsAndDeletesTheOldZones(t *testing.T) {
 	}
 	request.Zones = nil
 	request.Stores = nil
-	request.Shells = []PlannedRole{PlannedArmory}
+	request.Rooms = []PlannedRole{PlannedArmory}
 	review = PlanStockpileMaintenance(request)
-	if !review.Active || len(review.Edits) != 1 || review.Edits[0].Kind != StockpileShell || review.Edits[0].Role != string(PlannedArmory) {
-		t.Fatalf("shell edits %+v", review.Edits)
+	if !review.Active || len(review.Edits) != 0 || len(review.Rooms) != 1 || review.Rooms[0] != PlannedArmory {
+		t.Fatalf("owed rooms %+v", review)
 	}
 }

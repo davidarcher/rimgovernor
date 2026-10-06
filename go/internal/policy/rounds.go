@@ -440,7 +440,7 @@ type RoundsFacts struct {
 	// has no assessment.
 	GeneBankOwed domain.Fact[bool]
 	// Stockpiles is the MaintainStockpiles review (#725): this cycle's
-	// stockpile edits within the haul budget, or why none stands.
+	// stockpile edits and the planned rooms owed a shell, or why none stands.
 	Stockpiles domain.Fact[StockpileReview]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods domain.Fact[[]ConcernID]

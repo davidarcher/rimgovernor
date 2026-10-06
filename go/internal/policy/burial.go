@@ -47,7 +47,7 @@ type BurialCensus struct {
 // else the planned count plus one. A further graveyard is asked for only while
 // no sarcophagus can be had (once one can, the tomb rooms take new burials) and
 // when the empty graves run out: fewer free grave slots than the unburied dead
-// still owed one, or the graveyards at StockpileGrowFill of their slots.
+// still owed one, or the graveyards at StockpileFurtherRoomFill of their slots.
 func GraveyardsWanted(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, shapes PieceShapes, sarcophagus bool) int {
 	have := len(plan.roomsOf(PlannedGraveyard))
 	if have == 0 || sarcophagus {
@@ -56,7 +56,7 @@ func GraveyardsWanted(plan LayoutPlan, waste []WasteItem, built []CurrentBuildin
 	standing, slots := GravesStanding(plan, built)
 	step, _ := tombCensus(waste, built, shapes.Furniture.Sarcophagus)
 	owed := max(step.Dead-step.Empty, 0)
-	if owed > slots-standing || float64(standing) >= StockpileGrowFill*float64(slots) {
+	if owed > slots-standing || float64(standing) >= StockpileFurtherRoomFill*float64(slots) {
 		return have + 1
 	}
 	return 0

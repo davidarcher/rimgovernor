@@ -61,22 +61,26 @@ grown, shrunk or merged. When every zone of a store is 85% used, the department'
 the plan holds) and the room's zone is created once it is planned and open. The
 warehouse supersedes the opening general store.
 
-## Growth, shrink and churn (planner sites)
+## Moves (planner sites)
 
-A zone grows onto adjacent open cells once 85% of its cells hold things and
-sheds empty edge cells after sitting at or under 25% for a day (never below
-four cells). Same-filter
-fragments merge. Edits are admitted within a per-cycle haul budget so a zone
-move never floods the colonists with hauling. A role whose site moved gets its
-new zone first; the old zone is deleted in the same review only once that create
-is admitted, and its items rehome. Held building reservations and the unroofed
-floor of a planned shell are protected ground no site takes.
+A zone is never grown, shrunk or merged: its empty cells are its headroom. A role
+whose site moved gets its new zone first; the old zone is deleted in the same
+review only once that create is admitted, and its items rehome. Held building
+reservations and the unroofed floor of a planned shell are protected ground no
+site takes.
+
+## Planned rooms
+
+The storage, armory and wardrobe rooms and the materials yard's fence ring are
+planned by layout. `MaintainStockpiles` raises the first one not yet standing
+through the shared room-shell path (`reconcileRoom`) before its zone edits; the
+zone edits go on whenever the shell is not admitted, since zoning needs no
+builder.
 
 ## Review check
 
 The [colony review](../testing/colony-review.md) reports the storage state
 from the colony census (`/api/player/colony`: owned zones per role kind and
 whether the loot census still holds a safe stack forbidden). It lists the final zone count
-per role, flags any hour a role's zone count falls (a zone deleted or merged:
-churn) and flags starting supplies still forbidden after a day. A report, not
+per role and flags starting supplies still forbidden after a day. A report, not
 a gate.

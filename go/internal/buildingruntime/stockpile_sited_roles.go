@@ -14,7 +14,7 @@ import (
 // Critical because vanilla ranks Preferred below Important, and only a rank
 // above the starter Important food zone hauls raw food into the cold.
 //
-// All are fixed-size: MaintainStockpiles never grows or merges them.
+// All are fixed-size: MaintainStockpiles never resizes them.
 
 // mealSpotMinPerDay is the fewest meals a day the colony eats before a
 // warm spot by the table pays: fewer, and the meals wait in the store.
@@ -29,7 +29,7 @@ func allowOnly(definitions ...string) domain.StockpileFilter {
 }
 
 func init() {
-	rawFood := policy.StockpileRoleState{Filter: domain.RawFoodFilter(), Priority: domain.CriticalPriority, Fixed: true}
+	rawFood := policy.StockpileRoleState{Filter: domain.RawFoodFilter(), Priority: domain.CriticalPriority}
 	RegisterStockpileRole(domain.YardRole, fixedStockpileRole(domain.YardFilter(), domain.LowPriority))
 	RegisterStockpileRole("rawfood", func(StockpileRoleInput, string) (policy.StockpileRoleState, bool) { return rawFood, true })
 }

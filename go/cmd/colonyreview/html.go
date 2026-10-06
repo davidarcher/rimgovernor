@@ -98,7 +98,7 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <svg viewBox="0 0 {{.W}} 100" preserveAspectRatio="none"><polyline points="{{.Points}}"/></svg>
 <span class="muted">{{.Min}} – {{.Max}}</span></div>{{end}}</div>
 <h2>Storage</h2>{{if .S.Zones}}<table>{{range .S.Zones}}<tr><td>{{.Role}}</td><td>{{.Zones}} zone{{if ne .Zones 1}}s{{end}}</td><td>{{.Used}} of {{.Cells}} cells in use</td></tr>{{end}}</table>
-<p class="muted">{{.S.ZoneDrops}} zone deletions or merges · starting supplies {{if .S.SuppliesForbidden}}<span class="warn">still forbidden</span>{{else}}allowed{{end}}</p>{{else}}<p class="muted">No stockpile review filed.</p>{{end}}
+<p class="muted">Starting supplies {{if .S.SuppliesForbidden}}<span class="warn">still forbidden</span>{{else}}allowed{{end}}</p>{{else}}<p class="muted">No stockpile review filed.</p>{{end}}
 <h2>Flags</h2>{{if .Flagged}}<ul class="flags">{{range .Flagged}}{{$a := .Anchor}}{{$d := .Label}}{{range .Flags}}<li class="{{.Severity}}"><a href="#{{$a}}">{{$d}}</a> {{.Text}}</li>{{end}}{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
 <h2>Whole map, daily</h2><div class="days">{{range .Rows}}{{if .MapShot}}<figure><a href="review/{{.MapShot}}"><img loading="lazy" src="review/{{.MapShot}}" alt="Map {{.Label}}"></a><figcaption>{{.Label}}</figcaption></figure>{{end}}{{end}}</div>
 <h2>Hour by hour</h2>

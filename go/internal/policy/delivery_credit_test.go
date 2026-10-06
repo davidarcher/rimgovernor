@@ -247,7 +247,7 @@ func TestCreditApplyAttributesByCounterGroupAndRisk(t *testing.T) {
 	d.groups["crop:z"].armOnce(0)
 	d.Apply(channels, CreditInput{Tick: 3 * creditDay, Epoch: "e", Known: true, Delivered: map[string]float64{"forage:Berry": 25, "crop:z": 5}})
 	got := d.results
-	if !near(got["forage:Berry"].Factor, 24.0/24.0) || !near(got["crop:z"].Factor, 5.0/15.0) {
+	if !near(got["forage:Berry"].Factor, 1.0) || !near(got["crop:z"].Factor, 5.0/15.0) {
 		t.Fatalf("results = %+v", got)
 	}
 }
