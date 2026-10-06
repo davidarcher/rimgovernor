@@ -70,6 +70,12 @@ const (
 	// thick round the core, the yard and the fields, 5 blocks a wall and 25
 	// a door.
 	perimeterStacks = 120
+	// woodStacks of WoodLog (75 a stack) are what the killbox funnel, trap
+	// corridor, fences, doors and floors are built from (defenseDefinitions
+	// stuffs them all with wood): the case serves no resource family, so
+	// nothing fells trees and an unstocked colony leaves the funnel's
+	// blueprints waiting for wood that never comes (#2134).
+	woodStacks = 20
 )
 
 // fixtureFunc calls one test/defense_setup op, refusing an unsuccessful one.
@@ -644,13 +650,27 @@ func prepareSite(ctx context.Context, h *na.Harness, identity map[string]any, re
 	}
 	site0, _ := na.AsMap(sites[0])
 	siteX, siteZ := int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
-	for i := 0; i < perimeterStacks; i++ {
-		if _, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: "BlocksGranite", X: siteX, Z: siteZ, Count: 75}); err != nil {
+	for _, thing := range siteStock(siteX, siteZ) {
+		if _, _, err := na.LabSpawn(ctx, h, thing); err != nil {
 			return 0, 0, err
 		}
 	}
 	report["stone_blocks"] = perimeterStacks * 75
+	report["wood_logs"] = woodStacks * 75
 	return siteX, siteZ, nil
+}
+
+// siteStock is the stack list prepareSite spawns beside the site: the
+// perimeter's granite blocks and the layout's wood.
+func siteStock(x, z int) []na.LabThing {
+	var stock []na.LabThing
+	for i := 0; i < perimeterStacks; i++ {
+		stock = append(stock, na.LabThing{Def: "BlocksGranite", X: x, Z: z, Count: 75})
+	}
+	for i := 0; i < woodStacks; i++ {
+		stock = append(stock, na.LabThing{Def: "WoodLog", X: x, Z: z, Count: 75})
+	}
+	return stock
 }
 
 // edgeSide names the map side a corridor facing toward (the direction from
