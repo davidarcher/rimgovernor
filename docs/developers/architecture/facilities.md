@@ -297,9 +297,10 @@ same: the pack step takes the two single beds up, the install is a
 reconcile of the couple's planned room to a `DoubleBed` template
 (`CoupleBed.Template`), and a couple whose room is outside the plan is never
 packed for. A wing's bedrooms are built together (#2133): `NextBedroomStep`
-carries every unbuilt or empty bedroom of the head room's wing, in plan order
-(`BedroomStep.Rooms`, `Room` being the first), once any of them is owed, ahead
-of need; a Retiring wing is never carried, and a bedroom outside a wing, the
+carries every unbuilt or empty bedroom of the first wing in plan order that
+owes one (#2139; a standing empty room in a later wing waits its wing's turn),
+in plan order (`BedroomStep.Rooms`; `Room` is the standing empty room inside
+the batch if any, else the first), ahead of need; a Retiring wing is never carried, and a bedroom outside a wing, the
 suite step and the migration step stay one room. `reconcileBedroom` hands the
 batch to `reconcileRooms`, the shared build side's multi-room entry: each room
 is diffed alone, the packed stock is shared in plan order, the installs are one

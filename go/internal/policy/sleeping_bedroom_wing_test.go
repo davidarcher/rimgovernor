@@ -86,3 +86,26 @@ func TestBedroomStepSpineRoomStandsAlone(t *testing.T) {
 		t.Fatalf("step = %+v, want the one spine room", got)
 	}
 }
+
+// The batched wing is the first in plan order that owes a bedroom: a standing
+// empty room in a later wing does not jump ahead of an unbuilt earlier wing
+// (#2139).
+func TestBedroomStepChoosesWingInPlanOrder(t *testing.T) {
+	plan, rooms, sleeping := wingFixture(3, WingBedrooms)
+	second := Wing{Purpose: WingBedrooms, Rooms: []PlannedRoom{{Role: PlannedBedroom, Interior: Rectangle{X: 50, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 52, Z: 5}, DoorRot: domain.North}}}
+	plan.Wings = append(plan.Wings, second)
+	rooms.Rooms = append(rooms.Rooms, Room{ID: "empty2", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: roomCells(50, 0, 5, 5)})
+	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
+	if got.Kind != BedroomReconcile || got.Room.Interior.X != 10 {
+		t.Fatalf("step = %+v, want wing 1 first", got)
+	}
+	if xs := wingInteriors(got.Rooms); len(xs) != 3 || xs[0] != 10 || xs[2] != 22 {
+		t.Fatalf("rooms = %v, want wing 1's three rooms", xs)
+	}
+	// A Retiring first wing yields none of its rooms: the next wing leads.
+	plan.Wings[0].Purpose = WingBedroomsRetiring
+	got = NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
+	if got.Kind != BedroomReconcile || got.Room.Interior.X != 50 || len(got.Rooms) != 1 {
+		t.Fatalf("step = %+v, want wing 2 once wing 1 retires", got)
+	}
+}

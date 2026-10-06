@@ -59,7 +59,7 @@ type BedroomStep struct {
 	// is Rooms[0].
 	Room PlannedRoom
 	// Rooms is a BedroomReconcile's batch: every unbuilt or empty bedroom of
-	// the head room's wing, in plan order (#2133). Empty for the suite and
+	// the first owed room's wing, in plan order (#2133, #2139). Empty for the suite and
 	// migration steps, whose one room is Room.
 	Rooms []PlannedRoom
 	// Cells is a BedroomClear's one cell.
@@ -69,7 +69,7 @@ type BedroomStep struct {
 
 // NextBedroomStep picks the next bedroom step from the plan, the room census
 // and the sleeping census. Move comes first (it costs nothing), then a room
-// with no bed to reconcile (a standing empty one, then an unbuilt one), only while the
+// with no bed to reconcile (in the first wing in plan order that owes one, a standing empty room leading), only while the
 // standing bedrooms cannot take every colonist still outside one; a room dug
 // into rock is a shell too, whose builder mines it first (#836). It reports BedroomNone whenever a
 // fact it needs is unknown.
@@ -192,7 +192,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	}
 	// Census: beds and roof, read off the room.
 	standing := func(r PlannedRoom) (Room, bool) { return CensusRoomIn(r, rooms) }
-	var empty, unbuilt []PlannedRoom
+	var owed, empty []PlannedRoom
 	retiring := retiringRooms(plan)
 	for _, r := range plan.AllRooms() {
 		// A Retiring wing is never built out further (#1219).
@@ -201,17 +201,27 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		}
 		room, ok := standing(r)
 		if !ok {
-			unbuilt = append(unbuilt, r)
+			owed = append(owed, r)
 			continue
 		}
 		if len(room.Beds) == 0 {
+			owed = append(owed, r)
 			empty = append(empty, r)
 		}
 	}
-	// A standing empty room first (it owes the least), then an unbuilt one.
-	if owed := append(empty, unbuilt...); len(owed) > 0 {
-		// The whole wing is owed once one of its rooms is (#2133).
-		return BedroomStep{Kind: BedroomReconcile, Room: owed[0], Rooms: wingBedrooms(plan, owed[0], owed), Unhoused: len(unhoused)}
+	if len(owed) > 0 {
+		// The wing is the first in plan order with a bedroom owed, and the
+		// whole wing is owed once one of its rooms is (#2133, #2139). Inside
+		// it a standing empty room leads (it owes the least).
+		batch := wingBedrooms(plan, owed[0], owed)
+		head := batch[0]
+		for _, r := range batch {
+			if slices.ContainsFunc(empty, r.Same) {
+				head = r
+				break
+			}
+		}
+		return BedroomStep{Kind: BedroomReconcile, Room: head, Rooms: batch, Unhoused: len(unhoused)}
 	}
 	// No slot left: Unhoused still counts who stays outside a bedroom.
 	return suiteStep()
