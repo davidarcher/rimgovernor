@@ -280,21 +280,6 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCorpse, "human-butchery") {
 				return RoundsBillResult{Verdict: awaitingFoodPlan("human-butchery")}, nil
 			}
-			rows, _ := benches.Value()
-			for _, bench := range rows {
-				if bench.ID == human.Bench {
-					ready, _ := bench.HumanStorageReady.Value()
-					if !ready {
-						native, ok := r.native.(RoundsResourceSource)
-						if !ok || len(bench.HumanStorageCells) == 0 {
-							return RoundsBillResult{Verdict: noSpace("human_corpse_storage")}, nil
-						}
-						core := RoundsResourcePlanner{reviewer: r.reviewer, native: native}
-						out, e := core.admitStorageZone(call, epoch, state, goal, review.Tick, policy.Resource(bench.HumanCorpseDef), bench.HumanStorageCells, r.reviewer.clock.Now(), "human-corpse-storage")
-						return RoundsBillResult{Verdict: out.Verdict, Plan: out.Plan}, e
-					}
-				}
-			}
 			selected, known = human, true
 		}
 	}

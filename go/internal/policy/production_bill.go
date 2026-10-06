@@ -74,8 +74,6 @@ type ExistingProductionBill struct {
 type ProductionBench struct {
 	HumanButchers        []HumanButcherCandidate
 	HumanCorpseNutrition domain.Fact[float64]
-	HumanStorageCells    []domain.Cell
-	HumanStorageReady    domain.Fact[bool]
 	HumanCorpseDef       string
 	ID, Definition       string
 	Token                domain.Fact[string]

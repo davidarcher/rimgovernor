@@ -169,14 +169,9 @@ func (r *RoundsAnimalFeedPlanner) step(call, epoch context.Context, arbiter *ste
 		case choice.Delivered:
 			benches = nil
 		case len(choice.StorageCells) > 0:
-			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage")
-			if err == nil && (result.Verdict.Is(RefusalSharedAdmission) || result.Verdict.Is(RefusalNoSpace)) {
-				// The footprint native offered was refused at preview (the
-				// roof or the ground changed): lend the same window the
-				// no-bench refusal does rather than parking on no_work.
-				result.NativeWorkTicks = stockWaitTicks
-			}
-			return result, err
+			// The People animal store (MaintainStockpiles) makes the zone;
+			// this concern waits for it rather than creating one.
+			return RoundsResourceResult{Verdict: waitFor(WaitExistingWork, "animal_feed_store"), NativeWorkTicks: stockWaitTicks}, nil
 		default:
 			benches = []string{}
 		}

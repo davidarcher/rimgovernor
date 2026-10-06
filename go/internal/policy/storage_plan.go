@@ -58,6 +58,9 @@ type StorageRequest struct {
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand (#1814); nil before. The Sanitation store declares its zone.
 	Incinerator *PlannedRoom
+	// AnimalFeed are the herds' feed stores wanted (AnimalFeedStores); the
+	// People animal store declares them.
+	AnimalFeed []AnimalFeedStore
 }
 
 // RoomDemand is the planner's signal to layout that stored goods outgrew

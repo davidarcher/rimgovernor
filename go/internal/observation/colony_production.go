@@ -251,11 +251,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 		add(b.Bench, b.BenchSnapshot, b.Usable, b.Recipes, b.Bills, nil, true, b.Room)
 		row := &rows[len(rows)-1]
 		row.HumanCorpseNutrition = optional(b.HumanCorpseNutrition)
-		row.HumanStorageReady = optional(b.HumanStorageReady)
 		row.HumanCorpseDef = b.GetHumanCorpseDef()
-		for _, cell := range b.HumanStorageCells {
-			row.HumanStorageCells = append(row.HumanStorageCells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-		}
 		for _, candidate := range b.HumanButchers {
 			var traits []policy.PawnTrait
 			for _, t := range candidate.PawnTraits {

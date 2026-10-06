@@ -115,7 +115,7 @@ func (m *stockpileMemory) fill(world string, zones []policy.StockpileZone) {
 // storage-empty flag is false holds things) and the colony's stockpile
 // claims, their settings superseded by the latest patch of each; the
 // registered roles judge on the projection and benches.
-func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell) policy.StockpileRequest {
+func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell, feed []policy.AnimalFeedStore) policy.StockpileRequest {
 	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists}
 	if core, planned := planCore(*projection); planned {
 		request.Anchor = core
@@ -133,6 +133,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	storage.Incinerator = standingIncinerator(*projection)
 	storage.BenchInputs, storage.Benches = inputs, benches
 	storage.Burial = burialCensus(*projection)
+	storage.AnimalFeed = feed
 	plan := policy.PlanStorage(storage)
 	declared := policy.DeclareStores(storage)
 	request.Stores = declared.Stores
@@ -206,7 +207,7 @@ func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.Generati
 	if err != nil {
 		return policy.StockpileRequest{}, "", err
 	}
-	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear, protected)
+	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear, protected, r.animalFeedStores(projection))
 	for _, z := range request.Zones {
 		shelves, _, err := zoneShelves(ctx, r.player.journal, zoneGoal[z.ID], z.ID, projection.Facts.CurrentConstruction)
 		if err != nil {
@@ -558,4 +559,20 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 func stockpileEditDecision(verdict, reason, target string, attrs map[string]any) telemetry.Decision {
 	attrs["family"] = "stockpile"
 	return telemetry.Decision{Kind: "layout_edit", Component: "layout", Verdict: verdict, Reason: reason, Target: target, Attrs: attrs}
+}
+
+// animalFeedStores are the feed stores the herds lack, from the animals' observed
+// reachable ground (the one fact the plan cannot give): the short race groups
+// of the animal upkeep review, unknown reading as none.
+func (r *Rounder) animalFeedStores(projection *observation.ColonyProjection) []policy.AnimalFeedStore {
+	upkeep := projection.Facts.AnimalUpkeep
+	if plan, known := projection.Facts.FoodPlan.Value(); known {
+		upkeep.Forecast = domain.Known(plan.Forecast)
+	}
+	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, policy.AnimalUpkeepHistory{}, r.policy.FoodReserveDays)
+	if err != nil {
+		return nil
+	}
+	groups, _ := reviewed.Feed.Value()
+	return policy.AnimalFeedStores(groups, upkeep.AnimalRaces)
 }

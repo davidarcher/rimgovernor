@@ -26,7 +26,7 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, &gear, nil))
+	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, &gear, nil, nil))
 	if len(request.Shells) != 1 || request.Shells[0] != policy.PlannedArmory {
 		t.Fatalf("shells %v", request.Shells)
 	}
@@ -48,7 +48,7 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	projection.Facts.CurrentConstruction = ringConstruction(&armory)
 	zoneOn(projection, "Zone_7", false, domain.Cell{X: 20, Z: 20}, domain.Cell{X: 21, Z: 20}, domain.Cell{X: 20, Z: 21}, domain.Cell{X: 21, Z: 21})
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: domain.WeaponsRole, Filter: domain.GeneralFilter(), Priority: domain.PreferredPriority}}
-	request = withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, &gear, nil))
+	request = withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, &gear, nil, nil))
 	request.Colonists = domain.Known(int64(100))
 	if len(request.Shells) != 0 {
 		t.Fatalf("shells %v with the room standing", request.Shells)
@@ -85,7 +85,7 @@ func TestYardShellIsOwedUntilItsRingStands(t *testing.T) {
 	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveYard, Area: policy.Rectangle{X: 30, Z: 30, Width: policy.YardW + 2, Height: policy.YardH + 2}}}}
 	projection.LayoutPlan = domain.Known(plan)
 	projection.Facts.CurrentConstruction = ringConstruction(nil)
-	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil, nil))
+	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil))
 	if !slices.Contains(request.Shells, policy.PlannedYard) {
 		t.Fatalf("shells %v, want the yard", request.Shells)
 	}

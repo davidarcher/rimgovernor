@@ -181,8 +181,7 @@ func RouteStranger(rot domain.RotStage, butcheryOpen bool) StrangerRoute {
 
 // HumanButcheryOpen is whether the existing human-butcher gate would take a
 // stranger corpse now: a usable butchery whose recipe is available, a worker
-// who qualifies (QualifyingHumanButcher) and room for the corpse (stocked
-// storage, or cells to zone). It ignores whether the human bill stands.
+// who qualifies (QualifyingHumanButcher); the morgue holds the corpse. It ignores whether the human bill stands.
 func HumanButcheryOpen(benches domain.Fact[[]ProductionBench], ideology IdeologyRead) bool {
 	rows, known := benches.Value()
 	if !known {
@@ -191,8 +190,7 @@ func HumanButcheryOpen(benches domain.Fact[[]ProductionBench], ideology Ideology
 	for _, b := range rows {
 		usable, uk := b.Usable.Value()
 		nutrition, nk := b.HumanCorpseNutrition.Value()
-		ready, _ := b.HumanStorageReady.Value()
-		if !b.Butcher || !uk || !usable || !nk || !foodNumber(nutrition) || nutrition <= 0 || !ready && len(b.HumanStorageCells) == 0 {
+		if !b.Butcher || !uk || !usable || !nk || !foodNumber(nutrition) || nutrition <= 0 {
 			continue
 		}
 		available := false
