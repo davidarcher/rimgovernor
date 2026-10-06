@@ -418,7 +418,7 @@ hold.
 Autonomous hunting screens current wild-animal observations before designating.
 Harmless, undesignated prey must be within 100 cells of the colony anchor and more than
 25 cells (square-grid) from live wild predators; unknown predator flags or positions
-prevent selection. The hunting budget (two outstanding) is zero while the roster is known
+prevent selection. The hunting budget (three outstanding per hunter, at most 48) is zero while the roster is known
 and no [hunter](work-assignment.md#situational-roles) (`HunterFor`: Shooting, ranged
 primary, never a Brawler) is on it, for stock and pest hunts alike. A hunt follows its
 animal: the planned cell is only a hint, the census row matches the animal wherever it
@@ -448,7 +448,7 @@ ranged-blocking shield) or a melee weapon or bare hands against meleeable prey
 held row is not a source; the projection's `HuntHolds` names the first failing gate
 (`fogged`, `not_safe_prey`, `no_butcher_bill`, `no_colonist`, `no_hunter` with each
 colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield`, `too_far`
-or `no_safe_route`). Selection caps outstanding hunts at two. Supervised play pauses when an
+or `no_safe_route`). Selection designates as many prey as the nutrition gap (deficit less pending nutrition) needs, meatiest safe prey first, bounded by the budget; an open hunt does not block the next hunt method. Supervised play pauses when an
 active hunt loses its route.
 
 Acquisition reports revenge chance, same-race herd size within 25 cells (including the
@@ -490,7 +490,7 @@ set, today `Alphabeaver`). Pests arrive factionless, so no emergency census answ
 - The census offers each eligible pest as a hunt row after food prey (nearest first):
   one unit of the pest's corpse, `food` false, no nutrition. Native waives the 100-cell
   distance, safe-prey and butcher-bill rules; the hunter still needs Hunting active, a
-  ranged weapon and a safe route, the two-outstanding bound applies, and a pest in a
+  ranged weapon and a safe route, the hunting budget applies, and a pest in a
   mental state is left to the defense family.
 - Methods `pest-hunt-*`, plans `routine-pest-hunt-*`, salted with the concern's admission
   count; one hunt per pest up to budget and census count. Planning is animal by animal:

@@ -11,7 +11,7 @@ func rangedHunter() PawnProfile {
 }
 
 func TestHuntChainRulesFromHuntPlan(t *testing.T) {
-	prey := []AcquisitionSource{{ID: "berry", Food: true}, {ID: "deer", Hunt: true, Designated: true}}
+	prey := []AcquisitionSource{{ID: "berry", Food: true}, {ID: "deer", Hunt: true, Designated: true}, {ID: "elk", Hunt: true, Designated: true}}
 	set, known := HuntChainRules(domain.Known(prey), domain.Known([]PawnProfile{rangedHunter()}))
 	if !known || len(set.Rules) != 1 {
 		t.Fatalf("set = %+v, known = %v", set, known)
@@ -25,8 +25,23 @@ func TestHuntChainRulesFromHuntPlan(t *testing.T) {
 	}
 }
 
+func TestHuntChainRulesNeedTwoDesignatedPrey(t *testing.T) {
+	hunters := domain.Known([]PawnProfile{rangedHunter()})
+	one := []AcquisitionSource{{ID: "deer", Hunt: true, Designated: true}, {ID: "elk", Hunt: true}}
+	if set, known := HuntChainRules(domain.Known(one), hunters); !known || len(set.Rules) != 0 {
+		t.Fatalf("one designated prey attached %+v", set)
+	}
+	two := []AcquisitionSource{{ID: "deer", Hunt: true, Designated: true}, {ID: "elk", Hunt: true, Designated: true}}
+	if set, known := HuntChainRules(domain.Known(two), hunters); !known || len(set.Rules) != 1 {
+		t.Fatalf("two designated prey: %+v", set)
+	}
+	if set, known := HuntChainRules(domain.Known(one[1:]), hunters); !known || len(set.Rules) != 0 {
+		t.Fatalf("empty set kept the rule: %+v", set)
+	}
+}
+
 func TestHuntChainRulesNeedHunterAndDesignatedPrey(t *testing.T) {
-	designated := []AcquisitionSource{{ID: "deer", Hunt: true, Designated: true}}
+	designated := []AcquisitionSource{{ID: "deer", Hunt: true, Designated: true}, {ID: "elk", Hunt: true, Designated: true}}
 	cases := []struct {
 		name    string
 		sources domain.Fact[[]AcquisitionSource]

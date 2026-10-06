@@ -67,6 +67,29 @@ func TestAcquisitionHarvestPrecedesBoundedHunting(t *testing.T) {
 	}
 }
 
+func TestHuntCountFollowsGapAndHunterBudget(t *testing.T) {
+	var rows []AcquisitionSource
+	for i := 0; i < 20; i++ {
+		rows = append(rows, AcquisitionSource{ID: fmt.Sprint("deer", i), Resource: "Corpse_Deer", Token: "d", Food: true, Hunt: true, Yield: 1, NutritionYield: 10})
+	}
+	hunters := []PawnProfile{{ID: "a", Ranged: true}, {ID: "b", Ranged: true}, {ID: "melee"}}
+	budget := HuntBudget(hunters, 0)
+	if budget != 2*HuntsPerHunter || HuntBudget(hunters, 4) != 2 || HuntBudget(hunters, 9) != 0 || HuntBudget(nil, 0) != 0 {
+		t.Fatalf("budget = %d", budget)
+	}
+	// ceil((deficit - pending) / yield): (45 - 5) / 10 = 4 prey.
+	selected, err := SelectAcquisition(domain.Known(rows), domain.Known(45.0), domain.Known(5.0), true, nil, domain.Known(budget))
+	if err != nil || len(selected) != 4 {
+		t.Fatal(len(selected), err)
+	}
+	// A large gap is bounded by the hunters, past the old eight-row cap.
+	four := append(hunters, PawnProfile{ID: "c", Ranged: true}, PawnProfile{ID: "d", Ranged: true})
+	selected, err = SelectAcquisition(domain.Known(rows), domain.Known(1000.0), domain.Known(0.0), true, nil, domain.Known(HuntBudget(four, 0)))
+	if err != nil || len(selected) != 12 {
+		t.Fatal(len(selected), err)
+	}
+}
+
 func TestResourceAcquisitionSelectsOnlyTheNamedHarvest(t *testing.T) {
 	rows := []AcquisitionSource{
 		{ID: "berry", Resource: "RawBerries", Token: "cas", Food: true, Yield: 8, NutritionYield: 0.4},

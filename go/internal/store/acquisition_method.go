@@ -33,7 +33,9 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, 
 	// EnsureFoodSupply's hunt-only plan passes the goal's open plant
 	// harvests (#260): a forage batch runs for days and the hunt rows
 	// the butcher spot and bill were placed for would otherwise wait
-	// behind it. A hunt still open blocks the next hunt plan.
+	// behind it. The hunt count already nets out the designated hunts
+	// (pending nutrition, the hunters' budget; #2170), so open acquisition
+	// work of any kind does not block a hunt plan.
 	hunts := foodConcern(goal)
 	for _, action := range plan.Actions() {
 		hunts = hunts && huntAcquisition(action)
@@ -48,7 +50,7 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, 
 			if acquisitionIndependentWork(action) || pest && action.Kind() == domain.AcquisitionAction {
 				continue
 			}
-			if hunts && action.Kind() == domain.AcquisitionAction && !huntAcquisition(action) {
+			if hunts && action.Kind() == domain.AcquisitionAction {
 				continue
 			}
 			if domain.StandardWorkOpen([]domain.Progress{progress}) {
@@ -96,7 +98,7 @@ func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, 
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > policy.MaxCatalogSelection+policy.MaxHuntRows {
 		return ErrConflict
 	}
 	need, bound := owner.ownerNeed(review)

@@ -113,6 +113,26 @@ func HunterFor(profiles []PawnProfile) (PawnID, bool) {
 	return bestRole(candidates)
 }
 
+// HuntsPerHunter is the prey one hunter keeps designated at once (#2170).
+const HuntsPerHunter = 3
+
+// MaxHuntRows bounds the hunt rows of one acquisition method, whatever the
+// roster.
+const MaxHuntRows = 48
+
+// HuntBudget is the hunts a goal may still designate: HuntsPerHunter for each
+// ranged Hunting-capable colonist (the HunterFor profiles), less the hunts
+// already designated, at most MaxHuntRows.
+func HuntBudget(profiles []PawnProfile, pendingHunts int) int {
+	hunters := 0
+	for _, p := range profiles {
+		if p.Ranged && p.Capable(WorkHunting, 0) {
+			hunters++
+		}
+	}
+	return max(0, min(MaxHuntRows, hunters*HuntsPerHunter)-pendingHunts)
+}
+
 // UpgradeRoleWeight scales a body part's surgery value by the pawn's role
 // (#1167): shooters' eyes by Shooting, workers' arms and hands by their
 // best manual skill (Construction, Mining, Crafting), haulers' legs and

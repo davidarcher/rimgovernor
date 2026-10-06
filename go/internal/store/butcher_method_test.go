@@ -96,7 +96,8 @@ func TestCommitButcherSpotOverOpenFieldWork(t *testing.T) {
 }
 
 // A hunt-only plan is admitted over the food goal's open forage (#260); a
-// second forage waits for the first, and an open hunt blocks the next hunt.
+// second forage waits for the first; an open hunt does not block a top-up hunt
+// (the count already nets out the designated ones, #2170).
 func TestCommitHuntOverOpenForage(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -136,7 +137,7 @@ func TestCommitHuntOverOpenForage(t *testing.T) {
 	if g, err = s.LoadStandard(ctx, g.Standard.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "hunt-2", acquisitionPlan(t, "hunt-plan-2", "Corpse_Deer")); err == nil {
-		t.Fatal("an open hunt did not block the next hunt")
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "hunt-2", acquisitionPlan(t, "hunt-plan-2", "Corpse_Deer")); err != nil {
+		t.Fatal("an open hunt blocked a top-up hunt (#2170)", err)
 	}
 }

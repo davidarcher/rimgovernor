@@ -256,23 +256,26 @@ func resourceLabor(p observation.ColonyProjection) domain.Fact[float64] {
 	return domain.Known(math.Max(0, budget))
 }
 
-// huntSlots is the hunts a goal may still admit: two outstanding at most, none
-// without a ranged hunter (noHunter).
+// huntSlots is the hunts a goal may still admit: policy.HuntsPerHunter in
+// flight per ranged hunter, none without one (noHunter). The nutrition gap
+// sets how many of them selection takes.
 func huntSlots(projection observation.ColonyProjection) (slots domain.Fact[int], noHunter bool) {
 	slots = domain.Unknown[int]()
-	if n, known := projection.PendingHunts.Value(); known {
-		slots = domain.Known(max(0, 2-n))
-	}
+	pending, pendingKnown := projection.PendingHunts.Value()
 	if pawns, known := projection.WorkPawns.Value(); known {
-		if _, ok := policy.HunterFor(policy.Profiles(pawns)); !ok {
+		profiles := policy.Profiles(pawns)
+		if _, ok := policy.HunterFor(profiles); !ok {
 			return domain.Known(0), true
+		}
+		if pendingKnown {
+			slots = domain.Known(policy.HuntBudget(profiles, pending))
 		}
 	}
 	return slots, false
 }
 
 // acquisitions are the census rows the plan opened for resource, best first:
-// at most maxCatalogSelection rows and the free hunt slots.
+// at most MaxCatalogSelection other rows and the free hunt slots.
 func (s *resourceSupply) acquisitions(resource policy.Resource) []policy.AcquisitionSource {
 	row := s.rows[resource]
 	if row == nil {
@@ -283,7 +286,7 @@ func (s *resourceSupply) acquisitions(resource policy.Resource) []policy.Acquisi
 		byID[source.ID] = source
 	}
 	var out []policy.AcquisitionSource
-	hunts := s.hunts
+	hunts, others := s.hunts, 0
 	for _, e := range s.plan.Opened(resource) {
 		source, ok := byID[e.Candidate.ID]
 		if !ok || !isAcquisitionKind(e.Candidate.Kind) {
@@ -294,11 +297,13 @@ func (s *resourceSupply) acquisitions(resource policy.Resource) []policy.Acquisi
 				continue
 			}
 			hunts--
+		} else {
+			if others == policy.MaxCatalogSelection {
+				continue
+			}
+			others++
 		}
 		out = append(out, source)
-		if len(out) == policy.MaxCatalogSelection {
-			break
-		}
 	}
 	return out
 }

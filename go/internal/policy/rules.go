@@ -22,7 +22,7 @@ type RuleSet struct {
 }
 
 // HuntChainRules derives the rule set from the hunt plan: with a hunter who
-// can take Hunting and a designated hunt prey standing, a hunter who kills
+// can take Hunting and two or more designated hunt prey standing, a hunter who kills
 // moves on to the nearest designated prey instead of hauling its own kill;
 // otherwise the set is empty. known is false while either census is unread,
 // so a Round with no evidence changes nothing.
@@ -35,18 +35,22 @@ func HuntChainRules(sources domain.Fact[[]AcquisitionSource], hunters domain.Fac
 	if _, ok := HunterFor(profiles); !ok {
 		return RuleSet{}, true
 	}
+	designated := 0
 	for _, row := range rows {
 		if row.Hunt && row.Designated {
-			return RuleSet{Rules: []domain.Rule{{
-				ID:         HuntChainRuleID,
-				Trigger:    domain.RulePreyKilled,
-				Predicates: []domain.RulePredicate{domain.RuleActorUndrafted, domain.RuleActorHuntingWorkActive, domain.RuleTargetAvailable},
-				Action:     domain.RuleGiveJob,
-				Job:        "Hunt",
-				Target:     domain.RuleNearestDesignatedPrey,
-				Radius:     huntChainRadius,
-			}}}, true
+			designated++
 		}
 	}
-	return RuleSet{}, true
+	if designated < 2 {
+		return RuleSet{}, true
+	}
+	return RuleSet{Rules: []domain.Rule{{
+		ID:         HuntChainRuleID,
+		Trigger:    domain.RulePreyKilled,
+		Predicates: []domain.RulePredicate{domain.RuleActorUndrafted, domain.RuleActorHuntingWorkActive, domain.RuleTargetAvailable},
+		Action:     domain.RuleGiveJob,
+		Job:        "Hunt",
+		Target:     domain.RuleNearestDesignatedPrey,
+		Radius:     huntChainRadius,
+	}}}, true
 }

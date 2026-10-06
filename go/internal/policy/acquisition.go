@@ -75,7 +75,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 	}
 	if len(huntSlots) == 1 {
 		if n, known := huntSlots[0].Value(); known {
-			if n < 0 || n > 2 {
+			if n < 0 || n > MaxHuntRows {
 				return nil, errors.New("invalid hunting budget")
 			}
 			slots = n
@@ -109,8 +109,9 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 	})
 	remaining := math.Max(0, need-outstanding)
 	selected := []AcquisitionSource{}
+	others := 0
 	for _, row := range rows {
-		if remaining <= 0 || len(selected) == 8 {
+		if remaining <= 0 {
 			break
 		}
 		if row.Designated || held[row.ID] {
@@ -119,12 +120,19 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 		if row.Hunt && (slots == 0 || row.Retaliates()) {
 			continue
 		}
+		// The row cap bounds the non-hunt rows; hunts are bounded by the
+		// hunters' budget (#2170), so their count follows the nutrition gap.
+		if !row.Hunt && others == MaxCatalogSelection {
+			continue
+		}
 		amount, ok := accept(row)
 		if !ok {
 			continue
 		}
 		if row.Hunt {
 			slots--
+		} else {
+			others++
 		}
 		selected = append(selected, row)
 		remaining -= amount
