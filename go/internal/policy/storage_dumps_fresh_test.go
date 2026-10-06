@@ -27,9 +27,10 @@ func TestFreshAnimalCorpseHasAHomeWithoutAFreezerShelf(t *testing.T) {
 				fresh = s
 			case s.Role == domain.RottenDumpRole:
 				rotten = true
-			case strings.HasPrefix(s.Role, domain.CorpsesRolePrefix):
-				shelf = true
 			}
+		}
+		for _, s := range DeclareStores(r).Stores {
+			shelf = shelf || strings.HasPrefix(s.Role, domain.CorpsesRolePrefix)
 		}
 		return
 	}

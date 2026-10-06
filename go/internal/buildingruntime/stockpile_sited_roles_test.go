@@ -63,7 +63,7 @@ func zoneOn(projection *observation.ColonyProjection, id string, stocked bool, c
 // A snapshot over recorded colony facts (#936): with no cold spot and the
 // colony eating 3+ meals a day, the meal stockpile is one cell of the one
 // meal it cooks beside the table, off the chairs. A 2x2 meal shelf of
-// the role is retargeted to that meal, then shrunk to one cell;
+// the role is retargeted to that meal and keeps its size;
 // under 3 meals a day the role retires and the zone goes.
 func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	t.Parallel()
@@ -90,20 +90,15 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	shelf := []domain.Cell{{X: 11, Z: 11}, {X: 11, Z: 12}, {X: 12, Z: 11}, {X: 12, Z: 12}}
 	zoneOn(projection, "Zone_7", false, shelf...)
 	zoneOn(projection, "Zone_7", true, shelf[0])
-	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:Room_4", Filter: mealShelfFilter(), Priority: domain.CriticalPriority}}
+	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:Room_4", Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}}
 	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil, nil)))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileRetarget || review.Edits[0].Filter != simple || review.Edits[0].Zone != "Zone_7" {
 		t.Fatalf("shelf not retargeted: %+v", review)
 	}
 	patches := map[string]store.AppliedStockpile{"Zone_7": {Target: "Zone_7", Kind: domain.StorageZoneTarget, Filter: simple, Priority: domain.CriticalPriority, Role: "meals:Room_4"}}
 	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil)))
-	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileShrink || len(review.Edits[0].Cells) != 3 {
-		t.Fatalf("shelf not shrunk to one cell: %+v", review)
-	}
-	for _, removed := range review.Edits[0].Cells {
-		if removed == shelf[0] {
-			t.Fatal("shrink dropped the stocked cell")
-		}
+	if review.Active {
+		t.Fatalf("a standing store is sized once, never shrunk: %+v", review)
 	}
 
 	few, _ := mealSpotColony(1.6)
@@ -139,7 +134,7 @@ func TestMealSpotMovesIntoTheStandingCloset(t *testing.T) {
 		switch {
 		case e.Kind == policy.StockpileDelete && e.Zone == "Zone_7":
 			deleted = true
-		case e.Kind == policy.StockpileCreate && e.Role == "meals:Room_9" && e.Filter == mealShelfFilter() && len(e.Cells) == 4:
+		case e.Kind == policy.StockpileCreate && e.Role == "meals:Room_9" && e.Filter == domain.MealShelfFilter() && len(e.Cells) == 4:
 			created = true
 		default:
 			t.Fatalf("unexpected edit %+v", e)
@@ -147,33 +142,6 @@ func TestMealSpotMovesIntoTheStandingCloset(t *testing.T) {
 	}
 	if !deleted || !created {
 		t.Fatalf("review %+v", review)
-	}
-}
-
-// A standing freezer with a door into the standing dining room is the cold
-// spot: a 2x2 of every meal at that door.
-func TestMealSpotAtTheFreezerDoor(t *testing.T) {
-	t.Parallel()
-	link := domain.Cell{X: 15, Z: 12}
-	freezer := policy.PlannedRoom{Role: policy.PlannedFreezer, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 9}, DoorRot: domain.North}
-	dining := policy.PlannedRoom{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 16, Z: 10, Width: 9, Height: 7}, Door: domain.Cell{X: 20, Z: 9}, DoorRot: domain.North, Link: &link}
-	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{freezer, dining}}
-	standing := func(id string, r policy.Rectangle) policy.Room {
-		var cells []domain.Cell
-		for x := r.X; x < r.X+r.Width; x++ {
-			for z := r.Z; z < r.Z+r.Height; z++ {
-				cells = append(cells, domain.Cell{X: x, Z: z})
-			}
-		}
-		return policy.Room{ID: id, Enclosed: domain.Known(true), Cells: cells}
-	}
-	rooms := policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{standing("Room_2", freezer.Interior), standing("Room_3", dining.Interior)}}
-	spot, ok := coldMealSpot(plan, rooms)
-	if !ok || spot.room.ID != "Room_2" || spot.size != 4 || spot.anchor != link || spot.filter != mealShelfFilter() {
-		t.Fatalf("spot %+v %v", spot, ok)
-	}
-	if _, ok := coldMealSpot(plan, policy.RoomObservation{Shapes: testPieceShapes, Rooms: rooms.Rooms[:1]}); ok {
-		t.Fatal("cold spot without a standing dining room")
 	}
 }
 

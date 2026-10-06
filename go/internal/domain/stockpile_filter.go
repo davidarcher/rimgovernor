@@ -223,6 +223,16 @@ func RawFoodFilter() StockpileFilter {
 	return f
 }
 
+// MealShelfFilter holds the cooked meals of a cold meal store: the meal
+// closet or the freezer shelf by the dining room.
+func MealShelfFilter() StockpileFilter {
+	f, err := AllowOnlyFilter([]string{"MealFine", "MealLavish", "MealNutrientPaste", "MealSimple", "MealSurvivalPack"})
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
 // RawMeatFilter holds raw meat, never rotten: the freezer's meat shelf.
 func RawMeatFilter() StockpileFilter {
 	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("MeatRaw")}, []FilterSelector{SpecialFilter("AllowRotten")})

@@ -18,8 +18,6 @@ const (
 	// foodSiteSide is the food zone's side: nine cells, the least that
 	// counts as food storage.
 	foodSiteSide int32 = 3
-	// foodSiteCandidates bounds the blocks listed.
-	foodSiteCandidates = 8
 )
 
 // FoodStore is where the food stockpile belongs. Anchor is the cell it sits
@@ -28,11 +26,14 @@ type FoodStore struct {
 	Anchor domain.Cell
 }
 
-// foodSites is the food stockpile: free roofed blocks outside the bedrooms
-// first, then any roofed block, else any free ground, nearest the kitchen.
-func (r StorageRequest) foodSites() []StockpileSite {
+// foodStore is the food stockpile's site: free roofed blocks outside the
+// bedrooms first, then any roofed block, else any free ground, nearest the
+// kitchen. The room is the first tier holding a free block, so a zone standing
+// outdoors moves onto roofed floor; with none free it is the whole map, so a
+// zone already standing stays and an outdoor one is created beside the kitchen.
+func (r StorageRequest) foodStore() (Store, bool) {
 	if r.Food == nil {
-		return nil
+		return Store{}, false
 	}
 	open := newStockpileOpen(StockpileRequest{Bounds: r.Bounds, Cells: r.Cells, Protected: r.Protected})
 	var sleeping map[domain.Cell]bool
@@ -40,33 +41,23 @@ func (r StorageRequest) foodSites() []StockpileSite {
 		sleeping = SleepingRoomCells(domain.Known(*r.Rooms))
 	}
 	roofed := func(c SiteCell) bool { return positive(c.Roofed) }
-	var blocks []Rectangle
+	// The room is the first tier holding a free block, the whole map last.
+	var room []domain.Cell
 	for _, allow := range []func(SiteCell) bool{
 		func(c SiteCell) bool { return roofed(c) && !sleeping[c.Cell] },
 		roofed,
+		nil,
 	} {
-		blocks = append(blocks, openingSites(open, r.Food.Anchor, foodSiteSide, allow, foodSiteCandidates)...)
-	}
-	room := make([]domain.Cell, 0, len(r.Cells))
-	if len(blocks) > 0 {
+		if allow != nil && len(openingSites(open, r.Food.Anchor, foodSiteSide, allow, 1)) == 0 {
+			continue
+		}
 		for _, c := range r.Cells {
-			if roofed(c) {
+			if allow == nil || allow(c) {
 				room = append(room, c.Cell)
 			}
 		}
-	} else {
-		blocks = openingSites(open, r.Food.Anchor, foodSiteSide, nil, foodSiteCandidates)
-		for _, c := range r.Cells {
-			room = append(room, c.Cell)
-		}
+		break
 	}
-	site := StockpileSite{Role: domain.FoodRole, Room: room, Filter: domain.FoodFilter(), Priority: domain.PreferredPriority}
-	seen := map[Rectangle]bool{}
-	for _, block := range blocks {
-		if !seen[block] && len(site.Candidates) < foodSiteCandidates {
-			seen[block] = true
-			site.Candidates = append(site.Candidates, stockpileSorted(rectCells(block)))
-		}
-	}
-	return []StockpileSite{site}
+	site := StoreSite{Role: domain.FoodRole, Width: foodSiteSide, Height: foodSiteSide, Anchor: r.Food.Anchor, Filter: domain.FoodFilter(), Priority: domain.PreferredPriority, room: room}
+	return Store{StoreSite: site}, true
 }

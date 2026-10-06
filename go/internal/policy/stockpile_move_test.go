@@ -12,7 +12,7 @@ func TestFoodSiteAvoidsProtectedCells(t *testing.T) {
 	r, s := foodSiteRequests(domain.Cell{X: 20, Z: 5})
 	s.Protected = rectCells(Rectangle{X: 30, Z: 30, Width: 4, Height: 4})
 	r.Protected = s.Protected
-	r.Sited = PlanStorage(s).Sites
+	r.Stores = DeclareStores(s).Stores
 	for _, c := range foodSiteCreate(t, r).Cells {
 		if c.X >= 30 && c.X < 34 && c.Z >= 30 && c.Z < 34 {
 			t.Fatalf("food sited on reserved ground: %v", c)

@@ -29,33 +29,37 @@ func medicineView(role RoomRole, medical bool) StorageRequest {
 
 // A hospital room gets one medicine zone nearest its medical beds; without
 // a medical bed, a hospital role or the bed census there is none.
-func TestPlanStorageMedicineBesideMedicalBeds(t *testing.T) {
+func TestMedicalStoreBesideMedicalBeds(t *testing.T) {
 	t.Parallel()
-	plan := PlanStorage(medicineView(RoomRoleHospital, true))
-	if len(plan.Sites) != 1 {
-		t.Fatalf("%+v", plan.Sites)
+	view := medicineView(RoomRoleHospital, true)
+	stores := DeclareStores(view).Stores
+	if len(stores) != 1 {
+		t.Fatalf("%+v", stores)
 	}
-	site := plan.Sites[0]
-	if site.Role != domain.MedicineRolePrefix+"ward" || site.Priority != domain.ImportantPriority || len(site.Candidates) == 0 {
+	site := stores[0]
+	if site.Role != domain.MedicineRolePrefix+"ward" || site.Priority != domain.ImportantPriority {
 		t.Fatalf("%+v", site)
 	}
-	for _, c := range site.Candidates[0] {
+	cells := site.Cells(newStockpileOpen(StockpileRequest{Bounds: view.Bounds, Cells: view.Cells, Protected: view.Protected}))
+	if len(cells) != 4 {
+		t.Fatalf("medicine is a 2x2: %v", cells)
+	}
+	for _, c := range cells {
 		if c.X < 13 || c.Z < 13 {
-			t.Fatal("medicine must sit beside the medical beds", site.Candidates[0])
+			t.Fatal("medicine must sit beside the medical beds", cells)
 		}
 	}
 	if f := site.Filter; f.Base() != domain.BaseNothing || len(f.Allow()) != 1 {
 		t.Fatal(f)
 	}
-	if got := PlanStorage(medicineView(RoomRoleHospital, false)).Sites; len(got) != 0 {
+	if got := DeclareStores(medicineView(RoomRoleHospital, false)).Stores; len(got) != 0 {
 		t.Fatalf("no medical bed planned %+v", got)
 	}
-	if got := PlanStorage(medicineView(RoomRoleKitchen, true)).Sites; len(got) != 0 {
+	if got := DeclareStores(medicineView(RoomRoleKitchen, true)).Stores; len(got) != 0 {
 		t.Fatalf("a kitchen planned %+v", got)
 	}
-	view := medicineView(RoomRoleHospital, true)
 	view.Sleeping = nil
-	if got := PlanStorage(view).Sites; len(got) != 0 {
+	if got := DeclareStores(view).Stores; len(got) != 0 {
 		t.Fatalf("unknown beds planned %+v", got)
 	}
 }

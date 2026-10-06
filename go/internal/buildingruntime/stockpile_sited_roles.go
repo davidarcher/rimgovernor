@@ -12,7 +12,6 @@ import (
 //
 //   - meals:<roomID>, the meal stockpile (#872, #936), where cooked meals
 //     keep near the table (findMealSpot): the standing meal closet, whole;
-//     else a 2x2 in the standing freezer at its door into the dining room;
 //     else, while the colony eats at least mealSpotMinPerDay meals a day,
 //     one cell of the one meal it cooks beside the census dining table, off
 //     the chairs, so few meals sit warm. With no spot the role retires.
@@ -26,16 +25,9 @@ import (
 // Both are fixed-size: MaintainStockpiles never grows or merges them, and
 // shrinks a meal zone only to its spot's size.
 
-// mealShelfDefinitions are the cooked meals a cold meal spot accepts.
-var mealShelfDefinitions = []string{"MealFine", "MealLavish", "MealNutrientPaste", "MealSimple", "MealSurvivalPack"}
-
 // mealSpotMinPerDay is the fewest meals a day the colony eats before a
 // warm spot by the table pays: fewer, and the meals wait in the store.
 const mealSpotMinPerDay = 3.0
-
-func mealShelfFilter() domain.StockpileFilter {
-	return allowOnly(mealShelfDefinitions...)
-}
 
 func allowOnly(definitions ...string) domain.StockpileFilter {
 	f, err := domain.AllowOnlyFilter(definitions)
@@ -62,20 +54,18 @@ func init() {
 }
 
 // mealSpot is where the meal stockpile belongs: the room, the meals it
-// holds, its size, and where its cells sit (the whole room, or the cells
-// nearest anchor off avoid).
+// holds, and where its cells sit (the whole room, or the cell nearest anchor
+// off avoid).
 type mealSpot struct {
 	room   policy.Room
 	filter domain.StockpileFilter
-	size   int
 	anchor domain.Cell
 	avoid  []domain.Cell
 	whole  bool
 }
 
 // findMealSpot is the meal stockpile's spot (#936), best first: the
-// standing meal closet; the standing freezer with a door into the standing
-// dining room; one cell by the census dining table while the colony eats
+// standing meal closet; one cell by the census dining table while the colony eats
 // at least mealSpotMinPerDay meals a day. A zero room is no spot; known is
 // false while a fact the choice needs is unknown.
 func findMealSpot(projection *observation.ColonyProjection) (mealSpot, bool) {
@@ -115,43 +105,22 @@ func findMealSpot(projection *observation.ColonyProjection) (mealSpot, bool) {
 	if perDay < mealSpotMinPerDay {
 		return mealSpot{}, true
 	}
-	return mealSpot{room: room, filter: allowOnly(meal), size: 1, anchor: centroid(adjacent), avoid: adjacent}, true
+	return mealSpot{room: room, filter: allowOnly(meal), anchor: centroid(adjacent), avoid: adjacent}, true
 }
 
-// coldMealSpot is the standing meal closet, else the standing planned
-// freezer sharing a door with the standing planned dining room.
+// coldMealSpot is the standing meal closet. The freezer shelf by the dining
+// room is declared from the layout plan (policy.foodOwner).
 func coldMealSpot(plan policy.LayoutPlan, rooms policy.RoomObservation) (mealSpot, bool) {
-	var dining *policy.PlannedRoom
-	for i, planned := range plan.Rooms {
-		switch planned.Role {
-		case policy.PlannedMealCloset:
-			// Census: the meal zone is the room's own cells.
-			if room, ok := policy.CensusRoomIn(planned, rooms); ok && len(room.Cells) > 0 {
-				return mealSpot{room: room, filter: mealShelfFilter(), size: len(room.Cells), whole: true}, true
-			}
-		case policy.PlannedDining:
-			if dining == nil {
-				dining = &plan.Rooms[i]
-			}
+	for _, planned := range plan.Rooms {
+		if planned.Role != policy.PlannedMealCloset {
+			continue
+		}
+		// Census: the meal zone is the room's own cells.
+		if room, ok := policy.CensusRoomIn(planned, rooms); ok && len(room.Cells) > 0 {
+			return mealSpot{room: room, filter: domain.MealShelfFilter(), whole: true}, true
 		}
 	}
-	if dining == nil {
-		return mealSpot{}, false
-	}
-	// Census: the freezer shelves only once dining is a usable room.
-	if _, ok := policy.CensusRoomIn(*dining, rooms); !ok {
-		return mealSpot{}, false
-	}
-	freezer, door, ok := plan.FreezerDoorInto(*dining)
-	if !ok {
-		return mealSpot{}, false
-	}
-	// Census: the meal zone is the room's own cells.
-	room, ok := policy.CensusRoomIn(freezer, rooms)
-	if !ok || len(room.Cells) == 0 {
-		return mealSpot{}, false
-	}
-	return mealSpot{room: room, filter: mealShelfFilter(), size: 4, anchor: door}, true
+	return mealSpot{}, false
 }
 
 // mealsPerDay is the meals the colonists eat a day: their nutrition need
@@ -211,7 +180,7 @@ func storageRequest(projection *observation.ColonyProjection, protected []domain
 		request.Sleeping = &sleeping
 	}
 	if spot, known := findMealSpot(projection); known && spot.room.ID != "" {
-		request.Meals = &policy.MealStore{Room: spot.room, Filter: spot.filter, Size: spot.size, Anchor: spot.anchor, Avoid: spot.avoid, Whole: spot.whole}
+		request.Meals = &policy.MealStore{Room: spot.room, Filter: spot.filter, Anchor: spot.anchor, Avoid: spot.avoid, Whole: spot.whole}
 	}
 	if met, known := projection.Facts.FoodStorage.Value(); !known || !met {
 		anchor, cooking := cookingSpot(projection)

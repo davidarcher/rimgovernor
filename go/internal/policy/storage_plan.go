@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"strings"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -19,9 +17,7 @@ import (
 type MealStore struct {
 	Room   Room
 	Filter domain.StockpileFilter
-	// Size is the zone's cell count: the whole room, 4 or 1.
-	Size int
-	// Anchor and Avoid place a one-cell store: the cells nearest Anchor off
+	// Anchor and Avoid place a one-cell store: the cell nearest Anchor off
 	// Avoid.
 	Anchor domain.Cell
 	Avoid  []domain.Cell
@@ -99,65 +95,9 @@ type StoragePlan struct {
 	Err error
 }
 
-// PlanStorage returns the room demand and the desired storage sites: the meal store, the
-// freezer's raw meat, raw vegetable and corpse shelves and its perishables
-// catch-all, the tomb's corpse store, and the food stockpile beside the
-// kitchen. The dumps stand outdoors while things wait for them.
+// PlanStorage returns the desired storage sites: the dumps, which stand
+// outdoors while things wait for them. Every other store is declared by its
+// department (DeclareStores).
 func PlanStorage(r StorageRequest) StoragePlan {
-	var plan StoragePlan
-	if r.Meals != nil && r.Meals.Room.ID != "" {
-		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
-	}
-	plan.Sites = append(plan.Sites, r.medicineSites()...)
-	shelved := false
-	if r.Layout != nil && r.Rooms != nil {
-		freezer := r.freezerSites()
-		for _, site := range freezer {
-			shelved = shelved || strings.HasPrefix(site.Role, domain.CorpsesRolePrefix)
-		}
-		plan.Sites = append(plan.Sites, freezer...)
-	}
-	plan.Sites = append(plan.Sites, r.foodSites()...)
-	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)
-	return plan
-}
-
-func (r StorageRequest) mealSite(meals MealStore) StockpileSite {
-	site := StockpileSite{Role: domain.MealsRolePrefix + meals.Room.ID, Room: meals.Room.Cells, Filter: meals.Filter, Priority: domain.CriticalPriority, Size: meals.Size}
-	switch {
-	case meals.Whole:
-		site.Candidates = [][]domain.Cell{meals.Room.Cells}
-	case meals.Size == 1:
-		site.Candidates = roomCellSites(meals.Room.Cells, meals.Anchor, r.Cells, append(append([]domain.Cell(nil), r.Protected...), meals.Avoid...))
-	default:
-		site.Candidates, _ = roomStorageSites(meals.Room.Cells, meals.Anchor, r.Bounds, r.Cells, r.Protected)
-	}
-	return site
-}
-
-// freezerSites are dedicated 2x2 shelves nearest the kitchen door, then one
-// lower priority zone over the rest of the freezer taking every perishable.
-func (r StorageRequest) freezerSites() []StockpileSite {
-	room, sites, err := rawFoodStockSites(*r.Layout, *r.Rooms, r.Bounds, r.Cells, r.Protected)
-	if err != nil || room.ID == "" {
-		return nil
-	}
-	var out []StockpileSite
-	for _, shelf := range []struct {
-		prefix string
-		filter domain.StockpileFilter
-	}{{domain.RawMeatRolePrefix, domain.RawMeatFilter()}, {domain.RawVegRolePrefix, domain.RawVegFilter()}, {domain.CorpsesRolePrefix, domain.CorpseLarderFilter()}} {
-		candidates := sites
-		if shelf.prefix == domain.CorpsesRolePrefix {
-			// Carcasses stay by the butcher's door into the freezer.
-			if door, ok := butcheryDoor(*r.Layout); ok {
-				if near, err := roomStorageSites(room.Cells, door, r.Bounds, r.Cells, r.Protected); err == nil && len(near) > 0 {
-					candidates = near
-				}
-			}
-		}
-		out = append(out, StockpileSite{Role: shelf.prefix + room.ID, Room: room.Cells, Filter: shelf.filter, Priority: domain.CriticalPriority, Candidates: candidates})
-	}
-	return append(out, StockpileSite{Role: domain.PerishablesRolePrefix + room.ID, Room: room.Cells, Filter: domain.PerishablesFilter(), Priority: domain.PreferredPriority, Remainder: true,
-		Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}})
+	return StoragePlan{Sites: r.dumpSites(r.freezerStands())}
 }

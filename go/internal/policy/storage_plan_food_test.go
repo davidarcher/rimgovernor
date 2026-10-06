@@ -28,11 +28,11 @@ func foodSiteCreate(t *testing.T, r StockpileRequest) StockpileEdit {
 	return found
 }
 
-// The opening food zone is the planner's: a 3x3 Preferred food stockpile on
+// The opening food zone is the Food department's: a 3x3 Preferred food stockpile on
 // the only roofed floor, created in the colony's first review.
 func TestFoodSiteIsSitedOnRoofedFloorLikeTheOpening(t *testing.T) {
 	r, s := foodSiteRequests(domain.Cell{X: 10, Z: 10})
-	r.Sited = PlanStorage(s).Sites
+	r.Stores = DeclareStores(s).Stores
 	food := foodSiteCreate(t, r)
 	if food.Kind != StockpileCreate || food.Filter != domain.FoodFilter() || food.Priority != domain.PreferredPriority {
 		t.Fatalf("food %+v", food)
@@ -51,7 +51,7 @@ func TestFoodSiteFollowsTheKitchenBeforeAnyRoof(t *testing.T) {
 		r.Cells[i].Roofed = domain.Known(false)
 	}
 	s.Cells = r.Cells
-	r.Sited = PlanStorage(s).Sites
+	r.Stores = DeclareStores(s).Stores
 	food := foodSiteCreate(t, r)
 	for _, c := range food.Cells {
 		if absInt32(c.X-20) > 2 || absInt32(c.Z-5) > 2 {
@@ -74,7 +74,7 @@ func TestFoodSitePrefersRoofedFloorOutsideTheBedrooms(t *testing.T) {
 	}
 	s.Cells = r.Cells
 	s.Rooms = &RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "bed", Cells: bedroom, Role: domain.Known(RoomRoleBedroom)}}}
-	r.Sited = PlanStorage(s).Sites
+	r.Stores = DeclareStores(s).Stores
 	for _, c := range foodSiteCreate(t, r).Cells {
 		if c.X >= 30 {
 			t.Fatalf("food inside the bedroom: %v", c)
@@ -93,7 +93,7 @@ func TestFoodSiteMovesIndoorsOnceAndThenStays(t *testing.T) {
 		{ID: "dump", Role: domain.CorpseDumpRole, Cells: []domain.Cell{{X: 0, Z: 4}}, Filter: domain.CorpseDumpFilter(), Priority: domain.LowPriority},
 		{ID: "food", Role: domain.FoodRole, Cells: outdoor, Filter: domain.FoodFilter(), Priority: domain.PreferredPriority},
 	}
-	r.Sited = PlanStorage(s).Sites
+	r.Stores = DeclareStores(s).Stores
 	var kinds []StockpileEditKind
 	for _, e := range PlanStockpileMaintenance(r).Edits {
 		if e.Role == domain.FoodRole {
@@ -113,7 +113,7 @@ func TestFoodSiteMovesIndoorsOnceAndThenStays(t *testing.T) {
 		}
 	}
 	s.Cells = r.Cells
-	r.Sited = PlanStorage(s).Sites
+	r.Stores = DeclareStores(s).Stores
 	for _, e := range PlanStockpileMaintenance(r).Edits {
 		if e.Role == domain.FoodRole || e.Zone == "food" {
 			t.Fatalf("standing indoor zone touched: %+v", e)
@@ -123,7 +123,7 @@ func TestFoodSiteMovesIndoorsOnceAndThenStays(t *testing.T) {
 
 // No food site is planned once the colony's food storage is met.
 func TestFoodSiteIsAbsentWhenStorageIsMet(t *testing.T) {
-	if sites := PlanStorage(StorageRequest{Bounds: Bounds{Width: 4, Height: 4}}).Sites; len(sites) != 0 {
-		t.Fatalf("%+v", sites)
+	if stores := DeclareStores(StorageRequest{Bounds: Bounds{Width: 4, Height: 4}}).Stores; len(stores) != 0 {
+		t.Fatalf("%+v", stores)
 	}
 }
