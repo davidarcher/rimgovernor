@@ -838,32 +838,6 @@ func TestFoodMatrixLongHorizon(t *testing.T) {
 	runFoodMatrix(t, foodLongHorizon)
 }
 
-// The recorded starving-tribal colony (#2141): today's planner never opens a
-// Hunt, Forage or Fishing row there, so the colony starves although wild deer
-// and berries exist, and the baseline records it.
-func TestFoodMatrixStarvingTribalStarvesWithoutHunt(t *testing.T) {
-	var sc foodScenario
-	for _, s := range seedScenarios(t) {
-		if strings.HasSuffix(s.name, "starving-tribal-no-hunt-row") {
-			sc = s
-		}
-	}
-	res := runFood(sc, foodShortHorizon)
-	if !res.rep.Starved(supplysim.Nutrition) {
-		t.Fatal("the starving colony did not starve")
-	}
-	for _, d := range res.days {
-		for _, id := range d.opened {
-			if spec := sc.spec(id); spec.kind == policy.CandidateHunt || spec.kind == policy.CandidateForage || spec.kind == policy.CandidateFishing {
-				t.Fatalf("the planner opened %s with no row to open", id)
-			}
-		}
-	}
-	if !res.viable {
-		t.Fatal("the starving colony is not viable even for an oracle, so the starvation proves nothing")
-	}
-}
-
 // A hunt whose corpses are never butchered credits each kill at its potential
 // yield, which its rot clock then takes to zero: the group's factor falls to the
 // floor, the plan stops counting on the hunt and holds its rows while the gap

@@ -228,7 +228,7 @@ func validCandidateKind(k CandidateKind) bool {
 
 func validCandidateRisk(k CandidateRiskKind) bool {
 	switch k {
-	case CandidateBlight, CandidateFallout, CandidateFrost, CandidatePower, CandidateRevenge:
+	case CandidateBlight, CandidateFallout, CandidateFrost, CandidateRevenge:
 		return true
 	}
 	return false

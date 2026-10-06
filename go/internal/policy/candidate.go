@@ -63,7 +63,6 @@ const (
 	CandidateBlight  CandidateRiskKind = "Blight"
 	CandidateFallout CandidateRiskKind = "Fallout"
 	CandidateFrost   CandidateRiskKind = "Frost"
-	CandidatePower   CandidateRiskKind = "Power"
 	CandidateRevenge CandidateRiskKind = "Revenge"
 )
 
