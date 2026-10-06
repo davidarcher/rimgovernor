@@ -232,7 +232,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	after, _ := na.AsMap(afterRows[0])
 	afterPawn, _ := na.AsMap(after["pawn"])
-	afterSnapshot, _ := na.AsMap(afterPawn["snapshot"])
+	afterSnapshot, _ := na.AsMap(after["pawnSnapshot"])
 	if drafted, _ := na.AsBool(after["drafted"]); !drafted || int(na.AsNumber(afterPawn["mapId"])) != homeMap ||
 		na.AsString(afterSnapshot["token"]) != na.AsString(job["resultingSnapshotToken"]) {
 		return fmt.Errorf("draft: expected %s drafted on map %d with the receipt's snapshot token, got %v", firstColonist, homeMap, after)

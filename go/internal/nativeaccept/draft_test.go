@@ -10,7 +10,7 @@ func rowContext() map[string]any {
 func pawnRowFixture(drafted bool) map[string]any {
 	snapshot := map[string]any{"entityId": "pawn-1", "token": "tok-1", "context": rowContext()}
 	return map[string]any{
-		"pawn":    map[string]any{"id": "pawn-1", "snapshot": snapshot},
+		"pawn": map[string]any{"id": "pawn-1"}, "pawnSnapshot": snapshot,
 		"drafted": drafted,
 	}
 }
@@ -72,7 +72,7 @@ func draftReply() map[string]any {
 	context := map[string]any{"identity": map[string]any{"colonyId": "colony", "loadToken": "load", "mapId": 0.0}, "tick": "0", "nativeGeneration": "1"}
 	snapshot := map[string]any{"context": deepCopyMap(context), "entityId": "Human1", "token": "token"}
 	row := map[string]any{
-		"pawn": map[string]any{"id": "Human1", "snapshot": snapshot}, "drafted": true,
+		"pawn": map[string]any{"id": "Human1"}, "pawnSnapshot": snapshot, "drafted": true,
 	}
 	return map[string]any{"observed": map[string]any{"context": context, "pawns": []any{row}, "completeness": map[string]any{}}}
 }
@@ -116,8 +116,7 @@ func TestPawnRowRejectsPartialOrFabricatedCorrelation(t *testing.T) {
 			identity, _ := AsMap(context["identity"])
 			pawns := AsSlice(observed["pawns"])
 			row, _ := AsMap(pawns[0])
-			pawn, _ := AsMap(row["pawn"])
-			snapshot, _ := AsMap(pawn["snapshot"])
+			snapshot, _ := AsMap(row["pawnSnapshot"])
 			switch mutation {
 			case "token":
 				snapshot["token"] = ""
@@ -143,8 +142,7 @@ func TestSameControlRejectsASecondTransition(t *testing.T) {
 			after := deepCopyMap(before)
 			switch field {
 			case "token":
-				pawn, _ := AsMap(after["pawn"])
-				snapshot, _ := AsMap(pawn["snapshot"])
+				snapshot, _ := AsMap(after["pawnSnapshot"])
 				snapshot["token"] = "replacement"
 			default:
 				after["drafted"] = false

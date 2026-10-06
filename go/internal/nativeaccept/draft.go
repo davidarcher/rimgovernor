@@ -43,7 +43,7 @@ func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[
 			return nil, fmt.Errorf("expected pawn %q among %d rows", pawnID, len(rows))
 		}
 	}
-	snapshot, _ := AsMap(pawn["snapshot"])
+	snapshot, _ := AsMap(row["pawnSnapshot"])
 	if AsString(snapshot["entityId"]) != AsString(pawn["id"]) || AsString(snapshot["token"]) == "" {
 		return nil, fmt.Errorf("pawn snapshot missing entityId/token: %#v", snapshot)
 	}
@@ -59,7 +59,7 @@ func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[
 // Target builds the EntityTarget{entityId, expectedSnapshotToken} for row.
 func Target(row map[string]any) map[string]any {
 	pawn, _ := AsMap(row["pawn"])
-	snapshot, _ := AsMap(pawn["snapshot"])
+	snapshot, _ := AsMap(row["pawnSnapshot"])
 	return map[string]any{"entityId": pawn["id"], "expectedSnapshotToken": snapshot["token"]}
 }
 

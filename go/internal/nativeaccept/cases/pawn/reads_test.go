@@ -26,7 +26,7 @@ func pawnContext() map[string]any {
 func controlledPawnRow(context map[string]any, drafted bool) map[string]any {
 	ref := map[string]any{"context": copyAny(context), "entityId": "Thing_Human42", "token": "opaque-native-token"}
 	return map[string]any{
-		"pawn":     map[string]any{"id": "Thing_Human42", "mapId": 0.0, "snapshot": ref},
+		"pawn": map[string]any{"id": "Thing_Human42", "mapId": 0.0}, "pawnSnapshot": ref,
 		"colonist": true, "dead": false, "animal": false, "drafted": drafted,
 		"issues": []any{},
 	}
@@ -46,19 +46,18 @@ func TestDraftControlRejectsSnapshotDisappearingOrScopeChange(t *testing.T) {
 		t.Run(fault, func(t *testing.T) {
 			context := pawnContext()
 			row := controlledPawnRow(context, false)
-			pawn, _ := nativeaccept.AsMap(row["pawn"])
 			switch fault {
 			case "missing-snapshot":
-				delete(pawn, "snapshot")
+				delete(row, "pawnSnapshot")
 			case "wrong-pawn":
-				snapshot, _ := nativeaccept.AsMap(pawn["snapshot"])
+				snapshot, _ := nativeaccept.AsMap(row["pawnSnapshot"])
 				snapshot["entityId"] = "other"
 			case "wrong-context":
-				snapshot, _ := nativeaccept.AsMap(pawn["snapshot"])
+				snapshot, _ := nativeaccept.AsMap(row["pawnSnapshot"])
 				snapshotContext, _ := nativeaccept.AsMap(snapshot["context"])
 				snapshotContext["tick"] = "2"
 			default:
-				snapshot, _ := nativeaccept.AsMap(pawn["snapshot"])
+				snapshot, _ := nativeaccept.AsMap(row["pawnSnapshot"])
 				snapshot["token"] = " "
 			}
 			if err := draftControl(row, context); err == nil {
@@ -72,8 +71,7 @@ func TestDraftControlRejectsSnapshotDisappearingOrScopeChange(t *testing.T) {
 // explicit pawn.snapshot issue.
 func animalPawnRow(context map[string]any, reason string) map[string]any {
 	row := controlledPawnRow(context, false)
-	pawn, _ := nativeaccept.AsMap(row["pawn"])
-	delete(pawn, "snapshot")
+	delete(row, "pawnSnapshot")
 	row["colonist"] = false
 	row["animal"] = true
 	row["dead"] = true
@@ -96,8 +94,7 @@ func TestDraftControlUnavailabilityCannotMaskLiveColonistOrInventReason(t *testi
 			row := animalPawnRow(context, "UNAVAILABLE_REASON_NOT_APPLICABLE")
 			switch fault {
 			case "snapshot-present":
-				pawn, _ := nativeaccept.AsMap(row["pawn"])
-				pawn["snapshot"] = map[string]any{}
+				row["pawnSnapshot"] = map[string]any{}
 			case "legacy-unsupported":
 				row = animalPawnRow(context, "UNAVAILABLE_REASON_UNSUPPORTED")
 			default:

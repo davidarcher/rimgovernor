@@ -163,8 +163,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	for _, raw := range animals {
 		row, _ := nativeaccept.AsMap(raw)
-		pawn, _ := nativeaccept.AsMap(row["pawn"])
-		if err := RequireSnapshotStrict(pawn["snapshot"]); err != nil {
+		if err := RequireSnapshotStrict(row["pawnSnapshot"]); err != nil {
 			return fmt.Errorf("animal row missing exact target snapshot: %w", err)
 		}
 	}
@@ -290,7 +289,7 @@ func draftControl(row map[string]any, context any) error {
 	if err := nativeaccept.RequireIdentifier(pawn["id"]); err != nil {
 		return fmt.Errorf("pawn id: %w", err)
 	}
-	if _, present := pawn["snapshot"]; !present {
+	if _, present := row["pawnSnapshot"]; !present {
 		reason := snapshotIssueReason(row)
 		if reason != "UNAVAILABLE_REASON_NOT_APPLICABLE" && reason != "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING" {
 			return fmt.Errorf("a row without a pawn snapshot needs a pawn.snapshot issue, got reason %q", reason)
@@ -304,7 +303,7 @@ func draftControl(row map[string]any, context any) error {
 			return fmt.Errorf("a live current-map animal cannot be blanket %q", reason)
 		}
 	} else {
-		snapshot, _ := nativeaccept.AsMap(pawn["snapshot"])
+		snapshot, _ := nativeaccept.AsMap(row["pawnSnapshot"])
 		if err := RequireSnapshotStrict(snapshot); err != nil {
 			return fmt.Errorf("draftable pawn missing a populated snapshot: %w", err)
 		}
