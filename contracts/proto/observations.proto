@@ -922,7 +922,6 @@ message WasteItem { rimgovernor.common.v1.Ref thing = 1; optional int64 count = 
   // A corpse's inner pawn; unset for non-corpses.
   optional rimgovernor.common.v1.CorpseClass corpse_class = 11; }
 message WasteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WasteItem items = 2; }
-message WasteRequest { ReadScope scope = 1; repeated string unwanted_ids = 2; repeated string bury_ids = 3; }
 message WasteReply { oneof outcome { WasteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RecoveryRestriction { rimgovernor.common.v1.Ref pawn = 1; optional string area_id = 2; optional bool leased = 3; optional int64 until_tick = 4; }
 message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated RecoveryRestriction restrictions = 4; repeated rimgovernor.common.v1.Ref buildings = 7; }
@@ -1308,7 +1307,7 @@ message HuntButcherBill {
 }
 message HuntButcherBench { optional string bench_id = 1; optional bool usable = 2; repeated HuntButcherBill bills = 3; }
 message HuntCensus { repeated HunterFacts hunters = 1; repeated HuntButcherBench benches = 2; }
-message ButcheringFacts { rimgovernor.common.v1.Ref bench = 1; SnapshotRef bench_snapshot = 11; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; repeated rimgovernor.common.v1.Cell human_storage_cells = 8; optional bool human_storage_ready = 9; optional string human_corpse_def = 10; }
+message ButcheringFacts { rimgovernor.common.v1.Ref bench = 1; SnapshotRef bench_snapshot = 11; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; optional string human_corpse_def = 10; }
 message HumanButcherCandidate { reserved 2, 3; reserved "precept_acceptable"; string pawn_id = 1; optional bool can_work = 4; repeated Trait pawn_traits = 5; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
 message ColonyNaming { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; repeated ReadIssue issues = 4; }
@@ -2453,7 +2452,6 @@ service Observations {
   rpc ListWallUpgradeSites(WallUpgradeSitesRequest) returns (WallUpgradeSitesReply);
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);
-  rpc ReadWaste(WasteRequest) returns (WasteReply);
   rpc ReadRecovery(RecoveryRequest) returns (RecoveryReply);
   rpc ReadPopulation(PopulationRequest) returns (PopulationReply);
   rpc ReadWorld(WorldRequest) returns (WorldReply);

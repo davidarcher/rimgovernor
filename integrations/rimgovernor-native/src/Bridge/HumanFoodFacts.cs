@@ -71,21 +71,8 @@ namespace HomeBridge.BridgeTools
             }
             row.HumanCorpseNutrition=CorpseNutrition(bench);
             var corpse=map.listerThings.AllThings.OfType<Corpse>().FirstOrDefault(c=>c.InnerPawn.RaceProps.Humanlike&&c.GetRotStage()==RotStage.Fresh);
-            row.HumanStorageReady=false;
             if(corpse==null)return;
             row.HumanCorpseDef=corpse.def.defName;
-            bool Hidden(IntVec3 c)=>c.Roofed(map)&&c.GetRoom(map)?.ProperRoom==true
-                && people.All(p=>!GenSight.LineOfSight(p.Position,c,map));
-            row.HumanStorageReady=map.zoneManager.AllZones.OfType<Zone_Stockpile>()
-                .Any(z=>z.GetStoreSettings().AllowedToAccept(corpse)&&z.Cells.Count>=6&&z.Cells.All(Hidden));
-            if(row.HumanStorageReady || !people.Any(p=>CanButcher(p,bench)))return;
-            foreach(var cell in GenRadial.RadialCellsAround(bench.Position,35,true)) {
-                var cells=CellRect.CenteredOn(cell,3,2).Cells.ToList();
-                if(cells.Count!=6||!cells.All(c=>c.InBounds(map)&&!c.Fogged(map)&&c.Standable(map)&&c.GetEdifice(map)==null
-                    &&map.zoneManager.ZoneAt(c)==null&&c.GetThingList(map).All(t=>t.def.category!=ThingCategory.Item)
-                    &&Hidden(c)&&people.Any(p=>CanButcher(p,bench)&&p.CanReach(c,PathEndMode.OnCell,Danger.None))))continue;
-                row.HumanStorageCells.Add(cells.Select(c=>new Common.Cell{X=c.x,Z=c.z}));break;
-            }
         }
     }
 }

@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
 {
     // GiveJobIntent DropWeapon (#1740): the colonist drops the weapon in its
     // hands, the job a player's float-menu "Drop" click on a held weapon
-    // gives. DropWeapon is this protocol's own token (like HaulWaste), not a
+    // gives. DropWeapon is this protocol's own token, not a
     // JobDef name: the JobDef is found at runtime as the one whose driver is
     // JobDriver_DropEquipment, so no def name is written here. Like Equip it
     // applies no draft gate. Checked live at apply; a pawn already running the

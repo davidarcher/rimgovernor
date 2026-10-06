@@ -168,7 +168,7 @@ namespace HomeBridge.BridgeTools
                     {
                         bool fresh = target is Pawn targetPawn
                             ? NativePawnControlState.Check(identity, targetPawn, order.Attack.ExpectedSnapshotToken, out _) == NativePawnControlResult.Ready
-                            : NativeWasteOperations.Token(colony, target) == order.Attack.ExpectedSnapshotToken;
+                            : NativeObservationTools.Token(colony, target) == order.Attack.ExpectedSnapshotToken;
                         if (!fresh) return "stale_snapshot";
                     }
                     if (!NativeCombatOperations.Legal(pawn, target, out var definition, out var verb) || definition == null) return "cannot_hit";

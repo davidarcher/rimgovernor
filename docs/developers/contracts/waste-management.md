@@ -9,7 +9,7 @@ own: `MorgueWaiting` and `RouteStranger` read it, and the Sanitation concerns
 
 ## Read
 
-`Observations.ReadWaste` returns current-map item identities, native rot stage, protection reason,
+The colony read's waste census (`WasteReply`) returns current-map item identities, native rot stage, protection reason,
 position and containment.
 
 - Grave occupants stay visible as protected `buried` bodies.

@@ -502,11 +502,6 @@ message DraftIntent { optional string pawn_id = 1; optional bool drafted = 2; }
 //   colonist services it with the game's own WorkGiver job (the turret
 //   rearm giver included for Refuel), refused once it is fixed or holds a
 //   quarter of its target fuel.
-//   HaulWaste: targets [item]; an undrafted colonist hauls one exposed waste
-//   item (spoiled, a rotting corpse, or with options.unwanted one the caller
-//   declares unwanted) to a separated dirty outdoor stockpile or an empty
-//   grave with the game's Hauling WorkGiver job. Protected items
-//   (forbidden, quest, hazardous, named or colony corpses) are refused.
 // options.relieve_need with no job offers an undrafted colonist the job its
 // own need giver issues for that deficient need (food, rest, recreation);
 // the giver picks the target, a timetable or medical rest refuses it.
@@ -515,7 +510,7 @@ message DraftIntent { optional string pawn_id = 1; optional bool drafted = 2; }
 // the first work giver the pawn may do that builds exactly this JobDef on
 // targets[0] with forced set builds it, and the pawn takes it as a
 // player-forced order.
-message GiveJobOptions { optional bool prioritized = 1; optional Need relieve_need = 2; optional bool unwanted = 3; }
+message GiveJobOptions { optional bool prioritized = 1; optional Need relieve_need = 2; }
 message GiveJobIntent {
   rimgovernor.common.v1.Ref pawn = 1;
   optional string job = 2;

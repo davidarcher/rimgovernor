@@ -5886,11 +5886,6 @@ func (x *DraftIntent) GetDrafted() bool {
 //	colonist services it with the game's own WorkGiver job (the turret
 //	rearm giver included for Refuel), refused once it is fixed or holds a
 //	quarter of its target fuel.
-//	HaulWaste: targets [item]; an undrafted colonist hauls one exposed waste
-//	item (spoiled, a rotting corpse, or with options.unwanted one the caller
-//	declares unwanted) to a separated dirty outdoor stockpile or an empty
-//	grave with the game's Hauling WorkGiver job. Protected items
-//	(forbidden, quest, hazardous, named or colony corpses) are refused.
 //
 // options.relieve_need with no job offers an undrafted colonist the job its
 // own need giver issues for that deficient need (food, rest, recreation);
@@ -5904,7 +5899,6 @@ type GiveJobOptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Prioritized   *bool                  `protobuf:"varint,1,opt,name=prioritized,proto3,oneof" json:"prioritized,omitempty"`
 	RelieveNeed   *Need                  `protobuf:"varint,2,opt,name=relieve_need,json=relieveNeed,proto3,enum=rimgovernor.operations.v1.Need,oneof" json:"relieve_need,omitempty"`
-	Unwanted      *bool                  `protobuf:"varint,3,opt,name=unwanted,proto3,oneof" json:"unwanted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5951,13 +5945,6 @@ func (x *GiveJobOptions) GetRelieveNeed() Need {
 		return *x.RelieveNeed
 	}
 	return Need_NEED_UNSPECIFIED
-}
-
-func (x *GiveJobOptions) GetUnwanted() bool {
-	if x != nil && x.Unwanted != nil {
-		return *x.Unwanted
-	}
-	return false
 }
 
 type GiveJobIntent struct {
@@ -9237,14 +9224,12 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"\b_pawn_idB\n" +
 	"\n" +
-	"\b_drafted\"\xcf\x01\n" +
+	"\b_drafted\"\xa1\x01\n" +
 	"\x0eGiveJobOptions\x12%\n" +
 	"\vprioritized\x18\x01 \x01(\bH\x00R\vprioritized\x88\x01\x01\x12G\n" +
-	"\frelieve_need\x18\x02 \x01(\x0e2\x1f.rimgovernor.operations.v1.NeedH\x01R\vrelieveNeed\x88\x01\x01\x12\x1f\n" +
-	"\bunwanted\x18\x03 \x01(\bH\x02R\bunwanted\x88\x01\x01B\x0e\n" +
+	"\frelieve_need\x18\x02 \x01(\x0e2\x1f.rimgovernor.operations.v1.NeedH\x01R\vrelieveNeed\x88\x01\x01B\x0e\n" +
 	"\f_prioritizedB\x0f\n" +
-	"\r_relieve_needB\v\n" +
-	"\t_unwanted\"\xb1\x02\n" +
+	"\r_relieve_need\"\xb1\x02\n" +
 	"\rGiveJobIntent\x12.\n" +
 	"\x04pawn\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12\x15\n" +
 	"\x03job\x18\x02 \x01(\tH\x00R\x03job\x88\x01\x01\x124\n" +

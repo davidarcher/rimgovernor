@@ -186,7 +186,7 @@ namespace HomeBridge.BridgeTools
             foreach (var building in HostileBuildings(map, player)) {
                 var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
                     HitPoints = building.HitPoints, MaxHitPoints = building.MaxHitPoints };
-                row.BuildingSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = NativeWasteOperations.Token(context.Identity, building) };
+                row.BuildingSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = Token(context.Identity, building) };
                 if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
                 var rect = building.OccupiedRect();
                 row.Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) };
@@ -358,15 +358,36 @@ namespace HomeBridge.BridgeTools
             if (thing.MapHeld != null) { row.MapId=thing.MapHeld.uniqueID; row.Position=Cell(thing.PositionHeld.x,thing.PositionHeld.z); }
             return row;
         }
+        // Self-computed, self-checked CAS token for one thing; the hash input
+        // is a wire contract (observation rows and combat orders compare it).
+        internal static string Token(Common.Identity identity, Thing thing)
+        {
+            var rot = thing.TryGetComp<CompRottable>();
+            var corpse = thing as Corpse;
+            using (var bytes = new System.IO.MemoryStream())
+            {
+                using (var writer = new System.IO.BinaryWriter(bytes, Encoding.UTF8, true))
+                {
+                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
+                    writer.Write(thing.GetUniqueLoadID()); writer.Write(thing.def.defName);
+                    writer.Write(thing.Position.x); writer.Write(thing.Position.z); writer.Write(thing.stackCount);
+                    writer.Write(thing.IsForbidden(Faction.OfPlayer)); writer.Write(rot?.Stage.ToString() ?? "");
+                    writer.Write(corpse?.InnerPawn?.Faction?.GetUniqueLoadID() ?? "");
+                    writer.Write(corpse?.InnerPawn?.Name?.ToStringFull ?? "");
+                }
+                using (var hash = System.Security.Cryptography.SHA256.Create())
+                    return "waste-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
+            }
+        }
         // ThingRow is the one thing row builder (#1343): the cells read's
         // things and the bundle's things table. Each row carries the thing's
-        // own CAS token via NativeWasteOperations.Token, the same
-        // self-computed hash NativeWasteOperations.Prepare checks.
+        // own CAS token via Token, the self-computed hash a combat order
+        // checks.
         internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
             var entity = Entity(thing);
             var row = new Obs.Thing {
-                Thing_ = entity, Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) }, StackCount = thing.stackCount,
+                Thing_ = entity, Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = Token(context.Identity, thing) }, StackCount = thing.stackCount,
                 Forbidden = thing.IsForbidden(Faction.OfPlayer),
             };
             // The stuff a thing is made of keys its catalog stat row (def, stuff).

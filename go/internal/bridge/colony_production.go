@@ -62,7 +62,7 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		if b == nil {
 			return contract("nil butcher bench")
 		}
-		if len(b.HumanStorageCells) > 6 || !combatNumber(b.HumanCorpseNutrition, true) {
+		if !combatNumber(b.HumanCorpseNutrition, true) {
 			return contract("invalid human butchery census")
 		}
 		workers := map[string]bool{}
@@ -75,11 +75,6 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 				if validID(trait.GetDefName()) != nil {
 					return contract("invalid butcher trait")
 				}
-			}
-		}
-		for _, cell := range b.HumanStorageCells {
-			if !colonyCell(cell, v.MapSize) {
-				return contract("invalid human corpse storage")
 			}
 		}
 		if b.HumanCorpseDef != nil && validID(b.GetHumanCorpseDef()) != nil {
