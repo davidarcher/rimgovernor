@@ -491,7 +491,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if incineration {
-			incinerationNative, ok := reads.(buildingruntime.RoundsWasteSource)
+			incinerationNative, ok := reads.(buildingruntime.RoundsIncinerationSource)
 			if !ok {
 				return nil, errors.New("incineration plans require typed colony and tend observations")
 			}

@@ -18,12 +18,11 @@ type roundsClearanceNative struct {
 	*roundsBlightNative
 	rows     []*o.ClearanceTarget
 	chunks   []*o.ClearanceChunk
-	sites    []*c.Cell
 	previews []domain.ZoneCreate
 }
 
 func (n *roundsClearanceNative) ReadClearanceTargets(_ context.Context, _ *c.Identity, _ bool) (*o.ClearanceTargetsReply, bridge.Result, error) {
-	return &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: &o.ClearanceTargetsSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.rows, Chunks: n.chunks, DumpSites: n.sites}}}, bridge.Result{}, nil
+	return &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: &o.ClearanceTargetsSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.rows, Chunks: n.chunks}}}, bridge.Result{}, nil
 }
 func (n *roundsClearanceNative) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error) {
 	n.previews = append(n.previews, target)
@@ -133,9 +132,6 @@ func TestRoundsClearanceRefusesPendingChunksWithoutAStore(t *testing.T) {
 	}
 
 	source.chunks = append(source.chunks, clearanceChunk("loose", 42, 40, false, false, false), clearanceChunk("banned", 43, 40, true, false, false))
-	for x := int32(50); x < 60; x++ {
-		source.sites = append(source.sites, &c.Cell{X: proto.Int32(x), Z: proto.Int32(60)})
-	}
 	if review, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

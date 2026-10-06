@@ -121,13 +121,9 @@ func ObserveClearanceCensusOnGround(ctx context.Context, source ClearanceSource,
 	for _, row := range v.Chunks {
 		chunks = append(chunks, ClearanceChunk{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Forbidden: row.GetForbidden(), Stored: row.GetStored(), Destination: row.GetDestination()})
 	}
-	sites := make([]domain.Cell, 0, len(v.DumpSites))
-	for _, cell := range v.DumpSites {
-		sites = append(sites, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-	}
 	floors := make([]policy.ClearanceFloor, 0, len(v.Floors))
 	for _, row := range v.Floors {
 		floors = append(floors, policy.ClearanceFloor{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, DefName: row.GetDefName(), Designated: row.GetDesignated()})
 	}
-	return domain.Known(ClearanceCensus{Targets: rows, Chunks: chunks, DumpSites: sites, Floors: floors}), ctx.Err()
+	return domain.Known(ClearanceCensus{Targets: rows, Chunks: chunks, Floors: floors}), ctx.Err()
 }

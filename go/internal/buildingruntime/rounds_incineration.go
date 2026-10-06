@@ -25,7 +25,7 @@ var incinerationDefinitions = []string{"Wall", "Door"}
 // and cleaner eligibility.
 type RoundsIncinerationPlanner struct {
 	reviewer *Rounder
-	native   RoundsWasteSource
+	native   RoundsIncinerationSource
 	// building shells the rooms; nil for a source that cannot preview
 	// buildings.
 	building *RoundsBuildingPlanner
@@ -36,7 +36,7 @@ type RoundsIncinerationResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoundsIncinerationPlanner(reviewer *Rounder, native RoundsWasteSource) (*RoundsIncinerationPlanner, error) {
+func NewRoundsIncinerationPlanner(reviewer *Rounder, native RoundsIncinerationSource) (*RoundsIncinerationPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsIncinerationPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -115,10 +115,10 @@ func (r *RoundsIncinerationPlanner) step(call, epoch context.Context, arbiter *s
 	return RoundsIncinerationResult{Verdict: waitFor(WaitMethodUsed, "incineration")}, nil
 }
 
-// RoundsWasteSource reuses the generic colony read for the waste census
+// RoundsIncinerationSource reuses the generic colony read for the waste census
 // and the existing tend pawn read for burner and cleaner eligibility: dead, downed, drafted and mental
 // state only . No new native call is introduced for this slice.
-type RoundsWasteSource interface {
+type RoundsIncinerationSource interface {
 	observation.ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
@@ -126,7 +126,7 @@ type RoundsWasteSource interface {
 
 // colonistRows are the detail rows of every colonist, in one tend-pawn read;
 // ok is false while the colonist list is incomplete or empty.
-func colonistRows(call context.Context, native RoundsWasteSource, state ControlState, review store.Rounds) ([]*n.PawnState, bool, error) {
+func colonistRows(call context.Context, native RoundsIncinerationSource, state ControlState, review store.Rounds) ([]*n.PawnState, bool, error) {
 	identityRef := boundary.Identity(state.Snapshot)
 	emergency, _, err := native.ReadEmergency(call, identityRef)
 	if err != nil {

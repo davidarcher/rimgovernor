@@ -67,21 +67,15 @@ namespace HomeBridge.BridgeTools
                     began = Now();
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
                     snapshot.Floors.AddRange(floors);
-                    var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                     var salvage = parsed.IncludeSalvage ? SalvageRead.Begin(map) : null;
-                    var undelivered = new List<Thing>();
                     foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
                         if (!chunk.Position.InBounds(map) || chunk.Position.Fogged(map)) continue;
                         var forbidden = chunk.IsForbidden(player);
                         var stored = chunk.IsInValidStorage();
                         var destination = !stored && StoreUtility.TryFindBestBetterStoreCellFor(chunk, null, map, StoreUtility.CurrentStoragePriorityOf(chunk), player, out _, false);
                         snapshot.Chunks.Add(new Obs.ClearanceChunk { EntityId = Id(chunk.GetUniqueLoadID()), DefName = Id(chunk.def.defName), Cell = Cell(chunk.Position.x, chunk.Position.z), Forbidden = forbidden, Stored = stored, Destination = destination });
-                        if (!forbidden && !stored && !destination) undelivered.Add(chunk);
                     }
                     ObservationWork.Captured("clearanceChunks", Now() - began, snapshot.Chunks.Count, chunks.Count);
-                    began = Now();
-                    if (undelivered.Count > 0) snapshot.DumpSites.AddRange(DumpSites(map, home, undelivered, haulers).Select(c => Cell(c.x, c.z)));
-                    ObservationWork.Captured("clearanceDumpSites", Now() - began, snapshot.DumpSites.Count);
                     long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
                     began = Now();
                     var triggers = TempleTriggers(map);
@@ -134,14 +128,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // DumpSites floods outward from the free outdoor Home cell nearest the
-        // undelivered chunks' centroid over the cells a dumping stockpile can
-        // take (in Home, psychologically outdoors, standable, unzoned, no
-        // building, blueprint, frame or item, not marked to collapse, reachable
-        // and unforbidden for an eligible hauler) and returns the first
-        // connected footprint of up to dumpSiteCells cells, or nothing when no
-        // hauler exists or no cell qualifies. The flood is bounded so a wide
-        // Home costs a bounded number of reachability checks.
         // yields memoizes, per def within one read, the probe item and its storage
         // headroom: neither depends on the building, so repeat ruins are cheap.
         private static Obs.SalvageEvidence Salvage(Map map, Building building, EventLootFacts.HaulingSafety safety, Dictionary<ThingDef, (Thing item, long headroom)> yields)
@@ -344,33 +330,6 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private const int dumpSiteCells = 16;
-        private const int dumpSiteFloodBound = 512;
-        private static List<IntVec3> DumpSites(Map map, Area home, List<Thing> chunks, List<Pawn> haulers)
-        {
-            var result = new List<IntVec3>();
-            if (haulers.Count == 0) return result;
-            bool Free(IntVec3 c) => c.InBounds(map) && home[c] && !c.Fogged(map) && c.Standable(map)
-                && c.GetRoom(map)?.PsychologicallyOutdoors == true
-                && !map.roofCollapseBuffer.IsMarkedToCollapse(c)
-                && map.zoneManager.ZoneAt(c) == null && c.GetEdifice(map) == null && NativeZoneCreation.StorageEmpty(c, map);
-            bool Reachable(IntVec3 c) => haulers.Any(h => !c.IsForbidden(h) && h.CanReach(c, PathEndMode.OnCell, Danger.None));
-            var centroid = new IntVec3((int)chunks.Average(t => t.Position.x), 0, (int)chunks.Average(t => t.Position.z));
-            var seed = GenRadial.RadialCellsAround(centroid, 20, true).Where(c => Free(c) && Reachable(c)).Cast<IntVec3?>().FirstOrDefault();
-            if (seed == null) return result;
-            var seen = new HashSet<IntVec3> { seed.Value };
-            var queue = new Queue<IntVec3>();
-            queue.Enqueue(seed.Value);
-            while (queue.Count > 0 && result.Count < dumpSiteCells && seen.Count < dumpSiteFloodBound) {
-                var cell = queue.Dequeue();
-                result.Add(cell);
-                foreach (var next in GenAdj.CardinalDirections.Select(d => cell + d)) {
-                    if (!seen.Add(next) || !Free(next) || !Reachable(next)) continue;
-                    queue.Enqueue(next);
-                }
-            }
-            return result;
-        }
 
         // PlannedCells clips the requested rectangles to the map and merges
         // them, so overlapping rectangles visit each cell once.

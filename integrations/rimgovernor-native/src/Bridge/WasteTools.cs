@@ -37,12 +37,12 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static string? Kind(Thing thing, HashSet<string> unwanted)
+        private static string? Kind(Thing thing)
         {
             var rot = thing.TryGetComp<CompRottable>();
             if (thing is Corpse && rot != null && rot.Stage != RotStage.Fresh) return "corpse";
             if (!(thing is Corpse) && rot != null && rot.Stage != RotStage.Fresh) return "spoiled";
-            return unwanted.Count > 0 && unwanted.Contains(Id(thing)) ? "unwanted" : null;
+            return null;
         }
 
         // A conservative separation contract, not a claim that any outdoor dump is harmless.
@@ -76,7 +76,6 @@ namespace HomeBridge.BridgeTools
         // than the 256 the Go contract admits leave the section unavailable.
         internal static Obs.WasteReply Project(Map map, Common.ObservationContext context)
         {
-            var empty = new HashSet<string>();
             var items = new List<Obs.WasteItem>();
             // Filter before sorting (#1273): the stable sort of the few kept
             // rows orders them exactly as sorting every thing's load ID did,
@@ -85,7 +84,7 @@ namespace HomeBridge.BridgeTools
             foreach (var thing in map.listerThings.AllThings)
             {
                 if (thing.Position.Fogged(map)) continue;
-                var kind = Kind(thing, empty);
+                var kind = Kind(thing);
                 if (kind == null && !(thing is Corpse)) continue;
                 kept.Add(new KeyValuePair<Thing, string?>(thing, kind));
             }

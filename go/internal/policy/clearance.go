@@ -47,11 +47,10 @@ type ClearanceChunk struct {
 }
 
 // ClearanceCensus is one native clearance read: the buildings, the chunks
-// and the free outdoor Home footprint.
+// in Home.
 type ClearanceCensus struct {
 	Targets   []ClearanceTarget
 	Chunks    []ClearanceChunk
-	DumpSites []domain.Cell
 	// Floors are the constructed floor cells on the planned ground the read
 	// asked for (#1365); none without it.
 	Floors []ClearanceFloor

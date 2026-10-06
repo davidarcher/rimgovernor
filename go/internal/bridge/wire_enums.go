@@ -20,7 +20,7 @@ var (
 	medicalCareNames = invert(medicalCareWire)
 	hostilityNames   = invert(hostilityWire)
 	passionNames     = map[ob.Passion]string{ob.Passion_PASSION_NONE: "None", ob.Passion_PASSION_MINOR: "Minor", ob.Passion_PASSION_MAJOR: "Major"}
-	wasteKindNames   = map[ob.WasteKind]string{ob.WasteKind_WASTE_KIND_CORPSE: "corpse", ob.WasteKind_WASTE_KIND_SPOILED: "spoiled", ob.WasteKind_WASTE_KIND_UNWANTED: "unwanted"}
+	wasteKindNames   = map[ob.WasteKind]string{ob.WasteKind_WASTE_KIND_CORPSE: "corpse", ob.WasteKind_WASTE_KIND_SPOILED: "spoiled"}
 	repeatModeNames  = map[o.RepeatMode]string{o.RepeatMode_REPEAT_MODE_FOREVER: "Forever", o.RepeatMode_REPEAT_MODE_COUNT: "RepeatCount", o.RepeatMode_REPEAT_MODE_TARGET: "TargetCount"}
 	fireModeNames    = map[o.CombatFireMode]string{o.CombatFireMode_COMBAT_FIRE_MODE_AT_WILL: "fire_at_will", o.CombatFireMode_COMBAT_FIRE_MODE_HOLD: "hold_fire"}
 	routeKindNames   = map[ob.RouteFacilityKind]string{ob.RouteFacilityKind_ROUTE_FACILITY_KIND_BED: "bed", ob.RouteFacilityKind_ROUTE_FACILITY_KIND_BENCH: "bench", ob.RouteFacilityKind_ROUTE_FACILITY_KIND_STORAGE: "storage", ob.RouteFacilityKind_ROUTE_FACILITY_KIND_DINING: "dining", ob.RouteFacilityKind_ROUTE_FACILITY_KIND_DEFENSE: "defense", ob.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE: "stockpile"}
@@ -44,7 +44,7 @@ func HostilityName(h o.HostilityResponse) domain.HostilityResponse { return host
 // PassionName is the vanilla Passion name ("None", "Minor", "Major").
 func PassionName(p ob.Passion) string { return passionNames[p] }
 
-// WasteKindName is policy's waste kind ("corpse", "spoiled", "unwanted").
+// WasteKindName is policy's waste kind ("corpse", "spoiled").
 func WasteKindName(k ob.WasteKind) string { return wasteKindNames[k] }
 
 // RepeatModeName is the vanilla BillRepeatModeDef name of a repeat mode.

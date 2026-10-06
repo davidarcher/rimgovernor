@@ -72,13 +72,6 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 		}
 		chunks[row.GetEntityId()] = true
 	}
-	sites := map[[2]int32]bool{}
-	for _, cell := range v.DumpSites {
-		if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 || sites[[2]int32{cell.GetX(), cell.GetZ()}] {
-			return contract("invalid clearance dump site")
-		}
-		sites[[2]int32{cell.GetX(), cell.GetZ()}] = true
-	}
 	seen := map[string]bool{}
 	for _, row := range v.Targets {
 		if row == nil || validID(row.GetEntityId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetEntityId()] || row.Deconstructible == nil || !row.GetDeconstructible() || row.InHome == nil || row.AncientDanger == nil || row.Designated == nil {

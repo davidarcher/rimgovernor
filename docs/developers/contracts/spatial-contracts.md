@@ -343,10 +343,7 @@ every occupied cell is in Home, sealed ancient-danger membership, and the curren
 deconstruct designation with controller ownership.
 
 Haulable rock chunks and slag are items, never targets. The same read lists them as
-`chunks` (every chunk-category stack on a Home cell, bounded to 256) and, only while
-some allowed, unstored chunk has no destination, `dump_sites`: one connected footprint
-of up to 16 free Home cells flooded from the nearest such cell within 20 of those
-chunks' centroid, on which a dumping stockpile can be made.
+`chunks` (every chunk-category stack on a Home cell, bounded to 256).
 
 A missing roof blocker means removing this building alone preserves roof support;
 blocked or unknown geometry carries a reason. It does not authorize removal, prove

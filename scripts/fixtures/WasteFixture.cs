@@ -66,11 +66,8 @@ namespace HomeBridge.BridgeTools
                 PlaceSomewhere(corpse);
                 corpse.TryGetComp<CompRottable>().RotProgress = 200000f;
                 corpse.SetForbidden(false, false);
-                var unwanted = (Thing)PlaceSomewhere(ThingMaker.MakeThing(ThingDefOf.WoodLog));
-                unwanted.SetForbidden(false, false);
                 var protectedItem = (Thing)PlaceSomewhere(ThingMaker.MakeThing(ThingDefOf.Steel));
                 protectedItem.SetForbidden(true, false);
-                var unwantedCell = unwanted.Position;
                 var protectedCell = protectedItem.Position;
                 if (burial)
                 {
@@ -87,7 +84,6 @@ namespace HomeBridge.BridgeTools
                     zone.AddCell(destination + IntVec3.East);
                     zone.GetStoreSettings().filter.SetDisallowAll();
                     zone.GetStoreSettings().filter.SetAllow(corpse.def, true);
-                    zone.GetStoreSettings().filter.SetAllow(unwanted.def, true);
                     foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable))
                         zone.GetStoreSettings().filter.SetAllow(special, true);
                     zone.GetStoreSettings().Priority = StoragePriority.Critical;
@@ -96,12 +92,12 @@ namespace HomeBridge.BridgeTools
                     foreach (var cell in zone.Cells) map.areaManager.Home[cell] = false;
                 }
                 // Disable Hauling for every colonist (including the returned
-                // pawn), not enable it: the native ManageWaste dispatch under
+                // pawn), not enable it: the incineration dispatch under
                 // test issues its own forced WorkGiver_Scanner job directly
                 // (TryTakeOrderedJob), bypassing work settings entirely, so
                 // no colonist's own priority needs to be enabled for it. Left
                 // enabled, a live run observed the normal think-tree grab
-                // this exact unforbidden corpse/WoodLog into the dumping
+                // this exact unforbidden corpse into the dumping
                 // stockpile within the same handful of ticks fixture setup
                 // itself consumes, before the acceptance tool ever issues its
                 // own dispatch -- disabling it here removes that race.
@@ -111,14 +107,12 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken,
                     mapId = map.uniqueID, tick = Find.TickManager.TicksGame,
                     pawn = pawn.GetUniqueLoadID(), corpse = corpse.GetUniqueLoadID(),
-                    unwanted = unwanted.GetUniqueLoadID(), protectedItem = protectedItem.GetUniqueLoadID(),
+                    protectedItem = protectedItem.GetUniqueLoadID(),
                     source = BridgeCommon.Pos(source), destination = BridgeCommon.Pos(destination),
-                    // The corpse, the unwanted WoodLog and the forbidden
-                    // Steel can each land on a different candidate cell (see
-                    // PlaceSomewhere above); report the WoodLog's and Steel's
-                    // actual resulting cells so the acceptance tool scans
-                    // exactly where they really are, not a guessed "source".
-                    unwantedCell = BridgeCommon.Pos(unwantedCell), protectedCell = BridgeCommon.Pos(protectedCell) };
+                    // The forbidden Steel may land on a different candidate cell
+                    // than "source" (see PlaceSomewhere above); report its actual
+                    // cell so the acceptance tool scans exactly where it is.
+                    protectedCell = BridgeCommon.Pos(protectedCell) };
             }, cancellationToken);
 
         // Burial ranking acceptance (#2196): a morgue zone at MorguePriority

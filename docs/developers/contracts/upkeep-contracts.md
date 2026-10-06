@@ -196,12 +196,8 @@ Home at a time, nearest the colony center first.
   cleaning, and shared emergency admission still wins. Each skipped target and reason
   is recorded in `ClearanceHolds`.
 - Chunks are hauls: an allowed, unstored chunk stack in Home with no store cell
-  ordinary hauling would use is a clearance deficit. Once no building target remains
-  the planner admits one low-priority `Dumping` stockpile (allow list: pending chunk
-  definitions plus `ChunkSlagSteel`) on the census's `dump_sites` footprint outside held
-  building footprints, one cell per pending stack, 4 to 16. The method is
-  content-addressed by cells and allow list. Forbidden chunks are the supply safety
-  policy's.
+  ordinary hauling would use is a clearance deficit; no stockpile is created for it.
+  Forbidden chunks are the supply safety policy's.
 - `ClearAncientShrine` (the `shrine` family) holds the clearance concern while it has work
   (see the breach concern in `controller-contracts.md`).
 - Unknown observations preserve the previous need. Recovery needs no eligible candidate

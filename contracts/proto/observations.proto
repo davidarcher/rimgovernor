@@ -98,15 +98,10 @@ message ClearanceTargetsRequest {
   bool include_salvage = 2;
   repeated Rectangle planned_ground = 3;
 }
-// dump_sites is a bounded connected footprint of free, outdoor, unzoned,
-// hauler-reachable Home cells near the chunks lacking a destination on which
-// a dumping stockpile could be made; empty when no such chunk exists, no
-// hauler exists or no cell qualifies.
 message ClearanceTargetsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;
   repeated ClearanceTarget targets = 2;
   repeated ClearanceChunk chunks = 4;
-  repeated rimgovernor.common.v1.Cell dump_sites = 5;
   repeated ClearanceFloor floors = 6; // Only cells inside the request's planned_ground.
 }
 message ClearanceTargetsReply { oneof outcome {
@@ -567,9 +562,8 @@ enum BreakRisk { BREAK_RISK_UNSPECIFIED = 0; BREAK_RISK_NONE = 1; BREAK_RISK_MIN
 // HolderKind is what holds a held stack: a building container, a corpse's
 // inventory, a living pawn's inventory or its carry tracker.
 enum HolderKind { HOLDER_KIND_UNSPECIFIED = 0; HOLDER_KIND_CONTAINER = 1; HOLDER_KIND_CORPSE = 2; HOLDER_KIND_PAWN_INVENTORY = 3; HOLDER_KIND_CARRIED = 4; }
-// WasteKind is why an item is waste: a rotten corpse, spoiled food, or an
-// item the caller named unwanted.
-enum WasteKind { WASTE_KIND_UNSPECIFIED = 0; WASTE_KIND_CORPSE = 1; WASTE_KIND_SPOILED = 2; WASTE_KIND_UNWANTED = 3; }
+// WasteKind is why an item is waste: a rotten corpse or spoiled food.
+enum WasteKind { WASTE_KIND_UNSPECIFIED = 0; WASTE_KIND_CORPSE = 1; WASTE_KIND_SPOILED = 2; }
 // BenchUnusableReason is why a bench takes no bills.
 enum BenchUnusableReason { BENCH_UNUSABLE_REASON_UNSPECIFIED = 0; BENCH_UNUSABLE_REASON_NOT_PLAYER_OWNED = 1; BENCH_UNUSABLE_REASON_FORBIDDEN = 2; BENCH_UNUSABLE_REASON_BURNING = 3; BENCH_UNUSABLE_REASON_NOT_USABLE_FOR_BILLS = 4; BENCH_UNUSABLE_REASON_OTHER = 5; }
 // One stack a stock row counts (#1342): the thing, the cell its units are
