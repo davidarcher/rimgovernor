@@ -699,13 +699,12 @@ hauling.
 Allow is additionally a reach and demand filter; Forbid is not. A safe forbidden stack on
 a cell of the derived colony extent is allowed as above. Outside the extent it is
 allowed only when `FilterResourceReach` admits its cell at the current
-[reach stage](upkeep-contracts.md) and it scores against unmet demand
-(`PlanRemoteSupply` over effective stock targets, operator reserve floors and the
-usable stock census); otherwise it stays forbidden and is recorded under
+[reach stage](upkeep-contracts.md) and it is
+ranked by the recovery queue (`policy.RankRecovery` over the usable stock census);
+otherwise it stays forbidden and is recorded under
 `EventLoot.Held` with an [explicit hold](#remote-work-holds-and-resume)
-(`threat_present`, `urgent_competing_work`, `missing_storage`), the reach reason
-(`outside_base:insufficient_defense`, `outside_near:...`) or the demand hold
-(`demand:no_demand`, `demand:unknown_demand_or_cost`). The routines API reports these as
+(`threat_present`, `urgent_competing_work`, `missing_storage`), or the reach reason
+(`outside_base:insufficient_defense`, `outside_near:...`). The routines API reports these as
 `lootHolds`. Beside each item's stack count, safe route length and storage headroom the
 census supplies `free_haulers` (free colonists with Hauling active) and
 `storyteller_quiet` (zero threat scale or no incident generators). Unknown readiness or
@@ -714,7 +713,7 @@ demand holds remote stacks; it never widens reach. Reach changes no Home cell.
 ### Remote work holds and resume
 
 Remote loot, ruin salvage and surface mining share one hold vocabulary
-(`policy.RemoteHoldReason`), reported on `EventLoot.Held`, `ClearanceHolds` rows and the
+(`policy.RemoteHoldReason`), reported on `EventLoot.Held`, held `RecoveryQueue` entries and the
 resource planner's log:
 
 | Reason | Meaning |

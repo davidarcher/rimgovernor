@@ -3,15 +3,20 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type roundsClearanceNative struct {
@@ -32,10 +37,10 @@ func clearanceChunk(id string, x, z int32, forbidden, stored, destination bool) 
 	return &o.ClearanceChunk{EntityId: proto.String(id), DefName: proto.String("ChunkGranite"), Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Forbidden: proto.Bool(forbidden), Stored: proto.Bool(stored), Destination: proto.Bool(destination)}
 }
 func clearanceTestRow(id string, x int32) *o.ClearanceTarget {
-	return &o.ClearanceTarget{EntityId: proto.String(id), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(x), Z: proto.Int32(5)}, Maximum: &c.Cell{X: proto.Int32(x), Z: proto.Int32(5)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(true), AncientDanger: proto.Bool(false), Designated: proto.Bool(false)}
+	return &o.ClearanceTarget{EntityId: proto.String(id), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(x), Z: proto.Int32(5)}, Maximum: &c.Cell{X: proto.Int32(x), Z: proto.Int32(5)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(true), AncientDanger: proto.Bool(false), Designated: proto.Bool(false), Salvage: &o.SalvageEvidence{Safe: true}}
 }
-func TestRoundsClearanceBatchesAncientTargetsNearestFirstAndJournalsHolds(t *testing.T) {
-	reviewer, db, _, _, native := roundsFixture(t)
+func TestRoundsReviewQueuesRuinsNearestFirstAndJournalsHolds(t *testing.T) {
+	reviewer, _, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
@@ -53,6 +58,7 @@ func TestRoundsClearanceBatchesAncientTargetsNearestFirstAndJournalsHolds(t *tes
 	source.rows[1].Occupied.Maximum.Z = proto.Int32(v.Center.GetZ())
 	roof := clearanceTestRow("roof", v.Center.GetX())
 	roof.RoofBlocker = proto.String("unsafe")
+	source.rows[0].Salvage.PathLength, source.rows[1].Salvage.PathLength = 80, 5
 	source.rows = append(source.rows, roof)
 	reviewer.native = source
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearHomeObstructions})
@@ -61,37 +67,100 @@ func TestRoundsClearanceBatchesAncientTargetsNearestFirstAndJournalsHolds(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(review.Review.ClearanceHolds) != 1 || review.Review.ClearanceHolds[0].Reason != "roof_blocker" {
-		t.Fatal(review.Review.ClearanceHolds)
+	queue := review.Review.RecoveryQueue
+	if queue == nil || queue.Admitted != "near" {
+		t.Fatal(queue)
 	}
-	planner, err := NewRoundsClearancePlanner(reviewer, source)
-	if err != nil {
-		t.Fatal(err)
+	status := map[string]policy.RecoveryEntry{}
+	for _, e := range queue.Entries {
+		status[e.ID] = e
 	}
-	result, err := planner.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err, review.Review.Development.Rows)
+	if status["far"].Status != policy.RecoveryQueued || status["roof"].Status != policy.RecoveryHeld || status["roof"].Reason != policy.RemoteHoldRoofSupport {
+		t.Fatal(queue.Entries)
 	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil || len(plan.Progress) != 2 {
-		t.Fatal(plan, err)
+	if status["near"].Tier != policy.RecoveryRest || status["near"].Distance != 5 {
+		t.Fatal(status["near"])
 	}
-	target, ok := plan.Spec.Actions()[0].Deconstruction()
-	if !ok || target.Target() != "near" {
-		t.Fatal(target, ok)
+}
+
+// recoveryRoofCatalog serves the roof definitions the batch plan decides roof
+// removal by.
+type recoveryRoofCatalog struct {
+	RoundsClearanceSource
+	empty bool
+}
+
+func (s recoveryRoofCatalog) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
+	if s.empty {
+		return &bridge.DefinitionCatalog{}, nil
 	}
-	root := reviewer.player.session.State().Snapshot
-	scope := root
-	scope.Plan = plan.Spec.ID()
-	scope.Revision = plan.Spec.Revision()
-	if err = db.AuthorizeRoundsPlan(ctx, root, scope); err != nil {
-		t.Fatal(err)
+	return &bridge.DefinitionCatalog{Defs: map[protoreflect.FullName]map[string]proto.Message{
+		(&d.RoofDef{}).ProtoReflect().Descriptor().FullName(): {"RoofConstructed": &d.RoofDef{DefName: "RoofConstructed", CanCollapse: true}},
+	}}, nil
+}
+
+// Two holders each safe alone but unsafe together under a removable roof: the
+// planner takes the roof off first (remove_roof, nothing else), then deconstructs
+// the whole batch in one method.
+func TestRoundsClearanceRecoveryStepIsRoofFirstThenBatch(t *testing.T) {
+	const n = 40
+	holder := func(id uint64, x int32) policy.SiteCell {
+		return policy.SiteCell{Cell: domain.Cell{X: x, Z: 20}, Roofed: domain.Known(false),
+			Things: []policy.Thing{{Def: "Wall", Category: policy.ThingBuilding, Flags: policy.FlagEdifice | policy.FlagHoldsRoof, ID: id}}}
 	}
-	if work, _, err := clockSchedulerWork(plan, scope); err != nil || !work {
-		t.Fatal(work, err)
+	colony := observation.ColonyProjection{Bounds: policy.Bounds{Width: n, Height: n}, RoofSupport: 6}
+	for z := int32(0); z < n; z++ {
+		for x := int32(0); x < n; x++ {
+			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Roofed: domain.Known(false)}
+			switch {
+			case z == 20 && x == 19:
+				cell = holder(2, x)
+			case z == 20 && x == 21:
+				cell = holder(1, x)
+			case z == 20 && x == 20:
+				cell.Roofed, cell.Roof = domain.Known(true), domain.Known("RoofConstructed")
+			}
+			colony.Cells = append(colony.Cells, cell)
+		}
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
-		t.Fatal(next, err)
+	row := func(id string, x int32) policy.ClearanceTarget {
+		cell := domain.Cell{X: x, Z: 20}
+		return policy.ClearanceTarget{EntityID: id, DefName: "Wall", Minimum: cell, Maximum: cell, Deconstructible: true, Salvage: &policy.SalvageEvidence{Safe: domain.Known(true)}}
+	}
+	rows := []policy.ClearanceTarget{row("Thing_Wall1", 21), row("Thing_Wall2", 19)}
+	queue := &policy.RecoveryQueue{Admitted: "Thing_Wall1", Entries: []policy.RecoveryEntry{
+		{ID: "Thing_Wall1", Kind: policy.RemoteSalvage, Status: policy.RecoveryAdmitted},
+		{ID: "Thing_Wall2", Kind: policy.RemoteSalvage, Status: policy.RecoveryQueued},
+	}}
+	planner := &RoundsClearancePlanner{native: recoveryRoofCatalog{}}
+	ctx := context.Background()
+	step := planner.recoveryStep(ctx, nil, queue, rows, colony)
+	if len(step.Targets) != 0 || !slices.Contains(step.Roof, domain.Cell{X: 20, Z: 20}) {
+		t.Fatalf("want the roof off first, got %+v", step)
+	}
+	prefix, actions, err := recoveryStepMethod(domain.MintPlanID(), step)
+	if err != nil || len(actions) != 1 || !strings.HasPrefix(prefix, "roof-off-20-20-") {
+		t.Fatal(prefix, actions, err)
+	}
+	for i := range colony.Cells {
+		if colony.Cells[i].Cell == (domain.Cell{X: 20, Z: 20}) {
+			colony.Cells[i].Roofed = domain.Known(false)
+		}
+	}
+	step = planner.recoveryStep(ctx, nil, queue, rows, colony)
+	if len(step.Roof) != 0 || len(step.Targets) != 2 || step.Targets[0].EntityID != "Thing_Wall1" {
+		t.Fatalf("want both removals once the roof is down, got %+v", step)
+	}
+	prefix, actions, err = recoveryStepMethod(domain.MintPlanID(), step)
+	if err != nil || len(actions) != 2 || prefix != "deconstruct-Thing_Wall1-x2-" {
+		t.Fatal(prefix, actions, err)
+	}
+	if _, ok := actions[0].Deconstruction(); !ok {
+		t.Fatal("not a deconstruction", actions[0])
+	}
+	// Roof rules the source cannot serve plan nothing.
+	if step = (&RoundsClearancePlanner{native: recoveryRoofCatalog{empty: true}}).recoveryStep(ctx, nil, queue, rows, colony); len(step.Targets) != 0 || len(step.Roof) != 0 {
+		t.Fatalf("a failed roof read still planned %+v", step)
 	}
 }
 

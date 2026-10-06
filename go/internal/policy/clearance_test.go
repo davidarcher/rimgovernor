@@ -1,37 +1,26 @@
 package policy
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestHomeClearanceBoundDistanceAndHolds(t *testing.T) {
-	base := ClearanceTarget{EntityID: "near", DefName: "Wall", InHome: true, Deconstructible: true, Minimum: domain.Cell{X: 10, Z: 10}, Maximum: domain.Cell{X: 10, Z: 10}}
-	far := base
-	far.EntityID = "far"
-	far.Minimum = domain.Cell{X: 30, Z: 30}
-	far.Maximum = far.Minimum
-	rows := []ClearanceTarget{far, base}
+func TestClearanceHoldReasonIsTheRowsOwnVerdict(t *testing.T) {
+	base := ClearanceTarget{EntityID: "ruin", DefName: "Wall", Deconstructible: true}
+	if reason := ClearanceHoldReason(base); reason != "" {
+		t.Fatal("a ruin outside Home is held for", reason)
+	}
 	for reason, change := range map[string]func(*ClearanceTarget){
-		"roof_blocker":   func(r *ClearanceTarget) { r.RoofBlocker = "unsupported" },
-		"ancient_danger": func(r *ClearanceTarget) { r.AncientDanger = true },
-		"casket":         func(r *ClearanceTarget) { r.Class = "ancient_casket" },
-		"outside_home":   func(r *ClearanceTarget) { r.InHome = false },
+		"not_deconstructible": func(r *ClearanceTarget) { r.Deconstructible = false },
+		"roof_blocker":        func(r *ClearanceTarget) { r.RoofBlocker = "unsupported" },
+		"ancient_danger":      func(r *ClearanceTarget) { r.AncientDanger = true },
+		"casket":              func(r *ClearanceTarget) { r.Class = "ancient_casket" },
 	} {
 		row := base
-		row.EntityID = reason
 		change(&row)
-		rows = append(rows, row)
-	}
-	got := SelectHomeClearance(rows, domain.Cell{X: 10, Z: 10})
-	if len(got.Targets) != 1 || got.Targets[0].EntityID != "near" || len(got.Holds) != 4 {
-		t.Fatal(got)
-	}
-	for _, h := range got.Holds {
-		if h.Target != h.Reason {
-			t.Fatal(h)
+		if got := ClearanceHoldReason(row); got != reason {
+			t.Fatal(reason, got)
 		}
 	}
 }
@@ -128,20 +117,5 @@ func TestHaulableChunksNeedADestination(t *testing.T) {
 	got := HaulableChunks(rows)
 	if len(got) != 2 || got[0].EntityID != "a" || got[1].EntityID != "b" {
 		t.Fatal(got)
-	}
-}
-
-func TestSelectHomeClearanceBatchesAncientRuins(t *testing.T) {
-	var rows []ClearanceTarget
-	for i := range 20 {
-		c := domain.Cell{X: int32(i), Z: 0}
-		rows = append(rows, ClearanceTarget{EntityID: fmt.Sprintf("r%02d", i), Class: "ancient_wall_door", InHome: true, Deconstructible: true, Minimum: c, Maximum: c})
-	}
-	if got := SelectHomeClearance(rows, domain.Cell{}); len(got.Targets) != homeClearanceBatch || got.Targets[0].EntityID != "r00" {
-		t.Fatal(len(got.Targets), got.Targets[0].EntityID)
-	}
-	mixed := append([]ClearanceTarget{{EntityID: "bed", Class: "", InHome: true, Deconstructible: true}}, rows...)
-	if got := SelectHomeClearance(mixed, domain.Cell{X: -50}); len(got.Targets) != 1 {
-		t.Fatal(len(got.Targets))
 	}
 }

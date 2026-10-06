@@ -193,8 +193,10 @@ Home at a time, nearest the colony center first.
 - A fresh clearance census must report deconstructible geometry with no roof blocker,
   ancient danger or casket. A standing deconstruct designation is no hold: the admitted
   Deconstruction adopts it. Repairs precede clearance, clearance precedes direct
-  cleaning, and shared emergency admission still wins. Each skipped target and reason
-  is recorded in `ClearanceHolds`.
+  cleaning, and shared emergency admission still wins. Removals run through the
+  recovery queue (tier 1 room obstructions first, then nearest); the roof-first batch
+  takes a roof off before its holders. Each held target and reason is a held
+  `RecoveryQueue` entry.
 - Chunks are hauls: an allowed, unstored chunk stack in Home with no store cell
   ordinary hauling would use is a clearance deficit; no stockpile is created for it.
   Forbidden chunks are the supply safety policy's.

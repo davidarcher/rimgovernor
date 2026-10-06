@@ -2,7 +2,6 @@ package policy
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -33,8 +32,7 @@ type ClearanceTarget struct {
 	Packable, InUse bool
 	Salvage         *SalvageEvidence
 	// Count is the stack a foreign item holds (#2270); zero when unknown.
-	Count           int64
-	SalvageSelected bool
+	Count int64
 }
 
 // ClearanceChunk is one rock or slag chunk stack standing on a Home cell: a
@@ -57,16 +55,10 @@ type ClearanceCensus struct {
 	Floors []ClearanceFloor
 }
 
-type ClearanceHold struct{ Target, Reason string }
-type ClearanceSelection struct {
-	Targets []ClearanceTarget
-	Holds   []ClearanceHold
-}
-
+// ClearanceHoldReason is the census row's own native verdict, wherever it
+// stands: "" when nothing about the thing itself refuses its removal.
 func ClearanceHoldReason(row ClearanceTarget) string {
 	switch {
-	case !row.InHome && !row.SalvageSelected:
-		return "outside_home"
 	case !row.Deconstructible:
 		return "not_deconstructible"
 	case row.RoofBlocker != "":
@@ -77,47 +69,6 @@ func ClearanceHoldReason(row ClearanceTarget) string {
 		return "casket"
 	}
 	return ""
-}
-
-// homeClearanceBatch bounds how many ancient-ruin targets one method takes.
-const homeClearanceBatch = 12
-
-// SelectHomeClearance admits one target so removals cannot jointly invalidate
-// the individually observed roof support, except that ancient ruin pieces,
-// which carry no roof of ours, come down together (up to homeClearanceBatch)
-// when the nearest target is one. Distance ties use stable identities.
-func SelectHomeClearance(rows []ClearanceTarget, center domain.Cell) ClearanceSelection {
-	out := ClearanceSelection{}
-	for _, row := range rows {
-		if reason := ClearanceHoldReason(row); reason != "" {
-			out.Holds = append(out.Holds, ClearanceHold{row.EntityID, reason})
-		} else {
-			out.Targets = append(out.Targets, row)
-		}
-	}
-	distance := func(r ClearanceTarget) float64 {
-		x := (float64(r.Minimum.X)+float64(r.Maximum.X))/2 - float64(center.X)
-		z := (float64(r.Minimum.Z)+float64(r.Maximum.Z))/2 - float64(center.Z)
-		return x*x + z*z
-	}
-	sort.Slice(out.Targets, func(i, j int) bool {
-		a, b := out.Targets[i], out.Targets[j]
-		if distance(a) != distance(b) {
-			return distance(a) < distance(b)
-		}
-		return a.EntityID < b.EntityID
-	})
-	sort.Slice(out.Holds, func(i, j int) bool { return out.Holds[i].Target < out.Holds[j].Target })
-	if len(out.Targets) > 1 {
-		keep := 1
-		if strings.HasPrefix(out.Targets[0].Class, "ancient_") {
-			for keep < len(out.Targets) && keep < homeClearanceBatch && strings.HasPrefix(out.Targets[keep].Class, "ancient_") {
-				keep++
-			}
-		}
-		out.Targets = out.Targets[:keep]
-	}
-	return out
 }
 
 // ChunkHoldReason names why a chunk is not a clearance deficit: forbidden

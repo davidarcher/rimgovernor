@@ -14,8 +14,10 @@ import (
 // tier 2 anything yielding at least one currently short resource, tier 3 the
 // rest; within a tier nearest first. Safety holds apply per thing; demand
 // never holds one. Admission is one thing per development slot of the
-// ClearHomeObstructions labor profile. The queue computes and is journaled
-// (Rounds.RecoveryQueue); execution stays with the old paths until #2301.
+// ClearHomeObstructions labor profile. The review journals the queue
+// (Rounds.RecoveryQueue); the clearance planner executes its removals as a
+// roof-first batch (PlanRecoveryBatch) and loot is released by FilterLootReach
+// under the same hold vocabulary.
 
 // RecoveryTier orders the queue: lower is first.
 type RecoveryTier int
@@ -214,18 +216,15 @@ func RankRecovery(r RecoveryRequest) RecoveryQueue {
 
 // RecoveryClearanceThing prices one census row. Player buildings are the
 // colony's own and are no recovery thing (ok false). The row's native
-// verdicts (roof, ancient, casket, not deconstructible) fold into Hold with
-// the Home split ignored.
+// verdicts (roof, ancient, casket, not deconstructible) fold into Hold.
 func RecoveryClearanceThing(row ClearanceTarget, roomObstruction bool) (RecoveryThing, bool) {
 	if row.Player {
 		return RecoveryThing{}, false
 	}
-	check := row
-	check.SalvageSelected = true
 	t := RecoveryThing{
 		ID: row.EntityID, Def: row.DefName, Kind: RemoteSalvage, RoomObstruction: roomObstruction,
 		Cell: domain.Cell{X: (row.Minimum.X + row.Maximum.X) / 2, Z: (row.Minimum.Z + row.Maximum.Z) / 2},
-		Hold: RemoteHoldReason(RemoteSalvage, ClearanceHoldReason(check)), RouteSafe: domain.Unknown[bool](),
+		Hold: RemoteHoldReason(RemoteSalvage, ClearanceHoldReason(row)), RouteSafe: domain.Unknown[bool](),
 	}
 	if row.Salvage != nil {
 		t.Candidate, _ = SalvagePriced(row.EntityID, *row.Salvage)
@@ -251,30 +250,77 @@ func RecoveryLootThing(row LootItem) (RecoveryThing, bool) {
 	return t, true
 }
 
-// ReviewRecoveryQueue assembles the review's queue from the clearance census,
-// the loot census and the review facts: demand from the effective targets,
-// distance from the colony's facility cells (stockpile zones among them), the
-// nearest of which is the origin. roomObstructions names the census ids a
-// planned room waits on (tier 1).
-func ReviewRecoveryQueue(p RoundsPolicy, f RoundsFacts, rows []ClearanceTarget, roomObstructions map[string]bool, slot bool) (RecoveryQueue, error) {
-	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
+// RoomObstructionIDs is tier 1's source: the census ids of the foreign rows
+// standing on the ground of a room the plan has not built yet (PlannedGround).
+// The room owners' own claim of a ring ruin is not consulted.
+func RoomObstructionIDs(rows []ClearanceTarget, ground []Rectangle) map[string]bool {
+	out := map[string]bool{}
+	for _, row := range rows {
+		for _, g := range ground {
+			if row.Minimum.X < g.X+g.Width && row.Maximum.X >= g.X && row.Minimum.Z < g.Z+g.Height && row.Maximum.Z >= g.Z {
+				out[row.EntityID] = true
+				break
+			}
+		}
+	}
+	return out
+}
+
+// recoveryShortResources are the resources below their effective stock target
+// (the targets carry the derived resource needs): the short set tier 2 ranks
+// by. An unknown demand leaves none short.
+func recoveryShortResources(p RoundsPolicy, f RoundsFacts) (map[Resource]bool, error) {
+	targets, err := p.EffectiveResourceTargets(f.Resources, f.ResourceNeeds)
 	if err != nil {
-		return RecoveryQueue{}, err
+		return nil, err
 	}
-	demand, err := LootDemand(p, f)
+	in := ResourceDemandInput{EconomicFloors: map[string]int64{}}
+	for resource, count := range targets {
+		if count > 0 {
+			in.Targets = append(in.Targets, ResourceDemand{Key: ResourceKey{Def: resource}, Count: count, Priority: 2})
+		}
+	}
+	if stock, known := f.Resources.Value(); known {
+		rows := make([]ResourceQuantity, 0, len(stock))
+		for _, amount := range stock {
+			if amount.Count > 0 {
+				rows = append(rows, ResourceQuantity{Key: ResourceKey{Def: amount.Resource}, Count: amount.Count})
+			}
+		}
+		in.Stock = domain.Known(rows)
+	}
+	demand, err := BuildResourceDemand(in)
 	if err != nil {
-		return RecoveryQueue{}, err
+		return nil, err
 	}
-	r := RecoveryRequest{Short: map[Resource]bool{}, Urgent: UrgentWorkCompeting(f), Slot: slot, Threat: domain.Unknown[bool]()}
-	if hostiles, known := f.Hostiles.Value(); known {
-		r.Threat = domain.Known(hostiles > 0)
-	}
+	short := map[Resource]bool{}
 	if rows, known := demand.Value(); known {
 		for _, d := range rows {
 			if d.Count > 0 {
-				r.Short[d.Key.Def] = true
+				short[d.Key.Def] = true
 			}
 		}
+	}
+	return short, nil
+}
+
+// ReviewRecoveryRequest assembles the review's request from the clearance
+// census, the loot census and the review facts: demand from the effective
+// targets, distance from the colony's facility cells (stockpile zones among
+// them), the nearest of which is the origin. roomObstructions names the census
+// ids a planned room waits on (tier 1). The caller sets Slot.
+func ReviewRecoveryRequest(p RoundsPolicy, f RoundsFacts, rows []ClearanceTarget, roomObstructions map[string]bool) (RecoveryRequest, error) {
+	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
+	if err != nil {
+		return RecoveryRequest{}, err
+	}
+	short, err := recoveryShortResources(p, f)
+	if err != nil {
+		return RecoveryRequest{}, err
+	}
+	r := RecoveryRequest{Short: short, Urgent: UrgentWorkCompeting(f), Threat: domain.Unknown[bool]()}
+	if hostiles, known := f.Hostiles.Value(); known {
+		r.Threat = domain.Known(hostiles > 0)
 	}
 	if e, known := extent.Value(); known {
 		var sx, sz, n int64
@@ -302,5 +348,5 @@ func ReviewRecoveryQueue(p RoundsPolicy, f RoundsFacts, rows []ClearanceTarget, 
 			}
 		}
 	}
-	return RankRecovery(r), nil
+	return r, nil
 }

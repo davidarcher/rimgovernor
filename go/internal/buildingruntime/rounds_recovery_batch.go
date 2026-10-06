@@ -13,26 +13,52 @@ import (
 
 var errNoDefinitions = errors.New("roof rules: the native source serves no definitions")
 
-// journalRecoveryBatch plans the recovery queue's roof-first removal batch
-// (#2298) over the fresh census rows and the colony's planning window (the
-// whole map) and files it as a recovery_batch row. It runs beside the old
-// clearance path, which keeps executing until #2301; a failure to plan is a
-// failed row, never a failed step.
-func (r *RoundsClearancePlanner) journalRecoveryBatch(call context.Context, identity *c.Identity, queue *policy.RecoveryQueue, rows []policy.ClearanceTarget, colony observation.ColonyProjection) {
+// recoveryStep plans the recovery queue's roof-first removal batch (#2298) over
+// the fresh census rows and the colony's planning window (the whole map), files
+// it as a recovery_batch row and returns the clearance step to commit: the roof
+// cells to take off first (remove_roof), else the batch to deconstruct together.
+// The step is empty with nothing to work, and when the roof rules cannot be read
+// (a failed row): no removal is committed on a guess.
+func (r *RoundsClearancePlanner) recoveryStep(call context.Context, identity *c.Identity, queue *policy.RecoveryQueue, rows []policy.ClearanceTarget, colony observation.ColonyProjection) policy.GroundStep {
 	if queue == nil {
-		return
+		return policy.GroundStep{}
 	}
 	targets := policy.RecoveryBatchTargets(*queue, rows)
 	if len(targets) == 0 {
-		return
+		return policy.GroundStep{}
 	}
 	roofs, err := r.roofRules(call, identity)
 	if err != nil {
 		telemetry.Decide(call, recoveryBatchFailed(len(targets), err))
-		return
+		return policy.GroundStep{}
 	}
 	batch := policy.PlanRecoveryBatch(policy.RecoveryBatchRequest{Grid: colonyRoofGrid(colony), Rules: roofs, Targets: targets})
 	telemetry.Decide(call, recoveryBatchDecision(len(targets), batch))
+	switch batch.Stage {
+	case policy.RecoveryBatchRoof:
+		return policy.GroundStep{Phase: policy.GroundWalls, Roof: batch.Roof}
+	case policy.RecoveryBatchRemoval:
+		byID := make(map[string]policy.ClearanceTarget, len(rows))
+		for _, row := range rows {
+			byID[row.EntityID] = row
+		}
+		step := policy.GroundStep{Phase: policy.GroundFurniture}
+		for _, id := range batch.Batch {
+			step.Targets = append(step.Targets, byID[id])
+		}
+		return step
+	}
+	return policy.GroundStep{}
+}
+
+// recoveryStepMethod is the method prefix and actions of a recoveryStep: the
+// roof-off method, or one deconstruction per batch target.
+func recoveryStepMethod(id domain.PlanID, step policy.GroundStep) (string, []domain.Action, error) {
+	if len(step.Targets) == 0 {
+		return groundStepMethod(id, step)
+	}
+	actions, err := groundActions(id, step, nil)
+	return batchPrefix("deconstruct", step.Targets[0].EntityID, len(step.Targets)), actions, err
 }
 
 func (r *RoundsClearancePlanner) roofRules(call context.Context, identity *c.Identity) (policy.RoofRules, error) {

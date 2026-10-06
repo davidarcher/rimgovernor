@@ -6,7 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Roof-first batch sequencing (#2298, epic #2291). The recovery queue's
+// Roof-first batch sequencing (#2298, epic #2291), executed by the clearance
+// planner. The recovery queue's
 // admitted and queued removals come down as one batch, not one building per
 // review: when the batch's joint roof check (RoofSupportGrid.RoofBlocker)
 // would leave unsupported roof, the removable (non-thick) roofs over the area
@@ -22,7 +23,7 @@ import (
 // at admission and refuses a removal that would collapse, so a pending
 // collapse costs a refused removal, not a collapse.
 
-// DefaultRecoveryBatch bounds one removal batch (the old homeClearanceBatch).
+// DefaultRecoveryBatch bounds one removal batch.
 const DefaultRecoveryBatch = 12
 
 // RecoveryBatchStage is what the batch does this review.
@@ -71,7 +72,10 @@ type RecoveryBatch struct {
 }
 
 // RecoveryBatchTargets are the queue's admitted and queued salvage entries in
-// rank order, resolved against the census rows. Loot is a haul, not a removal.
+// rank order, resolved against the fresh census rows. A row that has since
+// gained a hold of its own (a native verdict, no evidence, an unsafe route)
+// drops out, so the review's queue never overrides the fresh read. Loot is a
+// haul, not a removal.
 func RecoveryBatchTargets(q RecoveryQueue, rows []ClearanceTarget) []RecoveryBatchTarget {
 	byID := make(map[string]ClearanceTarget, len(rows))
 	for _, r := range rows {
@@ -82,7 +86,11 @@ func RecoveryBatchTargets(q RecoveryQueue, rows []ClearanceTarget) []RecoveryBat
 		if e.Kind != RemoteSalvage || e.Status != RecoveryAdmitted && e.Status != RecoveryQueued {
 			continue
 		}
-		if r, ok := byID[e.ID]; ok {
+		r, ok := byID[e.ID]
+		if !ok {
+			continue
+		}
+		if t, ok := RecoveryClearanceThing(r, false); ok && recoveryHold(t, RecoveryRequest{}) == "" {
 			out = append(out, RecoveryBatchTarget{ID: e.ID, Cell: r.Minimum})
 		}
 	}

@@ -143,18 +143,12 @@ func TestLootDemandAndReachFromFacts(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	p.ResourceTargets = map[Resource]int64{"Steel": 300}
 	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 120}, {Resource: "WoodLog", Count: 500}})}
-	demand, err := LootDemand(p, f)
-	if err != nil {
-		t.Fatal(err)
+	short, err := recoveryShortResources(p, f)
+	if err != nil || len(short) != 1 || !short["Steel"] {
+		t.Fatal(short, err)
 	}
-	rows, known := demand.Value()
-	if !known || len(rows) != 1 || rows[0].Key.Def != "Steel" || rows[0].Count != 180 {
-		t.Fatal(rows, known)
-	}
-	if demand, err = LootDemand(p, RoundsFacts{}); err != nil {
-		t.Fatal(err)
-	} else if _, known = demand.Value(); known {
-		t.Fatal("unknown stock certified demand")
+	if short, err = recoveryShortResources(p, RoundsFacts{}); err != nil || len(short) != 0 {
+		t.Fatal("unknown stock certified shortage", short, err)
 	}
 	f.Hostiles = domain.Known(int64(0))
 	f.Armed = domain.Known(int64(6))

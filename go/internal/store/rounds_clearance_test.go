@@ -13,7 +13,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	db := open(t, memoryPath(t))
 	ctx := context.Background()
 	r := roundsRequest()
-	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true}})
+	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true, Salvage: &policy.SalvageEvidence{Safe: domain.Known(true)}}})
 	g := roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions)
 	// Shared journal semantics do not depend on the future upkeep action family.
 	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
@@ -28,7 +28,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	if p, err := db.LoadPlan(ctx, "p"); err != nil || p.Progress[0].View().Stage != domain.Cancelled {
 		t.Fatal("recovery left the unissued method open", p, err)
 	}
-	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true}})
+	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true, Salvage: &policy.SalvageEvidence{Safe: domain.Known(true)}}})
 	g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions)
 	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
 		t.Fatal(err)

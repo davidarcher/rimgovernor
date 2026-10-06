@@ -25,6 +25,9 @@ type UpkeepObservation struct {
 	// (PlannedGroundWork, #1245): unplanned buildings and floors on the
 	// ground of planned rooms not yet standing.
 	Ground domain.Fact[[]string]
+	// RoomObstructions are the clearance rows standing on the ground of a
+	// planned room (RoomObstructionIDs): tier 1 of the recovery queue.
+	RoomObstructions map[string]bool
 	// Shrines is the ancient shrine census (#456) ClearAncientShrine
 	// measures (#458); unknown under a native without the read.
 	Shrines domain.Fact[[]AncientShrine]

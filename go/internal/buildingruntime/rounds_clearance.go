@@ -106,37 +106,16 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	if !known {
 		return RoundsClearanceResult{Verdict: waitFor(WaitMethodUsed, "clearance_census_unknown")}, nil
 	}
-	// The review admitted at most one remote ruin by reach and demand from
-	// its complete facts; the planner executes that choice against the fresh
-	// census, whose native safety verdict still gates it.
+	// The review's recovery queue ranks and admits; the planner executes its
+	// removals as one roof-first batch against the fresh census, whose own
+	// verdicts still gate every row.
 	others, player := policy.SplitGroundRows(census.Targets)
-	filtered := append([]policy.ClearanceTarget(nil), others...)
-	for i := range filtered {
-		row := &filtered[i]
-		safe := false
-		if row.Salvage != nil {
-			safe, _ = row.Salvage.Safe.Value()
-		}
-		row.SalvageSelected = !row.InHome && review.SalvageTarget != "" && row.EntityID == review.SalvageTarget && safe
-	}
-	center, planned := colony.Projection.Center().Value()
-	if !planned {
-		return RoundsClearanceResult{Verdict: BuildingNoLayoutPlan}, nil
-	}
-	r.journalRecoveryBatch(call, boundary.Identity(state.Snapshot), review.RecoveryQueue, filtered, colony.Projection)
-	selection := policy.SelectHomeClearance(filtered, center)
-	if review.RecoveryQueue != nil {
-		journalRecoveryShadow(call, *review.RecoveryQueue, review.ClearanceHolds, selection.Targets)
-	}
+	step := r.recoveryStep(call, boundary.Identity(state.Snapshot), review.RecoveryQueue, others, colony.Projection)
 	id := domain.MintPlanID()
 	var prefix string
 	var actions []domain.Action
-	if len(selection.Targets) > 0 {
-		prefix = fmt.Sprintf("deconstruct-%s-", selection.Targets[0].EntityID)
-		if len(selection.Targets) > 1 {
-			prefix = fmt.Sprintf("deconstruct-%s-x%d-", selection.Targets[0].EntityID, len(selection.Targets))
-		}
-		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: selection.Targets}, nil)
+	if len(step.Roof) > 0 || len(step.Targets) > 0 {
+		prefix, actions, err = recoveryStepMethod(id, step)
 	} else if step, ok := plannedGroundStep(colony.Projection, stampPacking(player, colony.Projection), census.Floors, r.reviewer.clearFloors(colony.Projection)); ok {
 		prefix, actions, err = groundStepMethod(id, step)
 	} else {

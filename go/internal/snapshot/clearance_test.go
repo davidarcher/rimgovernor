@@ -1,7 +1,6 @@
 package snapshot
 
 import (
-	"reflect"
 	"slices"
 	"testing"
 
@@ -12,9 +11,10 @@ import (
 // Home clearance converted from the native clearance/* cases (#746), each
 // recorded at 04b0a98c from `acceptance run clearance/<case>`.
 
-// clearance replays path's clearance census: the Home selection and the
-// review's journalled holds, which must match what the review recorded.
-func clearance(t *testing.T, path string) (Rounds, policy.ClearanceSelection, []policy.ClearanceHold) {
+// recovery replays path's clearance census through the recovery queue with a
+// development slot. The recordings predate salvage evidence for Home rows, so
+// a row without any is given the safe, yield-free evidence native now reports.
+func recovery(t *testing.T, path string) (Rounds, []policy.ClearanceTarget, policy.RecoveryQueue) {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {
@@ -24,44 +24,44 @@ func clearance(t *testing.T, path string) (Rounds, policy.ClearanceSelection, []
 	if !known {
 		t.Fatal(path, "clearance census unknown")
 	}
-	holds, _, err := policy.ReviewClearanceHolds(r.Policy, r.Facts, rows)
+	rows = slices.Clone(rows)
+	for i := range rows {
+		if rows[i].Salvage == nil {
+			rows[i].Salvage = &policy.SalvageEvidence{Safe: domain.Known(true)}
+		}
+	}
+	req, err := policy.ReviewRecoveryRequest(r.Policy, r.Facts, rows, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(holds, r.Review.ClearanceHolds) {
-		t.Fatalf("%s: replayed holds %v, recorded %v", path, holds, r.Review.ClearanceHolds)
-	}
-	return r, policy.SelectHomeClearance(rows, domain.Cell{}), holds
+	req.Slot = true
+	return r, rows, policy.RankRecovery(req)
 }
 
-func targetIDs(s policy.ClearanceSelection) []string {
-	var ids []string
-	for _, row := range s.Targets {
-		ids = append(ids, row.EntityID)
-	}
-	return ids
-}
-
-func held(holds []policy.ClearanceHold, target string) string {
-	for _, h := range holds {
-		if h.Target == target {
-			return h.Reason
+// entry is the queue's row for id.
+func entry(q policy.RecoveryQueue, id string) (policy.RecoveryEntry, bool) {
+	for _, e := range q.Entries {
+		if e.ID == id {
+			return e, true
 		}
 	}
-	return ""
+	return policy.RecoveryEntry{}, false
+}
+
+// working is true when the queue admits or queues id for removal.
+func working(q policy.RecoveryQueue, id string) bool {
+	e, ok := entry(q, id)
+	return ok && (e.Status == policy.RecoveryAdmitted || e.Status == policy.RecoveryQueued)
 }
 
 // clearance/ancient-wall, tick 15: an unowned deconstructible ancient
-// wall inside Home is the one admitted target and opens
-// ClearHomeObstructions; no hold protects it.
+// wall inside Home is worked by the queue and opens ClearHomeObstructions; no
+// hold protects it.
 func TestReplayAncientHomeWallAdmitted(t *testing.T) {
 	const wall = "Thing_Wall44690"
-	r, sel, holds := clearance(t, "testdata/clearance-ancient-wall.json")
-	if ids := targetIDs(sel); !slices.Equal(ids, []string{wall}) {
-		t.Errorf("targets %v, want only %s", ids, wall)
-	}
-	if reason := held(holds, wall); reason != "" {
-		t.Errorf("%s held for %s", wall, reason)
+	r, _, q := recovery(t, "testdata/clearance-ancient-wall.json")
+	if !working(q, wall) {
+		t.Errorf("%s not worked: %+v", wall, q.Entries)
 	}
 	if a, err := r.Assessment(policy.ClearHomeObstructions); err != nil || a.Finding != domain.FindingUnmet {
 		t.Errorf("ClearHomeObstructions %+v %v, want deficit", a, err)
@@ -69,33 +69,32 @@ func TestReplayAncientHomeWallAdmitted(t *testing.T) {
 }
 
 // clearance/roof-support-refused, ticks 15 and 615: the same Home wall
-// holding up a roof is held for roof_blocker and never admitted; once a
-// support column stands beside it, it is the admitted target.
+// holding up a roof is held for roof_support_risk and never worked; once a
+// support column stands beside it, the queue works it.
 func TestReplayRoofBearingWallHeldUntilSupported(t *testing.T) {
 	const wall = "Thing_Wall44690"
-	_, sel, holds := clearance(t, "testdata/clearance-roof-held.json")
-	if reason := held(holds, wall); reason != "roof_blocker" {
-		t.Errorf("%s held for %q, want roof_blocker", wall, reason)
+	_, _, q := recovery(t, "testdata/clearance-roof-held.json")
+	if e, _ := entry(q, wall); e.Status != policy.RecoveryHeld || e.Reason != policy.RemoteHoldRoofSupport {
+		t.Errorf("%s %+v, want held roof_support_risk", wall, e)
 	}
-	if slices.Contains(targetIDs(sel), wall) {
-		t.Errorf("roof-bearing %s admitted", wall)
-	}
-	_, sel, holds = clearance(t, "testdata/clearance-roof-supported.json")
-	if ids := targetIDs(sel); !slices.Equal(ids, []string{wall}) || held(holds, wall) != "" {
-		t.Errorf("supported: targets %v holds %v, want only %s admitted", ids, holds, wall)
+	_, _, q = recovery(t, "testdata/clearance-roof-supported.json")
+	if !working(q, wall) {
+		t.Errorf("supported %s not worked: %+v", wall, q.Entries)
 	}
 }
 
 // clearance/standing-designation, tick 15: a wall already designated for
-// deconstruction is no hold; the routine adopts it as its target.
+// deconstruction is no hold; the routine adopts it.
 func TestReplayStandingDesignationAdopted(t *testing.T) {
 	const wall = "Thing_Wall44690"
-	_, sel, holds := clearance(t, "testdata/clearance-standing-designation.json")
-	if len(sel.Targets) != 1 || sel.Targets[0].EntityID != wall || !sel.Targets[0].Designated {
-		t.Errorf("targets %+v, want the designated %s", sel.Targets, wall)
+	_, rows, q := recovery(t, "testdata/clearance-standing-designation.json")
+	if !working(q, wall) {
+		t.Errorf("%s not worked: %+v", wall, q.Entries)
 	}
-	if reason := held(holds, wall); reason != "" {
-		t.Errorf("%s held for %s", wall, reason)
+	for _, row := range rows {
+		if row.EntityID == wall && !row.Designated {
+			t.Errorf("%s not designated", wall)
+		}
 	}
 }
 

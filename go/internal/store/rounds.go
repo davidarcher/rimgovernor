@@ -47,12 +47,9 @@ type Rounds struct {
 	ResourceRunways []ResourceRunwayRecord  `json:",omitempty"`
 	ReserveSupplies []ReserveSupply         `json:",omitempty"`
 	LarderSupplies  []policy.StartingSupply `json:",omitempty"`
-	ClearanceHolds  []policy.ClearanceHold  `json:",omitempty"`
-	// SalvageTarget is the one remote ruin this review admitted by reach and
-	// demand; the clearance planner executes it against a fresh native census.
-	SalvageTarget string `json:",omitempty"`
-	// RecoveryQueue is the one recovery queue (#2297) computed beside the old
-	// paths for the shadow comparison; nothing executes it yet.
+	// RecoveryQueue is the one recovery queue (#2297): the clearance planner
+	// executes its removals against a fresh native census, and its held
+	// entries are the journalled hold reasons.
 	RecoveryQueue *policy.RecoveryQueue `json:",omitempty"`
 	ShrineHolds   []policy.ShrineHold   `json:",omitempty"`
 	// ShrineStep is the shrine planner's last step (#680): the shrine it
@@ -448,6 +445,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	}
 	request.Policy = policy.StageRoundsPolicy(request.Policy, previousStage.Stage)
 	needs := policy.RoundsFindings{}
+	var recovery *policy.RecoveryRequest
 	var detection *RoundsDetection
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
@@ -495,15 +493,26 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			request.Facts.EventLootPending = domain.Known(len(loot.Pending) > 0)
 		}
 		if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
-			remote, err := policy.SalvageContext(request.Policy, request.Facts)
+			req, err := policy.ReviewRecoveryRequest(request.Policy, request.Facts, rows, request.Facts.Upkeep.RoomObstructions)
 			if err != nil {
 				return RoundsResult{}, err
 			}
-			filtered, _, err := policy.FilterRemoteSalvage(rows, remote)
-			if err != nil {
-				return RoundsResult{}, err
+			recovery = &req
+			// The clearance deficit is what the queue could work with a
+			// slot: the rows it neither holds nor throttles.
+			ranked := req
+			ranked.Slot = true
+			working := map[string]bool{}
+			for _, e := range policy.RankRecovery(ranked).Entries {
+				working[e.ID] = e.Status == policy.RecoveryAdmitted || e.Status == policy.RecoveryQueued
 			}
-			request.Facts.Upkeep.Clearance = domain.Known(filtered)
+			var workable []policy.ClearanceTarget
+			for _, row := range rows {
+				if working[row.EntityID] {
+					workable = append(workable, row)
+				}
+			}
+			request.Facts.Upkeep.Clearance = domain.Known(workable)
 		}
 		medical, err = policy.ReviewMedicalCare(request.Facts.MedicalPawns, medical)
 		if err != nil {
@@ -834,19 +843,21 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			return RoundsResult{}, err
 		}
 	}
-	if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
-		var err error
-		r.ClearanceHolds, r.SalvageTarget, err = policy.ReviewClearanceHolds(request.Policy, request.Facts, rows)
-		if err != nil {
-			return RoundsResult{}, err
+	if _, known := request.Facts.Upkeep.Clearance.Value(); known {
+		if recovery == nil {
+			// A disabled review never filtered the census.
+			rows, _ := request.Facts.Upkeep.Clearance.Value()
+			req, err := policy.ReviewRecoveryRequest(request.Policy, request.Facts, rows, request.Facts.Upkeep.RoomObstructions)
+			if err != nil {
+				return RoundsResult{}, err
+			}
+			recovery = &req
 		}
-		queue, err := policy.ReviewRecoveryQueue(request.Policy, request.Facts, rows, nil, recoverySlot)
-		if err != nil {
-			return RoundsResult{}, err
-		}
+		recovery.Slot = recoverySlot
+		queue := policy.RankRecovery(*recovery)
 		r.RecoveryQueue = &queue
 	} else {
-		r.ClearanceHolds, r.RecoveryQueue = previous.ClearanceHolds, previous.RecoveryQueue
+		r.RecoveryQueue = previous.RecoveryQueue
 	}
 	if _, known := request.Facts.Upkeep.Shrines.Value(); known {
 		r.ShrineHolds = slices.Clone(request.Facts.ShrineHolds)

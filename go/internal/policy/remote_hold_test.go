@@ -18,6 +18,14 @@ func remoteSalvageRow() ClearanceTarget {
 			SourceYield(ResourceKey{Def: "Steel"}, 35, 0, domain.Known(int64(75))))}}
 }
 
+// salvageQueueReason is the hold or throttle word the recovery queue gives one
+// ruin under the request's threat and urgent work; "" when it is admitted.
+func salvageQueueReason(row ClearanceTarget, r RemoteWorkRequest) string {
+	thing, _ := RecoveryClearanceThing(row, false)
+	q := RankRecovery(RecoveryRequest{Things: []RecoveryThing{thing}, Threat: r.Reach.Threat, Urgent: domain.Known(r.Competition.UrgentPriority > 0), Slot: true})
+	return q.Entries[0].Reason
+}
+
 // Every explicit hold reason, for each remote kind, from the same request
 // edits: a threat outranks the route verdict it causes, urgent work outranks
 // the reach stage, and roof, route and storage each name themselves.
@@ -69,9 +77,8 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 			if tt.salvage != nil {
 				tt.salvage(&salvage)
 			}
-			got, holds, err := FilterRemoteSalvage([]ClearanceTarget{salvage}, r)
-			if err != nil || len(got) != 1 || got[0].SalvageSelected || len(holds) != 1 || holds[0].Reason != tt.reason {
-				t.Fatalf("salvage %v holds %v err %v", got, holds, err)
+			if got := salvageQueueReason(salvage, r); got != tt.reason {
+				t.Fatalf("salvage %q, want %q", got, tt.reason)
 			}
 			ore := ResourceSource{ThingID: "ore", Method: ResourceSourceMine, Yield: 40, Distance: 80, Cell: domain.Cell{X: 90, Z: 90}, Safety: "open_surface", Reachable: domain.Known(true)}
 			if tt.mining != nil {
@@ -87,9 +94,8 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 
 func TestRemoteWorkClearsHoldsWhenSafe(t *testing.T) {
 	r := RemoteWorkRequest{Reach: remoteReadyReach(), Demand: steelDemand()}
-	got, holds, err := FilterRemoteSalvage([]ClearanceTarget{remoteSalvageRow()}, r)
-	if err != nil || len(holds) != 0 || !got[0].SalvageSelected {
-		t.Fatal(got, holds, err)
+	if got := salvageQueueReason(remoteSalvageRow(), r); got != "" {
+		t.Fatal("a safe ruin is held:", got)
 	}
 	selected, mined := SelectReachableResourceSources([]ResourceSource{{ThingID: "ore", Method: ResourceSourceMine, Yield: 40, Distance: 80, Cell: domain.Cell{X: 90, Z: 90}, Safety: "open_surface", Reachable: domain.Known(true)}}, 40, 0, r)
 	if len(selected) != 1 || len(mined) != 0 {

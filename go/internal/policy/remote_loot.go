@@ -144,30 +144,11 @@ func lootCandidate(row LootItem) SupplyCandidate {
 		SourceYield(ResourceKey{Def: Resource(row.Supply.Definition)}, row.Count, 0, row.StorageHeadroom))
 }
 
-// LootDemand builds the demand remote loot scores against: the effective
-// stock targets (which carry the derived resource needs) and the current
-// usable stock.
-func LootDemand(p RoundsPolicy, f RoundsFacts) (domain.Fact[[]ResourceDemand], error) {
-	targets, err := p.EffectiveResourceTargets(f.Resources, f.ResourceNeeds)
-	if err != nil {
-		return domain.Unknown[[]ResourceDemand](), err
-	}
-	in := ResourceDemandInput{EconomicFloors: map[string]int64{}}
-	for resource, count := range targets {
-		if count > 0 {
-			in.Targets = append(in.Targets, ResourceDemand{Key: ResourceKey{Def: resource}, Count: count, Priority: 2})
-		}
-	}
-	if stock, known := f.Resources.Value(); known {
-		rows := make([]ResourceQuantity, 0, len(stock))
-		for _, amount := range stock {
-			if amount.Count > 0 {
-				rows = append(rows, ResourceQuantity{Key: ResourceKey{Def: amount.Resource}, Count: amount.Count})
-			}
-		}
-		in.Stock = domain.Known(rows)
-	}
-	return BuildResourceDemand(in)
+// LootContext is the remote request the loot filter runs against: reach from
+// the derived extent and the urgent work competing for the colonists.
+func LootContext(f RoundsFacts) (RemoteWorkRequest, error) {
+	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
+	return RemoteWorkRequest{Reach: LootReach(f, f.MapBounds, extent), Competition: RemoteCompetition(f)}, err
 }
 
 // LootReach assembles the reach readiness for the loot filter from the review

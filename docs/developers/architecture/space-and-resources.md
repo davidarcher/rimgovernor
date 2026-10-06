@@ -83,9 +83,9 @@ open; the planners do not rank:
   `WoodTarget`, seasonal scaling) is a floor like any other.
 
 Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
-plan (`UrgentPriority`); remote loot and salvage plan their stacks and targets
-through it too (`PlanRemoteSupply`: threat and reach holds first, then the plan's
-demand holds). Remote loot consumes it through the
+plan (`UrgentPriority`); remote loot and salvage rank through the recovery queue
+(`policy.RankRecovery`: threat and reach holds first, then tier and distance).
+Remote loot consumes it through the
 [supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach).
 Surface mining uses the same reach ceiling and one-rock demand batches
 ([mining contract](../contracts/mining-contracts.md)); salvage reads the

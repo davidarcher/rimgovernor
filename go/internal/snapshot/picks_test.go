@@ -105,39 +105,22 @@ func TestPickShrineBreachReadiness(t *testing.T) {
 	}
 }
 
-// clearance/salvage-hold-resume, tick 26: the review selects the remote
-// battery ruin, holds it threat_present while a raider stands beside it
-// (no salvage target, so nothing is designated), and selects it again once
-// the raider is gone.
+// clearance/salvage-hold-resume, tick 26: the recovery queue works the remote
+// battery ruin, holds it threat_present while a raider stands beside it, and
+// works it again once the raider is gone.
 func TestPickSalvageHoldAndResume(t *testing.T) {
 	const ruin = "Thing_Battery12682"
 	for _, step := range []struct {
-		file, selected, hold string
+		file, hold string
 	}{
-		{"salvage-hold-selected", ruin, ""},
-		{"salvage-hold-threat", "", policy.RemoteHoldThreat},
-		{"salvage-hold-resumed", ruin, ""},
+		{"salvage-hold-selected", ""},
+		{"salvage-hold-threat", policy.RemoteHoldThreat},
+		{"salvage-hold-resumed", ""},
 	} {
-		r, err := Load("testdata/" + step.file + ".json.gz")
-		if err != nil {
-			t.Fatal(err)
-		}
-		rows, known := r.Facts.Upkeep.Clearance.Value()
-		if !known {
-			t.Fatalf("%s: clearance census unknown", step.file)
-		}
-		holds, selected, err := policy.ReviewClearanceHolds(r.Policy, r.Facts, rows)
-		if err != nil {
-			t.Fatal(err)
-		}
-		hold := ""
-		for _, h := range holds {
-			if h.Target == ruin {
-				hold = string(h.Reason)
-			}
-		}
-		if selected != step.selected || hold != step.hold {
-			t.Errorf("%s: selected %q hold %q, want %q %q", step.file, selected, hold, step.selected, step.hold)
+		_, _, q := recovery(t, "testdata/"+step.file+".json.gz")
+		e, ok := entry(q, ruin)
+		if !ok || e.Reason != step.hold || (step.hold == "") != working(q, ruin) {
+			t.Errorf("%s: %+v, want hold %q", step.file, e, step.hold)
 		}
 	}
 }

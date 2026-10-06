@@ -105,9 +105,35 @@ func TestRecoveryBatchTargetsFollowQueue(t *testing.T) {
 		{ID: "c", Kind: RemoteLoot, Status: RecoveryQueued},
 		{ID: "d", Kind: RemoteSalvage, Status: RecoveryQueued},
 	}}
-	rows := []ClearanceTarget{{EntityID: "a", Minimum: domain.Cell{X: 1, Z: 2}}, {EntityID: "d", Minimum: domain.Cell{X: 3, Z: 4}}}
+	safe := &SalvageEvidence{Safe: domain.Known(true)}
+	rows := []ClearanceTarget{
+		{EntityID: "a", Deconstructible: true, Salvage: safe, Minimum: domain.Cell{X: 1, Z: 2}},
+		{EntityID: "d", Deconstructible: true, Salvage: safe, Minimum: domain.Cell{X: 3, Z: 4}},
+	}
 	got := RecoveryBatchTargets(q, rows)
 	if len(got) != 2 || got[0].ID != "a" || got[1] != (RecoveryBatchTarget{"d", domain.Cell{X: 3, Z: 4}}) {
 		t.Fatalf("got %+v", got)
+	}
+	// The fresh read wins over the review's queue: a row that has gone unsafe
+	// or lost its evidence drops out.
+	rows[0].Salvage = &SalvageEvidence{Safe: domain.Known(false)}
+	rows[1].Salvage = nil
+	if got := RecoveryBatchTargets(q, rows); len(got) != 0 {
+		t.Fatalf("fresh holds ignored: %+v", got)
+	}
+}
+
+func TestRoomObstructionIDsAreForeignRowsOnPlannedGround(t *testing.T) {
+	row := func(id string, min, max domain.Cell) ClearanceTarget {
+		return ClearanceTarget{EntityID: id, Minimum: min, Maximum: max}
+	}
+	ground := []Rectangle{{X: 10, Z: 10, Width: 5, Height: 5}}
+	got := RoomObstructionIDs([]ClearanceTarget{
+		row("inside", domain.Cell{X: 11, Z: 11}, domain.Cell{X: 11, Z: 11}),
+		row("edge", domain.Cell{X: 8, Z: 12}, domain.Cell{X: 10, Z: 12}),
+		row("outside", domain.Cell{X: 15, Z: 10}, domain.Cell{X: 16, Z: 10}),
+	}, ground)
+	if len(got) != 2 || !got["inside"] || !got["edge"] {
+		t.Fatalf("got %v", got)
 	}
 }

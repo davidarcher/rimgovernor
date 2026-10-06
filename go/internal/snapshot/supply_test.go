@@ -22,7 +22,7 @@ const (
 // ManageSupplySafety planner forbids and allows from.
 func replayEventLoot(t *testing.T, r Rounds, first bool) policy.EventLootHistory {
 	t.Helper()
-	remote, err := policy.SalvageContext(r.Policy, r.Facts)
+	remote, err := policy.LootContext(r.Facts)
 	if err != nil {
 		t.Fatal(err)
 	}

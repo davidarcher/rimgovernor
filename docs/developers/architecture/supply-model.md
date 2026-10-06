@@ -43,8 +43,8 @@ builds the channel rows and `policy.SupplyFoodPlan` plans them through
 `FoodPlan` that the player API and the method planners consume. Resource
 mines, bills, chops, harvests and hunts run on it through the Round's resource
 supply plan (`policy.PlanResourceSupply`, [space and resources](space-and-resources.md#resource-demand-and-acquisition-scoring));
-deep drill runs on it as a candidate, and remote loot and salvage plan their
-stacks and targets through `policy.PlanRemoteSupply`. A caravan's priced goods
+deep drill runs on it as a candidate, and remote loot and salvage rank through the
+recovery queue (`policy.RankRecovery`). A caravan's priced goods
 are candidates too ([trade offers](#trade-offers)), and the resource simulator
 matrix runs through a `PlanSupply` adapter.
 
