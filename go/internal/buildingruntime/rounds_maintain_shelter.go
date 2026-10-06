@@ -94,6 +94,18 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 			return domain.Unknown[bool](), err
 		}
 	}
+	// The paddock yard and the map outside it are the areas companions and
+	// predators are kept in (AnimalShelterChoice, #2234).
+	if plan, ok := projection.LayoutPlan.Value(); ok {
+		if yard := plan.PaddockCells(); len(yard) > 0 {
+			if err := m.plan(policy.CompanionAreaKey, yard); err != nil {
+				return domain.Unknown[bool](), err
+			}
+			if err := m.plan(policy.WildAreaKey, plan.WildCells(projection.Bounds)); err != nil {
+				return domain.Unknown[bool](), err
+			}
+		}
+	}
 	// The isolation room's interior is the area a creepjoiner is held in
 	// (ManageCreepJoiners, #1740).
 	if len(isolation) > 0 {

@@ -38,7 +38,66 @@ func barnShelterFacts(temp float64, conditions ...string) RoundsFacts {
 	f.AnimalUpkeep.AnimalRaces = AnimalRaceCatalog{Races: map[Resource]AnimalRace{"Muffalo": race("Muffalo", -40, 50), "Thrumbo": race("Thrumbo", -10, 30)}}
 	f.DisasterConditions, f.OutdoorTemperature, f.BarnArea = domain.Known(rows), domain.Known(temp), domain.Known("Area_Barn")
 	f.Hostiles = domain.Known(int64(0))
+	f.PaddockClosed = domain.Known(true)
 	return f
+}
+
+func TestAnimalAreasByKindAndRing(t *testing.T) {
+	animal := func(id string, pen, bonded, predator bool, area string) UpkeepAnimal {
+		a := planAnimal(id, "Muffalo", "Male")
+		a.RequiresPen, a.Bonded = domain.Known(pen), domain.Known(bonded)
+		a.SupportsAreas, a.AllowedArea = domain.Known(true), domain.Known(area)
+		a.Herd.Predator = predator
+		return a
+	}
+	cases := []struct {
+		name   string
+		animal UpkeepAnimal
+		closed domain.Fact[bool]
+		want   string
+		moves  bool
+	}{
+		{"roamer ring open", animal("a", true, false, false, ""), domain.Known(false), "Area_Barn", true},
+		{"roamer ring open stays", animal("a", true, false, false, "Area_Barn"), domain.Known(false), "", false},
+		{"roamer ring closed released", animal("a", true, false, false, "Area_Barn"), domain.Known(true), "", true},
+		{"roamer ring closed free", animal("a", true, false, false, ""), domain.Known(true), "", false},
+		{"companion ring open", animal("a", false, true, false, ""), domain.Known(false), "Area_Companion", true},
+		{"companion ring closed", animal("a", false, true, false, ""), domain.Known(true), "Area_Companion", true},
+		{"companion in place", animal("a", false, true, false, "Area_Companion"), domain.Known(true), "", false},
+		{"unbonded non-roamer", animal("a", false, false, false, ""), domain.Known(true), "", false},
+		{"predator ring open", animal("a", false, false, true, ""), domain.Known(false), "Area_Wild", true},
+		{"tamed warg ring closed", animal("a", true, false, true, ""), domain.Known(true), "Area_Wild", true},
+		{"tamed warg leaves the barn", animal("a", true, false, true, "Area_Barn"), domain.Known(false), "Area_Wild", true},
+		{"unknown ring roamer", animal("a", true, false, false, ""), domain.Unknown[bool](), "", false},
+		{"unknown ring companion", animal("a", false, true, false, ""), domain.Unknown[bool](), "", false},
+		{"unknown ring predator", animal("a", true, false, true, ""), domain.Unknown[bool](), "", false},
+		{"vet room left alone", animal("a", true, false, true, "Area_Vet"), domain.Known(true), "", false},
+	}
+	for _, c := range cases {
+		f := barnShelterFacts(20)
+		f.AnimalUpkeep.Animals = domain.Known([]UpkeepAnimal{c.animal})
+		f.PaddockClosed = c.closed
+		f.CompanionArea, f.WildArea = domain.Known("Area_Companion"), domain.Known("Area_Wild")
+		got, err := f.AnimalShelterChoice()
+		if err != nil || (got.Method != "") != c.moves || got.Argument != c.want {
+			t.Errorf("%s: %+v %v", c.name, got, err)
+		}
+	}
+}
+
+func TestPaddockAndWildCellsPartitionTheMap(t *testing.T) {
+	plan := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	yard := plan.PaddockCells()
+	if len(yard) == 0 {
+		t.Fatal("a ringed plan has a yard")
+	}
+	bounds := Bounds{Width: 400, Height: 400}
+	if got := plan.WildCells(bounds); len(got)+len(yard) != 400*400 {
+		t.Fatal("wild plus yard is the map", len(got), len(yard))
+	}
+	if got := (LayoutPlan{}).WildCells(bounds); len(got) != 0 {
+		t.Fatal("no ring, no wild area", len(got))
+	}
 }
 
 // moveAll applies a choice to the animal rows the way native does.

@@ -439,6 +439,15 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	} else {
 		reading.Projection.Facts.ShellsShort = policy.ShellsShort(targets, reading.Projection.Resources)
 	}
+	if plan, ok := reading.Projection.LayoutPlan.Value(); ok {
+		record, found, err := p.journal.LoadDefenseLayout(ctx, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
+		if err != nil {
+			return store.RoundsResult{}, err
+		}
+		if found {
+			reading.Projection.Facts.PaddockClosed = domain.Known(paddockClosed(record, plan))
+		}
+	}
 	if r.methodEnabled(policy.MaintainShelter) {
 		if reading.Projection.Facts.SafeAreaOwed, err = r.safeArea.review(stockpileWorld(state.Snapshot), reading.Projection); err != nil {
 			return store.RoundsResult{}, err

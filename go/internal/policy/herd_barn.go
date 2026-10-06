@@ -32,69 +32,92 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 	return sortedCells(set)
 }
 
-// AnimalShelterChoice is the husbandry write that shelters the pen animals
-// from exposure, one per cycle, derived from the animals' current allowed
-// area alone (no stored prior state): while the animal's race is in danger
-// outdoors (a hostile threat, RoundsFacts.Hostiles > 0 -- the colony's
-// non-distant Hostile and HuntingPredator holds -- endangers every race and
-// skips the weather reads; otherwise AnimalExposures over the pen animals'
-// races) an animal with no area restriction is let into the Barn area (allowed_area), and once its
-// race is out of danger an animal in the Barn area is released
-// (allowed_area cleared), which is how a pen animal is unrestricted.
-// An animal in any other area (the vet room's) is left to the flow that put
-// it there, as is one marked for removal or with an unread area, support or
-// removal fact. No standing Barn area or no pen animal chooses nothing; an
-// unread hostile count, or with no threat a race with no comfort range or an
-// unread census or temperature, is an error (ErrAnimalExposure).
+// AnimalShelterChoice is the husbandry write that places animals in their
+// kind's allowed area, one per cycle, derived from the animals' current
+// allowed area alone (no stored prior state). An animal is moved only from no
+// restriction or the Barn area; one in any other area (the vet room's) is left
+// to the flow that put it there, as is one marked for removal or with an unread
+// area, support or removal fact. With the ring's closure unread nothing is
+// chosen (#2234, epic #2229):
+//   - a predator, a tamed warg included, is kept in the Wild area (the map
+//     minus the paddock), whatever its pen need;
+//   - a roamer (RequiresPen) is kept in the Barn while the ring is open; once
+//     the ring is closed the paddock holds it unrestricted, and it is let into
+//     the Barn only while its race is in danger outdoors (a hostile threat,
+//     RoundsFacts.Hostiles > 0, endangers every race and skips the weather
+//     reads; otherwise AnimalExposures) and released once that passes (#1869);
+//   - a bonded non-roamer is kept in the Companion area, the paddock yard.
+//
+// A kind whose area is not standing chooses nothing; an unread hostile count,
+// or with no threat a race with no comfort range or an unread census or
+// temperature, is an error (ErrAnimalExposure) once a roamer needs it.
 func (f RoundsFacts) AnimalShelterChoice() (HusbandryChoice, error) {
 	none := HusbandryChoice{Reason: HusbandryNoDeficit}
 	rows, known := f.AnimalUpkeep.Animals.Value()
-	barn, barnKnown := f.BarnArea.Value()
-	if !known || !barnKnown || barn == "" {
+	closed, closedKnown := f.PaddockClosed.Value()
+	if !known || !closedKnown {
 		return none, nil
 	}
-	var pen []UpkeepAnimal
+	barn, _ := f.BarnArea.Value()
+	companion, _ := f.CompanionArea.Value()
+	wild, _ := f.WildArea.Value()
+	var placed []UpkeepAnimal
 	var races []Resource
 	for _, a := range rows {
-		requires, pk := a.RequiresPen.Value()
 		release, rk := a.Release.Value()
 		slaughter, sk := a.Slaughter.Value()
 		supports, uk := a.SupportsAreas.Value()
-		if _, ak := a.AllowedArea.Value(); pk && requires && rk && !release && sk && !slaughter && uk && supports && ak {
-			pen = append(pen, a)
+		if _, ak := a.AllowedArea.Value(); !(rk && !release && sk && !slaughter && uk && supports && ak) {
+			continue
+		}
+		placed = append(placed, a)
+		if requires, pk := a.RequiresPen.Value(); pk && requires && !a.Herd.Predator && closed {
 			races = append(races, a.Definition)
 		}
 	}
-	if len(pen) == 0 {
-		return none, nil
-	}
-	hostiles, hostilesKnown := f.Hostiles.Value()
-	if !hostilesKnown {
-		return none, fmt.Errorf("%w: the hostile count is unread", ErrAnimalExposure)
-	}
 	danger := map[Resource]bool{}
-	if hostiles > 0 {
-		for _, r := range races {
-			danger[r] = true
+	if len(races) > 0 {
+		hostiles, hostilesKnown := f.Hostiles.Value()
+		if !hostilesKnown {
+			return none, fmt.Errorf("%w: the hostile count is unread", ErrAnimalExposure)
 		}
-	} else {
-		exposures, err := AnimalExposures(races, f.DisasterConditions, f.OutdoorTemperature, f.AnimalUpkeep.AnimalRaces.comfort)
-		if err != nil {
-			return none, err
-		}
-		for _, e := range exposures {
-			danger[e.Race] = e.Danger()
+		if hostiles > 0 {
+			for _, r := range races {
+				danger[r] = true
+			}
+		} else {
+			exposures, err := AnimalExposures(races, f.DisasterConditions, f.OutdoorTemperature, f.AnimalUpkeep.AnimalRaces.comfort)
+			if err != nil {
+				return none, err
+			}
+			for _, e := range exposures {
+				danger[e.Race] = e.Danger()
+			}
 		}
 	}
-	sort.Slice(pen, func(i, j int) bool { return pen[i].ID < pen[j].ID })
-	for _, a := range pen {
+	sort.Slice(placed, func(i, j int) bool { return placed[i].ID < placed[j].ID })
+	for _, a := range placed {
 		area, _ := a.AllowedArea.Value()
+		requires, pk := a.RequiresPen.Value()
+		bonded, bk := a.Bonded.Value()
+		var want string
 		switch {
-		case danger[a.Definition] && area == "":
-			return HusbandryChoice{Animal: a.ID, Method: domain.HusbandryAllowedArea, Argument: barn}, nil
-		case !danger[a.Definition] && area == barn:
-			return HusbandryChoice{Animal: a.ID, Method: domain.HusbandryAllowedArea}, nil
+		case a.Herd.Predator:
+			want = wild
+		case pk && requires:
+			if !closed || danger[a.Definition] {
+				want = barn
+			}
+		case pk && bk && bonded:
+			want = companion
+		default:
+			continue
 		}
+		roamer := pk && requires && !a.Herd.Predator
+		if want == "" && !roamer || area == want || area != "" && area != barn {
+			continue
+		}
+		return HusbandryChoice{Animal: a.ID, Method: domain.HusbandryAllowedArea, Argument: want}, nil
 	}
 	return none, nil
 }
