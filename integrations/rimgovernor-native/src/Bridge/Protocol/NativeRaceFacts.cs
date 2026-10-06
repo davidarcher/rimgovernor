@@ -43,6 +43,8 @@ namespace HomeBridge.BridgeTools
             row.TamenessCanDecay = TrainableUtility.TamenessCanDecay(def);
             row.TamenessDecayPeriodTicks = TrainableUtility.DegradationPeriodTicks(def);
             row.TameChanceFactor = TameChanceFactorCurve().Evaluate(def.GetStatValueAbstract(StatDefOf.Wildness));
+            if (stages.Count > 0)
+                row.AdultFeedPerDay = SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, stages[stages.Count - 1].def);
             if (race.meatDef != null)
             {
                 row.MeatDef = Named(race.meatDef.defName);

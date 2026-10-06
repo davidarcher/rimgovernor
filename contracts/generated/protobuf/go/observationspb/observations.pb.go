@@ -39561,10 +39561,15 @@ type RaceFacts struct {
 	// RaceProperties.meatDef (empty for a race with no meat) and the
 	// GetStatValueAbstract(MeatAmount) of the race def: the meat a butchery
 	// yields before the butcher's efficiency.
-	MeatDef       string  `protobuf:"bytes,13,opt,name=meat_def,json=meatDef,proto3" json:"meat_def,omitempty"`
-	MeatAmount    float32 `protobuf:"fixed32,14,opt,name=meat_amount,json=meatAmount,proto3" json:"meat_amount,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MeatDef    string  `protobuf:"bytes,13,opt,name=meat_def,json=meatDef,proto3" json:"meat_def,omitempty"`
+	MeatAmount float32 `protobuf:"fixed32,14,opt,name=meat_amount,json=meatAmount,proto3" json:"meat_amount,omitempty"`
+	// SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, adult
+	// life stage) (#2240): the nutrition per day one adult of the race eats, the
+	// game's own feed figure for an owned adult, so a colony with none of the
+	// race can price its feed. Absent for a race with no life stages.
+	AdultFeedPerDay *float64 `protobuf:"fixed64,15,opt,name=adult_feed_per_day,json=adultFeedPerDay,proto3,oneof" json:"adult_feed_per_day,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RaceFacts) Reset() {
@@ -39691,6 +39696,13 @@ func (x *RaceFacts) GetMeatDef() string {
 func (x *RaceFacts) GetMeatAmount() float32 {
 	if x != nil {
 		return x.MeatAmount
+	}
+	return 0
+}
+
+func (x *RaceFacts) GetAdultFeedPerDay() float64 {
+	if x != nil && x.AdultFeedPerDay != nil {
+		return *x.AdultFeedPerDay
 	}
 	return 0
 }
@@ -50150,7 +50162,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_food_kindB\x13\n" +
 	"\x11_meal_ingredientsB\a\n" +
-	"\x05_race\"\xae\x05\n" +
+	"\x05_race\"\xf7\x05\n" +
 	"\tRaceFacts\x12\x16\n" +
 	"\x06animal\x18\x01 \x01(\bR\x06animal\x12\x1c\n" +
 	"\tmechanoid\x18\x02 \x01(\bR\tmechanoid\x12\x16\n" +
@@ -50170,10 +50182,12 @@ const file_observations_proto_rawDesc = "" +
 	"\x12tame_chance_factor\x18\f \x01(\x02R\x10tameChanceFactor\x12\x19\n" +
 	"\bmeat_def\x18\r \x01(\tR\ameatDef\x12\x1f\n" +
 	"\vmeat_amount\x18\x0e \x01(\x02R\n" +
-	"meatAmountB\x1d\n" +
+	"meatAmount\x120\n" +
+	"\x12adult_feed_per_day\x18\x0f \x01(\x01H\x03R\x0fadultFeedPerDay\x88\x01\x01B\x1d\n" +
 	"\x1b_reproductive_min_age_ticksB\x19\n" +
 	"\x17_milkable_min_age_ticksB\x1a\n" +
-	"\x18_shearable_min_age_ticks\"\xad\x01\n" +
+	"\x18_shearable_min_age_ticksB\x15\n" +
+	"\x13_adult_feed_per_day\"\xad\x01\n" +
 	"\fDefStatTable\x12\x14\n" +
 	"\x05stats\x18\x01 \x03(\tR\x05stats\x12;\n" +
 	"\x04rows\x18\x02 \x03(\v2'.rimgovernor.observations.v1.DefStatRowR\x04rows\x12J\n" +

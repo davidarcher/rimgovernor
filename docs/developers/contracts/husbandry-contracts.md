@@ -19,7 +19,7 @@ fails the reading loudly like any other required native read.
 The race row also carries the game-computed husbandry facts of #2238 (one
 census, no later rounds): `adult_min_age_ticks` and the first reproductive,
 milkable and shearable stage ages (`RaceFacts`), the tameness decay flag and
-period, the wildness tame-chance factor, and the meat def and amount; the
+period, the wildness tame-chance factor, and the meat def and amount, and the adult feed per day (#2240); the
 animal interaction job constants (talk and feed ticks, feeds, feed nutrition
 share and cap, minimum train interval) are `CatalogConstants`, held as
 `AnimalRaceCatalog.Interaction`. Taming and training jobs, milk, wool and egg

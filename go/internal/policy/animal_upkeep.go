@@ -373,6 +373,10 @@ type AnimalRace struct {
 	// MeatAmount the MeatAmount stat of the race def, before butcher efficiency.
 	MeatDef    Resource
 	MeatAmount domain.Fact[float64]
+	// AdultFeedPerDay is the nutrition per day one adult of the race eats
+	// (#2240): the game's own feed figure, the one an owned adult's
+	// Herd.FeedPerDay carries.
+	AdultFeedPerDay domain.Fact[float64]
 	// MeatNutritionPerUnit is the Nutrition stat of MeatDef (the catalog's
 	// def stat table, no native read).
 	MeatNutritionPerUnit domain.Fact[float64]

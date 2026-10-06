@@ -141,6 +141,9 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 	race.TamenessCanDecay = domain.Known(facts.GetTamenessCanDecay())
 	race.TamenessDecayPeriodTicks = domain.Known(int(facts.GetTamenessDecayPeriodTicks()))
 	race.TameChanceFactor = domain.Known(float64(facts.GetTameChanceFactor()))
+	if feed := facts.AdultFeedPerDay; feed != nil && *feed > 0 {
+		race.AdultFeedPerDay = domain.Known(*feed)
+	}
 	if meat := facts.GetMeatDef(); meat != "" {
 		race.MeatDef = policy.Resource(meat)
 		race.MeatAmount = domain.Known(float64(facts.GetMeatAmount()))

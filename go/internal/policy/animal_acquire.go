@@ -35,35 +35,6 @@ type acquiredYield struct {
 	feed            float64
 }
 
-// feedPerDay is a race's daily feed: an owned adult of the race exactly, else
-// the owned adults' feed per body size (the herd plan's stand-in for feed,
-// herdScore) times the race's body size. Unknown without an owned adult
-// whose feed is read: the game's hunger rate is not mirrored per race.
-func (in AnimalAcquisition) feedPerDay(race AnimalRace) (float64, bool) {
-	owned, _ := in.Owned.Value()
-	perSize, seen := 0.0, false
-	for _, a := range owned {
-		adult, ak := a.Herd.Adult.Value()
-		feed, fk := a.Herd.FeedPerDay.Value()
-		if !ak || !adult || !fk || !foodNumber(feed) {
-			continue
-		}
-		if a.Definition == race.Def {
-			return feed, true
-		}
-		if r, ok := in.Races.Race(a.Definition); ok {
-			if size, sk := r.BodySize.Value(); sk && size > 0 {
-				perSize, seen = math.Max(perSize, feed/size), true
-			}
-		}
-	}
-	size, sk := race.BodySize.Value()
-	if !seen || !sk || size <= 0 {
-		return 0, false
-	}
-	return perSize * size, true
-}
-
 // room is whether the herd can take another animal of the race: not retired
 // and below its ceiling when it has one.
 func (in AnimalAcquisition) room(race Resource) bool {
@@ -87,8 +58,8 @@ func (in AnimalAcquisition) room(race Resource) bool {
 // yield prices one animal of race and gender, ageTicks old: the milk and eggs
 // it gives net of feed, else its meat. Not ok when any fact it needs is unread.
 func (in AnimalAcquisition) yield(race AnimalRace, gender string, ageTicks float64) (acquiredYield, bool) {
-	feed, ok := in.feedPerDay(race)
-	if !ok {
+	feed, ok := race.AdultFeedPerDay.Value()
+	if !ok || !foodNumber(feed) {
 		return acquiredYield{}, false
 	}
 	lead := func(stage domain.Fact[int64]) (float64, bool) {

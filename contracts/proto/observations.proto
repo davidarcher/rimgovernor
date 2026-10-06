@@ -2071,6 +2071,11 @@ message RaceFacts {
   // yields before the butcher's efficiency.
   string meat_def = 13;
   float meat_amount = 14;
+  // SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, adult
+  // life stage) (#2240): the nutrition per day one adult of the race eats, the
+  // game's own feed figure for an owned adult, so a colony with none of the
+  // race can price its feed. Absent for a race with no life stages.
+  optional double adult_feed_per_day = 15;
 }
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once

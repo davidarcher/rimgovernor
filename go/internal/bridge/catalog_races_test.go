@@ -114,6 +114,8 @@ func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 	wolf.AdultMinAgeTicks, wolf.ReproductiveMinAgeTicks, wolf.MilkableMinAgeTicks = 7200000, &reproductive, &milkable
 	wolf.TamenessCanDecay, wolf.TamenessDecayPeriodTicks, wolf.TameChanceFactor = true, 450000, 0.25
 	wolf.MeatDef, wolf.MeatAmount = "Meat_Wolf", 70
+	feed := 1.25
+	wolf.AdultFeedPerDay = &feed
 	reply.ThingDefs = append(reply.ThingDefs, &d.ThingDef{DefName: "Meat_Wolf"})
 	reply.StatValues.Stats = append(reply.StatValues.Stats, StatNutrition)
 	reply.StatValues.Rows = append(reply.StatValues.Rows, &o.DefStatRow{DefName: "Meat_Wolf", Stat: []int32{4}, Value: []float32{0.05}})
@@ -153,7 +155,13 @@ func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 	if v, ok := race.MeatNutritionPerUnit.Value(); !ok || float32(v) != 0.05 {
 		t.Fatalf("meat nutrition %v %v", v, ok)
 	}
+	if v, ok := race.AdultFeedPerDay.Value(); !ok || v != 1.25 {
+		t.Fatalf("adult feed %v %v", v, ok)
+	}
 	beaver, _ := races.Race("Alphabeaver")
+	if _, ok := beaver.AdultFeedPerDay.Value(); ok {
+		t.Fatal("a race with no feed fact has none")
+	}
 	if _, ok := beaver.MeatAmount.Value(); ok || beaver.MeatDef != "" {
 		t.Fatalf("a race with no meat has none: %+v", beaver)
 	}

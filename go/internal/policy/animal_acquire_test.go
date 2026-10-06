@@ -11,7 +11,7 @@ const acquireDay = domain.TicksPerDay
 func acquireCow() AnimalRace {
 	return AnimalRace{Def: "Cow", BodySize: domain.Known(2.0), TameChanceFactor: domain.Known(0.5), ManhunterOnTameFail: domain.Known(0.0),
 		AdultMinAgeTicks: domain.Known(int64(10 * acquireDay)), MilkableMinAgeTicks: domain.Known(int64(6 * acquireDay)),
-		MeatDef: "Meat_Cow", MeatAmount: domain.Known(100.0), MeatNutritionPerUnit: domain.Known(0.05),
+		AdultFeedPerDay: domain.Known(2.0), MeatDef: "Meat_Cow", MeatAmount: domain.Known(100.0), MeatNutritionPerUnit: domain.Known(0.05),
 		Products: []RaceProduct{{Kind: "milk", Def: "Milk", Amount: domain.Known(10.0), IntervalDays: domain.Known(1.0), NutritionPerUnit: domain.Known(0.5)}}}
 }
 
@@ -19,11 +19,6 @@ func acquireInput(races ...AnimalRace) AnimalAcquisition {
 	in := AnimalAcquisition{Races: raceCatalog(races...), Handlers: handlerAt(5)}
 	in.Races.Interaction = AnimalInteraction{TalkTicks: domain.Known(270), FeedTicks: domain.Known(270), Feeds: domain.Known(2)}
 	return in
-}
-
-func ownedAdult(def Resource, feed float64) UpkeepAnimal {
-	return UpkeepAnimal{ID: "own-" + PawnID(def), Definition: def, Release: domain.Known(false),
-		Herd: HerdFacts{Adult: domain.Known(true), FeedPerDay: domain.Known(feed)}}
 }
 
 func wildYoung(def Resource, gender string, ageYears float64) UpkeepAnimal {
@@ -34,7 +29,6 @@ func wildYoung(def Resource, gender string, ageYears float64) UpkeepAnimal {
 func TestTameFoodChannelNetsFeedAndLeadsUntilMilkable(t *testing.T) {
 	t.Parallel()
 	in := acquireInput(acquireCow())
-	in.Owned = domain.Known([]UpkeepAnimal{ownedAdult("Cow", 2)})
 	in.Wild = domain.Known([]UpkeepAnimal{wildYoung("Cow", "Female", 1.0/DaysPerYearF)})
 	got := TameFoodChannels(in)
 	if len(got) != 1 || got[0].Kind != FoodTame || got[0].ID != "tame:wild-Cow" {
@@ -55,8 +49,9 @@ func TestTameFoodChannelNetsFeedAndLeadsUntilMilkable(t *testing.T) {
 
 func TestTameFoodChannelFallsBackToMeatForAMale(t *testing.T) {
 	t.Parallel()
-	in := acquireInput(acquireCow())
-	in.Owned = domain.Known([]UpkeepAnimal{ownedAdult("Cow", 0.2)})
+	cow := acquireCow()
+	cow.AdultFeedPerDay = domain.Known(0.2)
+	in := acquireInput(cow)
 	in.Wild = domain.Known([]UpkeepAnimal{wildYoung("Cow", "Male", 0)})
 	got := TameFoodChannels(in)
 	if len(got) != 1 {
@@ -78,7 +73,6 @@ func TestTameFoodChannelRefusals(t *testing.T) {
 	t.Parallel()
 	base := func() AnimalAcquisition {
 		in := acquireInput(acquireCow())
-		in.Owned = domain.Known([]UpkeepAnimal{ownedAdult("Cow", 2)})
 		in.Wild = domain.Known([]UpkeepAnimal{wildYoung("Cow", "Female", 0.5)})
 		return in
 	}
@@ -86,11 +80,19 @@ func TestTameFoodChannelRefusals(t *testing.T) {
 		t.Fatal("baseline offers nothing")
 	}
 	for name, mutate := range map[string]func(*AnimalAcquisition){
-		"no handler":       func(in *AnimalAcquisition) { in.Handlers = handlerAt(0) },
-		"feed short":       func(in *AnimalAcquisition) { in.Herd.FeedShort = true },
-		"retired":          func(in *AnimalAcquisition) { in.Herd.Retired = map[Resource]bool{"Cow": true} },
-		"at the ceiling":   func(in *AnimalAcquisition) { in.Herd.PopulationMax = map[Resource]int64{"Cow": 1} },
-		"no owned feed":    func(in *AnimalAcquisition) { in.Owned = domain.Known([]UpkeepAnimal{}) },
+		"no handler": func(in *AnimalAcquisition) { in.Handlers = handlerAt(0) },
+		"feed short": func(in *AnimalAcquisition) { in.Herd.FeedShort = true },
+		"retired":    func(in *AnimalAcquisition) { in.Herd.Retired = map[Resource]bool{"Cow": true} },
+		"at the ceiling": func(in *AnimalAcquisition) {
+			in.Herd.PopulationMax = map[Resource]int64{"Cow": 1}
+			in.Owned = domain.Known([]UpkeepAnimal{{ID: "own-Cow", Definition: "Cow", Release: domain.Known(false)}})
+		},
+		"unread race feed": func(in *AnimalAcquisition) {
+			cow := acquireCow()
+			cow.AdultFeedPerDay = domain.Unknown[float64]()
+			in.Races = raceCatalog(cow)
+			in.Races.Interaction = AnimalInteraction{TalkTicks: domain.Known(270), FeedTicks: domain.Known(270), Feeds: domain.Known(2)}
+		},
 		"unread talk time": func(in *AnimalAcquisition) { in.Races.Interaction.TalkTicks = domain.Unknown[int]() },
 		"unread census":    func(in *AnimalAcquisition) { in.Wild = domain.Unknown[[]UpkeepAnimal]() },
 	} {
@@ -102,20 +104,29 @@ func TestTameFoodChannelRefusals(t *testing.T) {
 	}
 }
 
-func TestAnimalFeedScalesFromOwnedBodySize(t *testing.T) {
+// TestAcquisitionPricesFeedWithNoOwnedAnimal (#2240): the race's own feed
+// prices a first tame and a first purchase for a colony that owns none.
+func TestAcquisitionPricesFeedWithNoOwnedAnimal(t *testing.T) {
 	t.Parallel()
-	goat := AnimalRace{Def: "Goat", BodySize: domain.Known(1.0)}
-	in := acquireInput(acquireCow(), goat)
-	in.Owned = domain.Known([]UpkeepAnimal{ownedAdult("Goat", 1)})
-	if feed, ok := in.feedPerDay(acquireCow()); !ok || feed != 2 {
-		t.Errorf("cow feed %v %v, want the goat's 1 per size x 2", feed, ok)
+	in := acquireInput(acquireCow())
+	in.Owned = domain.Known([]UpkeepAnimal{})
+	in.Wild = domain.Known([]UpkeepAnimal{wildYoung("Cow", "Female", 0.5)})
+	tame := TameFoodChannels(in)
+	if len(tame) != 1 || tame[0].Kind != FoodTame {
+		t.Fatalf("tame channels %v", tame)
+	}
+	if n, _ := tame[0].NutritionPerDay.Value(); n != 3 {
+		t.Errorf("net rate %v, want 5 milk - 2 feed", n)
+	}
+	buy := AnimalPurchaseFoodChannels([]TradeOffers{{Trader: "caravan", Rows: []TradeOffer{{Def: "Cow", Count: 1, Price: 50, Pawn: true, Gender: "Female"}}}}, in, 1000, 200)
+	if len(buy) != 1 || buy[0].Kind != FoodAnimalBuy {
+		t.Fatalf("buy channels %v", buy)
 	}
 }
 
 func TestAnimalPurchaseFoodChannelPricesTheCheapestUseful(t *testing.T) {
 	t.Parallel()
 	in := acquireInput(acquireCow())
-	in.Owned = domain.Known([]UpkeepAnimal{ownedAdult("Cow", 2)})
 	offers := []TradeOffers{{Trader: "caravan", Rows: []TradeOffer{
 		{Def: "Cow", Count: 1, Price: 300, Pawn: true, Gender: "Female"},
 		{Def: "Cow", Count: 1, Price: 100, Pawn: true, Gender: "Female"},
@@ -152,7 +163,6 @@ func TestAnimalPurchaseFoodChannelPricesTheCheapestUseful(t *testing.T) {
 func TestOpenedAcquisitionsReachTheirExecutors(t *testing.T) {
 	t.Parallel()
 	in := acquireInput(acquireCow())
-	in.Owned = domain.Known([]UpkeepAnimal{ownedAdult("Cow", 2)})
 	wild := []UpkeepAnimal{wildYoung("Cow", "Female", 0)}
 	in.Wild = domain.Known(wild)
 	rows := TameFoodChannels(in)
