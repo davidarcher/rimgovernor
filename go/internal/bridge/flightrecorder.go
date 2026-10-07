@@ -35,6 +35,14 @@ const (
 	DefaultFlightSegmentBytes = 32 << 20
 	DefaultFlightSegments     = 16
 
+	// DefaultFlightPayloadBytes caps one row's payload. A larger payload is
+	// replaced by a flightPreviewBytes preview and its hash: the cap bounds
+	// what one reply can take from the ring, it is not a copy of the reply.
+	// 64 KiB keeps the replies the readers decode (a pawn list is ~15 KiB)
+	// and truncates a whole-map cell read, which was 100-260 KB of base64.
+	DefaultFlightPayloadBytes = 64 << 10
+	flightPreviewBytes        = 4 << 10
+
 	minSegmentBytes = 1024
 	minSegments     = 2
 	minPayloadBytes = 128
@@ -64,7 +72,7 @@ type FlightRecorder struct {
 
 // FlightRecorderOption configures a FlightRecorder at construction. Defaults:
 // 32 MiB segments, 16 retained segments (512 MiB, pruned by count only),
-// 256 KiB payloads.
+// 64 KiB payloads.
 type FlightRecorderOption func(*FlightRecorder)
 
 func FlightSegmentBytes(n int64) FlightRecorderOption {
@@ -84,7 +92,7 @@ func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecord
 	if path == "" {
 		return nil, errors.New("flightrecorder: path required")
 	}
-	r := &FlightRecorder{path: path, segmentBytes: DefaultFlightSegmentBytes, segments: DefaultFlightSegments, payloadBytes: 256 << 10}
+	r := &FlightRecorder{path: path, segmentBytes: DefaultFlightSegmentBytes, segments: DefaultFlightSegments, payloadBytes: DefaultFlightPayloadBytes}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -145,7 +153,7 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 			"truncated":      true,
 			"original_bytes": len(encoded),
 			"sha256":         hex.EncodeToString(sum[:]),
-			"preview":        string(encoded[:r.payloadBytes]),
+			"preview":        string(encoded[:min(r.payloadBytes, flightPreviewBytes)]),
 		}
 		for _, key := range []string{"request", "tool", "native_tool", "category", "timing", telemetry.VerdictKey, telemetry.ReasonKey, telemetry.TargetKey, telemetry.DurMsKey} {
 			if value, ok := payload[key]; ok && flightCorrelatable(value) {

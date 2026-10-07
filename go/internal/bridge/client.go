@@ -194,6 +194,7 @@ type Client struct {
 	replies *replySlots
 
 	recorder         *FlightRecorder
+	framesSampledAt  atomic.Int64
 	recordingContext func() map[string]any
 	transcript       *Transcript
 }
@@ -592,7 +593,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 			fields["request"] = request
 		}
 		if len(arguments) > 0 {
-			fields["arguments"] = arguments
+			fields["arguments"] = recordedArguments(name, arguments)
 		}
 		return fields
 	}
@@ -639,15 +640,17 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 					timing["native_queue_depth"] = native.queueDepth
 				}
 				// The companion's observation capture account and its frame
-				// recorder's session counters (#642), verbatim.
+				// recorder's session counters (#642), verbatim; the frame
+				// account is cumulative, so only one row per
+				// framesSampleEvery carries it.
 				if native.observation != nil {
 					timing["native_observation"] = native.observation
 				}
-				if native.frames != nil {
+				if native.frames != nil && c.sampleFrames() {
 					timing["native_frames"] = native.frames
 				}
 			}
-			row := callRow(map[string]any{"ok": true, "result": decoded.Structured, "timing": timing})
+			row := callRow(map[string]any{"ok": true, "result": recordedResult(decoded.Structured), "timing": timing})
 			if typeName := recordedReplyType(ctx); typeName != "" {
 				row["reply_type"] = typeName
 			}
