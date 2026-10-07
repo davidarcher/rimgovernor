@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -33,8 +32,8 @@ func areaAction(action domain.Action) (*op.Action, error) {
 	} else {
 		intent.Key = proto.String(v.Key())
 	}
-	for _, cell := range v.Cells() {
-		intent.Cells = append(intent.Cells, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
+	for _, r := range v.Rects() {
+		intent.Rects = append(intent.Rects, &op.AreaRect{MinX: proto.Int32(r.MinX), MinZ: proto.Int32(r.MinZ), MaxX: proto.Int32(r.MaxX), MaxZ: proto.Int32(r.MaxZ)})
 	}
 	return &op.Action{Intent: &op.Action_Area{Area: intent}}, nil
 }

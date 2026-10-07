@@ -22,7 +22,7 @@ func TestAreaShapes(t *testing.T) {
 		}
 	}
 	v, err := NewArea(AreaSetCells, "", cells)
-	if err != nil || !v.Home() || v.Cells()[0] != (Cell{X: 1, Z: 2}) {
+	if err != nil || !v.Home() || len(v.Cells()) != len(cells) {
 		t.Fatal(v, err)
 	}
 	a, err := NewAreaAction("a1", v)
@@ -34,5 +34,27 @@ func TestAreaShapes(t *testing.T) {
 	}
 	if c, err := NewArea(AreaCreate, "safe", nil); err != nil || c.Home() || len(c.Cells()) != 0 {
 		t.Fatal(c, err)
+	}
+}
+
+// A block of cells is one rectangle, and the cover expands back to the cells.
+func TestAreaRectsCoverCells(t *testing.T) {
+	var cells []Cell
+	for x := int32(0); x < 200; x++ {
+		for z := int32(0); z < 100; z++ {
+			if x < 10 || x >= 40 || z < 20 || z >= 60 {
+				cells = append(cells, Cell{X: x, Z: z})
+			}
+		}
+	}
+	v, err := NewArea(AreaCreate, "wild", cells)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(v.Rects()); n > 4 {
+		t.Fatal("a map minus one hole is at most four rectangles, got", n)
+	}
+	if got := v.Cells(); len(got) != len(cells) {
+		t.Fatal("expansion lost cells", len(got), len(cells))
 	}
 }

@@ -36,14 +36,14 @@ func TestAreaBuildsAreaIntent(t *testing.T) {
 		}
 		a := wire.GetArea()
 		if a.GetOperation() != tc.want || a.GetKey() != tc.key || a.GetHome() != (tc.key == "") || (a.Key != nil) == (a.Home != nil) ||
-			len(a.GetCells()) != 2 || a.GetCells()[0].GetX() != 1 || a.GetCells()[1].GetZ() != 2 {
+			len(a.GetRects()) != 2 || a.GetRects()[0].GetMinX() != 4 || a.GetRects()[0].GetMinZ() != 2 || a.GetRects()[1].GetMaxZ() != 9 {
 			t.Fatalf("%v", wire)
 		}
 	}
 	del, _ := domain.NewArea(domain.AreaDelete, "safe", nil)
 	action, _ := domain.NewAreaAction("d", del)
 	wire, err := IntentAction("plan/1", action)
-	if err != nil || wire.GetArea().GetOperation() != o.AreaOperation_AREA_OPERATION_DELETE || len(wire.GetArea().GetCells()) != 0 {
+	if err != nil || wire.GetArea().GetOperation() != o.AreaOperation_AREA_OPERATION_DELETE || len(wire.GetArea().GetRects()) != 0 {
 		t.Fatal(wire, err)
 	}
 }

@@ -30,7 +30,66 @@ type Area struct {
 	op             AreaOperation
 	key            string
 	pollutionClear bool
-	cells          string
+	rects          string // canonical JSON []AreaRect
+}
+
+// AreaRect is one inclusive rectangle of cells.
+type AreaRect struct{ MinX, MinZ, MaxX, MaxZ int32 }
+
+// AreaRects covers cells (no duplicates) with the fewest
+// row-run rectangles a greedy vertical merge finds.
+func AreaRects(cells []Cell) []AreaRect {
+	cells = append([]Cell{}, cells...)
+	sort.Slice(cells, func(i, j int) bool {
+		return cells[i].Z < cells[j].Z || cells[i].Z == cells[j].Z && cells[i].X < cells[j].X
+	})
+	var out []AreaRect
+	var open []int // out indexes of rects ending on the previous row
+	prevZ := int32(-2)
+	for i := 0; i < len(cells); {
+		z := cells[i].Z
+		var row []AreaRect
+		for i < len(cells) && cells[i].Z == z {
+			j := i
+			for j+1 < len(cells) && cells[j+1].Z == z && cells[j+1].X == cells[j].X+1 {
+				j++
+			}
+			row = append(row, AreaRect{cells[i].X, z, cells[j].X, z})
+			i = j + 1
+		}
+		var next []int
+		for _, r := range row {
+			merged := false
+			if z == prevZ+1 {
+				for _, k := range open {
+					if out[k].MinX == r.MinX && out[k].MaxX == r.MaxX {
+						out[k].MaxZ = z
+						next, merged = append(next, k), true
+						break
+					}
+				}
+			}
+			if !merged {
+				out = append(out, r)
+				next = append(next, len(out)-1)
+			}
+		}
+		open, prevZ = next, z
+	}
+	return out
+}
+
+// ExpandAreaRects lists the cells of rects row by row.
+func ExpandAreaRects(rects []AreaRect) []Cell {
+	var cells []Cell
+	for _, r := range rects {
+		for z := r.MinZ; z <= r.MaxZ; z++ {
+			for x := r.MinX; x <= r.MaxX; x++ {
+				cells = append(cells, Cell{x, z})
+			}
+		}
+	}
+	return cells
 }
 
 func NewArea(op AreaOperation, key string, cells []Cell) (Area, error) {
@@ -69,7 +128,10 @@ func newArea(op AreaOperation, key string, pollutionClear bool, cells []Cell) (A
 			return Area{}, errors.New("invalid area cell")
 		}
 	}
-	data, _ := json.Marshal(rows)
+	data, _ := json.Marshal(AreaRects(rows))
+	if len(rows) == 0 {
+		data = nil
+	}
 	return Area{op, key, pollutionClear, string(data)}, nil
 }
 
@@ -81,11 +143,14 @@ func (a Area) Home() bool  { return a.key == "" && !a.pollutionClear }
 
 // PollutionClear names the game's pollution-clear area.
 func (a Area) PollutionClear() bool { return a.pollutionClear }
-func (a Area) Cells() []Cell {
-	var cells []Cell
-	_ = json.Unmarshal([]byte(a.cells), &cells)
-	return cells
+
+// Rects is the canonical cover of the area edit; Cells expands it.
+func (a Area) Rects() []AreaRect {
+	var rects []AreaRect
+	_ = json.Unmarshal([]byte(a.rects), &rects)
+	return rects
 }
+func (a Area) Cells() []Cell { return ExpandAreaRects(a.Rects()) }
 
 func NewAreaAction(id ActionID, a Area) (Action, error) {
 	if !validID(string(id)) {

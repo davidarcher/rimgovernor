@@ -428,7 +428,9 @@ enum AreaOperation { AREA_OPERATION_UNSPECIFIED = 0; AREA_OPERATION_CREATE = 1; 
 // pollution_clear (#1683) names the game's pollution-clear area
 // (map.areaManager.PollutionClear), the cells the cleanup crew cleans; like
 // home it is exclusive with key and takes set_cells and clear_cells only.
-message AreaIntent { optional AreaOperation operation = 1; optional string key = 2; optional bool home = 3; repeated rimgovernor.common.v1.Cell cells = 4; optional bool pollution_clear = 5; }
+// rects are inclusive cell rectangles; the area edit applies to their union.
+message AreaRect { optional int32 min_x = 1; optional int32 min_z = 2; optional int32 max_x = 3; optional int32 max_z = 4; }
+message AreaIntent { reserved 4; optional AreaOperation operation = 1; optional string key = 2; optional bool home = 3; repeated AreaRect rects = 6; optional bool pollution_clear = 5; }
 // Delete policies no pawn should keep (#1298): each delete_ids entry is a
 // Policy.GetUniqueLoadID() in the named outfit, drug, food or reading
 // database, or an Area_Allowed load id. Every live pawn still holding the

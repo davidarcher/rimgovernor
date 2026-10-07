@@ -190,8 +190,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
 	} else if area, ok := a.Area(); ok {
 		// definition is the operation, target the bot area key (NULL for
-		// home), zone_payload the canonical cells (#1321).
-		data, encodeErr := json.Marshal(area.Cells())
+		// home), zone_payload the canonical rects (#1321).
+		data, encodeErr := json.Marshal(area.Rects())
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -302,6 +302,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	}
 	return conflict(err)
 }
+
 func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var id domain.ActionID
 	var kind string
@@ -474,11 +475,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewFoodPolicyAction(id, food)
 		return a, ordinal, err
 	}
-	if kind == "area" && def.Valid && (!stuff.Valid || stuff.String == "pollution_clear" && !target.Valid) && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
-		var cells []domain.Cell
-		if json.Unmarshal(zone, &cells) != nil {
+	if kind == "area" && def.Valid && (!stuff.Valid || stuff.String == "pollution_clear" && !target.Valid) && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
+		var rects []domain.AreaRect
+		dec := json.NewDecoder(bytes.NewReader(zone))
+		dec.DisallowUnknownFields()
+		if dec.Decode(&rects) != nil {
 			return domain.Action{}, 0, errors.New("invalid area payload")
 		}
+		cells := domain.ExpandAreaRects(rects)
 		area, err := domain.NewArea(domain.AreaOperation(def.String), target.String, cells)
 		if stuff.Valid {
 			area, err = domain.NewPollutionClearArea(domain.AreaOperation(def.String), cells)

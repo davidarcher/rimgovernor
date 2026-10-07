@@ -36,17 +36,19 @@ namespace HomeBridge.BridgeTools
             var op = intent.Operation;
             if (fixedArea && (op == Operations.AreaOperation.Create || op == Operations.AreaOperation.Delete))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The home and pollution-clear areas are never created or deleted.");
-            if (op == Operations.AreaOperation.Delete && intent.Cells.Count > 0)
+            if (op == Operations.AreaOperation.Delete && intent.Rects.Count > 0)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area delete takes no cells.");
-            if ((op == Operations.AreaOperation.SetCells || op == Operations.AreaOperation.ClearCells) && intent.Cells.Count == 0)
+            if ((op == Operations.AreaOperation.SetCells || op == Operations.AreaOperation.ClearCells) && intent.Rects.Count == 0)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area cell edits need cells.");
             map = ProtoBoundary.LoadedMap(context);
-            foreach (var c in intent.Cells)
+            foreach (var r in intent.Rects)
             {
-                var cell = new IntVec3(c.X, 0, c.Z);
-                if (!c.HasX || !c.HasZ || !cell.InBounds(map))
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area cell is out of bounds.");
-                cells.Add(cell);
+                if (!r.HasMinX || !r.HasMinZ || !r.HasMaxX || !r.HasMaxZ || r.MinX > r.MaxX || r.MinZ > r.MaxZ
+                    || !new IntVec3(r.MinX, 0, r.MinZ).InBounds(map) || !new IntVec3(r.MaxX, 0, r.MaxZ).InBounds(map))
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area rectangle is out of bounds.");
+                for (var z = r.MinZ; z <= r.MaxZ; z++)
+                    for (var x = r.MinX; x <= r.MaxX; x++)
+                        cells.Add(new IntVec3(x, 0, z));
             }
             // The pollution-clear area is the game's own (Biotech only).
             if (pollution && !ModsConfig.BiotechActive)
