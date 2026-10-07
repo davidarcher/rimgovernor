@@ -48,7 +48,7 @@ func TestSelectNothingForDocs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllGo || sel.AllHarnesses || sel.Probes || len(sel.Packages) != 0 || len(sel.Cases) != 0 {
+	if sel.AllGo || sel.AllHarnesses || sel.Probes || len(sel.Cases) != 0 {
 		t.Errorf("docs change selected %+v", sel)
 	}
 }
@@ -68,7 +68,7 @@ func TestSelectNativeSourceIsEveryCaseNoGo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllGo || !sel.AllHarnesses || !sel.Probes || len(sel.Packages) != 0 || len(sel.Cases) < 10 {
+	if sel.AllGo || !sel.AllHarnesses || !sel.Probes || len(sel.Cases) < 10 {
 		t.Errorf("native change selected %+v", sel)
 	}
 }
@@ -83,7 +83,7 @@ func TestSelectNativeSourceNeedsNoGoModule(t *testing.T) {
 		}
 	}
 	sel, err := Select(r, []string{"integrations/rimgovernor-native/src/Foo.cs"})
-	if err != nil || !sel.AllHarnesses || !sel.Probes || sel.AllGo || len(sel.Packages) != 0 || !slices.Equal(sel.Cases, []string{"light", "power"}) {
+	if err != nil || !sel.AllHarnesses || !sel.Probes || sel.AllGo || !slices.Equal(sel.Cases, []string{"light", "power"}) {
 		t.Fatalf("native-only selection: %+v, %v", sel, err)
 	}
 }
@@ -97,7 +97,7 @@ func TestSelectProbeStubOwesProbesBuildOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sel.Probes || sel.AllGo || sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Cases) != 0 {
+	if !sel.Probes || sel.AllGo || sel.AllHarnesses || len(sel.Cases) != 0 {
 		t.Errorf("stub change selected %+v", sel)
 	}
 	if sel, err = Select(r, []string{"contracts/generated/protobuf/csharp/Clock.cs"}); err != nil {
@@ -108,23 +108,14 @@ func TestSelectProbeStubOwesProbesBuildOnly(t *testing.T) {
 	}
 }
 
-// A change to this package reaches the packages that import it (cmd/land,
-// cmd/affected) and no case, since no case area or the binary imports it;
+// A change to this package reaches no case, since no case area or the
+// binary imports it;
 // a change to nativeaccept itself reaches every case area.
 func TestSelectFollowsImports(t *testing.T) {
 	r := repo(t)
 	sel, err := Select(r, []string{"go/internal/affected/affected.go"})
 	if err != nil {
 		t.Fatal(err)
-	}
-	for _, want := range []string{
-		"github.com/davidarcher/RimGovernor/go/internal/affected",
-		"github.com/davidarcher/RimGovernor/go/cmd/land",
-		"github.com/davidarcher/RimGovernor/go/cmd/affected",
-	} {
-		if !slices.Contains(sel.Packages, want) {
-			t.Errorf("packages lack %s: %v", want, sel.Packages)
-		}
 	}
 	if len(sel.Cases) != 0 || sel.AllHarnesses {
 		t.Errorf("cases selected for a tooling-only change: %v", sel.Cases)
@@ -172,7 +163,7 @@ func TestSelectScopesFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 	// campaign/recovery stages its raid with the fixture (#633).
-	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"campaign", "defense"}) || len(sel.Packages) != 0 {
+	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"campaign", "defense"}) {
 		t.Errorf("defense fixture change selected %+v", sel)
 	}
 	sel, err = Select(r, []string{"scripts/fixtures/GuardedConstructionFixture.cs"})
@@ -188,15 +179,5 @@ func TestSelectScopesFixtures(t *testing.T) {
 	}
 	if sel.AllHarnesses || len(sel.Cases) != 0 {
 		t.Errorf("contract fixture change selected %+v", sel)
-	}
-}
-
-func TestSelectIgnoresDeletedDirs(t *testing.T) {
-	sel, err := Select(repo(t), []string{"go/internal/gone/x.go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(sel.Packages) != 0 {
-		t.Errorf("deleted package selected %v", sel.Packages)
 	}
 }

@@ -25,11 +25,6 @@ import (
 type Selection struct {
 	// AllGo means go.mod or go.sum changed: every package is affected.
 	AllGo bool
-	// Packages are the import paths to go test: the packages holding the
-	// changed Go files, testdata or embedded inputs. Production edits also select every
-	// in-module importer; test-only edits stay local. Empty with AllGo set
-	// means ./... .
-	Packages []string
 	// Cases are the go/internal/nativeaccept/cases areas (#135) whose
 	// inputs (na.HarnessInputRoots) include a changed file: every case the
 	// area registers is affected (acceptance run <area>/...).
@@ -189,32 +184,24 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	if err != nil {
 		return sel, err
 	}
-	// changedPkgs holds every changed package with its files, for go test;
 	// sources holds only the files that build into a binary (no _test.go,
 	// no testdata), since only those reach a case through the binary or
-	// the runner; a source scoped to routine families (roundsFamilyScope)
-	// is kept out of sources and recorded under families instead.
-	changedPkgs := map[string][]string{}
-	productionPkgs := map[string]bool{}
+	// the runner.
 	sources := map[string][]string{}
-	families := map[string][]string{} // family -> files scoped to it
-	var harnessChanged []string       // harness package sources, scoped by harnessTaint
+	var harnessChanged []string // harness package sources, scoped by harnessTaint
 	for dir, files := range dirs {
 		pkg, ok := graph.byDir[dir]
 		if !ok {
 			continue
 		}
-		changedPkgs[pkg] = append(changedPkgs[pkg], files...)
 		for _, file := range files {
 			if embeddedProduction[dir][file] {
-				productionPkgs[pkg] = true
 				sources[pkg] = append(sources[pkg], file)
 				continue
 			}
 			if strings.HasSuffix(file, "_test.go") || !strings.HasSuffix(file, ".go") {
 				continue
 			}
-			productionPkgs[pkg] = true
 			if revision != "" && acceptanceOnly(repo, revision, file) {
 				continue
 			}
@@ -222,35 +209,9 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 				harnessChanged = append(harnessChanged, file)
 				continue
 			}
-			scope, err := roundsFamilyScope(goDir, file)
-			if err != nil {
-				return sel, err
-			}
-			if scope.All {
-				sources[pkg] = append(sources[pkg], file)
-				continue
-			}
-			for _, family := range scope.Families {
-				families[family] = append(families[family], file)
-			}
+			sources[pkg] = append(sources[pkg], file)
 		}
 	}
-	// A package is affected when it changed or imports (directly, or
-	// through its own tests) changed production code. Another package's
-	// tests and testdata are not compiled into its importers.
-	for pkg, deps := range graph.testDeps {
-		if _, ok := changedPkgs[pkg]; ok {
-			sel.Packages = append(sel.Packages, pkg)
-			continue
-		}
-		for _, dep := range deps {
-			if productionPkgs[dep] {
-				sel.Packages = append(sel.Packages, pkg)
-				break
-			}
-		}
-	}
-	sort.Strings(sel.Packages)
 	if sel.AllHarnesses {
 		return sel, nil
 	}
@@ -260,9 +221,7 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	// imports every area to register it, so the areas, and what only they
 	// import, do not count as its inputs here; nor does this package, which
 	// the runner imports to compose the land tier (#273): a change here
-	// re-selects checks, it changes no case's run. A source scoped to routine
-	// families reaches the serve-hosting areas whose cases compose one of
-	// them, or compose every family.
+	// re-selects checks, it changes no case's run.
 	selector := graph.module + "/internal/affected"
 	binary := graph.module + "/cmd/rimgovernor"
 	prefix := graph.module + "/internal/nativeaccept/cases/"
@@ -320,22 +279,17 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 			runnerPlumbing = append(runnerPlumbing, "the runner imports "+dep+", which uses "+uses)
 		}
 	}
-	familyNames := make([]string, 0, len(families))
-	for family := range families {
-		familyNames = append(familyNames, family)
-	}
-	sort.Strings(familyNames)
 	for pkg, deps := range graph.deps {
 		name := strings.TrimPrefix(pkg, prefix)
 		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
 			continue
 		}
-		profile, err := readAreaProfile(filepath.Join(goDir, "internal", "nativeaccept", "cases", name))
+		hosts, err := hostsBinary(filepath.Join(goDir, "internal", "nativeaccept", "cases", name))
 		if err != nil {
 			return sel, err
 		}
 		why := append([]string{}, runnerWhy...)
-		if profile.Binary {
+		if hosts {
 			why = append(why, binaryWhy...)
 		}
 		if files, ok := sources[pkg]; ok {
@@ -351,16 +305,6 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 			if files, ok := sources[dep]; ok && !strings.HasPrefix(dep, prefix) {
 				why = append(why, "the area imports "+dep+" ("+strings.Join(files, ", ")+")")
 			}
-		}
-		for _, family := range familyNames {
-			if !profile.composes(family) {
-				continue
-			}
-			how := "composes it"
-			if profile.AllFamilies {
-				how = "composes every family"
-			}
-			why = append(why, "routine family "+family+" changed ("+strings.Join(families[family], ", ")+") and the area "+how)
 		}
 		sampled := len(why) == 0
 		why = append(why, runnerPlumbing...)
@@ -493,7 +437,6 @@ type graph struct {
 	module   string
 	byDir    map[string]string   // absolute directory -> import path
 	deps     map[string][]string // import path -> transitive in-module production deps
-	testDeps map[string][]string // production deps plus dependencies of this package's tests
 	direct   map[string][]string // import path -> in-module direct imports (no tests)
 
 	fixturesOnce sync.Once
@@ -524,7 +467,7 @@ func dependencyGraph(goDir string) (*graph, error) {
 }
 
 func readDependencyGraph(goDir string) (*graph, error) {
-	g := &graph{byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}, testDeps: map[string][]string{}}
+	g := &graph{byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}}
 	// One go list call: every package under ./... names the module it
 	// belongs to, so a separate go list -m would only add a second
 	// toolchain start (#434). -e retains embed patterns when the last
@@ -533,7 +476,6 @@ func readDependencyGraph(goDir string) (*graph, error) {
 	if err != nil {
 		return nil, err
 	}
-	tests := map[string][]string{}
 	g.embedded = map[string]embeddedInputs{}
 	decoder := json.NewDecoder(strings.NewReader(out))
 	for {
@@ -563,36 +505,11 @@ func readDependencyGraph(goDir string) (*graph, error) {
 		g.byDir[dir] = p.ImportPath
 		g.direct[p.ImportPath] = g.inModule(p.Imports)
 		g.deps[p.ImportPath] = g.inModule(p.Deps)
-		tests[p.ImportPath] = g.inModule(append(p.TestImports, p.XTestImports...))
 		if len(p.EmbedPatterns)+len(p.TestEmbedPatterns)+len(p.XTestEmbedPatterns) > 0 {
 			g.embedded[dir] = embeddedInputs{p.EmbedFiles, p.EmbedPatterns, append(p.TestEmbedFiles, p.XTestEmbedFiles...), append(p.TestEmbedPatterns, p.XTestEmbedPatterns...)}
 		}
 	}
-	g.addTestDependencies(tests)
 	return g, nil
-}
-
-func (g *graph) addTestDependencies(tests map[string][]string) {
-	// .Deps is transitive but the test imports are direct: close over them
-	// with each import's .Deps, so a package's own test imports never
-	// reach the packages importing it.
-	for pkg, imports := range tests {
-		seen := map[string]bool{}
-		closed := append([]string{}, g.deps[pkg]...)
-		for _, dep := range closed {
-			seen[dep] = true
-		}
-		for _, dep := range imports {
-			for _, d := range append([]string{dep}, g.deps[dep]...) {
-				if !seen[d] {
-					seen[d] = true
-					closed = append(closed, d)
-				}
-			}
-		}
-		sort.Strings(closed)
-		g.testDeps[pkg] = closed
-	}
 }
 
 // inModule keeps the module's own import paths.
@@ -715,22 +632,29 @@ func test(repo string, changed []string, base ...string) error {
 		fmt.Printf("  go run ./internal/nativeaccept/cmd/acceptance suite -tier smoke -root <abs root> -rimgovernor \"%s\" -output <fresh dir>\n", filepath.Join(repo, ".rimgovernor", "bin", "rimgovernor.exe"))
 		fmt.Println("  go run ./cmd/land -results <that dir>")
 	}
-	switch {
-	case sel.AllGo:
-		if err := lint(goDir, changed, []string{"./..."}); err != nil {
-			return err
-		}
-		fmt.Println("tests: go.mod/go.sum changed, testing ./... (a package prints only when it finishes; silence is normal)")
-		return timed("tests", func() error { return goTestShort(goDir, "./...") })
-	case len(sel.Packages) == 0:
+	if !GoChanged(changed) {
 		fmt.Println("tests: no Go files changed, nothing to test")
 		return nil
 	}
-	if err := lint(goDir, changed, sel.Packages); err != nil {
+	// The whole module, not a selection: go test's own cache replays every
+	// package whose inputs are unchanged, vet and staticcheck cache the
+	// same way, so the unchanged part costs seconds.
+	if err := lint(goDir, changed, []string{"./..."}); err != nil {
 		return err
 	}
-	fmt.Println("tests:", len(sel.Packages), "affected package(s) (a package prints only when it finishes; silence is normal)")
-	return timed("tests", func() error { return goTestShort(goDir, sel.Packages...) })
+	fmt.Println("tests: ./... (a package prints only when it finishes; silence is normal)")
+	return timed("tests", func() error { return goTestShort(goDir, "./...") })
+}
+
+// GoChanged reports whether a change touches anything under go/: Go
+// sources, testdata, embedded inputs, go.mod.
+func GoChanged(changed []string) bool {
+	for _, file := range changed {
+		if strings.HasPrefix(filepath.ToSlash(file), "go/") {
+			return true
+		}
+	}
+	return false
 }
 
 // Full runs the slow tests too (go test without -short). The default loop
@@ -783,7 +707,7 @@ func lint(goDir string, changed, packages []string) error {
 			return fmt.Errorf("gofmt -l: %s", strings.Join(strings.Fields(unformatted), " "))
 		}
 	}
-	fmt.Println("lint: go vet and staticcheck on", len(packages), "package(s) (silent when clean)")
+	fmt.Println("lint: go vet and staticcheck on", strings.Join(packages, " "), "(silent when clean)")
 	return timed("lint", func() error {
 		if err := goRun(goDir, append([]string{"vet"}, packages...)...); err != nil {
 			return errors.New("go vet: findings above")

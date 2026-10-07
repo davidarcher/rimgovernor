@@ -63,9 +63,6 @@ func TestSelectScopesHarnessSources(t *testing.T) {
 	if len(sel.Cases) != 0 {
 		t.Errorf("a harness test file selected %v", sel.Cases)
 	}
-	if !slices.Contains(sel.Packages, "github.com/davidarcher/RimGovernor/go/internal/nativeaccept") {
-		t.Errorf("a harness test file still tests its package: %v", sel.Packages)
-	}
 }
 
 // The edited declarations of a file version pair, comments aside.

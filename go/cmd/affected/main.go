@@ -67,12 +67,9 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	switch {
-	case sel.AllGo:
-		fmt.Println("go test ./...")
-	case len(sel.Packages) > 0:
-		fmt.Println("go test " + strings.Join(sel.Packages, " "))
-	default:
+	if affected.GoChanged(changed) {
+		fmt.Println("go test -short ./...")
+	} else {
 		fmt.Println("# nothing to test: no Go file changed")
 	}
 	if sel.AllHarnesses {

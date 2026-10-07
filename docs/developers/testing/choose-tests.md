@@ -121,13 +121,9 @@ a change touches. Selection rules:
   whose Go sources name one of its `[Tool("test/...")]` ops; a committed save
   under `saves/` names the area naming it. `contracts/fixtures` feeds unit tests
   only.
-- **No build effect.** A `_test.go` or non-embedded `testdata` edit names only
-  its owning package. Production embeds select owner, importers and acceptance
-  areas; test-only embeds select only the owner.
-- **Routine family.** An edit confined to a family-owned planner file in
-  `internal/buildingruntime` (`roundsFamilyFiles` in `internal/affected`) names
-  the serve-hosting areas whose cases compose that family. Shared files, and
-  every clock, worker, scheduler, review and boundary file, name every area.
+- **No build effect.** A `_test.go` or non-embedded `testdata` edit names no
+  area. Production embeds select the owning package's acceptance
+  areas; test-only embeds select none.
 - **Comments and trace.** A Go edit that changed only comments (`//go:build`
   counts as code) or only the clock's debug trace names nothing.
 - **Harness object.** An edit to `go/internal/nativeaccept/*.go` (not
@@ -733,10 +729,10 @@ change. `-files` lists the files considered and why each area was selected.
 `-baseline <result.json|metrics.jsonl>` appends the affected set's price
 (`acceptance list -cost <area>/...` names untimed cases).
 
-`go run ./cmd/test` runs `go test -short` on the affected packages (slow tests
+`go run ./cmd/test` runs `go test -short ./...` (the Go test cache replays unchanged packages; slow tests
 skip) and the probes build (the landing lane skips it unless `-test`), after
-gofmt on changed Go files and `go vet` plus staticcheck on the affected
-packages. `-full` runs every test once at the end of an epic, where the
+gofmt on changed Go files and `go vet` plus staticcheck on the whole
+module. `-full` runs every test once at the end of an epic, where the
 `implement` skill files an issue per failure. Use the single land-tier command
 printed by `cmd/test` for milestone validation.
 

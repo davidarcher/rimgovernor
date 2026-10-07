@@ -12,9 +12,9 @@ acceptance passes, land immediately.
 1. Work on a task branch in your own worktree; run `git fetch origin main &&
    git merge origin/main` once at session start (local `main` may be behind:
    every agent pushes `origin/main` directly).
-2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the changed
-   packages and their in-module importers (`./...` only when `go.mod`/`go.sum`
-   changed), passes `-short` (skips slow git/planner/solver tests, ~30 s) and
+2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests `./...` (the
+   Go test cache replays unchanged packages), passes `-short` (skips slow
+   git/planner/solver tests, ~10 s warm) and
    names the acceptance harnesses the change touches. Use `-full` only at the
    end of an epic or when you changed code a skipped test covers. Do not follow
    it with `go test ./...` or rerun it to filter output. Redirect it to a file
