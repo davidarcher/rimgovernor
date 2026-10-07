@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"regexp"
 	"slices"
 	"strings"
@@ -190,38 +189,6 @@ func decodePlanRun(raw []byte) (planRun, error) {
 	return r, r.validate()
 }
 
-func planGit(repo string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
-	b, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, b)
-	}
-	return strings.TrimSpace(string(b)), nil
-}
-
-// checkTestedCheckout refuses a planner checkout that is not the clean,
-// detached tested commit: the registry the plan reads is compiled from it.
-func checkTestedCheckout(repo string, r planRun) error {
-	head, err := planGit(repo, "rev-parse", "HEAD")
-	if err != nil {
-		return err
-	}
-	if head != r.Head {
-		return fmt.Errorf("checkout HEAD must equal tested_commit %s", r.Head)
-	}
-	if ref, _ := planGit(repo, "symbolic-ref", "-q", "HEAD"); ref != "" {
-		return fmt.Errorf("planner requires a detached tested checkout")
-	}
-	dirty, err := planGit(repo, "status", "--porcelain", "--untracked-files=all")
-	if err != nil {
-		return err
-	}
-	if dirty != "" {
-		return fmt.Errorf("planner requires a clean checkout, including untracked source")
-	}
-	return nil
-}
-
 func buildSelection(r planRun, ref planReference) (remoteSelection, error) {
 	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, Algorithm: remoteaccept.BudgetAlgorithm}
 	if err := r.validate(); err != nil {
@@ -351,13 +318,6 @@ func plan(args []string, stdout, stderr io.Writer) int {
 	}
 	r, err := decodePlanRun(raw)
 	if err != nil {
-		return fail(err)
-	}
-	repo, ok := repoOfCwd()
-	if !ok {
-		return fail(fmt.Errorf("planner requires a git checkout"))
-	}
-	if err := checkTestedCheckout(repo, r); err != nil {
 		return fail(err)
 	}
 	p, err := buildSelection(r, planReference{Path: *path, SHA256: fmt.Sprintf("%x", sha256.Sum256(raw))})

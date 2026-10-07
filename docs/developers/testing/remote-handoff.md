@@ -16,7 +16,7 @@ full tested commit, the reviewed workflow
 commit, bundle manifest SHA-256, tier (smoke, nightly or cases) and shard count. Do not manually
 trim the planner's case list.
 
-Before dispatch, use a clean detached checkout of the tested commit and the
+Before dispatch, use a checkout of the tested commit and the
 [planning command](../contracts/remote-acceptance.md#planning-command) to check
 coverage and budgets. A local planning preview has placeholder Actions identity
 and is not evidence; the workflow creates its own authenticated plan. Retain

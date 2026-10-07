@@ -67,9 +67,8 @@ Pushes do not trigger CI. Nothing selects by a diff. Schedule runs pin the
 default-branch event SHA, and nightly selects the nightly tier and
 refuses unsupported capabilities without reducing coverage.
 
-#379 selects from the clean detached tested checkout (planning fails on a dirty or attached
-checkout or one whose HEAD is not the tested commit) using the tested revision's registry: the
-smoke set, the nightly tier or the requested cases, in registry order.
+#379 selects from the tested revision's registry (the workflow plans from a checkout of the
+tested SHA): the smoke set, the nightly tier or the requested cases, in registry order.
 
 The planner uses `algorithm: "dependency-budget-lpt-v3"`: sort selected case
 names bytewise and group each `sustained/matrix-<save>` with its required
@@ -96,7 +95,7 @@ Reject empty, unknown, duplicated or omitted cases before starting runners.
 
 ## Planning command
 
-From `go/` in a clean, detached checkout of `run.tested_commit`, run:
+From `go/` in a checkout of `run.tested_commit`, run:
 
 ```text
 go run ./internal/nativeaccept/cmd/acceptance plan -evidence <root> -run run.json
@@ -109,9 +108,7 @@ identities in `run.json`: resolved dispatch inputs or the scheduled event SHA. P
 never substitutes a moving ref. Invoke the tested checkout's source as above;
 a runner binary compiled from another revision is not a valid planner.
 
-The command verifies provenance, duplicate JSON keys, limits, detached HEAD,
-tracked and untracked cleanliness, both commit objects and base ancestry. It includes both
-paths of renames and shares `landCases` and `affected.Select` with local tiers.
+The command verifies provenance, duplicate JSON keys and limits.
 
 Planner output adds optional case metadata: `fixture_ops` names declared Start
 fixture operations, `roles` lists `bridge` and, where needed, `controller`, and

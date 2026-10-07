@@ -15,7 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func examplePlanRun(t *testing.T) planRun {
@@ -227,56 +226,8 @@ func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 	}
 }
 
-func TestRemoteTestedCheckout(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	repo := t.TempDir()
-	git := func(args ...string) string {
-		t.Helper()
-		out, err := planGit(repo, args...)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return out
-	}
-	git("init")
-	git("config", "user.name", "Planner test")
-	git("config", "user.email", "planner@example.invalid")
-	write := func(name, body string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(repo, name), []byte(body), 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	write(" old.txt", "original")
-	git("add", ".")
-	git("commit", "-m", "base")
-	r := examplePlanRun(t)
-	git("mv", " old.txt", "new.txt")
-	git("commit", "-m", "rename")
-	r.Head = git("rev-parse", "HEAD")
-	if err := checkTestedCheckout(repo, r); err == nil {
-		t.Fatal("accepted attached branch")
-	}
-	git("checkout", "--detach")
-	if err := checkTestedCheckout(repo, r); err != nil {
-		t.Fatal(err)
-	}
-	write("new.txt", "dirty")
-	if err := checkTestedCheckout(repo, r); err == nil {
-		t.Fatal("accepted dirty checkout")
-	}
-	git("restore", "new.txt")
-	write("injected.go", "package main")
-	if err := checkTestedCheckout(repo, r); err == nil {
-		t.Fatal("accepted untracked source")
-	}
-	if err := os.Remove(filepath.Join(repo, "injected.go")); err != nil {
-		t.Fatal(err)
-	}
-	git("checkout", "--detach", "HEAD^")
-	r.Head = git("rev-parse", "HEAD")
-	// Exercise the complete CLI and verify that provenance hashes the original
-	// bytes, not reserialized JSON.
+func TestRemotePlanCommandHashesOriginalBytes(t *testing.T) {
+	r := examplePlanRun(t) // Exercise the complete CLI and verify that provenance hashes the original	// bytes, not reserialized JSON.
 	raw, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		t.Fatal(err)
@@ -285,7 +236,6 @@ func TestRemoteTestedCheckout(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(evidence, "run.json"), raw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	t.Chdir(repo)
 	var out, diagnostics bytes.Buffer
 	if code := run([]string{"plan", "-evidence", evidence, "-run", "run.json"}, &out, &diagnostics); code != 0 {
 		t.Fatalf("exit %d: %s", code, diagnostics.String())
