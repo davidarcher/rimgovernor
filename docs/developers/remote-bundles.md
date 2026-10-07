@@ -126,8 +126,8 @@ executable paths are `go/bin/go.exe`, `dotnet.exe`, `age/age.exe`, `7zr.exe`.
 The script installs these portable tools privately, with no system-wide changes
 or unpinned package-manager upgrades. PowerShell 7, Git and `gh` are prerequisites
 of the trusted Windows runner image. The workflow pins its image/actions.
-The official 7zr download URL is mutable; its pinned digest deliberately refuses
-a newer download until a maintainer reviews and refreshes the lock.
+The 7zr entry points at the versioned 26.03 release on github.com/ip7z/7zip (the
+unversioned 7-zip.org URL is mutable and broke the pin when 26.04 shipped).
 
 ```powershell
 ./scripts/bootstrap_remote.ps1 -Repo C:\rg\src -Work C:\rg\j1 `
