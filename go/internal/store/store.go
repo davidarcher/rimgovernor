@@ -558,9 +558,6 @@ type transition struct {
 }
 
 func decode(data []byte, event *transition) error {
-	if len(data) > 32768 {
-		return errors.New("transition exceeds bound")
-	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.DisallowUnknownFields()
 	if err := d.Decode(event); err != nil {
@@ -692,9 +689,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		return domain.Progress{}, err
 	}
 	data, err := json.Marshal(event)
-	if len(data) > 32768 {
-		return domain.Progress{}, errors.New("transition exceeds bound")
-	}
 	if err != nil {
 		return domain.Progress{}, err
 	}

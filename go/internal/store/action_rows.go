@@ -315,7 +315,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
 		var payload billPayload
-		if len(bill) > 32768 || json.Unmarshal(bill, &payload) != nil {
+		if json.Unmarshal(bill, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid bill payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -352,7 +352,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "zone_create" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil {
 		var payload zonePayload
-		if len(zone) > 32768 || json.Unmarshal(zone, &payload) != nil {
+		if json.Unmarshal(zone, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid zone payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -390,7 +390,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		action, err := domain.NewZoneCreateAction(id, value)
 		return action, ordinal, err
 	}
-	if kind == "remove_roof" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+	if kind == "remove_roof" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
 		var cells []domain.Cell
 		if json.Unmarshal(zone, &cells) != nil {
 			return domain.Action{}, 0, errors.New("invalid remove roof payload")
@@ -402,7 +402,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewRemoveRoofAction(id, roof)
 		return a, ordinal, err
 	}
-	if kind == "area_plant_cut" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 65536 {
+	if kind == "area_plant_cut" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
 		var cells []domain.Cell
 		if json.Unmarshal(zone, &cells) != nil {
 			return domain.Action{}, 0, errors.New("invalid area plant cut payload")
@@ -414,7 +414,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewAreaPlantCutAction(id, cut)
 		return a, ordinal, err
 	}
-	if kind == "rules_attach" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+	if kind == "rules_attach" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
 		var rules []domain.Rule
 		lease, parseErr := strconv.ParseInt(def.String, 10, 64)
 		if parseErr != nil || json.Unmarshal(zone, &rules) != nil {
@@ -427,7 +427,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewRulesAttachAction(id, attach)
 		return a, ordinal, err
 	}
-	if kind == "policy_prune" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+	if kind == "policy_prune" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
 		var ids []string
 		if json.Unmarshal(zone, &ids) != nil {
 			return domain.Action{}, 0, errors.New("invalid policy prune payload")
@@ -439,7 +439,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewPolicyPruneAction(id, prune)
 		return a, ordinal, err
 	}
-	if kind == "drug_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+	if kind == "drug_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
 		var entries []domain.DrugPolicyEntry
 		if json.Unmarshal(zone, &entries) != nil {
 			return domain.Action{}, 0, errors.New("invalid drug policy payload")
@@ -451,7 +451,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewDrugPolicyAction(id, drug)
 		return a, ordinal, err
 	}
-	if kind == "reading_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+	if kind == "reading_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
 		var defs []string
 		if json.Unmarshal(zone, &defs) != nil {
 			return domain.Action{}, 0, errors.New("invalid reading policy payload")
@@ -463,7 +463,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewReadingPolicyAction(id, reading)
 		return a, ordinal, err
 	}
-	if kind == "food_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+	if kind == "food_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
 		var defs []string
 		if json.Unmarshal(zone, &defs) != nil {
 			return domain.Action{}, 0, errors.New("invalid food policy payload")
@@ -493,7 +493,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewAreaAction(id, area)
 		return a, ordinal, err
 	}
-	if (kind == "zone_cell_edit" || kind == "stockpile_patch") && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && len(zone) <= 32768 {
+	if (kind == "zone_cell_edit" || kind == "stockpile_patch") && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil {
 		if kind == "zone_cell_edit" {
 			var payload zoneCellEditPayload
 			if json.Unmarshal(zone, &payload) != nil {
@@ -522,7 +522,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "work_assignment" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload workPayload
-		if len(work) > 32768 || json.Unmarshal(work, &payload) != nil {
+		if json.Unmarshal(work, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid work payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -552,7 +552,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "wall_removal" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload wallRemovalPayload
-		if len(wallRemoval) > 32768 || json.Unmarshal(wallRemoval, &payload) != nil {
+		if json.Unmarshal(wallRemoval, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid wall removal payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -571,7 +571,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "building_temperature" && target.Valid && !pawn.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload buildingTemperaturePayload
-		if len(buildingTemperatureBlob) > 32768 || json.Unmarshal(buildingTemperatureBlob, &payload) != nil {
+		if json.Unmarshal(buildingTemperatureBlob, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid building temperature payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -590,7 +590,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "mood_relief" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload moodReliefPayload
-		if len(moodReliefBlob) > 32768 || json.Unmarshal(moodReliefBlob, &payload) != nil {
+		if json.Unmarshal(moodReliefBlob, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid mood relief payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -609,7 +609,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "trade" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload tradePayload
-		if len(tradeBlob) > 32768 || json.Unmarshal(tradeBlob, &payload) != nil {
+		if json.Unmarshal(tradeBlob, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid trade payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -641,7 +641,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "caravan_departure" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload caravanPayload
-		if len(caravanBlob) > 32768 || json.Unmarshal(caravanBlob, &payload) != nil {
+		if json.Unmarshal(caravanBlob, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid caravan payload")
 		}
 		canonical, _ := json.Marshal(payload)
@@ -660,7 +660,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if kind == "apparel_policy" && def.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var spec domain.ApparelPolicySpec
-		if len(def.String) > 32768 || json.Unmarshal([]byte(def.String), &spec) != nil {
+		if json.Unmarshal([]byte(def.String), &spec) != nil {
 			return domain.Action{}, 0, errors.New("invalid apparel policy payload")
 		}
 		v, err := domain.NewApparelPolicy(spec)
@@ -729,7 +729,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		if zone != nil {
 			var rects []domain.GroundRect
-			if len(zone) > 32768 || json.Unmarshal(zone, &rects) != nil || len(rects) == 0 {
+			if json.Unmarshal(zone, &rects) != nil || len(rects) == 0 {
 				return domain.Action{}, 0, errors.New("invalid deconstruction cleared ground payload")
 			}
 			if c, err = c.WithClearedGround(rects); err != nil {
