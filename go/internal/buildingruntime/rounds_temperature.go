@@ -94,6 +94,10 @@ func temperatureCooling(facts observation.ColonyProjection) policy.TemperatureCo
 	if sleeping, known := facts.Facts.Sleeping.Value(); known {
 		cooling.Sleepers = append(append([]policy.SleepingPerson{}, sleeping.People...), sleeping.Slaves...)
 	}
+	plan, planKnown := facts.LayoutPlan.Value()
+	for _, shelter := range plannedInteriorRooms(facts, func(planned policy.PlannedRoom) bool { return planned.Role == policy.PlannedShelter }) {
+		cooling.PlannedShelters = append(cooling.PlannedShelters, policy.ThermalShelter{Cells: rectCells(shelter.Interior), Standing: shelter.Standing, Hot: planKnown && plan.Hot})
+	}
 	for _, d := range facts.Definitions {
 		if d.Name == "Cooler" {
 			cooling.CoolerAvailable, cooling.CoolerDrawW = d.Available, d.PowerW

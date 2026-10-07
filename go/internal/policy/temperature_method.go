@@ -72,6 +72,21 @@ type TemperatureCooling struct {
 	// Heater is the catalog's heater definition (RoomFurniture.Heater), the
 	// climate piece of the barn (#1867); empty when the catalog has none.
 	Heater string
+	// PlannedShelters are the layout plan's shelter rooms, read from the
+	// planned interior alone (#2303): a shelter template holds the sleeping
+	// places (spots, bedrolls, beds), so it is the room people will sleep in
+	// before any bed stands.
+	PlannedShelters []ThermalShelter
+}
+
+// ThermalShelter is one planned shelter room as the temperature method sees it.
+type ThermalShelter struct {
+	// Cells is the planned interior.
+	Cells []domain.Cell
+	// Standing are the definitions of the player buildings already on it.
+	Standing []string
+	// Hot is the plan's latched hot climate (the template's cooler slot).
+	Hot bool
 }
 
 // Conditioned reports whether room holds a working climate piece (#1867): a
@@ -416,7 +431,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		return TemperatureProposal{Method: TemperatureUnknown}, nil
 	}
 	if len(eligible) == 0 {
-		return TemperatureProposal{Method: TemperatureShelterNeeded}, nil
+		return plannedShelterCooler(cooling), nil
 	}
 	wanted := map[string]bool{}
 	for _, id := range eligible {
@@ -552,4 +567,31 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		return TemperatureProposal{Method: TemperatureWait}, nil
 	}
 	return TemperatureProposal{Method: TemperatureNoMethod}, nil
+}
+
+// plannedShelterCooler keys the hot map's cooler on the planned shelter
+// instead of a standing bed room (#2303): a tribal start sleeps on spots and
+// bedrolls first, so waiting for a bed would serialize the cooler behind the
+// housing. The shelter template always holds sleeping places, which is why the
+// rule reads the shelter role and no other planned room. Once the cooler
+// stands the method waits; the proof of temperature stays with the roofed,
+// enclosed room (Room.ProvesTemperature) once beds make it a census room.
+func plannedShelterCooler(cooling TemperatureCooling) TemperatureProposal {
+	for _, shelter := range cooling.PlannedShelters {
+		if !shelter.Hot || len(shelter.Cells) == 0 {
+			continue
+		}
+		cells := append([]domain.Cell{}, shelter.Cells...)
+		sort.Slice(cells, func(i, j int) bool {
+			return cells[i].X < cells[j].X || cells[i].X == cells[j].X && cells[i].Z < cells[j].Z
+		})
+		for _, d := range shelter.Standing {
+			if d == "PassiveCooler" || d == "Cooler" {
+				return TemperatureProposal{Method: TemperatureWait}
+			}
+		}
+		digest := sha256.Sum256([]byte(fmt.Sprintf("planned-shelter/%d/%d/%s", cells[0].X, cells[0].Z, TemperatureCool)))
+		return TemperatureProposal{Method: TemperatureCool, Key: domain.MethodID(fmt.Sprintf("thermal-%x", digest[:12])), Cells: cells}
+	}
+	return TemperatureProposal{Method: TemperatureShelterNeeded}
 }
