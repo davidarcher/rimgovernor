@@ -145,17 +145,18 @@ func campfireRetireOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 // retireCampfire admits one deconstruction of a misplaced or superseded
 // cooking campfire, once per campfire per Episode.
 func (r *RoundsBuildingPlanner) retireCampfire(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding) (RoundsBuildingResult, error) {
-	return r.retireBuilding(call, epoch, state, review, goal, reading, campfire, "campfire-retire", "cooking campfire")
+	return r.retireBuilding(call, epoch, state, review, goal, reading, campfire.ID, campfire.Building.Definition(), campfire.Cells[0], "campfire-retire", "building_retire_method")
 }
 
 // retireBuilding deconstructs one standing building, once per building per
-// Episode under a method named prefix and its ID.
-func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding, prefix, label string) (RoundsBuildingResult, error) {
+// Episode under a method named prefix and its ID; reason is the wait reason
+// once that method exists.
+func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, id, def string, cell domain.Cell, prefix, reason string) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
-	sum := sha256.Sum256([]byte(campfire.ID))
+	sum := sha256.Sum256([]byte(id))
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, sum[:8]))
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "building_retire_method")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, reason)}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsBuildingResult{}, err
 	}
@@ -167,14 +168,14 @@ func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, stat
 			return err
 		}
 		if p.session.State() != state {
-			return fmt.Errorf("%w: retireCampfire: p.session.State() != state", ErrControl)
+			return fmt.Errorf("%w: retireBuilding: p.session.State() != state", ErrControl)
 		}
 		return nil
 	}
 	if err := check(); err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	value, err := domain.NewDeconstruction(campfire.ID, campfire.Building.Definition(), campfire.Cells[0])
+	value, err := domain.NewDeconstruction(id, def, cell)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
@@ -186,7 +187,7 @@ func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, stat
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	telemetry.Decide(call, telemetry.Decision{Kind: "layout_edit", Component: "building", Verdict: "admitted", Reason: "building_retire", Target: campfire.ID, Attrs: map[string]any{"family": "building", "owner": goal.OwnerID(), "x": campfire.Cells[0].X, "z": campfire.Cells[0].Z}})
+	telemetry.Decide(call, telemetry.Decision{Kind: "layout_edit", Component: "building", Verdict: "admitted", Reason: "building_retire", Target: id, Attrs: map[string]any{"family": "building", "owner": goal.OwnerID(), "x": cell.X, "z": cell.Z}})
 	facts := reading.Projection
 	return r.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }

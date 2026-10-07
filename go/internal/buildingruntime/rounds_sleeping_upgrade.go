@@ -193,35 +193,7 @@ func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, 
 		result, _, err := r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 		return result, err
 	}
-	snapshot := state.Snapshot
-	snapshot.Plan = domain.MintPlanID()
-	snapshot.Revision = 1
-	check := func() error {
-		if err := p.current(call, epoch); err != nil {
-			return err
-		}
-		if p.session.State() != state {
-			return fmt.Errorf("%w: removeOldBed: p.session.State() != state", ErrControl)
-		}
-		return nil
-	}
-	if err := check(); err != nil {
-		return RoundsBuildingResult{}, err
-	}
-	value, err := domain.NewDeconstruction(rep.Bed, rep.Def, rep.Cell)
-	if err != nil {
-		return RoundsBuildingResult{}, err
-	}
-	action, err := domain.NewDeconstructionAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), value)
-	if err != nil {
-		return RoundsBuildingResult{}, err
-	}
-	plan, err := domain.NewPlan(snapshot.Plan, 1, []domain.Action{action})
-	if err != nil {
-		return RoundsBuildingResult{}, err
-	}
-	facts := reading.Projection
-	return r.building.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
+	return r.building.retireBuilding(call, epoch, state, review, goal, reading.ColonyReading, rep.Bed, rep.Def, rep.Cell, "bedroom-replace-remove", "old_bed_removal")
 }
 
 // upgradeBedroom previews and admits one upgrade piece, once per room and
