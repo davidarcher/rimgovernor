@@ -2,10 +2,12 @@ package buildingruntime
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -110,6 +112,8 @@ func (r *RoundsBurialPlanner) step(call, epoch context.Context, _ *stepArbiter) 
 	stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
 	var result RoundsBuildingResult
 	switch step.Kind {
+	case policy.TombDispose:
+		return r.dispose(call, epoch, state, review, goal, reading, step.Disposal[0])
 	case policy.TombNone:
 		morgue, owed := plannedMorgue(reading.Projection)
 		if !owed {
@@ -126,5 +130,47 @@ func (r *RoundsBurialPlanner) step(call, epoch context.Context, _ *stepArbiter) 
 		// The layout review grows another tomb.
 		return RoundsBurialResult{Verdict: waitFor(WaitMethodUsed, "tomb_room")}, nil
 	}
+	return RoundsBurialResult{Verdict: result.Verdict}, err
+}
+
+// dispose deconstructs one filled stranger sarcophagus (#2337) with the plain
+// Deconstruction action, once per sarcophagus per Episode: native ejects the
+// corpse beside the cell for the incineration concern to burn.
+func (r *RoundsBurialPlanner) dispose(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, b policy.CurrentBuilding) (RoundsBurialResult, error) {
+	p := r.reviewer.player
+	id := sha256.Sum256([]byte(b.ID))
+	method := domain.MethodID(fmt.Sprintf("tomb-dispose-%x", id[:8]))
+	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
+		return RoundsBurialResult{Verdict: waitFor(WaitMethodUsed, "tomb_disposal")}, nil
+	}
+	snapshot := state.Snapshot
+	snapshot.Plan = domain.MintPlanID()
+	snapshot.Revision = 1
+	check := func() error {
+		if err := p.current(call, epoch); err != nil {
+			return err
+		}
+		if p.session.State() != state {
+			return fmt.Errorf("%w: dispose: p.session.State() != state", ErrControl)
+		}
+		return nil
+	}
+	if err := check(); err != nil {
+		return RoundsBurialResult{}, err
+	}
+	value, err := domain.NewDeconstruction(b.ID, b.Building.Definition(), b.Building.Cell())
+	if err != nil {
+		return RoundsBurialResult{}, err
+	}
+	action, err := domain.NewDeconstructionAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), value)
+	if err != nil {
+		return RoundsBurialResult{}, err
+	}
+	plan, err := domain.NewPlan(snapshot.Plan, 1, []domain.Action{action})
+	if err != nil {
+		return RoundsBurialResult{}, err
+	}
+	facts := reading.Projection
+	result, err := r.building.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading.ColonyReading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 	return RoundsBurialResult{Verdict: result.Verdict}, err
 }

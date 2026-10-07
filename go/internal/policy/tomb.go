@@ -23,6 +23,14 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // the colonists and the next sarcophagus is funded from stock (StrangerTomb).
 // Over the cap, unfunded or with the mood thoughts unread, a stranger keeps the
 // morgue path; the plain grave never takes one.
+//
+// A stranger's burial in a fresh sarcophagus is its first body ever, so the
+// memory has fired (#2337): while the memory is live the filled sarcophagus is
+// deconstructed (TombDispose, StrangerDisposals). Native ejects the corpse next
+// to the cell, where the incinerator's burnable filter takes it, and the cell is
+// a free tomb slot again. Only a sarcophagus in a planned tomb that holds
+// nothing but strangers is touched; a colonist's sarcophagus and every grave
+// stay.
 
 // KnowBuriedInSarcophagusThought is the memory a colonist gains when the first
 // body ever is hauled into a sarcophagus; it stacks (4, 2, 1, 0.5) for 8 days.
@@ -97,6 +105,9 @@ const (
 	// free grave (ReconcileRoom): the ring, the floor and the piece,
 	// whatever the diff still owes. There is no shell or place step.
 	TombReconcile TombStepKind = "reconcile"
+	// TombDispose: Disposal are filled stranger sarcophagi whose memory has
+	// fired; the planner deconstructs one.
+	TombDispose TombStepKind = "dispose"
 	// TombFull: every planned tomb's slots are taken; the plan owes
 	// another tomb room.
 	TombFull TombStepKind = "full"
@@ -112,6 +123,51 @@ type TombStep struct {
 	// Dead is the unburied colonist corpses; Empty the empty graves and
 	// sarcophagi; Graves the plain graves standing.
 	Dead, Empty, Graves int
+	// Disposal is a TombDispose's filled stranger sarcophagi, in census order.
+	Disposal []CurrentBuilding
+}
+
+// StrangerDisposals is the standing sarcophagi to deconstruct (#2337): in a
+// planned tomb, holding a buried stranger and no colonist, while the memory is
+// live (strangers.Live > 0; unread thoughts leave it zero). Graves and any
+// sarcophagus outside the plan are never listed.
+func StrangerDisposals(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, sarcophagus string, strangers StrangerTomb) []CurrentBuilding {
+	if strangers.Live <= 0 {
+		return nil
+	}
+	tomb := map[domain.Cell]bool{}
+	for _, r := range plan.roomsOf(PlannedTomb) {
+		for _, c := range rectCells(r.Interior) {
+			tomb[c] = true
+		}
+	}
+	// holds[grave] is true while every buried corpse in it is a stranger.
+	holds := map[string]bool{}
+	for _, item := range waste {
+		if item.State != WasteBuried || item.Grave == "" {
+			continue
+		}
+		stranger := item.CorpseOf == domain.CorpseStranger
+		if prior, seen := holds[item.Grave]; !seen {
+			holds[item.Grave] = stranger
+		} else {
+			holds[item.Grave] = prior && stranger
+		}
+	}
+	var out []CurrentBuilding
+	for _, b := range built {
+		if b.Building.Definition() != sarcophagus || !holds[b.ID] || len(b.Cells) == 0 {
+			continue
+		}
+		inside := true
+		for _, c := range b.Cells {
+			inside = inside && tomb[c]
+		}
+		if inside {
+			out = append(out, b)
+		}
+	}
+	return out
 }
 
 // tombCensus counts the dead, the empty graves and the plain graves, and
@@ -186,6 +242,9 @@ pieces:
 // no free grave slot there is no step, the body waits and the graveyard is
 // asked for again (GraveyardsWanted).
 func NextTombStep(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, shapes PieceShapes, sarcophagus bool, strangers StrangerTomb) TombStep {
+	if dispose := StrangerDisposals(plan, waste, built, shapes.Furniture.Sarcophagus, strangers); len(dispose) > 0 {
+		return TombStep{Kind: TombDispose, Disposal: dispose}
+	}
 	allowed := 0
 	if sarcophagus {
 		allowed = strangers.Allowed()

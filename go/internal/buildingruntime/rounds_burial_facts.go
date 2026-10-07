@@ -19,7 +19,13 @@ var burialDefinitions = []string{"Wall", "Door", policy.GraveDefinition}
 func (r *Rounder) reviewStrangers(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
 	projection.Strangers = policy.StrangerTomb{}
 	live, known := policy.KnowBuriedStacks(projection.Facts.MoodPawns)
-	if !known || live >= policy.StrangerTombStackCap {
+	if !known {
+		return nil
+	}
+	// At the cap nothing is staged, but the live count still proves the memory
+	// fired for the disposal (#2337).
+	if live >= policy.StrangerTombStackCap {
+		projection.Strangers.Live = live
 		return nil
 	}
 	targets, err := r.resourceTargets(ctx, snapshot, projection.Facts.Resources)

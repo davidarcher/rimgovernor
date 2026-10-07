@@ -427,7 +427,13 @@ from the mood census, `policy.KnowBuriedStacks`) and the next sarcophagus is
 funded (`StrangerTomb`: accessible stock net of the MaintainResource floors covers
 one allowed stuff's cost list). Over the cap, unfunded or with the thoughts
 unread, a stranger waits in the morgue and stays on the butcher-or-incinerate
-route (`RouteStranger`); the plain grave never takes one.
+route (`RouteStranger`); the plain grave never takes one. Once a stranger lies in
+a planned tomb's sarcophagus and the memory is live (#2337), `NextTombStep` returns
+`TombDispose` and MaintainBurial raises the plain Deconstruction of that
+sarcophagus (once per sarcophagus per Episode; `StrangerDisposals`): native ejects
+the corpse beside the cell, the incinerator's burnable filter takes it once it is
+past Fresh, and the slot is free in the plan. A sarcophagus holding a colonist, a
+grave or one outside the planned tomb is never touched.
 
 The waste yard (#2187) is an Outdoor plan room (`PlannedWasteYard`: fence and
 gate, no roof, no floor owed) of 11x7 interior, planned with the cluster. The
