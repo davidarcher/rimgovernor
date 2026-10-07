@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -132,9 +133,16 @@ func TestUnsafeItemAllowRefusedAfterCensus(t *testing.T) {
 	}
 	snapshot := request.Current
 	snapshot.Plan, snapshot.Revision = plan.ID(), plan.Revision()
+	// The action Safeguard (#1018) vetoes at dispatch, after a prepare the
+	// goal's own admission accepts.
 	for _, action := range plan.Actions() {
-		if _, err := s.Prepare(ctx, plan.ID(), action.ID(), snapshot, 10); err == nil {
-			t.Fatal("plan allowing an unsafe item admitted", action.ID())
+		if _, err := s.Prepare(ctx, plan.ID(), action.ID(), snapshot, request.Tick); err != nil {
+			t.Fatal(err)
+		}
+		// Only the action allowing the unsafe item-0 is vetoed.
+		_, err := s.Dispatch(ctx, plan.ID(), action.ID(), snapshot, request.Tick)
+		if unsafe := action.ID() == "allow-0"; unsafe != errors.Is(err, ErrActionVetoed) || !unsafe && err != nil {
+			t.Fatal("dispatch of", action.ID(), "gave", err)
 		}
 	}
 }

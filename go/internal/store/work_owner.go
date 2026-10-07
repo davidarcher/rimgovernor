@@ -182,7 +182,8 @@ func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, e
 	return nil, fmt.Errorf("unsupported method owner %T", owner)
 }
 
-// ownerTick is the tick the owner was last reviewed at.
+// ownerTick is the tick of the owner's last change (a review that changes
+// nothing leaves it), so it bounds how far the world may rewind.
 func ownerTick(owner WorkOwner) domain.Tick {
 	switch o := owner.(type) {
 	case StandardState:

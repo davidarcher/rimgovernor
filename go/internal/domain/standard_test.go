@@ -24,7 +24,13 @@ func TestMaintainedGoalUnknownRenewalAndInvalidation(t *testing.T) {
 	if e != nil || g.Status != StandardOpen || g.Episode != 1 {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewStandard(g, scope, 14, FindingUnmet, false)
+	// The tick is that of the last change (13): a review at 15 changed nothing,
+	// so a rewind to 14 is the round's to catch (ReviewRounds voids every goal
+	// when the tick falls below the previous round's), and one below 13 voids.
+	if quiet, e := ReviewStandard(g, scope, 14, FindingUnmet, false); e != nil || quiet != g {
+		t.Fatal("a review with no change must leave the goal untouched", quiet, e)
+	}
+	g, e = ReviewStandard(g, scope, 12, FindingUnmet, false)
 	if e != nil || g.Status != StandardVoided {
 		t.Fatal("tick rewind did not invalidate", g, e)
 	}
@@ -112,5 +118,47 @@ func TestSituationReducesToFinding(t *testing.T) {
 		if s.Finding() != f || f.Situation() != s {
 			t.Fatal(s, f)
 		}
+	}
+}
+
+// A review that changes nothing but the tick returns the goal untouched, so
+// the store does not bump its revision or rewrite its governor state each
+// round; a real change still advances the tick.
+func TestReviewWithoutChangeKeepsTheTickOfTheLastChange(t *testing.T) {
+	_, scope := fixture(t)
+	g, e := NewStandard("lighting", 3, scope, 10)
+	if e != nil {
+		t.Fatal(e)
+	}
+	g, e = ReviewStandard(g, scope, 11, FindingMet, false)
+	if e != nil || g.Status != StandardSettled || g.Tick != 11 {
+		t.Fatal(g, e)
+	}
+	for tick := Tick(12); tick < 20; tick++ {
+		next, e := ReviewStandard(g, scope, tick, FindingMet, false)
+		if e != nil || next != g {
+			t.Fatal("repeat review changed the goal", tick, next, e)
+		}
+	}
+	g, e = ReviewStandard(g, scope, 20, FindingUnmet, false)
+	if e != nil || g.Tick != 20 || g.Episode != 1 {
+		t.Fatal("a real change must advance the tick", g, e)
+	}
+	moved := scope
+	moved.Native++
+	next, e := ReviewStandard(g, moved, 21, FindingUnmet, false)
+	if e != nil || next.Tick != 21 || next.Snapshot != moved {
+		t.Fatal("a new snapshot is a change", next, e)
+	}
+	p, e := NewProject("project-0011223344556677-cook-0", "cook", 2, scope, 10)
+	if e != nil {
+		t.Fatal(e)
+	}
+	p, e = ReviewProject(p, scope, 11, FindingUnmet, true)
+	if e != nil || p.Tick != 11 {
+		t.Fatal(p, e)
+	}
+	if again, e := ReviewProject(p, scope, 12, FindingUnmet, true); e != nil || again != p {
+		t.Fatal("repeat project review changed the project", again, e)
 	}
 }

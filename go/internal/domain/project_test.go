@@ -17,7 +17,8 @@ func TestProjectFinishesOnceAndRegressOpensNewRow(t *testing.T) {
 	if p, e = ReviewProject(p, scope, 13, FindingMet, false); e != nil || p.Status != ProjectCompleted {
 		t.Fatal(p, e)
 	}
-	if p, e = ReviewProject(p, scope, 14, FindingUnclear, false); e != nil || p.Status != ProjectCompleted || p.Tick != 14 {
+	// A review that changes nothing leaves the tick of the last change.
+	if p, e = ReviewProject(p, scope, 14, FindingUnclear, false); e != nil || p.Status != ProjectCompleted || p.Tick != 13 {
 		t.Fatal(p, e)
 	}
 	if p2, e := ReviewProject(p, scope, 15, FindingUnmet, true); e != nil || p2.Status != ProjectCompleted {

@@ -96,7 +96,23 @@ func (g Standard) Validate() error {
 // episode's methods may be proposed again. Priority orders work only: an
 // emergency or a pause vetoes proposals through the policy Safeguards (#1017).
 // Projects are not goals (Project, ReviewProject).
+//
+// Tick is the tick of the last change, not of the last review: a review that
+// changes nothing but the tick returns g untouched, so the store neither
+// bumps the revision nor rewrites the goal's governor state every round.
 func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Standard, error) {
+	out, err := reviewStandard(g, current, tick, need, openWork)
+	if err == nil && out.Snapshot == g.Snapshot {
+		quiet := out
+		quiet.Tick = g.Tick
+		if quiet == g {
+			return g, nil
+		}
+	}
+	return out, err
+}
+
+func reviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Standard, error) {
 	original := g
 	if err := g.Validate(); err != nil {
 		return g, err
@@ -116,7 +132,8 @@ func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Find
 		g.Status = StandardVoided
 		return g, nil
 	}
-	// Review revisions may advance without changing the player's direction.
+	// Review revisions may advance without changing the player's direction;
+	// ReviewStandard drops a tick-only change.
 	g.Snapshot = current
 	g.Tick = tick
 	if need == FindingUnclear {

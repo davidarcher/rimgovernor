@@ -73,8 +73,21 @@ func ProjectRegressed(p Project, need Finding, openWork bool) bool {
 // Project completes when recovery is measured with no work open; a completed one
 // stays completed (an unknown measurement does not reopen it) until the world
 // changes or the tick rewinds. Callers check ProjectRegressed first and open a
-// new row instead.
+// new row instead. As ReviewStandard, a review that changes nothing but the
+// tick returns p untouched.
 func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Project, error) {
+	out, err := reviewProject(p, current, tick, need, openWork)
+	if err == nil && out.Snapshot == p.Snapshot {
+		quiet := out
+		quiet.Tick = p.Tick
+		if quiet == p {
+			return p, nil
+		}
+	}
+	return out, err
+}
+
+func reviewProject(p Project, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Project, error) {
 	if err := p.Validate(); err != nil {
 		return p, err
 	}
