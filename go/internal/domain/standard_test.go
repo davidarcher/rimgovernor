@@ -24,15 +24,17 @@ func TestMaintainedGoalUnknownRenewalAndInvalidation(t *testing.T) {
 	if e != nil || g.Status != StandardOpen || g.Episode != 1 {
 		t.Fatal(g, e)
 	}
-	// The tick is that of the last change (13): a review at 15 changed nothing,
-	// so a rewind to 14 is the round's to catch (ReviewRounds voids every goal
-	// when the tick falls below the previous round's), and one below 13 voids.
+	// A tick rewind is not the goal's to catch: ReviewRounds voids every goal
+	// when the tick falls below the previous round's, and the retirement floor
+	// refuses work below a retired plan's tick.
 	if quiet, e := ReviewStandard(g, scope, 14, FindingUnmet, false); e != nil || quiet != g {
 		t.Fatal("a review with no change must leave the goal untouched", quiet, e)
 	}
-	g, e = ReviewStandard(g, scope, 12, FindingUnmet, false)
+	moved := scope
+	moved.Map++
+	g, e = ReviewStandard(g, moved, 16, FindingUnmet, false)
 	if e != nil || g.Status != StandardVoided {
-		t.Fatal("tick rewind did not invalidate", g, e)
+		t.Fatal("map change did not invalidate", g, e)
 	}
 	next, e := ReviewStandard(g, scope, 16, FindingUnmet, false)
 	if e != nil || next != g {
@@ -90,21 +92,10 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	if e != nil || review.Status == StandardSettled {
 		t.Fatal(review, e)
 	}
-	for _, change := range []string{"map", "rewind"} {
-		t.Run(change, func(t *testing.T) {
-			s := scope
-			tick := Tick(11)
-			switch change {
-			case "map":
-				s.Map++
-			case "rewind":
-				tick = 9
-			}
-			r, e := ReviewStandard(g, s, tick, FindingUnmet, false)
-			if e != nil || r.Status != StandardVoided {
-				t.Fatal(r, e)
-			}
-		})
+	s := scope
+	s.Map++
+	if r, e := ReviewStandard(g, s, 11, FindingUnmet, false); e != nil || r.Status != StandardVoided {
+		t.Fatal(r, e)
 	}
 	loaded := scope
 	loaded.Load = "other"

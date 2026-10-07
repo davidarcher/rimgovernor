@@ -506,7 +506,7 @@ func guardStandardWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors
 	g := state.Standard
 	s := g.Snapshot
 	if g.Status != domain.StandardOpen || g.Finding == domain.FindingUnclear || epoch.String != strconv.FormatUint(g.Episode, 10) ||
-		s.Colony != current.Colony || s.Map != current.Map || tick < g.Tick {
+		s.Colony != current.Colony || s.Map != current.Map {
 		return errors.New("maintained standard does not admit current work")
 	}
 	// A prepared plan does not prepare or dispatch while a Safeguard vetoes its

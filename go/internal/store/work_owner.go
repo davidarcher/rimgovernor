@@ -183,7 +183,8 @@ func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, e
 }
 
 // ownerTick is the tick of the owner's last change (a review that changes
-// nothing leaves it), so it bounds how far the world may rewind.
+// nothing leaves it): a method observed before it was planned against a
+// since-changed owner.
 func ownerTick(owner WorkOwner) domain.Tick {
 	switch o := owner.(type) {
 	case StandardState:

@@ -105,7 +105,7 @@ func reviewProject(p Project, current GenerationSnapshot, tick Tick, need Findin
 	if ProjectRegressed(p, need, openWork) {
 		return p, errors.New("regressed project needs a new project")
 	}
-	if !p.Snapshot.sameColonyMap(current) || tick < p.Tick {
+	if !p.Snapshot.sameColonyMap(current) {
 		p.Status = ProjectVoided
 		return p, nil
 	}

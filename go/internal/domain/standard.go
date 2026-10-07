@@ -128,7 +128,7 @@ func reviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Find
 	if g.Status == StandardVoided {
 		return g, nil
 	}
-	if !g.Snapshot.sameColonyMap(current) || tick < g.Tick {
+	if !g.Snapshot.sameColonyMap(current) {
 		g.Status = StandardVoided
 		return g, nil
 	}

@@ -265,7 +265,7 @@ func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, curr
 		return err
 	}
 	p := state.Project
-	if p.Status != domain.ProjectOpen || p.Finding == domain.FindingUnclear || !p.Snapshot.SameWorld(current) || tick < p.Tick {
+	if p.Status != domain.ProjectOpen || p.Finding == domain.FindingUnclear || !p.Snapshot.SameWorld(current) {
 		return errors.New("project does not admit current work")
 	}
 	return admitRoundsSafeguards(ctx, tx, state, nil)

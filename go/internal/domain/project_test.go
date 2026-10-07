@@ -39,10 +39,12 @@ func TestProjectFinishesOnceAndRegressOpensNewRow(t *testing.T) {
 func TestProjectInvalidatedOnWorldChange(t *testing.T) {
 	_, scope := fixture(t)
 	p, _ := NewProject("project-0011223344556677-cook-0", "cook", 2, scope, 10)
-	if g, e := ReviewProject(p, scope, 9, FindingUnmet, false); e != nil || g.Status != ProjectVoided {
-		t.Fatal("tick rewind did not invalidate", g, e)
+	moved := scope
+	moved.Map++
+	if g, e := ReviewProject(p, moved, 11, FindingUnmet, false); e != nil || g.Status != ProjectVoided {
+		t.Fatal("map change did not invalidate", g, e)
 	}
-	c, _ := ReviewProject(p, scope, 9, FindingUnmet, false)
+	c, _ := ReviewProject(p, moved, 11, FindingUnmet, false)
 	if g, e := ReviewProject(c, scope, 11, FindingMet, false); e != nil || g.Status != ProjectVoided {
 		t.Fatal("invalidated project reviewed back to life", g, e)
 	}
