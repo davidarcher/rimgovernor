@@ -311,7 +311,15 @@ func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state Contr
 		}
 		command.Orders = append(command.Orders, wire)
 	}
-	results, err := r.native.CombatOrders(call, boundary.Identity(state.Snapshot), action, command)
+	// The key carries the batch's hash: two different batches under one
+	// action (several stops at a tick) must not share a key, or native
+	// replays the first receipt (#2344); an identical retry still replays.
+	payload, err := proto.MarshalOptions{Deterministic: true}.Marshal(command)
+	if err != nil {
+		return nil, nil, err
+	}
+	sum := sha256.Sum256(payload)
+	results, err := r.native.CombatOrders(call, boundary.Identity(state.Snapshot), fmt.Sprintf("%s-%x", action, sum[:6]), command)
 	if err != nil {
 		return nil, nil, err
 	}

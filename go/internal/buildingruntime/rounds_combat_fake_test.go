@@ -17,6 +17,7 @@ import (
 // combatOrdersFake applies every combat order and keeps each batch.
 type combatOrdersFake struct {
 	batches []*op.CombatOrders
+	keys    []string          // each batch's idempotency key
 	refuse  map[string]string // pawn -> refusal
 	asks    []*mp.CombatGeometryRequest
 	propose []domain.Cell // the game's covered cells behind the line
@@ -25,7 +26,8 @@ type combatOrdersFake struct {
 	drafted map[string]bool
 }
 
-func (f *combatOrdersFake) CombatOrders(ctx context.Context, _ *c.Identity, _ string, command *op.CombatOrders) ([]bridge.CombatOrderResult, error) {
+func (f *combatOrdersFake) CombatOrders(ctx context.Context, _ *c.Identity, key string, command *op.CombatOrders) ([]bridge.CombatOrderResult, error) {
+	f.keys = append(f.keys, key)
 	if err := bridge.ValidateCombatOrders(command); err != nil {
 		return nil, err
 	}
