@@ -27,20 +27,19 @@ type Project struct {
 	Kind     ConcernID // the Project's ConcernID (the routine need it serves)
 	Priority int
 	Snapshot GenerationSnapshot
-	Tick     Tick
 	Status   ProjectStatus
 	Finding  Finding
 	// Record is the Project's durable planner intent, as Standard.Record.
 	Record string `json:",omitempty"`
 }
 
-func NewProject(id ProjectID, kind ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Project, error) {
-	p := Project{ID: id, Kind: kind, Priority: priority, Snapshot: snapshot, Tick: tick, Status: ProjectOpen, Finding: FindingUnclear}
+func NewProject(id ProjectID, kind ConcernID, priority int, snapshot GenerationSnapshot) (Project, error) {
+	p := Project{ID: id, Kind: kind, Priority: priority, Snapshot: snapshot, Status: ProjectOpen, Finding: FindingUnclear}
 	return p, p.Validate()
 }
 
 func (p Project) Validate() error {
-	if !validID(string(p.ID)) || !validID(string(p.Kind)) || p.Priority < 0 || p.Priority > 4 || p.Tick < 0 || p.Snapshot.Validate() != nil {
+	if !validID(string(p.ID)) || !validID(string(p.Kind)) || p.Priority < 0 || p.Priority > 4 || p.Snapshot.Validate() != nil {
 		return errors.New("invalid project")
 	}
 	if len(p.Record) > MaxProjectRecord {
@@ -72,26 +71,13 @@ func ProjectRegressed(p Project, need Finding, openWork bool) bool {
 // ReviewProject reviews a Project against the current world. An uncompleted
 // Project completes when recovery is measured with no work open; a completed one
 // stays completed (an unknown measurement does not reopen it) until the world
-// changes or the tick rewinds. Callers check ProjectRegressed first and open a
-// new row instead. As ReviewStandard, a review that changes nothing but the
-// tick returns p untouched.
-func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Project, error) {
-	out, err := reviewProject(p, current, tick, need, openWork)
-	if err == nil && out.Snapshot == p.Snapshot {
-		quiet := out
-		quiet.Tick = p.Tick
-		if quiet == p {
-			return p, nil
-		}
-	}
-	return out, err
-}
-
-func reviewProject(p Project, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Project, error) {
+// changes. Callers check ProjectRegressed first and open a new row instead. As
+// ReviewStandard, a review that changes nothing returns p equal to its input.
+func ReviewProject(p Project, current GenerationSnapshot, need Finding, openWork bool) (Project, error) {
 	if err := p.Validate(); err != nil {
 		return p, err
 	}
-	if current.Validate() != nil || tick < 0 {
+	if current.Validate() != nil {
 		return p, errors.New("invalid project review scope")
 	}
 	switch need {
@@ -109,7 +95,7 @@ func reviewProject(p Project, current GenerationSnapshot, tick Tick, need Findin
 		p.Status = ProjectVoided
 		return p, nil
 	}
-	p.Snapshot, p.Tick = current, tick
+	p.Snapshot = current
 	if p.Status == ProjectCompleted {
 		return p, nil
 	}

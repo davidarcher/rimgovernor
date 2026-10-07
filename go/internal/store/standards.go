@@ -258,7 +258,7 @@ func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revisio
 	if err != nil {
 		return StandardState{}, err
 	}
-	g, err := domain.ReviewStandard(state.Standard, current, tick, need, open)
+	g, err := domain.ReviewStandard(state.Standard, current, need, open)
 	if err != nil {
 		return StandardState{}, err
 	}

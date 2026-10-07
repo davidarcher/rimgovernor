@@ -18,7 +18,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 	ctx := context.Background()
 	planner, db, session, _, native := sleepingFixture(t)
 	current := session.State().Snapshot
-	goal, err := domain.NewStandard("comfort-history", 4, current, 7)
+	goal, err := domain.NewStandard("comfort-history", 4, current)
 	if err != nil {
 		t.Fatal(err)
 	}

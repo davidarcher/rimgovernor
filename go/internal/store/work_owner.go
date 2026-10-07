@@ -182,19 +182,6 @@ func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, e
 	return nil, fmt.Errorf("unsupported method owner %T", owner)
 }
 
-// ownerTick is the tick of the owner's last change (a review that changes
-// nothing leaves it): a method observed before it was planned against a
-// since-changed owner.
-func ownerTick(owner WorkOwner) domain.Tick {
-	switch o := owner.(type) {
-	case StandardState:
-		return o.Standard.Tick
-	case ProjectState:
-		return o.Project.Tick
-	}
-	return 0
-}
-
 // commitOwnerMethod is CommitOwnerMethod inside tx, returning the owner as
 // committed.
 func commitOwnerMethod(ctx context.Context, tx *sql.Tx, owner WorkOwner, method domain.MethodID, reason string, plan domain.PlanSpec) (WorkOwner, error) {
@@ -229,7 +216,6 @@ type OwnerSummary struct {
 	Priority int
 	Episode  uint64
 	Revision uint64
-	Tick     domain.Tick
 	Snapshot domain.GenerationSnapshot
 	Retired  bool
 }
@@ -240,7 +226,7 @@ func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 	switch o := owner.(type) {
 	case StandardState:
 		g := o.Standard
-		return OwnerSummary{string(g.ID), g.Status, g.Finding, g.Priority, g.Episode, o.Revision, g.Tick, g.Snapshot, o.Retired}, true
+		return OwnerSummary{string(g.ID), g.Status, g.Finding, g.Priority, g.Episode, o.Revision, g.Snapshot, o.Retired}, true
 	case ProjectState:
 		p := o.Project
 		status := domain.StandardOpen
@@ -250,7 +236,7 @@ func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 		case domain.ProjectVoided:
 			status = domain.StandardVoided
 		}
-		return OwnerSummary{string(p.ID), status, p.Finding, p.Priority, 0, o.Revision, p.Tick, p.Snapshot, o.Retired}, true
+		return OwnerSummary{string(p.ID), status, p.Finding, p.Priority, 0, o.Revision, p.Snapshot, o.Retired}, true
 	}
 	return OwnerSummary{}, false
 }

@@ -30,8 +30,8 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 	s := summary.Snapshot
 	s.Plan = p.ID()
 	s.Revision = p.Revision()
-	r := BuildingMethodRequest{Owner: g, Method: "build", Plan: p, Current: s, Tick: summary.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Rounds,
-		Stock: policy.StockObservation{Snapshot: s, Tick: summary.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}}}
+	r := BuildingMethodRequest{Owner: g, Method: "build", Plan: p, Current: s, Tick: 10, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Rounds,
+		Stock: policy.StockObservation{Snapshot: s, Tick: 10, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}}}
 	for i, a := range actions {
 		b, _ := a.Building()
 		r.Previews = append(r.Previews, policy.Preview{Action: a, Snapshot: s, Tick: r.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: costs[i]}})})
@@ -41,7 +41,7 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 func anotherGoal(t *testing.T, s *Store, id domain.ConcernID) StandardState {
 	t.Helper()
 	ctx := context.Background()
-	g, e := domain.NewStandard(id, 3, scope(), 10)
+	g, e := domain.NewStandard(id, 3, scope())
 	if e != nil {
 		t.Fatal(e)
 	}

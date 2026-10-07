@@ -16,7 +16,7 @@ func goalFixture(t *testing.T) (*Store, string, StandardState) {
 	path := filepath.Join(t.TempDir(), "goals.db")
 	s := open(t, path)
 	// A Standard routine identity, so a regress re-arms its epoch (#1024).
-	g, e := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
+	g, e := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope())
 	if e != nil {
 		t.Fatal(e)
 	}

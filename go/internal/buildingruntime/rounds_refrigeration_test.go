@@ -232,7 +232,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 	scope := root
 	scope.Plan, scope.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	action := plan.Progress[0].Action().ID()
-	tick := goal.Standard.Tick
+	tick := review.Tick
 	if _, err := db.Prepare(context.Background(), plan.Spec.ID(), action, scope, tick); err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 	action := plan.Progress[0].Action().ID()
 	snapshot := goal.Standard.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
-	tick := goal.Standard.Tick
+	tick := review.Tick
 	if _, err := db.Prepare(ctx, plan.Spec.ID(), action, snapshot, tick); err != nil {
 		t.Fatal(err)
 	}

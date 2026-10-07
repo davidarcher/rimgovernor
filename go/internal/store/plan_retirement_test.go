@@ -86,7 +86,7 @@ func TestRoundsPlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 			t.Fatal(err)
 		}
 		if i == 0 {
-			r.Tick = g.Standard.Tick
+			r.Tick--
 		}
 		g = roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
 		if i == 0 {

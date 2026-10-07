@@ -576,10 +576,9 @@ func watchKitchen(ctx context.Context, journal *store.Store, prepared map[string
 			break
 		}
 		recoverCtx, recoverCancel := context.WithTimeout(ctx, 90*time.Second)
-		goal, err := waitNeed(recoverCtx, journal, policy.MaintainCleanFacilities, domain.FindingMet)
+		_, err := waitNeed(recoverCtx, journal, policy.MaintainCleanFacilities, domain.FindingMet)
 		recoverCancel()
 		if err == nil {
-			report["kitchen_recovered_tick"] = int64(goal.Standard.Tick)
 			break
 		}
 		if ctx.Err() != nil {

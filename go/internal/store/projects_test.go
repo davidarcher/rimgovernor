@@ -19,7 +19,7 @@ func projectFixture(t *testing.T) (*Store, ProjectState) {
 	s := open(t, filepath.Join(t.TempDir(), "projects.db"))
 	r := roundsRequest()
 	reviewRounds(t, s, &r)
-	p, err := domain.NewProject(testProjectID, policy.EnsureCooking, 2, scope(), 10)
+	p, err := domain.NewProject(testProjectID, policy.EnsureCooking, 2, scope())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	}
 	// One orphan pass over the goal and the project: both plans are handed
 	// over, both method rows go, both owners come back from the save.
-	g, err := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
+	g, err := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -447,11 +447,10 @@ func watchMedicine(ctx context.Context, journal *store.Store, prepared map[strin
 	}
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainMedicalReserves, domain.FindingMet)
+	_, err := waitNeed(recoverCtx, journal, policy.MaintainMedicalReserves, domain.FindingMet)
 	if err != nil {
 		return err
 	}
-	report["medicine_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 
@@ -512,11 +511,10 @@ func watchFeed(ctx context.Context, journal *store.Store, prepared map[string]an
 	}
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainAnimalFeed, domain.FindingMet)
+	_, err := waitNeed(recoverCtx, journal, policy.MaintainAnimalFeed, domain.FindingMet)
 	if err != nil {
 		return err
 	}
-	report["feed_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 
@@ -591,11 +589,10 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 	report["sleeping_action_kinds"] = kinds
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainHousing, domain.FindingMet)
+	_, err := waitNeed(recoverCtx, journal, policy.MaintainHousing, domain.FindingMet)
 	if err != nil {
 		return err
 	}
-	report["sleeping_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 
@@ -691,11 +688,10 @@ func watchCold(ctx context.Context, journal *store.Store, prepared map[string]an
 	}
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.EnsureTemperatureSafety, domain.FindingMet)
+	_, err := waitNeed(recoverCtx, journal, policy.EnsureTemperatureSafety, domain.FindingMet)
 	if err != nil {
 		return err
 	}
-	report["temperature_recovered_tick"] = int64(goal.Standard.Tick)
 	return nil
 }
 

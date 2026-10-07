@@ -87,7 +87,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, fmt.Errorf("%w: %s revision %d, method scoped to %d", ErrStaleOwner, owner.ownerLabel(), owner.OwnerRevision(), r.Owner.OwnerRevision())
 	}
 	old := owner.ownerSnapshot()
-	if old.Colony != r.Current.Colony || old.Map != r.Current.Map || r.Tick < ownerTick(owner) {
+	if old.Colony != r.Current.Colony || old.Map != r.Current.Map {
 		return BuildingMethodDecision{}, errors.New("method observation differs from reviewed standard")
 	}
 	var candidates []policy.Candidate

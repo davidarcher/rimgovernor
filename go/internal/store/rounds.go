@@ -775,7 +775,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 				if err != nil {
 					return RoundsResult{}, err
 				}
-				goal, err := domain.NewStandard(id, n.Priority, b, request.Tick)
+				goal, err := domain.NewStandard(id, n.Priority, b)
 				if err != nil {
 					return RoundsResult{}, err
 				}
@@ -795,7 +795,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			}
 			next := g.Standard
 			next.Priority = n.Priority
-			next, err = domain.ReviewStandard(next, b, request.Tick, n.Finding, open)
+			next, err = domain.ReviewStandard(next, b, n.Finding, open)
 			if err != nil {
 				return RoundsResult{}, err
 			}
@@ -897,7 +897,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]Pro
 		if err != nil {
 			return ProjectState{}, err
 		}
-		project, err := domain.NewProject(id, n.ID, n.Priority, current, tick)
+		project, err := domain.NewProject(id, n.ID, n.Priority, current)
 		if err != nil {
 			return ProjectState{}, err
 		}
@@ -917,7 +917,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]Pro
 	}
 	next := p.Project
 	next.Priority = n.Priority
-	if next, err = domain.ReviewProject(next, current, tick, n.Finding, open); err != nil {
+	if next, err = domain.ReviewProject(next, current, n.Finding, open); err != nil {
 		return ProjectState{}, err
 	}
 	return saveProject(ctx, tx, p, next)

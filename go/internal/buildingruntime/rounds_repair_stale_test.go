@@ -14,7 +14,7 @@ func staleRepairGoal(t *testing.T, journal *store.Store) store.StandardState {
 	t.Helper()
 	ctx := context.Background()
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "p", Revision: domain.PlanRevision(^uint64(0))}
-	g, err := domain.NewStandard("repairs", 3, snapshot, 10)
+	g, err := domain.NewStandard("repairs", 3, snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}

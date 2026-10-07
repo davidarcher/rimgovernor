@@ -208,7 +208,7 @@ func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision
 	if err != nil {
 		return ProjectState{}, err
 	}
-	p, err := domain.ReviewProject(state.Project, current, tick, need, open)
+	p, err := domain.ReviewProject(state.Project, current, need, open)
 	if err != nil {
 		return ProjectState{}, err
 	}

@@ -45,7 +45,6 @@ type Standard struct {
 	ID               ConcernID
 	Priority         int
 	Snapshot         GenerationSnapshot
-	Tick             Tick
 	Episode          uint64
 	Status           StandardStatus
 	Finding          Finding
@@ -59,12 +58,12 @@ type Standard struct {
 // MaxStandardRecord bounds Standard.Record in bytes.
 const MaxStandardRecord = 4096
 
-func NewStandard(id ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Standard, error) {
-	g := Standard{ID: id, Priority: priority, Snapshot: snapshot, Tick: tick, Status: StandardOpen, Finding: FindingUnclear}
+func NewStandard(id ConcernID, priority int, snapshot GenerationSnapshot) (Standard, error) {
+	g := Standard{ID: id, Priority: priority, Snapshot: snapshot, Status: StandardOpen, Finding: FindingUnclear}
 	return g, g.Validate()
 }
 func (g Standard) Validate() error {
-	if !validID(string(g.ID)) || g.Priority < 0 || g.Priority > 4 || g.Tick < 0 || g.Snapshot.Validate() != nil {
+	if !validID(string(g.ID)) || g.Priority < 0 || g.Priority > 4 || g.Snapshot.Validate() != nil {
 		return errors.New("invalid standard")
 	}
 	if len(g.Record) > MaxStandardRecord {
@@ -97,27 +96,15 @@ func (g Standard) Validate() error {
 // emergency or a pause vetoes proposals through the policy Safeguards (#1017).
 // Projects are not goals (Project, ReviewProject).
 //
-// Tick is the tick of the last change, not of the last review: a review that
-// changes nothing but the tick returns g untouched, so the store neither
-// bumps the revision nor rewrites the goal's governor state every round.
-func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Standard, error) {
-	out, err := reviewStandard(g, current, tick, need, openWork)
-	if err == nil && out.Snapshot == g.Snapshot {
-		quiet := out
-		quiet.Tick = g.Tick
-		if quiet == g {
-			return g, nil
-		}
-	}
-	return out, err
-}
-
-func reviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Standard, error) {
+// A goal carries no review tick: a review that changes nothing returns g
+// equal to its input, so the store neither bumps the revision nor rewrites the
+// goal's governor state each round. A tick rewind is ReviewRounds' to catch.
+func ReviewStandard(g Standard, current GenerationSnapshot, need Finding, openWork bool) (Standard, error) {
 	original := g
 	if err := g.Validate(); err != nil {
 		return g, err
 	}
-	if current.Validate() != nil || tick < 0 {
+	if current.Validate() != nil {
 		return g, errors.New("invalid standard review scope")
 	}
 	switch need {
@@ -132,10 +119,8 @@ func reviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Find
 		g.Status = StandardVoided
 		return g, nil
 	}
-	// Review revisions may advance without changing the player's direction;
-	// ReviewStandard drops a tick-only change.
+	// Review revisions may advance without changing the player's direction.
 	g.Snapshot = current
-	g.Tick = tick
 	if need == FindingUnclear {
 		if g.Status == StandardSettled {
 			g.Status = StandardOpen

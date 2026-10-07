@@ -62,7 +62,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoundsStoneShellPlan
 	current := base.reviewer.player.session.State().Snapshot
 	var err error
 	if history {
-		goal, err := domain.NewStandard("stone-owner", 4, current, 7)
+		goal, err := domain.NewStandard("stone-owner", 4, current)
 		if err != nil {
 			t.Fatal(err)
 		}

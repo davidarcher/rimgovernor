@@ -43,7 +43,7 @@ func TestRoundsGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if _, err = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, r.Current, r.Tick, domain.FindingUnmet); err == nil {
 		t.Fatal("retired goal reviewed")
 	}
-	replacement, err := domain.NewStandard(old.Standard.ID, 2, r.Current, r.Tick)
+	replacement, err := domain.NewStandard(old.Standard.ID, 2, r.Current)
 	if err != nil {
 		t.Fatal(err)
 	}

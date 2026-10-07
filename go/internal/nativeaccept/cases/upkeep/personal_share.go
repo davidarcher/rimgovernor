@@ -88,12 +88,11 @@ func runPersonalShare(ctx context.Context, s cases.Session, wealth string) error
 	if err == nil {
 		recoverCtx, cancel := context.WithTimeout(ctx, 25*time.Minute)
 		for _, need := range []policy.ConcernID{policy.MaintainHousing, policy.MaintainEquipment} {
-			g, werr := waitNeed(recoverCtx, journal, need, domain.FindingMet)
+			_, werr := waitNeed(recoverCtx, journal, need, domain.FindingMet)
 			if werr != nil {
 				err = werr
 				break
 			}
-			report[string(need)+"_recovered_tick"] = int64(g.Standard.Tick)
 		}
 		cancel()
 	}
