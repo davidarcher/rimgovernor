@@ -3,6 +3,7 @@ package policy
 import (
 	"cmp"
 	"slices"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -33,6 +34,47 @@ type foreignWork struct {
 	blocked map[domain.Cell]bool
 	claimed map[domain.Cell]bool
 	holds   []ReconcileHold
+}
+
+// SlotPlantCuts is the cut wave of a furniture slot the native preview refused
+// naming a plant (#2303): every plant, passable or not, on the slot's footprint
+// or interaction cell that the refusal names by def (or any plant when it names
+// only a category). A slot has no outdoor stand-in, so the plant is a foreign
+// obstruction like an impassable one on a room's ground. The preview stays the
+// legality authority: nothing is cut unless it refused on a plant.
+func SlotPlantCuts(cells []SiteCell, piece InteriorPiece, blockers []PlacementBlocker) []ClearanceTarget {
+	named := map[string]bool{}
+	anyPlant := false
+	for _, b := range blockers {
+		if b.DefName != "" {
+			named[b.DefName] = true
+		} else if strings.EqualFold(b.Category, "plant") {
+			anyPlant = true
+		}
+	}
+	slot := map[domain.Cell]bool{}
+	for _, c := range rectCells(piece.Rect) {
+		slot[c] = true
+	}
+	if c, ok := piece.Interaction(); ok {
+		slot[c] = true
+	}
+	var out []ClearanceTarget
+	for _, sc := range cells {
+		if !slot[sc.Cell] {
+			continue
+		}
+		for _, t := range sc.Things {
+			if t.Category != ThingPlant || t.ID == 0 || !named[t.Def] && !anyPlant {
+				continue
+			}
+			out = append(out, ClearanceTarget{EntityID: t.LoadID(), DefName: t.Def, Minimum: sc.Cell, Maximum: sc.Cell, Class: "foreign", InHome: true, Designated: t.Has(FlagDesignated)})
+		}
+	}
+	slices.SortStableFunc(out, func(a, b ClearanceTarget) int {
+		return cmp.Or(cmp.Compare(a.Minimum.Z, b.Minimum.Z), cmp.Compare(a.Minimum.X, b.Minimum.X), cmp.Compare(a.EntityID, b.EntityID))
+	})
+	return out
 }
 
 func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted map[domain.Cell]bool) foreignWork {

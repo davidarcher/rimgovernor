@@ -417,28 +417,37 @@ func (b *RoundsBuildingPlanner) commitObstructions(call, epoch context.Context, 
 		if len(targets) == 0 {
 			continue
 		}
-		id := domain.MintPlanID()
-		var actions []domain.Action
-		var key strings.Builder
-		for _, t := range targets {
-			action, err := obstructionAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), kind, t)
-			if err != nil {
-				return RoundsBuildingResult{}, false, err
-			}
-			actions = append(actions, action)
-			fmt.Fprintf(&key, "%s@%d,%d;", t.EntityID, t.Minimum.X, t.Minimum.Z)
+		result, done, err := b.commitObstructionWave(call, epoch, state, goal, works[0].rr.name, kind, targets)
+		if err != nil || done {
+			return result, done, err
 		}
-		digest := sha256.Sum256([]byte(key.String()))
-		method := domain.MethodID(fmt.Sprintf("%s-%s-%x", works[0].rr.name, kind, digest[:8]))
-		if once, err := b.methodOnce(call, goal, method); err != nil {
-			return RoundsBuildingResult{}, false, err
-		} else if !once {
-			continue
-		}
-		result, err := b.commitOwnerActions(call, epoch, state, goal, method, id, actions)
-		return result, true, err
 	}
 	return RoundsBuildingResult{}, false, nil
+}
+
+// commitObstructionWave commits one wave of kind over targets as an owner
+// method named for them; done is false when that wave was committed before.
+func (b *RoundsBuildingPlanner) commitObstructionWave(call, epoch context.Context, state ControlState, goal store.WorkOwner, name string, kind policy.OpKind, targets []policy.ClearanceTarget) (RoundsBuildingResult, bool, error) {
+	id := domain.MintPlanID()
+	var actions []domain.Action
+	var key strings.Builder
+	for _, t := range targets {
+		action, err := obstructionAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), kind, t)
+		if err != nil {
+			return RoundsBuildingResult{}, false, err
+		}
+		actions = append(actions, action)
+		fmt.Fprintf(&key, "%s@%d,%d;", t.EntityID, t.Minimum.X, t.Minimum.Z)
+	}
+	digest := sha256.Sum256([]byte(key.String()))
+	method := domain.MethodID(fmt.Sprintf("%s-%s-%x", name, kind, digest[:8]))
+	if once, err := b.methodOnce(call, goal, method); err != nil {
+		return RoundsBuildingResult{}, false, err
+	} else if !once {
+		return RoundsBuildingResult{}, false, nil
+	}
+	result, err := b.commitOwnerActions(call, epoch, state, goal, method, id, actions)
+	return result, true, err
 }
 
 // obstructionAction maps a foreign-thing target to an existing action: a claim,

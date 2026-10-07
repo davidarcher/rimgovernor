@@ -33,7 +33,11 @@ type RoundsBuildingResult struct {
 // existing reviewed player direction. It creates shared pending work, never
 // acquires a lease, dispatches an action or advances the game.
 type RoundsBuildingPlanner struct {
-	paste            []policy.SiteBuilding
+	paste []policy.SiteBuilding
+	// slotCuts are the plants a refused shelter slot names on its footprint or
+	// interaction cell; the step commits their cut wave and the slot is retried
+	// (#2303).
+	slotCuts         []policy.ClearanceTarget
 	reviewer         *Rounder
 	native           RoundsBuildingSource
 	concern          policy.ConcernID
@@ -707,6 +711,14 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			return result, digErr
 		}
 	}
+	if err == nil && !reason.IsZero() && len(r.slotCuts) > 0 {
+		// A plant on the only accepted slot is a foreign obstruction: cut it, and
+		// the slot is retried once the order is done (#2303). A wave already
+		// committed keeps the wait.
+		if result, done, cutErr := r.commitObstructionWave(call, epoch, state, goal, string(r.concern)+"-slot", policy.OpCut, r.slotCuts); cutErr != nil || done {
+			return result, cutErr
+		}
+	}
 	if err != nil || !reason.IsZero() {
 		return RoundsBuildingResult{Verdict: reason}, err
 	}
@@ -1239,6 +1251,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				if !ok && strictSlot && refusedSlot == nil {
 					refused := reportRefused(call, roomBuild{def: r.definition, cell: p.Anchor()}, lastPreview)
 					refusedSlot = &refused
+					r.slotCuts = policy.SlotPlantCuts(facts.Cells, p, lastPreview.Blockers)
 				}
 				if ok && !overlaps(choice.choice) {
 					pending = &choice
