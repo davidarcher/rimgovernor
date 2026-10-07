@@ -116,6 +116,10 @@ namespace HomeBridge.BridgeTools
                         + "not report a refusal.", "long_event");
                 // Only a window a human can close is a refusal. A merely paused
                 // clock is not: the speed set below unpauses it.
+                if (ColonyNamingTools.Pending() != null)
+                {
+                    try { ColonyNamingTools.ConfirmSuggested(); } catch (Exception) { }
+                }
                 if (ForcePausingWindows().Count > 0)
                     return Failure(ForcePauseDetail());
                 var profile = (mode ?? "colony").Trim().ToLowerInvariant();
@@ -439,6 +443,15 @@ namespace HomeBridge.BridgeTools
         private static void HandleForcePause(State s)
         {
             var windows = ForcePausingWindows();
+            if (windows.Count > 0 && ColonyNamingTools.Pending() != null)
+            {
+                // The naming prompt is the mod's to answer: confirm the game's
+                // own suggestions now, in this frame, rather than stopping play
+                // and waiting for the controller to notice and restart it.
+                try { ColonyNamingTools.ConfirmSuggested(); } catch (Exception) { }
+                windows = ForcePausingWindows();
+                if (windows.Count == 0) return;
+            }
             if (windows.Count > 0)
             {
                 var naming = ColonyNamingTools.Pending() != null;
