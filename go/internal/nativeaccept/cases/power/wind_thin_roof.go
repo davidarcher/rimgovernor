@@ -336,10 +336,16 @@ func checkSkyPlan(actions []domain.Action) (excavations, roofCells int, turbine 
 	return excavations, roofCells, turbines == 1, nil
 }
 
+// followUpPlanBound bounds the connect follow-ups. The family lays at most 8
+// conduit cells per plan (connectLiveBeforeUpgrade), and the lab's lamp lies
+// about 42 route cells from the turbine site, so the connection takes six plans
+// (#2334: a bound of four stopped the case 5 cells short of the lamp).
+const followUpPlanBound = 8
+
 // followUps lets the family connect the new turbine: a bounded number of
 // conduit (or bank) plans, none of which may raise another generator.
 func followUps(ctx context.Context, journal *store.Store, seen map[domain.PlanID]bool, report na.Report) error {
-	for n := 1; n <= 4; n++ {
+	for n := 1; n <= followUpPlanBound; n++ {
 		waitCtx, waitCancel := context.WithTimeout(ctx, 2*time.Minute)
 		_, next, err := na.WaitMethodExcluding(waitCtx, journal, policy.EnsureBasicPower, seen)
 		waitCancel()
