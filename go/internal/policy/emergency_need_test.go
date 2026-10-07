@@ -21,6 +21,7 @@ func TestEmergencyNeedExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
 		{"choice dialog", RoundsAssessment{ID: AnswerDialog, Priority: 0, Finding: domain.FindingUnmet}, false},
 		{"mood relief", RoundsAssessment{ID: EnsureMood, Subject: "pawn", Priority: 1, Finding: domain.FindingUnmet, MethodUnavailable: true}, false},
 		{"recovered", RoundsAssessment{ID: ActiveCombat, Priority: 0, Finding: domain.FindingMet}, false},
+		{"squad hunt origin", RoundsAssessment{ID: ActiveCombat, Priority: 0, Finding: domain.FindingUnmet, Hunt: []domain.PawnID{"deer"}}, false},
 		{"method unavailable", RoundsAssessment{ID: ActiveCombat, Priority: 0, Finding: domain.FindingUnmet, MethodUnavailable: true}, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {

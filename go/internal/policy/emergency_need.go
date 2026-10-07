@@ -8,7 +8,9 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // priority 2 qualifies, and not when it:
 //   - is a colony-naming or choice dialog (answered by one native write),
 //   - has no declared method to clear it (#435), or is optional relief
-//     (EnsureMood: a mental break ends only as ticks pass).
+//     (EnsureMood: a mental break ends only as ticks pass), or
+//   - is the squad-hunt origin of ActiveCombat (#2175): no hostile stands, so
+//     the hunt keeps its combat window and drafts but suspends no other work.
 func EmergencyNeed(a RoundsAssessment) bool {
-	return a.Priority < 2 && a.ID != ConfirmColonyNames && a.ID != AnswerDialog && a.Finding != domain.FindingMet && !a.MethodUnavailable
+	return a.Priority < 2 && a.ID != ConfirmColonyNames && a.ID != AnswerDialog && a.Finding != domain.FindingMet && !a.MethodUnavailable && len(a.Hunt) == 0
 }
