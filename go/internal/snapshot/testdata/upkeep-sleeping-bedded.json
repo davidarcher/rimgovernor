@@ -1293,9 +1293,6 @@
   "Colonists": {
    "v": 8
   },
-  "ColonyNaming": {
-   "v": false
-  },
   "Comfort": {
    "v": {
     "Dining": [],
@@ -29914,10 +29911,6 @@
    ]
   },
   "Standards": [
-   {
-    "Standard": "routine-eb99163e6625776b-ConfirmColonyNames",
-    "Concern": "ConfirmColonyNames"
-   },
    {
     "Standard": "routine-eb99163e6625776b-AnswerDialog",
     "Concern": "AnswerDialog"

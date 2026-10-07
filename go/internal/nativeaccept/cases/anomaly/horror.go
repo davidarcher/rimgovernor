@@ -94,9 +94,6 @@ func runHorrorIncident(ctx context.Context, s cases.Session) error {
 	}
 	report["incident"], report["fixture"] = incident["incident"], incident
 
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err

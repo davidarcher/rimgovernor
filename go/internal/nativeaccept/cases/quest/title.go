@@ -91,7 +91,8 @@ func empireTitle(observed map[string]any, pawn string) (title string, favor floa
 }
 
 func runFirstTitle(ctx context.Context, s cases.Session) error {
-	report, h, identity, prepared := s.Report(), s.Harness(), s.Identity(), s.Prepared()
+	report, identity, prepared := s.Report(), s.Identity(), s.Prepared()
+	var h *na.Harness
 	offer := domain.QuestID(na.AsString(prepared["questId"]))
 	pawn, title := na.AsString(prepared["pawnId"]), na.AsString(prepared["title"])
 	if offer == "" || pawn == "" || title == "" || na.AsNumber(prepared["favor"]) <= 0 {
@@ -102,9 +103,6 @@ func runFirstTitle(ctx context.Context, s cases.Session) error {
 	}
 	report["fixture_quest"], report["pawn"], report["title"] = string(offer), pawn, title
 
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err

@@ -720,16 +720,6 @@ var plannerCatalog = []plannerEntry{
 			out.StorageShelves = &method
 			return method.Verdict, nil
 		}},
-	{name: "naming", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.NamingConfirmationAction}, sections: sectionsColony,
-		configured: func(c *ClockSchedulerConfig) bool { return c.Naming != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.Naming.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.Naming = &method
-			return method.Verdict, nil
-		}},
 	{name: "dialog", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.DialogAnswerAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Dialog != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

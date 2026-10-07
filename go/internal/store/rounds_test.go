@@ -12,7 +12,7 @@ import (
 )
 
 func roundsRequest() RoundsRequest {
-	return RoundsRequest{Current: scope(), Tick: 10, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: policy.RoundsFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}}
+	return RoundsRequest{Current: scope(), Tick: 10, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: policy.RoundsFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ChoiceDialog: domain.Known(false)}}
 }
 
 // A review whose facts carry the Biotech pollution read binds the same goals

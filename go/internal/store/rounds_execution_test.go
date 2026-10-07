@@ -289,55 +289,6 @@ func TestRoundsExecutionAuthorizesAfterNativeGenerationBump(t *testing.T) {
 	}
 }
 
-// A naming confirmation plan committed under the ConfirmColonyNames incident
-// persists through CreatePlan, reloads with its exact observed suggestions
-// and is a supported routine method the worker dispatches under the root
-// authority (#178).
-func TestRoundsExecutionAuthorizesNamingConfirmationPlan(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, memoryPath(t))
-	r := roundsRequest()
-	r.Current.Native = 2
-	r.Facts.ColonyNaming = domain.Known(true)
-	out := reviewRounds(t, s, &r)
-	b, ok := out.Review.Incident(policy.ConfirmColonyNames)
-	if !ok || b.Situation != domain.SituationActive {
-		t.Fatal(out.Review.Incidents)
-	}
-	naming, err := domain.NewNamingConfirmation(7, "New Arrivals", "Hopeville")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := domain.NewNamingConfirmationAction("naming", naming)
-	if err != nil {
-		t.Fatal(err)
-	}
-	plan, err := domain.NewPlan("naming-plan", 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = s.CommitIncidentMethod(ctx, b.Incident, "naming", "", plan); err != nil {
-		t.Fatal(err)
-	}
-	loaded, err := s.LoadPlan(ctx, "naming-plan")
-	if err != nil {
-		t.Fatal(err)
-	}
-	actions := loaded.Spec.Actions()
-	if len(actions) != 1 {
-		t.Fatal(actions)
-	}
-	if got, ok := actions[0].NamingConfirmation(); !ok || got != naming || actions[0].ID() != "naming" {
-		t.Fatal(actions[0])
-	}
-	target := r.Current
-	target.Plan, target.Revision = "naming-plan", 1
-	if err = s.AuthorizeRoundsPlan(ctx, r.Current, target); err != nil {
-		t.Fatal("naming confirmation plan was not authorized", err)
-	}
-}
-
 // A method admitted for a deficit that clears before any step dispatches it
 // (vanilla hauled the stack, the player mended the wall) is settled by the
 // review that observes the recovery: its never-dispatched actions cancel and

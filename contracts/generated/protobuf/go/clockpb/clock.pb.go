@@ -5861,13 +5861,13 @@ const file_clock_proto_rawDesc = "" +
 	"\a_cursorB\x16\n" +
 	"\x14_observed_at_unix_msB\t\n" +
 	"\a_detailB\x12\n" +
-	"\x10_age_at_reply_ms\"\xb0\x01\n" +
+	"\x10_age_at_reply_ms\"\xaa\x01\n" +
 	"\rEventsRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12&\n" +
 	"\fafter_cursor\x18\x02 \x01(\x03H\x00R\vafterCursor\x88\x01\x01\x12\x19\n" +
 	"\x05limit\x18\x03 \x01(\rH\x01R\x05limit\x88\x01\x01B\x0f\n" +
 	"\r_after_cursorB\b\n" +
-	"\x06_limitJ\x04\b\x04\x10\x05\"\x86\x03\n" +
+	"\x06_limit\"\x86\x03\n" +
 	"\n" +
 	"EventsPage\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x123\n" +

@@ -69,9 +69,6 @@ func run(ctx context.Context, s cases.Session) error {
 			report["flooring_postmortem_error"] = err.Error()
 		}
 	}()
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	roomID := na.AsString(prepared["roomId"])
 	rect, _ := na.AsMap(prepared["interior"])
 	interior = cellRect{minX: int32(na.AsNumber(rect["minX"])), minZ: int32(na.AsNumber(rect["minZ"])), maxX: int32(na.AsNumber(rect["maxX"])), maxZ: int32(na.AsNumber(rect["maxZ"]))}

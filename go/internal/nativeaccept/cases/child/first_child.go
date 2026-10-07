@@ -77,7 +77,8 @@ func babyFoodBillPlaced(ctx context.Context, st *store.Store, bench string, reci
 }
 
 func runFirstChild(ctx context.Context, s cases.Session) error {
-	report, h, prepared := s.Report(), s.Harness(), s.Prepared()
+	report, prepared := s.Report(), s.Prepared()
+	var h *na.Harness
 	baby, bench := na.AsString(prepared["babyId"]), na.AsString(prepared["benchId"])
 	var recipes []string
 	for _, raw := range na.AsSlice(prepared["recipes"]) {
@@ -88,9 +89,6 @@ func runFirstChild(ctx context.Context, s cases.Session) error {
 	}
 	report["baby"], report["bench"], report["recipes"], report["fixture"] = baby, bench, recipes, prepared
 
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err

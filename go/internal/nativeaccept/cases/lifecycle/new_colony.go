@@ -348,9 +348,6 @@ func newColonyRead(ctx context.Context, h *na.Harness, label string, row map[str
 	if err != nil {
 		return "", fmt.Errorf("colony facts: %w", err)
 	}
-	if naming, ok := na.AsMap(facts["naming"]); ok && naming != nil {
-		return "", fmt.Errorf("the colony-naming dialog is still pending: %v", naming)
-	}
 	if got := int(na.AsNumber(facts["colonistCount"])); got != 3 {
 		return "", fmt.Errorf("colony has %d colonists, want 3", got)
 	}

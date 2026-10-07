@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -173,7 +172,7 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 	if !ok {
 		t.Fatalf("report[service] = %#v", report["service"])
 	}
-	if entry["url"] != p.URL || entry["pid"] != p.PID || entry["state"] != "running" || entry["families"] != "supply,work,naming" {
+	if entry["url"] != p.URL || entry["pid"] != p.PID || entry["state"] != "running" || entry["families"] != "supply,work" {
 		t.Fatalf("entry %#v", entry)
 	}
 	argv, _ := entry["argv"].([]string)
@@ -241,17 +240,5 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 	stall := &StepStallError{Stall: time.Minute, Families: "supply,work", LastFailure: lastStepFailure(p.FlightPath)}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {
 		t.Fatalf("stall error %q", stall)
-	}
-}
-
-func TestWithNamingFamilyAddsNamingUnlessDialogOrPresent(t *testing.T) {
-	in := []routinefamily.Family{routinefamily.Supply, routinefamily.Shelter}
-	if got := withNamingFamily(in); !slices.Equal(got, []routinefamily.Family{routinefamily.Supply, routinefamily.Shelter, routinefamily.Naming}) || len(in) != 2 {
-		t.Fatalf("got %v, input %v", got, in)
-	}
-	for _, kept := range [][]routinefamily.Family{{routinefamily.Naming, routinefamily.Supply}, {routinefamily.Dialog, routinefamily.Supply}} {
-		if got := withNamingFamily(kept); !slices.Equal(got, kept) {
-			t.Fatalf("%v changed to %v", kept, got)
-		}
 	}
 }

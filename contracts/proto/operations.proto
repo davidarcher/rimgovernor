@@ -6,7 +6,6 @@ import "common.proto";
 import "placement.proto";
 import "receipts.proto";
 
-
 // Tokens are opaque native snapshots scoped to request identity and exact entity.
 message EntityPrecondition { optional string entity_id = 1; optional string expected_snapshot_token = 2; }
 message Clear {}
@@ -271,7 +270,6 @@ message Action {
     HaulIntent haul = 13;
     ApparelPolicyIntent apparel_policy = 15;
     ResearchIntent research = 16;
-    NamingIntent naming = 17;
     DialogIntent dialog = 18;
     PrisonerInteractionIntent prisoner = 19;
     AcceptQuestIntent accept_quest = 20;
@@ -693,12 +691,6 @@ message AssignIntent { optional string pawn_id = 1; optional string thing_id = 2
 // a prisoner already set to the mode applies again.
 message PrisonerInteractionIntent { optional string pawn_id = 1; optional PrisonerInteraction interaction = 2; }
 message DialogIntent { optional int32 window_id = 1; optional int32 option_index = 2; optional string option_label = 3; optional string joiner_letter_token = 4; }
-// Confirm the exact observed suggestions of the colony-wide initial
-// faction/settlement naming dialog; window_id plus the suggestions stand in
-// for an entity precondition, so a changed window or suggestion is refused.
-// Names that already hold with the dialog gone are applied again. It is
-// independent of presentation.proto's explicit-player ConfirmColonyNames.
-message NamingIntent { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; }
 // Make the project the ordinary research slot's current project; native
 // refuses a finished, unstartable or anomaly knowledge project, and a
 // project already current is applied again.

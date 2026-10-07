@@ -138,9 +138,6 @@ func runMechGestation(ctx context.Context, s cases.Session) error {
 	}
 	report["mechanitor"], report["gestator"], report["fixture"] = mechanitor, gestator, prepared
 
-	if _, err := na.ConfirmColonyNames(ctx, s.Harness(), report); err != nil {
-		return err
-	}
 	// serve runs the controller until the journal shows done, then releases
 	// the game slot. The signature carries the game day so a slow phase does
 	// not read as a stall and a broken one does.

@@ -90,7 +90,6 @@ func TestEquipPlannerBiocodeOwnerOnly(t *testing.T) {
 			v := native.reply.GetObserved()
 			v.ColonistCount = proto.Uint32(uint32(len(n.ids)))
 			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
-			v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 			reviewer.native = n
 			reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicDefense})
 			if _, err := reviewer.Step(ctx); err != nil {
@@ -140,7 +139,6 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 			v := native.reply.GetObserved()
 			v.ColonistCount = proto.Uint32(uint32(len(n.ids)))
 			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
-			v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 			reviewer.native = n
 			reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicDefense})
 			if _, err := reviewer.Step(ctx); err != nil {
@@ -215,7 +213,6 @@ func TestEquipPlannerOneWave(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(3)
 	v.WorkerCount = proto.Uint32(3)
-	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	n := &equipTestNative{roundsNative: native, ids: []string{"a", "b", "c"}, weapons: []bridge.EquipCandidate{
 		{Thing: "bow1", Definition: "Bow_Short"},
 		{Thing: "bow2", Definition: "Bow_Short"},
@@ -284,7 +281,6 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
-	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	n := &equipTestNative{roundsNative: native, ids: []string{"a", "b"}}
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.EnsureBasicDefense})

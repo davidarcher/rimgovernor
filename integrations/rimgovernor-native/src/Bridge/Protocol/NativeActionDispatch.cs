@@ -37,7 +37,6 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.CombatOrders] = new CombatOrdersActionHandler(),
             [Operations.Action.IntentOneofCase.ApparelPolicy] = new ApparelPolicyActionHandler(),
             [Operations.Action.IntentOneofCase.Research] = new ResearchActionHandler(),
-            [Operations.Action.IntentOneofCase.Naming] = new NamingActionHandler(),
             [Operations.Action.IntentOneofCase.Dialog] = new DialogActionHandler(),
             [Operations.Action.IntentOneofCase.Prisoner] = new PrisonerInteractionActionHandler(),
             [Operations.Action.IntentOneofCase.AcceptQuest] = new AcceptQuestActionHandler(),

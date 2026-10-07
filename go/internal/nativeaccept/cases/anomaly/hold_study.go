@@ -95,16 +95,14 @@ func journalHold(ctx context.Context, st *store.Store, entity domain.PawnID) (ho
 }
 
 func runHoldStudy(ctx context.Context, s cases.Session) error {
-	report, h, prepared := s.Report(), s.Harness(), s.Prepared()
+	report, prepared := s.Report(), s.Prepared()
+	var h *na.Harness
 	entity, platform := na.AsString(prepared["entityId"]), na.AsString(prepared["platformId"])
 	if entity == "" || platform == "" || na.AsNumber(prepared["platformStrength"]) <= na.AsNumber(prepared["need"]) {
 		return fmt.Errorf("fixture: unexpected entity hold staging: %#v", prepared)
 	}
 	report["fixture"] = prepared
 
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err

@@ -25,7 +25,6 @@ func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}
-	v.Issues = append(v.Issues, missing("naming"))
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
 		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{DefName: proto.String(skill), Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()})
@@ -79,7 +78,6 @@ func TestWorkPlannerSkipsPawnInCheckboxMode(t *testing.T) {
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}
-	v.Issues = append(v.Issues, missing("naming"))
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(false)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
 		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{DefName: proto.String(skill), Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()})
@@ -120,7 +118,6 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}
-	v.Issues = append(v.Issues, missing("naming"))
 	bow := &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: n.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short")})}}}
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: bow, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {

@@ -831,9 +831,6 @@
   "Colonists": {
    "v": 8
   },
-  "ColonyNaming": {
-   "v": false
-  },
   "Comfort": {
    "v": {
     "People": [
@@ -10464,10 +10461,6 @@
    ]
   },
   "Standards": [
-   {
-    "Standard": "routine-3460f26c9f3f6ee9-ConfirmColonyNames",
-    "Concern": "ConfirmColonyNames"
-   },
    {
     "Standard": "routine-3460f26c9f3f6ee9-AnswerDialog",
     "Concern": "AnswerDialog"

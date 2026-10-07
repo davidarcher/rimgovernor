@@ -91,7 +91,6 @@ var (
 	Rituals             = define("rituals")
 	StoneShell          = define("stone-shell")
 	DefensiveLayout     = define("defensive-layout")
-	Naming              = define("naming")
 	Dialog              = define("dialog")
 	Trade               = define("trade")
 	Resource            = define("resource")

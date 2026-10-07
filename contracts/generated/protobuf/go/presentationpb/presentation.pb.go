@@ -5705,320 +5705,6 @@ func (x *SetDialogText) GetText() string {
 	return ""
 }
 
-type ConfirmColonyNames struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Window         *WindowIdentity        `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
-	FactionName    *string                `protobuf:"bytes,2,opt,name=faction_name,json=factionName,proto3,oneof" json:"faction_name,omitempty"`
-	SettlementName *string                `protobuf:"bytes,3,opt,name=settlement_name,json=settlementName,proto3,oneof" json:"settlement_name,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *ConfirmColonyNames) Reset() {
-	*x = ConfirmColonyNames{}
-	mi := &file_presentation_proto_msgTypes[68]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ConfirmColonyNames) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ConfirmColonyNames) ProtoMessage() {}
-
-func (x *ConfirmColonyNames) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[68]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ConfirmColonyNames.ProtoReflect.Descriptor instead.
-func (*ConfirmColonyNames) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{68}
-}
-
-func (x *ConfirmColonyNames) GetWindow() *WindowIdentity {
-	if x != nil {
-		return x.Window
-	}
-	return nil
-}
-
-func (x *ConfirmColonyNames) GetFactionName() string {
-	if x != nil && x.FactionName != nil {
-		return *x.FactionName
-	}
-	return ""
-}
-
-func (x *ConfirmColonyNames) GetSettlementName() string {
-	if x != nil && x.SettlementName != nil {
-		return *x.SettlementName
-	}
-	return ""
-}
-
-type NamingSnapshot struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Window         *WindowIdentity        `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
-	FactionName    *string                `protobuf:"bytes,2,opt,name=faction_name,json=factionName,proto3,oneof" json:"faction_name,omitempty"`
-	SettlementName *string                `protobuf:"bytes,3,opt,name=settlement_name,json=settlementName,proto3,oneof" json:"settlement_name,omitempty"`
-	WindowClosed   *bool                  `protobuf:"varint,4,opt,name=window_closed,json=windowClosed,proto3,oneof" json:"window_closed,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *NamingSnapshot) Reset() {
-	*x = NamingSnapshot{}
-	mi := &file_presentation_proto_msgTypes[69]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *NamingSnapshot) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*NamingSnapshot) ProtoMessage() {}
-
-func (x *NamingSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[69]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use NamingSnapshot.ProtoReflect.Descriptor instead.
-func (*NamingSnapshot) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{69}
-}
-
-func (x *NamingSnapshot) GetWindow() *WindowIdentity {
-	if x != nil {
-		return x.Window
-	}
-	return nil
-}
-
-func (x *NamingSnapshot) GetFactionName() string {
-	if x != nil && x.FactionName != nil {
-		return *x.FactionName
-	}
-	return ""
-}
-
-func (x *NamingSnapshot) GetSettlementName() string {
-	if x != nil && x.SettlementName != nil {
-		return *x.SettlementName
-	}
-	return ""
-}
-
-func (x *NamingSnapshot) GetWindowClosed() bool {
-	if x != nil && x.WindowClosed != nil {
-		return *x.WindowClosed
-	}
-	return false
-}
-
-type NamingPreviewRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Captured      *CaptureIdentity       `protobuf:"bytes,1,opt,name=captured,proto3" json:"captured,omitempty"`
-	Names         *ConfirmColonyNames    `protobuf:"bytes,2,opt,name=names,proto3" json:"names,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *NamingPreviewRequest) Reset() {
-	*x = NamingPreviewRequest{}
-	mi := &file_presentation_proto_msgTypes[70]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *NamingPreviewRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*NamingPreviewRequest) ProtoMessage() {}
-
-func (x *NamingPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[70]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use NamingPreviewRequest.ProtoReflect.Descriptor instead.
-func (*NamingPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{70}
-}
-
-func (x *NamingPreviewRequest) GetCaptured() *CaptureIdentity {
-	if x != nil {
-		return x.Captured
-	}
-	return nil
-}
-
-func (x *NamingPreviewRequest) GetNames() *ConfirmColonyNames {
-	if x != nil {
-		return x.Names
-	}
-	return nil
-}
-
-type NamingPreview struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Names         *NamingSnapshot        `protobuf:"bytes,1,opt,name=names,proto3" json:"names,omitempty"`
-	Acceptable    *bool                  `protobuf:"varint,2,opt,name=acceptable,proto3,oneof" json:"acceptable,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *NamingPreview) Reset() {
-	*x = NamingPreview{}
-	mi := &file_presentation_proto_msgTypes[71]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *NamingPreview) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*NamingPreview) ProtoMessage() {}
-
-func (x *NamingPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[71]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use NamingPreview.ProtoReflect.Descriptor instead.
-func (*NamingPreview) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{71}
-}
-
-func (x *NamingPreview) GetNames() *NamingSnapshot {
-	if x != nil {
-		return x.Names
-	}
-	return nil
-}
-
-func (x *NamingPreview) GetAcceptable() bool {
-	if x != nil && x.Acceptable != nil {
-		return *x.Acceptable
-	}
-	return false
-}
-
-type NamingPreviewReply struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Outcome:
-	//
-	//	*NamingPreviewReply_Preview
-	//	*NamingPreviewReply_Refusal
-	Outcome       isNamingPreviewReply_Outcome `protobuf_oneof:"outcome"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *NamingPreviewReply) Reset() {
-	*x = NamingPreviewReply{}
-	mi := &file_presentation_proto_msgTypes[72]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *NamingPreviewReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*NamingPreviewReply) ProtoMessage() {}
-
-func (x *NamingPreviewReply) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[72]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use NamingPreviewReply.ProtoReflect.Descriptor instead.
-func (*NamingPreviewReply) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{72}
-}
-
-func (x *NamingPreviewReply) GetOutcome() isNamingPreviewReply_Outcome {
-	if x != nil {
-		return x.Outcome
-	}
-	return nil
-}
-
-func (x *NamingPreviewReply) GetPreview() *NamingPreview {
-	if x != nil {
-		if x, ok := x.Outcome.(*NamingPreviewReply_Preview); ok {
-			return x.Preview
-		}
-	}
-	return nil
-}
-
-func (x *NamingPreviewReply) GetRefusal() *commonpb.Failure {
-	if x != nil {
-		if x, ok := x.Outcome.(*NamingPreviewReply_Refusal); ok {
-			return x.Refusal
-		}
-	}
-	return nil
-}
-
-type isNamingPreviewReply_Outcome interface {
-	isNamingPreviewReply_Outcome()
-}
-
-type NamingPreviewReply_Preview struct {
-	Preview *NamingPreview `protobuf:"bytes,1,opt,name=preview,proto3,oneof"`
-}
-
-type NamingPreviewReply_Refusal struct {
-	Refusal *commonpb.Failure `protobuf:"bytes,2,opt,name=refusal,proto3,oneof"`
-}
-
-func (*NamingPreviewReply_Preview) isNamingPreviewReply_Outcome() {}
-
-func (*NamingPreviewReply_Refusal) isNamingPreviewReply_Outcome() {}
-
 type DialogTextChange struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Window        *WindowIdentity        `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
@@ -6031,7 +5717,7 @@ type DialogTextChange struct {
 
 func (x *DialogTextChange) Reset() {
 	*x = DialogTextChange{}
-	mi := &file_presentation_proto_msgTypes[73]
+	mi := &file_presentation_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6043,7 +5729,7 @@ func (x *DialogTextChange) String() string {
 func (*DialogTextChange) ProtoMessage() {}
 
 func (x *DialogTextChange) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[73]
+	mi := &file_presentation_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6056,7 +5742,7 @@ func (x *DialogTextChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DialogTextChange.ProtoReflect.Descriptor instead.
 func (*DialogTextChange) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{73}
+	return file_presentation_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *DialogTextChange) GetWindow() *WindowIdentity {
@@ -6097,7 +5783,7 @@ type DialogTextPreviewRequest struct {
 
 func (x *DialogTextPreviewRequest) Reset() {
 	*x = DialogTextPreviewRequest{}
-	mi := &file_presentation_proto_msgTypes[74]
+	mi := &file_presentation_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6109,7 +5795,7 @@ func (x *DialogTextPreviewRequest) String() string {
 func (*DialogTextPreviewRequest) ProtoMessage() {}
 
 func (x *DialogTextPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[74]
+	mi := &file_presentation_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6122,7 +5808,7 @@ func (x *DialogTextPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DialogTextPreviewRequest.ProtoReflect.Descriptor instead.
 func (*DialogTextPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{74}
+	return file_presentation_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *DialogTextPreviewRequest) GetCaptured() *CaptureIdentity {
@@ -6152,7 +5838,7 @@ type DialogTextPreviewReply struct {
 
 func (x *DialogTextPreviewReply) Reset() {
 	*x = DialogTextPreviewReply{}
-	mi := &file_presentation_proto_msgTypes[75]
+	mi := &file_presentation_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6164,7 +5850,7 @@ func (x *DialogTextPreviewReply) String() string {
 func (*DialogTextPreviewReply) ProtoMessage() {}
 
 func (x *DialogTextPreviewReply) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[75]
+	mi := &file_presentation_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6177,7 +5863,7 @@ func (x *DialogTextPreviewReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DialogTextPreviewReply.ProtoReflect.Descriptor instead.
 func (*DialogTextPreviewReply) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{75}
+	return file_presentation_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *DialogTextPreviewReply) GetOutcome() isDialogTextPreviewReply_Outcome {
@@ -6231,7 +5917,7 @@ type ShowWorld struct {
 
 func (x *ShowWorld) Reset() {
 	*x = ShowWorld{}
-	mi := &file_presentation_proto_msgTypes[76]
+	mi := &file_presentation_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6243,7 +5929,7 @@ func (x *ShowWorld) String() string {
 func (*ShowWorld) ProtoMessage() {}
 
 func (x *ShowWorld) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[76]
+	mi := &file_presentation_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6256,7 +5942,7 @@ func (x *ShowWorld) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowWorld.ProtoReflect.Descriptor instead.
 func (*ShowWorld) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{76}
+	return file_presentation_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ShowWorld) GetTile() int32 {
@@ -6286,7 +5972,7 @@ type WorldViewResult struct {
 
 func (x *WorldViewResult) Reset() {
 	*x = WorldViewResult{}
-	mi := &file_presentation_proto_msgTypes[77]
+	mi := &file_presentation_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6298,7 +5984,7 @@ func (x *WorldViewResult) String() string {
 func (*WorldViewResult) ProtoMessage() {}
 
 func (x *WorldViewResult) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[77]
+	mi := &file_presentation_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6311,7 +5997,7 @@ func (x *WorldViewResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldViewResult.ProtoReflect.Descriptor instead.
 func (*WorldViewResult) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{77}
+	return file_presentation_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *WorldViewResult) GetShown() bool {
@@ -6366,7 +6052,6 @@ type PlayerCommand struct {
 	//	*PlayerCommand_OpenLetter
 	//	*PlayerCommand_DismissLetter
 	//	*PlayerCommand_SetDialogText
-	//	*PlayerCommand_ConfirmColonyNames
 	//	*PlayerCommand_ShowWorld
 	Operation     isPlayerCommand_Operation `protobuf_oneof:"operation"`
 	unknownFields protoimpl.UnknownFields
@@ -6375,7 +6060,7 @@ type PlayerCommand struct {
 
 func (x *PlayerCommand) Reset() {
 	*x = PlayerCommand{}
-	mi := &file_presentation_proto_msgTypes[78]
+	mi := &file_presentation_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6387,7 +6072,7 @@ func (x *PlayerCommand) String() string {
 func (*PlayerCommand) ProtoMessage() {}
 
 func (x *PlayerCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[78]
+	mi := &file_presentation_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6400,7 +6085,7 @@ func (x *PlayerCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerCommand.ProtoReflect.Descriptor instead.
 func (*PlayerCommand) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{78}
+	return file_presentation_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *PlayerCommand) GetPrecondition() *PlayerPrecondition {
@@ -6525,15 +6210,6 @@ func (x *PlayerCommand) GetSetDialogText() *SetDialogText {
 	return nil
 }
 
-func (x *PlayerCommand) GetConfirmColonyNames() *ConfirmColonyNames {
-	if x != nil {
-		if x, ok := x.Operation.(*PlayerCommand_ConfirmColonyNames); ok {
-			return x.ConfirmColonyNames
-		}
-	}
-	return nil
-}
-
 func (x *PlayerCommand) GetShowWorld() *ShowWorld {
 	if x != nil {
 		if x, ok := x.Operation.(*PlayerCommand_ShowWorld); ok {
@@ -6595,10 +6271,6 @@ type PlayerCommand_SetDialogText struct {
 	SetDialogText *SetDialogText `protobuf:"bytes,13,opt,name=set_dialog_text,json=setDialogText,proto3,oneof"`
 }
 
-type PlayerCommand_ConfirmColonyNames struct {
-	ConfirmColonyNames *ConfirmColonyNames `protobuf:"bytes,14,opt,name=confirm_colony_names,json=confirmColonyNames,proto3,oneof"`
-}
-
 type PlayerCommand_ShowWorld struct {
 	ShowWorld *ShowWorld `protobuf:"bytes,15,opt,name=show_world,json=showWorld,proto3,oneof"`
 }
@@ -6627,8 +6299,6 @@ func (*PlayerCommand_DismissLetter) isPlayerCommand_Operation() {}
 
 func (*PlayerCommand_SetDialogText) isPlayerCommand_Operation() {}
 
-func (*PlayerCommand_ConfirmColonyNames) isPlayerCommand_Operation() {}
-
 func (*PlayerCommand_ShowWorld) isPlayerCommand_Operation() {}
 
 type PlayerApplied struct {
@@ -6640,7 +6310,6 @@ type PlayerApplied struct {
 	Ui             *UiSnapshot            `protobuf:"bytes,5,opt,name=ui,proto3" json:"ui,omitempty"`
 	Dialog         *DialogSnapshot        `protobuf:"bytes,6,opt,name=dialog,proto3" json:"dialog,omitempty"`
 	TargetConsumed *bool                  `protobuf:"varint,7,opt,name=target_consumed,json=targetConsumed,proto3,oneof" json:"target_consumed,omitempty"`
-	Names          *NamingSnapshot        `protobuf:"bytes,8,opt,name=names,proto3" json:"names,omitempty"`
 	TextChange     *DialogTextChange      `protobuf:"bytes,9,opt,name=text_change,json=textChange,proto3" json:"text_change,omitempty"`
 	WorldView      *WorldViewResult       `protobuf:"bytes,10,opt,name=world_view,json=worldView,proto3" json:"world_view,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -6649,7 +6318,7 @@ type PlayerApplied struct {
 
 func (x *PlayerApplied) Reset() {
 	*x = PlayerApplied{}
-	mi := &file_presentation_proto_msgTypes[79]
+	mi := &file_presentation_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6661,7 +6330,7 @@ func (x *PlayerApplied) String() string {
 func (*PlayerApplied) ProtoMessage() {}
 
 func (x *PlayerApplied) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[79]
+	mi := &file_presentation_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6674,7 +6343,7 @@ func (x *PlayerApplied) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerApplied.ProtoReflect.Descriptor instead.
 func (*PlayerApplied) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{79}
+	return file_presentation_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *PlayerApplied) GetApplied() bool {
@@ -6726,13 +6395,6 @@ func (x *PlayerApplied) GetTargetConsumed() bool {
 	return false
 }
 
-func (x *PlayerApplied) GetNames() *NamingSnapshot {
-	if x != nil {
-		return x.Names
-	}
-	return nil
-}
-
 func (x *PlayerApplied) GetTextChange() *DialogTextChange {
 	if x != nil {
 		return x.TextChange
@@ -6754,7 +6416,6 @@ type PlayerObserved struct {
 	Selection     *SelectionSnapshot     `protobuf:"bytes,3,opt,name=selection,proto3" json:"selection,omitempty"`
 	Ui            *UiSnapshot            `protobuf:"bytes,4,opt,name=ui,proto3" json:"ui,omitempty"`
 	Dialog        *DialogSnapshot        `protobuf:"bytes,5,opt,name=dialog,proto3" json:"dialog,omitempty"`
-	Names         *NamingSnapshot        `protobuf:"bytes,6,opt,name=names,proto3" json:"names,omitempty"`
 	WorldView     *WorldViewResult       `protobuf:"bytes,7,opt,name=world_view,json=worldView,proto3" json:"world_view,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -6762,7 +6423,7 @@ type PlayerObserved struct {
 
 func (x *PlayerObserved) Reset() {
 	*x = PlayerObserved{}
-	mi := &file_presentation_proto_msgTypes[80]
+	mi := &file_presentation_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6774,7 +6435,7 @@ func (x *PlayerObserved) String() string {
 func (*PlayerObserved) ProtoMessage() {}
 
 func (x *PlayerObserved) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[80]
+	mi := &file_presentation_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6787,7 +6448,7 @@ func (x *PlayerObserved) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerObserved.ProtoReflect.Descriptor instead.
 func (*PlayerObserved) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{80}
+	return file_presentation_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *PlayerObserved) GetCapture() *CaptureIdentity {
@@ -6825,13 +6486,6 @@ func (x *PlayerObserved) GetDialog() *DialogSnapshot {
 	return nil
 }
 
-func (x *PlayerObserved) GetNames() *NamingSnapshot {
-	if x != nil {
-		return x.Names
-	}
-	return nil
-}
-
 func (x *PlayerObserved) GetWorldView() *WorldViewResult {
 	if x != nil {
 		return x.WorldView
@@ -6852,7 +6506,7 @@ type PlayerCommandUncertain struct {
 
 func (x *PlayerCommandUncertain) Reset() {
 	*x = PlayerCommandUncertain{}
-	mi := &file_presentation_proto_msgTypes[81]
+	mi := &file_presentation_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6864,7 +6518,7 @@ func (x *PlayerCommandUncertain) String() string {
 func (*PlayerCommandUncertain) ProtoMessage() {}
 
 func (x *PlayerCommandUncertain) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[81]
+	mi := &file_presentation_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6877,7 +6531,7 @@ func (x *PlayerCommandUncertain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerCommandUncertain.ProtoReflect.Descriptor instead.
 func (*PlayerCommandUncertain) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{81}
+	return file_presentation_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *PlayerCommandUncertain) GetRequest() *PlayerCommand {
@@ -6915,7 +6569,7 @@ type PlayerCommandReply struct {
 
 func (x *PlayerCommandReply) Reset() {
 	*x = PlayerCommandReply{}
-	mi := &file_presentation_proto_msgTypes[82]
+	mi := &file_presentation_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6927,7 +6581,7 @@ func (x *PlayerCommandReply) String() string {
 func (*PlayerCommandReply) ProtoMessage() {}
 
 func (x *PlayerCommandReply) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[82]
+	mi := &file_presentation_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6940,7 +6594,7 @@ func (x *PlayerCommandReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerCommandReply.ProtoReflect.Descriptor instead.
 func (*PlayerCommandReply) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{82}
+	return file_presentation_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *PlayerCommandReply) GetOutcome() isPlayerCommandReply_Outcome {
@@ -7013,7 +6667,7 @@ type RenderStatus struct {
 
 func (x *RenderStatus) Reset() {
 	*x = RenderStatus{}
-	mi := &file_presentation_proto_msgTypes[83]
+	mi := &file_presentation_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7025,7 +6679,7 @@ func (x *RenderStatus) String() string {
 func (*RenderStatus) ProtoMessage() {}
 
 func (x *RenderStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[83]
+	mi := &file_presentation_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7038,7 +6692,7 @@ func (x *RenderStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderStatus.ProtoReflect.Descriptor instead.
 func (*RenderStatus) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{83}
+	return file_presentation_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *RenderStatus) GetContext() *commonpb.ObservationContext {
@@ -7093,7 +6747,7 @@ type RenderDemand struct {
 
 func (x *RenderDemand) Reset() {
 	*x = RenderDemand{}
-	mi := &file_presentation_proto_msgTypes[84]
+	mi := &file_presentation_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7105,7 +6759,7 @@ func (x *RenderDemand) String() string {
 func (*RenderDemand) ProtoMessage() {}
 
 func (x *RenderDemand) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[84]
+	mi := &file_presentation_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7118,7 +6772,7 @@ func (x *RenderDemand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderDemand.ProtoReflect.Descriptor instead.
 func (*RenderDemand) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{84}
+	return file_presentation_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *RenderDemand) GetViewer() *PlayerIdentity {
@@ -7148,7 +6802,7 @@ type RenderReply struct {
 
 func (x *RenderReply) Reset() {
 	*x = RenderReply{}
-	mi := &file_presentation_proto_msgTypes[85]
+	mi := &file_presentation_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7160,7 +6814,7 @@ func (x *RenderReply) String() string {
 func (*RenderReply) ProtoMessage() {}
 
 func (x *RenderReply) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[85]
+	mi := &file_presentation_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7173,7 +6827,7 @@ func (x *RenderReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderReply.ProtoReflect.Descriptor instead.
 func (*RenderReply) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{85}
+	return file_presentation_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *RenderReply) GetOutcome() isRenderReply_Outcome {
@@ -7235,7 +6889,7 @@ type MediaFrame struct {
 
 func (x *MediaFrame) Reset() {
 	*x = MediaFrame{}
-	mi := &file_presentation_proto_msgTypes[86]
+	mi := &file_presentation_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7247,7 +6901,7 @@ func (x *MediaFrame) String() string {
 func (*MediaFrame) ProtoMessage() {}
 
 func (x *MediaFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[86]
+	mi := &file_presentation_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7260,7 +6914,7 @@ func (x *MediaFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaFrame.ProtoReflect.Descriptor instead.
 func (*MediaFrame) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{86}
+	return file_presentation_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *MediaFrame) GetFrame() *FrameReference {
@@ -7338,7 +6992,7 @@ type ScreenshotRequest struct {
 
 func (x *ScreenshotRequest) Reset() {
 	*x = ScreenshotRequest{}
-	mi := &file_presentation_proto_msgTypes[87]
+	mi := &file_presentation_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7350,7 +7004,7 @@ func (x *ScreenshotRequest) String() string {
 func (*ScreenshotRequest) ProtoMessage() {}
 
 func (x *ScreenshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[87]
+	mi := &file_presentation_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7363,7 +7017,7 @@ func (x *ScreenshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScreenshotRequest.ProtoReflect.Descriptor instead.
 func (*ScreenshotRequest) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{87}
+	return file_presentation_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *ScreenshotRequest) GetCaptured() *CaptureIdentity {
@@ -7405,7 +7059,7 @@ type Screenshot struct {
 
 func (x *Screenshot) Reset() {
 	*x = Screenshot{}
-	mi := &file_presentation_proto_msgTypes[88]
+	mi := &file_presentation_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7417,7 +7071,7 @@ func (x *Screenshot) String() string {
 func (*Screenshot) ProtoMessage() {}
 
 func (x *Screenshot) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[88]
+	mi := &file_presentation_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7430,7 +7084,7 @@ func (x *Screenshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Screenshot.ProtoReflect.Descriptor instead.
 func (*Screenshot) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{88}
+	return file_presentation_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *Screenshot) GetFrame() *MediaFrame {
@@ -7467,7 +7121,7 @@ type ScreenshotReply struct {
 
 func (x *ScreenshotReply) Reset() {
 	*x = ScreenshotReply{}
-	mi := &file_presentation_proto_msgTypes[89]
+	mi := &file_presentation_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7479,7 +7133,7 @@ func (x *ScreenshotReply) String() string {
 func (*ScreenshotReply) ProtoMessage() {}
 
 func (x *ScreenshotReply) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[89]
+	mi := &file_presentation_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7492,7 +7146,7 @@ func (x *ScreenshotReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScreenshotReply.ProtoReflect.Descriptor instead.
 func (*ScreenshotReply) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{89}
+	return file_presentation_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *ScreenshotReply) GetOutcome() isScreenshotReply_Outcome {
@@ -7552,7 +7206,7 @@ type OverlayColor struct {
 
 func (x *OverlayColor) Reset() {
 	*x = OverlayColor{}
-	mi := &file_presentation_proto_msgTypes[90]
+	mi := &file_presentation_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7564,7 +7218,7 @@ func (x *OverlayColor) String() string {
 func (*OverlayColor) ProtoMessage() {}
 
 func (x *OverlayColor) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[90]
+	mi := &file_presentation_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7577,7 +7231,7 @@ func (x *OverlayColor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayColor.ProtoReflect.Descriptor instead.
 func (*OverlayColor) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{90}
+	return file_presentation_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *OverlayColor) GetR() float32 {
@@ -7620,7 +7274,7 @@ type OverlayRun struct {
 
 func (x *OverlayRun) Reset() {
 	*x = OverlayRun{}
-	mi := &file_presentation_proto_msgTypes[91]
+	mi := &file_presentation_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7632,7 +7286,7 @@ func (x *OverlayRun) String() string {
 func (*OverlayRun) ProtoMessage() {}
 
 func (x *OverlayRun) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[91]
+	mi := &file_presentation_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7645,7 +7299,7 @@ func (x *OverlayRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayRun.ProtoReflect.Descriptor instead.
 func (*OverlayRun) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{91}
+	return file_presentation_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *OverlayRun) GetX() int32 {
@@ -7681,7 +7335,7 @@ type OverlayShape struct {
 
 func (x *OverlayShape) Reset() {
 	*x = OverlayShape{}
-	mi := &file_presentation_proto_msgTypes[92]
+	mi := &file_presentation_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7693,7 +7347,7 @@ func (x *OverlayShape) String() string {
 func (*OverlayShape) ProtoMessage() {}
 
 func (x *OverlayShape) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[92]
+	mi := &file_presentation_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7706,7 +7360,7 @@ func (x *OverlayShape) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayShape.ProtoReflect.Descriptor instead.
 func (*OverlayShape) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{92}
+	return file_presentation_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *OverlayShape) GetColor() *OverlayColor {
@@ -7748,7 +7402,7 @@ type OverlayLabel struct {
 
 func (x *OverlayLabel) Reset() {
 	*x = OverlayLabel{}
-	mi := &file_presentation_proto_msgTypes[93]
+	mi := &file_presentation_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7760,7 +7414,7 @@ func (x *OverlayLabel) String() string {
 func (*OverlayLabel) ProtoMessage() {}
 
 func (x *OverlayLabel) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[93]
+	mi := &file_presentation_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7773,7 +7427,7 @@ func (x *OverlayLabel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayLabel.ProtoReflect.Descriptor instead.
 func (*OverlayLabel) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{93}
+	return file_presentation_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *OverlayLabel) GetText() string {
@@ -7803,7 +7457,7 @@ type OverlayRequest struct {
 
 func (x *OverlayRequest) Reset() {
 	*x = OverlayRequest{}
-	mi := &file_presentation_proto_msgTypes[94]
+	mi := &file_presentation_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7815,7 +7469,7 @@ func (x *OverlayRequest) String() string {
 func (*OverlayRequest) ProtoMessage() {}
 
 func (x *OverlayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[94]
+	mi := &file_presentation_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7828,7 +7482,7 @@ func (x *OverlayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayRequest.ProtoReflect.Descriptor instead.
 func (*OverlayRequest) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{94}
+	return file_presentation_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *OverlayRequest) GetIdentity() *commonpb.Identity {
@@ -7877,7 +7531,7 @@ type OverlayApplied struct {
 
 func (x *OverlayApplied) Reset() {
 	*x = OverlayApplied{}
-	mi := &file_presentation_proto_msgTypes[95]
+	mi := &file_presentation_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7889,7 +7543,7 @@ func (x *OverlayApplied) String() string {
 func (*OverlayApplied) ProtoMessage() {}
 
 func (x *OverlayApplied) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[95]
+	mi := &file_presentation_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7902,7 +7556,7 @@ func (x *OverlayApplied) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayApplied.ProtoReflect.Descriptor instead.
 func (*OverlayApplied) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{95}
+	return file_presentation_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *OverlayApplied) GetContext() *commonpb.ObservationContext {
@@ -7939,7 +7593,7 @@ type OverlayReply struct {
 
 func (x *OverlayReply) Reset() {
 	*x = OverlayReply{}
-	mi := &file_presentation_proto_msgTypes[96]
+	mi := &file_presentation_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7951,7 +7605,7 @@ func (x *OverlayReply) String() string {
 func (*OverlayReply) ProtoMessage() {}
 
 func (x *OverlayReply) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[96]
+	mi := &file_presentation_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7964,7 +7618,7 @@ func (x *OverlayReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayReply.ProtoReflect.Descriptor instead.
 func (*OverlayReply) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{96}
+	return file_presentation_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *OverlayReply) GetOutcome() isOverlayReply_Outcome {
@@ -8748,34 +8402,7 @@ const file_presentation_proto_rawDesc = "" +
 	"field_name\x18\x02 \x01(\tH\x00R\tfieldName\x88\x01\x01\x12\x17\n" +
 	"\x04text\x18\x03 \x01(\tH\x01R\x04text\x88\x01\x01B\r\n" +
 	"\v_field_nameB\a\n" +
-	"\x05_text\"\xd4\x01\n" +
-	"\x12ConfirmColonyNames\x12C\n" +
-	"\x06window\x18\x01 \x01(\v2+.rimgovernor.presentation.v1.WindowIdentityR\x06window\x12&\n" +
-	"\ffaction_name\x18\x02 \x01(\tH\x00R\vfactionName\x88\x01\x01\x12,\n" +
-	"\x0fsettlement_name\x18\x03 \x01(\tH\x01R\x0esettlementName\x88\x01\x01B\x0f\n" +
-	"\r_faction_nameB\x12\n" +
-	"\x10_settlement_name\"\x8c\x02\n" +
-	"\x0eNamingSnapshot\x12C\n" +
-	"\x06window\x18\x01 \x01(\v2+.rimgovernor.presentation.v1.WindowIdentityR\x06window\x12&\n" +
-	"\ffaction_name\x18\x02 \x01(\tH\x00R\vfactionName\x88\x01\x01\x12,\n" +
-	"\x0fsettlement_name\x18\x03 \x01(\tH\x01R\x0esettlementName\x88\x01\x01\x12(\n" +
-	"\rwindow_closed\x18\x04 \x01(\bH\x02R\fwindowClosed\x88\x01\x01B\x0f\n" +
-	"\r_faction_nameB\x12\n" +
-	"\x10_settlement_nameB\x10\n" +
-	"\x0e_window_closed\"\xa7\x01\n" +
-	"\x14NamingPreviewRequest\x12H\n" +
-	"\bcaptured\x18\x01 \x01(\v2,.rimgovernor.presentation.v1.CaptureIdentityR\bcaptured\x12E\n" +
-	"\x05names\x18\x02 \x01(\v2/.rimgovernor.presentation.v1.ConfirmColonyNamesR\x05names\"\x86\x01\n" +
-	"\rNamingPreview\x12A\n" +
-	"\x05names\x18\x01 \x01(\v2+.rimgovernor.presentation.v1.NamingSnapshotR\x05names\x12#\n" +
-	"\n" +
-	"acceptable\x18\x02 \x01(\bH\x00R\n" +
-	"acceptable\x88\x01\x01B\r\n" +
-	"\v_acceptable\"\xa3\x01\n" +
-	"\x12NamingPreviewReply\x12F\n" +
-	"\apreview\x18\x01 \x01(\v2*.rimgovernor.presentation.v1.NamingPreviewH\x00R\apreview\x12:\n" +
-	"\arefusal\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\arefusalB\t\n" +
-	"\aoutcome\"\xd7\x01\n" +
+	"\x05_text\"\xd7\x01\n" +
 	"\x10DialogTextChange\x12C\n" +
 	"\x06window\x18\x01 \x01(\v2+.rimgovernor.presentation.v1.WindowIdentityR\x06window\x12\"\n" +
 	"\n" +
@@ -8808,8 +8435,7 @@ const file_presentation_proto_rawDesc = "" +
 	"\f_native_modeB\x10\n" +
 	"\x0e_watch_secondsB\t\n" +
 	"\a_hiddenB\t\n" +
-	"\a_reason\"\x89\n" +
-	"\n" +
+	"\a_reason\"\xa4\t\n" +
 	"\rPlayerCommand\x12S\n" +
 	"\fprecondition\x18\x01 \x01(\v2/.rimgovernor.presentation.v1.PlayerPreconditionR\fprecondition\x12J\n" +
 	"\vmove_camera\x18\x02 \x01(\v2'.rimgovernor.presentation.v1.MoveCameraH\x00R\n" +
@@ -8827,11 +8453,10 @@ const file_presentation_proto_rawDesc = "" +
 	"\vopen_letter\x18\v \x01(\v2).rimgovernor.presentation.v1.LetterTargetH\x00R\n" +
 	"openLetter\x12R\n" +
 	"\x0edismiss_letter\x18\f \x01(\v2).rimgovernor.presentation.v1.LetterTargetH\x00R\rdismissLetter\x12T\n" +
-	"\x0fset_dialog_text\x18\r \x01(\v2*.rimgovernor.presentation.v1.SetDialogTextH\x00R\rsetDialogText\x12c\n" +
-	"\x14confirm_colony_names\x18\x0e \x01(\v2/.rimgovernor.presentation.v1.ConfirmColonyNamesH\x00R\x12confirmColonyNames\x12G\n" +
+	"\x0fset_dialog_text\x18\r \x01(\v2*.rimgovernor.presentation.v1.SetDialogTextH\x00R\rsetDialogText\x12G\n" +
 	"\n" +
 	"show_world\x18\x0f \x01(\v2&.rimgovernor.presentation.v1.ShowWorldH\x00R\tshowWorldB\v\n" +
-	"\toperation\"\xae\x05\n" +
+	"\toperation\"\xeb\x04\n" +
 	"\rPlayerApplied\x12\x1d\n" +
 	"\aapplied\x18\x01 \x01(\bH\x00R\aapplied\x88\x01\x01\x12B\n" +
 	"\x05after\x18\x02 \x01(\v2,.rimgovernor.presentation.v1.CaptureIdentityR\x05after\x12@\n" +
@@ -8839,8 +8464,7 @@ const file_presentation_proto_rawDesc = "" +
 	"\tselection\x18\x04 \x01(\v2..rimgovernor.presentation.v1.SelectionSnapshotR\tselection\x127\n" +
 	"\x02ui\x18\x05 \x01(\v2'.rimgovernor.presentation.v1.UiSnapshotR\x02ui\x12C\n" +
 	"\x06dialog\x18\x06 \x01(\v2+.rimgovernor.presentation.v1.DialogSnapshotR\x06dialog\x12,\n" +
-	"\x0ftarget_consumed\x18\a \x01(\bH\x01R\x0etargetConsumed\x88\x01\x01\x12A\n" +
-	"\x05names\x18\b \x01(\v2+.rimgovernor.presentation.v1.NamingSnapshotR\x05names\x12N\n" +
+	"\x0ftarget_consumed\x18\a \x01(\bH\x01R\x0etargetConsumed\x88\x01\x01\x12N\n" +
 	"\vtext_change\x18\t \x01(\v2-.rimgovernor.presentation.v1.DialogTextChangeR\n" +
 	"textChange\x12K\n" +
 	"\n" +
@@ -8848,14 +8472,13 @@ const file_presentation_proto_rawDesc = "" +
 	" \x01(\v2,.rimgovernor.presentation.v1.WorldViewResultR\tworldViewB\n" +
 	"\n" +
 	"\b_appliedB\x12\n" +
-	"\x10_target_consumed\"\xf6\x03\n" +
+	"\x10_target_consumed\"\xb3\x03\n" +
 	"\x0ePlayerObserved\x12F\n" +
 	"\acapture\x18\x01 \x01(\v2,.rimgovernor.presentation.v1.CaptureIdentityR\acapture\x12@\n" +
 	"\x06camera\x18\x02 \x01(\v2(.rimgovernor.presentation.v1.CameraStateR\x06camera\x12L\n" +
 	"\tselection\x18\x03 \x01(\v2..rimgovernor.presentation.v1.SelectionSnapshotR\tselection\x127\n" +
 	"\x02ui\x18\x04 \x01(\v2'.rimgovernor.presentation.v1.UiSnapshotR\x02ui\x12C\n" +
-	"\x06dialog\x18\x05 \x01(\v2+.rimgovernor.presentation.v1.DialogSnapshotR\x06dialog\x12A\n" +
-	"\x05names\x18\x06 \x01(\v2+.rimgovernor.presentation.v1.NamingSnapshotR\x05names\x12K\n" +
+	"\x06dialog\x18\x05 \x01(\v2+.rimgovernor.presentation.v1.DialogSnapshotR\x06dialog\x12K\n" +
 	"\n" +
 	"world_view\x18\a \x01(\v2,.rimgovernor.presentation.v1.WorldViewResultR\tworldView\"\xd8\x01\n" +
 	"\x16PlayerCommandUncertain\x12D\n" +
@@ -8987,7 +8610,8 @@ const file_presentation_proto_rawDesc = "" +
 	"\fOverlayStyle\x12\x1d\n" +
 	"\x19OVERLAY_STYLE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12OVERLAY_STYLE_FILL\x10\x01\x12\x19\n" +
-	"\x15OVERLAY_STYLE_OUTLINE\x10\x022\xd0\v\n" +
+	"\x15OVERLAY_STYLE_OUTLINE\x10\x022\xdb\n" +
+	"\n" +
 	"\x11PresentationReads\x12\\\n" +
 	"\x06Camera\x12(.rimgovernor.presentation.v1.ReadRequest\x1a(.rimgovernor.presentation.v1.CameraReply\x12b\n" +
 	"\tSelection\x12(.rimgovernor.presentation.v1.ReadRequest\x1a+.rimgovernor.presentation.v1.SelectionReply\x12q\n" +
@@ -8999,7 +8623,6 @@ const file_presentation_proto_rawDesc = "" +
 	"\x06Gizmos\x12(.rimgovernor.presentation.v1.ReadRequest\x1a(.rimgovernor.presentation.v1.GizmosReply\x12b\n" +
 	"\fDialogFields\x12(.rimgovernor.presentation.v1.ReadRequest\x1a(.rimgovernor.presentation.v1.DialogReply\x12\x7f\n" +
 	"\x11PreviewDialogText\x125.rimgovernor.presentation.v1.DialogTextPreviewRequest\x1a3.rimgovernor.presentation.v1.DialogTextPreviewReply\x12s\n" +
-	"\rPreviewNaming\x121.rimgovernor.presentation.v1.NamingPreviewRequest\x1a/.rimgovernor.presentation.v1.NamingPreviewReply\x12s\n" +
 	"\rNotifications\x121.rimgovernor.presentation.v1.NotificationsRequest\x1a/.rimgovernor.presentation.v1.NotificationsReply\x12a\n" +
 	"\vRenderState\x12(.rimgovernor.presentation.v1.ReadRequest\x1a(.rimgovernor.presentation.v1.RenderReply\x12h\n" +
 	"\x0eInputStateRead\x12(.rimgovernor.presentation.v1.ReadRequest\x1a,.rimgovernor.presentation.v1.InputStateReply2z\n" +
@@ -9022,7 +8645,7 @@ func file_presentation_proto_rawDescGZIP() []byte {
 }
 
 var file_presentation_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_presentation_proto_msgTypes = make([]protoimpl.MessageInfo, 97)
+var file_presentation_proto_msgTypes = make([]protoimpl.MessageInfo, 92)
 var file_presentation_proto_goTypes = []any{
 	(MediaEncoding)(0),                  // 0: rimgovernor.presentation.v1.MediaEncoding
 	(CaptureMethod)(0),                  // 1: rimgovernor.presentation.v1.CaptureMethod
@@ -9095,64 +8718,59 @@ var file_presentation_proto_goTypes = []any{
 	(*CloseMainTab)(nil),                // 68: rimgovernor.presentation.v1.CloseMainTab
 	(*LetterTarget)(nil),                // 69: rimgovernor.presentation.v1.LetterTarget
 	(*SetDialogText)(nil),               // 70: rimgovernor.presentation.v1.SetDialogText
-	(*ConfirmColonyNames)(nil),          // 71: rimgovernor.presentation.v1.ConfirmColonyNames
-	(*NamingSnapshot)(nil),              // 72: rimgovernor.presentation.v1.NamingSnapshot
-	(*NamingPreviewRequest)(nil),        // 73: rimgovernor.presentation.v1.NamingPreviewRequest
-	(*NamingPreview)(nil),               // 74: rimgovernor.presentation.v1.NamingPreview
-	(*NamingPreviewReply)(nil),          // 75: rimgovernor.presentation.v1.NamingPreviewReply
-	(*DialogTextChange)(nil),            // 76: rimgovernor.presentation.v1.DialogTextChange
-	(*DialogTextPreviewRequest)(nil),    // 77: rimgovernor.presentation.v1.DialogTextPreviewRequest
-	(*DialogTextPreviewReply)(nil),      // 78: rimgovernor.presentation.v1.DialogTextPreviewReply
-	(*ShowWorld)(nil),                   // 79: rimgovernor.presentation.v1.ShowWorld
-	(*WorldViewResult)(nil),             // 80: rimgovernor.presentation.v1.WorldViewResult
-	(*PlayerCommand)(nil),               // 81: rimgovernor.presentation.v1.PlayerCommand
-	(*PlayerApplied)(nil),               // 82: rimgovernor.presentation.v1.PlayerApplied
-	(*PlayerObserved)(nil),              // 83: rimgovernor.presentation.v1.PlayerObserved
-	(*PlayerCommandUncertain)(nil),      // 84: rimgovernor.presentation.v1.PlayerCommandUncertain
-	(*PlayerCommandReply)(nil),          // 85: rimgovernor.presentation.v1.PlayerCommandReply
-	(*RenderStatus)(nil),                // 86: rimgovernor.presentation.v1.RenderStatus
-	(*RenderDemand)(nil),                // 87: rimgovernor.presentation.v1.RenderDemand
-	(*RenderReply)(nil),                 // 88: rimgovernor.presentation.v1.RenderReply
-	(*MediaFrame)(nil),                  // 89: rimgovernor.presentation.v1.MediaFrame
-	(*ScreenshotRequest)(nil),           // 90: rimgovernor.presentation.v1.ScreenshotRequest
-	(*Screenshot)(nil),                  // 91: rimgovernor.presentation.v1.Screenshot
-	(*ScreenshotReply)(nil),             // 92: rimgovernor.presentation.v1.ScreenshotReply
-	(*OverlayColor)(nil),                // 93: rimgovernor.presentation.v1.OverlayColor
-	(*OverlayRun)(nil),                  // 94: rimgovernor.presentation.v1.OverlayRun
-	(*OverlayShape)(nil),                // 95: rimgovernor.presentation.v1.OverlayShape
-	(*OverlayLabel)(nil),                // 96: rimgovernor.presentation.v1.OverlayLabel
-	(*OverlayRequest)(nil),              // 97: rimgovernor.presentation.v1.OverlayRequest
-	(*OverlayApplied)(nil),              // 98: rimgovernor.presentation.v1.OverlayApplied
-	(*OverlayReply)(nil),                // 99: rimgovernor.presentation.v1.OverlayReply
-	(*commonpb.Identity)(nil),           // 100: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil), // 101: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Failure)(nil),            // 102: rimgovernor.common.v1.Failure
-	(*commonpb.Cell)(nil),               // 103: rimgovernor.common.v1.Cell
-	(*observationspb.PawnState)(nil),    // 104: rimgovernor.observations.v1.PawnState
-	(*commonpb.Unavailable)(nil),        // 105: rimgovernor.common.v1.Unavailable
+	(*DialogTextChange)(nil),            // 71: rimgovernor.presentation.v1.DialogTextChange
+	(*DialogTextPreviewRequest)(nil),    // 72: rimgovernor.presentation.v1.DialogTextPreviewRequest
+	(*DialogTextPreviewReply)(nil),      // 73: rimgovernor.presentation.v1.DialogTextPreviewReply
+	(*ShowWorld)(nil),                   // 74: rimgovernor.presentation.v1.ShowWorld
+	(*WorldViewResult)(nil),             // 75: rimgovernor.presentation.v1.WorldViewResult
+	(*PlayerCommand)(nil),               // 76: rimgovernor.presentation.v1.PlayerCommand
+	(*PlayerApplied)(nil),               // 77: rimgovernor.presentation.v1.PlayerApplied
+	(*PlayerObserved)(nil),              // 78: rimgovernor.presentation.v1.PlayerObserved
+	(*PlayerCommandUncertain)(nil),      // 79: rimgovernor.presentation.v1.PlayerCommandUncertain
+	(*PlayerCommandReply)(nil),          // 80: rimgovernor.presentation.v1.PlayerCommandReply
+	(*RenderStatus)(nil),                // 81: rimgovernor.presentation.v1.RenderStatus
+	(*RenderDemand)(nil),                // 82: rimgovernor.presentation.v1.RenderDemand
+	(*RenderReply)(nil),                 // 83: rimgovernor.presentation.v1.RenderReply
+	(*MediaFrame)(nil),                  // 84: rimgovernor.presentation.v1.MediaFrame
+	(*ScreenshotRequest)(nil),           // 85: rimgovernor.presentation.v1.ScreenshotRequest
+	(*Screenshot)(nil),                  // 86: rimgovernor.presentation.v1.Screenshot
+	(*ScreenshotReply)(nil),             // 87: rimgovernor.presentation.v1.ScreenshotReply
+	(*OverlayColor)(nil),                // 88: rimgovernor.presentation.v1.OverlayColor
+	(*OverlayRun)(nil),                  // 89: rimgovernor.presentation.v1.OverlayRun
+	(*OverlayShape)(nil),                // 90: rimgovernor.presentation.v1.OverlayShape
+	(*OverlayLabel)(nil),                // 91: rimgovernor.presentation.v1.OverlayLabel
+	(*OverlayRequest)(nil),              // 92: rimgovernor.presentation.v1.OverlayRequest
+	(*OverlayApplied)(nil),              // 93: rimgovernor.presentation.v1.OverlayApplied
+	(*OverlayReply)(nil),                // 94: rimgovernor.presentation.v1.OverlayReply
+	(*commonpb.Identity)(nil),           // 95: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil), // 96: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Failure)(nil),            // 97: rimgovernor.common.v1.Failure
+	(*commonpb.Cell)(nil),               // 98: rimgovernor.common.v1.Cell
+	(*observationspb.PawnState)(nil),    // 99: rimgovernor.observations.v1.PawnState
+	(*commonpb.Unavailable)(nil),        // 100: rimgovernor.common.v1.Unavailable
 }
 var file_presentation_proto_depIdxs = []int32{
-	100, // 0: rimgovernor.presentation.v1.ReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	101, // 1: rimgovernor.presentation.v1.CameraState.context:type_name -> rimgovernor.common.v1.ObservationContext
+	95,  // 0: rimgovernor.presentation.v1.ReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	96,  // 1: rimgovernor.presentation.v1.CameraState.context:type_name -> rimgovernor.common.v1.ObservationContext
 	6,   // 2: rimgovernor.presentation.v1.CameraState.map_position:type_name -> rimgovernor.presentation.v1.MapPoint
 	7,   // 3: rimgovernor.presentation.v1.CameraState.view_rect:type_name -> rimgovernor.presentation.v1.MapRect
 	8,   // 4: rimgovernor.presentation.v1.CameraReply.camera:type_name -> rimgovernor.presentation.v1.CameraState
-	102, // 5: rimgovernor.presentation.v1.CameraReply.failure:type_name -> rimgovernor.common.v1.Failure
-	103, // 6: rimgovernor.presentation.v1.SelectedObject.position:type_name -> rimgovernor.common.v1.Cell
-	101, // 7: rimgovernor.presentation.v1.SelectionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	97,  // 5: rimgovernor.presentation.v1.CameraReply.failure:type_name -> rimgovernor.common.v1.Failure
+	98,  // 6: rimgovernor.presentation.v1.SelectedObject.position:type_name -> rimgovernor.common.v1.Cell
+	96,  // 7: rimgovernor.presentation.v1.SelectionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
 	10,  // 8: rimgovernor.presentation.v1.SelectionSnapshot.selected_objects:type_name -> rimgovernor.presentation.v1.SelectedObject
 	4,   // 9: rimgovernor.presentation.v1.SelectionSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
 	11,  // 10: rimgovernor.presentation.v1.SelectionReply.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
-	102, // 11: rimgovernor.presentation.v1.SelectionReply.failure:type_name -> rimgovernor.common.v1.Failure
-	100, // 12: rimgovernor.presentation.v1.ColonistRosterRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	103, // 13: rimgovernor.presentation.v1.ColonistReference.position:type_name -> rimgovernor.common.v1.Cell
-	104, // 14: rimgovernor.presentation.v1.ColonistReference.dossier:type_name -> rimgovernor.observations.v1.PawnState
-	101, // 15: rimgovernor.presentation.v1.ColonistRoster.context:type_name -> rimgovernor.common.v1.ObservationContext
+	97,  // 11: rimgovernor.presentation.v1.SelectionReply.failure:type_name -> rimgovernor.common.v1.Failure
+	95,  // 12: rimgovernor.presentation.v1.ColonistRosterRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	98,  // 13: rimgovernor.presentation.v1.ColonistReference.position:type_name -> rimgovernor.common.v1.Cell
+	99,  // 14: rimgovernor.presentation.v1.ColonistReference.dossier:type_name -> rimgovernor.observations.v1.PawnState
+	96,  // 15: rimgovernor.presentation.v1.ColonistRoster.context:type_name -> rimgovernor.common.v1.ObservationContext
 	14,  // 16: rimgovernor.presentation.v1.ColonistRoster.colonists:type_name -> rimgovernor.presentation.v1.ColonistReference
 	4,   // 17: rimgovernor.presentation.v1.ColonistRoster.listing:type_name -> rimgovernor.presentation.v1.Listing
 	15,  // 18: rimgovernor.presentation.v1.ColonistRosterReply.roster:type_name -> rimgovernor.presentation.v1.ColonistRoster
-	102, // 19: rimgovernor.presentation.v1.ColonistRosterReply.failure:type_name -> rimgovernor.common.v1.Failure
-	101, // 20: rimgovernor.presentation.v1.CaptureIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
+	97,  // 19: rimgovernor.presentation.v1.ColonistRosterReply.failure:type_name -> rimgovernor.common.v1.Failure
+	96,  // 20: rimgovernor.presentation.v1.CaptureIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
 	10,  // 21: rimgovernor.presentation.v1.CaptureIdentity.selected_objects:type_name -> rimgovernor.presentation.v1.SelectedObject
 	18,  // 22: rimgovernor.presentation.v1.CaptureIdentity.windows:type_name -> rimgovernor.presentation.v1.WindowIdentity
 	18,  // 23: rimgovernor.presentation.v1.UiWindow.identity:type_name -> rimgovernor.presentation.v1.WindowIdentity
@@ -9169,41 +8787,41 @@ var file_presentation_proto_depIdxs = []int32{
 	5,   // 34: rimgovernor.presentation.v1.UiSurface.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
 	22,  // 35: rimgovernor.presentation.v1.UiSurface.elements:type_name -> rimgovernor.presentation.v1.UiElement
 	4,   // 36: rimgovernor.presentation.v1.UiSurface.listing:type_name -> rimgovernor.presentation.v1.Listing
-	105, // 37: rimgovernor.presentation.v1.UiSurface.semantic_details_unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	100, // 37: rimgovernor.presentation.v1.UiSurface.semantic_details_unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	17,  // 38: rimgovernor.presentation.v1.UiSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
 	20,  // 39: rimgovernor.presentation.v1.UiSnapshot.state:type_name -> rimgovernor.presentation.v1.UiState
 	23,  // 40: rimgovernor.presentation.v1.UiSnapshot.surfaces:type_name -> rimgovernor.presentation.v1.UiSurface
 	4,   // 41: rimgovernor.presentation.v1.UiSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
-	100, // 42: rimgovernor.presentation.v1.UiReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	95,  // 42: rimgovernor.presentation.v1.UiReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	24,  // 43: rimgovernor.presentation.v1.UiReply.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
-	102, // 44: rimgovernor.presentation.v1.UiReply.failure:type_name -> rimgovernor.common.v1.Failure
+	97,  // 44: rimgovernor.presentation.v1.UiReply.failure:type_name -> rimgovernor.common.v1.Failure
 	5,   // 45: rimgovernor.presentation.v1.ScreenTarget.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
 	18,  // 46: rimgovernor.presentation.v1.ScreenTarget.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
 	17,  // 47: rimgovernor.presentation.v1.ScreenTargets.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
 	27,  // 48: rimgovernor.presentation.v1.ScreenTargets.targets:type_name -> rimgovernor.presentation.v1.ScreenTarget
 	4,   // 49: rimgovernor.presentation.v1.ScreenTargets.listing:type_name -> rimgovernor.presentation.v1.Listing
 	28,  // 50: rimgovernor.presentation.v1.ScreenTargetsReply.targets:type_name -> rimgovernor.presentation.v1.ScreenTargets
-	102, // 51: rimgovernor.presentation.v1.ScreenTargetsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	100, // 52: rimgovernor.presentation.v1.TabsRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	97,  // 51: rimgovernor.presentation.v1.ScreenTargetsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	95,  // 52: rimgovernor.presentation.v1.TabsRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	5,   // 53: rimgovernor.presentation.v1.Tab.rect:type_name -> rimgovernor.presentation.v1.ScreenRect
 	17,  // 54: rimgovernor.presentation.v1.TabsSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
 	31,  // 55: rimgovernor.presentation.v1.TabsSnapshot.tabs:type_name -> rimgovernor.presentation.v1.Tab
 	4,   // 56: rimgovernor.presentation.v1.TabsSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
 	32,  // 57: rimgovernor.presentation.v1.TabsReply.tabs:type_name -> rimgovernor.presentation.v1.TabsSnapshot
-	102, // 58: rimgovernor.presentation.v1.TabsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	97,  // 58: rimgovernor.presentation.v1.TabsReply.failure:type_name -> rimgovernor.common.v1.Failure
 	10,  // 59: rimgovernor.presentation.v1.Gizmo.owners:type_name -> rimgovernor.presentation.v1.SelectedObject
 	4,   // 60: rimgovernor.presentation.v1.Gizmo.owner_listing:type_name -> rimgovernor.presentation.v1.Listing
 	17,  // 61: rimgovernor.presentation.v1.GizmosSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
 	34,  // 62: rimgovernor.presentation.v1.GizmosSnapshot.gizmos:type_name -> rimgovernor.presentation.v1.Gizmo
 	4,   // 63: rimgovernor.presentation.v1.GizmosSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
 	35,  // 64: rimgovernor.presentation.v1.GizmosReply.gizmos:type_name -> rimgovernor.presentation.v1.GizmosSnapshot
-	102, // 65: rimgovernor.presentation.v1.GizmosReply.failure:type_name -> rimgovernor.common.v1.Failure
+	97,  // 65: rimgovernor.presentation.v1.GizmosReply.failure:type_name -> rimgovernor.common.v1.Failure
 	17,  // 66: rimgovernor.presentation.v1.DialogSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
 	18,  // 67: rimgovernor.presentation.v1.DialogSnapshot.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
 	37,  // 68: rimgovernor.presentation.v1.DialogSnapshot.fields:type_name -> rimgovernor.presentation.v1.DialogField
 	38,  // 69: rimgovernor.presentation.v1.DialogReply.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
-	102, // 70: rimgovernor.presentation.v1.DialogReply.failure:type_name -> rimgovernor.common.v1.Failure
-	103, // 71: rimgovernor.presentation.v1.LookTarget.position:type_name -> rimgovernor.common.v1.Cell
+	97,  // 70: rimgovernor.presentation.v1.DialogReply.failure:type_name -> rimgovernor.common.v1.Failure
+	98,  // 71: rimgovernor.presentation.v1.LookTarget.position:type_name -> rimgovernor.common.v1.Cell
 	40,  // 72: rimgovernor.presentation.v1.LookTargets.primary:type_name -> rimgovernor.presentation.v1.LookTarget
 	40,  // 73: rimgovernor.presentation.v1.LookTargets.targets:type_name -> rimgovernor.presentation.v1.LookTarget
 	4,   // 74: rimgovernor.presentation.v1.LookTargets.listing:type_name -> rimgovernor.presentation.v1.Listing
@@ -9213,7 +8831,7 @@ var file_presentation_proto_depIdxs = []int32{
 	41,  // 78: rimgovernor.presentation.v1.TransientMessage.look_targets:type_name -> rimgovernor.presentation.v1.LookTargets
 	40,  // 79: rimgovernor.presentation.v1.Alert.targets:type_name -> rimgovernor.presentation.v1.LookTarget
 	4,   // 80: rimgovernor.presentation.v1.Alert.listing:type_name -> rimgovernor.presentation.v1.Listing
-	105, // 81: rimgovernor.presentation.v1.Alert.read_issue:type_name -> rimgovernor.common.v1.Unavailable
+	100, // 81: rimgovernor.presentation.v1.Alert.read_issue:type_name -> rimgovernor.common.v1.Unavailable
 	43,  // 82: rimgovernor.presentation.v1.Letters.letters:type_name -> rimgovernor.presentation.v1.Letter
 	4,   // 83: rimgovernor.presentation.v1.Letters.listing:type_name -> rimgovernor.presentation.v1.Listing
 	44,  // 84: rimgovernor.presentation.v1.Messages.messages:type_name -> rimgovernor.presentation.v1.TransientMessage
@@ -9221,138 +8839,126 @@ var file_presentation_proto_depIdxs = []int32{
 	45,  // 86: rimgovernor.presentation.v1.Alerts.alerts:type_name -> rimgovernor.presentation.v1.Alert
 	4,   // 87: rimgovernor.presentation.v1.Alerts.listing:type_name -> rimgovernor.presentation.v1.Listing
 	46,  // 88: rimgovernor.presentation.v1.LetterSection.observed:type_name -> rimgovernor.presentation.v1.Letters
-	105, // 89: rimgovernor.presentation.v1.LetterSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	100, // 89: rimgovernor.presentation.v1.LetterSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	47,  // 90: rimgovernor.presentation.v1.MessageSection.observed:type_name -> rimgovernor.presentation.v1.Messages
-	105, // 91: rimgovernor.presentation.v1.MessageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	100, // 91: rimgovernor.presentation.v1.MessageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	48,  // 92: rimgovernor.presentation.v1.AlertSection.observed:type_name -> rimgovernor.presentation.v1.Alerts
-	105, // 93: rimgovernor.presentation.v1.AlertSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	101, // 94: rimgovernor.presentation.v1.NotificationsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	100, // 93: rimgovernor.presentation.v1.AlertSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	96,  // 94: rimgovernor.presentation.v1.NotificationsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
 	49,  // 95: rimgovernor.presentation.v1.NotificationsSnapshot.letters:type_name -> rimgovernor.presentation.v1.LetterSection
 	50,  // 96: rimgovernor.presentation.v1.NotificationsSnapshot.messages:type_name -> rimgovernor.presentation.v1.MessageSection
 	51,  // 97: rimgovernor.presentation.v1.NotificationsSnapshot.alerts:type_name -> rimgovernor.presentation.v1.AlertSection
-	100, // 98: rimgovernor.presentation.v1.NotificationsRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	95,  // 98: rimgovernor.presentation.v1.NotificationsRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	52,  // 99: rimgovernor.presentation.v1.NotificationsReply.notifications:type_name -> rimgovernor.presentation.v1.NotificationsSnapshot
-	102, // 100: rimgovernor.presentation.v1.NotificationsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	100, // 101: rimgovernor.presentation.v1.PlayerIdentity.identity:type_name -> rimgovernor.common.v1.Identity
+	97,  // 100: rimgovernor.presentation.v1.NotificationsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	95,  // 101: rimgovernor.presentation.v1.PlayerIdentity.identity:type_name -> rimgovernor.common.v1.Identity
 	55,  // 102: rimgovernor.presentation.v1.InputState.player:type_name -> rimgovernor.presentation.v1.PlayerIdentity
 	56,  // 103: rimgovernor.presentation.v1.InputStateReply.state:type_name -> rimgovernor.presentation.v1.InputState
-	102, // 104: rimgovernor.presentation.v1.InputStateReply.failure:type_name -> rimgovernor.common.v1.Failure
+	97,  // 104: rimgovernor.presentation.v1.InputStateReply.failure:type_name -> rimgovernor.common.v1.Failure
 	17,  // 105: rimgovernor.presentation.v1.PlayerPrecondition.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
 	65,  // 106: rimgovernor.presentation.v1.ScrollTarget.horizontal:type_name -> rimgovernor.presentation.v1.ScrollAxis
 	65,  // 107: rimgovernor.presentation.v1.ScrollTarget.vertical:type_name -> rimgovernor.presentation.v1.ScrollAxis
 	18,  // 108: rimgovernor.presentation.v1.SetDialogText.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	18,  // 109: rimgovernor.presentation.v1.ConfirmColonyNames.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	18,  // 110: rimgovernor.presentation.v1.NamingSnapshot.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	17,  // 111: rimgovernor.presentation.v1.NamingPreviewRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	71,  // 112: rimgovernor.presentation.v1.NamingPreviewRequest.names:type_name -> rimgovernor.presentation.v1.ConfirmColonyNames
-	72,  // 113: rimgovernor.presentation.v1.NamingPreview.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
-	74,  // 114: rimgovernor.presentation.v1.NamingPreviewReply.preview:type_name -> rimgovernor.presentation.v1.NamingPreview
-	102, // 115: rimgovernor.presentation.v1.NamingPreviewReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	18,  // 116: rimgovernor.presentation.v1.DialogTextChange.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	17,  // 117: rimgovernor.presentation.v1.DialogTextPreviewRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	70,  // 118: rimgovernor.presentation.v1.DialogTextPreviewRequest.edit:type_name -> rimgovernor.presentation.v1.SetDialogText
-	76,  // 119: rimgovernor.presentation.v1.DialogTextPreviewReply.preview:type_name -> rimgovernor.presentation.v1.DialogTextChange
-	102, // 120: rimgovernor.presentation.v1.DialogTextPreviewReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	59,  // 121: rimgovernor.presentation.v1.PlayerCommand.precondition:type_name -> rimgovernor.presentation.v1.PlayerPrecondition
-	60,  // 122: rimgovernor.presentation.v1.PlayerCommand.move_camera:type_name -> rimgovernor.presentation.v1.MoveCamera
-	61,  // 123: rimgovernor.presentation.v1.PlayerCommand.set_camera_zoom:type_name -> rimgovernor.presentation.v1.SetCameraZoom
-	62,  // 124: rimgovernor.presentation.v1.PlayerCommand.select_pawn:type_name -> rimgovernor.presentation.v1.SelectPawn
-	63,  // 125: rimgovernor.presentation.v1.PlayerCommand.clear_selection:type_name -> rimgovernor.presentation.v1.ClearSelection
-	64,  // 126: rimgovernor.presentation.v1.PlayerCommand.click_screen_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
-	64,  // 127: rimgovernor.presentation.v1.PlayerCommand.click_ui_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
-	66,  // 128: rimgovernor.presentation.v1.PlayerCommand.scroll_ui_target:type_name -> rimgovernor.presentation.v1.ScrollTarget
-	67,  // 129: rimgovernor.presentation.v1.PlayerCommand.open_main_tab:type_name -> rimgovernor.presentation.v1.MainTab
-	68,  // 130: rimgovernor.presentation.v1.PlayerCommand.close_main_tab:type_name -> rimgovernor.presentation.v1.CloseMainTab
-	69,  // 131: rimgovernor.presentation.v1.PlayerCommand.open_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
-	69,  // 132: rimgovernor.presentation.v1.PlayerCommand.dismiss_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
-	70,  // 133: rimgovernor.presentation.v1.PlayerCommand.set_dialog_text:type_name -> rimgovernor.presentation.v1.SetDialogText
-	71,  // 134: rimgovernor.presentation.v1.PlayerCommand.confirm_colony_names:type_name -> rimgovernor.presentation.v1.ConfirmColonyNames
-	79,  // 135: rimgovernor.presentation.v1.PlayerCommand.show_world:type_name -> rimgovernor.presentation.v1.ShowWorld
-	17,  // 136: rimgovernor.presentation.v1.PlayerApplied.after:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	8,   // 137: rimgovernor.presentation.v1.PlayerApplied.camera:type_name -> rimgovernor.presentation.v1.CameraState
-	11,  // 138: rimgovernor.presentation.v1.PlayerApplied.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
-	24,  // 139: rimgovernor.presentation.v1.PlayerApplied.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
-	38,  // 140: rimgovernor.presentation.v1.PlayerApplied.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
-	72,  // 141: rimgovernor.presentation.v1.PlayerApplied.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
-	76,  // 142: rimgovernor.presentation.v1.PlayerApplied.text_change:type_name -> rimgovernor.presentation.v1.DialogTextChange
-	80,  // 143: rimgovernor.presentation.v1.PlayerApplied.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
-	17,  // 144: rimgovernor.presentation.v1.PlayerObserved.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	8,   // 145: rimgovernor.presentation.v1.PlayerObserved.camera:type_name -> rimgovernor.presentation.v1.CameraState
-	11,  // 146: rimgovernor.presentation.v1.PlayerObserved.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
-	24,  // 147: rimgovernor.presentation.v1.PlayerObserved.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
-	38,  // 148: rimgovernor.presentation.v1.PlayerObserved.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
-	72,  // 149: rimgovernor.presentation.v1.PlayerObserved.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
-	80,  // 150: rimgovernor.presentation.v1.PlayerObserved.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
-	81,  // 151: rimgovernor.presentation.v1.PlayerCommandUncertain.request:type_name -> rimgovernor.presentation.v1.PlayerCommand
-	83,  // 152: rimgovernor.presentation.v1.PlayerCommandUncertain.last_observed:type_name -> rimgovernor.presentation.v1.PlayerObserved
-	82,  // 153: rimgovernor.presentation.v1.PlayerCommandReply.applied:type_name -> rimgovernor.presentation.v1.PlayerApplied
-	102, // 154: rimgovernor.presentation.v1.PlayerCommandReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	84,  // 155: rimgovernor.presentation.v1.PlayerCommandReply.uncertain:type_name -> rimgovernor.presentation.v1.PlayerCommandUncertain
-	101, // 156: rimgovernor.presentation.v1.RenderStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
-	105, // 157: rimgovernor.presentation.v1.RenderStatus.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	55,  // 158: rimgovernor.presentation.v1.RenderDemand.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	86,  // 159: rimgovernor.presentation.v1.RenderReply.status:type_name -> rimgovernor.presentation.v1.RenderStatus
-	102, // 160: rimgovernor.presentation.v1.RenderReply.failure:type_name -> rimgovernor.common.v1.Failure
-	58,  // 161: rimgovernor.presentation.v1.MediaFrame.frame:type_name -> rimgovernor.presentation.v1.FrameReference
-	17,  // 162: rimgovernor.presentation.v1.MediaFrame.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	0,   // 163: rimgovernor.presentation.v1.MediaFrame.encoding:type_name -> rimgovernor.presentation.v1.MediaEncoding
-	1,   // 164: rimgovernor.presentation.v1.MediaFrame.capture_method:type_name -> rimgovernor.presentation.v1.CaptureMethod
-	17,  // 165: rimgovernor.presentation.v1.ScreenshotRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	89,  // 166: rimgovernor.presentation.v1.Screenshot.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
-	28,  // 167: rimgovernor.presentation.v1.Screenshot.targets:type_name -> rimgovernor.presentation.v1.ScreenTargets
-	5,   // 168: rimgovernor.presentation.v1.Screenshot.clip_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	91,  // 169: rimgovernor.presentation.v1.ScreenshotReply.screenshot:type_name -> rimgovernor.presentation.v1.Screenshot
-	102, // 170: rimgovernor.presentation.v1.ScreenshotReply.failure:type_name -> rimgovernor.common.v1.Failure
-	93,  // 171: rimgovernor.presentation.v1.OverlayShape.color:type_name -> rimgovernor.presentation.v1.OverlayColor
-	2,   // 172: rimgovernor.presentation.v1.OverlayShape.style:type_name -> rimgovernor.presentation.v1.OverlayStyle
-	7,   // 173: rimgovernor.presentation.v1.OverlayShape.rects:type_name -> rimgovernor.presentation.v1.MapRect
-	94,  // 174: rimgovernor.presentation.v1.OverlayShape.runs:type_name -> rimgovernor.presentation.v1.OverlayRun
-	103, // 175: rimgovernor.presentation.v1.OverlayLabel.cell:type_name -> rimgovernor.common.v1.Cell
-	100, // 176: rimgovernor.presentation.v1.OverlayRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	95,  // 177: rimgovernor.presentation.v1.OverlayRequest.shapes:type_name -> rimgovernor.presentation.v1.OverlayShape
-	96,  // 178: rimgovernor.presentation.v1.OverlayRequest.labels:type_name -> rimgovernor.presentation.v1.OverlayLabel
-	101, // 179: rimgovernor.presentation.v1.OverlayApplied.context:type_name -> rimgovernor.common.v1.ObservationContext
-	98,  // 180: rimgovernor.presentation.v1.OverlayReply.applied:type_name -> rimgovernor.presentation.v1.OverlayApplied
-	102, // 181: rimgovernor.presentation.v1.OverlayReply.failure:type_name -> rimgovernor.common.v1.Failure
-	3,   // 182: rimgovernor.presentation.v1.PresentationReads.Camera:input_type -> rimgovernor.presentation.v1.ReadRequest
-	3,   // 183: rimgovernor.presentation.v1.PresentationReads.Selection:input_type -> rimgovernor.presentation.v1.ReadRequest
-	13,  // 184: rimgovernor.presentation.v1.PresentationReads.Colonists:input_type -> rimgovernor.presentation.v1.ColonistRosterRequest
-	25,  // 185: rimgovernor.presentation.v1.PresentationReads.CaptureUi:input_type -> rimgovernor.presentation.v1.UiReadRequest
-	3,   // 186: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:input_type -> rimgovernor.presentation.v1.ReadRequest
-	30,  // 187: rimgovernor.presentation.v1.PresentationReads.MainTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
-	30,  // 188: rimgovernor.presentation.v1.PresentationReads.InspectTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
-	3,   // 189: rimgovernor.presentation.v1.PresentationReads.Gizmos:input_type -> rimgovernor.presentation.v1.ReadRequest
-	3,   // 190: rimgovernor.presentation.v1.PresentationReads.DialogFields:input_type -> rimgovernor.presentation.v1.ReadRequest
-	77,  // 191: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:input_type -> rimgovernor.presentation.v1.DialogTextPreviewRequest
-	73,  // 192: rimgovernor.presentation.v1.PresentationReads.PreviewNaming:input_type -> rimgovernor.presentation.v1.NamingPreviewRequest
-	53,  // 193: rimgovernor.presentation.v1.PresentationReads.Notifications:input_type -> rimgovernor.presentation.v1.NotificationsRequest
-	3,   // 194: rimgovernor.presentation.v1.PresentationReads.RenderState:input_type -> rimgovernor.presentation.v1.ReadRequest
-	3,   // 195: rimgovernor.presentation.v1.PresentationReads.InputStateRead:input_type -> rimgovernor.presentation.v1.ReadRequest
-	81,  // 196: rimgovernor.presentation.v1.PlayerPresentation.Apply:input_type -> rimgovernor.presentation.v1.PlayerCommand
-	87,  // 197: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:input_type -> rimgovernor.presentation.v1.RenderDemand
-	90,  // 198: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:input_type -> rimgovernor.presentation.v1.ScreenshotRequest
-	9,   // 199: rimgovernor.presentation.v1.PresentationReads.Camera:output_type -> rimgovernor.presentation.v1.CameraReply
-	12,  // 200: rimgovernor.presentation.v1.PresentationReads.Selection:output_type -> rimgovernor.presentation.v1.SelectionReply
-	16,  // 201: rimgovernor.presentation.v1.PresentationReads.Colonists:output_type -> rimgovernor.presentation.v1.ColonistRosterReply
-	26,  // 202: rimgovernor.presentation.v1.PresentationReads.CaptureUi:output_type -> rimgovernor.presentation.v1.UiReply
-	29,  // 203: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:output_type -> rimgovernor.presentation.v1.ScreenTargetsReply
-	33,  // 204: rimgovernor.presentation.v1.PresentationReads.MainTabs:output_type -> rimgovernor.presentation.v1.TabsReply
-	33,  // 205: rimgovernor.presentation.v1.PresentationReads.InspectTabs:output_type -> rimgovernor.presentation.v1.TabsReply
-	36,  // 206: rimgovernor.presentation.v1.PresentationReads.Gizmos:output_type -> rimgovernor.presentation.v1.GizmosReply
-	39,  // 207: rimgovernor.presentation.v1.PresentationReads.DialogFields:output_type -> rimgovernor.presentation.v1.DialogReply
-	78,  // 208: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:output_type -> rimgovernor.presentation.v1.DialogTextPreviewReply
-	75,  // 209: rimgovernor.presentation.v1.PresentationReads.PreviewNaming:output_type -> rimgovernor.presentation.v1.NamingPreviewReply
-	54,  // 210: rimgovernor.presentation.v1.PresentationReads.Notifications:output_type -> rimgovernor.presentation.v1.NotificationsReply
-	88,  // 211: rimgovernor.presentation.v1.PresentationReads.RenderState:output_type -> rimgovernor.presentation.v1.RenderReply
-	57,  // 212: rimgovernor.presentation.v1.PresentationReads.InputStateRead:output_type -> rimgovernor.presentation.v1.InputStateReply
-	85,  // 213: rimgovernor.presentation.v1.PlayerPresentation.Apply:output_type -> rimgovernor.presentation.v1.PlayerCommandReply
-	88,  // 214: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:output_type -> rimgovernor.presentation.v1.RenderReply
-	92,  // 215: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:output_type -> rimgovernor.presentation.v1.ScreenshotReply
-	199, // [199:216] is the sub-list for method output_type
-	182, // [182:199] is the sub-list for method input_type
-	182, // [182:182] is the sub-list for extension type_name
-	182, // [182:182] is the sub-list for extension extendee
-	0,   // [0:182] is the sub-list for field type_name
+	18,  // 109: rimgovernor.presentation.v1.DialogTextChange.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	17,  // 110: rimgovernor.presentation.v1.DialogTextPreviewRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	70,  // 111: rimgovernor.presentation.v1.DialogTextPreviewRequest.edit:type_name -> rimgovernor.presentation.v1.SetDialogText
+	71,  // 112: rimgovernor.presentation.v1.DialogTextPreviewReply.preview:type_name -> rimgovernor.presentation.v1.DialogTextChange
+	97,  // 113: rimgovernor.presentation.v1.DialogTextPreviewReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	59,  // 114: rimgovernor.presentation.v1.PlayerCommand.precondition:type_name -> rimgovernor.presentation.v1.PlayerPrecondition
+	60,  // 115: rimgovernor.presentation.v1.PlayerCommand.move_camera:type_name -> rimgovernor.presentation.v1.MoveCamera
+	61,  // 116: rimgovernor.presentation.v1.PlayerCommand.set_camera_zoom:type_name -> rimgovernor.presentation.v1.SetCameraZoom
+	62,  // 117: rimgovernor.presentation.v1.PlayerCommand.select_pawn:type_name -> rimgovernor.presentation.v1.SelectPawn
+	63,  // 118: rimgovernor.presentation.v1.PlayerCommand.clear_selection:type_name -> rimgovernor.presentation.v1.ClearSelection
+	64,  // 119: rimgovernor.presentation.v1.PlayerCommand.click_screen_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
+	64,  // 120: rimgovernor.presentation.v1.PlayerCommand.click_ui_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
+	66,  // 121: rimgovernor.presentation.v1.PlayerCommand.scroll_ui_target:type_name -> rimgovernor.presentation.v1.ScrollTarget
+	67,  // 122: rimgovernor.presentation.v1.PlayerCommand.open_main_tab:type_name -> rimgovernor.presentation.v1.MainTab
+	68,  // 123: rimgovernor.presentation.v1.PlayerCommand.close_main_tab:type_name -> rimgovernor.presentation.v1.CloseMainTab
+	69,  // 124: rimgovernor.presentation.v1.PlayerCommand.open_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
+	69,  // 125: rimgovernor.presentation.v1.PlayerCommand.dismiss_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
+	70,  // 126: rimgovernor.presentation.v1.PlayerCommand.set_dialog_text:type_name -> rimgovernor.presentation.v1.SetDialogText
+	74,  // 127: rimgovernor.presentation.v1.PlayerCommand.show_world:type_name -> rimgovernor.presentation.v1.ShowWorld
+	17,  // 128: rimgovernor.presentation.v1.PlayerApplied.after:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	8,   // 129: rimgovernor.presentation.v1.PlayerApplied.camera:type_name -> rimgovernor.presentation.v1.CameraState
+	11,  // 130: rimgovernor.presentation.v1.PlayerApplied.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
+	24,  // 131: rimgovernor.presentation.v1.PlayerApplied.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
+	38,  // 132: rimgovernor.presentation.v1.PlayerApplied.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
+	71,  // 133: rimgovernor.presentation.v1.PlayerApplied.text_change:type_name -> rimgovernor.presentation.v1.DialogTextChange
+	75,  // 134: rimgovernor.presentation.v1.PlayerApplied.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
+	17,  // 135: rimgovernor.presentation.v1.PlayerObserved.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	8,   // 136: rimgovernor.presentation.v1.PlayerObserved.camera:type_name -> rimgovernor.presentation.v1.CameraState
+	11,  // 137: rimgovernor.presentation.v1.PlayerObserved.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
+	24,  // 138: rimgovernor.presentation.v1.PlayerObserved.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
+	38,  // 139: rimgovernor.presentation.v1.PlayerObserved.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
+	75,  // 140: rimgovernor.presentation.v1.PlayerObserved.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
+	76,  // 141: rimgovernor.presentation.v1.PlayerCommandUncertain.request:type_name -> rimgovernor.presentation.v1.PlayerCommand
+	78,  // 142: rimgovernor.presentation.v1.PlayerCommandUncertain.last_observed:type_name -> rimgovernor.presentation.v1.PlayerObserved
+	77,  // 143: rimgovernor.presentation.v1.PlayerCommandReply.applied:type_name -> rimgovernor.presentation.v1.PlayerApplied
+	97,  // 144: rimgovernor.presentation.v1.PlayerCommandReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	79,  // 145: rimgovernor.presentation.v1.PlayerCommandReply.uncertain:type_name -> rimgovernor.presentation.v1.PlayerCommandUncertain
+	96,  // 146: rimgovernor.presentation.v1.RenderStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
+	100, // 147: rimgovernor.presentation.v1.RenderStatus.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	55,  // 148: rimgovernor.presentation.v1.RenderDemand.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	81,  // 149: rimgovernor.presentation.v1.RenderReply.status:type_name -> rimgovernor.presentation.v1.RenderStatus
+	97,  // 150: rimgovernor.presentation.v1.RenderReply.failure:type_name -> rimgovernor.common.v1.Failure
+	58,  // 151: rimgovernor.presentation.v1.MediaFrame.frame:type_name -> rimgovernor.presentation.v1.FrameReference
+	17,  // 152: rimgovernor.presentation.v1.MediaFrame.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	0,   // 153: rimgovernor.presentation.v1.MediaFrame.encoding:type_name -> rimgovernor.presentation.v1.MediaEncoding
+	1,   // 154: rimgovernor.presentation.v1.MediaFrame.capture_method:type_name -> rimgovernor.presentation.v1.CaptureMethod
+	17,  // 155: rimgovernor.presentation.v1.ScreenshotRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	84,  // 156: rimgovernor.presentation.v1.Screenshot.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
+	28,  // 157: rimgovernor.presentation.v1.Screenshot.targets:type_name -> rimgovernor.presentation.v1.ScreenTargets
+	5,   // 158: rimgovernor.presentation.v1.Screenshot.clip_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	86,  // 159: rimgovernor.presentation.v1.ScreenshotReply.screenshot:type_name -> rimgovernor.presentation.v1.Screenshot
+	97,  // 160: rimgovernor.presentation.v1.ScreenshotReply.failure:type_name -> rimgovernor.common.v1.Failure
+	88,  // 161: rimgovernor.presentation.v1.OverlayShape.color:type_name -> rimgovernor.presentation.v1.OverlayColor
+	2,   // 162: rimgovernor.presentation.v1.OverlayShape.style:type_name -> rimgovernor.presentation.v1.OverlayStyle
+	7,   // 163: rimgovernor.presentation.v1.OverlayShape.rects:type_name -> rimgovernor.presentation.v1.MapRect
+	89,  // 164: rimgovernor.presentation.v1.OverlayShape.runs:type_name -> rimgovernor.presentation.v1.OverlayRun
+	98,  // 165: rimgovernor.presentation.v1.OverlayLabel.cell:type_name -> rimgovernor.common.v1.Cell
+	95,  // 166: rimgovernor.presentation.v1.OverlayRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	90,  // 167: rimgovernor.presentation.v1.OverlayRequest.shapes:type_name -> rimgovernor.presentation.v1.OverlayShape
+	91,  // 168: rimgovernor.presentation.v1.OverlayRequest.labels:type_name -> rimgovernor.presentation.v1.OverlayLabel
+	96,  // 169: rimgovernor.presentation.v1.OverlayApplied.context:type_name -> rimgovernor.common.v1.ObservationContext
+	93,  // 170: rimgovernor.presentation.v1.OverlayReply.applied:type_name -> rimgovernor.presentation.v1.OverlayApplied
+	97,  // 171: rimgovernor.presentation.v1.OverlayReply.failure:type_name -> rimgovernor.common.v1.Failure
+	3,   // 172: rimgovernor.presentation.v1.PresentationReads.Camera:input_type -> rimgovernor.presentation.v1.ReadRequest
+	3,   // 173: rimgovernor.presentation.v1.PresentationReads.Selection:input_type -> rimgovernor.presentation.v1.ReadRequest
+	13,  // 174: rimgovernor.presentation.v1.PresentationReads.Colonists:input_type -> rimgovernor.presentation.v1.ColonistRosterRequest
+	25,  // 175: rimgovernor.presentation.v1.PresentationReads.CaptureUi:input_type -> rimgovernor.presentation.v1.UiReadRequest
+	3,   // 176: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:input_type -> rimgovernor.presentation.v1.ReadRequest
+	30,  // 177: rimgovernor.presentation.v1.PresentationReads.MainTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
+	30,  // 178: rimgovernor.presentation.v1.PresentationReads.InspectTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
+	3,   // 179: rimgovernor.presentation.v1.PresentationReads.Gizmos:input_type -> rimgovernor.presentation.v1.ReadRequest
+	3,   // 180: rimgovernor.presentation.v1.PresentationReads.DialogFields:input_type -> rimgovernor.presentation.v1.ReadRequest
+	72,  // 181: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:input_type -> rimgovernor.presentation.v1.DialogTextPreviewRequest
+	53,  // 182: rimgovernor.presentation.v1.PresentationReads.Notifications:input_type -> rimgovernor.presentation.v1.NotificationsRequest
+	3,   // 183: rimgovernor.presentation.v1.PresentationReads.RenderState:input_type -> rimgovernor.presentation.v1.ReadRequest
+	3,   // 184: rimgovernor.presentation.v1.PresentationReads.InputStateRead:input_type -> rimgovernor.presentation.v1.ReadRequest
+	76,  // 185: rimgovernor.presentation.v1.PlayerPresentation.Apply:input_type -> rimgovernor.presentation.v1.PlayerCommand
+	82,  // 186: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:input_type -> rimgovernor.presentation.v1.RenderDemand
+	85,  // 187: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:input_type -> rimgovernor.presentation.v1.ScreenshotRequest
+	9,   // 188: rimgovernor.presentation.v1.PresentationReads.Camera:output_type -> rimgovernor.presentation.v1.CameraReply
+	12,  // 189: rimgovernor.presentation.v1.PresentationReads.Selection:output_type -> rimgovernor.presentation.v1.SelectionReply
+	16,  // 190: rimgovernor.presentation.v1.PresentationReads.Colonists:output_type -> rimgovernor.presentation.v1.ColonistRosterReply
+	26,  // 191: rimgovernor.presentation.v1.PresentationReads.CaptureUi:output_type -> rimgovernor.presentation.v1.UiReply
+	29,  // 192: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:output_type -> rimgovernor.presentation.v1.ScreenTargetsReply
+	33,  // 193: rimgovernor.presentation.v1.PresentationReads.MainTabs:output_type -> rimgovernor.presentation.v1.TabsReply
+	33,  // 194: rimgovernor.presentation.v1.PresentationReads.InspectTabs:output_type -> rimgovernor.presentation.v1.TabsReply
+	36,  // 195: rimgovernor.presentation.v1.PresentationReads.Gizmos:output_type -> rimgovernor.presentation.v1.GizmosReply
+	39,  // 196: rimgovernor.presentation.v1.PresentationReads.DialogFields:output_type -> rimgovernor.presentation.v1.DialogReply
+	73,  // 197: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:output_type -> rimgovernor.presentation.v1.DialogTextPreviewReply
+	54,  // 198: rimgovernor.presentation.v1.PresentationReads.Notifications:output_type -> rimgovernor.presentation.v1.NotificationsReply
+	83,  // 199: rimgovernor.presentation.v1.PresentationReads.RenderState:output_type -> rimgovernor.presentation.v1.RenderReply
+	57,  // 200: rimgovernor.presentation.v1.PresentationReads.InputStateRead:output_type -> rimgovernor.presentation.v1.InputStateReply
+	80,  // 201: rimgovernor.presentation.v1.PlayerPresentation.Apply:output_type -> rimgovernor.presentation.v1.PlayerCommandReply
+	83,  // 202: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:output_type -> rimgovernor.presentation.v1.RenderReply
+	87,  // 203: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:output_type -> rimgovernor.presentation.v1.ScreenshotReply
+	188, // [188:204] is the sub-list for method output_type
+	172, // [172:188] is the sub-list for method input_type
+	172, // [172:172] is the sub-list for extension type_name
+	172, // [172:172] is the sub-list for extension extendee
+	0,   // [0:172] is the sub-list for field type_name
 }
 
 func init() { file_presentation_proto_init() }
@@ -9460,20 +9066,13 @@ func file_presentation_proto_init() {
 	file_presentation_proto_msgTypes[66].OneofWrappers = []any{}
 	file_presentation_proto_msgTypes[67].OneofWrappers = []any{}
 	file_presentation_proto_msgTypes[68].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[69].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[71].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[72].OneofWrappers = []any{
-		(*NamingPreviewReply_Preview)(nil),
-		(*NamingPreviewReply_Refusal)(nil),
-	}
-	file_presentation_proto_msgTypes[73].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[75].OneofWrappers = []any{
+	file_presentation_proto_msgTypes[70].OneofWrappers = []any{
 		(*DialogTextPreviewReply_Preview)(nil),
 		(*DialogTextPreviewReply_Refusal)(nil),
 	}
-	file_presentation_proto_msgTypes[76].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[77].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[78].OneofWrappers = []any{
+	file_presentation_proto_msgTypes[71].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[72].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[73].OneofWrappers = []any{
 		(*PlayerCommand_MoveCamera)(nil),
 		(*PlayerCommand_SetCameraZoom)(nil),
 		(*PlayerCommand_SelectPawn)(nil),
@@ -9486,34 +9085,33 @@ func file_presentation_proto_init() {
 		(*PlayerCommand_OpenLetter)(nil),
 		(*PlayerCommand_DismissLetter)(nil),
 		(*PlayerCommand_SetDialogText)(nil),
-		(*PlayerCommand_ConfirmColonyNames)(nil),
 		(*PlayerCommand_ShowWorld)(nil),
 	}
-	file_presentation_proto_msgTypes[79].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[81].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[82].OneofWrappers = []any{
+	file_presentation_proto_msgTypes[74].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[76].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[77].OneofWrappers = []any{
 		(*PlayerCommandReply_Applied)(nil),
 		(*PlayerCommandReply_Refusal)(nil),
 		(*PlayerCommandReply_Uncertain)(nil),
 	}
-	file_presentation_proto_msgTypes[83].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[84].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[85].OneofWrappers = []any{
+	file_presentation_proto_msgTypes[78].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[79].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[80].OneofWrappers = []any{
 		(*RenderReply_Status)(nil),
 		(*RenderReply_Failure)(nil),
 	}
-	file_presentation_proto_msgTypes[86].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[87].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[89].OneofWrappers = []any{
+	file_presentation_proto_msgTypes[81].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[82].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[84].OneofWrappers = []any{
 		(*ScreenshotReply_Screenshot)(nil),
 		(*ScreenshotReply_Failure)(nil),
 	}
+	file_presentation_proto_msgTypes[85].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[86].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[88].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[89].OneofWrappers = []any{}
 	file_presentation_proto_msgTypes[90].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[91].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[93].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[94].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[95].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[96].OneofWrappers = []any{
+	file_presentation_proto_msgTypes[91].OneofWrappers = []any{
 		(*OverlayReply_Applied)(nil),
 		(*OverlayReply_Failure)(nil),
 	}
@@ -9523,7 +9121,7 @@ func file_presentation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_presentation_proto_rawDesc), len(file_presentation_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   97,
+			NumMessages:   92,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

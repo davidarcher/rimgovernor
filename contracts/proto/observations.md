@@ -152,7 +152,7 @@ a depleted drill for removal from the deep drill step's recorded read.
   current node's options in native order, each carrying its index, label,
   `selectable`/`disabled_reason` and whether activating it resolves (closes or
   advances) the dialog rather than opening a hyperlink. Absent when no such
-  dialog is open; the initial naming dialog stays under `naming`.
+  dialog is open. The initial naming dialog is not observed: the mod confirms it itself.
 - Need relief requires current needs, queued/current job identity,
   player-forced/interruptibility/native priority, timetable, carry/fire/draft/
   mental/dead/downed and medical rest facts. PawnState/Settings/JobEvidence carries

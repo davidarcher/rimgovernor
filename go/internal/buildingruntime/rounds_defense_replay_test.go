@@ -148,7 +148,7 @@ func replayDefenseSteps(t *testing.T, frame replayFrame, steps ...snapshot.Defen
 			if err != nil {
 				t.Fatal(err)
 			}
-			facts := policy.RoundsFacts{Workers: domain.Known(len(step.Emergency.Colonists)), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
+			facts := policy.RoundsFacts{Workers: domain.Known(len(step.Emergency.Colonists)), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ChoiceDialog: domain.Known(false)}
 			if _, err = db.ReviewRounds(ctx, store.RoundsRequest{Revision: review.Revision, Current: current, Tick: 7, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: facts}); err != nil {
 				t.Fatal(err)
 			}

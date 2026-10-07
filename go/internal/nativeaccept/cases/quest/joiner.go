@@ -123,11 +123,6 @@ func runJoiner(ctx context.Context, s cases.Session) error {
 	report["fixture_quest"] = string(questID)
 	report["colonists_before"] = len(before)
 
-	// The baseline's naming dialog goes first, so the service meets no
-	// force-pausing window of its own.
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	// The census the service's own review will read must already carry the
 	// offer with its root script name, exactly as bridge.QuestOffer decodes
 	// it (observations_read_world_progression's quests page).

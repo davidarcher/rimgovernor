@@ -898,16 +898,6 @@ func (s *session) Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProc
 		}
 		spec.Prefix = s.RequestID(prefix)
 	}
-	// The colony-naming dialog a loaded save can still hold stops the clock
-	// for good under the service; answer it before releasing the slot unless
-	// the case is there to watch the service answer it. A case that released
-	// the slot itself (a relaunch between service runs) answered it before
-	// its first launch.
-	if !spec.KeepColonyNaming && !s.Session.Game.Released() {
-		if _, err := na.ConfirmColonyNames(ctx, s.Session.Harness, s.report); err != nil {
-			return nil, err
-		}
-	}
 	// The handle's own request ids (resume, acknowledge, the watch's
 	// commands) carry the run suffix like the case's (#307): a resumed or
 	// staged run's restored store already holds the earlier run's.

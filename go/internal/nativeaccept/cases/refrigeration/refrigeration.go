@@ -96,9 +96,6 @@ func run(ctx context.Context, s cases.Session) error {
 			}
 		}
 	}()
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	interior, _ := na.AsMap(prepared["interior"])
 	walls := map[domain.Cell]bool{}
 	for _, raw := range na.AsSlice(prepared["walls"]) {

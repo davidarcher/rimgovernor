@@ -136,12 +136,11 @@ func init() {
 	})
 }
 
-// cumulativeFamilies keeps colony naming available throughout the campaign:
-// its delayed modal can open after a stage's service has started. Every stage
-// also reviews the families of every earlier goal.
+// cumulativeFamilies is the families every stage reviews: those of every
+// goal up to and including stage n.
 func cumulativeFamilies(stages []stage, n int) []routinefamily.Family {
-	seen := map[routinefamily.Family]bool{routinefamily.Naming: true}
-	out := []routinefamily.Family{routinefamily.Naming}
+	seen := map[routinefamily.Family]bool{}
+	var out []routinefamily.Family
 	for _, st := range stages[:n] {
 		for _, family := range st.families {
 			if !seen[family] {

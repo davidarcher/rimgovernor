@@ -43,7 +43,6 @@ type Inspection struct {
 // fact families the inspection's body reads (traced in #1908); a Concern that
 // reads only configuration declares an explicit empty list.
 var inspections = []Inspection{
-	{ConfirmColonyNames, IncidentConcern, DepartmentSystem, []FactFamily{FactIdentity}, inspectColonyNames},
 	{AnswerDialog, IncidentConcern, DepartmentSystem, []FactFamily{FactEmergency}, inspectAnswerDialog},
 	{ActiveCombat, IncidentConcern, DepartmentMilitary, []FactFamily{FactEmergency, FactColony}, inspectActiveCombat},
 	{CriticalMedicine, IncidentConcern, DepartmentMedical, []FactFamily{FactPawns, FactEmergency}, inspectCriticalMedicine},

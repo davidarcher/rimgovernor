@@ -3211,7 +3211,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\vSparseArray\x12\x14\n" +
 	"\x05index\x18\x01 \x03(\rR\x05index\x12\x12\n" +
 	"\x04code\x18\x02 \x03(\rR\x04code\x12\x16\n" +
-	"\x06number\x18\x03 \x03(\x01R\x06number\"\xf4\n" +
+	"\x06number\x18\x03 \x03(\x01R\x06number\"\xd0\n" +
 	"\n" +
 	"\bCellGrid\x123\n" +
 	"\x04rect\x18\x01 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x04rect\x12\x18\n" +
@@ -3237,7 +3237,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\n" +
 	"snow_depth\x18\x1a \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\tsnowDepth\x12Q\n" +
 	"\x13top_layer_removable\x18\x1b \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x11topLayerRemovable\x128\n" +
-	"\x06things\x18\x1c \x01(\v2 .rimgovernor.mirror.v1.ThingListR\x06thingsJ\x04\b\x05\x10\x06J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16\"q\n" +
+	"\x06things\x18\x1c \x01(\v2 .rimgovernor.mirror.v1.ThingListR\x06things\"q\n" +
 	"\tThingList\x12\x14\n" +
 	"\x05cells\x18\x01 \x03(\rR\x05cells\x12\x18\n" +
 	"\aoffsets\x18\x02 \x03(\rR\aoffsets\x124\n" +

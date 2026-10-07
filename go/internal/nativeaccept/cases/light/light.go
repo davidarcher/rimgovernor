@@ -76,9 +76,6 @@ func run(ctx context.Context, s cases.Session) error {
 			report["lighting_postmortem_error"] = err.Error()
 		}
 	}()
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	stoveID := na.AsString(prepared["stove"])
 	interior, _ := na.AsMap(prepared["interior"])
 	workCellMap, _ := na.AsMap(prepared["workCell"])

@@ -652,15 +652,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		letters = append(letters, policy.JoinerLetterOffer{ID: row.GetLetterId(), Token: row.GetSnapshotToken(), Pawn: domain.PawnID(row.GetPawnId()), Expires: domain.Tick(row.GetExpiresTick()), Label: row.GetAcceptLabel(), CanAccept: row.GetCanAccept(), CreepJoiner: row.GetCreepjoiner()})
 	}
 	r.Facts.JoinerLetters = domain.Known(letters)
-	if v.Naming != nil {
-		r.Facts.ColonyNaming = domain.Known(true)
-	} else {
-		for _, issue := range v.Issues {
-			if issue.GetField() == "naming" && issue.GetUnavailable().GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE {
-				r.Facts.ColonyNaming = domain.Known(false)
-			}
-		}
-	}
 	if !hasIssue(v.Issues, "cooking") && headed(buildings, v.Cooking, (*o.CookingFacts).GetBench) {
 		benches := []CookingBench{}
 		for _, bench := range v.Cooking {

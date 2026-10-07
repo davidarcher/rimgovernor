@@ -87,8 +87,7 @@ func prepareStarving(ctx context.Context, s cases.Session, args map[string]any, 
 		return fmt.Errorf("starving fixture refused: %v", prepared)
 	}
 	s.Report()["fixture"] = prepared
-	_, err := na.ConfirmColonyNames(ctx, h, s.Report())
-	return err
+	return nil
 }
 
 // starvingRound is one sample of the serve loop: the round's number, whether
@@ -111,7 +110,7 @@ type starvingRound struct {
 // enough to stop.
 func starvingServe(ctx context.Context, s cases.Session, families []routinefamily.Family, roundTicks domain.Tick, maxRounds int, each func(starvingRound) (bool, error)) error {
 	report := s.Report()
-	h := s.Harness()
+	var h *na.Harness
 	identity := s.Identity()
 	service, err := s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: na.ClockSpeedArgs()})
 	if err != nil {
@@ -121,9 +120,6 @@ func starvingServe(ctx context.Context, s cases.Session, families []routinefamil
 	for round := 1; round <= maxRounds; round++ {
 		prefix := fmt.Sprintf("starving-%d", round)
 		if round > 1 {
-			if _, e := na.ConfirmColonyNames(ctx, h, report); e != nil {
-				return e
-			}
 			if e := s.Release(); e != nil {
 				return e
 			}

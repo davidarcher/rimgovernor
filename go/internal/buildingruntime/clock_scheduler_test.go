@@ -250,7 +250,7 @@ func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
 	t.Helper()
 	ctx := context.Background()
 	state := s.session.State()
-	facts := policy.RoundsFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
+	facts := policy.RoundsFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ChoiceDialog: domain.Known(false)}
 	review, err := s.player.journal.ReviewRounds(ctx, store.RoundsRequest{Current: state.Snapshot, Tick: 12, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: facts})
 	if err != nil {
 		t.Fatal(err)

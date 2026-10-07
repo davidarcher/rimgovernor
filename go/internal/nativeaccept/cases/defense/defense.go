@@ -100,12 +100,9 @@ type variant struct {
 
 // perimeterFamilies are the families a perimeter campaign serves; see init.
 //
-// naming answers the faction/settlement dialog that opens mid-run on the
-// baseline save (#1248): unanswered it holds the game paused, so no tick
-// advances and the layout's completion write never runs. work staffs the
-// layout's construction: every building method's builder check needs the
-// work priorities only that family applies (#1248).
-var perimeterFamilies = []routinefamily.Family{routinefamily.DefensiveLayout, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Fire, routinefamily.Supply, routinefamily.Naming, routinefamily.Work}
+// work staffs the layout's construction: every building method's builder
+// check needs the work priorities only that family applies (#1248).
+var perimeterFamilies = []routinefamily.Family{routinefamily.DefensiveLayout, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Fire, routinefamily.Supply, routinefamily.Work}
 
 func init() {
 	// The fire family belongs here: a raid can leave a home fire burning
@@ -182,9 +179,8 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	output := s.Config().Output
 	report["raid"] = map[string]any{"strategy": v.strategy, "arrival": v.arrival, "threat": v.threat}
 	// Releasing the harness before a launch is the service's own business:
-	// Session.Serve first answers any colony-naming dialog through the
-	// harness (a released one reads "bridge closed"), then na.Serve frees
-	// the sole GABP slot itself. closeClient marks the hand-over points.
+	// na.Serve frees the sole GABP slot itself. closeClient marks the
+	// hand-over points.
 	closeClient := func() error { return nil }
 	// The game frees the service's GABP slot shortly after the
 	// service is killed, not synchronously: Reattach retries. The service

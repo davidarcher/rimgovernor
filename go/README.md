@@ -163,9 +163,6 @@ thresholds; missing facts cannot certify foothold stability or clear risk.
   surplus above target; a sheet with no affordable line ends the session. Sheet
   reads, staging, accept and cancel need only present participants. The native
   resource census after the exchange is the evidence.
-- **Naming** needs use the exact pending native dialog ID; explicit absence
-  recovers the need, missing or obstructed observations stay unknown. The read
-  does not confirm names.
 - **Defense readiness** reads equipment for the emergency census's exact pawn IDs
   inside the same paused bracket. Only living, standing armed colonists count;
   missing gear or inconsistent censuses leave readiness unknown. It issues no

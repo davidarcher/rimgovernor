@@ -601,7 +601,6 @@ message EventsRequest {
   rimgovernor.common.v1.Identity identity = 1;
   optional int64 after_cursor = 2;
   optional uint32 limit = 3;
-  reserved 4;
 }
 message EventsPage {
   rimgovernor.common.v1.ObservationContext context = 1;

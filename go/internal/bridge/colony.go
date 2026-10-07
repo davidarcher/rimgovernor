@@ -133,17 +133,6 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := validateFoodChannels(v); err != nil {
 		return err
 	}
-	if v.Naming != nil {
-		if v.Naming.WindowId == nil || v.Naming.GetWindowId() < 0 || v.Naming.FactionName == nil || v.Naming.SettlementName == nil || len(v.Naming.Issues) != 0 ||
-			validID(v.Naming.GetFactionName()) != nil || validID(v.Naming.GetSettlementName()) != nil || len(v.Naming.ProtoReflect().GetUnknown()) != 0 {
-			return contract("invalid naming window census")
-		}
-		for _, issue := range v.Issues {
-			if issue.GetField() == "naming" {
-				return contract("unavailable naming window contains observation")
-			}
-		}
-	}
 	if err := validateJoinerLetters(v.JoinerLetters, v.Context.GetTick()); err != nil {
 		return err
 	}

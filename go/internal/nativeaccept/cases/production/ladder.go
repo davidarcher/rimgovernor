@@ -61,7 +61,7 @@ const (
 // bench (#218, a 16 minute run whose ingredient stockpile then had no clean
 // floor, #223). An unserved priority-2 shelter goal gates only comfort,
 // never MaintainResource.
-var ladderFamilies = []routinefamily.Family{routinefamily.Temperature, routinefamily.Comfort, routinefamily.Work, routinefamily.Power, routinefamily.Supply, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Medical, routinefamily.Field, routinefamily.Stockpiles, routinefamily.Acquisition, routinefamily.Cooking, routinefamily.Resource, routinefamily.Workshop, routinefamily.Research, routinefamily.Gear, routinefamily.Armory, routinefamily.Dialog, routinefamily.Naming}
+var ladderFamilies = []routinefamily.Family{routinefamily.Temperature, routinefamily.Comfort, routinefamily.Work, routinefamily.Power, routinefamily.Supply, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Medical, routinefamily.Field, routinefamily.Stockpiles, routinefamily.Acquisition, routinefamily.Cooking, routinefamily.Resource, routinefamily.Workshop, routinefamily.Research, routinefamily.Gear, routinefamily.Armory, routinefamily.Dialog}
 
 // benchWindow is how long the ladder gets to finish the research rung and
 // raise its bench (the "bench-built" stage, cached across runs, #329);

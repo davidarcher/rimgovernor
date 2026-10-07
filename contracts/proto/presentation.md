@@ -26,9 +26,6 @@ composition may reuse `NotificationsSnapshot` without a dependency cycle.
 - `DialogSnapshot`, `SetDialogText`, `PreviewDialogText`: exact window ID,
   reviewed field, before/after, optional native maximum length. There is no
   accept operation; confirmation uses a separately captured native UI action.
-- `ConfirmColonyNames`, `NamingSnapshot`, `PreviewNaming`: exact observed naming
-  window, faction/settlement suggestions, native name validation/callbacks and
-  closed-window readback. No generic dialog callback invocation.
 - `ShowWorld`, `WorldViewResult`: explicit tile, watch seconds,
   shown/wantedMode/hidden/reason. Plain world facts remain observation-owned.
 - `NotificationsSnapshot` reads the letter stack, live messages and active alerts;
@@ -58,22 +55,13 @@ Generated service names and caller-supplied viewer/direction values do not grant
 it. Deny its RPCs to advisers and automated Hands. `Apply` is its only RPC.
 
 Keep player input distinct from simulation-write authority and clock
-epoch. Player camera, selection, UI and naming commands issued through
-`PlayerPresentation.Apply` (the `confirm_colony_names` branch of `PlayerCommand`)
-require a captured UI precondition, exactly like every other `Apply` branch; there is no naming-specific
-carve-out of that boundary. `PresentationReads.PreviewNaming` is a read of the
-same authenticated surface and stays unregistered alongside it.
+epoch. Player camera, selection and UI commands issued through
+`PlayerPresentation.Apply` require a captured UI precondition, exactly like
+every other `Apply` branch.
 
-The initial faction/settlement dialog blocks all play, including automated
-Hands, before any player capture is possible, so gating its
-confirmation behind `PlayerPresentation` would deadlock autopilot bootstrap.
-Its autopilot-eligible path is instead the `NamingIntent` on Actions/Apply
-(see [operations](operations.md)), applied under the ordinary native authority
-every other automated write uses, not a player capture. Routine control
-dispatches the `ConfirmColonyNames` goal (priority 0) through that intent.
-`Apply`'s `confirm_colony_names` branch remains reserved for a future
-player-facing naming review affordance and is deliberately unregistered until
-one exists; it must not be relaxed to admit automated Hands. `CaptureIdentity` binds
+The initial faction/settlement dialog is confirmed by the native mod itself,
+with the game's own suggestions; no Go or presentation surface touches it.
+`CaptureIdentity` binds
 colony/load/map/native generation, player direction, exact complete selected IDs,
 window ID/type set, and a server-retained capture. The retained native capture must
 also verify camera matrices, viewport dimensions and window rectangles; those
@@ -98,9 +86,9 @@ transport loss can independently create uncertainty. Last observed fields are
 partial evidence, not certification of no effect or permission to retry. Relative
 moves, wheel events and clicks are never replayed blindly.
 
-Only `PreviewNaming` and `PreviewDialogText` describe the existing native dry
-previews. Other UI actions have no speculative execution path. Text writes require
-a reviewed naming input and its observed maximum; they do not confirm naming.
+Only `PreviewDialogText` describes the existing native dry
+preview. Other UI actions have no speculative execution path. Text writes require
+a reviewed input and its observed maximum.
 World-view cleanup may restore only its own unchanged presentation state, never a
 new player choice. Native-only zoom limits are reobserved; extensions stay disabled.
 

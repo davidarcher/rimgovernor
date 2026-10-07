@@ -74,14 +74,6 @@ func latchRecovered(active bool, observed domain.Fact[float64]) domain.Fact[bool
 	return measured(observed, func(float64) bool { return !active })
 }
 
-func inspectColonyNames(c *roundsRun) error {
-	if positive(c.f.ColonyNaming) {
-		c.raise(ConfirmColonyNames, 0)
-	}
-	c.assess(ConfirmColonyNames, 0, notFact(c.f.ColonyNaming))
-	return nil
-}
-
 func inspectAnswerDialog(c *roundsRun) error {
 	if positive(c.f.ChoiceDialog) {
 		c.raise(AnswerDialog, 0)
@@ -132,7 +124,7 @@ func inspectManageSupplySafety(c *roundsRun) error {
 
 func inspectWorkAssignments(c *roundsRun) error {
 	f := c.f
-	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
+	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }))
 	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) || positive(f.MedicalCareOwed) {
 		workMet = domain.Known(false)
 	}

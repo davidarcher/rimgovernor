@@ -36,8 +36,7 @@ import (
 type ServeSpec struct {
 	// Binary is the prebuilt rimgovernor binary (absolute path).
 	Binary string
-	// Save, when set, is loaded through the harness's own session (naming
-	// dialog dismissed, clock paused) before that session is released to
+	// Save, when set, is loaded through the harness's own session (clock paused) before that session is released to
 	// the service. Empty means the game already holds the case's state.
 	Save string
 	// Resume starts the service with --resume: it acquires authority for
@@ -59,10 +58,6 @@ type ServeSpec struct {
 	// Prefix disambiguates the requestIds the handle issues (resume,
 	// acknowledge); empty means "serve".
 	Prefix string
-	// KeepColonyNaming leaves a pending faction/settlement naming dialog
-	// open for the service instead of dismissing it before the slot is
-	// released: the case proves the ConfirmColonyNames routine family.
-	KeepColonyNaming bool
 	// PlayerSpeed is the speed the harness sets as the player's choice
 	// before the service starts (#875): serve runs its windows at it. Empty
 	// is ClockSpeed(); a harness that sets it also owns
@@ -155,7 +150,7 @@ func serve(ctx context.Context, cfg *Config, game *Game, identity map[string]any
 		if !game.released {
 			h := NewHarness(game.Client, cfg.Output)
 			if spec.Save != "" {
-				if _, err := LoadSave(ctx, h, spec.Save, report); err != nil {
+				if err := LoadSave(ctx, h, spec.Save); err != nil {
 					return nil, err
 				}
 			}
@@ -296,7 +291,7 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 		cmd.Env = append(cmd.Env, snapshot.DirEnv+"="+filepath.Join(dir, filepath.Base(filepath.Dir(output)), filepath.Base(output)))
 	}
 	if spec.Families != nil {
-		families := routinefamily.Join(withNamingFamily(spec.Families))
+		families := routinefamily.Join(spec.Families)
 		cmd.Env = append(cmd.Env, "RIMGOVERNOR_ROUTINE_FAMILIES="+families)
 		entry["families"] = families
 	}
@@ -678,69 +673,14 @@ func (p *ServiceProcess) WaitStep(ctx context.Context) error {
 // Entry is the report's record of this launch.
 func (p *ServiceProcess) Entry() map[string]any { return p.entry }
 
-// LoadSave loads profile/Saves/<save>.rws through h (visual readiness),
-// pauses the clock and dismisses the colony naming dialog a fresh load can
-// leave open: ConfirmColonyNames is a priority-zero emergency that blocks
-// every other goal until it is resolved. It returns the typed colony facts
-// snapshot.
-func LoadSave(ctx context.Context, h *Harness, save string, report Report) (map[string]any, error) {
+// LoadSave loads profile/Saves/<save>.rws through h (visual readiness) and
+// pauses the clock.
+func LoadSave(ctx context.Context, h *Harness, save string) error {
 	if _, err := h.Call(ctx, "load-save", "rimgovernor/load_game_ready", map[string]any{
 		"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	}); err != nil {
-		return nil, err
+		return err
 	}
-	if _, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return nil, err
-	}
-	return ConfirmColonyNames(ctx, h, report)
-}
-
-// ConfirmColonyNames dismisses the faction/settlement naming dialog when
-// one is pending and returns the typed colony facts snapshot it consulted.
-func ConfirmColonyNames(ctx context.Context, h *Harness, report Report) (map[string]any, error) {
-	identity, err := ReadIdentity(ctx, h, "colony-facts-identity")
-	if err != nil {
-		return nil, err
-	}
-	reply, err := h.Wire(ctx, "colony-facts", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
-	if err != nil {
-		return nil, err
-	}
-	_, facts, err := Outcome(reply, "observed")
-	if err != nil {
-		return nil, fmt.Errorf("colony facts: %w", err)
-	}
-	if naming, ok := AsMap(facts["naming"]); ok && naming != nil {
-		windowID := int(AsNumber(naming["windowId"]))
-		confirmed, err := ApplyOne(ctx, h, "confirm-colony-names", identity, fmt.Sprintf("confirm-colony-names-%d", windowID), map[string]any{
-			"naming": map[string]any{
-				"windowId":       windowID,
-				"factionName":    AsString(naming["factionName"]),
-				"settlementName": AsString(naming["settlementName"]),
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		if _, ok := AsMap(confirmed["applied"]); !ok {
-			return nil, fmt.Errorf("naming intent refused: %#v", confirmed)
-		}
-		report["confirmed_colony_names"] = confirmed
-	} else {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-	}
-	return facts, nil
-}
-
-// withNamingFamily composes the naming family into every restricted family
-// list: the loaded start raises a colony-naming dialog that halts the clock,
-// and a case that forgot the family stalled behind it (#2138). The dialog
-// case answers its own dialogs, so a list naming it is left as given.
-func withNamingFamily(families []routinefamily.Family) []routinefamily.Family {
-	for _, family := range families {
-		if family == routinefamily.Naming || family == routinefamily.Dialog {
-			return families
-		}
-	}
-	return append(append([]routinefamily.Family(nil), families...), routinefamily.Naming)
+	_, err := h.Call(ctx, "pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
+	return err
 }

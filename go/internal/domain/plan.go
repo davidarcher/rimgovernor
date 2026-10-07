@@ -152,7 +152,6 @@ type Action struct {
 	wallRemoval         WallRemoval
 	excavation          Excavation
 	moodRelief          MoodRelief
-	namingConfirmation  NamingConfirmation
 	dialogAnswer        DialogAnswer
 	trade               Trade
 	caravanDeparture    CaravanDeparture
@@ -326,8 +325,6 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewExcavationAction(a.id, a.excavation)
 		case MoodReliefAction:
 			canonical, err = NewMoodReliefAction(a.id, a.moodRelief)
-		case NamingConfirmationAction:
-			canonical, err = NewNamingConfirmationAction(a.id, a.namingConfirmation)
 		case DialogAnswerAction:
 			canonical, err = NewDialogAnswerAction(a.id, a.dialogAnswer)
 		case TradeAction:

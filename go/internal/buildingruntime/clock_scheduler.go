@@ -148,7 +148,6 @@ type ClockSchedulerConfig struct {
 	Burial              *RoundsBurialPlanner
 	Incineration        *RoundsIncinerationPlanner
 	MoodRelief          *RoundsMoodReliefPlanner
-	Naming              *RoundsNamingPlanner
 	Dialog              *RoundsDialogPlanner
 	Trade               *RoundsTradePlanner
 	RoundsMethods       bool
@@ -232,7 +231,6 @@ type ClockSchedulerResult struct {
 	Burial                       *RoundsBurialResult
 	Incineration                 *RoundsIncinerationResult
 	MoodRelief                   *RoundsMoodReliefResult
-	Naming                       *RoundsNamingResult
 	Dialog                       *RoundsDialogResult
 	Trade                        *RoundsTradeResult
 	Running, Reconciled, Cleaned bool
@@ -567,9 +565,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.StorageShelves != nil && (config.Rounds == nil || config.StorageShelves.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.StorageShelves != nil && (config.Rounds == nil || config.StorageShelves.reviewer != config.Rounds)", ErrControl)
-	}
-	if config.Naming != nil && (config.Rounds == nil || config.Naming.reviewer != config.Rounds) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.Naming != nil && (config.Rounds == nil || config.Naming.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Dialog != nil && (config.Rounds == nil || config.Dialog.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Dialog != nil && (config.Rounds == nil || config.Dialog.reviewer != config.Rounds)", ErrControl)
@@ -1988,7 +1983,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.DropEquipmentAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.IgniteAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
+				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.IgniteAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

@@ -153,12 +153,6 @@ namespace HomeBridge.BridgeTools
             Span("cf.eventLoot");
             ReadProduction(result, map, people, things, reachable, humanFood);
             Span("cf.production");
-            var naming = ColonyNamingTools.Pending();
-            if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID,
-                FactionName = ColonyNamingTools.Name(naming, "curName"), SettlementName = ColonyNamingTools.Name(naming, "curSecondName") };
-            else if (Find.WindowStack == null || Find.WindowStack.Windows.OfType<Dialog_NamePlayerFactionAndSettlement>().Any())
-                result.Issues.Add(Issue("naming", Common.UnavailableReason.Unsupported, "Naming window census is unavailable or obstructed by another paused dialog."));
-            else result.Issues.Add(Issue("naming", Common.UnavailableReason.NotApplicable, "No pending colony naming dialog."));
             var joiners = NativeJoinerLetters.Snapshot();
             result.JoinerLetters.AddRange(joiners);
             var dialog = ChoiceDialogTools.Pending();

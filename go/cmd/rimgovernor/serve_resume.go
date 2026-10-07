@@ -30,8 +30,8 @@ const (
 	// hold live authority before its loss count is forgiven. Without it the
 	// cycles accumulated over a whole process: eight losses spread over
 	// hours of healthy play (a hostile stop, a planning-window refusal)
-	// left the colony unowned for good, and a force-pausing naming dialog
-	// that opened next was never answered.
+	// left the colony unowned for good, and a force-pausing dialog that
+	// opened next was never answered.
 	autoResumeHealthySteps = 100
 )
 

@@ -95,6 +95,15 @@ namespace HomeBridge.BridgeTools
             {
                 // Never let the account interrupt an update.
             }
+            // The colony-naming letter is answered here, with the suggestions.
+            try
+            {
+                if (Current.Game != null && Find.WindowStack != null) ColonyNamingTools.ConfirmSuggested();
+            }
+            catch (Exception)
+            {
+                // A failed confirmation leaves the dialog for the next frame.
+            }
             // Clearance salvage evidence refreshes over frames (#984).
             try
             {

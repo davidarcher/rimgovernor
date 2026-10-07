@@ -238,9 +238,6 @@ func (m *matrix) stage(ctx context.Context) error {
 	if err := os.MkdirAll(h.Output, 0755); err != nil {
 		return err
 	}
-	if _, err := na.ConfirmColonyNames(ctx, h, m.report); err != nil {
-		return err
-	}
 	m.storage = cellList(prepared["storageCells"])
 	m.walls = cellList(prepared["sites"])
 	for _, raw := range na.AsSlice(prepared["sites"]) {

@@ -86,7 +86,8 @@ func completed(stages []domain.Stage) bool {
 }
 
 func runFirstRitual(ctx context.Context, s cases.Session) error {
-	report, h, prepared := s.Report(), s.Harness(), s.Prepared()
+	report, prepared := s.Report(), s.Prepared()
+	var h *na.Harness
 	ritual, building := na.AsString(prepared["ritualId"]), na.AsString(prepared["buildingId"])
 	baseline := na.AsNumber(prepared["lastFinishedTick"])
 	if ritual == "" || building == "" || len(na.AsSlice(prepared["pawnIds"])) < 2 {
@@ -94,9 +95,6 @@ func runFirstRitual(ctx context.Context, s cases.Session) error {
 	}
 	report["ritual"], report["fixture"] = ritual, prepared
 
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err

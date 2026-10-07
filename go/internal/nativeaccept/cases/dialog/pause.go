@@ -214,11 +214,6 @@ func traceClock(ctx context.Context, st *store.Store, profile string) (clockTrac
 
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
-	// The baseline's naming dialog goes first, so the fixture's dialogs are
-	// the only force-pausing windows the service meets.
-	if _, err := na.ConfirmColonyNames(ctx, s.Harness(), report); err != nil {
-		return err
-	}
 	staged := &stagedDialogs{}
 	if err := staged.open(ctx, s.Harness(), s.Names(), s.Identity(), report); err != nil {
 		return fmt.Errorf("before service: %w", err)

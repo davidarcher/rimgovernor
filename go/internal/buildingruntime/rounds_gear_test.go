@@ -120,7 +120,6 @@ func (n *gearProductionNative) ReadSupplyStock(context.Context, *c.Identity, []s
 func setGearProductionNeed(v *o.ColonyFactsSnapshot) {
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
-	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	v.OutdoorTemperatureC = proto.Float64(21)
 	gear := &o.GearSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext)}
 	for _, id := range []string{"a", "b"} {
@@ -286,7 +285,6 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
-	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	observedContext := func() *c.ObservationContext { return proto.Clone(v.Context).(*c.ObservationContext) }
 	v.OutdoorTemperatureC = proto.Float64(21)
 	loadout := func(id string, deficit bool, candidates ...*o.GearCandidate) *o.GearLoadout {
@@ -364,7 +362,6 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
-	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	observedContext := func() *c.ObservationContext { return proto.Clone(v.Context).(*c.ObservationContext) }
 	v.OutdoorTemperatureC = proto.Float64(21)
 	loadout := func(id string, deficit bool, candidates ...*o.GearCandidate) *o.GearLoadout {

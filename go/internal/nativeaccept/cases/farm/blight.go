@@ -66,9 +66,6 @@ func runBlight(ctx context.Context, s cases.Session) error {
 			report["blight_postmortem_error"] = err.Error()
 		}
 	}()
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	fixture := map[string]bool{}
 	for _, raw := range na.AsSlice(prepared["plants"]) {
 		row, _ := na.AsMap(raw)
@@ -100,7 +97,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	// "work" rides along so the colony's work priorities match the
 	// controller's own assignment, which keeps plant cutting enabled on the
 	// fixture's cutter.
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Blight, routinefamily.Work, routinefamily.Field, routinefamily.Naming}, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Blight, routinefamily.Work, routinefamily.Field}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

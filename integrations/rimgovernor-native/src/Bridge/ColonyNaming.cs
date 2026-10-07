@@ -28,8 +28,26 @@ namespace HomeBridge.BridgeTools
         internal static string? Name(Dialog_GiveName dialog, string field) =>
             (AccessTools.Field(typeof(Dialog_GiveName), field)?.GetValue(dialog) as string)?.Trim();
 
+        // The letter is the mod's to answer, not the controller's: when the
+        // initial naming dialog is on top, accept the game's own suggestions
+        // through the native validators. A refused suggestion leaves the
+        // dialog open for the player rather than guessing another name.
+        internal static void ConfirmSuggested()
+        {
+            var dialog = Pending();
+            if (dialog == null) return;
+            var faction = Name(dialog, "curName");
+            var settlement = Name(dialog, "curSecondName");
+            if (string.IsNullOrEmpty(faction) || string.IsNullOrEmpty(settlement)) return;
+            var type = typeof(Dialog_NamePlayerFactionAndSettlement);
+            if (!(bool)AccessTools.Method(type, "IsValidName").Invoke(dialog, new object[] { faction! })
+                || !(bool)AccessTools.Method(type, "IsValidSecondName").Invoke(dialog, new object[] { settlement! }))
+                return;
+            Confirm(dialog, faction!, settlement!);
+        }
+
         // Names the player faction and settlement through the dialog's own
-        // callbacks and closes it (NamingIntent and the new-colony start).
+        // callbacks and closes it (ConfirmSuggested and the new-colony start).
         internal static void Confirm(Dialog_NamePlayerFactionAndSettlement dialog, string factionName, string settlementName)
         {
             var type = typeof(Dialog_NamePlayerFactionAndSettlement);

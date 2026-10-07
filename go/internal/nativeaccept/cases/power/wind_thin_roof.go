@@ -52,9 +52,6 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 	if !na.Contains(s.Names(), "test/power_observe") {
 		return fmt.Errorf("missing test/power_observe in discovery; rebuild the native mod with -Fixture PowerFixture")
 	}
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	if rock := na.AsNumber(prepared["rockCells"]); rock < 5000 {
 		return fmt.Errorf("fixture raised only %v rock cells: %#v", rock, prepared)
 	}
@@ -88,7 +85,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		}
 	}
 
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Power, routinefamily.Work, routinefamily.Naming}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Power, routinefamily.Work}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

@@ -309,7 +309,7 @@ message CellGrid {
   repeated string strings = 2;
   FieldArray cell = 3;
   FieldArray walkable = 4;
-  reserved 5; // occupied: a predicate over things (#2263)
+
   FieldArray zone = 6;
   FieldArray roofed = 7;
   FieldArray indoors = 8;
@@ -321,8 +321,7 @@ message CellGrid {
   FieldArray glow = 14;
   FieldArray roof = 15;
   FieldArray zone_id = 16;
-  reserved 17; // natural_rock: a predicate over things (#2263)
-  reserved 18, 19, 20, 21; // ruin, player_edifice, claimable_ruin, ruin_hold: predicates over things (#2262)
+
   FieldArray room = 22;
   // Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
   // epic #2241); a keyframe carries every one, things included. A fogged cell

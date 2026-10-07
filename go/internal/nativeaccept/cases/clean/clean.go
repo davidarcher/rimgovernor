@@ -95,9 +95,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 			}
 		}
 	}()
-	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	// The service's own routine read is the typed colony facts with planning
 	// definitions; record its section sizes so an oversized read on an
 	// unlucky map is diagnosable from the report.

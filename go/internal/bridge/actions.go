@@ -37,7 +37,6 @@ func init() {
 	registerIntentKind(domain.MovementAction, movementAction)
 	registerIntentKind(domain.ApparelPolicyAction, apparelPolicyAction)
 	registerIntentKind(domain.ResearchSelectAction, researchAction)
-	registerIntentKind(domain.NamingConfirmationAction, namingAction)
 	registerIntentKind(domain.DialogAnswerAction, dialogAction)
 	registerIntentKind(domain.PrisonerInteractionAction, prisonerInteractionAction)
 	registerIntentKind(domain.QuestAcceptAction, questAcceptAction)

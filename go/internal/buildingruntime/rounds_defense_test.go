@@ -205,7 +205,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		facts := policy.RoundsFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(hostiles), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}
+		facts := policy.RoundsFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(hostiles), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ChoiceDialog: domain.Known(false)}
 		out, err := db.ReviewRounds(ctx, store.RoundsRequest{Revision: current.Revision, Current: snapshot, Tick: 7 /* the fixture context tick */, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: facts})
 		if err != nil {
 			t.Fatal(err)

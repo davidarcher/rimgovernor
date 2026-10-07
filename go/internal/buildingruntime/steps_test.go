@@ -207,15 +207,6 @@ func (r *RoundsMoodReliefPlanner) Step(ctx context.Context) (RoundsMoodReliefRes
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoundsNamingPlanner) Step(ctx context.Context) (RoundsNamingResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
-	if err != nil {
-		return RoundsNamingResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 func (r *RoundsPopulationCustodyPlanner) Step(ctx context.Context) (RoundsPopulationCustodyResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {

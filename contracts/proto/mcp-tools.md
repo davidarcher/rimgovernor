@@ -123,7 +123,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/presentation_main_tabs` | `rimgovernor.presentation.v1.PresentationReads/MainTabs` | `rimgovernor.presentation.v1.TabsRequest` | `rimgovernor.presentation.v1.TabsReply` |
 | `rimgovernor/presentation_notifications` | `rimgovernor.presentation.v1.PresentationReads/Notifications` | `rimgovernor.presentation.v1.NotificationsRequest` | `rimgovernor.presentation.v1.NotificationsReply` |
 | `rimgovernor/presentation_preview_dialog_text` | `rimgovernor.presentation.v1.PresentationReads/PreviewDialogText` | `rimgovernor.presentation.v1.DialogTextPreviewRequest` | `rimgovernor.presentation.v1.DialogTextPreviewReply` |
-| `rimgovernor/presentation_preview_naming` | `rimgovernor.presentation.v1.PresentationReads/PreviewNaming` | `rimgovernor.presentation.v1.NamingPreviewRequest` | `rimgovernor.presentation.v1.NamingPreviewReply` |
 | `rimgovernor/presentation_render_state` | `rimgovernor.presentation.v1.PresentationReads/RenderState` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.RenderReply` |
 | `rimgovernor/presentation_screen_targets_read` | `rimgovernor.presentation.v1.PresentationReads/ScreenTargetsRead` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.ScreenTargetsReply` |
 | `rimgovernor/presentation_selection` | `rimgovernor.presentation.v1.PresentationReads/Selection` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.SelectionReply` |

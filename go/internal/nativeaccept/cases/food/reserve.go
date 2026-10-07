@@ -65,9 +65,6 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	}
 	report["expected_target_units"] = expected
 	report["fixture"] = prepared
-	if _, err = na.ConfirmColonyNames(ctx, h, report); err != nil {
-		return err
-	}
 	// The cooking family stays out: its meal bill sits above the reserve bill
 	// on the single stove and, with meals eaten as fast as they are cooked,
 	// never lets the cook reach the pemmican.
@@ -83,12 +80,6 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	first := true
 	round := func(prefix string, args map[string]any) (map[string]any, error) {
 		if !first {
-			// Days into the fill RimWorld opens its colony-naming dialog,
-			// which parks the clock for good; the case's families leave it
-			// to the harness, so answer it before the next round.
-			if _, e := na.ConfirmColonyNames(ctx, h, report); e != nil {
-				return nil, e
-			}
 			if e := s.Release(); e != nil {
 				return nil, e
 			}

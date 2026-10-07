@@ -25,9 +25,7 @@ import (
 // snapshot test over recorded facts proves the placement search
 // (buildingruntime campfire_climate_test.go); only a real map reads the curve,
 // and only the native accepts the placement.
-// The naming family answers the settlement naming dialog the game raises
-// about four days in, which stops the clock until it is confirmed.
-var climateFamilies = []routinefamily.Family{routinefamily.Shelter, routinefamily.Sleeping, routinefamily.Cooking, routinefamily.Temperature, routinefamily.Naming}
+var climateFamilies = []routinefamily.Family{routinefamily.Shelter, routinefamily.Sleeping, routinefamily.Cooking, routinefamily.Temperature}
 
 const climateWait = 15 * time.Minute
 

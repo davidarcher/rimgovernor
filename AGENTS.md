@@ -220,7 +220,9 @@ native only executes within a closed whitelist (v1: `PREY_KILLED` then
 before its write. Advisers never write game orders or own colony invariants.
 Local LM Studio models only, no silent
 paid-provider fallback. Typed contracts at boundaries; explicit component
-ownership; integrate through the existing architecture. State placement is one
+ownership; integrate through the existing architecture. Never write `reserved` in a
+`.proto` (field numbers or names): deleting a field or message drops it outright,
+no compat shims, and Go and C# regenerate together. State placement is one
 table in [persistence contracts](docs/developers/contracts/persistence-contracts.md)
 (Go intent in the save, session journal in SQLite, derived state in memory,
 telemetry in `flight.jsonl`); a second copy of a fact or a new store amends that

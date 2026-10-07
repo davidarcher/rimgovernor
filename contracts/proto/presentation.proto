@@ -291,16 +291,6 @@ message MainTab { optional string tab_id = 1; }
 message CloseMainTab { optional string expected_tab_id = 1; }
 message LetterTarget { optional string letter_id = 1; }
 message SetDialogText { WindowIdentity window = 1; optional string field_name = 2; optional string text = 3; }
-message ConfirmColonyNames {
-  WindowIdentity window = 1; optional string faction_name = 2; optional string settlement_name = 3;
-}
-message NamingSnapshot {
-  WindowIdentity window = 1; optional string faction_name = 2; optional string settlement_name = 3;
-  optional bool window_closed = 4;
-}
-message NamingPreviewRequest { CaptureIdentity captured = 1; ConfirmColonyNames names = 2; }
-message NamingPreview { NamingSnapshot names = 1; optional bool acceptable = 2; }
-message NamingPreviewReply { oneof outcome { NamingPreview preview = 1; rimgovernor.common.v1.Failure refusal = 2; } }
 message DialogTextChange { WindowIdentity window = 1; optional string field_name = 2; optional string before = 3; optional string after = 4; }
 message DialogTextPreviewRequest { CaptureIdentity captured = 1; SetDialogText edit = 2; }
 message DialogTextPreviewReply { oneof outcome { DialogTextChange preview = 1; rimgovernor.common.v1.Failure refusal = 2; } }
@@ -315,20 +305,20 @@ message PlayerCommand {
     ScrollTarget scroll_ui_target = 8; MainTab open_main_tab = 9;
     CloseMainTab close_main_tab = 10; LetterTarget open_letter = 11;
     LetterTarget dismiss_letter = 12; SetDialogText set_dialog_text = 13;
-    ConfirmColonyNames confirm_colony_names = 14; ShowWorld show_world = 15;
+    ShowWorld show_world = 15;
   }
 }
 message PlayerApplied {
   optional bool applied = 1; CaptureIdentity after = 2;
   CameraState camera = 3; SelectionSnapshot selection = 4;
   UiSnapshot ui = 5; DialogSnapshot dialog = 6;
-  optional bool target_consumed = 7; NamingSnapshot names = 8;
+  optional bool target_consumed = 7;
   DialogTextChange text_change = 9; WorldViewResult world_view = 10;
 }
 message PlayerObserved {
   CaptureIdentity capture = 1; CameraState camera = 2;
   SelectionSnapshot selection = 3; UiSnapshot ui = 4; DialogSnapshot dialog = 5;
-  NamingSnapshot names = 6; WorldViewResult world_view = 7;
+  WorldViewResult world_view = 7;
 }
 // A native exception or failed readback after possible effect is an application
 // outcome, even when transport completed successfully. It is not a safe refusal.
@@ -386,7 +376,6 @@ service PresentationReads {
   rpc Gizmos(ReadRequest) returns (GizmosReply);
   rpc DialogFields(ReadRequest) returns (DialogReply);
   rpc PreviewDialogText(DialogTextPreviewRequest) returns (DialogTextPreviewReply);
-  rpc PreviewNaming(NamingPreviewRequest) returns (NamingPreviewReply);
   rpc Notifications(NotificationsRequest) returns (NotificationsReply);
   rpc RenderState(ReadRequest) returns (RenderReply);
   rpc InputStateRead(ReadRequest) returns (InputStateReply);

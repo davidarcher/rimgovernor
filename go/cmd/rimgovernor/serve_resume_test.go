@@ -185,7 +185,7 @@ func TestAutoResumeBoundsLossCycles(t *testing.T) {
 }
 
 // TestAutoResumeForgivesLossesAfterHealthyPlay is the live stall behind an
-// unanswered naming dialog: losses spread over hours of healthy play must not
+// unanswered force-pausing dialog: losses spread over hours of healthy play must not
 // add up to the give-up bound. A world that holds authority for
 // autoResumeHealthySteps steps between losses is re-acquired every time.
 func TestAutoResumeForgivesLossesAfterHealthyPlay(t *testing.T) {

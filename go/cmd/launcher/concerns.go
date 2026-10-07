@@ -4,7 +4,6 @@ package main
 // rather than the policy package's identifiers. The Now report prints these;
 // an id with no entry prints as given.
 var concernLabels = map[string]string{
-	"ConfirmColonyNames":        "Confirm the colony's names",
 	"AnswerDialog":              "Answer a pending dialog",
 	"ActiveCombat":              "Fight off attackers",
 	"CriticalMedical":           "Save a dying colonist",
