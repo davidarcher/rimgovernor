@@ -120,7 +120,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/presentation_gizmos` | `rimgovernor.presentation.v1.PresentationReads/Gizmos` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.GizmosReply` |
 | `rimgovernor/presentation_input_state_read` | `rimgovernor.presentation.v1.PresentationReads/InputStateRead` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.InputStateReply` |
 | `rimgovernor/presentation_inspect_tabs` | `rimgovernor.presentation.v1.PresentationReads/InspectTabs` | `rimgovernor.presentation.v1.TabsRequest` | `rimgovernor.presentation.v1.TabsReply` |
-| `rimgovernor/presentation_lease_input` | `rimgovernor.presentation.v1.PlayerPresentation/LeaseInput` | `rimgovernor.presentation.v1.InputLeaseRequest` | `rimgovernor.presentation.v1.InputLeaseReply` |
 | `rimgovernor/presentation_main_tabs` | `rimgovernor.presentation.v1.PresentationReads/MainTabs` | `rimgovernor.presentation.v1.TabsRequest` | `rimgovernor.presentation.v1.TabsReply` |
 | `rimgovernor/presentation_notifications` | `rimgovernor.presentation.v1.PresentationReads/Notifications` | `rimgovernor.presentation.v1.NotificationsRequest` | `rimgovernor.presentation.v1.NotificationsReply` |
 | `rimgovernor/presentation_preview_dialog_text` | `rimgovernor.presentation.v1.PresentationReads/PreviewDialogText` | `rimgovernor.presentation.v1.DialogTextPreviewRequest` | `rimgovernor.presentation.v1.DialogTextPreviewReply` |
@@ -128,7 +127,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/presentation_render_state` | `rimgovernor.presentation.v1.PresentationReads/RenderState` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.RenderReply` |
 | `rimgovernor/presentation_screen_targets_read` | `rimgovernor.presentation.v1.PresentationReads/ScreenTargetsRead` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.ScreenTargetsReply` |
 | `rimgovernor/presentation_selection` | `rimgovernor.presentation.v1.PresentationReads/Selection` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.SelectionReply` |
-| `rimgovernor/presentation_send_input` | `rimgovernor.presentation.v1.PlayerPresentation/SendInput` | `rimgovernor.presentation.v1.InputEvent` | `rimgovernor.presentation.v1.InputEventReply` |
 | `rimgovernor/receipts_lookup` | `rimgovernor.receipts.v1.Attempts/Lookup` | `rimgovernor.receipts.v1.LookupRequest` | `rimgovernor.receipts.v1.LookupReply` |
 | `rimgovernor/observations_get_clearance_targets` | `rimgovernor.observations.v1.Observations/GetClearanceTargets` | `rimgovernor.observations.v1.ClearanceTargetsRequest` | `rimgovernor.observations.v1.ClearanceTargetsReply` |
 | `rimgovernor/observations_get_ancient_shrines` | `rimgovernor.observations.v1.Observations/GetAncientShrines` | `rimgovernor.observations.v1.AncientShrinesRequest` | `rimgovernor.observations.v1.AncientShrinesReply` |

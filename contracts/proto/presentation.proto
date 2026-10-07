@@ -14,7 +14,6 @@ message Listing {
   optional bool complete = 3;
   optional bool truncated = 4;
 }
-message ScreenPoint { optional int32 x = 1; optional int32 y = 2; }
 message ScreenRect {
   optional double x = 1; optional double y = 2;
   optional double width = 3; optional double height = 4;
@@ -255,18 +254,10 @@ message NotificationsReply {
   oneof outcome { NotificationsSnapshot notifications = 1; rimgovernor.common.v1.Failure failure = 2; }
 }
 
-// An input lease is separate from native simulation-write and clock leases.
 // Claimed direction/viewer fields never authenticate their own authority.
 message PlayerIdentity {
   rimgovernor.common.v1.Identity identity = 1;
   optional uint64 player_direction = 2; optional string viewer_id = 3;
-}
-message InputLeaseReference { PlayerIdentity player = 1; optional string lease_id = 2; }
-message InputTake { PlayerIdentity player = 1; }
-message InputRenew { InputLeaseReference lease = 1; }
-message InputRelease { InputLeaseReference lease = 1; }
-message InputLeaseRequest {
-  oneof operation { InputTake take = 1; InputRenew renew = 2; InputRelease release = 3; }
 }
 message InputState {
   PlayerIdentity player = 1; optional bool active = 2; optional bool ready = 3;
@@ -278,47 +269,12 @@ message InputState {
   optional uint64 sent_sequence = 12; optional uint64 received_sequence = 13;
   optional uint32 channel_capacity_bytes = 14;
 }
-message InputLeaseGranted { InputLeaseReference lease = 1; InputState state = 2; }
-// Pause or native acquisition may have started before confirmation failed;
-// drafted pawns stay drafted on handoff (#939).
-message InputLeaseUncertain {
-  InputLeaseRequest request = 1; optional string detail = 2;
-  InputState last_observed = 3; InputLeaseReference acquired_lease = 4;
-}
-message InputLeaseReply {
-  oneof outcome {
-    InputLeaseGranted granted = 1; InputState released = 2;
-    rimgovernor.common.v1.Failure refusal = 3; InputLeaseUncertain uncertain = 4;
-  }
-}
 message InputStateReply {
   oneof outcome { InputState state = 1; rimgovernor.common.v1.Failure failure = 2; }
 }
 message FrameReference { optional string source_id = 1; optional uint64 sequence = 2; }
-enum PointerButton { POINTER_BUTTON_UNSPECIFIED = 0; POINTER_BUTTON_LEFT = 1; POINTER_BUTTON_MIDDLE = 2; POINTER_BUTTON_RIGHT = 3; }
-message PointerMove { ScreenPoint position = 1; }
-message PointerButtonEvent { ScreenPoint position = 1; optional PointerButton button = 2; }
-message PointerWheel { ScreenPoint position = 1; optional int32 delta = 2; }
-message KeyEvent { ScreenPoint position = 1; optional string code = 2; }
-message InputEvent {
-  InputLeaseReference lease = 1; FrameReference frame = 2; optional uint64 order = 3;
-  oneof event {
-    PointerMove move = 4; PointerButtonEvent down = 5; PointerButtonEvent up = 6;
-    PointerWheel wheel = 7; KeyEvent key_down = 8; KeyEvent key_up = 9;
-  }
-}
-// Carries the exact immutable lease/frame/order; never replay this event blindly.
-message InputEventUncertain {
-  InputEvent request = 1; optional string detail = 2; InputState last_observed = 3;
-}
-message InputEventReply {
-  oneof outcome {
-    InputState acknowledged = 1; rimgovernor.common.v1.Failure refusal = 2;
-    InputEventUncertain uncertain = 3;
-  }
-}
 
-message PlayerPrecondition { InputLeaseReference lease = 1; CaptureIdentity captured = 2; }
+message PlayerPrecondition { CaptureIdentity captured = 1; }
 message MoveCamera { optional double delta_x = 1; optional double delta_z = 2; }
 message SetCameraZoom { optional double root_size = 1; }
 message SelectPawn { optional string pawn_id = 1; optional bool append = 2; }
@@ -437,8 +393,6 @@ service PresentationReads {
 }
 // Explicit player controls only; cannot be admitted by an adviser or automatic fallback.
 service PlayerPresentation {
-  rpc LeaseInput(InputLeaseRequest) returns (InputLeaseReply);
-  rpc SendInput(InputEvent) returns (InputEventReply);
   rpc Apply(PlayerCommand) returns (PlayerCommandReply);
 }
 service PresentationMedia {

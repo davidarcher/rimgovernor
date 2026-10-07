@@ -20,7 +20,7 @@ composition may reuse `NotificationsSnapshot` without a dependency cycle.
 - `GizmosSnapshot`/`Gizmo`: selection fingerprint, group/owner counts,
   labels/descriptions, visibility/disabled, hotkey, right-click and
   reverse-designator flags. Reading a reverse designator never activates it.
-- `PlayerCommand` branches with `PlayerPrecondition` click, scroll and open/close
+- `PlayerCommand` branches with a `PlayerPrecondition` (captured UI identity) click, scroll and open/close
   main tabs. `ScrollAxis` makes absolute versus relative adjustment explicit.
   Exact main-tab ID replaces label/type matching.
 - `DialogSnapshot`, `SetDialogText`, `PreviewDialogText`: exact window ID,
@@ -55,31 +55,21 @@ native-method branch here. No automatic fallback to UI input is permitted.
 
 `PlayerPresentation` is a separate authenticated explicit-player capability.
 Generated service names and caller-supplied viewer/direction values do not grant
-it. Deny its RPCs to advisers and automated Hands. Taking control must first
-invalidate prior player direction and automation authority, enter Manual, pause
-through the clock owner, (drafted pawns stay drafted), and
-verify actual native pause. `InputLeaseGranted` follows those checks. If pause or
-native acquisition has begun but confirmation fails, return
-`InputLeaseUncertain` with the exact request, any known acquired lease and optional
-last observed input state. A refusal requires proof that no admission effect began;
-an incomplete handoff never acknowledges player readiness. Renew cannot
-resurrect an expired lease; release/expiry/disconnect/load/map changes clear held
-keys/buttons independently of controller cancellation and never resume play.
+it. Deny its RPCs to advisers and automated Hands. `Apply` is its only RPC.
 
-Keep the input viewer/lease distinct from simulation-write authority and clock
+Keep player input distinct from simulation-write authority and clock
 epoch. Player camera, selection, UI and naming commands issued through
 `PlayerPresentation.Apply` (the `confirm_colony_names` branch of `PlayerCommand`)
-require the same current player identity and lease plus a captured UI
-precondition, exactly like every other `Apply` branch; there is no naming-specific
+require a captured UI precondition, exactly like every other `Apply` branch; there is no naming-specific
 carve-out of that boundary. `PresentationReads.PreviewNaming` is a read of the
 same authenticated surface and stays unregistered alongside it.
 
 The initial faction/settlement dialog blocks all play, including automated
-Hands, before any player lease or capture is possible, so gating its
+Hands, before any player capture is possible, so gating its
 confirmation behind `PlayerPresentation` would deadlock autopilot bootstrap.
 Its autopilot-eligible path is instead the `NamingIntent` on Actions/Apply
 (see [operations](operations.md)), applied under the ordinary native authority
-every other automated write uses, not a player lease/capture. Routine control
+every other automated write uses, not a player capture. Routine control
 dispatches the `ConfirmColonyNames` goal (priority 0) through that intent.
 `Apply`'s `confirm_colony_names` branch remains reserved for a future
 player-facing naming review affordance and is deliberately unregistered until
@@ -101,14 +91,12 @@ failed/uncertain dispatch; require new capture/readback before another action.
 `PlayerApplied` carries current observed state, not pawn completion. `Failure`
 means a proven pre-effect refusal. A timeout, transport loss or native exception
 possibly after effect remains uncertain; do not convert it into a safe-to-retry
-failure. `InputEventUncertain` retains the exact immutable lease/source/frame/order
-request and optional last observed input state. `PlayerCommandUncertain` retains
+failure. `PlayerCommandUncertain` retains
 the exact command/capture precondition and optional `PlayerObserved` readback.
 These are explicit application outcomes even when the transport succeeded;
 transport loss can independently create uncertainty. Last observed fields are
 partial evidence, not certification of no effect or permission to retry. Relative
-moves, wheel events and clicks are never replayed blindly. An acknowledgement matches exact source/frame or lease/order;
-these sequences are separate from durable colony operation attempts.
+moves, wheel events and clicks are never replayed blindly.
 
 Only `PreviewNaming` and `PreviewDialogText` describe the existing native dry
 previews. Other UI actions have no speculative execution path. Text writes require
@@ -125,22 +113,12 @@ are native or mod-extensible. Validate keys against the reviewed native `Key`
 whitelist; there is no arbitrary keyboard command string. Every numeric screen,
 scroll, camera, age and duration value must be finite.
 
-- Input owners/viewers/lease tokens: 1..100 characters, no NUL; source IDs 1..200.
+- Viewer IDs: 1..100 characters, no NUL; media source IDs 1..200.
   Other opaque IDs use the common 256 UTF-8-byte/no-NUL rule. Shared diagnostic
   text, including every uncertain detail, uses the common 4096 Unicode-scalar
   bound. Display text and native field/definition names obey the consolidated
   message-size bound; no separate guessed UTF-8 field limit is introduced. Native
   dialog text additionally obeys its observed native maximum length, retaining explicit empty text as a clear operation.
-- Pointer coordinates are within the captured frame, maximum 3840x2160. Buttons
-  are left/middle/right. Wheel delta is exactly -1 or +1; key code length is at most
-  30 characters and must be accepted by the native whitelist. Input order starts
-  at one and is strictly consecutive; source/frame sequences are nonzero and must
-  not wrap. The native frame-age limit is 750 ms. Matching held releases may use
-  the same-scene exception documented in `PrivatePlayerInput.Apply`; all other
-  scene/camera/window/UI checks remain required.
-- The native input lease is 8 real seconds, the controller viewer lease 15
-  seconds, with one 4096-byte outstanding mailbox message and a bounded 500-ms
-  receipt wait. An unacknowledged prior input is uncertain.
 - Render demand lease is 1..30 real seconds (read is a separate RPC).
 - UI capture/click/scroll timeout defaults to 2000 ms with a maximum of 5000 ms.
   World view watch duration is 1..60 seconds.
