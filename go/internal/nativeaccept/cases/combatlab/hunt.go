@@ -31,7 +31,7 @@ const (
 	observeChannelsTool = "test/food_channels_observe"
 )
 
-var huntFamilies = []string{"defense", "tend", "rescue", "acquisition", "work", "bill", "haul", "stockpiles"}
+var huntFamilies = []string{"defense", "tend", "rescue", "acquisition", "work", "bill", "stockpiles"}
 
 func init() {
 	cases.Register(cases.Case{
