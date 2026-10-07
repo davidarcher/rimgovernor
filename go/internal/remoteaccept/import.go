@@ -163,12 +163,6 @@ func Download(api API, p Provenance, output, repo string) error {
 	if err = matchProvenance(e.Run, p); err != nil {
 		return err
 	}
-	if err = VerifySource(repo, e.Run); err != nil {
-		return err
-	}
-	if err = VerifySelectionSource(repo, e.Run, e.Selection); err != nil {
-		return err
-	}
 	if err = rejectSynthetic(e); err != nil {
 		return err
 	}

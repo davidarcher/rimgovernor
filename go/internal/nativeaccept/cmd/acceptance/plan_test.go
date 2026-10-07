@@ -41,11 +41,11 @@ func TestRemotePlanDeterministicCoverage(t *testing.T) {
 	r.Limits.Shards = 32
 	r.Limits.Attempts = 1
 	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
-	p, err := buildSelection(r, planReference{}, nil)
+	p, err := buildSelection(r, planReference{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := buildSelection(r, planReference{}, nil)
+	q, err := buildSelection(r, planReference{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,12 +83,9 @@ func TestRemotePlanDeterministicCoverage(t *testing.T) {
 
 func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	r := examplePlanRun(t)
-	p, err := buildSelection(r, planReference{}, []string{"b", "a", "b"})
+	p, err := buildSelection(r, planReference{})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(p.Files, []string{"a", "b"}) {
-		t.Fatal(p.Files)
 	}
 	// Costs are the committed measured times (remoteaccept.ShardCost), so
 	// light/dark (the slowest) gets a shard to itself.
@@ -100,7 +97,7 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	}
 	// Only committed costs enter the plan; no ambient timing history does.
 	r.Limits.Shards = 32
-	p, err = buildSelection(r, planReference{}, nil)
+	p, err = buildSelection(r, planReference{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +111,7 @@ func TestRemotePlanRejectsBudgets(t *testing.T) {
 	r.Tier = "smoke"
 	r.Limits.Shards = 1
 	r.Limits.SuiteMinutes = 1
-	if _, err := buildSelection(r, planReference{}, nil); err == nil || !strings.Contains(err.Error(), "budgets") {
+	if _, err := buildSelection(r, planReference{}); err == nil || !strings.Contains(err.Error(), "budgets") {
 		t.Fatal(err)
 	}
 }
@@ -124,11 +121,11 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 	r.Tier = "nightly"
 	r.Limits.Shards, r.Limits.Attempts = 32, 1
 	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
-	p, err := buildSelection(r, planReference{}, nil)
+	p, err := buildSelection(r, planReference{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := buildSelection(r, planReference{}, nil)
+	q, err := buildSelection(r, planReference{})
 	if err != nil || !reflect.DeepEqual(p, q) {
 		t.Fatalf("nondeterministic plan: %v", err)
 	}
@@ -177,7 +174,7 @@ func TestNightlySkipsRenderedCases(t *testing.T) {
 	if err := r.validate(); err != nil {
 		t.Fatal(err)
 	}
-	p, err := buildSelection(r, planReference{}, nil)
+	p, err := buildSelection(r, planReference{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +228,7 @@ func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 	}
 }
 
-func TestRemoteComparisonHistoryAndRename(t *testing.T) {
+func TestRemoteTestedCheckout(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	repo := t.TempDir()
 	git := func(args ...string) string {
@@ -259,41 +256,29 @@ func TestRemoteComparisonHistoryAndRename(t *testing.T) {
 	git("mv", " old.txt", "new.txt")
 	git("commit", "-m", "rename")
 	r.Head = git("rev-parse", "HEAD")
-	if _, err := planComparison(repo, r, false); err == nil {
+	if err := checkTestedCheckout(repo, r); err == nil {
 		t.Fatal("accepted attached branch")
 	}
 	git("checkout", "--detach")
-	files, err := planComparison(repo, r, false)
-	if err != nil {
+	if err := checkTestedCheckout(repo, r); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(files, []string{" old.txt", "new.txt"}) {
-		t.Fatal(files)
-	}
 	write("new.txt", "dirty")
-	if _, err := planComparison(repo, r, false); err == nil {
+	if err := checkTestedCheckout(repo, r); err == nil {
 		t.Fatal("accepted dirty checkout")
 	}
 	git("restore", "new.txt")
 	write("injected.go", "package main")
-	if _, err := planComparison(repo, r, false); err == nil {
+	if err := checkTestedCheckout(repo, r); err == nil {
 		t.Fatal("accepted untracked source")
 	}
 	if err := os.Remove(filepath.Join(repo, "injected.go")); err != nil {
 		t.Fatal(err)
 	}
-	r.Base = strings.Repeat("e", 40)
-	if _, err := planComparison(repo, r, false); err == nil {
-		t.Fatal("missing history became empty success")
-	}
-	r.Base = r.Head
 	git("checkout", "--detach", "HEAD^")
 	r.Head = git("rev-parse", "HEAD")
-	if _, err := planComparison(repo, r, false); err == nil {
-		t.Fatal("accepted non-ancestor")
-	}
-	// Smoke explicitly allows an equal base/head. Exercise the complete CLI
-	// and verify that provenance hashes the original bytes, not reserialized JSON.
+	// Exercise the complete CLI and verify that provenance hashes the original
+	// bytes, not reserialized JSON.
 	r.Base = r.Head
 	raw, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
@@ -312,7 +297,7 @@ func TestRemoteComparisonHistoryAndRename(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &p); err != nil {
 		t.Fatal(err)
 	}
-	if p.Run.SHA256 != fmt.Sprintf("%x", sha256.Sum256(raw)) || p.Commit != r.Head || len(p.Files) != 0 || len(p.Shards) != 2 {
+	if p.Run.SHA256 != fmt.Sprintf("%x", sha256.Sum256(raw)) || p.Commit != r.Head || len(p.Shards) != 2 {
 		t.Fatalf("bad provenance: %+v", p)
 	}
 }
@@ -327,11 +312,11 @@ func TestRemotePlanRouteRejectsMissingRun(t *testing.T) {
 func TestRemotePlanRequestedCases(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier = "cases"
-	if _, err := buildSelection(r, planReference{}, nil); err == nil {
+	if _, err := buildSelection(r, planReference{}); err == nil {
 		t.Fatal("cases tier without a list planned")
 	}
 	r.Cases = []string{"smoke/identity", "light", "smoke/identity"}
-	p, err := buildSelection(r, planReference{}, nil)
+	p, err := buildSelection(r, planReference{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,11 +334,11 @@ func TestRemotePlanRequestedCases(t *testing.T) {
 		t.Fatal(names)
 	}
 	r.Cases = []string{"no/such"}
-	if _, err := buildSelection(r, planReference{}, nil); err == nil || !strings.Contains(err.Error(), "no/such") {
+	if _, err := buildSelection(r, planReference{}); err == nil || !strings.Contains(err.Error(), "no/such") {
 		t.Fatal(err)
 	}
 	r.Tier, r.Cases = "smoke", []string{"light"}
-	if _, err := buildSelection(r, planReference{}, nil); err == nil {
+	if _, err := buildSelection(r, planReference{}); err == nil {
 		t.Fatal("smoke tier accepted a case list")
 	}
 }

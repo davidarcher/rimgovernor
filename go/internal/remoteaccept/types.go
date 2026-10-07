@@ -50,8 +50,6 @@ type Selection struct {
 	Version   int            `json:"schema_version"`
 	Run       Ref            `json:"run"`
 	Planner   string         `json:"planner_commit"`
-	DiffMode  string         `json:"diff_mode"`
-	Changed   []string       `json:"changed_files"`
 	Cases     []SelectedCase `json:"cases"`
 	Algorithm string         `json:"algorithm"`
 	Shards    []PlannedShard `json:"shards"`

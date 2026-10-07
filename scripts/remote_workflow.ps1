@@ -165,7 +165,7 @@ switch ($Phase) {
         $run = Read-JSON (Join-Path $Evidence 'run.json')
         Push-Location (Join-Path $Repo 'go')
         try {
-            $selection = & go run ./internal/nativeaccept/cmd/acceptance plan -evidence $Evidence -run run.json -fetch 2> (Join-Path $Evidence 'planner.log')
+            $selection = & go run ./internal/nativeaccept/cmd/acceptance plan -evidence $Evidence -run run.json 2> (Join-Path $Evidence 'planner.log')
             if ($LASTEXITCODE) {
                 $diagnostic = Get-Content -LiteralPath (Join-Path $Evidence 'planner.log') -Raw
                 throw "Planner rejected the complete selection: $diagnostic"

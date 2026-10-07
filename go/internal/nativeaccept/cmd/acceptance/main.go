@@ -199,7 +199,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 const usage = `usage:
-  acceptance plan -evidence <root> -run <relative run.json> [-fetch]
+  acceptance plan -evidence <root> -run <relative run.json>
 ` + listUsage + `
   acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>] -break stage=<name>|tick=<n>|minute=<m> -through <stage>]
     -through <stage> ends the run once that stage's bundle is cached (a suite -stages worker; the report carries staged_through);

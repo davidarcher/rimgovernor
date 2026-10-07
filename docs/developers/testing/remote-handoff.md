@@ -12,11 +12,9 @@ published tested revision.
 ## Prepare the request
 
 Commit the ready milestone and run `go run ./cmd/test` from `go/`. Record the
-full tested commit and its ancestor comparison base, the reviewed workflow
-commit, bundle manifest SHA-256, tier and shard count. Use smoke for the normal
-landing gate, land for affected-area proof, and full for the nightly registry.
-Land requires different base and tested commits. Do not use a moving `main`
-comparison or manually trim the planner's case list.
+full tested commit, the reviewed workflow
+commit, bundle manifest SHA-256, tier (smoke, nightly or cases) and shard count. Do not manually
+trim the planner's case list.
 
 Before dispatch, use a clean detached checkout of the tested commit and the
 [planning command](../contracts/remote-acceptance.md#planning-command) to check

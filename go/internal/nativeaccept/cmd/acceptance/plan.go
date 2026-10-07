@@ -75,8 +75,6 @@ type remoteSelection struct {
 	Version   int                        `json:"schema_version"`
 	Run       planReference              `json:"run"`
 	Commit    string                     `json:"planner_commit"`
-	DiffMode  string                     `json:"diff_mode"`
-	Files     []string                   `json:"changed_files"`
 	Cases     []plannedCase              `json:"cases"`
 	Skipped   []remoteaccept.SkippedCase `json:"skipped,omitempty"`
 	Algorithm string                     `json:"algorithm"`
@@ -199,72 +197,34 @@ func planGit(repo string, args ...string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, b)
 	}
-	// NUL-delimited paths may themselves start with whitespace.
-	if slices.Contains(args, "-z") {
-		return string(b), nil
-	}
 	return strings.TrimSpace(string(b)), nil
 }
 
-func planComparison(repo string, r planRun, fetch bool) ([]string, error) {
+// checkTestedCheckout refuses a planner checkout that is not the clean,
+// detached tested commit: the registry the plan reads is compiled from it.
+func checkTestedCheckout(repo string, r planRun) error {
 	head, err := planGit(repo, "rev-parse", "HEAD")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if head != r.Head {
-		return nil, fmt.Errorf("checkout HEAD must equal tested_commit %s", r.Head)
+		return fmt.Errorf("checkout HEAD must equal tested_commit %s", r.Head)
 	}
 	if ref, _ := planGit(repo, "symbolic-ref", "-q", "HEAD"); ref != "" {
-		return nil, fmt.Errorf("planner requires a detached tested checkout")
+		return fmt.Errorf("planner requires a detached tested checkout")
 	}
 	dirty, err := planGit(repo, "status", "--porcelain", "--untracked-files=all")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if dirty != "" {
-		return nil, fmt.Errorf("planner requires a clean checkout, including untracked source")
+		return fmt.Errorf("planner requires a clean checkout, including untracked source")
 	}
-	if fetch {
-		// Pin both fetches to immutable IDs in the run's same repository.
-		remote := "https://github.com/" + r.Repository + ".git"
-		args := []string{"fetch", "--no-tags", remote, r.Base, r.Head}
-		shallow, err := planGit(repo, "rev-parse", "--is-shallow-repository")
-		if err != nil {
-			return nil, err
-		}
-		if shallow == "true" {
-			args = append([]string{"fetch", "--unshallow", "--no-tags", remote}, r.Base, r.Head)
-		}
-		if _, err := planGit(repo, args...); err != nil {
-			return nil, fmt.Errorf("fetch comparison history: %w", err)
-		}
-	}
-	for _, oid := range []string{r.Base, r.Head} {
-		resolved, err := planGit(repo, "rev-parse", "--verify", oid+"^{commit}")
-		if err != nil || resolved != oid {
-			return nil, fmt.Errorf("comparison commit %s unavailable: %v", oid, err)
-		}
-	}
-	if _, err := planGit(repo, "merge-base", "--is-ancestor", r.Base, r.Head); err != nil {
-		return nil, fmt.Errorf("base is not a proven ancestor (fetch complete history): %w", err)
-	}
-	// --no-renames represents renames as delete+add, retaining both paths.
-	raw, err := planGit(repo, "diff", "--no-renames", "--name-only", "-z", r.Base, r.Head, "--")
-	if err != nil {
-		return nil, err
-	}
-	files := []string{}
-	for _, f := range strings.Split(raw, "\x00") {
-		if f != "" {
-			files = append(files, f)
-		}
-	}
-	slices.Sort(files)
-	return slices.Compact(files), nil
+	return nil
 }
 
-func buildSelection(r planRun, ref planReference, files []string) (remoteSelection, error) {
-	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, DiffMode: "ancestor-tree", Files: append([]string{}, files...), Algorithm: remoteaccept.BudgetAlgorithm}
+func buildSelection(r planRun, ref planReference) (remoteSelection, error) {
+	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, Algorithm: remoteaccept.BudgetAlgorithm}
 	if err := r.validate(); err != nil {
 		return p, err
 	}
@@ -285,8 +245,6 @@ func buildSelection(r planRun, ref planReference, files []string) (remoteSelecti
 			return p, err
 		}
 	}
-	slices.Sort(p.Files)
-	p.Files = slices.Compact(p.Files)
 	slices.SortFunc(selected, func(a, b cases.Case) int { return strings.Compare(a.Name, b.Name) })
 	// Hosted Windows has no usable GPU. Keep exclusions explicit and remove
 	// them before assigning shards or charging execution budgets.
@@ -375,13 +333,12 @@ func plan(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	path := fs.String("run", "", "run.json path relative to evidence root")
 	root := fs.String("evidence", ".", "evidence root")
-	fetch := fs.Bool("fetch", false, "fetch exact comparison history from run.repository")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	fail := func(err error) int { fmt.Fprintln(stderr, err); return 2 }
 	if fs.NArg() != 0 || !validPlanPath(*path) {
-		return fail(fmt.Errorf("usage: acceptance plan -evidence <root> -run <relative run.json> [-fetch]"))
+		return fail(fmt.Errorf("usage: acceptance plan -evidence <root> -run <relative run.json>"))
 	}
 	// os.Root prevents a reference escaping through a filesystem link.
 	dir, err := os.OpenRoot(*root)
@@ -401,11 +358,10 @@ func plan(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return fail(fmt.Errorf("planner requires a git checkout"))
 	}
-	files, err := planComparison(repo, r, *fetch)
-	if err != nil {
+	if err := checkTestedCheckout(repo, r); err != nil {
 		return fail(err)
 	}
-	p, err := buildSelection(r, planReference{Path: *path, SHA256: fmt.Sprintf("%x", sha256.Sum256(raw))}, files)
+	p, err := buildSelection(r, planReference{Path: *path, SHA256: fmt.Sprintf("%x", sha256.Sum256(raw))})
 	if err != nil {
 		return fail(err)
 	}

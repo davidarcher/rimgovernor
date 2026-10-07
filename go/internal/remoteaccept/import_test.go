@@ -158,7 +158,6 @@ func importFixture(t *testing.T) (recordedAPI, Provenance, string, Run) {
 	var selection Selection
 	readTest(t, source, "selection.json", &selection)
 	selection.Run, selection.Planner = r, head
-	selection.Changed = []string{"task.txt"}
 	s := add("selection.json", jsonBytes(t, selection))
 	var aggregate Aggregate
 	readTest(t, source, "aggregate.json", &aggregate)
@@ -260,16 +259,6 @@ func TestArchiveRejectsEscapesLinksAndCollisions(t *testing.T) {
 		t.Fatal("accepted archive link")
 	}
 }
-func TestSourceAllowsEquivalentCherryPick(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	repo, base, head := sourceRepo(t)
-	testGit(t, repo, "checkout", "-qb", "equivalent", base)
-	testGit(t, repo, "cherry-pick", head)
-	if err := VerifySource(repo, Run{TestedCommit: head, BaseCommit: base}); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestActionsCancellationAndForeignRepositoryFail(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	api, p, _, _ := importFixture(t)

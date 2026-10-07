@@ -5,10 +5,6 @@
     "sha256": "0b04a1dfcb42b377fbb2f3aa2d4c350816b7f668e4793c0b03c43d2d321c221d"
   },
   "planner_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "diff_mode": "ancestor-tree",
-  "changed_files": [
-    "docs/developers/contracts/remote-acceptance.md"
-  ],
   "cases": [
     {
       "name": "light/dark",

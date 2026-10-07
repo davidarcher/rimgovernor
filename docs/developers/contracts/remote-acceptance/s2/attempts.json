@@ -6,7 +6,7 @@
   },
   "selection": {
     "path": "selection.json",
-    "sha256": "33c5773be8883deffe00f5cf3c54e4450f4dc0ca9d17a5ee86896f445ee9db33"
+    "sha256": "a9656badf17c0d34d270e8e0f1bb8641e31e0bc906abc8b42d0614b7be227985"
   },
   "shard_id": "s2",
   "runner": {

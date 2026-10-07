@@ -52,19 +52,11 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		return e, err
 	}
 	s := e.Selection
-	if s.Version != 1 || s.Run != runRef || s.Planner != r.TestedCommit || s.DiffMode != "ancestor-tree" || (s.Algorithm != "sorted-round-robin-v1" && s.Algorithm != DependencyAlgorithm && s.Algorithm != BudgetAlgorithm) {
+	if s.Version != 1 || s.Run != runRef || s.Planner != r.TestedCommit || (s.Algorithm != "sorted-round-robin-v1" && s.Algorithm != DependencyAlgorithm && s.Algorithm != BudgetAlgorithm) {
 		return e, fmt.Errorf("selection identity/version/algorithm mismatch")
 	}
 	if len(s.Cases) == 0 || len(s.Shards) == 0 || len(s.Shards) > l.Shards {
 		return e, fmt.Errorf("empty or oversized selection")
-	}
-	if !sort.StringsAreSorted(s.Changed) {
-		return e, fmt.Errorf("changed files not sorted")
-	}
-	for i, p := range s.Changed {
-		if !validPath(p) || (i > 0 && p == s.Changed[i-1]) {
-			return e, fmt.Errorf("invalid changed files")
-		}
 	}
 	planned := map[string]string{}
 	names := []string{}
