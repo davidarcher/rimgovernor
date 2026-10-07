@@ -30,4 +30,7 @@ type WasteItem struct {
 	RotStage domain.RotStage
 	// Grave is the holding grave's ID for a buried corpse.
 	Grave string
+	// EverBuriedInSarcophagus is the corpse's vanilla flag: a re-burial fires no
+	// memory, so it is never owed a sarcophagus (#2342).
+	EverBuriedInSarcophagus bool
 }

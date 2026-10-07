@@ -186,6 +186,8 @@ func tombCensus(waste []WasteItem, built []CurrentBuilding, sarcophagus string, 
 			filled[item.Grave] = true
 		case item.CorpseOf == domain.CorpseColonist:
 			step.Dead++
+		case item.EverBuriedInSarcophagus:
+			// Vanilla fires no memory on a re-burial (#2342): the morgue's.
 		default:
 			stranded++
 		}

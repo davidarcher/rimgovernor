@@ -16917,9 +16917,12 @@ type WasteItem struct {
 	Eligible        *bool                  `protobuf:"varint,8,opt,name=eligible,proto3,oneof" json:"eligible,omitempty"`
 	ProtectedReason *string                `protobuf:"bytes,9,opt,name=protected_reason,json=protectedReason,proto3,oneof" json:"protected_reason,omitempty"`
 	// A corpse's inner pawn; unset for non-corpses.
-	CorpseClass   *commonpb.CorpseClass `protobuf:"varint,11,opt,name=corpse_class,json=corpseClass,proto3,enum=rimgovernor.common.v1.CorpseClass,oneof" json:"corpse_class,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CorpseClass *commonpb.CorpseClass `protobuf:"varint,11,opt,name=corpse_class,json=corpseClass,proto3,enum=rimgovernor.common.v1.CorpseClass,oneof" json:"corpse_class,omitempty"`
+	// A corpse's vanilla everBuriedInSarcophagus: set once it has lain in a
+	// sarcophagus, after which a re-burial fires no memory (#2342).
+	EverBuriedInSarcophagus *bool `protobuf:"varint,12,opt,name=ever_buried_in_sarcophagus,json=everBuriedInSarcophagus,proto3,oneof" json:"ever_buried_in_sarcophagus,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *WasteItem) Reset() {
@@ -17020,6 +17023,13 @@ func (x *WasteItem) GetCorpseClass() commonpb.CorpseClass {
 		return *x.CorpseClass
 	}
 	return commonpb.CorpseClass(0)
+}
+
+func (x *WasteItem) GetEverBuriedInSarcophagus() bool {
+	if x != nil && x.EverBuriedInSarcophagus != nil {
+		return *x.EverBuriedInSarcophagus
+	}
+	return false
 }
 
 type WasteSnapshot struct {
@@ -46424,7 +46434,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.HusbandrySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x80\x05\n" +
+	"\aoutcome\"\xe1\x05\n" +
 	"\tWasteItem\x120\n" +
 	"\x05thing\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05thing\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x03H\x00R\x05count\x88\x01\x01\x12E\n" +
@@ -46435,7 +46445,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x04kind\x18\a \x01(\x0e2&.rimgovernor.observations.v1.WasteKindH\x03R\x04kind\x88\x01\x01\x12\x1f\n" +
 	"\beligible\x18\b \x01(\bH\x04R\beligible\x88\x01\x01\x12.\n" +
 	"\x10protected_reason\x18\t \x01(\tH\x05R\x0fprotectedReason\x88\x01\x01\x12J\n" +
-	"\fcorpse_class\x18\v \x01(\x0e2\".rimgovernor.common.v1.CorpseClassH\x06R\vcorpseClass\x88\x01\x01B\b\n" +
+	"\fcorpse_class\x18\v \x01(\x0e2\".rimgovernor.common.v1.CorpseClassH\x06R\vcorpseClass\x88\x01\x01\x12@\n" +
+	"\x1aever_buried_in_sarcophagus\x18\f \x01(\bH\aR\x17everBuriedInSarcophagus\x88\x01\x01B\b\n" +
 	"\x06_countB\b\n" +
 	"\x06_stateB\f\n" +
 	"\n" +
@@ -46443,7 +46454,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x05_kindB\v\n" +
 	"\t_eligibleB\x13\n" +
 	"\x11_protected_reasonB\x0f\n" +
-	"\r_corpse_class\"\x92\x01\n" +
+	"\r_corpse_classB\x1d\n" +
+	"\x1b_ever_buried_in_sarcophagus\"\x92\x01\n" +
 	"\rWasteSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05items\x18\x02 \x03(\v2&.rimgovernor.observations.v1.WasteItemR\x05items\"\xe5\x01\n" +

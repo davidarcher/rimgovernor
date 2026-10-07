@@ -899,7 +899,10 @@ message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgove
 enum WasteLocation { WASTE_LOCATION_UNSPECIFIED = 0; WASTE_LOCATION_EXPOSED = 1; WASTE_LOCATION_RELOCATED = 2; WASTE_LOCATION_BURIED = 3; }
 message WasteItem { rimgovernor.common.v1.Ref thing = 1; optional int64 count = 2; optional WasteLocation state = 3; rimgovernor.common.v1.Ref zone = 4; rimgovernor.common.v1.Ref grave = 5; optional rimgovernor.common.v1.RotStage rot_stage = 6; optional WasteKind kind = 7; optional bool eligible = 8; optional string protected_reason = 9;
   // A corpse's inner pawn; unset for non-corpses.
-  optional rimgovernor.common.v1.CorpseClass corpse_class = 11; }
+  optional rimgovernor.common.v1.CorpseClass corpse_class = 11;
+  // A corpse's vanilla everBuriedInSarcophagus: set once it has lain in a
+  // sarcophagus, after which a re-burial fires no memory (#2342).
+  optional bool ever_buried_in_sarcophagus = 12; }
 message WasteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WasteItem items = 2; }
 message WasteReply { oneof outcome { WasteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RecoveryRestriction { rimgovernor.common.v1.Ref pawn = 1; optional string area_id = 2; optional bool leased = 3; optional int64 until_tick = 4; }

@@ -100,6 +100,7 @@ namespace HomeBridge.BridgeTools
                 if (rot != null) row.RotStage = NativeEnums.Rot(rot.Stage);
                 var of = CorpseOf(thing);
                 if (of != null) row.CorpseClass = of.Value;
+                if ((thing as Corpse)?.everBuriedInSarcophagus == true) row.EverBuriedInSarcophagus = true;
                 items.Add(row);
             }
             foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
@@ -109,6 +110,7 @@ namespace HomeBridge.BridgeTools
                         Eligible = false, State = Obs.WasteLocation.Buried, Grave = NativeRef.Of(Id(grave)) };
                     var of = CorpseOf(body);
                     if (of != null) row.CorpseClass = of.Value;
+                    if (body.everBuriedInSarcophagus) row.EverBuriedInSarcophagus = true;
                     items.Add(row);
                 }
             var snapshot = new Obs.WasteSnapshot { Context = context.Clone()};
