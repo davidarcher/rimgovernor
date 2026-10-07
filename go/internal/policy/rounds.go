@@ -581,10 +581,10 @@ type RoundsFacts struct {
 	ChoiceDialog domain.Fact[bool]
 	// ButcherBenches are the standing butcher benches and the room each stands
 	// in; MaintainButcherSpot is recovered once one stands outside the kitchen.
-	ButcherBenches                                                       domain.Fact[[]ButcherBench]
-	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
-	PowerWeatherSafe                                                     domain.Fact[bool]
-	ShortCircuitTick                                                     domain.Fact[domain.Tick]
+	ButcherBenches                                          domain.Fact[[]ButcherBench]
+	Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
+	PowerWeatherSafe                                        domain.Fact[bool]
+	ShortCircuitTick                                        domain.Fact[domain.Tick]
 }
 
 // The foothold facts below are read live from one review's facts: the
@@ -645,7 +645,7 @@ func DisasterServiceFacts(f RoundsFacts, p RoundsPolicy) map[DisasterService]dom
 	return map[DisasterService]domain.Fact[bool]{
 		DisasterFood: footholdFood(f, p), DisasterProduction: footholdProduction(f), DisasterSleeping: footholdSleeping(f),
 		DisasterShelter: footholdShelter(f), DisasterTemperature: footholdTemperature(f, p), DisasterCooking: f.Cooking,
-		DisasterPower: footholdPower(f), DisasterStorage: f.FoodStorage,
+		DisasterPower: footholdPower(f), DisasterStorage: FoodStorageStanding(f),
 	}
 }
 

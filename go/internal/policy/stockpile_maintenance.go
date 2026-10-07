@@ -172,6 +172,25 @@ type StockpileRoleCount struct {
 	Used  int
 }
 
+// foodStorageRoles are the role kinds of the department-owned food store.
+var foodStorageRoles = map[string]bool{"meals": true, "rawfood": true, "rawmeat": true, "rawveg": true, "perishables": true, "ingredients": true}
+
+// FoodStorageStanding is "food storage exists" (#2226): at least one standing
+// owned zone of a food role kind (a zone the player flagged as food storage
+// does not count). Unknown until the zone claims are read, never "missing".
+func FoodStorageStanding(f RoundsFacts) domain.Fact[bool] {
+	counts, known := f.StockpileZones.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	for _, c := range counts {
+		if foodStorageRoles[c.Role] && c.Zones > 0 {
+			return domain.Known(true)
+		}
+	}
+	return domain.Known(false)
+}
+
 // StockpileRoleCounts counts the owned zones by role kind, sorted by role.
 func StockpileRoleCounts(zones []StockpileZone) []StockpileRoleCount {
 	byRole := map[string]*StockpileRoleCount{}

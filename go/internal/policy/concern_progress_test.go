@@ -109,7 +109,7 @@ func TestGoalProgressCooldownLiftsWhenConditionChanges(t *testing.T) {
 }
 
 func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T) {
-	f := RoundsFacts{FoodDays: domain.Known(3.5), Cooking: domain.Known(false), FoodStorage: domain.Known(true)}
+	f := RoundsFacts{FoodDays: domain.Known(3.5), Cooking: domain.Known(false), StockpileZones: domain.Known([]StockpileRoleCount{{Role: "meals", Zones: 1}})}
 	c, prerequisite, observed := FoodProgress(f, DefaultRoundsPolicy(), false)
 	if v, known := observed.Value(); c.Method != "cook" || prerequisite != EnsureCooking || !known || v != 0.5 {
 		t.Fatalf("cook rung %+v %s %v", c, prerequisite, observed)
@@ -119,7 +119,7 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	if c.Method != "acquire" || prerequisite != EnsureCooking {
 		t.Fatalf("acquire rung keeps the bench prerequisite %+v %s", c, prerequisite)
 	}
-	f.FoodDays, f.Cooking, f.FoodStorage = domain.Known(3.5), domain.Known(true), domain.Known(false)
+	f.FoodDays, f.Cooking, f.StockpileZones = domain.Known(3.5), domain.Known(true), domain.Known([]StockpileRoleCount{{Role: "general", Zones: 1}})
 	if c, prerequisite, _ = FoodProgress(f, DefaultRoundsPolicy(), true); c.Method != "store" || prerequisite != MaintainFoodStorage {
 		t.Fatalf("store rung %+v %s", c, prerequisite)
 	}
@@ -127,7 +127,7 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	if c, prerequisite, _ = FoodProgress(f, DefaultRoundsPolicy(), false); c.Method != "grow" || prerequisite != "" {
 		t.Fatalf("store rung without a method %+v %s", c, prerequisite)
 	}
-	f.FoodStorage = domain.Known(true)
+	f.StockpileZones = domain.Known([]StockpileRoleCount{{Role: "meals", Zones: 1}})
 	if c, prerequisite, _ = FoodProgress(f, DefaultRoundsPolicy(), false); c.Method != "grow" || prerequisite != "" {
 		t.Fatalf("grow rung %+v %s", c, prerequisite)
 	}

@@ -32,7 +32,6 @@ func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.C
 	projection.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "Room_4", Role: domain.Known(policy.RoomRoleDiningRoom), Enclosed: domain.Known(true), Cells: roomCells}}})
 	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}, Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}}})
 	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{Surfaces: []policy.DiningSurface{{ID: "Table_1", RoomID: "Room_4", Adjacent: adjacent}}})
-	projection.Facts.FoodStorage = domain.Known(true)
 	var consumers []policy.FoodConsumer
 	for i, need := range needs {
 		consumers = append(consumers, policy.FoodConsumer{ID: policy.PawnID(rune('a' + i)), NutritionPerDay: domain.Known(need)})

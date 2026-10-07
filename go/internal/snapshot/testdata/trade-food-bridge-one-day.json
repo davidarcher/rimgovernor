@@ -2602,9 +2602,6 @@
     "TargetNutrition": 64.00000095367432
    }
   },
-  "FoodStorage": {
-   "v": false
-  },
   "FoodStorageUpkeep": {
    "ChilledMaxC": 10,
    "Larder": {

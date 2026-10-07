@@ -144,7 +144,7 @@ func TestDisasterHistoryRejectsFalseRecoveryAndAliasing(t *testing.T) {
 }
 
 func TestRoundsDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
-	f := RoundsFacts{Colonists: domain.Known(int64(3)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), FoodDays: domain.Known(10.0), FieldCoverage: domain.Known(1.0), FoodStorage: domain.Known(true), Cooking: domain.Known(true), PowerRequired: domain.Known(false), DisabledConsumers: domain.Known(false), SleepingMin: domain.Known(0.0), SleepingMax: domain.Known(22.0), Wood: domain.Known(int64(0)), DisasterConditions: domain.Known([]DisasterCondition{{ID: "cold", Definition: "ColdSnap"}}), RecoveryBuildings: domain.Known([]RecoveryBuilding{}), DisasterTick: 10}
+	f := RoundsFacts{Colonists: domain.Known(int64(3)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), FoodDays: domain.Known(10.0), FieldCoverage: domain.Known(1.0), StockpileZones: domain.Known([]StockpileRoleCount{{Role: "meals", Zones: 1}}), Cooking: domain.Known(true), PowerRequired: domain.Known(false), DisabledConsumers: domain.Known(false), SleepingMin: domain.Known(0.0), SleepingMax: domain.Known(22.0), Wood: domain.Known(int64(0)), DisasterConditions: domain.Known([]DisasterCondition{{ID: "cold", Definition: "ColdSnap"}}), RecoveryBuildings: domain.Known([]RecoveryBuilding{}), DisasterTick: 10}
 	r, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil || r.Disaster.Phase != DisasterDisrupted {
 		t.Fatal(r.Disaster, err)

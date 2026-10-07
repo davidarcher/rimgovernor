@@ -23,7 +23,6 @@ import (
 // the herd's race; the misc unit's carry none. The plan is a saved blob, so
 // the key is stored. Saves regenerate, so a plan without keys is not
 // matched: its units all join the misc unit.
-// Out of scope here: RoundsFacts.FoodStorage is still read (#2226, second half).
 
 const (
 	// ReserveBarn is the roofed barn where the herd sleeps.

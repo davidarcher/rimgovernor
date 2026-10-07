@@ -383,7 +383,7 @@ func ProductionBlockedConcern(progress []ConcernProgress) (ConcernID, BlockedRea
 // progress records.
 func StageColonyFacts(needs RoundsFindings, f RoundsFacts, p RoundsPolicy, progress []ConcernProgress) ColonyStageFacts {
 	facts := ColonyStageFacts{
-		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: f.FoodStorage, Armed: footholdArmed(f),
+		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: FoodStorageStanding(f), Armed: footholdArmed(f),
 		FoodDays:  f.FoodDays,
 		FieldSown: allFacts(footholdProduction(f), measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })),
 		WoodShort: needs.Latches.Wood, ResearchBench: ResearchBenchBuilt(f.CurrentConstruction),

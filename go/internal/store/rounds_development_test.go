@@ -137,7 +137,13 @@ func TestRoundsDevelopmentReloadsFoodStorageRow(t *testing.T) {
 	defer s.Close()
 	r := roundsRequest()
 	record := reviewRounds(t, s, &r).Review
-	record.Development.Rows[0].Concern = policy.MaintainFoodStorage
+	ranked := false
+	for _, row := range record.Development.Rows {
+		ranked = ranked || row.Concern == policy.MaintainFoodStorage
+	}
+	if !ranked {
+		record.Development.Rows[0].Concern = policy.MaintainFoodStorage
+	}
 	payload, err := json.Marshal(record)
 	if err != nil {
 		t.Fatal(err)

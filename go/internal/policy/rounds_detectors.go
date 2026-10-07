@@ -575,7 +575,8 @@ func inspectFoodStorage(c *roundsRun) error {
 	reserve, reserveKnown := f.FoodReserve.Value()
 	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
 	reserveRefill := reserveKnown && !reserve.Emergency && reserve.DeficitNutrition > 0
-	stockpileOwed := !positive(f.FoodStorage)
+	// Unread claims are not yet known, never "missing" (#2226).
+	stockpileOwed := negative(FoodStorageStanding(f))
 	active := c.foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage] || reserveAccess || reserveRefill
 	recovered := domain.Unknown[bool]()
 	priority := foodStorageUpkeepPriority
@@ -594,7 +595,7 @@ func inspectFoodStorage(c *roundsRun) error {
 	if reserveAccess || reserveRefill {
 		recovered = domain.Known(false)
 	}
-	recovered = allFacts(f.FoodStorage, recovered)
+	recovered = allFacts(domain.Known(!stockpileOwed), recovered)
 	c.assess(MaintainFoodStorage, priority, recovered)
 	if !positive(recovered) {
 		c.raise(MaintainFoodStorage, priority).MethodUnavailable = !stockpileOwed && larder.Kind == "" && !reserveAccess && !reserveRefill

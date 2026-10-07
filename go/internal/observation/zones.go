@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -60,16 +59,13 @@ func FillZones(ctx context.Context, native ZonesNative, id *c.Identity, expected
 
 func applyZones(p *ColonyProjection, read bridge.ZonesRead) {
 	farms := make([]*o.FarmFacts, 0)
-	storage := false
 	p.Farms = nil
 	for _, row := range read.Rows {
-		storage = storage || row.GetFoodStorage()
 		if farm := row.Farm; farm != nil {
 			farms = append(farms, farm)
 			p.Farms = append(p.Farms, FarmZoneFact{ID: row.GetId(), Crop: farm.GetCrop(), UsableCells: optional(farm.UsableCells)})
 		}
 	}
-	p.Facts.FoodStorage = domain.Known(storage)
 	zoneProduction(farms, &p.Facts)
 	p.FieldCrops = colonyFieldCrops(farms, p.Definitions)
 	p.FoodFields = colonyFoodFields(farms, p.Definitions, p.Facts.Calendar)

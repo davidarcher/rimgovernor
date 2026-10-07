@@ -454,7 +454,7 @@ func FoodProgress(f RoundsFacts, p RoundsPolicy, storageOpen bool) (ProgressCont
 		return ProgressContract{Method: "acquire", Expected: "food days rise toward the target", Deadline: deadline}, prerequisite, observed
 	case owed(f.Cooking):
 		return ProgressContract{Method: "cook", Expected: "meals cooked at a bench", Deadline: deadline}, prerequisite, observed
-	case owed(f.FoodStorage) && storageOpen:
+	case owed(FoodStorageStanding(f)) && storageOpen:
 		return ProgressContract{Method: "store", Expected: "raw food stored under a roof", Deadline: deadline}, MaintainFoodStorage, observed
 	default:
 		return ProgressContract{Method: "grow", Expected: "growing zone planted to the field target", Deadline: deadline}, prerequisite, observed

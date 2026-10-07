@@ -28,20 +28,19 @@ func TestPoliciesUseZonesNotAggregateZoneFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, storageKnown := p.Facts.FoodStorage.Value()
 	_, growingKnown := p.Facts.GrowingCells.Value()
-	if storageKnown || growingKnown || len(p.Farms) > 0 {
+	if growingKnown || len(p.Farms) > 0 {
 		t.Fatal("aggregate supplied zone policy facts")
 	}
 	farm := &o.FarmFacts{Zone: &commonpb.Ref{Id: proto.String("Zone_1")}, Crop: proto.String("Rice"), UsableCells: proto.Uint32(20), EdibleCrop: proto.Bool(true)}
 	withGrowth(farm, 10)
 	p.Definitions = []PlanningDefinition{{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}}
 	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{{Id: farm.Zone.Id, Farm: farm, FoodStorage: proto.Bool(false)}, {Id: proto.String("Zone_2"), FoodStorage: proto.Bool(true)}}})
-	if p.Facts.FoodStorage != domain.Known(true) || p.Facts.GrowingCells != domain.Known(int64(10)) || len(p.Farms) != 1 || p.Farms[0].ID != "Zone_1" {
+	if p.Facts.GrowingCells != domain.Known(int64(10)) || len(p.Farms) != 1 || p.Farms[0].ID != "Zone_1" {
 		t.Fatal(p)
 	}
 	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{}})
-	if p.Facts.FoodStorage != domain.Known(false) || p.Facts.GrowingCells != domain.Known(int64(0)) || len(p.Farms) != 0 {
+	if p.Facts.GrowingCells != domain.Known(int64(0)) || len(p.Farms) != 0 {
 		t.Fatal("empty zone census not applied")
 	}
 }
