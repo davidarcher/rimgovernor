@@ -381,6 +381,12 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			}
 		}
 		if !exempt {
+			exempt, err = roomShellOpenWorkExempt(ctx, tx, state, method, plan)
+			if err != nil {
+				return err
+			}
+		}
+		if !exempt {
 			return errors.New("existing method requires observation")
 		}
 	}

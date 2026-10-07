@@ -192,6 +192,14 @@ func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProject
 	return false
 }
 
+// hostsInPlannedRoom reports a planner whose building stands on the planned
+// room's interior: the kitchen's and the butchery's furniture, unless the
+// planner takes the shelter's template slot instead (a cold map's cooking
+// campfire, #2303).
+func (r *RoundsBuildingPlanner) hostsInPlannedRoom(module policy.PlannedRole, facts observation.ColonyProjection) bool {
+	return (module == policy.PlannedKitchen || module == policy.PlannedButchery) && !r.takesShelterSlot(facts)
+}
+
 // shelterCampfires is how many campfires the shelter holds indoors: the plan's
 // latched climate decides (#2044).
 func shelterCampfires(facts observation.ColonyProjection) int {

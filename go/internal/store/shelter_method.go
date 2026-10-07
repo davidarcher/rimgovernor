@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"path"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -56,6 +57,50 @@ func shelterOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan
 			return false, nil
 		}
 		if taken[b.Cell()] {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// IsRoomShellMethod reports a planned room's ring method: a build wave of a
+// "<role>-shell-<x>-<z>" reconcile.
+func IsRoomShellMethod(method domain.MethodID) bool {
+	ok, _ := path.Match("*-shell-*-build-*", string(method))
+	return ok
+}
+
+// roomShellOpenWorkExempt admits furniture under an owner whose only open work
+// is planned rooms' ring waves (#2303): a ring runs for days, and the owner's
+// slot on the room's interior (the shelter's campfire or cooler) is admitted
+// with it, not after it. The new method must be pure construction that is not
+// itself a ring wave, on no cell an open wave builds on; any other open method
+// still holds the owner.
+func roomShellOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
+	if len(plan.Actions()) == 0 || IsRoomShellMethod(method) {
+		return false, nil
+	}
+	taken := map[domain.Cell]bool{}
+	for _, m := range goal.OwnerMethods() {
+		p, err := load(ctx, tx, m.Plan)
+		if err != nil {
+			return false, err
+		}
+		if !PlanOpen(p) {
+			continue
+		}
+		if !IsRoomShellMethod(m.Method) {
+			return false, nil
+		}
+		for _, a := range p.Spec.Actions() {
+			if b, ok := a.Building(); ok {
+				taken[b.Cell()] = true
+			}
+		}
+	}
+	for _, a := range plan.Actions() {
+		b, ok := a.Building()
+		if !ok || taken[b.Cell()] {
 			return false, nil
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 	"slices"
 	"strings"
 
@@ -117,8 +116,7 @@ func shelterBeds(facts observation.ColonyProjection, slots []shelterBunk) (strin
 // "<role>-shell-<x>-<z>" reconcile (plannedRoomMethod), for acceptance tooling
 // reading the journal (#987).
 func IsShellMethod(method domain.MethodID) bool {
-	ok, _ := path.Match("*-shell-*-build-*", string(method))
-	return ok
+	return store.IsRoomShellMethod(method)
 }
 
 // ShelterSpotsMethod and ShelterBedsMethod name the bunk rungs' methods

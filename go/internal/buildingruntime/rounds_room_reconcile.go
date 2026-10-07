@@ -224,6 +224,16 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 	if !known || len(rrs) == 0 {
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 	}
+	// A ring-only room whose wave the owner still has open is not diffed again:
+	// its owner goes on to its own placement (#2303).
+	for _, rr := range rrs {
+		if rr.ringOnly {
+			open, err := b.ringWaveOpen(call, goal)
+			if err != nil || open {
+				return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_build")}, err
+			}
+		}
+	}
 	// The packed stock the rooms share: a room takes what its predecessors left.
 	var left map[string]int
 	works := make([]roomWork, 0, len(rrs))
@@ -304,6 +314,26 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 		}
 	}
 	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, works)
+}
+
+// ringWaveOpen is true when the owner has a ring wave of any planned room still
+// open: the walls it admitted are not all done. The store holds one open ring
+// wave per owner, so another room's ring waits for it as well.
+func (b *RoundsBuildingPlanner) ringWaveOpen(call context.Context, goal store.WorkOwner) (bool, error) {
+	journal := b.reviewer.player.journal
+	for _, m := range goal.OwnerMethods() {
+		if !store.IsRoomShellMethod(m.Method) {
+			continue
+		}
+		plan, err := journal.LoadPlan(call, m.Plan)
+		if err != nil {
+			return false, err
+		}
+		if store.PlanOpen(plan) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // methodOnce is true when the owner has not committed method yet.

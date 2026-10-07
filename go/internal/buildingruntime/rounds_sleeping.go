@@ -170,6 +170,13 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			// dig's own state and the ring goes up beside it.
 			continue
 		}
+		if !r.shelter && IsShellMethod(m.Method) {
+			// A planned room's open ring wave does not hold the furniture
+			// raised on its interior with it (#2303): the ring and the slot
+			// are admitted together, and reconcileRooms leaves the ring alone
+			// while its wave is open.
+			continue
+		}
 		if store.PlanOpen(plan) {
 			return RoundsBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 		}
@@ -505,12 +512,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			if err != nil || !result.Verdict.skipsToPlacement() {
 				return result, err
 			}
-			if module == policy.PlannedKitchen || module == policy.PlannedButchery {
+			if r.hostsInPlannedRoom(module, facts) {
 				kitchen := *r
 				kitchen.cells, kitchen.environment = plannedRoomInterior(room), policy.PlacementAnywhere
 				r = &kitchen
 			}
-		} else if module == policy.PlannedKitchen || module == policy.PlannedButchery {
+		} else if r.hostsInPlannedRoom(module, facts) {
 			if cells := plannedRoomCells(facts, module); cells != nil {
 				kitchen := *r
 				kitchen.cells = cells
@@ -518,7 +525,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
-	if r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.cells == nil && len(r.paste) == 0 {
+	if r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.cells == nil && len(r.paste) == 0 && !r.takesShelterSlot(facts) {
 		// The cooking campfire goes in the planned kitchen once it stands (#2044).
 		if cells := plannedRoomCells(facts, policy.PlannedKitchen); cells != nil {
 			fire := *r
