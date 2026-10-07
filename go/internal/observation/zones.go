@@ -68,6 +68,6 @@ func applyZones(p *ColonyProjection, read bridge.ZonesRead) {
 	}
 	zoneProduction(farms, &p.Facts)
 	p.FieldCrops = colonyFieldCrops(farms, p.Definitions)
-	p.FoodFields = colonyFoodFields(farms, p.Definitions, p.Facts.Calendar)
+	p.FoodFields = colonyFoodFields(farms, p.Definitions, p.Facts.Calendar, p.Cells)
 	p.FieldCapacityCrops = colonyFieldCrops(farms, p.Definitions, true)
 }

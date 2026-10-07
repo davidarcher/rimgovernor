@@ -50,11 +50,14 @@ func farmGrowth(farm *o.FarmFacts) policy.CropGrowth {
 // colonyFoodFields computes each field's harvest lead in policy from the raw
 // growth facts, the current temperature and the calendar; an unknown fact
 // leaves the lead unknown. A planted field is future capacity, not an
-// observed delivery of edible stock.
-func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition, calendar domain.Fact[policy.Calendar]) domain.Fact[[]policy.FoodField] {
+// observed delivery of edible stock. Exposure reads each zone's roofs from the
+// planning window's cells (unknown without the window or with an unread roof)
+// and its blight from the zone's planted and blighted counts.
+func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition, calendar domain.Fact[policy.Calendar], cells []policy.SiteCell) domain.Fact[[]policy.FoodField] {
 	if farms == nil {
 		return domain.Unknown[[]policy.FoodField]()
 	}
+	zones := zoneRoofs(cells)
 	rows := []policy.FoodField{}
 	for _, farm := range farms {
 		growth := farmGrowth(farm)
@@ -78,9 +81,55 @@ func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition, ca
 		}
 		rows = append(rows, policy.FoodField{ID: farm.GetZone().GetId(),
 			Plan:              policy.FieldPlan{Crop: crop, Sites: policy.FarmSitePlan{Cells: int(growing)}},
-			RemainingGrowDays: policy.HarvestLeadDays(growth, crop.GrowDays, calendar), WorkPerDay: work})
+			RemainingGrowDays: policy.HarvestLeadDays(growth, crop.GrowDays, calendar), WorkPerDay: work,
+			Exposure: policy.FieldExposure{ZoneCells: zones[farm.GetZone().GetId()].cells, UnroofedCells: zones[farm.GetZone().GetId()].unroofed,
+				Planted: countFact(farm.PlantedCells), Blighted: countFact(farm.BlightedPlants)}})
 	}
 	return domain.Known(rows)
+}
+
+// zoneRoof counts a zone's held cells and those under open sky.
+type zoneRoof struct{ cells, unroofed domain.Fact[int64] }
+
+// zoneRoofs counts each growing zone's cells in the planning window and the
+// ones with no roof. A zone with a cell whose roof is unread is unknown: a
+// partial count would pass for the field's exposure. Without the window no
+// zone has a row, so every exposure reads unknown.
+func zoneRoofs(cells []policy.SiteCell) map[string]zoneRoof {
+	type tally struct {
+		cells, unroofed int64
+		unknown         bool
+	}
+	counts := map[string]*tally{}
+	for _, cell := range cells {
+		if zoned, _ := cell.Zone.Value(); !zoned {
+			continue
+		}
+		id, ik := cell.ZoneID.Value()
+		if !ik {
+			continue
+		}
+		t := counts[id]
+		if t == nil {
+			t = &tally{}
+			counts[id] = t
+		}
+		roofed, rk := cell.Roofed.Value()
+		switch {
+		case !rk:
+			t.unknown = true
+		case !roofed:
+			t.unroofed++
+		}
+		t.cells++
+	}
+	out := make(map[string]zoneRoof, len(counts))
+	for id, t := range counts {
+		if !t.unknown {
+			out[id] = zoneRoof{cells: domain.Known(t.cells), unroofed: domain.Known(t.unroofed)}
+		}
+	}
+	return out
 }
 
 func colonyFieldCrops(farms []*o.FarmFacts, definitions []PlanningDefinition, usable ...bool) domain.Fact[[]policy.FieldCrop] {

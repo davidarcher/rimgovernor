@@ -38,7 +38,7 @@ func TestFoodPlanTribalBridge(t *testing.T) {
 			if hunt {
 				rows = append(rows, HuntCandidates(sources, SquadHuntMinGunners, domain.Fact[float64]{})...)
 			}
-			rows = append(rows, CropChannels(fields, CropKitchen{})...)
+			rows = append(rows, CropChannels(fields, CropKitchen{}, CropSeason{})...)
 			r := foodPlanRequest(rows...)
 			r.Demand.Consumers = nil
 			for i := 0; i < 8; i++ {
@@ -310,7 +310,7 @@ func TestFoodPlanAdaptersAndInputOwnership(t *testing.T) {
 		t.Fatal("designation counted as delivery")
 	}
 	field := FoodField{ID: "rice", Plan: FieldPlan{Crop: CropChoice{Edible: domain.Known(true), GrowDays: domain.Known(4.5), HarvestNutrition: domain.Known(0.3)}, Sites: FarmSitePlan{Cells: 30}}, RemainingGrowDays: domain.Known(2.0), WorkPerDay: domain.Known(100.0)}
-	c := CropChannels([]FoodField{field}, CropKitchen{})[0]
+	c := CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})[0]
 	if n, _ := c.Nutrition().PerDay.Value(); n != 2 {
 		t.Fatal(n)
 	}
@@ -318,11 +318,11 @@ func TestFoodPlanAdaptersAndInputOwnership(t *testing.T) {
 		t.Fatal(lead)
 	}
 	field.Plan.Crop.GrowDays = domain.Unknown[float64]()
-	if _, known := CropChannels([]FoodField{field}, CropKitchen{})[0].Nutrition().PerDay.Value(); known {
+	if _, known := CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})[0].Nutrition().PerDay.Value(); known {
 		t.Fatal("invented growth facts")
 	}
 	field.Plan.Crop.GrowDays = domain.Known(0.0)
-	if _, err := SupplyFoodPlan(foodPlanRequest(CropChannels([]FoodField{field}, CropKitchen{})...)); err == nil {
+	if _, err := SupplyFoodPlan(foodPlanRequest(CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})...)); err == nil {
 		t.Fatal("invalid crop accepted")
 	}
 	p, err := SupplyFoodPlan(foodPlanRequest(h...))

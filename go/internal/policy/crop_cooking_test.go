@@ -33,7 +33,7 @@ func termValue(c SupplyCandidate, name string) (float64, bool) {
 
 func TestCropCookedBeatsRawWithCookCapacity(t *testing.T) {
 	field := cropField() // raw 2/day
-	raw := CropChannels([]FoodField{field}, CropKitchen{})[0]
+	raw := CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})[0]
 	if n, _ := raw.Nutrition().PerDay.Value(); n != 2 {
 		t.Fatalf("raw %v", n)
 	}
@@ -41,7 +41,7 @@ func TestCropCookedBeatsRawWithCookCapacity(t *testing.T) {
 		t.Fatal("cooked without a kitchen")
 	}
 	meal := vegetableMeal(1.5, 1000)
-	cooked := CropChannels([]FoodField{field}, cookKitchen(true, 1, meal))[0]
+	cooked := CropChannels([]FoodField{field}, cookKitchen(true, 1, meal), CropSeason{})[0]
 	if n, _ := cooked.Nutrition().PerDay.Value(); n != 3 {
 		t.Fatalf("cooked nutrition %v, want 3", n)
 	}
@@ -49,7 +49,7 @@ func TestCropCookedBeatsRawWithCookCapacity(t *testing.T) {
 		t.Fatalf("cook labor missing from WorkPerDay: %v", w)
 	}
 	for name, k := range map[string]CropKitchen{"no usable bench": cookKitchen(false, 1, meal), "no cook": cookKitchen(true, 0, meal), "cook work over capacity": cookKitchen(true, 1, vegetableMeal(1.5, 10000))} {
-		c := CropChannels([]FoodField{field}, k)[0]
+		c := CropChannels([]FoodField{field}, k, CropSeason{})[0]
 		if n, _ := c.Nutrition().PerDay.Value(); n != 2 {
 			t.Fatalf("%s: nutrition %v, want raw 2", name, n)
 		}
@@ -57,7 +57,7 @@ func TestCropCookedBeatsRawWithCookCapacity(t *testing.T) {
 			t.Fatalf("%s: work %v", name, w)
 		}
 	}
-	lossy := CropChannels([]FoodField{field}, cookKitchen(true, 1, vegetableMeal(0.8, 1000)))[0]
+	lossy := CropChannels([]FoodField{field}, cookKitchen(true, 1, vegetableMeal(0.8, 1000)), CropSeason{})[0]
 	if n, _ := lossy.Nutrition().PerDay.Value(); n != 2 {
 		t.Fatalf("a lossy meal beat raw: %v", n)
 	}
@@ -69,7 +69,7 @@ func TestCropUnknownRecipeFactIsUnknownNotRaw(t *testing.T) {
 	if _, known := cookKitchen(true, 1, meal).Cooking().Value(); known {
 		t.Fatal("unknown work per nutrition read as a recipe")
 	}
-	c := CropChannels([]FoodField{cropField()}, cookKitchen(true, 1, meal))[0]
+	c := CropChannels([]FoodField{cropField()}, cookKitchen(true, 1, meal), CropSeason{})[0]
 	if n, known := c.Nutrition().PerDay.Value(); !known || n != 2 {
 		t.Fatalf("raw nutrition lost: %v %v", n, known)
 	}
@@ -84,11 +84,11 @@ func TestCropUnknownRecipeFactIsUnknownNotRaw(t *testing.T) {
 
 func TestCropRotDaysCapStock(t *testing.T) {
 	field := cropField() // 2/day
-	if _, known := CropChannels([]FoodField{field}, CropKitchen{})[0].Nutrition().StockCap.Value(); known {
+	if _, known := CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})[0].Nutrition().StockCap.Value(); known {
 		t.Fatal("cap from unknown rot facts")
 	}
 	field.Plan.Crop.RotDays, field.Plan.Crop.Perishable = domain.Known(4.0), domain.Known(true)
-	c := CropChannels([]FoodField{field}, CropKitchen{})[0]
+	c := CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})[0]
 	if stock, known := c.Nutrition().StockCap.Value(); !known || stock != 8 {
 		t.Fatalf("stock cap %v %v, want 8", stock, known)
 	}
@@ -96,19 +96,19 @@ func TestCropRotDaysCapStock(t *testing.T) {
 		t.Fatal(v)
 	}
 	field.Plan.Crop.Perishable = domain.Known(false)
-	if _, known := CropChannels([]FoodField{field}, CropKitchen{})[0].Nutrition().StockCap.Value(); known {
+	if _, known := CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})[0].Nutrition().StockCap.Value(); known {
 		t.Fatal("a non-perishable harvest was capped")
 	}
 	field.Plan.Crop.Perishable = domain.Known(true)
 	field.Plan.Crop.RotDays = domain.Unknown[float64]()
-	if _, known := CropChannels([]FoodField{field}, CropKitchen{})[0].Nutrition().StockCap.Value(); known {
+	if _, known := CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})[0].Nutrition().StockCap.Value(); known {
 		t.Fatal("unknown rot days read as a cap")
 	}
 
 	// The cap limits what the plan credits over its window.
 	field.Plan.Crop.RotDays = domain.Known(1.0)
 	longRunway := func() FoodPlanRequest {
-		r := foodPlanRequest(CropChannels([]FoodField{field}, CropKitchen{})...)
+		r := foodPlanRequest(CropChannels([]FoodField{field}, CropKitchen{}, CropSeason{})...)
 		r.Demand.RunwayDays = domain.Known(30.0)
 		return r
 	}
@@ -175,7 +175,7 @@ func TestNewFieldChannelsAreClosedCandidates(t *testing.T) {
 // delivering; the ledger moves it.
 func TestPlantedFieldIsDesignatedNotDelivering(t *testing.T) {
 	t.Parallel()
-	c := CropChannels([]FoodField{cropField()}, CropKitchen{})[0]
+	c := CropChannels([]FoodField{cropField()}, CropKitchen{}, CropSeason{})[0]
 	if s, _ := c.State.Value(); s != CandidateDesignated {
 		t.Fatalf("state %v", s)
 	}

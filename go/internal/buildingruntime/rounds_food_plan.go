@@ -158,7 +158,8 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPoli
 	}
 	channels = append(channels, policy.StockIngredientChannels(supply)...)
 	if fields, known := p.FoodFields.Value(); known {
-		channels = append(channels, policy.CropChannels(fields, policy.CropKitchen{Benches: p.ProductionBenches, Cooks: domain.Known(float64(workers))})...)
+		channels = append(channels, policy.CropChannels(fields, policy.CropKitchen{Benches: p.ProductionBenches, Cooks: domain.Known(float64(workers))},
+			policy.CropSeason{Calendar: p.Facts.Calendar, Conditions: p.Facts.DisasterConditions})...)
 	}
 	// A field not yet sown is a candidate per viable crop, opened by the plan
 	// like any channel; the field executor acts on the ones it opens.

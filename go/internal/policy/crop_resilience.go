@@ -84,13 +84,8 @@ func cropSoilCompatible(crop CropChoice, cell SiteCell) bool {
 func siteRiskTerms(r FieldRequest, crop CropChoice, cells int) []FarmSiteTerm {
 	unit := cropRate(crop, 1) * float64(cells)
 	var terms []FarmSiteTerm
-	if conditions, known := r.Conditions.Value(); known {
-		for _, condition := range conditions {
-			if condition.Definition == "ToxicFallout" {
-				terms = append(terms, FarmSiteTerm{"risk-fallout", 2 * unit})
-				break
-			}
-		}
+	if fallout, known := toxicFalloutActive(r.Conditions).Value(); known && fallout {
+		terms = append(terms, FarmSiteTerm{"risk-fallout", 2 * unit})
 	}
 	if gap, known := HarvestGapDays(r.Calendar, domain.Known([]DisasterCondition{})).Value(); known && gap > 0 {
 		terms = append(terms, FarmSiteTerm{"risk-frost", 2 * unit * min(1, gap/max(1, r.ReserveDays))})

@@ -19,6 +19,13 @@ zeroes solar output and lights outdoor work cells, and a psychic drone widens
 mood entry for the pawns it affects ([upkeep contracts](upkeep-contracts.md),
 [power contracts](power-contracts.md), [mood relief](mood-control.md)).
 
+Crop conditions price into the food plan as crop-channel risk and lead
+(`policy.CropChannels`, [supply model](../architecture/supply-model.md#crop-risk-and-pause)):
+an eclipse, volcanic winter or cold snap with a remaining-duration read pushes
+every crop's lead back by those days, and toxic fallout discounts a field by the
+share of its cells under open sky. Fallout, blight and frost never name a
+disaster episode; they stay food-plan inputs.
+
 An observed Zzztt letter also starts recovery without a game condition.
 `DevelopmentFacts.short_circuit_tick` reports the latest matching map-local
 letter in the native active stack or archive, using the game's translated label.

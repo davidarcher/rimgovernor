@@ -90,6 +90,9 @@ type foodScenario struct {
 	silver    float64
 	specs     []srcSpec
 	shocks    []supplysim.Shock
+	// condition is the game condition a crop growth pause stands for; the
+	// planner reads it, with its remaining days, as the native census would.
+	condition string
 	// kitchen gives the colony a usable cook bench and a cook. The world has no
 	// cooking: the recipe converts nutrition one for one, so a bench must not
 	// make the planner worse.
@@ -364,7 +367,23 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 	if window != nil {
 		p.Facts.Calendar = domain.Known(calendarOn(*window, v.Day))
 	}
+	p.Facts.DisasterConditions = a.conditions(v)
 	return p, ids
+}
+
+// conditions is the game condition census the day's active crop growth pause
+// shows: the scenario's condition with the pause's remaining days. A colony
+// without a pause reads an empty census.
+func (a *foodAdapter) conditions(v supplysim.WorldView) domain.Fact[[]policy.DisasterCondition] {
+	rows := []policy.DisasterCondition{}
+	for _, sh := range a.sc.shocks {
+		if sh.Kind != supplysim.PauseGrowth || sh.Source != foodSrcID(policy.CandidateCrop) || v.Day < sh.Day || v.Day >= sh.Day+sh.Days || a.sc.condition == "" {
+			continue
+		}
+		left := int64(sh.Day+sh.Days-v.Day) * domain.TicksPerDay
+		rows = append(rows, policy.DisasterCondition{ID: a.sc.condition, Definition: a.sc.condition, TicksLeft: &left})
+	}
+	return domain.Known(rows)
 }
 
 // kill records the previous day's kills of a hunt in the sim's native ledger:
@@ -645,6 +664,10 @@ var foodShocks = map[string]struct {
 		[]string{"crop", "forage"}, nil},
 }
 
+// foodShockConditions names the game condition each shock's crop pause is.
+var foodShockConditions = map[string]string{"eclipse": policy.ConditionEclipse, "toxic-fallout": policy.ConditionToxicFallout,
+	"fallout-fields": policy.ConditionToxicFallout, "volcanic-winter": policy.ConditionVolcanicWinter}
+
 var foodShockMix = []policy.CandidateKind{policy.CandidateFishing, policy.CandidateCrop, policy.CandidateHunt, policy.CandidateForage}
 
 // seedScenarios are the recorded colonies, rebuilt from the plan each
@@ -721,7 +744,7 @@ func foodScenarios(t testing.TB) []foodScenario {
 			base := mixScenario(fmt.Sprintf("shock-twin/n%d", size), size, 1, foodShockShare, foodShockMix)
 			sc := mixScenario(fmt.Sprintf("shock/%s/n%d", shock, size), size, 1, foodShockShare, foodShockMix)
 			sc.shocks, sc.shockedIDs, sc.twin = foodShocks[shock].shocks, foodShocks[shock].touched, base.name
-			sc.overestimates = foodShocks[shock].over
+			sc.overestimates, sc.condition = foodShocks[shock].over, foodShockConditions[shock]
 			if !slices.ContainsFunc(out, func(s foodScenario) bool { return s.name == base.name }) {
 				out = append(out, base)
 			}

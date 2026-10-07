@@ -167,6 +167,8 @@ type FoodField struct {
 	ID                            string
 	Plan                          FieldPlan
 	RemainingGrowDays, WorkPerDay domain.Fact[float64]
+	// Exposure is what the field's fallout and blight risks derive from.
+	Exposure FieldExposure
 }
 
 // CookTicksPerDay is the work one cook gives a bench per day, the same budget
@@ -243,8 +245,10 @@ func (k CropKitchen) Cooking() domain.Fact[CropCooking] {
 // A perishable harvest bounds the stock it holds to what survives its rot
 // days (StockCap); an unknown recipe or rot fact leaves that facet Unknown,
 // never zero. A planted field is Designated; the delivery ledger moves it to
-// Delivering (DeliveryCredit.Apply).
-func CropChannels(fields []FoodField, kitchen CropKitchen) []SupplyCandidate {
+// Delivering (DeliveryCredit.Apply). An observed growth pause (an eclipse, a
+// volcanic winter, a cold snap) extends the lead, and the season's fallout,
+// the field's blight and the frost inside the lead window are its risks.
+func CropChannels(fields []FoodField, kitchen CropKitchen, season CropSeason) []SupplyCandidate {
 	cooking := kitchen.Cooking()
 	var out []SupplyCandidate
 	for _, f := range fields {
@@ -253,7 +257,8 @@ func CropChannels(fields []FoodField, kitchen CropKitchen) []SupplyCandidate {
 			continue
 		}
 		c := priceCrop(f.Plan.Crop, f.Plan.Sites.Cells, f.WorkPerDay, cooking)
-		c.ID, c.LeadDays, c.Source = f.ID, f.RemainingGrowDays, "crop:"+f.ID
+		c.ID, c.LeadDays, c.Source = f.ID, withCropPause(f.RemainingGrowDays, season.Conditions), "crop:"+f.ID
+		c.Risk = cropRisks(season, c.LeadDays, f.Exposure)
 		c.State = FoodState(domain.Known(false), domain.Known(true))
 		out = append(out, c)
 	}
@@ -347,7 +352,10 @@ func NewFieldChannels(r FieldRequest, kitchen CropKitchen) []SupplyCandidate {
 		}
 		c := priceCrop(v.crop, v.needed, work, cooking)
 		c.ID = NewFieldPrefix + v.crop.Name
-		c.LeadDays = NewFieldLeadDays(v.crop.GrowDays, r.Calendar)
+		c.LeadDays = withCropPause(NewFieldLeadDays(v.crop.GrowDays, r.Calendar), r.Conditions)
+		// A field not yet sown lies under open sky and carries no blight.
+		open := domain.Known(int64(v.needed))
+		c.Risk = cropRisks(CropSeason{Calendar: r.Calendar, Conditions: r.Conditions}, c.LeadDays, FieldExposure{ZoneCells: open, UnroofedCells: open})
 		c.UpfrontCost.LaborTicks = domain.Known(float64(v.needed) * FieldSowTicksPerCell)
 		c.State = FoodState(domain.Known(false), domain.Known(false))
 		c.Terms = append(c.Terms, CandidateTerm{"new_field_cells", float64(v.needed)})

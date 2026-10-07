@@ -215,6 +215,23 @@ the plan opened a `new:` candidate; pending zone creates and add-cells count as
 designated nutrition against the gap (`foodPlanFieldRoom`). Site choice stays
 with the executor.
 
+### Crop risk and pause
+
+Crop channels carry weights in [0, 1] equal to the expected fraction of delivery
+lost (`policy/crop_risk.go`); each is derived from observed facts and left out
+(never priced as zero or as a loss) while a fact is unknown:
+
+| Risk | Weight |
+| --- | --- |
+| `Fallout` | While `ToxicFallout` is on the map, the share of the field's zone cells with no roof (the planning window's cell map; unknown while a zone cell's roof is unread). A new field lies in the open: weight 1. |
+| `Blight` | `BlightedPlants / PlantedCells` of the field's farm facts. A new field has none. |
+| `Frost` | When the lead outlasts the growing days left, the non-growing share of the lead window times the unroofed share; 0 when the harvest lands first. |
+
+`CropPauseDays` is the longest remaining duration of an eclipse, volcanic winter
+or cold snap with a native read; it is added to every crop lead, planted or new,
+capped at a year. The same `ToxicFallout` read feeds the indoor-site
+`risk-fallout` term (`siteRiskTerms`).
+
 ### Trade offers
 
 A caravan's prices exist only in an open trade session's sheet, so the plan
