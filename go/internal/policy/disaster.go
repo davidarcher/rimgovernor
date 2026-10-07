@@ -126,18 +126,6 @@ func SkyDarkHold(conditions domain.Fact[[]DisasterCondition], outdoorsDark domai
 	return domain.Known(dark || EclipseHold(conditions))
 }
 
-// GrowthPauseDays is the observed remaining duration, in game days, of the
-// conditions that stop the fields producing regardless of the seasonal
-// calendar: a volcanic winter or cold snap with a native remaining-duration
-// read. Zero when none is active or the census is unknown.
-func GrowthPauseDays(conditions domain.Fact[[]DisasterCondition]) float64 {
-	ticks, known := ConditionRemainingTicks(conditions, ConditionVolcanicWinter, ConditionColdSnap).Value()
-	if !known || ticks <= 0 {
-		return 0
-	}
-	return float64(ticks) / domain.TicksPerDay
-}
-
 type DisasterEvidence struct {
 	Service DisasterService
 	Finding domain.Finding

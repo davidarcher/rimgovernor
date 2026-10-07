@@ -219,7 +219,7 @@ func TestConditionRemainingTicksAndPowerOutageHold(t *testing.T) {
 	if PowerOutageHold(untimed) || PowerOutageHold(domain.Unknown[[]DisasterCondition]()) || !PowerOutageHold(timed) {
 		t.Fatal("solar flare hold follows the remaining-duration read")
 	}
-	if got := GrowthPauseDays(timed); got != 0.2 {
+	if got := CropPauseDays(timed); got != 0.2 {
 		t.Fatal(got)
 	}
 }

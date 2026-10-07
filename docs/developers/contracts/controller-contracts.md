@@ -369,8 +369,8 @@ the growing calendar (`policy.Calendar`) and each review widens the policy by it
 harvest gap (`RoundsPolicy.Seasonal`): the wait until growth resumes plus one rice cycle
 while nothing grows, or the coming non-growing stretch plus that cycle (phased in over the
 gap plus one field cycle) while crops grow. A year-round tile has no gap; an unknown
-calendar keeps flat thresholds. An observed `VolcanicWinter` or `ColdSnap` with a native
-remaining-duration read (`policy.GrowthPauseDays`) extends the gap; one without the read
+calendar keeps flat thresholds. An observed `Eclipse`, `VolcanicWinter` or `ColdSnap` with a native
+remaining-duration read (`policy.CropPauseDays`) extends the gap; one without the read
 contributes nothing. Food minimum and target grow by the gap (capped at one year); wood
 minimum, target and maximum by the target's factor. The foothold food gate keeps its flat
 minimum. Crops rank by native yield, soil response and remaining seasonal window; a

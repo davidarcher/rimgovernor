@@ -50,13 +50,13 @@ func (c Calendar) Valid() bool {
 // whole is capped at one year. Unknown while the calendar is unknown or
 // invalid.
 //
-// An observed growth pause (GrowthPauseDays: a volcanic winter or cold snap
+// An observed growth pause (CropPauseDays: an eclipse, volcanic winter or cold snap
 // with a remaining-duration read) extends the gap. While crops grow it is
 // added outright, since the next harvest waits for the pause to lift; while
 // they do not, the pause plus the first harvest cycle stands in for a
 // shorter seasonal wait. A pause on an unknown calendar is the whole gap.
 func HarvestGapDays(calendar domain.Fact[Calendar], conditions domain.Fact[[]DisasterCondition]) domain.Fact[float64] {
-	pause := GrowthPauseDays(conditions)
+	pause := CropPauseDays(conditions)
 	c, known := calendar.Value()
 	if !known || !c.Valid() {
 		if pause <= 0 {
