@@ -23,7 +23,7 @@ func (s *Store) PendingBuildingAnchors(ctx context.Context, current domain.Gener
 		return nil, err
 	}
 	defer tx.Rollback()
-	plans, err := loadPlans(ctx, tx, 256)
+	plans, err := loadPlans(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

@@ -154,9 +154,6 @@ func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method 
 	case !errors.Is(err, sql.ErrNoRows):
 		return err
 	}
-	if len(owner.ownerPlans()) >= 256 {
-		return ErrCapacity
-	}
 	if err := admitOwnerMethod(ctx, tx, owner, plan); err != nil {
 		return err
 	}

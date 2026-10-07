@@ -53,8 +53,8 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, errors.New("invalid method admission scope")
 	}
 	actions := r.Plan.Actions()
-	if len(actions) == 0 || len(actions) > 256 {
-		return BuildingMethodDecision{}, errors.New("bounded method actions required")
+	if len(actions) == 0 {
+		return BuildingMethodDecision{}, errors.New("method actions required")
 	}
 	// A building intent is validated natively when it is applied (#856):
 	// admission neither prices nor sites it, so a planner's siting preview
@@ -191,7 +191,7 @@ func (s *Store) BuildingReservations(ctx context.Context, current domain.Generat
 
 // The admission transaction repeats this read after spatial proposal generation.
 func buildingMethodHolds(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
-	plans, err := loadPlans(ctx, tx, 256)
+	plans, err := loadPlans(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

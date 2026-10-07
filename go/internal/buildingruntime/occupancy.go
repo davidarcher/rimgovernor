@@ -20,7 +20,7 @@ func (r *Rounder) layoutOccupied(ctx context.Context, projection observation.Col
 	if !known {
 		return nil, nil, false
 	}
-	plans, err := r.player.journal.LoadPlans(ctx, 256)
+	plans, err := r.player.journal.LoadPlans(ctx)
 	if err != nil {
 		return nil, nil, false
 	}

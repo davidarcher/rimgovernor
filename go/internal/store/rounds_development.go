@@ -25,7 +25,7 @@ type roundsPlan struct {
 // per-plan project id. Plans of another world, and plans with neither a
 // method nor a submission, are skipped.
 func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoundsStandard) ([]roundsPlan, error) {
-	plans, err := loadPlans(ctx, tx, 256)
+	plans, err := loadPlans(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

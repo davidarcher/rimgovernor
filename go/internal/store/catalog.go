@@ -4,25 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // LoadPlans returns one complete, deterministically ordered active catalog snapshot.
-// The limit is an acceptance bound, never pagination: exceeding it returns no
-// plans, so callers cannot mistake a partial catalog for complete accounting.
-func (s *Store) LoadPlans(ctx context.Context, limit int) ([]PlanState, error) {
-	if limit < 1 || limit > 256 {
-		return nil, errors.New("plan catalog limit must be 1..256")
-	}
+func (s *Store) LoadPlans(ctx context.Context) ([]PlanState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	states, err := loadPlans(ctx, tx, limit)
+	states, err := loadPlans(ctx, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -32,8 +26,8 @@ func (s *Store) LoadPlans(ctx context.Context, limit int) ([]PlanState, error) {
 	return states, nil
 }
 
-func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM plans WHERE retired=0 ORDER BY id LIMIT ?", limit+1)
+func loadPlans(ctx context.Context, tx *sql.Tx) ([]PlanState, error) {
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM plans WHERE retired=0 ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -50,9 +44,6 @@ func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) 
 	rows.Close()
 	if err != nil {
 		return nil, err
-	}
-	if len(ids) > limit {
-		return nil, fmt.Errorf("plan catalog exceeds complete-accounting limit %d", limit)
 	}
 	states := make([]PlanState, 0, len(ids))
 	for _, id := range ids {

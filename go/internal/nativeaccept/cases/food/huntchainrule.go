@@ -238,7 +238,7 @@ func first(rows []any) any {
 // rulesJournaled reports whether the journal holds a completed rules_attach
 // carrying the hunt-chain rule: the intent's receipt, written before native was.
 func rulesJournaled(ctx context.Context, st *store.Store) (string, bool, error) {
-	plans, err := st.LoadPlans(ctx, 256)
+	plans, err := st.LoadPlans(ctx)
 	if err != nil {
 		return "", false, err
 	}

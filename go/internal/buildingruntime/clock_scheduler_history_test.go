@@ -233,7 +233,7 @@ func TestClockSchedulerHistoryKeepsActiveObligationsVisible(t *testing.T) {
 	active := seedClockHistory(t, db, path, historyPlans, historyAttempts)
 	// The catalogs the step reads: every active plan, the maintained tail
 	// of attempts, and the scheduler's own window as the one open epoch.
-	plans, err := db.LoadPlans(ctx, 256)
+	plans, err := db.LoadPlans(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +317,7 @@ func BenchmarkClockSchedulerHistoryJournal(b *testing.B) {
 			if _, err := db.LoadPlan(ctx, "plan"); err != nil {
 				b.Fatal(err)
 			}
-			if _, err := db.LoadPlans(ctx, 256); err != nil {
+			if _, err := db.LoadPlans(ctx); err != nil {
 				b.Fatal(err)
 			}
 		}

@@ -357,7 +357,7 @@ func firstEnclosure(ctx context.Context, st *store.Store, known domain.Fact[doma
 	if _, ok := known.Value(); ok {
 		return known, nil
 	}
-	plans, err := st.LoadPlans(ctx, 256)
+	plans, err := st.LoadPlans(ctx)
 	if err != nil {
 		return known, err
 	}

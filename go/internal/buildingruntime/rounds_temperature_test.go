@@ -272,7 +272,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			if result.Decision.Admitted || result.NativeWorkTicks != 0 {
 				t.Fatal(result)
 			}
-			plans, err := db.LoadPlans(context.Background(), 256)
+			plans, err := db.LoadPlans(context.Background())
 			if err != nil || len(plans) != 2 {
 				t.Fatal(plans, err)
 			}

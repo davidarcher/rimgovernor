@@ -287,7 +287,7 @@ func (r *RoundsMedicalPlanner) harvestMedicine(call, epoch context.Context, stat
 			pending += row.Yield
 		}
 	}
-	plans, err := p.journal.LoadPlans(call, 256)
+	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return RoundsMedicalResult{}, err
 	}

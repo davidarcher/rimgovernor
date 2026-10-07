@@ -250,7 +250,7 @@ func (p *paddockHerd) awaitPaddock(e phaseEnv, svc *service) error {
 			return "", false, err
 		}
 		cleared := len(writes) > 0 && writes[len(writes)-1] == ""
-		plans, err := svc.store.LoadPlans(ctx, 256)
+		plans, err := svc.store.LoadPlans(ctx)
 		if err != nil {
 			return "", false, err
 		}

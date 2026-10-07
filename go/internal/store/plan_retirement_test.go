@@ -103,7 +103,7 @@ func TestRoundsPlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	}
 	s.Close()
 	s = open(t, path)
-	active, err := s.LoadPlans(ctx, 1)
+	active, err := s.LoadPlans(ctx)
 	if err != nil || len(active) != 0 {
 		t.Fatal(active, err)
 	}

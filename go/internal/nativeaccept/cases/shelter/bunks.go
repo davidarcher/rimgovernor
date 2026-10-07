@@ -302,7 +302,7 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 // noShellYet fails when any shell plan is on the journal: the ring must
 // wait for the bunks.
 func noShellYet(ctx context.Context, st *store.Store, after string) error {
-	plans, err := st.LoadPlans(ctx, 256)
+	plans, err := st.LoadPlans(ctx)
 	if err != nil {
 		return err
 	}

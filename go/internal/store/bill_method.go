@@ -74,7 +74,7 @@ func (s *Store) BillPending(ctx context.Context, bench, recipe string) (bool, er
 	if submissionID(bench) != nil || submissionID(recipe) != nil {
 		return false, ErrConflict
 	}
-	plans, err := s.LoadPlans(ctx, 256)
+	plans, err := s.LoadPlans(ctx)
 	if err != nil {
 		return false, err
 	}

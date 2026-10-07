@@ -57,8 +57,8 @@ func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 	if err != nil || result.Verdict == BuildingReasonExistingWork {
 		t.Fatalf("the campfire waited behind the ring wave: %+v err=%v", result.Verdict, err)
 	}
-	// The store admits the slot's method beside the open ring wave, but not on
-	// a cell the wave builds on, and not a second ring wave.
+	// The store admits the slot's method and a second ring wave beside the open
+	// one, but nothing on a cell the open wave builds on (#2315).
 	commit := func(method string, cell domain.Cell) error {
 		b, err := domain.NewBuilding("Campfire", cell, domain.North, "")
 		if err != nil {
@@ -72,11 +72,17 @@ func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 		_, err = p.commitOwnerActions(ctx, epoch, state, goal, domain.MethodID(method), pid, []domain.Action{a})
 		return err
 	}
-	if err := commit("shelter-shell-1-1-build-cd", domain.Cell{X: 3, Z: 3}); err == nil {
-		t.Fatal("a second ring wave was admitted beside the open one")
+	if err := commit("shelter-shell-1-1-build-cd", domain.Cell{X: 5, Z: 5}); err != nil {
+		t.Fatalf("a disjoint ring wave waited behind the open one: %v", err)
+	}
+	if err := commit("shelter-shell-1-1-build-ef", domain.Cell{X: 1, Z: 1}); err == nil {
+		t.Fatal("a ring wave was admitted on a cell the open wave builds on")
 	}
 	if err := commit("campfire", domain.Cell{X: 1, Z: 1}); err == nil {
 		t.Fatal("furniture was admitted on a cell the open wave builds on")
+	}
+	if goal, _, err = db.WorkableOwner(ctx, review, policy.EnsureCooking); err != nil {
+		t.Fatal(err)
 	}
 	if err := commit("campfire", domain.Cell{X: 3, Z: 3}); err != nil {
 		t.Fatalf("furniture waited behind the ring wave: %v", err)

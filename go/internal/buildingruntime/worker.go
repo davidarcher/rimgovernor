@@ -366,7 +366,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		scope = w.session.State()
 	}
-	plans, err := w.player.journal.LoadPlans(call, 256)
+	plans, err := w.player.journal.LoadPlans(call)
 	if err != nil {
 		return err
 	}

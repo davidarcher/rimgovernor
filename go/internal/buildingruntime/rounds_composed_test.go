@@ -438,7 +438,7 @@ func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *
 			}
 		}
 	}
-	plans, err := db2.LoadPlans(ctx, 256)
+	plans, err := db2.LoadPlans(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

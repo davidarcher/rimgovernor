@@ -26,7 +26,7 @@ import (
 //   - the capturer of an open capture or arrest plan;
 //   - the roster of an open combat fight.
 func plannedDrafts(ctx context.Context, journal *store.Store) (map[domain.PawnID]bool, error) {
-	plans, err := journal.LoadPlans(ctx, 256)
+	plans, err := journal.LoadPlans(ctx)
 	if err != nil {
 		return nil, err
 	}

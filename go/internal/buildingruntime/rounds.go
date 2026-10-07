@@ -340,7 +340,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map || !known || native != state.Snapshot.Native {
 		return store.RoundsResult{}, fmt.Errorf("%w: step: expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.S", ErrControl)
 	}
-	plans, err := p.journal.LoadPlans(ctx, 256)
+	plans, err := p.journal.LoadPlans(ctx)
 	if err != nil {
 		return store.RoundsResult{}, err
 	}

@@ -181,7 +181,7 @@ func TestRoundsShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			plans, err := db.LoadPlans(context.Background(), 256)
+			plans, err := db.LoadPlans(context.Background())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -226,7 +226,7 @@ func TestRoundsShelterHoldsThroughWoodShortage(t *testing.T) {
 			t.Fatal("shortage replanned the shell", again, err, n.previews)
 		}
 	}
-	plans, err := db.LoadPlans(context.Background(), 256)
+	plans, err := db.LoadPlans(context.Background())
 	if err != nil || len(plans) != 5 {
 		t.Fatal("second shell or order under the shortage", len(plans), err)
 	}
@@ -265,7 +265,7 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				t.Fatal("invalid shell admitted", change)
 			}
 			// The load plan and the two bunk plans are all the journal holds.
-			plans, err := db.LoadPlans(context.Background(), 256)
+			plans, err := db.LoadPlans(context.Background())
 			if err != nil || len(plans) != 4 {
 				t.Fatal("partial shell committed", plans, err)
 			}

@@ -387,6 +387,12 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			}
 		}
 		if !exempt {
+			exempt, err = buildingOpenWorkExempt(ctx, tx, state, plan)
+			if err != nil {
+				return err
+			}
+		}
+		if !exempt {
 			return errors.New("existing method requires observation")
 		}
 	}

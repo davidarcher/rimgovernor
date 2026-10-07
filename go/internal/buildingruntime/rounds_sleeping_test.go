@@ -196,7 +196,7 @@ func TestRoundsSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 			if err == nil && result.Verdict == BuildingReasonAdmitted {
 				t.Fatal("invalid method admitted", change)
 			}
-			plans, err := db.LoadPlans(context.Background(), 256)
+			plans, err := db.LoadPlans(context.Background())
 			if err != nil || len(plans) != 2 {
 				t.Fatal("partial method committed", plans, err)
 			}
@@ -333,7 +333,7 @@ func TestRoundsSleepingManualCancelsBlockedPreview(t *testing.T) {
 	if err := <-finished; err == nil {
 		t.Fatal("cancelled compilation succeeded")
 	}
-	plans, err := db.LoadPlans(context.Background(), 256)
+	plans, err := db.LoadPlans(context.Background())
 	if err != nil || len(plans) != 2 || session.State().Enabled {
 		t.Fatal(plans, err)
 	}

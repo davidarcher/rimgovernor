@@ -113,7 +113,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			return RoundsBillResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	plans, err := p.journal.LoadPlans(call, 256)
+	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return RoundsBillResult{}, err
 	}

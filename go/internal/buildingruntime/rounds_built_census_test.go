@@ -35,7 +35,7 @@ func (n *roundsNative) ReadConstructionBuildings(ctx context.Context, _ *c.Ident
 // planners see it finished and census-aware retirement closes its plan.
 func markBuilt(t *testing.T, db *store.Store, n *roundsNative) {
 	t.Helper()
-	plans, err := db.LoadPlans(context.Background(), 256)
+	plans, err := db.LoadPlans(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1197,7 +1197,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, err
 	}
 	{
-		plans, err := journalTimed(journal, func() ([]store.PlanState, error) { return s.player.journal.LoadPlans(call, 256) })
+		plans, err := journalTimed(journal, func() ([]store.PlanState, error) { return s.player.journal.LoadPlans(call) })
 		if err != nil {
 			return out, err
 		}
@@ -1658,7 +1658,7 @@ func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionRe
 	var plans []store.PlanState
 	s.queue.ran(sel, wave.finishedNames(), wave.reason, tick, func(kinds []domain.ActionKind) []domain.ActionID {
 		if plans == nil {
-			loaded, err := s.player.journal.LoadPlans(call, 256)
+			loaded, err := s.player.journal.LoadPlans(call)
 			if err != nil {
 				plannerBookkeepingFailed(call, "waits", err)
 				return nil
@@ -1724,7 +1724,7 @@ func (s *ClockScheduler) selectPlanners(call context.Context, reason StepReason,
 	}
 	var stillOpen func(domain.ActionID) bool
 	if len(s.queue.waits) > 0 {
-		plans, err := s.player.journal.LoadPlans(call, 256)
+		plans, err := s.player.journal.LoadPlans(call)
 		if err != nil {
 			return plannerSelectionResult{}, err
 		}

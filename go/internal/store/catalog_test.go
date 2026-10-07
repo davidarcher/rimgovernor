@@ -14,18 +14,13 @@ func evidence(tick domain.Tick, _ int64) Admission {
 	return Admission{Snapshot: scope(), Tick: tick}
 }
 
-func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
+func TestCatalogEmptyCancellationAndOrderedRecords(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	empty, err := s.LoadPlans(ctx, 1)
+	empty, err := s.LoadPlans(ctx)
 	if err != nil || empty == nil || len(empty) != 0 {
 		t.Fatal(empty, err)
-	}
-	for _, limit := range []int{-1, 0, 257} {
-		if got, err := s.LoadPlans(ctx, limit); err == nil || got != nil {
-			t.Fatal("invalid catalog bound accepted")
-		}
 	}
 	for _, id := range []domain.PlanID{"z", "a", "m"} {
 		action := domain.ActionID("action-" + string(id))
@@ -38,10 +33,7 @@ func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got, err := s.LoadPlans(ctx, 2); err == nil || got != nil {
-		t.Fatal("overflow returned partial accounting")
-	}
-	states, err := s.LoadPlans(ctx, 3)
+	states, err := s.LoadPlans(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +48,7 @@ func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
 	}
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
-	if got, err := s.LoadPlans(cancelled, 3); err == nil || got != nil {
+	if got, err := s.LoadPlans(cancelled); err == nil || got != nil {
 		t.Fatal("cancelled catalog returned plans")
 	}
 }
@@ -81,13 +73,13 @@ func TestCatalogDoesNotObserveConcurrentUncommittedAdmission(t *testing.T) {
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, 80*time.Millisecond)
 	defer cancel()
-	if states, err := reader.LoadPlans(waitCtx, 1); err == nil || states != nil {
+	if states, err := reader.LoadPlans(waitCtx); err == nil || states != nil {
 		t.Fatal("catalog escaped writer transaction")
 	}
 	if err = tx.Rollback(); err != nil {
 		t.Fatal(err)
 	}
-	states, err := reader.LoadPlans(ctx, 1)
+	states, err := reader.LoadPlans(ctx)
 	if err != nil || len(states) != 1 {
 		t.Fatal("catalog observed intermediate accounting", err)
 	}
@@ -107,7 +99,7 @@ func TestCatalogCorruptionNeverReturnsEarlierPlans(t *testing.T) {
 	if _, err := s.db.Exec("UPDATE transitions SET payload='{}' WHERE action_id='a'"); err != nil {
 		t.Fatal(err)
 	}
-	if states, err := s.LoadPlans(ctx, 2); err == nil || states != nil {
+	if states, err := s.LoadPlans(ctx); err == nil || states != nil {
 		t.Fatal("corrupt later plan returned partial catalog")
 	}
 }

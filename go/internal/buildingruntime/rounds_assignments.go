@@ -93,7 +93,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		}
 		return unknown
 	}
-	plans, err := p.journal.LoadPlans(call, 256)
+	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return RoundsWorkResult{}, err
 	}

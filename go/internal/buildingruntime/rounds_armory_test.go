@@ -18,7 +18,7 @@ func TestRoundsArmoryPlannerAssessesWithoutActions(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	before, err := db.LoadPlans(ctx, 256)
+	before, err := db.LoadPlans(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestRoundsArmoryPlannerAssessesWithoutActions(t *testing.T) {
 	if got.Verdict != BuildingReasonNoDeficit {
 		t.Fatalf("reason = %v, want %v", got.Verdict, BuildingReasonNoDeficit)
 	}
-	after, err := db.LoadPlans(ctx, 256)
+	after, err := db.LoadPlans(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

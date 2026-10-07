@@ -78,7 +78,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		blocked = blocked || fieldBlockingWork(plan.Progress)
 	}
-	plans, err := p.journal.LoadPlans(call, 256)
+	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return RoundsFieldResult{}, err
 	}

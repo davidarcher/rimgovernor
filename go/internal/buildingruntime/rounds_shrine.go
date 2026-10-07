@@ -479,7 +479,7 @@ func shrineMethod(method domain.MethodID) bool {
 // the move, so the whole plan settles, not only the orders on the draft.
 func (r *RoundsShrinePlanner) settleOrphanedPlans(call context.Context) error {
 	p := r.reviewer.player
-	plans, err := p.journal.LoadPlans(call, 256)
+	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return err
 	}

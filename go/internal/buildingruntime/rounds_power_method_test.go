@@ -180,7 +180,7 @@ func TestRoundsPowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) {
 			if err == nil && result.Decision.Admitted {
 				t.Fatal("invalid power work admitted", result)
 			}
-			plans, err := db.LoadPlans(context.Background(), 256)
+			plans, err := db.LoadPlans(context.Background())
 			if err != nil || len(plans) != 2 {
 				t.Fatal("partial power method", plans, err)
 			}

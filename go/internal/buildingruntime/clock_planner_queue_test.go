@@ -80,7 +80,7 @@ func TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline(t *testing.T) {
 	if !ok || len(wait.On) == 0 || wait.Deadline != tick+int64(reviewEveryUrgent) {
 		t.Fatal(wait, ok)
 	}
-	plans, err := s.player.journal.LoadPlans(ctx, 256)
+	plans, err := s.player.journal.LoadPlans(ctx)
 	if err != nil || !reflect.DeepEqual(openWorkOfKinds(plans, []domain.ActionKind{domain.BuildingAction}), wait.On) {
 		t.Fatal(plans, err, wait.On)
 	}

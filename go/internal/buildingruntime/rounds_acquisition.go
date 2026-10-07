@@ -430,7 +430,7 @@ func holdWorked(sources domain.Fact[[]policy.AcquisitionSource], undispatched, h
 // on, its census without the sources a field plan reserves.
 func (r *Rounder) acquisitionReading(call context.Context, state ControlState, review store.Rounds) (observation.Identity, observation.ColonyProjection, error) {
 	p := r.player
-	plans, err := p.journal.LoadPlans(call, 256)
+	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return observation.Identity{}, observation.ColonyProjection{}, err
 	}

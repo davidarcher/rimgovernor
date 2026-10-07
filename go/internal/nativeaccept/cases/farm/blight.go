@@ -225,7 +225,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	// Independent native read after the service releases the game slot.
 	fieldCtx, fieldCancel := context.WithTimeout(ctx, 2*time.Minute)
 	err = na.WaitProgress(fieldCtx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-		plans, err := journal.LoadPlans(ctx, 256)
+		plans, err := journal.LoadPlans(ctx)
 		if err != nil {
 			return "", false, err
 		}
