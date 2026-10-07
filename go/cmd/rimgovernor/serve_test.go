@@ -84,6 +84,55 @@ func TestServePprofIsOffUnlessAsked(t *testing.T) {
 	}
 }
 
+func TestServeRejectsNonNumericListenPorts(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	for _, port := range []string{"http", "", "-1", "+80", "65536", " 80"} {
+		if _, err := parseServe(append(append([]string{}, base...), "--listen", "127.0.0.1:"+port), io.Discard); err == nil {
+			t.Errorf("accepted port %q", port)
+		}
+	}
+	for _, listen := range []string{"127.0.0.1:0", "[::1]:65535"} {
+		if _, err := parseServe(append(append([]string{}, base...), "--listen", listen), io.Discard); err != nil {
+			t.Errorf("rejected %q: %v", listen, err)
+		}
+	}
+}
+
+func TestServeCancellationJoinsNativePoll(t *testing.T) {
+	dir := t.TempDir()
+	fake := &serviceFake{entered: make(chan struct{}, 1)}
+	cfg := serveConfig{state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: 10 * time.Millisecond}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- serveWithBridge(ctx, cfg, io.Discard, func(context.Context, bridge.ProcessConfig) (serviceBridge, error) { return fake, nil })
+	}()
+	select {
+	case <-fake.entered:
+	case err := <-done:
+		t.Fatalf("startup: %v", err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("poll did not start")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("shutdown did not join")
+	}
+	if !fake.closed.Load() || fake.closeWhileReading.Load() {
+		t.Fatal("bridge closed before polling joined")
+	}
+	if err := os.Remove(cfg.state); err != nil {
+		t.Fatalf("database not closed: %v", err)
+	}
+}
+
 type serviceFake struct {
 	reads             atomic.Int32
 	active            atomic.Int32
