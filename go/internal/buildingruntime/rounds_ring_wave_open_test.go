@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // An owner's open ring wave of a planned room (the shelter's 23 walls) must
@@ -79,6 +80,56 @@ func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 	}
 	if err := commit("campfire", domain.Cell{X: 3, Z: 3}); err != nil {
 		t.Fatalf("furniture waited behind the ring wave: %v", err)
+	}
+}
+
+// The slot is admitted first and the ring wave after it (#2303): the store
+// admits a ring wave beside the owner's open furniture on cells the furniture
+// is not on, and still not a second open furnishing method or a ring wave on the
+// slot's own cell.
+func TestRingWaveIsAdmittedBesideOpenFurnitureSlot(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
+	t.Parallel()
+	p, db, _ := cookingFixture(t)
+	ctx := context.Background()
+	review, err := db.LoadRounds(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goal, workable, err := db.WorkableOwner(ctx, review, policy.EnsureCooking)
+	if err != nil || !workable {
+		t.Fatal(workable, err)
+	}
+	player := p.reviewer.player
+	player.mu.Lock()
+	epoch := player.epoch
+	player.mu.Unlock()
+	state := player.session.State()
+	commit := func(goal store.WorkOwner, method, def string, cell domain.Cell) error {
+		b, err := domain.NewBuilding(def, cell, domain.North, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := domain.MintPlanID()
+		a, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-0"), b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = p.commitOwnerActions(ctx, epoch, state, goal, domain.MethodID(method), id, []domain.Action{a})
+		return err
+	}
+	if err := commit(goal, "campfire", "Campfire", domain.Cell{X: 3, Z: 3}); err != nil {
+		t.Fatal(err)
+	}
+	goal, _, err = db.WorkableOwner(ctx, review, policy.EnsureCooking)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(goal, "shelter-shell-1-1-build-ab", "Wall", domain.Cell{X: 3, Z: 3}); err == nil {
+		t.Fatal("a ring wave was admitted on the open furniture's cell")
+	}
+	if err := commit(goal, "shelter-shell-1-1-build-ab", "Wall", domain.Cell{X: 1, Z: 1}); err != nil {
+		t.Fatalf("the ring wave waited behind the furniture slot: %v", err)
 	}
 }
 

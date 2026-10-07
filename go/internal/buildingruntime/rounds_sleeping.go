@@ -491,16 +491,25 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !reason.IsZero() {
 		return RoundsBuildingResult{Verdict: reason}, nil
 	}
-	// The shelter's template slots are keyed on its planned interior, so its
-	// ring is admitted with them in one reconcile wave (#2264); a shell already
-	// tried this epoch, or refused, leaves the placement to go on.
+	// The shelter's template slots are keyed on its planned interior, so the
+	// slot is previewed and admitted first and the ring wave goes in right
+	// after it, around the placed slot (#2264, #2303): a ring blueprint on the
+	// slot's interaction spot makes the native refuse the slot. A ring wave
+	// already open leaves the placement to go on.
+	var ringAfter *roomReconcile
 	if r.takesShelterSlot(facts) {
 		if room, owed := plannedRoomOwed(facts, policy.PlannedShelter); owed {
-			result, err := r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))})
-			if err != nil || !result.Verdict.skipsToPlacement() {
-				return result, err
+			open, err := r.ringWaveOpen(call, goal)
+			if err != nil {
+				return RoundsBuildingResult{}, err
+			}
+			if !open {
+				ringAfter = &roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))}
 			}
 		}
+	}
+	admitRing := func(goal store.WorkOwner) (RoundsBuildingResult, error) {
+		return r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, *ringAfter)
 	}
 	if module, ok := r.plannedRoomModule(); ok {
 		// The planned room is raised and furnished together (#835): the
@@ -591,6 +600,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	if _, loadErr := p.journal.LoadOwnerMethod(call, goal, method); loadErr == nil {
+		if ringAfter != nil {
+			// The slot is placed already: the ring goes up around it.
+			if result, err := admitRing(goal); err != nil || !result.Verdict.skipsToPlacement() {
+				return result, err
+			}
+		}
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "sleeping_method")}, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoundsBuildingResult{}, loadErr
@@ -702,7 +717,21 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.power != nil && r.power.Method == policy.PowerShelter {
 		purpose = policy.Shelter
 	}
-	return r.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose})
+	result, err := r.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose})
+	if err != nil || ringAfter == nil || result.Verdict != BuildingReasonAdmitted {
+		return result, err
+	}
+	// The slot is admitted: the shelter's ring wave goes in around it. The slot's
+	// admission moved the owner on, so the ring commits against the fresh owner;
+	// a ring that is not ready now is tried again next step.
+	owner, workable, err := p.journal.WorkableOwner(call, review, r.concern)
+	if err != nil || !workable {
+		return result, err
+	}
+	if _, err := admitRing(owner); err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 // roundsAdmission is what admitPreviews commits: the previews a method
@@ -886,6 +915,13 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if slotOnly {
 		interiorRooms = plannedShelterRooms(facts)
 	}
+	// A campfire or cooler for a planned shelter has no outdoor stand-in: a slot
+	// the native refuses waits, named by its blocker, instead of the search
+	// below placing one outside the room (#2303). The crafting spot keeps its
+	// placed-as-before fall-through.
+	strictSlot := slotOnly && len(interiorRooms) > 0 && r.concern != policy.EnsureBasicDefense
+	var refusedSlot *refusedPlacement
+	var lastPreview policy.Preview
 	if r.temperature != nil {
 		for _, c := range r.temperature.Cells {
 			roomCells[c] = true
@@ -1042,6 +1078,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		if err != nil {
 			return placementChoice{}, false, Verdict{}, err
 		}
+		lastPreview = preview.Preview
 		made, known := preview.Preview.MadeFromStuff.Value()
 		if (r.phase == policy.ComfortRanked || r.phase == policy.ComfortBasic) && slices.Contains(watchBuildings, r.definition) {
 			accessible, known := preview.Preview.WatchCellsAccessible.Value()
@@ -1199,6 +1236,10 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				if err != nil || !reason.IsZero() {
 					return nil, policy.StockObservation{}, reason, err
 				}
+				if !ok && strictSlot && refusedSlot == nil {
+					refused := reportRefused(call, roomBuild{def: r.definition, cell: p.Anchor()}, lastPreview)
+					refusedSlot = &refused
+				}
 				if ok && !overlaps(choice.choice) {
 					pending = &choice
 					if err := commit(); err != nil {
@@ -1218,6 +1259,13 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				return nil, policy.StockObservation{}, reason, err
 			}
 		}
+	}
+	if int64(len(selected)) < missing && strictSlot {
+		subject := "shelter_slot:none_free"
+		if refusedSlot != nil {
+			subject = "shelter_slot:blocked:" + refusedSlot.key()
+		}
+		return nil, policy.StockObservation{}, waitFor(WaitExistingWork, subject), nil
 	}
 	if int64(len(selected)) < missing {
 		if reason, err := pass(search, ""); err != nil || !reason.IsZero() {

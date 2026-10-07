@@ -156,14 +156,37 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 		if !ok || shape.Size != (domain.Cell{X: 1, Z: 1}) {
 			return
 		}
+		// A piece with an interaction cell faces a rotation whose cell stays on
+		// the floor: the corner's first rotation would put it in the wall, and the
+		// native refuses the slot once the ring stands (#2303).
+		rots := []domain.Rotation{domain.North}
+		if shape.Interaction != nil {
+			rots = []domain.Rotation{domain.North, domain.East, domain.South, domain.West}
+		}
+		place := func(c domain.Cell) bool {
+			for _, rot := range rots {
+				p := NewInteriorPiece(slot, def, shape.Size, rot, c)
+				if shape.Interaction != nil {
+					off := *shape.Interaction
+					p.InteractionOffset = &off
+					if ic, ok := p.Interaction(); ok && !s.f.Contains(Rectangle{X: ic.X, Z: ic.Z, Width: 1, Height: 1}) {
+						continue
+					}
+				}
+				if s.try(p) {
+					return true
+				}
+			}
+			return false
+		}
 		for _, c := range corners {
-			if s.try(NewInteriorPiece(slot, def, shape.Size, domain.North, c)) {
+			if place(c) {
 				return
 			}
 		}
 		for v := f.Depth - 1; v >= 0; v-- {
 			for u := int32(0); u < f.Width; u++ {
-				if s.try(NewInteriorPiece(slot, def, shape.Size, domain.North, domain.Cell{X: u, Z: v})) {
+				if place(domain.Cell{X: u, Z: v}) {
 					return
 				}
 			}

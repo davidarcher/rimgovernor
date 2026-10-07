@@ -70,16 +70,17 @@ func IsRoomShellMethod(method domain.MethodID) bool {
 	return ok
 }
 
-// roomShellOpenWorkExempt admits furniture under an owner whose only open work
-// is planned rooms' ring waves (#2303): a ring runs for days, and the owner's
-// slot on the room's interior (the shelter's campfire or cooler) is admitted
-// with it, not after it. The new method must be pure construction that is not
-// itself a ring wave, on no cell an open wave builds on; any other open method
-// still holds the owner.
+// roomShellOpenWorkExempt admits furniture beside an owner's open planned-room
+// ring wave, and a ring wave beside the owner's open furniture (#2303): a ring
+// runs for days, and the owner's slot on the room's interior (the shelter's
+// campfire or cooler) is admitted with it, not after it. Both sides are pure
+// construction on cells the other does not build on, a single ring wave beside
+// non-ring methods; any other open method still holds the owner.
 func roomShellOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
-	if len(plan.Actions()) == 0 || IsRoomShellMethod(method) {
+	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
+	newRing := IsRoomShellMethod(method)
 	taken := map[domain.Cell]bool{}
 	for _, m := range goal.OwnerMethods() {
 		p, err := load(ctx, tx, m.Plan)
@@ -89,13 +90,15 @@ func roomShellOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, me
 		if !PlanOpen(p) {
 			continue
 		}
-		if !IsRoomShellMethod(m.Method) {
+		if IsRoomShellMethod(m.Method) == newRing {
 			return false, nil
 		}
 		for _, a := range p.Spec.Actions() {
-			if b, ok := a.Building(); ok {
-				taken[b.Cell()] = true
+			b, ok := a.Building()
+			if !ok {
+				return false, nil
 			}
+			taken[b.Cell()] = true
 		}
 	}
 	for _, a := range plan.Actions() {

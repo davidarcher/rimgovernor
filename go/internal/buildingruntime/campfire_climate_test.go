@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -17,11 +18,23 @@ import (
 // anchors for the plan's climate.
 func campfireSearch(t *testing.T, cold bool) (chosen domain.Cell, slots []domain.Cell, interior policy.Rectangle, wait Verdict) {
 	t.Helper()
+	return campfireSearchRefused(t, cold, nil)
+}
+
+// campfireSearchRefused is campfireSearch with the native refusing every
+// placement refused names a cell of (the preview reports a wall blueprint in
+// the way); nil refuses none.
+func campfireSearchRefused(t *testing.T, cold bool, refused func(domain.Cell) bool) (chosen domain.Cell, slots []domain.Cell, interior policy.Rectangle, wait Verdict) {
+	t.Helper()
 	ctx := context.Background()
 	planner, _, session, _, n := sleepingFixture(t)
 	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 		b, _ := p.Preview.Action.Building()
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+		if refused != nil && refused(b.Cell()) {
+			p.Preview.CanPlace = domain.Known(false)
+			p.Preview.Blockers = []policy.PlacementBlocker{{DefName: "Wall", Blueprint: true}}
+		}
 	}
 	identity, _, err := n.Identity(ctx)
 	if err != nil {
@@ -82,6 +95,29 @@ func TestCookingCampfireTakesTheShelterSlotOnAColdMap(t *testing.T) {
 	}
 	if got != slots[0] && got != slots[1] {
 		t.Fatalf("campfire at %v, want a shelter slot %v", got, slots)
+	}
+}
+
+// A cold map's cooking campfire whose slots the native refuses (the ring's
+// blueprints are in the way) waits, naming the blocker; it is never placed
+// outside the shelter by the unrestricted search (#2303).
+func TestCookingCampfireWaitsOnARefusedShelterSlot(t *testing.T) {
+	t.Parallel()
+	got, slots, _, wait := campfireSearchRefused(t, true, func(domain.Cell) bool { return true })
+	if len(slots) == 0 {
+		t.Fatal("a cold shelter template holds no campfire slot")
+	}
+	if got != (domain.Cell{}) {
+		t.Fatalf("campfire placed at %v despite every slot refused", got)
+	}
+	want := "shelter_slot:blocked:Campfire@"
+	if !wait.Is(WaitExistingWork) || !strings.HasPrefix(wait.Refusal.Subject, want) {
+		t.Fatalf("wait %+v, want an existing-work wait naming %q", wait, want)
+	}
+	// One slot refused and the other free: the free slot is taken.
+	got, _, _, wait = campfireSearchRefused(t, true, func(c domain.Cell) bool { return c == slots[0] })
+	if !wait.IsZero() || got != slots[1] {
+		t.Fatalf("campfire at %v wait %+v, want the second slot %v", got, wait, slots[1])
 	}
 }
 
