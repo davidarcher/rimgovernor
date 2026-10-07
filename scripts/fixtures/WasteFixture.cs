@@ -191,6 +191,104 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, tick = Find.TickManager.TicksGame, things };
             }, cancellationToken);
 
+        // Stranger sarcophagus loop acceptance (#2338): one fresh Sarcophagus
+        // accepting any humanlike corpse, a fresh stranger corpse (a humanlike
+        // pawn of no faction) a few cells away, and every colonist hauling.
+        [Tool("test/tomb_stage", Description = "Disposable fixture (#2338): a fresh sarcophagus and a fresh stranger corpse near the first colonist. Test builds only.")]
+        public async Task<object> TombStage(IRimBridgeContext ctx, CancellationToken cancellationToken)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
+                var open = GenRadial.RadialCellsAround(pawn.Position, 20, true).Where(c => c.InBounds(map)
+                    && !c.Fogged(map) && c.Standable(map) && !c.Roofed(map) && c.GetEdifice(map) == null && c.GetZone(map) == null
+                    && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item) && c.GetFirstBuilding(map) == null
+                    && c.GetTerrain(map).passability == Traversability.Standable).Distinct().ToList();
+                var sarcophagusCell = open.FirstOrDefault(c => open.Contains(c + IntVec3.North));
+                if (sarcophagusCell == default) throw new System.InvalidOperationException("No open 1x2 near the first colonist for the sarcophagus.");
+                var sarcophagusCells = new[] { sarcophagusCell, sarcophagusCell + IntVec3.North };
+                var corpseCell = open.Where(c => !sarcophagusCells.Contains(c) && sarcophagusCells.All(s => s.DistanceToSquared(c) > 16))
+                    .OrderBy(c => c.DistanceToSquared(sarcophagusCell)).FirstOrDefault();
+                if (corpseCell == default) throw new System.InvalidOperationException("No free cell for the stranger corpse.");
+                var def = DefDatabase<ThingDef>.GetNamed("Sarcophagus");
+                var sarcophagus = (Building_Grave)ThingMaker.MakeThing(def, ThingDefOf.Steel);
+                sarcophagus.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(sarcophagus, sarcophagusCell, map, Rot4.North);
+                var filter = sarcophagus.GetStoreSettings().filter;
+                filter.SetAllow(ThingCategoryDefOf.CorpsesHumanlike, true);
+                foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable))
+                    filter.SetAllow(special, true);
+                var corpse = TombCorpse(map, corpseCell);
+                foreach (var colonist in map.mapPawns.FreeColonistsSpawned)
+                    colonist.workSettings?.SetPriority(WorkTypeDefOf.Hauling, 1);
+                var identity = Current.Game.GetComponent<ColonyIdentity>();
+                return (object)new { success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken,
+                    mapId = map.uniqueID, tick = Find.TickManager.TicksGame,
+                    sarcophagus = sarcophagus.GetUniqueLoadID(), corpse = corpse.GetUniqueLoadID(),
+                    sarcophagusX = sarcophagusCell.x, sarcophagusZ = sarcophagusCell.z,
+                    colonists = map.mapPawns.FreeColonistsSpawned.Count };
+            }, cancellationToken);
+
+        // A fresh stranger corpse exactly on cell, unforbidden.
+        private static Corpse TombCorpse(Map map, IntVec3 cell)
+        {
+            var dead = PawnGenerator.GeneratePawn(PawnKindDefOf.Villager, null);
+            GenSpawn.Spawn(dead, cell, map);
+            dead.Kill(null);
+            var corpse = dead.Corpse;
+            if (corpse.Spawned) corpse.DeSpawn(DestroyMode.Vanish);
+            GenPlace.TryPlaceThing(corpse, cell, map, ThingPlaceMode.Direct, out var placed);
+            if (placed != corpse || !corpse.Spawned || corpse.Position != cell)
+                throw new System.InvalidOperationException($"Fixture corpse displaced from {cell}.");
+            corpse.SetForbidden(false, false);
+            return corpse;
+        }
+
+        // The second burial: the buried corpse is ejected and forbidden so
+        // nothing hauls it back, and a second fresh stranger corpse lies out
+        // for the same, now used, sarcophagus.
+        [Tool("test/tomb_second", Description = "Disposable fixture (#2338): eject the sarcophagus contents, forbid them and stage a second stranger corpse. Test builds only.")]
+        public async Task<object> TombSecond(IRimBridgeContext ctx, CancellationToken cancellationToken, string sarcophagus)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var grave = map.listerBuildings.allBuildingsColonist.OfType<Building_Grave>().FirstOrDefault(g => g.GetUniqueLoadID() == sarcophagus)
+                    ?? throw new System.InvalidOperationException($"No sarcophagus {sarcophagus}.");
+                var first = grave.Corpse ?? throw new System.InvalidOperationException("The sarcophagus holds no corpse to eject.");
+                grave.EjectContents();
+                first.SetForbidden(true, false);
+                var cell = GenRadial.RadialCellsAround(grave.Position, 12, true).Where(c => c.InBounds(map) && c.Standable(map)
+                    && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)
+                    && c.DistanceToSquared(grave.Position) > 16).OrderBy(c => c.DistanceToSquared(grave.Position)).First();
+                var second = TombCorpse(map, cell);
+                return (object)new { success = true, tick = Find.TickManager.TicksGame, first = first.GetUniqueLoadID(), second = second.GetUniqueLoadID() };
+            }, cancellationToken);
+
+        // Where the sarcophagus, each colonist's KnowBuriedInSarcophagus
+        // memories and each listed corpse stand.
+        [Tool("test/tomb_read", Description = "Disposable fixture (#2338): the sarcophagus, every colonist's KnowBuriedInSarcophagus memories and the listed corpses. Test builds only.")]
+        public async Task<object> TombRead(IRimBridgeContext ctx, CancellationToken cancellationToken, string sarcophagus, string ids = "")
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var memory = DefDatabase<ThoughtDef>.GetNamed("KnowBuriedInSarcophagus");
+                var grave = map.listerBuildings.allBuildingsColonist.OfType<Building_Grave>().FirstOrDefault(g => g.GetUniqueLoadID() == sarcophagus);
+                var colonists = map.mapPawns.FreeColonistsSpawned.Select(p => new { id = p.GetUniqueLoadID(), mood = p.needs?.mood != null,
+                    memories = p.needs?.mood?.thoughts?.memories?.Memories.Count(m => m.def == memory) ?? -1 }).ToList();
+                var corpses = ids.Split(',').Where(id => id.Length > 0).Select(id =>
+                {
+                    var spawned = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>().FirstOrDefault(c => c.GetUniqueLoadID() == id);
+                    var held = grave?.Corpse != null && grave.Corpse.GetUniqueLoadID() == id ? grave.Corpse : null;
+                    var corpse = spawned ?? held;
+                    return new { id, found = corpse != null, spawned = spawned != null, inSarcophagus = held != null,
+                        everBuried = corpse?.everBuriedInSarcophagus ?? false,
+                        rot = corpse?.TryGetComp<CompRottable>()?.Stage.ToString() ?? "",
+                        x = spawned?.Position.x ?? -1, z = spawned?.Position.z ?? -1 };
+                }).ToList();
+                return (object)new { success = true, tick = Find.TickManager.TicksGame, present = grave != null && !grave.Destroyed,
+                    holds = grave?.HasAnyContents ?? false, colonists, corpses };
+            }, cancellationToken);
+
         // Corpse disposal acceptance (#1817), staged on the tribal baseline
         // colony: a rotten animal corpse, a rotten and a fresh stranger
         // corpse, one worn apparel and stone blocks for the walls, each on its

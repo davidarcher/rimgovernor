@@ -433,7 +433,10 @@ a planned tomb's sarcophagus and the memory is live (#2337), `NextTombStep` retu
 sarcophagus (once per sarcophagus per Episode; `StrangerDisposals`): native ejects
 the corpse beside the cell, the incinerator's burnable filter takes it once it is
 past Fresh, and the slot is free in the plan. A sarcophagus holding a colonist, a
-grave or one outside the planned tomb is never touched.
+grave or one outside the planned tomb is never touched. The native physics (one
+memory per colonist from the first body ever, none from a second burial, the
+ejected corpse beside the cell) is acceptance case `burial/stranger_sarcophagus`
+(#2338).
 
 The waste yard (#2187) is an Outdoor plan room (`PlannedWasteYard`: fence and
 gate, no roof, no floor owed) of 11x7 interior, planned with the cluster. The
