@@ -262,10 +262,17 @@ namespace HomeBridge.BridgeTools
         private static Thing remoteStack;
 
         [Tool("test/loot_remote_drop", Description = "UNSAFE FOR MODEL EXECUTION. Spawn a forbidden Steel stack on a safe cell near the far map edge, reachable by the prepared hauler and outside Home; extend the prepared stockpile. Tests reach-staged remote loot recovery (#522).")]
-        public async Task<object> LootRemoteDrop(IRimBridgeContext ctx, CancellationToken cancellationToken, int count = 75)
+        public async Task<object> LootRemoteDrop(IRimBridgeContext ctx, CancellationToken cancellationToken, int count = 75, bool covered = false, bool audit = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
+                if (audit) {
+                    // covered loot (#2302): the stack left its far cell (hauled, merged or gone) and the zone gained its steel.
+                    if (remoteStack == null || lootZone == null) return Refuse("No remote stack dropped.");
+                    var moved = !remoteStack.Spawned || remoteStack.Destroyed || remoteStack.Position != remoteOrigin;
+                    return new { success = true, moved, forbidden = remoteStack.Spawned && remoteStack.IsForbidden(Faction.OfPlayer),
+                        delivered = StoredSteel(map) - lootStoredBefore, stock = lootStock };
+                }
                 if (map == null || map != preparedMap || preparedHauler == null || !Find.TickManager.Paused)
                     return Refuse("Prepared paused storage fixture required.");
                 if (count < 1 || count > 75) return Refuse("Use 1..75 units.");
@@ -284,18 +291,86 @@ namespace HomeBridge.BridgeTools
                 remoteStack.stackCount = count;
                 GenSpawn.Spawn(remoteStack, cells[0], map);
                 remoteStack.SetForbidden(true, false);
+                remoteOrigin = cells[0];
+                lootStock = 0;
+                if (covered) {
+                    lootStock = StockCovered(map);
+                    if (lootStock < 0) return Refuse("Too few free stockpile cells to cover Steel demand.");
+                }
+                lootStoredBefore = StoredSteel(map);
                 return new { success = true, id = remoteStack.GetUniqueLoadID(), x = cells[0].x, z = cells[0].z,
-                    distance = cells[0].DistanceTo(center), edge = Edge(cells[0]), forbidden = true, count };
+                    distance = cells[0].DistanceTo(center), edge = Edge(cells[0]), forbidden = true, count, stock = lootStock };
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        private static IntVec3 remoteOrigin;
+        private static int lootStoredBefore;
+        private static int lootStock;
+
+        private static int StoredSteel(Map map) => lootZone.Cells.SelectMany(c => c.GetThingList(map)).Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
+
+        // Covers Steel demand (the 200 default floor, #2302): unforbidden full
+        // stacks fill the loot stockpile, leaving two cells for deliveries. The
+        // count is -1 when the zone is too small to cover the floor.
+        private static int StockCovered(Map map)
+        {
+            var free = lootZone.Cells.Where(c => c.Standable(map) && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).ToList();
+            var stacks = Math.Min(7, free.Count - 2);
+            if (stacks < 3) return -1;
+            for (var i = 0; i < stacks; i++) {
+                var stack = ThingMaker.MakeThing(ThingDefOf.Steel);
+                stack.stackCount = 75;
+                GenSpawn.Spawn(stack, free[i], map);
+                stack.SetForbidden(false, false);
+            }
+            return stacks * 75;
+        }
+
         private static Building salvageWall;
+        private static readonly List<Building> salvageCluster = new List<Building>();
+        private static readonly List<IntVec3> salvagePatch = new List<IntVec3>();
+        private static Plant salvagePlant;
+        private static int salvageStock;
+        private static ThingDef collapseRubble => DefDatabase<ThingDef>.GetNamedSilentFail("CollapsedRoofRubble");
         private static IntVec3 salvageCell;
+
+        // A cluster of three foreign steel walls in a row under a thin roof
+        // (#2302): the walls are the only roof holders in range, so removing
+        // them first would collapse the roof; recovery takes the roof off,
+        // then the walls. The patch is the roofed 5x3 rectangle.
+        private static void SpawnWallCluster(Map map)
+        {
+            salvageCluster.Clear();
+            salvagePatch.Clear();
+            foreach (var origin in GenRadial.RadialCellsAround(salvageCell, 20, true)) {
+                var patch = new List<IntVec3>();
+                for (var dx = 0; dx < 5; dx++)
+                    for (var dz = -1; dz <= 1; dz++) patch.Add(new IntVec3(origin.x + dx, 0, origin.z + dz));
+                if (!patch.All(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && !c.Roofed(map)
+                        && !c.Fogged(map) && !map.areaManager.Home[c] && map.zoneManager.ZoneAt(c) == null)
+                    || !preparedHauler.CanReach(origin, PathEndMode.Touch, Danger.None)) continue;
+                var walls = new List<Building>();
+                for (var dx = 1; dx <= 3; dx++) {
+                    var wall = GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.Steel), new IntVec3(origin.x + dx, 0, origin.z), map) as Building;
+                    if (wall == null) break;
+                    wall.SetForbidden(false, false);
+                    walls.Add(wall);
+                }
+                if (walls.Count != 3) { foreach (var w in walls) w.Destroy(DestroyMode.Vanish); continue; }
+                foreach (var c in patch) map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                salvageCluster.AddRange(walls);
+                salvagePatch.AddRange(patch);
+                salvageWall = walls[0];
+                salvageCell = walls[0].Position;
+                return;
+            }
+        }
+
         private static int salvageHomeCount;
         private static int salvageStoredBefore;
         private static Pawn salvageThreat;
         [Tool("test/salvage_remote", Description = "UNSAFE FOR MODEL EXECUTION. Replace the prepared remote loot with a steel-rich ruin (a battery) and raise readiness, or audit ordinary deconstruction, delivered steel and unchanged Home. threat=spawn stages one hostile humanlike beside the ruin, holding position (a raid that fires after selection, #525); threat=clear removes it.")]
-        public async Task<object> SalvageRemote(IRimBridgeContext ctx, CancellationToken cancellationToken, bool prepare = false, string threat = "")
+        public async Task<object> SalvageRemote(IRimBridgeContext ctx, CancellationToken cancellationToken, bool prepare = false, string threat = "", string scenario = "")
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 int Stored() => lootZone.Cells.SelectMany(c => c.GetThingList(map)).Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
@@ -323,6 +398,8 @@ namespace HomeBridge.BridgeTools
                 if (prepare) {
                     if (map != preparedMap || remoteStack?.Spawned != true || !Find.TickManager.Paused) return Refuse("Prepared remote loot required.");
                     salvageCell = remoteStack.Position;
+                    salvageCluster.Clear();
+                    salvagePatch.Clear();
                     remoteStack.Destroy(DestroyMode.Vanish);
                     // Every generated ruin competes for the one remote removal a
                     // census admits (nearer, lighter yields rank first), so the
@@ -345,7 +422,8 @@ namespace HomeBridge.BridgeTools
                     // A battery's 35 steel outranks the map seed's urns and doors
                     // under the Steel target; a steel wall's 2 never would.
                     var battery = DefDatabase<ThingDef>.GetNamed("Battery");
-                    foreach (var cell in GenRadial.RadialCellsAround(salvageCell, 20, true)) {
+                    if (scenario == "cluster") SpawnWallCluster(map);
+                    else foreach (var cell in GenRadial.RadialCellsAround(salvageCell, 20, true)) {
                         // The battery is 1x2 and the remote cell hugs the map edge:
                         // every footprint cell must qualify, or the spawn fails.
                         if (!GenAdj.OccupiedRect(cell, Rot4.North, battery.size).Cells.All(c => c.InBounds(map) && c.Standable(map)
@@ -366,6 +444,25 @@ namespace HomeBridge.BridgeTools
                     // gone, the default Steel floor (200) is the salvage demand.
                     foreach (var steel in map.listerThings.ThingsOfDef(ThingDefOf.Steel).ToList())
                         steel.Destroy(DestroyMode.Vanish);
+                    // scenario=covered (#2302): Steel is above its floor, so the
+                    // ruin is recovered although nothing is short.
+                    salvageStock = 0;
+                    if (scenario == "covered") {
+                        salvageStock = StockCovered(map);
+                        if (salvageStock < 0) return Refuse("Too few free stockpile cells to cover Steel demand.");
+                    }
+                    // scenario=probe (#2302): a wild bush beside the ruin, for
+                    // the foreign cut by the Go-built id (#2293).
+                    salvagePlant = null;
+                    if (scenario == "probe") {
+                        var bushDef = DefDatabase<ThingDef>.GetNamed("Plant_Bush");
+                        var bushCell = GenRadial.RadialCellsAround(salvageCell, 6, false).FirstOrDefault(c => c.InBounds(map) && c.Standable(map)
+                            && c.GetEdifice(map) == null && c.GetThingList(map).All(t => t is Plant || t.def.category != ThingCategory.Building)
+                            && c.GetPlant(map) == null && !map.areaManager.Home[c] && map.zoneManager.ZoneAt(c) == null);
+                        if (!bushCell.IsValid) return Refuse("No free cell for the probe bush.");
+                        salvagePlant = GenSpawn.Spawn(ThingMaker.MakeThing(bushDef), bushCell, map) as Plant;
+                        if (salvagePlant == null) return Refuse("Probe bush did not spawn.");
+                    }
                     salvageHomeCount = map.areaManager.Home.ActiveCells.Count();
                     salvageStoredBefore = Stored();
                 }
@@ -375,7 +472,16 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, target = salvageWall.GetUniqueLoadID(), present = salvageWall.Spawned, delivered = Stored() - salvageStoredBefore,
                     designations, hostiles, threatPresent = salvageThreat != null && salvageThreat.Spawned && !salvageThreat.Dead,
                     threatId = salvageThreat?.GetUniqueLoadID(), threatCell = salvageThreat?.Spawned == true ? new { x = salvageThreat.Position.x, z = salvageThreat.Position.z } : null,
-                    homeUnchanged = salvageHomeCount == map.areaManager.Home.ActiveCells.Count() && !map.areaManager.Home[salvageCell] };
+                    homeUnchanged = salvageHomeCount == map.areaManager.Home.ActiveCells.Count() && !map.areaManager.Home[salvageCell],
+                    stock = salvageStock,
+                    cluster = salvageCluster.Select(w => new { id = w.GetUniqueLoadID(), present = w.Spawned }).ToArray(),
+                    // roofed patch cells left and collapse rubble in the patch (#2302): a removal that
+                    // beat the roof off leaves rubble; a roof-first batch leaves none.
+                    roofed = salvagePatch.Count(c => c.Roofed(map)),
+                    rubble = collapseRubble == null ? 0 : salvagePatch.Sum(c => c.GetThingList(map).Count(t => t.def == collapseRubble)),
+                    claimed = salvageWall.Spawned && salvageWall.Faction == Faction.OfPlayer,
+                    plant = salvagePlant?.GetUniqueLoadID(), plantCell = salvagePlant?.Spawned == true ? new { x = salvagePlant.Position.x, z = salvagePlant.Position.z } : null,
+                    plantCut = salvagePlant != null && salvagePlant.Spawned && map.designationManager.AllDesignationsOn(salvagePlant).Any(d => d.def == DesignationDefOf.CutPlant) };
             }, cancellationToken);
 
         private static object Refuse(string reason) => new { success = false, reason };
