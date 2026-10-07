@@ -1,63 +1,347 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Colony review 2026-10-02</title><style>
-:root{--bg:#fafaf8;--fg:#1d1d1b;--muted:#6b6b66;--card:#fff;--line:#e2e1dc;--bad:#c0392b;--warn:#b7791f;--accent:#2f6f9f}
-@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#9c9b94;--card:#1f1f1d;--line:#34332f;--bad:#ef6f5e;--warn:#e3a64a;--accent:#79b4dd}}
+:root{--bg:#fafaf8;--fg:#1d1d1b;--muted:#6b6b66;--card:#fff;--line:#e2e1dc;--bad:#c0392b;--warn:#b7791f;--accent:#2f6f9f;--track:#e8e7e2}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#9c9b94;--card:#1f1f1d;--line:#34332f;--bad:#ef6f5e;--warn:#e3a64a;--accent:#79b4dd;--track:#2e2d2a}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:1200px;margin:0 auto;padding:16px}h1{font-size:22px;margin:4px 0}h2{font-size:17px;margin:24px 0 8px}
-a{color:var(--accent)}.muted{color:var(--muted)}.meta span{margin-right:14px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.tile b{display:block;font-size:20px}
-.charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px}
-.chart{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}.chart svg{width:100%;height:70px;display:block}
-.chart polyline{fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
-.flags{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
-.flags li{padding:4px 10px;border-bottom:1px solid var(--line)}.bad{color:var(--bad)}.warn{color:var(--warn)}
-.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}.days figure{margin:0;flex:0 0 220px}.days img{width:220px;height:220px;object-fit:cover;border-radius:6px}
-.hours{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
-.hour{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}.hour.hasbad{border-color:var(--bad)}
-.hour img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#000}.hour .body{padding:8px 10px}
-.hour table{width:100%;border-collapse:collapse;font-size:12px}.hour td{padding:1px 4px 1px 0;vertical-align:top}
-.hour .job{color:var(--muted)}.hour ul{margin:4px 0 0;padding-left:16px;font-size:12px}
-.filter{margin:8px 0}figcaption{font-size:12px;color:var(--muted)}
+main{max-width:1280px;margin:0 auto;padding:16px}h1{font-size:22px;margin:4px 0}h2{font-size:16px;margin:0 0 8px}
+a{color:var(--accent)}.muted{color:var(--muted)}.meta span{margin-right:14px}[hidden]{display:none!important}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:8px 0}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}.tile b{display:block;font-size:19px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.right{position:sticky;top:12px;display:grid;gap:8px}
+.viewer{position:relative;background:#000;border-radius:8px;overflow:hidden;aspect-ratio:1;max-height:60vh;margin:0 auto}
+.viewer img{width:100%;height:100%;object-fit:contain;display:block}
+.viewer .badge{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.65);color:#fff;border-radius:6px;padding:2px 8px;font-weight:600}
+#vtoggle{position:absolute;right:8px;top:8px;display:flex;border-radius:6px;overflow:hidden}
+button,select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}#vtoggle button{border-radius:0;background:rgba(0,0,0,.65);color:#ddd;border:0}#vtoggle button.on{background:var(--accent);color:#fff}
+.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}.controls .grow{flex:1 1 220px;min-width:180px}
+#play{min-width:44px;font-size:16px;background:var(--accent);color:#fff;border-color:var(--accent)}
+.scrub{position:relative;padding-bottom:20px}.scrub input{width:100%;margin:0;accent-color:var(--accent)}
+.marks{position:absolute;left:0;right:0;top:20px;height:18px;pointer-events:none}
+.marks .day{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--muted)}
+.marks .flag{position:absolute;top:-4px;width:3px;height:6px;margin-left:-1px;border-radius:1px;background:var(--warn)}.marks .flag.bad{background:var(--bad)}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+#now .pawns{width:100%;border-collapse:collapse;font-size:13px}#now .pawns th{text-align:left;font-weight:400;color:var(--muted);font-size:12px}#now .pawns td{padding:2px 8px 2px 0}
+.bar{display:inline-block;width:90px;height:8px;border-radius:4px;background:var(--track);vertical-align:middle;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.bar.warn i{background:var(--warn)}.bar.bad i{background:var(--bad)}.barv{font-size:12px;color:var(--muted)}
+.notes{margin:6px 0 0;padding-left:18px}.notes li.bad,.bad{color:var(--bad)}.notes li.warn,.warn{color:var(--warn)}
+.chips .chip{display:inline-block;background:var(--track);border-radius:10px;padding:0 8px;margin:2px 4px 2px 0;font-size:12px}
+.chart{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.chead{display:flex;justify-content:space-between}.crange{display:flex;justify-content:space-between;font-size:11px}
+.plot{position:relative;height:64px;cursor:ew-resize;touch-action:none}.plot svg{width:100%;height:100%;display:block}
+.plot path{fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.strip{display:flex;align-items:center;gap:6px;margin-top:4px}.sname{flex:0 0 52px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.strip .plot{flex:1;height:16px;background:var(--track);border-radius:3px;overflow:hidden}.strip canvas{width:100%;height:100%;display:block}
+.plot .cursor{position:absolute;top:0;bottom:0;width:0;border-left:2px solid var(--bad);pointer-events:none}
+details.card>summary{cursor:pointer;font-weight:600}details.card[open]>summary{margin-bottom:8px}
+.flags{list-style:none;padding:0;margin:0;max-height:300px;overflow:auto}
+.flags li{padding:3px 6px;border-bottom:1px solid var(--line)}.flags li.on{background:var(--track)}
 table.runs{width:100%;border-collapse:collapse}table.runs td,table.runs th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
 table.runs img{width:72px;height:72px;object-fit:cover;border-radius:4px}
-@media (max-width:600px){.hours{grid-template-columns:1fr}}
+@media (max-width:900px){.layout{grid-template-columns:1fr}.right{position:static;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}}
 </style></head><body><main>
 <p><a href="../index.html">All runs</a></p>
 <h1>Colony review 2026-10-02</h1>
 <p class="meta muted"><span>biome: TemperateForest</span><span>commit: def456</span><span>date: 2026-10-02</span><span>seed: review-x</span></p>
 
-<div class="tiles">
-<div class="tile"><span class="muted">Colonists</span><b>0 → 0</b></div>
-<div class="tile"><span class="muted">Lowest mean mood</span><b>0%</b></div>
-<div class="tile"><span class="muted">Lowest food runway</span><b>0.0 days</b></div>
-<div class="tile"><span class="muted">Final wealth</span><b>0</b></div>
-<div class="tile"><span class="muted">Hours recorded</span><b>0</b></div>
-<div class="tile"><span class="muted">Flags</span><b class="">0</b></div>
+
+<div class="layout"><div class="left">
+<p id="empty" class="card muted">No screenshots were recorded for this run.</p>
+<section id="player" class="card">
+<div class="viewer"><img id="shot" alt="The colony at the chosen hour"><span class="badge" id="when"></span>
+<div id="vtoggle"><button class="on" data-view="colony">Colony</button><button data-view="map">Whole map</button></div></div>
+<div class="controls">
+<button id="prevday" title="Previous day (shift+left)">⏮</button><button id="prev" title="Previous hour (left)">◀</button>
+<button id="play" title="Play (space)">▶</button>
+<button id="next" title="Next hour (right)">▶|</button><button id="nextday" title="Next day (shift+right)">⏭</button>
+<select id="speed" title="Hours per second"><option value="2">2 h/s</option><option value="8" selected>8 h/s</option><option value="24">24 h/s</option><option value="48">48 h/s</option></select>
+<span class="muted" id="clock"></span>
+<button id="prevflag" title="Previous flagged hour ([)">⚑ ◀</button><button id="nextflag" title="Next flagged hour (])">⚑ ▶</button>
 </div>
-<h2>Colony score</h2>
+<div class="scrub"><input type="range" id="seek" min="0" max="0" value="0" step="1" aria-label="Hour of the run"><div class="marks" id="marks"></div></div>
+<p class="hint">Space plays and pauses, arrows step an hour, shift+arrows a day, [ and ] jump between flagged hours (red and amber marks). Click or drag a chart to seek.</p>
+</section>
+<section id="now" class="card"></section>
+
+<details class="card"><summary>Score and storage</summary>
 <p>Score <b>50.0 / 100</b> <span class="muted">weighted scalar of the components below; a signal, not a verdict.</span></p>
 <table><tr><td>mean_mood</td><td>0.50 0-1</td><td>0.50</td><td class="muted">weight 2.0 · mean of the hourly colony mood mean</td></tr><tr><td>raid_damage</td><td><span class="muted">unknown</span></td><td></td><td class="muted">weight 2.0 · the timeline records no raid damage</td></tr></table>
 <h2>Against the previous night</h2><p class="muted">No earlier run with this seed to compare with (unknown, not zero).</p>
-<h2>Trends</h2><div class="charts"><div class="chart"><span class="muted">Colonists</span> <b></b>
-<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
-<span class="muted"> – </span></div><div class="chart"><span class="muted">Mean mood %</span> <b></b>
-<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
-<span class="muted"> – </span></div><div class="chart"><span class="muted">Food runway days</span> <b></b>
-<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
-<span class="muted"> – </span></div><div class="chart"><span class="muted">Wealth</span> <b></b>
-<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
-<span class="muted"> – </span></div><div class="chart"><span class="muted">Concerns in deficit</span> <b></b>
-<svg viewBox="0 0 1 100" preserveAspectRatio="none"><polyline points=""/></svg>
-<span class="muted"> – </span></div></div>
-<h2>Storage</h2><p class="muted">No stockpile review filed.</p>
-<h2>Flags</h2><p class="muted">None.</p>
-<h2>Whole map, daily</h2><div class="days"></div>
-<h2>Hour by hour</h2>
-<label class="filter"><input type="checkbox" id="only"> Only hours with flags or concern changes</label>
-<div class="hours" id="hours"></div>
-<script>
-document.getElementById('only').addEventListener('change',e=>{for(const s of document.querySelectorAll('#hours .hour'))s.style.display=e.target.checked&&s.dataset.flags==='00'?'none':''})
+<h2>Storage at the end</h2><p class="muted">No stockpile review filed.</p>
+</details>
+</div><aside class="right" id="charts"></aside></div>
+<script>var DATA={"frames":[]};</script>
+<script>// The run page's player: one image, a slider over the recorded hours, and
+// panels that follow the chosen hour. DATA is the report's frames (see
+// frameDTO in html.go).
+(function () {
+  'use strict';
+  var F = DATA.frames, N = F.length;
+  var $ = function (id) { return document.getElementById(id); };
+  if (!N) { $('player').hidden = true; return; }
+  $('empty').hidden = true;
+
+  var cur = -1, timer = 0, view = 'colony', speed = 8;
+  var shot = $('shot'), seek = $('seek');
+  seek.max = N - 1;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pct(v) { return v == null ? '–' : Math.round(v * 100) + '%'; }
+  function num(v, d) { return v == null ? '–' : v.toFixed(d); }
+  function pos(i) { return N < 2 ? 0 : i / (N - 1) * 100; }
+
+  // Series for the charts: [label, value(frame), format, bad(frame value)].
+  var series = [
+    ['Colonists', function (f) { return f.n; }, function (v) { return v.toFixed(0); }],
+    ['Mean mood', function (f) { return f.mood == null ? null : f.mood * 100; }, function (v) { return v.toFixed(0) + '%'; }],
+    ['Food runway', function (f) { return f.food; }, function (v) { return v.toFixed(1) + ' d'; }],
+    ['Wealth', function (f) { return f.wealth; }, function (v) { return v.toFixed(0); }],
+    ['Concerns in deficit', function (f) { return f.n == null ? null : (f.u || []).length; }, function (v) { return v.toFixed(0); }]
+  ];
+
+  // Click or drag on a plot seeks to that hour.
+  function attach(plot) {
+    var drag = function (e) {
+      var r = plot.getBoundingClientRect();
+      go(Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * (N - 1)), true);
+    };
+    plot.addEventListener('pointerdown', function (e) { plot.setPointerCapture(e.pointerId); drag(e); });
+    plot.addEventListener('pointermove', function (e) { if (plot.hasPointerCapture(e.pointerId)) drag(e); });
+  }
+
+  // ---- charts: one polyline per series and a cursor shared by all of them.
+  var chartsEl = $('charts'), cursors = [], readouts = [];
+  series.forEach(function (s, k) {
+    var vals = F.map(s[1]), lo = Infinity, hi = -Infinity;
+    vals.forEach(function (v) { if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } });
+    if (lo === Infinity) { lo = 0; hi = 1; }
+    var span = hi - lo || 1, d = '', pen = false;
+    vals.forEach(function (v, i) {
+      if (v == null) { pen = false; return; }
+      d += (pen ? 'L' : 'M') + i + ',' + (95 - 90 * (v - lo) / span).toFixed(1);
+      pen = true;
+    });
+    var box = document.createElement('div');
+    box.className = 'chart';
+    box.innerHTML = '<div class="chead"><span class="muted">' + esc(s[0]) + '</span><b></b></div>' +
+      '<div class="plot"><svg viewBox="0 0 ' + Math.max(1, N - 1) + ' 100" preserveAspectRatio="none"><path d="' + d + '"/></svg>' +
+      '<i class="cursor"></i></div><div class="crange muted"><span>' + (lo === Infinity ? '' : s[2](lo)) + '</span><span>' + s[2](hi) + '</span></div>';
+    chartsEl.appendChild(box);
+    attach(box.querySelector('.plot'));
+    cursors.push(box.querySelector('.cursor'));
+    readouts.push(box.querySelector('b'));
+  });
+
+  // ---- mood strip: a row per colonist (keyed on the name before the job
+  // title, which can change), a cell per hour colored by that pawn's mood.
+  var names = [], byName = {};
+  F.forEach(function (f, i) {
+    (f.p || []).forEach(function (p) {
+      var n = p.l.split(',')[0];
+      if (!byName[n]) { byName[n] = []; names.push(n); }
+      byName[n][i] = p;
+    });
+  });
+  var strips = [];
+  if (names.length) {
+    var sbox = document.createElement('div');
+    sbox.className = 'chart';
+    sbox.innerHTML = '<div class="chead"><span class="muted">Mood by colonist</span></div>';
+    names.forEach(function (n) {
+      var row = document.createElement('div');
+      row.className = 'strip';
+      row.innerHTML = '<span class="sname" title="' + esc(n) + '">' + esc(n) + '</span><div class="plot"><canvas></canvas><i class="cursor"></i></div>';
+      sbox.appendChild(row);
+      var plot = row.querySelector('.plot');
+      attach(plot);
+      cursors.push(row.querySelector('.cursor'));
+      strips.push([byName[n], plot.querySelector('canvas')]);
+    });
+    chartsEl.appendChild(sbox);
+  }
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function drawStrips() {
+    var bad = css('--bad'), warn = css('--warn'), ok = css('--accent'), fg = css('--fg');
+    strips.forEach(function (st) {
+      var c = st[1], dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+      c.width = Math.max(1, Math.round(w * dpr)); c.height = Math.max(1, Math.round(h * dpr));
+      var x = c.getContext('2d'), cw = c.width / N;
+      st[0].forEach(function (p, i) {
+        if (!p || p.m == null) return;
+        x.fillStyle = p.m < 0.25 ? bad : p.m < 0.4 ? warn : ok;
+        x.globalAlpha = p.m < 0.4 ? 1 : 0.35 + 0.65 * Math.min(1, p.m);
+        x.fillRect(Math.floor(i * cw), 0, Math.ceil(cw), c.height);
+        if (p.d) { x.globalAlpha = 1; x.fillStyle = fg; x.fillRect(Math.floor(i * cw), c.height * 0.4, Math.ceil(cw), c.height * 0.2); }
+      });
+    });
+  }
+  drawStrips();
+  window.addEventListener('resize', drawStrips);
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawStrips);
+
+  // ---- slider marks: a tick per day, a dot per flagged hour.
+  var marks = '';
+  F.forEach(function (f, i) {
+    if (i === 0 || F[i - 1].d !== f.d) marks += '<span class="day" style="left:' + pos(i) + '%">' + f.d + '</span>';
+    if (f.f && f.f.length) marks += '<i class="flag ' + (f.f.some(function (x) { return x.s === 'bad'; }) ? 'bad' : 'warn') + '" style="left:' + pos(i) + '%"></i>';
+  });
+  $('marks').innerHTML = marks;
+
+  // ---- frames
+  var cache = {};
+  function url(name) { return 'review/' + name; }
+  function preload(name) {
+    if (name && !cache[name]) { var im = new Image(); im.src = url(name); cache[name] = im; }
+  }
+  function mapIndex(i) {
+    for (var j = i; j >= 0; j--) if (F[j].m) return j;
+    for (var k = i; k < N; k++) if (F[k].m) return k;
+    return -1;
+  }
+  function frameImage(i) { return view === 'map' ? (F[mapIndex(i)] || {}).m : F[i].s; }
+
+  function go(i, user) {
+    i = Math.max(0, Math.min(N - 1, i));
+    if (user) stop();
+    if (i === cur) return;
+    cur = i;
+    var f = F[i], name = frameImage(i);
+    if (name) { shot.src = url(name); shot.hidden = false; } else { shot.hidden = true; }
+    for (var k = 1; k <= 12; k++) if (i + k < N) preload(view === 'map' ? (F[mapIndex(i + k)] || {}).m : F[i + k].s);
+    seek.value = i;
+    $('clock').textContent = f.l;
+    $('when').textContent = f.l;
+    cursors.forEach(function (c) { c.style.left = pos(i) + '%'; });
+    series.forEach(function (s, k) {
+      var v = s[1](f);
+      readouts[k].textContent = v == null ? '–' : s[2](v);
+    });
+    renderNow(f, i);
+    document.querySelectorAll('#flaglist li.on').forEach(function (e) { e.classList.remove('on'); });
+    var li = document.querySelector('#flaglist li[data-t="' + f.t + '"]');
+    if (li) li.classList.add('on');
+  }
+
+  function renderNow(f, i) {
+    var h = '<h2>' + esc(f.l) + ' <span class="muted">tick ' + f.t + (f.sam ? ' · facts from ' + esc(f.sam) : '') + '</span></h2>';
+    if (f.err) h += '<p class="muted">No colony readings this hour (the census call timed out).</p>';
+    var foodBad = f.food != null && f.food < 2, moodBad = f.mood != null && f.mood < 0.25;
+    h += '<div class="tiles">' +
+      tile('Colonists', f.n == null ? '–' : f.n, i > 0 && F[i - 1].n != null && f.n != null && f.n < F[i - 1].n ? 'bad' : '') +
+      tile('Mean mood', pct(f.mood), moodBad ? 'bad' : '') +
+      tile('Food runway', f.food == null ? '–' : num(f.food, 1) + ' d', foodBad ? 'bad' : '') +
+      tile('Wealth', f.wealth == null ? '–' : f.wealth.toFixed(0), '') +
+      tile('Build tier', f.tier ? esc(f.tier) : '–', '') +
+      tile('In deficit', f.n == null ? '–' : (f.u || []).length, (f.u || []).length ? 'warn' : '') + '</div>';
+    if (f.p && f.p.length) {
+      h += '<table class="pawns"><tr><th></th><th>Mood</th><th>Food</th></tr>';
+      f.p.forEach(function (p) {
+        h += '<tr><td>' + esc(p.l) + (p.d ? ' <span class="bad">downed</span>' : '') + '</td><td>' + bar(p.m, p.m != null && p.m < 0.25 ? 'bad' : p.m != null && p.m < 0.4 ? 'warn' : '') +
+          '</td><td>' + bar(p.f, '') + '</td></tr>';
+      });
+      h += '</table>';
+    }
+    if (f.f && f.f.length) {
+      h += '<ul class="notes">' + f.f.map(function (x) { return '<li class="' + x.s + '">⚑ ' + esc(x.t) + '</li>'; }).join('') + '</ul>';
+    }
+    if (f.c && f.c.length) h += '<ul class="notes muted">' + f.c.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    if (f.u && f.u.length) {
+      h += '<p class="chips"><span class="muted">In deficit:</span> ' + f.u.map(function (u) {
+        return '<span class="chip" title="' + esc(u[1]) + '">' + esc(u[0]) + '</span>';
+      }).join('') + '</p>';
+    }
+    if (f.z && f.z.length || f.fb) {
+      h += '<p class="muted">Storage: ' + (f.z || []).map(function (z) { return esc(z.r) + ' ' + z.z + (z.c ? ' (' + z.u + '/' + z.c + ' cells)' : ''); }).join(' · ') +
+        (f.fb ? ' · <span class="warn">starting supplies forbidden</span>' : '') + '</p>';
+    }
+    $('now').innerHTML = h;
+  }
+  function tile(label, value, cls) { return '<div class="tile"><span class="muted">' + label + '</span><b class="' + cls + '">' + value + '</b></div>'; }
+  function bar(v, cls) {
+    if (v == null) return '<span class="muted">–</span>';
+    return '<span class="bar ' + cls + '"><i style="width:' + Math.round(v * 100) + '%"></i></span> <span class="barv">' + pct(v) + '</span>';
+  }
+
+  // ---- transport
+  function stop() {
+    if (timer) { clearInterval(timer); timer = 0; }
+    $('play').textContent = '▶';
+    $('play').title = 'Play (space)';
+    if (cur >= 0) try { history.replaceState(null, '', '#t' + F[cur].t); } catch (e) { }
+  }
+  function play() {
+    if (cur >= N - 1) go(0);
+    $('play').textContent = '⏸';
+    $('play').title = 'Pause (space)';
+    timer = setInterval(function () {
+      if (cur >= N - 1) { stop(); return; }
+      go(cur + 1);
+    }, 1000 / speed);
+  }
+  function toggle() { timer ? stop() : play(); }
+  function dayStep(dir) {
+    var d = F[cur].d, i = cur;
+    if (dir > 0) { while (i < N - 1 && F[i].d === d) i++; return i; }
+    while (i > 0 && F[i].d === d) i--;
+    while (i > 0 && F[i - 1].d === F[i].d) i--;
+    return i;
+  }
+  function flagStep(dir) {
+    for (var i = cur + dir; i >= 0 && i < N; i += dir) if (F[i].f && F[i].f.length) return i;
+    return cur;
+  }
+  function fromTick(t) { for (var i = 0; i < N; i++) if (F[i].t === t) return i; return -1; }
+
+  $('play').addEventListener('click', toggle);
+  $('prev').addEventListener('click', function () { go(cur - 1, true); });
+  $('next').addEventListener('click', function () { go(cur + 1, true); });
+  $('prevday').addEventListener('click', function () { go(dayStep(-1), true); });
+  $('nextday').addEventListener('click', function () { go(dayStep(1), true); });
+  $('prevflag').addEventListener('click', function () { go(flagStep(-1), true); });
+  $('nextflag').addEventListener('click', function () { go(flagStep(1), true); });
+  seek.addEventListener('input', function () { go(+seek.value, true); });
+  $('speed').addEventListener('change', function (e) {
+    speed = +e.target.value;
+    if (timer) { stop(); play(); }
+  });
+  document.querySelectorAll('#vtoggle button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      view = b.dataset.view;
+      document.querySelectorAll('#vtoggle button').forEach(function (o) { o.classList.toggle('on', o === b); });
+      var i = cur; cur = -1; go(i);
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    var t = e.target.tagName;
+    if (t === 'SELECT' || t === 'TEXTAREA' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === ' ' && t !== 'BUTTON') { e.preventDefault(); toggle(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); go(e.shiftKey ? dayStep(-1) : cur - 1, true); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); go(e.shiftKey ? dayStep(1) : cur + 1, true); }
+    else if (e.key === '[') go(flagStep(-1), true);
+    else if (e.key === ']') go(flagStep(1), true);
+    else if (e.key === 'Home') go(0, true);
+    else if (e.key === 'End') go(N - 1, true);
+  });
+  document.querySelectorAll('#flaglist a').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var i = fromTick(+a.getAttribute('href').slice(2));
+      if (i >= 0) { e.preventDefault(); go(i, true); $('player').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    });
+  });
+  window.addEventListener('hashchange', function () {
+    var m = /^#t(\d+)$/.exec(location.hash), i = m ? fromTick(+m[1]) : -1;
+    if (i >= 0) go(i, true);
+  });
+
+  var m = /^#t(\d+)$/.exec(location.hash), start = m ? fromTick(+m[1]) : -1;
+  go(start >= 0 ? start : 0);
+})();
 </script>
 </main></body></html>

@@ -34,7 +34,7 @@ func caseOutput(t *testing.T, hours int) string {
 			"MaintainHousing": map[string]any{"need": need, "status": "planning"},
 			"colony": map[string]any{"colonists": colonists, "foodRunwayDays": 4.2, "wealthTotal": 5000, "moodMean": 0.5,
 				"pawns": []map[string]any{{"label": "Ana", "mood": mood, "food": 0.8, "downed": false},
-					{"label": "Bo <script>", "mood": 0.7, "food": 0.8, "downed": false}}},
+					{"label": "Bo, <color=#ffcc00>Cook</color> <3 </script>", "mood": 0.7, "food": 0.8, "downed": false}}},
 		})
 		os.WriteFile(filepath.Join(dir, "review", fmt.Sprintf("colony-%08d.jpg", tick+10)), []byte("jpg"), 0644)
 	}
@@ -55,10 +55,13 @@ func TestReportAndSite(t *testing.T) {
 	}
 	page, _ := os.ReadFile(filepath.Join(runs, "2026-10-02-1", "index.html"))
 	for _, want := range []string{"Ana mood 10%", "colonists fell 3 → 2", "MaintainHousing in deficit 12 hours running",
-		"MaintainHousing met → unmet", "review/map-00000010.jpg", "TemperateForest", "Bo &lt;script&gt;"} {
+		"MaintainHousing met → unmet", `"m":"map-00000010.jpg"`, "TemperateForest", `Bo, Cook \u003c3`} {
 		if !strings.Contains(string(page), want) {
 			t.Errorf("report lacks %q", want)
 		}
+	}
+	if strings.Contains(string(page), "<color") {
+		t.Error("report shows the game's color tags")
 	}
 	if _, err := os.Stat(filepath.Join(runs, "2026-10-02-1", "review", "colony-00022510.jpg")); err != nil {
 		t.Error("images not copied:", err)
@@ -131,5 +134,22 @@ func TestStorageFlags(t *testing.T) {
 		if !strings.Contains(string(page), want) {
 			t.Errorf("report lacks %q", want)
 		}
+	}
+}
+
+func TestReportOfAFailedRun(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "runs", "2026-10-07-1")
+	meta := map[string]string{"date": "2026-10-07", "outcome": "failure"}
+	if err := Report(t.TempDir(), out, meta, ""); err != nil {
+		t.Fatal(err)
+	}
+	page, _ := os.ReadFile(filepath.Join(out, "index.html"))
+	for _, want := range []string{"The run failed: the case left no result.json (play step: failure)", "Nothing was recorded"} {
+		if !strings.Contains(string(page), want) {
+			t.Errorf("failed-run page lacks %q", want)
+		}
+	}
+	if err := Site(filepath.Dir(out), t.TempDir()); err != nil {
+		t.Fatal(err)
 	}
 }

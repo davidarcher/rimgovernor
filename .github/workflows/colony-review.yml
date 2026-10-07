@@ -175,11 +175,13 @@ jobs:
             Where-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).case -eq 'review/colony-week' } |
             Sort-Object { -not (Test-Path (Join-Path $_.DirectoryName 'review')) } |
             Select-Object -First 1
-          if (-not $result) { throw "The case left no result.json (play step: $env:PLAYED); see its log" }
+          # No result.json (bootstrap or launch failed) still renders a page that
+          # says the run failed; the last step of this job then fails it.
+          $in = if ($result) { $result.DirectoryName } else { (New-Item -ItemType Directory -Force C:\rg\no-result).FullName }
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $name = "$date-$env:GITHUB_RUN_ID"
           $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-          & C:\rg\colonyreview.exe report -in $result.DirectoryName -out "C:\rg\review-report\$name" -baselines C:\rg\baselines `
+          & C:\rg\colonyreview.exe report -in $in -out "C:\rg\review-report\$name" -baselines C:\rg\baselines `
             -meta "date=$date" -meta "commit=$($env:TESTED_COMMIT.Substring(0,9))" -meta "run=$url" -meta "outcome=$env:PLAYED"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "name=$name" >> $env:GITHUB_OUTPUT
@@ -190,9 +192,17 @@ jobs:
           path: C:\rg\review-report
           if-no-files-found: error
           retention-days: 90
+      # The season not playing is the run failing, though its page is still
+      # built and published.
+      - name: Fail the job when the season did not play
+        if: always() && steps.play.outcome == 'failure'
+        run: |
+          Write-Host "The play step failed; the report records it."
+          exit 1
 
   pages:
     needs: review
+    if: always() && needs.review.outputs.report != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -222,7 +232,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run list -R "$GITHUB_REPOSITORY" -w colony-review.yml -s success -L "$KEEP_RUNS" --json databaseId -q '.[].databaseId' |
+          gh run list -R "$GITHUB_REPOSITORY" -w colony-review.yml -L "$KEEP_RUNS" --json databaseId -q '.[].databaseId' |
             while read -r id; do
               [ "$id" = "$GITHUB_RUN_ID" ] && continue
               gh run download "$id" -R "$GITHUB_REPOSITORY" -n colony-review-report -D runs || echo "run $id: no report artifact"

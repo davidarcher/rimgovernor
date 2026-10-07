@@ -27,9 +27,20 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   `-nographics` (a one-day trial took 3m05s against 2m37s).
 - **Report** `go run ./cmd/colonyreview report -in <case output> -out <run dir>`
   reads `result.json`'s timeline and the screenshots and writes `index.html`
-  (summary, trends, flagged hours, daily map shots, hourly cards with each
-  colonist's mood and food and every concern's state) and `run.json`;
-  `site -runs <dir> -out <site>` indexes run dirs. Flags mark hours worth a
+  and `run.json`; `site -runs <dir> -out <site>` indexes run dirs. The page is
+  a player: one image with a slider over the recorded hours (play/pause,
+  speed, step an hour or a day, a Colony / Whole map toggle, day ticks and
+  red/amber marks on flagged hours), the chosen hour's census, pawns, flags and
+  concerns in deficit underneath, and a sticky column of trend charts with a
+  cursor at the chosen hour (click or drag a chart to seek). Space, arrows,
+  shift+arrows and [ ] drive it; `#t<tick>` deep-links an hour. The frames are
+  embedded as JSON (`player.js` reads them), so a run page needs no server.
+  A strip per colonist (a cell per hour, colored by that pawn's mood, downed hours marked)
+  sits under the charts and seeks too.
+  The game's rich-text tags in pawn labels (`<color=...>`) are stripped. A run whose case
+  left no `result.json` (bootstrap or launch failed) still gets a page saying so and a
+  row in the site index, and the workflow job then fails.
+  Flags mark hours worth a
   look: a colonist lost, food runway under two days, a downed colonist, low
   mood, a concern in deficit twelve hours, starting supplies still forbidden after a day. The storage
   section lists the final zone count per role from the census's

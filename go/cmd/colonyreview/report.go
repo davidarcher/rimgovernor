@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +18,12 @@ import (
 // (sustainedfood.Watch: the colony census from /api/player/colony and each
 // sampled concern's state, every in-game hour) and the recorder's screenshots
 // under review/ (colony-<tick>.jpg, map-<tick>.jpg).
+
+// richText matches the game's markup tags (<color=#fff>, </color>, <b>, <size=12>)
+// that its labels carry for the in-game UI; the page shows plain text.
+var richText = regexp.MustCompile("</?[a-zA-Z]+(=[^>]*)?>")
+
+func plain(s string) string { return strings.TrimSpace(richText.ReplaceAllString(s, "")) }
 
 // Pawn is one census pawn.
 type Pawn struct {
@@ -136,6 +145,9 @@ func Load(dir string) ([]Row, result, error) {
 		r := Row{Tick: tick, Day: tick/60000 + 1, Hour: tick % 60000 / 2500, Anchor: fmt.Sprintf("t%d", tick)}
 		r.Label = fmt.Sprintf("Day %d, %02dh", r.Day, r.Hour)
 		json.Unmarshal(sample["colony"], &r.Census)
+		for i := range r.Census.Pawns {
+			r.Census.Pawns[i].Label = plain(r.Census.Pawns[i].Label)
+		}
 		for key, raw := range sample {
 			var g struct {
 				Need   string `json:"need"`
@@ -252,7 +264,15 @@ func colonists(r Row) int {
 // Report reads the case output in and writes the run report to out.
 func Report(in, out string, meta map[string]string, baselines string) error {
 	rows, res, err := Load(in)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
+		// The case never wrote a result (bootstrap or launch failed): the
+		// page says so instead of the workflow having nothing to publish.
+		res.Error = "the case left no result.json"
+		if o := meta["outcome"]; o != "" {
+			res.Error += " (play step: " + o + ")"
+		}
+		res.Error += "; see the run log"
+	} else if err != nil {
 		return err
 	}
 	merged := map[string]string{}
