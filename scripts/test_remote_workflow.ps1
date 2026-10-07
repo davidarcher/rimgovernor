@@ -13,7 +13,7 @@ $baseline = @{
     GITHUB_ACTOR='maintainer';GITHUB_TRIGGERING_ACTOR='maintainer'
 }
 foreach ($key in $baseline.Keys) { [Environment]::SetEnvironmentVariable($key,$baseline[$key],'Process') }
-foreach ($event in @('workflow_dispatch','schedule','push')) {
+foreach ($event in @('workflow_dispatch','schedule')) {
     $env:GITHUB_EVENT_NAME=$event
     & "$PSScriptRoot/remote_workflow.ps1" -Phase authorize
 }
@@ -79,9 +79,9 @@ function global:gh {
     throw "Unexpected API request: $args"
 }
 . "$PSScriptRoot/remote_workflow.ps1" -Phase authorize
-$event = '{"inputs":{"tested_ref":"feature/ci","tier":"full","shards":"32"}}' | ConvertFrom-Json
+$event = '{"inputs":{"tested_ref":"feature/ci","tier":"nightly","shards":"32"}}' | ConvertFrom-Json
 $source = Resolve-Source $event
-if ($source.head -cne ('c'*40) -or $source.base -cne $source.head -or $source.tier -cne 'full' -or $source.shards -ne 32 -or $global:sourceLookups -ne 1) {
+if ($source.head -cne ('c'*40) -or $source.base -cne $source.head -or $source.tier -cne 'nightly' -or $source.shards -ne 32 -or $global:sourceLookups -ne 1) {
     throw 'Branch dispatch did not pin its source and default base'
 }
 $event.inputs | Add-Member tested_commit ('d'*40)
@@ -90,16 +90,14 @@ if ($source.head -cne ('d'*40) -or $global:sourceLookups -ne 1) { throw 'Explici
 $event.inputs.tier = 'land'
 $rejected=$false
 try { Resolve-Source $event | Out-Null } catch { $rejected=$true }
-if (-not $rejected) { throw 'Land accepted a missing ancestor base' }
-$event.inputs | Add-Member base_commit ('a'*40)
-$source = Resolve-Source $event
-if ($source.base -cne ('a'*40)) { throw 'Explicit land base was lost' }
+if (-not $rejected) { throw 'The retired land tier was accepted' }
 $env:GITHUB_EVENT_NAME='schedule'
 $source = Resolve-Source ([pscustomobject]@{})
 if ($source.head -cne $env:GITHUB_SHA -or $source.base -cne $source.head -or $source.tier -cne 'nightly' -or $source.shards -ne 32) { throw 'Nightly source changed' }
 $env:GITHUB_EVENT_NAME='push'
-$source = Resolve-Source ([pscustomobject]@{before=('a'*40)})
-if ($source.head -cne $env:GITHUB_SHA -or $source.base -cne ('a'*40) -or $source.tier -cne 'land') { throw 'Push source changed' }
+$rejected=$false
+try { Assert-Gate } catch { $rejected=$true }
+if (-not $rejected) { throw 'The retired push trigger was accepted' }
 $env:GITHUB_EVENT_NAME='pull_request_target'
 $rejected=$false
 try { Assert-Gate } catch { $rejected=$true }

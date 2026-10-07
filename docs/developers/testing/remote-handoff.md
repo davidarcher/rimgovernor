@@ -60,15 +60,10 @@ gh run download <run-id> --name acceptance-<run-id>-<attempt>-verdict --dir <dia
 The verdict artifact contains the complete sanitized evidence tree. Shard
 artifacts and Actions logs remain useful if aggregation did not finish. Download
 within seven days. A manual download is diagnostic material; only authenticated
-import establishes landing evidence. Record artifact ID, digest and size, then
+import establishes trusted evidence. Record artifact ID, digest and size, then
 follow [the import command and trust pins](remote-evidence.md#import-an-authenticated-actions-artifact)
 in the matching clean task checkout. Keep `actions-artifact.zip` beside its
-`evidence/` directory. Present that directory to `go run ./cmd/land -results`.
-The importer binds evidence to source before the lane merges main; new task
-edits need matching evidence, while a normal clean main merge does not require
-another run. Never attach an older run to unrelated work merely to demonstrate
-landing. Use the existing import/landing fixtures when no matching ready
-milestone exists.
+`evidence/` directory. `cmd/land` does not read it; the import is for diagnosis.
 
 Read `selection.json`, `aggregate.json`, each shard's `attempts.json`, and the
 referenced native reports. A green bootstrap or accepted order is not a native

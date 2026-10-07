@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/affected"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
@@ -38,56 +37,53 @@ func examplePlanRun(t *testing.T) planRun {
 
 func TestRemotePlanDeterministicCoverage(t *testing.T) {
 	r := examplePlanRun(t)
-	r.Tier = "land"
+	r.Tier = "nightly"
 	r.Limits.Shards = 32
 	r.Limits.Attempts = 1
-	for _, sel := range []affected.Selection{{}, {Cases: []string{"power"}}, {Cases: []string{"lifecycle"}, Sampled: []string{"lifecycle"}}} {
-		p, err := buildSelection(r, planReference{}, nil, sel)
-		if err != nil {
-			t.Fatal(err)
+	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
+	p, err := buildSelection(r, planReference{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := buildSelection(r, planReference{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(p, q) {
+		t.Fatal("nondeterministic plan")
+	}
+	want, err := tierCases("nightly")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]int{}
+	for _, shard := range p.Shards {
+		if len(shard.Cases) == 0 {
+			t.Fatal("empty shard")
 		}
-		q, err := buildSelection(r, planReference{}, nil, sel)
-		if err != nil {
-			t.Fatal(err)
+		for _, name := range shard.Cases {
+			seen[name]++
 		}
-		if !reflect.DeepEqual(p, q) {
-			t.Fatal("nondeterministic plan")
+	}
+	if len(seen) != len(p.Cases) || len(p.Cases)+len(p.Skipped) != len(want) {
+		t.Fatal("selection mismatch")
+	}
+	for _, c := range p.Cases {
+		if seen[c.Name] != 1 {
+			t.Fatalf("%s coverage = %d", c.Name, seen[c.Name])
 		}
-		want, err := landCases(cases.All(), sel)
-		if err != nil {
-			t.Fatal(err)
+		if p.Algorithm != remoteaccept.BudgetAlgorithm || c.BudgetNS <= 0 {
+			t.Fatal("missing versioned budget evidence")
 		}
-		seen := map[string]int{}
-		for _, shard := range p.Shards {
-			if len(shard.Cases) == 0 {
-				t.Fatal("empty shard")
-			}
-			for _, name := range shard.Cases {
-				seen[name]++
-			}
-		}
-		if len(seen) != len(want) || len(p.Cases) != len(want) {
-			t.Fatal("selection mismatch")
-		}
-		for _, c := range want {
-			if seen[c.Name] != 1 {
-				t.Fatalf("%s coverage = %d", c.Name, seen[c.Name])
-			}
-		}
-		for _, c := range p.Cases {
-			if p.Algorithm != remoteaccept.BudgetAlgorithm || c.BudgetNS <= 0 {
-				t.Fatal("missing versioned budget evidence")
-			}
-			if len(c.Reasons) == 0 {
-				t.Fatal("missing reason")
-			}
+		if len(c.Reasons) == 0 {
+			t.Fatal("missing reason")
 		}
 	}
 }
 
 func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	r := examplePlanRun(t)
-	p, err := buildSelection(r, planReference{}, []string{"b", "a", "b"}, affected.Selection{})
+	p, err := buildSelection(r, planReference{}, []string{"b", "a", "b"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +100,7 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	}
 	// Only committed costs enter the plan; no ambient timing history does.
 	r.Limits.Shards = 32
-	p, err = buildSelection(r, planReference{}, nil, affected.Selection{})
+	p, err = buildSelection(r, planReference{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,65 +109,26 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	}
 }
 
-func TestRemotePlanUsesAffectedEntryPointAndHarnessRules(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	// Exercise real Go discovery on a small module; the rules do not need
-	// the production repository's dependency closure or external modules.
-	repo := t.TempDir()
-	for name, body := range map[string]string{
-		"go.mod":                            "module example.com/plan\n\ngo 1.25\n",
-		"cmd/rimgovernor/serve_building.go": "package main\nfunc main() {}\n",
-		"internal/nativeaccept/cases/light/light.go": "package light\nvar Serve = true\n",
-		"internal/nativeaccept/cases/power/power.go": "package power\n",
-	} {
-		file := filepath.Join(repo, "go", filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(file, []byte(body), 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, tc := range []struct {
-		file  string
-		areas []string
-		all   bool
-	}{
-		{"go/cmd/rimgovernor/serve_building.go", []string{"light"}, false},
-		{"go/internal/nativeaccept/cases/power/power.go", []string{"power"}, false},
-		{"integrations/rimgovernor-native/src/Changed.cs", []string{"light", "power"}, true},
-		{"docs/README.md", nil, false},
-	} {
-		sel, err := affected.Select(repo, []string{tc.file})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if sel.AllHarnesses != tc.all || !slices.Equal(sel.Cases, tc.areas) {
-			t.Fatalf("%s: %+v", tc.file, sel)
-		}
-	}
-}
-
 func TestRemotePlanRejectsBudgets(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier = "smoke"
 	r.Limits.Shards = 1
 	r.Limits.SuiteMinutes = 1
-	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil || !strings.Contains(err.Error(), "budgets") {
+	if _, err := buildSelection(r, planReference{}, nil); err == nil || !strings.Contains(err.Error(), "budgets") {
 		t.Fatal(err)
 	}
 }
 
 func TestRemotePlanMatrixDependencies(t *testing.T) {
 	r := examplePlanRun(t)
-	r.Tier = "full"
+	r.Tier = "nightly"
 	r.Limits.Shards, r.Limits.Attempts = 32, 1
 	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
-	p, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	p, err := buildSelection(r, planReference{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	q, err := buildSelection(r, planReference{}, nil)
 	if err != nil || !reflect.DeepEqual(p, q) {
 		t.Fatalf("nondeterministic plan: %v", err)
 	}
@@ -192,7 +149,7 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 		// Both are off-tier (#739): the full plan carries neither, but a
 		// hand-picked selection still pairs them.
 		if seen[consumer]+seen[generator] != 0 {
-			t.Fatalf("full plan carries off-tier %s or %s", consumer, generator)
+			t.Fatalf("nightly plan carries off-tier %s or %s", consumer, generator)
 		}
 		// The executor reorders by process tier; that must also keep
 		// the generator ahead of its serve-driven consumer.
@@ -209,19 +166,9 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 	}
 }
 
-func TestRemoteLandCompleteRegistryFitsEightShards(t *testing.T) {
+func TestNightlySkipsRenderedCases(t *testing.T) {
 	r := examplePlanRun(t)
-	r.Tier = "land"
-	r.Limits.Shards, r.Limits.Attempts = 8, 1
-	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
-	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{AllHarnesses: true}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestNightlyFullSkipsRenderedCases(t *testing.T) {
-	r := examplePlanRun(t)
-	r.Tier, r.Trigger.Event, r.Trigger.Ref = "full", "schedule", "refs/heads/main"
+	r.Tier, r.Trigger.Event, r.Trigger.Ref = "nightly", "schedule", "refs/heads/main"
 	r.Base = r.Head
 	r.Limits.Shards, r.Limits.Attempts = 32, 1
 	r.Limits.Parallel = 20
@@ -230,18 +177,18 @@ func TestNightlyFullSkipsRenderedCases(t *testing.T) {
 	if err := r.validate(); err != nil {
 		t.Fatal(err)
 	}
-	p, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	p, err := buildSelection(r, planReference{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	full, err := tierCases("full", "", "")
+	full, err := tierCases("nightly")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Cases)+len(p.Skipped) != len(full.Cases) {
+	if len(p.Cases)+len(p.Skipped) != len(full) {
 		t.Fatal("full selection dropped cases")
 	}
-	for _, c := range full.Cases {
+	for _, c := range full {
 		idx := slices.IndexFunc(p.Cases, func(pc plannedCase) bool { return pc.Name == c.Name })
 		if c.Rendered {
 			skipped := slices.IndexFunc(p.Skipped, func(pc remoteaccept.SkippedCase) bool { return pc.Name == c.Name && pc.Reason == "rendered" })
@@ -264,7 +211,7 @@ func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 	r := examplePlanRun(t)
 	for _, mutate := range []func(*planRun){
 		func(r *planRun) { r.Version = 2 }, func(r *planRun) { r.Base = strings.Repeat("0", 40) },
-		func(r *planRun) { r.Tier = "land"; r.Base = r.Head }, func(r *planRun) { r.Trigger.Event = "pull_request" },
+		func(r *planRun) { r.Tier = "land" }, func(r *planRun) { r.Trigger.Event = "pull_request" },
 		func(r *planRun) { r.Limits.Shards = 33 }, func(r *planRun) { r.Limits.Workers = 2 },
 		func(r *planRun) { r.Limits.Parallel = 21 }, func(r *planRun) { r.Limits.Paid = true },
 		func(r *planRun) { r.Limits.ArtifactBytes = -1 },
@@ -380,11 +327,11 @@ func TestRemotePlanRouteRejectsMissingRun(t *testing.T) {
 func TestRemotePlanRequestedCases(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier = "cases"
-	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil {
+	if _, err := buildSelection(r, planReference{}, nil); err == nil {
 		t.Fatal("cases tier without a list planned")
 	}
 	r.Cases = []string{"smoke/identity", "light", "smoke/identity"}
-	p, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	p, err := buildSelection(r, planReference{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,11 +349,11 @@ func TestRemotePlanRequestedCases(t *testing.T) {
 		t.Fatal(names)
 	}
 	r.Cases = []string{"no/such"}
-	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil || !strings.Contains(err.Error(), "no/such") {
+	if _, err := buildSelection(r, planReference{}, nil); err == nil || !strings.Contains(err.Error(), "no/such") {
 		t.Fatal(err)
 	}
 	r.Tier, r.Cases = "smoke", []string{"light"}
-	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil {
+	if _, err := buildSelection(r, planReference{}, nil); err == nil {
 		t.Fatal("smoke tier accepted a case list")
 	}
 }

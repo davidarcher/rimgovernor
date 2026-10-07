@@ -195,34 +195,6 @@ func importFixture(t *testing.T) (recordedAPI, Provenance, string, Run) {
 	api["repos/"+p.Trust.Repository+"/actions/artifacts/10/zip"] = archive
 	return api, p, repo, run
 }
-func TestCompleteImportAndNormalMainMerge(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	api, p, repo, run := importFixture(t)
-	out := filepath.Join(t.TempDir(), "import")
-	if err := Download(api, p, out, repo); err != nil {
-		t.Fatal(err)
-	}
-	root := filepath.Join(out, "evidence")
-	// A peer moves main. Evidence is associated before the lane merges it.
-	testGit(t, repo, "update-ref", "refs/heads/main", "peer")
-	if _, err := VerifyImported(root, repo, p.Trust, api); err != nil {
-		t.Fatal(err)
-	}
-	testGit(t, repo, "merge", "--no-edit", "main")
-	if _, err := VerifyImported(root, repo, p.Trust, api); err != nil {
-		t.Fatalf("normal clean main merge invalidated evidence: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(repo, "task.txt"), []byte("uncovered"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := VerifySource(repo, run); err == nil {
-		t.Fatal("dirty task accepted")
-	}
-	testGit(t, repo, "commit", "-qam", "uncovered change")
-	if err := VerifySource(repo, run); err == nil {
-		t.Fatal("wrong source accepted")
-	}
-}
 func TestImportRejectsUntrustedAndTamperedEvidence(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	api, p, repo, _ := importFixture(t)
@@ -240,24 +212,6 @@ func TestImportRejectsUntrustedAndTamperedEvidence(t *testing.T) {
 				t.Fatal("untrusted import passed")
 			}
 		})
-	}
-	out := filepath.Join(t.TempDir(), "valid")
-	if err := Download(api, p, out, repo); err != nil {
-		t.Fatal(err)
-	}
-	root := filepath.Join(out, "evidence")
-	var report Report
-	readTest(t, root, "result.json", &report)
-	report.Cases[0] = raw(`{"name":"light/dark","passed":true,"exit":0,"metrics":{"forged":1}}`)
-	writeTest(t, root, "result.json", report)
-	if _, err := VerifyImported(root, repo, p.Trust, api); err == nil {
-		t.Fatal("tampered result passed")
-	}
-	if err := os.WriteFile(filepath.Join(out, "actions-artifact.zip"), []byte("corrupt"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := VerifyImported(root, repo, p.Trust, api); err == nil {
-		t.Fatal("corrupt original archive passed")
 	}
 }
 func TestArchiveRejectsEscapesLinksAndCollisions(t *testing.T) {

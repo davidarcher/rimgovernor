@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cost"
 )
 
-const listUsage = `  acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke [-base main]] [<case>|<area>/...]...`
+const listUsage = `  acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...`
 
 // list prints the registry, the named cases and areas (`<area>/...`) or a
 // tier (-tier, tier.go), one per line with its scope. -cost adds each case's baseline wall and
@@ -22,8 +22,7 @@ func list(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	withCost := fs.Bool("cost", false, "show each case's baseline wall and boot time and the set's total")
 	baselinePath := fs.String("baseline", "", "suite result.json or metrics.jsonl the costs come from")
-	tier := fs.String("tier", "", "list a tier: land, full, matrix or smoke")
-	base := fs.String("base", "main", "revision the land tier diffs the worktree against")
+	tier := fs.String("tier", "", "list a tier: nightly or smoke")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -34,13 +33,7 @@ func list(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "-tier takes no case names")
 			return 2
 		}
-		repo, _ := repoOfCwd()
-		var set tierSet
-		set, err = tierCases(*tier, repo, *base)
-		selected = set.Cases
-		if len(set.Sampled) > 0 {
-			fmt.Fprintf(stderr, "sampled to one case each (a harness change reaches them through plumbing alone, #348): %s\n", strings.Join(set.Sampled, " "))
-		}
+		selected, err = tierCases(*tier)
 	} else {
 		selected, err = selectCases(fs.Args())
 	}

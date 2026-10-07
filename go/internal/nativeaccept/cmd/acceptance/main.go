@@ -1,9 +1,9 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
-//	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke] [<case>|<area>/...]...
+//	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle] -break stage=<name>|tick=<n>|minute=<m> -through <stage>]
 //	acceptance resume [<case>...] -root <dir> [run flags]
-//	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
+//	acceptance suite (-all | -cases a,b | -suite file.json | -tier nightly|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -fixture -rebuild -skip-mod -skip-binaries]
 //	acceptance setup generate <generator> [run flags]

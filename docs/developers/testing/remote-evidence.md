@@ -75,7 +75,6 @@ git config --local rimgovernor.acceptanceworkflow .github/workflows/<trusted-wor
 git config --local rimgovernor.acceptanceworkflowCommit <40-hex-workflow-commit>
 git config --local rimgovernor.acceptancebundleSHA256 <64-hex-bundle-manifest-digest>
 go run ./cmd/remoteaccept import -repo .. -run <actions-run-id> -attempt 1 -artifact <artifact-id> -output <new-directory>
-go run ./cmd/land -results <new-directory>/evidence
 ```
 
 Use workflow path `.github/workflows/remote-acceptance.yml`; see [activation and diagnostics](remote-workflow.md). GitHub CLI must be
@@ -88,18 +87,10 @@ The immutable archive is retained as `actions-artifact.zip`; original manifests
 and diagnostics remain in `evidence/`, beside the imported `result.json`.
 Failed imports retain downloaded evidence for diagnosis and exit nonzero.
 
-Landing reauthenticates and replays that archive, compares the local evidence
-and report against it, and binds it to the clean task before merging main.
-It verifies the selection's changed-file list against the tested base/source
-diff. Identical source trees remain valid across rewritten commit IDs; a clean
-merge of tested source with main also remains valid. Additional task edits or
-dirty tracked files need matching evidence. The normal lane merge does not
-trigger another check run. Keep the archive and `evidence/` together and import
-before artifact expiry; offline or expired metadata does not establish trust.
-
-Smoke evidence is accepted for landing; the nightly full tier owns broader
-affected-area validation. Remote v1 evidence is fresh and restaged; local
-resumed suites keep their own landing semantics.
+Imported evidence is for diagnosis: `cmd/land` does not read it, so landing
+needs no import. Keep the archive and `evidence/` together and import before
+artifact expiry; offline or expired metadata does not establish trust. Remote v1
+evidence is fresh and restaged.
 
 ## Fast validation
 

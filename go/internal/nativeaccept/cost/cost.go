@@ -1,7 +1,6 @@
 // Package cost prices acceptance cases from an earlier run's timings so an
 // agent choosing between the cases a change owes can see that one costs 4
-// minutes and another 18 (#283). `acceptance list -cost` and cmd/affected
-// share it.
+// minutes and another 18 (#283). `acceptance list -cost` uses it.
 //
 // A baseline is either a suite result.json (one wall_ms/boot_ms row per
 // case, the file `acceptance suite -baseline` also takes) or a metrics

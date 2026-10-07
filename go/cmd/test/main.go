@@ -1,19 +1,15 @@
-// Command test runs the Go tests a change affects: the packages holding
-// the changed files and every in-module package importing them, as
-// cmd/affected computes them (all packages when go.mod or go.sum changed),
-// after gofmt, go vet and staticcheck on the change (#334).
+// Command test runs the Go checks a change owes: gofmt on the changed files,
+// go vet and staticcheck on the module, then go test -short ./... (Go's test
+// cache replays unchanged packages), plus the native contract probes build
+// when its inputs changed (#334).
 //
 //	go run ./cmd/test [-base main] [-full]
 //
 // run from anywhere inside the worktree. It diffs the working tree
 // (committed, staged, unstaged and untracked) against -base, so it is the
 // edit/test loop's check as well as the pre-land one; the landing lane
-// (cmd/land) does not test, so run this before landing. Affected
-// acceptance case areas are named, not run: the one acceptance run before
-// landing is the smoke tier it prints (`acceptance suite -tier smoke`,
-// #387); the nightly full tier proves the named areas, or `-tier land`
-// proves them before landing when the change warrants it. Hand the
-// output to `cmd/land -results`.
+// (cmd/land) does not test, so run this before landing. No acceptance
+// run precedes landing; the nightly tier proves the end-to-end cases.
 //
 // The default run passes -short, which skips the slow tests (git-heavy,
 // planner and solver suites) so it stays near 30 s; -full runs them, as
@@ -53,5 +49,5 @@ func run(base string) error {
 	if err != nil {
 		return err
 	}
-	return affected.Test(repo, changed, base)
+	return affected.Test(repo, changed)
 }

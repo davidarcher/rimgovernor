@@ -88,7 +88,7 @@ passes ~140 characters (`setup` refuses one).
   with stdout/stderr redirected under `.rimgovernor/`. The tool shell caps a
   command at ten minutes even in the background, and without `-WindowStyle
   Hidden` a console window opens on the user's desktop. A suite of more than a
-  handful of cases (a land tier past ~10 rows, any full tier) only runs detached:
+  handful of cases (more than ~10 rows, or the nightly tier) only runs detached:
   a killed in-shell attempt orphans its worker games under
   `<output>/workers/<n>`, to be stopped by pid.
 - Outputs are never cleaned up for you (a suite is hundreds of MB).
@@ -157,7 +157,7 @@ passes ~140 characters (`setup` refuses one).
   like `resumed_from`. `acceptance suite -cases a,b -stages` schedules each
   case's missing stages as work items (`run -through <stage>`) from bundles
   cached in `-root`, publishes new bundles back and runs the tails in parallel;
-  refused with `-tier land` and by `cmd/land -results`.
+  a suite landing run always stages from scratch.
 - Iterating on asserts, not the scenario: `acceptance run <case>
   -postmortem-only [-from t+7m] -output <empty dir>` reloads the failed bundle
   on the kept process and runs only `Postmortem` (~20 s).

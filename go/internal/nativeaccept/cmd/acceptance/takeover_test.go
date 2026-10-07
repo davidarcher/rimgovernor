@@ -15,7 +15,7 @@ func TestTakeoverCasesRegisteredForNightly(t *testing.T) {
 			t.Fatal(err)
 		}
 		if c.Matrix {
-			t.Fatalf("%s excluded from nightly full tier", c.Name)
+			t.Fatalf("%s is a matrix case", c.Name)
 		}
 	}
 }

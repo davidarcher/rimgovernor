@@ -23,15 +23,14 @@ acceptance passes, land immediately.
 3. Commit each completed iteration (checkpoint commits are authorized). Size an
    iteration to a coherent milestone so slow checks run once.
 4. No acceptance run before landing; the required check is one `cmd/test`. The
-   on-demand full tier and the nightly (a signal, not a gate) prove the rest.
-   If you ran a tier, pass its output to `cmd/land -results` and name it in the
-   commit message ([choose-tests](docs/developers/testing/choose-tests.md)).
-5. `go run ./cmd/land [-results <suite output>]` from the branch worktree,
+   nightly (a signal, not a gate) proves the rest
+   ([choose-tests](docs/developers/testing/choose-tests.md)).
+5. `go run ./cmd/land` from the branch worktree,
    never piped (redirect if you need the output). The lane titles the squash
    with the branch tip's commit subject, so make the milestone commit the tip
    and fold fixups into it first. It takes the repository lock, fast-forwards
    local `main` to `origin/main` (refusing a diverged `main`), merges `main`
-   into the branch, refuses a failed presented suite, squash-lands on the
+   into the branch, squash-lands on the
    `main` checkout, resets the branch to `main`, and closes the branch's issue
    (only when the branch is `issue-<n>-...` or you pass `-issue <n>`). It does
    not push. `-test` runs the same `-short` tests as `cmd/test`; never run both.
@@ -48,7 +47,7 @@ acceptance passes, land immediately.
    issue number, decision needed). Do not post readiness checks or assessments
    that change nothing. An issue whose acceptance is an acceptance case is
    finished once the case is written, registered and builds clean; a failure in
-   the next full tier opens a new issue.
+   the next nightly opens a new issue.
 
 `main` moves constantly; that is never a reason to redo anything. A test that
 passed on the branch's code stays passed after the lane's merge, and a second
@@ -76,7 +75,7 @@ maintainer pushes there too. Every agent:
 Remote agents additionally:
 
 1. Run no acceptance; put `Unverified: no acceptance run (remote agent)` in the
-   commit body. The land-tier run on every push to `main` verifies it.
+   commit body. The nightly run verifies it.
 2. Compile-check C# with `scripts/build_native_ref.sh` (fixture switches pass
    through, e.g. `-p:UpkeepFixture=true`); it builds against public NuGet
    reference assemblies, never the game. It needs

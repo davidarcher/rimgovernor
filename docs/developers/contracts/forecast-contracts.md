@@ -311,4 +311,4 @@ verification checks actual cells and settings, separately from catch outcomes.
 profile (including `knownExpansions`). It checks the live Open portfolio rate,
 the controller-created zone's body, cells and population floor, then native
 feeding over 15 days. It does not require population to end at 90% of its start.
-The nightly full tier runs this case; the smoke tier covers landing regressions.
+The nightly tier runs this case.

@@ -119,9 +119,8 @@ builds, logs, saves, databases and temporary scripts out. Land with `go run
 see [AGENTS.md](../../AGENTS.md#the-loop)); pull requests are disabled and every
 agent pushes its own landings to `origin/main`
 ([AGENTS.md](../../AGENTS.md#pushing-to-originmain)). The lane runs no tests and
-landing needs no acceptance run: the nightly full tier proves the affected
-areas, and `-tier smoke` or `-tier land` proves them earlier when warranted
-(pass the output to `cmd/land -results`). `main` moving afterwards is never a
+landing needs no acceptance run: the nightly proves the affected areas, and
+`acceptance run <case>` proves one earlier when warranted. `main` moving afterwards is never a
 reason to rerun.
 
 ## Keep deployment and docs maintainable

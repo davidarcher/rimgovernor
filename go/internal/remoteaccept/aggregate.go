@@ -29,10 +29,10 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		return e, err
 	}
 	r := e.Run
-	if r.Version != 1 || !repository.MatchString(r.Repository) || !oid.MatchString(r.TestedCommit) || !oid.MatchString(r.BaseCommit) || !oid.MatchString(r.WorkflowCommit) || (r.Tier != "land" && r.Tier != "smoke" && r.Tier != "full" && r.Tier != "nightly" && r.Tier != "cases") || (r.Tier == "land" && r.TestedCommit == r.BaseCommit) {
+	if r.Version != 1 || !repository.MatchString(r.Repository) || !oid.MatchString(r.TestedCommit) || !oid.MatchString(r.BaseCommit) || !oid.MatchString(r.WorkflowCommit) || (r.Tier != "smoke" && r.Tier != "nightly" && r.Tier != "cases") {
 		return e, fmt.Errorf("invalid run identity/version/tier")
 	}
-	if r.Trigger.RunID <= 0 || r.Trigger.Attempt < 1 || r.Trigger.Actor == "" || !strings.HasPrefix(r.Trigger.PublishedRef, "refs/") || (r.Trigger.Event != "push" && r.Trigger.Event != "workflow_dispatch" && r.Trigger.Event != "schedule") || r.ID != fmt.Sprintf("gh:%s:%d:%d", r.Repository, r.Trigger.RunID, r.Trigger.Attempt) {
+	if r.Trigger.RunID <= 0 || r.Trigger.Attempt < 1 || r.Trigger.Actor == "" || !strings.HasPrefix(r.Trigger.PublishedRef, "refs/") || (r.Trigger.Event != "workflow_dispatch" && r.Trigger.Event != "schedule") || r.ID != fmt.Sprintf("gh:%s:%d:%d", r.Repository, r.Trigger.RunID, r.Trigger.Attempt) {
 		return e, fmt.Errorf("invalid trigger/run ID")
 	}
 	l := r.Limits
@@ -77,8 +77,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 			return e, fmt.Errorf("duplicate/unsorted selected case %s", c.Name)
 		}
 		for _, reason := range c.Reasons {
-			area, _, _ := strings.Cut(c.Name, "/")
-			if reason != "smoke" && !(reason == "requested" && r.Tier == "cases") && !(reason == r.Tier && (r.Tier == "full" || r.Tier == "nightly")) && reason != "affected:"+area && reason != "sampled:"+area {
+			if reason != "smoke" && !(reason == "requested" && r.Tier == "cases") && !(reason == r.Tier && r.Tier == "nightly") {
 				return e, fmt.Errorf("invalid reason %s", reason)
 			}
 		}

@@ -85,17 +85,13 @@ function Resolve-Source($Event) {
             $encoded = [Uri]::EscapeDataString($ref)
             $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
         }
-        if (-not $base -and $tier -ne 'land') { $base = $head }
-    } elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
-        # Every push to main runs the land tier against the pushed range (#1375).
-        $tier = 'land'; $shards = 12; $base = [string]$Event.before
-        if ($base -cnotmatch '^[0-9a-f]{40}$' -or $base -eq ('0'*40)) { $base = $head }
+        if (-not $base) { $base = $head }
     }
     # The fixture factory (fixture-factory.yml, #1376) pins its own case list.
     if ($env:FACTORY_CASES) { $tier = 'cases'; $shards = 1; $cases = @($env:FACTORY_CASES -split ',') }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
-        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','nightly','full','cases') -or
-        $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit; land requires an explicit ancestor base SHA' }
+        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases') -or
+        $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit' }
     return @{head=$head; base=$base; tier=$tier; shards=$shards; cases=$cases}
 }
 function Invoke-API($Path) {
@@ -111,7 +107,7 @@ function Assert-Gate {
         $env:GITHUB_REPOSITORY -cne 'davidarcher/rimgovernor' -or
         $env:GITHUB_REF -cne 'refs/heads/main' -or
         $env:GITHUB_REF_PROTECTED -cne 'true' -or
-        $env:GITHUB_EVENT_NAME -notin @('workflow_dispatch','schedule','push') -or
+        $env:GITHUB_EVENT_NAME -notin @('workflow_dispatch','schedule') -or
         $env:GITHUB_WORKFLOW_SHA -cnotmatch '^[0-9a-f]{40}$' -or
         $env:GITHUB_SHA -cne $env:GITHUB_WORKFLOW_SHA) {
         throw 'Remote acceptance requires activation, protected main and its exact trusted workflow revision'
@@ -154,10 +150,7 @@ switch ($Phase) {
         if ((File-Reference $manifest.inventory.path).sha256 -cne $manifest.inventory.sha256) { throw 'Inventory digest mismatch' }
         $artifactBytes = [long]$env:REMOTE_ARTIFACT_MAX_BYTES
         if ($artifactBytes -lt 0) { throw 'Artifact byte cap must be nonnegative; zero disables the local cap' }
-        # The push-to-main land run is hard-capped: its suite stops at 10 min
-        # (unreached cases report incomplete) inside a 15 min job.
         $suiteMinutes = 345; $jobMinutes = 360
-        if ($tier -eq 'land') { $suiteMinutes = 10; $jobMinutes = 15 }
         Write-JSON (Join-Path $Evidence 'run.json') @{
             schema_version=1; run_id="gh:$($env:GITHUB_REPOSITORY):$($env:GITHUB_RUN_ID):$($env:GITHUB_RUN_ATTEMPT)"
             repository=$env:GITHUB_REPOSITORY; workflow_commit=$env:GITHUB_WORKFLOW_SHA; tested_commit=$head; base_commit=$base; tier=$tier

@@ -56,7 +56,7 @@ func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
 	mustGit(t, root, "commit", "-qm", "peer: add c")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
+	if err := run("", "", "", time.Second, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "fix: b again\npeer: add c\ninit" {
@@ -99,7 +99,7 @@ func TestLandNeedsNoMainCheckout(t *testing.T) {
 	mustGit(t, wt, "commit", "-qm", "Add b")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
+	if err := run("", "", "", time.Second, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "Add b\ninit" {
@@ -127,7 +127,7 @@ func TestLandNeverTitlesASquashWip(t *testing.T) {
 	mustGit(t, wt, "commit", "--amend", "-qm", "Milestone b (#1)")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
+	if err := run("", "", "", time.Second, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	body := mustGit(t, root, "log", "-1", "--format=%B", "main")
@@ -159,7 +159,7 @@ func TestLandRefusesDirtyMainAndConflicts(t *testing.T) {
 	peer := filepath.Join(filepath.Dir(root), "peer")
 	mustGit(t, root, "worktree", "add", "-q", "-b", "peer-task", peer, "main")
 	write(t, filepath.Join(peer, "a.txt"), "dirty\n")
-	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
+	err := run("", "", "", time.Second, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "main checkout") {
 		t.Fatalf("dirty main: got %v", err)
 	}
@@ -172,7 +172,7 @@ func TestLandRefusesDirtyMainAndConflicts(t *testing.T) {
 
 	write(t, filepath.Join(root, "a.txt"), "main\n")
 	mustGit(t, root, "commit", "-qam", "main edit")
-	err = run("", "", "", time.Second, false, acceptanceGate{}, nil)
+	err = run("", "", "", time.Second, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "resolve the conflict") {
 		t.Errorf("conflict: got %v", err)
 	}
@@ -191,7 +191,7 @@ func TestLandWaitsForLock(t *testing.T) {
 	mustGit(t, wt, "commit", "-qm", "b")
 	write(t, filepath.Join(root, ".git", lockName), "pid=0 branch=other\n")
 	t.Chdir(wt)
-	err := run("", "", "", 0, false, acceptanceGate{}, nil)
+	err := run("", "", "", 0, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "landing lock") {
 		t.Errorf("held lock: got %v", err)
 	}
@@ -239,7 +239,7 @@ func TestLandRefusesABranchThatRevertsMainWork(t *testing.T) {
 	before := mustGit(t, root, "rev-parse", "HEAD")
 
 	t.Chdir(wt)
-	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
+	err := run("", "", "", time.Second, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "a.txt") || !strings.Contains(err.Error(), "new.txt") {
 		t.Fatalf("err = %v, want a refusal naming a.txt and new.txt", err)
 	}
@@ -265,7 +265,7 @@ func TestLandRefusesAStaleTreeReparentedOntoMain(t *testing.T) {
 	mustGit(t, wt, "commit", "-qm", "feat: b, squashed")
 
 	t.Chdir(wt)
-	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
+	err := run("", "", "", time.Second, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "a.txt (undoes "+landed[:9]) {
 		t.Fatalf("err = %v, want a refusal naming a.txt and %.9s", err, landed)
 	}
@@ -291,7 +291,7 @@ func TestLandTakesANamedRevertAndOldDeletions(t *testing.T) {
 	mustGit(t, wt, "commit", "-qam", "Revert "+changed+" and delete old.txt")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
+	if err := run("", "", "", time.Second, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	if data, _ := os.ReadFile(filepath.Join(root, "a.txt")); strings.TrimSpace(string(data)) != "a" {

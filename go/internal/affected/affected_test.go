@@ -1,183 +1,22 @@
 package affected
 
-import (
-	"flag"
-	"os"
-	"path/filepath"
-	"slices"
-	"testing"
+import "testing"
 
-	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
-)
-
-// TestMain reads the checkout's dependency graph and harness types before
-// any test runs. Both are per-process state the repo(t) tests share, and
-// the go list calls building them cost about a second alone but over ten
-// under a full go test ./... (#434), so charging them to whichever test
-// happened to run first failed the per-test timing gate.
-func TestMain(m *testing.M) {
-	flag.Parse()
-	if !testing.Short() {
-		if wd, err := os.Getwd(); err == nil {
-			if repo, ok := na.FindRepo(wd); ok {
-				// Errors surface in the tests that need what failed.
-				goDir := filepath.Join(repo, "go")
-				if g, err := dependencyGraph(goDir); err == nil {
-					loadHarnessTypes(goDir, g)
-				}
-			}
+func TestChangeClassification(t *testing.T) {
+	for _, tc := range []struct {
+		file          string
+		goDir, probes bool
+	}{
+		{"docs/README.md", false, false},
+		{"go/internal/store/store.go", true, false},
+		{"integrations/rimgovernor-native/src/Changed.cs", false, true},
+		{"contracts/tests/Stub.cs", false, true},
+	} {
+		if got := GoChanged([]string{tc.file}); got != tc.goDir {
+			t.Errorf("%s: GoChanged = %v", tc.file, got)
 		}
-	}
-	os.Exit(m.Run())
-}
-
-func repo(t *testing.T) string {
-	t.Helper()
-	slowtest.Skip(t, "runs go list over the module")
-	wd, _ := os.Getwd()
-	repo, ok := na.FindRepo(wd)
-	if !ok {
-		t.Skip("not in a checkout")
-	}
-	return repo
-}
-
-func TestSelectNothingForDocs(t *testing.T) {
-	sel, err := Select(repo(t), []string{"AGENTS.md", "docs/README.md"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sel.AllGo || sel.AllHarnesses || sel.Probes || len(sel.Cases) != 0 {
-		t.Errorf("docs change selected %+v", sel)
-	}
-}
-
-func TestSelectGoModIsEverything(t *testing.T) {
-	sel, err := Select(repo(t), []string{"go/go.mod"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !sel.AllGo || !sel.AllHarnesses || !slices.Contains(sel.Cases, "authority") {
-		t.Errorf("go.mod change selected %+v", sel)
-	}
-}
-
-func TestSelectNativeSourceIsEveryCaseNoGo(t *testing.T) {
-	sel, err := Select(repo(t), []string{"integrations/rimgovernor-native/src/Foo.cs"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sel.AllGo || !sel.AllHarnesses || !sel.Probes || len(sel.Cases) < 10 {
-		t.Errorf("native change selected %+v", sel)
-	}
-}
-
-func TestSelectNativeSourceNeedsNoGoModule(t *testing.T) {
-	// No go.mod: asking Go for a dependency graph would fail. Native-only
-	// selection needs just the area directories, even in a partial checkout.
-	r := t.TempDir()
-	for _, area := range []string{"light", "power"} {
-		if err := os.MkdirAll(filepath.Join(r, "go", "internal", "nativeaccept", "cases", area), 0755); err != nil {
-			t.Fatal(err)
+		if got := probesChanged([]string{tc.file}); got != tc.probes {
+			t.Errorf("%s: probesChanged = %v", tc.file, got)
 		}
-	}
-	sel, err := Select(r, []string{"integrations/rimgovernor-native/src/Foo.cs"})
-	if err != nil || !sel.AllHarnesses || !sel.Probes || sel.AllGo || !slices.Equal(sel.Cases, []string{"light", "power"}) {
-		t.Fatalf("native-only selection: %+v, %v", sel, err)
-	}
-}
-
-// The probes build compiles native sources against stubs under
-// contracts/tests, so a stub or probe change owes the build and nothing
-// else; a generated protocol class (a mod build input too) owes it as well.
-func TestSelectProbeStubOwesProbesBuildOnly(t *testing.T) {
-	r := repo(t)
-	sel, err := Select(r, []string{"contracts/tests/NativeContractProbes/Shared/FakeVerseStub.cs"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !sel.Probes || sel.AllGo || sel.AllHarnesses || len(sel.Cases) != 0 {
-		t.Errorf("stub change selected %+v", sel)
-	}
-	if sel, err = Select(r, []string{"contracts/generated/protobuf/csharp/Clock.cs"}); err != nil {
-		t.Fatal(err)
-	}
-	if !sel.Probes || !sel.AllHarnesses {
-		t.Errorf("generated protocol change selected %+v", sel)
-	}
-}
-
-// A change to this package reaches no case, since no case area or the
-// binary imports it;
-// a change to nativeaccept itself reaches every case area.
-func TestSelectFollowsImports(t *testing.T) {
-	r := repo(t)
-	sel, err := Select(r, []string{"go/internal/affected/affected.go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(sel.Cases) != 0 || sel.AllHarnesses {
-		t.Errorf("cases selected for a tooling-only change: %v", sel.Cases)
-	}
-
-	// A harness helper package selects the areas importing it; the
-	// harness package itself is scoped by object (harness_test.go).
-	sel, err = Select(r, []string{"go/internal/nativeaccept/sustainedfood/failfast.go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Contains(sel.Cases, "sustained") || slices.Contains(sel.Cases, "smoke") {
-		t.Errorf("sustainedfood change selected cases %v", sel.Cases)
-	}
-	if sel.AllHarnesses {
-		t.Errorf("a Go change is not a shared-input change")
-	}
-
-	// A case area's own file selects only that area; the runner selects
-	// every area.
-	sel, err = Select(r, []string{"go/internal/nativeaccept/cases/light/light.go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(sel.Cases, []string{"light"}) {
-		t.Errorf("area-local change selected cases %v", sel.Cases)
-	}
-	sel, err = Select(r, []string{"go/internal/nativeaccept/cases/run.go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Contains(sel.Cases, "light") || !slices.Contains(sel.Cases, "smoke") {
-		t.Errorf("runner change selected cases %v", sel.Cases)
-	}
-}
-
-// A fixture source affects the areas calling its ops (#170), a committed
-// save the area loading it, and a fixture build file every area, none of
-// them as a shared-input change.
-func TestSelectScopesFixtures(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	r := repo(t)
-	sel, err := Select(r, []string{"scripts/fixtures/DefenseFixture.cs"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// campaign/recovery stages its raid with the fixture (#633).
-	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"campaign", "defense"}) {
-		t.Errorf("defense fixture change selected %+v", sel)
-	}
-	sel, err = Select(r, []string{"scripts/fixtures/GuardedConstructionFixture.cs"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sel.AllHarnesses || !slices.Contains(sel.Cases, "defense") || slices.Contains(sel.Cases, "light") {
-		t.Errorf("guarded construction fixture change selected %+v", sel)
-	}
-	sel, err = Select(r, []string{"contracts/fixtures/colony-core.json"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sel.AllHarnesses || len(sel.Cases) != 0 {
-		t.Errorf("contract fixture change selected %+v", sel)
 	}
 }

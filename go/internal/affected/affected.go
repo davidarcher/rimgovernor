@@ -1,59 +1,20 @@
-// Package affected maps the files a change touched to the Go packages and
-// native acceptance harnesses worth running for it, so "rerun only affected
-// checks" is a command rather than a judgment call.
+// Package affected finds the files a change touched and runs the checks
+// worth running for them: lint and go test on the module when Go changed, the
+// native contract probes build when its inputs did.
 package affected
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
-
-	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 )
-
-// Selection is what a change affects.
-type Selection struct {
-	// AllGo means go.mod or go.sum changed: every package is affected.
-	AllGo bool
-	// Cases are the go/internal/nativeaccept/cases areas (#135) whose
-	// inputs (na.HarnessInputRoots) include a changed file: every case the
-	// area registers is affected (acceptance run <area>/...).
-	Cases []string
-	// AllHarnesses means a shared acceptance input changed (native mod
-	// sources, go.mod): every case is affected. A test fixture change is
-	// not shared: it affects the areas whose Go sources name one of the
-	// fixture's ops or its save (na.FixtureInputs, #170).
-	AllHarnesses bool
-	// Probes means the native contract probes build (task probes:build,
-	// contracts/tests/NativeContractProbes.csproj) is affected: it compiles
-	// production sources under integrations/rimgovernor-native/src against
-	// the hand-written stubs in contracts/tests, so a native source, a probe
-	// or a generated protocol class change can break it while the mod and
-	// the Go suite stay green (#123).
-	Probes bool
-	// Why explains each selected area: one line per rule that selected it,
-	// naming the changed file (#361).
-	Why map[string][]string
-	// Shared names the changed shared acceptance inputs behind AllHarnesses.
-	Shared []string
-	// Sampled are the areas in Cases that a changed harness source
-	// (go/internal/nativeaccept/*.go) reaches through plumbing alone: the
-	// runner or a helper package uses an object the change taints, the
-	// area's own sources use none. Every case of the area runs under the
-	// change the same way, so the land tier runs one case of the area
-	// rather than all of them (#348); the full tier runs the rest.
-	Sampled []string
-}
 
 // probeInputs are the roots whose files the native contract probes build
 // compiles or links.
@@ -89,479 +50,6 @@ func ChangedFiles(repo, base string) ([]string, error) {
 	return files, nil
 }
 
-// Select computes what changed files affect. An optional base enables
-// acceptance-only filtering and scopes a harness source by the
-// declarations it edited since the merge base (without one, by every
-// declaration it holds); fast checks always include every changed file.
-func Select(repo string, changed []string, base ...string) (Selection, error) {
-	var revision string
-	if len(base) > 0 {
-		refs, err := gitLines(repo, "merge-base", base[0], "HEAD")
-		if err != nil {
-			return Selection{}, err
-		}
-		revision = refs[0]
-	}
-	sel := Selection{Why: map[string][]string{}}
-	goDir := filepath.Join(repo, "go")
-	dirs := map[string][]string{} // absolute package dir -> changed files in it
-	embeddedCandidates := false
-	changedFixtures := map[string]bool{}
-	for _, file := range changed {
-		file = filepath.ToSlash(file)
-		if strings.HasPrefix(file, "go/") {
-			embeddedCandidates = true
-		}
-		if file == "go/go.mod" || file == "go/go.sum" {
-			sel.AllGo = true
-		}
-		if na.FixtureFile(file) {
-			changedFixtures[file] = true
-		}
-		for _, root := range na.HarnessInputRoots() {
-			if file == root || strings.HasPrefix(file, root+"/") {
-				sel.AllHarnesses = true
-				sel.Shared = append(sel.Shared, file)
-			}
-		}
-		for _, root := range probeInputs {
-			if strings.HasPrefix(file, root+"/") {
-				sel.Probes = true
-			}
-		}
-		if dir, ok := goPackageDir(repo, file); ok {
-			dirs[dir] = append(dirs[dir], file)
-		}
-	}
-	if sel.AllHarnesses {
-		var err error
-		if sel.Cases, err = caseAreas(goDir); err != nil {
-			return sel, err
-		}
-		for _, area := range sel.Cases {
-			sel.Why[area] = []string{"shared acceptance input changed: " + strings.Join(sel.Shared, ", ")}
-		}
-	}
-	if sel.AllGo {
-		return sel, nil
-	}
-	// Shared native inputs already selected every area. Without Go or
-	// fixture inputs there is nothing left for the dependency graph to add.
-	if !embeddedCandidates && len(dirs) == 0 && len(changedFixtures) == 0 {
-		return sel, nil
-	}
-	graph, err := dependencyGraph(goDir)
-	if err != nil {
-		return sel, err
-	}
-	embeddedProduction := map[string]map[string]bool{}
-	for _, file := range changed {
-		file = filepath.ToSlash(file)
-		for dir, inputs := range graph.embedded {
-			production, test := inputs.matches(filepath.Join(repo, filepath.FromSlash(file)), dir)
-			if !production && !test {
-				continue
-			}
-			found := false
-			for _, existing := range dirs[dir] {
-				if existing == file {
-					found = true
-					break
-				}
-			}
-			if !found {
-				dirs[dir] = append(dirs[dir], file)
-			}
-			if production {
-				if embeddedProduction[dir] == nil {
-					embeddedProduction[dir] = map[string]bool{}
-				}
-				embeddedProduction[dir][file] = true
-			}
-		}
-	}
-	fixtureAreas, err := areasUsingFixtures(repo, graph, changedFixtures)
-	if err != nil {
-		return sel, err
-	}
-	// sources holds only the files that build into a binary (no _test.go,
-	// no testdata), since only those reach a case through the binary or
-	// the runner.
-	sources := map[string][]string{}
-	var harnessChanged []string // harness package sources, scoped by harnessTaint
-	for dir, files := range dirs {
-		pkg, ok := graph.byDir[dir]
-		if !ok {
-			continue
-		}
-		for _, file := range files {
-			if embeddedProduction[dir][file] {
-				sources[pkg] = append(sources[pkg], file)
-				continue
-			}
-			if strings.HasSuffix(file, "_test.go") || !strings.HasSuffix(file, ".go") {
-				continue
-			}
-			if revision != "" && acceptanceOnly(repo, revision, file) {
-				continue
-			}
-			if harnessFile(file) {
-				harnessChanged = append(harnessChanged, file)
-				continue
-			}
-			sources[pkg] = append(sources[pkg], file)
-		}
-	}
-	if sel.AllHarnesses {
-		return sel, nil
-	}
-	// A case area is affected when it or the runner imports a changed
-	// source, or, for an area hosting `rimgovernor serve`, when the binary
-	// does; a bridge-only area never runs the binary (#361). The runner
-	// imports every area to register it, so the areas, and what only they
-	// import, do not count as its inputs here; nor does this package, which
-	// the runner imports to compose the land tier (#273): a change here
-	// re-selects checks, it changes no case's run.
-	selector := graph.module + "/internal/affected"
-	binary := graph.module + "/cmd/rimgovernor"
-	prefix := graph.module + "/internal/nativeaccept/cases/"
-	runner := graph.module + "/internal/nativeaccept/cmd/acceptance"
-	var binaryWhy, runnerWhy, runnerPlumbing []string
-	// A changed harness source reaches a package through the objects its
-	// change taints (harnessTypes.taint): an area whose own sources use one
-	// runs in full; the runner, a helper package (cases, sustainedfood) and
-	// the areas importing it are harness plumbing shared by every case the
-	// area runs, so an area reached that way alone is sampled (#348).
-	areaUses := map[string]string{} // area -> tainted objects its sources use
-	plumbing := map[string]string{} // helper package -> tainted objects it uses
-	if len(harnessChanged) > 0 {
-		ht, err := loadHarnessTypes(goDir, graph)
-		if err != nil {
-			return sel, err
-		}
-		tainted := ht.taint(repo, revision, harnessChanged)
-		pkgs := make([]string, 0, len(ht.users))
-		for pkg := range ht.users {
-			pkgs = append(pkgs, pkg)
-		}
-		sort.Strings(pkgs)
-		for _, pkg := range pkgs {
-			uses := ht.uses(pkg, tainted)
-			if uses == "" || pkg == selector {
-				continue
-			}
-			switch name := strings.TrimPrefix(pkg, prefix); {
-			case pkg == runner:
-				runnerPlumbing = append(runnerPlumbing, "the runner uses "+uses)
-			case strings.HasPrefix(pkg, prefix) && !strings.Contains(name, "/"):
-				areaUses[name] = uses
-			default:
-				plumbing[pkg] = uses
-			}
-		}
-	}
-	if files, ok := sources[binary]; ok {
-		binaryWhy = append(binaryWhy, "the rimgovernor binary changed ("+strings.Join(files, ", ")+")")
-	}
-	for _, dep := range graph.deps[binary] {
-		if files, ok := sources[dep]; ok {
-			binaryWhy = append(binaryWhy, "the rimgovernor binary imports "+dep+" ("+strings.Join(files, ", ")+")")
-		}
-	}
-	if files, ok := sources[runner]; ok {
-		runnerWhy = append(runnerWhy, "the runner changed ("+strings.Join(files, ", ")+")")
-	}
-	for _, dep := range graph.closure(runner, func(dep string) bool { return strings.HasPrefix(dep, prefix) || dep == selector }) {
-		if files, ok := sources[dep]; ok {
-			runnerWhy = append(runnerWhy, "the runner imports "+dep+" ("+strings.Join(files, ", ")+")")
-		}
-		if uses, ok := plumbing[dep]; ok {
-			runnerPlumbing = append(runnerPlumbing, "the runner imports "+dep+", which uses "+uses)
-		}
-	}
-	for pkg, deps := range graph.deps {
-		name := strings.TrimPrefix(pkg, prefix)
-		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
-			continue
-		}
-		hosts, err := hostsBinary(filepath.Join(goDir, "internal", "nativeaccept", "cases", name))
-		if err != nil {
-			return sel, err
-		}
-		why := append([]string{}, runnerWhy...)
-		if hosts {
-			why = append(why, binaryWhy...)
-		}
-		if files, ok := sources[pkg]; ok {
-			why = append(why, "the area changed ("+strings.Join(files, ", ")+")")
-		}
-		if fixtureAreas[name] {
-			why = append(why, "the area uses a changed fixture")
-		}
-		if uses, ok := areaUses[name]; ok {
-			why = append(why, "the area uses "+uses)
-		}
-		for _, dep := range deps {
-			if files, ok := sources[dep]; ok && !strings.HasPrefix(dep, prefix) {
-				why = append(why, "the area imports "+dep+" ("+strings.Join(files, ", ")+")")
-			}
-		}
-		sampled := len(why) == 0
-		why = append(why, runnerPlumbing...)
-		for _, dep := range deps {
-			if uses, ok := plumbing[dep]; ok {
-				why = append(why, "the area imports "+dep+", which uses "+uses)
-			}
-		}
-		if len(why) == 0 {
-			continue
-		}
-		if sampled {
-			why = append(why, "sampled: the change reaches the area through harness plumbing alone, so the land tier runs one case of it")
-			sel.Sampled = append(sel.Sampled, name)
-		}
-		sel.Cases = append(sel.Cases, name)
-		sel.Why[name] = why
-	}
-	sort.Strings(sel.Sampled)
-	sort.Strings(sel.Cases)
-	return sel, nil
-}
-
-// areasUsingFixtures names the case areas whose Go sources (the area, the
-// runner and what they import, other areas excluded) depend on one of the
-// changed fixture files: a fixture source whose op they call, a save they
-// load, or a build file every build reads.
-func areasUsingFixtures(repo string, g *graph, changedFixtures map[string]bool) (map[string]bool, error) {
-	areas := map[string]bool{}
-	if len(changedFixtures) == 0 {
-		return areas, nil
-	}
-	inputs, err := g.areaFixtureInputs(repo)
-	if err != nil {
-		return nil, err
-	}
-	for name, files := range inputs {
-		for _, input := range files {
-			if changedFixtures[input] {
-				areas[name] = true
-				break
-			}
-		}
-	}
-	return areas, nil
-}
-
-// areaFixtureInputs maps each case area to the fixture files its sources
-// depend on, scanned once per graph: the scan walks every area's import
-// closure and is the expensive half of a fixture-scoped Select.
-func (g *graph) areaFixtureInputs(repo string) (map[string][]string, error) {
-	g.fixturesOnce.Do(func() {
-		g.fixtures, g.fixturesErr = g.scanAreaFixtureInputs(repo)
-	})
-	return g.fixtures, g.fixturesErr
-}
-
-func (g *graph) scanAreaFixtureInputs(repo string) (map[string][]string, error) {
-	goDir := filepath.Join(repo, "go")
-	dirByPkg := map[string]string{}
-	for dir, pkg := range g.byDir {
-		dirByPkg[pkg] = dir
-	}
-	prefix := g.module + "/internal/nativeaccept/cases/"
-	runner := g.module + "/internal/nativeaccept/cmd/acceptance"
-	inputsByArea := map[string][]string{}
-	// The runner's closure is most of every area's closure: read each
-	// package directory once and union the refs per area (#434).
-	refsByDir := map[string]na.FixtureRefs{}
-	for pkg := range g.deps {
-		name := strings.TrimPrefix(pkg, prefix)
-		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
-			continue
-		}
-		seen := map[string]bool{}
-		var dirs []string
-		for _, dep := range append([]string{pkg, runner}, append(g.deps[pkg], g.deps[runner]...)...) {
-			if dir, ok := dirByPkg[dep]; ok && !seen[dep] {
-				seen[dep] = true
-				dirs = append(dirs, dir)
-			}
-		}
-		refs := na.FixtureRefs{}
-		for _, dir := range na.WithoutOtherAreas(goDir, name, dirs) {
-			dirRefs, ok := refsByDir[dir]
-			if !ok {
-				var err error
-				if dirRefs, err = na.ScanFixtureRefs([]string{dir}); err != nil {
-					return nil, err
-				}
-				refsByDir[dir] = dirRefs
-			}
-			for ref := range dirRefs {
-				refs[ref] = true
-			}
-		}
-		inputs, err := na.FixtureInputs(repo, refs)
-		if err != nil {
-			return nil, err
-		}
-		inputsByArea[name] = inputs
-	}
-	return inputsByArea, nil
-}
-
-// goPackageDir returns the absolute package directory a changed file
-// belongs to: its own directory for a .go file, the directory above
-// testdata for a fixture, and only while that directory still exists.
-func goPackageDir(repo, file string) (string, bool) {
-	if !strings.HasPrefix(file, "go/") {
-		return "", false
-	}
-	dir := path.Dir(file)
-	if !strings.HasSuffix(file, ".go") {
-		i := strings.Index(file, "/testdata/")
-		if i < 0 {
-			return "", false
-		}
-		dir = file[:i]
-	}
-	abs := filepath.Join(repo, filepath.FromSlash(dir))
-	if info, err := os.Stat(abs); err != nil || !info.IsDir() {
-		return "", false
-	}
-	return abs, true
-}
-
-type graph struct {
-	embedded map[string]embeddedInputs
-	module   string
-	byDir    map[string]string   // absolute directory -> import path
-	deps     map[string][]string // import path -> transitive in-module production deps
-	direct   map[string][]string // import path -> in-module direct imports (no tests)
-
-	fixturesOnce sync.Once
-	fixtures     map[string][]string // case area -> fixture inputs its sources depend on
-	fixturesErr  error
-}
-
-var (
-	graphsMu sync.Mutex
-	graphs   = map[string]*graph{} // module dir -> graph, read once per process
-)
-
-// dependencyGraph reads the module's packages once per process: Select is
-// a one-shot query over a checkout, and go list over the module is the
-// bulk of its cost.
-func dependencyGraph(goDir string) (*graph, error) {
-	graphsMu.Lock()
-	defer graphsMu.Unlock()
-	if g, ok := graphs[goDir]; ok {
-		return g, nil
-	}
-	g, err := readDependencyGraph(goDir)
-	if err != nil {
-		return nil, err
-	}
-	graphs[goDir] = g
-	return g, nil
-}
-
-func readDependencyGraph(goDir string) (*graph, error) {
-	g := &graph{byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}}
-	// One go list call: every package under ./... names the module it
-	// belongs to, so a separate go list -m would only add a second
-	// toolchain start (#434). -e retains embed patterns when the last
-	// matching file was removed.
-	out, err := goOutput(goDir, "list", "-e", "-test", "-json", "./...")
-	if err != nil {
-		return nil, err
-	}
-	g.embedded = map[string]embeddedInputs{}
-	decoder := json.NewDecoder(strings.NewReader(out))
-	for {
-		var p packageMetadata
-		if err := decoder.Decode(&p); err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-		// Keep original packages; -test resolves their test embeds but also
-		// emits synthetic test binaries and packages with augmented imports.
-		if p.ForTest != "" || (p.Name == "main" && strings.HasSuffix(p.ImportPath, ".test")) {
-			continue
-		}
-		if p.Error != nil && !missingEmbed(p.Error.Err) {
-			return nil, fmt.Errorf("go list %s: %s", p.ImportPath, p.Error.Err)
-		}
-		for _, err := range p.DepsErrors {
-			if !missingEmbed(err.Err) {
-				return nil, fmt.Errorf("go list %s: %s", p.ImportPath, err.Err)
-			}
-		}
-		if g.module == "" && p.Module != nil {
-			g.module = p.Module.Path
-		}
-		dir := filepath.Clean(p.Dir)
-		g.byDir[dir] = p.ImportPath
-		g.direct[p.ImportPath] = g.inModule(p.Imports)
-		g.deps[p.ImportPath] = g.inModule(p.Deps)
-		if len(p.EmbedPatterns)+len(p.TestEmbedPatterns)+len(p.XTestEmbedPatterns) > 0 {
-			g.embedded[dir] = embeddedInputs{p.EmbedFiles, p.EmbedPatterns, append(p.TestEmbedFiles, p.XTestEmbedFiles...), append(p.TestEmbedPatterns, p.XTestEmbedPatterns...)}
-		}
-	}
-	return g, nil
-}
-
-// inModule keeps the module's own import paths.
-func (g *graph) inModule(paths []string) []string {
-	var kept []string
-	for _, path := range paths {
-		if path == g.module || strings.HasPrefix(path, g.module+"/") {
-			kept = append(kept, path)
-		}
-	}
-	return kept
-}
-
-// closure is the in-module packages reachable from pkg through direct
-// (non-test) imports, skipping the packages skip admits and what is
-// reachable only through them.
-func (g *graph) closure(pkg string, skip func(string) bool) []string {
-	seen := map[string]bool{pkg: true}
-	var out []string
-	queue := []string{pkg}
-	for len(queue) > 0 {
-		next := queue[0]
-		queue = queue[1:]
-		for _, dep := range g.direct[next] {
-			if seen[dep] || skip(dep) {
-				continue
-			}
-			seen[dep] = true
-			out = append(out, dep)
-			queue = append(queue, dep)
-		}
-	}
-	sort.Strings(out)
-	return out
-}
-
-// caseAreas lists the case area packages under
-// go/internal/nativeaccept/cases.
-func caseAreas(goDir string) ([]string, error) {
-	entries, err := os.ReadDir(filepath.Join(goDir, "internal", "nativeaccept", "cases"))
-	if err != nil {
-		return nil, err
-	}
-	var names []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			names = append(names, entry.Name())
-		}
-	}
-	return names, nil
-}
-
 func gitLines(repo string, args ...string) ([]string, error) {
 	out, err := output(repo, "git", args...)
 	if err != nil {
@@ -573,8 +61,6 @@ func gitLines(repo string, args ...string) ([]string, error) {
 	}
 	return strings.Split(out, "\n"), nil
 }
-
-func goOutput(dir string, args ...string) (string, error) { return output(dir, "go", args...) }
 
 func output(dir, name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
@@ -588,16 +74,13 @@ func output(dir, name string, args ...string) (string, error) {
 	return string(out), nil
 }
 
-// Test runs go test for what the changed files affect (Select) and the
-// native contract probes build when the change touches its inputs,
-// streaming the output to stdout/stderr, and names the affected case
-// areas first so the caller knows what the change still owes. The one
-// command it prints is the land tier, which already covers those areas
-// plus the smoke set and runs fresh (#249, #273); running the areas on
-// their own first and then the tier would run every case twice.
-func Test(repo string, changed []string, base ...string) error {
+// Test runs the checks the changed files owe: the native contract probes
+// build when a probe input changed, then lint and go test -short over the
+// whole module when anything under go/ changed (go's own cache replays every
+// package whose inputs are unchanged).
+func Test(repo string, changed []string) error {
 	start := time.Now()
-	err := test(repo, changed, base...)
+	err := test(repo, changed)
 	if err != nil {
 		fmt.Printf("test: FAIL (%s)\n", time.Since(start).Round(time.Second))
 		return err
@@ -606,44 +89,37 @@ func Test(repo string, changed []string, base ...string) error {
 	return nil
 }
 
-func test(repo string, changed []string, base ...string) error {
+func test(repo string, changed []string) error {
 	goDir := filepath.Join(repo, "go")
-	sel, err := Select(repo, changed, base...)
-	if err != nil {
-		return err
-	}
-	if sel.Probes {
+	if probesChanged(changed) {
 		fmt.Println("probes: native contract probes build affected, running task probes:build")
 		if err := run(repo, "task", "probes:build"); err != nil {
 			return err
 		}
 	}
-	if sel.AllHarnesses {
-		fmt.Println("cases affected: all (a shared acceptance input changed: native sources or go.mod)")
-	}
-	if len(sel.Cases) > 0 {
-		fmt.Printf("cases affected: %s (cmd/affected -files says why)\n", strings.Join(sel.Cases, " "))
-	}
-	if len(sel.Sampled) > 0 {
-		fmt.Printf("  sampled, one case each when the land tier runs (a harness change reaching them through plumbing alone, #348): %s\n", strings.Join(sel.Sampled, " "))
-	}
-	if len(sel.Cases) > 0 || sel.AllHarnesses {
-		fmt.Println("acceptance: one run, the smoke tier (#387; the nightly full tier proves the affected areas, or run -tier land yourself to prove them before landing):")
-		fmt.Printf("  go run ./internal/nativeaccept/cmd/acceptance suite -tier smoke -root <abs root> -rimgovernor \"%s\" -output <fresh dir>\n", filepath.Join(repo, ".rimgovernor", "bin", "rimgovernor.exe"))
-		fmt.Println("  go run ./cmd/land -results <that dir>")
-	}
 	if !GoChanged(changed) {
 		fmt.Println("tests: no Go files changed, nothing to test")
 		return nil
 	}
-	// The whole module, not a selection: go test's own cache replays every
-	// package whose inputs are unchanged, vet and staticcheck cache the
-	// same way, so the unchanged part costs seconds.
 	if err := lint(goDir, changed, []string{"./..."}); err != nil {
 		return err
 	}
 	fmt.Println("tests: ./... (a package prints only when it finishes; silence is normal)")
 	return timed("tests", func() error { return goTestShort(goDir, "./...") })
+}
+
+// probesChanged reports whether a changed file is one the native contract
+// probes build compiles or links.
+func probesChanged(changed []string) bool {
+	for _, file := range changed {
+		file = filepath.ToSlash(file)
+		for _, root := range probeInputs {
+			if strings.HasPrefix(file, root+"/") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // GoChanged reports whether a change touches anything under go/: Go

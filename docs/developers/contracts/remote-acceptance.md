@@ -25,7 +25,7 @@ may default an unknown verdict to success. #376 owns this shared vocabulary;
 | #377 bundle publisher, `bundle.json` | `schema_version`; `game` (exact `version`, `platform`, `core_only`, false); `components` (`name`, `version`, `path_prefix`, `sha256` of each packaged component's inventory); `origin` (`repository`, numeric `release_id`); `parts` (`asset_id`, `name`, integer `bytes`, `sha256`, in extraction order); `unpacked_bytes`; `inventory` reference; `encryption` (`format`, nonsecret `key_id`). Includes the game with every official expansion, Harmony, bridge SDK and cached starts; no production mod/controller binaries from another revision. |
 | #377 bundle publisher, `inventory.json` | `schema_version`, `files`: exhaustive, path-sorted `{path, bytes, sha256}` of extracted regular files. Component inventory digest hashes the UTF-8 LF-terminated lines `path\tbytes\tsha256\n` for its files. Components have disjoint `path_prefix` roots covering the inventory. |
 | #382 dispatcher, `run.json` | `schema_version`, `run_id`, `repository`, `trigger`, `workflow_commit`, `tested_commit`, `base_commit`, `tier`, `bundle`, `limits`. `trigger` has `event`, `actor`, `published_ref`, integer `actions_run_id`, integer `actions_run_attempt`. The ref is provenance, never a checkout identity. |
-| #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `diff_mode`, sorted unique `changed_files`, `cases` (`name`, nonempty `reasons` array), `sampled_areas`, `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `affected:<area>`, `sampled:<area>` or `full` for the nightly full tier. |
+| #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `diff_mode`, sorted unique `changed_files`, `cases` (`name`, nonempty `reasons` array), `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `requested` (the `cases` tier) or `nightly`. |
 | #381 executor with #378 bootstrap, `attempts.json` | `schema_version`, `run` and `selection` references, `shard_id`, `runner`, `attempts`. `runner` records `os`, `image_version`, `arch`, `cpu_count`, `memory_bytes`, `free_disk_bytes`, `bootstrap` report reference. Each attempt has `case`, one-based `number`, `status`, `classification`, `retry_of` (null or previous number), UTC RFC3339 `started_at`/`finished_at`, `exit` (integer or null if never started), `error` (string or null), `evidence` reference. |
 | #380 aggregator/importer, `aggregate.json` | `schema_version`, `run` and `selection` references, `shards` (`id`, `status`, `attempts` reference or null), `status`, `passed`, `cases` (`name`, `shard_id`, `attempt_count`, `final_attempt`, `status`), `error` (string or null). |
 | #380 local importer, `result.json` | Existing suite envelope: `tier`, `passed`, `error`, `cases`; each row retains native suite fields, including `name`, `passed`, `exit`, metrics and provenance. Add `remote` containing `schema_version`, `aggregate` reference, `tested_commit`, `base_commit`, `bundle_sha256`. Preserve `resumed_from`, `staged_from`, `postmortem_only` when present; never erase them to pass the gate. |
@@ -56,7 +56,7 @@ keep their existing native formats.
 Agents commit locally and do not push or open PRs. The maintainer publishes the
 requested commit to a same-repository ref, then dispatches from the trusted
 default-branch workflow with `tested_ref` or `tested_commit`, `base_commit`, `tier`
-(`smoke`, `land` or `full`), and pinned bundle reference. A maintainer may
+(`smoke`, `nightly` or `cases`), and pinned bundle reference. A maintainer may
 explicitly authorize an agent to dispatch an already published commit; the issue
 alone does not authorize publication. The source repository is public. Source
 upload, R2 and spot/self-hosted runners are outside v1.
@@ -96,7 +96,7 @@ etc. Append each consumer immediately after its generator, keeping generated
 saves in the shard's private worker profile. Retry counts multiply every
 budget equally and do not change assignment.
 
-Every selected case occurs in exactly one shard; reasons and sampled areas are
+Every selected case occurs in exactly one shard; reasons are
 retained. Aggregation recomputes the same groups and order from the recorded
 budgets, rejecting missing, nonpositive or overflowing costs for v3. No ambient
 timing history influences assignment. Legacy `dependency-round-robin-v2`
@@ -138,8 +138,7 @@ layouts for these roles or reject the complete plan before running it.
 The hosted Windows runner has no usable GPU. The planner excludes cases with
 the `Rendered` trait before sharding and budget checks, recording them in
 `skipped` as `{name, reason: "rendered"}`. The aggregate preserves this list
-without treating skips as passes or failures. Rendered cases remain in the local
-full tier and open the windowed profile. No paid GPU runner fallback is authorized.
+without treating skips as passes or failures. Rendered cases run locally by name and open the windowed profile. No paid GPU runner fallback is authorized.
 Each shard's sum of declared case budgets times `max_attempts` must fit its
 suite allowance. This is a necessary bound, not a prediction that boot and
 cleanup will fit; executors enforce the actual deadline. No historical timings
@@ -272,21 +271,10 @@ aggregates have an explanatory error and nonzero aggregator exit status.
 #380 downloads into a new local evidence directory, validates provenance,
 digests, exact case/shard coverage and native reports, and emits the existing
 suite-shaped `result.json` beside the untouched remote manifests. Use the
-[aggregation and import commands](../testing/remote-evidence.md), then
-`go run ./cmd/land -results <import-directory>/evidence` from the task's `go/`.
-Smoke evidence satisfies the landing gate; the nightly full tier owns broader
-affected-area validation. Match the tested task changes and inputs before the
-lane's normal main merge, record that association, and preserve it through the
-clean lane merge: unrelated main movement, squash/rebase or a clean cherry-pick
-alone does not invalidate evidence. Unmatched changes or changed relevant inputs
-require evidence covering them.
+[aggregation and import commands](../testing/remote-evidence.md).
+The evidence is for diagnosis; `cmd/land` does not read it.
 
-The [gate](../../../go/cmd/land/gate.go) reads `passed`, `tier`, `cases`,
-and the resume/stage/postmortem markers. It rejects failed, staged and
-postmortem-only reports, but allows and names local resumed rows. Remote imports
-also require authenticated artifact provenance, complete shard evidence and a
-source match before the lane merges main. V1 remote runs are fresh/restaged; resumed
-evidence must not be presented as a fresh remote pass. Do not merely rename
+Remote v1 runs are fresh/restaged; resumed evidence must not be presented as a fresh remote pass. Do not merely rename
 `aggregate.json` to `result.json` or trust its top-level boolean.
 
 ## Fixture review

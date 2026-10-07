@@ -291,11 +291,11 @@ func TestExportFullShardBeyondFormerFifteenMiBAllowance(t *testing.T) {
 
 func TestScheduledFullEvidence(t *testing.T) {
 	f := fixtureRun(t)
-	f.run.Tier = "full"
+	f.run.Tier = "nightly"
 	f.run.Trigger.Event = "schedule"
 	f.run.Trigger.PublishedRef = "refs/heads/main"
 	for i := range f.selection.Cases {
-		f.selection.Cases[i].Reasons = []string{"full"}
+		f.selection.Cases[i].Reasons = []string{"nightly"}
 	}
 	e, err := f.evaluate(t)
 	if err != nil || !e.Report.Passed {

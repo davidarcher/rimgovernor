@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 )
 
@@ -89,7 +88,7 @@ func authenticateArtifact(api API, p Provenance) (artifactIdentity, error) {
 	if err := apiJSON(api, fmt.Sprintf("repos/%s/actions/runs/%d/attempts/%d", t.Repository, p.RunID, p.Attempt), &run); err != nil {
 		return artifactIdentity{}, err
 	}
-	if run.ID != p.RunID || run.Attempt != p.Attempt || run.Head != t.WorkflowCommit || run.Path != t.Workflow || run.Repository.FullName != t.Repository || run.HeadRepository.FullName != t.Repository || (run.Event != "push" && run.Event != "workflow_dispatch" && run.Event != "schedule") || run.Status != "completed" {
+	if run.ID != p.RunID || run.Attempt != p.Attempt || run.Head != t.WorkflowCommit || run.Path != t.Workflow || run.Repository.FullName != t.Repository || run.HeadRepository.FullName != t.Repository || (run.Event != "workflow_dispatch" && run.Event != "schedule") || run.Status != "completed" {
 		return artifactIdentity{}, fmt.Errorf("actions run is not the pinned completed same-repository workflow")
 	}
 	if run.Conclusion != "success" && run.Conclusion != "failure" {
@@ -317,82 +316,4 @@ func rejectSynthetic(e Evaluation) error {
 		}
 	}
 	return nil
-}
-
-// VerifyImported is called before the lane merges main. It reauthenticates the
-// artifact and replays its immutable archive, so editing local manifests and
-// recomputing their hashes cannot manufacture an imported pass.
-func VerifyImported(root, repo string, trust Trust, api API) (Evaluation, error) {
-	b, err := os.ReadFile(filepath.Join(root, "result.json"))
-	if err != nil {
-		return Evaluation{}, err
-	}
-	var report Report
-	if err = Decode(b, &report); err != nil {
-		return Evaluation{}, err
-	}
-	p := report.Remote.Import
-	if p == nil || p.Trust != trust {
-		return Evaluation{}, fmt.Errorf("remote evidence requires an authenticated import matching local trust pins")
-	}
-	d, err := Authenticate(api, *p)
-	if err != nil {
-		return Evaluation{}, err
-	}
-	archive := filepath.Join(filepath.Dir(root), "actions-artifact.zip")
-	if err = verifyArchive(archive, d); err != nil {
-		return Evaluation{}, err
-	}
-	tmp, err := os.MkdirTemp("", "remote-evidence-")
-	if err != nil {
-		return Evaluation{}, err
-	}
-	defer os.RemoveAll(tmp)
-	if err = extract(archive, tmp); err != nil {
-		return Evaluation{}, err
-	}
-	e, err := Verify(tmp, report.Remote.Aggregate)
-	if err != nil {
-		return e, err
-	}
-	if err = matchProvenance(e.Run, *p); err != nil {
-		return e, err
-	}
-	e.Report.Remote.Import = p
-	if !ReportsEqual(report, e.Report) {
-		return e, fmt.Errorf("imported result differs from authenticated archive")
-	}
-	local, err := Verify(root, report.Remote.Aggregate)
-	if err != nil {
-		return e, err
-	}
-	if !reflect.DeepEqual(local.Aggregate, e.Aggregate) {
-		return e, fmt.Errorf("local evidence changed")
-	}
-	if err = rejectSynthetic(e); err != nil {
-		return e, err
-	}
-	if !e.Report.Passed {
-		return e, fmt.Errorf("remote acceptance did not pass")
-	}
-	if err = VerifySelectionSource(repo, e.Run, e.Selection); err != nil {
-		return e, err
-	}
-	return e, VerifySource(repo, e.Run)
-}
-
-// ReportsEqual ignores indentation of preserved native JSON, not its values.
-func ReportsEqual(a, b Report) bool {
-	if len(a.Cases) != len(b.Cases) {
-		return false
-	}
-	for i := range a.Cases {
-		var x, y bytes.Buffer
-		if json.Compact(&x, a.Cases[i]) != nil || json.Compact(&y, b.Cases[i]) != nil || !bytes.Equal(x.Bytes(), y.Bytes()) {
-			return false
-		}
-	}
-	a.Cases = nil
-	b.Cases = nil
-	return reflect.DeepEqual(a, b)
 }

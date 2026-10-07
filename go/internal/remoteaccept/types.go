@@ -53,7 +53,6 @@ type Selection struct {
 	DiffMode  string         `json:"diff_mode"`
 	Changed   []string       `json:"changed_files"`
 	Cases     []SelectedCase `json:"cases"`
-	Sampled   []string       `json:"sampled_areas"`
 	Algorithm string         `json:"algorithm"`
 	Shards    []PlannedShard `json:"shards"`
 }

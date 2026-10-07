@@ -16,15 +16,7 @@
 //     and a merged tree that puts a path back to its content before one
 //     of main's recent landings is refused, naming the paths and the
 //     landings (#889, #946);
-//  3. with -test, runs the Go tests the branch affects as cmd/test does
-//     (off by default: the branch runs cmd/test before landing, and the
-//     lane does not repeat it); with -results <dir>, reads the acceptance
-//     suite report there (result.json from `acceptance suite`, the smoke
-//     tier's output since #387; the land tier on demand) and refuses a
-//     suite that did not pass; rows that
-//     resumed from a checkpoint (`acceptance suite -resume`) land and are
-//     named in the acceptance line, since their pass proves the fix past
-//     the resume point only (#249, #308); results are optional;
+//  3. with -test, runs the Go tests as cmd/test does (off by default: the//     branch runs cmd/test before landing, and the lane does not repeat it);
 //  4. commits the merged branch's tree onto main as one squash commit and
 //     moves the main ref only if main has not moved since step 2, with a
 //     message built from the branch's commits (-m or -F overrides the
@@ -68,20 +60,18 @@ func main() {
 	runTests := flag.Bool("test", false, "also run the affected Go tests against the merged tree before landing")
 	issue := flag.Int("issue", 0, "GitHub issue to close with the landing commit (default: the number in the branch name)")
 	noClose := flag.Bool("no-close", false, "do not close a GitHub issue")
-	results := flag.String("results", "", "acceptance suite output directory (its result.json) the landing presents as its pass")
 	flag.Parse()
 	if flag.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-results dir] [-issue N | -no-close] [<branch>]")
+		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-issue N | -no-close] [<branch>]")
 		os.Exit(2)
 	}
-	gate := acceptanceGate{Results: *results}
-	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, gate, closeIssue(*issue, *noClose)); err != nil {
+	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, closeIssue(*issue, *noClose)); err != nil {
 		fmt.Fprintln(os.Stderr, "land:", err)
 		os.Exit(1)
 	}
 }
 
-func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool, gate acceptanceGate, close issueCloser) error {
+func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool, close issueCloser) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -137,9 +127,6 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 			return err
 		}
 	}
-	if err := gate.prepare(worktree); err != nil {
-		return err
-	}
 	if err := syncMain(worktree, mainCheckout); err != nil {
 		return err
 	}
@@ -162,11 +149,8 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err != nil {
 		return err
 	}
-	if err := gate.check(); err != nil {
-		return err
-	}
 	if runTests {
-		if err := affected.Test(worktree, changed, "main"); err != nil {
+		if err := affected.Test(worktree, changed); err != nil {
 			return err
 		}
 	} else {

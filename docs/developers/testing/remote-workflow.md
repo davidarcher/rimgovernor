@@ -8,9 +8,9 @@ pushes do not trigger CI. Keep the workflow branch selector on protected `main`.
 Manual dispatch accepts `tested_ref` (any same-repository branch or tag, default `main`)
 or an overriding `tested_commit` SHA, tier and shard count.
 The gate resolves the source once to a full SHA shared by native, race and protobuf jobs.
-`base_commit` is required for land; smoke/full default it to the resolved source SHA. The nightly
-07:23 UTC schedule selects full against its immutable main commit. Both scheduled
-and manually dispatched full tiers also run the Go race, protobuf generation drift
+`base_commit` defaults to the resolved source SHA. The nightly
+07:23 UTC schedule selects nightly against its immutable main commit. Both scheduled
+and manually dispatched nightly tiers also run the Go race, protobuf generation drift
 and protobuf proof checks.
 The `cases` tier runs only the `cases` input: comma-separated registry names or bare
 areas (`power` selects every `power/*` case). A name matching nothing refuses the plan. Agents use
@@ -159,9 +159,9 @@ an injected red native assertion, missing/corrupt diagnostics, content rejection
 limits, aggregation/import and schedule provenance. These are synthetic tooling
 checks; no game is launched. Validate workflow syntax with actionlint v1.7.12.
 
-The remote full tier excludes rendered cases because hosted Windows has no
+The remote tiers exclude rendered cases because hosted Windows has no
 usable GPU. The plan and aggregate record these as `skipped` with reason
-`rendered`; they remain in the local full tier. There is no automatic paid GPU
+`rendered`; they run locally by name. There is no automatic paid GPU
 fallback. Known runnable case budgets must still fit the bounded shards.
 
 Before claiming hosted operation, retain cold and warm smoke runs, a native

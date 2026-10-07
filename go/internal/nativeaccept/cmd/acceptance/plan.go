@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/affected"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
 )
@@ -80,7 +79,6 @@ type remoteSelection struct {
 	Files     []string                   `json:"changed_files"`
 	Cases     []plannedCase              `json:"cases"`
 	Skipped   []remoteaccept.SkippedCase `json:"skipped,omitempty"`
-	Sampled   []string                   `json:"sampled_areas"`
 	Algorithm string                     `json:"algorithm"`
 	Shards    []plannedShard             `json:"shards"`
 }
@@ -105,20 +103,17 @@ func (r planRun) validate() error {
 	if r.Version != 1 || !planOID.MatchString(r.Head) || !planOID.MatchString(r.Base) || !planOID.MatchString(r.Workflow) || r.Base == strings.Repeat("0", 40) || r.Head == strings.Repeat("0", 40) || r.Workflow == strings.Repeat("0", 40) {
 		return fmt.Errorf("run requires schema_version 1 and nonzero full commit identities")
 	}
-	if r.Tier != "land" && r.Tier != "smoke" && r.Tier != "full" && r.Tier != "nightly" && r.Tier != "cases" {
+	if r.Tier != "smoke" && r.Tier != "nightly" && r.Tier != "cases" {
 		return fmt.Errorf("unsupported remote tier %q", r.Tier)
 	}
 	if (r.Tier == "cases") != (len(r.Cases) > 0) {
 		return fmt.Errorf("the cases tier, and only it, takes a nonempty case list")
 	}
-	if r.Tier == "land" && r.Base == r.Head {
-		return fmt.Errorf("land requires distinct base and tested commits")
-	}
-	if r.Trigger.Event != "workflow_dispatch" && r.Trigger.Event != "push" && r.Trigger.Event != "schedule" {
+	if r.Trigger.Event != "workflow_dispatch" && r.Trigger.Event != "schedule" {
 		return fmt.Errorf("unsupported trigger %q", r.Trigger.Event)
 	}
-	if (r.Trigger.Event == "push" || r.Trigger.Event == "schedule") && r.Trigger.Ref != "refs/heads/main" {
-		return fmt.Errorf("push planning requires refs/heads/main")
+	if r.Trigger.Event == "schedule" && r.Trigger.Ref != "refs/heads/main" {
+		return fmt.Errorf("scheduled planning requires refs/heads/main")
 	}
 	if !planRepository.MatchString(r.Repository) || r.Trigger.Actor == "" || r.Trigger.Ref == "" || r.Trigger.ID < 1 || r.Trigger.Attempt < 1 || r.ID != fmt.Sprintf("gh:%s:%d:%d", r.Repository, r.Trigger.ID, r.Trigger.Attempt) {
 		return fmt.Errorf("invalid run provenance")
@@ -268,8 +263,8 @@ func planComparison(repo string, r planRun, fetch bool) ([]string, error) {
 	return slices.Compact(files), nil
 }
 
-func buildSelection(r planRun, ref planReference, files []string, sel affected.Selection) (remoteSelection, error) {
-	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, DiffMode: "ancestor-tree", Files: append([]string{}, files...), Sampled: []string{}, Algorithm: remoteaccept.BudgetAlgorithm}
+func buildSelection(r planRun, ref planReference, files []string) (remoteSelection, error) {
+	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, DiffMode: "ancestor-tree", Files: append([]string{}, files...), Algorithm: remoteaccept.BudgetAlgorithm}
 	if err := r.validate(); err != nil {
 		return p, err
 	}
@@ -279,12 +274,10 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		return p, err
 	}
 	selected := smoke
-	if r.Tier == "full" || r.Tier == "nightly" {
-		set, e := tierCases(r.Tier, "", "")
-		if e != nil {
-			return p, e
+	if r.Tier == "nightly" {
+		if selected, err = tierCases(r.Tier); err != nil {
+			return p, err
 		}
-		selected = set.Cases
 	}
 	if r.Tier == "cases" {
 		selected, err = requestedCases(all, r.Cases)
@@ -292,14 +285,6 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 			return p, err
 		}
 	}
-	if r.Tier == "land" {
-		selected, err = landCases(all, sel)
-		if err != nil {
-			return p, err
-		}
-		p.Sampled = append(p.Sampled, sel.Sampled...)
-	}
-	slices.Sort(p.Sampled)
 	slices.Sort(p.Files)
 	p.Files = slices.Compact(p.Files)
 	slices.SortFunc(selected, func(a, b cases.Case) int { return strings.Compare(a.Name, b.Name) })
@@ -312,17 +297,6 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		p.Skipped = append(p.Skipped, remoteaccept.SkippedCase{Name: c.Name, Reason: "rendered"})
 		return true
 	})
-	// The land tier is capped at a 10 min suite per shard; a case measured
-	// longer than landCaseLimit cannot finish inside it and runs nightly.
-	if r.Tier == "land" {
-		selected = slices.DeleteFunc(selected, func(c cases.Case) bool {
-			if remoteaccept.ShardCost(c.Name, c.Budget) <= int64(landCaseLimit) || !remoteaccept.Measured(c.Name) {
-				return false
-			}
-			p.Skipped = append(p.Skipped, remoteaccept.SkippedCase{Name: c.Name, Reason: "long: nightly only"})
-			return true
-		})
-	}
 	if len(selected) == 0 {
 		return p, fmt.Errorf("empty remote selection")
 	}
@@ -339,17 +313,14 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 	}
 	// Measured times balance real wall time, but every shard's budgets
 	// must still fit the suite allowance; when they do not, plan on the
-	// budgets themselves. The land tier is wall-clock capped instead: its
-	// suite deadline cuts a shard short and unreached cases report
-	// incomplete, so it always balances on measured time.
-	capped := r.Tier == "land"
+	// budgets themselves.
 	allowance := int64(time.Duration(r.Limits.SuiteMinutes)*time.Minute) / int64(r.Limits.Attempts)
 	for _, shard := range shards {
 		var load int64
 		for _, name := range shard.Cases {
 			load += ceilings[name]
 		}
-		if load > allowance && !capped {
+		if load > allowance {
 			if shards, err = remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm, ceilings); err != nil {
 				return p, err
 			}
@@ -377,19 +348,11 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 				row.Reasons = append(row.Reasons, "smoke")
 			}
 		}
-		area, _, _ := strings.Cut(c.Name, "/")
-		if r.Tier == "full" || r.Tier == "nightly" {
+		if r.Tier == "nightly" {
 			row.Reasons = append(row.Reasons, r.Tier)
 		}
 		if r.Tier == "cases" {
 			row.Reasons = append(row.Reasons, "requested")
-		}
-		if r.Tier == "land" {
-			if slices.Contains(sel.Sampled, area) && !sel.AllHarnesses {
-				row.Reasons = append(row.Reasons, "sampled:"+area)
-			} else if sel.AllHarnesses || slices.Contains(sel.Cases, area) {
-				row.Reasons = append(row.Reasons, "affected:"+area)
-			}
 		}
 		slices.Sort(row.Reasons)
 		slices.Sort(row.FixtureOps)
@@ -400,15 +363,12 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		budgets[assignment[c.Name]] += c.Budget * time.Duration(r.Limits.Attempts)
 	}
 	for i, budget := range budgets {
-		if budget > time.Duration(r.Limits.SuiteMinutes)*time.Minute && !capped {
+		if budget > time.Duration(r.Limits.SuiteMinutes)*time.Minute {
 			return p, fmt.Errorf("%s known case budgets including retries (%s) exceed suite allowance; increase shards within v1 limits", p.Shards[i].ID, budget)
 		}
 	}
 	return p, nil
 }
-
-// landCaseLimit is the longest measured case the capped land tier runs.
-const landCaseLimit = 5 * time.Minute
 
 func plan(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("plan", flag.ContinueOnError)
@@ -445,14 +405,7 @@ func plan(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(err)
 	}
-	var sel affected.Selection
-	if r.Tier == "land" {
-		sel, err = affected.Select(repo, files, r.Base)
-		if err != nil {
-			return fail(err)
-		}
-	}
-	p, err := buildSelection(r, planReference{Path: *path, SHA256: fmt.Sprintf("%x", sha256.Sum256(raw))}, files, sel)
+	p, err := buildSelection(r, planReference{Path: *path, SHA256: fmt.Sprintf("%x", sha256.Sum256(raw))}, files)
 	if err != nil {
 		return fail(err)
 	}

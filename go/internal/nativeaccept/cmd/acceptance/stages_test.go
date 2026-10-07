@@ -132,7 +132,7 @@ func TestDispatchSerialChainOnOneWorker(t *testing.T) {
 }
 
 // -stages drops -restage, adds -through for a stage item, refuses the
-// land tier and -resume, and keeps a row that opened on a stage bundle
+// -resume, and keeps a row that opened on a stage bundle
 // passing.
 func TestSuiteStagesFlags(t *testing.T) {
 	root := t.TempDir()
@@ -159,8 +159,7 @@ func TestSuiteStagesFlags(t *testing.T) {
 		t.Errorf("tail output = %q", got)
 	}
 	for name, args := range map[string][]string{
-		"land tier": {"-tier", "land", "-root", root, "-output", filepath.Join(root, "out"), "-stages"},
-		"resume":    {"-cases", "smoke/identity", "-root", root, "-output", filepath.Join(root, "out"), "-stages", "-resume"},
+		"resume": {"-cases", "smoke/identity", "-root", root, "-output", filepath.Join(root, "out"), "-stages", "-resume"},
 	} {
 		if _, _, err := parseSuite(args, &stderr); err == nil {
 			t.Errorf("%s: parseSuite(%v) = nil", name, args)

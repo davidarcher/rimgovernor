@@ -11,8 +11,7 @@ package main
 //
 // The set is the registry (-all), registry names (-cases a,b), a JSON
 // suite file (-suite) whose rows name registry cases, or a tier (-tier
-// land|full|matrix|smoke, tier.go, #273; the land tier diffs the worktree
-// against -base and the report records "tier"); every row runs
+// nightly|smoke, tier.go, #273; the report records "tier"); every row runs
 // through `acceptance run`, and a case that hosts a service (Serve or
 // Service) receives -rimgovernor. "acceptance" labels the criterion a row
 // stands for and is echoed into its report row. Every row runs fresh (-fresh, no
@@ -117,10 +116,8 @@ type suiteOptions struct {
 	// the runner's default.
 	Evidence string
 	// Tier is the tier the set came from (-tier), recorded in the report;
-	// empty for -all, -cases and -suite. Sampled are the areas the land
-	// tier ran one case of (#348), recorded as "sampled".
-	Tier    string
-	Sampled []string
+	// empty for -all, -cases and -suite.
+	Tier string
 	// Resume carries each case's checkpoint ring from Root into its worker
 	// and lets the row resume from it instead of forcing -fresh.
 	Resume bool
@@ -130,9 +127,8 @@ type suiteOptions struct {
 	Stages bool
 }
 
-const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier land|full|matrix|smoke [-base main]) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full -resume -stages]
-    -tier land runs the cases cmd/affected selects for the worktree's diff plus the smoke set; full every case but the matrix tier;
-    matrix the speedmatrix, tickbudget and DLC-save cases; smoke the land tier's fixed half alone (acceptance list -tier <name> prints a tier)`
+const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier nightly|smoke) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full -resume -stages]
+    -tier nightly runs the end-to-end cases, smoke the runner-proving set (acceptance list -tier <name> prints a tier)`
 
 // parseSuite resolves the suite subcommand's flags into the list of rows
 // (in file order, before scheduling) and the options.
@@ -141,12 +137,11 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	fs.SetOutput(stderr)
 	var opts suiteOptions
 	var all bool
-	var names, suite, base string
+	var names, suite string
 	fs.BoolVar(&all, "all", false, "run every tiered case (off-tier generators and diagnostics excluded)")
 	fs.StringVar(&names, "cases", "", "comma-separated registry case names")
 	fs.StringVar(&suite, "suite", "", "JSON suite file: array of {name, acceptance}; names are registry cases")
-	fs.StringVar(&opts.Tier, "tier", "", "run a tier: land, full, matrix or smoke")
-	fs.StringVar(&base, "base", "main", "revision the land tier diffs the worktree against")
+	fs.StringVar(&opts.Tier, "tier", "", "run a tier: nightly or smoke")
 	fs.StringVar(&opts.Root, "root", "", "absolute worker root to clone for every worker (e.g. .rimgovernor/bridge)")
 	fs.StringVar(&opts.Output, "output", "", "fresh output directory")
 	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "prebuilt rimgovernor binary (absolute path) passed to the cases that host a service")
@@ -161,7 +156,7 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget override")
 	fs.StringVar(&opts.Evidence, "evidence", "", "evidence mode passed to every case: capped (default) or full")
 	fs.BoolVar(&opts.Resume, "resume", false, "resume each case from the checkpoint ring its last failed run left in -root instead of running fresh; resumed rows pass and are listed")
-	fs.BoolVar(&opts.Stages, "stages", false, "schedule each staged case's declared stages as their own work items from the stage bundles cached in -root, publishing new bundles back (not a landing pass; refused with -tier land)")
+	fs.BoolVar(&opts.Stages, "stages", false, "schedule each staged case's declared stages as their own work items from the stage bundles cached in -root, publishing new bundles back")
 	if err := fs.Parse(args); err != nil {
 		return nil, opts, err
 	}
@@ -186,9 +181,6 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	if opts.Workers < 1 {
 		return nil, opts, errors.New("-workers must be at least 1")
 	}
-	if opts.Stages && opts.Tier == "land" {
-		return nil, opts, errors.New("-stages is for iteration: the land tier stages every chain from scratch")
-	}
 	if opts.Stages && opts.Resume {
 		return nil, opts, errors.New("-stages and -resume are exclusive: a ring resume is later on the timeline than any stage")
 	}
@@ -210,13 +202,11 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 			}
 		}
 	case opts.Tier != "":
-		repo, _ := repoOfCwd()
-		set, err := tierCases(opts.Tier, repo, base)
+		tierList, err := tierCases(opts.Tier)
 		if err != nil {
 			return nil, opts, err
 		}
-		opts.Sampled = set.Sampled
-		for _, c := range set.Cases {
+		for _, c := range tierList {
 			list = append(list, entry{Name: c.Name})
 		}
 		if len(list) == 0 {
@@ -426,9 +416,6 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 	report["retry_policy"] = retryPolicy
 	if opts.Tier != "" {
 		report["tier"] = opts.Tier
-	}
-	if len(opts.Sampled) > 0 {
-		report["sampled"] = opts.Sampled
 	}
 	var b *baseline
 	if opts.Baseline != "" {

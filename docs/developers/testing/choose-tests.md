@@ -105,43 +105,11 @@ authorize agent pushes or omitted cases.
 
 ## Which cases a change owes
 
-`go run ./cmd/test` (and `cmd/affected`, which only prints) names the case areas
-a change touches. Selection rules:
-
-- **Per package, not per symbol.** An area is named when its own package or the
-  shared runner (`cmd/acceptance`, through its imports) imports a changed
-  package. Any edit to a package the runner imports (`cases`, `clock`, ...)
-  names every area.
-- **Binary.** An area hosting `rimgovernor serve` (a `Serve` spec, `Service`
-  case or `ServiceLaunch`) is named when `cmd/rimgovernor` changes.
-- **Shared inputs** name every area: the native mod's build inputs (the list
-  `RequireCurrentPackage` compares), `go.mod`/`go.sum`, fixture build files
-  (`.csproj`, `Taskfile.yml`, lock file).
-- **Fixtures.** A `<Name>Fixture.cs` under `scripts/fixtures` names the areas
-  whose Go sources name one of its `[Tool("test/...")]` ops; a committed save
-  under `saves/` names the area naming it. `contracts/fixtures` feeds unit tests
-  only.
-- **No build effect.** A `_test.go` or non-embedded `testdata` edit names no
-  area. Production embeds select the owning package's acceptance
-  areas; test-only embeds select none.
-- **Comments and trace.** A Go edit that changed only comments (`//go:build`
-  counts as code) or only the clock's debug trace names nothing.
-- **Harness object.** An edit to `go/internal/nativeaccept/*.go` (not
-  subpackages) is scoped by the declarations edited and every harness
-  declaration that transitively uses one. An area whose own sources use a
-  tainted declaration runs whole; an area reached only through the runner or a
-  shared helper package (`cases`, `sustainedfood`, `setup`...) is **sampled**:
-  the land tier runs one case (cheapest, bridge-only first) and `-tier full`
-  runs the rest. `cmd/test` lists them under `cases affected`.
-
-`cmd/affected -files` prints, under each area, the changed file and the rule
-that reached it.
-
-Landing needs no acceptance run; the full tier proves affected areas.
-`-tier smoke` or `-tier land` proves them before landing when the change
-warrants it (hand the output to `cmd/land -results`). Do not run areas
-separately first. Name the suite in the commit message; an area you judged
-unaffected and skipped is "left unverified": land and say so in the commit body.
+None before landing: `go run ./cmd/test` is the required check, and the nightly
+tier proves the end-to-end cases against `main`. To prove a case earlier, run
+it by name (`acceptance run <area>/<case>`, or the remote workflow's `cases`
+tier). Name the case in the commit message; one you judged unaffected and
+skipped is "left unverified": land and say so in the commit body.
 Never enter a second rerun-and-land cycle for one milestone.
 
 Scenario-clock cases may set `ScenarioClock.TestAcceleration` (Ultrafast with
@@ -173,7 +141,7 @@ unloads it. `-output` and `-json` apply.
 
 ## Campaigns, food and clearance cases
 
-- `campaign/*` proves autonomy and runs outside the land tier (`nightlyOnly` in
+- `campaign/*` proves autonomy and runs in the nightly tier (`endToEnd` in
   `cmd/acceptance/tier.go`). The harness acts only during setup; every later
   hand lands under `interventions`, which campaigns require to be zero. Gates
   are native end state plus advancing concern progress, never a plan count.
@@ -525,7 +493,7 @@ declares `NoKeep`. Regressions for the kept-process path: `authority/warm`,
 ### Running cases in parallel
 
 ```
-acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|nightly|matrix|smoke)
+acceptance suite (-all | -cases a,b | -suite file.json | -tier nightly|smoke)
     -root <root> -output <out> -workers N
     [-baseline <result.json> -series <metrics.jsonl> -rimgovernor <bin> -evidence capped|full]
 ```
@@ -557,12 +525,10 @@ suite lists.
 
 | Tier | Command | Contents and use |
 | --- | --- | --- |
-| **land** | `suite -tier land [-base main]` | The case areas `cmd/affected` selects for the diff plus the smoke set, fresh, on demand before a landing the author wants proven. Shared-plumbing areas contribute one sampled case. `cmd/test` prints the command; `cmd/land -results <output>` reads the suite's `result.json` and refuses a suite that failed or whose rows resumed from a checkpoint. `-results` is optional. |
 | **nightly** | `suite -tier nightly` | The end-to-end cases (`endToEnd` in `cmd/acceptance/tier.go`) plus `campaign/*` on CI; a signal, not a gate. |
-| **full** | `suite -tier full` | Every other tiered case outside the matrix tier, dispatched on demand on CI (`tier: full`) with `-baseline` for regression flagging; a red row opens an issue. |
-| **matrix** | `suite -tier matrix` | Cases declaring `Case.Matrix` (`tickbudget/`, any DLC-save case); run on demand and whenever the clock scheduler or native tick path changes. Neither land nor full runs them. |
+| **by name** | `acceptance run <case>`, `suite -cases a,b` | Every case outside smoke and nightly, including the `Case.Matrix` cases (`tickbudget/`, any DLC-save case), which run whenever the clock scheduler or native tick path changes. |
 | **off-tier** | `acceptance run` by hand | Fixture generators and diagnostics no tier runs (`offTier` in `cmd/acceptance/tier.go`); generators via `acceptance setup generate <variantsave-<save>\|variantsave-all\|baseline>`. |
-| **smoke** | `suite -tier smoke` | The land tier's fixed half (`cmd/acceptance/suites/smoke.json`): runner-proving bridge-only cases plus one short serve-driven case (`light/dark`). `TestSmokeSuiteShape` enforces its shape. Extend it with a case proving a runner path the others miss, not one per area. |
+| **smoke** | `suite -tier smoke` | The runner proof (`cmd/acceptance/suites/smoke.json`): runner-proving bridge-only cases plus one short serve-driven case (`light/dark`). `TestSmokeSuiteShape` enforces its shape. Extend it with a case proving a runner path the others miss, not one per area. |
 
 Multi-family serve cases (`sustained/food`, `sustained/matrix-*`): the watch is a
 tick window, not a wall-clock length; `RIMGOVERNOR_ACCEPT_WINDOW` (Go duration,
@@ -634,8 +600,7 @@ A case with a separate `Postmortem` phase reruns only that phase with
 `-postmortem-only`: the ring's `failed/` bundle (or `-from t+7m`, `-from failed`,
 `-from <bundle dir>`) is loaded on the kept process and `Postmortem` runs against
 the reattached harness. It takes none of `-fresh`, `-rewind`, `-repeat`,
-`-seed`, needs an empty `-output`, and is refused by the suite and
-`cmd/land -results`.
+`-seed`, needs an empty `-output`, and is refused by the suite.
 
 `acceptance dev <area>/<case> -root <root> [-from <label|dir>] [-watch]` iterates
 on the code a case's late stage exercises: each iteration builds
@@ -685,7 +650,7 @@ the runner captures a bundle into `<root>/stages/<area>/<case>/<name>/`.
 row expands to one work item per missing stage (`acceptance run <case> -through
 <stage>`) plus the tail that runs the case to its verdict, chained by dependency;
 finished items publish their bundles back into `-root`. It is refused with
-`-tier land` and `-resume`, and `cmd/land -results` refuses its report.
+`-resume`.
 `acceptance why` prints a case's stage graph.
 
 ## Available checks
@@ -711,23 +676,6 @@ finished items publish their bundles back into `-root`. It is refused with
 | Harness waits, decoding, authority ceremony or discovery without a game | `go test ./internal/nativeaccept -run TestReplay` from `go/`; record a transcript with `RIMGOVERNOR_ACCEPT_RECORD=<abs dir>` and open it with `na.ReplayHarness(ctx, path, output)` | Establishes harness behaviour only, never a native one. |
 
 ### Choosing checks with the tools
-
-`go run ./cmd/affected` from `go/` prints the checks a change needs, one command
-per line:
-
-- the `go test` line for the packages holding the changed Go files plus every
-  in-module package importing them (`./...` when `go.mod`/`go.sum` changed);
-- one `acceptance run <area>/...` line per case area whose inputs the change
-  touched (rules in [Which cases a change owes](#which-cases-a-change-owes));
-- a `task probes:build` line when the change touches the native contract probes
-  build (a source under `integrations/rimgovernor-native/src`, `contracts/tests`
-  or the generated C# protocol classes).
-
-It diffs the working tree (untracked included) against the merge base with
-`main` (`-base` for another revision); pass paths to ask about a hypothetical
-change. `-files` lists the files considered and why each area was selected.
-`-baseline <result.json|metrics.jsonl>` appends the affected set's price
-(`acceptance list -cost <area>/...` names untimed cases).
 
 `go run ./cmd/test` runs `go test -short ./...` (the Go test cache replays unchanged packages; slow tests
 skip) and the probes build (the landing lane skips it unless `-test`), after

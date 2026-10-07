@@ -47,7 +47,6 @@
       ]
     }
   ],
-  "sampled_areas": [],
   "algorithm": "sorted-round-robin-v1",
   "shards": [
     {

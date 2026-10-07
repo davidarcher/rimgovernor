@@ -14,7 +14,7 @@ on:
         required: false
         type: string
       base_commit:
-        description: Full ancestor SHA (required for land; otherwise defaults to tested commit)
+        description: Full ancestor SHA (defaults to tested commit)
         required: false
         type: string
       label:
@@ -23,7 +23,7 @@ on:
         type: string
       tier:
         type: choice
-        options: [smoke, land, nightly, full, cases]
+        options: [smoke, nightly, cases]
         default: smoke
       cases:
         description: For tier cases, comma-separated case names or bare areas (e.g. power,food/reserve)
@@ -150,7 +150,7 @@ jobs:
   # runtime, which only changes with the pins, and needs Mono here.
   race:
     needs: plan
-    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
+    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'nightly'))
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:
@@ -198,7 +198,7 @@ jobs:
   # go/internal/testkit/cmd/checktesttimes.
   budget:
     needs: plan
-    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
+    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'nightly'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -238,7 +238,7 @@ jobs:
   # preinstalled on windows-2022 for the git-heavy tests.
   windows-full:
     needs: plan
-    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
+    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'nightly'))
     runs-on: windows-2022
     timeout-minutes: 50
     steps:
@@ -499,58 +499,3 @@ jobs:
           "Remote acceptance: $env:VERDICT" >> $env:GITHUB_STEP_SUMMARY
           "Tested commit: $env:TESTED_COMMIT" >> $env:GITHUB_STEP_SUMMARY
           "[Verdict and all available diagnostics]($env:ARTIFACT_URL)" >> $env:GITHUB_STEP_SUMMARY
-
-  # Push runs file one issue per failing case (or comment on its open one)
-  # and close them when a later push run is green (#1375).
-  report:
-    needs: [plan, verdict]
-    # Off until it dedupes and caps per run (#1375): it filed one issue per
-    # case on every push while every case failed at bootstrap.
-    if: false
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      actions: read
-      issues: write
-    steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        continue-on-error: true
-        with:
-          name: acceptance-${{ github.run_id }}-${{ github.run_attempt }}-verdict
-          path: evidence
-      - name: File or close push-acceptance issues
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          COMMIT: ${{ needs.plan.outputs.head }}
-          RESULT: ${{ needs.verdict.result }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          label=acceptance-push
-          gh label create "$label" --color B60205 --description 'Push-to-main land tier failure (#1375)' 2>/dev/null || true
-          note="Commit $COMMIT, run $RUN_URL (evidence: the run's verdict artifact)."
-          failing=""; passed=""
-          if [ -f evidence/aggregate.json ]; then
-            failing=$(jq -r '.cases[]? | select(.status != "passed") | .name' evidence/aggregate.json)
-            passed=$(jq -r '.cases[]? | select(.status == "passed") | .name' evidence/aggregate.json)
-          fi
-          if [ "$RESULT" != success ] && [ -z "$failing" ]; then failing="(run incomplete)"; fi
-          open=$(gh issue list --label "$label" --state open --limit 200 --json number,title)
-          while IFS= read -r c; do
-            [ -n "$c" ] || continue
-            title="acceptance: $c fails on main"
-            n=$(jq -r --arg t "$title" '.[] | select(.title == $t) | .number' <<<"$open" | head -1)
-            if [ -n "$n" ]; then gh issue comment "$n" --body "Still failing. $note"
-            else gh issue create --label "$label" --title "$title" --body "Land-tier push acceptance failed for \`$c\`. $note"; fi
-          done <<<"$failing"
-          for n in $(jq -r '.[] | .number' <<<"$open"); do
-            t=$(jq -r --argjson n "$n" '.[] | select(.number == $n) | .title' <<<"$open")
-            c=${t#acceptance: }; c=${c% fails on main}
-            if grep -qxF -- "$c" <<<"$passed"; then
-              gh issue comment "$n" --body "Passed. $note"
-              gh issue close "$n" --reason completed
-            fi
-          done
