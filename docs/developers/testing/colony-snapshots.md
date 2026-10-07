@@ -66,7 +66,16 @@ from `go/`:
 RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance run clean/filthy -output <fresh dir>
 ```
 
-records every review of that case. A checkpoint save is recorded the same
+records every review of that case. The same variable records each combat
+stop that wrote to the fight's journal, with the frame it decided from
+(`snapshot.RecordCombatStop`; replayed by `combat_replay_test.go`), so a fixture
+fight is captured with one line:
+
+```bash
+RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance run combatlab/metrics-lab-base -output <fresh dir>
+```
+
+A checkpoint save is recorded the same
 way: resume or `acceptance dev` the case from the bundle, or serve the save
 by hand, with the variable set. Pick the tick that shows the decision under
 test (`trim -list <stream>` lists them; `snapshot.Replay` steps through a

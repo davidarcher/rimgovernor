@@ -116,6 +116,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			}
 			next.Tactic, next.Roles, next.Refusal = formation(view, formGeometry, next.Relieved, next.Unreachable)
 		}
+		if next.Tactic == TacticSquad {
+			next.Roles = squadFallBack(view, memory.Roles, next.Roles)
+		}
 		next.Formed, formed = view.Tick, true
 		next.Flank = nil
 		next.Groups = nil
@@ -847,7 +850,8 @@ func interruptsAim(s CombatPawnState) bool {
 
 // reform is the reaction table's formation row: no formation yet, a raid
 // phase change or breach, a hold the raid has crossed, or a squad whose
-// target is down. Every other stop kind keeps the formation; their own
+// target is down or whose roster changed (a holder down or badly hurt, a fit
+// defender without a role; combat_squad_roster.go). Every other stop kind keeps the formation; their own
 // responses (pull back when hurt #860, peel #865, rescue #867, scatter)
 // are later rows.
 func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
@@ -874,7 +878,7 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	case TacticManhunter, TacticInfestation:
 		return reformManhunter(view, m)
 	case TacticSquad:
-		return squadTargetDown(view, m)
+		return squadTargetDown(view, m) || squadRosterChanged(view, stop, m)
 	case TacticHunt:
 		return reformHunt(view, m)
 	case TacticPrisonBreak:
@@ -1045,14 +1049,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 			return TacticHold, sortRoles(roles), ""
 		}
 	}
-	var assignments []SquadAssignment
-	var ok bool
-	if len(view.Threats) == 1 {
-		assignments, ok = SelectTribalRaiderDefense(view.Threats[0], view.Defenders)
-	}
-	if !ok {
-		assignments, ok = SelectSquadDefense(markSquadMechs(view), view.Defenders)
-	}
+	assignments, ok := squadAssignments(view)
 	if !ok {
 		if roles := shelterRoles(view); len(roles) > 0 {
 			return TacticShelter, roles, refusal
@@ -1065,6 +1062,16 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 	}
 	roles = holdBrawlerBesideGunners(view, roles)
 	return TacticSquad, sortRoles(roles), refusal
+}
+
+// squadAssignments is the squad fight's defender-to-target proposal.
+func squadAssignments(view CombatView) ([]SquadAssignment, bool) {
+	if len(view.Threats) == 1 {
+		if assignments, ok := SelectTribalRaiderDefense(view.Threats[0], view.Defenders); ok {
+			return assignments, true
+		}
+	}
+	return SelectSquadDefense(markSquadMechs(view), view.Defenders)
 }
 
 func sortRoles(roles []CombatRole) []CombatRole {

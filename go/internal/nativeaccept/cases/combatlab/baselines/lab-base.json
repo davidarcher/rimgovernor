@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "fixture": "lab-base",
+  "ticks": 4480,
+  "colonistDamage": 465.3,
+  "colonistDowns": 6,
+  "colonistDeaths": 0,
+  "enemyDowns": 1,
+  "enemyDeaths": 0,
+  "enemyFled": 1,
+  "firstContactTick": 97,
+  "resolvedTick": 1893,
+  "contactToResolutionTicks": 1796,
+  "winner": "hostile",
+  "friendlyFireHits": 0,
+  "ordersIssued": 0,
+  "ordersRefused": 0,
+  "stepLatencyP95Ms": 635
+}

@@ -146,7 +146,7 @@ const (
 // raid (#1149), lab-siege with its siege lord (#1154), lab-manhunter and
 // lab-mech with #1146, lab-ranged-shield with #1153, lab-mech-line with #1184. lab-infestation (#1071) builds but has no metrics
 // baseline yet.
-var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech", "lab-ranged-shield", "lab-mech-line"}
+var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech", "lab-ranged-shield", "lab-mech-line", "lab-base"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
 func Build(name string, cx, cz int) (Fixture, error) {
@@ -177,6 +177,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return mechLine(cx, cz), nil
 	case "lab-breach":
 		return breach(cx, cz), nil
+	case "lab-base":
+		return base(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
@@ -236,6 +238,53 @@ func breach(cx, cz int) Fixture {
 	for i, dx := range []int{-2, 0, 2} {
 		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 2, Weapon: rifle})
 		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: slasher, X: cx + dx, Z: cz + breachHalf + breachRaid, Weapon: club, WeaponStuff: "WoodLog"})
+	}
+	return f
+}
+
+// Base compound: a 19x19 granite ring whose one opening is the gate cell in
+// the middle of its north wall.
+const baseHalf = 9
+
+// base: a small defensive compound in the middle of the map, the closest
+// fixture to a real colony's defense. Two longsword brawlers hold the gate,
+// four riflemen stand behind a sandbag line four cells inside it, and two
+// mini-turrets flank the gate from within the walls. A mixed raid of five
+// rifle gunners and three club slashers approaches from the north under an
+// assault lord, so the walls, the single gate, the cover and the turrets
+// are all in play. The fixture for whole-defense tactics: hold or fall back,
+// who mans the line, when to retreat and tend.
+func base(cx, cz int) Fixture {
+	f := Fixture{Name: "lab-base", Colonists: 6}
+	for x := cx - baseHalf; x <= cx+baseHalf; x++ {
+		for z := cz - baseHalf; z <= cz+baseHalf; z++ {
+			edge := x == cx-baseHalf || x == cx+baseHalf || z == cz-baseHalf || z == cz+baseHalf
+			if edge && !(x == cx && z == cz+baseHalf) {
+				f.Things = append(f.Things, Thing{Def: "Wall", Stuff: "BlocksGranite", X: x, Z: z})
+			}
+		}
+	}
+	for dx := -4; dx <= 4; dx++ {
+		f.Things = append(f.Things, Thing{Def: "Sandbags", X: cx + dx, Z: cz + 4})
+	}
+	for _, dx := range []int{-3, 3} {
+		f.Things = append(f.Things, Thing{Def: "Turret_MiniTurret", X: cx + dx, Z: cz + baseHalf - 2})
+	}
+	for i, dx := range []int{-1, 1} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz + baseHalf - 2, Weapon: longsword, WeaponStuff: "Steel"})
+	}
+	gap := Cell{cx, cz + baseHalf}
+	f.Layout = &Layout{Toward: "south", Choke: &gap}
+	for i, dx := range []int{-3, -1, 1, 3} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: 2 + i, X: cx + dx, Z: cz + 3, Weapon: rifle})
+		f.Layout.Firing = append(f.Layout.Firing, Cell{cx + dx, cz + 3})
+		f.Layout.Retreat = append(f.Layout.Retreat, Cell{cx + dx, cz - baseHalf + 2})
+	}
+	for _, dx := range []int{-8, -4, 0, 4, 8} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx + dx, Z: cz + baseHalf + 16, Weapon: rifle})
+	}
+	for _, dx := range []int{-6, 0, 6} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: slasher, X: cx + dx, Z: cz + baseHalf + 14, Weapon: club, WeaponStuff: "WoodLog"})
 	}
 	return f
 }

@@ -21,6 +21,14 @@ const shelterStep = 12
 // shelterRoles are the shelter tactic's moves; nil with no live hostile
 // position known.
 func shelterRoles(view CombatView) []CombatRole {
+	return shelterRolesFor(view, func(d SquadDefenderFacts) bool {
+		busy, known := squadDraftBusy(d)
+		return known && !busy
+	})
+}
+
+// shelterRolesFor are the shelter moves of the defenders pick admits.
+func shelterRolesFor(view CombatView, pick func(SquadDefenderFacts) bool) []CombatRole {
 	var hostiles []domain.Cell
 	down := downPawns(view)
 	for _, t := range view.Positional {
@@ -52,9 +60,8 @@ func shelterRoles(view CombatView) []CombatRole {
 	}
 	var roles []CombatRole
 	for _, d := range view.Defenders {
-		busy, bk := squadDraftBusy(d)
 		c, ok := at[d.ID]
-		if !ok || !bk || busy || positive(d.Dead) || positive(d.Downed) || positive(d.MentalState) {
+		if !ok || !pick(d) || positive(d.Dead) || positive(d.Downed) || positive(d.MentalState) {
 			continue
 		}
 		var cell domain.Cell

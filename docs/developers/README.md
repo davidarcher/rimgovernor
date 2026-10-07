@@ -29,6 +29,7 @@ the multi-instance colony directory.
 
 - [Control loop](architecture/control-loop.md): observations, priorities and scheduling.
 - [Hazard detection bounds](architecture/hazard-detection-bounds.md): the native supervisor's probe cadence, per-hazard-class bound in ticks and digest cadence.
+- [Combat in the game](architecture/combat-game-ai.md): RimWorld's own hit, targeting and raid rules, what a combat stop costs, and where a native layer would fit.
 - [Plans and Hands](architecture/plans-and-hands.md): admission, execution and completion.
 - [Space and resources](architecture/space-and-resources.md): placement and shared budgets.
 - [Facilities](architecture/facilities.md): the room-function ladder and per-role matrix.

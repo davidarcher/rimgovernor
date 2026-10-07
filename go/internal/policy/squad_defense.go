@@ -158,7 +158,7 @@ func squadDefenderEligible(d SquadDefenderFacts) bool {
 	if dead || downed || busy || mental || !violent || needsTend || d.Deathresting {
 		return false
 	}
-	return health > float64(float32(0.5005))
+	return health > squadHurtHealth
 }
 
 func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFacts) ([]SquadAssignment, bool) {
