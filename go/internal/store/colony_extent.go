@@ -23,8 +23,6 @@ type EstablishedExtent struct {
 	Region   policy.ExtentRegion
 }
 
-const extentPayloadLimit = 4 << 20
-
 func initializeColonyExtent(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(colony,map_id,ordinal)) STRICT;`)
 	return err
@@ -36,25 +34,8 @@ func checkColonyExtentSchema(ctx context.Context, tx *sql.Tx) error {
 
 type extentRegionPayload struct{ Cells []policy.ExtentCell }
 
-func extentCellsValid(cells []domain.Cell) bool {
-	if len(cells) == 0 || len(cells) > 65536 {
-		return false
-	}
-	for i, c := range cells {
-		if c.X < 0 || c.Z < 0 || c.X >= 4096 || c.Z >= 4096 {
-			return false
-		}
-		if i > 0 && !extentCellBefore(cells[i-1], c) {
-			return false
-		}
-	}
-	return true
-}
-func extentCellBefore(a, b domain.Cell) bool { return a.X < b.X || a.X == b.X && a.Z < b.Z }
-
 func extentRegionEncode(region policy.ExtentRegion) ([]byte, error) {
 	invalid := errors.New("invalid established extent region")
-	cells := make([]domain.Cell, 0, len(region.Cells))
 	for _, c := range region.Cells {
 		if len(c.Provenance) == 0 {
 			return nil, invalid
@@ -69,24 +50,14 @@ func extentRegionEncode(region policy.ExtentRegion) ([]byte, error) {
 				return nil, invalid
 			}
 		}
-		cells = append(cells, c.Cell)
-	}
-	if !extentCellsValid(cells) {
-		return nil, invalid
 	}
 	data, err := json.Marshal(extentRegionPayload{Cells: region.Cells})
 	if err != nil {
 		return nil, err
 	}
-	if len(data) > extentPayloadLimit {
-		return nil, invalid
-	}
 	return data, nil
 }
 func extentDecode(data []byte, payload any) error {
-	if len(data) > extentPayloadLimit {
-		return errors.New("colony extent payload exceeds bound")
-	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(payload); err != nil {
