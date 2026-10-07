@@ -166,7 +166,6 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 func TestNightlySkipsRenderedCases(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier, r.Trigger.Event, r.Trigger.Ref = "nightly", "schedule", "refs/heads/main"
-	r.Base = r.Head
 	r.Limits.Shards, r.Limits.Attempts = 32, 1
 	r.Limits.Parallel = 20
 	r.Limits.ArtifactBytes = 0
@@ -207,7 +206,7 @@ func TestNightlySkipsRenderedCases(t *testing.T) {
 func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 	r := examplePlanRun(t)
 	for _, mutate := range []func(*planRun){
-		func(r *planRun) { r.Version = 2 }, func(r *planRun) { r.Base = strings.Repeat("0", 40) },
+		func(r *planRun) { r.Version = 2 },
 		func(r *planRun) { r.Tier = "land" }, func(r *planRun) { r.Trigger.Event = "pull_request" },
 		func(r *planRun) { r.Limits.Shards = 33 }, func(r *planRun) { r.Limits.Workers = 2 },
 		func(r *planRun) { r.Limits.Parallel = 21 }, func(r *planRun) { r.Limits.Paid = true },
@@ -252,7 +251,6 @@ func TestRemoteTestedCheckout(t *testing.T) {
 	git("add", ".")
 	git("commit", "-m", "base")
 	r := examplePlanRun(t)
-	r.Base = git("rev-parse", "HEAD")
 	git("mv", " old.txt", "new.txt")
 	git("commit", "-m", "rename")
 	r.Head = git("rev-parse", "HEAD")
@@ -279,7 +277,6 @@ func TestRemoteTestedCheckout(t *testing.T) {
 	r.Head = git("rev-parse", "HEAD")
 	// Exercise the complete CLI and verify that provenance hashes the original
 	// bytes, not reserialized JSON.
-	r.Base = r.Head
 	raw, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		t.Fatal(err)

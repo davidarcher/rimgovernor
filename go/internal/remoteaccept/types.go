@@ -23,7 +23,6 @@ type Run struct {
 	} `json:"trigger"`
 	WorkflowCommit string `json:"workflow_commit"`
 	TestedCommit   string `json:"tested_commit"`
-	BaseCommit     string `json:"base_commit"`
 	Tier           string `json:"tier"`
 	Bundle         Ref    `json:"bundle"`
 	Limits         struct {
@@ -119,7 +118,6 @@ type Remote struct {
 	Version      int    `json:"schema_version"`
 	Aggregate    Ref    `json:"aggregate"`
 	TestedCommit string `json:"tested_commit"`
-	BaseCommit   string `json:"base_commit"`
 	BundleSHA256 string `json:"bundle_sha256"`
 	// Import records the authenticated Actions artifact, not a user-set pass bit.
 	Import *Provenance `json:"import,omitempty"`

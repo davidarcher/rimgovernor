@@ -128,7 +128,7 @@ func zipTree(t *testing.T, root string) []byte {
 }
 func importFixture(t *testing.T) (recordedAPI, Provenance, string, Run) {
 	t.Helper()
-	repo, base, head := sourceRepo(t)
+	repo, _, head := sourceRepo(t)
 	// Assemble the authenticated archive in memory. Download exercises the real
 	// disk path; copying, rewriting and evaluating a staging tree first doubles
 	// fixture IO without adding import coverage. Keep all six cases/two shards.
@@ -153,7 +153,7 @@ func importFixture(t *testing.T) (recordedAPI, Provenance, string, Run) {
 		t.Fatal(err)
 	}
 	add(run.Bundle.Path, bundle)
-	run.BaseCommit, run.TestedCommit = base, head
+	run.TestedCommit = head
 	r := add("run.json", jsonBytes(t, run))
 	var selection Selection
 	readTest(t, source, "selection.json", &selection)

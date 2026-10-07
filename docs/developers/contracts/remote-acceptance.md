@@ -24,11 +24,11 @@ may default an unknown verdict to success. #376 owns this shared vocabulary;
 | --- | --- |
 | #377 bundle publisher, `bundle.json` | `schema_version`; `game` (exact `version`, `platform`, `core_only`, false); `components` (`name`, `version`, `path_prefix`, `sha256` of each packaged component's inventory); `origin` (`repository`, numeric `release_id`); `parts` (`asset_id`, `name`, integer `bytes`, `sha256`, in extraction order); `unpacked_bytes`; `inventory` reference; `encryption` (`format`, nonsecret `key_id`). Includes the game with every official expansion, Harmony, bridge SDK and cached starts; no production mod/controller binaries from another revision. |
 | #377 bundle publisher, `inventory.json` | `schema_version`, `files`: exhaustive, path-sorted `{path, bytes, sha256}` of extracted regular files. Component inventory digest hashes the UTF-8 LF-terminated lines `path\tbytes\tsha256\n` for its files. Components have disjoint `path_prefix` roots covering the inventory. |
-| #382 dispatcher, `run.json` | `schema_version`, `run_id`, `repository`, `trigger`, `workflow_commit`, `tested_commit`, `base_commit`, `tier`, `bundle`, `limits`. `trigger` has `event`, `actor`, `published_ref`, integer `actions_run_id`, integer `actions_run_attempt`. The ref is provenance, never a checkout identity. |
+| #382 dispatcher, `run.json` | `schema_version`, `run_id`, `repository`, `trigger`, `workflow_commit`, `tested_commit`, `tier`, `bundle`, `limits`. `trigger` has `event`, `actor`, `published_ref`, integer `actions_run_id`, integer `actions_run_attempt`. The ref is provenance, never a checkout identity. |
 | #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `cases` (`name`, nonempty `reasons` array), `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `requested` (the `cases` tier) or `nightly`. |
 | #381 executor with #378 bootstrap, `attempts.json` | `schema_version`, `run` and `selection` references, `shard_id`, `runner`, `attempts`. `runner` records `os`, `image_version`, `arch`, `cpu_count`, `memory_bytes`, `free_disk_bytes`, `bootstrap` report reference. Each attempt has `case`, one-based `number`, `status`, `classification`, `retry_of` (null or previous number), UTC RFC3339 `started_at`/`finished_at`, `exit` (integer or null if never started), `error` (string or null), `evidence` reference. |
 | #380 aggregator/importer, `aggregate.json` | `schema_version`, `run` and `selection` references, `shards` (`id`, `status`, `attempts` reference or null), `status`, `passed`, `cases` (`name`, `shard_id`, `attempt_count`, `final_attempt`, `status`), `error` (string or null). |
-| #380 local importer, `result.json` | Existing suite envelope: `tier`, `passed`, `error`, `cases`; each row retains native suite fields, including `name`, `passed`, `exit`, metrics and provenance. Add `remote` containing `schema_version`, `aggregate` reference, `tested_commit`, `base_commit`, `bundle_sha256`. Preserve `resumed_from`, `staged_from`, `postmortem_only` when present; never erase them to pass the gate. |
+| #380 local importer, `result.json` | Existing suite envelope: `tier`, `passed`, `error`, `cases`; each row retains native suite fields, including `name`, `passed`, `exit`, metrics and provenance. Add `remote` containing `schema_version`, `aggregate` reference, `tested_commit`, `bundle_sha256`. Preserve `resumed_from`, `staged_from`, `postmortem_only` when present; never erase them to pass the gate. |
 
 A reference is `{path, sha256}`. Paths are relative to the evidence root, use
 forward slashes, and cannot be absolute, contain `..`, escape via links, or
@@ -42,7 +42,7 @@ asset ID locates bytes; only the expected digest establishes their identity.
 
 `run_id` is `gh:<repository>:<actions_run_id>:<actions_run_attempt>` and uniquely
 names one invocation. Its immutable subject is the tuple (`tested_commit`,
-`base_commit`, `tier`, bundle manifest SHA-256). The digest of `run.json` binds
+`tier`, bundle manifest SHA-256). The digest of `run.json` binds
 the full configuration as well. Selection references that digest; attempts and
 aggregation reference both run and selection digests. A GitHub rerun gets a new
 run ID and complete evidence set; it cannot replace an earlier invocation's
@@ -55,7 +55,7 @@ keep their existing native formats.
 
 Agents commit locally and do not push or open PRs. The maintainer publishes the
 requested commit to a same-repository ref, then dispatches from the trusted
-default-branch workflow with `tested_ref` or `tested_commit`, `base_commit`, `tier`
+default-branch workflow with `tested_ref` or `tested_commit`, `tier`
 (`smoke`, `nightly` or `cases`), and pinned bundle reference. A maintainer may
 explicitly authorize an agent to dispatch an already published commit; the issue
 alone does not authorize publication. The source repository is public. Source
@@ -63,9 +63,8 @@ upload, R2 and spot/self-hosted runners are outside v1.
 
 Manual dispatch may supply a same-repository branch or tag as `tested_ref`,
 resolved once to an immutable SHA; an explicit `tested_commit` takes precedence.
-Pushes do not trigger CI. `base_commit` is recorded provenance only (it defaults
-to the tested SHA); nothing selects by a diff. Schedule runs pin the
-default-branch event SHA as both base and head, and nightly selects the nightly tier and
+Pushes do not trigger CI. Nothing selects by a diff. Schedule runs pin the
+default-branch event SHA, and nightly selects the nightly tier and
 refuses unsupported capabilities without reducing coverage.
 
 #379 selects from the clean detached tested checkout (planning fails on a dirty or attached

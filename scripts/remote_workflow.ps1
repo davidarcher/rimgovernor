@@ -70,10 +70,9 @@ function Input-Value($Inputs, $Name) {
     return [string]$property.Value
 }
 function Resolve-Source($Event) {
-    $head = $env:GITHUB_SHA; $base = $head; $tier = 'nightly'; $shards = 32; $cases = @()
+    $head = $env:GITHUB_SHA; $tier = 'nightly'; $shards = 32; $cases = @()
     if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
         $head = Input-Value $Event.inputs 'tested_commit'
-        $base = Input-Value $Event.inputs 'base_commit'
         $tier = Input-Value $Event.inputs 'tier'
         $shards = [int](Input-Value $Event.inputs 'shards')
         $cases = @((Input-Value $Event.inputs 'cases') -split '[,\s]+' | Where-Object { $_ })
@@ -85,14 +84,12 @@ function Resolve-Source($Event) {
             $encoded = [Uri]::EscapeDataString($ref)
             $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
         }
-        if (-not $base) { $base = $head }
     }
     # The fixture factory (fixture-factory.yml, #1376) pins its own case list.
     if ($env:FACTORY_CASES) { $tier = 'cases'; $shards = 1; $cases = @($env:FACTORY_CASES -split ',') }
-    if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
-        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases') -or
-        $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit' }
-    return @{head=$head; base=$base; tier=$tier; shards=$shards; cases=$cases}
+    if ($head -cnotmatch '^[0-9a-f]{40}$' -or $head -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases') -or
+        $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, tier or shard limit' }
+    return @{head=$head; tier=$tier; shards=$shards; cases=$cases}
 }
 function Invoke-API($Path) {
     $value = & gh api $Path
@@ -137,9 +134,9 @@ switch ($Phase) {
         Assert-Gate
         $event = Read-JSON $env:GITHUB_EVENT_PATH
         $source = Resolve-Source $event
-        $head = $source.head; $base = $source.base; $tier = $source.tier; $shards = $source.shards; $cases = $source.cases
+        $head = $source.head; $tier = $source.tier; $shards = $source.shards; $cases = $source.cases
         # Resolve immutable objects through the same repository, never a caller URL/ref.
-        foreach ($oid in @($head,$base)) { if ((Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$oid").sha -cne $oid) { throw 'Commit unavailable in source repository' } }
+        if ((Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$head").sha -cne $head) { throw 'Commit unavailable in source repository' }
         [IO.Directory]::CreateDirectory($Evidence) | Out-Null
         Download-Asset $env:REMOTE_BUNDLE_ASSET (Join-Path $Evidence 'bundle.json')
         if ((File-Reference 'bundle.json').sha256 -cne $env:REMOTE_BUNDLE_SHA256) { throw 'Bundle manifest digest mismatch' }
@@ -153,7 +150,7 @@ switch ($Phase) {
         $suiteMinutes = 345; $jobMinutes = 360
         Write-JSON (Join-Path $Evidence 'run.json') @{
             schema_version=1; run_id="gh:$($env:GITHUB_REPOSITORY):$($env:GITHUB_RUN_ID):$($env:GITHUB_RUN_ATTEMPT)"
-            repository=$env:GITHUB_REPOSITORY; workflow_commit=$env:GITHUB_WORKFLOW_SHA; tested_commit=$head; base_commit=$base; tier=$tier
+            repository=$env:GITHUB_REPOSITORY; workflow_commit=$env:GITHUB_WORKFLOW_SHA; tested_commit=$head; tier=$tier
             trigger=@{event=$env:GITHUB_EVENT_NAME; actor=$env:GITHUB_ACTOR; published_ref=$env:GITHUB_REF; actions_run_id=[long]$env:GITHUB_RUN_ID; actions_run_attempt=[int]$env:GITHUB_RUN_ATTEMPT}
             bundle=(File-Reference 'bundle.json')
             cases=$cases

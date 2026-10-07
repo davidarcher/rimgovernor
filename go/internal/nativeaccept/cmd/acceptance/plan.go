@@ -51,7 +51,6 @@ type planRun struct {
 	} `json:"trigger"`
 	Workflow string        `json:"workflow_commit"`
 	Head     string        `json:"tested_commit"`
-	Base     string        `json:"base_commit"`
 	Tier     string        `json:"tier"`
 	Cases    []string      `json:"cases,omitempty"`
 	Bundle   planReference `json:"bundle"`
@@ -98,7 +97,7 @@ func validPlanPath(s string) bool {
 }
 
 func (r planRun) validate() error {
-	if r.Version != 1 || !planOID.MatchString(r.Head) || !planOID.MatchString(r.Base) || !planOID.MatchString(r.Workflow) || r.Base == strings.Repeat("0", 40) || r.Head == strings.Repeat("0", 40) || r.Workflow == strings.Repeat("0", 40) {
+	if r.Version != 1 || !planOID.MatchString(r.Head) || !planOID.MatchString(r.Workflow) || r.Head == strings.Repeat("0", 40) || r.Workflow == strings.Repeat("0", 40) {
 		return fmt.Errorf("run requires schema_version 1 and nonzero full commit identities")
 	}
 	if r.Tier != "smoke" && r.Tier != "nightly" && r.Tier != "cases" {

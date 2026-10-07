@@ -29,7 +29,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		return e, err
 	}
 	r := e.Run
-	if r.Version != 1 || !repository.MatchString(r.Repository) || !oid.MatchString(r.TestedCommit) || !oid.MatchString(r.BaseCommit) || !oid.MatchString(r.WorkflowCommit) || (r.Tier != "smoke" && r.Tier != "nightly" && r.Tier != "cases") {
+	if r.Version != 1 || !repository.MatchString(r.Repository) || !oid.MatchString(r.TestedCommit) || !oid.MatchString(r.WorkflowCommit) || (r.Tier != "smoke" && r.Tier != "nightly" && r.Tier != "cases") {
 		return e, fmt.Errorf("invalid run identity/version/tier")
 	}
 	if r.Trigger.RunID <= 0 || r.Trigger.Attempt < 1 || r.Trigger.Actor == "" || !strings.HasPrefix(r.Trigger.PublishedRef, "refs/") || (r.Trigger.Event != "workflow_dispatch" && r.Trigger.Event != "schedule") || r.ID != fmt.Sprintf("gh:%s:%d:%d", r.Repository, r.Trigger.RunID, r.Trigger.Attempt) {
@@ -258,7 +258,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 	e.Report.Tier = r.Tier
 	e.Report.Passed = e.Aggregate.Passed
 	e.Report.Error = e.Aggregate.Error
-	e.Report.Remote = Remote{Version: 1, TestedCommit: r.TestedCommit, BaseCommit: r.BaseCommit, BundleSHA256: r.Bundle.SHA256}
+	e.Report.Remote = Remote{Version: 1, TestedCommit: r.TestedCommit, BundleSHA256: r.Bundle.SHA256}
 	for p := range t.used {
 		e.Files = append(e.Files, p)
 	}

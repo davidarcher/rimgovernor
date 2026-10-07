@@ -50,10 +50,9 @@
     "schema_version": 1,
     "aggregate": {
       "path": "aggregate.json",
-      "sha256": "a051ef79a2b4844d54e32bd43bd299001e8ab52674e5fbfc07e2868fe4ddf4fc"
+      "sha256": "5c84df9815b06c8745b34c6883e39eb578857451d4eb58528340253cbb3fe43f"
     },
     "tested_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "base_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "bundle_sha256": "69d36dcc02b5b44d6bf0641ad7d9c96a8b1a30e2412ef2931b85f4601d6614df"
   }
 }

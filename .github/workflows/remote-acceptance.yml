@@ -13,10 +13,6 @@ on:
         description: Optional full commit SHA overriding tested_ref
         required: false
         type: string
-      base_commit:
-        description: Full ancestor SHA (defaults to tested commit)
-        required: false
-        type: string
       label:
         description: Free text shown in the run title, to tell concurrent runs apart (e.g. 1248 ied-lane)
         required: false

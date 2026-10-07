@@ -11,7 +11,6 @@
   },
   "workflow_commit": "cccccccccccccccccccccccccccccccccccccccc",
   "tested_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "base_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "tier": "smoke",
   "bundle": {
     "path": "bundle.json",

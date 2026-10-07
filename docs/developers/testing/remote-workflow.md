@@ -8,7 +8,7 @@ pushes do not trigger CI. Keep the workflow branch selector on protected `main`.
 Manual dispatch accepts `tested_ref` (any same-repository branch or tag, default `main`)
 or an overriding `tested_commit` SHA, tier and shard count.
 The gate resolves the source once to a full SHA shared by native, race and protobuf jobs.
-`base_commit` defaults to the resolved source SHA. The nightly
+The nightly
 07:23 UTC schedule selects nightly against its immutable main commit. Both scheduled
 and manually dispatched nightly tiers also run the Go race, protobuf generation drift
 and protobuf proof checks.

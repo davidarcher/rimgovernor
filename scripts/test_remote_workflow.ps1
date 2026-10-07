@@ -81,7 +81,7 @@ function global:gh {
 . "$PSScriptRoot/remote_workflow.ps1" -Phase authorize
 $event = '{"inputs":{"tested_ref":"feature/ci","tier":"nightly","shards":"32"}}' | ConvertFrom-Json
 $source = Resolve-Source $event
-if ($source.head -cne ('c'*40) -or $source.base -cne $source.head -or $source.tier -cne 'nightly' -or $source.shards -ne 32 -or $global:sourceLookups -ne 1) {
+if ($source.head -cne ('c'*40) -or $source.tier -cne 'nightly' -or $source.shards -ne 32 -or $global:sourceLookups -ne 1) {
     throw 'Branch dispatch did not pin its source and default base'
 }
 $event.inputs | Add-Member tested_commit ('d'*40)
@@ -93,7 +93,7 @@ try { Resolve-Source $event | Out-Null } catch { $rejected=$true }
 if (-not $rejected) { throw 'The retired land tier was accepted' }
 $env:GITHUB_EVENT_NAME='schedule'
 $source = Resolve-Source ([pscustomobject]@{})
-if ($source.head -cne $env:GITHUB_SHA -or $source.base -cne $source.head -or $source.tier -cne 'nightly' -or $source.shards -ne 32) { throw 'Nightly source changed' }
+if ($source.head -cne $env:GITHUB_SHA -or $source.tier -cne 'nightly' -or $source.shards -ne 32) { throw 'Nightly source changed' }
 $env:GITHUB_EVENT_NAME='push'
 $rejected=$false
 try { Assert-Gate } catch { $rejected=$true }

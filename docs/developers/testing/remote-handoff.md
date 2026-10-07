@@ -34,7 +34,7 @@ revision comes from protected `main`; confirm it still matches the
 reviewed revision before dispatch.
 
 ```text
-gh workflow run remote-acceptance.yml --ref main -f tested_commit=<40-hex-tested> -f base_commit=<40-hex-base> -f tier=land -f shards=<count>
+gh workflow run remote-acceptance.yml --ref main -f tested_commit=<40-hex-tested> -f tier=smoke -f shards=<count>
 gh workflow run remote-acceptance.yml --ref main -f tested_ref=<branch> -f tier=full -f shards=32
 gh run list --workflow remote-acceptance.yml --event workflow_dispatch --limit 10
 gh run view <run-id> --json url,headSha,event,status,conclusion,jobs
@@ -71,7 +71,7 @@ Production retries are disabled (`native-read-v1-empty`). If an authorized
 rerun is needed, choose **Re-run all jobs** so one attempt contains its complete
 plan and shards. Do not borrow green rows from a previous attempt.
 
-For each rollout, record workflow/tested/base commits, bundle digest, exact
+For each rollout, record workflow/tested commits, bundle digest, exact
 cases, attempts, per-case and per-shard durations, cache hit, restore/extract/build
 times, observed job overlap, artifact sizes and Actions timing in the issue.
 `gh api repos/davidarcher/rimgovernor/actions/runs/<run-id>/timing` reports billed
