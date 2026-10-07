@@ -54,7 +54,8 @@ func GraveyardsWanted(plan LayoutPlan, waste []WasteItem, built []CurrentBuildin
 		return 0
 	}
 	standing, slots := GravesStanding(plan, built)
-	step, _ := tombCensus(waste, built, shapes.Furniture.Sarcophagus)
+	// No sarcophagus can be had here, so no stranger is staged (StrangerTomb).
+	step, _ := tombCensus(waste, built, shapes.Furniture.Sarcophagus, 0)
 	owed := max(step.Dead-step.Empty, 0)
 	if owed > slots-standing || float64(standing) >= StockpileFurtherRoomFill*float64(slots) {
 		return have + 1

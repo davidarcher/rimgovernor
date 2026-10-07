@@ -409,6 +409,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if err = r.reviewChildRooms(&reading); err != nil {
 		return store.RoundsResult{}, err
 	}
+	if err = r.reviewStrangers(ctx, state.Snapshot, &reading.Projection); err != nil {
+		return store.RoundsResult{}, err
+	}
 	if err = r.reviewLayoutPlan(ctx, state.Snapshot, &reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	}

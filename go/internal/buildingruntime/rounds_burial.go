@@ -103,6 +103,9 @@ func (r *RoundsBurialPlanner) step(call, epoch context.Context, _ *stepArbiter) 
 	if err != nil {
 		return RoundsBurialResult{}, err
 	}
+	if err = r.reviewer.reviewStrangers(call, state.Snapshot, &reading.Projection); err != nil {
+		return RoundsBurialResult{}, err
+	}
 	step := tombStep(reading.Projection)
 	stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
 	var result RoundsBuildingResult

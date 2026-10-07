@@ -38,7 +38,7 @@ func wantedInterior(w WantedPiece) InteriorPiece {
 func TestTombStepReconcilesTheRoomForADeadColonist(t *testing.T) {
 	plan, room := tombFixture()
 	dead := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
-	step := NextTombStep(plan, dead, nil, testShapes, true)
+	step := NextTombStep(plan, dead, nil, testShapes, true, StrangerTomb{})
 	if step.Kind != TombReconcile || !step.Room.Same(room) || len(step.Template) != 1 || step.Template[0].DefName != testSarcophagus {
 		t.Fatalf("tomb: %+v", step)
 	}
@@ -58,12 +58,12 @@ func TestTombStepReconcilesTheRoomForADeadColonist(t *testing.T) {
 	}
 	first := wantedInterior(step.Template[0])
 	built := []CurrentBuilding{sarcophagus(t, "Sarcophagus_1", first)}
-	if step := NextTombStep(plan, dead, built, testShapes, true); step.Kind != TombNone || step.Empty != 0 {
+	if step := NextTombStep(plan, dead, built, testShapes, true, StrangerTomb{}); step.Kind != TombNone || step.Empty != 0 {
 		t.Fatalf("an empty sarcophagus waits: %+v", step)
 	}
 	// Filled, a second death places the next slot.
 	two := append(dead, WasteItem{ID: "Corpse_0", Kind: "corpse", State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: "Sarcophagus_1"})
-	step = NextTombStep(plan, two, built, testShapes, true)
+	step = NextTombStep(plan, two, built, testShapes, true, StrangerTomb{})
 	if step.Kind != TombReconcile || len(step.Template) != 1 || step.Template[0].Slot == first.Slot {
 		t.Fatalf("second death: %+v", step)
 	}
@@ -75,7 +75,7 @@ func TestTombStepIgnoresStrangersAndAnimals(t *testing.T) {
 		{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger},
 		{ID: "Corpse_2", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseAnimal},
 	}
-	if step := NextTombStep(plan, waste, nil, testShapes, true); step.Kind != TombNone {
+	if step := NextTombStep(plan, waste, nil, testShapes, true, StrangerTomb{}); step.Kind != TombNone {
 		t.Fatalf("no colonist died: %+v", step)
 	}
 }
@@ -84,13 +84,13 @@ func TestTombOwedFallsBackToAGrave(t *testing.T) {
 	plan, _ := graveyardPlan(t)
 	dead := domain.Known([]WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}})
 	census := domain.Known(CurrentConstruction{Colony: true})
-	if v, known := TombOwed(testShapes, domain.Known(false), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), dead, census).Value(); !known || !v {
+	if v, known := TombOwed(testShapes, domain.Known(false), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), dead, census, StrangerTomb{}).Value(); !known || !v {
 		t.Errorf("unresearched sarcophagus still owes a grave: %v %v", v, known)
 	}
-	if v, known := TombOwed(testShapes, domain.Known(true), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), dead, census).Value(); !known || !v {
+	if v, known := TombOwed(testShapes, domain.Known(true), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), dead, census, StrangerTomb{}).Value(); !known || !v {
 		t.Errorf("a dead colonist owes a tomb: %v %v", v, known)
 	}
-	if _, known := TombOwed(testShapes, domain.Known(true), domain.Unknown[LayoutPlan](), domain.Known(RoomObservation{Shapes: testShapes}), dead, census).Value(); known {
+	if _, known := TombOwed(testShapes, domain.Known(true), domain.Unknown[LayoutPlan](), domain.Known(RoomObservation{Shapes: testShapes}), dead, census, StrangerTomb{}).Value(); known {
 		t.Error("an unknown plan leaves the tomb unknown")
 	}
 }
@@ -125,12 +125,12 @@ func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 		waste = append(waste, WasteItem{ID: "Buried_" + p.Slot, State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: id})
 	}
 	waste = append(waste, WasteItem{ID: "Corpse_new", State: WasteExposed, CorpseOf: domain.CorpseColonist})
-	if step := NextTombStep(plan, waste, built, testShapes, true); step.Kind != TombFull {
+	if step := NextTombStep(plan, waste, built, testShapes, true, StrangerTomb{}); step.Kind != TombFull {
 		t.Fatalf("every slot filled: %+v", step)
 	}
 	second := PlannedRoom{Role: PlannedTomb, Interior: Rectangle{X: 16, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 19}, DoorRot: domain.North}
 	plan.Rooms = append(plan.Rooms, second)
-	if step := NextTombStep(plan, waste, built, testShapes, true); step.Kind != TombReconcile || !step.Room.Same(second) {
+	if step := NextTombStep(plan, waste, built, testShapes, true, StrangerTomb{}); step.Kind != TombReconcile || !step.Room.Same(second) {
 		t.Fatalf("second tomb: %+v", step)
 	}
 	if plan.TombRooms() != 2 {
@@ -141,7 +141,7 @@ func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 func TestTombStepGravesInTheGraveyardWithoutASarcophagus(t *testing.T) {
 	plan, yard := graveyardPlan(t)
 	dead := []WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
-	step := NextTombStep(plan, dead, nil, testShapes, false)
+	step := NextTombStep(plan, dead, nil, testShapes, false, StrangerTomb{})
 	slots := GraveyardSlots(yard.Interior)
 	if step.Kind != TombReconcile || !step.Room.Same(yard) || len(step.Template) != 1 || step.Template[0].DefName != GraveDefinition || step.Template[0].Minimum != (domain.Cell{X: slots[0].X, Z: slots[0].Z}) {
 		t.Fatalf("no sarcophagus: %+v", step)
@@ -151,7 +151,7 @@ func TestTombStepGravesInTheGraveyardWithoutASarcophagus(t *testing.T) {
 		t.Fatal(err)
 	}
 	grave := CurrentBuilding{ID: "Grave_1", Building: g, Cells: []domain.Cell{{X: 40, Z: 40}, {X: 40, Z: 41}}}
-	if step := NextTombStep(plan, dead, []CurrentBuilding{grave}, testShapes, false); step.Kind != TombNone {
+	if step := NextTombStep(plan, dead, []CurrentBuilding{grave}, testShapes, false, StrangerTomb{}); step.Kind != TombNone {
 		t.Fatalf("an empty grave waits: %+v", step)
 	}
 	// The next grave takes the next slot, not one a grave stands on.
@@ -161,7 +161,7 @@ func TestTombStepGravesInTheGraveyardWithoutASarcophagus(t *testing.T) {
 	}
 	filled := CurrentBuilding{ID: "Grave_2", Building: g, Cells: rectCells(slots[0])}
 	two := append(dead, WasteItem{ID: "Corpse_0", State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: "Grave_2"})
-	step = NextTombStep(plan, two, []CurrentBuilding{filled}, testShapes, false)
+	step = NextTombStep(plan, two, []CurrentBuilding{filled}, testShapes, false, StrangerTomb{})
 	if step.Kind != TombReconcile || step.Template[0].Minimum != (domain.Cell{X: slots[1].X, Z: slots[1].Z}) {
 		t.Fatalf("second grave: %+v", step)
 	}
@@ -172,7 +172,7 @@ func TestTombStepGravesInTheGraveyardWithoutASarcophagus(t *testing.T) {
 func TestNoGraveOutsideTheGraveyard(t *testing.T) {
 	dead := []WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
 	tombPlan, _ := tombFixture()
-	if step := NextTombStep(tombPlan, dead, nil, testShapes, false); step.Kind != TombNone {
+	if step := NextTombStep(tombPlan, dead, nil, testShapes, false, StrangerTomb{}); step.Kind != TombNone {
 		t.Fatalf("no graveyard planned: %+v", step)
 	}
 	plan, yard := graveyardPlan(t)
@@ -188,7 +188,7 @@ func TestNoGraveOutsideTheGraveyard(t *testing.T) {
 	for i := range built {
 		waste = append(waste, WasteItem{ID: "Buried_" + built[i].ID, State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: built[i].ID})
 	}
-	if step := NextTombStep(plan, waste, built, testShapes, false); step.Kind != TombNone {
+	if step := NextTombStep(plan, waste, built, testShapes, false, StrangerTomb{}); step.Kind != TombNone {
 		t.Fatalf("a full graveyard: %+v", step)
 	}
 }

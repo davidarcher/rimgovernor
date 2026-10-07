@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -67,8 +68,12 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 func TestMoodProvisionValidation(t *testing.T) {
 	p := moodPawn()
 	p.Thoughts = domain.Known([]MoodThought{{"NeedJoy", 5}})
+	if err := p.Validate(); err != nil {
+		t.Fatal("positive thought refused", err)
+	}
+	p.Thoughts = domain.Known([]MoodThought{{"NeedJoy", math.NaN()}})
 	if err := p.Validate(); err == nil {
-		t.Fatal("positive thought accepted as pressure")
+		t.Fatal("NaN thought accepted")
 	}
 	p.Thoughts = domain.Known([]MoodThought{{"NeedJoy", -5}, {"NeedJoy", -5}})
 	if err := p.Validate(); err == nil {

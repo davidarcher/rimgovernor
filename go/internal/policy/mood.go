@@ -23,8 +23,9 @@ type MoodPawn struct {
 	Mood, Threshold, Target                     domain.Fact[float64]
 	Food, Rest, Joy                             domain.Fact[float64]
 	Mental, Dead, Downed, Drafted, PlayerForced domain.Fact[bool]
-	// Thoughts are the pawn's observed negative thought rows; unknown when
-	// the native social block was unreadable.
+	// Thoughts are the pawn's observed thought rows, negative and positive,
+	// most negative first; unknown when the native social block was
+	// unreadable. Consumers must be sign-aware.
 	Thoughts domain.Fact[[]MoodThought]
 }
 
@@ -136,7 +137,7 @@ func psychicDroneMargin(thoughts domain.Fact[[]MoodThought]) float64 {
 		return 0
 	}
 	for _, t := range rows {
-		if t.Def == PsychicDroneThought {
+		if t.Def == PsychicDroneThought && t.Offset < 0 {
 			return min(psychicDroneEntryMargin, -t.Offset/100)
 		}
 	}

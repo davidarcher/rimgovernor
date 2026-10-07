@@ -16,6 +16,71 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // has no slot left the body waits in the morgue and the department asks layout
 // for a further graveyard (GraveyardsWanted). Vanilla haulers inter colonist
 // corpses in any empty grave on their own; nothing here hauls.
+//
+// Stranger corpses (raiders, visitors, prisoners; #2336) feed the tomb too, for
+// the mood memory alone: a stranger is owed a fresh sarcophagus only while
+// fewer than StrangerTombStackCap KnowBuriedInSarcophagus stacks are live across
+// the colonists and the next sarcophagus is funded from stock (StrangerTomb).
+// Over the cap, unfunded or with the mood thoughts unread, a stranger keeps the
+// morgue path; the plain grave never takes one.
+
+// KnowBuriedInSarcophagusThought is the memory a colonist gains when the first
+// body ever is hauled into a sarcophagus; it stacks (4, 2, 1, 0.5) for 8 days.
+const KnowBuriedInSarcophagusThought = "KnowBuriedInSarcophagus"
+
+// StrangerTombStackCap is the most live KnowBuriedInSarcophagus stacks the
+// tomb feeds strangers for.
+const StrangerTombStackCap = 4
+
+// knowBuriedStackTotals is a colonist's summed memory offset at 1, 2, 3 and 4
+// live stacks.
+var knowBuriedStackTotals = [StrangerTombStackCap]float64{4, 6, 7, 7.5}
+
+// KnowBuriedStacks is the live KnowBuriedInSarcophagus stacks across the
+// colonists: the most any colonist carries, read from the summed memory offset.
+// Unknown while any colonist's thoughts, or the census, are unread.
+func KnowBuriedStacks(pawns domain.Fact[[]MoodPawn]) (int, bool) {
+	rows, known := pawns.Value()
+	if !known {
+		return 0, false
+	}
+	live := 0
+	for _, p := range rows {
+		thoughts, ok := p.Thoughts.Value()
+		if !ok {
+			return 0, false
+		}
+		for _, t := range thoughts {
+			if t.Def != KnowBuriedInSarcophagusThought {
+				continue
+			}
+			n := 0
+			for _, total := range knowBuriedStackTotals {
+				if t.Offset >= total-0.01 {
+					n++
+				}
+			}
+			live = max(live, n)
+		}
+	}
+	return live, true
+}
+
+// StrangerTomb is what the tomb reads to count stranger corpses: the live
+// memory stacks and whether the next sarcophagus is funded from stock. The zero
+// value (unread thoughts, or unfunded) stages no stranger.
+type StrangerTomb struct {
+	Live   int
+	Funded bool
+}
+
+// Allowed is how many stranger corpses are owed a sarcophagus.
+func (s StrangerTomb) Allowed() int {
+	if !s.Funded {
+		return 0
+	}
+	return max(StrangerTombStackCap-s.Live, 0)
+}
 
 // GraveDefinition is Core's plain grave: 1x2, no stuff, no research.
 const GraveDefinition = "Grave"
@@ -50,20 +115,26 @@ type TombStep struct {
 }
 
 // tombCensus counts the dead, the empty graves and the plain graves, and
-// returns the cells graves stand on.
-func tombCensus(waste []WasteItem, built []CurrentBuilding, sarcophagus string) (TombStep, map[domain.Cell]bool) {
+// returns the cells graves stand on. Strangers count as dead only up to
+// strangers (StrangerTomb.Allowed); a buried body of either kind fills its grave.
+func tombCensus(waste []WasteItem, built []CurrentBuilding, sarcophagus string, strangers int) (TombStep, map[domain.Cell]bool) {
 	step := TombStep{}
 	filled := map[string]bool{}
+	stranded := 0
 	for _, item := range waste {
-		if item.CorpseOf != domain.CorpseColonist {
+		if item.CorpseOf != domain.CorpseColonist && item.CorpseOf != domain.CorpseStranger {
 			continue
 		}
-		if item.State == WasteBuried {
+		switch {
+		case item.State == WasteBuried:
 			filled[item.Grave] = true
-		} else {
+		case item.CorpseOf == domain.CorpseColonist:
 			step.Dead++
+		default:
+			stranded++
 		}
 	}
+	step.Dead += min(stranded, strangers)
 	taken := map[domain.Cell]bool{}
 	for _, b := range built {
 		def := b.Building.Definition()
@@ -114,8 +185,12 @@ pieces:
 // (unresearched, no stuff), which leaves a grave in the planned graveyard; with
 // no free grave slot there is no step, the body waits and the graveyard is
 // asked for again (GraveyardsWanted).
-func NextTombStep(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, shapes PieceShapes, sarcophagus bool) TombStep {
-	step, taken := tombCensus(waste, built, shapes.Furniture.Sarcophagus)
+func NextTombStep(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, shapes PieceShapes, sarcophagus bool, strangers StrangerTomb) TombStep {
+	allowed := 0
+	if sarcophagus {
+		allowed = strangers.Allowed()
+	}
+	step, taken := tombCensus(waste, built, shapes.Furniture.Sarcophagus, allowed)
 	if step.Dead == 0 || step.Empty >= step.Dead {
 		return TombStep{}
 	}
@@ -157,7 +232,7 @@ func (p LayoutPlan) TombRooms() int {
 
 // TombOwed is the review's tomb deficit: known true while a tomb step is
 // due, unknown while a fact the step reads is.
-func TombOwed(shapes PieceShapes, available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[bool] {
+func TombOwed(shapes PieceShapes, available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction], strangers StrangerTomb) domain.Fact[bool] {
 	a, ak := available.Value()
 	p, pk := plan.Value()
 	_, rk := rooms.Value()
@@ -170,10 +245,10 @@ func TombOwed(shapes PieceShapes, available domain.Fact[bool], plan domain.Fact[
 		return domain.Unknown[bool]()
 	}
 	if ak && !a {
-		return domain.Known(NextTombStep(p, w, b.Buildings, shapes, false).Kind != TombNone)
+		return domain.Known(NextTombStep(p, w, b.Buildings, shapes, false, strangers).Kind != TombNone)
 	}
 	if !ak || !rk {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(NextTombStep(p, w, b.Buildings, shapes, true).Kind != TombNone)
+	return domain.Known(NextTombStep(p, w, b.Buildings, shapes, true, strangers).Kind != TombNone)
 }

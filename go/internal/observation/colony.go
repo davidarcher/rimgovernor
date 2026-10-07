@@ -103,6 +103,9 @@ type ColonyProjection struct {
 	RoyaltyColony domain.Fact[policy.RoyaltyColony]
 	// Isolation is the creepjoiner isolation room's inputs (#1740), set by the rounds.
 	Isolation policy.IsolationPlanning
+	// Strangers is what the tomb reads to stage stranger corpses (#2336), set by
+	// the rounds; the zero value stages none.
+	Strangers policy.StrangerTomb
 	// Shapes are the catalog's piece shapes and the furniture its rules choose
 	// (DefinitionCatalog.PieceShapes), set when a catalog is read; the zero
 	// value without one.
@@ -249,6 +252,33 @@ func (r ColonyProjection) StockedStuff(name string) (string, int64, bool) {
 		}
 	}
 	return "", 0, false
+}
+
+// StuffFunded reports whether the colony stock, net of holds, covers one allowed
+// stuff's cost list for one of the definition (the next sarcophagus, #2336).
+// An unknown stock census is not funded.
+func (r ColonyProjection) StuffFunded(name string, holds map[policy.Resource]int64) bool {
+	stock, known := r.Resources.Value()
+	if !known {
+		return false
+	}
+	for _, d := range r.Definitions {
+		if d.Name != name {
+			continue
+		}
+		for _, option := range d.StuffOptions {
+			covered := len(option.Costs) > 0
+			for _, cost := range option.Costs {
+				if cost.Count > 0 && stock[cost.Resource]-holds[cost.Resource] < cost.Count {
+					covered = false
+				}
+			}
+			if covered {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // DefinitionAvailable is one planning definition's native availability,

@@ -13,7 +13,7 @@ func thought(def string, total float64) *o.Thought {
 	return &o.Thought{DefName: proto.String(def), Count: proto.Uint32(1), MoodOffsetEach: proto.Float64(total), MoodOffsetTotal: proto.Float64(total)}
 }
 
-func TestMoodThoughtsKeepNegativePressurePerDef(t *testing.T) {
+func TestMoodThoughtsKeepEveryThoughtPerDef(t *testing.T) {
 	row := &o.PawnState{Social: &o.PawnSocial{
 		Memories:    []*o.Thought{thought("SleptOutside", -4), thought("Insulted", -5), thought("Insulted", -5), thought("AteFineMeal", 5)},
 		Situational: []*o.Thought{thought("NeedJoy", -20), thought("Comfortable", 4)},
@@ -22,7 +22,7 @@ func TestMoodThoughtsKeepNegativePressurePerDef(t *testing.T) {
 	if !known {
 		t.Fatal("readable social block left thoughts unknown")
 	}
-	want := []policy.MoodThought{{Def: "NeedJoy", Offset: -20}, {Def: "Insulted", Offset: -10}, {Def: "SleptOutside", Offset: -4}}
+	want := []policy.MoodThought{{Def: "NeedJoy", Offset: -20}, {Def: "Insulted", Offset: -10}, {Def: "SleptOutside", Offset: -4}, {Def: "Comfortable", Offset: 4}, {Def: "AteFineMeal", Offset: 5}}
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("thoughts = %+v, want %+v", rows, want)
 	}

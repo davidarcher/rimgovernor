@@ -57,10 +57,11 @@ func roundsMood(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, 
 }
 
 // MoodThoughts lifts a pawn row's grouped native thought rows (memories and
-// the situational cache) into the negative pressure the mood census keeps:
-// one row per def with its total offset, most negative first. A skipped or
-// unreadable social block, or a missing memories/situational list, leaves
-// the pressure unknown rather than empty.
+// the situational cache) into the thoughts the mood census keeps: one row
+// per def with its total offset, most negative first, positive thoughts
+// (KnowBuriedInSarcophagus, #2336) last. A skipped or unreadable social
+// block, or a missing memories/situational list, leaves the thoughts unknown
+// rather than empty.
 func MoodThoughts(r *o.PawnState) domain.Fact[[]policy.MoodThought] {
 	unknown := domain.Unknown[[]policy.MoodThought]()
 	social := r.GetSocial()
@@ -78,7 +79,7 @@ func MoodThoughts(r *o.PawnState) domain.Fact[[]policy.MoodThought] {
 	}
 	result := []policy.MoodThought{}
 	for def, offset := range byDef {
-		if offset < 0 {
+		if offset != 0 {
 			result = append(result, policy.MoodThought{Def: def, Offset: offset})
 		}
 	}

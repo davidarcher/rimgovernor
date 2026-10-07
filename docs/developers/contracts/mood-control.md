@@ -32,7 +32,8 @@ keep the ordinary entry, whatever the condition census says.
 ## Facility provisioning
 
 The routine pawn read carries each colonist's grouped thought rows (memories and the
-situational cache, the `social` block). The review keeps the rows that pull mood down
+situational cache, the `social` block). The census carries every thought row (positive ones too, e.g.
+`KnowBuriedInSarcophagus`); the provisioning review reads only the rows that pull mood down
 and maps removable environment thoughts to the upkeep concern whose facility removes
 them (a thought names every concern providing it):
 

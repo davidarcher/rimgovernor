@@ -421,7 +421,13 @@ graveyards are 0.85 used. `PlannedRole.IsOutdoor` lists the Outdoor roles.
 body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
 corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). Stranger
-corpses stay on the butcher-or-incinerate route (`RouteStranger`).
+corpses (#2336) are owed a fresh sarcophagus too, for the mood memory only, while
+fewer than 4 `KnowBuriedInSarcophagus` stacks are live across the colonists (read
+from the mood census, `policy.KnowBuriedStacks`) and the next sarcophagus is
+funded (`StrangerTomb`: accessible stock net of the MaintainResource floors covers
+one allowed stuff's cost list). Over the cap, unfunded or with the thoughts
+unread, a stranger waits in the morgue and stays on the butcher-or-incinerate
+route (`RouteStranger`); the plain grave never takes one.
 
 The waste yard (#2187) is an Outdoor plan room (`PlannedWasteYard`: fence and
 gate, no roof, no floor owed) of 11x7 interior, planned with the cluster. The

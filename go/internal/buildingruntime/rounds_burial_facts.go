@@ -1,6 +1,8 @@
 package buildingruntime
 
 import (
+	"context"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -9,6 +11,24 @@ import (
 // burialDefinitions are the definitions the burial step reads availability
 // and stuff for.
 var burialDefinitions = []string{"Wall", "Door", policy.GraveDefinition}
+
+// reviewStrangers sets the projection's stranger staging (#2336): the live
+// KnowBuriedInSarcophagus stacks from the mood census and whether the next
+// sarcophagus is funded from stock net of the MaintainResource floors. Unread
+// thoughts leave the zero value, which stages no stranger.
+func (r *Rounder) reviewStrangers(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
+	projection.Strangers = policy.StrangerTomb{}
+	live, known := policy.KnowBuriedStacks(projection.Facts.MoodPawns)
+	if !known || live >= policy.StrangerTombStackCap {
+		return nil
+	}
+	targets, err := r.resourceTargets(ctx, snapshot, projection.Facts.Resources)
+	if err != nil {
+		return err
+	}
+	projection.Strangers = policy.StrangerTomb{Live: live, Funded: projection.StuffFunded(projection.Shapes.Furniture.Sarcophagus, targets)}
+	return nil
+}
 
 // tombStep is the projection's next tomb or grave step (#832, #857, #2196); none while a
 // fact is unknown.
@@ -20,12 +40,12 @@ func tombStep(facts observation.ColonyProjection) policy.TombStep {
 	plan, _ := facts.LayoutPlan.Value()
 	waste, _ := facts.Facts.Waste.Value()
 	built, _ := facts.Facts.CurrentConstruction.Value()
-	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, available)
+	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, available, facts.Strangers)
 }
 
 // tombOwed is the review's TombOwed fact for the projection.
 func tombOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	return policy.TombOwed(facts.Shapes, sarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+	return policy.TombOwed(facts.Shapes, sarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction, facts.Strangers)
 }
 
 // sarcophagusAvailable is the sarcophagus's availability, false when
@@ -52,7 +72,7 @@ func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool 
 	if !ak || !available || !wk || !bk || !built.Colony {
 		return false
 	}
-	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, true).Kind == policy.TombFull
+	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, true, facts.Strangers).Kind == policy.TombFull
 }
 
 // plannedMorgue is the planned morgue a waiting human corpse owes a shell

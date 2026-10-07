@@ -9,8 +9,8 @@ import (
 )
 
 // MoodThought is one grouped native thought row (the Mood tab's stacking)
-// with its total mood offset; the census keeps only rows that pull the
-// pawn's mood down.
+// with its total mood offset; the census keeps negative and positive rows
+// (a memory like KnowBuriedInSarcophagus is positive).
 type MoodThought struct {
 	Def    string
 	Offset float64
@@ -100,7 +100,7 @@ func validateMoodThoughts(f domain.Fact[[]MoodThought]) error {
 	}
 	seen := map[string]bool{}
 	for _, t := range rows {
-		if !foodID(t.Def) || seen[t.Def] || math.IsNaN(t.Offset) || math.IsInf(t.Offset, 0) || t.Offset >= 0 {
+		if !foodID(t.Def) || seen[t.Def] || math.IsNaN(t.Offset) || math.IsInf(t.Offset, 0) {
 			return errors.New("invalid mood thought")
 		}
 		seen[t.Def] = true
@@ -154,6 +154,9 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 	total, owned := 0.0, 0.0
 	byGoal := map[ConcernID]float64{}
 	for _, t := range rows {
+		if t.Offset >= 0 {
+			continue
+		}
 		total += t.Offset
 		owners := moodProvisionOwners[t.Def]
 		if len(owners) > 0 {
@@ -192,6 +195,9 @@ func moodUnowned(f domain.Fact[[]MoodThought]) []MoodThought {
 	total, unowned := 0.0, 0.0
 	var result []MoodThought
 	for _, t := range rows {
+		if t.Offset >= 0 {
+			continue
+		}
 		total += t.Offset
 		if moodUnownedThoughts[t.Def] {
 			unowned += t.Offset
