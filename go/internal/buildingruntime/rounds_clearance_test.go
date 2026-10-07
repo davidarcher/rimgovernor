@@ -68,14 +68,14 @@ func TestRoundsReviewQueuesRuinsNearestFirstAndJournalsHolds(t *testing.T) {
 		t.Fatal(err)
 	}
 	queue := review.Review.RecoveryQueue
-	if queue == nil || queue.Admitted != "near" {
+	if queue == nil || queue.Admitted != "roof" {
 		t.Fatal(queue)
 	}
 	status := map[string]policy.RecoveryEntry{}
 	for _, e := range queue.Entries {
 		status[e.ID] = e
 	}
-	if status["far"].Status != policy.RecoveryQueued || status["roof"].Status != policy.RecoveryHeld || status["roof"].Reason != policy.RemoteHoldRoofSupport {
+	if status["far"].Status != policy.RecoveryQueued || status["near"].Status != policy.RecoveryQueued || status["roof"].Status != policy.RecoveryAdmitted {
 		t.Fatal(queue.Entries)
 	}
 	if status["near"].Tier != policy.RecoveryRest || status["near"].Distance != 5 {

@@ -68,18 +68,17 @@ func TestReplayAncientHomeWallAdmitted(t *testing.T) {
 	}
 }
 
-// clearance/roof-support-refused, ticks 15 and 615: the same Home wall
-// holding up a roof is held for roof_support_risk and never worked; once a
-// support column stands beside it, the queue works it.
-func TestReplayRoofBearingWallHeldUntilSupported(t *testing.T) {
+// clearance/roof-support-refused, ticks 15 and 615: the Home wall holding up a
+// roof is no longer held on native's per-building verdict (#2301); the queue
+// works it and PlanRecoveryBatch takes the roofs down first. Supported, it
+// is worked as before.
+func TestReplayRoofBearingWallQueuedForRoofFirstBatch(t *testing.T) {
 	const wall = "Thing_Wall44690"
-	_, _, q := recovery(t, "testdata/clearance-roof-held.json")
-	if e, _ := entry(q, wall); e.Status != policy.RecoveryHeld || e.Reason != policy.RemoteHoldRoofSupport {
-		t.Errorf("%s %+v, want held roof_support_risk", wall, e)
-	}
-	_, _, q = recovery(t, "testdata/clearance-roof-supported.json")
-	if !working(q, wall) {
-		t.Errorf("supported %s not worked: %+v", wall, q.Entries)
+	for _, path := range []string{"testdata/clearance-roof-held.json", "testdata/clearance-roof-supported.json"} {
+		_, _, q := recovery(t, path)
+		if !working(q, wall) {
+			t.Errorf("%s: %s not worked: %+v", path, wall, q.Entries)
+		}
 	}
 }
 

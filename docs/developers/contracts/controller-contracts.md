@@ -720,7 +720,7 @@ resource planner's log:
 | --- | --- |
 | `threat_present` | Known hostile on the map (reported ahead of the route verdict it causes). |
 | `urgent_competing_work` | Urgent patient or disrupting disaster (`policy.UrgentWorkCompeting`); outranks every demand priority in `PlanSupply`. |
-| `roof_support_risk` | Removal drops a roof, or the deposit is not open surface. |
+| `roof_support_risk` | The deposit is not open surface, or a recovery removal the mirror roof check still refuses after the thin roofs are down (thick roof, unknown cell). A ruin whose removal merely drops a thin roof is not held: `PlanRecoveryBatch` removes the roofs first, then the ruin (#2301); native's per-building roof verdict no longer holds it in the queue and native re-checks at admission. |
 | `route_unsafe` | Native walked no safe route to the target and back to storage. |
 | `missing_storage` | No accepting headroom. |
 

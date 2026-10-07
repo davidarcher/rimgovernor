@@ -44,7 +44,7 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 			func(c *ClearanceTarget) { c.Salvage.Safe = domain.Known(false) },
 			func(s *ResourceSource) { s.Reachable = domain.Known(false) }, RemoteHoldThreat},
 		{"urgent work", func(r *RemoteWorkRequest) { r.Competition = urgent }, nil, nil, nil, RemoteHoldUrgentWork},
-		{"roof support", nil, nil, func(c *ClearanceTarget) { c.RoofBlocker = "collapse" }, func(s *ResourceSource) { s.Safety = "roofed" }, RemoteHoldRoofSupport},
+		{"roof support", nil, nil, nil, func(s *ResourceSource) { s.Safety = "roofed" }, RemoteHoldRoofSupport},
 		{"route", nil, nil, func(c *ClearanceTarget) { c.Salvage.Safe = domain.Known(false) }, func(s *ResourceSource) { s.Reachable = domain.Known(false) }, RemoteHoldRouteUnsafe},
 		{"storage", func(r *RemoteWorkRequest) { r.Reach.StorageHeadroom = domain.Known(int64(0)) },
 			func(l *LootItem) { l.StorageHeadroom = domain.Known(int64(0)) },
@@ -77,7 +77,8 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 			if tt.salvage != nil {
 				tt.salvage(&salvage)
 			}
-			if got := salvageQueueReason(salvage, r); got != tt.reason {
+			// A ruin's roof is the mirror check's (#2301), so only mining holds on it here.
+			if got := salvageQueueReason(salvage, r); got != tt.reason && tt.reason != RemoteHoldRoofSupport {
 				t.Fatalf("salvage %q, want %q", got, tt.reason)
 			}
 			ore := ResourceSource{ThingID: "ore", Method: ResourceSourceMine, Yield: 40, Distance: 80, Cell: domain.Cell{X: 90, Z: 90}, Safety: "open_surface", Reachable: domain.Known(true)}

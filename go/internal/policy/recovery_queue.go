@@ -216,15 +216,21 @@ func RankRecovery(r RecoveryRequest) RecoveryQueue {
 
 // RecoveryClearanceThing prices one census row. Player buildings are the
 // colony's own and are no recovery thing (ok false). The row's native
-// verdicts (roof, ancient, casket, not deconstructible) fold into Hold.
+// verdicts (ancient, casket, not deconstructible) fold into Hold. Its native
+// per-building roof verdict does not (#2301): the mirror's joint roof check
+// supersedes it, so a ruin holding up a roof is queued and PlanRecoveryBatch
+// takes the thin roofs down before it; what the mirror check still refuses
+// after that is held roof_support_risk there. Native re-checks at admission.
 func RecoveryClearanceThing(row ClearanceTarget, roomObstruction bool) (RecoveryThing, bool) {
 	if row.Player {
 		return RecoveryThing{}, false
 	}
+	own := row
+	own.RoofBlocker = ""
 	t := RecoveryThing{
 		ID: row.EntityID, Def: row.DefName, Kind: RemoteSalvage, RoomObstruction: roomObstruction,
 		Cell: domain.Cell{X: (row.Minimum.X + row.Maximum.X) / 2, Z: (row.Minimum.Z + row.Maximum.Z) / 2},
-		Hold: RemoteHoldReason(RemoteSalvage, ClearanceHoldReason(row)), RouteSafe: domain.Unknown[bool](),
+		Hold: RemoteHoldReason(RemoteSalvage, ClearanceHoldReason(own)), RouteSafe: domain.Unknown[bool](),
 	}
 	if row.Salvage != nil {
 		t.Candidate, _ = SalvagePriced(row.EntityID, *row.Salvage)

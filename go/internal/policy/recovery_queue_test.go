@@ -120,9 +120,6 @@ func TestRankRecoveryHoldReasons(t *testing.T) {
 		{"not deconstructible", func(_ *RecoveryRequest, t *RecoveryThing) {
 			*t, _ = RecoveryClearanceThing(ClearanceTarget{EntityID: "x", Salvage: &SalvageEvidence{Safe: domain.Known(true)}}, false)
 		}, "not_deconstructible"},
-		{"roof", func(_ *RecoveryRequest, t *RecoveryThing) {
-			*t, _ = RecoveryClearanceThing(ClearanceTarget{EntityID: "x", Deconstructible: true, RoofBlocker: "unsupported", Salvage: &SalvageEvidence{Safe: domain.Known(true)}}, false)
-		}, RemoteHoldRoofSupport},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -206,5 +203,19 @@ func TestRecoveryLootThing(t *testing.T) {
 	row.SpawnForbidden = true
 	if _, ok := RecoveryLootThing(row); ok {
 		t.Fatal("a spawner-forbidden stack is never recovery")
+	}
+}
+
+// A native per-building roof verdict no longer holds a ruin (#2301): the
+// mirror's joint check decides in PlanRecoveryBatch, roofs first.
+func TestRecoveryClearanceThingIgnoresNativeRoofBlocker(t *testing.T) {
+	row := ClearanceTarget{EntityID: "x", Deconstructible: true, RoofBlocker: "unsupported", Salvage: &SalvageEvidence{Safe: domain.Known(true)}}
+	thing, ok := RecoveryClearanceThing(row, false)
+	if !ok || thing.Hold != "" {
+		t.Fatalf("thing %+v ok %v, want no hold", thing, ok)
+	}
+	row.AncientDanger = true
+	if thing, _ = RecoveryClearanceThing(row, false); thing.Hold != "ancient_danger" {
+		t.Fatalf("hold %q, want ancient_danger", thing.Hold)
 	}
 }
