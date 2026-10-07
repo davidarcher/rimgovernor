@@ -252,7 +252,7 @@
     </div>
     <div class="alert" id="alert" role="alert" hidden></div>
     <ul class="status" id="status" aria-label="Components"></ul>
-    <p class="note">Player guide: <code>https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md</code> (or <code>docs/players/README.md</code> in this checkout)</p>
+    <p class="note">Player guide: <a id="guideLink" href="https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md">https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md</a> (or <code>docs/players/README.md</code> in this checkout)</p>
   </div>
 
   <section class="colony" id="newColony" aria-label="New colony">
@@ -436,6 +436,7 @@ async function act(fn) {
 $('primary').onclick = () => act(play);
 $('restart').onclick = () => act(restart);
 $('stop').onclick = () => act(stopController);
+$('guideLink').addEventListener('click', e => { e.preventDefault(); openLink(e.currentTarget.href).catch(() => {}); });
 $('closeGame').onclick = () => act(closeGame);
 
 let events = [], openRows = new Set();

@@ -12,6 +12,7 @@ import (
 	"context"
 	_ "embed"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"syscall"
@@ -95,6 +96,7 @@ func main() {
 		"getAcceptRun":      a.accept.View,
 		"runAcceptCase":     a.accept.Run,
 		"stopAcceptCase":    a.accept.Stop,
+		"openLink":          openLink,
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())
@@ -123,4 +125,12 @@ func main() {
 	go a.focus()
 	go a.monitor()
 	w.Run()
+}
+
+// openLink opens an allowlisted URL in the default browser (#2327).
+func openLink(url string) error {
+	if err := allowedLink(url); err != nil {
+		return err
+	}
+	return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 }
