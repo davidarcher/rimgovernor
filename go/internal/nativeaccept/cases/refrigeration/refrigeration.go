@@ -83,7 +83,7 @@ func run(ctx context.Context, s cases.Session) error {
 			report["postmortem_error"] = "reopen session for the postmortem: " + err.Error()
 			return
 		}
-		if after, err := readFoodStorage(stopCtx, ph, identity, "food-postmortem"); err == nil {
+		if after, err := readFoodStorage(stopCtx, ph, identity, na.AsSlice(prepared["meat"]), "food-postmortem"); err == nil {
 			report["food_postmortem"] = after.evidence()
 		} else {
 			report["food_postmortem_error"] = err.Error()
@@ -113,15 +113,14 @@ func run(ctx context.Context, s cases.Session) error {
 	// Before: the typed colony facts must show the meat warm, roofed, in the
 	// fixture room and short of runway -- the exact facts the review latches
 	// on.
-	before, err := readFoodStorage(ctx, h, identity, "food-before")
+	before, err := readFoodStorage(ctx, h, identity, na.AsSlice(prepared["meat"]), "food-before")
 	if err != nil {
 		return err
 	}
 	report["food_before"] = before.evidence()
-	policyDefaults := policy.DefaultFoodStoragePolicy()
-	if before.warmNutrition < policyDefaults.AtRiskNutritionThreshold {
-		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d)",
-			before.warmNutrition, before.temperature, before.roofed, before.rows)
+	if before.warmStacks == 0 {
+		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm stacks 0/%d, temperature %.1f C)",
+			before.rows, before.temperature)
 	}
 
 	rotting, _ := na.AsMap(prepared["rotting"])
@@ -265,7 +264,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if _, err := h.Call(ctx, "pause-after", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	after, err := readFoodStorage(ctx, h, identity, "food-after")
+	after, err := readFoodStorage(ctx, h, identity, na.AsSlice(prepared["meat"]), "food-after")
 	if err != nil {
 		return err
 	}
@@ -275,8 +274,8 @@ func run(ctx context.Context, s cases.Session) error {
 	// hands the slot back, so this later independent read confirms the stock
 	// is chilled (under the review's entry bound) with no warm nutrition
 	// left, rather than re-applying the hysteresis exit bound.
-	if after.rows == 0 || after.temperature > after.chilledMaxC || after.warmNutrition > 0 {
-		return fmt.Errorf("food-after: meat temperature %.1f C / warm nutrition %.2f is not chilled under %.1f C (rows %d)", after.temperature, after.warmNutrition, after.chilledMaxC, after.rows)
+	if after.rows == 0 || after.temperature > after.chilledMaxC || after.warmStacks > 0 {
+		return fmt.Errorf("food-after: meat temperature %.1f C / warm stacks %d is not chilled under %.1f C (rows %d)", after.temperature, after.warmStacks, after.chilledMaxC, after.rows)
 	}
 	coolers, err := readCoolers(ctx, h, identity)
 	if err != nil {
@@ -294,8 +293,8 @@ func run(ctx context.Context, s cases.Session) error {
 	if c.x != builtCell.X || c.z != builtCell.Z {
 		return fmt.Errorf("cooler %s at (%d,%d) is not at the admitted cell %v", c.id, c.x, c.z, builtCell)
 	}
-	if c.target > policyDefaults.FreezerTargetC {
-		return fmt.Errorf("cooler %s target %.1f C is above the freezer target %.1f C", c.id, c.target, policyDefaults.FreezerTargetC)
+	if freezerC := policy.DefaultFoodStoragePolicy().FreezerTargetC; c.target > freezerC {
+		return fmt.Errorf("cooler %s target %.1f C is above the freezer target %.1f C", c.id, c.target, freezerC)
 	}
 	if err := checkSpoilageRecovery(ctx, s, rotID, rotBefore); err != nil {
 		return fmt.Errorf("spoilage recovery: %w", err)
@@ -432,10 +431,12 @@ func checkStartupLog(s cases.Session) error {
 }
 
 type foodSummary struct {
-	rows          int
-	roofed        int
-	temperature   float64
-	warmNutrition float64
+	// rows counts the fixture's meat stacks still present.
+	rows        int
+	temperature float64
+	// warmStacks counts stacks above chilledMaxC whose rot runway is inside
+	// the review's safe window.
+	warmStacks int
 	// chilledMaxC is the catalog's full_rot_rate_c.
 	chilledMaxC float64
 }
@@ -443,29 +444,15 @@ type foodSummary struct {
 // evidence is the report-serialisable form: the struct fields stay private
 // to the harness, so the JSON report needs an explicit map.
 func (f foodSummary) evidence() map[string]any {
-	return map[string]any{"rows": f.rows, "roofed": f.roofed, "warmest_temperature_c": f.temperature, "warm_nutrition": f.warmNutrition}
+	return map[string]any{"rows": f.rows, "warmest_temperature_c": f.temperature, "warm_stacks": f.warmStacks}
 }
 
-// readFoodStorage decodes the typed food-supply census the way the Go
-// projection does and summarises the perishable roofed stock: the warmest
-// measured temperature and the nutrition the refrigeration review would
-// count as warm at-risk.
-func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any, label string) (foodSummary, error) {
-	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
-	})
-	if err != nil {
-		return foodSummary{}, err
-	}
-	_, observed, err := na.Outcome(reply, "observed")
-	if err != nil {
-		return foodSummary{}, err
-	}
-	section, _ := na.AsMap(observed["foodSupply"])
-	_, food, err := na.Outcome(section, "observed")
-	if err != nil {
-		return foodSummary{}, fmt.Errorf("%s: food supply unavailable: %w", label, err)
-	}
+// readFoodStorage probes each of the fixture's meat stacks (the ids
+// test/refrigeration_prepare returned) for ambient temperature and rot
+// runway. The colony-facts stock rows carry only item, nutrition and eaters
+// since #2226, so the fixture probe is the source of warmth; the room is
+// enclosed and roofed by construction.
+func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any, meat []any, label string) (foodSummary, error) {
 	p := policy.DefaultFoodStoragePolicy()
 	data, err := json.Marshal(identity)
 	if err != nil {
@@ -480,30 +467,24 @@ func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any
 		return foodSummary{}, fmt.Errorf("%s: %w", label, err)
 	}
 	s := foodSummary{temperature: math.Inf(-1), chilledMaxC: float64(catalog.Constants.FullRotRateC)}
-	for _, raw := range na.AsSlice(food["stocks"]) {
-		row, _ := na.AsMap(raw)
-		perishable, _ := na.AsBool(row["perishable"])
-		roofed, _ := na.AsBool(row["roofed"])
-		if !perishable {
+	for _, raw := range meat {
+		stack, err := readRot(ctx, h, na.AsString(raw), label)
+		if err != nil {
+			return foodSummary{}, err
+		}
+		if stack.destroyed {
 			continue
 		}
 		s.rows++
-		if roofed {
-			s.roofed++
+		if stack.temperature > s.temperature {
+			s.temperature = stack.temperature
 		}
-		t := na.AsNumber(row["temperatureC"])
-		if _, present := row["temperatureC"]; present && t > s.temperature {
-			s.temperature = t
-		}
-		ticks := na.AsNumber(row["rotTicks"])
-		if roofed && present(row, "temperatureC") && t > s.chilledMaxC && ticks > 0 && ticks < p.SafeRotDays*60000 && na.RefID(row["room"]) != "" {
-			s.warmNutrition += na.AsNumber(row["nutrition"])
+		if stack.temperature > s.chilledMaxC && stack.rotTicks > 0 && stack.rotTicks < p.SafeRotDays*60000 {
+			s.warmStacks++
 		}
 	}
 	return s, nil
 }
-
-func present(m map[string]any, key string) bool { _, ok := m[key]; return ok }
 
 type coolerRow struct {
 	id     string
