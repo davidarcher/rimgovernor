@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -22,7 +23,7 @@ func init() {
 			"short names. Native contract: the owned-name census and the name-bank draw; the collision rule is " +
 			"policy/pawn_names_test.go.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/duplicate_nickname"},
-		Serve:  &cases.ServeSpec{Families: []string{"work"}},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
 		Run:    nickname,
 	})

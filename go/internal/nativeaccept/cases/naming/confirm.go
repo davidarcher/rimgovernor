@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -50,7 +51,7 @@ func init() {
 		// The building families give the clock ordinary work to start on
 		// once the dialog is gone.
 		Serve: &cases.ServeSpec{
-			Families: []string{"naming", "supply", "shelter", "sleeping"}, NativeTimeout: 15 * time.Second, Prefix: "naming-confirm",
+			Families: []routinefamily.Family{routinefamily.Naming, routinefamily.Supply, routinefamily.Shelter, routinefamily.Sleeping}, NativeTimeout: 15 * time.Second, Prefix: "naming-confirm",
 			KeepColonyNaming: true,
 		},
 		Budget: 12 * time.Minute,

@@ -3,6 +3,7 @@ package combatlab
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -31,7 +32,7 @@ const (
 	observeChannelsTool = "test/food_channels_observe"
 )
 
-var huntFamilies = []string{"defense", "tend", "rescue", "acquisition", "work", "bill", "stockpiles"}
+var huntFamilies = []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Acquisition, routinefamily.Work, routinefamily.Bill, routinefamily.Stockpiles}
 
 func init() {
 	cases.Register(cases.Case{

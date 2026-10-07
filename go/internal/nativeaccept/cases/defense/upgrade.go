@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -42,7 +43,7 @@ const (
 // (natively standing on its anchor), and a colonist ends up wielding a
 // weapon of a higher armory tier than any colonist held before the rise.
 func init() {
-	families := append(append([]string{}, perimeterFamilies...), "armory", "gear")
+	families := append(append([]routinefamily.Family{}, perimeterFamilies...), routinefamily.Armory, routinefamily.Gear)
 	cases.Register(cases.Case{
 		Name: "defense/tier-upgrade",
 		Scope: "A threat-tier rise upgrades turrets and gear (#1204, #1210): after the perimeter layout's mini turrets are built at the 35-point floor, the " +

@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"sort"
 	"time"
 
@@ -108,7 +109,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// "work" rides along because every building method's builder check
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"routes", "work"}, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Routes, routinefamily.Work}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

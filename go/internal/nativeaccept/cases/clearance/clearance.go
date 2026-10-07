@@ -4,6 +4,7 @@ package clearance
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"slices"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ func init() {
 			Scope:       "Routine Home clearance: " + scenario + "; exact native targets, journal holds and observed completion.",
 			Start:       cases.Save{Name: "RimGovernor-tribal8-baseline"},
 			RequiredOps: []string{"test/clearance_prepare", "test/clearance_support", "test/clearance_audit"},
-			Serve:       &cases.ServeSpec{Families: []string{"clearance", "tend", "rescue"}, Prefix: "clearance"},
+			Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Clearance, routinefamily.Tend, routinefamily.Rescue}, Prefix: "clearance"},
 			Stages:      []string{"clearance-ready"}, Budget: 4 * time.Minute, Stall: 60 * time.Second,
 			Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})

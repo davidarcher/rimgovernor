@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"os"
 	"path/filepath"
 	"slices"
@@ -39,7 +40,7 @@ const (
 // metricsFamilies is today's autopilot answer to a fight: the routine
 // defense planner (hold-the-line / squad defense), with the rescue and
 // tend families it hands downed colonists to.
-var metricsFamilies = []string{"defense", "tend", "rescue"}
+var metricsFamilies = []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}
 
 // Baselines are each fixture's metrics recorded from main before any
 // Phase 1 tactic (#855), with the routine defense planner serving the run:

@@ -27,6 +27,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -174,7 +175,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		}
 	}
 
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"clean"}, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Clean}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

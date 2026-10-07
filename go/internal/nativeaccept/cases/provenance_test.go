@@ -1,6 +1,7 @@
 package cases
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"testing"
 
@@ -144,10 +145,10 @@ func TestProvenanceIsolationReportsWhyTheProcessIsOwned(t *testing.T) {
 // result is silent about every family that was disabled.
 func TestProvenanceRecordsRestrictedRoundsFamilies(t *testing.T) {
 	c := provenanceCase()
-	c.Serve = &ServeSpec{Families: []string{"supply", "safety"}}
+	c.Serve = &ServeSpec{Families: []routinefamily.Family{routinefamily.Supply, routinefamily.Tend}}
 	block := stamp(t, c, na.Report{})
-	families, _ := block["routine_families"].([]string)
-	if len(families) != 2 || families[0] != "supply" {
+	families, _ := block["routine_families"].([]routinefamily.Family)
+	if len(families) != 2 || families[0] != routinefamily.Supply {
 		t.Fatalf("routine_families: %v", families)
 	}
 	c.Serve = &ServeSpec{}

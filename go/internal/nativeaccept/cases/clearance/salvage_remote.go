@@ -7,6 +7,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"time"
 )
@@ -18,7 +19,7 @@ func recoveryCase(name, scope string, run func(context.Context, cases.Session) e
 	cases.Register(cases.Case{Name: name, Scope: scope,
 		Start:       cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 1}, On: cases.LabStart()},
 		RequiredOps: []string{"test/loot_remote_drop", "test/salvage_remote"}, Quiet: na.QuietRequired, QuietWorld: true, Budget: 4 * time.Minute, Stall: 60 * time.Second,
-		Serve: &cases.ServeSpec{Families: []string{"clearance", "supply", "resource"}}, Run: run})
+		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Clearance, routinefamily.Supply, routinefamily.Resource}}, Run: run})
 }
 
 func init() {

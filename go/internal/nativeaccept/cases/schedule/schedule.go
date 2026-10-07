@@ -14,6 +14,7 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -194,7 +195,7 @@ func completed(plan store.PlanState) bool {
 func window(ctx context.Context, s cases.Session, label, pawn string, seen map[domain.PlanID]bool, want func([]string) error) (run, error) {
 	report := s.Report()
 	identity := s.Identity()
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"work"}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Work}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return run{}, err
 	}

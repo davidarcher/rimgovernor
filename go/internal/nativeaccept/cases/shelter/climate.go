@@ -3,6 +3,7 @@ package shelter
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"slices"
 	"time"
 
@@ -24,16 +25,15 @@ import (
 // snapshot test over recorded facts proves the placement search
 // (buildingruntime campfire_climate_test.go); only a real map reads the curve,
 // and only the native accepts the placement.
-const (
-	// The naming family answers the settlement naming dialog the game raises
-	// about four days in, which stops the clock until it is confirmed.
-	climateFamilies = "shelter,sleeping,cooking,temperature,naming"
-	climateWait     = 15 * time.Minute
-)
+// The naming family answers the settlement naming dialog the game raises
+// about four days in, which stops the clock until it is confirmed.
+var climateFamilies = []routinefamily.Family{routinefamily.Shelter, routinefamily.Sleeping, routinefamily.Cooking, routinefamily.Temperature, routinefamily.Naming}
+
+const climateWait = 15 * time.Minute
 
 type climate struct {
 	name, scope string
-	families    string
+	families    []routinefamily.Family
 	start       cases.Start
 	cold, hot   bool
 	// build is the definition whose first placement is the assertion; room is
@@ -47,7 +47,7 @@ func init() {
 		{name: "shelter/climate-mild", build: "Campfire", room: policy.PlannedKitchen, families: climateFamilies,
 			scope: "the shelter template holds no campfire slot and the cooking campfire is placed on the planned kitchen's interior",
 			start: cases.Save{Name: sustained.BaselineSave}},
-		{name: "shelter/climate-cold", cold: true, build: "Campfire", room: policy.PlannedShelter, families: climateFamilies + ",armory",
+		{name: "shelter/climate-cold", cold: true, build: "Campfire", room: policy.PlannedShelter, families: append(append([]routinefamily.Family{}, climateFamilies...), routinefamily.Armory),
 			scope: "the plan latches Cold, the shelter template holds two campfire slots and the cooking campfire is placed on the planned shelter's interior, any crafting spot with it",
 			start: quietStart(na.DebugStart{MapSize: 150, PlanetCoverage: 0.05, Biomes: "Tundra,BorealForest,ColdBog,IceSheet", Seed: "shelter-cold-2076"})},
 		{name: "shelter/climate-hot", hot: true, build: "PassiveCooler", room: policy.PlannedShelter, families: climateFamilies,
@@ -64,7 +64,7 @@ func init() {
 			Name:   c.name,
 			Scope:  "Issues #2076 and #2278: from a " + c.name[len("shelter/climate-"):] + " map, " + c.scope + "; a refused furniture cell reports its blocker.",
 			Start:  c.start,
-			Serve:  &cases.ServeSpec{Families: []string{c.families}, NativeTimeout: 30 * time.Second, Prefix: "shelter-climate"},
+			Serve:  &cases.ServeSpec{Families: c.families, NativeTimeout: 30 * time.Second, Prefix: "shelter-climate"},
 			Budget: 30 * time.Minute,
 			Reason: "one short serve window per climate: the first recorded plan and the first placement of the climate's building",
 			Run:    func(ctx context.Context, s cases.Session) error { return runClimate(ctx, s, c) },

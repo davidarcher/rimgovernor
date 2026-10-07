@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"time"
 
@@ -21,7 +22,7 @@ func init() {
 			"PawnSettingsIntent (#1299), and the native pawn read shows Flee. Native contract: the intent's write, " +
 			"the care read's hostility_response and the violence tag; the mapping itself is policy/hostility_test.go.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/pacifist_ignore"},
-		Serve:  &cases.ServeSpec{Families: []string{"work"}},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
 		Run:    hostility,
 	})

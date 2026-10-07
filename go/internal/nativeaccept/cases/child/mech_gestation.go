@@ -8,6 +8,7 @@ package child
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -48,7 +49,7 @@ func init() {
 		// shelter family keeps supervised windows running and dialog answers
 		// the letters (the birth raises one).
 		Serve: &cases.ServeSpec{
-			Families: []string{"mechs", "work", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "child-mech-gestation",
+			Families: []routinefamily.Family{routinefamily.Mechs, routinefamily.Work, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "child-mech-gestation",
 		},
 		Budget: 12 * time.Minute,
 		Run:    runMechGestation,

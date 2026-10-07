@@ -3,6 +3,7 @@ package nativeaccept
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"net"
 	"net/http"
 	"os"
@@ -152,7 +153,7 @@ func fakeServeSpec(t *testing.T, mode string) ServeSpec {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return ServeSpec{Binary: exe, Env: []string{"RIMGOVERNOR_FAKE_SERVE=" + mode}, Families: []string{"haul", "work"}}
+	return ServeSpec{Binary: exe, Env: []string{"RIMGOVERNOR_FAKE_SERVE=" + mode}, Families: []routinefamily.Family{routinefamily.Supply, routinefamily.Work}}
 }
 
 func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
@@ -172,7 +173,7 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 	if !ok {
 		t.Fatalf("report[service] = %#v", report["service"])
 	}
-	if entry["url"] != p.URL || entry["pid"] != p.PID || entry["state"] != "running" || entry["families"] != "haul,work,naming" {
+	if entry["url"] != p.URL || entry["pid"] != p.PID || entry["state"] != "running" || entry["families"] != "supply,work,naming" {
 		t.Fatalf("entry %#v", entry)
 	}
 	argv, _ := entry["argv"].([]string)
@@ -237,18 +238,18 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 	}
 	// The stall error names the last step failure in the flight recorder.
 	p.FlightPath = writeFlight(t, stepRowLine(1, "WARN", "Fields: context deadline exceeded", 4200))
-	stall := &StepStallError{Stall: time.Minute, Families: "haul,work", LastFailure: lastStepFailure(p.FlightPath)}
+	stall := &StepStallError{Stall: time.Minute, Families: "supply,work", LastFailure: lastStepFailure(p.FlightPath)}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {
 		t.Fatalf("stall error %q", stall)
 	}
 }
 
 func TestWithNamingFamilyAddsNamingUnlessDialogOrPresent(t *testing.T) {
-	in := []string{"supply", "shelter"}
-	if got := withNamingFamily(in); !slices.Equal(got, []string{"supply", "shelter", "naming"}) || len(in) != 2 {
+	in := []routinefamily.Family{routinefamily.Supply, routinefamily.Shelter}
+	if got := withNamingFamily(in); !slices.Equal(got, []routinefamily.Family{routinefamily.Supply, routinefamily.Shelter, routinefamily.Naming}) || len(in) != 2 {
 		t.Fatalf("got %v, input %v", got, in)
 	}
-	for _, kept := range [][]string{{"naming", "supply"}, {"dialog", "supply"}} {
+	for _, kept := range [][]routinefamily.Family{{routinefamily.Naming, routinefamily.Supply}, {routinefamily.Dialog, routinefamily.Supply}} {
 		if got := withNamingFamily(kept); !slices.Equal(got, kept) {
 			t.Fatalf("%v changed to %v", kept, got)
 		}

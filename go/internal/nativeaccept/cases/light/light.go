@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -113,7 +114,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// The outage and fungus holds are attributed from the scheduler's
 	// clock_step rows in the flight recording.
 	service, err = s.Launch(ctx, na.ServiceLaunch{
-		Families: []string{"lighting", "work"},
+		Families: []routinefamily.Family{routinefamily.Lighting, routinefamily.Work},
 		Extra:    na.ClockSpeedArgs(),
 	})
 	if err != nil {

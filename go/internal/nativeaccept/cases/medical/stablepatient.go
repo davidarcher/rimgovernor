@@ -14,6 +14,7 @@ package medical
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -46,7 +47,7 @@ func init() {
 		// exercises, to prove the pre-seeded growing zone/campfire bill
 		// keeps advancing concurrently with medical dispatch.
 		Serve: &cases.ServeSpec{
-			Families:      []string{"tend,medical,field,stockpiles,acquisition,cooking,supply"},
+			Families:      []routinefamily.Family{routinefamily.Tend, routinefamily.Medical, routinefamily.Field, routinefamily.Stockpiles, routinefamily.Acquisition, routinefamily.Cooking, routinefamily.Supply},
 			NativeTimeout: 15 * time.Second, Prefix: "stable-patient",
 		},
 		Budget: 15 * time.Minute,

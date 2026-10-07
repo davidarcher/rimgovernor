@@ -3,6 +3,7 @@ package food
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"math"
 	"time"
 
@@ -70,7 +71,7 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	// The cooking family stays out: its meal bill sits above the reserve bill
 	// on the single stove and, with meals eaten as fast as they are cooked,
 	// never lets the cook reach the pemmican.
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"bill", "food-storage-upkeep"}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Bill, routinefamily.FoodStorageUpkeep}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

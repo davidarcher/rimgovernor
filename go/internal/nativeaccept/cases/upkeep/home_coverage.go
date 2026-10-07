@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"sort"
 	"time"
 
@@ -23,7 +24,7 @@ func init() {
 		Scope:  "Connected autonomous Home (#452): two routine-built beds, corridor coverage, stale revision/geometry refusal, restoration after removal and save recovery.",
 		Start:  cases.LabStart(),
 		Keep:   sleeping.keep,
-		Serve:  &cases.ServeSpec{Families: []string{"sleeping", "home-coverage", "work"}, Extra: sleeping.extra, Prefix: prefix},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.HomeCoverage, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 12 * time.Minute,
 		Reason: "Two small beds establish real ownership; subsequent Home writes require only rounds on the same colony.",
 		Run:    runHomeCoverage,
@@ -48,7 +49,7 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	spec := s.Spec()
-	spec.Families = []string{"sleeping", "work"}
+	spec.Families = []routinefamily.Family{routinefamily.Sleeping, routinefamily.Work}
 	service, err := s.Serve(ctx, spec)
 	if err != nil {
 		return err
@@ -109,7 +110,7 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 			report["removed"] = removed
 		}
 		spec = s.Spec()
-		spec.Families = []string{"home-coverage", "work"}
+		spec.Families = []routinefamily.Family{routinefamily.HomeCoverage, routinefamily.Work}
 		service, err = s.Serve(ctx, spec)
 		if err != nil {
 			return err

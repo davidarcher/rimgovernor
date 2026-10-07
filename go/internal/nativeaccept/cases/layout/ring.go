@@ -3,6 +3,7 @@ package layout
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -35,7 +36,7 @@ func init() {
 		Keep:        []string{string(na.NeedFood)},
 		// The start builds no food economy: the food plan's gap is pinned
 		// to zero so the expansion gate opens (#1271).
-		Serve: &cases.ServeSpec{Families: []string{"shelter", "expansion", "sleeping"}, NativeTimeout: 30 * time.Second, Prefix: "layout-ring",
+		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "layout-ring",
 			Env: []string{buildingruntime.FaultsEnv + "=foodgap=zero"}},
 		Budget: 3 * time.Minute,
 		Reason: "one watch: the fixture raises the ring the expansion step orders",

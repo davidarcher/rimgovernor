@@ -3,6 +3,7 @@ package farm
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -51,7 +52,7 @@ func (c nonFoodField) register() cases.Case {
 		Start:       cases.Fixture{Op: nonFoodOp, Args: map[string]any{"action": "prepare", "plant": c.plant, "product": c.product}, On: cases.LabStart()},
 		RequiredOps: []string{nonFoodOp},
 		Serve: &cases.ServeSpec{
-			Families:      []string{"field,resource,supply,acquisition,bill,work,medical,tend,rescue"},
+			Families:      []routinefamily.Family{routinefamily.Field, routinefamily.Resource, routinefamily.Supply, routinefamily.Acquisition, routinefamily.Bill, routinefamily.Work, routinefamily.Medical, routinefamily.Tend, routinefamily.Rescue},
 			NativeTimeout: 15 * time.Second, Prefix: "nonfood-field",
 		},
 		Budget: 40 * time.Minute,

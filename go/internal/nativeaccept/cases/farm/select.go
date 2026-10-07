@@ -24,6 +24,7 @@ package farm
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -74,7 +75,7 @@ func (sel selection) register(name string) cases.Case {
 		// selection under test; the planner explains its selection in
 		// fields_select rows.
 		Serve: &cases.ServeSpec{
-			Families: []string{"field"}, NativeTimeout: 30 * time.Second, Prefix: "farm-select",
+			Families: []routinefamily.Family{routinefamily.Field}, NativeTimeout: 30 * time.Second, Prefix: "farm-select",
 		},
 		Budget: 10 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {

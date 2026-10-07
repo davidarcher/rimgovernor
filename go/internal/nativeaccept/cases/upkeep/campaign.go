@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"sync"
 	"time"
 
@@ -52,7 +53,7 @@ import (
 type stage struct {
 	name     string
 	fixture  string
-	families []string
+	families []routinefamily.Family
 	// needs are the goals the stage must recover; every later stage asserts
 	// they never reopen without recovering again.
 	needs   []policy.ConcernID
@@ -102,7 +103,7 @@ func campaignStages() []stage {
 			prepare: sc.prepare, watch: sc.watch, verify: sc.verify}
 	}
 	stages := []stage{
-		{name: "kitchen", fixture: "test/cleanliness_prepare", families: []string{"clean"},
+		{name: "kitchen", fixture: "test/cleanliness_prepare", families: []routinefamily.Family{routinefamily.Clean},
 			needs:   []policy.ConcernID{policy.MaintainCleanFacilities},
 			prepare: prepareKitchen, watch: watchKitchen, verify: verifyKitchen},
 		fromScenario(all["feed"], policy.MaintainAnimalFeed),
@@ -138,9 +139,9 @@ func init() {
 // cumulativeFamilies keeps colony naming available throughout the campaign:
 // its delayed modal can open after a stage's service has started. Every stage
 // also reviews the families of every earlier goal.
-func cumulativeFamilies(stages []stage, n int) []string {
-	seen := map[string]bool{"naming": true}
-	out := []string{"naming"}
+func cumulativeFamilies(stages []stage, n int) []routinefamily.Family {
+	seen := map[routinefamily.Family]bool{routinefamily.Naming: true}
+	out := []routinefamily.Family{routinefamily.Naming}
 	for _, st := range stages[:n] {
 		for _, family := range st.families {
 			if !seen[family] {

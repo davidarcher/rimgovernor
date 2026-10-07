@@ -44,6 +44,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -342,7 +343,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, fmt.Errorf("stage is not fresh after reload: %#v", before)
 	}
 	startTick := uint64(na.AsNumber(before["tick"]))
-	service, err = m.s.Launch(ctx, na.ServiceLaunch{Families: []string{"work"}, Extra: c.ServeArgs(), PlayerSpeed: c.Speed, Output: output, Report: report})
+	service, err = m.s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Work}, Extra: c.ServeArgs(), PlayerSpeed: c.Speed, Output: output, Report: report})
 	if err != nil {
 		return outcome, err
 	}

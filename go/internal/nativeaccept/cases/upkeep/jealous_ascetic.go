@@ -3,6 +3,7 @@ package upkeep
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -22,7 +23,7 @@ func init() {
 		Scope:  "Room quality targets (#813/#826): a Jealous colonist's bedroom is raised until the jealous thought clears, while an Ascetic colonist's room is never upgraded.",
 		Start:  cases.LabStart(),
 		Keep:   sleeping.keep,
-		Serve:  &cases.ServeSpec{Families: []string{"sleeping", "flooring", "work"}, Extra: sleeping.extra, Prefix: prefix},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Flooring, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 30 * time.Minute,
 		Reason: "Furniture and floor builds in the jealous room, then native room stats and thoughts.",
 		Run:    runJealousAscetic,

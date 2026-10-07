@@ -13,6 +13,7 @@ package anomaly
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -54,7 +55,7 @@ func init() {
 		QuietWorld:  true,
 		// A checkpoint capture pauses the served game mid-fight.
 		NoCheckpoint: true,
-		Serve:        &cases.ServeSpec{Families: []string{"defense", "tend", "rescue"}, PlayerSpeed: "Fast", Prefix: "anomaly-horror-incident"},
+		Serve:        &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}, PlayerSpeed: "Fast", Prefix: "anomaly-horror-incident"},
 		Budget:       15 * time.Minute,
 		Run:          runHorrorIncident,
 	})

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -25,7 +26,7 @@ func init() {
 		Start:      cases.Fixture{On: cases.LabStart(), Op: "test/cannibal_and_vegetarian"},
 		Expansions: []string{"ludeon.rimworld.ideology"},
 		NoKeep:     true,
-		Serve:      &cases.ServeSpec{Families: []string{"work"}},
+		Serve:      &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget:     4 * time.Minute,
 		Run:        foodPolicy,
 	})

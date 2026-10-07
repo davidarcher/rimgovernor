@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -21,7 +22,7 @@ func init() {
 			"the intent's self_tend write, the care read's self_tend and medical_tend_quality; the comparison itself " +
 			"is policy/self_tend_test.go.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/lone_self_tend_off"},
-		Serve:  &cases.ServeSpec{Families: []string{"work"}},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
 		Run:    selfTend,
 	})

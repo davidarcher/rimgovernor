@@ -10,6 +10,7 @@ package ideology
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -49,7 +50,7 @@ func init() {
 		// slots name; the shelter family keeps supervised windows running (the
 		// planners alone never advance the clock) and dialog answers letters.
 		Serve: &cases.ServeSpec{
-			Families: []string{"rituals", "ideo-roles", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "ideology-first-ritual",
+			Families: []routinefamily.Family{routinefamily.Rituals, routinefamily.IdeoRoles, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "ideology-first-ritual",
 		},
 		Budget: 15 * time.Minute,
 		Run:    runFirstRitual,

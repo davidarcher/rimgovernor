@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"sort"
 	"strings"
 	"time"
@@ -40,7 +41,7 @@ const prefix = "upkeep"
 type scenario struct {
 	name     string
 	fixture  string
-	families []string
+	families []routinefamily.Family
 	extra    []string
 	// keep are the colonist needs the deficit's recovery depends on.
 	keep    []string
@@ -56,7 +57,7 @@ func scenarios() map[string]*scenario {
 	// fifteen cells: eight harvests, all admitted on one stop, recover the
 	// reserve in about a minute of wall time (#129).
 	s["medicine"] = &scenario{name: "medicine", fixture: "test/medicine_setup",
-		families: []string{"medical", "resource", "bill", "acquisition", "work"},
+		families: []routinefamily.Family{routinefamily.Medical, routinefamily.Resource, routinefamily.Bill, routinefamily.Acquisition, routinefamily.Work},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
 			return callFixture(ctx, h, identity, "test/medicine_setup", map[string]any{})
 		},
@@ -64,7 +65,7 @@ func scenarios() map[string]*scenario {
 		verify: verifyMedicine,
 	}
 	s["feed"] = &scenario{name: "feed", fixture: "test/feed_setup",
-		families: []string{"animal-feed", "resource", "bill", "work"},
+		families: []routinefamily.Family{routinefamily.AnimalFeed, routinefamily.Resource, routinefamily.Bill, routinefamily.Work},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
 			return callFixture(ctx, h, identity, "test/feed_setup", map[string]any{})
 		},
@@ -72,7 +73,7 @@ func scenarios() map[string]*scenario {
 		verify: verifyFeed,
 	}
 	s["sleeping"] = &scenario{name: "sleeping", fixture: "test/sleeping_setup",
-		families: []string{"sleeping", "work"},
+		families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Work},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
 			prepared, err := callFixture(ctx, h, identity, "test/sleeping_setup", map[string]any{})
 			if err != nil {
@@ -88,7 +89,7 @@ func scenarios() map[string]*scenario {
 		keep: []string{string(na.NeedRest)},
 	}
 	s["cold"] = &scenario{name: "cold", fixture: "test/routine_temperature_prepare",
-		families: []string{"temperature", "work"},
+		families: []routinefamily.Family{routinefamily.Temperature, routinefamily.Work},
 		prepare:  prepareCold,
 		watch:    watchCold,
 		verify:   verifyCold,

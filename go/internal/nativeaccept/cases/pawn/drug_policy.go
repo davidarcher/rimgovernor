@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -22,7 +23,7 @@ func init() {
 			"the assignment and the policy facts' drug entries; the choice of entries itself is " +
 			"policy/drug_policy_test.go.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/drinker_and_child"},
-		Serve:  &cases.ServeSpec{Families: []string{"work"}},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
 		Run:    drugPolicy,
 	})

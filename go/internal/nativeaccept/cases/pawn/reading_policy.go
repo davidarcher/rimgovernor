@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -23,7 +24,7 @@ func init() {
 			"the assignment and the policy facts' book kinds and allowed definitions; the choice of books itself is " +
 			"policy/reading_policy_test.go.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/reader_and_child"},
-		Serve:  &cases.ServeSpec{Families: []string{"work"}},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
 		Run:    readingPolicy,
 	})

@@ -9,6 +9,7 @@ package trade
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -29,7 +30,7 @@ func init() {
 			Op:   "test/trade_fixture",
 			Args: map[string]any{"action": "routine_setup", "silver": roundsSilver, "medicine": 30},
 		},
-		Serve:  &cases.ServeSpec{Families: []string{"trade"}, NativeTimeout: 15 * time.Second, Prefix: "trade-browse"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Trade}, NativeTimeout: 15 * time.Second, Prefix: "trade-browse"},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			prepared := s.Prepared()

@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -87,7 +88,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		}
 	}
 
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"power", "work", "naming"}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Power, routinefamily.Work, routinefamily.Naming}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

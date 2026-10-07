@@ -3,6 +3,7 @@ package food
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -35,7 +36,7 @@ func runStarvingTribal(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	samples := make([]any, 0, starvingRounds)
-	err := starvingServe(ctx, s, []string{"acquisition", "field", "work", "bill", "research"}, starvingRoundTicks, starvingRounds,
+	err := starvingServe(ctx, s, []routinefamily.Family{routinefamily.Acquisition, routinefamily.Field, routinefamily.Work, routinefamily.Bill, routinefamily.Research}, starvingRoundTicks, starvingRounds,
 		func(r starvingRound) (bool, error) {
 			sample := map[string]any{"round": r.n, "clockParked": r.parked, "native": r.observed,
 				"foodPlan": r.colony["foodPlan"], "blockers": huntBlockers(r.observed)}
@@ -108,7 +109,7 @@ type starvingRound struct {
 // finding), stops it, pauses the game and hands the live colony read and the
 // native observation to each, which returns true once the case has seen
 // enough to stop.
-func starvingServe(ctx context.Context, s cases.Session, families []string, roundTicks domain.Tick, maxRounds int, each func(starvingRound) (bool, error)) error {
+func starvingServe(ctx context.Context, s cases.Session, families []routinefamily.Family, roundTicks domain.Tick, maxRounds int, each func(starvingRound) (bool, error)) error {
 	report := s.Report()
 	h := s.Harness()
 	identity := s.Identity()

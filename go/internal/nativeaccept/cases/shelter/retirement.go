@@ -3,6 +3,7 @@ package shelter
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ func init() {
 			On:   cases.Save{Name: sustained.BaselineSave}},
 		RequiredOps: []string{"test/layout_grid_prepare", "test/layout_grid_audit", stageRoomsOp, na.LabSpawnTool},
 		Keep:        []string{string(na.NeedFood)},
-		Serve:       &cases.ServeSpec{Families: []string{"shelter", "sleeping", "clearance", "naming"}, NativeTimeout: 30 * time.Second, Prefix: "shelter-retirement"},
+		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Sleeping, routinefamily.Clearance, routinefamily.Naming}, NativeTimeout: 30 * time.Second, Prefix: "shelter-retirement"},
 		Budget:      50 * time.Minute,
 		Reason:      "three stages on one journal: the plan the controller records, the rooms staged on it, then pawn work (a Reinstall and a deconstruction of the hut) to the retirement's end",
 		Run:         retirement,

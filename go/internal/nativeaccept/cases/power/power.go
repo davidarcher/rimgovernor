@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -96,7 +97,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["colony_power_before"] = topology
 
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"power", "work", "naming"}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Power, routinefamily.Work, routinefamily.Naming}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

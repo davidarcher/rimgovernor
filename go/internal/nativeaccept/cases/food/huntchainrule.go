@@ -3,6 +3,7 @@ package food
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -28,7 +29,7 @@ func init() {
 			"live designated deer, not the vanilla haul of its own kill; with rules cleared the next kill " +
 			"leaves vanilla behaviour; after the lease expires nothing fires.",
 		Start:       cases.Fixture{Op: chainPrepareOp, On: cases.LabStart()},
-		Serve:       &cases.ServeSpec{Families: []string{"acquisition", "work", "rules"}, NativeTimeout: 60 * time.Second, Prefix: "hunt-chain"},
+		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Acquisition, routinefamily.Work, routinefamily.Rules}, NativeTimeout: 60 * time.Second, Prefix: "hunt-chain"},
 		QuietWorld:  true,
 		RequiredOps: []string{chainObserveOp}, Budget: 6 * time.Minute,
 		Reason: "a lab with one ranger, a corpse stockpile and four deer; one controller phase until the rules_attach receipt, then three native kills",

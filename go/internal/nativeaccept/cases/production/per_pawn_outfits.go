@@ -3,6 +3,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -17,7 +18,7 @@ func init() {
 			"other outfit, the vanilla ones included (#1302). End-to-end signal over the ApparelPolicyIntent and " +
 			"PolicyPruneIntent: the filters themselves are policy/apparel_policy_test.go.",
 		Start:  cases.LabStart(),
-		Serve:  &cases.ServeSpec{Families: []string{"gear"}},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Gear}},
 		Budget: 4 * time.Minute,
 		Run:    perPawnOutfits,
 	})

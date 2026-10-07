@@ -10,6 +10,7 @@ package layout
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"path/filepath"
 	"time"
 
@@ -32,7 +33,7 @@ func init() {
 		Start: cases.Fixture{Op: gridPrepare, ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": bunks, "stoneBlocks": blocks},
 			On: cases.Save{Name: sustained.BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
-		Serve:  &cases.ServeSpec{Families: []string{"shelter", "expansion"}, NativeTimeout: 30 * time.Second, Prefix: "layout-power"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion}, NativeTimeout: 30 * time.Second, Prefix: "layout-power"},
 		Budget: 3 * time.Minute,
 		Reason: "one short watch until the first review records a layout plan, then native previews",
 		Run:    powerSites,

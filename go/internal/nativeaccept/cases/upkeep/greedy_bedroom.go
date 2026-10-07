@@ -3,6 +3,7 @@ package upkeep
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -22,7 +23,7 @@ func init() {
 		Scope:  "Room quality gap closer (#814): a Greedy colonist's bare bedroom is furnished and floored until it reads slightly impressive and the Greedy thought clears.",
 		Start:  cases.LabStart(),
 		Keep:   sleeping.keep,
-		Serve:  &cases.ServeSpec{Families: []string{"sleeping", "flooring", "work"}, Extra: sleeping.extra, Prefix: prefix},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Flooring, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 30 * time.Minute,
 		Reason: "Three furniture builds and a floor, then the native room stat.",
 		Run:    runGreedyBedroom,

@@ -3,6 +3,7 @@ package food
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"math"
 	"time"
 
@@ -46,7 +47,7 @@ func runFishing(ctx context.Context, s cases.Session) error {
 	s.Report()["fishing_region"] = region
 	// Review without the field writer first: the unzoned region opens, neither
 	// designated nor delivering, before the zone exists.
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"work"}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Work}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func runFishing(ctx context.Context, s cases.Session) error {
 	if _, err = s.Reattach(ctx); err != nil {
 		return err
 	}
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"field", "work", "research"}, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Field, routinefamily.Work, routinefamily.Research}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

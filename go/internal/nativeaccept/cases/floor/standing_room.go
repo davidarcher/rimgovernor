@@ -3,6 +3,7 @@ package floor
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -42,7 +43,7 @@ func init() {
 			"is ever deconstructed (#2118). Native: floor and wall jobs, vanilla's in-place frame, the enclosure read.",
 		Start:       cases.LabStart(),
 		RequiredOps: []string{planstage.Tool},
-		Serve: &cases.ServeSpec{Families: []string{"sleeping", "clearance", "work", "flooring"},
+		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Clearance, routinefamily.Work, routinefamily.Flooring},
 			NativeTimeout: 60 * time.Second, Prefix: "standing-room"},
 		Budget: 14 * time.Minute,
 		Reason: "an inert service run reads the plan the room is staged from, then up to sixteen controller bursts with an audit " +
@@ -62,7 +63,7 @@ func runStandingRoom(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	one, err := planstage.Begin(ctx, s, nil, []string{"work"})
+	one, err := planstage.Begin(ctx, s, nil, []routinefamily.Family{routinefamily.Work})
 	if err != nil {
 		return err
 	}

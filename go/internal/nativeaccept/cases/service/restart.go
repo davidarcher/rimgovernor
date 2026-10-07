@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -26,7 +27,7 @@ func init() {
 		// "work" is the lightest family that still produces a Rounds pass
 		// with a bound goal; the point is autonomy, not any particular
 		// planner.
-		Serve:  &cases.ServeSpec{Families: []string{"work"}, Resume: true, Prefix: "restart"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}, Resume: true, Prefix: "restart"},
 		Budget: 10 * time.Minute,
 		Run:    run,
 	})

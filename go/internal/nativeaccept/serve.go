@@ -20,6 +20,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/childproc"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -44,7 +45,7 @@ type ServeSpec struct {
 	Resume bool
 	// Families is RIMGOVERNOR_ROUTINE_FAMILIES; nil composes serve's
 	// autonomous default (every family).
-	Families []string
+	Families []routinefamily.Family
 	// Extra are further serve arguments, appended verbatim.
 	Extra []string
 	// Env are further environment entries (KEY=value) for the process.
@@ -119,7 +120,7 @@ type ServiceProcess struct {
 // or environment. It is ServeSpec's older shape; new code uses Serve.
 type ServiceLaunch struct {
 	Binary   string
-	Families []string
+	Families []routinefamily.Family
 	Extra    []string
 	Env      []string
 	// Output, when set, is where this launch's service directory (state,
@@ -295,7 +296,7 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 		cmd.Env = append(cmd.Env, snapshot.DirEnv+"="+filepath.Join(dir, filepath.Base(filepath.Dir(output)), filepath.Base(output)))
 	}
 	if spec.Families != nil {
-		families := strings.Join(withNamingFamily(spec.Families), ",")
+		families := routinefamily.Join(withNamingFamily(spec.Families))
 		cmd.Env = append(cmd.Env, "RIMGOVERNOR_ROUTINE_FAMILIES="+families)
 		entry["families"] = families
 	}
@@ -654,7 +655,7 @@ func (p *ServiceProcess) StepAdmitted(ctx context.Context, since time.Time) (boo
 		return true, nil
 	}
 	if p.Spec.StepStall > 0 && time.Since(since) >= p.Spec.StepStall {
-		return false, &StepStallError{Stall: p.Spec.StepStall, Families: strings.Join(p.Spec.Families, ","), LastFailure: lastStepFailure(p.FlightPath)}
+		return false, &StepStallError{Stall: p.Spec.StepStall, Families: routinefamily.Join(p.Spec.Families), LastFailure: lastStepFailure(p.FlightPath)}
 	}
 	return false, nil
 }
@@ -735,11 +736,11 @@ func ConfirmColonyNames(ctx context.Context, h *Harness, report Report) (map[str
 // list: the loaded start raises a colony-naming dialog that halts the clock,
 // and a case that forgot the family stalled behind it (#2138). The dialog
 // case answers its own dialogs, so a list naming it is left as given.
-func withNamingFamily(families []string) []string {
+func withNamingFamily(families []routinefamily.Family) []routinefamily.Family {
 	for _, family := range families {
-		if family == "naming" || family == "dialog" {
+		if family == routinefamily.Naming || family == routinefamily.Dialog {
 			return families
 		}
 	}
-	return append(append([]string(nil), families...), "naming")
+	return append(append([]routinefamily.Family(nil), families...), routinefamily.Naming)
 }

@@ -11,6 +11,7 @@ package sleeping
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -47,7 +48,7 @@ func init() {
 		Start: cases.Fixture{Op: "test/layout_grid_prepare", ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": 8, "stoneBlocks": 400, "builders": true},
 			On: cases.Save{Name: sustained.BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
-		Serve:  &cases.ServeSpec{Families: []string{"shelter", "expansion", "sleeping"}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-bedrooms"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-bedrooms"},
 		Budget: 3 * time.Minute,
 		Reason: "one watch: the fixture raises the shell the planner orders, then the furnished, assigned bedroom",
 		Run:    bedrooms,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"sort"
 	"time"
 
@@ -99,7 +100,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	// "work" rides along so the colony's work priorities match the
 	// controller's own assignment, which keeps plant cutting enabled on the
 	// fixture's cutter.
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"blight", "work", "field", "naming"}, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Blight, routinefamily.Work, routinefamily.Field, routinefamily.Naming}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"sync"
 	"time"
 
@@ -120,7 +121,7 @@ type surgeryRun struct {
 
 func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surgeryRun, error) {
 	report, identity := s.Report(), s.Identity()
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"medical", "work"}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []routinefamily.Family{routinefamily.Medical, routinefamily.Work}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return nil, err
 	}

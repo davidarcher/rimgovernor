@@ -3,6 +3,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -31,7 +32,7 @@ func init() {
 		Start:       cases.Fixture{Op: buriedSteelOp, Args: map[string]any{"action": "prepare"}, On: cases.Lab{Colonists: 6}},
 		RequiredOps: []string{buriedSteelOp},
 		Quiet:       na.QuietRequired, QuietWorld: true,
-		Serve:  &cases.ServeSpec{Families: []string{"resource,supply"}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Resource, routinefamily.Supply}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel"},
 		Budget: 14 * time.Minute,
 		Run:    func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, false) },
 	})
@@ -43,7 +44,7 @@ func init() {
 		Start:       cases.Fixture{Op: buriedSteelOp, Args: map[string]any{"action": "prepare", "stockpile": "face"}, On: cases.Lab{Colonists: 6}},
 		RequiredOps: []string{buriedSteelOp},
 		Quiet:       na.QuietRequired, QuietWorld: true,
-		Serve:  &cases.ServeSpec{Families: []string{"resource,supply"}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel-stockpile"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Resource, routinefamily.Supply}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel-stockpile"},
 		Budget: 14 * time.Minute,
 		Run:    func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, true) },
 	})

@@ -40,6 +40,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -104,7 +105,7 @@ type variant struct {
 // advances and the layout's completion write never runs. work staffs the
 // layout's construction: every building method's builder check needs the
 // work priorities only that family applies (#1248).
-var perimeterFamilies = []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply", "naming", "work"}
+var perimeterFamilies = []routinefamily.Family{routinefamily.DefensiveLayout, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Fire, routinefamily.Supply, routinefamily.Naming, routinefamily.Work}
 
 func init() {
 	// The fire family belongs here: a raid can leave a home fire burning

@@ -45,7 +45,7 @@ func TestRoundsCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		var c serveConfig
 		found := false
 		for _, f := range roundsFamilies(&c) {
-			if f.Name == tc.family {
+			if string(f.Name) == tc.family {
 				*f.Enabled, found = true, true
 			}
 		}

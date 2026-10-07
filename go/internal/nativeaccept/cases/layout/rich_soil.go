@@ -13,6 +13,7 @@ package layout
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -39,7 +40,7 @@ func init() {
 		Start:       cases.Save{Name: sustained.BaselineSave},
 		RequiredOps: []string{na.LabSpawnTool},
 		Keep:        []string{string(na.NeedFood)},
-		Serve:       &cases.ServeSpec{Families: []string{"shelter", "expansion", "field"}, NativeTimeout: 30 * time.Second, Prefix: "layout-rich-soil"},
+		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Field}, NativeTimeout: 30 * time.Second, Prefix: "layout-rich-soil"},
 		Budget:      8 * time.Minute,
 		Reason:      "two short serves: a plan and its first field review, then one in-game hour after a colonist joins",
 		Run:         richSoil,

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -163,5 +164,18 @@ func TestServeDefaultResourceFloors(t *testing.T) {
 	}
 	if thresholds, _ = roundsCapabilities(c); len(thresholds.ResourceTargets) != 0 || thresholds.StoneBlockTarget != 0 {
 		t.Fatalf("floors without the resource family: %v stone %d", thresholds.ResourceTargets, thresholds.StoneBlockTarget)
+	}
+}
+
+// Every family the routinefamily package declares is composed by the
+// registry, and the registry names nothing else.
+func TestRoundsFamiliesRegistryMatchesRoutinefamily(t *testing.T) {
+	var c serveConfig
+	var got []routinefamily.Family
+	for _, entry := range roundsFamilies(&c) {
+		got = append(got, entry.Name)
+	}
+	if !slices.Equal(got, routinefamily.All()) {
+		t.Fatalf("registry %v\n declared %v", got, routinefamily.All())
 	}
 }

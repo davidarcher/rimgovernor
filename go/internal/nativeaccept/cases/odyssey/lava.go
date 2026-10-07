@@ -10,6 +10,7 @@ package odyssey
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"sort"
 	"strings"
 	"time"
@@ -51,7 +52,7 @@ func init() {
 		NoKeep:       true,
 		NoCheckpoint: true,
 		Keep:         []string{string(na.NeedFood)},
-		Serve:        &cases.ServeSpec{Families: []string{"shelter", "expansion", "field"}, NativeTimeout: 30 * time.Second, Prefix: "odyssey-lava-field"},
+		Serve:        &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Field}, NativeTimeout: 30 * time.Second, Prefix: "odyssey-lava-field"},
 		Budget:       8 * time.Minute,
 		Reason:       "one serve until the layout plan is recorded and the field planner has had an in-game hour",
 		Run:          runLavaField,

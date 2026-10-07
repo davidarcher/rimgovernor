@@ -3,6 +3,7 @@ package anomaly
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -45,7 +46,7 @@ func init() {
 		// DarkStudy owner and tend answers a captive's wounds; the shelter
 		// family keeps supervised windows running and dialog answers letters.
 		Serve: &cases.ServeSpec{
-			Families: []string{"population-custody", "work", "tend", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "anomaly-hold-study",
+			Families: []routinefamily.Family{routinefamily.PopulationCustody, routinefamily.Work, routinefamily.Tend, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "anomaly-hold-study",
 		},
 		Budget: 12 * time.Minute,
 		Run:    runHoldStudy,

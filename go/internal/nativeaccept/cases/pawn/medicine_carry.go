@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -20,7 +21,7 @@ func init() {
 			"carry count by EnsureWorkAssignments through a PawnSettingsIntent (#1307), and the native policy-inputs read " +
 			"shows it. Native contract: the medicine_carry write and the inventory-stock read; the counts are policy/medicine_carry_test.go.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/doctor_medicine"},
-		Serve:  &cases.ServeSpec{Families: []string{"work"}},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
 		Run:    medicineCarry,
 	})

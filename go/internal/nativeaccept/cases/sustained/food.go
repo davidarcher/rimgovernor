@@ -11,6 +11,7 @@ package sustained
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"os"
 	"time"
 
@@ -52,7 +53,7 @@ func Window() time.Duration {
 // scheduler step admits a clock window.
 func Spec(prefix string) cases.ServeSpec {
 	return cases.ServeSpec{
-		Families:      []string{"field,stockpiles,acquisition,cooking,supply"},
+		Families:      []routinefamily.Family{routinefamily.Field, routinefamily.Stockpiles, routinefamily.Acquisition, routinefamily.Cooking, routinefamily.Supply},
 		NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: prefix,
 	}
 }

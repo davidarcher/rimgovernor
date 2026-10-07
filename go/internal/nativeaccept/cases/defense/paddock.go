@@ -3,6 +3,7 @@ package defense
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -32,7 +33,7 @@ const (
 func init() {
 	herd := &paddockHerd{}
 	v := variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid", herd: herd, layoutBuilt: herd.laneFenced}
-	families := append(append([]string{}, perimeterFamilies...), "animal-containment", "husbandry", "sheltering", "animal-feed")
+	families := append(append([]routinefamily.Family{}, perimeterFamilies...), routinefamily.AnimalContainment, routinefamily.Husbandry, routinefamily.Sheltering, routinefamily.AnimalFeed)
 	cases.Register(cases.Case{
 		Name: "defense/paddock",
 		Scope: "Paddock inside the defensive wall (#2229): with a roamer owned the core ring is built first and the roamer is kept in the barn (its allowed area, " +

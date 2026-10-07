@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -316,7 +317,7 @@ type Phase struct {
 // restarted on the same journal) and takes authority. families, when set,
 // replace the spec's for this launch: an inert first run reads the plan
 // without ordering any work.
-func Begin(ctx context.Context, s cases.Session, previous *na.ServiceProcess, families []string) (*Phase, error) {
+func Begin(ctx context.Context, s cases.Session, previous *na.ServiceProcess, families []routinefamily.Family) (*Phase, error) {
 	var svc *na.ServiceProcess
 	var err error
 	if previous == nil {

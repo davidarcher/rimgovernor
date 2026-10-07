@@ -3,6 +3,7 @@ package upkeep
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -21,7 +22,7 @@ func init() {
 		Scope:  "Couples share a bedroom (#812): two willing lovers are both assigned one vacant double bed via AssignIntents and MaintainHousing recovers on their observed shared sleep.",
 		Start:  cases.LabStart(),
 		Keep:   sleeping.keep,
-		Serve:  &cases.ServeSpec{Families: []string{"sleeping", "work"}, Extra: sleeping.extra, Prefix: prefix},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 20 * time.Minute,
 		Reason: "Two assignments, then a night of observed shared sleep.",
 		Run:    runCouple,

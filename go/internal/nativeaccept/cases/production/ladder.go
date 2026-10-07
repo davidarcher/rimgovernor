@@ -20,6 +20,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"path/filepath"
 	"strings"
 	"time"
@@ -60,7 +61,7 @@ const (
 // bench (#218, a 16 minute run whose ingredient stockpile then had no clean
 // floor, #223). An unserved priority-2 shelter goal gates only comfort,
 // never MaintainResource.
-const ladderFamilies = "temperature,comfort,work,power,supply,defense,tend,rescue,medical,field,stockpiles,acquisition,cooking,resource,workshop,research,gear,armory,dialog,naming"
+var ladderFamilies = []routinefamily.Family{routinefamily.Temperature, routinefamily.Comfort, routinefamily.Work, routinefamily.Power, routinefamily.Supply, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Medical, routinefamily.Field, routinefamily.Stockpiles, routinefamily.Acquisition, routinefamily.Cooking, routinefamily.Resource, routinefamily.Workshop, routinefamily.Research, routinefamily.Gear, routinefamily.Armory, routinefamily.Dialog, routinefamily.Naming}
 
 // benchWindow is how long the ladder gets to finish the research rung and
 // raise its bench (the "bench-built" stage, cached across runs, #329);
@@ -98,7 +99,7 @@ func init() {
 		Name:   "production/ladder",
 		Scope:  fmt.Sprintf("MaintainResource %s:%d walks research (%s) -> fabrication bench -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4).", resource, target, project),
 		Start:  cases.Fixture{Op: "test/production_ladder_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
-		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production"},
+		Serve:  &cases.ServeSpec{Families: ladderFamilies, NativeTimeout: 15 * time.Second, Prefix: "production"},
 		Stages: []string{benchStage},
 		Budget: benchWindow + window + 5*time.Minute,
 		Reason: "the research rung and the bench build are a cached stage (#329); the stockpile and the first bill iteration after it run on a miss and a hit alike",

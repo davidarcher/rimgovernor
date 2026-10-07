@@ -11,6 +11,7 @@ package trade
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -40,7 +41,7 @@ func init() {
 		},
 		// Every need frozen: the negotiator's walks are the only pawn time
 		// the case is about.
-		Serve:  &cases.ServeSpec{Families: []string{"trade"}, NativeTimeout: 15 * time.Second, Prefix: "trade-routine"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Trade}, NativeTimeout: 15 * time.Second, Prefix: "trade-routine"},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			prepared := s.Prepared()

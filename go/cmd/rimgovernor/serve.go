@@ -20,6 +20,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -213,13 +214,13 @@ func (c *serveConfig) selectRoundsFamilies(selection string, set bool) error {
 		}
 		return nil
 	}
-	byName := map[string]*bool{}
+	byName := map[routinefamily.Family]*bool{}
 	for _, entry := range families {
 		byName[entry.Name] = entry.Enabled
 	}
 	for _, name := range strings.Split(selection, ",") {
 		name = strings.TrimSpace(name)
-		enabled, ok := byName[name]
+		enabled, ok := byName[routinefamily.Family(name)]
 		if !ok {
 			return fmt.Errorf("%s: unknown routine family %q", roundsFamiliesEnv, name)
 		}
@@ -231,7 +232,7 @@ func (c *serveConfig) selectRoundsFamilies(selection string, set bool) error {
 // roundsFamily names one routine planner family alongside a pointer into
 // the serveConfig that enables it.
 type roundsFamily struct {
-	Name    string
+	Name    routinefamily.Family
 	Enabled *bool
 }
 
@@ -240,70 +241,70 @@ type roundsFamily struct {
 // selection and the /api/routines diagnostics family list.
 func roundsFamilies(c *serveConfig) []roundsFamily {
 	return []roundsFamily{
-		{"sleeping", &c.roundsSleepingPlans},
-		{"bill", &c.roundsBillPlans},
-		{"field", &c.roundsFieldPlans},
-		{"acquisition", &c.roundsAcquisitionPlans},
-		{"work", &c.roundsWorkPlans},
-		{"supply", &c.roundsSupplyPlans},
-		{"cooking", &c.roundsCookingPlans},
-		{"shelter", &c.roundsShelterPlans},
-		{"comfort", &c.roundsComfortPlans},
-		{"workshop", &c.roundsWorkshopPlans},
-		{"research", &c.roundsResearchPlans},
-		{"hospital", &c.roundsHospitalPlans},
-		{"expansion", &c.roundsExpansionPlans},
-		{"temperature", &c.roundsTemperaturePlans},
-		{"power", &c.roundsPowerPlans},
-		{"defense", &c.roundsDefensePlans},
-		{"tend", &c.roundsTendPlans},
-		{"rescue", &c.roundsRescuePlans},
-		{"equip", &c.roundsEquipPlans},
-		{"repair", &c.roundsRepairPlans},
-		{"fire", &c.roundsFireSafetyPlans},
-		{"clean", &c.roundsCleanPlans},
-		{"burial", &c.roundsBurialPlans},
-		{"incineration", &c.roundsIncinerationPlans},
-		{"blight", &c.roundsBlightPlans},
-		{"pollution", &c.roundsPollutionPlans},
-		{"mechcharger", &c.roundsMechChargerPlans},
-		{"genebank", &c.roundsGeneBankPlans},
-		{"armory", &c.roundsArmoryPlans},
-		{"clearance", &c.roundsClearancePlans},
-		{"shrine", &c.roundsShrinePlans},
-		{"stockpiles", &c.roundsStockpilePlans},
-		{"mood", &c.roundsMoodPlans},
-		{"gear", &c.roundsGearPlans},
-		{"medical", &c.roundsMedicalPlans},
-		{"food-storage-upkeep", &c.roundsFoodStorageUpkeepPlans},
-		{"refrigeration", &c.roundsRefrigerationPlans},
-		{"lighting", &c.roundsLightingPlans},
-		{"art", &c.roundsArtPlans},
-		{"mechs", &c.roundsMechPlans},
-		{"flooring", &c.roundsFlooringPlans},
-		{"routes", &c.roundsRoutesPlans},
-		{"animal-containment", &c.roundsAnimalContainmentPlans},
-		{"recovery", &c.roundsRecoveryPlans},
-		{"husbandry", &c.roundsHusbandryPlans},
-		{"rules", &c.roundsRulesPlans},
-		{"prisoner-interaction", &c.roundsPrisonerInteractionPlans},
-		{"population-custody", &c.roundsPopulationCustodyPlans},
-		{"population-joiner", &c.roundsPopulationJoinerPlans},
-		{"home-coverage", &c.roundsHomeCoveragePlans},
-		{"sheltering", &c.roundsShelteringPlans},
-		{"firebreak", &c.roundsFirebreakPlans},
-		{"psylink", &c.roundsPsylinkPlans},
-		{"creepjoiner", &c.roundsCreepJoinerPlans},
-		{"permits", &c.roundsPermitPlans},
-		{"ideo-roles", &c.roundsIdeoRolePlans},
-		{"rituals", &c.roundsRitualPlans},
-		{"stone-shell", &c.roundsStoneShellPlans},
-		{"defensive-layout", &c.roundsDefensiveLayoutPlans},
-		{"naming", &c.roundsNamingPlans},
-		{"dialog", &c.roundsDialogPlans},
-		{"trade", &c.roundsTradePlans},
-		{"resource", &c.roundsResourcePlans},
-		{"animal-feed", &c.roundsAnimalFeedPlans},
+		{routinefamily.Sleeping, &c.roundsSleepingPlans},
+		{routinefamily.Bill, &c.roundsBillPlans},
+		{routinefamily.Field, &c.roundsFieldPlans},
+		{routinefamily.Acquisition, &c.roundsAcquisitionPlans},
+		{routinefamily.Work, &c.roundsWorkPlans},
+		{routinefamily.Supply, &c.roundsSupplyPlans},
+		{routinefamily.Cooking, &c.roundsCookingPlans},
+		{routinefamily.Shelter, &c.roundsShelterPlans},
+		{routinefamily.Comfort, &c.roundsComfortPlans},
+		{routinefamily.Workshop, &c.roundsWorkshopPlans},
+		{routinefamily.Research, &c.roundsResearchPlans},
+		{routinefamily.Hospital, &c.roundsHospitalPlans},
+		{routinefamily.Expansion, &c.roundsExpansionPlans},
+		{routinefamily.Temperature, &c.roundsTemperaturePlans},
+		{routinefamily.Power, &c.roundsPowerPlans},
+		{routinefamily.Defense, &c.roundsDefensePlans},
+		{routinefamily.Tend, &c.roundsTendPlans},
+		{routinefamily.Rescue, &c.roundsRescuePlans},
+		{routinefamily.Equip, &c.roundsEquipPlans},
+		{routinefamily.Repair, &c.roundsRepairPlans},
+		{routinefamily.Fire, &c.roundsFireSafetyPlans},
+		{routinefamily.Clean, &c.roundsCleanPlans},
+		{routinefamily.Burial, &c.roundsBurialPlans},
+		{routinefamily.Incineration, &c.roundsIncinerationPlans},
+		{routinefamily.Blight, &c.roundsBlightPlans},
+		{routinefamily.Pollution, &c.roundsPollutionPlans},
+		{routinefamily.Mechcharger, &c.roundsMechChargerPlans},
+		{routinefamily.Genebank, &c.roundsGeneBankPlans},
+		{routinefamily.Armory, &c.roundsArmoryPlans},
+		{routinefamily.Clearance, &c.roundsClearancePlans},
+		{routinefamily.Shrine, &c.roundsShrinePlans},
+		{routinefamily.Stockpiles, &c.roundsStockpilePlans},
+		{routinefamily.Mood, &c.roundsMoodPlans},
+		{routinefamily.Gear, &c.roundsGearPlans},
+		{routinefamily.Medical, &c.roundsMedicalPlans},
+		{routinefamily.FoodStorageUpkeep, &c.roundsFoodStorageUpkeepPlans},
+		{routinefamily.Refrigeration, &c.roundsRefrigerationPlans},
+		{routinefamily.Lighting, &c.roundsLightingPlans},
+		{routinefamily.Art, &c.roundsArtPlans},
+		{routinefamily.Mechs, &c.roundsMechPlans},
+		{routinefamily.Flooring, &c.roundsFlooringPlans},
+		{routinefamily.Routes, &c.roundsRoutesPlans},
+		{routinefamily.AnimalContainment, &c.roundsAnimalContainmentPlans},
+		{routinefamily.Recovery, &c.roundsRecoveryPlans},
+		{routinefamily.Husbandry, &c.roundsHusbandryPlans},
+		{routinefamily.Rules, &c.roundsRulesPlans},
+		{routinefamily.PrisonerInteraction, &c.roundsPrisonerInteractionPlans},
+		{routinefamily.PopulationCustody, &c.roundsPopulationCustodyPlans},
+		{routinefamily.PopulationJoiner, &c.roundsPopulationJoinerPlans},
+		{routinefamily.HomeCoverage, &c.roundsHomeCoveragePlans},
+		{routinefamily.Sheltering, &c.roundsShelteringPlans},
+		{routinefamily.Firebreak, &c.roundsFirebreakPlans},
+		{routinefamily.Psylink, &c.roundsPsylinkPlans},
+		{routinefamily.Creepjoiner, &c.roundsCreepJoinerPlans},
+		{routinefamily.Permits, &c.roundsPermitPlans},
+		{routinefamily.IdeoRoles, &c.roundsIdeoRolePlans},
+		{routinefamily.Rituals, &c.roundsRitualPlans},
+		{routinefamily.StoneShell, &c.roundsStoneShellPlans},
+		{routinefamily.DefensiveLayout, &c.roundsDefensiveLayoutPlans},
+		{routinefamily.Naming, &c.roundsNamingPlans},
+		{routinefamily.Dialog, &c.roundsDialogPlans},
+		{routinefamily.Trade, &c.roundsTradePlans},
+		{routinefamily.Resource, &c.roundsResourcePlans},
+		{routinefamily.AnimalFeed, &c.roundsAnimalFeedPlans},
 	}
 }
 
@@ -344,7 +345,7 @@ func (c serveConfig) activeRoundsFamilies() []string {
 	var names []string
 	for _, entry := range roundsFamilies(&cp) {
 		if *entry.Enabled {
-			names = append(names, entry.Name)
+			names = append(names, string(entry.Name))
 		}
 	}
 	return names

@@ -3,6 +3,7 @@ package clearance
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -30,7 +31,7 @@ func init() {
 			Name: name, Scope: "Sealed shrine breach, ActiveCombat handoff and observed recovery; empty casket claim and default never-open protection.",
 			Start:       cases.Save{Name: "RimGovernor-tribal8-baseline"},
 			RequiredOps: []string{"test/shrine_prepare", "test/shrine_audit"},
-			Serve:       &cases.ServeSpec{Families: []string{"shrine", "defense", "clearance", "repair", "tend", "rescue"}, Prefix: "shrine-breach"},
+			Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shrine, routinefamily.Defense, routinefamily.Clearance, routinefamily.Repair, routinefamily.Tend, routinefamily.Rescue}, Prefix: "shrine-breach"},
 			Stages:      []string{"sealed-shrine-ready"}, Budget: 8 * time.Minute, Stall: 90 * time.Second,
 			Run: func(ctx context.Context, s cases.Session) error { return runShrineBreach(ctx, s, claim) },
 		})

@@ -3,6 +3,7 @@ package upkeep
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -41,7 +42,7 @@ func init() {
 			Start:       cases.LabStart(),
 			RequiredOps: []string{"test/sleeping_setup", "test/sleeping_greedy_status", "test/gear_fixture"},
 			Keep:        sleeping.keep,
-			Serve:       &cases.ServeSpec{Families: []string{"sleeping", "flooring", "gear", "work"}, Extra: sleeping.extra, Prefix: prefix},
+			Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Flooring, routinefamily.Gear, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 			Budget:      30 * time.Minute,
 			Reason:      c.reason,
 			Run:         func(ctx context.Context, s cases.Session) error { return runPersonalShare(ctx, s, wealth) },

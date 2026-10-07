@@ -3,6 +3,7 @@ package clearance
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -47,7 +48,7 @@ func init() {
 			"Native: uninstall and install jobs with their reservations, the ReadPackedItems read contract, vanilla minifying.",
 		Start:       cases.LabStart(),
 		RequiredOps: []string{planstage.Tool},
-		Serve: &cases.ServeSpec{Families: []string{"sleeping", "clearance", "work"},
+		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Clearance, routinefamily.Work},
 			NativeTimeout: 60 * time.Second, Prefix: "pack-reinstall"},
 		Budget: 14 * time.Minute,
 		Reason: "two service runs: an inert one reads the layout plan the rooms are staged from, then the controller reconciles; " +
@@ -70,7 +71,7 @@ func runPackReinstall(ctx context.Context, s cases.Session) error {
 	}
 
 	// Phase one: an inert controller derives and records the layout plan.
-	one, err := planstage.Begin(ctx, s, nil, []string{"work"})
+	one, err := planstage.Begin(ctx, s, nil, []routinefamily.Family{routinefamily.Work})
 	if err != nil {
 		return err
 	}

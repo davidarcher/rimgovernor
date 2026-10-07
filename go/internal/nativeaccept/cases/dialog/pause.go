@@ -17,6 +17,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -52,7 +53,7 @@ func init() {
 		// The building families keep supervised windows running so the
 		// scheduled dialog opens mid-window.
 		Serve: &cases.ServeSpec{
-			Families: []string{"dialog", "supply", "shelter", "sleeping"}, NativeTimeout: 15 * time.Second, Prefix: "dialog-pause",
+			Families: []routinefamily.Family{routinefamily.Dialog, routinefamily.Supply, routinefamily.Shelter, routinefamily.Sleeping}, NativeTimeout: 15 * time.Second, Prefix: "dialog-pause",
 		},
 		Budget: 12 * time.Minute,
 		// A dialog answer took 68s to show in the trace once (#353).

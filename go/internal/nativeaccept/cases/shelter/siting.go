@@ -3,6 +3,7 @@ package shelter
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -25,7 +26,7 @@ func init() {
 			"The siting gap to the nearest other room is reported, not asserted: the planner falls back to a smaller gap when " +
 			"the preferred one fits nowhere.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
-		Serve:  &cases.ServeSpec{Families: []string{"shelter", "sleeping"}, NativeTimeout: 30 * time.Second, Prefix: "shelter-siting"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "shelter-siting"},
 		Budget: 4 * time.Minute,
 		Reason: "one short watch until the first review records a layout plan",
 		Run:    siting,

@@ -8,6 +8,7 @@ package child
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"slices"
 	"time"
 
@@ -43,7 +44,7 @@ func init() {
 		// The shelter family keeps supervised windows running (the bill
 		// planner alone never advances the clock); dialog answers the letters.
 		Serve: &cases.ServeSpec{
-			Families: []string{"bill", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "child-first-child",
+			Families: []routinefamily.Family{routinefamily.Bill, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "child-first-child",
 		},
 		Budget: 15 * time.Minute,
 		Run:    runFirstChild,

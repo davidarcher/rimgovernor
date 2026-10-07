@@ -3,6 +3,7 @@ package upkeep
 import (
 	"context"
 	"encoding/json"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"reflect"
 	"testing"
 
@@ -99,14 +100,14 @@ func TestCampaignKeepsNamingAvailableAcrossStageRestarts(t *testing.T) {
 	stages := campaignStages()
 	for n := 1; n <= len(stages); n++ {
 		families := cumulativeFamilies(stages, n)
-		seen := map[string]bool{}
+		seen := map[routinefamily.Family]bool{}
 		for _, family := range families {
 			if seen[family] {
 				t.Fatalf("stage %s repeats family %s", stages[n-1].name, family)
 			}
 			seen[family] = true
 		}
-		if !seen["naming"] {
+		if !seen[routinefamily.Naming] {
 			t.Fatalf("stage %s cannot resolve a delayed naming modal", stages[n-1].name)
 		}
 		for _, st := range stages[:n] {

@@ -3,6 +3,7 @@ package shelter
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -23,9 +24,10 @@ import (
 // The controller holds the GABP slot while it runs (#676), so the trigger
 // ends between two service runs: the planner keeps no history, so the
 // restarted service restores from the facts alone.
+var shelteringFamilies = []routinefamily.Family{routinefamily.Recovery, routinefamily.Sheltering}
+
 const (
-	shelteringFamilies = "recovery,sheltering"
-	shelterWait        = 4 * time.Minute
+	shelterWait = 4 * time.Minute
 	// shelterWalkTicks is the game-time budget for the walk from the
 	// staging row (ten cells from the hut) into it.
 	shelterWalkTicks = 6000
@@ -52,7 +54,7 @@ func init() {
 			Scope:       c.scope,
 			Start:       cases.Fixture{On: cases.LabStart(), Op: "test/shelter_prepare", Args: map[string]any{"trigger": c.trigger}},
 			RequiredOps: []string{"test/shelter_prepare", "test/shelter_stage"},
-			Serve:       &cases.ServeSpec{Families: []string{shelteringFamilies}, NativeTimeout: 60 * time.Second, Prefix: "sheltering"},
+			Serve:       &cases.ServeSpec{Families: shelteringFamilies, NativeTimeout: 60 * time.Second, Prefix: "sheltering"},
 			Budget:      12 * time.Minute,
 			Run:         func(ctx context.Context, s cases.Session) error { return runSheltering(ctx, s, c.animal) },
 		})

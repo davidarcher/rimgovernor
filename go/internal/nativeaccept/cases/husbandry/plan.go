@@ -44,6 +44,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"slices"
 	"sort"
 	"strings"
@@ -93,7 +94,7 @@ func init() {
 			"equal pawn ids.",
 		Start:       cases.LabStart(),
 		RequiredOps: []string{na.LabSpawnTool, hutShellOp},
-		Serve: &cases.ServeSpec{Families: []string{"husbandry", "animal-containment", "sheltering"},
+		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Husbandry, routinefamily.AnimalContainment, routinefamily.Sheltering},
 			NativeTimeout: 60 * time.Second, Prefix: "husbandry-plan"},
 		Budget: 28 * time.Minute,
 		Reason: "one unstaged run of three service phases: the controller builds the pen, the vet room beds and the medical flag " +

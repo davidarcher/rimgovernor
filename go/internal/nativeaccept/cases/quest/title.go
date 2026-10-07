@@ -9,6 +9,7 @@ package quest
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -43,7 +44,7 @@ func init() {
 		// The shelter family keeps supervised windows running (the population
 		// planner alone never advances the clock); dialog answers the letters.
 		Serve: &cases.ServeSpec{
-			Families: []string{"population-joiner", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "quest-first-title",
+			Families: []routinefamily.Family{routinefamily.PopulationJoiner, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "quest-first-title",
 		},
 		Budget: 12 * time.Minute,
 		Run:    runFirstTitle,

@@ -13,6 +13,7 @@ package sleeping
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -47,7 +48,7 @@ func init() {
 			On:   cases.Save{Name: sustained.BaselineSave}},
 		RequiredOps: []string{suiteTitleOp},
 		Keep:        []string{string(na.NeedFood)},
-		Serve:       &cases.ServeSpec{Families: []string{"shelter", "expansion", "sleeping"}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-suites"},
+		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-suites"},
 		Budget:      30 * time.Minute,
 		Reason:      "two watches on a Royalty profile: the standard wing goes up one room per review (four rooms in ~236k ticks, 7 min, on the first run) before the suite and move, then the title-driven second suite",
 		Run:         suites,

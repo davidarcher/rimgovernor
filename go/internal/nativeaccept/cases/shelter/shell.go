@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"strings"
 	"time"
 
@@ -19,12 +20,13 @@ import (
 // geometry and lineage, the service starts, the furnished bed and the
 // native room checks. The staged-ring shelter cases are
 // snapshot tests since #745 (buildingruntime.TestShelterSitingSnapshots).
+// families: the work family is left out because its planner refuses
+// the tribal8 baseline's work priorities and one failing planner
+// cancels the whole step, and the acquisition family because its food
+// planner times out under load.
+var families = []routinefamily.Family{routinefamily.Shelter, routinefamily.Sleeping}
+
 const (
-	// families: the work family is left out because its planner refuses
-	// the tribal8 baseline's work priorities and one failing planner
-	// cancels the whole step, and the acquisition family because its food
-	// planner times out under load.
-	families = "shelter,sleeping"
 	// buildWait is the wall-clock ceiling for each construction phase,
 	// furnishWait for a bed completed inside the finished hut.
 	buildWait   = 30 * time.Minute

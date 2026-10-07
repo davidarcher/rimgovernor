@@ -3,6 +3,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -40,7 +41,7 @@ func init() {
 		Start:       cases.Fixture{Op: artOp, Args: map[string]any{"action": "prepare"}, On: cases.Lab{Colonists: 2}},
 		RequiredOps: []string{artOp},
 		Quiet:       na.QuietRequired, QuietWorld: true,
-		Serve:  &cases.ServeSpec{Families: []string{"sleeping,art,trade"}, NativeTimeout: 15 * time.Second, Prefix: "art"},
+		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Art, routinefamily.Trade}, NativeTimeout: 15 * time.Second, Prefix: "art"},
 		Budget: 45 * time.Minute,
 		Reason: "two phases on one colony: a sculpture, its install and a sale piece take two in-game days before the caravan phase can sell the surplus",
 		Run:    runArt,

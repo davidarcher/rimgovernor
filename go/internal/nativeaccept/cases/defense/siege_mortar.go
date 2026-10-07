@@ -3,6 +3,7 @@ package defense
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -44,7 +45,7 @@ func init() {
 		QuietWorld:  true,
 		// A checkpoint capture pauses the served game mid-fight (#890).
 		NoCheckpoint: true,
-		Serve:        &cases.ServeSpec{Families: []string{"defense", "tend", "rescue"}, PlayerSpeed: "Fast", Prefix: "defense-siege-mortar"},
+		Serve:        &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}, PlayerSpeed: "Fast", Prefix: "defense-siege-mortar"},
 		Budget:       2 * cases.LabBudget,
 		Run:          runSiegeMortar,
 	})
