@@ -110,6 +110,48 @@ func TestReconcileRoomLeavesTheRingRemovalsToTheClearSide(t *testing.T) {
 	}
 }
 
+// A planned bedroom standing finished with an unowned tree on one interior cell
+// and a filled ancient casket on its bed slot (the retired
+// clearance/room-obstruction case, #2304): the room's reconcile cuts the tree,
+// reports the casket as a held foreign thing and does not build the bed over it.
+func TestReconcileRoomHoldsCutsTheTreeAndHoldsTheCasketOnTheBedSlot(t *testing.T) {
+	in, _ := reconFixture()
+	in.Furniture = []WantedPiece{{DefName: "Bed", Minimum: domain.Cell{X: 10, Z: 10}, Maximum: domain.Cell{X: 10, Z: 11}}}
+	tree := Thing{ID: 3, Def: "Plant_TreeOak", Category: ThingPlant, Flags: FlagImpassable}
+	casket := ruinThing(2, "AncientCryptosleepCasket", FlagClaimable)
+	casket.Building.Casket = []string{"Gold"}
+	in.Cells = []SiteCell{
+		foreignCell(domain.Cell{X: 12, Z: 12}, tree),
+		foreignCell(domain.Cell{X: 10, Z: 10}, casket),
+		foreignCell(domain.Cell{X: 10, Z: 11}, casket),
+	}
+	ops, holds := ReconcileRoomHolds(in)
+	var cut Operation
+	for _, op := range ops {
+		switch op.Kind {
+		case OpCut:
+			cut = op
+		case OpBuild:
+			if len(op.Pieces) != 0 {
+				t.Fatalf("the bed builds over the casket: %+v", op)
+			}
+		case OpFurnitureOut, OpHaulOut, OpClaim:
+			t.Fatalf("the casket is worked, not held: %+v", op)
+		}
+	}
+	if len(cut.Cells) != 1 || cut.Cells[0] != (domain.Cell{X: 12, Z: 12}) {
+		t.Fatalf("cut the tree only: %+v", ops)
+	}
+	if len(holds) == 0 {
+		t.Fatalf("no hold for the casket: %+v", ops)
+	}
+	for _, h := range holds {
+		if h.Reason != "casket" {
+			t.Fatalf("hold reason = %q, want casket: %+v", h.Reason, holds)
+		}
+	}
+}
+
 func TestOwnRowsKeepsTheRingTheTemplateAndTheForbidden(t *testing.T) {
 	throne := WantedPiece{DefName: "Throne", Minimum: domain.Cell{X: 10, Z: 10}, Maximum: domain.Cell{X: 10, Z: 10}}
 	rows := []ClearanceTarget{
