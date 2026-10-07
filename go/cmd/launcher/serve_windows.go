@@ -70,6 +70,9 @@ func healthy(url string) bool {
 
 // ready is "" when Play can start, else what it waits on.
 func (a *app) ready() string {
+	if a.accept.Running() {
+		return "An acceptance case is running (Acceptance tab)"
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.busy[jobController] {

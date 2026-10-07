@@ -80,6 +80,7 @@ type app struct {
 	recorder   *recorderTail // the Problems tab's reader of the flight recorder
 	colony     *colonyRunner // new-colony generation (#2025)
 	loading    loadSlot      // the save load in flight (one at a time)
+	accept     *acceptRunner // the Acceptance tab's case runs
 }
 
 func newApp(repo string) *app {
@@ -100,6 +101,7 @@ func newApp(repo string) *app {
 		spec = *s.NewColony
 	}
 	a.colony = newColonyRunner(colonyApp{a}, spec)
+	a.accept = newAcceptRunner(acceptHostApp{a})
 	return a
 }
 
@@ -255,6 +257,11 @@ func (a *app) monitor() {
 // the acceptance setup (in place, idempotent). Nothing is replaced while
 // the game copy runs; the mod update is then left pending.
 func (a *app) prepareSetup() bool {
+	if a.accept.Running() {
+		// The run's preflight owns the game copy and its mod; the next poll
+		// restores the production build once the game closes.
+		return true
+	}
 	current, err := na.SourceTreeHash(a.repo)
 	if err != nil {
 		a.set(artMod, StateFailed, err.Error())

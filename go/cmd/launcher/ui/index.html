@@ -144,6 +144,18 @@
   .ncprogress .row { display: flex; justify-content: space-between; gap: 8px; }
   .ncnotice { color: var(--warn); font-size: 13px; margin: 0 0 8px; overflow-wrap: anywhere; }
   .ncok { color: var(--ok); }
+  .pbbar .check { margin: 0; white-space: nowrap; }
+  .pbbar .check input { flex: none; width: 16px; }
+  .acrow { display: grid; grid-template-columns: minmax(140px, 220px) 1fr auto; align-items: baseline; gap: 10px; border-top: 1px solid #23261f; padding: 5px 2px; }
+  .acrow:first-child { border-top: none; }
+  .acrow .scope { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acrow .scope:hover { white-space: normal; user-select: text; }
+  .acrow button { padding: 3px 12px; }
+  #acProgress.passed b { color: var(--ok); }
+  #acProgress.failed b { color: var(--bad); }
+  #acProgress pre { height: 180px; }
+  #acProgress .ncactions { margin-top: 8px; }
+  #acList { max-height: 460px; }
 </style>
 </head>
 <body>
@@ -156,6 +168,7 @@
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
     <button role="tab" id="tab-now" data-tab="now" aria-selected="false">Now</button>
+    <button role="tab" id="tab-acceptance" data-tab="acceptance" aria-selected="false">Acceptance</button>
     <button role="tab" id="tab-problems" data-tab="problems" aria-selected="false">Problems</button>
     <button role="tab" id="tab-log" data-tab="log" aria-selected="false">Log</button>
   </nav>
@@ -168,6 +181,25 @@
         <p class="nowline" id="nowHeadline"></p>
         <div id="nowSections"></div>
       </div>
+    </section>
+  </div>
+  <div class="view" id="view-acceptance" role="tabpanel" aria-labelledby="tab-acceptance" hidden>
+    <section class="events" aria-label="Acceptance cases">
+      <div class="evbar"><h2>Acceptance cases</h2><span class="pbstatus" id="acCount"></span></div>
+      <p class="note">Runs one native acceptance case in a visible game window, on this checkout's game copy, so you can watch it. Stop the controller and close the game first. The first run installs the test build of the mod; it is replaced by the normal one once the game closes. A case that failed last time resumes from its checkpoint unless From scratch is ticked.</p>
+      <div class="pbbar">
+        <input type="text" id="acFilter" placeholder="Filter by area, case or scope" spellcheck="false">
+        <span class="check"><input type="checkbox" id="acFresh"><label for="acFresh">From scratch</label></span>
+      </div>
+      <div class="ncprogress" id="acProgress" role="status" hidden>
+        <div class="row"><b id="acState"></b><span id="acTimer"></span></div>
+        <div id="acCase"></div>
+        <div class="detail" id="acDir"></div>
+        <pre id="acOutput"></pre>
+        <div class="ncactions"><button id="acStop" hidden>Stop</button></div>
+      </div>
+      <div class="err" id="acErr" role="alert"></div>
+      <div class="evlist" id="acList"></div>
     </section>
   </div>
   <div class="view" id="view-problems" role="tabpanel" aria-labelledby="tab-problems" hidden>
@@ -548,18 +580,74 @@ async function pollNowReport() {
     `<h2>${esc(s.Title)}</h2>` + (s.Note ? `<div class="nownotice">${esc(s.Note)}</div>` : '') +
     s.Lines.map(l => `<p class="${esc(l.Flag)}">${esc(l.Text)}</p>`).join('')).join('');
 }
-function everyWhileNow(poll, ms) {
+function everyWhile(viewId, poll, ms) {
   let busy = false;
   const run = async () => {
-    if ($('view-now').hidden || busy) return;
+    if ($(viewId).hidden || busy) return;
     busy = true;
     try { await poll(); } catch (e) { /* the next tick retries */ } finally { busy = false; }
   };
   setInterval(run, ms);
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
 }
-everyWhileNow(pollNowHeader, 1500);
-everyWhileNow(pollNowReport, 3000);
+everyWhile('view-now', pollNowHeader, 1500);
+everyWhile('view-now', pollNowReport, 3000);
+
+// Acceptance tab: the case list loads once (the Go side reads the registry in
+// the background); the run view polls while the tab shows. Rows re-render only
+// when the filter, the list or whether a run blocks them changes.
+const ac = { cases: [], loaded: false, key: '', run: null };
+const acClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function acRenderList() {
+  const needle = $('acFilter').value.trim().toLowerCase();
+  const rows = ac.cases.filter(c => !needle || (c.name + ' ' + c.scope).toLowerCase().includes(needle));
+  const blocked = !!ac.run && ac.run.state === 'running';
+  const key = needle + '|' + ac.cases.length + '|' + blocked;
+  if (key === ac.key) return;
+  ac.key = key;
+  $('acCount').textContent = ac.loaded ? rows.length + ' of ' + ac.cases.length : '';
+  $('acList').innerHTML = rows.map(c =>
+    `<div class="acrow"><span class="name">${esc(c.name)}</span><span class="scope" title="${esc(c.scope)}">${esc(c.scope)}</span>` +
+    `<button data-run="${esc(c.name)}"${blocked ? ' disabled' : ''}>Run</button></div>`).join('');
+}
+async function pollAcceptCases() {
+  if (ac.loaded) return;
+  const v = await getAcceptCases();
+  if (v.loading) { $('acCount').textContent = 'loading the case list...'; return; }
+  $('acErr').textContent = v.error || '';
+  if (!v.error) { ac.cases = v.cases; ac.loaded = true; ac.key = ''; acRenderList(); }
+}
+async function pollAcceptRun() {
+  const r = await getAcceptRun();
+  ac.run = r;
+  const box = $('acProgress');
+  box.hidden = r.state === 'idle';
+  box.className = 'ncprogress ' + r.state;
+  $('acState').textContent = r.state;
+  $('acTimer').textContent = acClock(r.elapsedMs);
+  $('acCase').textContent = r.case;
+  $('acDir').textContent = r.dir ? 'Output: ' + r.dir : '';
+  const out = $('acOutput'), atEnd = out.scrollTop + out.clientHeight >= out.scrollHeight - 4;
+  const text = (r.output || []).concat(r.error ? ['', r.error] : []).join('\n');
+  if (out.textContent !== text) { out.textContent = text; if (atEnd) out.scrollTop = out.scrollHeight; }
+  $('acStop').hidden = r.state !== 'running';
+  acRenderList();
+}
+everyWhile('view-acceptance', pollAcceptCases, 1000);
+everyWhile('view-acceptance', pollAcceptRun, 1000);
+$('acFilter').addEventListener('input', acRenderList);
+$('acList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-run]');
+  if (!b) return;
+  $('acErr').textContent = '';
+  try { await runAcceptCase(b.dataset.run, $('acFresh').checked); }
+  catch (err) { $('acErr').textContent = String(err.message || err); }
+  pollAcceptRun();
+});
+$('acStop').onclick = async () => {
+  try { await stopAcceptCase(); } catch (err) { $('acErr').textContent = String(err.message || err); }
+  pollAcceptRun();
+};
 
 // New colony panel (#2026): renders getNewColony() verbatim; the Go view model
 // owns every label, order, default and range. The page polls only while the

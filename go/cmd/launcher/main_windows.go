@@ -91,6 +91,10 @@ func main() {
 		"getNewColony":      a.colony.View,
 		"generateNewColony": a.colony.Generate,
 		"cancelNewColony":   func() { go a.colony.Cancel() },
+		"getAcceptCases":    a.accept.Cases,
+		"getAcceptRun":      a.accept.View,
+		"runAcceptCase":     a.accept.Run,
+		"stopAcceptCase":    a.accept.Stop,
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())

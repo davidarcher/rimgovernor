@@ -71,6 +71,24 @@ controller crashed or stopped. The Log tab shows the
 newest run's flight rows through [logview](../../../go/internal/logview): WARN and ERROR rows and an explicit set of INFO event kinds, repeats collapsed. See
 [measure throughput](../testing/measure-throughput.md) for what the rows carry.
 
+## Acceptance tab
+
+The Acceptance tab ([acceptance.go](../../../go/cmd/launcher/acceptance.go),
+[acceptance_windows.go](../../../go/cmd/launcher/acceptance_windows.go)) lists
+the registered native acceptance cases and runs one on demand in a visible game
+window, for local playtesting. It does not link the case packages: the case
+list is `go run ./internal/nativeaccept/cmd/acceptance list` (read once per
+launcher process; a landing that adds cases restarts the launcher) and a run is
+`acceptance run <case> -root <launcher root> -headless=false -no-series`
+with the launcher's own controller binary as `-rimgovernor` and a fresh output
+directory under `bridge/acceptance/launcher/`. From scratch adds `-fresh`;
+otherwise a case that failed last time resumes from its checkpoint. The run
+shares the launcher's game copy, so it refuses while the controller or the game
+runs, and Play, setup and the mod rebuild stand down while it does. The run's
+preflight installs the fixture build of the mod; the launcher sees it as stale
+and restores the production build once the game closes. Stop ends the run's
+process tree; the game it opened stays up until Close game.
+
 ## New colony panel
 
 The Launch tab's New colony panel is collapsed by default, shows the generation state and phase in its summary while collapsed, opens itself when a generation starts (or is already running on load) and never re-collapses mid-run; the open state is not persisted. It renders `getNewColony()` (`NewColonyView` in
