@@ -116,7 +116,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
-	n := schedulerSleepingAt(t, s, f, centreOn)
+	n := schedulerSleepingAt(t, s, f, coldShelterSite)
 	v := n.reply.GetObserved()
 	foodPlanFixture(v)
 	issues := v.Issues[:0]

@@ -199,7 +199,9 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	}
 }
 
-func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing.T) {
+// A facility furnishes only the planned room of its role (#2267): with the
+// room's cells set the furniture goes inside them, with no planned room it waits.
+func TestComfortFurnishingOnlyPreviewsPlannedRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	dining, _ := policy.Facility(policy.RoomRoleDiningRoom)
@@ -210,32 +212,36 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 		}
 		return rows
 	}
-	barracks, hosting := domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 2}
+	outside, planned := domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 2}
 	for _, test := range []struct {
 		name   string
-		rooms  domain.Fact[policy.RoomObservation]
+		cells  []domain.Cell
 		reason Verdict
 		cell   domain.Cell
 	}{
-		{"hosting room only", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "d", Role: domain.Known(policy.RoomRoleRecRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), noSpace("hosting_room"), domain.Cell{}},
-		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
+		{"planned room only", []domain.Cell{planned}, Verdict{}, planned},
+		{"no planned room", nil, noSpace("hosting_room"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
-			planner.concern, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &dining
+			planner.concern, planner.definition, planner.environment = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors
+			if test.cells != nil {
+				planner.cells = test.cells
+			} else {
+				planner.facility = &dining
+			}
 			native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 			}
-			facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(barracks, hosting), Rooms: test.rooms}
+			facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(outside, planned)}
 			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)
 			}
 			if !reason.IsZero() {
 				if native.previews != 0 {
-					t.Fatal("previewed outside a hosting room", native.previews)
+					t.Fatal("previewed with no planned room", native.previews)
 				}
 				return
 			}
@@ -245,9 +251,9 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 			}
 		})
 	}
-	shell := &RoundsBuildingPlanner{concern: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}
+	furniture := &RoundsBuildingPlanner{concern: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Table1x2c"}
 	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := shell.selection(facts); missing != 32 || method != "comfort-shell" || !reason.IsZero() {
+	if missing, method, reason := furniture.selection(facts); missing != 1 || method != "comfort-Table1x2c" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 }

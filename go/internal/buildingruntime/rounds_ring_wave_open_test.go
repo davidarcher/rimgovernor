@@ -18,7 +18,9 @@ import (
 func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	p, db, _ := cookingFixture(t)
+	// No planned room: the step has nothing to place, so the test commits the
+	// furniture itself.
+	p, db, _ := cookingFixtureAt(t, centreOn)
 	ctx := context.Background()
 	review, err := db.LoadRounds(ctx)
 	if err != nil {

@@ -259,7 +259,9 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	}
 }
 
-func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing.T) {
+// A facility furnishes only the planned room of its role (#2267): with the
+// room's cells set the bench goes inside them, with no planned room it waits.
+func TestWorkshopFurnishingOnlyPreviewsPlannedRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	workshop, _ := policy.Facility(policy.RoomRoleWorkshop)
@@ -270,34 +272,36 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 		}
 		return rows
 	}
-	// A tomb never hosts a bench; a barracks does (the shared starter shell).
-	tomb, hosting := domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 2}
+	outside, planned := domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 2}
 	for _, test := range []struct {
 		name   string
-		rooms  domain.Fact[policy.RoomObservation]
+		cells  []domain.Cell
 		reason Verdict
 		cell   domain.Cell
 	}{
-		{"hosting room only", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"shared barracks", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), noSpace("hosting_room"), domain.Cell{}},
-		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
+		{"planned room only", []domain.Cell{planned}, Verdict{}, planned},
+		{"no planned room", nil, noSpace("hosting_room"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
-			planner.concern, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "CraftingSpot", policy.PlacementIndoors, &workshop
+			planner.concern, planner.definition, planner.environment = policy.MaintainResource, "CraftingSpot", policy.PlacementIndoors
+			if test.cells != nil {
+				planner.cells = test.cells
+			} else {
+				planner.facility = &workshop
+			}
 			native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 			}
-			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(tomb, hosting), Rooms: test.rooms}
+			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(domain.Cell{X: 2, Z: 2})), Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(outside, planned)}
 			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)
 			}
 			if !reason.IsZero() {
 				if native.previews != 0 {
-					t.Fatal("previewed outside a hosting room", native.previews)
+					t.Fatal("previewed with no planned room", native.previews)
 				}
 				return
 			}
@@ -307,11 +311,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 			}
 		})
 	}
-	shell := &RoundsBuildingPlanner{concern: policy.MaintainResource, definition: "Wall", shelter: true}
 	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := shell.selection(facts); missing != 32 || method != "workshop-shell" || !reason.IsZero() {
-		t.Fatal(missing, method, reason)
-	}
 	bench := &RoundsBuildingPlanner{concern: policy.MaintainResource, definition: "CraftingSpot"}
 	if missing, method, reason := bench.selection(facts); missing != 1 || method != "workshop-CraftingSpot" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
@@ -326,9 +326,8 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	t.Parallel()
 	workshop, _ := policy.Facility(policy.RoomRoleWorkshop)
 	hosting := domain.Cell{X: 3, Z: 2}
-	rooms := domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}})
 	facts := func(tick domain.Tick) observation.ColonyProjection {
-		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(hosting)), Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}, Rooms: rooms}
+		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, LayoutPlan: domain.Known(centrePlan(hosting)), Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}}
 	}
 	rejectUnless := func(accepted domain.Rotation) func(context.Context, *bridge.BuildingPreview) {
 		return func(_ context.Context, p *bridge.BuildingPreview) {
@@ -340,6 +339,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	t.Run("bench turns east", func(t *testing.T) {
 		planner, _, session, _, native := sleepingFixture(t)
 		planner.concern, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
+		planner.cells = []domain.Cell{hosting}
 		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
 		native.onPreview = rejectUnless(domain.East)
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
@@ -354,6 +354,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	t.Run("no facing fits", func(t *testing.T) {
 		planner, _, session, _, native := sleepingFixture(t)
 		planner.concern, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
+		planner.cells = []domain.Cell{hosting}
 		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
 		native.onPreview = rejectUnless("")
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
@@ -364,6 +365,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	t.Run("comfort keeps north", func(t *testing.T) {
 		planner, _, session, _, native := sleepingFixture(t)
 		planner.concern, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &workshop
+		planner.cells = []domain.Cell{hosting}
 		native.onPreview = rejectUnless(domain.East)
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
 		if err != nil || reason != noSpace("placement_site") || len(selected) != 0 || native.previews != 1 {

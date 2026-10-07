@@ -13,8 +13,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// cookingFixture is a cold map's colony: the cooking campfire stands on the
+// planned shelter's template slot.
 func cookingFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sleepingNative) {
-	sleeping, db, _, _, native := sleepingFixture(t)
+	return cookingFixtureAt(t, coldShelterSite)
+}
+
+func cookingFixtureAt(t *testing.T, plan func(*Rounder, domain.Cell)) (*RoundsBuildingPlanner, *store.Store, *sleepingNative) {
+	sleeping, db, _, _, native := sleepingFixtureAt(t, plan)
 	v := native.reply.GetObserved()
 	foodPlanFixture(v)
 	issues := v.Issues[:0]
@@ -44,7 +50,9 @@ func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T
 	t.Parallel()
 	p, db, native := cookingFixture(t)
 	result, err := p.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews != 1 {
+	// Two previews: the shelter slot holds the campfire and the ring wave goes
+	// in right after it (#2303).
+	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews != 2 {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Project.Methods[0].Plan)
@@ -55,7 +63,7 @@ func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T
 	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Project.Project.Finding != domain.FindingUnmet {
 		t.Fatal(plan, result)
 	}
-	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || native.previews != 1 {
+	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || native.previews != 2 {
 		t.Fatal(next, err)
 	}
 }
@@ -112,7 +120,7 @@ func TestRoundsCookingRestagesBurntOutCampfire(t *testing.T) {
 		t.Fatal(err)
 	}
 	again, err := p.Step(ctx)
-	if err != nil || again.Verdict != BuildingReasonAdmitted || native.previews != 2 {
+	if err != nil || again.Verdict != BuildingReasonAdmitted || native.previews != 4 {
 		t.Fatal(again, err, native.previews)
 	}
 	// The burnt-out campfire's plan retired on the census (#856); the

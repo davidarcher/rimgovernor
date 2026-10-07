@@ -48,6 +48,30 @@ func sleepingSite(r *Rounder, _ domain.Cell) {
 	}
 }
 
+// coldShelterSite records a cold map's plan over the roofed site: one planned
+// shelter, whose template slot holds the cooking campfire (#2303).
+func coldShelterSite(r *Rounder, _ domain.Cell) {
+	plan := policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{
+		{Role: policy.PlannedShelter, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 5}, DoorRot: domain.North},
+	}}
+	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
+		panic(err)
+	}
+}
+
+// roomSite records a plan holding one room of role over the roofed site: the
+// facility ladder furnishes the planned room of its role (#2267).
+func roomSite(role policy.PlannedRole) func(*Rounder, domain.Cell) {
+	return func(r *Rounder, _ domain.Cell) {
+		plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
+			{Role: role, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
+		}}
+		if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
+			panic(err)
+		}
+	}
+}
+
 func anchorPlan() policy.LayoutPlan {
 	return policy.LayoutPlan{
 		Rooms: []policy.PlannedRoom{
