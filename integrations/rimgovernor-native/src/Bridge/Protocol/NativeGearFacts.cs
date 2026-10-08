@@ -15,6 +15,9 @@ namespace HomeBridge.BridgeTools
     {
         internal static Obs.GearSnapshot Read(Map map, Common.ObservationContext context)
         {
+            long mark = System.Diagnostics.Stopwatch.GetTimestamp(), screenTicks = 0, scoreTicks = 0, reachTicks = 0, availTicks = 0, identTicks = 0, comfyTicks = 0, policyTicks = 0, equipTicks = 0, modelTicks = 0, rowTicks = 0;
+            long Lap() { var now = System.Diagnostics.Stopwatch.GetTimestamp(); var spent = now - mark; mark = now; return spent; }
+            using var memo = new CensusMemo();
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
             var result = new Obs.GearSnapshot { Context = context.Clone()};
             ReadClimate(map, result);
@@ -34,24 +37,31 @@ namespace HomeBridge.BridgeTools
             foreach (var group in stored)
                 result.StoredApparel.Rows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
                     Quality = group.Key.Quality, HpBand = group.Key.Band, Count = group.Sum(a => a.stackCount) });
+            ObservationWork.Detail("cf.gear.stored", Lap());
             // The census carries each candidate's supply token the way the
             // supply census does (issue #233); the WEAR pawn order (#939)
             // does not check it.
             foreach (var pawn in people) {
-                var refusal = GearUpkeepTools.Available(pawn);
+                Lap();
+                var refusal = GearUpkeepTools.Available(pawn); availTicks += Lap();
+                var token = GearUpkeepTools.Identity(pawn); identTicks += Lap();
+                var comfyMin = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)); var comfyMax = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)); comfyTicks += Lap();
+                var policy = pawn.outfits?.CurrentApparelPolicy == null ? null : NativeApparelPolicyOperations.Read(pawn); policyTicks += Lap();
+                var equipment = Equipment(pawn); equipTicks += Lap();
                 var row = new Obs.GearLoadout {
                     Pawn = NativeRef.Thing(pawn),
-                    Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = Id(pawn.GetUniqueLoadID()), Token = GearUpkeepTools.Identity(pawn) },
-                    ComfortableMinC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
-                    ComfortableMaxC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
-                    ApparelPolicy = pawn.outfits?.CurrentApparelPolicy == null ? null : NativeApparelPolicyOperations.Read(pawn),
-                    Equipment = Equipment(pawn),
+                    Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = Id(pawn.GetUniqueLoadID()), Token = token },
+                    ComfortableMinC = comfyMin,
+                    ComfortableMaxC = comfyMax,
+                    ApparelPolicy = policy,
+                    Equipment = equipment,
                     // The wear inputs the apparel rows cannot say: Go applies the
                     // wear filter (gender, stage, body part groups) from the rows.
                     Gender = (Defs.Gender)(int)pawn.gender,
                     DevelopmentalStage = (Defs.DevelopmentalStage)(int)pawn.DevelopmentalStage
                 };
                 row.BodyPartGroups.Add(PresentGroups(pawn));
+                rowTicks += Lap();
                 if (refusal != null) row.Blocker = Text(refusal);
                 if (refusal == null) {
                     // Every eligible loose item is offered, best gain first
@@ -67,18 +77,35 @@ namespace HomeBridge.BridgeTools
                     var candidates = GearUpkeepTools.WithGainScorer(pawn, score => {
                         var found = new List<KeyValuePair<Thing, float>>();
                         foreach (var apparel in apparelOnMap) {
-                            if (GearUpkeepTools.Screened(pawn, apparel) != null) continue;
+                            var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                            var screened = GearUpkeepTools.Screened(pawn, apparel) != null;
+                            var t1 = System.Diagnostics.Stopwatch.GetTimestamp(); screenTicks += t1 - t0;
+                            if (screened) continue;
                             var gain = score(apparel);
+                            var t2 = System.Diagnostics.Stopwatch.GetTimestamp(); scoreTicks += t2 - t1;
                             if (gain >= .05f && GearUpkeepTools.Reachable(pawn, apparel)) found.Add(new KeyValuePair<Thing, float>(apparel, gain));
+                            reachTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t2;
                         }
                         return found;
                     });
                     foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber))
                         row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) });
                 }
+                Lap();
                 row.LoadoutModel = Model(map, pawn, row, catalog, byId, billOptions);
+                modelTicks += Lap();
                 result.Pawns.Add(row);
             }
+            ObservationWork.Detail("cf.gear.rows", rowTicks);
+            ObservationWork.Detail("cf.gear.available", availTicks);
+            ObservationWork.Detail("cf.gear.identity", identTicks);
+            ObservationWork.Detail("cf.gear.comfy", comfyTicks);
+            ObservationWork.Detail("cf.gear.policy", policyTicks);
+            ObservationWork.Detail("cf.gear.equipment", equipTicks);
+            ObservationWork.Detail("cf.gear.screen", screenTicks);
+            ObservationWork.Detail("cf.gear.score", scoreTicks);
+            ObservationWork.Detail("cf.gear.reach", reachTicks);
+            ObservationWork.Detail("cf.gear.model", modelTicks);
             return result;
         }
 

@@ -16,12 +16,12 @@ namespace HomeBridge.BridgeTools
     internal static class NativeApparelPolicyOperations
     {
         private static string Hash(string s) { using (var h = SHA256.Create()) return BitConverter.ToString(h.ComputeHash(Encoding.UTF8.GetBytes(s))).Replace("-", ""); }
-        internal static string Signature(ApparelPolicy p) => Hash(p.label + "|" + string.Join(",", p.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d))
+        internal static string Signature(ApparelPolicy p) => CensusMemo.Of(("signature", (object?)p), () => Hash(p.label + "|" + string.Join(",", p.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d))
             + "|" + string.Join(",", DefDatabase<SpecialThingFilterDef>.AllDefs.Where(d => !p.filter.Allows(d)).Select(d => d.defName).OrderBy(d => d))
             + "|" + p.filter.AllowedHitPointsPercents.min.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
-            + "|" + p.filter.AllowedHitPointsPercents.max.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "|" + p.filter.AllowedQualityLevels);
-        internal static string Token(Pawn p) => Hash(GearUpkeepTools.Identity(p) + "|" + string.Join(";",
-            Current.Game.outfitDatabase.AllOutfits.OrderBy(o => o.id).Select(o => o.GetUniqueLoadID() + ":" + Signature(o))));
+            + "|" + p.filter.AllowedHitPointsPercents.max.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "|" + p.filter.AllowedQualityLevels));
+        internal static string Token(Pawn p) => Hash(GearUpkeepTools.Identity(p) + "|" + CensusMemo.Of(("outfits", (object?)null), () => string.Join(";",
+            Current.Game.outfitDatabase.AllOutfits.OrderBy(o => o.id).Select(o => o.GetUniqueLoadID() + ":" + Signature(o)))));
         internal static Obs.ApparelPolicyState Read(Pawn p)
         {
             var outfit = p.outfits?.CurrentApparelPolicy;
@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                 ? p.Ideo.PreceptsListForReading.OfType<Precept_Apparel>().Where(v => v.apparelDef != null).Select(v => v.apparelDef.defName) : Enumerable.Empty<string>());
             // What the pawn's title, role and precepts require, by def; Go keeps
             // those it can wear (the apparel rows and its wear inputs).
-            foreach (var d in DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName))
+            foreach (var d in CensusMemo.Of(("apparelDefs", (object?)null), () => DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName).ToList()))
                 if (precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))) row.RequiredDefs.Add(d.defName);
             row.Drafted = p.Drafted;
             if (p.workSettings != null) foreach (var d in DefDatabase<WorkTypeDef>.AllDefs) row.Work.Add(new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) });

@@ -595,6 +595,27 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, equal = steps.All(s => (bool)s.GetType().GetProperty("equal")!.GetValue(s)!), steps };
             }, cancellationToken);
 
+        // The gear census memo's equality probe (#1575): the colony's gear
+        // snapshot read with the per-read memo on and then off, in one
+        // game-thread call, must be byte-identical.
+        [Tool("test/gear_memo_equality", Description = "Compare the gear census bytes with the read memo on and off.")]
+        public async Task<object> GearMemoEquality(IRimBridgeContext ctx, CancellationToken cancellationToken)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
+                    throw new System.InvalidOperationException(unavailable.Detail);
+                byte[] Read(bool off)
+                {
+                    CensusMemo.Off = off;
+                    try { return Google.Protobuf.MessageExtensions.ToByteArray(NativeGearFacts.Read(map, context)); }
+                    finally { CensusMemo.Off = false; }
+                }
+                var on = Read(false);
+                var fresh = Read(true);
+                return (object)new { success = true, equal = on.SequenceEqual(fresh), onBytes = on.Length, freshBytes = fresh.Length };
+            }, cancellationToken);
+
         private static double Ms(long stopwatchTicks) => stopwatchTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
     }
 }

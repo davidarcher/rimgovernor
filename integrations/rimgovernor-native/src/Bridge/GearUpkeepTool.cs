@@ -18,15 +18,18 @@ namespace HomeBridge.BridgeTools
     /// <summary>Native loadout inspection and guarded ordinary apparel jobs.</summary>
     public sealed class GearUpkeepTools
     {
-        internal static string Identity(Pawn p)
+        internal static string Identity(Pawn p) => CensusMemo.Of(("identity", (object?)p), () => ComputeIdentity(p));
+
+        private static string ComputeIdentity(Pawn p)
         {
             var parts = new List<string> { Current.Game.GetComponent<ColonyIdentity>().LoadToken, p.Map.uniqueID.ToString(),
                 p.GetUniqueLoadID(), p.outfits?.CurrentApparelPolicy?.GetUniqueLoadID() ?? "none",
                 p.equipment?.Primary?.GetUniqueLoadID() ?? "none" };
             var filter = p.outfits?.CurrentApparelPolicy?.filter;
             if (filter != null) {
-                parts.Add(string.Join(",", filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d)));
-                parts.Add(string.Join(",", DefDatabase<SpecialThingFilterDef>.AllDefs.Where(d => !filter.Allows(d)).Select(d => d.defName).OrderBy(d => d)));
+                var policy = p.outfits!.CurrentApparelPolicy;
+                parts.Add(CensusMemo.Of(("allowed", (object?)policy), () => string.Join(",", filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d))));
+                parts.Add(CensusMemo.Of(("special", (object?)policy), () => string.Join(",", DefDatabase<SpecialThingFilterDef>.AllDefs.Where(d => !filter.Allows(d)).Select(d => d.defName).OrderBy(d => d))));
                 parts.Add(filter.AllowedHitPointsPercents.min.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
                 parts.Add(filter.AllowedHitPointsPercents.max.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
                 parts.Add(filter.AllowedQualityLevels.ToString());
