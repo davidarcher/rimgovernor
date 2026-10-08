@@ -282,6 +282,22 @@ a mode. A held entity whose held or studiable fact is unread makes the
 requirement unknown: the work review reports `study_work` unavailable and
 files a `routine_skip` row (`entity_study_unread`) at warn.
 
+**Monolith rule (#2437).** `policy.MonolithAdvanceOwed` advances the void
+monolith inside MaintainPopulation's custody step, after custody and
+containment upkeep. The game's own `CanActivate` (codex requirement, blocking
+conditions) decides every level: an Inactive monolith is investigated
+(`InvestigateMonolith`, whose dialog's first option starts the activation) and
+every later level activated (`ActivateMonolith`), each as one recovery-service
+give-job on `MonolithState.monolith_id`. The activation into VoidAwakened is
+the awakening: irreversible, so it is ordered only when defense capacity
+reaches `AwakenStrengthFactor` (1.25, the largest points factor of an
+`EndGame_VoidAwakening` wave) times the raid points the waves draw from, no
+threat stands, no entity is free or escaping and no cell door stands open. The
+awakening's confirmation `Dialog_MessageBox` is answered as a dialog; the
+rule is inert in Ambient Horror mode, and an unread fact is a
+`monolith_advance_unread` row, never a guess. Disrupting at the void node
+belongs to the later void-structure work.
+
 ### Bedrooms and sleeping upkeep
 
 A bedroom step (`NextBedroomStep`, `NextMigrateStep`, the suite claims) owes

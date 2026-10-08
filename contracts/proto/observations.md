@@ -598,7 +598,8 @@ reached, questline ended, ticks since the last level change, ambient horror
 mode, anomaly study enabled, the threat fraction the game gives Anomaly
 incidents now, void awakening, an awoken corpse, whether a new metalhorror
 implant can occur) and `monolith` (#2436, absent unless the monolith is
-spawned: `can_activate` from `Building_VoidMonolith.CanActivate`; the next level
+spawned: the monolith's `monolith_id` (#2437, the thing a give-job targets);
+`can_activate` from `Building_VoidMonolith.CanActivate`; the next level
 def from `GameComponent_Anomaly.NextLevelDef` with the codex category and count
 its def requires and the entries still undiscovered; the active game conditions
 the next level lists as unreachable, e.g. `UnnaturalDarkness` for VoidAwakened;

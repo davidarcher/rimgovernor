@@ -105,7 +105,7 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 	if choice.Reason == policy.CustodyNoDeficit {
 		// No custody work stands: a held entity's cell door and wounds are
 		// the upkeep left (#1743).
-		return r.stepContainment(call, epoch, p, state, started, goal, read.Projection.Facts.Containment, read.Projection.Facts.Research, arbiter)
+		return r.stepContainment(call, epoch, p, state, started, goal, read.Projection.Facts, arbiter)
 	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:

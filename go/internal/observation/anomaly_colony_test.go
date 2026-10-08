@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -126,7 +127,7 @@ func TestAnomalyMonolithProjection(t *testing.T) {
 	}
 	f.Monolith = &o.MonolithState{CanActivate: proto.Bool(false), NextLevelDef: proto.String("VoidAwakened"), NextLevelCodexCategory: proto.String("Advanced"),
 		NextLevelCodexRequired: proto.Uint32(12), CodexShortfall: proto.Uint32(5), BlockingConditions: []string{"UnnaturalDarkness"},
-		GleamingInteractionAvailable: proto.Bool(false), VoidStructures: proto.Uint32(2), VoidStructuresActivated: proto.Uint32(1), VoidNodeExists: proto.Bool(false)}
+		GleamingInteractionAvailable: proto.Bool(false), VoidStructures: proto.Uint32(2), VoidStructuresActivated: proto.Uint32(1), VoidNodeExists: proto.Bool(false), MonolithId: proto.String("Thing_VoidMonolith1")}
 	v, err = decode()
 	if err != nil {
 		t.Fatal(err)
@@ -137,6 +138,9 @@ func TestAnomalyMonolithProjection(t *testing.T) {
 	}
 	if can, ok := m.CanActivate.Value(); !ok || can {
 		t.Fatal("can_activate lost")
+	}
+	if id, ok := m.MonolithID.Value(); !ok || id != "Thing_VoidMonolith1" {
+		t.Fatal("monolith id lost")
 	}
 	if n, ok := m.CodexShortfall.Value(); !ok || n != 5 {
 		t.Fatal("codex shortfall lost")
@@ -156,6 +160,7 @@ func TestAnomalyMonolithProjection(t *testing.T) {
 		"activated above structures": func() { f.Monolith.VoidStructuresActivated = proto.Uint32(3) },
 		"negative stage":             func() { f.Monolith.VoidAwakeningStage = proto.Int32(-1) },
 		"duplicate condition":        func() { f.Monolith.BlockingConditions = []string{"UnnaturalDarkness", "UnnaturalDarkness"} },
+		"blank monolith id":          func() { f.Monolith.MonolithId = proto.String(" ") },
 	} {
 		saved := proto.Clone(f).(*o.AnomalyColonyFacts)
 		change()
@@ -164,5 +169,30 @@ func TestAnomalyMonolithProjection(t *testing.T) {
 		}
 		proto.Reset(f)
 		proto.Merge(f, saved)
+	}
+}
+
+func TestMonolithFactsJoinTheLevelStateAndTheMonolithRead(t *testing.T) {
+	if _, ok := monolithFacts(domain.Fact[AnomalyColony]{}).Value(); ok {
+		t.Fatal("a missing Anomaly section became known")
+	}
+	colony := AnomalyColony{Incidents: domain.Known(AnomalyIncidents{MonolithSpawned: domain.Known(true), AmbientHorrorMode: domain.Known(false), Level: domain.Known(int32(1))}),
+		Monolith: domain.Known(MonolithState{MonolithID: domain.Known("Thing_VoidMonolith1"), CanActivate: domain.Known(true), NextLevelDef: domain.Known("Waking"), BlockingConditions: []string{"UnnaturalDarkness"}})}
+	f, ok := monolithFacts(domain.Known(colony)).Value()
+	if !ok {
+		t.Fatal("monolith facts lost")
+	}
+	if id, _ := f.ID.Value(); id != "Thing_VoidMonolith1" {
+		t.Fatal(id)
+	}
+	if level, _ := f.Level.Value(); level != 1 {
+		t.Fatal(level)
+	}
+	if next, _ := f.NextLevel.Value(); next != "Waking" || len(f.Blocking) != 1 {
+		t.Fatal(next, f.Blocking)
+	}
+	colony.Monolith = domain.Fact[MonolithState]{}
+	if f, _ := monolithFacts(domain.Known(colony)).Value(); policy.MonolithAdvanceOwed(domain.Known(f), policy.AwakenGate{}).Order != "" {
+		t.Fatal("an unread monolith read ordered a job")
 	}
 }

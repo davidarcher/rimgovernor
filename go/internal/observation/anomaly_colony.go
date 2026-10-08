@@ -2,6 +2,7 @@ package observation
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -45,6 +46,8 @@ type MonolithState struct {
 	VoidStructuresActivated      domain.Fact[uint32]
 	VoidNodeExists               domain.Fact[bool]
 	VoidAwakeningStage           domain.Fact[int32]
+	// MonolithID is the thing a give-job targets (#2437).
+	MonolithID domain.Fact[string]
 }
 
 // KnowledgeProgress is one knowledge category: the project the research
@@ -77,6 +80,25 @@ type AnomalyIncidents struct {
 	ThreatFractionNow                                                       domain.Fact[float64]
 }
 
+// monolithFacts is the monolith rule's input (#2437): the level state of
+// GameComponent_Anomaly and the monolith's own read; unknown without the
+// Anomaly section.
+func monolithFacts(section domain.Fact[AnomalyColony]) domain.Fact[policy.MonolithFacts] {
+	a, ok := section.Value()
+	if !ok {
+		return domain.Fact[policy.MonolithFacts]{}
+	}
+	out := policy.MonolithFacts{Spawned: domain.Unknown[bool](), AmbientHorror: domain.Unknown[bool](), Level: domain.Unknown[int32](), ID: domain.Unknown[string](),
+		CanActivate: domain.Unknown[bool](), NextLevel: domain.Unknown[string](), CodexShortfall: domain.Unknown[uint32]()}
+	if i, ok := a.Incidents.Value(); ok {
+		out.Spawned, out.AmbientHorror, out.Level = i.MonolithSpawned, i.AmbientHorrorMode, i.Level
+	}
+	if m, ok := a.Monolith.Value(); ok {
+		out.ID, out.CanActivate, out.NextLevel, out.CodexShortfall, out.Blocking = m.MonolithID, m.CanActivate, m.NextLevelDef, m.CodexShortfall, m.BlockingConditions
+	}
+	return domain.Known(out)
+}
+
 // colonyAnomaly projects a validated section; an absent or unavailable one is
 // an unknown fact.
 func colonyAnomaly(section *o.AnomalySection) domain.Fact[AnomalyColony] {
@@ -104,7 +126,7 @@ func colonyAnomaly(section *o.AnomalySection) domain.Fact[AnomalyColony] {
 		r.Monolith = domain.Known(MonolithState{CanActivate: optional(m.CanActivate), NextLevelDef: optional(m.NextLevelDef), NextLevelCodexCategory: optional(m.NextLevelCodexCategory),
 			NextLevelCodexRequired: optional(m.NextLevelCodexRequired), CodexShortfall: optional(m.CodexShortfall), BlockingConditions: m.BlockingConditions,
 			GleamingInteractionAvailable: optional(m.GleamingInteractionAvailable), VoidStructures: optional(m.VoidStructures), VoidStructuresActivated: optional(m.VoidStructuresActivated),
-			VoidNodeExists: optional(m.VoidNodeExists), VoidAwakeningStage: optional(m.VoidAwakeningStage)})
+			VoidNodeExists: optional(m.VoidNodeExists), VoidAwakeningStage: optional(m.VoidAwakeningStage), MonolithID: optional(m.MonolithId)})
 	}
 	return domain.Known(r)
 }

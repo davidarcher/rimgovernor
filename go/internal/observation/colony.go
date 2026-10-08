@@ -473,6 +473,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.WildArea = allowedAreaID(r.Policies, policy.WildAreaLabel)
 	r.Facts.IsolationArea = allowedAreaID(r.Policies, policy.IsolationAreaLabel)
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
+	r.Facts.Monolith = monolithFacts(r.Anomaly)
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()
 	wealthBuildings, buildingsKnown := threat.WealthBuildings.Value()

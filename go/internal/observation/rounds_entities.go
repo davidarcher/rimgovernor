@@ -24,7 +24,7 @@ func capturableEntities(rows iter.Seq[*o.PawnState]) domain.Fact[[]policy.Captur
 			continue
 		}
 		e := policy.CapturableEntity{Pawn: domain.PawnID(row.GetPawn().GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed), CanBeCaptured: domain.Unknown[bool](), Held: domain.Unknown[bool](), Need: a.MinContainmentStrength, CurrentlyStudiable: domain.Unknown[bool](),
-			NeedsTend: domain.Unknown[bool](), Bleeding: domain.Unknown[bool](),
+			NeedsTend: domain.Unknown[bool](), Bleeding: domain.Unknown[bool](), Escaping: domain.Unknown[bool](),
 			Mode: domain.Unknown[policy.ContainmentMode](), ExtractBioferrite: domain.Unknown[bool](), HarvesterAttached: domain.Unknown[bool](), BioferritePerDay: domain.Unknown[float64]()}
 		if study, known := a.Study.Value(); known {
 			e.CurrentlyStudiable = domain.Known(false)
@@ -40,7 +40,7 @@ func capturableEntities(rows iter.Seq[*o.PawnState]) domain.Fact[[]policy.Captur
 					e.CanBeCaptured, e.Held = domain.Known(false), domain.Known(false)
 				}
 			} else {
-				e.CanBeCaptured, e.Held, e.NeedsTend, e.Bleeding = held.CanBeCaptured, held.Held, held.NeedsTend, held.Bleeding
+				e.CanBeCaptured, e.Held, e.NeedsTend, e.Bleeding, e.Escaping = held.CanBeCaptured, held.Held, held.NeedsTend, held.Bleeding, held.Escaping
 				e.Mode, e.ExtractBioferrite, e.HarvesterAttached, e.BioferritePerDay = held.Mode, held.ExtractBioferrite, held.HarvesterAttached, held.BioferritePerDay
 			}
 		}

@@ -33,8 +33,9 @@ type DialogAnswerPolicy struct{ Prefer []string }
 // by Core translation key: dismiss an informational dialog, move on from a
 // met caravan rather than trade or attack, keep watching past a game-over
 // prompt, and pay a demand rather than fight a caravan the colony did not
-// choose to arm.
-var DefaultDialogAnswerPrefer = []string{"OK", "Ignore", "CaravanMeeting_MoveOn", "GameOverKeepWatching", "CaravanDemand_Give"}
+// choose to arm. Close dismisses a monolith level letter without opening a
+// main tab (#2437).
+var DefaultDialogAnswerPrefer = []string{"OK", "Close", "Ignore", "CaravanMeeting_MoveOn", "GameOverKeepWatching", "CaravanDemand_Give"}
 
 // DialogPatternMatches reports whether one Prefer pattern names the option.
 func DialogPatternMatches(pattern string, option DialogOption) bool {

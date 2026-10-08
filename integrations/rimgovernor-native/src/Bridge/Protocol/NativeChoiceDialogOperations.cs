@@ -8,13 +8,14 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // DialogIntent (#941): activates one exact observed option of the single
-    // force-pausing Verse.Dialog_NodeTree the game opened by itself (#156).
+    // force-pausing Verse.Dialog_NodeTree the game opened by itself (#156), or
+    // the void awakening confirmation box (#2437).
     // The exact window/index/label stand in for an entity precondition and
     // any drift is a refusal, never a different answer. An intent carrying a
     // joiner letter token goes to NativeJoinerLetters instead.
     internal sealed class DialogActionHandler : IActionHandler
     {
-        private static Common.Failure? Resolve(Operations.DialogIntent? c, out Dialog_NodeTree dialog, out DiaOption option)
+        private static Common.Failure? Resolve(Operations.DialogIntent? c, out Window dialog, out DiaOption option)
         {
             dialog = null!; option = null!;
             if (c == null || !c.HasWindowId || !c.HasOptionIndex || !c.HasOptionLabel)
@@ -38,7 +39,7 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(c, out var dialog, out var option);
             if (failure != null) throw new InvalidOperationException("Dialog prerequisites changed before apply: " + failure.Detail);
             var node = ChoiceDialogTools.Node(dialog);
-            ChoiceDialogTools.Activate(option);
+            ChoiceDialogTools.Activate(dialog, option);
             var open = Find.WindowStack != null && Find.WindowStack.Windows.Contains(dialog);
             var advanced = open && !ReferenceEquals(ChoiceDialogTools.Node(dialog), node);
             if (open && !advanced) throw new InvalidOperationException("The activated option neither closed nor advanced the dialog.");

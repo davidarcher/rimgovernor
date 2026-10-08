@@ -55,3 +55,22 @@ func TestChooseDialogOptionMatchesTranslationKeysAndPrefersResolving(t *testing.
 		t.Fatal("a linking option answers when nothing resolves", got, ok)
 	}
 }
+
+// The monolith's dialogs answer by key (#2437): the investigate node tree
+// takes its first option, the awakening confirmation confirms rather than goes
+// back, and the level letter closes instead of opening a main tab.
+func TestDefaultPolicyAnswersTheMonolithDialogs(t *testing.T) {
+	prefer := DialogAnswerPolicy{Prefer: DefaultDialogAnswerPrefer}
+	investigate := []DialogOption{{Index: 0, Label: "Investigate", Selectable: true, Resolves: true}, {Index: 1, Label: "Walk away", Selectable: true, Resolves: true}}
+	if got, ok := ChooseDialogOption(investigate, prefer); !ok || got.Index != 0 {
+		t.Fatal(got, ok)
+	}
+	awaken := []DialogOption{{Index: 0, Label: "Confirm", Keys: []string{"Confirm"}, Selectable: true, Resolves: true}, {Index: 1, Label: "Go back", Keys: []string{"GoBack"}, Selectable: true, Resolves: true}}
+	if got, ok := ChooseDialogOption(awaken, prefer); !ok || got.Index != 0 {
+		t.Fatal(got, ok)
+	}
+	letter := []DialogOption{{Index: 0, Label: "View quest", Keys: []string{"VoidMonolithViewQuest"}, Selectable: true, Resolves: true}, {Index: 1, Label: "Close", Keys: []string{"Close"}, Selectable: true, Resolves: true}}
+	if got, ok := ChooseDialogOption(letter, prefer); !ok || got.Index != 1 {
+		t.Fatal(got, ok)
+	}
+}

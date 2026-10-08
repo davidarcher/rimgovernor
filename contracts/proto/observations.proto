@@ -1648,7 +1648,10 @@ message AnomalyIncidentState {
 // void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
 // structure spawned yet, else one more than the highest stageStructure.N quest
 // tag on a spawned structure; absent when the quest is not running.
+// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets
+// (#2437).
 message MonolithState {
+  optional string monolith_id = 12;
   optional bool can_activate = 1; optional string next_level_def = 2; optional string next_level_codex_category = 3;
   optional uint32 next_level_codex_required = 4; optional uint32 codex_shortfall = 5; repeated string blocking_conditions = 6;
   optional bool gleaming_interaction_available = 7; optional uint32 void_structures = 8; optional uint32 void_structures_activated = 9;

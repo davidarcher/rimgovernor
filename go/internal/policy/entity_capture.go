@@ -47,6 +47,8 @@ type CapturableEntity struct {
 	Need                              domain.Fact[float64]
 	// NeedsTend and Bleeding are the held entity's health (#1743).
 	NeedsTend, Bleeding domain.Fact[bool]
+	// Escaping is the held entity's EscapeChance flag (#2437).
+	Escaping domain.Fact[bool]
 	// CurrentlyStudiable is CompStudiable.CurrentlyStudiable (#1744); a
 	// known false for an entity with no study block.
 	CurrentlyStudiable domain.Fact[bool]

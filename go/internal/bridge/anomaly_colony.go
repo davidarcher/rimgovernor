@@ -61,7 +61,7 @@ func validateAnomalyColony(v *o.ColonyFactsSnapshot) error {
 				}
 				seenCondition[name] = true
 			}
-			if m.NextLevelDef != nil && validID(m.GetNextLevelDef()) != nil || m.NextLevelCodexCategory != nil && validID(m.GetNextLevelCodexCategory()) != nil ||
+			if m.MonolithId != nil && validID(m.GetMonolithId()) != nil || m.NextLevelDef != nil && validID(m.GetNextLevelDef()) != nil || m.NextLevelCodexCategory != nil && validID(m.GetNextLevelCodexCategory()) != nil ||
 				(m.NextLevelCodexCategory == nil) != (m.NextLevelCodexRequired == nil) || (m.NextLevelCodexCategory == nil) != (m.CodexShortfall == nil) ||
 				m.CodexShortfall != nil && m.GetCodexShortfall() > m.GetNextLevelCodexRequired() ||
 				m.VoidStructuresActivated != nil && m.GetVoidStructuresActivated() > m.GetVoidStructures() || m.VoidAwakeningStage != nil && m.GetVoidAwakeningStage() < 0 {

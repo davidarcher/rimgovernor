@@ -60,6 +60,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!anomaly.MonolithSpawned || anomaly.monolith is not Building_VoidMonolith monolith || monolith.Map is not Map map) return null;
             var row = new Obs.MonolithState { CanActivate = monolith.CanActivate(out _, out _) };
+            if (Id(monolith.GetUniqueLoadID()) is string monolithId) row.MonolithId = monolithId;
             if (anomaly.NextLevelDef is MonolithLevelDef next) {
                 if (Id(next.defName) is string name) row.NextLevelDef = name;
                 if (next.entityCatagoryCompletionRequired is EntityCategoryDef category && Id(category.defName) is string categoryName) {

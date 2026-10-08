@@ -427,6 +427,8 @@ type RoundsFacts struct {
 	TitleClaimQuests []domain.QuestID
 	JoinerLetters    domain.Fact[[]JoinerLetterOffer]
 	RaidPoints       domain.Fact[float64]
+	// Monolith is the void monolith's state (#2437); unknown without Anomaly.
+	Monolith domain.Fact[MonolithFacts]
 	// ShellsShort is the armory shell review (#1207): a built mortar's shell
 	// stock below half its target puts MaintainEquipment in deficit.
 	ShellsShort domain.Fact[bool]

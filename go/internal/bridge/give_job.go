@@ -28,6 +28,10 @@ const (
 	// Recovery service and waste hauling (#1351).
 	JobFixBrokenDownBuilding = "FixBrokenDownBuilding"
 	JobRefuel                = "Refuel"
+	// The void monolith's orders (#2437): the Inactive monolith is
+	// investigated, every later level activated.
+	JobInvestigateMonolith = "InvestigateMonolith"
+	JobActivateMonolith    = "ActivateMonolith"
 )
 
 // giveJob is the GiveJobIntent of one pawn, one vanilla job and its targets

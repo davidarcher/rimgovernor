@@ -2,9 +2,9 @@ package domain
 
 import "errors"
 
-// RecoveryMethod names the three native disaster-recovery service jobs an
-// already-selected pawn can be sent to run on an already-selected building:
-// ordinary repair, breakdown restoration and refuel. It mirrors
+// RecoveryMethod names the native service jobs an already-selected pawn can be
+// sent to run on an already-selected building: ordinary repair, breakdown
+// restoration, refuel and the void monolith's two orders. It mirrors
 // policy.RecoveryMethod's string values; domain cannot import policy, so the
 // two are kept in sync by convention and converted at the boundary.
 type RecoveryMethod string
@@ -13,6 +13,10 @@ const (
 	RecoveryServiceRepair    RecoveryMethod = "repair"
 	RecoveryServiceBreakdown RecoveryMethod = "breakdown"
 	RecoveryServiceRefuel    RecoveryMethod = "refuel"
+	// The void monolith's two orders (#2437): the Inactive monolith is
+	// investigated, every later level activated.
+	RecoveryServiceInvestigateMonolith RecoveryMethod = "investigate_monolith"
+	RecoveryServiceActivateMonolith    RecoveryMethod = "activate_monolith"
 )
 
 // RecoveryService is explicit intent to send one already-observed undrafted
@@ -30,7 +34,7 @@ func NewRecoveryService(pawn PawnID, thing string, method RecoveryMethod) (Recov
 		return RecoveryService{}, errors.New("recovery service requires a valid pawn and thing identity")
 	}
 	switch method {
-	case RecoveryServiceRepair, RecoveryServiceBreakdown, RecoveryServiceRefuel:
+	case RecoveryServiceRepair, RecoveryServiceBreakdown, RecoveryServiceRefuel, RecoveryServiceInvestigateMonolith, RecoveryServiceActivateMonolith:
 	default:
 		return RecoveryService{}, errors.New("recovery service requires a valid method")
 	}

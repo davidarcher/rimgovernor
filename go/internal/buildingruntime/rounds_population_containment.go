@@ -29,7 +29,8 @@ type RoundsCustodySource interface {
 // runs the job), then a held entity that needs tending is tended through the same
 // SelectTend a colonist patient takes. Facts upkeep cannot read, and a door
 // no order can clear, are logged loudly and are not a pass.
-func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, containment policy.ContainmentPlanning, research domain.Fact[policy.ResearchFacts], arbiter *stepArbiter) (RoundsPopulationCustodyResult, error) {
+func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, facts policy.RoundsFacts, arbiter *stepArbiter) (RoundsPopulationCustodyResult, error) {
+	containment, research := facts.Containment, facts.Research
 	upkeep := policy.ContainmentDoorUpkeep(containment)
 	for _, issue := range upkeep.Issues {
 		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "containment_upkeep_issue", fmt.Sprintf("%d,%d", issue.Cell.X, issue.Cell.Z), map[string]any{"x": issue.Cell.X, "z": issue.Cell.Z, "detail": issue.Reason})
@@ -76,6 +77,9 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 			return RoundsPopulationCustodyResult{}, err
 		}
 		return r.commit(call, epoch, p, state, started, goal, domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt)), id, action)
+	}
+	if result, ok, err := r.stepMonolith(call, epoch, p, state, started, goal, facts, arbiter); err != nil || ok {
+		return result, err
 	}
 	patient, ok := policy.EntityTendTarget(containment)
 	if !ok {
