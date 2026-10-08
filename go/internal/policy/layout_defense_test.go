@@ -77,7 +77,7 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	p.Reservations = append(p.Reservations, LayoutReservation{Kind: ReserveGeothermal, Area: Rectangle{X: 90, Z: 90, Width: 10, Height: 10}})
-	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 func TestPerimeterAirlock(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,51 +174,25 @@ func TestPerimeterAirlock(t *testing.T) {
 	}
 }
 
-// The hollow of a thick wall run is built before the cells that enclose it
-// (#1248): once those finish its frame would be sealed, unreachable by any
-// builder, and the section would never close.
-func TestPerimeterSectionsBuildTheHollowFirst(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
+// Every depth of a run is admitted together; native completion keeps access.
+func TestPerimeterSectionsKeepWallLayersTogether(t *testing.T) {
+	p := LayoutPlan{Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: Rectangle{X: 10, Z: 10, Width: 9, Height: 3}}}}
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
 	if err != nil {
 		t.Fatal(err)
 	}
-	built := map[domain.Cell]int{}
-	for i, s := range sections {
-		for _, b := range s.Buildings {
-			if b.Definition() != "Wall" {
-				continue
-			}
-			built[b.Cell()] = i
-		}
+	if len(sections) != 1 || len(sections[0].Buildings) != 27 {
+		t.Fatalf("all three layers must share one section: %+v", sections)
 	}
-	hollowSections := 0
-	for c, i := range built {
-		sealed := true
-		for dx := int32(-1); dx <= 1 && sealed; dx++ {
-			for dz := int32(-1); dz <= 1; dz++ {
-				if _, ok := built[domain.Cell{X: c.X + dx, Z: c.Z + dz}]; !ok {
-					sealed = false
-					break
-				}
-			}
-		}
-		if !sealed {
-			continue
-		}
-		hollowSections++
-		later := false
-		for dx := int32(-1); dx <= 1; dx++ {
-			for dz := int32(-1); dz <= 1; dz++ {
-				later = later || built[domain.Cell{X: c.X + dx, Z: c.Z + dz}] > i
-			}
-		}
-		if !later {
-			t.Fatalf("cell %v (section %d) is enclosed before it is built", c, i)
-		}
+	cells := map[domain.Cell]bool{}
+	for _, b := range sections[0].Buildings {
+		cells[b.Cell()] = true
 	}
-	if hollowSections == 0 {
-		t.Fatal("no hollow cell in the fixture ring")
+	for x := int32(10); x < 19; x++ {
+		for z := int32(10); z < 13; z++ {
+			if !cells[domain.Cell{X: x, Z: z}] {
+				t.Fatalf("missing cell %d,%d", x, z)
+			}
+		}
 	}
 }

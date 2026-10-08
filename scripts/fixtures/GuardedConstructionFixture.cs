@@ -10,7 +10,7 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only. This fixture never creates resources or edits pawn skills.
+    // Private disposable acceptance only. Prepare uses existing stock; WallLayers stages funded frames.
     public sealed class GuardedConstructionFixture
     {
         private static Game preparedGame;
@@ -76,6 +76,95 @@ namespace HomeBridge.BridgeTools
             },cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("test/wall_layers", Description = "UNSAFE FOR MODEL EXECUTION. Paused disposable lab only. prepare stages a funded, unfinished three-thick 9x9 wall ring with a three-cell open gate at the map centre and normal builder work. audit reads remaining frames, standing walls and colonist escape. controls directly attempts a completion that would strand a neighbouring frame, then completes an isolated frame with a pawn standing on it and reports vanilla relocation and escape.")]
+        public async Task<object> WallLayers(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused || map.Size.x != 100 || map.Size.z != 100)
+                    return Refuse("A paused 100x100 disposable lab is required.");
+                var centre = map.Center;
+                var ring = new List<IntVec3>();
+                for (var x = -4; x <= 4; x++)
+                    for (var z = -4; z <= 4; z++)
+                        if ((Math.Abs(x) >= 2 || Math.Abs(z) >= 2) && !(x == 0 && z <= -2))
+                            ring.Add(centre + new IntVec3(x, 0, z));
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
+                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && p.workSettings != null).ToList();
+                if (pawns.Count == 0) return Refuse("No capable lab builder.");
+                if (action == "prepare") {
+                    foreach (var pawn in pawns) {
+                        pawn.jobs.EndCurrentJob(Verse.AI.JobCondition.InterruptForced);
+                        pawn.Position = centre + new IntVec3(0, 0, -7);
+                        pawn.Notify_Teleported(true, true);
+                        pawn.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                        for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
+                    }
+                    foreach (var cell in ring) {
+                        ClearWallCell(map, cell);
+                        FundedFrame(map, cell);
+                        map.areaManager.Home[cell] = true;
+                    }
+                } else if (action == "controls") {
+                    var worker = pawns[0];
+                    var middle = centre + new IntVec3(12, 0, 0);
+                    var outlet = middle + IntVec3.North;
+                    foreach (var d in GenAdj.AdjacentCells) {
+                        var c = middle + d;
+                        ClearWallCell(map, c);
+                        if (c == outlet) continue;
+                        var wall = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
+                        wall.SetFaction(Faction.OfPlayer);
+                        GenSpawn.Spawn(wall, c, map);
+                    }
+                    ClearWallCell(map, middle);
+                    var inner = FundedFrame(map, middle);
+                    var closing = FundedFrame(map, outlet);
+                    worker.Position = outlet + IntVec3.North;
+                    worker.Notify_Teleported(true, true);
+                    closing.workDone = closing.WorkToBuild;
+                    closing.CompleteConstruction(worker);
+                    var refused = closing.Spawned && inner.Spawned;
+                    var skipped = !GenConstruct.CanConstruct(closing, worker, true, false, null);
+                    // Remove the whole negative control before the independent
+                    // pawn-on-frame observation: it must not supply the outcome.
+                    foreach (var c in GenAdj.AdjacentCells.Select(d => middle + d).Concat(new[] { middle }))
+                        ClearWallCell(map, c);
+                    var occupied = FundedFrame(map, middle);
+                    worker.Position = middle;
+                    worker.Notify_Teleported(true, true);
+                    occupied.CompleteConstruction(worker);
+                    return new { success = true, refused, skipped, completed = !occupied.Spawned
+                        && middle.GetEdifice(map)?.def == ThingDefOf.Wall,
+                        relocated = worker.Position != middle, pawnStandable = worker.Position.Standable(map),
+                        escaped = map.reachability.CanReachMapEdge(worker.Position, TraverseParms.For(worker)),
+                        before = new { x = middle.x, z = middle.z }, after = new { x = worker.Position.x, z = worker.Position.z } };
+                } else if (action != "audit") return Refuse("Unknown wall_layers action.");
+                var frames = ring.SelectMany(c => c.GetThingList(map)).OfType<Frame>().ToList();
+                return new { success = true, expected = ring.Count, frames = frames.Count,
+                    funded = frames.Count(f => f.TotalMaterialCost().All(cost => f.resourceContainer.TotalStackCountOfDef(cost.thingDef) >= cost.count)),
+                    standable = frames.Count(f => f.Position.Standable(map)),
+                    standing = ring.Count(c => c.GetEdifice(map)?.def == ThingDefOf.Wall),
+                    trapped = map.mapPawns.FreeColonistsSpawned.Count(p => !map.reachability.CanReachMapEdge(p.Position, TraverseParms.For(p))) };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static void ClearWallCell(Map map, IntVec3 cell)
+        {
+            foreach (var thing in cell.GetThingList(map).Where(t => !(t is Pawn)).ToList()) thing.Destroy();
+        }
+        private static Frame FundedFrame(Map map, IntVec3 cell)
+        {
+            var frame = (Frame)ThingMaker.MakeThing(ThingDefOf.Wall.frameDef, ThingDefOf.WoodLog);
+            frame.SetFaction(Faction.OfPlayer);
+            GenSpawn.Spawn(frame, cell, map);
+            foreach (var cost in frame.TotalMaterialCost()) {
+                var stack = ThingMaker.MakeThing(cost.thingDef);
+                stack.stackCount = cost.count;
+                frame.resourceContainer.TryAdd(stack, true);
+            }
+            return frame;
+        }
         private static object Refuse(string reason)=>new { success=false,reason };
     }
 }

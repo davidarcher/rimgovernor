@@ -59,6 +59,16 @@ actual pawn labor remain simulation outcomes.
 
 ## Room footprints
 
+Wall-frame definitions are standable so thick perimeter sections can place and
+fund all depths together (#2314). Under Auto, native completion projects the
+finished wall as blocked: neighbouring unfinished walls need a reachable
+standable touch cell, and reachable colonists must retain access to the builder's
+component or an escape from the completing footprint. Completed-work frames
+whose completion is refused are skipped until access is safe; delivery is never
+ordered by wall depth. Normal pawn jobs supply the work and vanilla owns pawn
+displacement at completion. `wall/layers` covers the native ring, completion veto
+and pawn-on-frame outcome; Go tests cover section geometry.
+
 Every planned shell is an exact-cell `RoomFootprint`: a 4-connected interior of
 1..3844 cells away from the map edge, a wall ring of every non-interior cell touching
 the interior orthogonally or diagonally, and one door on the ring whose inward

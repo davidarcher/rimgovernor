@@ -1,2 +1,2 @@
-// Package wall holds the wall removal and wall upgrade cases on the tribal baseline save.
+// Package wall verifies native wall removal, upgrades and thick-wall construction.
 package wall

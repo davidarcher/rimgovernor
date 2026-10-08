@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Linq;
 using HarmonyLib;
 using RimWorld;
 using Verse;
@@ -8,105 +9,94 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // WallLayerGuard (#2314): a thick wall can be laid, funded and worked all at
-    // once and still be built from the inside out. A builder needs a standable
-    // cell beside what it builds and a frame cannot be stood on, so the outer
-    // layer's frames would seal a middle layer that is not finished yet and the
-    // wall would never close. The guard refuses construction work (delivery
-    // and finishing alike) on a wall blueprint or frame while a deeper wall cell
-    // beside it is still unfinished. A blueprint is standable, so an outer layer
-    // that has received nothing stays walkable until the layer inside it stands.
-    //
-    // Depth is the orthogonal steps through wall cells to the nearest open cell:
-    // an outside corner touches open ground and is 1, an inside corner touches
-    // it only diagonally and is 2, so it goes before the two arms that would
-    // otherwise close it in.
+    // Funding is unrestricted. Completion must retain reachable work cells
+    // beside unfinished neighbours and an escape for nearby colonists (#2314).
     internal static class WallLayerGuard
     {
-        private const int MaxDepth = 8;
         private static bool patched;
-
         internal static void Install()
         {
             if (patched) return;
+            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading)
+                if (typeof(Frame).IsAssignableFrom(def.thingClass) && Wall(def.entityDefToBuild as ThingDef))
+                    def.passability = Traversability.Standable;
+            var harmony = new Harmony("rimgovernor.wall-layers");
+            harmony.Patch(
+                AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction)),
+                prefix: new HarmonyMethod(typeof(WallLayerGuard), nameof(Complete)));
+            harmony.Patch(AccessTools.Method(typeof(GenConstruct), nameof(GenConstruct.CanConstruct),
+                new[] { typeof(Thing), typeof(Pawn), typeof(bool), typeof(bool), typeof(JobDef) }),
+                postfix: new HarmonyMethod(typeof(WallLayerGuard), nameof(WorkAvailable)));
             patched = true;
-            new Harmony("rimgovernor.wall-layers").Patch(
-                AccessTools.Method(typeof(GenConstruct), nameof(GenConstruct.CanConstruct), new[] { typeof(Thing), typeof(Pawn), typeof(bool), typeof(bool), typeof(JobDef) }),
-                postfix: new HarmonyMethod(typeof(WallLayerGuard), nameof(Guard)));
         }
-
-        private static void Guard(Thing t, ref bool __result)
-        {
-            if (!__result || !Supervisor.IsActive || !UnfinishedWall(t)) return;
-            var map = t.Map;
-            if (map == null || !DeeperUnfinishedBeside(map, t.Position)) return;
-            JobFailReason.Is("inner wall layer first");
-            __result = false;
-        }
-
-        // UnfinishedWall is a player blueprint or frame of something impassable.
+        private static bool Wall(ThingDef? def) => def?.building != null
+            && def.passability == Traversability.Impassable && !def.building.isNaturalRock;
         internal static bool UnfinishedWall(Thing t) =>
             (t is Blueprint_Build || t is Frame) && t.Faction == Faction.OfPlayer
-            && (t.def.entityDefToBuild as ThingDef)?.passability == Traversability.Impassable;
-
-        // WallSolidAt is whether the cell is, or is to be, impassable: rock, a
-        // standing wall, or an unfinished wall.
-        private static bool WallSolidAt(Map map, IntVec3 cell)
+            && Wall(t.def.entityDefToBuild as ThingDef);
+        // A refused completion leaves the work done. Skip that finished-work
+        // frame until it is safe, so a builder can choose another frame instead
+        // of repeatedly finishing the same blocked one. Delivery stays legal.
+        private static void WorkAvailable(Thing t, Pawn p, ref bool __result)
         {
-            if (!cell.InBounds(map)) return false;
-            if (cell.Impassable(map)) return true;
-            var things = map.thingGrid.ThingsListAtFast(cell);
-            for (var i = 0; i < things.Count; i++)
-                if (UnfinishedWall(things[i])) return true;
+            if (__result && Supervisor.IsActive && t is Frame frame && UnfinishedWall(frame)
+                && frame.WorkLeft <= 0) __result = CanComplete(frame, p);
+        }
+        private static bool Complete(Frame __instance, Pawn worker)
+        {
+            if (!Supervisor.IsActive || !UnfinishedWall(__instance) || __instance.Map == null) return true;
+            if (CanComplete(__instance, worker)) return true;
+            JobFailReason.Is("wall completion would strand construction or a colonist");
             return false;
         }
-
-        private static bool HoldsUnfinishedWall(Map map, IntVec3 cell)
+        internal static bool CanComplete(Frame frame, Pawn worker)
         {
-            var things = map.thingGrid.ThingsListAtFast(cell);
-            for (var i = 0; i < things.Count; i++)
-                if (UnfinishedWall(things[i])) return true;
-            return false;
-        }
-
-        // Depth is the orthogonal steps through solid cells from the cell to the
-        // nearest open one.
-        private static int Depth(Map map, IntVec3 cell)
-        {
-            var seen = new HashSet<IntVec3> { cell };
-            var frontier = new List<IntVec3> { cell };
-            for (var steps = 1; steps <= MaxDepth; steps++)
-            {
-                var next = new List<IntVec3>();
-                foreach (var c in frontier)
-                {
-                    foreach (var n in new[] { new IntVec3(c.x + 1, 0, c.z), new IntVec3(c.x - 1, 0, c.z), new IntVec3(c.x, 0, c.z + 1), new IntVec3(c.x, 0, c.z - 1) })
-                    {
-                        if (!seen.Add(n)) continue;
-                        if (!WallSolidAt(map, n)) return steps;
-                        next.Add(n);
+            var map = frame.Map;
+            var blocked = new HashSet<IntVec3>(frame.OccupiedRect());
+            bool Open(IntVec3 c) => c.InBounds(map) && !blocked.Contains(c) && !c.Fogged(map) && c.Walkable(map)
+                && !c.IsForbidden(worker) && (worker.playerSettings?.AreaRestrictionInPawnCurrentMap == null
+                    || worker.playerSettings.AreaRestrictionInPawnCurrentMap[c])
+                && (!(c.GetEdifice(map) is Building_Door door) || door.PawnCanOpen(worker));
+            bool Step(IntVec3 a, IntVec3 b) => Open(b) && (a.x == b.x || a.z == b.z
+                || Open(new IntVec3(a.x, 0, b.z)) || Open(new IntVec3(b.x, 0, a.z)));
+            // One escape seed: multiple seeds could hide disconnected regions.
+            var start = worker.Position;
+            if (blocked.Contains(start)) {
+                start = GenAdj.AdjacentCells.Select(d => worker.Position + d).OrderBy(c => c.x).ThenBy(c => c.z)
+                    .Where(c => Step(worker.Position, c) && c.Standable(map))
+                    .Select(c => (IntVec3?)c).FirstOrDefault() ?? IntVec3.Invalid;
+                if (!Open(start)) return false;
+            }
+            var reached = new HashSet<IntVec3> { start };
+            var queue = new Queue<IntVec3>();
+            queue.Enqueue(start);
+            while (queue.Count != 0) {
+                var c = queue.Dequeue();
+                foreach (var d in GenAdj.AdjacentCells) {
+                    var n = c + d;
+                    if (Step(c, n) && reached.Add(n)) queue.Enqueue(n);
+                }
+            }
+            foreach (var cell in blocked)
+                foreach (var d in GenAdj.AdjacentCells) {
+                    var neighbour = cell + d;
+                    if (!neighbour.InBounds(map)) continue;
+                    foreach (var t in neighbour.GetThingList(map)) {
+                        if (t == frame || !UnfinishedWall(t)) continue;
+                        if (!GenAdj.AdjacentCells.Any(a => {
+                            var approach = neighbour + a;
+                            return reached.Contains(approach) && approach.Standable(map) && Step(neighbour, approach);
+                        })) return false;
                     }
                 }
-                frontier = next;
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned) {
+                if (blocked.Contains(pawn.Position)) {
+                    if (!GenAdj.AdjacentCells.Any(d => reached.Contains(pawn.Position + d)
+                        && (pawn.Position + d).Standable(map) && Step(pawn.Position, pawn.Position + d))) return false;
+                } else if (!reached.Contains(pawn.Position)
+                    && worker.CanReach(pawn.Position, PathEndMode.OnCell, Danger.Deadly)) return false;
             }
-            return MaxDepth;
-        }
-
-        private static bool DeeperUnfinishedBeside(Map map, IntVec3 cell)
-        {
-            var depth = -1;
-            for (var dx = -1; dx <= 1; dx++)
-            {
-                for (var dz = -1; dz <= 1; dz++)
-                {
-                    if (dx == 0 && dz == 0) continue;
-                    var n = new IntVec3(cell.x + dx, 0, cell.z + dz);
-                    if (!n.InBounds(map) || !HoldsUnfinishedWall(map, n)) continue;
-                    if (depth < 0) depth = Depth(map, cell);
-                    if (Depth(map, n) > depth) return true;
-                }
-            }
-            return false;
+            return true;
         }
     }
 }

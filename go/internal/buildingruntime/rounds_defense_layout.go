@@ -1472,9 +1472,8 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 			}
 		}
 	}
-	// A perimeter section skips it: a wall blueprint is walkable and the native
-	// guard (#2314) builds a thick wall inner layer first, so placing a section
-	// walls no colonist in, and the gates are the layout's own design.
+	// Perimeter blueprints and frames are walkable; native completion guards
+	// unfinished neighbours and colonist access (#2314). Gates belong to the layout.
 	if !policy.IsPerimeterTier(tier.Name) {
 		targets := append([]domain.Cell{record.Entry}, record.Entrances...)
 		access, _, err := r.native.ReadSpatialAccess(call, boundary.Identity(state.Snapshot), blockedCells, targets, nil)
