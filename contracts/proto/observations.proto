@@ -2439,11 +2439,17 @@ message CreepJoinerState { optional string form = 1; optional string benefit = 2
 // mode; escaping the pawn has begun to escape; can_be_captured whether the
 // game lets the player capture it. needs_tend is Pawn.health
 // HasHediffsNeedingTend and bleeding a positive BleedRateTotal (#1743): a
-// held entity is tended like any patient or bleeds out.
+// held entity is tended like any patient or bleeds out. harvester_attached is
+// Building_HoldingPlatform.HasAttachedBioferriteHarvester (a powered harvester
+// linked to the platform, which forces extract_bioferrite false) and
+// bioferrite_per_day CompProducesBioferrite.BioferritePerDay (#2434): body size
+// times the comp's density, 0 for an entity that produces none and while the
+// BioferriteExtracted hediff stands (8 days after an extraction).
 message HeldState {
   optional bool held = 1; rimgovernor.common.v1.Ref platform = 2; optional EntityContainmentModeKind mode = 3; optional bool escaping = 4;
   optional bool extract_bioferrite = 5; optional bool can_be_captured = 6;
   optional bool needs_tend = 7; optional bool bleeding = 8;
+  optional bool harvester_attached = 9; optional double bioferrite_per_day = 10;
 }
 // CompStudiable: progress_percent is 0..1; knowledge_category and
 // anomaly_knowledge are the values the game resolves for this thing;

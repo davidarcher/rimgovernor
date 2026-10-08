@@ -81,6 +81,9 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 			return nil, contract("%v", err)
 		}
 		intent.Setting = &o.PawnSettingsIntent_ChoosePermit{ChoosePermit: &o.PermitChoice{FactionDef: proto.String(faction), Permit: proto.String(permit)}}
+	case domain.SettingExtractBioferrite:
+		on, _ := v.ExtractBioferrite()
+		intent.Setting = &o.PawnSettingsIntent_ExtractBioferrite{ExtractBioferrite: on}
 	default:
 		return nil, contract("unknown pawn setting")
 	}

@@ -50,6 +50,11 @@ type CapturableEntity struct {
 	// CurrentlyStudiable is CompStudiable.CurrentlyStudiable (#1744); a
 	// known false for an entity with no study block.
 	CurrentlyStudiable domain.Fact[bool]
+	// Mode, ExtractBioferrite, HarvesterAttached and BioferritePerDay are
+	// the held entity's bioferrite harvest facts (#2434).
+	Mode                                 domain.Fact[ContainmentMode]
+	ExtractBioferrite, HarvesterAttached domain.Fact[bool]
+	BioferritePerDay                     domain.Fact[float64]
 }
 
 // EntityDecision is what the rule does with one downed entity.

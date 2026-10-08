@@ -54,8 +54,13 @@ type EntityHeld struct {
 	// NeedsTend is HasHediffsNeedingTend and Bleeding a positive bleed rate
 	// (#1743).
 	NeedsTend, Bleeding domain.Fact[bool]
-	Platform            domain.Fact[string]
-	Mode                domain.Fact[ContainmentMode]
+	// HarvesterAttached is the platform's HasAttachedBioferriteHarvester and
+	// BioferritePerDay CompProducesBioferrite.BioferritePerDay, 0 while the
+	// BioferriteExtracted hediff stands (#2434).
+	HarvesterAttached domain.Fact[bool]
+	BioferritePerDay  domain.Fact[float64]
+	Platform          domain.Fact[string]
+	Mode              domain.Fact[ContainmentMode]
 }
 
 // StudyState is a studiable thing's CompStudiable state. ProgressPercent is

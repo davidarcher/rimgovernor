@@ -11,7 +11,9 @@ import (
 // (#1310), medicine carry (#1307), the medical care cap (#1301) and the
 // reading policy (#1306), the drug policy (#1537), the food policy
 // (#1541), a mech's work mode and control group (#1685, the one arm pair
-// whose pawn is a mechanoid, not a colonist) and a royal permit (#1878).
+// whose pawn is a mechanoid, not a colonist), a royal permit (#1878) and a
+// held entity's extract-bioferrite flag (#2434, the other arm whose pawn is
+// not a colonist).
 // Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
@@ -61,6 +63,10 @@ const (
 	// SettingChoosePermit spends permit points on one permit of a faction
 	// (#1878).
 	SettingChoosePermit SettingKind = "choose_permit"
+	// SettingExtractBioferrite sets a held entity's CompHoldingPlatformTarget
+	// extractBioferrite flag, which the game's own Doctor work giver
+	// (WorkGiver_ExtractBioferrite) reads (#2434).
+	SettingExtractBioferrite SettingKind = "extract_bioferrite"
 )
 
 // MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
@@ -120,6 +126,22 @@ type PawnSettings struct {
 	mechGroup int
 	faction   string
 	permit    string
+	extract   bool
+}
+
+// NewExtractBioferriteSetting sets the extract-bioferrite flag of the held
+// entity pawn (#2434). Native refuses a pawn that is no entity on a holding
+// platform.
+func NewExtractBioferriteSetting(pawn PawnID, on bool) (PawnSettings, error) {
+	if !validID(string(pawn)) {
+		return PawnSettings{}, errors.New("an extract bioferrite setting requires a held entity")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingExtractBioferrite, extract: on}, nil
+}
+
+// ExtractBioferrite is the flag value, and whether this is the extract bioferrite arm.
+func (s PawnSettings) ExtractBioferrite() (on, ok bool) {
+	return s.extract, s.kind == SettingExtractBioferrite
 }
 
 // NewChoosePermitSetting has the colonist take permit (a RoyalTitlePermitDef
@@ -279,6 +301,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewMechControlGroupSetting(s.pawn, s.mechGroup)
 	case SettingChoosePermit:
 		return NewChoosePermitSetting(s.pawn, s.faction, s.permit)
+	case SettingExtractBioferrite:
+		return NewExtractBioferriteSetting(s.pawn, s.extract)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

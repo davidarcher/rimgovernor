@@ -247,7 +247,13 @@ namespace HomeBridge.BridgeTools
                     var held = new Obs.HeldState { Held = target.CurrentlyHeldOnPlatform, Mode = NativeEnums.ContainmentMode(target.containmentMode),
                         Escaping = target.isEscaping, ExtractBioferrite = target.extractBioferrite, CanBeCaptured = target.CanBeCaptured,
                         NeedsTend = pawn.health.HasHediffsNeedingTend(false), Bleeding = Finite(pawn.health.hediffSet.BleedRateTotal) && pawn.health.hediffSet.BleedRateTotal > 0 };
-                    if (target.HeldPlatform is Building_HoldingPlatform platform) held.Platform = NativeRef.Thing(platform);
+                    if (target.HeldPlatform is Building_HoldingPlatform platform)
+                    {
+                        held.Platform = NativeRef.Thing(platform);
+                        held.HarvesterAttached = platform.HasAttachedBioferriteHarvester;
+                    }
+                    var perDay = CompProducesBioferrite.BioferritePerDay(pawn);
+                    if (Finite(perDay)) held.BioferritePerDay = perDay;
                     row.Held = held;
                 }
             }

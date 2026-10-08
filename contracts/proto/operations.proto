@@ -395,6 +395,12 @@ message AbilityNoTarget {}
 // applies (the permit belongs to the faction, the colonist's title reaches its
 // minimum, its prerequisite is held, the faction's permit points cover its
 // cost); native reads the held permit back, UNCHANGED when it was already held.
+// extract_bioferrite (#2434) is a held entity's extractBioferrite flag, which
+// the game's own Doctor work giver reads to extract; it takes the entity on a
+// holding platform and reads the flag back, UNCHANGED when it already held.
+// Native refuses an entity whose platform has an attached bioferrite harvester
+// (the game forces the flag false) and a true flag before BioferriteExtraction
+// is researched.
 message PawnSettingsIntent {
   optional string pawn_id = 1;
   oneof setting {
@@ -409,6 +415,7 @@ message PawnSettingsIntent {
     string mech_work_mode = 10;
     int32 mech_control_group = 11;
     PermitChoice choose_permit = 12;
+    bool extract_bioferrite = 13;
   }
 }
 // The faction def and the RoyalTitlePermitDef a choose_permit setting takes.

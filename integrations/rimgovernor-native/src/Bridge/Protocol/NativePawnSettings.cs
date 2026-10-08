@@ -36,6 +36,10 @@ namespace HomeBridge.BridgeTools
     // a colonist's permit points on one permit of a faction through
     // Pawn_RoyaltyTracker.AddPermit after the checks the game's permit window
     // (PermitsCardUtility) applies, and reads the held permit back.
+    // extract_bioferrite (#2434) is a held entity's
+    // CompHoldingPlatformTarget.extractBioferrite, the flag the game's own
+    // Doctor work giver reads; it takes an entity a holding platform holds on
+    // the map and reads the flag back.
     // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
@@ -89,6 +93,8 @@ namespace HomeBridge.BridgeTools
                 return ResolveMech(intent, context, out pawn, out _, out _, out _);
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ChoosePermit)
                 return ResolvePermit(intent, out pawn, out _, out _);
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ExtractBioferrite)
+                return ResolveExtractBioferrite(intent, context, out pawn, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
@@ -135,6 +141,8 @@ namespace HomeBridge.BridgeTools
                 return ApplyMech(intent, context);
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ChoosePermit)
                 return ApplyPermit(intent);
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ExtractBioferrite)
+                return ApplyExtractBioferrite(intent, context);
             var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
@@ -414,6 +422,48 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.Permit,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+        }
+
+        // extract_bioferrite (#2434): the entity a holding platform of the
+        // map holds (a held pawn is in the platform's container, not among the
+        // spawned pawns). The game's work giver offers the extraction only for
+        // a true flag, and the platform's powered bioferrite harvester forces
+        // the flag false every tick (CompHoldingPlatformTarget.CompTick), so
+        // true is refused while a harvester is attached and until
+        // BioferriteExtraction is researched (the research that unlocks the
+        // order). A false flag is always accepted.
+        private static Common.Failure? ResolveExtractBioferrite(Operations.PawnSettingsIntent intent, Common.ObservationContext context,
+            out Pawn? pawn, out CompHoldingPlatformTarget? target)
+        {
+            pawn = null; target = null;
+            if (!ModsConfig.AnomalyActive)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Extracting bioferrite needs the Anomaly DLC.");
+            var map = ProtoBoundary.LoadedMap(context);
+            pawn = map.listerBuildings.allBuildingsColonist.OfType<Building_HoldingPlatform>()
+                .Select(b => b.HeldPawn).Where(p => p != null).ById(intent.PawnId);
+            target = pawn?.GetComp<CompHoldingPlatformTarget>();
+            if (pawn == null || pawn.Dead || target == null)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No entity held on a holding platform of this map carries this id.");
+            if (!intent.ExtractBioferrite) return null;
+            if (!ResearchProjectDefOf.BioferriteExtraction.IsFinished)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "BioferriteExtraction is not researched.");
+            if (target.HeldPlatform?.HasAttachedBioferriteHarvester == true)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The platform has an attached bioferrite harvester, which forces the flag off.");
+            return null;
+        }
+
+        private static Receipts.EffectEvidence ApplyExtractBioferrite(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
+        {
+            var failure = ResolveExtractBioferrite(intent, context, out var pawn, out var target);
+            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            var want = intent.ExtractBioferrite;
+            var unchanged = target!.extractBioferrite == want;
+            target.extractBioferrite = want;
+            if (target.extractBioferrite != want) throw new InvalidOperationException("Native extract bioferrite requires readback.");
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.ExtractBioferrite,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 

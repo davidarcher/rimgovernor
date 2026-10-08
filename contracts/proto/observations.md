@@ -541,7 +541,10 @@ over those rows when it lands. Def numbers in the anomaly catalog and `min_conta
 `PawnState.anomaly` carries `Pawn.IsEntity`, `IsMutant` and `IsShambler`, an
 entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state
 (held on a platform and which, the ordered `EntityContainmentMode`, escaping,
-bioferrite extraction, whether it can be captured) and its `CompStudiable`
+the extract-bioferrite flag, whether the platform has an attached bioferrite
+harvester (`harvester_attached`), `bioferrite_per_day`
+(`CompProducesBioferrite.BioferritePerDay`, 0 while BioferriteExtracted stands),
+whether it can be captured) and its `CompStudiable`
 state (enabled, completed, progress, points, knowledge gained, the knowledge
 category and amount the game resolves). Three threat facts feed the
 defense tactics: `hidden_from_player` (`InvisibilityUtility.IsHiddenFromPlayer`:

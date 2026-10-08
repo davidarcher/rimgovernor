@@ -119,6 +119,25 @@ func TestPawnAnomalyRow(t *testing.T) {
 	if _, ok := held.ExtractBioferrite.Value(); ok {
 		t.Fatal("an unread bioferrite flag must stay unknown")
 	}
+	if _, ok := held.HarvesterAttached.Value(); ok {
+		t.Fatal("an unread harvester fact must stay unknown")
+	}
+	if _, ok := held.BioferritePerDay.Value(); ok {
+		t.Fatal("an unread bioferrite production must stay unknown")
+	}
+	read := anomalyPawnFixture()
+	read.Anomaly.Held.HarvesterAttached, read.Anomaly.Held.BioferritePerDay = proto.Bool(true), proto.Float64(1.5)
+	if err := validatePawnAnomaly(read.Anomaly); err != nil {
+		t.Fatal(err)
+	}
+	ra, _ := PawnAnomaly(read.Anomaly).Value()
+	rh, _ := ra.Held.Value()
+	if harvester, ok := rh.HarvesterAttached.Value(); !ok || !harvester {
+		t.Fatal("harvester", harvester, ok)
+	}
+	if perDay, ok := rh.BioferritePerDay.Value(); !ok || perDay != 1.5 {
+		t.Fatal("per day", perDay, ok)
+	}
 	study, _ := a.Study.Value()
 	if p, ok := study.ProgressPercent.Value(); !ok || p != .25 {
 		t.Fatal("progress", p, ok)
@@ -161,6 +180,7 @@ func TestPawnAnomalyRow(t *testing.T) {
 			v.Held.Mode = o.EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED.Enum()
 		},
 		"unknown mode":     func(v *o.PawnAnomaly) { v.Held.Mode = o.EntityContainmentModeKind(99).Enum() },
+		"nan production":   func(v *o.PawnAnomaly) { v.Held.BioferritePerDay = proto.Float64(math.NaN()) },
 		"empty platform":   func(v *o.PawnAnomaly) { v.Held.Platform = &c.Ref{} },
 		"progress range":   func(v *o.PawnAnomaly) { v.Study.ProgressPercent = proto.Float64(1.5) },
 		"nan knowledge":    func(v *o.PawnAnomaly) { v.Study.AnomalyKnowledge = proto.Float64(math.NaN()) },

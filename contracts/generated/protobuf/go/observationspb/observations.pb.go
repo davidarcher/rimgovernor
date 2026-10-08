@@ -43375,7 +43375,12 @@ func (x *CreepJoinerState) GetDownsideTriggered() bool {
 // mode; escaping the pawn has begun to escape; can_be_captured whether the
 // game lets the player capture it. needs_tend is Pawn.health
 // HasHediffsNeedingTend and bleeding a positive BleedRateTotal (#1743): a
-// held entity is tended like any patient or bleeds out.
+// held entity is tended like any patient or bleeds out. harvester_attached is
+// Building_HoldingPlatform.HasAttachedBioferriteHarvester (a powered harvester
+// linked to the platform, which forces extract_bioferrite false) and
+// bioferrite_per_day CompProducesBioferrite.BioferritePerDay (#2434): body size
+// times the comp's density, 0 for an entity that produces none and while the
+// BioferriteExtracted hediff stands (8 days after an extraction).
 type HeldState struct {
 	state             protoimpl.MessageState     `protogen:"open.v1"`
 	Held              *bool                      `protobuf:"varint,1,opt,name=held,proto3,oneof" json:"held,omitempty"`
@@ -43386,6 +43391,8 @@ type HeldState struct {
 	CanBeCaptured     *bool                      `protobuf:"varint,6,opt,name=can_be_captured,json=canBeCaptured,proto3,oneof" json:"can_be_captured,omitempty"`
 	NeedsTend         *bool                      `protobuf:"varint,7,opt,name=needs_tend,json=needsTend,proto3,oneof" json:"needs_tend,omitempty"`
 	Bleeding          *bool                      `protobuf:"varint,8,opt,name=bleeding,proto3,oneof" json:"bleeding,omitempty"`
+	HarvesterAttached *bool                      `protobuf:"varint,9,opt,name=harvester_attached,json=harvesterAttached,proto3,oneof" json:"harvester_attached,omitempty"`
+	BioferritePerDay  *float64                   `protobuf:"fixed64,10,opt,name=bioferrite_per_day,json=bioferritePerDay,proto3,oneof" json:"bioferrite_per_day,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -43474,6 +43481,20 @@ func (x *HeldState) GetBleeding() bool {
 		return *x.Bleeding
 	}
 	return false
+}
+
+func (x *HeldState) GetHarvesterAttached() bool {
+	if x != nil && x.HarvesterAttached != nil {
+		return *x.HarvesterAttached
+	}
+	return false
+}
+
+func (x *HeldState) GetBioferritePerDay() float64 {
+	if x != nil && x.BioferritePerDay != nil {
+		return *x.BioferritePerDay
+	}
+	return 0
 }
 
 // CompStudiable: progress_percent is 0..1; knowledge_category and
@@ -50230,7 +50251,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05_formB\n" +
 	"\n" +
 	"\b_benefitB\x15\n" +
-	"\x13_downside_triggered\"\xda\x03\n" +
+	"\x13_downside_triggered\"\xef\x04\n" +
 	"\tHeldState\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\bH\x00R\x04held\x88\x01\x01\x126\n" +
 	"\bplatform\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bplatform\x12O\n" +
@@ -50240,14 +50261,19 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fcan_be_captured\x18\x06 \x01(\bH\x04R\rcanBeCaptured\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"needs_tend\x18\a \x01(\bH\x05R\tneedsTend\x88\x01\x01\x12\x1f\n" +
-	"\bbleeding\x18\b \x01(\bH\x06R\bbleeding\x88\x01\x01B\a\n" +
+	"\bbleeding\x18\b \x01(\bH\x06R\bbleeding\x88\x01\x01\x122\n" +
+	"\x12harvester_attached\x18\t \x01(\bH\aR\x11harvesterAttached\x88\x01\x01\x121\n" +
+	"\x12bioferrite_per_day\x18\n" +
+	" \x01(\x01H\bR\x10bioferritePerDay\x88\x01\x01B\a\n" +
 	"\x05_heldB\a\n" +
 	"\x05_modeB\v\n" +
 	"\t_escapingB\x15\n" +
 	"\x13_extract_bioferriteB\x12\n" +
 	"\x10_can_be_capturedB\r\n" +
 	"\v_needs_tendB\v\n" +
-	"\t_bleeding\"\xbe\x05\n" +
+	"\t_bleedingB\x15\n" +
+	"\x13_harvester_attachedB\x15\n" +
+	"\x13_bioferrite_per_day\"\xbe\x05\n" +
 	"\n" +
 	"StudyState\x12(\n" +
 	"\rstudy_enabled\x18\x01 \x01(\bH\x00R\fstudyEnabled\x88\x01\x01\x12!\n" +

@@ -24,10 +24,12 @@ type RoundsCustodySource interface {
 // stepContainment is the custody step's containment upkeep (#1743), reached
 // when no prisoner, capture or rescue work stands: a held entity's cell door
 // held open is closed (the combat door CLOSE order, as one close_door
-// action), then a held entity that needs tending is tended through the same
+// action), then a held entity whose bioferrite pays has its extract flag set
+// (#2434, one extract_bioferrite pawn setting; the game's Doctor work then
+// runs the job), then a held entity that needs tending is tended through the same
 // SelectTend a colonist patient takes. Facts upkeep cannot read, and a door
 // no order can clear, are logged loudly and are not a pass.
-func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, containment policy.ContainmentPlanning, arbiter *stepArbiter) (RoundsPopulationCustodyResult, error) {
+func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, containment policy.ContainmentPlanning, research domain.Fact[policy.ResearchFacts], arbiter *stepArbiter) (RoundsPopulationCustodyResult, error) {
 	upkeep := policy.ContainmentDoorUpkeep(containment)
 	for _, issue := range upkeep.Issues {
 		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "containment_upkeep_issue", fmt.Sprintf("%d,%d", issue.Cell.X, issue.Cell.Z), map[string]any{"x": issue.Cell.X, "z": issue.Cell.Z, "detail": issue.Reason})
@@ -51,6 +53,29 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 			return RoundsPopulationCustodyResult{}, err
 		}
 		return r.commit(call, epoch, p, state, started, goal, method, id, action)
+	}
+	harvest := policy.BioferriteHarvestOwed(containment, research)
+	for _, reason := range harvest.Issues {
+		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "bioferrite_harvest_unread", "bioferrite", map[string]any{"detail": reason})
+	}
+	if len(harvest.Enable) > 0 {
+		entity := harvest.Enable[0]
+		prefix := fmt.Sprintf("population-bioferrite-%s-", entity)
+		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
+		if attempt >= maxMedicalAttemptsPerPatient {
+			defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "bioferrite_harvest_exhausted", string(entity), nil)
+			return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+		}
+		setting, err := domain.NewExtractBioferriteSetting(entity, true)
+		if err != nil {
+			return RoundsPopulationCustodyResult{}, err
+		}
+		id := domain.MintPlanID()
+		action, err := domain.NewPawnSettingsAction(domain.ActionID(fmt.Sprintf("%s-0", id)), setting)
+		if err != nil {
+			return RoundsPopulationCustodyResult{}, err
+		}
+		return r.commit(call, epoch, p, state, started, goal, domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt)), id, action)
 	}
 	patient, ok := policy.EntityTendTarget(containment)
 	if !ok {

@@ -5063,6 +5063,12 @@ func (*AbilityNoTarget) Descriptor() ([]byte, []int) {
 // applies (the permit belongs to the faction, the colonist's title reaches its
 // minimum, its prerequisite is held, the faction's permit points cover its
 // cost); native reads the held permit back, UNCHANGED when it was already held.
+// extract_bioferrite (#2434) is a held entity's extractBioferrite flag, which
+// the game's own Doctor work giver reads to extract; it takes the entity on a
+// holding platform and reads the flag back, UNCHANGED when it already held.
+// Native refuses an entity whose platform has an attached bioferrite harvester
+// (the game forces the flag false) and a true flag before BioferriteExtraction
+// is researched.
 type PawnSettingsIntent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	PawnId *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
@@ -5079,6 +5085,7 @@ type PawnSettingsIntent struct {
 	//	*PawnSettingsIntent_MechWorkMode
 	//	*PawnSettingsIntent_MechControlGroup
 	//	*PawnSettingsIntent_ChoosePermit
+	//	*PawnSettingsIntent_ExtractBioferrite
 	Setting       isPawnSettingsIntent_Setting `protobuf_oneof:"setting"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5227,6 +5234,15 @@ func (x *PawnSettingsIntent) GetChoosePermit() *PermitChoice {
 	return nil
 }
 
+func (x *PawnSettingsIntent) GetExtractBioferrite() bool {
+	if x != nil {
+		if x, ok := x.Setting.(*PawnSettingsIntent_ExtractBioferrite); ok {
+			return x.ExtractBioferrite
+		}
+	}
+	return false
+}
+
 type isPawnSettingsIntent_Setting interface {
 	isPawnSettingsIntent_Setting()
 }
@@ -5275,6 +5291,10 @@ type PawnSettingsIntent_ChoosePermit struct {
 	ChoosePermit *PermitChoice `protobuf:"bytes,12,opt,name=choose_permit,json=choosePermit,proto3,oneof"`
 }
 
+type PawnSettingsIntent_ExtractBioferrite struct {
+	ExtractBioferrite bool `protobuf:"varint,13,opt,name=extract_bioferrite,json=extractBioferrite,proto3,oneof"`
+}
+
 func (*PawnSettingsIntent_HostilityResponse) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_SelfTend) isPawnSettingsIntent_Setting() {}
@@ -5296,6 +5316,8 @@ func (*PawnSettingsIntent_MechWorkMode) isPawnSettingsIntent_Setting() {}
 func (*PawnSettingsIntent_MechControlGroup) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_ChoosePermit) isPawnSettingsIntent_Setting() {}
+
+func (*PawnSettingsIntent_ExtractBioferrite) isPawnSettingsIntent_Setting() {}
 
 // The faction def and the RoyalTitlePermitDef a choose_permit setting takes.
 type PermitChoice struct {
@@ -9203,7 +9225,7 @@ const file_operations_proto_rawDesc = "" +
 	"\aability\x18\x01 \x01(\tH\x00R\aability\x88\x01\x01B\n" +
 	"\n" +
 	"\b_ability\"\x11\n" +
-	"\x0fAbilityNoTarget\"\xf2\x04\n" +
+	"\x0fAbilityNoTarget\"\xa3\x05\n" +
 	"\x12PawnSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12]\n" +
 	"\x12hostility_response\x18\x02 \x01(\x0e2,.rimgovernor.operations.v1.HostilityResponseH\x00R\x11hostilityResponse\x12\x1d\n" +
@@ -9219,7 +9241,8 @@ const file_operations_proto_rawDesc = "" +
 	"\x0emech_work_mode\x18\n" +
 	" \x01(\tH\x00R\fmechWorkMode\x12.\n" +
 	"\x12mech_control_group\x18\v \x01(\x05H\x00R\x10mechControlGroup\x12N\n" +
-	"\rchoose_permit\x18\f \x01(\v2'.rimgovernor.operations.v1.PermitChoiceH\x00R\fchoosePermitB\t\n" +
+	"\rchoose_permit\x18\f \x01(\v2'.rimgovernor.operations.v1.PermitChoiceH\x00R\fchoosePermit\x12/\n" +
+	"\x12extract_bioferrite\x18\r \x01(\bH\x00R\x11extractBioferriteB\t\n" +
 	"\asettingB\n" +
 	"\n" +
 	"\b_pawn_id\"l\n" +
@@ -10204,6 +10227,7 @@ func file_operations_proto_init() {
 		(*PawnSettingsIntent_MechWorkMode)(nil),
 		(*PawnSettingsIntent_MechControlGroup)(nil),
 		(*PawnSettingsIntent_ChoosePermit)(nil),
+		(*PawnSettingsIntent_ExtractBioferrite)(nil),
 	}
 	file_operations_proto_msgTypes[43].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[44].OneofWrappers = []any{}

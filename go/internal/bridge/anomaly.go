@@ -179,6 +179,9 @@ func validatePawnAnomaly(a *o.PawnAnomaly) error {
 		return err
 	}
 	if h := a.Held; h != nil {
+		if err := catalogNumbers("anomaly held", h.BioferritePerDay); err != nil {
+			return err
+		}
 		if h.Platform != nil && !validRef(h.Platform) {
 			return contract("invalid anomaly holding platform")
 		}
@@ -264,6 +267,7 @@ func PawnAnomaly(a *o.PawnAnomaly) domain.Fact[policy.PawnAnomaly] {
 		if h := a.Held; h != nil {
 			held = &policy.EntityHeld{Held: optionalFact(h.Held), Escaping: optionalFact(h.Escaping), ExtractBioferrite: optionalFact(h.ExtractBioferrite),
 				NeedsTend: optionalFact(h.NeedsTend), Bleeding: optionalFact(h.Bleeding),
+				HarvesterAttached: optionalFact(h.HarvesterAttached), BioferritePerDay: optionalFact(h.BioferritePerDay),
 				CanBeCaptured: optionalFact(h.CanBeCaptured), Platform: domain.Known(h.GetPlatform().GetId()), Mode: domain.Unknown[policy.ContainmentMode]()}
 			if h.Mode != nil {
 				held.Mode = domain.Known(containmentMode(h.GetMode()))
