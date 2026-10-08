@@ -89,17 +89,34 @@ func (b OpenBill) picks() []Amount {
 const StaleBillReviews = 4
 
 // StaleBill is a finite (gear_batch) bill still on its bench whose journaled
-// owner placed it: the id RemoveProductionBill names.
+// owner placed it: the id RemoveProductionBill names. Products and Worker are
+// the bench census's read of the bill, what an owner's wanted set is matched
+// against; Worker is "" unless the census knew the pinned colonist.
 type StaleBill struct {
 	Owner     ConcernID
 	Bench, ID string
+	Products  []Resource
+	Worker    string
 }
 
-// StaleBillOwner reports whether id's planners remove stale bills. Excluded:
-// MaintainMechs (a gestation is a Bill_Mech the native handler does not
-// remove, and MechGestationOwed counts the placed gestation bill as covering
-// the need, so removal would loop) and EnsureFoodSupply (its hunter-weapon
-// bills; filing it Unmet would start the food machinery).
+// UnwantedBillOwner reports whether id's planners remove a bill that matches
+// nothing the owner currently wants, whatever its finding (#2433): the owners
+// of StaleBillOwner plus EnsureFoodSupply, whose hunter-weapon bills the armory
+// planner removes under the food Standard without filing it Unmet.
+//
+// MaintainMechs is excluded from both rules. A gestation is a Bill_Mech: once
+// a gestator starts it the bill is the mech being formed, which neither a pawn
+// job nor an unfinished item shows the native handler, so removing it destroys
+// the mech; and MechGestationOwed reads not-owed for exactly that stretch, so
+// the owner stays Met while the bill is legitimately working and a Met-streak
+// rule would name it stale mid-gestation.
+func UnwantedBillOwner(id ConcernID) bool {
+	return StaleBillOwner(id) || id == EnsureFoodSupply
+}
+
+// StaleBillOwner reports whether id is filed Unmet for a bill it placed once it
+// stayed Met for StaleBillReviews (#2411). EnsureFoodSupply is excluded:
+// filing it Unmet would start the food machinery.
 func StaleBillOwner(id ConcernID) bool {
 	return id == MaintainEquipment || id == MaintainArt || id == MaintainSurgery
 }

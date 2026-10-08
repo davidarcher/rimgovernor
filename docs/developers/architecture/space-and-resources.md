@@ -89,6 +89,17 @@ open; the planners do not rank:
   filtered member where stock is short, merged into the construction demand. A
   bill left undispatched for a day (`policy.OpenBillExpiry`, timed in memory) is
   cancelled; its planner places it again while the need stands.
+- Stale finite bills (`policy.StaleBillReviews` = 4 reviews, counted in memory by
+  `staleBills`) are removed with `remove_production_bill`, journaled under the
+  owner's Standard, in two cases. An owner that stayed Met (equipment, art,
+  surgery) is filed Unmet for the bill. A bill outside what its owner currently
+  wants is removed whatever the owner's finding: gear and armory weapons judge
+  products against the loadout replacements and the weapon demand, art against
+  the qualifying artists (the pinned worker), surgery against the part demand.
+  The armory also removes hunter-weapon bills under the food Standard without
+  filing food Unmet. Gestation bills (`MaintainMechs`) are excluded from both: a
+  started gestation is the mech being formed, which the native handler cannot
+  see as work, and the owner reads Met for exactly that stretch.
 
 Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
 plan (`UrgentPriority`); remote loot and salvage rank through the recovery queue

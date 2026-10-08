@@ -122,6 +122,25 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
+	// A weapon bill the demand no longer names goes whatever the owner's
+	// finding (#2433): equipment's own, and the hunter weapons filed under
+	// food, removed under the food Standard so that no food step starts.
+	wantedWeapons := policy.WeaponsWanted(weapons, hunters)
+	judge := func(b policy.StaleBill) (bool, bool) {
+		return policy.WeaponBill(b.Products), policy.BillWanted(b.Products, wantedWeapons)
+	}
+	for _, owner := range []struct {
+		goal    store.WorkOwner
+		concern policy.ConcernID
+		open    bool
+	}{{goal, policy.MaintainEquipment, workable}, {food, policy.EnsureFoodSupply, foodWorkable}} {
+		if !owner.open {
+			continue
+		}
+		if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, owner.goal, owner.concern, judge); err != nil || plan != "" {
+			return RoundsArmoryResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
+		}
+	}
 	if unarmed > 0 && !weaponBenchHosted(benches) {
 		return r.placeCraftingSpot(call, epoch, arbiter)
 	}

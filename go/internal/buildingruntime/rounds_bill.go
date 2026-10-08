@@ -150,6 +150,18 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	projection := read.Projection
 	recordStepRead("bill", r.need, state.Snapshot, projection)
 	if r.purpose == policy.ArtBill {
+		// A sculpture pinned to someone who is no longer an artist can never be
+		// worked: removed whatever the owner's finding (#2433).
+		if pawns, known := projection.WorkPawns.Value(); known {
+			artists := map[string]bool{}
+			for _, id := range policy.Artists(policy.Profiles(pawns)) {
+				artists[string(id)] = true
+			}
+			judge := func(b policy.StaleBill) (bool, bool) { return b.Worker != "", artists[b.Worker] }
+			if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, r.need, judge); err != nil || plan != "" {
+				return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
+			}
+		}
 		selected, missing, art, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
 		// A placed sculpture bill is no work to the clock, but the
 		// sculpture takes days of game time (#1195).
@@ -180,6 +192,13 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns, projection.SurgeryContext())
 		if err != nil {
 			return RoundsBillResult{}, err
+		}
+		// A part bill no waiting operation names goes whatever the owner's
+		// finding (#2433).
+		wanted := policy.SurgeryPartsWanted(parts)
+		judge := func(b policy.StaleBill) (bool, bool) { return true, policy.BillWanted(b.Products, wanted) }
+		if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, r.need, judge); err != nil || plan != "" {
+			return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
 		}
 		selected, gap := policy.SelectSurgeryPartBill(benches, parts)
 		if gap != "" {

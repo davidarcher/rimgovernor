@@ -17,11 +17,26 @@ import (
 // staleBills counts, per bill on a bench, the consecutive reviews its owner
 // stayed Met (#2411): derived state the Rounder keeps in memory beside
 // billAges, so a restart restarts every count and removal is merely delayed.
+//
+// A bill an owner no longer wants is counted apart (#2433): the planner that
+// built the owner's demand notes, once per review, which of the owner's bills
+// that demand does not name, whatever the owner's finding.
 type staleBills struct {
 	mu     sync.Mutex
 	streak map[string]int
 	// due are the bills at StaleBillReviews or more, for the planners.
 	due []policy.StaleBill
+	// candidates are the last review's bills, what a planner judges.
+	candidates []policy.StaleBill
+	// unwanted counts, per bill, the reviews a planner found it outside the
+	// owner's demand.
+	unwanted map[string]unwantedRun
+}
+
+type unwantedRun struct {
+	bill     policy.StaleBill
+	revision uint64
+	reviews  int
 }
 
 // stale are the candidates whose count reached policy.StaleBillReviews: the
@@ -49,19 +64,58 @@ func (s *staleBills) observe(candidates []policy.StaleBill, assessments []policy
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	next := make(map[string]int, len(candidates))
+	unwanted := make(map[string]unwantedRun, len(s.unwanted))
 	s.due = nil
 	for _, c := range candidates {
-		if met[c.Owner] {
+		if policy.StaleBillOwner(c.Owner) && met[c.Owner] {
 			next[c.ID] = s.streak[c.ID] + 1
 		}
 		if next[c.ID] >= policy.StaleBillReviews {
 			s.due = append(s.due, c)
 		}
+		if run, ok := s.unwanted[c.ID]; ok {
+			run.bill = c
+			unwanted[c.ID] = run
+		}
 	}
-	s.streak = next
+	s.streak, s.unwanted, s.candidates = next, unwanted, candidates
 }
 
-// first is the first stale bill of owner, if any.
+// noteWanted records, for each of concern's bills the last review saw, whether
+// the owner's demand names it: judge returns judged=false for a bill this
+// planner does not own the demand of (counted neither way), wanted=true for a
+// bill the demand names (restarts its count). A bill outside the demand counts
+// one more only once per review, however many steps run under it.
+func (s *staleBills) noteWanted(revision uint64, concern policy.ConcernID, judge func(policy.StaleBill) (judged, wanted bool)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, c := range s.candidates {
+		if c.Owner != concern {
+			continue
+		}
+		judged, wanted := judge(c)
+		if !judged {
+			continue
+		}
+		if wanted {
+			delete(s.unwanted, c.ID)
+			continue
+		}
+		if s.unwanted == nil {
+			s.unwanted = map[string]unwantedRun{}
+		}
+		run := s.unwanted[c.ID]
+		if run.reviews == 0 || run.revision != revision {
+			run.reviews++
+			run.revision = revision
+		}
+		run.bill = c
+		s.unwanted[c.ID] = run
+	}
+}
+
+// first is the first stale bill of owner, if any: one whose owner stayed Met,
+// else one the owner's demand stopped naming.
 func (s *staleBills) first(owner policy.ConcernID) (policy.StaleBill, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -70,7 +124,13 @@ func (s *staleBills) first(owner policy.ConcernID) (policy.StaleBill, bool) {
 			return b, true
 		}
 	}
-	return policy.StaleBill{}, false
+	var found policy.StaleBill
+	for id, run := range s.unwanted {
+		if run.bill.Owner == owner && run.reviews >= policy.StaleBillReviews && (found.ID == "" || id < found.ID) {
+			found = run.bill
+		}
+	}
+	return found, found.ID != ""
 }
 
 // removed restarts a bill's count once its removal is committed: native may
@@ -80,6 +140,7 @@ func (s *staleBills) removed(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.streak, id)
+	delete(s.unwanted, id)
 	kept := s.due[:0]
 	for _, b := range s.due {
 		if b.ID != id {
@@ -102,6 +163,11 @@ func (r *Rounder) staleBillCandidates(ctx context.Context, snapshot domain.Gener
 		return nil, nil
 	}
 	var ids []string
+	type census struct {
+		products []policy.Resource
+		worker   string
+	}
+	seen := map[string]census{}
 	for _, read := range reads {
 		bills, known := read.Bench.Bills.Value()
 		if !known {
@@ -112,6 +178,8 @@ func (r *Rounder) staleBillCandidates(ctx context.Context, snapshot domain.Gener
 			active, ak := bill.Active.Value()
 			if bill.ID != "" && fk && finite && ak && active {
 				ids = append(ids, bill.ID)
+				worker, _ := bill.Worker.Value()
+				seen[bill.ID] = census{products: bill.Products, worker: worker}
 			}
 		}
 	}
@@ -121,12 +189,20 @@ func (r *Rounder) staleBillCandidates(ctx context.Context, snapshot domain.Gener
 	}
 	var out []policy.StaleBill
 	for id, bill := range placed {
-		if concern, bound := review.Need(bill.Standard); bound && bill.Mode == domain.GearBatch && policy.StaleBillOwner(concern) {
-			out = append(out, policy.StaleBill{Owner: concern, Bench: bill.Bench, ID: id})
+		if concern, bound := review.Need(bill.Standard); bound && bill.Mode == domain.GearBatch && policy.UnwantedBillOwner(concern) {
+			out = append(out, policy.StaleBill{Owner: concern, Bench: bill.Bench, ID: id, Products: seen[id].products, Worker: seen[id].worker})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
+}
+
+// removeUnwantedBill is removeStaleBill after the planner that built concern's
+// demand notes which of its bills the demand names (#2433): a bill outside it
+// for StaleBillReviews reviews goes whatever the owner's finding.
+func (r *Rounder) removeUnwantedBill(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, owner store.WorkOwner, concern policy.ConcernID, judge func(policy.StaleBill) (judged, wanted bool)) (domain.PlanID, error) {
+	r.staleBills.noteWanted(review.Revision, concern, judge)
+	return r.removeStaleBill(call, epoch, arbiter, state, owner, concern)
 }
 
 // removeStaleBill commits the one-action RemoveProductionBill plan for the

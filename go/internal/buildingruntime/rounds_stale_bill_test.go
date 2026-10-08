@@ -34,10 +34,10 @@ func TestStaleBillsCountConsecutiveMetReviews(t *testing.T) {
 	for i := 0; i < policy.StaleBillReviews-1; i++ {
 		s.observe(candidates, staleAssessments(domain.FindingMet, false))
 	}
-	if got := s.stale(candidates); len(got) != 1 || got[0] != bill {
+	if got := s.stale(candidates); len(got) != 1 || got[0].ID != bill.ID {
 		t.Fatalf("not stale after %d Met reviews: %v", policy.StaleBillReviews, got)
 	}
-	if first, ok := s.first(policy.MaintainEquipment); !ok || first != bill {
+	if first, ok := s.first(policy.MaintainEquipment); !ok || first.ID != bill.ID {
 		t.Fatalf("first = %v %v", first, ok)
 	}
 	if _, ok := s.first(policy.MaintainArt); ok {
@@ -55,6 +55,67 @@ func TestStaleBillsCountConsecutiveMetReviews(t *testing.T) {
 	s.observe(nil, staleAssessments(domain.FindingMet, false))
 	if len(s.streak) != 0 {
 		t.Fatalf("a bill off the bench is remembered: %v", s.streak)
+	}
+}
+
+// A bill outside its owner's demand is stale after StaleBillReviews reviews
+// whatever the owner's finding; a review counts once however many steps run
+// under it, a wanted bill restarts the count, a bill another planner judges is
+// left alone, and the food owner's bills never count by owner Met (#2433).
+func TestStaleBillsCountUnwantedReviews(t *testing.T) {
+	t.Parallel()
+	var s staleBills
+	gear := policy.StaleBill{Owner: policy.MaintainEquipment, Bench: "bench", ID: "Bill_1", Products: []policy.Resource{"Apparel_Parka"}}
+	bow := policy.StaleBill{Owner: policy.EnsureFoodSupply, Bench: "bench", ID: "Bill_2", Products: []policy.Resource{"Bow_Short"}}
+	candidates := []policy.StaleBill{gear, bow}
+	unmet := []policy.RoundsAssessment{{ID: policy.MaintainEquipment, Finding: domain.FindingUnmet}, {ID: policy.EnsureFoodSupply, Finding: domain.FindingMet}}
+	s.observe(candidates, unmet)
+	unwanted := func(policy.StaleBill) (bool, bool) { return true, false }
+	for revision := uint64(1); revision < policy.StaleBillReviews; revision++ {
+		s.noteWanted(revision, policy.MaintainEquipment, unwanted)
+		s.noteWanted(revision, policy.MaintainEquipment, unwanted)
+	}
+	if _, ok := s.first(policy.MaintainEquipment); ok {
+		t.Fatal("stale one review early, or a review counted twice")
+	}
+	s.noteWanted(policy.StaleBillReviews, policy.MaintainEquipment, func(policy.StaleBill) (bool, bool) { return false, false })
+	s.noteWanted(policy.StaleBillReviews, policy.MaintainEquipment, func(policy.StaleBill) (bool, bool) { return true, true })
+	if _, ok := s.first(policy.MaintainEquipment); ok {
+		t.Fatal("a wanted bill kept its count")
+	}
+	for revision := uint64(10); revision < 10+policy.StaleBillReviews; revision++ {
+		s.noteWanted(revision, policy.MaintainEquipment, unwanted)
+	}
+	if first, ok := s.first(policy.MaintainEquipment); !ok || first.ID != gear.ID {
+		t.Fatalf("an unwanted bill is not due: %v %v", first, ok)
+	}
+	if _, ok := s.first(policy.EnsureFoodSupply); ok {
+		t.Fatal("food's bill counted by another planner's note or by its owner Met")
+	}
+	// The food owner Met for any number of reviews never makes its bill stale.
+	for i := 0; i < 2*policy.StaleBillReviews; i++ {
+		s.observe(candidates, unmet)
+	}
+	if got := s.stale(candidates); len(got) != 0 {
+		t.Fatalf("a Met food owner made a hunter-weapon bill stale: %v", got)
+	}
+	if _, ok := s.first(policy.MaintainEquipment); !ok {
+		t.Fatal("observing forgot a counted bill still on the bench")
+	}
+	for revision := uint64(20); revision < 20+policy.StaleBillReviews; revision++ {
+		s.noteWanted(revision, policy.EnsureFoodSupply, unwanted)
+	}
+	if first, ok := s.first(policy.EnsureFoodSupply); !ok || first.ID != bow.ID {
+		t.Fatalf("a hunter-weapon bill outside the demand is not due: %v %v", first, ok)
+	}
+	// Removal restarts the count, and a bill off the bench is forgotten.
+	s.removed(gear.ID)
+	if _, ok := s.first(policy.MaintainEquipment); ok {
+		t.Fatal("a removed bill stays due")
+	}
+	s.observe(nil, unmet)
+	if len(s.unwanted) != 0 {
+		t.Fatalf("bills off the bench are remembered: %v", s.unwanted)
 	}
 }
 

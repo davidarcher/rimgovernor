@@ -255,6 +255,22 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 		}
 		pawn.Candidates = domain.Known(available)
 	}
+	if equipmentRanked(review) {
+		// An apparel or armor bill outside every loadout's replacements goes
+		// whatever the owner's finding (#2433); the armory judges weapons.
+		wanted, known, err := policy.GearBillsWanted(domain.Known(observation))
+		if err != nil {
+			return RoundsGearResult{}, err
+		}
+		if known {
+			judge := func(b policy.StaleBill) (bool, bool) {
+				return !policy.WeaponBill(b.Products), policy.BillWanted(b.Products, wanted)
+			}
+			if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, policy.MaintainEquipment, judge); err != nil || plan != "" {
+				return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
+			}
+		}
+	}
 	// Configure vanilla dressing before choosing individual replacements. The
 	// shared goal and Hands executor own this settings operation like wear work.
 	// Every pawn that needs a policy is admitted in the same step: one write per
