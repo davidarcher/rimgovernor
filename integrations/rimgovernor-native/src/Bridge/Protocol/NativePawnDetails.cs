@@ -233,16 +233,8 @@ namespace HomeBridge.BridgeTools
             }
             var map=pawn.MapHeld;
             if(map==null) {row.Issues.Add(Issue("operations",Common.UnavailableReason.NotApplicable,"Pawn is not on a map."));return;}
-            var colonists=map.mapPawns.FreeColonistsSpawned;
-            Building_Bed? bestBed=null; float bedFactor=0f;
-            foreach(var bed in map.listerBuildings.AllBuildingsColonistOfClass<Building_Bed>()) {
-                if(!bed.Medical) continue;
-                var f=bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
-                if(bestBed==null || f>bedFactor) {bestBed=bed;bedFactor=f;}
-            }
-            // The ideal bed and room (#1240): a plain Bed's factor off the map
-            // (as if clean, roofed and lit), never below the neutral 1.
-            float idealFactor=System.Math.Max(1f,ThingDefOf.Bed.GetStatValueAbstract(StatDefOf.SurgerySuccessChanceFactor,GenStuff.DefaultStuffFor(ThingDefOf.Bed)));
+            var facts=SurgeryScope.Facts(map);
+            var bestBed=facts.BestBed; var bedFactor=facts.BedFactor; var idealFactor=facts.IdealFactor;
             foreach(var def in pawn.def.AllRecipes) {
                 if(!def.AvailableNow || def.Worker==null || !def.Worker.AvailableReport(pawn).Accepted) continue;
                 var targets=def.targetsBodyPart?def.Worker.GetPartsToApplyOn(pawn,def).ToList()
@@ -254,12 +246,12 @@ namespace HomeBridge.BridgeTools
                     if(!def.AvailableOnNow(pawn,part)) continue;
                     if(!shared) {
                         shared=true;
-                        doctors=colonists.Where(p => p!=pawn && !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
-                            && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) && def.PawnSatisfiesSkillRequirements(p)).ToList();
-                        medicine=MedicineFor(pawn,def,map,true);
-                        others=!def.PotentiallyMissingIngredients(null,map).Any();
-                        usesMedicine=def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine));
-                        careLimited=others && usesMedicine && medicine==null && MedicineFor(pawn,def,map,false)!=null;
+                        var recipe=facts.Recipe(def,map);
+                        doctors=recipe.Doctors.Contains(pawn)?recipe.Doctors.Where(p => p!=pawn).ToList():recipe.Doctors;
+                        medicine=facts.Medicine(pawn,def,true);
+                        others=recipe.Others;
+                        usesMedicine=recipe.UsesMedicine;
+                        careLimited=others && usesMedicine && medicine==null && facts.Medicine(pawn,def,false)!=null;
                     }
                     var op=new Obs.SurgeryOperation {Recipe=Definition(def),Kind=Kind(pawn,def,part),
                         EligibleDoctors=(uint)doctors.Count,
@@ -297,12 +289,86 @@ namespace HomeBridge.BridgeTools
 
         // The best-potency medicine on the map that the recipe allows and,
         // when care is set, the patient's care policy too; null when none.
-        private static ThingDef? MedicineFor(Pawn pawn,RecipeDef def,Map map,bool care)
-            => map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine)
-                .Where(t => !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)
-                    && (!care || pawn.playerSettings==null || pawn.playerSettings.medCare.AllowsMedicine(t.def))
+        private static ThingDef? MedicineFor(Pawn pawn,RecipeDef def,System.Collections.Generic.List<Thing> stock,bool care)
+            => stock
+                .Where(t => (!care || pawn.playerSettings==null || pawn.playerSettings.medCare.AllowsMedicine(t.def))
                     && def.ingredients.Any(i => i.filter.Allows(t)))
                 .Select(t => t.def).OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
+
+        // The pawn-independent surgery facts of one capture (#1575): the
+        // unforbidden medicine stock, the best medical bed, and per recipe
+        // its eligible doctors and ingredient availability. Table() opens a
+        // scope so every pawn of the frame shares them; a lone Surgery call
+        // gets a throwaway one, so a read is always from the current map.
+        internal sealed class SurgeryScope : IDisposable
+        {
+            [ThreadStatic] private static SurgeryScope? current;
+            private readonly SurgeryScope? previous;
+            private readonly System.Collections.Generic.Dictionary<Map,MapFacts> maps=new System.Collections.Generic.Dictionary<Map,MapFacts>();
+
+            internal SurgeryScope() {previous=current;current=this;}
+            public void Dispose() {current=previous;}
+
+            internal static MapFacts Facts(Map map)
+            {
+                var scope=current;
+                if(scope==null) return new MapFacts(map);
+                if(!scope.maps.TryGetValue(map,out var facts)) scope.maps[map]=facts=new MapFacts(map);
+                return facts;
+            }
+        }
+
+        internal sealed class RecipeFacts
+        {
+            internal System.Collections.Generic.List<Pawn> Doctors=null!;
+            internal bool Others, UsesMedicine;
+        }
+
+        internal sealed class MapFacts
+        {
+            internal readonly Building_Bed? BestBed; internal readonly float BedFactor, IdealFactor;
+            private readonly System.Collections.Generic.List<Pawn> colonists;
+            private readonly System.Collections.Generic.List<Thing> stock;
+            private readonly System.Collections.Generic.Dictionary<RecipeDef,RecipeFacts> recipes=new System.Collections.Generic.Dictionary<RecipeDef,RecipeFacts>();
+            private readonly System.Collections.Generic.Dictionary<RecipeDef,System.Collections.Generic.Dictionary<int,ThingDef?>> medicines=new System.Collections.Generic.Dictionary<RecipeDef,System.Collections.Generic.Dictionary<int,ThingDef?>>();
+
+            internal MapFacts(Map map)
+            {
+                colonists=map.mapPawns.FreeColonistsSpawned.ToList();
+                stock=map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine)
+                    .Where(t => !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)).ToList();
+                foreach(var bed in map.listerBuildings.AllBuildingsColonistOfClass<Building_Bed>()) {
+                    if(!bed.Medical) continue;
+                    var f=bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
+                    if(BestBed==null || f>BedFactor) {BestBed=bed;BedFactor=f;}
+                }
+                // The ideal bed and room (#1240): a plain Bed's factor off the map
+                // (as if clean, roofed and lit), never below the neutral 1.
+                IdealFactor=System.Math.Max(1f,ThingDefOf.Bed.GetStatValueAbstract(StatDefOf.SurgerySuccessChanceFactor,GenStuff.DefaultStuffFor(ThingDefOf.Bed)));
+            }
+
+            // Doctors include every eligible colonist; the caller drops the patient.
+            internal RecipeFacts Recipe(RecipeDef def,Map map)
+            {
+                if(recipes.TryGetValue(def,out var facts)) return facts;
+                facts=new RecipeFacts {
+                    Doctors=colonists.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
+                        && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) && def.PawnSatisfiesSkillRequirements(p)).ToList(),
+                    Others=!def.PotentiallyMissingIngredients(null,map).Any(),
+                    UsesMedicine=def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine)) };
+                recipes[def]=facts;
+                return facts;
+            }
+
+            internal ThingDef? Medicine(Pawn pawn,RecipeDef def,bool care)
+            {
+                // The care policy is the only pawn input: key by its category.
+                var key=!care ? 0 : pawn.playerSettings==null ? 1 : 2+(int)pawn.playerSettings.medCare;
+                if(!medicines.TryGetValue(def,out var byCare)) medicines[def]=byCare=new System.Collections.Generic.Dictionary<int,ThingDef?>();
+                if(!byCare.TryGetValue(key,out var medicine)) byCare[key]=medicine=MedicineFor(pawn,def,stock,care);
+                return medicine;
+            }
+        }
 
         // Vanilla SurgeryOutcomeEffectDef.GetQuality, except a patient not yet
         // in bed is scored in the best colony medical bed it will lie in.

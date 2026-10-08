@@ -91,6 +91,7 @@ namespace HomeBridge.BridgeTools
             var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
             var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(source.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
             double? raidArmor = null; var armorRead = false;
+            using var surgery = new NativePawnDetails.SurgeryScope();
             foreach (var pawn in source.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
                 var details = !pawn.Dead && pawn.IsFreeColonist ? ColonistDetail : combat.Contains(Id(pawn.GetUniqueLoadID())) ? CombatDetail
                     : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
