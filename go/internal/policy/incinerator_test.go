@@ -86,3 +86,52 @@ func TestIncinerationOwnerDeclaresOneDumpOverTheYard(t *testing.T) {
 		t.Fatal("a dump without a plan")
 	}
 }
+
+// The dump's explicit footprint can be split by kept terrain beside the
+// incinerator. It must still produce a legal zone without blocking other stores.
+func TestStockpileCreatesWithSplitWasteYard(t *testing.T) {
+	t.Parallel()
+	yard := Rectangle{X: 4, Z: 4, Width: 7, Height: 7}
+	incinerator := Rectangle{X: 6, Z: 6, Width: 3, Height: 3}
+	plan := LayoutPlan{Rooms: []PlannedRoom{
+		{Role: PlannedWasteYard, Interior: yard},
+		{Role: PlannedIncinerator, Interior: incinerator},
+		{Role: PlannedStorage, Interior: Rectangle{X: 14, Z: 4, Width: 3, Height: 3}},
+	}}
+	blocked := []domain.Cell{{X: 4, Z: 7}, {X: 10, Z: 7}}
+	open := sitingOpen(blocked...)
+	request := StockpileRequest{Bounds: open.bounds, Stores: DeclareStores(StoreView{Layout: &plan}).Stores}
+	for _, cell := range open.cells {
+		request.Cells = append(request.Cells, cell)
+	}
+	review := PlanStockpileMaintenance(request)
+	created := map[string]StockpileEdit{}
+	for _, edit := range review.Edits {
+		if edit.Kind != StockpileCreate {
+			continue
+		}
+		if _, err := domain.NewFilteredStockpileZone(edit.Filter, edit.Priority, edit.Cells); err != nil {
+			t.Fatalf("%s create violates zone contract: %v; cells=%v", edit.Role, err, edit.Cells)
+		}
+		created[edit.Role] = edit
+	}
+	dump, ok := created[domain.DumpRole]
+	if !ok || len(dump.Cells) != 11 || dump.Cells[0] != (domain.Cell{X: 4, Z: 4}) {
+		t.Fatalf("dump must take the first of two equal connected patches: %+v", dump)
+	}
+	outline := cellSet(rectCells(pad(incinerator, 1)))
+	for _, cell := range dump.Cells {
+		if outline[cell] || cellSet(blocked)[cell] {
+			t.Fatalf("dump covers excluded cell %v", cell)
+		}
+	}
+	if len(created[domain.GeneralRole].Cells) != 9 {
+		t.Fatalf("other store held back: %+v", created)
+	}
+	request.Zones = []StockpileZone{{ID: "dump", Role: dump.Role, Cells: dump.Cells, Filter: dump.Filter, Priority: dump.Priority}}
+	for _, edit := range PlanStockpileMaintenance(request).Edits {
+		if edit.Role == domain.DumpRole {
+			t.Fatalf("standing dump must keep its size: %+v", edit)
+		}
+	}
+}

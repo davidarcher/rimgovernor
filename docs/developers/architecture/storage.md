@@ -21,6 +21,10 @@ It is never grown, shrunk or merged, never given a stand-in, and deleted only
 when its purpose is gone (a bench demolished, a room retired), create before
 delete on a move. Headroom is another room: see below.
 
+If obstacles or exclusions split a store's usable ground, its zone takes the
+largest connected patch, for both rectangular and explicit footprints. Equal
+patches choose the lowest cell. The standing zone keeps that size.
+
 ## The stores
 
 

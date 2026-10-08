@@ -81,9 +81,9 @@ func storeServed(zones []StockpileZone, site StoreSite) bool {
 }
 
 // Cells is the ground the site's zone would take now, or nil when none can be
-// had. A whole-room cover is every interior cell that is open (cells holding a
-// building or blocked are skipped, never the wall ring, which lies outside the
-// interior); a rectangle is the free Width x Height patch inside the interior
+// had. A whole-room cover is the largest connected set of open footprint cells
+// (buildings, blocked cells and the wall ring are excluded); a rectangle is the
+// free Width x Height patch inside the interior
 // nearest Anchor.
 func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
 	if s.room == nil {
@@ -95,12 +95,8 @@ func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
 		}
 	}
 	if s.Width <= 0 || s.Height <= 0 {
-		cover := coverCells(open, s.footprint())
-		if s.room == nil {
-			// A kept cell may split the room; native refuses a split zone.
-			cover = largestComponent(cover)
-		}
-		return cover
+		// Exclusions can split either a rectangular or an explicit footprint.
+		return largestComponent(coverCells(open, s.footprint()))
 	}
 	within := open
 	within.only = cellSet(withoutCells(s.footprint(), s.Avoid))
